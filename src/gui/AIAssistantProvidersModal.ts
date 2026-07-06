@@ -2,9 +2,9 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
-import { dedupeModels } from "src/ai/modelsDirectory";
-import { discoverProviderModels } from "src/ai/modelDiscoveryService";
-import { resolveProviderApiKey } from "src/ai/providerSecrets";
+import { mergeModels } from "src/ai/modelsDirectory";
+import { syncProviderModels } from "src/ai/modelSyncService";
+import { settingsStore } from "src/settingsStore";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { deepClone } from "src/utils/deepClone";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
@@ -35,6 +35,30 @@ export class AIAssistantProvidersModal extends Modal {
 
 		this.open();
 		this.display();
+		void this.autoSyncOnOpen();
+	}
+
+	/**
+	 * Quiet refresh of every auto-sync provider when the settings open, so the
+	 * lists a user is about to browse are current. Failures stay silent here —
+	 * the explicit "Sync now" button is the loud path.
+	 */
+	private async autoSyncOnOpen(): Promise<void> {
+		if (settingsStore.getState().disableOnlineFeatures) return;
+
+		let changed = false;
+		for (const provider of this.providers) {
+			if (!provider.autoSyncModels) continue;
+			try {
+				const { added } = await syncProviderModels(this.app, provider);
+				changed = changed || added > 0;
+			} catch {
+				// Quiet by design; "Sync now" surfaces errors.
+			}
+		}
+
+		// Refresh whatever view is showing, but never clobber in-progress edits.
+		if (changed && !this.selectedProvider) this.reload();
 	}
 
 	private display(): void {
@@ -178,7 +202,7 @@ export class AIAssistantProvidersModal extends Modal {
 			.addDropdown((dropdown) => {
 				dropdown.addOption(
 					"providerApi",
-					"Provider /v1/models (requires API key)",
+					"Provider models endpoint (requires API key)",
 				);
 				dropdown.addOption("modelsDev", "models.dev directory");
 				dropdown.addOption(
@@ -201,9 +225,16 @@ export class AIAssistantProvidersModal extends Modal {
 		});
 
         this.selectedProvider!.models.forEach((model, i) => {
+            const metadata = [`Context: ${model.maxTokens.toLocaleString()} tokens`];
+            if (model.maxOutputTokens) {
+                metadata.push(`Output: ${model.maxOutputTokens.toLocaleString()} tokens`);
+            }
+            if (model.supportsTemperature === false) {
+                metadata.push("Fixed sampling (no temperature)");
+            }
             new Setting(modelsContainer)
                 .setName(model.name)
-                .setDesc(`Max Tokens: ${model.maxTokens}`)
+                .setDesc(metadata.join(" · "))
                 .addButton((button) => {
                     button.onClick(async () => {
                         const confirmation = await GenericYesNoPrompt.Prompt(
@@ -281,7 +312,9 @@ export class AIAssistantProvidersModal extends Modal {
                     if (mode === "replace") {
                         this.selectedProvider!.models = imported;
                     } else {
-                        this.selectedProvider!.models = dedupeModels(
+                        // Merge (not append-only dedupe): re-importing a model the
+                        // provider already has refreshes its context/output metadata.
+                        this.selectedProvider!.models = mergeModels(
                             this.selectedProvider!.models,
                             imported
                         );
@@ -298,7 +331,7 @@ export class AIAssistantProvidersModal extends Modal {
 		new Setting(container)
 			.setName("Auto-sync models")
 			.setDesc(
-				`Automatically import new models from ${sourceDescription} when opening settings.`,
+				`Keep this provider's models current automatically: QuickAdd imports new models and refreshed context limits from ${sourceDescription} once a day and when these settings open.`,
 			)
 			.addToggle((toggle) => {
 				const current = !!this.selectedProvider?.autoSyncModels;
@@ -309,19 +342,15 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
 					try {
-						const apiKey = await resolveProviderApiKey(
+						const { added } = await syncProviderModels(
 							this.app,
 							this.selectedProvider!,
 						);
-						const models = await discoverProviderModels(
-							this.selectedProvider!,
-							apiKey,
+						new Notice(
+							added > 0
+								? `Synced from ${sourceDescription}: ${added} new model(s).`
+								: `Synced from ${sourceDescription}: already up to date.`,
 						);
-						this.selectedProvider!.models = dedupeModels(
-							this.selectedProvider!.models,
-							models
-						);
-						new Notice(`Models synced from ${sourceDescription}.`);
 						this.reload();
 					} catch (err) {
 						new Notice(
@@ -382,9 +411,9 @@ export class AIAssistantProvidersModal extends Modal {
 			case "modelsDev":
 				return "the models.dev directory";
 			case "auto":
-				return "the provider's /v1/models endpoint (falls back to models.dev)";
+				return "the provider's models endpoint (falls back to models.dev)";
 			default:
-				return "the provider's /v1/models endpoint";
+				return "the provider's models endpoint";
 		}
 	}
 

@@ -32,6 +32,7 @@ import { parseSemver } from "./utils/semver";
 import { dedupeChoicesById, resolveChoiceIcon } from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
+import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { setQuickAddInstance } from "./quickAddInstance";
 import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
@@ -336,6 +337,16 @@ export default class QuickAdd extends Plugin {
 		} else {
 			this.app.workspace.onLayoutReady(launchStartupMacros);
 		}
+
+		// Keep AI provider model lists current without plugin releases: a quiet,
+		// daily-throttled background sync for providers that opted in. Deferred
+		// past layout-ready so it never competes with startup work.
+		this.app.workspace.onLayoutReady(() => {
+			window.setTimeout(() => {
+				void autoSyncEnabledProviders(this.app);
+			}, 5_000);
+		});
+
 		this.announceUpdate();
 	}
 

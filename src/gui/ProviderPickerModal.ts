@@ -1,6 +1,9 @@
 import type { App} from "obsidian";
 import { Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
+import { cloneModelSeeds } from "src/ai/Provider";
+import { syncProviderModels } from "src/ai/modelSyncService";
+import type { ProviderPreset } from "src/ai/providerPresets";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
 
 export class ProviderPickerModal extends Modal {
@@ -68,14 +71,14 @@ export class ProviderPickerModal extends Modal {
       apiSetting.settingEl.addClass("qa-provider-api-setting");
 
       apiSetting.addButton((b) => {
-          b.setButtonText("Connect").setCta().onClick(() => {
+          b.setButtonText("Connect").setCta().onClick(async () => {
             try {
               const selectedSecret = apiKeyRef.trim();
 
               // Basic validation
               try {
                 // Validate endpoint URL format
-                 
+
                 new URL(preset.endpoint);
               } catch {
                 new Notice(`Invalid endpoint URL for ${preset.name}.`);
@@ -119,17 +122,27 @@ export class ProviderPickerModal extends Modal {
               const provider: AIProvider = {
                 name: preset.name,
                 endpoint: preset.endpoint,
+                kind: preset.kind,
                 apiKey: "",
                 apiKeyRef: selectedSecret,
                 models: [],
-                modelSource: "providerApi",
+                modelSource: preset.modelSource ?? "auto",
+                autoSyncModels: true,
               };
+
+              // Import the provider's current models right away — connecting a
+              // provider should end with working models, not a manual sync step.
+              b.setButtonText("Connecting...");
+              b.setDisabled(true);
+              await this.importInitialModels(provider, preset);
+
               this.providers.push(provider);
-              new Notice(`${preset.name} added. Click Edit to configure models.`);
               // Close after a successful add so the success is unambiguous and
               // a stray second click can't push a duplicate.
               this.close();
             } catch (err) {
+              b.setButtonText("Connect");
+              b.setDisabled(false);
               new Notice(`Failed to add provider: ${(err as { message?: string }).message ?? err}`);
             }
           });
@@ -147,6 +160,36 @@ export class ProviderPickerModal extends Modal {
           this.close();
         });
       });
+  }
+
+  /**
+   * Live-import models for a just-connected provider. Failures never block the
+   * add: presets with a shipped seed list fall back to it (current at ship
+   * time; auto-sync refreshes it once the provider is reachable), the rest get
+   * a pointer to retry from the provider's settings.
+   */
+  private async importInitialModels(
+    provider: AIProvider,
+    preset: ProviderPreset,
+  ): Promise<void> {
+    try {
+      await syncProviderModels(this.app, provider);
+      new Notice(
+        `${preset.name} connected with ${provider.models.length} models.`,
+      );
+    } catch (err) {
+      const message = (err as { message?: string }).message ?? String(err);
+      if (preset.seedKey) {
+        provider.models = cloneModelSeeds(preset.seedKey);
+        new Notice(
+          `${preset.name} added with its built-in model list. Live model loading failed: ${message}`,
+        );
+      } else {
+        new Notice(
+          `${preset.name} added, but loading models failed: ${message} Use "Sync now" in the provider's settings to retry.`,
+        );
+      }
+    }
   }
 
   onClose(): void {
