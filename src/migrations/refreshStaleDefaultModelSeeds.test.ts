@@ -156,4 +156,127 @@ describe("refreshStaleDefaultModelSeeds migration", () => {
 		expect(stored.apiKey).toBe("sk-user");
 		expect(stored.endpoint).toBe("https://api.openai.com/v1");
 	});
+
+	it("normalizes the official OpenAI provider onto the curated directory source", async () => {
+		const provider = legacyOpenAIProvider();
+		provider.modelSource = "auto";
+		setProviders([provider]);
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		expect(storedProvider("OpenAI")!.modelSource).toBe("modelsDev");
+	});
+
+	it("skips seeds whose name another provider already lists (bare-name lookup routes by first match)", async () => {
+		const custom: AIProvider = {
+			name: "Local o3",
+			endpoint: "http://localhost:11434/v1",
+			apiKey: "",
+			models: [{ name: "o3", maxTokens: 8192 }],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		};
+		setProviders([legacyOpenAIProvider(), custom]);
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		const openai = storedProvider("OpenAI")!;
+		expect(openai.models.some((m) => m.name === "o3")).toBe(false);
+		// Other seeds still arrive.
+		expect(openai.models.some((m) => m.name === "gpt-5.5")).toBe(true);
+		// The custom provider's entry is untouched.
+		expect(storedProvider("Local o3")!.models).toEqual([
+			{ name: "o3", maxTokens: 8192 },
+		]);
+	});
+
+	function seedAICommandChoice(
+		model: string,
+		modelParameters: Record<string, number>,
+	) {
+		settingsStore.setState({
+			choices: [
+				{
+					id: "c1",
+					name: "AI macro",
+					type: "Macro",
+					command: false,
+					macro: {
+						id: "m1",
+						name: "AI macro",
+						commands: [
+							{
+								id: "cmd1",
+								name: "AI Assistant",
+								type: "AIAssistant",
+								model,
+								systemPrompt: "",
+								outputVariableName: "output",
+								promptTemplate: { enable: false, name: "" },
+								modelParameters,
+							},
+						],
+					},
+				},
+			] as unknown as ReturnType<
+				typeof settingsStore.getState
+			>["choices"],
+		});
+	}
+
+	function storedAICommand(): {
+		model: string;
+		modelParameters: Record<string, number>;
+	} {
+		const choice = settingsStore.getState().choices[0] as unknown as {
+			macro: { commands: Array<{ model: string; modelParameters: Record<string, number> }> };
+		};
+		return choice.macro.commands[0];
+	}
+
+	it("re-points commands pinned to a retired model at Ask me", async () => {
+		setProviders([legacyOpenAIProvider()]);
+		seedAICommandChoice("gpt-4-32k", {});
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		expect(storedAICommand().model).toBe("Ask me");
+	});
+
+	it("leaves commands pinned to live models alone", async () => {
+		setProviders([legacyOpenAIProvider()]);
+		seedAICommandChoice("gpt-4o", {});
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		expect(storedAICommand().model).toBe("gpt-4o");
+	});
+
+	it("strips the legacy baked-in sampling defaults but keeps user-set values", async () => {
+		setProviders([legacyOpenAIProvider()]);
+		seedAICommandChoice("gpt-4o", {
+			temperature: 1,
+			top_p: 1,
+			frequency_penalty: 0,
+			presence_penalty: 0,
+		});
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+		expect(storedAICommand().modelParameters).toEqual({});
+
+		seedAICommandChoice("gpt-4o", {
+			temperature: 0.4,
+			top_p: 1,
+			frequency_penalty: 0.5,
+			presence_penalty: 0,
+		});
+
+		// Migration state was already flagged? migrate() runs the raw migration
+		// function directly here, so run it again on the new choices.
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+		expect(storedAICommand().modelParameters).toEqual({
+			temperature: 0.4,
+			frequency_penalty: 0.5,
+		});
+	});
 });

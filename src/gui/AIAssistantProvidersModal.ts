@@ -138,6 +138,7 @@ export class AIAssistantProvidersModal extends Modal {
 		this.addNameSetting(container);
 		this.addEndpointSetting(container);
 		this.addApiKeySetting(container);
+		this.addKindSetting(container);
 		this.addModelSourceSetting(container);
 
 		this.addProviderModelsSetting(container);
@@ -190,6 +191,27 @@ export class AIAssistantProvidersModal extends Modal {
 						this.selectedProvider.apiKey = "";
 					}),
 			);
+	}
+
+	addKindSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Provider type")
+			.setDesc(
+				"The request format this provider expects. Auto-detect recognizes the official Anthropic and Gemini endpoints and treats everything else as OpenAI-compatible; pick a type explicitly for a proxy or custom endpoint.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("", "Auto-detect");
+				dropdown.addOption("openai", "OpenAI-compatible");
+				dropdown.addOption("anthropic", "Anthropic");
+				dropdown.addOption("gemini", "Gemini");
+				dropdown.setValue(this.selectedProvider?.kind ?? "");
+				dropdown.onChange((value) => {
+					if (!this.selectedProvider) return;
+					this.selectedProvider.kind = value
+						? (value as AIProvider["kind"])
+						: undefined;
+				});
+			});
 	}
 
 	addModelSourceSetting(container: HTMLElement) {
@@ -342,13 +364,13 @@ export class AIAssistantProvidersModal extends Modal {
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
 					try {
-						const { added } = await syncProviderModels(
+						const { added, updated } = await syncProviderModels(
 							this.app,
 							this.selectedProvider!,
 						);
 						new Notice(
-							added > 0
-								? `Synced from ${sourceDescription}: ${added} new model(s).`
+							added > 0 || updated > 0
+								? `Synced from ${sourceDescription}: ${added} new model(s), ${updated} updated.`
 								: `Synced from ${sourceDescription}: already up to date.`,
 						);
 						this.reload();

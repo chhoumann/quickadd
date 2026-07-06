@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 import type { AIProvider, Model, ModelDiscoveryMode } from "./Provider";
-import { getProviderKind } from "./Provider";
+import { CURRENT_MODEL_SEEDS, getProviderKind } from "./Provider";
 import {
 	enrichModelsWithDirectoryMetadata,
 	fetchModelsDevDirectory,
@@ -105,8 +105,43 @@ async function fetchViaProviderApi(
 	}
 
 	// The native endpoints rarely report output caps or sampling support;
-	// overlay models.dev metadata for ids it knows (best effort).
-	return enrichModelsWithDirectoryMetadata(provider.endpoint, models);
+	// overlay models.dev metadata for ids it knows (best effort), then fill
+	// remaining gaps from the shipped seed catalog so an offline models.dev
+	// never downgrades a known model to placeholder limits.
+	const enriched = await enrichModelsWithDirectoryMetadata(
+		provider.endpoint,
+		models,
+	);
+	return applySeedMetadataFallback(provider.endpoint, enriched);
+}
+
+/**
+ * Offline metadata net: when models.dev was unreachable (or doesn't know an
+ * id), matching entries from the shipped seed catalog supply the context
+ * window, output cap, and sampling support that request routing depends on.
+ */
+function applySeedMetadataFallback(endpoint: string, models: Model[]): Model[] {
+	const key = mapEndpointToModelsDevKey(endpoint);
+	if (key !== "openai" && key !== "google" && key !== "anthropic") {
+		return models;
+	}
+	const seeds = new Map(CURRENT_MODEL_SEEDS[key].map((s) => [s.name, s]));
+	return models.map((model) => {
+		const seed = seeds.get(model.name);
+		if (!seed) return model;
+		return {
+			...model,
+			// Only replace the fabricated placeholder — a real limit reported by
+			// the provider or the directory wins over the seed.
+			maxTokens:
+				model.maxTokens === DEFAULT_MAX_TOKENS
+					? seed.maxTokens
+					: model.maxTokens,
+			maxOutputTokens: model.maxOutputTokens ?? seed.maxOutputTokens,
+			supportsTemperature:
+				model.supportsTemperature ?? seed.supportsTemperature,
+		};
+	});
 }
 
 async function requestProviderJson<T>(
@@ -132,6 +167,14 @@ async function requestProviderJson<T>(
 	}
 }
 
+// OpenAI-compatible /v1/models responses carry no capability metadata, so
+// non-chat entries can only be recognized by name. These families cannot serve
+// chat completions (verified against the live OpenAI and Groq catalogs):
+// speech-to-text, text-to-speech, embeddings, image generation, moderation,
+// rerankers, and realtime/audio-only endpoints.
+const NON_CHAT_MODEL_ID_RE =
+	/(whisper|-tts|tts-|embed|dall-e|image|moderation|transcribe|realtime|rerank)/i;
+
 async function fetchOpenAICompatibleModels(
 	provider: AIProvider,
 	apiKey: string,
@@ -149,7 +192,7 @@ async function fetchOpenAICompatibleModels(
 	const models: Model[] = [];
 	for (const entry of entries) {
 		const model = mapProviderEntry(entry);
-		if (model) {
+		if (model && !NON_CHAT_MODEL_ID_RE.test(model.name)) {
 			models.push(model);
 		}
 	}

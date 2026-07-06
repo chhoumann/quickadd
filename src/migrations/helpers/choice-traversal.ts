@@ -8,6 +8,12 @@ import type { ICommand } from "../../types/macros/ICommand";
 import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
 
 export type ChoiceVisitor = (choice: IChoice) => void;
+export type CommandVisitor = (command: ICommand) => void;
+
+interface Visitors {
+	onChoice?: ChoiceVisitor;
+	onCommand?: CommandVisitor;
+}
 
 function isMultiChoice(choice: IChoice): choice is MultiChoice {
 	return choice.type === "Multi";
@@ -19,35 +25,37 @@ function isMacroChoice(choice: IChoice): choice is IMacroChoice {
 
 function walkChoice(
 	choice: IChoice,
-	visitor: ChoiceVisitor,
+	visitors: Visitors,
 	visited: Set<IChoice>,
 ): void {
 	if (!choice || typeof choice !== "object") return;
 	if (visited.has(choice)) return;
 
 	visited.add(choice);
-	visitor(choice);
+	visitors.onChoice?.(choice);
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 		for (const child of choice.choices) {
-			walkChoice(child, visitor, visited);
+			walkChoice(child, visitors, visited);
 		}
 	}
 
 	if (isMacroChoice(choice)) {
-		walkCommands(choice.macro?.commands, visitor, visited);
+		walkCommands(choice.macro?.commands, visitors, visited);
 	}
 }
 
 function walkCommands(
 	commands: ICommand[] | undefined,
-	visitor: ChoiceVisitor,
+	visitors: Visitors,
 	visited: Set<IChoice>,
 ): void {
 	if (!Array.isArray(commands)) return;
 
 	for (const command of commands) {
 		if (!command || typeof command !== "object") continue;
+
+		visitors.onCommand?.(command);
 
 		const conditional = command as IConditionalCommand;
 		const isConditional =
@@ -56,8 +64,8 @@ function walkCommands(
 			Array.isArray(conditional.elseCommands);
 
 		if (isConditional) {
-			walkCommands(conditional.thenCommands, visitor, visited);
-			walkCommands(conditional.elseCommands, visitor, visited);
+			walkCommands(conditional.thenCommands, visitors, visited);
+			walkCommands(conditional.elseCommands, visitors, visited);
 		}
 
 		const nested = command as INestedChoiceCommand;
@@ -69,26 +77,47 @@ function walkCommands(
 					: undefined;
 
 		if (nestedChoice) {
-			walkChoice(nestedChoice, visitor, visited);
+			walkChoice(nestedChoice, visitors, visited);
 		}
 	}
 }
 
-export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
+function walkSettings(
+	settings: { choices: IChoice[]; macros?: unknown },
+	visitors: Visitors,
+): void {
 	const visited = new Set<IChoice>();
 
-	for (const choice of plugin.settings.choices) {
-		walkChoice(choice, visitor, visited);
+	for (const choice of settings.choices) {
+		walkChoice(choice, visitors, visited);
 	}
 
-	const legacyMacros = (plugin.settings as { macros?: unknown }).macros;
+	const legacyMacros = settings.macros;
 	if (Array.isArray(legacyMacros)) {
 		for (const macro of legacyMacros) {
 			const commands =
 				macro && typeof macro === "object"
 					? (macro as { commands?: ICommand[] }).commands
 					: undefined;
-			walkCommands(commands, visitor, visited);
+			walkCommands(commands, visitors, visited);
 		}
 	}
+}
+
+export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
+	walkSettings(
+		plugin.settings as { choices: IChoice[]; macros?: unknown },
+		{ onChoice: visitor },
+	);
+}
+
+/**
+ * Visit every command reachable from the given choices (macro commands,
+ * conditional branches, nested choices, plus pre-consolidation legacy macros).
+ */
+export function walkAllCommandsInSettings(
+	settings: { choices: IChoice[]; macros?: unknown },
+	visitor: CommandVisitor,
+): void {
+	walkSettings(settings, { onCommand: visitor });
 }

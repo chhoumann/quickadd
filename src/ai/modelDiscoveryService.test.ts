@@ -296,6 +296,8 @@ beforeEach(() => {
 	});
 
 	it("uses the Gemini ListModels endpoint with key param and filters non-chat models", async () => {
+		// The seed-metadata fallback keys off the directory mapping.
+		mapEndpointToModelsDevKeyMock.mockReturnValue("google");
 		requestUrlMock.mockResolvedValue({
 			status: 200,
 			json: Promise.resolve({
@@ -330,11 +332,73 @@ beforeEach(() => {
 				name: "gemini-2.5-flash",
 				maxTokens: 1048576,
 				maxOutputTokens: 65536,
+				// Filled from the shipped seed catalog (models.dev enrichment is
+				// mocked out here).
+				supportsTemperature: true,
 			},
 		]);
 		expect(requestUrlMock.mock.calls[0][0].url).toBe(
 			"https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=g-key",
 		);
+	});
+
+	it("fills missing metadata from the seed catalog when the directory is unavailable", async () => {
+		mapEndpointToModelsDevKeyMock.mockReturnValue("anthropic");
+		requestUrlMock.mockResolvedValue({
+			status: 200,
+			json: Promise.resolve({
+				data: [
+					{ id: "claude-sonnet-5", type: "model" },
+					{ id: "claude-unknown-model", type: "model" },
+				],
+				has_more: false,
+			}),
+		});
+
+		const models = await discoverProviderModels({
+			name: "Anthropic",
+			endpoint: "https://api.anthropic.com",
+			kind: "anthropic",
+			apiKey: "k",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		const sonnet = models.find((m) => m.name === "claude-sonnet-5")!;
+		expect(sonnet.maxTokens).toBe(1_000_000);
+		expect(sonnet.maxOutputTokens).toBe(128_000);
+		expect(sonnet.supportsTemperature).toBe(false);
+		// Unknown ids keep the conservative placeholder.
+		const unknown = models.find((m) => m.name === "claude-unknown-model")!;
+		expect(unknown.maxTokens).toBe(128_000);
+		expect(unknown.maxOutputTokens).toBeUndefined();
+	});
+
+	it("filters non-chat entries from OpenAI-compatible model lists", async () => {
+		requestUrlMock.mockResolvedValue({
+			status: 200,
+			json: Promise.resolve({
+				data: [
+					{ id: "llama-3.3-70b-versatile" },
+					{ id: "whisper-large-v3" },
+					{ id: "playai-tts" },
+					{ id: "text-embedding-3-small" },
+					{ id: "gpt-image-2" },
+				],
+			}),
+		});
+
+		const models = await discoverProviderModels({
+			name: "Groq",
+			endpoint: "https://api.groq.com/openai/v1",
+			apiKey: "k",
+			models: [],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		});
+
+		expect(models.map((m) => m.name)).toEqual(["llama-3.3-70b-versatile"]);
 	});
 
 	it("respects disableOnlineFeatures by throwing early", async () => {
