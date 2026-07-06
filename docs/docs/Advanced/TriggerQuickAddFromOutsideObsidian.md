@@ -2,12 +2,12 @@
 title: Trigger QuickAdd from outside Obsidian
 ---
 
-QuickAdd can be triggered directly from launchers, scripts, schedules, and
-dashboard notes. Use QuickAdd's native surfaces first:
+You can trigger QuickAdd from launchers, scripts, schedulers, and dashboard
+notes - no extra plugins needed. There are two built-in ways in:
 
-- Use `obsidian://quickadd` when the thing you are building can open a link.
-- Use the native Obsidian CLI when the thing you are building runs a shell
-  command, such as a scheduled job.
+- The `obsidian://quickadd` URI, for anything that can open a link.
+- The Obsidian CLI, for anything that runs a shell command, such as a
+  scheduled job.
 
 You do not need the Advanced URI plugin to run a QuickAdd choice.
 
@@ -223,9 +223,9 @@ Obsidian command for that choice.
   the choice name is encoded and spelled exactly.
 - The wrong choice runs: rename choices so the externally triggered choice name
   is unique.
-- A schedule returns missing input JSON: check the `missing` list, then copy the
-  returned `missingFlags` into the scheduled command and replace `<value>` with
-  the value you want to pass.
+- A scheduled run returns JSON instead of capturing: the choice still needs
+  input. Copy each entry from the returned `missingFlags` into your command and
+  replace `<value>` with the value you want to pass.
 - The command works in a terminal but not from a scheduler: use the full path to
   the Obsidian CLI and make sure the job runs in your user desktop session.
 - An older thread suggests `obsidian://advanced-uri?...`: replace it with
