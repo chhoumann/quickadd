@@ -33,6 +33,7 @@ describe("AppendLinkSetting", () => {
 			"Link destination",
 			"Link placement",
 			"Link type",
+			"Link display text",
 		]);
 	});
 
@@ -241,5 +242,140 @@ describe("AppendLinkSetting", () => {
 		expect(
 			Array.from(container.querySelectorAll("select")).at(-1)?.value,
 		).toBe("alwaysAppend");
+	});
+});
+
+describe("AppendLinkSetting display text", () => {
+	function displayTextSelect(container: HTMLElement): HTMLSelectElement | null {
+		return (
+			Array.from(container.querySelectorAll("select")).find((select) =>
+				Array.from(select.options).some(
+					(option) => option.value === "selection",
+				),
+			) ?? null
+		);
+	}
+
+	it("shows the display text row for both selection-anchored placements with a plain link", () => {
+		for (const placement of ["replaceSelection", "afterSelection"] as const) {
+			const appendLink: AppendLinkOptions = {
+				enabled: true,
+				placement,
+				requireActiveFile: true,
+				linkType: "link",
+			};
+			const { container } = render(AppendLinkSetting, {
+				props: { appendLink, fileLabel: "created" },
+			});
+			expect(settingNames(container)).toContain("Link display text");
+			expect(displayTextSelect(container)?.value).toBe("none");
+		}
+	});
+
+	it("hides the display text row for embeds and cursor-anchored placements", () => {
+		const cases: AppendLinkOptions[] = [
+			{
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+				linkType: "embed",
+			},
+			{
+				enabled: true,
+				placement: "endOfLine",
+				requireActiveFile: true,
+				linkType: "link",
+			},
+			{
+				enabled: true,
+				placement: "newLine",
+				requireActiveFile: true,
+				linkType: "link",
+			},
+			{
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				frontmatterProperty: "related",
+			},
+		];
+		for (const appendLink of cases) {
+			const { container } = render(AppendLinkSetting, {
+				props: { appendLink, fileLabel: "created" },
+			});
+			expect(settingNames(container)).not.toContain("Link display text");
+		}
+	});
+
+	it("hides the display text row for specified-note destinations", () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: true,
+			linkType: "link",
+			destination: { type: "specifiedFile", path: "Index.md" },
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+		expect(settingNames(container)).not.toContain("Link display text");
+	});
+
+	it("preserves the selection preference through unrelated dropdown changes", async () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: true,
+			linkType: "link",
+			displayText: "selection",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		const modeSelect = container.querySelector("select") as HTMLSelectElement;
+		await fireEvent.change(modeSelect, { target: { value: "optional" } });
+
+		expect(displayTextSelect(container)?.value).toBe("selection");
+	});
+
+	it("resets the preference to default when the placement stops supporting it (lossy, matching link type)", async () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: true,
+			linkType: "link",
+			displayText: "selection",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		const placementSelect = container.querySelectorAll(
+			"select",
+		)[2] as HTMLSelectElement;
+		await fireEvent.change(placementSelect, { target: { value: "endOfLine" } });
+		expect(settingNames(container)).not.toContain("Link display text");
+
+		await fireEvent.change(placementSelect, {
+			target: { value: "replaceSelection" },
+		});
+		expect(displayTextSelect(container)?.value).toBe("none");
+	});
+
+	it("stores the chosen display text on change", async () => {
+		const appendLink: AppendLinkOptions = {
+			enabled: true,
+			placement: "replaceSelection",
+			requireActiveFile: true,
+			linkType: "link",
+		};
+		const { container } = render(AppendLinkSetting, {
+			props: { appendLink, fileLabel: "created" },
+		});
+
+		const select = displayTextSelect(container) as HTMLSelectElement;
+		await fireEvent.change(select, { target: { value: "selection" } });
+		expect(displayTextSelect(container)?.value).toBe("selection");
 	});
 });

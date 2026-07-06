@@ -6,6 +6,7 @@ import ValidatedInput from "./ValidatedInput.svelte";
 import type {
 	AppendLinkOptions,
 	FrontmatterHandling,
+	LinkDisplayText,
 	LinkPlacement,
 	LinkType,
 } from "../../../types/linkPlacement";
@@ -14,6 +15,7 @@ import {
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
 	placementSupportsFrontmatter,
+	placementSupportsSelectionAlias,
 } from "../../../types/linkPlacement";
 import { normalizeAppendLinkDestinationPath } from "../../../utils/fileLinks";
 
@@ -38,6 +40,7 @@ type AppendLinkDestinationMode = "activeFile" | "specifiedFile";
 
 const normalized = $derived(normalizeAppendLinkOptions(appendLink));
 const normalizedLinkType = $derived(normalized.linkType ?? "link");
+const normalizedDisplayText = $derived(normalized.displayText);
 const normalizedFrontmatterHandling = $derived(
 	normalized.frontmatterHandling ?? DEFAULT_FRONTMATTER_HANDLING,
 );
@@ -78,6 +81,10 @@ const linkTypeOptions = [
 	{ value: "link", label: "Link" },
 	{ value: "embed", label: "Embed" },
 ];
+const displayTextOptions = [
+	{ value: "none", label: "Default" },
+	{ value: "selection", label: "Selected text" },
+];
 const frontmatterHandlingOptions = [
 	{ value: "alwaysAppend", label: "Create or convert" },
 	{ value: "createProperty", label: "Create if missing" },
@@ -95,6 +102,17 @@ function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
 		destination.type === "activeFile" && placementSupportsEmbed(placement)
 			? overrides.linkType ?? currentOptions.linkType ?? normalizedLinkType
 			: "link";
+	// Forced back to "none" when the conditions no longer hold — intentionally
+	// as lossy as the linkType reset above (switching placement away and back
+	// discards the stored preference).
+	const displayText =
+		destination.type === "activeFile" &&
+		placementSupportsSelectionAlias(placement) &&
+		linkType === "link"
+			? overrides.displayText ??
+				currentOptions.displayText ??
+				normalizedDisplayText
+			: "none";
 
 	return {
 		enabled: overrides.enabled ?? true,
@@ -104,6 +122,7 @@ function nextOptions(overrides: Partial<AppendLinkOptions>): AppendLinkOptions {
 			currentOptions.requireActiveFile ??
 			normalized.requireActiveFile,
 		linkType,
+		displayText,
 		destination,
 		frontmatterProperty:
 			overrides.frontmatterProperty ?? currentOptions.frontmatterProperty,
@@ -135,6 +154,12 @@ function onPlacementChange(value: string) {
 function onLinkTypeChange(value: string) {
 	appendLink = nextOptions({
 		linkType: value as LinkType,
+	});
+}
+
+function onDisplayTextChange(value: string) {
+	appendLink = nextOptions({
+		displayText: value as LinkDisplayText,
 	});
 }
 
@@ -225,6 +250,21 @@ function validateDestinationFile(raw: string) {
 						value={normalizedLinkType}
 						options={linkTypeOptions}
 						onchange={onLinkTypeChange}
+					/>
+				{/snippet}
+			</SettingItem>
+		{/if}
+
+		{#if placementSupportsSelectionAlias(normalized.placement) && normalizedLinkType === "link"}
+			<SettingItem
+				name="Link display text"
+				desc="What the inserted link displays. 'Selected text' keeps the highlighted text as the link's display text; with nothing selected, the plain link is inserted."
+			>
+				{#snippet control()}
+					<Dropdown
+						value={normalizedDisplayText}
+						options={displayTextOptions}
+						onchange={onDisplayTextChange}
 					/>
 				{/snippet}
 			</SettingItem>
