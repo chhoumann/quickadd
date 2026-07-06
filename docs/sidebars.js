@@ -34,6 +34,7 @@ const sidebars = {
 			id: "index",
 			label: "Getting Started",
 		},
+		{ type: "doc", id: "ComingFromTemplater", label: "Coming from Templater" },
 		{
 			type: "doc",
 			id: "Settings",

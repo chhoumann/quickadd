@@ -7,6 +7,11 @@
     },
     {
       "type": "doc",
+      "id": "ComingFromTemplater",
+      "label": "Coming from Templater"
+    },
+    {
+      "type": "doc",
       "id": "Settings",
       "label": "Settings"
     },
