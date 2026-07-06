@@ -389,7 +389,9 @@ console.log("Enabled features:", features);
 ## Choice Execution
 
 ### `executeChoice(choiceName: string, variables?: {[key: string]: any}): Promise<void>`
-Executes another QuickAdd choice programmatically.
+Executes another QuickAdd choice programmatically. This is a one-way trigger: it passes variables into the target choice, waits for that choice to finish, and resolves with `undefined`. It does not return data from the target choice to the caller. After the target choice finishes, QuickAdd clears the temporary variable map used by that API execution. If you call it from inside a Macro script, do not expect the caller's current `params.variables` values to still be available afterward unless you saved or restored them yourself.
+
+For the Macro data-flow implications, see [`executeChoice` is a trigger](./VariablesDataFlow.md#executechoice-is-a-trigger).
 
 **Parameters:**
 - `choiceName`: Name of the choice to execute

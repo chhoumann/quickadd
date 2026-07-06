@@ -80,6 +80,7 @@ const sidebars = {
 					id: "FormatSyntax",
 					label: "Format Syntax",
 				},
+				{ type: "doc", id: "VariablesDataFlow", label: "Variables and data flow" },
 				{
 					type: "doc",
 					id: "ApplyTemplateToNote",

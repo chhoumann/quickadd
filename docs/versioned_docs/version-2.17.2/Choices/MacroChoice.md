@@ -276,103 +276,9 @@ module.exports = async (params) => {
 
 ## Variables and Data Flow
 
-Variables allow you to pass data between commands in a macro:
+Macro commands share one temporary variable map during the current Macro run. User scripts can write `params.variables.bookTitle`, and later Template or Capture commands can read `{{VALUE:bookTitle}}`.
 
-### Setting Variables in Scripts
-
-```javascript
-// Script 1: Set a variable
-module.exports = async (params) => {
-    const { quickAddApi, variables } = params;
-    
-    const bookName = await quickAddApi.inputPrompt("Book name:");
-    variables.bookTitle = bookName;
-    variables.readDate = new Date().toISOString();
-    
-    // Control when prompts appear:
-    variables.rating = "";        // Empty string - won't prompt
-    variables.notes = undefined;  // Undefined - will prompt for input
-};
-```
-
-### Controlling Variable Prompts
-
-When using `{{VALUE:variableName}}` in your templates, QuickAdd decides whether to prompt you for input based on how the variable was set in your script:
-
-#### Variables That Trigger Prompts
-- **Unset variables**: Variables that were never assigned a value
-- **Undefined variables**: Variables explicitly set to `undefined` in scripts
-- **Null variables**: Variables explicitly set to `null` in scripts
-
-#### Variables That Don't Trigger Prompts
-- **Empty string variables**: Variables explicitly set to `""` in scripts
-- **Variables with any other value**: Including `"0"`, `"false"`, or any non-empty string
-
-#### Practical Examples
-
-```javascript
-// Data import script example
-module.exports = async (params) => {
-    const { quickAddApi, variables } = params;
-    
-    // These will NOT prompt when used in templates:
-    variables.rating = "";        // Intentionally empty
-    variables.score = "0";        // Valid value (zero as string)
-    variables.status = "draft";   // Has content
-    variables.description = "";   // User chose to leave blank
-    
-    // These WILL prompt when used in templates:
-    variables.author = undefined; // Explicitly undefined
-    variables.reviewer = null;    // Explicitly null
-    // variables.category is never set - will prompt
-};
-```
-
-**Use Case**: This is particularly useful when importing data where some fields may be intentionally empty. For example, when importing movie data, you might want to leave the rating empty for unseen movies without being prompted to enter a rating:
-
-```javascript
-// Movie import example
-module.exports = async (params) => {
-    const { variables } = params;
-    
-    const movieData = await fetchMovieData();
-    
-    variables.title = movieData.title;
-    variables.year = movieData.year.toString();
-    
-    if (movieData.hasWatched) {
-        variables.rating = movieData.userRating || "";  // Empty if no rating
-        variables.watchDate = movieData.watchDate;
-    } else {
-        // For unwatched movies, set empty strings to avoid prompts
-        variables.rating = "";       // Don't prompt for rating
-        variables.watchDate = "";    // Don't prompt for watch date
-        variables.review = "";       // Don't prompt for review
-    }
-    
-    // This will prompt because we want user input
-    variables.personalNotes = undefined;  // Will ask for notes
-};
-```
-
-### Using Variables in Format Syntax
-
-After setting variables in a script, you can use them in subsequent commands:
-- In templates: `{{VALUE:bookTitle}}`
-- In file names: `Books/{{VALUE:bookTitle}} - Notes`
-- In captures: `Read "{{VALUE:bookTitle}}" on {{VALUE:readDate}}`
-
-### Accessing Variables in Later Scripts
-
-```javascript
-// Script 2: Use previously set variables
-module.exports = async (params) => {
-    const { variables, app } = params;
-    
-    console.log(`Processing book: ${variables.bookTitle}`);
-    // Do something with the book title
-};
-```
+For the full rules, including named `VALUE` prompts, empty values, AI Assistant output variables, and the `executeChoice` boundary, see [Variables and data flow](../VariablesDataFlow.md).
 
 ## Advanced Script Patterns
 
@@ -605,10 +511,9 @@ Break complex macros into smaller, reusable parts:
 - Ensure plugins are enabled before running the macro
 
 **Variables not passing between commands**
-- `{{VALUE}}` / `{{NAME}}` are per-template; use `{{VALUE:sharedName}}` to reuse one prompt across a macro
-- Ensure you're using the correct syntax: `{{VALUE:variableName}}`
-- Variables must be set before they're used
-- Check that variable names match exactly (case-sensitive)
+- Use a named token such as `{{VALUE:sharedName}}` or set `params.variables.sharedName` for values that later Macro steps need.
+- Make sure scripts run before the commands that read their variables.
+- See [Variables and data flow](../VariablesDataFlow.md) for the full run-variable model.
 
 **Macro not appearing in command palette**
 - Ensure the macro choice is enabled in settings

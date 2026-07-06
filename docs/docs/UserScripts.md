@@ -1089,8 +1089,9 @@ For complete working examples, see:
 
 **Variables not available in templates:**
 - Make sure you're setting them on `params.variables`
-- Variable names are case-sensitive
+- Read them with `{{VALUE:name}}`, not `{{name}}`
 - Check that the script completes successfully
+- See [Variables and data flow](./VariablesDataFlow.md) for how script variables move into later Template and Capture steps
 
 **API methods returning undefined:**
 - Ensure you're using `await` with async methods
