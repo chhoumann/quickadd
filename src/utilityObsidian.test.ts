@@ -284,15 +284,18 @@ describe("getUserScript", () => {
 			].join("\n"),
 		);
 
-		await expect(getUserScript(createUserScriptCommand(), app)).rejects.toThrow(
-			"saved webpage",
-		);
+		try {
+			await expect(getUserScript(createUserScriptCommand(), app)).rejects.toThrow(
+				"saved webpage",
+			);
 
-		expect(logError).toHaveBeenCalledTimes(1);
-		const reported = logError.mock.calls[0][0] as Error;
-		expect(reported.message).toContain("use the Raw button");
-		expect(reported.message).toContain("download the .js file");
-		logError.mockRestore();
+			expect(logError).toHaveBeenCalledTimes(1);
+			const reported = logError.mock.calls[0][0] as Error;
+			expect(reported.message).toContain("use the Raw button");
+			expect(reported.message).toContain("download the .js file");
+		} finally {
+			logError.mockRestore();
+		}
 	});
 
 	it("can suppress user-facing load reporting during preflight", async () => {
@@ -300,15 +303,43 @@ describe("getUserScript", () => {
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const app = createUserScriptApp("<html><body>not js</body></html>");
 
-		await expect(
-			getUserScript(createUserScriptCommand(), app, {
-				reportLoadErrors: false,
-			}),
-		).rejects.toThrow("saved webpage");
+		try {
+			await expect(
+				getUserScript(createUserScriptCommand(), app, {
+					reportLoadErrors: false,
+				}),
+			).rejects.toThrow("saved webpage");
 
+			expect(noticeMessages()).toHaveLength(before);
+			expect(logError).not.toHaveBeenCalled();
+		} finally {
+			logError.mockRestore();
+		}
+	});
+
+	it("can suppress markdown script load notices during preflight", async () => {
+		const before = noticeMessages().length;
+		const app = createUserScriptApp(
+			[
+				"# Script note",
+				"",
+				"This note has no JavaScript code block.",
+			].join("\n"),
+			"Scripts/no-code-block.md",
+		);
+
+		const script = await getUserScript(
+			createUserScriptCommand({
+				path: "Scripts/no-code-block.md",
+			}),
+			app,
+			{
+				reportLoadErrors: false,
+			},
+		);
+
+		expect(script).toBeUndefined();
 		expect(noticeMessages()).toHaveLength(before);
-		expect(logError).not.toHaveBeenCalled();
-		logError.mockRestore();
 	});
 
 	it("explains when an explicit default export is not runnable", async () => {
@@ -323,15 +354,18 @@ describe("getUserScript", () => {
 			].join("\n"),
 		);
 
-		await expect(getUserScript(createUserScriptCommand(), app)).rejects.toThrow(
-			"default export is not a function",
-		);
+		try {
+			await expect(getUserScript(createUserScriptCommand(), app)).rejects.toThrow(
+				"default export is not a function",
+			);
 
-		expect(logError).toHaveBeenCalledTimes(1);
-		const reported = logError.mock.calls[0][0] as Error;
-		expect(reported.message).toContain("module.exports = async");
-		expect(reported.message).toContain("exports.default = async");
-		logError.mockRestore();
+			expect(logError).toHaveBeenCalledTimes(1);
+			const reported = logError.mock.calls[0][0] as Error;
+			expect(reported.message).toContain("module.exports = async");
+			expect(reported.message).toContain("exports.default = async");
+		} finally {
+			logError.mockRestore();
+		}
 	});
 
 	it("explains module resolution failures while loading a script", async () => {

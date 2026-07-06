@@ -172,7 +172,9 @@ export async function getUserScript(
 				// Surface a visible, actionable reason (the caller's generic "failed to
 				// load" log alone is easy to miss) and fall through to the established
 				// "return undefined" contract — do not double-log here.
-				new Notice(`QuickAdd: ${error} (${command.path})`);
+				if (options.reportLoadErrors !== false) {
+					new Notice(`QuickAdd: ${error} (${command.path})`);
+				}
 				return;
 			}
 			scriptSource = code;
