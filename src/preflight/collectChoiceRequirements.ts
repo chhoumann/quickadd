@@ -487,6 +487,12 @@ async function collectMacroScriptRequirements(
 			const scriptPath = userScriptCommand.path ?? userScriptCommand.id;
 			const message =
 				error instanceof Error ? error.message : String(error);
+			if (error instanceof Error && error.name === "UserScriptLoadError") {
+				console.warn(
+					`QuickAdd preflight could not inspect user script '${scriptPath}': ${message}`,
+				);
+				continue;
+			}
 			log.logWarning(
 				`Preflight could not inspect user script '${scriptPath}': ${message}`,
 			);
