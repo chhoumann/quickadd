@@ -488,7 +488,8 @@ export abstract class Formatter {
 
 	/**
 	 * Resolves the note-derived contextual tokens — {{linkcurrent}},
-	 * {{linksection}}, {{filenamecurrent}}, {{folder}}/{{folder|name}} and
+	 * {{linksection}}, {{filenamecurrent}}, {{folder}}/{{folder|name}},
+	 * {{foldercurrent}}/{{foldercurrent|name}} and
 	 * {{title}} — in a SINGLE function-replacer pass. Each token's replacement
 	 * embeds user-controlled text (the active file's basename, the target folder's
 	 * name, the note title), so resolving them as separate sequential passes lets
@@ -511,6 +512,17 @@ export abstract class Formatter {
 	 * {{folder}}/{{title}} never throw. The link message takes precedence over the
 	 * file-name message, matching the legacy "links resolved before file name"
 	 * order.
+	 *
+	 * {{foldercurrent}} (the ACTIVE file's folder, issue #1480) is mode-scoped via
+	 * `activeFolder`: in "path" contexts (file names, capture targets, folder
+	 * paths) a missing active file ALWAYS throws — an optional-strip there would
+	 * silently retarget the produced path to the vault root (e.g.
+	 * "{{foldercurrent}}/Tasks.md" -> "/Tasks.md"), misplacing data whenever the
+	 * append-link setting has relaxed the behaviour to "optional" (that knob
+	 * governs link insertion, never where data files). In "content" contexts it
+	 * follows the same required/optional contract as the link/file-name tokens.
+	 * A root-level active file resolves to "" — a LEGITIMATE value, so "missing"
+	 * is detected with `=== null`, never falsiness.
 	 */
 	protected replaceCurrentFileTokensInString(
 		input: string,
@@ -518,15 +530,19 @@ export abstract class Formatter {
 			links?: boolean;
 			fileName?: boolean;
 			folder?: boolean;
+			activeFolder?: "path" | "content";
 			title?: boolean;
 		},
 	): string {
 		// One alternation over every note-derived token. The |name modifier is
-		// scoped to FOLDER (capture group 3) so the other tokens match EXACTLY as
-		// their individual regexes do (e.g. {{TITLE|name}} stays literal). Built
-		// fresh per call so the global lastIndex is never shared across invocations.
+		// scoped to the two FOLDER tokens (capture group 3) so the other tokens
+		// match EXACTLY as their individual regexes do (e.g. {{TITLE|name}} stays
+		// literal). FOLDERCURRENT is listed before its prefix FOLDER purely to
+		// avoid a pointless backtrack — the trailing `}}` makes the arms
+		// unambiguous either way. Built fresh per call so the global lastIndex is
+		// never shared across invocations.
 		const regex =
-			/{{(?:(LINKCURRENT|LINKSECTION|FILENAMECURRENT|TITLE)|(FOLDER)(\|name)?)}}/gi;
+			/{{(?:(LINKCURRENT|LINKSECTION|FILENAMECURRENT|TITLE)|(FOLDERCURRENT|FOLDER)(\|name)?)}}/gi;
 
 		// Each category is resolved lazily, at most once. `undefined` means "not
 		// yet resolved"; the resolvers may legitimately return null/"" (a missing
@@ -537,9 +553,13 @@ export abstract class Formatter {
 		let fileName: string | null | undefined;
 		let folderFull: string | undefined;
 		let folderLeaf: string | undefined;
+		// null = no active file; "" = root-level active file (legitimate).
+		let activeFolderFull: string | null | undefined;
+		let activeFolderLeaf: string | null | undefined;
 		let title: string | undefined;
 		let missingLink = false;
 		let missingFileName = false;
+		let missingActiveFolder = false;
 
 		const output = input.replace(
 			regex,
@@ -549,6 +569,32 @@ export abstract class Formatter {
 				folderToken: string | undefined,
 				folderModifier: string | undefined,
 			) => {
+				// FOLDERCURRENT (optional |name): the ACTIVE file's folder. "" (a
+				// root-level file) is a legitimate resolution; only null marks the
+				// active file as missing.
+				if (
+					folderToken !== undefined &&
+					folderToken.toUpperCase() === "FOLDERCURRENT"
+				) {
+					if (!opts.activeFolder) return match;
+					if (activeFolderFull === undefined) {
+						activeFolderFull = this.getCurrentFolderPath();
+						if (activeFolderFull === null) {
+							activeFolderLeaf = null;
+						} else {
+							const slash = activeFolderFull.lastIndexOf("/");
+							activeFolderLeaf =
+								slash === -1
+									? activeFolderFull
+									: activeFolderFull.slice(slash + 1);
+						}
+					}
+					if (activeFolderFull === null) missingActiveFolder = true;
+					return (
+						(folderModifier ? activeFolderLeaf : activeFolderFull) ?? ""
+					);
+				}
+
 				// FOLDER (optional |name). Never throws; "" when no target folder.
 				if (folderToken !== undefined) {
 					if (!opts.folder) return match;
@@ -593,15 +639,30 @@ export abstract class Formatter {
 			},
 		);
 
+		// In a "path" context a missing active folder ALWAYS aborts, regardless of
+		// the (append-link-controlled) required/optional behaviour: stripping the
+		// token would leave a fully valid path that silently retargets the write
+		// (e.g. "{{foldercurrent}}/Tasks.md" -> the vault root). No other missing
+		// token can co-occur here in practice — path contexts never enable links —
+		// so this early throw does not reorder the legacy message precedence below.
+		const activeFolderError =
+			"Unable to get the active file's folder. Make sure you have a file open in the editor.";
+		if (missingActiveFolder && opts.activeFolder === "path") {
+			throw new Error(activeFolderError);
+		}
+
 		// Required/optional handling mirrors the individual replacers. A missing
 		// link takes precedence over a missing file name (legacy "links first"
-		// order); the messages are kept byte-identical to those replacers.
-		if (missingLink || missingFileName) {
+		// order), and both over a missing active folder; the link/file-name
+		// messages are kept byte-identical to those replacers.
+		if (missingLink || missingFileName || missingActiveFolder) {
 			if (this.linkToCurrentFileBehavior === "required") {
 				throw new Error(
 					missingLink
 						? "Unable to get current file path. Make sure you have a file open in the editor."
-						: "Unable to get current file name. Make sure you have a file open in the editor.",
+						: missingFileName
+							? "Unable to get current file name. Make sure you have a file open in the editor."
+							: activeFolderError,
 				);
 			}
 			log.logMessage(
@@ -702,7 +763,20 @@ export abstract class Formatter {
 		return null;
 	}
 
-
+	/**
+	 * Resolves the ACTIVE file's parent folder for {{foldercurrent}} as a clean
+	 * vault-relative path (no leading/trailing slash; "" for a root-level file,
+	 * mirroring setTargetFolderPath's "/" -> "" collapse). Returns null ONLY when
+	 * there is no active file — "" is a legitimate resolution, and the combined
+	 * resolver distinguishes the two with `=== null`. Defaults to "not supported"
+	 * (null) so subclasses that never enable the `activeFolder` category — and
+	 * the many test stubs — need no change; the runtime resolver lives in
+	 * CompleteFormatter, and the preview formatters override it with a
+	 * never-null preview value.
+	 */
+	protected getCurrentFolderPath(): string | null {
+		return null;
+	}
 
 	/**
 	 * Warn once when the same `|name` is given two different option lists in one

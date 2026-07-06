@@ -188,7 +188,10 @@ const { ChoiceAbortError } = await import("../errors/ChoiceAbortError");
 
 // --- Test helpers --------------------------------------------------------
 
-type FakeFile = { basename: string } | null;
+type FakeFile = {
+	basename: string;
+	parent?: { path: string } | null;
+} | null;
 
 interface FakeAppState {
 	activeFile: FakeFile;
@@ -625,6 +628,91 @@ describe("CompleteFormatter - #1358 token-named active file (production wiring)"
 		await expect(f.formatFileName("{{FILENAMECURRENT}}", "header")).resolves.toBe(
 			"{{folder}}",
 		);
+	});
+});
+
+describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
+	const activeInAlpha: FakeFile = {
+		basename: "Meeting",
+		parent: { path: "Projects/Alpha" },
+	};
+
+	it("formatFileName resolves a sibling capture target from the active file's folder", async () => {
+		const f = defaultFormatter({}, { activeFile: activeInAlpha });
+		await expect(
+			f.formatFileName("{{FOLDERCURRENT}}/Project Tasks.md", "Value"),
+		).resolves.toBe("Projects/Alpha/Project Tasks.md");
+	});
+
+	it("formatFileName resolves {{FOLDERCURRENT|name}} to the leaf folder", async () => {
+		const f = defaultFormatter({}, { activeFile: activeInAlpha });
+		await expect(
+			f.formatFileName("{{FOLDERCURRENT|name}} - notes", "Value"),
+		).resolves.toBe("Alpha - notes");
+	});
+
+	it("collapses the root folder path '/' to an empty string", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "RootNote", parent: { path: "/" } } },
+		);
+		// Downstream path normalization strips the leading slash, so a root-level
+		// note captures to a root-level sibling.
+		await expect(
+			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md", "Value"),
+		).resolves.toBe("/Tasks.md");
+	});
+
+	it("formatFileContent resolves the token in a note body", async () => {
+		const f = defaultFormatter({}, { activeFile: activeInAlpha });
+		await expect(
+			f.formatFileContent("Filed under {{foldercurrent}}"),
+		).resolves.toBe("Filed under Projects/Alpha");
+	});
+
+	it("formatFolderPath resolves the token (and composes with a subpath)", async () => {
+		const f = defaultFormatter({}, { activeFile: activeInAlpha });
+		await expect(
+			f.formatFolderPath("{{FOLDERCURRENT}}/Subnotes"),
+		).resolves.toBe("Projects/Alpha/Subnotes");
+	});
+
+	it("formatFileName throws without an active file, even in optional mode (no silent root capture)", async () => {
+		const f = defaultFormatter({}, { activeFile: null });
+		f.setLinkToCurrentFileBehavior("optional");
+		await expect(
+			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md", "Value"),
+		).rejects.toThrow("Unable to get the active file's folder");
+	});
+
+	it("formatFolderPath throws without an active file", async () => {
+		const f = defaultFormatter({}, { activeFile: null });
+		await expect(f.formatFolderPath("{{FOLDERCURRENT}}")).rejects.toThrow(
+			"Unable to get the active file's folder",
+		);
+	});
+
+	it("formatFileContent strips the token in optional mode without an active file", async () => {
+		const f = defaultFormatter({}, { activeFile: null });
+		f.setLinkToCurrentFileBehavior("optional");
+		await expect(
+			f.formatFileContent("in [{{FOLDERCURRENT}}]"),
+		).resolves.toBe("in []");
+	});
+
+	it("does not re-scan a folder literally named like a token (#1358)", async () => {
+		const f = defaultFormatter(
+			{},
+			{
+				activeFile: {
+					basename: "Meeting",
+					parent: { path: "{{filenamecurrent}}" },
+				},
+			},
+		);
+		await expect(
+			f.formatFileName("{{FOLDERCURRENT}}/{{FILENAMECURRENT}}", "Value"),
+		).resolves.toBe("{{filenamecurrent}}/Meeting");
 	});
 });
 

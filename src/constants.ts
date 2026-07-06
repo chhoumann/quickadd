@@ -31,6 +31,8 @@ export const MATH_VALUE_SYNTAX = "{{mvalue}}";
 export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
 export const LINKSECTION_SYNTAX = "{{linksection}}";
 export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
+export const FOLDERCURRENT_SYNTAX = "{{foldercurrent}}";
+export const FOLDERCURRENT_NAME_SYNTAX = "{{foldercurrent|name}}";
 export const FOLDER_SYNTAX = "{{folder}}";
 export const TITLE_SYNTAX = "{{title}}";
 export const SELECTED_SYNTAX = "{{selected}}";
@@ -73,6 +75,8 @@ export const FORMAT_SYNTAX: string[] = [
 	LINKCURRENT_SYNTAX,
 	LINKSECTION_SYNTAX,
 	FILENAMECURRENT_SYNTAX,
+	FOLDERCURRENT_SYNTAX,
+	FOLDERCURRENT_NAME_SYNTAX,
 	FOLDER_SYNTAX,
 	"{{folder|name}}",
 	"{{macro:<macroname>}}",
@@ -106,6 +110,8 @@ export const FILE_NAME_FORMAT_SYNTAX: string[] = [
 	VARIABLE_NAME_SYNTAX,
 	FIELD_VAR_SYNTAX,
 	FILE_SYNTAX,
+	FOLDERCURRENT_SYNTAX,
+	FOLDERCURRENT_NAME_SYNTAX,
 	RANDOM_SYNTAX,
 ];
 // Note: |optional is deliberately absent from FILE_NAME_FORMAT_SYNTAX — an
@@ -204,6 +210,14 @@ export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 // cursor is under, so the link scrolls there instead of the top (issue #387).
 export const LINK_TO_CURRENT_SECTION_REGEX = new RegExp(/{{LINKSECTION}}/i);
 export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
+// {{FOLDERCURRENT}} resolves to the ACTIVE file's parent folder (vault-relative,
+// no trailing slash; "" for a root-level file). The optional |name modifier
+// yields just the leaf folder segment, mirroring {{FOLDER|name}}. Resolved in
+// the combined single-pass resolver (formatter.replaceCurrentFileTokensInString),
+// never via a standalone replace loop (#1358).
+export const FOLDER_OF_CURRENT_FILE_REGEX = new RegExp(
+	/{{FOLDERCURRENT(\|name)?}}/i,
+);
 // {{FOLDER}} resolves to the target folder the note is being created in.
 // The optional |name modifier yields just the leaf folder segment.
 export const TARGET_FOLDER_REGEX = new RegExp(/{{FOLDER(\|name)?}}/i);
@@ -262,6 +276,13 @@ export const LINKSECTION_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const FILENAMECURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[I]?[L]?[E]?[N]?[A]?[M]?[E]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
+);
+// {{FOLDER}} is a strict prefix of {{FOLDERCURRENT}}, so the two flat matchers
+// stay mutually consistent: at "{{folder" both are (correctly) offered, and the
+// first extra letter disambiguates — "{{folderc" no longer matches
+// FOLDER_SYNTAX_SUGGEST_REGEX (after R it only admits closing braces).
+export const FOLDERCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[F]?[O]?[L]?[D]?[E]?[R]?[C]?[U]?[R]?[R]?[E]?[N]?[T]?[}]?[}]?$/i,
 );
 export const FOLDER_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[O]?[L]?[D]?[E]?[R]?[}]?[}]?$/i,
