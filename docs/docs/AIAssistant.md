@@ -9,6 +9,7 @@ QuickAdd's AI Assistant sends formatted prompts from Obsidian to your configured
 On this page:
 
 - [Setup](#setup)
+- [Settings semantics](#settings-semantics)
 - [Providers and local models](#providers-and-local-models)
 - [Model settings and token budgets](#model-settings-and-token-budgets)
 - [Macro output variables](#macro-output-variables)
@@ -36,6 +37,25 @@ Prompt templates are Markdown notes in your prompt template folder. They can use
 After setup, add an **AI Assistant** command to a Macro. The command formats the selected prompt template, sends it to the selected model, then stores the response as macro variables for later steps.
 
 ![AI Assistant Macro](./Images/AI_Assistant_Macro.gif)
+
+## Settings semantics
+
+AI Assistant settings apply across all AI Assistant commands unless a Macro command overrides them:
+
+- **Prompt Template Folder Path** is the folder QuickAdd reads prompt-template notes from.
+- **Providers** is the list of model endpoints and model ids QuickAdd can use.
+- **Default Model** is used when a command does not override the model. **Ask me** opens a model picker at run time.
+- **Default System Prompt** is sent with AI requests unless a command overrides it.
+- **Show Assistant** controls QuickAdd's AI progress notices.
+- **Confirm AI tool calls** controls script-agent tool confirmation. See [Tool approval and safety](#tool-approval-and-safety).
+
+Individual AI Assistant Macro commands can override:
+
+- **Prompt Template**, which is a Markdown note in the prompt template folder, not raw prompt text.
+- **Model**, which overrides the default model for that command.
+- **Output variable name**, which controls the variable names written for later Macro steps.
+- **System Prompt**, which overrides the default system prompt for that command.
+- Advanced model parameters, described in [Advanced sampling settings](#advanced-sampling-settings).
 
 ## Providers and local models
 
@@ -157,10 +177,18 @@ The variables are scoped to that Macro run. A separate QuickAdd choice run does 
 
 ### Example: AI-generated note title
 
-Use a Macro with two steps:
+Create a prompt-template note named `Title Prompt.md` in your prompt template folder:
+
+```markdown
+Generate a short filename-safe title for this text. Reply with only the title.
+
+Text: {{VALUE}}
+```
+
+Then use a Macro with two steps:
 
 1. **AI Assistant** command
-   - Prompt template: `Generate a short filename-safe title for this text. Reply with only the title. Text: {{VALUE}}`
+   - Prompt template: `Title Prompt.md`
    - Output variable name: `aiTitle`
    - Use a low temperature if you want more repeatable titles.
 2. **Template** command
