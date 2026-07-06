@@ -127,6 +127,7 @@ const sidebars = {
 					label: "Capture Examples",
 					items: [
 						"Examples/Capture_AddJournalEntry",
+						"Examples/Capture_ToDailyNote",
 						"Examples/Capture_AddTaskToKanbanBoard",
 						"Examples/Capture_FetchTasksFromTodoist",
 						"Examples/Capture_InsertBaseTemplateIntoActiveFile",

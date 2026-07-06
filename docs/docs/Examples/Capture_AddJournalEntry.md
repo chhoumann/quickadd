@@ -2,16 +2,15 @@
 title: "Capture: Add journal entry"
 ---
 
-This captures a new journal entry in my daily journal under the `What did I do today` header.
+For the current step-by-step daily-note setup, use [Capture: Add entries to your daily note](./Capture_ToDailyNote). That cookbook covers this journal entry pattern plus creating today's note, inserting under a heading, tasks, quotes, callouts, table rows, and newline gotchas.
 
-Capture To: `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`
+Compact reference for the journal entry format:
 
-Insert after: `## What did I do today?`
+- **File path / format**: `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`
+- **Write position**: **After line...**
+- **Insert after**: `## What did I do today?`
+- **Capture format**:
 
-Capture format:
-
-```
+```markdown
 - {{DATE:HH:mm}} {{VALUE}}\n
 ```
-
-![A Capture choice configured to add a timestamped journal entry](../Images/choices/capture-builder.png)

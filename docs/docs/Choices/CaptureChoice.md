@@ -388,7 +388,7 @@ When `Create line if not found` is enabled and its location dropdown is set to *
 This is the recipe for the classic "daily log, newest first" note (issue [#481](https://github.com/chhoumann/quickadd/issues/481)):
 
 -   **Capture to**: your log note (enable `Create file if it doesn't exist` if you want it auto-created).
--   **Format**: the entry, ending with a newline, e.g. `- {{TIME:HH:mm}} {{VALUE}}\n`. The trailing newline (or enabling `Capture as task`) is what keeps multiple entries on the same day on separate lines — without it, repeated same-day captures run together on one line.
+-   **Format**: the entry, ending with a newline, e.g. `- {{DATE:HH:mm}} {{VALUE}}\n`. Use a trailing newline for non-task line formats so each capture is a complete Markdown line. Task captures add their own newline.
 -   **Insert after**: the day heading, `## {{DATE:YYYY-MM-DD}}`.
 -   **Insert at end of section**: off, so each new entry lands directly under the day heading (newest entry on top within the day).
 -   **Create line if not found**: on, with the location set to **Ordered**, **Sort sections by** = `Date`, and **Section order** = `Newest / highest first`.

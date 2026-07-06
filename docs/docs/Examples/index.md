@@ -7,7 +7,7 @@ from a blank choice.
 
 | Workflow | Choice type | Setup | Prerequisites | What it creates |
 | --- | --- | --- | --- | --- |
-| [Add Journal Entry](./Capture_AddJournalEntry) | Capture | Beginner | Daily note or journal file | A timestamped journal entry |
+| [Capture to Your Daily Note](./Capture_ToDailyNote) | Capture | Beginner | Daily note path | Timestamped entries, tasks, quotes, callouts, and table rows |
 | [Add a Task to a Kanban Board](./Capture_AddTaskToKanbanBoard) | Capture | Beginner | Obsidian Kanban plugin | A task in a board section |
 | [Fetch Tasks from Todoist](./Capture_FetchTasksFromTodoist) | Capture and Macro | Intermediate | Todoist API token | Imported Todoist tasks |
 | [Canvas Capture](./Capture_CanvasCapture) | Capture | Intermediate | An Obsidian Canvas file | Text added to a selected or targeted card |
@@ -24,9 +24,9 @@ from a blank choice.
 
 ### Capture information faster
 
-Start with [Add Journal Entry](./Capture_AddJournalEntry) if you want the
-simplest capture flow. Move to [Canvas Capture](./Capture_CanvasCapture) when
-your target is a Canvas card instead of a Markdown note.
+Start with [Capture to Your Daily Note](./Capture_ToDailyNote) for daily-note
+captures. Move to [Canvas Capture](./Capture_CanvasCapture) when your target is
+a Canvas card instead of a Markdown note.
 
 ### Create structured notes
 
