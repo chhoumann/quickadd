@@ -21,4 +21,4 @@ If you use **Obsidian Sync**, also check **Settings -> Sync** on each device:
 
 With iCloud, Dropbox, Git, Syncthing, or any other file-sync tool, the file-type toggle doesn't apply - just make sure the tool syncs the whole `.obsidian` folder plus your script files, then restart or re-enable QuickAdd on the other device.
 
-For a one-time transfer, [export a QuickAdd package](./Choices/Packages) and import it on the other device. A package moves your QuickAdd configuration, but not referenced `.js` files, note scripts, or secrets.
+For a one-time transfer, [export a QuickAdd package](./Choices/Packages) and import it on the other device. A package moves your QuickAdd configuration and bundled dependent scripts. Secrets still stay local, so enter those on each device.
