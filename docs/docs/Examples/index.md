@@ -14,6 +14,7 @@ from a blank choice.
 | [Add an Inbox Item](./Template_AddAnInboxItem) | Template | Beginner | Inbox folder or note | A new inbox note |
 | [Create an MOC Note with a Link Dashboard](./Template_CreateMOCNoteWithLinkDashboard) | Template | Intermediate | Base template file | A note with an embedded Base dashboard |
 | [Automatic Book Notes from Readwise](./Template_AutomaticBookNotesFromReadwise) | Template and Macro | Advanced | Readwise export script | Book notes with highlights |
+| [Reuse Templater Folder Templates](./Template_TemplaterFolderTemplates) | Template | Intermediate | Templater folder templates | A note using the folder's Templater template |
 | [Book Finder](./Macro_BookFinder) | Macro | Intermediate | Book lookup script | A populated book note |
 | [Movie and Series Script](./Macro_MovieAndSeriesScript) | Macro | Intermediate | TMDB API key | Media notes with metadata |
 | [Move Notes with a Tag](./Macro_MoveNotesWithATagToAFolder) | Macro | Intermediate | Tagged notes | Notes moved into a target folder |
@@ -32,7 +33,10 @@ your target is a Canvas card instead of a Markdown note.
 
 Start with [Add an Inbox Item](./Template_AddAnInboxItem) for a small template.
 Use [Create an MOC Note with a Link Dashboard](./Template_CreateMOCNoteWithLinkDashboard)
-when you want a generated note to include a live Base dashboard.
+when you want a generated note to include a live Base dashboard. If you
+already maintain folder templates in Templater, see
+[Reuse Templater Folder Templates](./Template_TemplaterFolderTemplates) to
+avoid duplicating that mapping in QuickAdd.
 
 ### Run scripted workflows
 

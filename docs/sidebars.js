@@ -140,6 +140,7 @@ const sidebars = {
 						"Examples/Template_AddAnInboxItem",
 						"Examples/Template_CreateMOCNoteWithLinkDashboard",
 						"Examples/Template_AutomaticBookNotesFromReadwise",
+						"Examples/Template_TemplaterFolderTemplates",
 					],
 				},
 				{
