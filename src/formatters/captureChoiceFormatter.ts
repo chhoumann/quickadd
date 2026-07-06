@@ -20,6 +20,11 @@ import {
 import * as positioning from "./helpers/insertionPositioning";
 import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
+import {
+	buildImageEmbedLink,
+	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
+	saveClipboardImageToVault,
+} from "../utils/clipboardImageAttachments";
 
 /**
 	* Only ASCII whitespace counts as "nothing to capture". Unicode spaces such as
@@ -27,14 +32,6 @@ import { parentFolderPath } from "../utils/pathUtils";
 	* dropped, even though String.prototype.trim() strips them (issue #760).
 	*/
 const ASCII_WHITESPACE_ONLY_REGEX = /^[ \t\r\n\f\v]*$/;
-const imageClipboardMimeExtensions: Record<string, string> = {
-	"image/png": "png",
-	"image/jpeg": "jpg",
-	"image/jpg": "jpg",
-	"image/gif": "gif",
-	"image/webp": "webp",
-	"image/svg+xml": "svg",
-};
 
 function isCaptureContentEmpty(content: string): boolean {
 	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
@@ -199,19 +196,18 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return null;
 		}
 
-		const extension = imageClipboardMimeExtensions[item.mimeType];
-		const filename = `Clipboard image ${this.formatAttachmentTimestamp(new Date())}.${extension}`;
 		const sourcePath = this.getLinkSourcePath() ?? "";
-		const attachmentPath =
-			await this.app.fileManager.getAvailablePathForAttachment(
-				filename,
-				sourcePath || undefined,
-			);
-		const file = await this.app.vault.createBinary(attachmentPath, data);
+		const file = await saveClipboardImageToVault(
+			this.app,
+			data,
+			item.mimeType,
+			sourcePath,
+		);
+		// Record BEFORE link generation so a linking failure still leaves the
+		// created file visible to the engine's rollback.
 		this.createdClipboardAttachmentPaths.push(file.path);
-		const link = this.app.fileManager.generateMarkdownLink(file, sourcePath);
 
-		return link.startsWith("!") ? link : `!${link}`;
+		return buildImageEmbedLink(this.app, file, sourcePath);
 	}
 
 	private async getFirstClipboardImageItem(clipboard: {
@@ -220,21 +216,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const items = await clipboard.read();
 		for (const clipboardItem of items) {
 			const mimeType = clipboardItem.types.find(
-				(type) => imageClipboardMimeExtensions[type] !== undefined,
+				(type) => IMAGE_CLIPBOARD_MIME_EXTENSIONS[type] !== undefined,
 			);
 			if (mimeType) return { clipboardItem, mimeType };
 		}
 
 		return null;
-	}
-
-	private formatAttachmentTimestamp(date: Date): string {
-		const pad = (value: number) => String(value).padStart(2, "0");
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-			date.getDate(),
-		)} ${pad(date.getHours())}.${pad(date.getMinutes())}.${pad(
-			date.getSeconds(),
-		)}`;
 	}
 
 	protected getCurrentFileLink(): string | null {
