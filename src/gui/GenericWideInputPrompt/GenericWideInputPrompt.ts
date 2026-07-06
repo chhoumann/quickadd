@@ -7,6 +7,8 @@ import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { attachTextareaIndent } from "../components/textareaIndent";
 import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
+import type { ImagePasteHandle } from "../imagePasteHandler";
+import { attachImagePasteHandler } from "../imagePasteHandler";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -22,6 +24,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
 	private disposeIndent?: () => void;
+	private imagePasteHandle?: ImagePasteHandle;
 
 	public static Prompt(
 		app: App,
@@ -148,6 +151,14 @@ export default class GenericWideInputPrompt extends Modal {
 		// Tab inserts a tab / indents instead of moving focus (issue #764).
 		this.disposeIndent = attachTextareaIndent(textComponent.inputEl);
 
+		if (this.options?.imagePaste) {
+			this.imagePasteHandle = attachImagePasteHandler(
+				this.app,
+				textComponent.inputEl,
+				this.options.imagePaste,
+			);
+		}
+
 		return textComponent;
 	}
 
@@ -223,6 +234,12 @@ export default class GenericWideInputPrompt extends Modal {
 
 	private submit() {
 		if (this.didSubmit) return;
+		// A pasted image may still be saving; defer so ctrl/cmd+Enter right
+		// after Ctrl+V submits WITH the embed link instead of racing the save.
+		if (this.imagePasteHandle?.isBusy()) {
+			void this.imagePasteHandle.whenIdle().then(() => this.submit());
+			return;
+		}
 		// Resolve the textarea value verbatim — identical to the single-line
 		// GenericInputPrompt (whose transformInputOnSubmit is the identity). The
 		// substituted {{VALUE}} is never linebreak-processed (the formatter's
@@ -277,6 +294,7 @@ export default class GenericWideInputPrompt extends Modal {
 			this.submitEnterCallback,
 		);
 		this.disposeIndent?.();
+		this.imagePasteHandle?.detach();
 	}
 
 	onOpen() {

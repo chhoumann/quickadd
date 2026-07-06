@@ -44,6 +44,13 @@ import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
 	private valueHeader: string;
+	/**
+	 * True only while formatFileContent's format() pass runs. Value prompts
+	 * opened during that window accept clipboard-image paste; prompts opened
+	 * from path passes (file name, folder, template path, location targets)
+	 * never do — an embed link in a path would corrupt it (issue #1484).
+	 */
+	private contentValuePromptsAcceptImagePaste = false;
 
 	constructor(
 		protected app: App,
@@ -135,7 +142,20 @@ export class CompleteFormatter extends Formatter {
 	async formatFileContent(input: string): Promise<string> {
 		let output: string = input;
 
-		output = await this.format(output);
+		// formatFileContent is the ONLY content pass: every path pass
+		// (formatFileName/formatFolderPath/formatTemplateFilePath/
+		// formatLocationString) calls format() directly. Image paste in value
+		// prompts is therefore enabled exactly here — a pasted embed link is
+		// note-body material and must never reach a file-name/path prompt
+		// (issue #1484). Restored in finally so a nested/failed pass can't
+		// leak the flag into a later path pass on the same formatter.
+		const previousImagePaste = this.contentValuePromptsAcceptImagePaste;
+		this.contentValuePromptsAcceptImagePaste = true;
+		try {
+			output = await this.format(output);
+		} finally {
+			this.contentValuePromptsAcceptImagePaste = previousImagePaste;
+		}
 		// Resolve ALL note-derived tokens ({{linkcurrent}}, {{linksection}},
 		// {{filenamecurrent}}, {{folder}}, {{foldercurrent}}, {{title}}) in ONE
 		// pass so no token re-scans another's generated output — fixing both the
@@ -549,13 +569,29 @@ export class CompleteFormatter extends Formatter {
 	private buildInputPromptOptions(
 		context: PromptContext | undefined,
 	): InputPromptOptions | undefined {
-		if (!context?.optional && !context?.numericConfig && !context?.sliderConfig) {
+		// Image paste only for free-text prompts opened while formatting note
+		// CONTENT — never for number/slider (numeric sinks) and never during
+		// path passes (see contentValuePromptsAcceptImagePaste). The checkbox
+		// picker never reaches the input-prompt factory.
+		const imagePaste =
+			this.contentValuePromptsAcceptImagePaste &&
+			context?.inputTypeOverride !== "number" &&
+			context?.inputTypeOverride !== "slider"
+				? { sourcePath: this.getLinkSourcePath() ?? "" }
+				: undefined;
+		if (
+			!context?.optional &&
+			!context?.numericConfig &&
+			!context?.sliderConfig &&
+			!imagePaste
+		) {
 			return undefined;
 		}
 		return {
 			optional: context?.optional,
 			numeric: context?.numericConfig,
 			slider: context?.sliderConfig,
+			imagePaste,
 		};
 	}
 

@@ -1539,3 +1539,9 @@ textarea.is-valid {
 	/* Darkened red so white pill text clears WCAG AA at small sizes. */
 	--qa-sev-critical-pill: color-mix(in srgb, var(--color-red, #c0392b) 82%, #000);
 }
+
+/* Input frozen while a pasted clipboard image is being saved (issue #1484). */
+.qa-image-paste-busy {
+	opacity: 0.7;
+	cursor: progress;
+}
