@@ -83,6 +83,11 @@ const sidebars = {
 				{ type: "doc", id: "VariablesDataFlow", label: "Variables and data flow" },
 				{
 					type: "doc",
+					id: "ControllingPrompts",
+					label: "Controlling Prompts",
+				},
+				{
+					type: "doc",
 					id: "ApplyTemplateToNote",
 					label: "Apply Template to Note",
 				},

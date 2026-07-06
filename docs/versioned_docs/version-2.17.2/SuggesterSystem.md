@@ -6,6 +6,8 @@ title: Suggester System
 
 QuickAdd's suggester system provides intelligent, context-aware suggestions when selecting files, tags, headings, and other content in your vault.
 
+The `#` and `[[` triggers below work in QuickAdd's single-line and multi-line input prompts. The [one-page input form](./ControllingPrompts.md#one-form-instead-of-many-prompts)'s text fields do not offer them; its field and pick-list inputs have their own inline suggestions.
+
 ![Obsidian_kKQxHJal6p](https://github.com/user-attachments/assets/cc89f672-3451-42c0-89b8-89e0a1ebc780)
 
 ## Special Search Modes

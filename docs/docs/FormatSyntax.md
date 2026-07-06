@@ -164,7 +164,7 @@ Example:
 {{VALUE:summary|type:multiline|label:Summary}}
 ```
 
-**Keyboard:** In the multi-line prompt, pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field.
+**Keyboard:** Submit the multi-line prompt with **Ctrl/Cmd+Enter** - plain **Enter** inserts a newline. Pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field. See [Controlling Prompts](./ControllingPrompts.md#submit-keys) for all prompt shortcuts.
 
 ## `{{VALUE:<variable>|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text` {#value-property-types}
 

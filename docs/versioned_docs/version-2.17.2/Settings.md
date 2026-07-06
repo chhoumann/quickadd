@@ -19,7 +19,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 - **Use Multi-line Input Prompt** — Use multi-line input prompt instead of single-line input prompt.
 - **Persist Input Prompt Drafts** — Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.
 - **Use editor selection as default Capture value** — When enabled, Capture uses the current editor selection as `{{VALUE}}` and may skip the prompt. When disabled, Capture always prompts for `{{VALUE}}`.
-- **One-page input for choices** — Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs; Template and Capture choices can [override this individually](./Advanced/onePageInputs#per-choice-override). See [One-page Inputs](./Advanced/onePageInputs).
+- **One-page input for choices** — Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs; Template and Capture choices can [override this individually](./Advanced/onePageInputs#per-choice-override). See [One-page Inputs](./Advanced/onePageInputs) and [Controlling Prompts](./ControllingPrompts).
 - **Date aliases** — Shortcodes for natural language date parsing. One per line: `alias = phrase`. Example: `tm = tomorrow`. Use **Reset to defaults** to restore the built-in aliases.
 
 ## Templates & Properties

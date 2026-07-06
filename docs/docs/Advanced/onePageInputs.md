@@ -7,6 +7,7 @@ description: Collect all QuickAdd inputs in a single dynamic form
 # One-page Inputs
 
 QuickAdd can collect all inputs in a single, dynamic form before running your choice.
+For a task-oriented overview of prompts in general, see [Controlling Prompts](../ControllingPrompts.md).
 
 ## Enable
 - Settings → QuickAdd → toggle “One-page input for choices”.
