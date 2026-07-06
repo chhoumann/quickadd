@@ -323,7 +323,7 @@ The folder of the file from which the template or capture was triggered (the act
 
 This makes per-project captures work without a macro: with **Capture To** set to
 
-```
+```text
 {{FOLDERCURRENT}}/Project Tasks.md
 ```
 

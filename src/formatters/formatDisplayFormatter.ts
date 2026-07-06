@@ -26,6 +26,13 @@ export class FormatDisplayFormatter extends Formatter {
 		app: App,
 		private readonly plugin: QuickAdd,
 		dateParser?: IDateParser,
+		// Line-target fields (insert-after/before) preview with
+		// { resolveActiveFolder: false }: their runtime path
+		// (formatLocationString) deliberately leaves {{foldercurrent}} literal,
+		// so the preview must too — otherwise a manually typed or imported
+		// selector previews as a resolved folder while the capture searches for
+		// the literal token.
+		private readonly opts: { resolveActiveFolder?: boolean } = {},
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
@@ -56,7 +63,9 @@ export class FormatDisplayFormatter extends Formatter {
 				links: true,
 				fileName: true,
 				folder: true,
-				activeFolder: "content",
+				...(this.opts.resolveActiveFolder === false
+					? {}
+					: { activeFolder: "content" as const }),
 			});
 			output = await this.replaceMacrosInString(output);
 			output = await this.replaceTemplateInString(output);

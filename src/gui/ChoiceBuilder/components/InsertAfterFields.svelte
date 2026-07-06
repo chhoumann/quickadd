@@ -259,7 +259,7 @@ function onPromptHeadingToggle(value: boolean) {
 		name="Insert after"
 		desc="Insert capture after specified text. Accepts format syntax. Tip: use a heading (starts with #) to target a section. Blank line handling is configurable below."
 	/>
-	<FormatPreviewField value={insertAfter.after} {app} {plugin} />
+	<FormatPreviewField value={insertAfter.after} formatterKind="lineTarget" {app} {plugin} />
 	<ValidatedInput
 		bind:value={insertAfter.after}
 		placeholder="Insert after"

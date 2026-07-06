@@ -181,10 +181,17 @@ export class CompleteFormatter extends Formatter {
 		// getOrCreateFolder and CREATE a vault folder literally named
 		// "{{foldercurrent}}". "path" mode: no active file aborts with a clear
 		// error instead of silently collapsing the folder to the vault root.
-		return this.replaceCurrentFileTokensInString(formatted, {
+		const resolved = this.replaceCurrentFileTokensInString(formatted, {
 			folder: true,
 			activeFolder: "path",
 		});
+		// A token that legitimately resolves to "" at the START of the path (a
+		// root-level active file in "{{FOLDERCURRENT}}/Subnotes", or the {{FOLDER}}
+		// collapse above) leaves a leading "/", which validateFolderPath would
+		// reject as an empty first segment — falling back to the vault root
+		// instead of using "Subnotes". Strip leading slashes so the folder path is
+		// root-relative, matching what the capture/file-name paths do downstream.
+		return resolved.replace(/^\/+/, "");
 	}
 
 	/**

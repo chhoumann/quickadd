@@ -58,7 +58,7 @@ const createLocationOptions = [
 	name="Insert before"
 	desc="Insert capture before specified text. Accepts format syntax."
 />
-<FormatPreviewField value={insertBefore.before} {app} {plugin} />
+<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
 <ValidatedInput
 	bind:value={insertBefore.before}
 	placeholder="Insert before"

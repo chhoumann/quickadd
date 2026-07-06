@@ -18,7 +18,12 @@ let {
 	targetFolderPath,
 }: {
 	value: string;
-	formatterKind?: "format" | "fileName";
+	/**
+	 * "lineTarget" is the insert-after/before selector preview: identical to
+	 * "format" except {{foldercurrent}} stays literal, matching the runtime
+	 * formatLocationString (which deliberately never resolves it in selectors).
+	 */
+	formatterKind?: "format" | "fileName" | "lineTarget";
 	app: App;
 	plugin: QuickAdd;
 	/**
@@ -40,7 +45,9 @@ let previewToken = 0;
 const formatter = $derived(
 	formatterKind === "fileName"
 		? new FileNameDisplayFormatter(app, plugin)
-		: new FormatDisplayFormatter(app, plugin),
+		: new FormatDisplayFormatter(app, plugin, undefined, {
+				resolveActiveFolder: formatterKind !== "lineTarget",
+			}),
 );
 
 $effect(() => {

@@ -685,6 +685,18 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 		).rejects.toThrow("Unable to get the active file's folder");
 	});
 
+	it("formatFolderPath strips the leading slash a root-level active file produces", async () => {
+		const f = defaultFormatter(
+			{},
+			{ activeFile: { basename: "RootNote", parent: { path: "/" } } },
+		);
+		// "" + "/Subnotes" would otherwise reach validateFolderPath as an empty
+		// first segment and silently fall back to the vault root.
+		await expect(
+			f.formatFolderPath("{{FOLDERCURRENT}}/Subnotes"),
+		).resolves.toBe("Subnotes");
+	});
+
 	it("formatFolderPath throws without an active file", async () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(f.formatFolderPath("{{FOLDERCURRENT}}")).rejects.toThrow(

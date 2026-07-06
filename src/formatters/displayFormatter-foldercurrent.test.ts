@@ -69,6 +69,20 @@ describe("Display formatters - {{foldercurrent}} preview", () => {
 		);
 	});
 
+	it("line-target preview mode leaves the token literal (matches formatLocationString)", async () => {
+		const f = new FormatDisplayFormatter(
+			makeApp(activeInAlpha),
+			plugin,
+			undefined,
+			{ resolveActiveFolder: false },
+		);
+		await expect(f.format("## {{foldercurrent}}")).resolves.toBe(
+			"## {{foldercurrent}}",
+		);
+		// Other note-derived tokens still preview normally in that mode.
+		await expect(f.format("{{filenamecurrent}}")).resolves.toBe("Meeting");
+	});
+
 	it("previews show a root-level active file's folder as empty (truthful)", async () => {
 		const f = new FileNameDisplayFormatter(
 			makeApp({ basename: "Root", path: "Root.md", parent: { path: "/" } }),
