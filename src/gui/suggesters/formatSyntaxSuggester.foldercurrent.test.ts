@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { FormatSyntaxSuggester } from "./formatSyntaxSuggester";
+import { FormatSyntaxSuggester, FormatSyntaxToken } from "./formatSyntaxSuggester";
 
 // Minimal Obsidian DOM polyfills (same shape as formatSyntaxSuggester.case.test.ts).
 function ensureObsidianDomPolyfills(): void {
@@ -44,6 +44,7 @@ function ensureObsidianDomPolyfills(): void {
 function suggestFor(
 	value: string,
 	suggestForFileNames = false,
+	excludeTokens: FormatSyntaxToken[] = [],
 ): Promise<string[]> {
 	const app = {
 		dom: { appContainerEl: document.body },
@@ -62,6 +63,7 @@ function suggestFor(
 		inputEl,
 		plugin,
 		suggestForFileNames,
+		excludeTokens,
 	);
 	return suggester.getSuggestions(value).finally(() => suggester.destroy());
 }
@@ -95,5 +97,19 @@ describe("FormatSyntaxSuggester {{foldercurrent}} (shared {{folder prefix)", () 
 		expect(s).toContain("{{foldercurrent|name}}");
 		expect(s).not.toContain("{{foldercurrent}}");
 		expect(s).not.toContain("{{folder|name}}");
+	});
+
+	it("withholds the token when excluded (insert-after/before line-target fields)", async () => {
+		// formatLocationString leaves {{foldercurrent}} literal in line selectors,
+		// so those fields exclude it — no suggester/runtime mismatch.
+		const s = await suggestFor("{{folderc", false, [
+			FormatSyntaxToken.FolderCurrent,
+		]);
+		expect(s).not.toContain("{{foldercurrent}}");
+		// Other contextual tokens are unaffected by the exclusion.
+		const links = await suggestFor("{{linkc", false, [
+			FormatSyntaxToken.FolderCurrent,
+		]);
+		expect(links).toContain("{{linkcurrent}}");
 	});
 });

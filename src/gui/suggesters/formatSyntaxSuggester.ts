@@ -40,7 +40,7 @@ import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
 import { flattenChoices } from "../../utils/choiceUtils";
 
-enum FormatSyntaxToken {
+export enum FormatSyntaxToken {
 	Date,
 	DateFormat,
 	VariableDate,
@@ -231,7 +231,13 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
 		private plugin: QuickAdd,
-		private suggestForFileNames: boolean = false
+		private suggestForFileNames: boolean = false,
+		// Tokens to withhold in this field. Used by the insert-after/before
+		// line-target fields, where formatLocationString deliberately leaves
+		// {{foldercurrent}} literal (it can legitimately resolve to "", and an
+		// empty selector would match the first line) — offering it there would be
+		// a suggester/runtime mismatch.
+		private excludeTokens: FormatSyntaxToken[] = []
 	) {
 		super(app, inputEl);
 
@@ -298,7 +304,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		const allTokens = [
 			...this.tokenDefinitions,
 			...(this.suggestForFileNames ? this.fileNameTokens : this.contextualTokens)
-		];
+		].filter((def) => !this.excludeTokens.includes(def.token));
 
 		for (const tokenDef of allTokens) {
 			const match = tokenDef.regex.exec(inputSegment);

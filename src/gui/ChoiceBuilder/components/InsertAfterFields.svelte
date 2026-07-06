@@ -10,7 +10,10 @@ import {
 	CREATE_IF_NOT_FOUND_ORDERED,
 	CREATE_IF_NOT_FOUND_TOP,
 } from "../../../constants";
-import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
+import {
+	FormatSyntaxSuggester,
+	FormatSyntaxToken,
+} from "../../suggesters/formatSyntaxSuggester";
 import { detectDateFormatFromAfter } from "../../../utils/insertAfterDateFormat";
 import { FormatDisplayFormatter } from "../../../formatters/formatDisplayFormatter";
 import SettingItem from "../../components/SettingItem.svelte";
@@ -46,8 +49,13 @@ if (!insertAfter.createIfNotFoundLocation)
 	insertAfter.createIfNotFoundLocation = CREATE_IF_NOT_FOUND_TOP;
 
 const suggesters = [
+	// Line-target field: withhold {{foldercurrent}}, which formatLocationString
+	// deliberately leaves literal in selectors (a legitimate "" resolution would
+	// match the first line), so it is never suggested where it cannot resolve.
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin),
+		new FormatSyntaxSuggester(app, el, plugin, false, [
+			FormatSyntaxToken.FolderCurrent,
+		]),
 ];
 
 const blankLineOptions = [

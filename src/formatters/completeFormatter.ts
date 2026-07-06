@@ -195,8 +195,8 @@ export class CompleteFormatter extends Formatter {
 	 * tokens, but never runs macros, inline JavaScript, or {{TEMPLATE:}}
 	 * inclusion — a file-path lookup should not execute code or splice another
 	 * template's body into a path. Note-relative tokens ({{title}}, {{FOLDER}},
-	 * {{FILENAMECURRENT}}, {{LINKCURRENT}}, {{LINKSECTION}}) are intentionally
-	 * left literal: a
+	 * {{FOLDERCURRENT}}, {{FILENAMECURRENT}}, {{LINKCURRENT}}, {{LINKSECTION}})
+	 * are intentionally left literal: a
 	 * source template has no "current note" or target folder, so an unresolved
 	 * token fails visibly instead of silently collapsing the path.
 	 *

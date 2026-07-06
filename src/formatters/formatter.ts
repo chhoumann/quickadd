@@ -642,9 +642,12 @@ export abstract class Formatter {
 		// In a "path" context a missing active folder ALWAYS aborts, regardless of
 		// the (append-link-controlled) required/optional behaviour: stripping the
 		// token would leave a fully valid path that silently retargets the write
-		// (e.g. "{{foldercurrent}}/Tasks.md" -> the vault root). No other missing
-		// token can co-occur here in practice — path contexts never enable links —
-		// so this early throw does not reorder the legacy message precedence below.
+		// (e.g. "{{foldercurrent}}/Tasks.md" -> the vault root). Path contexts
+		// never enable links, but they DO enable fileName, so a missing
+		// {{filenamecurrent}} can co-occur — this early throw then reports the
+		// folder message instead of the file-name one. Acceptable: both point at
+		// the same remedy (open a file), and only the folder token carries the
+		// must-not-strip property that justifies preempting the behaviour check.
 		const activeFolderError =
 			"Unable to get the active file's folder. Make sure you have a file open in the editor.";
 		if (missingActiveFolder && opts.activeFolder === "path") {
