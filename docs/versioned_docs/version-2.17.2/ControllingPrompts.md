@@ -27,7 +27,7 @@ Prompts follow the structure of the choice, not the position of tokens in your t
 
 1. **Template choices** resolve the template path first, then the folder, then the file name, and finally the template's content. A token in the file name always prompts before anything in the template body.
 2. **Capture choices** resolve the capture target first, then the capture format.
-3. **Within one piece of text** (a file name, a template, a capture format), prompts are grouped by token kind, and only within a kind do they follow the order they appear in. Dates (`{{VDATE}}`) are asked before named values (`{{VALUE:name}}`), which are asked before fields (`{{FIELD}}`) and file pickers (`{{FILE}}`).
+3. **Within one piece of text** (a file name, a template, a capture format), prompts are grouped by token kind, and only within a kind do they follow the order they appear in. A plain `{{VALUE}}`/`{{NAME}}` is asked first of all, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last.
 
 For example, in this template:
 
@@ -38,10 +38,10 @@ Due: {{VDATE:due,YYYY-MM-DD}}
 
 the `due` prompt appears first, even though `attendees` comes first in the text.
 
-There is no flag that reorders individual prompts. If the sequence bothers you, use the [one-page input form](#one-form-instead-of-many-prompts): it shows all inputs in a single form, and you fill them in any order you like.
+There is no flag that reorders individual prompts. If the sequence bothers you, use the [one-page input form](#one-form-instead-of-many-prompts): it lists all inputs in a single form (in the same resolution order), and you fill them in any order you like.
 
 :::note
-A suggester shared across fields with [`|name:`](./FormatSyntax.md#value-name) is resolved before the surrounding field's other prompts.
+A suggester defined with [`|name:`](./FormatSyntax.md#value-name) and its reuses can appear in any order within one piece of text - when a reuse comes before the definition, QuickAdd resolves the definition early so you are asked once.
 :::
 
 ## Shape an individual prompt
@@ -83,11 +83,11 @@ If a variable appears in several places, put `|optional` on every occurrence. Th
 | Single-line input (also number, slider, and date prompts) | `Enter` | |
 | Multi-line input | `Ctrl/Cmd+Enter` (`Enter` inserts a newline) | `Tab` indents; `Shift+Tab` moves focus out |
 | Pick list / suggester | `Enter` picks the highlighted option | |
-| Math prompt ([`{{MVALUE}}`](./FormatSyntax.md#mvalue)) | `Ctrl+Enter` | |
+| Math prompt ([`{{MVALUE}}`](./FormatSyntax.md#mvalue)) | `Ctrl/Cmd+Enter` | `Tab` jumps to the cursor marker |
 | One-page input form | `Ctrl/Cmd+Enter` | `Tab` moves between fields |
 | Any optional prompt | | `Ctrl/Cmd+Shift+Enter` skips |
 
-`Esc` cancels the prompt and with it the whole run - nothing is created or captured. If you want a notice when that happens, enable **Show Input Cancellation Notifications** in [settings](./Settings.md#notifications).
+`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice (in a macro, steps that already ran are not undone). If you want a notice when that happens, enable **Show Input Cancellation Notifications** in [settings](./Settings.md#notifications).
 
 ## Autocomplete inside prompts
 
@@ -95,7 +95,7 @@ While typing in a prompt, `#` searches your vault's tags and `[[` searches your 
 
 ## One form instead of many prompts
 
-Instead of answering prompts one at a time, QuickAdd can collect everything in a single form before the choice runs: every unanswered variable, rendered as the right widget (text, textarea, date with a calendar, dropdown, slider), with optional fields badged and a live file name preview.
+Instead of answering prompts one at a time, QuickAdd can collect everything in a single form before the choice runs: every unanswered variable, rendered as the right widget (text, textarea, date with a calendar, dropdown, slider), with optional fields badged and, for Template choices with a file name format, a live file name preview.
 
 - Enable it globally with **One-page input for choices** under [Settings → Input](./Settings.md#input).
 - Template and Capture choices each have a **One-page input override** dropdown in their builder (**Follow global setting**, **Always**, **Never**), so you can turn the form on or off per choice.

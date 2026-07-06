@@ -268,7 +268,7 @@ Notes:
 
 ## Optional fields: `|optional` {#optional-fields}
 
-Marks a prompt as optional, so it can be skipped and resolve to nothing. Works on `{{VALUE}}`/`{{NAME}}`, `{{VALUE:<variable>}}`, option lists, and `{{VDATE:...}}`.
+Marks a prompt as optional, so it can be skipped and resolve to nothing. Works on `{{VALUE}}`/`{{NAME}}`, `{{VALUE:<variable>}}`, option lists, `{{VDATE:...}}`, and `{{FILE:...}}`.
 
 ```markdown
 {{VALUE:reminder|optional}}
@@ -365,7 +365,7 @@ Example: `{{GLOBAL_VAR:Meeting Header}}`.
 
 ## `{{MVALUE}}` {#mvalue}
 
-Math modal for writing LaTeX. Use CTRL + Enter to submit.
+Math modal for writing LaTeX. Use Ctrl/Cmd + Enter to submit.
 
 Example: `Equation: ${{MVALUE}}$`.
 

@@ -187,7 +187,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			items: [
 				{
 					name: "Use Multi-line Input Prompt",
-					desc: "Use multi-line input prompt instead of single-line input prompt",
+					desc: "Use multi-line input prompt instead of single-line input prompt. Submit multi-line prompts with Ctrl/Cmd+Enter; Enter inserts a newline.",
 					control: { type: "toggle", key: "inputPrompt" },
 				},
 				{
