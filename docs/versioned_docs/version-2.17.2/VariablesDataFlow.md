@@ -4,11 +4,11 @@ title: Variables and data flow
 
 # Variables and data flow
 
-This page is about temporary run variables, not [Global Variables](./GlobalVariables.md). Global Variables are saved settings. Run variables live only while a Template, Capture, or Macro run is executing.
+This page covers run variables - the temporary values that live only while a Template, Capture, or Macro run is executing. For saved, reusable settings, see [Global Variables](./GlobalVariables.md).
 
 QuickAdd keeps one temporary variable map for the current run. Prompts, scripts, and AI Assistant commands can write to that map. Format syntax reads from it. In a Macro, commands run in order and share the same map, so a value collected in one step can be used by later Template, Capture, script, and AI Assistant steps.
 
-Different fields still have their own rules. This page explains how values move between steps. The exact token grammar stays in [Format Syntax](./FormatSyntax.md).
+This page explains how values move between steps; the exact token grammar lives in [Format Syntax](./FormatSyntax.md).
 
 ## Write values once
 
