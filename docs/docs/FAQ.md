@@ -4,42 +4,21 @@ title: FAQ
 
 ## Syncing QuickAdd between devices
 
-QuickAdd saves its choices and settings in
-`<vault>/.obsidian/plugins/quickadd/data.json`. If your sync setup includes
-Obsidian's configuration folder, that file carries your Template, Capture,
-Macro, Multi choices, global variables, and normal QuickAdd settings to the
-other device.
+QuickAdd keeps everything - your choices, macros, global variables, and settings - in `<vault>/.obsidian/plugins/quickadd/data.json`. As long as your sync setup includes Obsidian's configuration folder, that one file brings your whole QuickAdd setup to the other device.
 
-Two things are separate from `data.json`:
+Two things don't travel with it:
 
-- QuickAdd has to be installed and enabled on the other device. Obsidian stores
-  enabled community plugins in `<vault>/.obsidian/community-plugins.json`.
-- SecretStorage-backed values are local. If QuickAdd stores an API key or
-  script secret setting in Obsidian's SecretStorage, enter it on each device
-  that needs it.
+- **The plugin itself.** QuickAdd must be installed and enabled on the other device. Obsidian tracks enabled plugins in `<vault>/.obsidian/community-plugins.json`.
+- **Secrets.** API keys stored through Obsidian's secret storage stay on the device where you entered them, so enter them once per device.
 
-After your sync tool reports that the files have arrived, restart Obsidian on
-the receiving device, or disable and re-enable QuickAdd in **Settings ->
-Community plugins**. QuickAdd reads `data.json` when the plugin loads, so an
-already-running copy of QuickAdd will keep using the choices it loaded earlier.
+One gotcha catches almost everyone: QuickAdd reads `data.json` when it loads, so a device that's already running keeps the choices it loaded earlier. After the files have synced, restart Obsidian on the receiving device - or toggle QuickAdd off and on in **Settings -> Community plugins** - and your changes appear.
 
-If you use Obsidian Sync, also check **Settings -> Sync** on each device:
+If you use **Obsidian Sync**, also check **Settings -> Sync** on each device:
 
-- Under **Vault configuration sync**, enable **Active community plugin list**
-  and **Installed community plugin list** if you want Obsidian Sync to install
-  and enable QuickAdd for you.
-- If a macro calls a standalone `.js` user script, enable **Sync all other
-  types**. Obsidian's [Sync settings](https://obsidian.md/help/sync/settings)
-  treat `.js` as an additional file type. Without the script file at the same
-  vault path, the macro configuration can appear but the script will not run.
-- Note-based user scripts in Markdown notes avoid the `.js` file-type toggle.
-  See [User Scripts](./UserScripts) for the two script forms and mobile limits.
+- Enable **Active community plugin list** and **Installed community plugin list** under **Vault configuration sync** if you want Obsidian Sync to install and enable QuickAdd for you.
+- If a macro runs a standalone `.js` user script, enable **Sync all other types**. Obsidian Sync skips `.js` files unless that setting is on (see [Sync settings](https://obsidian.md/help/sync/settings)) - which is why a macro can arrive on the other device with its script missing: the configuration syncs, the script doesn't, and the macro fails.
+- Scripts kept in Markdown notes sync like any other note and sidestep the file-type toggle entirely. See [User Scripts](./UserScripts) for both script forms.
 
-If you use iCloud, Dropbox, Git, Syncthing, or another file-sync tool, the
-`.js` toggle does not apply. Make sure the tool syncs the whole `.obsidian`
-configuration folder and the script files in your vault, then restart or
-re-enable QuickAdd on the other device.
+With iCloud, Dropbox, Git, Syncthing, or any other file-sync tool, the file-type toggle doesn't apply - just make sure the tool syncs the whole `.obsidian` folder plus your script files, then restart or re-enable QuickAdd on the other device.
 
-For a one-time transfer, [export a QuickAdd package](./Choices/Packages) and
-import it on the other device. Packages move the QuickAdd configuration, but not
-referenced `.js` files, note-script files, or local secrets.
+For a one-time transfer, [export a QuickAdd package](./Choices/Packages) and import it on the other device. A package moves your QuickAdd configuration, but not referenced `.js` files, note scripts, or secrets.
