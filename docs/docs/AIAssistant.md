@@ -81,7 +81,8 @@ Provider API keys are stored through Obsidian SecretStorage. QuickAdd stores the
 2. Click **Edit Providers**.
 3. Click **Add Provider**.
 4. Pick a provider card, select a SecretStorage entry for the API key, then click **Connect**.
-5. Click **Edit** on the provider and add or import models.
+
+Connecting a provider imports its current model list right away, so you can pick a working model immediately. If the live import fails (for example, while offline), the built-in providers fall back to a shipped model list and refresh automatically once the provider is reachable.
 
 For a provider that is not listed, click **Add custom...** under **Custom provider**. Set the provider name, endpoint, API key secret if needed, model source, and models manually.
 
@@ -95,7 +96,7 @@ For Ollama:
 Name: Ollama
 Endpoint: http://localhost:11434/v1
 API Key: leave blank
-Model source: Provider /v1/models
+Model source: Provider models endpoint
 Models: import from the running Ollama server, or add the model name manually
 ```
 
@@ -107,11 +108,19 @@ When adding a model manually, the model name must match the id your server expec
 
 Each provider has a **Model source** setting:
 
-- **Provider /v1/models** asks the provider endpoint for its model list. This is the usual choice for local providers like Ollama when the server is running.
+- **Provider models endpoint** asks the provider for its model list. QuickAdd speaks each provider's native protocol here: OpenAI-compatible `/v1/models`, Anthropic's `/v1/models`, and Gemini's `ListModels`. This is also the usual choice for local providers like Ollama when the server is running.
 - **models.dev directory** imports from the public models.dev directory when that directory knows the provider.
 - **Automatic** tries the provider first and falls back to models.dev when QuickAdd can map the endpoint.
 
+Imports skip entries that cannot serve chat requests (image generators, text-to-speech voices, embedding models), and they carry each model's context window, output limit, and sampling support where the source reports them.
+
 If model import fails, you can still add models manually. Use the provider's exact model id and the model's context-window token count.
+
+### Auto-sync
+
+Each provider has an **Auto-sync models** toggle. While it is on, QuickAdd imports new models and refreshed context limits from the provider's model source once a day and whenever provider settings open, so model lists stay current without plugin updates. Auto-sync only adds models and updates metadata - it never removes models you have configured. Use **Sync now** to refresh on demand.
+
+Auto-sync is on by default for the built-in OpenAI and Gemini providers and for providers added from a card. It does nothing while **Disable AI & Online features** is on.
 
 ## Model settings and token budgets
 
@@ -141,7 +150,7 @@ The regular Macro AI Assistant command does not have a separate output-length fi
 
 In scripts, `quickAddApi.ai.agent()` accepts `maxOutputTokens` in the agent config or per `generate()` call. QuickAdd maps that option to the provider-specific output field where the provider supports one.
 
-Anthropic requests always require an output token budget. When no explicit `maxOutputTokens` is set, QuickAdd uses a conservative default of `4096`, or the configured model context if it is smaller.
+Anthropic requests always require an output token budget. When no explicit `maxOutputTokens` is set, QuickAdd uses the model's real output limit when the model list carries one (imported and auto-synced models do), and otherwise a conservative default of `4096`.
 
 ### Advanced sampling settings
 
@@ -152,9 +161,11 @@ AI Assistant commands expose advanced model parameters:
 - **Frequency Penalty** reduces repeated wording on providers that support it.
 - **Presence Penalty** encourages new topics on providers that support it.
 
-Gemini requests use temperature and top P. QuickAdd does not send frequency or presence penalties to Gemini.
+A parameter is only sent when you set it. Untouched settings use the provider's defaults, and each slider has a reset button that returns it to that state.
 
-OpenAI reasoning models and some other providers reject certain sampling parameters. If a provider rejects a request, remove advanced parameters first and retry with the provider defaults.
+Gemini and Anthropic requests use temperature and top P. QuickAdd does not send frequency or presence penalties to those providers.
+
+Many current models use fixed sampling and reject these parameters outright - OpenAI reasoning models and Anthropic's current generation among them. QuickAdd handles this for you: when a model is known to use fixed sampling, the parameters are not sent, and when a provider rejects one anyway, QuickAdd retries the request once without sampling parameters and shows a notice explaining what happened. A sampling slider never hard-fails a command.
 
 ## Macro output variables
 
@@ -369,7 +380,7 @@ Turn off **Disable AI & Online features** in QuickAdd settings. The AI settings 
 
 ### My model is not listed
 
-Open **AI Assistant Settings** > **Edit Providers** > your provider > **Edit**. Import models, sync models, or add the model manually. The model name must exactly match what the provider expects.
+Open **AI Assistant Settings** > **Edit Providers** > your provider > **Edit**, then click **Sync now**. Providers with **Auto-sync models** on pick up new models automatically once a day. You can also browse and import models, or add the model manually - the model name must exactly match what the provider expects.
 
 ### A local provider does not respond
 
