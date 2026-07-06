@@ -33,11 +33,11 @@ The left column names the job; the middle names the Templater expression you may
 | Prompt for text | `tp.system.prompt` | [`{{VALUE:name}}`](./FormatSyntax.md#named-value) |
 | Pick from a list | `tp.system.suggester` | [`{{VALUE:Option A,Option B}}`](./FormatSyntax.md#named-value), [`{{FIELD:...}}`](./FormatSyntax.md#field), [`{{FILE:...}}`](./FormatSyntax.md#file) |
 | Include one template in another | `tp.file.include` | [`{{TEMPLATE:Templates/Partial.md}}`](./FormatSyntax.md#template) |
-| Apply a template to an existing note | manual workarounds | [Apply template to active note](./ApplyTemplateToNote.md) |
+| Apply a template to an existing note | the insert template command | [Apply template to active note](./ApplyTemplateToNote.md) |
 | Insert the clipboard | `tp.system.clipboard` | [`{{CLIPBOARD}}`](./FormatSyntax.md#clipboard) |
 | Insert the selected text | `tp.selection` | [`{{selected}}`](./FormatSyntax.md#selected) |
 | Reuse a property from the note you're in | `tp.frontmatter` | [`{{FIELD:project\|default-from:active}}`](./FormatSyntax.md#field-default-from-active); to re-render a value you prompted for, just [repeat `{{VALUE:name}}`](#prompt-once-reuse-everywhere) |
-| Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](./FormatSyntax.md#linkcurrent) (wiki-link), [`{{FILENAMECURRENT}}`](./FormatSyntax.md#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](./FormatSyntax.md#linksection) (link to the heading you're in) |
+| Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](./FormatSyntax.md#linkcurrent) (a link), [`{{FILENAMECURRENT}}`](./FormatSyntax.md#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](./FormatSyntax.md#linksection) (link to the heading you're in) |
 | Run JavaScript | `tp.user` | [Inline scripts](./InlineScripts.md), [user scripts in macros](./Choices/MacroChoice.md), [`{{MACRO:...}}`](./FormatSyntax.md#macro) |
 | Folder templates | folder templates | No automatic equivalent - see [Templates chosen by folder](#templates-chosen-by-folder) |
 | Cursor marker in a template | `tp.file.cursor` | No direct equivalent - see [Where the cursor lands](#where-the-cursor-lands) |
@@ -82,7 +82,7 @@ Appending to today's note is a Capture choice with a date-formatted target path 
 - **Insert after**: `## Log`, with **Create line if not found**
 - **Capture format**: `- {{VALUE}}`
 
-Running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. See [Capture choices](./Choices/CaptureChoice.md) for every target and position option.
+Running it and typing `did a thing` creates today's note (say, `Daily/2026-07-06.md`) from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, whether or not the note exists. See [Capture choices](./Choices/CaptureChoice.md) for every target and position option.
 
 ## Templates chosen by folder
 
@@ -104,7 +104,7 @@ Due: {{VDATE:due,YYYY-MM-DD}}
 Week: {{VDATE:due,gggg-[W]WW}}
 ```
 
-Typing `tomorrow` fills both lines from one prompt: `Due: 2026-07-07` and `Week: 2026-W28`.
+Typing `tomorrow` fills both lines from one prompt - on 2026-07-06 that gives `Due: 2026-07-07` and `Week: 2026-W28`.
 
 There is no token for a file's creation or modification date - reach for a [script](#run-scripts) if you need those.
 
@@ -125,9 +125,9 @@ To gather every prompt on a single form up front instead of one dialog at a time
 
 QuickAdd has no in-template cursor marker of its own - you can't mark an arbitrary spot in a template and land there. What you can control:
 
-- **Captures follow the insertion.** With **Capture to active file**, the cursor ends up right after the inserted text; with **Open** enabled on other targets, QuickAdd opens the note and places the cursor immediately after the inserted text.
+- **Captures follow the insertion.** With **Capture to active file**, the cursor ends up right after the inserted text; with **Open** enabled on other targets (opened focused, in an editing mode), QuickAdd places the cursor immediately after the inserted text.
 - **Apply template to active note** offers an **Insert at cursor** mode, so content lands where you already are.
-- **After creating a note**, a Template choice with **Open** leaves the cursor at the top of the note body. To end at the bottom instead, wrap the Template choice in a [Macro choice](./Choices/MacroChoice.md) and add the **Move cursor to file end** editor command as the next step (file start and line start/end variants exist too).
+- **After creating a note**, a Template choice with **Open** doesn't move the cursor - you typically land at the top of the note. To end at the bottom instead, wrap the Template choice in a [Macro choice](./Choices/MacroChoice.md) and add the **Move cursor to file end** editor command as the next step (file start and line start/end variants exist too).
 
 ## Run scripts
 
