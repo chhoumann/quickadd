@@ -349,6 +349,7 @@
 			const result = await applyPackageImport({
 				app,
 				existingChoices: settingsStore.getState().choices,
+				aiProviders: settingsStore.getState().ai.providers,
 				pkg: loadedPackage.pkg,
 				choiceDecisions: snapshotChoiceDecisions(
 					analysis.choiceConflicts,

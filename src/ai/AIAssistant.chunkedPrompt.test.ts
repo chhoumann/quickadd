@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { AIProvider } from "./Provider";
 import type { App } from "obsidian";
 import type { CommonResponse } from "./OpenAIRequest";
 
@@ -63,6 +64,13 @@ function makeSettings(overrides: Partial<Parameters<typeof ChunkedPrompt>[1]> = 
 	return {
 		apiKey: "key",
 		model: { name: "test-model", maxTokens: 1000 },
+		provider: {
+			name: "TestProvider",
+			endpoint: "https://example.test/v1",
+			apiKey: "",
+			models: [],
+			modelSource: "providerApi",
+		} as AIProvider,
 		outputVariableName: "output",
 		showAssistantMessages: false,
 		systemPrompt: "system",
@@ -115,15 +123,19 @@ describe("ChunkedPrompt", () => {
 	});
 
 	it("throws before dispatch when prompt overhead exceeds the whole context window", async () => {
-		mocks.getModelMaxTokens.mockReturnValue(10);
 		// Overhead-heavy template: the rendered template alone exceeds the model's
-		// entire context window, so no completion could ever fit.
+		// entire context window (read straight off the model), so no completion
+		// could ever fit.
 		const overheadFormatter = vi.fn(
 			async () => "static prompt overhead that consumes the whole model budget"
 		);
 
 		await expect(
-			ChunkedPrompt(makeApp(), makeSettings(), overheadFormatter)
+			ChunkedPrompt(
+				makeApp(),
+				makeSettings({ model: { name: "test-model", maxTokens: 10 } }),
+				overheadFormatter
+			)
 		).rejects.toThrow(/exceeds the model's entire context window/);
 		expect(mocks.makeRequest).not.toHaveBeenCalled();
 	});

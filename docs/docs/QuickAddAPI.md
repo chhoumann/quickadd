@@ -527,12 +527,15 @@ const tomorrowTask = `Tasks for ${quickAddApi.date.tomorrow("dddd, MMMM D")}`;
 
 Access via `quickAddApi.ai`:
 
-### `prompt(prompt: string, model: string | {name: string}, settings?: object): Promise<object>`
+### `prompt(prompt: string, model: string | {name: string, provider?: string}, settings?: object): Promise<object>`
 Sends a prompt to an AI model and returns the response.
 
 **Parameters:**
 - `prompt`: The prompt text
-- `model`: Model identifier - either a string (e.g., `"gpt-4"`) or object with name property (e.g., `{name: "gpt-4"}`). The model must be configured in Settings → QuickAdd → AI → Providers.
+- `model`: Model identifier. The model must be configured in Settings → QuickAdd → AI → Providers. Accepts:
+  - A model name string, e.g. `"gpt-4o"`. Resolves to the first provider that serves it.
+  - A provider-qualified string, e.g. `"openai/gpt-4o"`, where the prefix is a provider's stable ID (shown in the provider's edit form) or display name. Use this when two providers serve the same model name. If a provider literally serves a model whose id IS the whole string (OpenRouter's `openai/gpt-4o`, for example), that literal model wins - use the object form to override.
+  - An object, e.g. `{name: "gpt-4o", provider: "openai"}`. With `provider` set, the lookup is scoped to exactly that provider and cannot be shadowed by literal slash-named models.
 - `settings`: (Optional) Configuration object:
   - `variableName`: Output variable name (default: "output")
   - `shouldAssignVariables`: Auto-assign to variables (default: false)
@@ -587,7 +590,7 @@ results. Use this for inputs that are too large for a single request.
 **Parameters:**
 - `text`: The full input text to process.
 - `promptTemplate`: The prompt run for each chunk. Reference the current chunk with `{{value:chunk}}`.
-- `model`: Model identifier (string or `{name}`), as for `prompt`.
+- `model`: Model identifier (bare or provider-qualified string, or `{name, provider?}` object), as for `prompt`.
 - `settings`: (Optional) Configuration object:
   - `variableName`: Output variable name (default: "output")
   - `shouldAssignVariables`: Auto-assign to variables (default: false)
@@ -655,7 +658,7 @@ const { text, steps, toolCalls } = await agent.generate({
 ```
 
 **`ai.agent(config)`** returns an Agent. Config:
-- `model` — a configured model name (string) or `{ name }`.
+- `model` — a configured model: bare name (`"gpt-4o"`), provider-qualified string (`"openai/gpt-4o"`), or `{ name, provider? }` object, as for `ai.prompt`.
 - `system` — system prompt (defaults to your AI Assistant default system prompt).
 - `tools` — an object map of tool name → tool (from `ai.tool()` and/or `ai.tools.*`).
 - `toolChoice` — `"auto"` (default) | `"none"` | `"required"` | `{ type: "tool", toolName }`.

@@ -16,6 +16,7 @@ import { deepClone } from "src/utils/deepClone";
 import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSecretStorage";
 import migrateToMultipleTemplateFolders from "./migrateToMultipleTemplateFolders";
 import refreshStaleDefaultModelSeeds from "./refreshStaleDefaultModelSeeds";
+import pinAiModelRefs from "./pinAiModelRefs";
 import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
@@ -33,6 +34,7 @@ const migrations: Migrations = {
 	migrateProviderApiKeysToSecretStorage,
 	migrateToMultipleTemplateFolders,
 	refreshStaleDefaultModelSeeds,
+	pinAiModelRefs,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {

@@ -16,7 +16,6 @@ import {
 import { preventCursorChange } from "./preventCursorChange";
 import type { AIProvider, Model } from "./Provider";
 import { getProviderKind } from "./Provider";
-import { getModelProvider } from "./aiHelpers";
 import type { NormalizedChatRequest } from "./tools/NormalizedTools";
 import {
 	buildChatBody,
@@ -359,6 +358,11 @@ export function OpenAIRequest(
 	app: App,
 	apiKey: string,
 	model: Model,
+	// The provider the CALLER resolved (it already chose the API key from it).
+	// Passed through rather than re-derived from model.name — a first-match
+	// re-lookup here could route a provider-pinned model (#1495) to a different
+	// endpoint than the key belongs to.
+	modelProvider: AIProvider,
 	systemPrompt: string,
 	modelParams: Partial<OpenAIModelParameters> = {}
 ): (prompt: string) => Promise<CommonResponse> {
@@ -371,12 +375,6 @@ export function OpenAIRequest(
 
 		const estimatedTokenCount =
 			estimateTokenCount(prompt) + estimateTokenCount(systemPrompt);
-
-		const modelProvider = getModelProvider(model.name);
-
-		if (!modelProvider) {
-			throw new Error(`Model ${model.name} not found with any provider.`);
-		}
 
 		const requestStart = Date.now();
 		const requestLogId = beginAIRequestLogEntry({
@@ -605,6 +603,8 @@ export async function chatRequest(
 	app: App,
 	apiKey: string,
 	model: Model,
+	// Caller-resolved provider; see OpenAIRequest for why it is never re-derived.
+	modelProvider: AIProvider,
 	request: NormalizedChatRequest,
 	afterRequestCallback?: () => void,
 ): Promise<CommonResponse> {
@@ -615,10 +615,6 @@ export async function chatRequest(
 		);
 	}
 
-	const modelProvider = getModelProvider(model.name);
-	if (!modelProvider) {
-		throw new Error(`Model ${model.name} not found with any provider.`);
-	}
 	const kind = getProviderKind(modelProvider);
 	// Same sampling safety as the single-prompt path: drop params the model's
 	// metadata marks unsupported, and keep the sent set for the reactive retry.

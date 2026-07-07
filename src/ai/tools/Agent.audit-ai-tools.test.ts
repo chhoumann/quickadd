@@ -22,8 +22,13 @@ vi.mock("../../formatters/completeFormatter", () => ({
 }));
 
 vi.mock("../aiHelpers", () => ({
-	getModelByName: (name: string) => ({ name, maxTokens: 128000 }),
-	getModelProvider: () => ({ name: "OpenAI", kind: "openai", endpoint: "https://x" }),
+	resolveModelInputOrThrow: (input: string | { name: string }) => ({
+		model: {
+			name: typeof input === "string" ? input : input.name,
+			maxTokens: 128000,
+		},
+		provider: { name: "OpenAI", kind: "openai", endpoint: "https://x" },
+	}),
 }));
 
 vi.mock("../providerSecrets", () => ({ resolveProviderApiKey: async () => "key" }));

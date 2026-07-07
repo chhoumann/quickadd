@@ -5,7 +5,7 @@ import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
 import { getQuickAddInstance } from "src/quickAddInstance";
 import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
-import { getModelNames } from "src/ai/aiHelpers";
+import { populateModelDropdown } from "./modelSelect";
 import { GenericTextSuggester } from "./suggesters/genericTextSuggester";
 import { getAllFolderPathsInVault } from "src/utilityObsidian";
 
@@ -80,27 +80,17 @@ export class AIAssistantSettingsModal extends Modal {
 			.setName("Default Model")
 			.setDesc("The default model for the AI Assistant")
 			.addDropdown((dropdown) => {
-				const models = getModelNames();
-				for (const model of models) {
-					dropdown.addOption(model, model);
-				}
-
-				dropdown.addOption("Ask me", "Ask me");
-
-				// If the pinned model was deleted, the option no longer exists and
-				// setValue would silently fall back to the first option while the
-				// stored (now invalid) name persists. Surface the mismatch with a
-				// disabled "(missing)" entry so the dropdown reflects the saved value.
-				const stored = this.settings.defaultModel;
-				const isKnown = stored === "Ask me" || models.includes(stored);
-				if (stored && !isKnown) {
-					dropdown.addOption(stored, `(missing) ${stored}`);
-				}
-
-				dropdown.setValue(stored);
-				dropdown.onChange((value) => {
-					this.settings.defaultModel = value;
-				});
+				populateModelDropdown(
+					dropdown,
+					{
+						model: this.settings.defaultModel,
+						modelRef: this.settings.defaultModelRef,
+					},
+					(selection) => {
+						this.settings.defaultModel = selection.model;
+						this.settings.defaultModelRef = selection.modelRef;
+					},
+				);
 			});
 	}
 

@@ -113,8 +113,8 @@ describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
 		const select = modal.contentEl.querySelector<HTMLSelectElement>("select");
 		expect(select).not.toBeNull();
 
-		const missing = Array.from(select!.options).find(
-			(option) => option.value === "removed-model-9000",
+		const missing = Array.from(select!.options).find((option) =>
+			option.textContent?.startsWith("(missing)"),
 		);
 		expect(missing).toBeDefined();
 		expect(missing!.textContent).toBe("(missing) removed-model-9000");

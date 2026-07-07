@@ -1,7 +1,7 @@
 import type { App} from "obsidian";
 import { Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
-import { cloneModelSeeds } from "src/ai/Provider";
+import { cloneModelSeeds, uniqueProviderId } from "src/ai/Provider";
 import { syncProviderModels } from "src/ai/modelSyncService";
 import type { ProviderPreset } from "src/ai/providerPresets";
 import { PROVIDER_PRESETS } from "src/ai/providerPresets";
@@ -122,6 +122,7 @@ export class ProviderPickerModal extends Modal {
               const provider: AIProvider = {
                 name: preset.name,
                 endpoint: preset.endpoint,
+                id: uniqueProviderId(preset.id, this.providers),
                 kind: preset.kind,
                 apiKey: "",
                 apiKeyRef: selectedSecret,
@@ -154,7 +155,7 @@ export class ProviderPickerModal extends Modal {
       .setDesc("Create any custom endpoint (OpenAI-compatible or otherwise)")
       .addButton((b) => {
         b.setButtonText("Add custom...").onClick(() => {
-          const provider: AIProvider = { name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
+          const provider: AIProvider = { id: uniqueProviderId("custom", this.providers), name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
           new Notice("Custom provider added. Click Edit to configure.");
           this.close();

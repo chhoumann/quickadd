@@ -101,7 +101,12 @@ export interface GenerateResult {
 
 /** Config for `ai.agent(config)`. */
 export interface AgentConfig {
-	model: string | { name: string };
+	/**
+	 * Bare model name, qualified "providerId/modelName" string, or an object
+	 * whose optional `provider` (stable id or display name) scopes the lookup
+	 * to one provider exactly.
+	 */
+	model: string | { name: string; provider?: string };
 	system?: string;
 	tools?: ToolSet;
 	toolChoice?: ToolChoice;

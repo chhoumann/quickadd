@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
-import type { Model } from "./Provider";
+import type { AIProvider, Model } from "./Provider";
 
 // Finding: ai-assistant-disable-online-features — the "online features disabled"
 // guard in OpenAIRequest hardcoded the provider name ("Blocking request to
@@ -61,6 +61,10 @@ function makeApp(): App {
 }
 
 const anthropicModel: Model = { name: "claude-3-5-sonnet", maxTokens: 200000 };
+const anthropicProvider = {
+	name: "Anthropic",
+	endpoint: "https://api.anthropic.com",
+} as AIProvider;
 
 describe("OpenAIRequest disable-online-features guard wording", () => {
 	beforeEach(() => {
@@ -76,6 +80,7 @@ describe("OpenAIRequest disable-online-features guard wording", () => {
 			makeApp(),
 			"key",
 			anthropicModel,
+			anthropicProvider,
 			"system"
 		);
 

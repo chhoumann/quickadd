@@ -10,9 +10,9 @@ import {
 } from "./ai/AIAssistant";
 import { estimateTokenCount } from "./ai/tokenEstimator";
 import {
-	getModelByName,
 	getModelNames,
-	getModelProvider,
+	resolveModelInputOrThrow,
+	type ScriptModelInput,
 } from "./ai/aiHelpers";
 import type { OpenAIModelParameters } from "./ai/OpenAIModelParameters";
 import type { Model } from "./ai/Provider";
@@ -490,7 +490,7 @@ export class QuickAddApi {
 			ai: {
 				prompt: async (
 					prompt: string,
-					model: Model | string,
+					model: ScriptModelInput,
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
@@ -516,32 +516,8 @@ export class QuickAddApi {
 						choiceExecutor,
 					).format;
 
-					// Normalize model input to Model object
-					let _model: Model;
-					const modelName = typeof model === "string" ? model : model?.name;
-
-					if (!modelName) {
-						throw new Error(`Invalid model parameter. Expected a string (e.g., "gpt-4") or object with name property (e.g., {name: "gpt-4"})`);
-					}
-
-					// Look up the model in configured providers
-					const foundModel = getModelByName(modelName);
-					if (!foundModel) {
-						throw new Error(
-							`Model '${modelName}' not found in configured providers. ` +
-							`Add it in Settings → QuickAdd → AI → Providers, or enable auto-sync for your provider.`
-						);
-					}
-					_model = foundModel;
-
-					const modelProvider = getModelProvider(_model.name);
-
-					if (!modelProvider) {
-						throw new Error(
-							`No provider configured for model '${_model.name}'. ` +
-							`Please configure a provider in Settings → QuickAdd → AI.`
-						);
-					}
+					const { model: _model, provider: modelProvider } =
+						resolveModelInputOrThrow(model);
 
 					const apiKey = await resolveProviderApiKey(app, modelProvider);
 
@@ -553,6 +529,7 @@ export class QuickAddApi {
 						app,
 						{
 							model: _model,
+							provider: modelProvider,
 							prompt,
 							apiKey,
 							modelOptions: settings?.modelOptions ?? {},
@@ -589,7 +566,7 @@ export class QuickAddApi {
 				chunkedPrompt: async (
 					text: string,
 					promptTemplate: string,
-					model: Model | string,
+					model: ScriptModelInput,
 					settings?: Partial<{
 						variableName: string;
 						shouldAssignVariables: boolean;
@@ -620,32 +597,8 @@ export class QuickAddApi {
 						choiceExecutor,
 					).format;
 
-					// Normalize model input to Model object
-					let _model: Model;
-					const modelName = typeof model === "string" ? model : model?.name;
-
-					if (!modelName) {
-						throw new Error(`Invalid model parameter. Expected a string (e.g., "gpt-4") or object with name property (e.g., {name: "gpt-4"})`);
-					}
-
-					// Look up the model in configured providers
-					const foundModel = getModelByName(modelName);
-					if (!foundModel) {
-						throw new Error(
-							`Model '${modelName}' not found in configured providers. ` +
-							`Add it in Settings → QuickAdd → AI → Providers, or enable auto-sync for your provider.`
-						);
-					}
-					_model = foundModel;
-
-					const modelProvider = getModelProvider(_model.name);
-
-					if (!modelProvider) {
-						throw new Error(
-							`No provider configured for model '${_model.name}'. ` +
-							`Please configure a provider in Settings → QuickAdd → AI.`
-						);
-					}
+					const { model: _model, provider: modelProvider } =
+						resolveModelInputOrThrow(model);
 
 					const apiKey = await resolveProviderApiKey(app, modelProvider);
 
@@ -657,6 +610,7 @@ export class QuickAddApi {
 						app,
 						{
 							model: _model,
+							provider: modelProvider,
 							text,
 							promptTemplate,
 							chunkSeparator: settings?.chunkSeparator ?? /\n/,
@@ -703,14 +657,8 @@ export class QuickAddApi {
 				getModels: () => {
 					return getModelNames();
 				},
-				getMaxTokens: (modelName: string) => {
-					const model = getModelByName(modelName);
-
-					if (!model) {
-						throw new Error(`Model ${modelName} not found.`);
-					}
-
-					return model.maxTokens;
+				getMaxTokens: (modelName: ScriptModelInput) => {
+					return resolveModelInputOrThrow(modelName).model.maxTokens;
 				},
 				estimateTokens(text: string) {
 					return estimateTokenCount(text);

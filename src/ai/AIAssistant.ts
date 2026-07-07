@@ -11,8 +11,7 @@ import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { OpenAIRequest } from "./OpenAIRequest";
 import { isLikelyContextLimitError } from "./providerErrors";
-import type { Model } from "./Provider";
-import { getModelMaxTokens } from "./aiHelpers";
+import type { AIProvider, Model } from "./Provider";
 import { makeNoticeHandler } from "./makeNoticeHandler";
 import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
 import { log } from "src/logger/logManager";
@@ -230,6 +229,8 @@ async function getTargetPromptTemplate(
 interface Params {
 	apiKey: string;
 	model: Model;
+	/** The provider the model was resolved to; the apiKey belongs to it. */
+	provider: AIProvider;
 	systemPrompt: string;
 	outputVariableName: string;
 	promptTemplate: {
@@ -270,6 +271,7 @@ export async function runAIAssistant(
 		const {
 			apiKey,
 			model,
+			provider,
 			outputVariableName: outputVariable,
 			promptTemplate,
 			systemPrompt,
@@ -302,6 +304,7 @@ export async function runAIAssistant(
 			app,
 			apiKey,
 			model,
+			provider,
 			systemPrompt,
 			settings.modelOptions
 		);
@@ -391,6 +394,7 @@ export async function Prompt(
 		const {
 			apiKey,
 			model,
+			provider,
 			outputVariableName: outputVariable,
 			systemPrompt,
 			prompt,
@@ -410,6 +414,7 @@ export async function Prompt(
 			app,
 			apiKey,
 			model,
+			provider,
 			systemPrompt,
 			modelOptions
 		);
@@ -849,6 +854,7 @@ export async function ChunkedPrompt(
 		const {
 			apiKey,
 			model,
+			provider,
 			outputVariableName: outputVariable,
 			systemPrompt,
 			promptTemplate,
@@ -884,7 +890,7 @@ export async function ChunkedPrompt(
 			);
 		}
 
-		const fullContextTokens = getModelMaxTokens(model.name);
+		const fullContextTokens = model.maxTokens;
 		const estimatedInputBudget = estimateModelInputBudget(fullContextTokens);
 		const overheadPrompt = removeChunkProbeFromRenderedPrompt(overheadProbe);
 		const promptOverhead =
@@ -926,6 +932,7 @@ export async function ChunkedPrompt(
 			app,
 			apiKey,
 			model,
+			provider,
 			systemPrompt,
 			modelOptions
 		);

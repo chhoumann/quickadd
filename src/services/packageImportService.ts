@@ -18,6 +18,8 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
+import type { AIProvider } from "../ai/Provider";
+import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
 import { log } from "../logger/logManager";
 import { decodeFromBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
@@ -79,6 +81,14 @@ export interface ApplyImportOptions {
 	pkg: QuickAddPackage;
 	choiceDecisions: ChoiceImportDecision[];
 	assetDecisions: AssetImportDecision[];
+	/**
+	 * The vault's configured AI providers. When given, imported AI commands
+	 * carrying only a bare model name are pinned to the provider that name
+	 * first-match resolves to at import time (#1495) — the one-time migration
+	 * has already run by then and would never see them. Optional so callers
+	 * without provider context (tests) import unchanged.
+	 */
+	aiProviders?: AIProvider[];
 }
 
 export interface ApplyImportResult {
@@ -637,6 +647,17 @@ export async function applyPackageImport(
 			);
 			preparedChoices.set(entry.choice.id, remapped);
 		}
+
+	// Pin imported bare-name AI commands before insertion: cross-vault refs
+	// that survived export are kept when still valid; everything else adopts
+	// this vault's current first-match provider, so a later provider add or
+	// reorder can't silently reroute the imported command.
+	if (options.aiProviders?.length) {
+		pinAiCommandModelRefs(
+			Array.from(preparedChoices.values()),
+			options.aiProviders,
+		);
+	}
 
 	const handledChoices = new Set<string>();
 

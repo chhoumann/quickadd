@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { getProviderKind } from "./Provider";
+import type { AIProvider } from "./Provider";
+import {
+	activeModelRef,
+	ensureProviderIds,
+	getProviderKind,
+	slugifyProviderId,
+	uniqueProviderId,
+} from "./Provider";
 
 describe("getProviderKind", () => {
 	it("prefers an explicit kind", () => {
@@ -34,5 +41,81 @@ describe("getProviderKind", () => {
 		expect(getProviderKind({ name: "OpenRouter" })).toBe("openai");
 		expect(getProviderKind({ endpoint: "not a url" })).toBe("openai");
 		expect(getProviderKind({})).toBe("openai");
+	});
+});
+
+function bareProvider(name: string, id?: string): AIProvider {
+	return {
+		id,
+		name,
+		endpoint: "https://example.test",
+		apiKey: "",
+		models: [],
+		modelSource: "providerApi",
+	};
+}
+
+describe("slugifyProviderId", () => {
+	it("lowercases and collapses non-alphanumerics to single dashes", () => {
+		expect(slugifyProviderId("OpenAI")).toBe("openai");
+		expect(slugifyProviderId("Hugging Face")).toBe("hugging-face");
+		expect(slugifyProviderId("My  LLM! Proxy")).toBe("my-llm-proxy");
+	});
+
+	it("never emits a slash (the qualified-form delimiter) and never an empty id", () => {
+		expect(slugifyProviderId("a/b/c")).toBe("a-b-c");
+		expect(slugifyProviderId("///")).toBe("provider");
+		expect(slugifyProviderId("")).toBe("provider");
+	});
+});
+
+describe("uniqueProviderId / ensureProviderIds", () => {
+	it("suffixes when the base id is taken", () => {
+		const providers = [bareProvider("OpenAI", "openai")];
+		expect(uniqueProviderId("openai", providers)).toBe("openai-2");
+	});
+
+	it("enforces the slug charset on any base, not just caller discipline", () => {
+		expect(uniqueProviderId("My/Weird Provider", [])).toBe(
+			"my-weird-provider",
+		);
+	});
+
+	it("reassigns duplicate EXISTING ids so refs stay unambiguous (first keeps it)", () => {
+		const providers = [
+			bareProvider("OpenAI", "openai"),
+			bareProvider("OpenAI Clone", "openai"),
+		];
+
+		expect(ensureProviderIds(providers)).toBe(true);
+		expect(providers.map((p) => p.id)).toEqual(["openai", "openai-2"]);
+	});
+
+	it("assigns ids only to providers lacking one, uniquely, and reports changes", () => {
+		const providers = [
+			bareProvider("OpenAI", "openai"),
+			bareProvider("Custom"),
+			bareProvider("Custom"),
+		];
+
+		expect(ensureProviderIds(providers)).toBe(true);
+		expect(providers.map((p) => p.id)).toEqual([
+			"openai",
+			"custom",
+			"custom-2",
+		]);
+		// Second pass: nothing to do.
+		expect(ensureProviderIds(providers)).toBe(false);
+	});
+});
+
+describe("activeModelRef", () => {
+	it("returns the ref only while it matches the legacy string", () => {
+		const ref = { providerId: "openai", name: "gpt-4o" };
+		expect(activeModelRef("gpt-4o", ref)).toBe(ref);
+		// Drift: an older QuickAdd rewrote the string; the stale ref is inert.
+		expect(activeModelRef("o3", ref)).toBeUndefined();
+		expect(activeModelRef(undefined, ref)).toBeUndefined();
+		expect(activeModelRef("gpt-4o", undefined)).toBeUndefined();
 	});
 });

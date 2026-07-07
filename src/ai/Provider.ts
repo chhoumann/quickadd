@@ -9,6 +9,15 @@ export type ModelDiscoveryMode = "modelsDev" | "providerApi" | "auto";
 export type ProviderKind = "openai" | "anthropic" | "gemini";
 
 export interface AIProvider {
+	/**
+	 * Stable identity used by persisted model references and the script API's
+	 * qualified `providerId/model` form. A lowercase slug, unique across the
+	 * configured providers, never containing "/" (the qualified-form delimiter).
+	 * Immutable once assigned — `name` is the editable display label.
+	 * Optional only because pre-2.19 data.json files lack it; every creation
+	 * path and the pinAiModelRefs migration assign one.
+	 */
+	id?: string;
 	name: string;
 	endpoint: string;
 	/** SecretStorage key name for this provider's API key. */
@@ -63,6 +72,97 @@ function endpointHost(endpoint?: string): string {
 		}
 	}
 	return "";
+}
+
+/**
+ * Provider-scoped model reference. The persisted identity of a pinned model:
+ * a bare name string cannot express WHICH provider serves it once two
+ * providers list the same id (#1495). Persisted alongside the legacy bare-name
+ * string, which writers keep in sync (`model === modelRef.name`) so downgrades
+ * and cross-vault imports degrade to today's first-match behavior.
+ */
+export interface ModelRef {
+	providerId: string;
+	name: string;
+}
+
+/**
+ * Derive a provider id slug from a display name: lowercase, `a-z0-9-` only.
+ * The charset intentionally excludes "/" so splitting a qualified
+ * `providerId/model` string at its FIRST slash is unambiguous even for models
+ * whose own names contain slashes (OpenRouter's `openai/gpt-4o` etc.).
+ */
+export function slugifyProviderId(name: string): string {
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return slug || "provider";
+}
+
+/**
+ * A provider id equal to the slug of `base`, or `-2`, `-3`, … suffixed when
+ * other providers already claim it. Every creation path goes through here so
+ * two providers can never share an id and no id can ever contain "/" —
+ * enforced HERE rather than by caller discipline.
+ */
+export function uniqueProviderId(
+	base: string,
+	providers: AIProvider[],
+): string {
+	const slug = slugifyProviderId(base);
+	const taken = new Set(
+		providers.map((p) => p.id).filter((id): id is string => !!id),
+	);
+
+	let candidate = slug;
+	for (let i = 2; taken.has(candidate); i++) {
+		candidate = `${slug}-${i}`;
+	}
+
+	return candidate;
+}
+
+/**
+ * Give every provider a unique stable id. Providers without one (pre-2.19
+ * data, hand-edited data.json) get a fresh slug; when two providers CLAIM the
+ * same id (only possible via hand-editing), the first keeps it — so refs
+ * pointing at the duplicated id keep resolving to the provider they resolve
+ * to today — and later claimants are reassigned. Returns true when anything
+ * changed, so callers know the settings need persisting.
+ */
+export function ensureProviderIds(providers: AIProvider[]): boolean {
+	let changed = false;
+	const seen = new Set<string>();
+	for (const provider of providers) {
+		if (provider.id && !seen.has(provider.id)) {
+			seen.add(provider.id);
+			continue;
+		}
+
+		provider.id = uniqueProviderId(
+			provider.id ?? provider.name,
+			providers,
+		);
+		seen.add(provider.id);
+		changed = true;
+	}
+
+	return changed;
+}
+
+/**
+ * The ref, but only while it still matches the legacy string field. The two
+ * can drift apart when an older QuickAdd (which writes only `model`) edited a
+ * command after an upgrade pinned it — a stale ref must never override what
+ * the user visibly selected. Drift makes the ref inert; re-selecting the
+ * model in the dropdown re-pins it.
+ */
+export function activeModelRef(
+	model: string | undefined,
+	modelRef: ModelRef | undefined,
+): ModelRef | undefined {
+	return modelRef && modelRef.name === model ? modelRef : undefined;
 }
 
 export interface Model {
@@ -142,6 +242,7 @@ export function cloneModelSeeds(
 }
 
 const OpenAIProvider: AIProvider = {
+	id: "openai",
 	name: "OpenAI",
 	endpoint: "https://api.openai.com/v1",
 	kind: "openai",
@@ -152,6 +253,7 @@ const OpenAIProvider: AIProvider = {
 };
 
 const GeminiProvider: AIProvider = {
+	id: "gemini",
 	name: "Gemini",
 	endpoint: "https://generativelanguage.googleapis.com",
 	kind: "gemini",

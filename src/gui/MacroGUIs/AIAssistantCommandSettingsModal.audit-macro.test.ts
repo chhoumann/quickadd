@@ -6,16 +6,26 @@ vi.mock("obsidian-dataview", () => ({
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({
-			ai: { promptTemplatesFolderPath: "", showAssistant: false },
+			ai: {
+				promptTemplatesFolderPath: "",
+				showAssistant: false,
+				providers: [
+					{
+						id: "test",
+						name: "TestProvider",
+						endpoint: "https://example.test/v1",
+						apiKey: "",
+						models: [{ name: "gpt-test", maxTokens: 1000 }],
+						modelSource: "providerApi",
+					},
+				],
+			},
 			disableOnlineFeatures: false,
 		}),
 	},
 }));
 vi.mock("src/quickAddInstance", () => ({
 	getQuickAddInstance: vi.fn(() => ({})),
-}));
-vi.mock("src/ai/aiHelpers", () => ({
-	getModelNames: vi.fn(() => ["gpt-test"]),
 }));
 vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),

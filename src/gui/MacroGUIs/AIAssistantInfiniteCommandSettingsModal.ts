@@ -6,7 +6,9 @@ import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
 import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
-import { getMaxChunkTokensUpperBound, getModelNames } from "src/ai/aiHelpers";
+import { getMaxChunkTokensUpperBound } from "src/ai/aiHelpers";
+import { populateModelDropdown } from "../modelSelect";
+import { activeModelRef } from "src/ai/Provider";
 import { addSamplingParamSettings } from "./samplingParamSettings";
 
 export class InfiniteAIAssistantCommandSettingsModal extends Modal {
@@ -88,7 +90,8 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			addSamplingParamSettings(
 				this.contentEl,
 				this.settings.modelParameters,
-				this.settings.model,
+				activeModelRef(this.settings.model, this.settings.modelRef) ??
+					this.settings.model,
 				() => this.reload()
 			);
 		}
@@ -107,31 +110,9 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 			.setName("Model")
 			.setDesc("The model the AI Assistant will use")
 			.addDropdown((dropdown) => {
-				const models = getModelNames();
-				for (const model of models) {
-					dropdown.addOption(model, model);
-				}
-
-				dropdown.addOption("Ask me", "Ask me");
-
-				// If the pinned model was deleted, the option no longer exists and
-				// setValue would silently fall back to the first option while the
-				// stored (now invalid) name persists. Surface the mismatch with a
-				// disabled "(missing)" entry so the dropdown reflects the saved
-				// value (mirrors AIAssistantCommandSettingsModal).
-				const stored = this.settings.model;
-				const isKnown = stored === "Ask me" || models.includes(stored);
-				if (stored && !isKnown) {
-					dropdown.addOption(stored, `(missing) ${stored}`);
-					const missingOption = Array.from(
-						dropdown.selectEl.options,
-					).find((option) => option.value === stored);
-					if (missingOption) missingOption.disabled = true;
-				}
-
-				dropdown.setValue(stored);
-				dropdown.onChange((value) => {
-					this.settings.model = value;
+				populateModelDropdown(dropdown, this.settings, (selection) => {
+					this.settings.model = selection.model;
+					this.settings.modelRef = selection.modelRef;
 
 					this.reload();
 				});
@@ -259,7 +240,8 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 				// sentinel (resolved at runtime) or a model that was removed. Use
 				// a fallback bound instead of throwing, which would blank the modal.
 				const sliderMax = getMaxChunkTokensUpperBound(
-					this.settings.model,
+					activeModelRef(this.settings.model, this.settings.modelRef) ??
+						this.settings.model,
 					this.systemPromptTokenLength,
 				);
 				slider.setLimits(1, sliderMax, 1);

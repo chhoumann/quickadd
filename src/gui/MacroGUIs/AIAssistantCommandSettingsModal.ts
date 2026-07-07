@@ -9,8 +9,9 @@ import { getMarkdownFilesInFolder } from "src/utilityObsidian";
 import { settingsStore } from "src/settingsStore";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
-import { getModelNames } from "src/ai/aiHelpers";
 import { addSamplingParamSettings } from "./samplingParamSettings";
+import { populateModelDropdown } from "../modelSelect";
+import { activeModelRef } from "src/ai/Provider";
 
 export class AIAssistantCommandSettingsModal extends Modal {
 	public waitForClose: Promise<IAIAssistantCommand | null>;
@@ -118,7 +119,8 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			addSamplingParamSettings(
 				this.contentEl,
 				this.settings.modelParameters,
-				this.settings.model,
+				activeModelRef(this.settings.model, this.settings.modelRef) ??
+					this.settings.model,
 				() => this.reload()
 			);
 		}
@@ -196,32 +198,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setName("Model")
 			.setDesc("The model the AI Assistant will use")
 			.addDropdown((dropdown) => {
-				const models = getModelNames();
-				for (const model of models) {
-					dropdown.addOption(model, model);
-				}
-
-				dropdown.addOption("Ask me", "Ask me");
-
-				// If the pinned model was deleted, the option no longer exists and
-				// setValue would silently fall back to the first option while the
-				// stored (now invalid) name persists. Surface the mismatch with a
-				// disabled "(missing)" entry so the dropdown reflects the saved value.
-				const stored = this.settings.model;
-				const isKnown = stored === "Ask me" || models.includes(stored);
-				if (stored && !isKnown) {
-					dropdown.addOption(stored, `(missing) ${stored}`);
-					// Disable it so the stale value is shown but can't be re-selected
-					// and re-saved as a valid choice.
-					const missingOption = Array.from(
-						dropdown.selectEl.options,
-					).find((option) => option.value === stored);
-					if (missingOption) missingOption.disabled = true;
-				}
-
-				dropdown.setValue(stored);
-				dropdown.onChange((value) => {
-					this.settings.model = value;
+				populateModelDropdown(dropdown, this.settings, (selection) => {
+					this.settings.model = selection.model;
+					this.settings.modelRef = selection.modelRef;
 
 					this.reload();
 				});

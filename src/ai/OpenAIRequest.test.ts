@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
-import type { Model } from "./Provider";
+import type { AIProvider, Model } from "./Provider";
 import {
 	classifyProviderError,
 	isLikelyContextLimitError,
@@ -54,6 +54,10 @@ const {
 } = mocks;
 
 const { OpenAIRequest } = await import("./OpenAIRequest");
+
+// OpenAIRequest now takes the caller-resolved provider explicitly (#1495);
+// these tests keep selecting it via getModelProviderMock and read it back here.
+const currentProvider = () => getModelProviderMock() as AIProvider;
 
 // A minimal app whose activeEditor is undefined so preventCursorChange becomes a no-op.
 function makeApp(): App {
@@ -142,6 +146,7 @@ describe("OpenAIRequest", () => {
 				makeApp(),
 				"key",
 				openAIModel,
+				currentProvider(),
 				"system"
 			);
 
@@ -156,7 +161,7 @@ describe("OpenAIRequest", () => {
 			const model: Model = { name: "gpt-4o", maxTokens: 1 };
 			getModelProviderMock.mockReturnValue(openAIProvider);
 			requestUrlMock.mockResolvedValue({ json: openAIResponse() });
-			const makeRequest = OpenAIRequest(makeApp(), "key", model, "system");
+			const makeRequest = OpenAIRequest(makeApp(), "key", model, currentProvider(), "system");
 
 			await expect(makeRequest("prompt")).resolves.toBeDefined();
 			expect(requestUrlMock).toHaveBeenCalledTimes(1);
@@ -170,27 +175,12 @@ describe("OpenAIRequest", () => {
 			getModelProviderMock.mockReturnValue(openAIProvider);
 			requestUrlMock.mockResolvedValue({ json: openAIResponse() });
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", model, "system");
+			const makeRequest = OpenAIRequest(makeApp(), "key", model, currentProvider(), "system");
 			await expect(makeRequest("prompt")).resolves.toBeDefined();
 			expect(requestUrlMock).toHaveBeenCalledTimes(1);
 			expect(mocks.logMessageMock).not.toHaveBeenCalledWith(
 				expect.stringContaining("Estimated prompt size")
 			);
-		});
-
-		it("throws when no provider is found for the model", async () => {
-			getModelProviderMock.mockReturnValue(undefined);
-			const makeRequest = OpenAIRequest(
-				makeApp(),
-				"key",
-				openAIModel,
-				"system"
-			);
-
-			await expect(makeRequest("prompt")).rejects.toThrow(
-				"Model gpt-4o not found with any provider."
-			);
-			expect(requestUrlMock).not.toHaveBeenCalled();
 		});
 	});
 
@@ -210,7 +200,7 @@ describe("OpenAIRequest", () => {
 				},
 				text: '{"error":{"code":"context_length_exceeded"}}',
 			});
-			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
 
 			let thrown: unknown;
 			try {
@@ -238,7 +228,7 @@ describe("OpenAIRequest", () => {
 					},
 				},
 			});
-			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
 
 			let thrown: unknown;
 			await expect(makeRequest("prompt")).rejects.toThrow(
@@ -263,7 +253,7 @@ describe("OpenAIRequest", () => {
 					},
 				},
 			});
-			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
 
 			let thrown: unknown;
 			try {
@@ -287,6 +277,7 @@ describe("OpenAIRequest", () => {
 				makeApp(),
 				"secret-key",
 				openAIModel,
+				currentProvider(),
 				"system"
 			);
 			await makeRequest("prompt");
@@ -306,7 +297,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				openAIModel,
+				openAIModel, currentProvider(),
 				"you are helpful",
 				params
 			);
@@ -328,7 +319,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				openAIModel,
+				openAIModel, currentProvider(),
 				"sys"
 			);
 			await makeRequest("hi");
@@ -341,7 +332,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				openAIModel,
+				openAIModel, currentProvider(),
 				"sys"
 			);
 			const result = await makeRequest("hi");
@@ -384,7 +375,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"anthropic-key",
-				anthropicModel,
+				anthropicModel, currentProvider(),
 				"system prompt"
 			);
 			await makeRequest("hello claude");
@@ -422,7 +413,7 @@ describe("OpenAIRequest", () => {
 				},
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "");
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "");
 			await makeRequest("hi");
 
 			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
@@ -444,7 +435,7 @@ describe("OpenAIRequest", () => {
 				},
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "   ");
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "   ");
 			await makeRequest("hi");
 
 			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
@@ -468,7 +459,7 @@ describe("OpenAIRequest", () => {
 				},
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "sys");
 			const result = await makeRequest("q");
 
 			expect(result.content).toBe("after the tool block");
@@ -491,7 +482,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				anthropicModel,
+				anthropicModel, currentProvider(),
 				"sys"
 			);
 			const result = await makeRequest("q");
@@ -538,7 +529,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"gem ini/key",
-				geminiModel,
+				geminiModel, currentProvider(),
 				"system instruction text"
 			);
 			await makeRequest("hi gemini");
@@ -564,7 +555,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				geminiModel,
+				geminiModel, currentProvider(),
 				"  you are helpful  "
 			);
 			await makeRequest("hi");
@@ -584,7 +575,7 @@ describe("OpenAIRequest", () => {
 				json: { candidates: [{ content: { role: "model", parts: [] } }] },
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, "   ");
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "   ");
 			await makeRequest("hi");
 
 			const body = JSON.parse(requestUrlMock.mock.calls[0][0].body);
@@ -599,7 +590,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				geminiModel,
+				geminiModel, currentProvider(),
 				"sys",
 				{
 					temperature: 0.3,
@@ -622,7 +613,7 @@ describe("OpenAIRequest", () => {
 				json: { candidates: [{ content: { role: "model", parts: [] } }] },
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, "sys", {
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys", {
 				frequency_penalty: 0.5,
 			});
 			await makeRequest("hi");
@@ -656,7 +647,7 @@ describe("OpenAIRequest", () => {
 				},
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys");
 			const result = await makeRequest("hi");
 
 			expect(result.content).toBe("Hello world");
@@ -674,7 +665,7 @@ describe("OpenAIRequest", () => {
 				json: { candidates: [{ content: { role: "model", parts: [] } }] },
 			});
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys");
 			const result = await makeRequest("hi");
 
 			expect(result.content).toBe("");
@@ -696,7 +687,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				openAIModel,
+				openAIModel, currentProvider(),
 				"sys",
 				{ temperature: 0.2 }
 			);
@@ -732,7 +723,7 @@ describe("OpenAIRequest", () => {
 			const makeRequest = OpenAIRequest(
 				makeApp(),
 				"key",
-				openAIModel,
+				openAIModel, currentProvider(),
 				"sys"
 			);
 
@@ -752,7 +743,7 @@ describe("OpenAIRequest", () => {
 			const networkError = new Error("boom");
 			requestUrlMock.mockRejectedValue(networkError);
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
 
 			await expect(makeRequest("prompt")).rejects.toMatchObject({
 				cause: networkError,
@@ -763,7 +754,7 @@ describe("OpenAIRequest", () => {
 			getModelProviderMock.mockReturnValue(openAIProvider);
 			requestUrlMock.mockRejectedValue("plain string failure");
 
-			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(makeApp(), "key", openAIModel, currentProvider(), "sys");
 
 			await expect(makeRequest("prompt")).rejects.toThrow(
 				"Error while making request to OpenAI: plain string failure"
@@ -777,7 +768,7 @@ describe("OpenAIRequest", () => {
 			requestUrlMock.mockResolvedValue({ json: openAIResponse() });
 
 			const { app, calls, cursor, selections } = makeAppWithEditor();
-			const makeRequest = OpenAIRequest(app, "key", openAIModel, "sys");
+			const makeRequest = OpenAIRequest(app, "key", openAIModel, currentProvider(), "sys");
 			await makeRequest("prompt");
 
 			expect(calls.setCursor).toHaveBeenCalledWith(cursor);

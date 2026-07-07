@@ -1,4 +1,4 @@
-import type { Model } from "./ai/Provider";
+import type { Model, ModelRef } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
 import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
@@ -66,6 +66,12 @@ export interface QuickAddSettings {
 		// is `string`, which already covers the sentinel — adding `| "Ask me"` would
 		// be a redundant union member that `string` subsumes.
 		defaultModel: Model["name"];
+		/**
+		 * Provider-scoped identity of the default model. Preferred over
+		 * `defaultModel` at runtime; absent for "Ask me". Writers keep
+		 * `defaultModel === defaultModelRef.name`.
+		 */
+		defaultModelRef?: ModelRef;
 		defaultSystemPrompt: string;
 		promptTemplatesFolderPath: string;
 		showAssistant: boolean;
@@ -96,6 +102,7 @@ export interface QuickAddSettings {
 		migrateProviderApiKeysToSecretStorage: boolean;
 		migrateToMultipleTemplateFolders: boolean;
 		refreshStaleDefaultModelSeeds: boolean;
+		pinAiModelRefs: boolean;
 	};
 }
 
@@ -150,5 +157,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateProviderApiKeysToSecretStorage: false,
 		migrateToMultipleTemplateFolders: false,
 		refreshStaleDefaultModelSeeds: false,
+		pinAiModelRefs: false,
 	},
 };

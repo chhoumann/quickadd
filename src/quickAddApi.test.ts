@@ -92,9 +92,26 @@ vi.mock("./ai/tokenEstimator", () => ({
 	estimateTokenCount: mocks.estimateTokenCount,
 }));
 vi.mock("./ai/aiHelpers", () => ({
-	getModelByName: mocks.getModelByName,
 	getModelNames: mocks.getModelNames,
-	getModelProvider: mocks.getModelProvider,
+	// Mirrors the real resolver's contract through the two legacy mocks the
+	// tests configure per-case: resolve the model, pair it with its provider,
+	// throw an actionable error when the model is unknown.
+	resolveModelInputOrThrow: (input: string | { name?: string }) => {
+		const name = typeof input === "string" ? input : input?.name;
+		if (!name) {
+			throw new Error(
+				"Invalid model parameter. Expected a string or an object with a name property",
+			);
+		}
+		const model = mocks.getModelByName(name);
+		if (!model) {
+			throw new Error(`Model '${name}' not found in configured providers.`);
+		}
+		return {
+			model,
+			provider: mocks.getModelProvider(name) ?? { name: "MockProvider" },
+		};
+	},
 }));
 vi.mock("./ai/providerSecrets", () => ({
 	resolveProviderApiKey: mocks.resolveProviderApiKey,
@@ -664,7 +681,9 @@ describe("ai sync helpers", () => {
 	it("getMaxTokens throws when the model is unknown", () => {
 		mocks.getModelByName.mockReturnValue(undefined);
 		const { api } = getApi();
-		expect(() => api.ai.getMaxTokens("nope")).toThrow("Model nope not found.");
+		expect(() => api.ai.getMaxTokens("nope")).toThrow(
+			"not found in configured providers",
+		);
 	});
 
 	it("estimateTokens delegates to the provider-agnostic estimator", () => {
@@ -747,15 +766,6 @@ describe("ai.prompt validation", () => {
 		const { api } = getApi();
 		await expect(api.ai.prompt("hi", "gpt-4")).rejects.toThrow(
 			"not found in configured providers",
-		);
-	});
-
-	it("throws when no provider is configured for the model", async () => {
-		mocks.getModelByName.mockReturnValue({ name: "gpt-4", maxTokens: 1 });
-		mocks.getModelProvider.mockReturnValue(undefined);
-		const { api } = getApi();
-		await expect(api.ai.prompt("hi", "gpt-4")).rejects.toThrow(
-			"No provider configured",
 		);
 	});
 

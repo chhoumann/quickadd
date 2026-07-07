@@ -2,6 +2,12 @@ import type { ModelDiscoveryMode, ProviderKind } from "./Provider";
 import type { CURRENT_MODEL_SEEDS } from "./Provider";
 
 export interface ProviderPreset {
+  /**
+   * Canonical stable provider id assigned when this preset is added (see
+   * AIProvider["id"]). Must equal slugifyProviderId(name) so a pre-2.19
+   * provider id-backfilled by migration matches a freshly added preset.
+   */
+  id: string;
   name: string;
   endpoint: string;
   doc?: string;
@@ -21,6 +27,7 @@ export interface ProviderPreset {
 
 export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
+    id: "openai",
     name: "OpenAI",
     endpoint: "https://api.openai.com/v1",
     doc: "https://platform.openai.com/docs/models",
@@ -29,6 +36,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     seedKey: "openai",
   },
   {
+    id: "gemini",
     name: "Gemini",
     endpoint: "https://generativelanguage.googleapis.com",
     doc: "https://ai.google.dev/gemini-api/docs",
@@ -37,6 +45,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     seedKey: "google",
   },
   {
+    id: "anthropic",
     name: "Anthropic",
     endpoint: "https://api.anthropic.com",
     doc: "https://docs.anthropic.com/",
@@ -45,6 +54,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     seedKey: "anthropic",
   },
   {
+    id: "groq",
     name: "Groq",
     endpoint: "https://api.groq.com/openai/v1",
     doc: "https://console.groq.com/docs/models",
@@ -52,6 +62,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     modelSource: "auto",
   },
   {
+    id: "togetherai",
     name: "TogetherAI",
     endpoint: "https://api.together.xyz/v1",
     doc: "https://docs.together.ai/docs/serverless-models",
@@ -59,6 +70,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     modelSource: "auto",
   },
   {
+    id: "openrouter",
     name: "OpenRouter",
     endpoint: "https://openrouter.ai/api/v1",
     doc: "https://openrouter.ai/models",
@@ -66,6 +78,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     modelSource: "auto",
   },
   {
+    id: "hugging-face",
     name: "Hugging Face",
     endpoint: "https://router.huggingface.co/v1",
     doc: "https://huggingface.co/docs/inference-providers",
@@ -73,6 +86,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     modelSource: "auto",
   },
   {
+    id: "mistral",
     name: "Mistral",
     endpoint: "https://api.mistral.ai/v1",
     doc: "https://docs.mistral.ai/getting-started/models/",
@@ -80,6 +94,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     modelSource: "auto",
   },
   {
+    id: "deepseek",
     name: "DeepSeek",
     endpoint: "https://api.deepseek.com",
     doc: "https://platform.deepseek.com/api-docs/",

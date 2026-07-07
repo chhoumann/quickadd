@@ -2,6 +2,7 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, SecretComponent, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
+import { ensureProviderIds } from "src/ai/Provider";
 import { mergeModels } from "src/ai/modelsDirectory";
 import { syncProviderModels } from "src/ai/modelSyncService";
 import { settingsStore } from "src/settingsStore";
@@ -27,6 +28,9 @@ export class AIAssistantProvidersModal extends Modal {
 		super(app);
 
 		this.providers = providers;
+		// Providers from hand-edited data.json may lack the stable id that
+		// pinned model refs and the qualified script syntax rely on.
+		ensureProviderIds(this.providers);
 
 		this.waitForClose = new Promise<AIProvider[]>((resolve, reject) => {
 			this.rejectPromise = reject;
@@ -149,9 +153,14 @@ export class AIAssistantProvidersModal extends Modal {
 	}
 
 	addNameSetting(container: HTMLElement) {
+		const providerId = this.selectedProvider!.id;
 		new Setting(container)
 			.setName("Name")
-			.setDesc("The name of the provider")
+			.setDesc(
+				providerId
+					? `The display name of the provider. Its stable ID is "${providerId}" — use that to qualify models in scripts, e.g. ai.prompt with "${providerId}/model-name".`
+					: "The display name of the provider",
+			)
 			.addText((text) => {
 				text.setValue(this.selectedProvider!.name).onChange((value) => {
 					this.selectedProvider!.name = value;

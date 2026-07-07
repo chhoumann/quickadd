@@ -6,7 +6,7 @@ import {
 	DEFAULT_TOP_P,
 	type OpenAIModelParameters,
 } from "src/ai/OpenAIModelParameters";
-import { getModelByName } from "src/ai/aiHelpers";
+import { resolveModel, type ModelInput } from "src/ai/aiHelpers";
 import type { SamplingParamKey } from "src/ai/samplingParams";
 
 interface SamplingSliderSpec {
@@ -74,10 +74,10 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 export function addSamplingParamSettings(
 	container: HTMLElement,
 	modelParameters: Partial<OpenAIModelParameters>,
-	selectedModelName: string,
+	selectedModel: ModelInput,
 	reload: () => void,
 ): void {
-	const model = getModelByName(selectedModelName);
+	const model = resolveModel(selectedModel, { silent: true })?.model;
 	if (model?.supportsTemperature === false) {
 		container.createEl("div", {
 			text: `${model.name} uses fixed sampling, so these settings are not sent to it.`,

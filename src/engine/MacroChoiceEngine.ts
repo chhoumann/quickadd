@@ -37,12 +37,9 @@ import { runAIAssistant } from "src/ai/AIAssistant";
 import { resolveProviderApiKey } from "src/ai/providerSecrets";
 import { settingsStore } from "src/settingsStore";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
-import {
-	getModelByName,
-	getModelNames,
-	getModelProvider,
-} from "src/ai/aiHelpers";
-import type { Model } from "src/ai/Provider";
+import type { ResolvedModel } from "src/ai/aiHelpers";
+import { resolveModel } from "src/ai/aiHelpers";
+import { activeModelRef } from "src/ai/Provider";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
@@ -631,55 +628,31 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const aiSettings = settingsStore.getState().ai;
 
-		const options = getModelNames();
-		let modelName: string;
+		let resolved: ResolvedModel | undefined;
 		if (command.model === "Ask me") {
-			// Route to a remote interactive session (Raycast) when one is driving.
-			const provider = this.choiceExecutor.promptProvider;
-			if (provider) {
-				modelName = String(
-					await provider.suggester(options, options, "Select a model"),
-				);
-			} else if (this.choiceExecutor.interactive === false) {
-				// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
-				// no one to answer it. Abort with an actionable error instead of hanging.
-				throw new ChoiceAbortError(
-					"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
-						"Pick a specific model in the command, or re-run with the ui flag.",
-				);
-			} else {
-				try {
-					modelName = await GenericSuggester.Suggest(this.app, options, options);
-				} catch (error) {
-					if (isCancellationError(error)) {
-						throw new UserCancelError("Input cancelled by user");
-					}
-					throw error;
-				}
-			}
+			resolved = await this.pickModelInteractively();
 		} else {
-			modelName = command.model;
+			// Prefer the pinned provider-scoped ref — but only while it matches
+			// the legacy string (a stale ref from a downgrade edit must not
+			// override the visible selection). Bare names resolve first-match,
+			// as they always have.
+			resolved = resolveModel(
+				activeModelRef(command.model, command.modelRef) ?? command.model,
+			);
+			if (!resolved) {
+				throw new Error(
+					`Model ${command.model} not found with any provider.`,
+				);
+			}
 		}
 
-		const model: Model | undefined = getModelByName(modelName);
-
-		if (!model) {
-			throw new Error(`Model ${modelName} not found with any provider.`);
-		}
+		const { model, provider: modelProvider } = resolved;
 
 		const formatter = new CompleteFormatter(
 			this.app,
 			getQuickAddInstance(),
 			this.choiceExecutor
 		);
-
-		const modelProvider = getModelProvider(model.name);
-
-		if (!modelProvider) {
-			throw new Error(
-				`Model ${model.name} not found in the AI providers settings.`
-			);
-		}
 
 		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
 
@@ -688,6 +661,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			{
 				apiKey,
 				model,
+				provider: modelProvider,
 				outputVariableName: command.outputVariableName,
 				promptTemplate: command.promptTemplate,
 				promptTemplateFolder: aiSettings.promptTemplatesFolderPath,
@@ -704,6 +678,69 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		for (const key in aiOutputVariables) {
 				this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
+		}
+	}
+
+	/**
+	 * The "Ask me" model picker. Entries are provider-scoped so two providers
+	 * serving the same model name are distinguishable — picking from a flat
+	 * name list would silently first-match, defeating the point of asking.
+	 */
+	private async pickModelInteractively(): Promise<ResolvedModel> {
+		const providers = settingsStore.getState().ai.providers;
+		const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
+			providers.flatMap((provider) =>
+				provider.models.map((model) => ({
+					label: `${model.name} (${provider.name})`,
+					qualified: `${provider.id ?? provider.name}/${model.name}`,
+					resolved: { provider, model },
+				})),
+			);
+
+		if (entries.length === 0) {
+			throw new Error(
+				"No AI models are configured. Add a provider with models in the AI Assistant settings.",
+			);
+		}
+
+		// Route to a remote interactive session (Raycast) when one is driving.
+		const promptProvider = this.choiceExecutor.promptProvider;
+		if (promptProvider) {
+			const picked = String(
+				await promptProvider.suggester(
+					entries.map((entry) => entry.label),
+					entries.map((entry) => entry.qualified),
+					"Select a model",
+				),
+			);
+			const entry = entries.find((e) => e.qualified === picked);
+			if (!entry) {
+				throw new Error(`Model ${picked} not found with any provider.`);
+			}
+			return entry.resolved;
+		}
+
+		if (this.choiceExecutor.interactive === false) {
+			// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
+			// no one to answer it. Abort with an actionable error instead of hanging.
+			throw new ChoiceAbortError(
+				"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
+					"Pick a specific model in the command, or re-run with the ui flag.",
+			);
+		}
+
+		try {
+			return await GenericSuggester.Suggest(
+				this.app,
+				entries.map((entry) => entry.label),
+				entries.map((entry) => entry.resolved),
+				"Select a model",
+			);
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Input cancelled by user");
+			}
+			throw error;
 		}
 	}
 

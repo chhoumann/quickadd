@@ -104,6 +104,14 @@ Leaving the API key blank works for Ollama. Model import from `/v1/models` sends
 
 When adding a model manually, the model name must match the id your server expects, such as `mistral` or `llama3.1`. The **Max Tokens** value is the model's context window. See [Model settings and token budgets](#model-settings-and-token-budgets).
 
+### Provider IDs and duplicate model names
+
+Every provider has a stable **ID** - a short slug like `openai` or `my-proxy`, shown in the provider's edit form. The ID never changes, even if you rename the provider, and scripts use it to address a model on a specific provider.
+
+Two providers can serve models with the same name - for example, the official OpenAI provider and an OpenAI-compatible proxy can both list `gpt-4o`. Model dropdowns group models by provider so you always pick a specific provider's model, and QuickAdd remembers that choice. Reordering providers, renaming them, or auto-syncing new models never changes which endpoint an existing command talks to.
+
+If the provider a command is pinned to is later deleted, QuickAdd falls back to the first provider that serves a model with that name and warns you about the switch. Re-select the model in the command to pin it again.
+
 ### Model source
 
 Each provider has a **Model source** setting:

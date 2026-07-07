@@ -14,8 +14,8 @@ import { settingsStore } from "../../settingsStore";
 import { CompleteFormatter } from "../../formatters/completeFormatter";
 import { makeNoticeHandler } from "../makeNoticeHandler";
 import { MacroAbortError } from "../../errors/MacroAbortError";
-import { getModelByName, getModelProvider } from "../aiHelpers";
-import type { Model } from "../Provider";
+import { resolveModelInputOrThrow } from "../aiHelpers";
+import type { AIProvider, Model } from "../Provider";
 import { resolveProviderApiKey } from "../providerSecrets";
 import { classifyProviderError } from "../providerErrors";
 import { preventCursorChange } from "../preventCursorChange";
@@ -151,21 +151,9 @@ export class Agent {
 			);
 		}
 
-		const modelName =
-			typeof this.config.model === "string"
-				? this.config.model
-				: this.config.model?.name;
-		if (!modelName) throw new Error("ai.agent requires a model name.");
-		const model = getModelByName(modelName);
-		if (!model) {
-			throw new Error(
-				`Model '${modelName}' not found in configured providers. Add it in Settings → QuickAdd → AI → Providers.`,
-			);
-		}
-		const modelProvider = getModelProvider(model.name);
-		if (!modelProvider) {
-			throw new Error(`No provider configured for model '${model.name}'.`);
-		}
+		const { model, provider: modelProvider } = resolveModelInputOrThrow(
+			this.config.model,
+		);
 		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
 
 		// Build the seed request: [system?, user(formatted prompt)].
@@ -209,6 +197,7 @@ export class Agent {
 						this.app,
 						apiKey,
 						model,
+						modelProvider,
 						turnReq,
 						restoreCursor,
 					);
@@ -232,6 +221,7 @@ export class Agent {
 					loop,
 					request,
 					model,
+					modelProvider,
 					apiKey,
 					options.schema,
 					restoreCursor,
@@ -430,6 +420,7 @@ export class Agent {
 		loop: RunToolLoopResult,
 		request: NormalizedChatRequest,
 		model: Model,
+		modelProvider: AIProvider,
 		apiKey: string,
 		schema: JSONSchema,
 		restoreCursor: () => void,
@@ -473,6 +464,7 @@ export class Agent {
 				this.app,
 				apiKey,
 				model,
+				modelProvider,
 				repairReq,
 				restoreCursor,
 			);

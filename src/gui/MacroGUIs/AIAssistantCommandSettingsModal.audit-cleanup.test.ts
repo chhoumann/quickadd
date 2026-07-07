@@ -6,16 +6,26 @@ vi.mock("obsidian-dataview", () => ({
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({
-			ai: { promptTemplatesFolderPath: "", showAssistant: false },
+			ai: {
+				promptTemplatesFolderPath: "",
+				showAssistant: false,
+				providers: [
+					{
+						id: "test",
+						name: "TestProvider",
+						endpoint: "https://example.test/v1",
+						apiKey: "",
+						models: [{ name: "gpt-test", maxTokens: 1000 }],
+						modelSource: "providerApi",
+					},
+				],
+			},
 			disableOnlineFeatures: false,
 		}),
 	},
 }));
 vi.mock("src/quickAddInstance", () => ({
 	getQuickAddInstance: vi.fn(() => ({})),
-}));
-vi.mock("src/ai/aiHelpers", () => ({
-	getModelNames: vi.fn(() => ["gpt-test"]),
 }));
 vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
@@ -95,14 +105,15 @@ describe("AIAssistantCommandSettingsModal Model dropdown missing-model handling"
 		const modal = new AIAssistantCommandSettingsModal(testApp(), command);
 
 		const select = getModelSelect(modal);
-		const missing = Array.from(select.options).find(
-			(opt) => opt.value === "deleted-model"
+		const missing = Array.from(select.options).find((opt) =>
+			opt.textContent?.startsWith("(missing)")
 		);
 
 		expect(missing).toBeDefined();
 		expect(missing?.textContent).toBe("(missing) deleted-model");
+		expect(missing?.disabled).toBe(true);
 		// The dropdown reflects the stored value instead of silently defaulting.
-		expect(select.value).toBe("deleted-model");
+		expect(select.value).toBe(missing?.value);
 
 		modal.close();
 	});
@@ -115,7 +126,7 @@ describe("AIAssistantCommandSettingsModal Model dropdown missing-model handling"
 		const labels = Array.from(select.options).map((opt) => opt.textContent);
 
 		expect(labels).not.toContain("(missing) gpt-test");
-		expect(select.value).toBe("gpt-test");
+		expect(select.selectedOptions[0]?.textContent).toBe("gpt-test");
 
 		modal.close();
 	});

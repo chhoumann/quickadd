@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
-import type { Model } from "./Provider";
+import type { AIProvider, Model } from "./Provider";
 
 const storeState = vi.hoisted(() => ({
 	disableOnlineFeatures: false,
@@ -46,6 +46,10 @@ vi.mock("src/logger/logManager", () => ({
 const { requestUrlMock, getModelProviderMock, noticeMock } = mocks;
 
 const { OpenAIRequest, chatRequest } = await import("./OpenAIRequest");
+
+// OpenAIRequest/chatRequest now take the caller-resolved provider explicitly
+// (#1495); these tests keep selecting it via getModelProviderMock.
+const currentProvider = () => getModelProviderMock() as AIProvider;
 
 function makeApp(): App {
 	return {
@@ -123,7 +127,7 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 			.mockReturnValueOnce(Promise.resolve(openaiSuccess("recovered")));
 
 		const model: Model = { name: "o3-mini", maxTokens: 200000 };
-		const makeRequest = OpenAIRequest(makeApp(), "sk", model, "sys", {
+		const makeRequest = OpenAIRequest(makeApp(), "sk", model, currentProvider(), "sys", {
 			temperature: 0.7,
 		});
 
@@ -146,7 +150,7 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 			maxTokens: 1050000,
 			supportsTemperature: false,
 		};
-		const makeRequest = OpenAIRequest(makeApp(), "sk", model, "sys", {
+		const makeRequest = OpenAIRequest(makeApp(), "sk", model, currentProvider(), "sys", {
 			temperature: 0.3,
 			top_p: 0.9,
 		});
@@ -177,7 +181,7 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 		);
 
 		const model: Model = { name: "gpt-4-32k", maxTokens: 32768 };
-		const makeRequest = OpenAIRequest(makeApp(), "sk", model, "sys", {
+		const makeRequest = OpenAIRequest(makeApp(), "sk", model, currentProvider(), "sys", {
 			temperature: 0.7,
 		});
 
@@ -193,7 +197,7 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 		);
 
 		const model: Model = { name: "o3-mini", maxTokens: 200000 };
-		const makeRequest = OpenAIRequest(makeApp(), "sk", model, "sys", {});
+		const makeRequest = OpenAIRequest(makeApp(), "sk", model, currentProvider(), "sys", {});
 
 		await expect(makeRequest("hello")).rejects.toThrow("Unsupported parameter");
 		expect(requestUrlMock).toHaveBeenCalledTimes(1);
@@ -234,7 +238,7 @@ describe("Anthropic single-prompt sampling + output cap", () => {
 			maxOutputTokens: 64000,
 			supportsTemperature: true,
 		};
-		const makeRequest = OpenAIRequest(makeApp(), "sk-ant", model, "sys", {
+		const makeRequest = OpenAIRequest(makeApp(), "sk-ant", model, currentProvider(), "sys", {
 			temperature: 0.4,
 		});
 
@@ -266,7 +270,7 @@ describe("Anthropic single-prompt sampling + output cap", () => {
 
 		// No metadata (e.g. user-added model): the reactive retry is the net.
 		const model: Model = { name: "claude-sonnet-5", maxTokens: 1000000 };
-		const makeRequest = OpenAIRequest(makeApp(), "sk-ant", model, "sys", {
+		const makeRequest = OpenAIRequest(makeApp(), "sk-ant", model, currentProvider(), "sys", {
 			temperature: 0.7,
 		});
 
@@ -295,7 +299,7 @@ describe("sampling parameter recovery (chat/tool path)", () => {
 			.mockReturnValueOnce(Promise.resolve(openaiSuccess("chat ok")));
 
 		const model: Model = { name: "o4-mini", maxTokens: 200000 };
-		const res = await chatRequest(makeApp(), "sk", model, {
+		const res = await chatRequest(makeApp(), "sk", model, currentProvider(), {
 			messages: [{ role: "user", content: "hello" }],
 			modelParams: { top_p: 0.5 },
 		});
