@@ -583,7 +583,7 @@ const result = await quickAddApi.ai.prompt(
 
 **Note:** For newer models like `gpt-4o` or custom provider models, add them in Settings → QuickAdd → AI → Providers. Some providers support auto-sync to automatically update available models.
 
-### `chunkedPrompt(text: string, promptTemplate: string, model: string | {name: string}, settings?: object): Promise<object>`
+### `chunkedPrompt(text: string, promptTemplate: string, model: string | {name: string, provider?: string}, settings?: object): Promise<object>`
 Splits `text` into chunks, runs `promptTemplate` once per chunk, and joins the
 results. Use this for inputs that are too large for a single request.
 

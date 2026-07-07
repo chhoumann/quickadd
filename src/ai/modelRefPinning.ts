@@ -35,7 +35,20 @@ export function pinAiCommandModelRefs(
 
 	walkAllCommandsInSettings({ choices }, (command) => {
 		if (!isAICommand(command)) return;
-		if (command.modelRef && command.modelRef.name === command.model) return;
+		// Preserve an existing ref only when it is VALID here: it matches the
+		// legacy string AND its provider exists in THIS provider set and serves
+		// the model. An imported ref from another vault (or one whose provider
+		// was deleted) is dangling — left alone it would warn on every run and
+		// still reroute by first-match, so it adopts this vault's current
+		// first-match pin like any bare name.
+		if (command.modelRef && command.modelRef.name === command.model) {
+			const pinnedProvider = providers.find(
+				(p) => p.id === command.modelRef?.providerId,
+			);
+			if (pinnedProvider?.models.some((m) => m.name === command.model)) {
+				return;
+			}
+		}
 		if (!command.model || command.model === "Ask me") return;
 
 		// The pre-#1495 rule, verbatim: FIRST provider (in settings order)

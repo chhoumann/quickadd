@@ -194,6 +194,59 @@ describe("pinAiModelRefs migration", () => {
 		});
 	});
 
+	it("re-pins a ref whose provider does not exist in this vault (cross-vault import shape)", async () => {
+		const command = aiCommand("gpt-4o");
+		// Name matches, but "their-proxy" is the EXPORTING vault's provider id.
+		command.modelRef = { providerId: "their-proxy", name: "gpt-4o" };
+
+		settingsStore.setState({
+			choices: [macroChoiceWith([command])],
+			ai: {
+				...settingsStore.getState().ai,
+				providers: [
+					provider({
+						name: "OpenAI",
+						models: [{ name: "gpt-4o", maxTokens: 1 }],
+					}),
+				],
+			},
+		});
+
+		await pinAiModelRefs.migrate(mockPlugin);
+
+		expect(storedCommands()[0].modelRef).toEqual({
+			providerId: "openai",
+			name: "gpt-4o",
+		});
+	});
+
+	it("re-pins a ref whose provider exists but no longer serves the model", async () => {
+		const command = aiCommand("gpt-4o");
+		command.modelRef = { providerId: "openai", name: "gpt-4o" };
+
+		settingsStore.setState({
+			choices: [macroChoiceWith([command])],
+			ai: {
+				...settingsStore.getState().ai,
+				providers: [
+					provider({ id: "openai", name: "OpenAI", models: [] }),
+					provider({
+						id: "proxy",
+						name: "Proxy",
+						models: [{ name: "gpt-4o", maxTokens: 1 }],
+					}),
+				],
+			},
+		});
+
+		await pinAiModelRefs.migrate(mockPlugin);
+
+		expect(storedCommands()[0].modelRef).toEqual({
+			providerId: "proxy",
+			name: "gpt-4o",
+		});
+	});
+
 	it("reaches AI commands nested in Multi folders", async () => {
 		const nested = {
 			id: "multi-1",

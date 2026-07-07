@@ -113,6 +113,10 @@ export function resolveModel(
 	const all = providers();
 	const silent = options?.silent === true;
 
+	// Tolerate malformed persisted data (a command whose model was never set):
+	// the object branch below would throw on `input.providerId`, and settings-UI
+	// callers rely on an undefined result to fall back instead of blanking.
+	if (input == null) return undefined;
 	if (typeof input !== "string") {
 		const provider = all.find((p) => p.id === input.providerId);
 		const model = provider?.models.find((m) => m.name === input.name);

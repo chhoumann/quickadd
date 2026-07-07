@@ -186,6 +186,15 @@ describe("resolveModel — strings", () => {
 		expect(resolved?.model.name).toBe("openai/gpt-4o");
 	});
 
+	it("tolerates null/undefined input (malformed persisted data) instead of throwing", () => {
+		setProviders([openAI()]);
+
+		expect(
+			resolveModel(undefined as unknown as string),
+		).toBeUndefined();
+		expect(resolveModel(null as unknown as string)).toBeUndefined();
+	});
+
 	it("returns undefined for unknown names and degenerate qualified forms", () => {
 		setProviders([openAI()]);
 
