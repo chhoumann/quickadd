@@ -257,15 +257,20 @@ async function fetchGeminiModels(
 	apiKey: string,
 ): Promise<Model[]> {
 	const base = provider.endpoint.replace(/\/+$/, "");
+	// The key travels as a header (verified live) — a `?key=` query parameter
+	// would leak it into request logs and proxies.
+	const headers: Record<string, string> = {};
+	if (apiKey) {
+		headers["x-goog-api-key"] = apiKey;
+	}
 	const models: Model[] = [];
 	let pageToken: string | null = null;
 	for (let page = 0; page < 10; page++) {
 		const url: string =
 			`${base}/v1beta/models?pageSize=1000` +
-			(apiKey ? `&key=${encodeURIComponent(apiKey)}` : "") +
 			(pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "");
 		const data: GeminiModelsResponse =
-			await requestProviderJson<GeminiModelsResponse>(provider, url, {});
+			await requestProviderJson<GeminiModelsResponse>(provider, url, headers);
 		for (const entry of data.models ?? []) {
 			if (!entry.name) continue;
 			// Only models that can serve generateContent belong in a chat model

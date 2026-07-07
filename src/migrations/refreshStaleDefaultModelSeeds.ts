@@ -143,6 +143,19 @@ const refreshStaleDefaultModelSeeds: Migration = {
 			}
 		}
 
+		// A model name is resolved to the FIRST provider that lists it, so a
+		// name we removed from an official provider may still be served by a
+		// custom/proxy provider the user configured. Only commands whose model
+		// no longer exists ANYWHERE get re-pointed.
+		const stillServedNames = new Set(
+			providers.flatMap((provider) =>
+				provider.models.map((model: Model) => model.name),
+			),
+		);
+		const orphanedModelNames = new Set(
+			[...removedModelNames].filter((name) => !stillServedNames.has(name)),
+		);
+
 		// A saved AI command pinned to a model that is retired upstream would
 		// fail on every run. Fall back to asking at run time, and drop the
 		// baked-in sampling "defaults" older commands carried (see above).
@@ -153,7 +166,7 @@ const refreshStaleDefaultModelSeeds: Migration = {
 			(command) => {
 				if (!isAICommand(command)) return;
 
-				if (command.model && removedModelNames.has(command.model)) {
+				if (command.model && orphanedModelNames.has(command.model)) {
 					log.logMessage(
 						`AI command "${command.name}" used ${command.model}, which its provider has retired. It now asks for a model when it runs.`,
 					);
@@ -171,7 +184,7 @@ const refreshStaleDefaultModelSeeds: Migration = {
 			},
 		);
 
-		const defaultModel = removedModelNames.has(state.ai.defaultModel)
+		const defaultModel = orphanedModelNames.has(state.ai.defaultModel)
 			? "Ask me"
 			: state.ai.defaultModel;
 

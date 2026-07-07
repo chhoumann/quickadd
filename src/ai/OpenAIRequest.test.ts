@@ -514,7 +514,7 @@ describe("OpenAIRequest", () => {
 			getModelProviderMock.mockReturnValue(geminiProvider);
 		});
 
-		it("uses the generateContent URL with the api key as a query param", async () => {
+		it("uses the generateContent URL with the api key as a header, never in the URL", async () => {
 			requestUrlMock.mockResolvedValue({
 				json: {
 					candidates: [
@@ -544,11 +544,16 @@ describe("OpenAIRequest", () => {
 			await makeRequest("hi gemini");
 
 			const arg = requestUrlMock.mock.calls[0][0];
+			// The key must never appear in the URL — URLs land in logs and proxies.
 			expect(arg.url).toBe(
-				"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=gem%20ini%2Fkey"
+				"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent"
 			);
-			// Gemini does not use the Authorization header.
-			expect(arg.headers).toEqual({ "Content-Type": "application/json" });
+			// Gemini does not use the Authorization header; the key travels as
+			// x-goog-api-key (verified live).
+			expect(arg.headers).toEqual({
+				"Content-Type": "application/json",
+				"x-goog-api-key": "gem ini/key",
+			});
 		});
 
 		it("includes a systemInstruction when a non-empty system prompt is provided", async () => {

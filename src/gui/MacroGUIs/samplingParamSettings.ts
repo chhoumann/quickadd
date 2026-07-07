@@ -23,7 +23,11 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	{
 		key: "temperature",
 		name: "Temperature",
-		desc: "Sampling temperature. Higher values like 0.8 make the output more random; lower values like 0.2 make it more focused and deterministic.",
+		// Deliberately capped at 1 even though OpenAI/Gemini accept up to 2:
+		// Anthropic's range ends at 1, and a value above a provider's range is a
+		// hard 400 that the unsupported-parameter recovery would answer by
+		// dropping the setting entirely. 0-1 is the range that works everywhere.
+		desc: "Sampling temperature (0-1, the range every provider accepts). Higher values like 0.8 make the output more random; lower values like 0.2 make it more focused and deterministic.",
 		min: 0,
 		max: 1,
 		step: 0.1,
@@ -41,8 +45,8 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	{
 		key: "frequency_penalty",
 		name: "Frequency Penalty",
-		desc: "Positive values penalize tokens by how often they already appear, reducing verbatim repetition.",
-		min: 0,
+		desc: "Positive values penalize tokens by how often they already appear, reducing verbatim repetition; negative values encourage it. Only sent to providers that support it.",
+		min: -2,
 		max: 2,
 		step: 0.1,
 		fallback: DEFAULT_FREQUENCY_PENALTY,
@@ -50,8 +54,8 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	{
 		key: "presence_penalty",
 		name: "Presence Penalty",
-		desc: "Positive values penalize tokens that have appeared at all, encouraging new topics.",
-		min: 0,
+		desc: "Positive values penalize tokens that have appeared at all, encouraging new topics; negative values do the opposite. Only sent to providers that support it.",
+		min: -2,
 		max: 2,
 		step: 0.1,
 		fallback: DEFAULT_PRESENCE_PENALTY,

@@ -337,9 +337,13 @@ beforeEach(() => {
 				supportsTemperature: true,
 			},
 		]);
+		// The key travels as a header, never in the URL (it would leak into logs).
 		expect(requestUrlMock.mock.calls[0][0].url).toBe(
-			"https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=g-key",
+			"https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
 		);
+		expect(requestUrlMock.mock.calls[0][0].headers).toEqual({
+			"x-goog-api-key": "g-key",
+		});
 	});
 
 	it("fills missing metadata from the seed catalog when the directory is unavailable", async () => {

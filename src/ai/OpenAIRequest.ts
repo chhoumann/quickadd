@@ -282,10 +282,11 @@ async function makeGeminiRequest(
   prompt: string,
   afterRequestCallback?: () => void
 ): Promise<GeminiResponse> {
-  // Gemini uses API key as query param and different payload shape
+  // Gemini takes the API key as a header (verified live) — a `?key=` query
+  // parameter would leak it into request logs and proxies.
   const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
     model.name
-  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  )}:generateContent`;
 
   const generationConfig: Record<string, unknown> = {};
   if (typeof modelParams.temperature === "number") {
@@ -323,6 +324,7 @@ async function makeGeminiRequest(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
       },
       body: JSON.stringify(body),
     },
@@ -566,11 +568,20 @@ async function dispatchChat(
 		);
 	}
 	if (kind === "gemini") {
+		// Key as a header, never a `?key=` query parameter (see makeGeminiRequest).
 		const url = `${modelProvider.endpoint}/v1beta/models/${encodeURIComponent(
 			model.name,
-		)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+		)}:generateContent`;
 		return dispatchProviderRequest<Record<string, unknown>>(
-			{ url, method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+			{
+				url,
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"x-goog-api-key": apiKey,
+				},
+				body: JSON.stringify(body),
+			},
 			modelProvider.name,
 			afterRequestCallback,
 		);

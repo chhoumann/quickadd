@@ -243,6 +243,28 @@ describe("refreshStaleDefaultModelSeeds migration", () => {
 		expect(storedAICommand().model).toBe("Ask me");
 	});
 
+	it("keeps a pin when another provider still serves the removed model name", async () => {
+		const proxy: AIProvider = {
+			name: "My Proxy",
+			endpoint: "https://my-proxy.example.com/v1",
+			apiKey: "",
+			models: [{ name: "gpt-4-32k", maxTokens: 32768 }],
+			autoSyncModels: false,
+			modelSource: "providerApi",
+		};
+		setProviders([legacyOpenAIProvider(), proxy]);
+		seedAICommandChoice("gpt-4-32k", {});
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		// Removed from the official provider, but the proxy still serves it —
+		// the command resolved (and keeps resolving) to the proxy.
+		expect(
+			storedProvider("OpenAI")!.models.some((m) => m.name === "gpt-4-32k"),
+		).toBe(false);
+		expect(storedAICommand().model).toBe("gpt-4-32k");
+	});
+
 	it("leaves commands pinned to live models alone", async () => {
 		setProviders([legacyOpenAIProvider()]);
 		seedAICommandChoice("gpt-4o", {});
