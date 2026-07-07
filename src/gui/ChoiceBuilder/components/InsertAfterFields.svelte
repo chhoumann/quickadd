@@ -42,6 +42,11 @@ if (insertAfter.inline === undefined) insertAfter.inline = false;
 if (insertAfter.replaceExisting === undefined)
 	insertAfter.replaceExisting = false;
 if (insertAfter.promptHeading === undefined) insertAfter.promptHeading = false;
+// insertAtEnd (2021) and considerSubsections (2023) postdate insertAfter itself,
+// so choices saved before then legitimately lack them (#1497).
+if (insertAfter.insertAtEnd === undefined) insertAfter.insertAtEnd = false;
+if (insertAfter.considerSubsections === undefined)
+	insertAfter.considerSubsections = false;
 if (!insertAfter.blankLineAfterMatchMode)
 	insertAfter.blankLineAfterMatchMode = "auto";
 if (!insertAfter.createIfNotFound) insertAfter.createIfNotFound = false;

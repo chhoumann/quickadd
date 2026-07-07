@@ -33,6 +33,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 	private normalizeChoice() {
 		this.choice.fileExistsBehavior ??= { kind: "prompt" };
 		this.choice.fileOpening = normalizeFileOpening(this.choice.fileOpening);
+		// chooseFromSubfolders (2023) postdates the folder config itself, so
+		// choices saved before it existed legitimately lack it (#1497).
+		this.choice.folder.chooseFromSubfolders ??= false;
 	}
 
 	protected display() {

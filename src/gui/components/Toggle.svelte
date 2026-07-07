@@ -5,9 +5,15 @@
  * Obsidian's `ToggleComponent` renders). Interaction lives on the container
  * (keyboard-operable via role="switch") so it works without the imperative
  * component; the inner checkbox is presentational only. See #1130 / #1250.
+ *
+ * `checked` is $bindable WITHOUT a fallback: choices saved before an optional
+ * boolean field existed bind `undefined` here, and Svelte hard-throws
+ * (props_invalid_value) on `bind:` of undefined to a prop that has a fallback,
+ * aborting the whole choice-edit modal mount (#1497). Undefined renders as
+ * off and becomes a real boolean on first flip.
  */
 let {
-	checked = $bindable(false),
+	checked = $bindable(),
 	disabled = false,
 	ariaLabel = undefined,
 	onchange = undefined,
@@ -18,9 +24,11 @@ let {
 	onchange?: ((value: boolean) => void) | undefined;
 } = $props();
 
+const isOn = $derived(checked ?? false);
+
 function flip() {
 	if (disabled) return;
-	checked = !checked;
+	checked = !isOn;
 	onchange?.(checked);
 }
 
@@ -34,16 +42,16 @@ function onKeydown(event: KeyboardEvent) {
 
 <div
 	class="checkbox-container"
-	class:is-enabled={checked}
+	class:is-enabled={isOn}
 	class:is-disabled={disabled}
 	role="switch"
-	aria-checked={checked}
+	aria-checked={isOn}
 	aria-label={ariaLabel}
 	tabindex={disabled ? -1 : 0}
 	onclick={flip}
 	onkeydown={onKeydown}
 >
-	<input type="checkbox" tabindex="-1" {checked} aria-hidden="true" />
+	<input type="checkbox" tabindex="-1" checked={isOn} aria-hidden="true" />
 </div>
 
 <style>

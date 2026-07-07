@@ -545,6 +545,11 @@ export const Modal = class {
 		(this as any).onClose?.();
 		this.containerEl.remove();
 	}
+
+	// Real Obsidian's Modal defines no-op lifecycle hooks, so subclasses may
+	// call super.onOpen()/super.onClose() (ChoiceBuilder.onClose does).
+	onOpen() {}
+	onClose() {}
 };
 
 export const Scope = class {
