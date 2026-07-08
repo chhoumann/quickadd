@@ -68,6 +68,7 @@ const chatgptUrl = `https://chatgpt.com/?hints=search&q=${encodeURIComponent(pro
 			const label = button.querySelector("[data-label]");
 			try {
 				const res = await fetch(button.dataset.copyMarkdown ?? "");
+				if (!res.ok) throw new Error(String(res.status));
 				await navigator.clipboard.writeText(await res.text());
 				if (label) label.textContent = "Copied!";
 			} catch {

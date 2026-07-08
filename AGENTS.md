@@ -34,7 +34,7 @@ Follow Conventional Commits (`feat:`, `fix:`, `test:`, `release(version): ...`) 
 ## Documentation
 Docs live in `docs/` (Astro Starlight) and are single-version: pages in `docs/src/content/docs/docs/` serve at `/docs/` on quickadd.obsidian.guide, and edits go live when they land on `master` (deployed by Cloudflare Pages). There are no versioned snapshots - do NOT recreate `versioned_docs/` or any per-release docs copies. Historical docs states are recoverable from git tags. Every page pins its URL with a `slug:` frontmatter field; keep slugs stable, and add a 301 in `docs/public/_redirects` if one must change.
 
-Because docs track `master` while plugin releases are cut manually, docs can briefly describe features users don't have yet. The contract for that window: when documenting a feature that has not shipped in a release, add an "Introduced in vX.Y.Z" line (or an `:::note[Available in the next release]` callout) at the section you're adding, in the same PR as the docs change. Fill in the real version number if it's known from the pending release.
+Because docs track `master` while plugin releases are cut manually, docs can briefly describe features users don't have yet. The contract for that window: when documenting a feature that has not shipped in a release, add an `_Introduced in QuickAdd X.Y.Z._` line (or an `:::note[Available in the next release]` callout) at the section you're adding, in the same PR as the docs change. Fill in the real version number if it's known from the pending release.
 
 Old `/docs/<version>/...` and `/docs/next/...` URLs 301 to their current equivalents via `docs/public/_redirects` (Cloudflare Pages reads it from the build output). If a docs page is ever renamed or deleted, add a redirect for its old path there.
 

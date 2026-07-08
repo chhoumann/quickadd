@@ -34,7 +34,7 @@ interface JsonRpcRequest {
 }
 
 const PROTOCOL_VERSION = "2025-06-18";
-const SUPPORTED_VERSIONS = new Set(["2025-03-26", "2025-06-18"]);
+const SUPPORTED_VERSIONS = new Set(["2025-06-18"]);
 
 const TOOLS = [
 	{
