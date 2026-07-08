@@ -181,6 +181,52 @@ describe("choice edit forms tolerate legacy choices missing newer fields (#1497)
 		expect(resolved.folder.chooseFromSubfolders).toBe(false);
 	});
 
+	it("TemplateChoiceBuilder backfills a bare hand-edited choice (no folder/fileNameFormat at all)", async () => {
+		// A minimal, hand-edited/imported Template choice: only identity fields.
+		// Before the per-field backfills, normalizeChoice threw on
+		// `folder.chooseFromSubfolders` and the modal mounted blank.
+		const bare = {
+			id: "t2",
+			name: "Bare Template",
+			type: "Template",
+			command: false,
+		} as unknown as ITemplateChoice;
+		const builder = new TemplateChoiceBuilder(new App(), bare, plugin);
+		builder.close();
+		const resolved = (await builder.waitForClose) as ITemplateChoice;
+		expect(resolved.templatePath).toBe("");
+		expect(resolved.fileNameFormat).toEqual({ enabled: false, format: "" });
+		expect(resolved.folder).toEqual({
+			enabled: false,
+			folders: [],
+			chooseWhenCreatingNote: false,
+			createInSameFolderAsActiveFile: false,
+			chooseFromSubfolders: false,
+		});
+	});
+
+	it("TemplateChoiceBuilder backfills PARTIAL nested configs field by field", async () => {
+		// `folder: { enabled: true }` (no folders array) and
+		// `fileNameFormat: { enabled: true }` (no format) are the partial shapes
+		// the whole-object ??= backfill missed: the form dereferences
+		// `folder.folders.length` and binds `fileNameFormat.format`.
+		const partial = {
+			id: "t3",
+			name: "Partial Template",
+			type: "Template",
+			command: false,
+			folder: { enabled: true },
+			fileNameFormat: { enabled: true },
+		} as unknown as ITemplateChoice;
+		const builder = new TemplateChoiceBuilder(new App(), partial, plugin);
+		builder.close();
+		const resolved = (await builder.waitForClose) as ITemplateChoice;
+		expect(resolved.folder.enabled).toBe(true);
+		expect(resolved.folder.folders).toEqual([]);
+		expect(resolved.folder.chooseFromSubfolders).toBe(false);
+		expect(resolved.fileNameFormat).toEqual({ enabled: true, format: "" });
+	});
+
 	it("Toggle accepts an undefined binding and writes a boolean on flip", async () => {
 		const model = { flag: undefined as boolean | undefined };
 		const { container } = render(Toggle, {
