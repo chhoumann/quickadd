@@ -1,10 +1,12 @@
 <script lang="ts">
 	import type IChoice from "../../types/choices/IChoice";
 	import RightButtons from "./ChoiceItemRightButtons.svelte";
-	import { Component, type App } from "obsidian";
+	import { Component, Platform, type App } from "obsidian";
 	import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
 	import type { ChoiceListActions } from "./choiceListActions";
+	import { resolveChoiceIcon } from "../../utils/choiceUtils";
+	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 
 	let {
 		choice,
@@ -62,11 +64,30 @@
 	}
 </script>
 
-<!-- Right-click opens the context menu for mouse users; keyboard users reach the
-     same actions via the "More options" button, so this row is a non-interactive
+<!-- Right-click opens the context menu for mouse users; double-click is a mouse
+     shortcut for Configure — keyboard users reach both via the (focusable)
+     "Configure" and "More options" buttons, so this row stays a non-interactive
      container (no role/tabindex). -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="choiceListItem" data-choice-id={choice.id} oncontextmenu={onContextMenu}>
+<div
+	class="choiceListItem"
+	data-choice-id={choice.id}
+	oncontextmenu={onContextMenu}
+	ondblclick={(evt) => {
+		// Desktop-only mouse shortcut: on mobile the bare row surface belongs to
+		// long-press drag, and svelte-dnd-action's touch false-alarm replays a
+		// synthetic click (see stopDragInit) that must not reach row actions.
+		if (Platform.isMobile) return;
+		// Only bare-row double-clicks configure; a double-click on a button or a
+		// rendered markdown link inside the name keeps its own meaning.
+		const target = evt.target as HTMLElement;
+		if (target.closest("button, a")) return;
+		actions.onConfigureChoice(choice);
+	}}
+>
+	<span class="qaChoiceRowIcon" aria-hidden="true">
+		<ObsidianIcon iconId={resolveChoiceIcon(choice)} size={15} />
+	</span>
 	<span class="choiceListItemName" bind:this={nameElement}></span>
 
 	<RightButtons

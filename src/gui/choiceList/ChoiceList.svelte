@@ -137,7 +137,7 @@
         class:qa-empty={choices.length === 0}>
     {#each stripShadow(choices) as choice (choice.id)}
         <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
-             Must stay margin/padding/border-less (the 12px inter-row margin lives on
+             Must stay margin/padding/border-less (the 2px inter-row margin lives on
              the inner row). data-choice-id stays on the inner row for tests/menus. -->
         <div animate:flip={{ duration: flipDurationMs }}>
             {#if choice.type !== "Multi"}
@@ -182,10 +182,10 @@
 }
 
 .choiceList.qa-nested {
-    /* Own the 12px name->first-row gap so the empty drop band sits the same distance
+    /* Own the 2px name->first-row gap so the empty drop band sits the same distance
        below the folder name as a populated folder's first row (collapses with the
        row's own margin-top, so populated folders look identical). */
-    margin-top: 12px;
+    margin-top: 2px;
     position: relative; /* anchor the ring (::before) */
     border-radius: var(--radius-m);
     transition: background-color 120ms ease;
@@ -230,11 +230,10 @@
    without changing the band's size. */
 .choiceList.qa-nested.qa-folder-empty.qa-empty::after {
     content: "Empty — add a choice or drag one here.";
-    color: var(--text-muted);
+    color: var(--text-faint);
     font-size: var(--font-ui-smaller, 12px);
-    font-style: italic;
     line-height: 1.3;
-    padding-left: 2px;
+    padding-left: 8px; /* align with the child rows' own left padding */
     pointer-events: none;
     user-select: none;
 }

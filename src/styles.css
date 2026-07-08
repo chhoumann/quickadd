@@ -1263,14 +1263,118 @@
   }
 }
 
-/*  ChoiceListItem.svelte */
-.choiceListItem {
+/* ---- Choice list rows (ChoiceListItem.svelte + MultiChoiceListItem.svelte) ----
+   One shared row surface for leaves AND folders: identical min-height, padding,
+   radius and 2px rhythm, so the list scans as a single system — hierarchy is
+   carried by the icon column + indent guides, not by irregular whitespace.
+   Kept global (not component-scoped) because leaf and folder rows live in two
+   components and MUST stay pixel-identical. */
+:is(.choiceListItem, .multiChoiceListItem) {
 	display: flex;
-	font-size: 16px;
 	align-items: center;
-	margin: 12px 0 0 0;
-	/* No `transition` here: an unnamed (all-property) 1s transition smeared every
-	   drag-induced reflow over a full second — the main source of drag jitter. */
+	gap: 8px;
+	min-height: 32px;
+	margin: 2px 0 0 0;
+	padding: 3px 6px 3px 8px;
+	border-radius: var(--radius-s, 4px);
+	font-size: var(--font-ui-medium, 15px);
+	line-height: var(--line-height-tight, 1.3);
+	/* Only background-color transitions: an unnamed (all-property) 1s transition
+	   smeared every drag-induced reflow over a full second (drag jitter). */
+	transition: background-color 100ms ease;
+}
+
+:is(.choiceListItem, .multiChoiceListItem):is(:hover, :focus-within) {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Leading icon column: the choice's own icon (same resolveChoiceIcon the Run
+   picker uses) on leaf rows; the collapse chevron on folder rows. Fixed 18px
+   box = Obsidian's rendered .svg-icon size, so names align at every depth.
+   --icon-size (not the svg width attr, which Obsidian's .svg-icon rule
+   overrides) draws the type glyph a step smaller than the chevron: it is
+   secondary information, not an affordance. */
+.qaChoiceRowIcon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 18px;
+	width: 18px;
+	color: var(--text-muted);
+	--icon-size: 15px;
+}
+
+.multiChoiceCollapseIcon {
+	--icon-size: 17px;
+}
+
+/* Reveal the per-row actions on intent (hover / keyboard focus in the row).
+   Scoped to the choice rows — the macro builder's rightButtonsContainer keeps
+   its always-visible icons. Opacity (not display) so hidden buttons keep their
+   layout AND can receive keyboard focus, which re-reveals them via
+   :focus-within. The command-palette toggle stays visible when ON (is-pressed):
+   it is state, not just an action. */
+body:not(.is-mobile)
+	:is(.choiceListItem, .multiChoiceListItem)
+	.rightButtonsContainer
+	.qa-icon-button {
+	opacity: 0;
+	transition: opacity 100ms ease, background-color 100ms ease;
+}
+
+body:not(.is-mobile)
+	:is(.choiceListItem, .multiChoiceListItem):is(:hover, :focus-within)
+	.rightButtonsContainer
+	.qa-icon-button,
+body:not(.is-mobile)
+	:is(.choiceListItem, .multiChoiceListItem)
+	.rightButtonsContainer
+	.qa-icon-button.is-pressed {
+	opacity: 1;
+}
+
+/* No hover on the device (touch): keep every action visible — there is no
+   pointer to reveal them with. (Phones/tablets additionally collapse to the ⋮
+   menu via the .is-mobile rules above, which this reveal NEVER applies to —
+   a phone must not hide its only affordance behind a hover it cannot make.) */
+@media (hover: none) {
+	body:not(.is-mobile)
+		:is(.choiceListItem, .multiChoiceListItem)
+		.rightButtonsContainer
+		.qa-icon-button {
+		opacity: 1;
+	}
+}
+
+/* Comfortable 24px hit targets with per-icon hover feedback, matching
+   Obsidian's clickable-icon feel. Scoped to the choice rows; !important matches
+   the base .qa-icon-button reset it overrides. body:not(.is-mobile) keeps the
+   mobile 8px touch-target padding (declared earlier) in charge on phones. */
+body:not(.is-mobile)
+	:is(.choiceListItem, .multiChoiceListItem)
+	.rightButtonsContainer
+	.qa-icon-button {
+	padding: 3px !important;
+}
+
+:is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button {
+	color: var(--text-muted);
+}
+
+:is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+:is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button.is-pressed {
+	color: var(--text-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:is(.choiceListItem, .multiChoiceListItem),
+	:is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button {
+		transition: none;
+	}
 }
 
 /* ---- Drag clone -> compact pill (replaces the full-row ghost) ----
@@ -1353,8 +1457,14 @@
 }
 
 
+/* Single-line names: long names ellipsize instead of wrapping the row taller
+   (uniform rhythm survives any name). min-width:0 lets the flex item shrink. */
 .choiceListItemName {
-	flex: 1 0 0;
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .choiceListItemName p {

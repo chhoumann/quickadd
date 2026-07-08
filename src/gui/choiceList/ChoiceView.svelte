@@ -366,14 +366,18 @@
 		</div>
 	{:else}
 		<div class="choiceFilterBar">
-			<div class="choiceFilterInputWrapper">
+			<!-- Obsidian's native search-input treatment: the container class
+			     brings the leading magnifier and themed field for free, so the
+			     filter reads exactly like search fields elsewhere in the app. -->
+			<div class="search-input-container choiceFilterInput">
 				<input
-					type="text"
-					placeholder="Filter choices (fuzzy)"
+					type="search"
+					placeholder="Filter choices..."
 					bind:value={filterQuery}
 					autocapitalize="off"
 					autocorrect="off"
 					spellcheck={false}
+					enterkeyhint="search"
 					onkeydown={(e) => {
 						if (e.key === 'Escape' && filterQuery) {
 							filterQuery = "";
@@ -382,11 +386,11 @@
 					}}
 				/>
 				{#if filterQuery}
-					<button class="choiceFilterClear" aria-label="Clear filter" title="Clear"
+					<button
+						class="search-input-clear-button qaFilterClearButton"
+						aria-label="Clear filter"
 						onclick={() => (filterQuery = "")}
-					>
-						<ObsidianIcon iconId="x" size={14} />
-					</button>
+					></button>
 				{/if}
 			</div>
 		</div>
@@ -399,13 +403,20 @@
 				{actions}
 			/>
 		{:else}
-			<ChoiceList
-				{app}
-				roots={choices}
-				choices={filterChoices(choices, filterQuery)}
-				forceDragDisabled={true}
-				{actions}
-			/>
+			{@const filtered = filterChoices(choices, filterQuery)}
+			{#if filtered.length === 0}
+				<div class="choiceFilterEmpty">
+					No choices match your filter.
+				</div>
+			{:else}
+				<ChoiceList
+					{app}
+					roots={choices}
+					choices={filtered}
+					forceDragDisabled={true}
+					{actions}
+				/>
+			{/if}
 		{/if}
 
 		<div class="choiceViewBottomBar">
@@ -479,35 +490,31 @@
 	}
 
 	.choiceFilterBar {
-		margin-bottom: 0.5rem;
+		margin-bottom: 8px;
 	}
 
-	.choiceFilterInputWrapper {
-		position: relative;
-		display: flex;
-		align-items: center;
-	}
-
-	.choiceFilterInputWrapper input {
+	/* The native container is inline-block by default in some contexts; span
+	   the full row so the filter aligns with the list edges. */
+	.choiceFilterInput {
 		width: 100%;
-		padding-right: 1.6rem; /* space for clear button */
 	}
 
-	.choiceFilterClear {
-		position: absolute;
-		right: 4px;
+	/* Obsidian styles .search-input-clear-button (position, the × glyph, hover)
+	   — we only reset the <button> chrome so that styling shows through. A real
+	   <button> (Obsidian uses a div) keeps it keyboard-operable. */
+	.qaFilterClearButton {
 		background: transparent;
 		border: none;
-		cursor: pointer;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		padding: 2px;
-		color: var(--text-muted);
+		box-shadow: none;
+		padding: 0;
+		margin: 0;
+		cursor: var(--cursor, pointer);
 	}
 
-	.choiceFilterClear:hover {
-		color: var(--text-normal);
+	.choiceFilterEmpty {
+		color: var(--text-faint);
+		font-size: var(--font-ui-small, 13px);
+		padding: 12px 8px 16px;
 	}
 
 </style>

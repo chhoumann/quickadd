@@ -6,7 +6,7 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import RightButtons from "./ChoiceItemRightButtons.svelte";
     import { untrack } from "svelte";
-	import { Component, type App } from "obsidian";
+	import { Component, Platform, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
     import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
@@ -109,10 +109,29 @@
 
 <div>
     <!-- Right-click opens the context menu for mouse users; keyboard users reach the
-         same actions via the "More options" button, so this row is a non-interactive
-         container (no role/tabindex). -->
+         same actions via the "More options" button. A click anywhere on the row's
+         bare surface forwards to the (focusable) name-button toggle — the row div
+         itself stays a non-interactive container (no role/tabindex). -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="multiChoiceListItem" data-choice-id={choice.id} oncontextmenu={onContextMenu}>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <div
+        class="multiChoiceListItem"
+        data-choice-id={choice.id}
+        oncontextmenu={onContextMenu}
+        onclick={(evt) => {
+            // Desktop-only: on mobile the bare row surface belongs to long-press
+            // drag, and svelte-dnd-action's touch false-alarm replays a synthetic
+            // click (see stopDragInit) that would double-toggle. The name button
+            // (protected by stopDragInit) stays the tap affordance there.
+            if (Platform.isMobile) return;
+            // The name button handles its own clicks (and bubbles here); only
+            // clicks on the row's bare surface toggle, so the action buttons and
+            // rendered markdown links keep their own meaning.
+            const target = evt.target as HTMLElement;
+            if (target.closest("button, a")) return;
+            toggleCollapsed();
+        }}
+    >
         <button
             type="button"
             class="multiChoiceListItemName"
@@ -122,13 +141,18 @@
             onclick={toggleCollapsed}
         >
             <span
-                class="multiChoiceCollapseIcon"
+                class="qaChoiceRowIcon multiChoiceCollapseIcon"
                 class:is-collapsed={choice.collapsed}
                 aria-hidden="true"
             >
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </span>
             <span class="choiceListItemName" bind:this={nameElement}></span>
+            {#if choice.collapsed && choice.choices.length > 0}
+                <!-- What a closed folder hides is real information: a quiet
+                     count keeps the list scannable without expanding. -->
+                <span class="qaFolderCount" aria-hidden="true">{choice.choices.length}</span>
+            {/if}
         </button>
 
         <RightButtons
@@ -182,43 +206,49 @@
 </div>
 
 <style>
-    .multiChoiceListItem {
-        display: flex;
-        font-size: 16px;
-        align-items: center;
-        margin: 12px 0 0 0;
-    }
+    /* Row surface (min-height, padding, radius, hover, rhythm) is shared with
+       leaf rows and lives in styles.css — see "Choice list rows". Only the
+       folder-specific pieces stay here. */
 
+    /* Base icon = chevron-down (expanded); collapsed rotates to point RIGHT,
+       matching Obsidian's own collapse grammar (file explorer, outline). */
     .multiChoiceCollapseIcon {
-        display: inline-flex;
-        transition: transform 0.2s ease-in-out;
+        transition: transform 150ms ease;
     }
 
     .multiChoiceCollapseIcon.is-collapsed {
-        transform: rotate(-180deg);
+        transform: rotate(-90deg);
     }
 
-    /* Full-width collapse toggle: reset native <button> chrome to match the old
-       clickable div while keeping native keyboard activation + aria-expanded. */
+    @media (prefers-reduced-motion: reduce) {
+        .multiChoiceCollapseIcon {
+            transition: none;
+        }
+    }
+
+    /* Full-width collapse toggle: reset native <button> chrome while keeping
+       native keyboard activation + aria-expanded. It hosts the shared icon
+       column (the chevron), so the folder NAME lands on the exact leaf-name x
+       for free — same 8px column gap as the leaf rows. */
     .multiChoiceListItemName {
-        flex: 1 0 0;
-        /* Tuck the chevron into the left card-padding gutter so the Multi NAME
-           lines up flush with leaf-row names — only nested children get indented
-           (.nestedChoiceList below), not the root Multi row itself. -20px = the
-           chevron's RENDERED box (18px) + the 2px gap, so the name lands on the
-           leaf-name x. The box is 18px, not the size={16} attribute: Obsidian's
-           .svg-icon class sizes the SVG via var(--icon-size) (~18px), overriding
-           the attribute (verified in-app: width attr 16, computed 18, name flush).
-           The lucide glyph also carries ~4.5px side-bearing, so a 2px flex gap
-           yields a ~6px optical gap to the name — the prior 5px gap was ~9.5px. */
-        margin-left: -20px;
+        flex: 1 1 auto;
+        min-width: 0;
+        align-self: stretch;
         display: flex;
         align-items: center;
-        gap: 2px;
+        /* Obsidian's base button centers flex content; the name must not rely
+           on a growing child to stay left (it stopped growing for the count). */
+        justify-content: flex-start;
+        gap: 8px;
         background: transparent;
         border: none;
         box-shadow: none;
         padding: 0;
+        /* Obsidian's base button rule sets height: var(--input-height) (30px),
+           which would make folder rows 4px taller than leaf rows — the exact
+           rhythm break this redesign removes. */
+        height: auto;
+        min-height: 0;
         font: inherit;
         color: inherit;
         text-align: left;
@@ -226,6 +256,20 @@
         /* Suppress double-tap-zoom + its click delay on touch — proper touch hygiene
            for a tap target, and reduces the ghost-click the dedupe above also guards. */
         touch-action: manipulation;
+    }
+
+    /* The count reads as part of the label ("Misc · 12"), so the name must not
+       grow — it keeps its ellipsis via flex-shrink + the shared min-width: 0. */
+    .multiChoiceListItemName :global(.choiceListItemName) {
+        flex: 0 1 auto;
+    }
+
+    .qaFolderCount {
+        flex: 0 0 auto;
+        color: var(--text-faint);
+        font-size: var(--font-ui-smaller, 12px);
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
     }
 
     .multiChoiceListItemName:focus-visible {
@@ -237,17 +281,29 @@
     /* Just the indent — the drop-into-folder ring is drawn on the ACTUAL dndzone
        (.choiceList, in ChoiceList.svelte) so the highlighted area equals the
        droppable area (WYSIWYG); it is NOT drawn on this wrapper, which extends past
-       the zone to the add-row/hint. */
+       the zone to the add-row/hint. The ::before is an indent GUIDE under the
+       parent's icon column (x = row padding 8px + half the 18px column, minus
+       half the line), clarifying what belongs to the open folder. */
     .nestedChoiceList {
-        padding-left: 25px;
+        position: relative;
+        padding-left: 26px;
     }
 
-    /* The per-folder add-row is the folder's own affordance: one spacing step
-       (8px) tighter than the 12px inter-row rhythm so it reads as "belongs to this
-       folder". An empty folder's add-row sits below the drop band (ChoiceList's
-       .qa-empty, which now owns the "Empty — …" hint as pseudo-content), getting
-       the same 8px gap as a populated one. */
+    .nestedChoiceList::before {
+        content: "";
+        position: absolute;
+        left: 16px;
+        top: 3px;
+        bottom: 3px;
+        width: 1px;
+        background: var(--background-modifier-border);
+        pointer-events: none;
+    }
+
+    /* The per-folder add-row reads as a ghost row of the folder: aligned to the
+       child rows' padding, one tight step (4px) below the last child. */
     .nestedAddRow {
-        margin: 8px 0 0 0;
+        margin: 2px 0 4px 0;
+        padding: 0 8px;
     }
 </style>

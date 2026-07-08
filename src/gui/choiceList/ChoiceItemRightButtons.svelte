@@ -34,13 +34,6 @@
 </script>
 
 <div class="rightButtonsContainer">
-    <IconButton
-        iconId="zap"
-        ariaPressed={commandEnabled}
-        label={`Command palette${choiceName ? ": " + choiceName : ""}`}
-        extraClass="qa-row-secondary-action"
-        onclick={onToggleCommand}
-    />
     {#if showConfigureButton}
         <IconButton
             iconId="settings"
@@ -75,6 +68,19 @@
         />
     {/if}
 
+    <!-- The command-palette toggle sits at the edge of the cluster, directly
+         left of the drag handle, so its always-visible ON state reads as a
+         right-ANCHORED status column instead of floating mid-row while the
+         other actions are hover-hidden. It must not move on hover, and the
+         handle must stay the row's rightmost element (drag-pill anchoring). -->
+    <IconButton
+        iconId="zap"
+        ariaPressed={commandEnabled}
+        label={`Command palette${choiceName ? ": " + choiceName : ""}`}
+        extraClass="qa-row-secondary-action"
+        onclick={onToggleCommand}
+    />
+
     <DragHandle
         label={`Reorder${choiceName ? " " + choiceName : ""}`}
         {dragDisabled}
@@ -88,6 +94,9 @@
 .rightButtonsContainer {
     display: flex;
     align-items: center;
-    gap: 8px;
+    /* Icons carry their own 3px padding inside the choice rows (24px hit
+       boxes), so a tight gap keeps the cluster compact without touching. */
+    gap: 2px;
+    flex: 0 0 auto;
 }
 </style>

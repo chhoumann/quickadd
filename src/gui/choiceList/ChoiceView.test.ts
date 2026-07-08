@@ -174,7 +174,7 @@ describe("ChoiceView", () => {
 		);
 
 		// Activate the filter so the derived, force-expanded clone renders.
-		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
 			target: { value: "Findable" },
 		});
 
@@ -217,7 +217,7 @@ describe("ChoiceView", () => {
 		});
 
 		// Filter so only "Findme" matches -> the folder renders as a clone WITHOUT "Hidden".
-		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
 			target: { value: "Findme" },
 		});
 
@@ -260,7 +260,7 @@ describe("ChoiceView", () => {
 			},
 		});
 
-		await fireEvent.input(getByPlaceholderText("Filter choices (fuzzy)"), {
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
 			target: { value: "Findme" },
 		});
 
