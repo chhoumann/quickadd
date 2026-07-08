@@ -13,6 +13,7 @@ import {
 	readInstanceMarker,
 	reapStaleInstances,
 	resolveInstanceOptions,
+	stampInstanceMarkerAppVersion,
 	trustVaultAndVerifyQuickAdd,
 	waitForInstanceReady,
 } from "./start-obsidian-e2e-instance.mjs";
@@ -169,6 +170,12 @@ export async function ensureObsidianInstance(options) {
 	if (!ready) {
 		await launchObsidianInstance(options);
 		await waitForInstanceReady(options);
+		// The instance is up: record the app version it launched with (the
+		// resolution above) so later reuse checks compare against launch time.
+		await stampInstanceMarkerAppVersion(
+			options.instancePath,
+			compatibility.appVersion ?? null,
+		);
 	}
 
 	await trustVaultAndVerifyQuickAdd(options);

@@ -243,15 +243,19 @@ export async function prepareObsidianProfile(options) {
 	});
 
 	// Record which worktree this instance belongs to so the teardown reaper can
-	// reap it once that worktree is removed (see INSTANCE_MARKER_FILE), plus the
-	// app-code version this profile was seeded for — the CLI's reuse guard
-	// compares it against a fresh resolution so a warm instance launched on an
-	// older app can't silently keep serving after the host updates Obsidian.
+	// reap it once that worktree is removed (see INSTANCE_MARKER_FILE). The
+	// marker's appVersion is the LAUNCH-TIME version of the running instance
+	// (stamped by stampInstanceMarkerAppVersion after a successful launch), so
+	// re-preparing the profile must PRESERVE it — overwriting it with the fresh
+	// prediction here would blind the CLI's reuse guard on its second run: the
+	// first mismatch failure would already have rewritten the marker to the new
+	// version, and the still-running old instance would then look current.
+	const existingMarker = await readInstanceMarker(options.instancePath);
 	await writeJson(path.join(options.instancePath, INSTANCE_MARKER_FILE), {
 		worktreePath: options.worktreePath,
 		vaultName: options.vaultName,
 		vaultPath: options.vaultPath,
-		appVersion: resolvedApp.appVersion,
+		appVersion: existingMarker?.appVersion ?? null,
 	});
 
 	return {
@@ -272,6 +276,19 @@ export async function readInstanceMarker(instancePath) {
 	} catch {
 		return null;
 	}
+}
+
+/** Stamp the app-code version the instance was actually LAUNCHED with into the
+ * marker. Called only after a successful launch — never from profile prep — so
+ * the CLI's reuse guard keeps seeing the running instance's launch-time version
+ * across any number of prepare cycles. */
+export async function stampInstanceMarkerAppVersion(instancePath, appVersion) {
+	const marker = await readInstanceMarker(instancePath);
+	if (!marker) return;
+	await writeJson(path.join(instancePath, INSTANCE_MARKER_FILE), {
+		...marker,
+		appVersion: appVersion ?? null,
+	});
 }
 
 // The launched instance resolves its app-code asar from ITS OWN config dir:
@@ -722,6 +739,14 @@ async function main() {
 	const resolvedVaultPath = options.launch
 		? await waitForInstanceReady(options)
 		: null;
+	if (options.launch) {
+		// The instance is up: record the app version it launched with (the
+		// pre-launch resolution) for the CLI's warm-reuse guard.
+		await stampInstanceMarkerAppVersion(
+			options.instancePath,
+			compatibility?.appVersion ?? null,
+		);
+	}
 	const verifiedQuickAdd = options.launch
 		? await trustVaultAndVerifyQuickAdd(options)
 		: false;

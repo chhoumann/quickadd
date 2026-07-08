@@ -10,8 +10,10 @@ import {
 	INSTANCE_MARKER_FILE,
 	parseArgs,
 	prepareObsidianProfile,
+	readInstanceMarker,
 	resolveInstanceOptions,
 	resolveObsidianAppVersion,
+	stampInstanceMarkerAppVersion,
 	toInstanceShellExports,
 } from "../scripts/start-obsidian-e2e-instance.mjs";
 
@@ -315,8 +317,22 @@ describe("resolveObsidianAppVersion", () => {
 		).resolves.toBeTruthy();
 		expect(first.appVersion).toBe("1.12.7");
 
+		// The marker's appVersion records LAUNCH time, not prediction time — a
+		// profile that was prepared but never launched stays unstamped.
+		expect(
+			(await readInstanceMarker(options.instancePath))?.appVersion,
+		).toBeNull();
+
+		// Launch happened on 1.12.7: the launch path stamps the marker.
+		await stampInstanceMarkerAppVersion(options.instancePath, "1.12.7");
+		expect(
+			(await readInstanceMarker(options.instancePath))?.appVersion,
+		).toBe("1.12.7");
+
 		// Host updated: re-preparing swaps the sandbox to the new resolution and
-		// removes the now-stale asar.
+		// removes the now-stale asar — but must PRESERVE the launch-time marker
+		// (overwriting it with the new prediction would blind the CLI's reuse
+		// guard on its second run, while the old instance is still running).
 		const second = await prepareObsidianProfile({
 			...options,
 			obsidianConfigDir: await makeConfigDir(["1.13.0"]),
@@ -329,14 +345,9 @@ describe("resolveObsidianAppVersion", () => {
 			fs.stat(path.join(second.userDataPath, "obsidian-1.12.7.asar")),
 		).rejects.toMatchObject({ code: "ENOENT" });
 		expect(second.appVersion).toBe("1.13.0");
-
-		const marker = JSON.parse(
-			await fs.readFile(
-				path.join(options.instancePath, INSTANCE_MARKER_FILE),
-				"utf8",
-			),
-		);
-		expect(marker.appVersion).toBe("1.13.0");
+		expect(
+			(await readInstanceMarker(options.instancePath))?.appVersion,
+		).toBe("1.12.7");
 	});
 
 	it("floors at the bundled installer asar when the config dir is empty", async () => {
