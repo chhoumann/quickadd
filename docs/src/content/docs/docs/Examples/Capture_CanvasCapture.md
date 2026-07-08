@@ -4,8 +4,14 @@ description: Capture formatted text into a selected Canvas card or a specific no
 slug: docs/Examples/Capture_CanvasCapture
 ---
 
-Canvas capture lets a Capture choice write into a selected Canvas card or into a
-specific card in a specific `.canvas` file.
+You end up with a Capture choice that writes into an Obsidian Canvas: either the
+card you have selected on the board, or one specific card in a `.canvas` file you
+name ahead of time.
+
+## Prerequisites
+
+- An Obsidian Canvas file. Canvas is built into Obsidian, so there is no plugin
+  to install.
 
 ## When to use this
 

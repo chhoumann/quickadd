@@ -1,236 +1,273 @@
 ---
 title: Macros
-description: Chain Obsidian commands, user scripts, nested choices, AI steps, and conditionals into automated workflows that share run variables
+description: Chain Obsidian commands, user scripts, nested choices, AI steps, and conditionals into one automated command that shares data between steps
 slug: docs/Choices/MacroChoice
 ---
 
+A macro chains several QuickAdd actions into one command you can run from the
+palette or a hotkey. Instead of running a template, then a capture, then a
+script by hand, a macro runs them in order and passes data from one step to the
+next. Reach for a macro when a single choice isn't enough. Use it to:
 
-Macros are the most powerful feature in QuickAdd, allowing you to chain together multiple operations into automated workflows. Think of macros as custom scripts that can execute any sequence of Obsidian commands, user scripts, AI commands, and more.
+- Ask a question once and reuse the answer across several steps
+- Run your own JavaScript to talk to the Obsidian API or another plugin
+- Branch the workflow based on what you picked or what a script returns
+- Kick off a routine automatically when Obsidian starts
 
-> **Tip:** Once you have a macro (or entire collections of choices) that you love, use the
-> [QuickAdd package exporter](/docs/Choices/Packages/) to bundle it with its dependencies and share the
-> `.quickadd.json` file with other vaults.
+Macros are the most powerful thing QuickAdd can do, so this is the most
+technical of the choice pages. You don't need to be a programmer to start - the
+walkthrough below uses no code at all - but the deeper sections assume you're
+comfortable with a little JavaScript.
 
-## What are Macros?
+:::tip
+Once you have a macro (or a whole collection of choices) that you love, use the
+[QuickAdd package exporter](/docs/Choices/Packages/) to bundle it with its
+dependencies and share the `.quickadd.json` file with other vaults.
+:::
 
-A **macro** is a collection of commands that execute sequentially. Each macro is associated with a **macro choice**, which allows you to trigger the macro from the QuickAdd command palette.
+## What is a macro? {#what-are-macros}
 
-### Key Concepts
+A **macro** is a list of commands that run one after another. Each macro is
+paired with a **macro choice**, the entry that shows up in the QuickAdd menu and
+gives you something to trigger.
 
-- **Macro Choice**: The trigger that appears in the QuickAdd menu
-- **Macro**: The actual sequence of commands that gets executed
-- **Commands**: Individual operations within a macro (Obsidian commands, scripts, AI prompts, etc.)
-- **Variables**: Data that can be passed between commands within a macro
+### The pieces {#key-concepts}
 
-## Creating a Macro
+- **Macro choice** - the trigger that appears in the QuickAdd menu.
+- **Macro** - the actual sequence of commands that runs.
+- **Commands** - the individual steps (Obsidian commands, scripts, AI prompts, and more).
+- **Variables** - data that one command sets and a later command reads, all within a single run.
 
-### Step 1: Create a Macro Choice
+## Set up your first macro {#creating-a-macro}
 
-1. Open QuickAdd settings
-2. Click "Add Choice" and select "Macro"
-3. Give your macro choice a descriptive name
-4. Click the configure button (⚙️) to open the macro builder
+We'll build a tiny macro with no code: it opens today's daily note and drops
+your cursor at the end, ready to type. Two commands, run as one.
+
+### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
+
+1. Open **Settings → QuickAdd**, type a name like `Open daily note`, choose
+   **Macro** in the dropdown, and click **Add Choice**.
+2. Click the gear (⚙) next to the new choice to open the Macro Builder.
 
 ![The Macro builder](../Images/choices/macro-builder.png)
 
-### Step 2: Build Your Macro
+### Step 2: Build the macro {#step-2-build-your-macro}
 
-In the Macro Builder, you can add different types of commands:
+1. In the Macro Builder, add an **Obsidian Command** and pick
+   `Daily notes: Open today's daily note`.
+2. Add an **Editor** command and choose **Move cursor to file end**.
+3. Close the builder, then run it: command palette →
+   `QuickAdd: Run` → `Open daily note`.
 
-#### Command Types
+Your daily note opens and the cursor sits at the end of the file, ready for the
+next line - both steps in a single command. Assign the choice a hotkey (the ⚡
+icon, or Obsidian's Hotkeys settings) once it behaves the way you want.
 
-1. **Obsidian Command** - Execute any Obsidian command
-   - Examples: "Daily notes: Open today's daily note", "Toggle reading view"
-2. **Editor Commands** - Manipulate text in the editor
-   - Copy, Cut, Paste
-   - Paste with format - Preserves rich formatting from clipboard (HTML → Markdown)
-   - Select active line
-   - Select link on active line
-   - Move cursor to file start
-   - Move cursor to file end
-   - Move cursor to line start
-   - Move cursor to line end
-3. **User Script** - Run custom JavaScript code
-   - Access the Obsidian API
-   - Perform complex operations
-   - Integrate with other plugins
-4. **Nested Choice** - Execute another QuickAdd choice
-   - Reuse existing templates, captures, or other macros
-   - Create modular workflows
-5. **Wait** - Add delays between commands
-   - Useful when commands need time to complete
-   - Specified in milliseconds
-6. **AI Assistant** - Execute AI prompts
-   - Generate content based on templates
-   - Process notes with AI
-   - Available with configured AI providers
-7. **Open File** - Open files with formatted paths
-   - Supports all QuickAdd formatting syntax (`{{DATE}}`, `{{VALUE}}`, etc.)
-   - Configurable tab and split options
-   - Opens files in default view mode with focus
-   - Only opens existing files (no auto-creation)
-8. **Conditional** - Branch macro execution based on live data
-   - Compare macro variables using equality, numeric, or containment checks
-   - Run custom scripts that return a boolean to choose a branch
-   - Configure "then" and optional "else" command sequences from the builder
+## The commands you can add {#command-types}
 
-### Add a User Script Command
+The Macro Builder offers these command types. Add as many as you like, in any
+order.
 
-Macros do not contain JavaScript code directly. Your code lives either in a
-`.js` file inside your vault **or** in a ` ```js ` code block inside a note, and
-the macro simply runs it. The note option is handy on mobile, where Obsidian
-cannot open `.js` files — see [User Scripts](/docs/UserScripts/#scripts-in-a-note-code-block).
+| Command | What it does |
+| --- | --- |
+| **Obsidian Command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
+| **Editor** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
+| **User Script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a user script command](#add-a-user-script-command). |
+| **Nested Choice** | Run another QuickAdd choice - a template, capture, or another macro - so you can reuse existing work and build modular workflows. |
+| **Wait** | Pause for a set number of milliseconds, useful when a previous command needs time to finish. |
+| **AI Assistant** | Run an AI prompt to generate or process content. Available once you've configured an AI provider. |
+| **Open File** | Open an existing file at a formatted path. Supports all [format syntax](/docs/FormatSyntax/) (`{{DATE}}`, `{{VALUE}}`, and so on), with tab and split options. It opens in the default view mode with focus, and only opens files that already exist (it won't create one). |
+| **Conditional** | Branch the run based on live data. See [Branch with a conditional](#conditional-commands). |
 
-Create a new script file such as `scripts/my-macro.js`, or a note such as
+### Add a user script command {#add-a-user-script-command}
+
+Macros don't contain JavaScript directly. Your code lives either in a `.js` file
+inside your vault **or** in a ` ```js ` code block inside a note, and the macro
+simply runs it. The note option is handy on mobile, where Obsidian cannot open
+`.js` files - see
+[User Scripts](/docs/UserScripts/#scripts-in-a-note-code-block).
+
+Create a script file such as `scripts/my-macro.js`, or a note such as
 `Scripts/my-macro.md` with your code in a ` ```js ` (or ` ```javascript `)
-block. QuickAdd runs the **first** matching JavaScript fence in a note and
-ignores surrounding prose.
+block. QuickAdd runs the **first** matching JavaScript block in a note and
+ignores the surrounding prose.
 
-Keep the script inside your vault, but not inside `.obsidian` or any folder
+To add it, open the Macro Builder and add a **User Script** command. There are
+two ways to point it at your script:
+
+- **Browse** opens QuickAdd's script picker (not your operating system's file
+  picker). It lists the `.js` files and notes-with-a-code-block that Obsidian
+  has already discovered, so it can't reach files outside the vault or hidden
+  from Obsidian's index.
+- **Type it in.** For a `.js` file, type its basename - for
+  `scripts/my-macro.js`, enter `my-macro`. For a note, type its vault path, for
+  example `Scripts/my-macro.md`. Then click **Add**. To run a specific exported
+  function, append it with `::`, such as `my-macro::start`.
+
+If the script exports more than one function and you don't name one, QuickAdd
+asks which export to run. You can also set an output variable name so later
+commands can reuse the result.
+
+:::caution[Where to keep scripts]
+Keep the script inside your vault, but **not** inside `.obsidian` or any folder
 whose name starts with a dot. Obsidian may exclude hidden folders from its file
-index, and QuickAdd builds the picker from Obsidian's indexed vault files. Use a
-normal folder such as `scripts/` or a visible underscore-prefixed folder such as
-`_quickadd/scripts/`.
+index, and QuickAdd builds the picker from Obsidian's indexed files, so a hidden
+script never shows up. Use a normal folder such as `scripts/`, or a visible
+underscore-prefixed folder such as `_quickadd/scripts/`. Full rules are in
+[User scripts](#user-scripts).
+:::
 
-Open the Macro Builder and add a **User Script** command. The **Browse** button
-opens QuickAdd's script picker, not a native file picker. It lists the `.js`
-files and notes-with-a-code-block Obsidian has already discovered in the vault,
-so it cannot pick files outside the vault or hidden from Obsidian's index.
+Good to know:
 
-You can also type the script into the text field and click **Add**. For a `.js`
-file, type its basename — for `scripts/my-macro.js`, enter `my-macro`. For a
-note, type its vault path, e.g. `Scripts/my-macro.md`. To run a specific exported
-member, append it with `::`, such as `my-macro::start`.
+- To **insert text into a note**, don't write it in a script. Use a **Template**
+  or **Capture** choice and run it from the macro as a **Nested Choice**
+  command. That's the intended way to write content, and no YAML frontmatter is
+  required.
+- If your script calls the API of another plugin, that plugin must be installed
+  and enabled in your vault. You don't need any extra plugin just to run user
+  scripts.
 
-If the script exports multiple functions and you do not specify a member,
-QuickAdd will ask which export to run. You can also set an output variable name
-so later commands can reuse the result.
+### Branch with a conditional {#conditional-commands}
 
-If your goal is to insert text into a note, use a **Template** or **Capture**
-choice and run it from the macro using a **Nested Choice** command. This is the
-intended way to write content. No YAML frontmatter is required.
+A conditional command lets your macro take one path or another without writing
+boilerplate JavaScript. Each conditional has:
 
-If your script calls APIs from other plugins, those plugins must be installed
-and enabled in your vault. You do not need any extra plugins just to run user
-scripts in macros.
+- **Condition mode** - compare a macro variable, or run a script that returns
+  `true`/`false`.
+- **Variable comparisons** - test a variable with operators like equals,
+  contains, less than, greater than, or a basic truthiness check. The value type
+  (text, number, boolean) controls how the two sides are compared.
+- **Script mode** - point to a JavaScript file in your vault (with an optional
+  exported function) that returns a boolean. The script gets the same parameters
+  as any user script, including your macro variables and `params.abort`.
+- **Branch editors** - the commands that run when the condition passes
+  (**Then**) or fails (**Else**). Each branch is a full command sequence, so you
+  can nest more conditionals or reuse any command type.
 
-### Conditional Commands
+To add one:
 
-Conditional commands let you branch your macro without writing boilerplate JavaScript. Each conditional includes:
-
-- **Condition mode** – Choose between comparing a macro variable or running a script that returns `true`/`false`.
-- **Variable comparisons** – Evaluate variables using operators like equals, contains, less/greater than, or basic truthiness checks. Value types (text, number, boolean) control how comparisons are coerced.
-- **Script mode** – Point to a JavaScript file in your vault (with optional exported function) that returns a boolean. The script receives the same parameters as user scripts, including access to macro variables and `params.abort`.
-- **Branch editors** – Configure the commands that should run when the condition passes or fails. Each branch is a full command sequence, so you can nest additional conditionals or reuse any macro command type.
-
-To add a conditional:
-
-1. Click the branch icon in the command bar of the Macro Builder (or any conditional branch editor).
+1. Click the branch icon in the command bar of the Macro Builder (or of any
+   conditional branch editor).
 2. Click the settings icon on the new command to define the condition.
-3. Use the branch buttons to configure the commands that run for the **Then** and **Else** outcomes.
+3. Use the branch buttons to set the commands that run for the **Then** and
+   **Else** outcomes.
 
-Macros execute the matching branch in order and then continue with the rest of the macro. Branch commands share the same variable map as the outer macro, so they can read or update variables for later steps.
+The macro runs the matching branch in order, then continues with the rest of the
+macro. Branch commands share the same variable map as the outer macro, so they
+can read or update variables for later steps.
 
-## Editor Commands
+## Editor commands {#editor-commands}
 
-Editor commands provide text manipulation capabilities within the active editor:
+Editor commands manipulate text in the active editor.
 
-### Paste with Format
+### Paste with format {#paste-with-format}
 
-The **Paste with format** command preserves rich formatting when pasting content from external sources. Unlike the standard paste command which only handles plain text, this command:
+**Paste with format** preserves rich formatting when you paste from an external
+source. Unlike the standard paste, which handles plain text only, it:
 
-- **Detects HTML content** in your clipboard
-- **Converts to Markdown** using Obsidian's built-in conversion
-- **Preserves formatting** like links, bold text, italics, headers, and lists
-- **Falls back gracefully** to plain text when HTML isn't available
+- **Detects HTML** in your clipboard
+- **Converts it to Markdown** using Obsidian's built-in conversion
+- **Preserves formatting** like links, bold, italics, headers, and lists
+- **Falls back gracefully** to plain text when no HTML is available
 
-**Example use cases:**
-- Copy a formatted link from a webpage → Pastes as `[Link Text](https://example.com)`
-- Copy formatted text with bold/italic → Preserves **bold** and *italic* formatting
-- Copy a bulleted list → Converts to proper Markdown list syntax
-- Copy tables from websites → Converts to Markdown table format
+What that looks like in practice:
 
-**Browser compatibility:** Uses modern clipboard APIs with automatic fallback for older versions.
+| You copy | You paste |
+| --- | --- |
+| A formatted link from a webpage | `[Link Text](https://example.com)` |
+| Text with bold/italic | **bold** and *italic* preserved |
+| A bulleted list | A proper Markdown list |
+| A table from a website | A Markdown table |
 
-### Other Editor Commands
+:::note
+Paste with format uses modern clipboard APIs, with an automatic fallback for
+older versions.
+:::
 
-- **Copy/Cut/Paste**: Standard clipboard operations
-- **Select active line**: Selects the entire line where your cursor is positioned
-- **Select link on active line**: Finds and selects any link on the current line
-- **Move cursor to file start**: Moves the cursor to the beginning of the file
-- **Move cursor to file end**: Moves the cursor to the end of the file
-- **Move cursor to line start**: Moves the cursor to the beginning of the current line
-- **Move cursor to line end**: Moves the cursor to the end of the current line
+### The other editor commands {#other-editor-commands}
 
-## User Scripts
+- **Copy / Cut / Paste** - standard clipboard operations.
+- **Select active line** - select the whole line the cursor is on.
+- **Select link on active line** - find and select a link on the current line.
+- **Move cursor to file start / file end** - jump to the beginning or end of the file.
+- **Move cursor to line start / line end** - jump to the beginning or end of the current line.
 
-User scripts extend macro functionality with custom JavaScript — written in a
-`.js` file or in a ` ```js ` code block inside a note. They have access to:
-- The Obsidian app object
+## User scripts {#user-scripts}
+
+A user script extends a macro with custom JavaScript, written either in a `.js`
+file or in a ` ```js ` code block inside a note. Scripts have access to:
+
+- The Obsidian `app` object
 - The QuickAdd API
-- A variables object for passing data between commands
+- A `variables` object for passing data between commands
 
-:::caution[Script Placement Requirements]
-
-User scripts (a `.js` file, or a note with a ` ```js ` block) must be placed in your Obsidian vault, but **NOT** in the `.obsidian` directory or in hidden folders (folders starting with a dot).
+:::caution[Where scripts can live]
+A user script (a `.js` file, or a note with a ` ```js ` block) must sit inside
+your Obsidian vault, but **not** in the `.obsidian` directory or in any hidden
+folder (one whose name starts with a dot).
 
 ✅ **Valid locations:**
+
 - `/scripts/myScript.js`
 - `/_quickadd/scripts/myScript.js`
 - `/macros/utilities/helper.js`
 - `/my-custom-folder/script.js`
-- Any folder in your vault except `.obsidian` or hidden folders
+- Any folder in your vault except `.obsidian` or a hidden folder
 
 ❌ **Invalid locations:**
+
 - `/.obsidian/plugins/quickadd/scripts/myScript.js`
 - `/.obsidian/scripts/myScript.js`
 - `/.quickadd/scripts/myScript.js` (hidden folder - use `_quickadd` instead)
 - `/.scripts/myScript.js` (hidden folder - use `_scripts` instead)
 - Any path within the `.obsidian` directory
-- Any path within folders starting with a dot (.)
+- Any path within a folder starting with a dot (.)
 
-Scripts placed in the `.obsidian` directory or hidden folders are intentionally ignored and will not appear in the script selection dialog.
-
+Scripts in the `.obsidian` directory or in hidden folders are intentionally
+ignored and won't appear in the script picker.
 :::
 
-### Basic Script Structure
+### The basic script shape {#basic-script-structure}
+
+Export an async function. QuickAdd calls it with a `params` object that carries
+everything you need.
 
 ```javascript
 module.exports = async (params) => {
     // Destructure the parameters
     const { app, quickAddApi, variables } = params;
-    
+
     // Your code here
     console.log("Hello from my macro!");
-    
+
     // Set a variable for use in later commands
     variables.myResult = "Some value";
 };
 ```
 
-### Using the QuickAdd API
+### Prompt the user: the QuickAdd API {#using-the-quickadd-api}
 
-The QuickAdd API provides several useful methods:
+`quickAddApi` gives you ready-made prompts so you don't have to build UI:
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi } = params;
-    
+
     // Input prompt - get text from user
     const name = await quickAddApi.inputPrompt("Enter your name:");
-    
+
     // Yes/No prompt
     const confirmed = await quickAddApi.yesNoPrompt("Are you sure?");
-    
+
     // Suggester - let user choose from options
     const choice = await quickAddApi.suggester(
         ["Option 1", "Option 2", "Option 3"],  // Display values
         ["value1", "value2", "value3"]         // Actual values
     );
-    
+
     // Wide input prompt - for longer text
     const longText = await quickAddApi.wideInputPrompt("Enter description:");
-    
+
     // Checkbox prompt - multiple selections
     const selections = await quickAddApi.checkboxPrompt(
         ["Task 1", "Task 2", "Task 3"]
@@ -238,10 +275,12 @@ module.exports = async (params) => {
 };
 ```
 
-### Getting the current selection
+For the full list of methods, see the [QuickAdd API](/docs/QuickAddAPI/).
 
-Use the utility helper to read the active editor selection. It returns an empty
-string when nothing is selected or no editor is active.
+### Read the editor selection {#getting-the-current-selection}
+
+Use the utility helper to read whatever text is selected in the active editor.
+It returns an empty string when nothing is selected or no editor is active.
 
 ```javascript
 module.exports = async (params) => {
@@ -252,20 +291,21 @@ module.exports = async (params) => {
 };
 ```
 
-### Accessing Other Plugins
+### Reach into other plugins {#accessing-other-plugins}
 
-Scripts can interact with other Obsidian plugins:
+A script can talk to other Obsidian plugins through `app.plugins.plugins`. Check
+that the plugin is there before using it:
 
 ```javascript
 module.exports = async (params) => {
     const { app } = params;
-    
+
     // Access Templater
     const templater = app.plugins.plugins["templater-obsidian"];
     if (templater) {
         // Use Templater API
     }
-    
+
     // Access MetaEdit
     const metaedit = app.plugins.plugins["metaedit"];
     if (metaedit) {
@@ -275,31 +315,36 @@ module.exports = async (params) => {
 };
 ```
 
-## Variables and Data Flow
+## Pass data between commands: variables {#variables-and-data-flow}
 
-Macro commands share one temporary variable map during the current Macro run. User scripts can write `params.variables.bookTitle`, and later Template or Capture commands can read `{{VALUE:bookTitle}}`.
+Every command in a macro shares one temporary variable map for the current run.
+A user script can write `params.variables.bookTitle`, and a later Template or
+Capture command can read it back as `{{VALUE:bookTitle}}`.
 
-For the full rules, including named `VALUE` prompts, empty values, AI Assistant output variables, and the `executeChoice` boundary, see [Variables and data flow](/docs/VariablesDataFlow/).
+For the full rules - named `VALUE` prompts, empty values, AI Assistant output
+variables, and the `executeChoice` boundary - see
+[Variables and data flow](/docs/VariablesDataFlow/).
 
-## Advanced Script Patterns
+## Advanced script patterns {#advanced-script-patterns}
 
-### Exporting Multiple Functions
+### Offer several actions from one script {#exporting-multiple-functions}
 
-Scripts can export multiple functions, giving users options:
+A script can export more than one function, so one file offers a menu of
+actions:
 
 ```javascript
 module.exports = {
     option1: async (params) => {
         console.log("Running option 1");
     },
-    
+
     option2: async (params) => {
         console.log("Running option 2");
     },
-    
+
     // Can also include variables
     defaultValue: "some default",
-    
+
     // Main entry point
     start: async (params) => {
         const { quickAddApi } = params;
@@ -307,7 +352,7 @@ module.exports = {
             ["Run Option 1", "Run Option 2"],
             ["option1", "option2"]
         );
-        
+
         if (choice === "option1") {
             await module.exports.option1(params);
         } else if (choice === "option2") {
@@ -317,143 +362,153 @@ module.exports = {
 };
 ```
 
-### Direct Function Access
+### Run one export directly: `Macro::member` {#direct-function-access}
 
-You can skip the selection prompt by specifying the function directly:
-- `{{MACRO:MyMacro::option1}}` - Runs option1 directly
-- `{{MACRO:MyMacro::start}}` - Runs the start function
+You can skip the "which export?" prompt by naming the function:
 
-When a macro has more than one user script, `Macro::member` uses the script
+- `{{MACRO:MyMacro::option1}}` runs `option1` directly.
+- `{{MACRO:MyMacro::start}}` runs the `start` function.
+
+When a macro has more than one user script, `Macro::member` picks the script
 that uniquely exports the requested member across all scripts in the macro.
+QuickAdd resolves it like this:
 
-QuickAdd resolves `Macro::member` like this:
-- If exactly one script exports the requested member, QuickAdd uses it.
-- If no script exports the requested member, QuickAdd stops and shows an error.
-  - Exception: if the macro has no user-script commands at all, QuickAdd cannot
-    satisfy member access — it logs a warning and returns an empty result instead
-    of stopping the macro.
-- If multiple scripts export the requested member, QuickAdd stops and lists the
-  conflicting script names instead of guessing.
+- If exactly one script exports the member, QuickAdd uses it.
+- If no script exports the member, QuickAdd stops and shows an error.
+  - Exception: if the macro has no user-script commands at all, QuickAdd can't
+    satisfy member access - it logs a warning and returns an empty result
+    instead of stopping the macro.
+- If several scripts export the member, QuickAdd stops and lists the conflicting
+  script names instead of guessing.
 - Exception: the convention keys `settings`, `entry`, and `quickadd` (which many
-  scripts export as metadata rather than entrypoints) resolve to the **first** script
-  that exports them and show a one-time notice pointing at the selector form below,
-  rather than stopping. Use the selector if you need a different script.
+  scripts export as metadata rather than entrypoints) resolve to the **first**
+  script that exports them and show a one-time notice pointing at the selector
+  form below, rather than stopping. Use the selector if you need a different
+  script.
 
-If there is a conflict, you can target a specific script by name:
+When there's a conflict, target a specific script by name:
+
 - `{{MACRO:MyMacro::Script 1::option1}}`
 
-The script selector uses the macro command name shown in the editor. If multiple
-user-script commands share the same name, rename one of them before using the
-selector form.
+The selector uses the macro command name shown in the editor. If two user-script
+commands share the same name, rename one before using the selector form.
 
-## Macro Settings
+## Macro settings {#macro-settings}
 
 ![The Macro builder, including the Run on startup toggle](../Images/choices/macro-builder.png)
 
-### Run on startup
-Enable this to automatically run a macro when Obsidian starts. Useful for:
-- Creating daily notes automatically
+### Run on startup {#run-on-startup}
+
+Enable this to run a macro automatically when Obsidian starts. Handy for:
+
+- Creating a daily note automatically
 - Setting up your workspace
 - Running maintenance tasks
 
-## Practical Examples
+## Practical examples {#practical-examples}
 
-### Example 1: Book Logging Macro
+### Example 1: Log a book to your daily note {#example-1-book-logging-macro}
 
-This macro logs books to your daily note:
+Prompt for a book name and write it into today's daily note (using the MetaEdit
+plugin):
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi: { inputPrompt }, app } = params;
-    
+
     // Get book name from user
     const bookName = await inputPrompt("📖 Book Name");
-    
+
     // Get MetaEdit plugin
     const { update } = app.plugins.plugins["metaedit"].api;
-    
+
     // Format today's date
     const date = window.moment().format("YYYY-MM-DD");
-    
+
     // Update the daily note
     await update("Book", bookName, `Daily Notes/${date}.md`);
 };
 ```
 
-### Example 2: Task Management Macro
+### Example 2: Create a task with priority {#example-2-task-management-macro}
 
-Create a task with automatic scheduling:
+Ask for a task and a priority, then hand them to a later Template command as
+variables:
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi, app, variables } = params;
-    
+
     // Get task details
     const task = await quickAddApi.inputPrompt("Task description:");
     const priority = await quickAddApi.suggester(
         ["🔴 High", "🟡 Medium", "🟢 Low"],
         ["high", "medium", "low"]
     );
-    
+
     // Set variables for use in template
     variables.taskDescription = task;
     variables.taskPriority = priority;
     variables.taskCreated = new Date().toISOString();
-    
+
     // Create task note using template (in next macro command)
 };
 ```
 
-### Example 3: Research Workflow
+### Example 3: Scaffold a research workspace {#example-3-research-workflow}
 
-Chain multiple operations for research:
+Chain several operations: create a folder structure for a topic, then set
+variables for a later template step to fill an overview note.
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi, app, variables } = params;
-    
+
     // Get research topic
     const topic = await quickAddApi.inputPrompt("Research topic:");
-    
+
     // Create folder structure
     const vault = app.vault;
     const researchFolder = `Research/${topic}`;
-    
+
     // Check if folder exists
     if (!await vault.adapter.exists(researchFolder)) {
         await vault.createFolder(researchFolder);
         await vault.createFolder(`${researchFolder}/Sources`);
         await vault.createFolder(`${researchFolder}/Notes`);
     }
-    
+
     // Set variables for template
     variables.researchTopic = topic;
     variables.researchFolder = researchFolder;
-    
+
     // Next commands in macro will create the overview note
 };
 ```
 
-## Macro Execution Control
+## When a macro stops {#macro-execution-control}
 
-### Automatic Abort Behavior
+### What stops a macro {#automatic-abort-behavior}
 
-Macros automatically stop execution in the following situations:
+A macro stops early in three situations:
 
-1. **User Cancellation**: When a user presses Escape or clicks Cancel in any prompt
-2. **Script Errors**: When an unhandled error occurs in a user script
-3. **Explicit Abort**: When `params.abort()` is called in a script
+1. **You cancel** - press Escape or click Cancel in any prompt.
+2. **A script errors** - an unhandled error is thrown in a user script.
+3. **A script aborts on purpose** - `params.abort()` is called.
 
-**What happens when a macro aborts:**
-- All remaining commands in the macro are skipped
-- A message is logged explaining why the macro stopped
-- For user cancellations and explicit aborts, no error dialog is shown
-- For script errors, the full error with stack trace is preserved for debugging
+When a macro stops:
 
-## Best Practices
+- Every remaining command is skipped.
+- A message is logged explaining why.
+- For your own cancel and for explicit aborts, no error dialog appears.
+- For a script error, the full error and stack trace are kept for debugging.
 
-### 1. Error Handling
-Always include error handling in your scripts:
+## Best practices {#best-practices}
+
+### 1. Handle errors {#1-error-handling}
+
+Wrap script work in `try`/`catch` so a failure is visible and stops the rest of
+the macro:
 
 ```javascript
 module.exports = async (params) => {
@@ -467,72 +522,82 @@ module.exports = async (params) => {
 };
 ```
 
-### 2. Check for Plugin Dependencies
-Verify required plugins are available:
+### 2. Check for plugin dependencies {#2-check-for-plugin-dependencies}
+
+Confirm a required plugin is present before you use it:
 
 ```javascript
 module.exports = async (params) => {
     const { app } = params;
-    
+
     const requiredPlugin = app.plugins.plugins["plugin-id"];
     if (!requiredPlugin) {
         new Notice("Required plugin not found!");
         return;
     }
-    
+
     // Continue with plugin operations
 };
 ```
 
-### 3. Use Meaningful Variable Names
-Choose descriptive variable names for clarity:
+### 3. Use meaningful variable names {#3-use-meaningful-variable-names}
+
+Descriptive names keep a macro readable:
+
 - ✅ `variables.projectName`
 - ✅ `variables.meetingDate`
 - ❌ `variables.var1`
 - ❌ `variables.temp`
 
-### 4. Modular Design
-Break complex macros into smaller, reusable parts:
-- Create separate scripts for distinct operations
-- Use nested choices to reuse existing functionality
-- Keep scripts focused on a single purpose
+### 4. Keep it modular {#4-modular-design}
 
-## Troubleshooting
+Break a complex macro into smaller, reusable parts:
 
-### Common Issues
+- Put distinct operations in separate scripts.
+- Reuse existing choices with **Nested Choice** commands.
+- Keep each script focused on a single purpose.
+
+## Troubleshooting {#troubleshooting}
+
+### Common issues {#common-issues}
 
 **"Syntax error: unexpected identifier"**
-- This usually means there's a JavaScript syntax error in your script
-- Check for missing semicolons, brackets, or quotes
-- See [issue #417](https://github.com/chhoumann/quickadd/issues/417) for detailed solutions
+
+- Usually a JavaScript syntax error in your script.
+- Check for a missing semicolon, bracket, or quote.
+- See [issue #417](https://github.com/chhoumann/quickadd/issues/417) for detailed solutions.
 
 **"Cannot read property of undefined"**
-- A plugin or API you're trying to access doesn't exist
-- Add null checks before accessing plugin APIs
-- Ensure plugins are enabled before running the macro
+
+- A plugin or API you're reaching for doesn't exist.
+- Add a null check before you use a plugin's API.
+- Make sure the plugin is enabled before you run the macro.
 
 **Variables not passing between commands**
-- Use a named token such as `{{VALUE:sharedName}}` or set `params.variables.sharedName` for values that later Macro steps need.
-- Make sure scripts run before the commands that read their variables.
-- See [Variables and data flow](/docs/VariablesDataFlow/) for the full run-variable model.
+
+- Use a named placeholder such as `{{VALUE:sharedName}}`, or set
+  `params.variables.sharedName`, for values later steps need.
+- Make sure the script runs *before* the command that reads its variables.
+- See [Variables and data flow](/docs/VariablesDataFlow/) for the full model.
 
 **Macro not appearing in command palette**
-- Ensure the macro choice is enabled in settings
-- Restart Obsidian if you've just created the macro
-- Check that QuickAdd is enabled in Community Plugins
 
-## Tips and Tricks
+- Make sure the macro choice is enabled in settings.
+- Restart Obsidian if you just created the macro.
+- Check that QuickAdd is enabled in Community Plugins.
 
-1. **Test incrementally**: Build your macro step by step, testing each command
-2. **Use console.log**: Debug scripts by logging values to the developer console
-3. **Backup complex scripts**: Keep your JavaScript files in your vault for version control
-4. **Share macros**: Export/import macro configurations with other users
-5. **Combine with hotkeys**: Assign keyboard shortcuts to frequently used macros
+## Tips and tricks {#tips-and-tricks}
 
-## See Also
+1. **Test incrementally** - build the macro one command at a time, testing each.
+2. **Use `console.log`** - log values to the developer console while debugging.
+3. **Keep scripts in your vault** - so you can version and back them up.
+4. **Share macros** - export and import macro configurations with other users.
+5. **Combine with hotkeys** - assign a shortcut to a macro you run often.
 
-- [Template Choices](/docs/Choices/TemplateChoice/) - For creating new notes
-- [Capture Choices](/docs/Choices/CaptureChoice/) - For appending to existing notes
-- [Format Syntax](/docs/FormatSyntax/) - Available template variables
-- [QuickAdd API](/docs/QuickAddAPI/) - Detailed API documentation
-- [Examples](/docs/Examples/Macro_BookFinder/) - Pre-built macro examples
+## See also {#see-also}
+
+- [Template Choices](/docs/Choices/TemplateChoice/) - for creating new notes
+- [Capture Choices](/docs/Choices/CaptureChoice/) - for appending to existing notes
+- [Format Syntax](/docs/FormatSyntax/) - available placeholders
+- [QuickAdd API](/docs/QuickAddAPI/) - detailed API documentation
+- [Examples](/docs/Examples/Macro_BookFinder/) - pre-built macro examples

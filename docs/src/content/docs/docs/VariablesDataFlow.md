@@ -4,52 +4,81 @@ description: How run variables move between prompts, scripts, and Template, Capt
 slug: docs/VariablesDataFlow
 ---
 
+When a choice runs, QuickAdd keeps one scratchpad of named values for that run.
+Prompts, scripts, and AI Assistant commands write values onto it; placeholders
+like `{{VALUE:project}}` read them back. In a Macro, every step shares the same
+scratchpad in order, so an answer you give in one step is available to every
+step after it.
 
-This page covers run variables - the temporary values that live only while a Template, Capture, or Macro run is executing. For saved, reusable settings, see [Global Variables](/docs/GlobalVariables/).
+This page is about those **run variables** - the temporary values that exist
+only while a Template, Capture, or Macro run is executing. For saved, reusable
+snippets that persist across runs, see
+[Global Variables](/docs/GlobalVariables/) instead. The exact placeholder
+grammar lives in [Format Syntax](/docs/FormatSyntax/); this page is about how
+values move between steps.
 
-QuickAdd keeps one temporary variable map for the current run. Prompts, scripts, and AI Assistant commands can write to that map. Format syntax reads from it. In a Macro, commands run in order and share the same map, so a value collected in one step can be used by later Template, Capture, script, and AI Assistant steps.
+At a glance, here is what writes a run variable and what reads it back:
 
-This page explains how values move between steps; the exact token grammar lives in [Format Syntax](/docs/FormatSyntax/).
+| Written by | Read by |
+| --- | --- |
+| A prompt, such as `{{VALUE:project}}` or `{{VDATE:due,YYYY-MM-DD}}` | `{{VALUE:project}}` in a later field or step |
+| A user script (`params.variables.slug = "..."`) | `{{VALUE:slug}}`, or `params.variables.slug` in another script |
+| An AI Assistant command's **Output variable name** | `{{VALUE:output}}` |
+| A script, the CLI, or the API supplying a value up front | any placeholder that would otherwise prompt |
 
-## Write values once
+## Write once, use everywhere {#write-values-once}
 
-Use a named `VALUE` token when one answer should appear in more than one place:
+Give a value a **name** when the same answer should appear in more than one
+place. QuickAdd asks for it once and reuses your answer everywhere the name
+appears:
 
 ```markdown
-File name format:
-Projects/{{VALUE:project}}
-
-Template body:
-# {{VALUE:project}}
-
-Capture format:
-Logged work for {{VALUE:project}}
+File name format:  Projects/{{VALUE:project}}
+Template body:     # {{VALUE:project}}
+Capture format:    Logged work for {{VALUE:project}}
 ```
 
-If `project` is not already set, QuickAdd asks once and stores the answer under `project`. Later `{{VALUE:project}}` tokens in the same run read that stored value instead of asking again. This works across a Template file name, the Template body, Capture formats, and later Macro steps.
+If `project` isn't set yet, QuickAdd asks once and stores your answer under
+`project`. Every later `{{VALUE:project}}` in the same run reads that stored
+answer instead of asking again. This works across a Template file name, the
+Template body, Capture formats, and later Macro steps.
 
-If a script, the CLI, or the QuickAdd API supplies `project` before the token is formatted, the token uses that value and does not ask. An absent key or a key set to `undefined` is treated as missing. An empty string is a deliberate empty answer.
+If a script, the CLI, or the QuickAdd API supplies `project` before the
+placeholder is formatted, the placeholder uses that value and never asks. A key
+that is absent or set to `undefined` counts as missing; an empty string counts
+as a deliberate empty answer.
 
-When the prompt should be a suggester, define the options once with a name, then reuse the name:
+When the prompt should be a picker, define the options once with a name, then
+reuse the name on its own:
 
 ```markdown
 {{VALUE:work,home,urgent|name:category}}
 {{VALUE:category}}
 ```
 
-See [`{{VALUE:<options>|name:<variable name>}}`](/docs/FormatSyntax/#value-name) for option lists, display labels, first-definition behavior, and reserved names.
+See [`{{VALUE:<options>|name:<name>}}`](/docs/FormatSyntax/#value-name) for
+option lists, display labels, first-definition behavior, and reserved names.
 
-In QuickAdd 2.17.2, leading and trailing spaces around the `VALUE` name are trimmed. `{{VALUE: project }}` reads the same variable as `{{VALUE:project}}`. Still prefer the no-space form because it is easier to scan and safer in shared vaults that may have older QuickAdd versions.
+:::note
+Leading and trailing spaces around the name are trimmed, so `{{VALUE: project }}`
+reads the same variable as `{{VALUE:project}}`. Prefer the no-space form anyway
+- it's easier to scan, and safer in shared vaults that might run an older
+QuickAdd.
 
-## The special `value` input
+_Trimming introduced in QuickAdd 2.17.2._
+:::
 
-The unnamed `{{VALUE}}` token reads the special `value` variable. It is useful for one-off input or for a trigger that already supplied content:
+## The unnamed answer: `{{VALUE}}` {#the-special-value-input}
+
+The unnamed `{{VALUE}}` reads a special variable called `value`. It's meant for
+one-off input, or for a trigger that already supplied some content:
 
 ```markdown
 {{VALUE}}
 ```
 
-It is not the same as `{{VALUE:project}}`. If a value must survive across multiple Macro steps, put it under a named key and read it with `{{VALUE:name}}`:
+This is **not** the same as `{{VALUE:project}}`. If an answer needs to survive
+across several Macro steps, copy it into a named key and read that instead:
 
 ```javascript
 module.exports = async (params) => {
@@ -59,15 +88,16 @@ module.exports = async (params) => {
 };
 ```
 
-Then later steps can use:
+Later steps can then use:
 
 ```markdown
 {{VALUE:project}}
 ```
 
-## Scripts share the map
+## Sharing values with a script {#scripts-share-the-map}
 
-User scripts in a Macro receive `params.variables`. That object is the shared run variable map:
+A user script in a Macro receives `params.variables` - the same scratchpad the
+placeholders read from. Write to it, and later steps see your values:
 
 ```javascript
 module.exports = async (params) => {
@@ -78,14 +108,20 @@ module.exports = async (params) => {
 };
 ```
 
-Later Macro steps can read those values:
+Later Macro steps can read them:
 
 ```markdown
 # {{VALUE:title}}
 Slug: {{VALUE:slug}}
 ```
 
-Some older examples name the first script parameter `QuickAdd`:
+Two things trip people up here:
+
+- **A plain JavaScript variable isn't enough.** Only values written onto `params.variables` are visible to later steps. A `const title = "Inbox"` stays private to that one script; `params.variables.title = title` is what makes it available.
+- **Order matters.** A script must run *before* the Template, Capture, or script step that reads its variables.
+
+:::note
+Some older examples name the first parameter `QuickAdd` instead of `params`:
 
 ```javascript
 module.exports = async (QuickAdd) => {
@@ -93,35 +129,35 @@ module.exports = async (QuickAdd) => {
 };
 ```
 
-That works because `QuickAdd` is only the local parameter name. It is the same object as `params`. New scripts should use `params` so the code matches the rest of the docs.
+That works because `QuickAdd` is just the local parameter name - it's the same
+object as `params`. New scripts should use `params` to match the rest of the
+docs.
+:::
 
-Scripts must run before the Template, Capture, or script step that reads their variables. A local JavaScript variable is not enough:
+## Inline scripts run first {#inline-scripts}
 
-```javascript
-module.exports = async (params) => {
-    const title = "Inbox"; // Only this script can see it.
-    params.variables.title = title; // Later QuickAdd steps can see it.
-};
-```
-
-## Inline Scripts
-
-Inline scripts run before ordinary format tokens in the surrounding output. Do not expect this to read the prompted value:
+Inline scripts run **before** the ordinary placeholders around them, so an
+inline script can't read a value the surrounding output is still about to
+prompt for. This does not do what it looks like:
 
 ```javascript
 const value = "{{VALUE:project}}";
 ```
 
-That string is literal JavaScript text while the inline script runs. If the script needs input-aware logic, prompt inside the script or read a variable that an earlier step already set:
+While the inline script runs, that's just literal text - the placeholder hasn't
+been filled in yet. If the script needs input-aware logic, prompt inside the
+script, or read a variable an earlier step already set:
 
 ```javascript
 const project = this.variables.project;
 return project ? `Project: ${project}` : "";
 ```
 
-## AI Assistant outputs
+## Reading an AI Assistant's output {#ai-assistant-outputs}
 
-An AI Assistant Macro command writes its response to the variable named in **Output variable name**. The default name is `output`, so later steps can read:
+An AI Assistant Macro command writes its response to the variable named in its
+**Output variable name** setting. The default name is `output`, so later steps
+can read:
 
 ```markdown
 {{VALUE:output}}
@@ -135,23 +171,34 @@ module.exports = async (params) => {
 };
 ```
 
-QuickAdd also writes a quote-block version under `<name>-quoted`. With the default output name, use:
+QuickAdd also writes a quote-block version under `<name>-quoted`. With the
+default output name that's:
 
 ```markdown
 {{VALUE:output-quoted}}
 ```
 
-If the command's output variable name is `description`, read `{{VALUE:description}}` and `{{VALUE:description-quoted}}` instead. These variables are available to later steps in the same Macro run.
+If you renamed the output variable to `description`, read `{{VALUE:description}}`
+and `{{VALUE:description-quoted}}` instead. Both are available to later steps in
+the same Macro run.
 
-## `executeChoice` is a trigger
+## `executeChoice` is a trigger, not a function call {#executechoice-is-a-trigger}
 
-The Macro Builder's **Choice** command and the API method `quickAddApi.executeChoice` are different.
+The Macro Builder's **Choice** command and the API method
+`quickAddApi.executeChoice` look similar but behave differently.
 
-A **Choice** command inside a Macro runs as part of the current Macro sequence and shares the Macro's variable map with later steps.
+A **Choice** command added inside a Macro runs as part of that Macro's sequence
+and shares the Macro's scratchpad with the steps after it.
 
-`quickAddApi.executeChoice(choiceName, variables)` is a one-way trigger. It passes the provided variables into the target choice, waits for that choice to finish, and resolves with `undefined`. It does not return the target choice's output to the caller. After the target choice finishes, QuickAdd clears the temporary variable map used by that API execution. If you call it from inside a Macro script, do not expect the caller's current `params.variables` values to still be available afterward unless you saved or restored them yourself.
+`quickAddApi.executeChoice(choiceName, variables)` is a **one-way trigger**. It
+passes the variables you give it into the target choice, waits for that choice
+to finish, and resolves with `undefined` - it does **not** hand the target
+choice's output back to the caller. After the target finishes, QuickAdd clears
+the temporary variables that execution used. So if you call it from a Macro
+script, don't expect your current `params.variables` to still be around
+afterward unless you saved and restored them yourself.
 
-Good use:
+Use it to trigger another choice with input:
 
 ```javascript
 module.exports = async (params) => {
@@ -161,7 +208,7 @@ module.exports = async (params) => {
 };
 ```
 
-Avoid this pattern:
+Don't expect a return value back from it:
 
 ```javascript
 module.exports = async (params) => {
@@ -170,16 +217,26 @@ module.exports = async (params) => {
 };
 ```
 
-If later steps need a value, keep the workflow inside one Macro sequence, set `params.variables` directly, or call shared JavaScript helper code that returns a value to your script.
+When later steps need a value, keep the workflow inside one Macro sequence, set
+`params.variables` directly, or call a shared JavaScript helper that returns the
+value to your script.
 
-## Troubleshooting
+## Troubleshooting {#troubleshooting}
 
-**The same prompt appears more than once.** Use the same named token everywhere, such as `{{VALUE:project}}`. A bare `{{VALUE}}` and a named `{{VALUE:project}}` are different inputs.
+**The same prompt appears more than once.** Use the same named placeholder
+everywhere, such as `{{VALUE:project}}`. A bare `{{VALUE}}` and a named
+`{{VALUE:project}}` are different inputs.
 
-**A script value is missing in a later Template or Capture.** Set it on `params.variables`, not only in a local JavaScript variable, and make sure the script step runs before the step that reads it.
+**A script value is missing in a later Template or Capture.** Set it on
+`params.variables`, not only in a local JavaScript variable, and make sure the
+script step runs before the step that reads it.
 
-**A token stayed as text.** Format syntax is `{{VALUE:name}}`. A bare `{{name}}` is not a QuickAdd token.
+**A placeholder stayed as literal text.** The syntax is `{{VALUE:name}}`. A bare
+`{{name}}` is not a QuickAdd placeholder.
 
-**An AI result is missing.** Check the AI Assistant command's **Output variable name**, then read that exact variable in a later Macro step.
+**An AI result is missing.** Check the AI Assistant command's **Output variable
+name**, then read that exact variable in a later Macro step.
 
-**`executeChoice` returned `undefined`.** That is expected. Use `executeChoice` to trigger another choice with input variables, not to fetch a return value from it.
+**`executeChoice` returned `undefined`.** That's expected. Use `executeChoice`
+to trigger another choice with input variables, not to fetch a return value from
+it.

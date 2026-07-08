@@ -6,10 +6,10 @@ slug: docs/Misc/AHK_OpenQuickAddFromDesktop
 ---
 
 This older page is kept for existing links. For current desktop shortcuts,
-launchers, scheduled jobs, and dashboard links, use
+launchers, scheduled jobs, and dashboard links, see
 [Trigger QuickAdd from outside Obsidian](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/).
 
-QuickAdd now has a native URI handler, so AutoHotkey can open QuickAdd directly:
+QuickAdd has a native URI handler, so AutoHotkey can open a choice directly:
 
 ```ahk
 #SingleInstance, Force
@@ -25,4 +25,4 @@ Return
 
 Replace `My%20Vault` and `Daily%20log` with your URL-encoded vault and choice
 names. Remove `WinActivate` if you do not want AutoHotkey to focus Obsidian
-before opening the URI.
+before opening the link.

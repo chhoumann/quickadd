@@ -23,7 +23,7 @@ stay right where you are. Use it to:
    `Journal/{{DATE}}.md`.
 4. Enable **Capture format** and describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`.
-5. Run it: command palette → `QuickAdd: Run QuickAdd`, pick `Add to journal`,
+5. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
 
 You now have this in today's journal note:

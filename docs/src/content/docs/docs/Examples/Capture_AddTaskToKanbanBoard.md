@@ -4,21 +4,43 @@ description: Add a task to a chosen lane on an Obsidian Kanban board by capturin
 slug: docs/Examples/Capture_AddTaskToKanbanBoard
 ---
 
-This will add a task to the chosen Kanban Board.
+You end up with one QuickAdd command that drops whatever you type onto a Kanban board as a card in the lane you choose - without opening the board first.
 
-In _Capture to_, select the board.
+## Prerequisites
 
-Enable the _Task_ toggle.
+- The [Kanban](https://github.com/mgmeyers/obsidian-kanban) community plugin, installed and enabled.
+- A Kanban board with at least one lane. Each lane is a Markdown heading, for example `## Backlog`.
 
-Set _Write position_ to **After line…**, then in the _Insert after_ field that appears, write `## ` followed by the name of the lane you want to add the task to.
+## Setup
 
-In my case, I want to add tasks to a lane called `Backlog`, so it becomes `## Backlog`.
+1. In QuickAdd settings, add a new **Capture** choice and name it (for example, `Add to board`).
+2. Open its settings.
+3. Set **Capture to** to your Kanban board file.
+4. Enable the **Task** toggle (in the **Content** section). This wraps your text in `- [ ]` so Kanban reads it as a card.
+5. Set **Write position** to **After line…**.
+6. In the **Insert after** field that appears, write `## ` followed by the name of the lane you want to add the card to. For a lane called `Backlog`, that is `## Backlog`.
 
-If you want, you can experiment with the format syntax - you could, for example, experiment with adding dates and times.
+## What you get
 
-To add a date for a task, you could just write `{{VALUE}} @{{{DATE}}}` in the format syntax. This would add the current date as the date for the card.
+You run the choice, type `Buy milk`, and QuickAdd adds `- [ ] Buy milk` as a new card at the top of the `Backlog` lane.
 
-You could also use `{{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}` to get asked which date you want to input.
+## Add a date to the card
+
+Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Enable **Capture format** and set the format to add one:
+
+- Use today's date automatically:
+
+  ```
+  {{VALUE}} @{{{DATE}}}
+  ```
+
+- Get asked which date to use each time:
+
+  ```
+  {{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}
+  ```
+
+  You can type an exact date or a natural-language date such as `tomorrow`.
 
 Read more about [format syntax here](/docs/FormatSyntax/).
 

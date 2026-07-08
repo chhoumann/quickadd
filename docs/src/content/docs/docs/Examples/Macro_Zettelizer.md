@@ -4,13 +4,15 @@ description: Create a linked note from each heading of a chosen level in your ac
 slug: docs/Examples/Macro_Zettelizer
 ---
 
+This macro turns the headings of your active note into separate linked notes. For each heading of the level you choose, it creates a new note named after the heading text and links back to that heading - a fast way to break a big note into atomic, connected notes.
+
 ![Zettelizer Demo](../Images/zettelizer_demo.gif)
 
-You can get the `.js` file for this userscript <a href="/scripts/zettelizer.js" download>here</a>.
-To install it, you can follow the same process as in the [fetch tasks from Todoist example - with video](/docs/Examples/Capture_FetchTasksFromTodoist/).
-
 ## Setup
-You will need to define the folder you want the script to place the new notes in.
+
+Get the `.js` file for this user script <a href="/scripts/zettelizer.js" download>here</a>, then add it to a Macro choice. To install it, follow the same process as in the [fetch tasks from Todoist example - with video](/docs/Examples/Capture_FetchTasksFromTodoist/), and see [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough of creating a macro.
+
+Next, define the folder you want the script to place the new notes in.
 
 This can be done on line 19, where it says ``const folder = "..."``. Change the text inside the `""` to match the desired folder path.
 

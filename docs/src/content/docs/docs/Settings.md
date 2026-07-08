@@ -1,56 +1,58 @@
 ---
 title: Settings
-description: Reference for every QuickAdd settings group, from choices and input behavior to templates, AI, notifications, and choice icons
+description: What every QuickAdd setting does and the effect of turning it on, from choices and input behavior to templates, AI, notifications, and choice icons
 slug: docs/Settings
 ---
 
-The QuickAdd settings tab is reached from Obsidian's **Settings → Community plugins → QuickAdd** (or **Settings → QuickAdd**). Settings are grouped into sections; this page documents each group and the controls it contains. Changes save automatically.
+This page is a reference for the QuickAdd settings tab, one group at a time. Each entry says what the setting does and what changes when you turn it on. Open the tab from Obsidian's **Settings → Community plugins → QuickAdd** (or **Settings → QuickAdd**); changes save as you make them.
 
-## Choices & Packages
+## Choices & Packages {#choices--packages}
 
-- **Choices** — Build and organize your QuickAdd choices. See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
-- **Packages** — Bundle or import QuickAdd automations as reusable packages. See [Share QuickAdd Packages](/docs/Choices/Packages/). Use **Export package…** to bundle your choices and **Import package…** to bring in someone else's.
+- **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
+- **Packages** - share a set of choices with someone else, or bring theirs in. Use **Export package…** to bundle your choices into a file, and **Import package…** to add someone else's. See [Share QuickAdd Packages](/docs/Choices/Packages/).
 
-## Choice Picker
+## Choice Picker {#choice-picker}
 
-- **Search nested choices** — When searching in the choice picker, also match choices nested inside Multi choices and show their path. Note that nested matches can outrank same-level ones. Disable to search only the open level.
-- **"New note from template" in the launcher** — Where the row that lists templates from your configured template folder appears in Run QuickAdd, so you can create a note from a template without a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot; *Show at the top* makes it the first item; *Hide* removes it. Only appears when a [template folder](#templates--properties) is configured; the **New note from template** command works regardless.
+The choice picker is the list you see when you run **QuickAdd: Run**.
 
-## Input
+- **Search nested choices** - find a choice even when it lives inside a Multi choice. When on, searching also matches choices nested in Multi choices and shows their path. A nested match can rank above a same-level one. Turn it off to search only the level you have open.
+- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot, *Show at the top* makes the template row first, and *Hide* removes it. The row only appears once you have a [template folder](#templates--properties) configured; the **New note from template** command works either way.
 
-- **Use Multi-line Input Prompt** — Use multi-line input prompt instead of single-line input prompt. Multi-line prompts submit with Ctrl/Cmd+Enter (Enter inserts a newline). See [Controlling Prompts](/docs/ControllingPrompts/#submit-keys).
-- **Persist Input Prompt Drafts** — Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.
-- **Use editor selection as default Capture value** — When enabled, Capture uses the current editor selection as `{{VALUE}}` and may skip the prompt. When disabled, Capture always prompts for `{{VALUE}}`.
-- **One-page input for choices** — Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs; Template and Capture choices can [override this individually](/docs/Advanced/onePageInputs/#per-choice-override). See [One-page Inputs](/docs/Advanced/onePageInputs/) and [Controlling Prompts](/docs/ControllingPrompts/).
-- **Date aliases** — Shortcodes for natural language date parsing. One per line: `alias = phrase`. Example: `tm = tomorrow`. Use **Reset to defaults** to restore the built-in aliases.
+## Input {#input}
 
-## Templates & Properties
+- **Use Multi-line Input Prompt** - get a large text box for text prompts instead of a single line, so you can write several lines at once. Multi-line prompts submit with Ctrl/Cmd+Enter, and plain Enter adds a newline. See [Controlling Prompts](/docs/ControllingPrompts/#submit-keys).
+- **Persist Input Prompt Drafts** - don't lose what you typed if you close a prompt by accident. When on, a closed prompt keeps its draft and restores it when you reopen. Drafts last only for the current session.
+- **Use editor selection as default Capture value** - let a Capture reuse text you already have highlighted. When on, Capture uses the current editor selection as `{{VALUE}}` and may skip the prompt entirely. When off, Capture always asks for `{{VALUE}}`. Individual Capture choices can override this.
+- **One-page input for choices** - answer all of a choice's questions in one form up front, instead of one prompt after another. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can [override this individually](/docs/Advanced/onePageInputs/#per-choice-override). See [One-page Inputs](/docs/Advanced/onePageInputs/) and [Controlling Prompts](/docs/ControllingPrompts/).
+- **Date aliases** - set your own shortcodes for natural-language dates, so typing `tm` in a date prompt means `tomorrow`. Write one per line as `alias = phrase`, for example `tm = tomorrow`. **Reset to defaults** restores the built-in aliases.
 
-- **Template folder paths** — Folders where templates are stored, used to suggest template files when configuring QuickAdd. Add as many folders as you like: type a folder (with autocomplete) and press **Add** or Enter, then remove one with its row's trash button. Leave the list empty to suggest every template file in the vault. Note that an empty list also disables the **New note from template** launcher row and command, which need at least one configured folder.
-- **Convert string front matter variables to typed properties (Beta)** — List/object values from scripts are **always** written as proper Obsidian properties (a list value becomes a List property), so templates produce valid front matter out of the box. This toggle **additionally** converts string values into typed properties: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, etc. Disabled by default; the string conversion is a beta heuristic that may have edge cases. See [Template Property Types (Beta)](/docs/TemplatePropertyTypes/).
+## Templates & Properties {#templates--properties}
 
-## Notifications
+- **Template folder paths** - tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Type a folder (autocomplete helps) and press **Add** or Enter; remove one with the trash button on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also switches off the **New note from template** launcher row and command, which need at least one configured folder.
+- **Convert string front matter variables to typed properties (Beta)** - turn text values into real Obsidian property types so front matter reads correctly. List and object values from scripts are **always** written as proper properties (a list value becomes a List property), so templates produce valid front matter without this toggle. Turning it on **also** converts string values: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. Off by default, because the string conversion is a beta heuristic that can have edge cases. See [Template Property Types (Beta)](/docs/TemplatePropertyTypes/).
 
-- **Announce Updates** — Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes. Choose between *Show updates on each new release*, *Show updates only on major releases (new features, breaking changes)*, or *Don't show*.
-- **Show Capture Notifications** — Display a notification when content is captured successfully to confirm the operation completed.
-- **Show Input Cancellation Notifications** — Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.
+## Notifications {#notifications}
 
-## Global Variables
+- **Announce Updates** - see what changed when a new version installs, including new features, demo videos, and bug fixes. Choose *Show updates on each new release*, *Show updates only on major releases (new features, breaking changes)*, or *Don't show*.
+- **Show Capture Notifications** - get a confirmation that a capture landed. When on, QuickAdd shows a notice after content is captured successfully.
+- **Show Input Cancellation Notifications** - get a notice when you dismiss a prompt without submitting. Turn it off to avoid the extra notice every time you cancel a prompt.
 
-- **Global Variables** — Define vault-scoped, reusable snippets and reference them anywhere QuickAdd formatting is supported. See [Global Variables](/docs/GlobalVariables/).
+## Global Variables {#global-variables}
 
-## AI & Online
+- **Global Variables** - define reusable snippets once and drop them in anywhere QuickAdd formatting is supported. These are vault-scoped. See [Global Variables](/docs/GlobalVariables/).
 
-- **Disable AI & Online features** — This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant. See [AI Assistant](/docs/AIAssistant/).
-- **Allow URI x-callback-url** — Off by default, because the callback URL is set by whoever creates the `obsidian://` link and a successful callback can carry the affected note's vault path. When on, an `obsidian://quickadd` URI may open a callback URL (`x-success` / `x-error` / `x-cancel`) after a Template or Capture choice finishes, sending the outcome (and, on success, the note's vault path and URL) to that callback. Only `shortcuts:` and `obsidian:` callback URLs are permitted. See [Obsidian URI](/docs/Advanced/ObsidianUri/).
+## AI & Online {#ai--online}
 
-## Appearance
+- **Disable AI & Online features** - stop the plugin from reaching external providers like OpenAI. This blocks plugin features such as the AI Assistant from making those requests. User Scripts can still run arbitrary code, including contacting external providers, so this setting does not affect them. Turn it off to use the [AI Assistant](/docs/AIAssistant/).
+- **Allow URI x-callback-url** - let an `obsidian://quickadd` link report its result back to whoever launched it. Off by default, because the callback URL is set by whoever creates the `obsidian://` link and a successful callback can carry the affected note's vault path. When on, an `obsidian://quickadd` URI may open a callback URL (`x-success` / `x-error` / `x-cancel`) after a Template or Capture choice finishes, sending the outcome and, on success, the note's vault path and URL to that callback. Only `shortcuts:` and `obsidian:` callback URLs are permitted. See [Obsidian URI](/docs/Advanced/ObsidianUri/).
 
-- **Show icon in sidebar** — Add QuickAdd icon to the sidebar ribbon. Requires a reload.
+## Appearance {#appearance}
 
-## Choice icons
+- **Show icon in sidebar** - add the QuickAdd icon to the sidebar ribbon for one-click access. Requires a reload to take effect.
 
-_Introduced in QuickAdd 2.14.0._
+## Choice icons {#choice-icons}
 
-- **Automatic choice icons** — QuickAdd gives each choice type a default Obsidian/Lucide icon: `file-text` for Template, `pencil` for Capture, `terminal` for Macro, and `folder` for Multi. These icons show in the QuickAdd launcher, inside Multi choice pickers, and on registered commands in the command palette / mobile editing toolbar.
-- **Override a choice's icon** — Open a choice's configuration and set **Icon** to any [Lucide](https://lucide.dev) icon id (for example `star`). Leave the field empty to use the choice type default. Icons inherit the active Obsidian theme color; QuickAdd does not set per-choice icon colors.
+- **Automatic choice icons** - QuickAdd gives each choice type a default [Lucide](https://lucide.dev) icon: `file-text` for Template, `pencil` for Capture, `terminal` for Macro, and `folder` for Multi. These show in the QuickAdd launcher, inside Multi choice pickers, and on registered commands in the command palette and mobile editing toolbar.
+- **Override a choice's icon** - give a single choice its own icon. Open the choice's configuration and set **Icon** to any Lucide icon id (for example `star`); leave it empty to fall back to the choice type default. Icons take the active Obsidian theme's color; QuickAdd does not set per-choice icon colors.
+
+_Choice icons introduced in QuickAdd 2.14.0._

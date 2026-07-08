@@ -143,7 +143,6 @@ export default defineConfig({
 						{
 							label: "Capture Examples",
 							items: [
-								"docs/Examples/Capture_AddJournalEntry",
 								"docs/Examples/Capture_ToDailyNote",
 								"docs/Examples/Capture_AddTaskToKanbanBoard",
 								"docs/Examples/Capture_FetchTasksFromTodoist",

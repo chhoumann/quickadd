@@ -4,29 +4,33 @@ description: Pull a book's highlights from Readwise into a new note using a Temp
 slug: docs/Examples/Template_AutomaticBookNotesFromReadwise
 ---
 
+This example creates a new book note from a template and fills in a book's highlights straight from [Readwise](https://readwise.io). When you run it, you pick a book, and QuickAdd builds a note whose body already contains that book's highlights and notes.
+
 ![OoBBhFGoxl](https://user-images.githubusercontent.com/29108628/122776753-ac7c4d00-d2ab-11eb-9ade-4b88afaee8e4.gif)
 
-#### Installation
+## Before you start
+
+- A Readwise account and its access token. Get your token [here](https://readwise.io/access_token).
+- The sample template's title and date lines (`<% ... %>`) are [Templater](https://github.com/SilentVoid13/Templater) syntax, so you need the Templater plugin for those to render. Every QuickAdd placeholder uses `{{ ... }}` instead.
+
+## Installation
 
 Here's a video guide for [installing user scripts in QuickAdd](/docs/Examples/Capture_FetchTasksFromTodoist/#installation-video).
 
-Basically, you'll want to create a new JavaScript file (file extension is `.js`) with the contents of the script. Then, in the script, you see the `YOUR_READWISE_TOKEN`, which is where you'll want to insert your Readwise token (find it [here](https://readwise.io/access_token)).
+1. Create a new JavaScript file (with the `.js` extension) containing the [script below](#script). In it, replace `YOUR_READWISE_TOKEN` with your own Readwise token.
+2. Create the macro that runs the script: open QuickAdd's settings, click **New choice**, and select **Macro**. Name it (I use `Readwise`), then click the configure button (the gear icon) to open the Macro Builder. See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. In the builder, add a **User Script** command: type the name of the script you created (or click **Browse**) and click **Add**.
+4. Create a [Template choice](/docs/Choices/TemplateChoice/) whose **Template Path** points at the template you made from the [one below](#template). Set the remaining options to your liking. The screenshot shows settings resembling mine:
 
-Now you need to create a new macro. To do so, open QuickAdd's settings, click `New choice`, and select `Macro`. Give the macro a name (I use `Readwise`), then click the configure button (⚙️) to open the Macro Builder. In the builder, add a `User Script` command: type the name of the script you created (or click `Browse`) and click `Add`.
-
-Once that's done, you can use the [template provided below](#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something else than `Readwise`, replace `Readwise` with that.
-
-This template should be added to a [Template choice](/docs/Choices/TemplateChoice/), and should be given values that resemble this:
 ![Template choice setup](../Images/readwise_template_choice.png)
 
-The template path should be the path the template made based on the one here.
+A few notes on how it behaves:
 
-Notably, the book's name would be the one selected. I have chosen to write prepend a `{ ` before it, as I use this to denote literature notes in my vault.
+- The note is named after the book you select. I prepend a `{ ` to that name, because I use it to denote literature notes in my vault.
+- Running the choice opens a menu to choose a book, and the highlights are appended into the template where the macro placeholder sits.
+- Customize the template however you like, but keep `{{MACRO:Readwise::instaFetchBook}}` - that placeholder is what fetches the highlights and marks where they are inserted. If you named your macro something other than `Readwise`, replace `Readwise` in that placeholder with your macro's name.
 
-The remaining settings are up to you. Activating this choice will open a menu which allows you to choose a book, and the book notes will be used appended to the template.
-You can customize the template as much as you like, but make sure to keep the `{{MACRO:Readwise::instaFetchBook}}`, as that is what gets the highlights (and where they'll be inserted).
-
-#### Script
+## Script
 
 Most of the setup is shown in the gif.
 
@@ -258,7 +262,7 @@ async function apiGet(url, data) {
 }
 ```
 
-#### Template
+## Template
 
 ```md
 ---

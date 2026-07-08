@@ -4,26 +4,31 @@ description: Write proper Obsidian property types from template frontmatter vari
 slug: docs/TemplatePropertyTypes
 ---
 
+When a QuickAdd template or capture writes front matter, this feature makes sure
+each value lands as the *right* Obsidian property type - a real List, Number, or
+Checkbox - instead of a string that only looks right. You get clean, typed
+front matter without hand-formatting YAML, so scripts can hand QuickAdd normal
+JavaScript values and templates stay readable.
 
-Native support for proper Obsidian property types in QuickAdd template front matter.
+## What gets converted {#overview}
 
-## Overview
+There are two layers, and only the second one is a beta toggle.
 
-QuickAdd writes proper Obsidian property types for template variables in front matter.
+**Always on, no setting required.** When a script provides a **list (array)**
+or **object** value for a front matter field, QuickAdd writes it as a real
+Obsidian List or object property through Obsidian's own YAML serializer. This is
+what makes templates like the
+[Movie & Series script](/docs/Examples/Macro_MovieAndSeriesScript/) produce
+valid front matter out of the box: a returned array of links becomes a List of
+links instead of broken YAML.
 
-**Always on (no setting required):** when a script provides a **list (array)** or **object** value for a front matter field, QuickAdd writes it as a real Obsidian List/object property through Obsidian's own YAML serializer. This is what makes templates like the [Movie & Series script](/docs/Examples/Macro_MovieAndSeriesScript/) produce valid front matter out of the box — a returned array of links becomes a List of links instead of broken YAML.
+**Behind the beta toggle.** The setting below *additionally* converts **string**
+values into typed properties: a comma or bullet-list string becomes a List,
+`"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. This is the
+beta part, because it changes a value's type based on its contents. It is
+disabled by default.
 
-**Behind the beta toggle:** the setting below *additionally* converts **string** values into typed properties — a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. This string conversion is the beta part because it changes a value's type based on its contents; it is disabled by default.
-
-The goal is to make note creation easier and more intuitive. While the string conversion is in beta, we appreciate your feedback and suggestions.
-
-**Prefer explicit format-syntax options** when you want a specific input or type, with no beta toggle required:
-
-- [`{{VALUE:x|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text`](/docs/FormatSyntax/#value-property-types) — pick the right input widget; `|type:slider|min:0|max:100` is useful for bounded Number properties, and `|type:text` keeps a number-looking value (e.g. `0042`) a string.
-- [`{{VALUE:a,b,c|multi}}`](/docs/FormatSyntax/#value-multi) — a multi-select picker that writes a real List (also `|multi:linklist` for link lists).
-- [`{{VDATE:when,fmt|time}}`](/docs/FormatSyntax/#vdate-time) — a date **and time** picker for `Date & time` properties.
-
-Plain `{{VALUE}}` already round-trips numbers, booleans, and dates to the correct type without any setting — the beta string conversion below mainly adds comma/bullet-string → List for properties typed as a list.
+Here is what the string conversion does to a comma-separated author list:
 
 **Before:**
 ```yaml
@@ -38,17 +43,32 @@ authors:
   - Bob Wilson
 ```
 
-## Enabling the String Conversion (Beta)
+:::tip[Prefer explicit format-syntax options]
+When you want a specific input or type, [format syntax](/docs/FormatSyntax/)
+gives you one directly, with no beta toggle required:
 
-List/object handling needs no setting. To also convert **string** values into typed properties, enable the beta toggle:
+- [`{{VALUE:x|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text`](/docs/FormatSyntax/#value-property-types) - pick the right input widget; `|type:slider|min:0|max:100` is useful for bounded Number properties, and `|type:text` keeps a number-looking value (e.g. `0042`) a string.
+- [`{{VALUE:a,b,c|multi}}`](/docs/FormatSyntax/#value-multi) - a multi-select picker that writes a real List (also `|multi:linklist` for link lists).
+- [`{{VDATE:when,fmt|time}}`](/docs/FormatSyntax/#vdate-time) - a date **and time** picker for `Date & time` properties.
+:::
 
-1. Open **Settings → QuickAdd**
-2. Toggle **"Convert string front matter variables to typed properties (Beta)"**
-3. String conversion is **disabled by default** for safety
+Plain `{{VALUE}}` already round-trips numbers, booleans, and dates to the correct
+type without any setting. The beta string conversion below mainly adds
+comma/bullet-string to List for properties typed as a list.
 
-## Basic Usage
+## Turn on string conversion (beta) {#enabling-the-string-conversion-beta}
 
-### 1. Set Structured Data in Scripts
+List and object handling needs no setting. To *also* convert **string** values
+into typed properties, enable the beta toggle:
+
+1. Open **Settings → QuickAdd**.
+2. Toggle **"Convert string front matter variables to typed properties (Beta)"**.
+
+String conversion is **disabled by default** for safety.
+
+## Walkthrough {#basic-usage}
+
+### 1. Set structured data in a script {#1-set-structured-data-in-scripts}
 
 Instead of manually formatting data as strings, use native JavaScript types:
 
@@ -69,7 +89,7 @@ QuickAdd.variables.notes = null;
 // QuickAdd.variables.authors = "John Doe, Jane Smith, Bob Wilson";
 ```
 
-### 2. Use in Templates
+### 2. Use them in a template {#2-use-in-templates}
 
 Your template syntax stays exactly the same:
 
@@ -89,7 +109,7 @@ notes: "{{VALUE:notes}}"
 Content here...
 ```
 
-### 3. Get Perfect Property Types
+### 3. Get perfect property types {#3-get-perfect-property-types}
 
 The result is properly formatted as Obsidian property types:
 
@@ -120,7 +140,7 @@ notes: null
 Content here...
 ```
 
-## Supported Data Types
+## Which JavaScript type becomes which property {#supported-data-types}
 
 | JavaScript Type | Property Output | Example |
 |-----------------|-------------|---------|
@@ -133,19 +153,23 @@ Content here...
 | **Null** | Null literal | `null` → `null` |
 | **String** | String (unchanged) | `"text"` → `text` |
 
-### Respecting Obsidian Property Types
+### QuickAdd respects the type you set in Obsidian {#respecting-obsidian-property-types}
 
-QuickAdd now looks at the type you've assigned in Obsidian’s *Properties* UI for each field and formats the value accordingly:
+QuickAdd looks at the type you've assigned in Obsidian's *Properties* UI for
+each field and formats the value accordingly:
 
-- **`tags` / multi-select (`multitext`) / list** → strings such as `foo, bar` or bullet items become proper arrays.
+- **`tags` / multi-select (`multitext`) / list** - strings such as `foo, bar` or bullet items become proper arrays.
 - **Scalar types** (`text`, `number`, `date`, `datetime`, `checkbox`) stay as single values, even if the text contains commas or line breaks.
-- **Unknown type** → falls back to the v2.0 behaviour (we’ll still split obvious arrays like YAML lists or JSON arrays).
+- **Unknown type** - falls back to the v2.0 behaviour (it will still split obvious arrays like YAML lists or JSON arrays).
 
-This means you can safely type natural prose like `Hello, world` into a `description` prompt without QuickAdd turning it into a YAML list, while `sources` marked as a multi-value property will still receive a properly formatted array.
+This means you can safely type natural prose like `Hello, world` into a
+`description` prompt without QuickAdd turning it into a YAML list, while
+`sources` marked as a multi-value property will still receive a properly
+formatted array.
 
-### Complex Nested Structures
+### Deeply nested data works too {#complex-nested-structures}
 
-The feature supports deeply nested data:
+The feature supports deeply nested structures:
 
 ```javascript
 QuickAdd.variables.paper = {
@@ -184,9 +208,9 @@ paper:
   reviewed: true
 ```
 
-## Real-World Examples
+## Real-world examples {#real-world-examples}
 
-### Academic Papers
+### Academic papers {#academic-papers}
 
 **Script:**
 ```javascript
@@ -250,7 +274,7 @@ metrics:
 Paper by Ashish Vaswani,Noam Shazeer,Niki Parmar published in NIPS (2017).
 ```
 
-### Project Management
+### Project management {#project-management}
 
 **Script:**
 ```javascript
@@ -288,11 +312,15 @@ project:
   deadline: "2023-12-01"
 ```
 
-## Captures & Fresh Templates
+## Captures and fresh templates {#captures--fresh-templates}
 
-When a capture choice creates a new file, QuickAdd now analyses the just-generated front matter instead of relying on cached metadata. The capture payload is inserted **after** the closing `---`, so YAML stays at the top of the note even on first run.
+When a capture choice creates a new file, QuickAdd analyses the just-generated
+front matter instead of relying on cached metadata. The capture payload is
+inserted **after** the closing `---`, so YAML stays at the top of the note even
+on the first run.
 
-For list-style placeholders inside the front matter, QuickAdd resolves the parent property and respects the type you set in Obsidian:
+For list-style placeholders inside the front matter, QuickAdd resolves the
+parent property and respects the type you set in Obsidian:
 
 ```yaml
 ---
@@ -316,12 +344,14 @@ sources:
 description: This stays a single string, even with commas.
 ```
 
-## Feedback & Support
+## Feedback and support {#feedback--support}
 
-This is a **beta feature** - your feedback helps improve it:
+This is a **beta feature**, and your feedback helps improve it:
 
-- **Report issues**: Include template examples and variable data
-- **Request features**: Suggest improvements for your workflow
-- **Share success stories**: Help others learn effective patterns
+- **Report issues**: include template examples and variable data.
+- **Request features**: suggest improvements for your workflow.
+- **Share success stories**: help others learn effective patterns.
 
-The feature is designed to be safe and backward-compatible, but please test thoroughly with your specific use cases before relying on it for important workflows.
+The feature is designed to be safe and backward-compatible, but please test
+thoroughly with your specific use cases before relying on it for important
+workflows.

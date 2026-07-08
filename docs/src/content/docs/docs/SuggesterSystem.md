@@ -1,46 +1,68 @@
 ---
 title: Suggester System
-description: Use QuickAdd's suggester triggers for files, tags, headings, and blocks in input prompts, with keyboard navigation
+description: "Type # for tags or [[ for files, headings, and blocks right inside QuickAdd prompts, with keyboard navigation to pick fast"
 slug: docs/SuggesterSystem
 ---
 
+When a QuickAdd prompt asks you for text, you don't have to type a file name or
+tag from memory. Start typing a trigger like `[[` and QuickAdd shows a
+searchable list of matches, exactly like Obsidian's own link and tag
+autocomplete. Pick one, and QuickAdd drops it in where you were typing.
 
-QuickAdd's suggester system provides intelligent, context-aware suggestions when selecting files, tags, headings, and other content in your vault.
+![The QuickAdd suggester listing files after typing two square brackets](https://github.com/user-attachments/assets/cc89f672-3451-42c0-89b8-89e0a1ebc780)
 
-The `#` and `[[` triggers below work in QuickAdd's single-line and multi-line input prompts. The [one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts)'s text fields do not offer them; its field and pick-list inputs have their own inline suggestions.
+## What you can search for {#special-search-modes}
 
-![Obsidian_kKQxHJal6p](https://github.com/user-attachments/assets/cc89f672-3451-42c0-89b8-89e0a1ebc780)
+Type one of these triggers anywhere in a prompt:
 
-## Special Search Modes
+| Type this | To search |
+| --- | --- |
+| [`#`](#tag-search) | Every tag in your vault |
+| [`[[`](#file-search) | Every file in your vault |
+| [`[[#`](#heading-search) | Every heading in your vault |
+| [`[[#^`](#block-reference-search) | A specific block |
 
-### Tag Search
-Type `#` to search through all tags in your vault.
+:::note[Where the triggers work]
+The `#` and `[[` triggers work in QuickAdd's single-line and multi-line input
+prompts. The [one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts)'s
+text fields don't offer them; its field and pick-list inputs have their own
+inline suggestions instead.
+:::
 
-### File Search
-Type `[[` to start searching through all files in your vault.
+### Search your tags: `#` {#tag-search}
 
-QuickAdd file pickers show a note's frontmatter `title` when available, then its
-first level-1 heading, then its file basename. The selected item is still the
-real vault path.
+Type `#` to search every tag in your vault, then pick one.
 
-### Heading Search
-Type `[[#` to start searching through all headings in your vault.
+### Search your files: `[[` {#file-search}
 
-### Block Reference Search
-Type `[[#^` to find specific blocks.
+Type `[[` to search every file in your vault. Each result is labelled by its
+frontmatter `title` if it has one, then its first level-1 heading, then its file
+name - but whichever label you see, QuickAdd always inserts a link to the real
+file.
 
-### Relative Path Navigation
-- Use `./` to search in the current folder
-- Use `../` to search in the parent folder
+#### Search a nearby folder: `./` and `../` {#relative-path-navigation}
 
-### Keyboard Shortcuts
+Narrow a file search to a folder near the current note:
 
-The suggester system supports comprehensive keyboard navigation:
+- `./` searches the folder the current note is in.
+- `../` searches the parent folder.
+
+### Jump to a heading: `[[#` {#heading-search}
+
+Type `[[#` to search every heading in your vault and link straight to it.
+
+### Link a specific block: `[[#^` {#block-reference-search}
+
+Type `[[#^` to find and link an individual block.
+
+## Keyboard shortcuts {#keyboard-shortcuts}
+
+You can drive the suggester entirely from the keyboard:
 
 | Key | Action |
-|-----|--------|
-| `↑`/`↓` | Navigate up/down through suggestions |
-| `Enter` | Select current suggestion |
-| `Escape` | Cancel selection |
+| --- | --- |
+| `↑` / `↓` | Move up and down through the suggestions |
+| `Enter` | Pick the highlighted suggestion |
+| `Escape` | Close the suggester without picking |
 
-Navigation wraps around - pressing down on the last item takes you to the first.
+The list wraps around: pressing `↓` on the last item jumps back to the first.

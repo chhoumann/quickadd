@@ -4,9 +4,12 @@ description: "Get started with QuickAdd: install it, pick between Template, Capt
 slug: docs
 ---
 
-QuickAdd adds one fast command for repeatable Obsidian workflows. Use it to
-create notes from templates, capture text into existing notes, run scripts, or
-organize several choices behind one menu.
+QuickAdd turns your repetitive Obsidian actions - creating a note from a
+template, logging a line to your journal, running a script - into single
+commands you trigger with a hotkey. Set a workflow up once, then run it in a
+keystroke from anywhere in your vault.
+
+New here? Build your [first workflow](#first-workflow) below in about a minute.
 
 ## Install QuickAdd
 
@@ -31,16 +34,27 @@ plugin or API.
 
 ## First workflow
 
-1. Create a Template choice or Capture choice in QuickAdd settings.
-2. Add a name you will recognize in the command palette.
-3. Configure the target file, folder, template, or capture format.
-4. Run the `QuickAdd: Run` command from the command palette.
-5. Assign a hotkey once the workflow behaves the way you want.
+Let's build a capture that adds a timestamped line to your daily journal. It
+takes about a minute.
 
-QuickAdd choices can use [format syntax](/docs/FormatSyntax/), including values like
-`{{DATE}}`, `{{VALUE}}`, and `{{FIELD:status}}`. The
-[suggester system](/docs/SuggesterSystem/) provides fuzzy search for files, tags,
-headings, and fields.
+1. Open **Settings → QuickAdd**. Type a name like `Add to journal`, choose
+   **Capture** in the dropdown, and click **Add Choice**.
+2. Click the gear (⚙) next to your new choice to open its settings.
+3. Set **Capture To** to `Journal/{{DATE}}.md` - the note today's entries land in.
+4. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
+   of one entry.
+5. Close the settings. Open the command palette (Ctrl/Cmd+P), run
+   **QuickAdd: Run**, pick `Add to journal`, and type your entry.
+
+QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` into today's
+journal note, without opening it. Once it works the way you want, give it a
+hotkey from the ⚡ icon next to the choice or Obsidian's Hotkeys settings.
+
+The `{{DATE}}` and `{{VALUE}}` above are [format syntax](/docs/FormatSyntax/):
+placeholders QuickAdd fills in each time you run the choice. There are
+placeholders for dates, your answers, links, clipboard content, and more. When a
+prompt asks you for text, the [suggester system](/docs/SuggesterSystem/) lets you
+type `[[` or `#` to pull in a file, tag, or heading from your vault.
 
 ## Common paths
 

@@ -4,8 +4,17 @@ description: Move every note carrying a chosen tag to a target folder, matching 
 slug: docs/Examples/Macro_MoveNotesWithATagToAFolder
 ---
 
-This script allows you to move notes with a certain tag to a folder.
+This macro moves every note carrying a tag you pick into a folder you pick. It matches the tag whether it lives in a note's frontmatter or inline in the body, and it can optionally include nested tags (for example `#project/work` when you choose `#project`). No extra plugins are needed - it uses only Obsidian's own API.
+
 ![h44DF7W7Ef](https://user-images.githubusercontent.com/29108628/122404732-c18d6f00-cf7f-11eb-8a6f-17d47db8b015.gif)
+
+## Setup
+
+1. Save the script below to a `.js` file somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
+2. In QuickAdd settings, click **Add Choice**, select **Macro**, and name it (for example, `Move tagged notes`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. Click the configure button (the gear icon) to open the Macro Builder, then add your script as a **User Script** command.
+
+Run the macro, pick a tag, choose whether to include nested tags, then pick the destination folder. Every matching note moves there.
 
 ```js
 module.exports = async function moveFilesWithTag(params) {

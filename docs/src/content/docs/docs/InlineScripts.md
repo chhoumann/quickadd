@@ -3,11 +3,19 @@ title: Inline scripts
 description: Run JavaScript inside Template and Capture choices with js quickadd code blocks, returning a string to be inserted
 slug: docs/InlineScripts
 ---
-QuickAdd supports the usage of inline scripts in [Template choices](/docs/Choices/TemplateChoice/) and [Capture choices](/docs/Choices/CaptureChoice/).
 
-Inline scripts allow you to execute any JavaScript code you want.
+An inline script is a small block of JavaScript you drop straight into a
+[Template](/docs/Choices/TemplateChoice/) or
+[Capture](/docs/Choices/CaptureChoice/) choice. When the choice runs, QuickAdd
+runs your code and inserts whatever it returns, so you can compute the text
+instead of typing it. Reach for one when a [placeholder](/docs/FormatSyntax/)
+isn't enough: you need to transform what you typed, look something up, or build
+text with a bit of logic.
 
-You are given the [QuickAdd API](/docs/QuickAddAPI/), just as with user scripts. In inline scripts, it is passed in as ``this``, as can be seen in the example below.
+## Write your first inline script {#write-your-first-inline-script}
+
+Put a `js quickadd` code block anywhere in a template or capture format.
+Whatever the script returns takes its place:
 
 ````
 ```js quickadd
@@ -16,21 +24,26 @@ return `Input given: ${input}`;
 ```
 ````
 
-When you are making an inline script, remember to write ``js quickadd`` and not just ``js`` when denoting the language - otherwise you're just inserting a code snippet.
+QuickAdd asks you for text, and inserts `Input given:` followed by whatever you
+typed.
 
-If you want to insert something, simply ``return`` it. The return type __must__ be a string.
+Good to know:
 
-## Execution order and `{{VALUE}}`
+- Label the block `js quickadd`, not plain `js`. A plain `js` block is inserted as an ordinary code snippet and never runs.
+- The [QuickAdd API](/docs/QuickAddAPI/) is available as `this` (the same API user scripts get, where it arrives as a parameter instead).
+- To insert something, `return` it. The return value **must** be a string.
 
-Inline scripts execute before unnamed formatter tokens such as `{{VALUE}}`
-and `{{NAME}}` are substituted in the surrounding template output.
+## Execution order and `{{VALUE}}` {#execution-order-and-value}
 
-Because of this, code like `let v = "{{VALUE}}"` treats `{{VALUE}}` as
-literal text inside JavaScript. If you mutate `v`, you are mutating token text,
-not the selected/prompted value.
+Inline scripts run *before* QuickAdd fills in unnamed placeholders like
+`{{VALUE}}` and `{{NAME}}` in the surrounding output.
 
-When you need input-aware logic in inline scripts, fetch input directly through
-the QuickAdd API and work on that value:
+So if you write `let v = "{{VALUE}}"`, the script sees the literal text
+`{{VALUE}}`, not your answer. Changing `v` changes that literal text, not the
+value QuickAdd substitutes elsewhere.
+
+When your script needs the real input, ask for it directly through the API and
+work with what you get back:
 
 ````
 ```js quickadd
@@ -44,7 +57,13 @@ return transformed;
 ```
 ````
 
-### Example: convert phone text to a `tel:` link
+Assigning `this.variables.value` hands the result back to the surrounding
+format, so a later `{{VALUE}}` picks it up.
+
+### Example: convert phone text to a `tel:` link {#example-convert-phone-text-to-a-tel-link}
+
+This script asks for a phone number, strips out spaces and punctuation, turns
+any letters into their dial-pad digits, and returns a Markdown link:
 
 ````
 ```js quickadd
@@ -67,3 +86,5 @@ if (!raw) return "";
 return `[${raw}](${convertPhoneNumberToLink(raw)})`;
 ```
 ````
+
+Type `1-800-FLOWERS` and you get `[1-800-FLOWERS](tel:18003569377)`.

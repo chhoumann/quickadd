@@ -1,70 +1,110 @@
 ---
 title: One-page Inputs
-description: Collect all QuickAdd inputs in a single dynamic form
+description: "Collect every input a choice needs in a single form, filled once, instead of one prompt at a time"
 slug: docs/Advanced/onePageInputs
 ---
 
+Normally QuickAdd asks for inputs one prompt at a time. Turn on one-page inputs
+and it gathers everything a choice needs into a single form you fill once, then
+runs. This is nicer when a choice asks for several things at once - a title, a
+date, and a status, say - and you would rather see them all together than click
+through them one by one.
 
-QuickAdd can collect all inputs in a single, dynamic form before running your choice.
-For a task-oriented overview of prompts in general, see [Controlling Prompts](/docs/ControllingPrompts/).
+For a task-oriented overview of prompts in general, see
+[Controlling Prompts](/docs/ControllingPrompts/).
 
-## Enable
-- Settings → QuickAdd → toggle “One-page input for choices”.
-- Works with Template, Capture, and Macro choices. For Macros, only script-declared inputs are collected (see User Scripts below).
+## Turn it on {#enable}
 
-## Per-choice override
-Template and Capture choice builders have a **One-page input override** dropdown that lets you override the global setting for that choice:
-- **Follow global setting** – use whatever the global toggle is set to (default).
-- **Always** – force the one-page modal for this choice even if disabled globally.
-- **Never** – disable the one-page modal for this choice even if enabled globally.
+Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
-## What gets collected
-- Format variables in filenames, templates, and capture content:
-  - `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`
-  - Nested `{{TEMPLATE:path}}` are scanned recursively.
-- `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` render as textareas in the one-page modal.
-- `{{VALUE:name|type:number|min:1|max:10}}` renders as a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` renders as a slider plus numeric input.
-- Capture target file when capturing to a folder or tag.
-- Script-declared inputs (from user scripts inside macros), if provided.
+It works with Template, Capture, and Macro choices. For Macros, only the inputs
+a script declares are collected (see [User scripts](#user-scripts-declare-inputs-optional)
+below).
 
-## Date UX
-- Date fields support natural language (e.g., “today”, “next friday”).
-- Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are supported and configurable in settings.
-- The modal shows a formatted preview and stores a normalized `@date:ISO` internally.
+## Turn it on or off for one choice {#per-choice-override}
 
-## FIELD UX
-- FIELD inputs get inline suggestions from your vault (Dataview if available, with a manual fallback).
-- `{{FIELD:...|multi}}` is collected by the runtime multi-select after the one-page modal, when one is shown. It is not rendered inline in the one-page form because vault field values can contain commas.
+Template and Capture choice builders have a **One-page input override**
+dropdown that overrides the global setting for that one choice:
 
-## Optional fields
-- Fields whose tokens carry the `|optional` flag (see [Optional fields](/docs/FormatSyntax/#optional-fields)) show an "(optional)" badge and may be left empty. An empty optional field stores an intentional empty value — the sequential prompt will not re-ask for it.
+- **Follow global setting** - use whatever the global toggle is set to (default).
+- **Always** - force the one-page form for this choice even when it is off globally.
+- **Never** - use step-by-step prompts for this choice even when it is on globally.
+
+## What ends up in the form {#what-gets-collected}
+
+QuickAdd scans the choice for placeholders and turns each one into a field:
+
+- Format variables in file names, templates, and capture content: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`.
+- Nested `{{TEMPLATE:path}}` includes are scanned recursively, so their prompts show up too.
+- `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` become textareas.
+- `{{VALUE:name|type:number|min:1|max:10}}` becomes a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` becomes a slider plus numeric input.
+- The capture target file, when you are capturing to a folder or a tag.
+- Inputs declared by a user script inside a macro, if the script provides them.
+
+### How dates behave in the form {#date-ux}
+
+- Date fields accept natural language, like `today` or `next friday`.
+- Short aliases work and are configurable in settings: `t` (today), `tm` (tomorrow), `yd` (yesterday).
+- The field shows a formatted preview and stores a normalized `@date:ISO` value internally.
+
+### How FIELD inputs behave {#field-ux}
+
+- `{{FIELD:...}}` inputs suggest values from your vault (using Dataview when it is available, with a manual fallback otherwise).
+- `{{FIELD:...|multi}}` is not shown inline in the form, because vault field values can contain commas. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
+
+## Fields you can leave empty {#optional-fields}
+
+A field marked with the [`|optional` flag](/docs/FormatSyntax/#optional-fields)
+shows an **(optional)** badge and may be left blank. Leaving it blank stores an
+intentional empty value, so the step-by-step prompt will not ask for it again
+later.
+
+Good to know:
+
 - A field counts as optional only when **every** occurrence of that variable across the scanned formats is flagged.
-- Optional dropdowns get a "Skip (leave empty)" entry; the first real option stays preselected.
-- Optional date fields left blank resolve to empty. If the typed text cannot be parsed as a date, the field is handed to the regular sequential date prompt after submit instead of silently becoming empty.
+- Optional dropdowns get a **Skip (leave empty)** entry; the first real option stays preselected.
+- An optional date field left blank resolves to empty. If what you typed cannot be read as a date, the field is handed to the regular step-by-step date prompt after you submit, instead of silently becoming empty.
 
-## Skipping the modal
-- If all required inputs already have values (e.g., prefilled by an earlier macro step), the modal will not open.
-- Empty string is considered an intentional value and will not prompt again. This now applies to `{{VDATE}}` variables too: a script-set `""` renders empty instead of re-prompting.
-- For Capture choices, a non-empty editor selection will prefill `{{VALUE}}` during preflight when selection-as-value is enabled.
+## When the form is skipped {#skipping-the-modal}
 
-Note: For **required** date fields with a default, leaving the input blank will apply the default automatically at submit time. A **required** date field left blank without a usable default is re-asked by the sequential date prompt after submit. Optional date fields left blank stay empty.
+The form only opens when it has something to ask:
 
-### Cancel behavior
-- Cancelling the one-page modal (Cancel button or Esc) cancels the whole run. QuickAdd does not fall back to the step-by-step prompts.
-- If the form fails to open for another reason (for example, a requirement could not be collected), QuickAdd logs a warning and the choice runs with the standard step-by-step prompts instead.
+- If every required input already has a value (for example, prefilled by an earlier macro step), the form does not open.
+- An empty string counts as an intentional value and will not prompt again. This applies to `{{VDATE}}` too: a script-set `""` renders empty instead of re-prompting.
+- For Capture choices, a non-empty editor selection prefills `{{VALUE}}` during preflight when selection-as-value is enabled.
 
-### Internals and reserved variables
-- QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring during preflight/runtime.
-- Example: `__qa.captureTargetFilePath` stores the capture target chosen in the one-page modal so the capture engine can skip its own file picker.
-- These internal keys won’t collide with your own variables; avoid using the `__qa.` prefix in your scripts.
+:::note[Required date fields]
+A **required** date field with a default applies the default automatically when
+you leave it blank. A **required** date field left blank with no usable default
+is re-asked by the step-by-step date prompt after you submit. Optional date
+fields left blank stay empty.
+:::
+
+### What Cancel does {#cancel-behavior}
+
+- Cancelling the form (Cancel button or Esc) cancels the whole run. QuickAdd does not fall back to the step-by-step prompts.
+- If the form fails to open for some other reason (for example, a requirement could not be collected), QuickAdd logs a warning and runs the choice with the standard step-by-step prompts instead.
+
+### Reserved internal variables {#internals-and-reserved-variables}
+
+QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring
+during preflight and runtime. For example, `__qa.captureTargetFilePath` stores
+the capture target chosen in the form so the capture engine can skip its own
+file picker.
+
+These internal keys will not collide with your own variables. Avoid using the
+`__qa.` prefix in your scripts.
 
 ---
 
-## User scripts: declare inputs (optional)
+## User scripts: declare inputs (optional) {#user-scripts-declare-inputs-optional}
 
-To have your user script’s inputs included in the one-page form during preflight, export a static `quickadd.inputs` spec alongside your default export. This is optional and non-executing.
+To have a user script's inputs appear in the one-page form during preflight,
+export a static `quickadd.inputs` spec alongside your default export. This is
+optional and non-executing.
 
 Example (function default export):
+
 ```js
 export default async function entry(params, settings) {
   // ... your script ...
@@ -80,6 +120,7 @@ export const quickadd = {
 ```
 
 Example (object default export):
+
 ```js
 export default {
   async entry(params, settings) {
@@ -92,6 +133,7 @@ export const quickadd = {
 ```
 
 Supported input fields:
+
 - `id` (string, required)
 - `label` (string)
 - `type` ("text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider")
@@ -102,24 +144,26 @@ Supported input fields:
 - `sliderConfig` (object for slider: `{ min: number, max: number, step?: number }`; `min` and `max` are required, `step` defaults to `1`)
 - `dateFormat` (string for date)
 - `description` (string)
-- `optional` (boolean — field may be left empty; shows an "(optional)" badge)
+- `optional` (boolean - field may be left empty; shows an "(optional)" badge)
 - `suggesterConfig` (object for suggester: `{ allowCustomInput?: boolean, caseSensitive?: boolean, multiSelect?: boolean }`)
 
-**Field Type Details:**
-- `text`: Single-line text input
-- `number`: Numeric input, optionally bounded by `numericConfig`
-- `textarea`: Multi-line text input
-- `dropdown`: Fixed dropdown menu (no search, must select from list)
-- `date`: Date input with natural language support
-- `field-suggest`: Vault field suggestions (uses `{{FIELD:...}}` syntax)
-- `slider`: Bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; invalid configs fall back to `number`.
-- `suggester`: **NEW** - Searchable autocomplete with custom options (allows typing custom values)
+Field type details:
+
+- `text`: single-line text input
+- `number`: numeric input, optionally bounded by `numericConfig`
+- `textarea`: multi-line text input
+- `dropdown`: fixed dropdown menu (no search, must select from list)
+- `date`: date input with natural language support
+- `field-suggest`: vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `slider`: bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; invalid configs fall back to `number`.
+- `suggester`: searchable autocomplete with custom options (allows typing custom values)
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
-  - Multi-select: Select multiple items, separated by commas. Suggestions stay open after each selection.
+  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection.
 
-## Scripts: request inputs at runtime (API)
+## Scripts: request inputs at runtime (API) {#scripts-request-inputs-at-runtime-api}
 
-From within a script, you can open a single one-page modal to collect multiple inputs in one go using the QuickAdd API.
+From within a script, you can open one form that collects several inputs at
+once using the QuickAdd API.
 
 ```js
 export default async function entry({ quickAddApi }) {
@@ -142,7 +186,8 @@ export default async function entry({ quickAddApi }) {
 }
 ```
 
-**Example with Dynamic Options (from Dataview):**
+Example with dynamic options (from Dataview):
+
 ```js
 export default async function entry({ quickAddApi, app }) {
   // Get dynamic options from Dataview
@@ -166,7 +211,8 @@ export default async function entry({ quickAddApi, app }) {
 }
 ```
 
-**Example with Multi-Select:**
+Example with multi-select:
+
 ```js
 export default async function entry({ quickAddApi }) {
   const values = await quickAddApi.requestInputs([
@@ -192,15 +238,17 @@ export default async function entry({ quickAddApi }) {
 ```
 
 Behavior:
+
 - Values already present in variables are used and not re-asked.
-- Only missing inputs are prompted in the one-page modal.
+- Only missing inputs are prompted in the form.
 - Returned values are also stored into `variables` for later steps in the macro.
 
 ---
 
-## Notes
+## Good to know {#notes}
+
 - Macro support is best-effort: user scripts can declare inputs via `quickadd.inputs`.
 - Preflight may import user script modules to statically read `quickadd.inputs`. This can execute module top-level code.
-- Inline scripts aren’t scanned for input declarations yet.
-- If needed, you can still prompt ad-hoc (e.g., using inputPrompt or suggester) and those values will skip future one-page prompts due to being prefilled.
-- Closing the `requestInputs` modal without submitting rejects with `MacroAbortError("Input cancelled by user")`, which stops the macro unless you catch it.
+- Inline scripts aren't scanned for input declarations yet.
+- You can still prompt ad-hoc (for example with `inputPrompt` or a suggester); those values are treated as prefilled and skip future one-page prompts.
+- Closing the `requestInputs` form without submitting rejects with `MacroAbortError("Input cancelled by user")`, which stops the macro unless you catch it.

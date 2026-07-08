@@ -4,8 +4,14 @@ description: Insert a live Base view of related notes into an active MOC note by
 slug: docs/Examples/Capture_InsertBaseTemplateIntoActiveFile
 ---
 
-Use this pattern when you want QuickAdd to insert a live "related notes" Base
-view into a map-of-content (MOC) note.
+You end up with one QuickAdd command that inserts a live "related notes" Base
+view into whichever map-of-content (MOC) note you have open. The table shows
+every note that links to that MOC and updates itself as your vault changes.
+
+## Prerequisites
+
+- Obsidian's **Bases** core plugin enabled (it renders `.base` files).
+- A markdown note to run the capture from, such as your MOC note.
 
 ## Why this pattern
 
@@ -50,7 +56,7 @@ Context: {{VALUE}}
 6. Run the Capture choice while your MOC note is active
    (for example `MOCs/Alpha Project.md`).
 
-QuickAdd resolves the `.base` template and inserts it into the active note.
+QuickAdd reads the `.base` template and inserts its content into the active note.
 Because the base view is embedded in that note, `this.file` points at the MOC,
 so the table shows notes that link to that specific MOC.
 

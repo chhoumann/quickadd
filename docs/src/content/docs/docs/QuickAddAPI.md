@@ -4,7 +4,20 @@ description: "Full reference for the QuickAdd API: input prompts, suggesters, fi
 slug: docs/QuickAddAPI
 ---
 
-The QuickAdd API provides a powerful interface for automating tasks in Obsidian through scripts, macros, and inline scripts. The API offers methods for user interaction, file manipulation, AI integration, and more.
+The QuickAdd API is a set of JavaScript methods you can call from
+[macros](/docs/Choices/MacroChoice/), [user scripts](/docs/UserScripts/), and
+[inline scripts](/docs/InlineScripts/). Reach for it when a workflow needs logic
+a choice can't express on its own: ask the user a question, run another choice,
+call an AI model, or read values already in your vault.
+
+| Module | What it does |
+| --- | --- |
+| [User input](#user-input-methods) | Ask for text, pick from a list, confirm, or collect several answers at once |
+| [Choice execution](#choice-execution) | Run another choice, or apply a template to the current note |
+| [Utility](#utility-module) | Read and set the clipboard, read the editor's selection |
+| [Date](#date-module) | Format today, tomorrow, yesterday, or any day offset |
+| [AI](#ai-module) | Send prompts, build tool-calling agents, get structured output |
+| [Field suggestions](#field-suggestions-module) | List the values a property already has across your vault |
 
 :::tip[Start with the overview]
 
@@ -604,13 +617,13 @@ results. Use this for inputs that are too large for a single request.
   - `chunkSeparator`: `RegExp` used to split `text` (default: `/\n/`)
   - `chunkJoiner`: String inserted between chunk results (default: `"\n"`)
   - `shouldMerge`: Merge small adjacent chunks up to the budget (default: `true`)
-  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{value:chunk}}` portion only — the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
+  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{value:chunk}}` portion only - the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
 
 **Behavior:**
 - Chunk sizes are estimated locally (QuickAdd no longer bundles model-specific tokenizers); the configured provider remains the source of truth for exact limits.
-- A chunk larger than the budget is split near a natural boundary (paragraph, sentence, or space) so it still fits — including when `shouldMerge` is `false`.
+- A chunk larger than the budget is split near a natural boundary (paragraph, sentence, or space) so it still fits - including when `shouldMerge` is `false`.
 - If the provider still rejects a prompt because the **input** exceeds its context window, that chunk is split and retried automatically. Output/completion-budget and quota errors are surfaced as-is (splitting cannot fix them).
-- The prompt template is rendered through the formatter once per chunk (plus once for sizing), so side-effectful tokens such as `{{MACRO:…}}` run on every render — avoid them inside a `chunkedPrompt` template.
+- The prompt template is rendered through the formatter once per chunk (plus once for sizing), so side-effectful tokens such as `{{MACRO:…}}` run on every render - avoid them inside a `chunkedPrompt` template.
 
 **Returns:** Object with `[variableName]` (joined results) and `[variableName]-quoted`.
 
@@ -623,7 +636,7 @@ const result = await quickAddApi.ai.chunkedPrompt(
 );
 ```
 
-### Tool / function calling — `ai.agent(config)`
+### Give the model tools to call: `ai.agent(config)` {#tool--function-calling--aiagentconfig}
 
 _Introduced in QuickAdd 2.14.0._
 
@@ -664,26 +677,26 @@ const { text, steps, toolCalls } = await agent.generate({
 ```
 
 **`ai.agent(config)`** returns an Agent. Config:
-- `model` — a configured model: bare name (`"gpt-4o"`), provider-qualified string (`"openai/gpt-4o"`), or `{ name, provider? }` object, as for `ai.prompt`.
-- `system` — system prompt (defaults to your AI Assistant default system prompt).
-- `tools` — an object map of tool name → tool (from `ai.tool()` and/or `ai.tools.*`).
-- `toolChoice` — `"auto"` (default) | `"none"` | `"required"` | `{ type: "tool", toolName }`.
-- `stopWhen` — one or more stop conditions from `ai.stepCountIs(n)` / `ai.hasToolCall(name)`.
-- `maxSteps` — step budget (default 20, hard cap 100). Sugar for `stopWhen: ai.stepCountIs(n)`.
-- `maxOutputTokens`, `modelOptions` — passed to the provider.
+- `model` - a configured model: bare name (`"gpt-4o"`), provider-qualified string (`"openai/gpt-4o"`), or `{ name, provider? }` object, as for `ai.prompt`.
+- `system` - system prompt (defaults to your AI Assistant default system prompt).
+- `tools` - an object map of tool name → tool (from `ai.tool()` and/or `ai.tools.*`).
+- `toolChoice` - `"auto"` (default) | `"none"` | `"required"` | `{ type: "tool", toolName }`.
+- `stopWhen` - one or more stop conditions from `ai.stepCountIs(n)` / `ai.hasToolCall(name)`.
+- `maxSteps` - step budget (default 20, hard cap 100). Sugar for `stopWhen: ai.stepCountIs(n)`.
+- `maxOutputTokens`, `modelOptions` - passed to the provider.
 
 **`agent.generate(options)`** runs the loop and resolves to a result:
-- `text` — the final assistant text.
-- `object` — present **only** when you pass a `schema` (structured output, below).
-- `steps` — the full transcript: `{ text, toolCalls, toolResults, finishReason }[]`.
-- `toolCalls` / `toolResults` — from the last step (`input` / `output` fields, AI-SDK style).
-- `usage` — `{ inputTokens, outputTokens, totalTokens }`.
-- `finishReason` — `"stop" | "max-steps" | "length" | "aborted" | "context-overflow"`.
+- `text` - the final assistant text.
+- `object` - present **only** when you pass a `schema` (structured output, below).
+- `steps` - the full transcript: `{ text, toolCalls, toolResults, finishReason }[]`.
+- `toolCalls` / `toolResults` - from the last step (`input` / `output` fields, AI-SDK style).
+- `usage` - `{ inputTokens, outputTokens, totalTokens }`.
+- `finishReason` - `"stop" | "max-steps" | "length" | "aborted" | "context-overflow"`.
 
 Options: `prompt` (formatted, like `ai.prompt`), `schema`, `system`/`toolChoice`/`maxOutputTokens`
 (per-call overrides), and `assignToVariable` (write `text` into `{{VALUE:name}}`).
 
-The agent is a **stateless config holder** — each `generate()` is independent (no retained
+The agent is a **stateless config holder** - each `generate()` is independent (no retained
 conversation). Reuse means reusing the config; run one `generate()` at a time per agent.
 
 ### `ai.tool(def)`
@@ -701,19 +714,19 @@ Declares a tool. `def`: `{ description, inputSchema (JSON Schema), execute, need
 :::note[Confirmation needs an interactive Obsidian session]
 A tool that asks for approval opens a modal and waits for it. For unattended automation (e.g.
 driving QuickAdd from the CLI), give the agent only `readOnly` tools, or set **Confirm AI tool
-calls** to *Never* and gate each tool with its own `needsApproval` — otherwise the run blocks on a
+calls** to *Never* and gate each tool with its own `needsApproval` - otherwise the run blocks on a
 dialog no one can answer.
 :::
 
 > ⚠️ **Security.** Tool handlers run with the same full privilege as your script (Node `require`,
 > `app`, the vault). The **model decides which tool to call and with what arguments**, possibly
 > influenced by note content it reads (indirect prompt injection). QuickAdd never runs model-chosen
-> arguments through the formatter — and **neither should you**: never pass a tool's `input` to
+> arguments through the formatter - and **neither should you**: never pass a tool's `input` to
 > `quickAddApi.format()`, `eval`, a shell, or `fetch` without validating it. Never put secrets in a
 > tool's description or arguments (they are sent to the provider). Confirmation is governed by each
 > tool's `needsApproval` plus the global **Confirm AI tool calls** setting (default *destructive only*).
 
-### Built-in tools — `ai.tools.{vault, workspace, system}(options)`
+### Ready-made tools: `ai.tools.{vault, workspace, system}(options)` {#built-in-tools--aitoolsvault-workspace-systemoptions}
 
 Opt-in groups of ready-made tools. Each returns a tool map you spread into an agent's `tools`.
 Options: `{ only, exclude, prefix, allowedRoots }` (`allowedRoots` confines a group to the listed
@@ -722,24 +735,24 @@ folders).
 | Group | Read-only (auto-run) | Write (asks for approval) |
 |---|---|---|
 | `vault` | `read_note`, `list_notes`, `search_notes`, `get_property_values` | `create_note`, `append_to_note`, `insert_under_heading` |
-| `workspace` | `get_active_note`, `get_selection` | — |
-| `system` | `get_date` | — |
+| `workspace` | `get_active_note`, `get_selection` | - |
+| `system` | `get_date` | - |
 
 Write tools sanitise every model-chosen path (rejecting traversal and config dirs like `.obsidian`/
 `.git`, and symlinks that escape the vault), fail rather than overwrite an existing note, and are
-frontmatter-aware. There are **no ambient tools** — nothing runs unless you spread it into `tools`.
+frontmatter-aware. There are **no ambient tools** - nothing runs unless you spread it into `tools`.
 
 `allowedRoots` confines both groups it applies to. For `vault` it bounds the paths the model may
 read or write. For `workspace` it bounds which file's content the agent can pull in: `get_active_note`
 returns `active:null` and `get_selection` returns an empty string whenever the currently-open file
 lives **outside** the roots, so a note you fenced off can't be surfaced into the transcript by a
-model steered through injected content. (`system` ignores it — `get_date` touches no files.) An
+model steered through injected content. (`system` ignores it - `get_date` touches no files.) An
 absent or all-blank `allowedRoots` is vault-wide, the default. Note that confinement scopes what
-*these* tools expose; it is not a sandbox for an untrusted agent — your own script's `require`/
-`fetch`/`quickAddApi.utility.*` remain ambient — so only hand a group to an agent you trust with the
+*these* tools expose; it is not a sandbox for an untrusted agent - your own script's `require`/
+`fetch`/`quickAddApi.utility.*` remain ambient - so only hand a group to an agent you trust with the
 folders you grant it.
 
-### Structured output — `agent.generate({ prompt, schema })`
+### Get a validated object back: `agent.generate({ prompt, schema })` {#structured-output--agentgenerate-prompt-schema-}
 
 Pass a JSON schema to get a validated object back:
 
@@ -756,10 +769,10 @@ const { object } = await quickAddApi.ai.agent({ model: "gpt-5" }).generate({
 ```
 
 `object` is the parsed, schema-validated result (or `undefined` if the model could not produce a
-match after one repair attempt). Structured output works on current models — OpenAI GPT-5.x (and
+match after one repair attempt). Structured output works on current models - OpenAI GPT-5.x (and
 GPT-4o-class), Anthropic Claude 4.x, and Gemini 3.x; it can be combined with tools. Older models
 that do not support schema-constrained output (e.g. legacy OpenAI chat models) reject the request
-outright with a provider error — use a current model rather than expecting a best-effort fallback.
+outright with a provider error - use a current model rather than expecting a best-effort fallback.
 
 :::note[OpenAI reasoning models (GPT-5.x, o-series)]
 These accept only the default `temperature` (omit it from `modelOptions`), and QuickAdd

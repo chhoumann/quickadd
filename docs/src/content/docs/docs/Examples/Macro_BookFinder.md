@@ -4,15 +4,12 @@ description: Insert book details fetched from the Google Books API into your vau
 slug: docs/Examples/Macro_BookFinder
 ---
 
-This script allows you to easily insert the details of a book into your vault.
-
-We use Google books api to get the the details. You don't need an API key because we're only exploring publicly available information.
+This macro looks up a book by title and inserts its details into a new note in your vault. It uses the Google Books API, and you don't need an API key because it only reads publicly available information.
 
 
 ## Installation
 
-We'll need to install a QuickAdd BookFinder script for this to work.
-You will need to put the user script into a Macro choice that activates it from the main menu.
+This works by adding the BookFinder [user script](/docs/UserScripts/) to a [Macro choice](/docs/Choices/MacroChoice/) that you run from the main menu.
 You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
@@ -50,8 +47,7 @@ You can now use the macro to create notes with book information in your vault.
 
 ## Usage
 
-It's possible to access whichever JSON variables are sent in response through a `{{VALUE:<variable>}}` tag (e.g. `{{VALUE:Title}}`). Below is an example response for the Book 'Flowers for Algernon'.
-**From personal experience this JSON is messy enough that we might want encourage people to extend the JS code to extract additional info**
+You can pull any field from the API response into your template with a `{{VALUE:<variable>}}` placeholder (for example, `{{VALUE:title}}`). Below is an example response for the book 'Flowers for Algernon'. The response is deeply nested, so if you want fields that the example template doesn't already expose, you may need to extend the script to read them out.
 
 ```json
 {

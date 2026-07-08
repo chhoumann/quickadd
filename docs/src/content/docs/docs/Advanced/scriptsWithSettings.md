@@ -1,34 +1,22 @@
 ---
 title: Scripts with user settings
-description: Build user scripts that expose configurable settings - text, secret, checkbox, dropdown, and format fields - in the QuickAdd macro UI
+description: Give a user script configurable fields - text, secret, checkbox, dropdown, and format - so anyone can set it up from the QuickAdd UI without touching the code
 slug: docs/Advanced/scriptsWithSettings
 ---
 
-QuickAdd supports scripts with settings. This allows you to create scripts that can be configured by the user.
+A script with settings puts configurable fields right in QuickAdd's UI, so
+anyone can set it up - an API key, a folder path, an on/off toggle - without
+editing the JavaScript. You write the script once and expose the parts that
+should change; everyone else fills in a form.
 
-Any script with settings will have a ⚙️ button next to the script name in a macro. Clicking the button will open a settings menu for the script.
+Any script with settings gets a gear (⚙️) button next to its name in a macro.
+Click it to open that script's settings menu. For a real-world example, see the
+[Movies](/docs/Examples/Macro_MovieAndSeriesScript/) macro.
 
-As an example, see the [Movies](/docs/Examples/Macro_MovieAndSeriesScript/) macro.
+## Add settings to a script {#creating-a-script-with-settings}
 
-## Creating a script with settings
-A script with settings is a JavaScript file that exports an object with two properties: `entry` and `settings`.
-
-The `entry` property is a function that is called when the script is executed. The function is passed two arguments: `QuickAdd` and `settings` (naming is up to you).
-`QuickAdd` is an object containing the same as what is usually passed to [scripts in macros](/docs/Choices/MacroChoice/). `settings` is an object containing the settings for the script, as set by the user.
-
-The `settings` property is an object containing the settings for the script. It has three properties: `name`, `author` and `options`.
-
-`name` is the name of the script, as shown in the settings menu.
-
-`author` is the author of the script, as shown in the settings menu.
-
-`options` is an object containing the settings for the script. The keys are the names of the settings, and the values are objects containing the setup parameters for the setting.
-
-For example, the following script will have a text field setting with the key `Text field`, a checkbox setting with the key `Checkbox`, a dropdown setting with the key `Dropdown` and a format setting with the key `Format`. This is shown in the image below.
-
-![Settings menu for the script](../Images/script_with_settings.png)
-
-It's possible to give a description to a setting by adding a `description` property to the setting object.
+Instead of exporting a plain function, export an **object** with two properties:
+`entry` (the function that runs) and `settings` (what to show in the UI).
 
 ```js
 const TEXT_FIELD = "Text field";
@@ -77,7 +65,27 @@ module.exports = {
 };
 ```
 
-## Setting types
+This script's settings menu shows a text field, a secret API-key field, a
+checkbox, a dropdown, and a format field - one per entry in `options`:
+
+![Settings menu for the script](../Images/script_with_settings.png)
+
+How the pieces fit together:
+
+- **`entry`** runs when the script executes. It receives two arguments: the
+  `QuickAdd` object (the same thing passed to any
+  [script in a macro](/docs/Choices/MacroChoice/)) and `settings`, an object
+  holding the values the user set. The argument names are up to you.
+- **`settings.name`** and **`settings.author`** are shown in the settings menu.
+- **`settings.options`** defines the fields. Each key is the setting's name (and
+  how you read its value back, like `settings["Text field"]`); each value is an
+  object describing the field. Add a `description` to any field to show help
+  text beneath it.
+
+## The field types {#setting-types}
+
+Set each field's `type` to one of these:
+
 - `text` and `input`: A text field.
 - `secret`: A password-style input stored with Obsidian SecretStorage. QuickAdd stores only a reference in `data.json`; package exports omit secret values and local secret references. Add an optional `id` to give the stored secret a stable key if the visible setting label changes later. The older `text` / `input` plus `secret: true` form is still treated as a secret setting.
 - `textarea`: A multi-line text area.

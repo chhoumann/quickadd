@@ -4,14 +4,16 @@ description: Import Todoist tasks into a note using a macro and user script, sel
 slug: docs/Examples/Capture_FetchTasksFromTodoist
 ---
 
-For this capture to work, you will need the Todoist plugin for Obsidian.
-You will also need to set it up with your API key.
+You end up with one QuickAdd command that pulls tasks from your Todoist account into a note in your vault. This is useful for capturing tasks on the go with your phone, then adding them to Obsidian when you get back to your computer.
 
-This is very useful for capturing tasks on the go with your phone, and then adding them to Obsidian when you get back to your computer.
+## Prerequisites
 
-You will need to set up a [macro](/docs/Choices/MacroChoice/) with the <a href="/scripts/TodoistScript.js" download>Todoist Script</a>.
+- The [Todoist](https://github.com/jamiebrynes7/obsidian-todoist-plugin) plugin for Obsidian, set up with your API key. There is a link to grab the key in the plugin's settings.
+- A [macro](/docs/Choices/MacroChoice/) that runs the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> (set up below).
 
-The script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProject`, and `GetAllTasksFromSection`.
+## How it works
+
+The Todoist Script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProject`, and `GetAllTasksFromSection`.
 
 -   `SelectFromAllTasks` will prompt you to select tasks from all tasks on your Todoist account,
 -   `GetAllTasksFromProject` will prompt you for a project and get all tasks from that project, and
@@ -28,7 +30,9 @@ However, when you are entering the user script in the macro, you can add `::GetA
 Now, you will need a [Capture choice](/docs/Choices/CaptureChoice/) with the following settings.
 
 -   _Capture to:_ the path to the file where you want to store the tasks.
--   _Capture format:_ Enabled - and in the format, write`{{MACRO:<MACRONAME>}}` where `MACRONAME` is the name of the macro that you made earlier.
+-   _Capture format:_ Enabled - and in the format, write `{{MACRO:<MACRONAME>}}` where `MACRONAME` is the name of the macro that you made earlier.
+
+## What you get
 
 The tasks are written in this format:
 `- [ ] <Task Content> 📆 <YYYY-MM-DD>`
@@ -45,7 +49,7 @@ That is fine - if you want to be asked - but you can also make separate [Capture
 Just set up the macro as shown in the image above.
 
 1. Set up the Todoist plugin - grab the API key from your Todoist account. There's a link in the plugin's settings.
-2. Grab the code block from the example and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
+2. Download the Todoist Script (linked above) and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
 3. Follow along with what I do in the gif below
 
 ![GKkCNWZHLv](https://user-images.githubusercontent.com/29108628/123500983-26ad2880-d642-11eb-9e45-b537271312d1.gif)

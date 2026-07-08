@@ -4,33 +4,56 @@ description: Group choices into collapsible folders in the QuickAdd picker, with
 slug: docs/Choices/MultiChoice
 ---
 
-Multi-choices are pretty simple. They're like folders for other choices. Here are mine. They're the ones which you can 'open' and 'close'.
+A Multi is a **folder for your other choices**. Group related choices under one
+entry in the QuickAdd picker, then open it to see what's inside - handy once your
+picker grows past a handful of items. In the settings list, a Multi is the entry
+you can fold and unfold.
 
 ![The Multi choice settings modal](../Images/choices/multi-choice.png)
 
-To actually add something in this "folder", you need to drag it in! This is not easy to do when it is the first item in the multi-folder.
+## Put choices inside a multi {#add-choices}
 
-Make sure the multi is unfolded (as it is in the screenshot). Click the drag handle of one of the choices you want to add and drag it to just below and to the right of the drag handle for the multi. When successful, the choice will be indented under the multi.
+You add a choice to a multi by **dragging it in**. Make sure the multi is
+unfolded (as in the screenshot above), grab the drag handle of the choice you
+want to move, and drop it just below and slightly to the right of the multi's
+own drag handle. When it works, the choice appears indented under the multi.
 
-## Placeholder text
+:::tip
+The first choice is the fiddly one, since there's nothing nested yet to aim for.
+Drop it just below and to the right of the multi's drag handle and watch for the
+indent. Once one choice is inside, the rest are easy.
+:::
 
-You can optionally set a placeholder for each Multi choice. This text shows up in the choice picker search box when you open the multi, which is handy for complex menus or grouped workflows. Leave it empty to use the multi name as the placeholder.
+## Set the search box hint: Placeholder text {#placeholder-text}
 
-Keep in mind that [searching covers everything nested under the multi](#searching-nested-choices), so word the placeholder accordingly.
+Each multi can show its own hint in the choice picker's search box when you open
+it - useful for labeling a complex menu or a grouped workflow. Leave it empty and
+the multi's name is used instead.
 
-## Icons
+Because [search reaches everything nested under the multi](#searching-nested-choices),
+word the hint for the whole group, not just the top level.
 
-Choices shown in the QuickAdd picker use the same Obsidian/Lucide icons as registered QuickAdd commands. Each choice type has a default icon, and you can override it from the choice's **Icon** setting. Icons are monochrome and inherit the active Obsidian theme color.
+## Change a choice's icon {#icons}
 
-## Searching nested choices
+Choices in the QuickAdd picker use the same Obsidian/Lucide icons as registered
+QuickAdd commands. Every choice type has a default icon, and you can override it
+from the choice's **Icon** setting. Icons are monochrome and take on your active
+Obsidian theme color.
 
-Typing in the choice picker searches every choice nested inside the current level's multis — not just the level you are looking at. Nested matches show their folder path (for example `Work / Meetings`) beneath the choice name. This also applies to the root picker opened by the **QuickAdd: Run** command or the ribbon icon.
+## Search across nested choices {#searching-nested-choices}
 
-A few details:
+Typing in the choice picker searches every choice nested inside the current
+level's multis, not just the level you are looking at. A nested match shows its
+folder path (for example `Work / Meetings`) beneath the choice name. This also
+applies to the root picker opened by the **QuickAdd: Run** command or the ribbon
+icon.
+
+Good to know:
 
 - Browsing is unchanged: with an empty search box, you still see one level at a time.
-- Your search also matches against the folder path, so `work meeting` finds `New meeting` inside `Work / Meetings`.
-- Selecting a nested multi from search results opens it. Its **← Back** entry returns to the level you searched from, skipping intermediate levels.
+- The search also matches the folder path, so `work meeting` finds `New meeting` inside `Work / Meetings`.
+- Selecting a nested multi from the results opens it. Its **← Back** entry returns to the level you searched from, skipping any levels in between.
 - Searching from inside a multi only covers that multi's sub-choices. Go back (or open the root picker) to search more broadly.
 
-If you prefer search to only cover the level you have open, disable **Settings → QuickAdd → Search nested choices**.
+To limit search to the level you have open, turn off **Settings → QuickAdd →
+Search nested choices**.

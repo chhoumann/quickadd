@@ -4,12 +4,15 @@ description: Reference for the QuickAdd scripting API - where it is available an
 slug: docs/Advanced/APIOverview
 ---
 
-Use the QuickAdd API when a workflow needs scripted input, file operations,
-formatting, model calls, or access from another plugin.
+This page maps the QuickAdd API: where you can call it from, and which method
+family handles each kind of task. For exact signatures and edge cases, follow
+the links into the [full reference](/docs/QuickAddAPI/).
 
-If you only need to create a note or append text, start with
+Reach for the API when a workflow needs scripted input, file operations,
+formatting, model calls, or access from another plugin. If you only need to
+create a note or append text, start with
 [Template Choices](/docs/Choices/TemplateChoice/) or
-[Capture Choices](/docs/Choices/CaptureChoice/). Add the API when the workflow
+[Capture Choices](/docs/Choices/CaptureChoice/) - add the API when the workflow
 needs logic.
 
 ## Where the API is available

@@ -4,6 +4,17 @@ description: "Write custom JavaScript for macros: script structure, configurable
 slug: docs/UserScripts
 ---
 
+A user script is a piece of JavaScript you write once and run from a
+[Macro](/docs/Choices/MacroChoice/). It can prompt for input, read and write
+notes, call Obsidian's own APIs, talk to other plugins, and pass values into the
+rest of the macro - the escape hatch for anything QuickAdd's built-in choices
+don't cover. This page is the full reference: how a script is shaped, how to
+give it settings, what the `params` API offers, and a shelf of copy-paste
+recipes.
+
+You don't need to be a professional developer, but you should be comfortable
+reading and lightly editing JavaScript.
+
 :::tip[New to scripting?]
 
 Start with the [Scripting Overview](/docs/Advanced/ScriptingGuide/) for the
@@ -11,39 +22,46 @@ decision path, then use this page as the detailed reference.
 
 :::
 
-User scripts extend QuickAdd's functionality with custom code. They can be used within macros to perform complex operations, integrate with external APIs, and automate sophisticated workflows. A user script can be a standalone `.js` file **or** a ` ```js ` code block inside a regular note — the latter is editable on mobile, where Obsidian cannot open `.js` files.
+:::note[Obsidian API reference]
+Scripts lean heavily on the [Obsidian API](https://docs.obsidian.md/Home). For
+anything beyond the recipes here, keep the
+[App](https://docs.obsidian.md/Reference/TypeScript+API/App),
+[Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and
+[Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace)
+references open.
+:::
 
-> **Obsidian API Reference**: This guide references the [Obsidian API](https://docs.obsidian.md/Home). Familiarize yourself with the [App](https://docs.obsidian.md/Reference/TypeScript+API/App), [Vault](https://docs.obsidian.md/Reference/TypeScript+API/Vault), and [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) modules for advanced scripting.
-
-## Adding Scripts to Macros
+## Add a script to a macro {#adding-scripts-to-macros}
 
 A user script can live in either of two places inside your vault:
 
 - a standalone `.js` file, or
 - a note (`.md`) containing a ` ```js ` (or ` ```javascript `) code block.
 
+The note form is handy on mobile, where Obsidian can't open `.js` files at all.
+
 Avoid `.obsidian` and hidden dot-folders such as `.scripts`, because Obsidian
 may exclude them from the vault file index QuickAdd uses for script discovery.
 
 In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
 (both `.js` files and notes that contain a code block); it is not a native file
-picker. If you add a script manually, type a `.js` script's basename — for
-`scripts/my-script.js`, enter `my-script` — or, for a note, type its vault path
+picker. If you add a script manually, type a `.js` script's basename - for
+`scripts/my-script.js`, enter `my-script` - or, for a note, type its vault path
 (e.g. `Scripts/my-script.md`). For a specific export, append a member expression
 such as `my-script::start` (or `Scripts/my-script.md::start`).
 
-### Scripts in a note code block
+### Keep a script in a note, for mobile {#scripts-in-a-note-code-block}
 
 Write your script in a ` ```js ` code block inside any note; QuickAdd runs the
 **first** ` ```js ` (or ` ```javascript `) block in the note and ignores all
 prose and other code blocks. The block is a CommonJS module exactly like a `.js`
-file — it must assign `module.exports` / `exports.default` (a top-level `return`
+file - it must assign `module.exports` / `exports.default` (a top-level `return`
 the way [inline scripts](/docs/InlineScripts/) work will **not** export anything):
 
 ````markdown
 # My script
 
-Notes about what this does — ignored by QuickAdd.
+Notes about what this does - ignored by QuickAdd.
 
 ```js
 module.exports = async (params) => {
@@ -55,12 +73,12 @@ module.exports = async (params) => {
 If the note has no ` ```js ` block, QuickAdd shows a notice and skips the script.
 
 :::note
-Only plain ` ```js ` fences are recognized — blocks nested inside callouts or
+Only plain ` ```js ` fences are recognized - blocks nested inside callouts or
 blockquotes (`> ```js`) and `~~~` fences are not. To embed a literal ` ``` ` line
 inside the script body, open the block with four or more backticks.
 :::
 
-## Basic Structure
+## The basic shape of a script {#basic-structure}
 
 Every user script must export a module with at least an entry point function:
 
@@ -89,107 +107,17 @@ async function start(params, settings) {
 }
 ```
 
-## Sharing Code Between Scripts
+Use the plain function form for a quick script, and the object form when you
+want [configurable settings](#configurable-options) in the QuickAdd UI.
 
-Need the same helper functions or constants in several scripts? Put them in one
-shared `.js` module and `require()` it from each script. User scripts run as
-CommonJS modules and receive a `require` function (backed by Obsidian's
-Electron/Node `require`), so you can load any module on disk by its **absolute**
-path.
+## What your script receives {#script-parameters}
 
-:::caution[Desktop only]
-`require()` uses Obsidian's Electron/Node runtime, which exists only in the
-desktop app. On mobile there is no `require`, so this pattern does not work
-there — see [Cross-platform alternatives](#cross-platform-alternatives).
-:::
+The script is called with up to two arguments: `params` (always) and `settings`
+(only with the object form above).
 
-:::caution[require() runs code immediately]
-`require()` executes the target file with full Node/Electron access (filesystem,
-network, and more) the moment it loads — before any export is called. Only
-`require` modules you wrote or trust, exactly as you would any code you run on
-your machine.
-:::
+### The `params` object {#params-object}
 
-### Create the shared module
-
-Save a normal `.js` file in your vault. (It must be a real `.js` file — `require`
-loads from disk and cannot read a script written in a ` ```js ` note code block.)
-Export your helpers with `module.exports`:
-
-```javascript
-// scripts/shared-utils.js
-module.exports = {
-    formatNumber: (n) => new Intl.NumberFormat("en-US").format(n),
-    CURRENCY: "USD",
-};
-```
-
-The module must already exist on disk when the requiring script runs.
-
-### Require it from your scripts
-
-Build the absolute path **at runtime** from the vault's base path, then `require`
-the module. Don't paste a literal absolute path — the vault lives at a different
-location on every machine and account, so a hardcoded path breaks the moment the
-vault is synced or opened elsewhere. Relative paths don't work either (the script
-has no `__dirname`), so always resolve against `getBasePath()`:
-
-```javascript
-// scripts/my-macro-script.js
-module.exports = async (params) => {
-    const { app, obsidian } = params;
-
-    // require() is desktop-only — fail clearly on mobile.
-    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) {
-        throw new Error("This script shares helpers via require(), which only works in the desktop app.");
-    }
-
-    const path = require("path");
-    // getBasePath() is the supported method; older scripts may use the
-    // equivalent app.vault.adapter.basePath.
-    const utils = require(path.join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js"));
-
-    new obsidian.Notice(`${utils.formatNumber(1234567)} ${utils.CURRENCY}`); // "1,234,567 USD"
-};
-```
-
-:::note[Reload to pick up edits]
-A `require`'d module is cached the first time it loads. After you edit
-`shared-utils.js` the change is **not** picked up until you reload — run
-**Reload app without saving** from the Command palette. (A regular user script is
-re-read on every run, but a module it `require`s is not.)
-
-Advanced: bust the cache from a script without reloading. Use `window.require` —
-the `require` your script receives is a thin wrapper and has no `.cache`/`.resolve`:
-
-```javascript
-module.exports = async (params) => {
-    const { app, obsidian } = params;
-    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) return;
-
-    const fullPath = window.require("path").join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js");
-    delete window.require.cache[window.require.resolve(fullPath)];
-    const utils = window.require(fullPath); // reflects your latest edits to this file
-    // Only refreshes shared-utils.js itself, not other modules it requires.
-};
-```
-:::
-
-### Cross-platform alternatives
-
-Because `require` is desktop-only, on mobile (or for a portable vault) share code
-another way:
-
-- **Inline the helper** in each script, or
-- **Chain scripts in a macro** and pass *data* (not functions) through
-  `params.variables` between steps.
-
-## Script Parameters
-
-The script receives two parameters:
-
-### `params` Object
-Contains the QuickAdd API and Obsidian context:
+`params` carries the QuickAdd API and the Obsidian context:
 
 ```javascript
 {
@@ -207,16 +135,21 @@ The `app` object provides access to the entire Obsidian API, including:
 - `app.metadataCache` - File metadata and links ([MetadataCache API](https://docs.obsidian.md/Reference/TypeScript+API/MetadataCache))
 - `app.fileManager` - File operations and renaming ([FileManager API](https://docs.obsidian.md/Reference/TypeScript+API/FileManager))
 
-### `settings` Object
-Contains the user-configured values for your script's options (only available when using the settings structure).
+### The `settings` object {#settings-object}
 
-## Configurable Options
+`settings` holds the user-configured values for your script's options. It's only
+passed when you use the object structure with a `settings` block.
 
-User scripts can define configurable options that users can set through the QuickAdd UI. This makes your scripts more flexible and reusable.
+## Let users configure your script {#configurable-options}
 
-### Option Types
+User scripts can define configurable options that users set through the QuickAdd
+UI. This makes your scripts flexible and reusable - a folder path, an API key,
+or an on/off toggle becomes a form field instead of a line you have to edit.
 
-#### Text Input
+### The option types {#option-types}
+
+#### Text: `type: "text"` {#text-input}
+
 For regular string values, paths, names, etc.
 
 ```javascript
@@ -230,7 +163,8 @@ options: {
 }
 ```
 
-#### Secret Input
+#### Secret: `type: "secret"` {#secret-input}
+
 For API keys, access tokens, and other sensitive values. Secrets are stored in Obsidian's SecretStorage and QuickAdd stores only a reference in `data.json`.
 
 ```javascript
@@ -250,7 +184,8 @@ Secret values are local to the Obsidian app profile. They are not included in Qu
 
 The optional `id` controls the SecretStorage reference used for the setting. If omitted, QuickAdd uses the option name. Set `id` when you want to rename the visible setting label later without creating a new saved secret.
 
-#### Toggle/Checkbox
+#### Toggle: `type: "toggle"` {#togglecheckbox}
+
 For boolean on/off settings.
 
 ```javascript
@@ -263,7 +198,8 @@ options: {
 }
 ```
 
-#### Dropdown/Select
+#### Dropdown: `type: "dropdown"` {#dropdownselect}
+
 For choosing from predefined options.
 
 ```javascript
@@ -277,7 +213,8 @@ options: {
 }
 ```
 
-#### Format Input
+#### Format: `type: "format"` {#format-input}
+
 For template strings with QuickAdd format syntax support.
 
 ```javascript
@@ -291,9 +228,10 @@ options: {
 }
 ```
 
-## Complete Example
+### Complete example {#complete-example}
 
-Here's a comprehensive example showing all option types:
+Here's a comprehensive example showing all option types, and reading them back
+inside `start`:
 
 ```javascript
 module.exports = {
@@ -369,11 +307,12 @@ async function start(params, settings) {
 }
 ```
 
-## Using the QuickAdd API
+## Prompt, format, and run other choices {#using-the-quickadd-api}
 
-User scripts have full access to the [QuickAdd API](/docs/QuickAddAPI/) through `params.quickAddApi`. For complete API documentation, see the [QuickAdd API Reference](/docs/QuickAddAPI/).
+User scripts have full access to the [QuickAdd API](/docs/QuickAddAPI/) through `params.quickAddApi`. For complete API documentation, see the [QuickAdd API Reference](/docs/QuickAddAPI/). The sections below cover the calls you'll reach for most.
 
-### User Input
+### Ask the user for input {#user-input}
+
 ```javascript
 // Text input
 const text = await quickAddApi.inputPrompt("Enter text:");
@@ -397,12 +336,13 @@ const selected = await quickAddApi.checkboxPrompt(
 );
 ```
 
-### Variables
+### Share values with later steps: variables {#variables}
+
 Set variables that can be used in subsequent template operations:
 
 :::tip[Sharing functions and constants]
 Variables pass **data** between steps. To reuse the same **functions or
-constants** across scripts, put them in a shared module — see
+constants** across scripts, put them in a shared module - see
 [Sharing Code Between Scripts](#sharing-code-between-scripts).
 :::
 
@@ -415,7 +355,8 @@ params.variables.results = arrayOfResults;
 // Variables are accessible in templates as {{VALUE:myVariable}}
 ```
 
-### Formatting
+### Run format syntax yourself {#formatting}
+
 Format strings with QuickAdd syntax:
 
 ```javascript
@@ -425,7 +366,8 @@ const formatted = await quickAddApi.format(
 );
 ```
 
-### Execute Other Choices
+### Run another choice {#execute-other-choices}
+
 Trigger other QuickAdd choices programmatically:
 
 ```javascript
@@ -434,9 +376,9 @@ await quickAddApi.executeChoice("My Other Choice", {
 });
 ```
 
-## Error Handling and Macro Control
+## Handle errors and stop a macro {#error-handling-and-macro-control}
 
-### Aborting Macro Execution
+### Stop a macro on purpose: `abort()` {#aborting-macro-execution}
 
 You can intentionally stop a macro using `params.abort()`. This is useful for validation or conditional execution:
 
@@ -514,7 +456,7 @@ module.exports = async (params) => {
 };
 ```
 
-### Script Error Handling
+### Catch unexpected errors {#script-error-handling}
 
 Always include proper error handling for unexpected errors:
 
@@ -542,7 +484,7 @@ async function start(params, settings) {
 - Original error stack traces are preserved for debugging
 - Errors are logged to the console for troubleshooting
 
-## Best Practices
+## Best practices {#best-practices}
 
 1. **Validate Settings**: Always check that required settings are configured before using them
 2. **User Feedback**: Use `new Notice()` to provide feedback to users
@@ -553,9 +495,104 @@ async function start(params, settings) {
 7. **Async/Await**: Always use async/await for asynchronous operations
 8. **Console Logging**: Use `console.log()` for debugging, but remove or minimize in production
 
-## Advanced Patterns
+## Share code between scripts {#sharing-code-between-scripts}
 
-### Multiple Entry Points
+Need the same helper functions or constants in several scripts? Put them in one
+shared `.js` module and `require()` it from each script. User scripts run as
+CommonJS modules and receive a `require` function (backed by Obsidian's
+Electron/Node `require`), so you can load any module on disk by its **absolute**
+path.
+
+:::caution[Desktop only]
+`require()` uses Obsidian's Electron/Node runtime, which exists only in the
+desktop app. On mobile there is no `require`, so this pattern does not work
+there - see [Cross-platform alternatives](#cross-platform-alternatives).
+:::
+
+:::caution[require() runs code immediately]
+`require()` executes the target file with full Node/Electron access (filesystem,
+network, and more) the moment it loads - before any export is called. Only
+`require` modules you wrote or trust, exactly as you would any code you run on
+your machine.
+:::
+
+### Create the shared module {#create-the-shared-module}
+
+Save a normal `.js` file in your vault. (It must be a real `.js` file - `require`
+loads from disk and cannot read a script written in a ` ```js ` note code block.)
+Export your helpers with `module.exports`:
+
+```javascript
+// scripts/shared-utils.js
+module.exports = {
+    formatNumber: (n) => new Intl.NumberFormat("en-US").format(n),
+    CURRENCY: "USD",
+};
+```
+
+The module must already exist on disk when the requiring script runs.
+
+### Require it from your scripts {#require-it-from-your-scripts}
+
+Build the absolute path **at runtime** from the vault's base path, then `require`
+the module. Don't paste a literal absolute path - the vault lives at a different
+location on every machine and account, so a hardcoded path breaks the moment the
+vault is synced or opened elsewhere. Relative paths don't work either (the script
+has no `__dirname`), so always resolve against `getBasePath()`:
+
+```javascript
+// scripts/my-macro-script.js
+module.exports = async (params) => {
+    const { app, obsidian } = params;
+
+    // require() is desktop-only - fail clearly on mobile.
+    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) {
+        throw new Error("This script shares helpers via require(), which only works in the desktop app.");
+    }
+
+    const path = require("path");
+    // getBasePath() is the supported method; older scripts may use the
+    // equivalent app.vault.adapter.basePath.
+    const utils = require(path.join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js"));
+
+    new obsidian.Notice(`${utils.formatNumber(1234567)} ${utils.CURRENCY}`); // "1,234,567 USD"
+};
+```
+
+:::note[Reload to pick up edits]
+A `require`'d module is cached the first time it loads. After you edit
+`shared-utils.js` the change is **not** picked up until you reload - run
+**Reload app without saving** from the Command palette. (A regular user script is
+re-read on every run, but a module it `require`s is not.)
+
+Advanced: bust the cache from a script without reloading. Use `window.require` -
+the `require` your script receives is a thin wrapper and has no `.cache`/`.resolve`:
+
+```javascript
+module.exports = async (params) => {
+    const { app, obsidian } = params;
+    if (!(app.vault.adapter instanceof obsidian.FileSystemAdapter)) return;
+
+    const fullPath = window.require("path").join(app.vault.adapter.getBasePath(), "scripts", "shared-utils.js");
+    delete window.require.cache[window.require.resolve(fullPath)];
+    const utils = window.require(fullPath); // reflects your latest edits to this file
+    // Only refreshes shared-utils.js itself, not other modules it requires.
+};
+```
+:::
+
+### Cross-platform alternatives {#cross-platform-alternatives}
+
+Because `require` is desktop-only, on mobile (or for a portable vault) share code
+another way:
+
+- **Inline the helper** in each script, or
+- **Chain scripts in a macro** and pass *data* (not functions) through
+  `params.variables` between steps.
+
+## Advanced patterns {#advanced-patterns}
+
+### Offer several actions from one script {#multiple-entry-points}
 
 Export an object with multiple functions that users can choose from:
 
@@ -579,7 +616,7 @@ async function deleteNote(params) {
 }
 ```
 
-### Returning Values
+### Return a value {#returning-values}
 
 Scripts can return values that become available as macro output:
 
@@ -592,7 +629,7 @@ async function start(params, settings) {
 }
 ```
 
-### Working with Files
+### Work with files {#working-with-files}
 
 ```javascript
 async function start(params, settings) {
@@ -656,7 +693,7 @@ async function start(params, settings) {
 }
 ```
 
-### Working with the Active File
+### Work with the active file {#working-with-the-active-file}
 
 ```javascript
 async function start(params, settings) {
@@ -699,7 +736,7 @@ async function start(params, settings) {
 }
 ```
 
-### Working with Metadata and Frontmatter
+### Work with metadata and frontmatter {#working-with-metadata-and-frontmatter}
 
 ```javascript
 async function start(params, settings) {
@@ -736,7 +773,7 @@ async function start(params, settings) {
 }
 ```
 
-### Opening and Navigating Files
+### Open and navigate files {#opening-and-navigating-files}
 
 ```javascript
 async function start(params, settings) {
@@ -771,9 +808,9 @@ async function start(params, settings) {
 }
 ```
 
-## Common Patterns & Recipes
+## Recipes {#common-patterns--recipes}
 
-### Processing Multiple Notes
+### Process every note in a folder {#processing-multiple-notes}
 
 ```javascript
 async function processAllNotesInFolder(params, settings) {
@@ -817,7 +854,7 @@ async function processAllNotesInFolder(params, settings) {
 }
 ```
 
-### Creating Notes from Templates
+### Create a note from a template {#creating-notes-from-templates}
 
 ```javascript
 async function createNoteFromTemplate(params, settings) {
@@ -859,7 +896,7 @@ async function createNoteFromTemplate(params, settings) {
 }
 ```
 
-### Bulk Tag Operations
+### Add, remove, or replace a tag in bulk {#bulk-tag-operations}
 
 ```javascript
 async function bulkTagOperations(params, settings) {
@@ -908,7 +945,7 @@ async function bulkTagOperations(params, settings) {
 }
 ```
 
-### Search and Replace Across Vault
+### Search and replace across the vault {#search-and-replace-across-vault}
 
 ```javascript
 async function searchAndReplace(params, settings) {
@@ -949,7 +986,7 @@ async function searchAndReplace(params, settings) {
 }
 ```
 
-### Daily Note Automation
+### Enhance the daily note {#daily-note-automation}
 
 ```javascript
 async function enhanceDailyNote(params, settings) {
@@ -1011,7 +1048,7 @@ ${unfinishedTasks}
 }
 ```
 
-## Debugging Tips
+## Debugging tips {#debugging-tips}
 
 1. **Use Console Logging Strategically**
    ```javascript
@@ -1054,7 +1091,7 @@ ${unfinishedTasks}
    console.table(variables);  // Great for objects/arrays
    ```
 
-## Example Scripts
+## Example scripts {#example-scripts}
 
 For complete working examples, see:
 - <a href="/scripts/userScriptExample.js" download>Complete Example with All Options</a> - Demonstrates all option types and patterns
@@ -1063,9 +1100,9 @@ For complete working examples, see:
 - [Book Finder](/docs/Examples/Macro_BookFinder/) - Searches for book information
 - [Migrate Dataview Properties](/docs/Examples/Macro_MigrateDataviewProperties/) - Migrates inline dataview properties to YAML frontmatter with configurable settings
 
-## Additional Resources
+## Additional resources {#additional-resources}
 
-### Obsidian API Documentation
+### Obsidian API documentation {#obsidian-api-documentation}
 - [Official Obsidian API Reference](https://docs.obsidian.md/Reference/TypeScript+API)
 - [Plugin Development Guide](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)
 - [Vault Module](https://docs.obsidian.md/Reference/TypeScript+API/Vault) - File operations
@@ -1073,13 +1110,13 @@ For complete working examples, see:
 - [Workspace](https://docs.obsidian.md/Reference/TypeScript+API/Workspace) - Panes and leaves
 - [Editor](https://docs.obsidian.md/Reference/TypeScript+API/Editor) - Text editing operations
 
-### QuickAdd Resources
+### QuickAdd resources {#quickadd-resources}
 - [QuickAdd API Reference](/docs/QuickAddAPI/)
 - [Format Syntax Guide](/docs/FormatSyntax/)
 - [Macro Choice Documentation](/docs/Choices/MacroChoice/)
 - [Inline Scripts](/docs/InlineScripts/)
 
-## Troubleshooting
+## Troubleshooting {#troubleshooting}
 
 **Script not loading:**
 - Check the file path in your macro configuration

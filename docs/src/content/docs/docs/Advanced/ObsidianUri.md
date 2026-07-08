@@ -4,95 +4,109 @@ description: "Trigger QuickAdd choices with the obsidian://quickadd URI, pass na
 slug: docs/Advanced/ObsidianUri
 ---
 
-QuickAdd choices can be launched from external scripts or apps such as Shortcuts on Mac and iOS, through the use of the `obsidian://quickadd` URI.
+A special link, `obsidian://quickadd`, runs a QuickAdd choice from outside
+Obsidian - from an Apple Shortcut, a launcher, another app, or a Markdown link
+in a note. You give it the name of the choice to run and, optionally, the
+values to fill in, and QuickAdd runs it just as if you had triggered it
+yourself.
 
-If you prefer shell scripting, see [QuickAdd CLI](/docs/Advanced/CLI/) for native Obsidian
-CLI handlers.
+This is the shape of the link:
 
 ```
 obsidian://quickadd?choice=<YOUR_CHOICE_NAME>[&value-VALUE_NAME=...]
 ```
 
-:::note
-
-All parameter names and values must be properly [URL encoded](https://en.wikipedia.org/wiki/Percent-encoding) to work. You can use an online tool like [urlencoder.org](https://www.urlencoder.org/) to help you easily encode parts of the URI.
-
+:::note[Encode everything]
+Every parameter name and value has to be [URL encoded](https://en.wikipedia.org/wiki/Percent-encoding)
+to work. An online tool like [urlencoder.org](https://www.urlencoder.org/)
+makes it easy to encode parts of the link.
 :::
 
-The only required parameter is `choice` which selects the choice to run by its name. The name must match exactly, otherwise it will not be able to be found.
+The only required part is `choice`, which picks the choice to run **by its
+name**. The name has to match exactly, or QuickAdd cannot find it.
 
-[Variables to your choice](/docs/FormatSyntax/) are passed as additional `value-VARIABLE_NAME` parameters, with `value-` prefixing the name. Variables with a space in their name can still be used, but the spaces in the name must be encoded as `%20` as usual. For example, a capture asking for a variable named `log notes` would be passed as `value-log%20notes=...` in the URI.
+If you would rather script this from a shell than build links, see
+[QuickAdd CLI](/docs/Advanced/CLI/) for the native Obsidian CLI commands.
 
-Variable values are used exactly as encoded in the URI. If a format should ignore accidental leading or trailing whitespace for one token, add `|trim` to that token, for example `{{VALUE:log notes|trim}}`.
+## Pass values into the choice
 
-Keep in mind that unnamed variables (a bare `{{VALUE}}`/`{{NAME}}` or `{{MVALUE}}`) cannot be filled by the URI and you will instead be prompted inside Obsidian as usual.
+Add a `value-<name>` parameter for each [named value](/docs/FormatSyntax/) the
+choice asks for. A capture asking for `{{VALUE:contents}}` is filled by
+`value-contents=...`.
 
-## Vault parameter
+If a variable name has a space in it, encode the space as `%20` like everything
+else. A variable named `log notes` is passed as `value-log%20notes=...`.
 
-Like every Obsidian URI, you can use the special `vault` parameter to specify which vault to run QuickAdd in. If left blank, it will be executed in your most recent vault.
+Values are used exactly as they are encoded in the link. If a format should
+ignore an accidental leading or trailing space for one placeholder, add `|trim`
+to it, for example `{{VALUE:log notes|trim}}`.
+
+Unnamed values - a bare `{{VALUE}}`/`{{NAME}}`, or `{{MVALUE}}` - cannot be
+filled from the link. QuickAdd prompts for them inside Obsidian as usual.
+
+## Choose which vault: `vault=` {#vault-parameter}
+
+Like every Obsidian URI, you can add a `vault` parameter to say which vault to
+run QuickAdd in. Leave it out and Obsidian uses your most recent vault.
 
 ```
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum.
 ```
 
-## Getting a result back (x-callback-url)
+## Get a result back: x-callback-url {#getting-a-result-back-x-callback-url}
 
-_Introduced in QuickAdd 2.14.0._
-
-QuickAdd can open a callback URL after a choice finishes, so an external caller (for
-example an Apple Shortcut) can react to the result and receive the path of the affected
-note. This follows the [x-callback-url](http://x-callback-url.com/) convention.
+QuickAdd can open a callback link once a choice finishes, so whatever triggered
+it (an Apple Shortcut, say) can react to the result and receive the path of the
+affected note. This follows the [x-callback-url](http://x-callback-url.com/)
+convention.
 
 :::note[Off by default]
-
-This is opt-in. Enable **Settings → AI & Online → Allow URI x-callback-url** first. It is
-off by default because the callback URL is controlled by whoever creates the
-`obsidian://` link, and the callback can carry your note's vault path.
-
+This is opt-in. Turn on **Settings → AI & Online → Allow URI x-callback-url**
+first. It is off by default because the callback link is controlled by whoever
+creates the `obsidian://` link, and the callback can carry your note's vault
+path.
 :::
 
 :::note[Template and Capture only]
-
-Callbacks are supported for **Template** and **Capture** choices. Triggering a Macro or
-Multi choice with a callback fires `x-error` with `errorCode=unsupported-choice-type`
-instead. (You can still trigger Macro/Multi choices via the URI without a callback.)
-
+Callbacks work for **Template** and **Capture** choices. Triggering a Macro or
+Multi choice with a callback fires `x-error` with
+`errorCode=unsupported-choice-type` instead. (You can still trigger Macro and
+Multi choices from the URI without a callback.)
 :::
 
-### Callback parameters
+### Which callback fires when {#callback-parameters}
 
 | Parameter        | Fired when                                                       |
 | ---------------- | ---------------------------------------------------------------- |
 | `x-success`      | the choice completed successfully                                |
 | `x-error`        | the choice failed, was aborted, was not found, or is unsupported |
 | `x-cancel`       | you cancelled a prompt while the choice was running              |
-| `x-callback-url` | legacy shorthand — used only when none of the above are present; it then fires for **success and cancel** (never error) |
+| `x-callback-url` | legacy shorthand - used only when none of the above are present; it then fires for **success and cancel** (never error) |
 
-If a slot is not provided, nothing is opened for that outcome (there is no fallback — a
-cancel with no `x-cancel` opens nothing).
+If you do not provide a slot, nothing opens for that outcome (there is no
+fallback - a cancel with no `x-cancel` opens nothing).
 
-Only `shortcuts:` and `obsidian:` callback URLs are permitted; any other scheme (such as
-`https:`, `file:`, or `javascript:`) is rejected and the choice is not run.
+Only `shortcuts:` and `obsidian:` callback links are allowed. Any other scheme
+(such as `https:`, `file:`, or `javascript:`) is rejected and the choice does
+not run.
 
-### Result parameters
+### What QuickAdd sends back {#result-parameters}
 
-QuickAdd appends these query parameters to your callback URL:
+QuickAdd appends these query parameters to your callback link:
 
-- On `x-success`: `status=success`, and — for Template/Capture — `path=<vault-relative
-  path>` and `url=<obsidian://open…>` pointing at the affected note.
-- On `x-error`: `status=error` and a stable `errorCode` (one of `choice-not-found`,
-  `unsupported-choice-type`, `execution-failed`, `execution-aborted`, `bad-callback-url`).
-  The detailed error message is kept in Obsidian's log and is never sent to the callback.
+- On `x-success`: `status=success`, and - for Template/Capture - `path=<vault-relative path>` and `url=<obsidian://open…>` pointing at the affected note.
+- On `x-error`: `status=error` and a stable `errorCode` (one of `choice-not-found`, `unsupported-choice-type`, `execution-failed`, `execution-aborted`, `bad-callback-url`). The detailed error message stays in Obsidian's log and is never sent to the callback.
 - On `x-cancel`: `status=cancel`.
 
-### Encoding your callback URL (important)
+### Encode your callback link twice {#encoding-your-callback-url-important}
 
-Your callback URL is itself a value inside the `obsidian://` query string, so it **must be
-fully percent-encoded** (double-encoded). If you leave a `=` or `&` un-encoded, Obsidian's
-URI parser silently truncates the callback before QuickAdd ever sees it.
+Your callback link is itself a value inside the `obsidian://` link, so it
+**must be fully percent-encoded** (double-encoded). If you leave a `=` or `&`
+un-encoded, Obsidian's URI parser silently cuts the callback off before
+QuickAdd ever sees it.
 
-For example, this looks reasonable but is **broken** — the `=My%20Cool%20Shortcut` part is
-dropped, leaving `shortcuts://run-shortcut?name`:
+For example, this looks reasonable but is **broken** - the
+`=My%20Cool%20Shortcut` part is dropped, leaving `shortcuts://run-shortcut?name`:
 
 ```text
 obsidian://quickadd?choice=Daily%20log&x-success=shortcuts://run-shortcut?name=My%20Cool%20Shortcut
@@ -104,55 +118,61 @@ The **correct** form encodes the entire `x-success` value:
 obsidian://quickadd?choice=Daily%20log&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DMy%2520Cool%2520Shortcut
 ```
 
-(Note the `%2520` — the spaces inside the shortcut name are encoded twice because the value
-is decoded once by Obsidian and once by Shortcuts.)
+(Note the `%2520` - the spaces inside the shortcut name are encoded twice
+because the value is decoded once by Obsidian and once by Shortcuts.)
 
-### Example
+### Full example {#example}
 
-Trigger a capture and run a shortcut on success, passing the created note's path:
+Trigger a capture, run a shortcut on success, and pass along the created note's
+path:
 
 ```text
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20ipsum&x-success=shortcuts%3A%2F%2Frun-shortcut%3Fname%3DLog%2520Saved
 ```
 
-On success QuickAdd opens your `x-success` URL with these extra query parameters appended
-(shown here decoded — they are percent-encoded on the wire):
+On success QuickAdd opens your `x-success` link with these extra query
+parameters appended (shown here decoded - they are percent-encoded on the wire):
 
 - `status` = `success`
 - `path` = `Daily/2026-06-14.md`
 - `url` = `obsidian://open?vault=My Vault&file=Daily/2026-06-14.md`
 
-Your shortcut reads them from the URL it was opened with.
+Your shortcut reads them from the link it was opened with.
 
 :::note[Mobile]
-
-QuickAdd opens callbacks with `window.open`, exactly like Obsidian's own x-callback
-support. Whether a custom scheme such as `shortcuts:` launches reliably on iOS is a
-platform behaviour shared with Obsidian core — verify on your device.
-
+QuickAdd opens callbacks with `window.open`, exactly like Obsidian's own
+x-callback support. Whether a custom scheme such as `shortcuts:` launches
+reliably on iOS is a platform behaviour shared with Obsidian core - verify on
+your device.
 :::
 
-## Important: Sync Service Limitations
+_Introduced in QuickAdd 2.14.0._
+
+## Watch out for sync services {#important-sync-service-limitations}
 
 :::caution
+When you use QuickAdd via URI with a sync service (Obsidian Sync, iCloud,
+Dropbox, and so on), there is a limitation to be aware of.
 
-When using QuickAdd via URI with sync services (Obsidian Sync, iCloud, Dropbox, etc.), be aware of a critical limitation:
+**If Obsidian hasn't been opened on a device**, files created on other devices
+haven't synced to it yet. QuickAdd can then create a duplicate file that
+overwrites the synced version when it finally arrives.
 
-**If Obsidian hasn't been opened on a device**, files created on other devices won't be synced yet. This can cause QuickAdd to create duplicate files that overwrite the synced versions when they arrive.
+### How this goes wrong {#example-scenario}
 
-### Example Scenario
-1. You create a Daily Note on your laptop
-2. Without opening Obsidian on your phone, you trigger a Capture via URI
-3. QuickAdd checks if the Daily Note exists (it doesn't locally)
-4. QuickAdd creates a new Daily Note
-5. When sync runs, the new file overwrites the one from your laptop
+1. You create a Daily Note on your laptop.
+2. Without opening Obsidian on your phone, you trigger a Capture via URI.
+3. QuickAdd checks whether the Daily Note exists (it doesn't, locally).
+4. QuickAdd creates a new Daily Note.
+5. When sync runs, the new file overwrites the one from your laptop.
 
-### Workarounds
-- **Open Obsidian first**: Always open Obsidian and wait for sync before using URIs
-- **Use device-specific names**: Configure different filename formats per device (e.g., `{{date}}-mobile`)
-- **Capture to active file**: Use an already-open note to avoid file creation issues
-- **Include timestamps**: Add `{{time}}` to filenames to ensure uniqueness
+### How to avoid it {#workarounds}
 
-This is a fundamental limitation of file-based sync services and cannot be fully resolved without sync status APIs.
+- **Open Obsidian first**: always open Obsidian and wait for sync before using URIs.
+- **Use device-specific names**: configure different filename formats per device (for example `{{date}}-mobile`).
+- **Capture to active file**: use an already-open note to avoid creating a file at all.
+- **Include timestamps**: add `{{time}}` to filenames so each one is unique.
 
+This is a fundamental limitation of file-based sync services and cannot be
+fully resolved without sync-status APIs.
 :::

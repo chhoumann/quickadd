@@ -8,6 +8,12 @@ Use this pattern when you want QuickAdd to create a new map-of-content note
 that already contains a live Base dashboard for both backlinks and outgoing
 links.
 
+:::note
+This example uses Obsidian's [Bases](https://help.obsidian.md/bases) core plugin
+to render the dashboard, so make sure Bases is enabled in **Settings > Core
+plugins** before you begin.
+:::
+
 ## Why this pattern
 
 A Template choice can create the note and insert the dashboard in one step.
@@ -81,7 +87,7 @@ outgoing links for this note.
 - Start linking this note to related ideas.
 ````
 
-3. Create a **Template** choice with settings like these:
+3. Create a **Template** choice (see [the Template choice docs](/docs/Choices/TemplateChoice/)) with settings like these:
 
 - **Template Path**: `Templates/MOC Link Dashboard.md`
 - **File Name Format**: `{{VALUE:moc_title}}`
