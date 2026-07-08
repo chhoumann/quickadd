@@ -1,135 +1,182 @@
 ---
 title: Capture
-description: Append captured text to any note, folder, tag, or property with configurable write position, formatting, linking, and Canvas support
+description: "Add text to any note without opening it: append to your journal, log entries under headings, save links, and capture to Canvas cards"
 slug: docs/Choices/CaptureChoice
 ---
 
-Allows to quickly capture your input and save it from anywhere in Obsidian, without leaving your current window setup e.g.
+A Capture choice adds text to a note **without opening it**. Press a hotkey,
+type your entry, and QuickAdd files it exactly where it belongs - while you
+stay right where you are. Use it to:
 
--   Add messages to your work log
--   Save interesting links for later reading and watching
--   Individually timed notes in Daily notes file
+- Add timestamped entries to your daily note
+- Log work under the right heading of a project note
+- Save interesting links for later reading
 
 ![The QuickAdd Capture builder, showing the Location and Position sections](../Images/choices/capture-builder.png)
 
-## Capture To
+## Set up your first capture {#set-up}
 
-_Capture To_ is the name of the file you are capturing to.
-You can choose to either enable _Capture to active file_, or you can enter a file name in the _File Name_ input field.
+1. Open **Settings → QuickAdd**, type a name like `Add to journal`, choose
+   **Capture** in the dropdown, and click **Add Choice**.
+2. Click the gear (⚙) next to the new choice.
+3. Set **Capture To** to where entries should land, for example
+   `Journal/{{DATE}}.md`.
+4. Enable **Capture format** and describe one entry, for example
+   `- {{DATE:HH:mm}} {{VALUE}}`.
+5. Run it: command palette → `QuickAdd: Run QuickAdd`, pick `Add to journal`,
+   type your entry.
 
-QuickAdd treats file names as basename-first by default:
-- If you do **not** provide an extension, QuickAdd creates/targets a Markdown file (`.md`).
-- If you provide an explicit supported extension (for example `.md` or `.canvas`), QuickAdd keeps that extension.
-- Capture to `.base` files is not supported. Use a Template choice for `.base` workflows.
+You now have this in today's journal note:
 
-This field also supports the [format syntax](/docs/FormatSyntax/), which allows you to use dynamic file names.
-I have one for my daily journal with the name `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
-This automatically finds the file for the day, and whatever I enter will be captured to it.
+```markdown
+- 09:42 Standup moved to Wednesday
+```
 
-If a value used in the target file name contains a line break or another control character, QuickAdd folds it to a space in the created path and strips trailing spaces or periods from that path segment. The value inserted into the note content is not changed.
+Assign the choice a hotkey (⚡ icon, or Obsidian's Hotkeys settings) once it
+behaves the way you want.
 
-### How QuickAdd picks a target
+## Choose where it goes: Capture To {#capture-to}
 
-When **Capture to active file** is disabled, QuickAdd resolves the _File path /
-format_ value after applying format syntax:
+_Capture To_ is the note you are capturing to. Either enable **Capture to
+active file** to write into the note you are currently in, or enter a file
+path.
 
-- An empty value, or `/`, opens a whole-vault picker for Markdown files.
-- A value starting with `#` opens a picker for Markdown files with that tag.
-- A value starting with `property:` opens a picker for Markdown files filtered by
-  a frontmatter field (see [Capturing to a property](#capturing-to-a-property)).
-- A value ending in `/` opens a folder picker.
-- A value ending in a supported file extension, such as `.md` or `.canvas`,
-  targets that file path directly.
-- A value without an extension targets a folder only when that folder exists and
-  there is no same-name Markdown file. For example, if both `Projects/` and
-  `Projects.md` exist, `Projects` targets `Projects.md`; use `Projects/` to
-  force the folder picker.
+The path supports [format syntax](/docs/FormatSyntax/), so it can be dynamic.
+A daily journal capture might use:
 
-Folder pickers include Markdown files in the selected folder and its nested
-folders. The picker also accepts custom input, so you can type a new file name
-or path and let QuickAdd create it when **Create file if it doesn't exist** is
-enabled. When creation is enabled, the picker still opens for an empty folder,
-tag, property, or filtered scope so you can type the first note name to create.
+```text
+Journal/{{DATE:gggg-MM-DD - ddd MMM D}}.md
+```
 
-The list is ordered like Obsidian's Quick Switcher: notes you opened most
-recently appear first (this session first, then your recent-files history), then
-everything else alphabetically. Ordering deliberately ignores modification time,
-so a sync or import that touches old notes does not push them to the top. Files
-in Obsidian's **Excluded files** list sink to the bottom but stay selectable.
-When **Create file if it doesn't exist** is enabled, a **Create new note:
-&lt;name&gt;** row lets you create a note from what you typed; it is hidden when
-the typed name already matches a note in scope, so typing an existing name
-selects that note instead of offering a duplicate.
+Every run finds today's file, and your entry is captured to it.
 
-### Capturing to folders
+File names are Markdown-first:
 
-You can also type a **folder name** into the _Capture To_ field, and QuickAdd will ask you which file in the folder you'd like to capture to.
-This also supports the [format syntax](/docs/FormatSyntax/). You can even write a filename in the suggester that opens, and it will create the file for you - assuming you have the _Create file if it doesn't exist_ setting enabled.
+- No extension means a Markdown file: `Inbox` targets `Inbox.md`.
+- An explicit supported extension (`.md`, `.canvas`) is kept.
+- `.base` files are not supported as capture targets - use a Template choice for `.base` workflows.
 
-For example, you might have a folder called `CRM/people`. In this folder, you have a note for the people in your life. You can type `CRM/people` in the _Capture To_ field, and QuickAdd will ask you which file to capture to. You can then type `John Doe` in the suggester, and QuickAdd will create a file called `John Doe.md` in the `CRM/people` folder.
+:::note
+If a value used in the file name contains a line break or another control
+character, QuickAdd folds it to a space and strips trailing spaces or periods
+from that path segment. The text inserted into the note is not changed.
+:::
 
-You could also write nothing - or `/` - in the _Capture To_ field. This will open the suggester with all of your files in it, and you can select or type the name of the file you want to capture to.
-Paths are vault-relative. A leading `/` is ignored (except a lone `/`, which opens the file picker for the whole vault).
+### How QuickAdd picks the target {#how-quickadd-picks-a-target}
 
-Capturing to a folder will show all files in that folder. This means that files in nested folders will also appear.
+When **Capture to active file** is off, the resolved _File path / format_
+value decides what happens:
 
-### Capturing to tags
+| You write | What happens |
+| --- | --- |
+| `Inbox.md` (or any path with an extension) | Captures straight to that file |
+| nothing, or `/` | Opens a picker with every Markdown note in the vault |
+| `Projects/` (trailing slash) | Opens a picker confined to that folder |
+| `Projects` (existing folder, no extension) | Same picker, unless `Projects.md` exists - then the file wins |
+| `#people` | Picker with notes carrying that tag |
+| `property:type=draft` | Picker with notes whose frontmatter matches - see [capturing to a property](#capturing-to-a-property) |
 
-Similarly, you can type a **tag name** in the _Capture To_ field, and QuickAdd will ask you which file to capture to, assuming the file has the tag you specify.
+Paths are vault-relative; a leading `/` is ignored (except a lone `/`, which
+opens the whole-vault picker).
 
-If you have a tag called `#people`, and you type `#people` in the _Capture To_ field, QuickAdd will ask you which file to capture to, assuming the file has the `#people` tag.
+The picker is ordered like Obsidian's Quick Switcher: notes you opened most
+recently come first, then everything else alphabetically. Ordering ignores
+modification time on purpose, so a sync that touches old notes doesn't push
+them to the top. Files in Obsidian's **Excluded files** list sink to the
+bottom but stay selectable.
 
-### Capturing to filtered files
+You can also **type a new name** into the picker: with **Create file if it
+doesn't exist** enabled, a **Create new note: &lt;name&gt;** row appears and
+QuickAdd creates the note for you. The row hides when the typed name matches
+an existing note in scope, so typing an existing name selects it instead of
+offering a duplicate. The picker still opens for an empty folder, tag,
+property, or filtered scope so you can create the first note there.
 
-_Introduced in QuickAdd 2.14.0._
+### Capture to a folder {#capturing-to-folders}
 
-You can combine folder and tag filters in the _Capture To_ field with `|`.
-This is useful when the destination could live in several folders, or when it
-must match several tags.
+Type a folder name (like `CRM/people`) and QuickAdd asks which note in that
+folder to capture to - nested folders included. Format syntax works here too.
 
-- `folder:Goals|folder:Projects` - notes inside either folder
-- `tag:active|tag:work` - notes that have both tags
-- `folder:Goals|folder:Projects|tag:active|tag:work` - active work notes in either folder
-- `folder:Goals|exclude-folder:Archive|exclude-tag:done` - goals that are not archived or done
+For example: you keep one note per person in `CRM/people`. Set _Capture To_ to
+`CRM/people`, run the capture, and pick the person. Type `John Doe` instead
+and QuickAdd creates `CRM/people/John Doe.md` (with **Create file if it
+doesn't exist** enabled).
+
+### Capture to a tag {#capturing-to-tags}
+
+Type a tag (like `#people`) and QuickAdd asks which note carrying that tag to
+capture to.
+
+### Filter by folders and tags together {#capturing-to-filtered-files}
+
+Combine filters with `|` when the destination could live in several folders,
+or must match several tags:
+
+| You write | The picker shows |
+| --- | --- |
+| `folder:Goals\|folder:Projects` | Notes in either folder |
+| `tag:active\|tag:work` | Notes with **both** tags |
+| `folder:Goals\|folder:Projects\|tag:active` | Active notes in either folder |
+| `folder:Goals\|exclude-folder:Archive\|exclude-tag:done` | Goals that aren't archived or done |
 
 Repeated `folder:` filters are OR filters. Repeated `tag:` filters are AND
 filters. Exclusions remove any matching file.
 
-Capture still writes to one destination per run. If you want to select multiple
-related files for metadata, use the `{{FILE:<folder>|multi}}` format syntax in
-the capture format instead of the _Capture To_ field.
+Capture still writes to **one** destination per run. To select several related
+notes for metadata, use the [`{{FILE:<folder>|multi}}`](/docs/FormatSyntax/#file)
+placeholder in the capture format instead.
 
-### Capturing the same entry to multiple files
+_Introduced in QuickAdd 2.14.0._
 
-Capture writes to one destination each time it runs. To write the same entry to
-several fixed files, compose multiple Capture choices with a Macro:
+### Capture to notes with a matching property {#capturing-to-a-property}
 
-1. Create one Capture choice for each destination file.
-2. Give each Capture choice the same format variable, for example
-   `- {{VALUE:entry}}`.
+Type `property:<field>=<value>` to limit the picker to notes whose frontmatter
+matches. If your notes have a `type` field, `property:type=draft` opens a
+picker containing only the notes whose `type` is `draft`.
+
+- `property:type=draft` - notes whose `type` equals `draft`.
+- `property:type` - notes that **have** a `type` field, whatever the value.
+- Matching is case-insensitive and trimmed. For a list property (`type: [draft, idea]`), the note matches if **any** entry equals the value.
+- The value supports [format syntax](/docs/FormatSyntax/): `property:status={{VALUE}}` asks when the capture runs.
+
+Combine with the shared file filters using `|`, the same syntax as
+[`{{FIELD}}`](/docs/FormatSyntax/#field-filters):
+
+- `property:type=draft|folder:Notes` - only drafts inside `Notes/`.
+- `property:type=draft|exclude-folder:Archive` - drafts not in `Archive/`.
+- `property:type=draft|exclude-tag:done` - drafts not tagged `#done`.
+
+Good to know:
+
+- Matches **YAML frontmatter** only, not inline Dataview `field:: value` fields.
+- The field name matches case-insensitively (`property:type` matches a `Type:` field).
+- Because `|` starts a filter, a property value cannot itself contain `|`.
+- Typing a new note name (with **Create file if it doesn't exist**) creates the note, but does not automatically give it the property.
+
+_Introduced in QuickAdd 2.14.0._
+
+### Send one entry to several notes {#capturing-the-same-entry-to-multiple-files}
+
+Capture writes to one destination per run. To write the same entry to several
+fixed notes, compose Capture choices with a [Macro](/docs/Choices/MacroChoice/):
+
+1. Create one Capture choice per destination.
+2. Give each the same named value, for example `- {{VALUE:entry}}`.
 3. Create a Macro and add each Capture choice as a **Nested Choice** command.
-4. Run the Macro. QuickAdd prompts for `entry` once and reuses that value for
-   the later Capture choices.
-
-For example, to log the same event to two person notes:
+4. Run the Macro: QuickAdd prompts for `entry` once and reuses the answer.
 
 | Choice | Capture To | Format |
 | --- | --- | --- |
 | Log to Person A | `People/Person A.md` | `- {{VALUE:entry}}` |
 | Log to Person B | `People/Person B.md` | `- {{VALUE:entry}}` |
 
-Then create a Macro such as `Log event with Person A and Person B` and add both
-Capture choices as nested commands.
-
-If the destination files are dynamic, use one Capture choice with a formatted
-target path and run it repeatedly from a user script. For example:
+If the destinations are dynamic, use one Capture choice with a formatted
+target and run it repeatedly from a [user script](/docs/UserScripts/):
 
 | Setting | Value |
 | --- | --- |
 | Capture To | `People/{{VALUE:person}}.md` |
 | Format | `- {{VALUE:entry}}` |
-
-Then call that Capture choice once for each selected person:
 
 ```js
 module.exports = async ({ quickAddApi }) => {
@@ -149,228 +196,219 @@ module.exports = async ({ quickAddApi }) => {
 };
 ```
 
-Pass the variables object on every `executeChoice` call. Each call clears its
-temporary variables after the target choice runs.
-
-### Capturing to a property
-
-_Introduced in QuickAdd 2.14.0._
-
-You can pre-filter the picker by an arbitrary **frontmatter property** by typing
-`property:<field>=<value>` in the _Capture To_ field. QuickAdd then asks you which
-note to capture to, limited to notes whose frontmatter matches.
-
-For example, if your notes have a `type` field (`draft`, `index`, `log`, …), typing
-`property:type=draft` opens a picker containing only the notes whose `type` is
-`draft`.
-
-- `property:type=draft` — notes whose `type` equals `draft`.
-- `property:type` — notes that **have** a `type` field, regardless of value
-  (presence mode).
-- The value is matched case-insensitively, trimmed. For a list-valued property
-  (`type: [draft, idea]`), the note matches if **any** entry equals the value.
-- The value supports [format syntax](/docs/FormatSyntax/), e.g.
-  `property:status={{VALUE}}` resolves the value when the capture runs.
+Pass the variables object on every `executeChoice` call - each call clears its
+temporary variables after the choice runs.
 
-You can also combine a property with the shared file filters using `|`, the same
-grammar as the [`{{FIELD}}`](/docs/FormatSyntax/) token (folder / tag / exclude-\*):
+### Friendlier names in the picker {#file-picker-labels}
 
-- `property:type=draft|folder:Notes` — only drafts inside `Notes/`.
-- `property:type=draft|exclude-folder:Archive` — drafts not in `Archive/`.
-- `property:type=draft|exclude-tag:done` — drafts not tagged `#done`.
-
-Notes:
-
-- This matches **YAML frontmatter** only, not inline Dataview `field:: value` fields.
-- The field name is matched case-insensitively (so `property:type` matches a `Type:` field).
-- Value matching is always case-insensitive; only the `folder` / `tag` /
-  `exclude-folder` / `exclude-tag` / `exclude-file` pipe filters are applied.
-- Because `|` starts a filter, a property value cannot itself contain `|`.
-- As with the tag picker, typing a new note name (with **Create file if it
-  doesn't exist** enabled) creates that note — it will not automatically receive
-  the property.
+The picker labels each note by its frontmatter `title` when available, then
+its first level-1 heading, then its file name. The selected destination is
+always the real file, so captures write to the same place even when the label
+is friendlier than the filename.
 
-### File picker labels
+## Shape the entry: Capture format {#capture-format}
 
-When QuickAdd asks you to choose a note, it shows the note's frontmatter `title`
-when available, then its first level-1 heading, then its file basename. The
-selected destination remains the real vault path, so captures still write to the
-same file even when the displayed label is friendlier than the filename.
+_Capture format_ is what actually gets written - think of it as a mini
+template for one entry. When disabled, QuickAdd writes `{{VALUE}}`: whatever
+you type in the prompt (or your editor selection, if selection-as-value is
+enabled).
 
-## Capture Options
+All of [format syntax](/docs/FormatSyntax/) works here:
 
-The Capture builder is grouped into sections: **Location**, **Position**, **Linking**, **Content**, and **Behavior**.
+```markdown title="Format"
+- {{DATE:HH:mm}} {{VALUE}}
+```
 
--   _Create file if it doesn't exist_ will do as the name implies - you can also create the file from a template, if you specify the template (the input box will appear below the setting).
--   _Task_ will format your captured text as a task.
--   _Use editor selection as default value_ controls whether the current editor selection is used as `{{VALUE}}`. Choose **Follow global setting**, **Use selection**, or **Ignore selection** (global default lives in Settings > Input). This does not affect `{{SELECTED}}`.
--   _Write position_ is a dropdown that controls where Capture writes. The available options depend on whether _Capture to active file_ is enabled:
-    -   **At cursor** (active file) / **Top of file** (target file) - the first option's label changes with the mode
-    -   **Top of file (after frontmatter)** (active file only)
-    -   **New line above cursor** (active file only)
-    -   **New line below cursor** (active file only)
-    -   **After line…** — insert after a target line. You can either type the target now, or enable **Choose heading when capturing** to pick a heading from the note at run time. See [Insert after](#insert-after).
-    -   **Before line…**
-    -   **Bottom of file**
--   _Link to captured file_ is a dropdown that controls whether QuickAdd inserts a link to the captured file. You can choose between three modes:
-    -   **Enabled (strict)** – require the configured link destination to be available
-    -   **Enabled (skip if unavailable)** – inserts the link when possible and silently drops current-note link insertion when nothing is open
-    -   **Disabled** – never append a link
+```markdown title="What gets written (after typing "Called the bank")"
+- 09:42 Called the bank
+```
 
-    When either enabled mode is selected, _Link destination_ controls where the link is written:
-    -   **Current note** – insert the link into the active Markdown editor
-    -   **Specified note** – append the link to the bottom of an existing Markdown note, such as an index or MOC, without opening that note
+For a long format, keep it in a note and reference it:
 
-    For **Current note**, strict mode keeps the legacy behavior and requires a focused Markdown editor, except Canvas-triggered capture skips link insertion when no Markdown editor is available. For **Specified note**, QuickAdd validates the destination note before writing the capture.
+```text
+{{TEMPLATE:Templates/Capture Format.md}}
+```
 
-    For the **Current note** destination, a _Link placement_ dropdown appears so you can choose where the link is placed:
-    -   **Replace selection** - Replaces any selected text with the link (default)
-    -   **After selection** - Preserves selected text and places the link after it
-    -   **End of line** - Places the link at the end of the current line
-    -   **New line** - Places the link on a new line below the cursor
-    -   **In frontmatter property** - Adds the link to a named frontmatter property
+QuickAdd inserts the file's contents, then processes the result like any
+capture format - the file can contain `{{VALUE}}`, `{{DATE}}`,
+`{{MACRO:...}}`, inline scripts, and further `{{TEMPLATE:...}}` includes
+(`.md`, `.canvas`, and `.base` files; include the extension). This lets you
+edit, version, and reuse a complete capture format as a normal note. The
+[one-page input form](/docs/Advanced/onePageInputs/) and `quickadd:check` scan
+referenced template files too, so their prompts appear up front.
 
-    When **In frontmatter property** is selected, set the property name and choose how strictly QuickAdd should handle missing or non-list properties:
-    -   **Create or convert** (default) - Create the property if it is missing, or convert an existing scalar value into a list before appending the new link. Object values still throw an error.
-    -   **Create if missing** - Create the property if it is missing. Existing scalar/object values still throw an error.
-    -   **Require list** - Append only to an existing list property. Empty/null properties are treated as empty lists; missing properties and existing scalar/object values throw an error.
+:::note
+A capture inserts included content as-is. If the referenced template starts
+with its own `---` frontmatter block and the target note already has one, you
+get a literal second block - use
+[Apply Template to Note](/docs/ApplyTemplateToNote/) when frontmatter should
+merge.
+:::
 
-    If the cursor is in an editable Obsidian Properties field when the Capture
-    choice starts, and the placement is not **In frontmatter property**, QuickAdd
-    appends the link to that focused property instead of using the stale editor
-    cursor behind the Properties panel. Text properties receive the link at the
-    end of the value, and list properties receive a new list item.
+:::note
+To insert `.base` content into your current note, keep **Capture to active
+file** enabled and use a `.base` template token in the format - see
+[Capture: Insert a Related Notes Base into an MOC Note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
+To create a brand-new note that embeds a Base, use a Template choice - see
+[Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
+:::
 
-    For any **Current note** body placement — **Replace selection**, **After selection**, **End of line**, and **New line** — an extra _Link type_ dropdown appears, letting you choose **Link** (`[[Note]]`) or **Embed** (`![[Note]]`). An embed transcludes the linked note's contents at the placement position (for example **New line** + **Embed** drops `![[Note]]` on its own line; the inline placements insert it on the same line). The **In frontmatter property** placement and the **Specified note** destination stay link-only.
+If your format includes an inline `js quickadd` block and you need to
+transform input, read input in script code via
+`this.quickAddApi.inputPrompt(...)` and assign variables on `this.variables` -
+don't put `{{VALUE}}` inside JavaScript string literals. See
+[Inline scripts](/docs/InlineScripts/#execution-order-and-value).
 
-    For the selection placements (**Replace selection**, **After selection**) with the **Link** type, a _Link display text_ dropdown chooses what the inserted link displays. **Selected text** keeps the highlighted text as the link's display text — selecting `Meeting with Mark` and capturing to `20240101 Meeting with Mark` inserts `[[20240101 Meeting with Mark|Meeting with Mark]]`. With nothing selected (or when the selection can't be represented safely inside a link), QuickAdd inserts the plain link instead. Multi-line selections are collapsed to a single line for the display text, and vaults using Markdown-style links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
+## The options, one by one {#capture-options}
 
-    For the **Specified note** destination, choose an existing Markdown file. QuickAdd appends a normal link at the bottom of that file after each successful capture. It does not create the index file, insert under a heading, update properties, or remove duplicate links.
+The Capture builder groups its settings into **Location**, **Position**,
+**Linking**, **Content**, and **Behavior**.
 
--   _Copy link to clipboard_ copies a link to the captured file after the Capture
-    choice runs. This works separately from _Link to captured file_, so you can
-    copy the link without inserting it into the current note, or do both. The
-    copied link is a vault-path wikilink, which makes it suitable for pasting
-    into another note.
+### Create the note if it's missing {#create-file-if-it-doesnt-exist}
 
-### Opening the captured file
+_Create file if it doesn't exist_ does what it says. Optionally create the
+file **from a template** - an input for the template file appears below the
+setting.
 
-When _Capture to active file_ is disabled, the **Behavior** section shows an _Open_ toggle (described as "Open the captured file."). Enabling it reveals the shared file-opening controls:
+### Format the entry as a task {#task}
 
--   _File Opening Location_ - a dropdown for where to open the captured file: **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**.
--   _Split Direction_ - shown only when location is **Split pane**; choose **Split right** or **Split down**.
--   _View Mode_ - how to display the opened file: **Source**, **Preview**, **Live Preview**, or **Default**.
--   _Focus new pane_ - a toggle to focus the opened tab immediately after opening. Shown for every location except **Reuse current tab**.
+_Task_ formats your captured text as a task (`- [ ] ...`).
 
-When QuickAdd opens and focuses a Markdown capture target in an editable mode, it places the editor cursor at the end of the inserted capture so you can keep typing there. This is skipped for preview/unfocused opens and when Templater cursor markers take over.
+### Use your selection as the answer {#use-editor-selection}
 
-### Run Templater on entire destination file after capture
+_Use editor selection as default value_ controls whether selected text in the
+editor is used as `{{VALUE}}` instead of prompting: **Follow global setting**,
+**Use selection**, or **Ignore selection** (the global default lives in
+**Settings → Input**). This does not affect `{{selected}}`.
 
-The **Behavior** section also has a _Run Templater on entire destination file after capture_ toggle. This is an advanced / legacy option: it executes any `<% %>` anywhere in the destination file, including inside code blocks. Leave it off unless you specifically need that whole-file Templater pass.
+### Pick where in the note it lands: Write position {#write-position}
 
-### Templater and newly created files
+_Write position_ controls where in the note the entry is written. The options
+depend on whether **Capture to active file** is enabled:
 
-Capture has two different Templater paths when it creates a missing Markdown
-file:
+- **At cursor** (active file) / **Top of file** (target file) - the first option's label changes with the mode
+- **Top of file (after frontmatter)** (active file only)
+- **New line above cursor** / **New line below cursor** (active file only)
+- **After line…** - insert after a target line you specify, or pick a heading at run time. The workhorse for structured notes - see [Insert after](#insert-after).
+- **Before line…** - see [Insert before](#insert-before)
+- **Bottom of file**
 
-- If **Create file if it doesn't exist** is enabled without a QuickAdd template,
-  QuickAdd creates a blank file first. When Templater's new-file trigger is
-  enabled and applies to that location, QuickAdd waits for Templater to finish
-  before inserting the capture content.
-- If **Create with template** is enabled, QuickAdd owns the initial file
-  content. It renders the selected QuickAdd template, suppresses Templater's
-  new-file/directory trigger for that creation event, and then runs Templater
-  once on the content QuickAdd wrote.
+### Link back to the captured note {#link-to-captured-file}
 
-This means a blank Capture-created file can receive Templater's directory
-template first, while a Capture-created file that uses a QuickAdd template runs
-Templater on QuickAdd's selected template content instead.
+_Link to captured file_ inserts a link to the note you captured to - useful
+for leaving a trail in the note you were in. Three modes:
 
-## Canvas Capture Notes
+- **Enabled (strict)** - require the configured link destination to be available
+- **Enabled (skip if unavailable)** - insert the link when possible, silently skip when nothing is open
+- **Disabled** - never insert a link
 
-QuickAdd supports two Canvas capture workflows:
+With either enabled mode, _Link destination_ controls where the link goes:
 
-- Capture to one selected card in the active Canvas view
-- Capture to a specific card in a specific `.canvas` file
+- **Current note** - insert into the active editor
+- **Specified note** - append to the bottom of a chosen note (an index or MOC, for example) without opening it. QuickAdd validates the destination before writing. It appends a plain link only: it won't create the index file, insert under a heading, update properties, or dedupe links.
 
-### 1) Capture to selected card in active Canvas
+For **Current note**, strict mode requires a focused Markdown editor (except
+Canvas-triggered captures, which skip link insertion when no Markdown editor
+is available).
 
-This mode is enabled when **Capture to active file** is on and the active leaf
-is a Canvas.
+#### Where the link is placed {#link-placement}
 
-Supported card targets:
+For the **Current note** destination, _Link placement_ chooses the spot:
 
-- Text cards
-- File cards that point to markdown files
+- **Replace selection** - replace any selected text with the link (default)
+- **After selection** - keep the selected text, place the link after it
+- **End of line** - at the end of the current line
+- **New line** - on a new line below the cursor
+- **In frontmatter property** - add the link to a named frontmatter property
 
-### 2) Capture to specific card in specific `.canvas` file
+For **In frontmatter property**, set the property name and how strictly to
+handle missing or non-list properties:
 
-This mode is enabled when **Capture to active file** is off, the capture path
-resolves to a `.canvas` file, and **Target canvas node** is set.
+- **Create or convert** (default) - create the property if missing, or convert an existing scalar value into a list before appending. Object values still error.
+- **Create if missing** - create the property if missing; existing scalar/object values error.
+- **Require list** - append only to an existing list property. Empty/null count as empty lists; missing properties and scalar/object values error.
 
-When the capture path is a `.canvas` file, QuickAdd shows a node picker that
-helps you choose a node id directly from that board.
+:::note
+If your cursor is in an editable Obsidian Properties field when the capture
+starts (and placement isn't **In frontmatter property**), QuickAdd appends the
+link to that focused property instead of using the stale editor cursor behind
+the Properties panel. Text properties get the link at the end of the value;
+list properties get a new item.
+:::
 
-### Write position support in Canvas
+#### Link or embed {#link-type}
 
-- Text cards support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
-- File cards (markdown targets) support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
-- Canvas does not support cursor-based modes: **At cursor**, **New line above cursor**, **New line below cursor**
+For the body placements (**Replace selection**, **After selection**, **End of
+line**, **New line**), a _Link type_ dropdown chooses **Link** (`[[Note]]`) or
+**Embed** (`![[Note]]`). An embed transcludes the captured note's contents at
+the placement position. **In frontmatter property** and the **Specified
+note** destination stay link-only.
 
-If **Capture to active file** is enabled and you leave the default write
-position at **At cursor**, capture will abort in Canvas until you switch to a
-supported mode.
+#### What the link says {#link-display-text}
 
-Canvas capture requires exactly one selected card in selected-card mode. If the
-selection is missing, multi-select, or unsupported, QuickAdd aborts with a
-notice instead of writing to the wrong place.
+For the selection placements with the **Link** type, _Link display text_
+chooses the visible text. **Selected text** keeps your highlight as the
+display text: selecting `Meeting with Mark` and capturing to
+`20240101 Meeting with Mark` inserts
+`[[20240101 Meeting with Mark|Meeting with Mark]]`. With nothing selected (or
+a selection that can't sit safely inside a link), the plain link is inserted.
+Multi-line selections collapse to one line, and vaults using Markdown-style
+links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
 
-When append-link is set to **Enabled (requires active file)** and capture runs
-from a Canvas card without a focused Markdown editor, the capture still writes
-and link insertion is skipped.
+### Copy a link to the clipboard {#copy-link-to-clipboard}
 
-For a step-by-step setup, see
-[Capture: Canvas Capture](/docs/Examples/Capture_CanvasCapture/).
+_Copy link to clipboard_ copies a link to the captured note after the capture
+runs - independent of _Link to captured file_, so you can copy without
+inserting, or do both. The copied link is a vault-path wikilink, ready to
+paste into another note.
 
-### Canvas Capture FAQ
+### Open the captured note {#opening-the-captured-file}
 
-**Why did my capture abort in Canvas?**
+When **Capture to active file** is off, the **Behavior** section shows an
+_Open_ toggle. Enabling it reveals:
 
-Most often one of these is true:
+- _File Opening Location_ - **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**
+- _Split Direction_ - **Split right** or **Split down** (shown for **Split pane**)
+- _View Mode_ - **Source**, **Preview**, **Live Preview**, or **Default**
+- _Focus new pane_ - focus the opened tab immediately (shown for every location except **Reuse current tab**)
 
-- No card is selected
-- More than one card is selected
-- The selected card type is unsupported
-- The selected write mode is cursor-based
+When QuickAdd opens and focuses a Markdown target in an editable mode, it
+places the cursor at the end of the inserted capture so you can keep typing.
+This is skipped for preview/unfocused opens and when Templater cursor markers
+take over.
 
-**Can I target a specific card in a Canvas file?**
+### Run Templater on the whole file afterwards {#run-templater-on-entire-destination-file-after-capture}
 
-Yes. Set capture path to a `.canvas` file and choose a **Target canvas node**.
+_Run Templater on entire destination file after capture_ is an advanced,
+legacy option: it executes any `<% %>` anywhere in the destination file,
+including inside code blocks. Leave it off unless you specifically need that
+whole-file pass.
 
-**Does "At cursor" work in Canvas cards?**
+### Templater and newly created notes {#templater-and-newly-created-files}
 
-No. Use top, bottom, insert-after, or insert-before placement.
+Capture has two Templater paths when it creates a missing Markdown file:
 
-**Can I capture to a file card that points to a Canvas file?**
+- **Create file if it doesn't exist** without a QuickAdd template: QuickAdd creates a blank file first. If Templater's new-file trigger applies to that location, QuickAdd waits for Templater to finish before inserting the capture.
+- **Create with template**: QuickAdd owns the initial content. It renders the selected QuickAdd template, suppresses Templater's new-file/directory trigger for that creation, then runs Templater once on the content QuickAdd wrote.
 
-No. File-card capture supports markdown targets only.
+So a blank Capture-created file can receive Templater's directory template
+first, while a template-created file runs Templater on QuickAdd's template
+content instead.
 
-**Can I still create new Canvas files from templates?**
+## Insert after {#insert-after}
 
-Yes. Template choices support `.canvas` templates.
+**After line…** inserts the entry after a line with the text you specify -
+this is how entries land under the right heading. A journal capture might
+insert after `## What did I do today?`.
 
-## Insert after
+By default, QuickAdd preserves blank lines after headings to keep spacing
+intact. **Blank lines after match** controls this:
 
-Insert After will allow you to insert the text after some line with the specified text.
-By default, QuickAdd preserves blank lines after ATX headings to keep heading
-spacing intact. Use **Blank lines after match** to control this behavior:
+- **Auto (headings only)** - skip blank lines only when the matched line is a heading
+- **Always skip** - skip all consecutive blank lines after the match
+- **Never skip** - insert immediately after the matched line
 
--   **Auto (headings only)** - Skip blank lines only when the matched line is
-    a Markdown heading.
--   **Always skip** - Skip all consecutive blank lines after the match.
--   **Never skip** - Insert immediately after the matched line.
-
-Example (Auto, Insert After `# H` with content `X`):
+Example (Auto, insert after `# H` with content `X`):
 
 ```markdown
 # H
@@ -379,31 +417,39 @@ X
 A
 ```
 
-With Insert After, you can also enable `Insert at end of section` and `Consider subsections`.
-You can see an explanation of these below.
+With Insert after you can also enable **Insert at end of section** and
+**Consider subsections** - see [below](#consider-subsections--option).
 
-I use this in my daily journal capture, where I insert after the heading line `## What did I do today?`.
+**Create line if not found** creates the target line when it doesn't exist -
+useful when the heading might not be in the note yet. The created line can go
+at the **Top** or **Bottom** of the file, at your **Cursor**, or **Ordered** -
+sorted among same-level headings; see
+[Ordered section placement](#ordered-section-placement) for
+reverse-chronological logs and changelogs.
 
-It's also possible to use `Create line if not found`, which will create the line if it doesn't exist. This is useful if you want to insert after a line that might not exist in the file you're capturing to.
-This setting can place the created line at the **Top** or **Bottom** of the file, at your **Cursor** position, or **Ordered** — at its sorted position among same-level headings. See [Ordered section placement](#ordered-section-placement) for reverse-chronological daily logs, changelogs, and other sorted sections.
+The target may span several lines: type `\n` in the **Insert after** field to
+match a multi-line anchor (the preview shows it expanded). **Inline
+insertion** is the exception - it inserts on the same line, so its target must
+be a single line; a `\n` target there is rejected with a notice.
 
-The target may span several lines: type `\n` in the **Insert after** field to match a multi-line anchor (the preview shows it expanded). **Inline insertion** is the exception — because it inserts on the same line, immediately after the matched text, its target must be a single line; a multi-line (`\n`) target there is rejected with a notice rather than matched. Use the default placement for multi-line anchors.
+### Ordered section placement {#ordered-section-placement}
 
-### Ordered section placement
+When **Create line if not found** is set to **Ordered** (full label:
+`Ordered (place new section among siblings)`), a missing "Insert after"
+heading is created at its **sorted position among same-level headings**. This
+is the building block for a reverse-chronological log: each new dated section
+is added above older ones, while a fixed title stays pinned at the top.
 
-_Introduced in QuickAdd 2.14.0._
+The classic "daily log, newest first" recipe (issue
+[#481](https://github.com/chhoumann/quickadd/issues/481)):
 
-When `Create line if not found` is enabled and its location dropdown is set to **Ordered** (the full label is `Ordered (place new section among siblings)`), a missing "Insert after" heading is created at its **sorted position among same-level sibling headings** instead of at the top or bottom of the note. This is the building block for a reverse-chronological log: a new dated section is added above older ones, while a fixed title/intro stays pinned at the top.
+- **Capture to**: your log note (enable `Create file if it doesn't exist` to auto-create it)
+- **Format**: the entry with a trailing newline, e.g. `- {{DATE:HH:mm}} {{VALUE}}\n` (task captures add their own newline)
+- **Insert after**: the day heading, `## {{DATE:YYYY-MM-DD}}`
+- **Insert at end of section**: off, so each entry lands directly under the day heading (newest first within the day)
+- **Create line if not found**: on, location **Ordered**, **Sort sections by** = `Date`, **Section order** = `Newest / highest first`
 
-This is the recipe for the classic "daily log, newest first" note (issue [#481](https://github.com/chhoumann/quickadd/issues/481)):
-
--   **Capture to**: your log note (enable `Create file if it doesn't exist` if you want it auto-created).
--   **Format**: the entry, ending with a newline, e.g. `- {{DATE:HH:mm}} {{VALUE}}\n`. Use a trailing newline for non-task line formats so each capture is a complete Markdown line. Task captures add their own newline.
--   **Insert after**: the day heading, `## {{DATE:YYYY-MM-DD}}`.
--   **Insert at end of section**: off, so each new entry lands directly under the day heading (newest entry on top within the day).
--   **Create line if not found**: on, with the location set to **Ordered**, **Sort sections by** = `Date`, and **Section order** = `Newest / highest first`.
-
-Running it on consecutive days (and twice on the same day) produces:
+Running it on consecutive days (and twice in one day) produces:
 
 ```markdown
 # My Daily Log
@@ -418,26 +464,35 @@ A short intro that always stays at the top.
 - 09:00 older entry
 ```
 
-The first capture of a day creates `## 2026-06-16` directly below the intro and above `## 2026-06-14`; later captures that day find the existing heading and add their entry on top. The `# My Daily Log` title stays put because it is a different heading level (only `##` headings are sorted against each other), and any YAML frontmatter is skipped entirely — it is never treated as a heading, even if it contains `#` lines.
+The first capture of a day creates `## 2026-06-16` below the intro and above
+`## 2026-06-14`; later captures that day find the existing heading and add
+their entry on top. The `# My Daily Log` title stays put because only
+same-level headings (`##`) are sorted against each other, and YAML frontmatter
+is never treated as a heading.
 
-#### Sort options
+#### Sort options {#sort-options}
 
-Once `Create line if not found` is on and its location is **Ordered**, these controls appear (the last two only for the sort keys noted):
+With **Ordered** selected, these controls appear:
 
--   **Sort sections by** — how the sort key is read from each heading's text:
-    -   `Insertion order (no sorting)` — newest-first simply prepends the new section above the others; oldest-first appends it below. No parsing.
-    -   `Text (A→Z)` — case-insensitive text compare.
-    -   `Number` — the leading number in the heading (e.g. `## 12 Project X`).
-    -   `Date` — parsed with a **Date format** (shown only for this key; auto-detected from the `{{DATE:…}}` token in your "Insert after" text, and editable). Trailing decoration like `## 2026-06-14 (Friday)` is ignored.
-    -   `Version (semver)` — `major.minor.patch`, so `1.10.0` correctly sorts above `1.9.0`. A leading `v` and the Keep a Changelog `## [1.10.0] - 2026-06-16` bracket form are both understood.
--   **Section order** — `Newest / highest first` (descending) or `Oldest / lowest first` (ascending).
--   **Existing unparseable headings** — shown for the `Date`, `Number`, and `Version (semver)` keys: where to rank existing headings whose text can't be parsed for the chosen key (e.g. an `## Unreleased` heading in a versioned changelog) — `Sort existing unparseable headings to bottom` (default) or `…to top`. A new heading that can't be parsed is always appended at the end.
+- **Sort sections by** - how the sort key is read from each heading:
+  - `Insertion order (no sorting)` - newest-first prepends the new section; oldest-first appends it. No parsing.
+  - `Text (A→Z)` - case-insensitive text compare.
+  - `Number` - the leading number in the heading (e.g. `## 12 Project X`).
+  - `Date` - parsed with a **Date format** (auto-detected from the `{{DATE:…}}` placeholder in your "Insert after" text, and editable). Trailing decoration like `## 2026-06-14 (Friday)` is ignored.
+  - `Version (semver)` - `major.minor.patch`, so `1.10.0` sorts above `1.9.0`. A leading `v` and the Keep-a-Changelog `## [1.10.0] - 2026-06-16` form are both understood.
+- **Section order** - `Newest / highest first` or `Oldest / lowest first`.
+- **Existing unparseable headings** (for `Date`, `Number`, `Version (semver)`) - where to rank headings that can't be parsed for the chosen key (like `## Unreleased` in a changelog): sort to bottom (default) or top. A new heading that can't be parsed is always appended at the end.
 
-Use **Insert at end of section** (above) to control the order *within* each section: off = newest entry on top (good for date logs), on = entries appended at the section end (good for changelogs).
+Use **Insert at end of section** to control order *within* each section: off
+= newest entry on top (date logs), on = entries appended at the end
+(changelogs).
 
-#### More examples
+#### More examples {#more-examples}
 
-A changelog, newest version on top — **Insert after** `## {{VALUE:version}}`, **Format** `- {{VALUE:change}}\n`, **Insert at end of section** on (new changes append below earlier ones in the same version), **Create line if not found** on → **Ordered**, **Sort by** `Version (semver)`, **Order** `Newest / highest first`:
+A changelog with the newest version on top - **Insert after**
+`## {{VALUE:version}}`, **Format** `- {{VALUE:change}}\n`, **Insert at end of
+section** on, **Create line if not found** on → **Ordered**, **Sort by**
+`Version (semver)`, **Order** `Newest / highest first`:
 
 ```markdown
 # Changelog
@@ -450,43 +505,47 @@ A changelog, newest version on top — **Insert after** `## {{VALUE:version}}`, 
 - old fix
 ```
 
-A "books read" note grouped by year — **Insert after** `## {{DATE:YYYY}}`, **Format** `- {{VALUE}}\n`, **Create line if not found** on → **Ordered**, **Sort by** `Date` with **Date format** `YYYY`, **Order** `Newest / highest first`.
+A "books read" note grouped by year - **Insert after** `## {{DATE:YYYY}}`,
+**Format** `- {{VALUE}}\n`, **Create line if not found** on → **Ordered**,
+**Sort by** `Date` with **Date format** `YYYY`, **Order** `Newest / highest
+first`.
 
-#### Notes and limits
+#### Notes and limits {#notes-and-limits}
 
--   The heading is created **once** and reused: every later capture finds it, so the section is never duplicated. This relies on the heading resolving to the **same text** each time, so use a stable token (`{{DATE:…}}`, a `{{VALUE:…}}` you supply) — not a random or constantly-changing one.
--   Sorting is over **all same-level headings in the note**; it is not scoped to one parent section. For the layouts above (a single group of dated/versioned `##` sections under one title) this is exactly what you want. Keep the fixed title/intro at a different heading level (e.g. an `#` title above `##` sections) so it is never treated as a sortable sibling.
--   Ordered placement only positions the **new** section; it does not re-sort sections you already have.
--   **Ordered** is for headings and can't be combined with **Inline insertion**.
-
-### Choose heading when capturing
+- The heading is created **once** and reused - every later capture finds it, so the section is never duplicated. This relies on the heading resolving to the **same text** each time: use a stable placeholder (`{{DATE:…}}`, a `{{VALUE:…}}` you supply), not a random one.
+- Sorting covers **all same-level headings in the note**, not one parent section. For the layouts above (dated/versioned `##` sections under one `#` title) that's exactly right - keep the fixed title at a different heading level so it's never a sortable sibling.
+- Ordered placement positions the **new** section only; it doesn't re-sort existing ones.
+- **Ordered** is for headings and can't be combined with **Inline insertion**.
 
 _Introduced in QuickAdd 2.14.0._
 
-Insert After normally uses a target line you type when you build the choice. Enable
-**Choose heading when capturing** to instead pick the heading **at run time**: when you
-run the capture, QuickAdd reads the target note and shows a dropdown of its headings — pick
-one, and the text is inserted under it. This is the same idea as the note-selection dropdown
-that appears when no file name is specified, but for headings within a single note. It's
-useful when the heading varies between runs, or when you'd rather not remember and type it.
+### Choose the heading when capturing {#choose-heading-when-capturing}
 
-The picked heading simply becomes the insert-after target, so every placement control still
-applies:
+Instead of typing the target line when you build the choice, enable **Choose
+heading when capturing** to pick it **at run time**: QuickAdd reads the target
+note and shows a dropdown of its headings - pick one, and the entry is
+inserted under it. Useful when the heading varies between runs, or when you'd
+rather not remember it.
 
--   By default the text is inserted directly under the chosen heading line. Enable `Insert at end of section` to append it to the end of that heading's section instead.
--   `Consider subsections`, `Blank lines after match`, and `Create line if not found` work exactly as for Insert after.
+The picked heading simply becomes the insert-after target, so every placement
+control still applies: **Insert at end of section**, **Consider
+subsections**, **Blank lines after match**, and **Create line if not found**
+work exactly as usual.
 
-Notes:
+Good to know:
 
--   You can also **type a heading** that doesn't exist yet. To have QuickAdd create it, enable `Create line if not found` (type the heading with its `#` markers, e.g. `## Tasks`).
--   The dropdown lists ATX headings (lines starting with `#`). For a brand-new note created from a template, the picker can't list the template's headings yet (the note doesn't exist at pick time) — type the heading and use `Create line if not found`.
--   If you use the one-page input form, the heading dropdown still appears as a separate step after the form.
+- You can type a heading that doesn't exist yet; enable `Create line if not found` to have QuickAdd create it (type it with its `#` markers, e.g. `## Tasks`).
+- The dropdown lists ATX headings (lines starting with `#`). For a brand-new note created from a template, the picker can't list the template's headings (the note doesn't exist at pick time) - type the heading and use `Create line if not found`.
+- With the one-page input form, the heading dropdown still appears as a separate step after the form.
 
-### Consider subsections -option
+_Introduced in QuickAdd 2.14.0._
 
-#### `Consider subsections` disabled
+### Consider subsections {#consider-subsections--option}
 
-Behavior with `Insert after` & `Insert at end`:
+Controls whether a section's nested subsections count as part of it when using
+**Insert at end of section**.
+
+Disabled - the section ends where its first subsection starts:
 
 ```markdown
 ## 1. First heading
@@ -507,9 +566,8 @@ Content
 Content
 ```
 
-#### `Consider subsections` enabled
-
-Behavior with `Insert after` & `Insert at end`:
+Enabled - subsections belong to the section, so "end of section" is after
+them:
 
 ```markdown
 ## 1. First heading
@@ -530,47 +588,68 @@ Content
 Content
 ```
 
-## Insert before
+## Insert before {#insert-before}
 
-Insert Before inserts the capture before the first line that matches the specified text.
-The target accepts QuickAdd format syntax, so values such as `{{title}}` and
-`{{linkcurrent}}` can be used in the match text.
+**Before line…** inserts the capture before the first line matching the text
+you specify. The target accepts [format syntax](/docs/FormatSyntax/), so
+values like `{{title}}` and `{{linkcurrent}}` work in the match text.
 
-It's also possible to use `Create line if not found`, which will create the
-line if it doesn't exist. For Insert Before, QuickAdd writes the captured
-content first, then creates the missing line below it. This setting can place
-the line at the start or end of the file, or at your current cursor position.
+**Create line if not found** works here too: QuickAdd writes the captured
+content first, then creates the missing line below it. The created line can go
+at the start or end of the file, or at your cursor.
 
-## Capture Format
+## Capture to Canvas {#canvas-capture-notes}
 
-Capture format lets you specify the exact format that you want what you're capturing to be inserted as.
-You can do practically anything here. Think of it as a mini template.
+QuickAdd supports two Canvas capture workflows:
 
-If you do not enable this, QuickAdd will default to `{{VALUE}}`, which will insert whatever you enter in the prompt, or (if selection-as-value is enabled) the current editor selection.
+- Capture to the selected card in the active Canvas view
+- Capture to a specific card in a specific `.canvas` file
 
-You can use [format syntax](/docs/FormatSyntax/) here, which allows you to use dynamic values in your capture format.
+### Capture to the selected card {#1-capture-to-selected-card-in-active-canvas}
 
-If the capture format is long, put the full format in a template file and use a `{{TEMPLATE:...}}` token as the capture format:
+Enabled when **Capture to active file** is on and the active view is a
+Canvas. Supported card targets:
 
-```text
-{{TEMPLATE:Templates/Capture Format.md}}
-```
+- Text cards
+- File cards that point to Markdown files
 
-QuickAdd replaces the token with the template file contents, then processes the result through the normal capture formatter. The referenced file can contain the same format syntax you would otherwise type inline, such as `{{VALUE}}`, `{{DATE}}`, `{{MACRO:...}}`, inline scripts, and additional `{{TEMPLATE:...}}` includes. Include the file extension in the token; template includes support `.md`, `.canvas`, and `.base` files. Note that a capture inserts the included content as-is: if the referenced template starts with its own `---` frontmatter block and the target note already has one, the capture adds a literal second block rather than merging properties - use [Apply Template to Note](/docs/ApplyTemplateToNote/) when frontmatter should merge.
+### Capture to a card in a specific file {#2-capture-to-specific-card-in-specific-canvas-file}
 
-One-page input preflight and `quickadd:check` scan the referenced template files too, so prompts inside a file-backed capture format appear up front like inline capture format prompts.
+Enabled when **Capture to active file** is off, the capture path resolves to
+a `.canvas` file, and **Target canvas node** is set. When the path is a
+`.canvas` file, QuickAdd shows a node picker so you can choose the card
+directly from that board.
 
-This is useful when you want to edit, version, or reuse a complete capture format as a normal note. You can also use `{{TEMPLATE:Templates/Partial.md}}` inside a larger inline capture format when only part of the format should come from a file.
+### Write positions in Canvas {#write-position-support-in-canvas}
 
-If you want to insert `.base` content into your current note, keep **Capture to active file** enabled and use a `.base` template token in the capture format. See [Capture: Insert a Related Notes Base into an MOC Note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
-If you want QuickAdd to create a brand new note that already contains an
-embedded Base, use a Template choice instead. See
-[Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
+- Text cards and file cards (Markdown targets) support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
+- Cursor-based modes (**At cursor**, **New line above/below cursor**) don't exist in Canvas. If **Capture to active file** is on and the write position is still the default **At cursor**, the capture aborts until you switch to a supported mode.
 
-If your capture format includes an inline `js quickadd` block and you need to
-transform user input, prefer reading input in script code through
-`this.quickAddApi.inputPrompt(...)` and/or assigning script variables on
-`this.variables`. Avoid relying on `{{VALUE}}` inside JavaScript string
-literals. See [Inline scripts](/docs/InlineScripts/#execution-order-and-value).
+Selected-card mode needs exactly one selected card. If the selection is
+missing, multiple, or unsupported, QuickAdd aborts with a notice instead of
+writing to the wrong place.
 
-In my journal capture, I have it set to `- {{DATE:HH:mm}} {{VALUE}}`. This inserts a bullet point with the time in hour:minute format, followed by whatever I entered in the prompt.
+When append-link is **Enabled (requires active file)** and the capture runs
+from a Canvas card without a focused Markdown editor, the capture still writes
+and link insertion is skipped.
+
+For a step-by-step setup, see
+[Capture: Canvas Capture](/docs/Examples/Capture_CanvasCapture/).
+
+### Canvas capture FAQ {#canvas-capture-faq}
+
+**Why did my capture abort in Canvas?** Most often: no card selected, more
+than one card selected, an unsupported card type, or a cursor-based write
+position.
+
+**Can I target a specific card in a Canvas file?** Yes - set the capture path
+to a `.canvas` file and choose a **Target canvas node**.
+
+**Does "At cursor" work in Canvas cards?** No. Use top, bottom, insert-after,
+or insert-before placement.
+
+**Can I capture to a file card that points to a Canvas file?** No - file-card
+capture supports Markdown targets only.
+
+**Can I still create new Canvas files from templates?** Yes. Template choices
+support `.canvas` templates.
