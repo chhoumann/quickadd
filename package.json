@@ -99,17 +99,13 @@
           "prepareCmd": "node version-bump.mjs ${nextRelease.version}"
         }
       ],
-      "./scripts/release/docs-versioning-plugin.cjs",
       [
         "@semantic-release/git",
         {
           "assets": [
             "package.json",
             "manifest.json",
-            "versions.json",
-            "docs/versions.json",
-            "docs/versioned_docs/**/*",
-            "docs/versioned_sidebars/*.json"
+            "versions.json"
           ],
           "message": "release(version): Release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
         }
