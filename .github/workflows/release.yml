@@ -80,14 +80,10 @@ jobs:
                   node-version: 24
                   check-latest: true
                   cache: pnpm
-                  cache-dependency-path: |
-                      pnpm-lock.yaml
-                      docs/pnpm-lock.yaml
+                  cache-dependency-path: pnpm-lock.yaml
 
             - name: Install dependencies
-              run: |
-                  pnpm install --frozen-lockfile
-                  cd docs && pnpm install --frozen-lockfile
+              run: pnpm install --frozen-lockfile
 
             # Build must run before Release: it produces main.js / styles.css that
             # @semantic-release/github uploads and attest-build-provenance signs.
