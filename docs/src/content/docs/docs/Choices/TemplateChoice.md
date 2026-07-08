@@ -99,7 +99,7 @@ Templates/{{VALUE:collectionName}} Template.md
 
 Running the choice prompts for a collection name and resolves to a path like
 `Templates/Games Template.md`. The created file's extension comes from the
-*resolved* path, so a token that expands to `.canvas` or `.base` produces a
+*resolved* path, so a placeholder that expands to `.canvas` or `.base` produces a
 canvas or base file.
 
 A path is resolved with a **path-safe** subset of the format syntax:
@@ -108,7 +108,7 @@ A path is resolved with a **path-safe** subset of the format syntax:
   while computing a path.
 - `{{title}}` cannot be used in a path (the title is derived from the created
   file, not the source template).
-- The note-relative tokens `{{FOLDER}}`, `{{FILENAMECURRENT}}`,
+- The note-relative placeholders `{{FOLDER}}`, `{{FILENAMECURRENT}}`,
   `{{LINKCURRENT}}`, and `{{LINKSECTION}}` are left as-is in a template path,
   since they describe the runtime note/folder context (the target folder, or the
   active note and the cursor's heading) rather than the source template.

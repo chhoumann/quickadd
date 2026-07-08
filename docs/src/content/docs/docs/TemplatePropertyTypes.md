@@ -346,12 +346,7 @@ description: This stays a single string, even with commas.
 
 ## Feedback and support {#feedback--support}
 
-This is a **beta feature**, and your feedback helps improve it:
-
-- **Report issues**: include template examples and variable data.
-- **Request features**: suggest improvements for your workflow.
-- **Share success stories**: help others learn effective patterns.
-
-The feature is designed to be safe and backward-compatible, but please test
-thoroughly with your specific use cases before relying on it for important
-workflows.
+This is a **beta feature**. It is designed to be safe and backward-compatible,
+but test it with your own templates before relying on it for important
+workflows - and when reporting an issue, include the template and the variable
+data that triggered it.

@@ -149,7 +149,8 @@ Combine with the shared file filters using `|`, the same syntax as
 Good to know:
 
 - Matches **YAML frontmatter** only, not inline Dataview `field:: value` fields.
-- The field name matches case-insensitively (`property:type` matches a `Type:` field).
+- The field name matches case-insensitively (`property:type` matches a `Type:` field), and value matching is always case-insensitive.
+- Only the `folder:` / `tag:` / `exclude-folder:` / `exclude-tag:` / `exclude-file:` pipe filters are applied here.
 - Because `|` starts a filter, a property value cannot itself contain `|`.
 - Typing a new note name (with **Create file if it doesn't exist**) creates the note, but does not automatically give it the property.
 
@@ -247,7 +248,7 @@ merge.
 
 :::note
 To insert `.base` content into your current note, keep **Capture to active
-file** enabled and use a `.base` template token in the format - see
+file** enabled and use a `{{TEMPLATE:...}}` placeholder pointing at a `.base` file in the format - see
 [Capture: Insert a Related Notes Base into an MOC Note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
 To create a brand-new note that embeds a Base, use a Template choice - see
 [Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).

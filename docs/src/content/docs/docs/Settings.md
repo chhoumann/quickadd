@@ -16,7 +16,7 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 The choice picker is the list you see when you run **QuickAdd: Run**.
 
 - **Search nested choices** - find a choice even when it lives inside a Multi choice. When on, searching also matches choices nested in Multi choices and shows their path. A nested match can rank above a same-level one. Turn it off to search only the level you have open.
-- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot, *Show at the top* makes the template row first, and *Hide* removes it. The row only appears once you have a [template folder](#templates--properties) configured; the **New note from template** command works either way.
+- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot, *Show at the top* makes the template row first, and *Hide* removes it. The row only appears once you have a [template folder](#templates--properties) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
 
 ## Input {#input}
 
@@ -28,7 +28,7 @@ The choice picker is the list you see when you run **QuickAdd: Run**.
 
 ## Templates & Properties {#templates--properties}
 
-- **Template folder paths** - tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Type a folder (autocomplete helps) and press **Add** or Enter; remove one with the trash button on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also switches off the **New note from template** launcher row and command, which need at least one configured folder.
+- **Template folder paths** - tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Type a folder (autocomplete helps) and press **Add** or Enter; remove one with the trash button on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also removes the **New note from template** launcher row, and the command of the same name will only point you back here until a folder is configured.
 - **Convert string front matter variables to typed properties (Beta)** - turn text values into real Obsidian property types so front matter reads correctly. List and object values from scripts are **always** written as proper properties (a list value becomes a List property), so templates produce valid front matter without this toggle. Turning it on **also** converts string values: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. Off by default, because the string conversion is a beta heuristic that can have edge cases. See [Template Property Types (Beta)](/docs/TemplatePropertyTypes/).
 
 ## Notifications {#notifications}

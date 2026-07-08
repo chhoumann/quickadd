@@ -14,10 +14,9 @@ next. Reach for a macro when a single choice isn't enough. Use it to:
 - Branch the workflow based on what you picked or what a script returns
 - Kick off a routine automatically when Obsidian starts
 
-Macros are the most powerful thing QuickAdd can do, so this is the most
-technical of the choice pages. You don't need to be a programmer to start - the
-walkthrough below uses no code at all - but the deeper sections assume you're
-comfortable with a little JavaScript.
+Macros are QuickAdd's most capable - and most technical - choice type. You
+don't need to be a programmer to start: the walkthrough below uses no code at
+all. The deeper sections assume you're comfortable with a little JavaScript.
 
 :::tip
 Once you have a macro (or a whole collection of choices) that you love, use the
@@ -55,7 +54,7 @@ your cursor at the end, ready to type. Two commands, run as one.
 
 1. In the Macro Builder, add an **Obsidian Command** and pick
    `Daily notes: Open today's daily note`.
-2. Add an **Editor** command and choose **Move cursor to file end**.
+2. Add an **Editor commands** entry and choose **Move cursor to file end**.
 3. Close the builder, then run it: command palette →
    `QuickAdd: Run` → `Open daily note`.
 
@@ -71,7 +70,7 @@ order.
 | Command | What it does |
 | --- | --- |
 | **Obsidian Command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
-| **Editor** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
+| **Editor commands** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
 | **User Script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a user script command](#add-a-user-script-command). |
 | **Nested Choice** | Run another QuickAdd choice - a template, capture, or another macro - so you can reuse existing work and build modular workflows. |
 | **Wait** | Pause for a set number of milliseconds, useful when a previous command needs time to finish. |

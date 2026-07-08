@@ -65,7 +65,7 @@ type, difficulty, prerequisites, and outcome.
 
 Good first examples:
 
-- [Capture: Add Journal Entry](/docs/Examples/Capture_AddJournalEntry/)
+- [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/)
 - [Template: Add an Inbox Item](/docs/Examples/Template_AddAnInboxItem/)
 - [Macro: Book Finder](/docs/Examples/Macro_BookFinder/)
 - [Capture: Canvas Capture](/docs/Examples/Capture_CanvasCapture/)

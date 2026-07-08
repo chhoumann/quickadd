@@ -23,8 +23,7 @@ asks you for a value, and if you answer `Standup moved to Wednesday`, it inserts
 - 09:42 Standup moved to Wednesday
 ```
 
-That is all format syntax is: you describe the shape once, QuickAdd fills in the
-blanks every time you run the choice.
+You describe the shape once; QuickAdd fills in the blanks every run.
 
 ## Quick reference {#quick-reference}
 
@@ -413,6 +412,8 @@ input. Works on single-value prompts only (no option lists or `|custom`), and
 overrides the global "Use Multi-line Input Prompt" setting for that
 placeholder.
 
+<a id="mixed-mode-example"></a>
+
 Mix single-line and multi-line in one format:
 
 ```markdown
@@ -597,6 +598,8 @@ behavior as `{{LINKCURRENT}}`.
 
 _Introduced in QuickAdd 2.18.0._
 
+<a id="foldercurrentname---just-the-folder-name"></a>
+
 #### Just the folder's name: `{{FOLDERCURRENT|name}}` {#foldercurrent-name}
 
 `|name` keeps only the last path segment: for a note in `Projects/Acme`,
@@ -628,6 +631,8 @@ Where it stays empty: the capture **Capture to** field (that field is what
 JavaScript API, and macro file-path commands.
 
 _Introduced in QuickAdd 2.14.0._
+
+<a id="foldername--just-the-folder-name"></a>
 
 #### Just the folder's name: `{{FOLDER|name}}` {#folder-name}
 
@@ -725,7 +730,7 @@ captured when the run starts, before any QuickAdd window can move focus.
 
 Behavior:
 
-- The suggestion list still comes from your whole vault (honoring `folder:`/`tag:`/`exclude-*`/`inline` filters); the active note's value is promoted to the top as the default and pre-filled in the one-page form.
+- The suggestion list still comes from your whole vault (honoring `folder:`/`tag:`/`exclude-*`/`inline` filters); the active note's value is promoted to the top as the default and pre-filled in the one-page form. It is promoted even if it already exists in the suggestions.
 - If no Markdown note is active, the note lacks the property, or the value is empty, you get a normal `{{FIELD:...}}` prompt with no default.
 - Plain string/number/boolean values are used as-is. A YAML **list** value applies only to `|multi` prompts, where each item is pre-checked in the picker; single-select prompts skip list values. Objects and null are never used.
 - The property name matches case-insensitively: `{{FIELD:Project|default-from:active}}` still reads a `project` property.
