@@ -34,7 +34,7 @@ interface JsonRpcRequest {
 }
 
 const PROTOCOL_VERSION = "2025-06-18";
-const SUPPORTED_VERSIONS = new Set(["2024-11-05", "2025-03-26", "2025-06-18"]);
+const SUPPORTED_VERSIONS = new Set(["2025-03-26", "2025-06-18"]);
 
 const TOOLS = [
 	{
@@ -69,6 +69,20 @@ const TOOLS = [
 		},
 	},
 ] as const;
+
+const CORS_HEADERS = {
+	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+	"Access-Control-Allow-Headers": "Content-Type, Accept, Mcp-Session-Id, MCP-Protocol-Version",
+	"Access-Control-Expose-Headers": "Mcp-Session-Id, MCP-Protocol-Version",
+} as const;
+
+function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
+	return Response.json(body, {
+		...init,
+		headers: { ...CORS_HEADERS, ...(init.headers ?? {}) },
+	});
+}
 
 function rpcResult(id: JsonRpcId, result: unknown) {
 	return { jsonrpc: "2.0" as const, id, result };
@@ -161,14 +175,17 @@ async function handleToolCall(
 			.trim()
 			.replace(/^\/+|\/+$/g, "");
 		if (!slug) return textResult(id, "Missing 'slug' argument.", true);
-		const res = await env.ASSETS.fetch(new URL(`/${slug}.md`, origin).toString());
-		if (!res.ok) {
+		const pages = await loadManifest(request, env);
+		const page = pages.find((p) => p.slug.toLowerCase() === slug.toLowerCase());
+		if (!page) {
 			return textResult(
 				id,
 				`No page found for slug "${slug}". Use search_quickadd_docs to find valid slugs.`,
 				true,
 			);
 		}
+		const res = await env.ASSETS.fetch(new URL(page.markdownUrl, origin).toString());
+		if (!res.ok) return textResult(id, `Failed to load "${page.slug}" (${res.status}).`, true);
 		return textResult(id, await res.text());
 	}
 
@@ -215,8 +232,20 @@ export const onRequest = async (context: {
 }): Promise<Response> => {
 	const { request, env } = context;
 
+	if (request.method === "OPTIONS") {
+		return new Response(null, { status: 204, headers: CORS_HEADERS });
+	}
+
 	if (request.method === "GET") {
-		return Response.json({
+		// This server never initiates messages, so the spec-defined GET/SSE
+		// stream is unsupported; SSE probes must get 405, not JSON.
+		if ((request.headers.get("Accept") ?? "").includes("text/event-stream")) {
+			return new Response("SSE not supported", {
+				status: 405,
+				headers: { ...CORS_HEADERS, Allow: "POST, OPTIONS" },
+			});
+		}
+		return jsonResponse({
 			name: "quickadd-docs",
 			description:
 				"MCP server for the QuickAdd (Obsidian plugin) documentation. Connect an MCP client to this URL (Streamable HTTP transport) for search_quickadd_docs and get_quickadd_doc tools.",
@@ -226,25 +255,30 @@ export const onRequest = async (context: {
 	}
 
 	if (request.method !== "POST") {
-		return new Response("Method Not Allowed", { status: 405, headers: { Allow: "GET, POST" } });
+		return new Response("Method Not Allowed", {
+			status: 405,
+			headers: { ...CORS_HEADERS, Allow: "GET, POST, OPTIONS" },
+		});
 	}
 
 	let body: unknown;
 	try {
 		body = await request.json();
 	} catch {
-		return Response.json(rpcError(null, -32700, "Parse error"), { status: 400 });
+		return jsonResponse(rpcError(null, -32700, "Parse error"), { status: 400 });
 	}
 
-	const messages = Array.isArray(body) ? body : [body];
-	const requests = messages.filter(
-		(m): m is JsonRpcRequest =>
-			typeof m === "object" && m !== null && "method" in m && "id" in m,
-	);
+	// Streamable HTTP posts exactly one JSON-RPC message per request.
+	if (Array.isArray(body) || typeof body !== "object" || body === null || !("method" in body)) {
+		return jsonResponse(rpcError(null, -32600, "Expected a single JSON-RPC message"), {
+			status: 400,
+		});
+	}
 
-	// Notifications only (e.g. notifications/initialized): acknowledge.
-	if (requests.length === 0) return new Response(null, { status: 202 });
+	const message = body as JsonRpcRequest;
 
-	const responses = await Promise.all(requests.map((m) => handleRpc(m, request, env)));
-	return Response.json(Array.isArray(body) ? responses : responses[0]);
+	// Notifications (no id), e.g. notifications/initialized: acknowledge.
+	if (!("id" in message)) return new Response(null, { status: 202, headers: CORS_HEADERS });
+
+	return jsonResponse(await handleRpc(message, request, env));
 };

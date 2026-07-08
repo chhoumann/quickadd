@@ -19,8 +19,7 @@ export const GET: APIRoute = async () => {
 			),
 			text: (entry.body ?? "")
 				.replace(/```[\s\S]*?```/g, " ")
-				.replace(/\s+/g, " ")
-				.slice(0, 20000),
+				.replace(/\s+/g, " "),
 		}))
 		.sort((a, b) => a.slug.localeCompare(b.slug));
 	return new Response(JSON.stringify({ generated: "build", pages }), {

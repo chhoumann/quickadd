@@ -13,3 +13,6 @@
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Wrangler local state
+/.wrangler
