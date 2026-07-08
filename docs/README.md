@@ -51,3 +51,9 @@ publishes `build/`. Pull requests get preview deployments automatically.
 Docs are single-version: pages go live when they land on `master`. When
 documenting a feature that has not shipped in a plugin release yet, add an
 `_Introduced in QuickAdd X.Y.Z._` line at the section (see AGENTS.md).
+
+Release-note screenshots: commit new ones under `public/img/release-X.Y.Z/`,
+then reference them in the GitHub release body via SHA-pinned
+`raw.githubusercontent.com` URLs. Once the release is published, the folder
+can be deleted from HEAD - the pinned URLs resolve from git history forever
+(that is why no historical release folders live here).
