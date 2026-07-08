@@ -221,6 +221,11 @@ export async function prepareObsidianProfile(options) {
 	const userDataPath = path.join(options.obsidianHome, "Library", "Application Support", "obsidian");
 	await fs.mkdir(userDataPath, { recursive: true, mode: 0o700 });
 	await fs.mkdir(path.join(options.obsidianHome, "Library", "Logs"), { recursive: true, mode: 0o700 });
+	// One resolution feeds BOTH the sandbox seeding and the marker, so what a
+	// fresh instance will run and what reuse checks compare are the same value
+	// (see readInstanceMarker / the CLI's reuse guard).
+	const resolvedApp = await resolveObsidianAppVersion(options);
+	await reconcileSandboxAppAsar(userDataPath, resolvedApp.newestCachedAsar);
 	await linkHostKeychains(options);
 
 	const vaultId = stableVaultId(options.vaultPath);
@@ -238,18 +243,74 @@ export async function prepareObsidianProfile(options) {
 	});
 
 	// Record which worktree this instance belongs to so the teardown reaper can
-	// reap it once that worktree is removed (see INSTANCE_MARKER_FILE).
+	// reap it once that worktree is removed (see INSTANCE_MARKER_FILE), plus the
+	// app-code version this profile was seeded for — the CLI's reuse guard
+	// compares it against a fresh resolution so a warm instance launched on an
+	// older app can't silently keep serving after the host updates Obsidian.
 	await writeJson(path.join(options.instancePath, INSTANCE_MARKER_FILE), {
 		worktreePath: options.worktreePath,
 		vaultName: options.vaultName,
 		vaultPath: options.vaultPath,
+		appVersion: resolvedApp.appVersion,
 	});
 
 	return {
 		obsidianJsonPath,
 		userDataPath,
 		vaultId,
+		appVersion: resolvedApp.appVersion,
 	};
+}
+
+/** Read an instance's marker sidecar; null when absent/unreadable (no instance
+ * yet, or a marker written by an older harness without the field callers want). */
+export async function readInstanceMarker(instancePath) {
+	try {
+		return JSON.parse(
+			await fs.readFile(path.join(instancePath, INSTANCE_MARKER_FILE), "utf8"),
+		);
+	} catch {
+		return null;
+	}
+}
+
+// The launched instance resolves its app-code asar from ITS OWN config dir:
+// $HOME is overridden to the sandbox, so the real config dir's auto-updated
+// obsidian-<version>.asar is invisible to it and it silently boots the OLDER
+// bundled installer build (verified live: real config had 1.13.0, the sandbox
+// instance ran 1.12.7 and could not render declarative settings tabs). That is
+// exactly the divergence the minAppVersion guard below predicts against — the
+// guard resolves from the REAL config dir — so make the sandbox match the
+// prediction: remove any stale sandbox asars (a leftover from an older run
+// could otherwise outrank the predicted version), then copy the exact asar the
+// resolver selected. Copy, not symlink: Obsidian manages (rewrites/deletes)
+// asars next to obsidian.json. A failed copy THROWS — succeeding silently
+// would let the guard pass while the instance boots something else. With no
+// cached asar at all the sandbox is left clean and the instance runs the
+// bundled installer build, which the guard still validates against
+// minAppVersion.
+async function reconcileSandboxAppAsar(userDataPath, newestCachedAsar) {
+	for (const name of await fs.readdir(userDataPath)) {
+		if (!OBSIDIAN_ASAR_VERSION_RE.test(name)) continue;
+		if (newestCachedAsar && name === newestCachedAsar.name) continue;
+		await fs.rm(path.join(userDataPath, name), { force: true });
+	}
+	if (!newestCachedAsar) return null;
+
+	const destination = path.join(userDataPath, newestCachedAsar.name);
+	try {
+		// Already seeded by a previous run (same name + size): skip the copy so
+		// per-command CLI calls don't rewrite ~25MB under a running instance.
+		const [source, existing] = await Promise.all([
+			fs.stat(newestCachedAsar.path),
+			fs.stat(destination),
+		]);
+		if (source.size === existing.size) return newestCachedAsar.version;
+	} catch {
+		// Destination missing — fall through to the copy.
+	}
+	await fs.copyFile(newestCachedAsar.path, destination);
+	return newestCachedAsar.version;
 }
 
 async function linkHostKeychains(options) {
@@ -399,11 +460,13 @@ export async function trustVaultAndVerifyQuickAdd(options) {
 // Obsidian has TWO versions: the installer shell (the .app, shown in the window
 // title) and the auto-updated app code (obsidian-<version>.asar, == the
 // `apiVersion` plugins see). minAppVersion is enforced against the app-code
-// version, not the installer. On macOS the app-code asar lives in the LOGIN
-// user's Application Support dir, resolved from getpwuid (os.userInfo) rather
-// than $HOME — so even though this harness isolates $HOME/--user-data-dir, the
-// launched instance loads the newest asar from the real config dir, floored at
-// the installer's bundled asar. When NO installed asar reaches minAppVersion,
+// version, not the installer. The app-code asar is resolved from the config
+// dir of the HOME the app runs under — for this harness that is the ISOLATED
+// sandbox home (verified live: with an empty sandbox the instance booted the
+// bundled installer build even though the real config dir held a newer asar),
+// so prepareObsidianProfile seeds the newest real-config asar into the sandbox
+// (seedNewestObsidianAsar) and the instance loads that, floored at the
+// installer's bundled asar. When NO installed asar reaches minAppVersion,
 // Obsidian silently runs the bundled installer build, which can be BELOW
 // minAppVersion. e2e then runs against an app QuickAdd does not support, so a
 // "missing API" crash there is a false signal (this is exactly what makes a
@@ -415,13 +478,14 @@ export async function trustVaultAndVerifyQuickAdd(options) {
 // expose `apiVersion` to a CDP-evaluated snippet (require("obsidian") is not
 // resolvable outside plugin scope, and the window title carries the INSTALLER
 // version, not the app-code version), so the app-code version cannot be read from
-// the running renderer. We therefore resolve it the same way Obsidian does — the
-// newest valid installed asar in the real config dir, floored at the bundled
-// installer asar. The guard runs BEFORE launch, so a fresh instance loads exactly
-// what we resolved. Residual edge: a warm instance reused from an earlier run
-// (see the CLI's isInstanceReady reuse) reflects the asar resolution at ITS
-// launch; an Obsidian update mid-session is not re-detected. Instances are reaped
-// per worktree and Obsidian versions are stable within a run, so this is bounded.
+// the running renderer. We therefore resolve it from the same inputs the seeding
+// uses — the newest valid installed asar in the real config dir, floored at the
+// bundled installer asar. The guard runs BEFORE launch, and prepareObsidianProfile
+// seeds that same asar into the sandbox, so a fresh instance loads exactly
+// what we resolved. A warm instance reused from an earlier run reflects the
+// asar resolution at ITS launch — the instance marker records that version and
+// the CLI's reuse guard refuses to reuse when it no longer matches a fresh
+// resolution (an Obsidian update mid-session forces an explicit restart).
 
 const OBSIDIAN_ASAR_VERSION_RE = /^obsidian-(\d+\.\d+\.\d+)\.asar$/;
 
@@ -513,6 +577,10 @@ export async function resolveObsidianAppVersion(options = {}) {
 	const configDir = options.obsidianConfigDir ?? macObsidianConfigDir();
 
 	const cachedVersions = [];
+	// The single authority for "which cached asar is newest" — the seeding step
+	// (reconcileSandboxAppAsar) copies exactly this file, so the guard's
+	// prediction and the seeded sandbox cannot diverge by construction.
+	let newestCachedAsar = null;
 	try {
 		for (const name of await fs.readdir(configDir)) {
 			if (!OBSIDIAN_ASAR_VERSION_RE.test(name)) continue;
@@ -521,7 +589,14 @@ export async function resolveObsidianAppVersion(options = {}) {
 			// either), so a half-downloaded obsidian-<newer>.asar cannot make the
 			// guard pass while the live app actually falls back to an older build.
 			const version = await readAsarPackageVersion(path.join(configDir, name));
-			if (version) cachedVersions.push(version);
+			if (!version) continue;
+			cachedVersions.push(version);
+			if (
+				!newestCachedAsar ||
+				compareObsidianVersions(version, newestCachedAsar.version) > 0
+			) {
+				newestCachedAsar = { name, path: path.join(configDir, name), version };
+			}
 		}
 	} catch {
 		// Config dir missing/unreadable — fall back to the bundled installer below.
@@ -539,7 +614,7 @@ export async function resolveObsidianAppVersion(options = {}) {
 		? all.reduce((max, v) => (compareObsidianVersions(v, max) > 0 ? v : max))
 		: null;
 
-	return { appVersion, installerVersion, cachedVersions, configDir };
+	return { appVersion, installerVersion, cachedVersions, configDir, newestCachedAsar };
 }
 
 async function readPluginMinAppVersion(worktreePath) {

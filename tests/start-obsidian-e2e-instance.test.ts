@@ -45,7 +45,12 @@ describe("start-obsidian-e2e-instance", () => {
 			cwd,
 		);
 
-		const profile = await prepareObsidianProfile(options);
+		const profile = await prepareObsidianProfile({
+			...options,
+			// Hermetic: never scan the real host config dir / copy a real asar.
+			obsidianConfigDir: await makeTempDir("quickadd-empty-config"),
+			bundledAsarCandidates: [] as string[],
+		});
 		const registry = JSON.parse(await fs.readFile(profile.obsidianJsonPath, "utf8"));
 		const vaults = Object.values(registry.vaults) as Array<{ path: string; open: boolean }>;
 
@@ -88,8 +93,16 @@ describe("start-obsidian-e2e-instance", () => {
 			]),
 			cwd,
 		);
+		// Hermetic app-version resolution: no real host config dir, no bundled
+		// installer — so the test never copies a real ~25MB asar and the marker's
+		// appVersion is deterministically null.
+		const hermetic = {
+			...options,
+			obsidianConfigDir: await makeTempDir("quickadd-empty-config"),
+			bundledAsarCandidates: [] as string[],
+		};
 
-		await prepareObsidianProfile(options);
+		await prepareObsidianProfile(hermetic);
 
 		// The reaper keys off this exact sidecar (see isInstanceOrphaned). Prove the
 		// producer (prepareObsidianProfile, shared by start + the CLI wrapper) writes
@@ -104,6 +117,7 @@ describe("start-obsidian-e2e-instance", () => {
 			worktreePath: options.worktreePath,
 			vaultName: options.vaultName,
 			vaultPath: options.vaultPath,
+			appVersion: null,
 		});
 		expect(path.resolve(marker.worktreePath)).toBe(path.resolve(cwd));
 	});
@@ -264,6 +278,65 @@ describe("resolveObsidianAppVersion", () => {
 		});
 		expect(resolved.appVersion).toBe("1.13.0");
 		expect(resolved.cachedVersions.sort()).toEqual(["1.12.7", "1.13.0"]);
+		// The seeding step copies exactly this file (single resolver authority).
+		expect(resolved.newestCachedAsar).toEqual({
+			name: "obsidian-1.13.0.asar",
+			path: path.join(configDir, "obsidian-1.13.0.asar"),
+			version: "1.13.0",
+		});
+	});
+
+	it("seeds the resolved asar into the sandbox profile and records it in the marker", async () => {
+		// The launched instance resolves its app-code asar from the ISOLATED
+		// sandbox home; prepareObsidianProfile must therefore materialize the
+		// version the guard predicts (and reconcile away stale sandbox asars, so
+		// a leftover newer file can't outrank the prediction).
+		const cwd = await makeTempDir("quickadd-instance");
+		const options = resolveInstanceOptions(
+			parseArgs([
+				"--vault",
+				"quickadd-worktree-seed",
+				"--root",
+				"vaults",
+				"--profile-root",
+				"profiles",
+				"--no-launch",
+			]),
+			cwd,
+		);
+
+		const first = await prepareObsidianProfile({
+			...options,
+			obsidianConfigDir: await makeConfigDir(["1.12.7"]),
+			bundledAsarCandidates: [] as string[],
+		});
+		await expect(
+			fs.stat(path.join(first.userDataPath, "obsidian-1.12.7.asar")),
+		).resolves.toBeTruthy();
+		expect(first.appVersion).toBe("1.12.7");
+
+		// Host updated: re-preparing swaps the sandbox to the new resolution and
+		// removes the now-stale asar.
+		const second = await prepareObsidianProfile({
+			...options,
+			obsidianConfigDir: await makeConfigDir(["1.13.0"]),
+			bundledAsarCandidates: [] as string[],
+		});
+		await expect(
+			fs.stat(path.join(second.userDataPath, "obsidian-1.13.0.asar")),
+		).resolves.toBeTruthy();
+		await expect(
+			fs.stat(path.join(second.userDataPath, "obsidian-1.12.7.asar")),
+		).rejects.toMatchObject({ code: "ENOENT" });
+		expect(second.appVersion).toBe("1.13.0");
+
+		const marker = JSON.parse(
+			await fs.readFile(
+				path.join(options.instancePath, INSTANCE_MARKER_FILE),
+				"utf8",
+			),
+		);
+		expect(marker.appVersion).toBe("1.13.0");
 	});
 
 	it("floors at the bundled installer asar when the config dir is empty", async () => {

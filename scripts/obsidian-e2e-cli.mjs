@@ -10,6 +10,7 @@ import {
 	launchObsidianInstance,
 	parseArgs as parseInstanceArgs,
 	prepareObsidianProfile,
+	readInstanceMarker,
 	reapStaleInstances,
 	resolveInstanceOptions,
 	trustVaultAndVerifyQuickAdd,
@@ -122,6 +123,11 @@ async function isInstanceReady(options) {
 }
 
 export async function ensureObsidianInstance(options) {
+	// Read the PREVIOUS instance marker before prepareObsidianProfile rewrites
+	// it — it records the app-code version a still-running instance was
+	// launched with, which the reuse guard below compares against.
+	const previousMarker = await readInstanceMarker(options.instancePath);
+
 	const provisionResult = await provisionVault(options);
 	const profileResult = await prepareObsidianProfile(options);
 	options.userDataPath = profileResult.userDataPath;
@@ -137,7 +143,30 @@ export async function ensureObsidianInstance(options) {
 			`, plugin minAppVersion ${compatibility.minAppVersion}`,
 	);
 
-	if (!(await isInstanceReady(options))) {
+	const ready = await isInstanceReady(options);
+	if (
+		ready &&
+		previousMarker?.appVersion &&
+		compatibility.appVersion &&
+		previousMarker.appVersion !== compatibility.appVersion
+	) {
+		// A warm instance keeps the app code it was LAUNCHED with; seeding the
+		// sandbox cannot retrofit a running process. Fail loudly instead of
+		// letting the banner report a version the instance is not running.
+		throw new Error(
+			`The running e2e Obsidian instance was launched as app ${previousMarker.appVersion}, ` +
+				`but the harness now resolves ${compatibility.appVersion}. Restart it first: ` +
+				`pnpm run stop:e2e-obsidian -- --vault ${options.vaultName}`,
+		);
+	}
+	if (ready && !previousMarker?.appVersion) {
+		console.error(
+			"Note: reusing a running e2e instance whose launch-time app version was not recorded " +
+				"(marker predates the version guard); restart it if behavior looks off.",
+		);
+	}
+
+	if (!ready) {
 		await launchObsidianInstance(options);
 		await waitForInstanceReady(options);
 	}
