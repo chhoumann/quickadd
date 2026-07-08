@@ -31,22 +31,12 @@ Vitest (configured in `vitest.config.mts`) runs under jsdom and cannot load real
 ## Commit & Pull Request Guidelines
 Follow Conventional Commits (`feat:`, `fix:`, `test:`, `release(version): ...`) so semantic-release can determine versions. Keep generated files in the same commit as the changes that produced them. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
 
-## Documentation Versioning
-Docs live in `docs/` and use Docusaurus with versioned documentation. The current (unreleased) docs are in `docs/docs/`, while stable snapshots live in `docs/versioned_docs/version-X.Y.Z/`.
+## Documentation
+Docs live in `docs/` (Docusaurus) and are single-version: `docs/docs/` serves at `/docs/` on quickadd.obsidian.guide, and edits go live when they land on `master` (deployed by Cloudflare Pages). There are no versioned snapshots - do NOT run `docusaurus docs:version` or recreate `versioned_docs/`. Historical docs states are recoverable from git tags (`git checkout <tag> -- docs/docs`).
 
-**When releasing a new version:**
-```bash
-cd docs && pnpm run docusaurus docs:version X.Y.Z
-```
-This snapshots `docs/docs/` as the new stable version. Update `docs/docusaurus.config.js` to set `lastVersion` to the new version and add an entry under `versions`.
+Because docs track `master` while plugin releases are cut manually, docs can briefly describe features users don't have yet. The contract for that window: when documenting a feature that has not shipped in a release, add an "Introduced in vX.Y.Z" line (or an `:::info Available in the next release` callout) at the section you're adding, in the same PR as the docs change. Fill in the real version number if it's known from the pending release.
 
-**Structure:**
-- `docs/docs/` → "Next" (unreleased, shows warning banner)
-- `docs/versioned_docs/version-X.Y.Z/` → stable release docs
-- `docs/versions.json` → list of versioned snapshots
-- `docs/versioned_sidebars/` → sidebar configs for each version
-
-Keep docs in sync: update `docs/docs/` when adding features, and snapshot when releasing.
+Old `/docs/<version>/...` and `/docs/next/...` URLs 301 to their current equivalents via `docs/static/_redirects` (Cloudflare Pages reads it from the build output). If a docs page is ever renamed or deleted, add a redirect for its old path there.
 
 ## Agent Playbook
 Automation or scripted work should surface disruptive operations in the PR description and rerun `pnpm run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
