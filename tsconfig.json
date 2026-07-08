@@ -20,5 +20,6 @@
 		"experimentalDecorators": true,
 		"verbatimModuleSyntax": true
 	},
-	"include": ["**/*.ts"]
+	"include": ["**/*.ts"],
+	"exclude": ["node_modules", "docs"]
 }
