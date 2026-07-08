@@ -8,8 +8,7 @@
     "dev": "astro dev",
     "start": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
-    "typecheck": "astro check"
+    "preview": "astro preview"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.3",

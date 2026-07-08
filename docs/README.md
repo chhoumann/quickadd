@@ -13,6 +13,11 @@ The docs site (https://quickadd.obsidian.guide), built with [Astro Starlight](ht
   `scripts/`, `_redirects`, `_headers`).
 - `plugins/remark-heading-id.mjs` - supports `## Heading {#custom-id}` anchors.
 
+Note on dependencies: `zod` and `unist-util-visit` are direct dependencies on
+purpose. This package lives inside the plugin repo, and under pnpm's isolated
+layout a transitive import that isn't declared here can resolve to the PARENT
+repo's node_modules (a different major of zod broke the build this way).
+
 ## Commands
 
 ```sh

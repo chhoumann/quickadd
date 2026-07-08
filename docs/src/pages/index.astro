@@ -391,6 +391,8 @@ const icons: Record<string, string> = {
   --qa-cta-bg: #5a4aec;
   --qa-cta-bg-hover: #4a38e9;
   --qa-cta-fg: #ffffff;
+  --qa-font-mono: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
 }
 
 [data-theme='dark'] {
@@ -714,7 +716,7 @@ a {
   background: var(--qa-canvas);
   border: 1px solid var(--qa-line-strong);
   border-radius: 9px;
-  font-family: var(--ifm-font-family-monospace);
+  font-family: var(--qa-font-mono);
   font-size: 0.82rem;
 }
 
@@ -744,7 +746,7 @@ a {
 
 .previewCapture span {
   color: var(--qa-accent);
-  font-family: var(--ifm-font-family-monospace);
+  font-family: var(--qa-font-mono);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -783,7 +785,7 @@ a {
   border: 1px solid var(--qa-line-strong);
   border-bottom-width: 2px;
   border-radius: 5px;
-  font-family: var(--ifm-font-family-monospace);
+  font-family: var(--qa-font-mono);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--qa-ink);
@@ -1107,7 +1109,7 @@ a {
   background: var(--qa-canvas-raised);
   border: 1px solid var(--qa-line-strong);
   border-radius: 999px;
-  font-family: var(--ifm-font-family-monospace);
+  font-family: var(--qa-font-mono);
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
   font-size: 0.9375rem;

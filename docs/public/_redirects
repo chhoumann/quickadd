@@ -38,6 +38,7 @@
 /docs/2.9.4 /docs/ 301
 /docs/2.9.4/* /docs/:splat 301
 # Docusaurus-era routes that no longer exist on the Astro site.
+/docs/tags /docs/ 301
 /docs/tags/* /docs/ 301
 /markdown-page / 301
 /search /docs/ 301

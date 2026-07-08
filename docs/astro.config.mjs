@@ -1,7 +1,37 @@
 // @ts-check
+import { globSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
+
+/**
+ * Every docs page must pin its URL with `slug:` frontmatter - without it,
+ * Astro lowercases the generated slug and the page's historical MixedCase
+ * URL silently changes. Fail the build instead.
+ * @returns {import("astro").AstroIntegration}
+ */
+function enforceExplicitSlugs() {
+	return {
+		name: "quickadd:enforce-explicit-slugs",
+		hooks: {
+			"astro:config:setup": () => {
+				const root = fileURLToPath(new URL("./src/content/docs/", import.meta.url));
+				const missing = globSync("**/*.md", { cwd: root }).filter(
+					(file) =>
+						!/^slug:/m.test(
+							readFileSync(root + file, "utf8").split("\n---\n", 2)[0] ?? "",
+						),
+				);
+				if (missing.length > 0) {
+					throw new Error(
+						`Docs pages missing explicit "slug:" frontmatter (URLs would silently change): ${missing.join(", ")}`,
+					);
+				}
+			},
+		},
+	};
+}
 
 // https://astro.build/config
 export default defineConfig({
@@ -21,6 +51,7 @@ export default defineConfig({
 		},
 	},
 	integrations: [
+		enforceExplicitSlugs(),
 		starlight({
 			title: "QuickAdd",
 			logo: {

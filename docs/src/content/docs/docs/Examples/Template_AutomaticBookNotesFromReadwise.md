@@ -8,13 +8,13 @@ slug: docs/Examples/Template_AutomaticBookNotesFromReadwise
 
 #### Installation
 
-Here's a video guide for [installing user scripts in QuickAdd](https://github.com/chhoumann/quickadd/blob/master/docs/docs/Examples/Capture_FetchTasksFromTodoist.md#installation-video).
+Here's a video guide for [installing user scripts in QuickAdd](/docs/Examples/Capture_FetchTasksFromTodoist/#installation-video).
 
 Basically, you'll want to create a new JavaScript file (file extension is `.js`) with the contents of the script. Then, in the script, you see the `YOUR_READWISE_TOKEN`, which is where you'll want to insert your Readwise token (find it [here](https://readwise.io/access_token)).
 
 Now you need to create a new macro. To do so, open QuickAdd's settings, click `New choice`, and select `Macro`. Give the macro a name (I use `Readwise`), then click the configure button (⚙️) to open the Macro Builder. In the builder, add a `User Script` command: type the name of the script you created (or click `Browse`) and click `Add`.
 
-Once that's done, you can use the [template provided below](https://github.com/chhoumann/quickadd/blob/master/docs/Examples/Template_AutomaticBookNotesFromReadwise.md#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something else than `Readwise`, replace `Readwise` with that.
+Once that's done, you can use the [template provided below](#template). If you have your own, then you can just use the `{{MACRO:Readwise::instaFetchBook}}` to insert the highlights. If you called your macro something else than `Readwise`, replace `Readwise` with that.
 
 This template should be added to a [Template choice](/docs/Choices/TemplateChoice/), and should be given values that resemble this:
 ![Template choice setup](../Images/readwise_template_choice.png)
