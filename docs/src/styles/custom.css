@@ -1,0 +1,27 @@
+/* QuickAdd brand theme for Starlight. */
+
+@import url('https://rsms.me/inter/inter.css');
+
+:root {
+	--sl-font:
+		'InterVariable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+		Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Apple Color Emoji',
+		'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+	--sl-font-mono:
+		'JetBrains Mono', 'SF Mono', Monaco, Consolas, 'Liberation Mono',
+		'Courier New', monospace;
+}
+
+/* Obsidian-ish purple-blue accent (dark mode). */
+:root {
+	--sl-color-accent-low: #2a2360;
+	--sl-color-accent: #6b5cef;
+	--sl-color-accent-high: #c9c1fb;
+}
+
+/* Light mode accent - darker shade for AA contrast. */
+:root[data-theme='light'] {
+	--sl-color-accent-low: #e6e3fd;
+	--sl-color-accent: #5a4aec;
+	--sl-color-accent-high: #38288a;
+}

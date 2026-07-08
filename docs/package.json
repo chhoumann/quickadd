@@ -2,66 +2,20 @@
   "name": "docs",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "docusaurus": "docusaurus",
-    "start": "docusaurus start",
-    "build": "docusaurus build",
-    "swizzle": "docusaurus swizzle",
-    "deploy": "docusaurus deploy",
-    "clear": "docusaurus clear",
-    "serve": "docusaurus serve",
-    "write-translations": "docusaurus write-translations",
-    "write-heading-ids": "docusaurus write-heading-ids",
-    "typecheck": "tsc"
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "typecheck": "astro check"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.1",
-    "@docusaurus/preset-classic": "3.10.1",
-    "@easyops-cn/docusaurus-search-local": "^0.55.2",
-    "@mdx-js/react": "^3.1.1",
-    "clsx": "^2.1.1",
-    "prism-react-renderer": "^2.4.1",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7"
-  },
-  "devDependencies": {
-    "@docusaurus/module-type-aliases": "3.10.1",
-    "@docusaurus/theme-classic": "3.10.1",
-    "@docusaurus/types": "3.10.1",
-    "@tsconfig/docusaurus": "^2.0.9",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
-    "typescript": "6"
-  },
-  "pnpm": {
-    "overrides": {
-      "webpackbar": "^7.0.0",
-      "serialize-javascript": "^7.0.3",
-      "joi": "^17.13.4",
-      "uuid": "^11.1.1",
-      "@docusaurus/core>webpack-dev-server": "5.2.5",
-      "webpack-dev-server>http-proxy-middleware": "3.0.7",
-      "cheerio>undici": "7.28.0",
-      "gray-matter>js-yaml": "4.2.0"
-    },
-    "patchedDependencies": {
-      "gray-matter@4.0.3": "patches/gray-matter@4.0.3.patch"
-    }
-  },
-  "browserslist": {
-    "production": [
-      ">0.5%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
-  "engines": {
-    "node": ">=20.18.1"
+    "@astrojs/starlight": "^0.36.2",
+    "astro": "^5.12.0",
+    "sharp": "^0.34.2",
+    "unist-util-visit": "^5.1.0",
+    "zod": "3.25.76"
   }
 }

@@ -1,0 +1,1162 @@
+---
+// QuickAdd landing page. Static, zero client JS (bar the theme sync snippet).
+const description =
+	"Quickly add new pages or content to your vault. Templates, captures, macros, and AI, bound to one hotkey.";
+
+const features = [
+	{
+		title: "Lightning-fast capture",
+		icon: "zap",
+		description:
+			"Hit one hotkey and drop content into any note. No file picker, no friction — just type and it lands where you want.",
+	},
+	{
+		title: "Powerful templates",
+		icon: "fileText",
+		description:
+			"Compose notes with dynamic variables, dates, and inline prompts. Plays well with Obsidian Templates and Templater.",
+	},
+	{
+		title: "Macro automations",
+		icon: "workflow",
+		description:
+			"Chain choices and user scripts into one-key workflows. Scrape metadata, update a log, open a file — all in sequence.",
+	},
+	{
+		title: "Built-in AI",
+		icon: "sparkles",
+		description:
+			"Talk to OpenAI, Anthropic, or a local model. Summarize, expand, and rewrite notes without leaving Obsidian.",
+	},
+	{
+		title: "Organize with Multis",
+		icon: "folderTree",
+		description:
+			"Group related choices into nested folders. Build your own menu for your own workflows.",
+	},
+	{
+		title: "Actively maintained",
+		icon: "rocket",
+		description:
+			"Regular updates shaped by real community feedback. Battle-tested in thousands of vaults.",
+	},
+];
+
+const examples = [
+	{
+		title: "Book database",
+		icon: "book",
+		description:
+			"Fetch metadata from APIs and generate rich book notes. Track ratings, quotes, and reading progress with one command.",
+		href: "/docs/Examples/Macro_BookFinder/",
+	},
+	{
+		title: "Daily journaling",
+		icon: "pen",
+		description:
+			"Capture entries with timestamps, weather, and mood. Never miss a day with guided prompts.",
+		href: "/docs/Examples/Capture_AddJournalEntry/",
+	},
+	{
+		title: "Media tracker",
+		icon: "film",
+		description:
+			"Log movies and shows with auto-fetched metadata. Curate watchlists and reviews without friction.",
+		href: "/docs/Examples/Macro_MovieAndSeriesScript/",
+	},
+	{
+		title: "Task management",
+		icon: "listChecks",
+		description:
+			"Send tasks to Todoist, populate Kanban boards, and run projects. Make Obsidian your productivity hub.",
+		href: "/docs/Examples/Capture_AddTaskToKanbanBoard/",
+	},
+];
+
+const steps = [
+	{
+		title: "Install",
+		description:
+			"Find QuickAdd in Obsidian's Community Plugins browser and enable it.",
+	},
+	{
+		title: "Create a choice",
+		description:
+			"Pick Template, Capture, Macro, or Multi based on what you want to automate.",
+	},
+	{
+		title: "Hit your hotkey",
+		description:
+			"Trigger QuickAdd with ⌘/Ctrl-P and pick your choice. That’s it.",
+	},
+];
+
+const workflowRows = [
+	{
+		type: "Capture",
+		label: "Daily log",
+		detail: "Append a timestamped entry to today’s note.",
+	},
+	{
+		type: "Template",
+		label: "Meeting note",
+		detail: "Create a note with variables, prompts, and properties.",
+	},
+	{
+		type: "Macro",
+		label: "Book lookup",
+		detail: "Fetch metadata, write a note, and open it in place.",
+	},
+];
+
+// Lucide-style icon paths (24x24, currentColor stroke).
+const icons: Record<string, string> = {
+	zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />',
+	fileText:
+		'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" />',
+	workflow:
+		'<rect width="8" height="8" x="3" y="3" rx="2" /><path d="M7 11v4a2 2 0 0 0 2 2h4" /><rect width="8" height="8" x="13" y="13" rx="2" />',
+	sparkles:
+		'<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /><path d="M4 17v2" /><path d="M5 18H3" />',
+	folderTree:
+		'<path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M3 5a2 2 0 0 0 2 2h3" /><path d="M3 3v13a2 2 0 0 0 2 2h3" />',
+	rocket:
+		'<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" /><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />',
+	book: '<path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />',
+	pen: '<path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />',
+	film: '<rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 3v18" /><path d="M3 7.5h4" /><path d="M3 12h18" /><path d="M3 16.5h4" /><path d="M17 3v18" /><path d="M17 7.5h4" /><path d="M17 16.5h4" />',
+	listChecks:
+		'<path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" />',
+	github:
+		'<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" />',
+};
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>QuickAdd — Supercharge your Obsidian workflow</title>
+		<meta name="description" content={description} />
+		<link rel="icon" href="/img/favicon.ico" />
+		<link rel="canonical" href="https://quickadd.obsidian.guide/" />
+		<meta property="og:title" content="QuickAdd — Supercharge your Obsidian workflow" />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content="https://quickadd.obsidian.guide/img/quickadd-logo.png" />
+		<meta property="og:type" content="website" />
+		<meta name="twitter:card" content="summary_large_image" />
+		<script is:inline>
+			// Follow the docs' Starlight theme choice; fall back to the OS scheme.
+			const stored = localStorage.getItem("starlight-theme");
+			const theme =
+				stored === "light" || stored === "dark"
+					? stored
+					: window.matchMedia("(prefers-color-scheme: dark)").matches
+						? "dark"
+						: "light";
+			document.documentElement.dataset.theme = theme;
+		</script>
+	</head>
+	<body>
+		<div class="landing">
+			<header class="siteHeader">
+				<nav class="container siteNav" aria-label="Main">
+					<a class="brand" href="/">
+						<img src="/img/quickadd-icon.png" alt="" width="26" height="26" />
+						<span>QuickAdd</span>
+					</a>
+					<div class="navLinks">
+						<a href="/docs/">Docs</a>
+						<a href="/docs/QuickAddAPI/">API</a>
+						<a href="/docs/Examples/">Examples</a>
+						<a
+							class="navGithub"
+							href="https://github.com/chhoumann/quickadd"
+							aria-label="GitHub repository">
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.75"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								set:html={icons.github}
+							/>
+						</a>
+					</div>
+				</nav>
+			</header>
+
+			<header class="hero">
+				<div class="container">
+					<img src="/img/quickadd-icon.png" alt="" class="heroLogo" aria-hidden="true" />
+					<div class="eyebrow">For Obsidian</div>
+					<h1 class="heroTitle">Supercharge Obsidian with one hotkey.</h1>
+					<p class="heroSubtitle">
+						Templates, captures, macros, and AI, bound to a single command. QuickAdd turns
+						repetitive note-taking tasks into keystrokes.
+					</p>
+					<div class="heroActions">
+						<a class="buttonPrimary" href="/docs/">Read the docs</a>
+						<a class="buttonSecondary" href="https://obsidian.md/plugins?id=quickadd">
+							Install from Obsidian
+						</a>
+					</div>
+					<div class="workflowPreview" aria-label="QuickAdd workflow preview">
+						<div class="previewChrome"><span></span><span></span><span></span></div>
+						<div class="previewGrid">
+							<div class="previewSidebar">
+								<div class="previewSidebarTitle">QuickAdd</div>
+								{
+									workflowRows.map((row) => (
+										<div class="previewChoice">
+											<span class="previewChoiceType">{row.type}</span>
+											<span>{row.label}</span>
+										</div>
+									))
+								}
+							</div>
+							<div class="previewCommand">
+								<div class="previewCommandLabel">Command palette</div>
+								<div class="previewSearch">QuickAdd: Run Choice</div>
+								<div class="previewResults">
+									{
+										workflowRows.map((row) => (
+											<div class="previewResult">
+												<span>{row.label}</span>
+												<span>{row.type}</span>
+											</div>
+										))
+									}
+								</div>
+							</div>
+							<div class="previewNote">
+								<div class="previewNoteTitle">Daily note</div>
+								<div class="previewLine"></div>
+								<div class="previewLineShort"></div>
+								<div class="previewCapture">
+									<span>10:42</span>
+									<p>Captured idea with source link and project tag.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="heroChip" aria-hidden="true">
+						<kbd class="kbd">⌘</kbd>
+						<kbd class="kbd">P</kbd>
+						<span class="chipArrow">/</span>
+						<span class="chipLabel">QuickAdd: Run Choice</span>
+					</div>
+				</div>
+			</header>
+
+			<main>
+				<section class="section">
+					<div class="container">
+						<div class="sectionHead">
+							<div class="eyebrow">Features</div>
+							<h2 class="sectionTitle">Four composable choices. Endless workflows.</h2>
+							<p class="sectionSubtitle">
+								Templates, Captures, Macros, and Multis combine into whatever automation your
+								vault needs — with AI on tap.
+							</p>
+						</div>
+						<dl class="features">
+							{
+								features.map((f) => (
+									<div class="feature">
+										<dt class="featureTitle">
+											<span class="featureIcon" aria-hidden="true">
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="1.75"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													set:html={icons[f.icon]}
+												/>
+											</span>
+											<span class="featureTitleText">{f.title}</span>
+										</dt>
+										<dd class="featureDesc">{f.description}</dd>
+									</div>
+								))
+							}
+						</dl>
+					</div>
+				</section>
+
+				<section class="section">
+					<div class="container">
+						<div class="sectionHead">
+							<div class="eyebrow">Examples</div>
+							<h2 class="sectionTitle">What can you build?</h2>
+							<p class="sectionSubtitle">
+								A few things people actually ship with QuickAdd. Every example ships with a
+								walkthrough.
+							</p>
+						</div>
+						<div class="examples">
+							{
+								examples.map((e) => (
+									<article class="example">
+										<span class="exampleIcon">
+											<svg
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="currentColor"
+												stroke-width="1.75"
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												aria-hidden="true"
+												set:html={icons[e.icon]}
+											/>
+										</span>
+										<h3 class="exampleTitle">{e.title}</h3>
+										<p class="exampleDesc">{e.description}</p>
+										<a class="exampleLink" href={e.href} aria-label={`Learn how: ${e.title}`}>
+											Learn how →
+										</a>
+									</article>
+								))
+							}
+						</div>
+					</div>
+				</section>
+
+				<section class="quickStart">
+					<div class="container">
+						<div class="sectionHead">
+							<div class="eyebrow">Get started</div>
+							<h2 class="sectionTitle">Up and running in three steps.</h2>
+						</div>
+						<ol class="steps" role="list">
+							{
+								steps.map((s, i) => (
+									<li class="step">
+										<span class="stepNumber" aria-hidden="true">
+											{String(i + 1).padStart(2, "0")}
+										</span>
+										<h3 class="stepTitle">{s.title}</h3>
+										<p class="stepDesc">{s.description}</p>
+									</li>
+								))
+							}
+						</ol>
+						<div class="quickStartCta">
+							<a class="buttonPrimary" href="/docs/">Read the documentation</a>
+							<a class="buttonSecondary" href="/docs/Examples/">Browse examples</a>
+						</div>
+					</div>
+				</section>
+			</main>
+
+			<footer class="siteFooter">
+				<div class="container footerGrid">
+					<div>
+						<div class="footerTitle">Docs</div>
+						<a href="/docs/">Documentation</a>
+					</div>
+					<div>
+						<div class="footerTitle">Community</div>
+						<a href="https://github.com/chhoumann/quickadd/discussions">Discussions</a>
+					</div>
+				</div>
+				<div class="container footerMeta">
+					Copyright © {new Date().getFullYear()} Christian Bager Bach Houmann.
+				</div>
+			</footer>
+		</div>
+		<style is:global>
+			/* QuickAdd landing page styles. Ported from the Docusaurus landing
+   (index.module.css); class names kept 1:1 with the old CSS module. */
+
+@import url('https://rsms.me/inter/inter.css');
+
+:root {
+  --qa-canvas: #f7f5f0;
+  --qa-canvas-raised: #ffffff;
+  --qa-ink: #18181b;
+  --qa-ink-muted: #52525b;
+  --qa-ink-subtle: #71717a;
+  --qa-line: rgba(24, 24, 27, 0.08);
+  --qa-line-strong: rgba(24, 24, 27, 0.14);
+  /* Text/icon accent - darker shade for AA contrast on cream canvas (~5.4:1) */
+  --qa-accent: #5a4aec;
+  --qa-accent-soft: rgba(124, 110, 242, 0.1);
+  /* Dedicated CTA tokens - white on #5a4aec passes AA at 5.68:1 */
+  --qa-cta-bg: #5a4aec;
+  --qa-cta-bg-hover: #4a38e9;
+  --qa-cta-fg: #ffffff;
+}
+
+[data-theme='dark'] {
+  --qa-canvas: #17181c;
+  --qa-canvas-raised: #1f2126;
+  --qa-ink: #f4f4f5;
+  --qa-ink-muted: #a1a1aa;
+  --qa-ink-subtle: #71717a;
+  --qa-line: rgba(244, 244, 245, 0.08);
+  --qa-line-strong: rgba(244, 244, 245, 0.14);
+  --qa-accent: #a195f7;
+  --qa-accent-soft: rgba(161, 149, 247, 0.14);
+  /* Button: keep #5a4aec so white text still passes AA; lighter on hover */
+  --qa-cta-bg: #5a4aec;
+  --qa-cta-bg-hover: #6b5cef;
+  --qa-cta-fg: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'InterVariable', 'Inter', system-ui, -apple-system, 'Segoe UI',
+    Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  background: var(--qa-canvas);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Header */
+
+.siteHeader {
+  border-bottom: 1px solid var(--qa-line);
+  background: var(--qa-canvas);
+}
+
+.siteNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-weight: 650;
+  font-size: 1.05rem;
+  color: var(--qa-ink);
+}
+
+.navLinks {
+  display: inline-flex;
+  align-items: center;
+  gap: 1.4rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--qa-ink-muted);
+}
+
+.navLinks a:hover {
+  color: var(--qa-ink);
+}
+
+.navGithub svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+
+/* Footer */
+
+.siteFooter {
+  border-top: 1px solid var(--qa-line);
+  background: var(--qa-canvas-raised);
+  padding: 2.5rem 0 2rem;
+  color: var(--qa-ink-muted);
+  font-size: 0.9rem;
+}
+
+.footerGrid {
+  display: flex;
+  gap: 4rem;
+  flex-wrap: wrap;
+}
+
+.footerGrid a:hover {
+  color: var(--qa-accent);
+}
+
+.footerTitle {
+  font-weight: 650;
+  color: var(--qa-ink);
+  margin-bottom: 0.5rem;
+}
+
+.footerMeta {
+  margin-top: 2rem;
+  font-size: 0.8125rem;
+  color: var(--qa-ink-subtle);
+}
+
+.landing {
+  background: var(--qa-canvas);
+  color: var(--qa-ink);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
+  letter-spacing: -0.003em;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: 2rem;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────
+   Hero
+   ────────────────────────────────────────────────────────── */
+
+.hero {
+  padding: clamp(3.75rem, 8vw, 5.5rem) 0 clamp(3rem, 6vw, 4rem);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% 0 auto 0;
+  height: 70%;
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 0%,
+    var(--qa-accent-soft),
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.heroLogo {
+  display: block;
+  height: 76px;
+  width: auto;
+  margin: 0 auto 1.25rem;
+}
+
+.eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--qa-accent);
+  letter-spacing: 0.02em;
+  margin: 0 0 1.25rem;
+}
+
+.heroTitle {
+  font-size: clamp(2.4rem, 5vw + 0.5rem, 4rem);
+  line-height: 1.05;
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  color: var(--qa-ink);
+  max-width: 22ch;
+  margin: 0 auto 1.25rem;
+  text-wrap: balance;
+}
+
+.heroSubtitle {
+  font-size: clamp(1.125rem, 1vw + 0.875rem, 1.3125rem);
+  line-height: 1.55;
+  color: var(--qa-ink-muted);
+  max-width: 52ch;
+  margin: 0 auto;
+  text-wrap: pretty;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+}
+
+.heroChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line);
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  color: var(--qa-ink-muted);
+}
+
+.workflowPreview {
+  max-width: 920px;
+  margin: 2rem auto 0;
+  overflow: hidden;
+  text-align: left;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line-strong);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(24, 24, 27, 0.12);
+}
+
+.previewChrome {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--qa-line);
+}
+
+.previewChrome span {
+  width: 0.68rem;
+  height: 0.68rem;
+  border-radius: 999px;
+  background: var(--qa-line-strong);
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.2fr 1fr;
+  min-height: 250px;
+}
+
+.previewSidebar,
+.previewCommand,
+.previewNote {
+  padding: 1rem;
+}
+
+.previewSidebar,
+.previewCommand {
+  border-right: 1px solid var(--qa-line);
+}
+
+.previewSidebar {
+  background: var(--qa-canvas);
+}
+
+@supports (background: color-mix(in srgb, white, black)) {
+  .previewSidebar {
+    background: color-mix(in srgb, var(--qa-canvas) 72%, var(--qa-canvas-raised));
+  }
+}
+
+.previewSidebarTitle,
+.previewCommandLabel,
+.previewNoteTitle {
+  margin-bottom: 0.8rem;
+  color: var(--qa-ink-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.previewChoice,
+.previewResult {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  color: var(--qa-ink);
+  font-size: 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+
+.previewChoice + .previewChoice,
+.previewResult + .previewResult {
+  margin-top: 0.45rem;
+}
+
+.previewChoice:nth-child(2),
+.previewResult:first-child {
+  background: var(--qa-accent-soft);
+  border-color: var(--qa-line-strong);
+}
+
+.previewChoiceType,
+.previewResult span:last-child {
+  color: var(--qa-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.previewSearch {
+  margin-bottom: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  color: var(--qa-ink);
+  background: var(--qa-canvas);
+  border: 1px solid var(--qa-line-strong);
+  border-radius: 9px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+}
+
+.previewLine,
+.previewLineShort {
+  height: 0.7rem;
+  background: var(--qa-line);
+  border-radius: 999px;
+}
+
+.previewLine {
+  width: 88%;
+}
+
+.previewLineShort {
+  width: 58%;
+  margin-top: 0.75rem;
+}
+
+.previewCapture {
+  margin-top: 1.2rem;
+  padding: 0.85rem;
+  background: var(--qa-canvas);
+  border: 1px solid var(--qa-line);
+  border-radius: 10px;
+}
+
+.previewCapture span {
+  color: var(--qa-accent);
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.previewCapture p {
+  margin: 0.45rem 0 0;
+  color: var(--qa-ink-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 767px) {
+  .workflowPreview {
+    margin-top: 1.5rem;
+  }
+
+  .previewGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .previewSidebar,
+  .previewCommand {
+    border-right: 0;
+    border-bottom: 1px solid var(--qa-line);
+  }
+}
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.375rem;
+  background: var(--qa-canvas);
+  border: 1px solid var(--qa-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--qa-ink);
+  line-height: 1;
+}
+
+.chipArrow {
+  color: var(--qa-ink-subtle);
+}
+
+.chipLabel {
+  font-weight: 500;
+  color: var(--qa-ink);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Buttons
+   ────────────────────────────────────────────────────────── */
+
+.buttonPrimary,
+.buttonPrimary:hover,
+.buttonPrimary:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.25rem;
+  background: var(--qa-cta-bg);
+  color: var(--qa-cta-fg);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: 10px;
+  border: none;
+  text-decoration: none;
+  transition: transform 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.buttonPrimary:hover {
+  background: var(--qa-cta-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(90, 74, 236, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.buttonSecondary,
+.buttonSecondary:hover,
+.buttonSecondary:visited {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.125rem;
+  background: transparent;
+  color: var(--qa-ink);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.buttonSecondary:hover {
+  background: var(--qa-line);
+  color: var(--qa-ink);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Generic section
+   ────────────────────────────────────────────────────────── */
+
+.section {
+  padding-block: clamp(4rem, 8vw, 6rem);
+  border-top: 1px solid var(--qa-line);
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin-bottom: 3rem;
+  max-width: 780px;
+}
+
+.sectionHead .eyebrow {
+  margin: 0;
+}
+
+.sectionTitle {
+  font-size: clamp(1.75rem, 2.25vw + 0.5rem, 2.5rem);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: var(--qa-ink);
+  max-width: 28ch;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sectionSubtitle {
+  font-size: 1.125rem;
+  line-height: 1.55;
+  color: var(--qa-ink-muted);
+  max-width: 56ch;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Features
+   ────────────────────────────────────────────────────────── */
+
+.features {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .features {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .features {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.75rem;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.feature:hover {
+  border-color: var(--qa-line-strong);
+  transform: translateY(-2px);
+}
+
+.featureIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--qa-accent-soft);
+  color: var(--qa-accent);
+  border-radius: 9px;
+}
+
+.featureIcon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.featureTitle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.featureTitleText {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--qa-ink);
+}
+
+.featureDesc {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--qa-ink-muted);
+  margin: 0;
+  text-wrap: pretty;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Examples
+   ────────────────────────────────────────────────────────── */
+
+.examples {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .examples {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.75rem;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.example:hover {
+  border-color: var(--qa-line-strong);
+  transform: translateY(-2px);
+}
+
+.exampleIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--qa-accent-soft);
+  color: var(--qa-accent);
+  border-radius: 9px;
+}
+
+.exampleIcon svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.exampleTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--qa-ink);
+  margin: 0.5rem 0 0;
+}
+
+.exampleDesc {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--qa-ink-muted);
+  margin: 0;
+  flex: 1;
+  text-wrap: pretty;
+}
+
+.exampleLink,
+.exampleLink:hover,
+.exampleLink:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  color: var(--qa-accent);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+
+.exampleLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Quick start
+   ────────────────────────────────────────────────────────── */
+
+.quickStart {
+  padding-block: clamp(4rem, 8vw, 6rem);
+  border-top: 1px solid var(--qa-line);
+  text-align: center;
+}
+
+.quickStart .sectionHead {
+  margin-inline: auto;
+  align-items: center;
+  text-align: center;
+}
+
+.quickStart .sectionTitle {
+  margin-inline: auto;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+  }
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline: 0.5rem;
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--qa-canvas-raised);
+  border: 1px solid var(--qa-line-strong);
+  border-radius: 999px;
+  font-family: var(--ifm-font-family-monospace);
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--qa-accent);
+}
+
+.stepTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--qa-ink);
+  margin: 0.25rem 0 0;
+}
+
+.stepDesc {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--qa-ink-muted);
+  max-width: 32ch;
+  margin: 0;
+  text-wrap: pretty;
+}
+
+.quickStartCta {
+  margin-top: 3rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ──────────────────────────────────────────────────────────
+   Reduced motion
+   ────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .feature,
+  .example,
+  .buttonPrimary {
+    transition: none;
+  }
+  .feature:hover,
+  .example:hover,
+  .buttonPrimary:hover {
+    transform: none;
+  }
+}
+
+		</style>
+	</body>
+</html>

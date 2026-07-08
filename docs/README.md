@@ -1,41 +1,33 @@
-# Website
+# QuickAdd docs
 
-This website is built using [Docusaurus 2](https://docusaurus.io/), a modern static website generator.
+The docs site (https://quickadd.obsidian.guide), built with [Astro Starlight](https://starlight.astro.build/).
 
-### Installation
+## Layout
 
-```
-$ pnpm install
-```
+- `src/content/docs/docs/` - the documentation pages (markdown). Each page sets
+  `slug:` explicitly to keep its historical URL, so renaming a file does not
+  change its URL. If you do change a slug, add a 301 in `public/_redirects`.
+- `src/pages/index.astro` - the landing page (self-contained, zero client JS).
+- `astro.config.mjs` - Starlight config, including the sidebar.
+- `public/` - static assets served as-is (`img/`, downloadable example
+  `scripts/`, `_redirects`, `_headers`).
+- `plugins/remark-heading-id.mjs` - supports `## Heading {#custom-id}` anchors.
 
-### Local Development
+## Commands
 
-```
-$ pnpm start
-```
-
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
-
-### Build
-
-```
-$ pnpm build
-```
-
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
-
-### Deployment
-
-Using SSH:
-
-```
-$ USE_SSH=true pnpm deploy
+```sh
+pnpm install
+pnpm dev      # local dev server
+pnpm build    # production build into build/
+pnpm preview  # serve the production build
+python3 scripts/check-links.py  # verify internal links/anchors in build/
 ```
 
-Not using SSH:
+## Deployment
 
-```
-$ GIT_USER=<Your GitHub username> pnpm deploy
-```
+Cloudflare Pages (GitHub integration) builds this directory on every push and
+publishes `build/`. Pull requests get preview deployments automatically.
 
-If you are using GitHub pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+Docs are single-version: pages go live when they land on `master`. When
+documenting a feature that has not shipped in a plugin release yet, add an
+"Introduced in vX.Y.Z" note at the section (see AGENTS.md).

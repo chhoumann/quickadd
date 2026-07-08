@@ -1,9 +1,5 @@
 {
-  // This file is not used in compilation. It is here just for a nice editor experience.
-  "extends": "@tsconfig/docusaurus/tsconfig.json",
-  "compilerOptions": {
-    // @tsconfig/docusaurus still sets the (TS6-deprecated) baseUrl; silence until
-    // the base config drops it. Revisit before TS 7.0, which removes baseUrl.
-    "ignoreDeprecations": "6.0"
-  }
+  "extends": "astro/tsconfigs/base",
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["build", "node_modules"]
 }
