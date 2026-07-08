@@ -1,0 +1,81 @@
+---
+import Default from "@astrojs/starlight/components/PageTitle.astro";
+
+const { entry } = Astro.locals.starlightRoute;
+const markdownPath = `/${entry.id}.md`;
+const markdownUrl = new URL(markdownPath, Astro.site).href;
+const prompt = `Read ${markdownUrl} so I can ask questions about it.`;
+const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+const chatgptUrl = `https://chatgpt.com/?hints=search&q=${encodeURIComponent(prompt)}`;
+---
+
+<Default><slot /></Default>
+<div class="page-actions">
+	<button type="button" class="page-action" data-copy-markdown={markdownPath}>
+		<svg
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="1.75"
+			stroke-linecap="round"
+			stroke-linejoin="round"
+			aria-hidden="true">
+			<rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+			<path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+		</svg>
+		<span data-label>Copy Markdown</span>
+	</button>
+	<a class="page-action" href={markdownPath}>View as Markdown</a>
+	<a class="page-action" href={claudeUrl} rel="noopener">Open in Claude</a>
+	<a class="page-action" href={chatgptUrl} rel="noopener">Open in ChatGPT</a>
+</div>
+
+<style>
+	.page-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.75rem;
+	}
+	.page-action {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.25rem 0.65rem;
+		font-size: var(--sl-text-xs);
+		line-height: 1.4;
+		color: var(--sl-color-gray-3);
+		background: var(--sl-color-gray-7, var(--sl-color-gray-6));
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 999px;
+		cursor: pointer;
+		text-decoration: none;
+		font-family: var(--sl-font);
+	}
+	.page-action:hover {
+		color: var(--sl-color-white);
+		border-color: var(--sl-color-gray-4);
+	}
+	.page-action svg {
+		width: 0.85rem;
+		height: 0.85rem;
+	}
+</style>
+
+<script>
+	for (const button of document.querySelectorAll<HTMLButtonElement>("[data-copy-markdown]")) {
+		button.addEventListener("click", async () => {
+			const label = button.querySelector("[data-label]");
+			try {
+				const res = await fetch(button.dataset.copyMarkdown ?? "");
+				await navigator.clipboard.writeText(await res.text());
+				if (label) label.textContent = "Copied!";
+			} catch {
+				if (label) label.textContent = "Copy failed";
+			}
+			setTimeout(() => {
+				if (label) label.textContent = "Copy Markdown";
+			}, 2000);
+		});
+	}
+</script>

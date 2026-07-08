@@ -3,6 +3,7 @@ import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import starlightLlmsTxt from "starlight-llms-txt";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
 
 /**
@@ -54,6 +55,22 @@ export default defineConfig({
 		enforceExplicitSlugs(),
 		starlight({
 			title: "QuickAdd",
+			plugins: [
+				starlightLlmsTxt({
+					projectName: "QuickAdd",
+					description:
+						"QuickAdd is an Obsidian plugin for one-hotkey templates, captures, macros, and AI-assisted workflows.",
+					details:
+						"These docs cover choice types (Template, Capture, Macro, Multi), the {{TOKEN}} format syntax, the JavaScript scripting API, and worked examples.",
+					optionalLinks: [
+						{
+							label: "GitHub repository",
+							url: "https://github.com/chhoumann/quickadd",
+							description: "Source code, issues, and discussions",
+						},
+					],
+				}),
+			],
 			logo: {
 				src: "./public/img/quickadd-icon.png",
 				alt: "QuickAdd",
@@ -70,6 +87,9 @@ export default defineConfig({
 				baseUrl: "https://github.com/chhoumann/quickadd/edit/master/docs/",
 			},
 			customCss: ["./src/styles/custom.css"],
+			components: {
+				PageTitle: "./src/components/PageTitle.astro",
+			},
 			head: [
 				{
 					tag: "meta",

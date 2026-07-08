@@ -28,6 +28,21 @@ pnpm preview  # serve the production build
 python3 scripts/check-links.py  # verify internal links/anchors in build/
 ```
 
+## LLM and agent surface
+
+Built artifacts for AI tooling, all served from the same deployment:
+
+- `/llms.txt`, `/llms-small.txt`, `/llms-full.txt` - llms.txt-standard indexes
+  (via `starlight-llms-txt`).
+- `<page-url>.md` - every docs page as raw markdown
+  (e.g. `/docs/FormatSyntax.md`); the "Copy Markdown" button uses these.
+- `/docs-index.json` - machine-readable page manifest (slug, title,
+  description, headings, text).
+- `/mcp` - an MCP server (Streamable HTTP, stateless; `functions/mcp.ts` runs
+  as a Cloudflare Pages Function) exposing `search_quickadd_docs` and
+  `get_quickadd_doc`. Point any MCP client at
+  `https://quickadd.obsidian.guide/mcp`.
+
 ## Deployment
 
 Cloudflare Pages (GitHub integration) builds this directory on every push and
