@@ -43,6 +43,8 @@ obsidian vault=dev quickadd:check choice="Daily log"
 
 ### `quickadd:run-template`
 
+_Introduced in QuickAdd 2.14.0._
+
 Create a new note from a template file — no dedicated Template choice required.
 This is the scriptable form of the **New note from template** command.
 
@@ -117,6 +119,8 @@ obsidian vault=dev quickadd choice="Daily log" ui
 ```
 
 ## Interactive runs (`quickadd:interactive`)
+
+_Introduced in QuickAdd 2.16.0._
 
 Some choices prompt at *run time* for inputs that can't be collected up front -
 a macro's `quickAddApi.suggester` over data it just fetched, an `inputPrompt`,

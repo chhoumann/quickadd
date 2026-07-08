@@ -50,5 +50,7 @@ The QuickAdd settings tab is reached from Obsidian's **Settings → Community pl
 
 ## Choice icons
 
+_Introduced in QuickAdd 2.14.0._
+
 - **Automatic choice icons** — QuickAdd gives each choice type a default Obsidian/Lucide icon: `file-text` for Template, `pencil` for Capture, `terminal` for Macro, and `folder` for Multi. These icons show in the QuickAdd launcher, inside Multi choice pickers, and on registered commands in the command palette / mobile editing toolbar.
 - **Override a choice's icon** — Open a choice's configuration and set **Icon** to any [Lucide](https://lucide.dev) icon id (for example `star`). Leave the field empty to use the choice type default. Icons inherit the active Obsidian theme color; QuickAdd does not set per-choice icon colors.

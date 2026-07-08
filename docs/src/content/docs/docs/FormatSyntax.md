@@ -18,6 +18,8 @@ Example: `{{DATE:YYYY-MM-DD_HH-mm}}` or `{{DATE:YYYY-MM-DD+3}}`.
 
 ## `{{DATE:<DATEFORMAT>|startof:<unit>}}` / `{{...|endof:<unit>}}` {#date-snap}
 
+_Introduced in QuickAdd 2.14.0._
+
 Snap the date to the **start** or **end** of a period before formatting. The
 formatted output then reflects that boundary instead of the exact instant — so,
 for example, the month of a week-snapped date is the month the *week* belongs to,
@@ -81,6 +83,8 @@ You can combine a default with the `optional` flag in any order: `{{VDATE:due,YY
 **Note:** Pipe characters (`|`) cannot be used inside VDATE date formats — everything after the first pipe is treated as the default value (and flags). Use a different literal, e.g. wrap text in square brackets: `{{VDATE:due,[Due ]YYYY-MM-DD}}`.
 
 ## `{{VDATE:<variable name>, <date format>|time}}` {#vdate-time}
+
+_Introduced in QuickAdd 2.14.0._
 
 Adds a **time picker** to the date prompt (aliases: `|datetime`, `|type:datetime`), for `Date & time` properties. The calendar gains an `HH:mm` control, and picking a day keeps the time you set (it isn't reset to midnight). If you omit the date format, it defaults to `YYYY-MM-DD HH:mm`.
 
@@ -172,6 +176,8 @@ Example:
 
 ## `{{VALUE:<variable>|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text` {#value-property-types}
 
+_Introduced in QuickAdd 2.14.0._
+
 Tailors the input to an Obsidian property type. These are single-value prompts (no comma options / `|custom`):
 
 - `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**. Add `|min:`, `|max:`, and/or `|step:` to constrain the input.
@@ -200,6 +206,8 @@ Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
 
 ## `{{VALUE|trim}}` / `{{NAME|trim}}` / `{{VALUE:<variable>|trim}}` {#value-trim}
 
+_Introduced in QuickAdd 2.14.0._
+
 Trims leading and trailing whitespace from the resolved value for this token. This is useful for file names, links, and properties where accidental spaces from mobile keyboards or pasted text would create a different note or link target.
 
 Example: `[[{{VALUE:title|trim}}]]`.
@@ -218,6 +226,8 @@ It composes with other VALUE options, for example `{{VALUE:title|trim|case:slug}
 Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
 
 ## `{{VALUE:<options>|multi}}` {#value-multi}
+
+_Introduced in QuickAdd 2.14.0._
 
 Turns an option-list suggester into a **multi-select**: pick several values and they're written as a YAML **List**. Requires an option list (2+ comma-separated values).
 
@@ -248,6 +258,8 @@ Notes:
 - With the **one-page input form** (Settings → QuickAdd), avoid commas inside an individual option (e.g. `|text:"High, urgent"`) on a `|multi` token — the one-page picker can't round-trip a comma that lives inside a single option. The default one-prompt-at-a-time picker handles it correctly.
 
 ## `{{VALUE:<options>|name:<variable name>}}` {#value-name}
+
+_Introduced in QuickAdd 2.14.0._
 
 Gives a suggester a reusable **name**, so the value you pick can be inserted again elsewhere without prompting a second time. Pick from the options once at the definition, then reuse the choice anywhere with `{{VALUE:<variable name>}}`.
 
@@ -309,6 +321,8 @@ Example: `Source: {{LINKCURRENT}}`.
 
 ## `{{LINKSECTION}}` {#linksection}
 
+_Introduced in QuickAdd 2.14.0._
+
 Like `{{LINKCURRENT}}`, but links to the **heading the cursor is currently under** (`[[Note#Heading]]` format), so clicking the link scrolls to that section instead of the top of the file. Honors the same **required/optional** behavior as `{{LINKCURRENT}}`.
 
 It picks the nearest heading at or above the cursor. When the cursor is above the first heading (or the file has no headings), it falls back to a plain whole-file link. When a heading's text is repeated in the file, it uses the disambiguating ancestor path (`[[Note#Parent#Heading]]`) so the link resolves to the right one; if even that can't uniquely identify the heading, it falls back to a whole-file link rather than linking to the wrong section.
@@ -322,6 +336,8 @@ The basename (without extension) of the file from which the template or capture 
 Example: `Notes from {{FILENAMECURRENT}}`.
 
 ## `{{FOLDERCURRENT}}` {#foldercurrent}
+
+_Introduced in QuickAdd 2.18.0._
 
 The folder of the file from which the template or capture was triggered (the active file), as a vault-relative path with no trailing slash. For an active file at the vault root it resolves to an empty string. Not to be confused with `{{FOLDER}}` below, which is the folder the *new* note is being created in.
 
@@ -344,6 +360,8 @@ Add the `|name` modifier to get only the last path segment: for an active file i
 Examples: `{{FOLDERCURRENT}}/Project Tasks.md`, `Tasks for {{FOLDERCURRENT|name}}`.
 
 ## `{{FOLDER}}` {#folder}
+
+_Introduced in QuickAdd 2.14.0._
 
 The folder the note is being created in, as a vault-relative path (no trailing slash). For a note created at the vault root this resolves to an empty string. (For the *active* file's folder, use `{{FOLDERCURRENT}}` above.)
 
@@ -403,6 +421,8 @@ Example: `project: {{FIELD:project}}`.
 
 ### `{{FIELD:<FIELDNAME>|multi}}` {#field-multi}
 
+_Introduced in QuickAdd 2.14.0._
+
 Turns FIELD suggestions into a multi-select. Pick several existing field values,
 or add custom values in the picker.
 
@@ -433,6 +453,8 @@ collects other one-page inputs first, then opens the runtime multi-select for
 the FIELD value.
 
 ### `{{FIELD:<FIELDNAME>|default-from:active}}` {#field-default-from-active}
+
+_Introduced in QuickAdd 2.14.0._
 
 Defaults the FIELD prompt to the value the same property already has on the
 **active note** - the note that was focused when you triggered QuickAdd. This is
@@ -509,6 +531,8 @@ Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {
 This is currently in beta, and the syntax can change—leave your thoughts [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 
 ## `{{FILE:<folder>}}` {#file}
+
+_Introduced in QuickAdd 2.14.0._
 
 Prompts you to pick a markdown **file** from `<folder>` and inserts the choice. Unlike `{{FIELD:...}}` (which suggests the *values* of a YAML field), this suggests the files themselves — handy for "metadata folders" such as a `People/` or `Research Topics/` folder where each note is an option. Because the options are real files, the list always reflects what currently exists, which keeps your links consistent.
 

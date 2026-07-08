@@ -37,6 +37,8 @@ obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-contents=Lorem%20i
 
 ## Getting a result back (x-callback-url)
 
+_Introduced in QuickAdd 2.14.0._
+
 QuickAdd can open a callback URL after a choice finishes, so an external caller (for
 example an Apple Shortcut) can react to the result and receive the path of the affected
 note. This follows the [x-callback-url](http://x-callback-url.com/) convention.

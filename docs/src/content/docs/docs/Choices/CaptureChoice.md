@@ -81,6 +81,8 @@ If you have a tag called `#people`, and you type `#people` in the _Capture To_ f
 
 ### Capturing to filtered files
 
+_Introduced in QuickAdd 2.14.0._
+
 You can combine folder and tag filters in the _Capture To_ field with `|`.
 This is useful when the destination could live in several folders, or when it
 must match several tags.
@@ -151,6 +153,8 @@ Pass the variables object on every `executeChoice` call. Each call clears its
 temporary variables after the target choice runs.
 
 ### Capturing to a property
+
+_Introduced in QuickAdd 2.14.0._
 
 You can pre-filter the picker by an arbitrary **frontmatter property** by typing
 `property:<field>=<value>` in the _Capture To_ field. QuickAdd then asks you which
@@ -387,6 +391,8 @@ The target may span several lines: type `\n` in the **Insert after** field to ma
 
 ### Ordered section placement
 
+_Introduced in QuickAdd 2.14.0._
+
 When `Create line if not found` is enabled and its location dropdown is set to **Ordered** (the full label is `Ordered (place new section among siblings)`), a missing "Insert after" heading is created at its **sorted position among same-level sibling headings** instead of at the top or bottom of the note. This is the building block for a reverse-chronological log: a new dated section is added above older ones, while a fixed title/intro stays pinned at the top.
 
 This is the recipe for the classic "daily log, newest first" note (issue [#481](https://github.com/chhoumann/quickadd/issues/481)):
@@ -454,6 +460,8 @@ A "books read" note grouped by year — **Insert after** `## {{DATE:YYYY}}`, **F
 -   **Ordered** is for headings and can't be combined with **Inline insertion**.
 
 ### Choose heading when capturing
+
+_Introduced in QuickAdd 2.14.0._
 
 Insert After normally uses a target line you type when you build the choice. Enable
 **Choose heading when capturing** to instead pick the heading **at run time**: when you

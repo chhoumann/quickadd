@@ -107,6 +107,8 @@ When adding a model manually, the model name must match the id your server expec
 
 ### Provider IDs and duplicate model names
 
+_Introduced in QuickAdd 2.19.0._
+
 Every provider has a stable **ID** - a short slug like `openai` or `my-proxy`, shown in the provider's edit form. The ID never changes, even if you rename the provider, and scripts use it to address a model on a specific provider.
 
 Two providers can serve models with the same name - for example, the official OpenAI provider and an OpenAI-compatible proxy can both list `gpt-4o`. Model dropdowns group models by provider so you always pick a specific provider's model, and QuickAdd remembers that choice. Reordering providers, renaming them, or auto-syncing new models never changes which endpoint an existing command talks to.
