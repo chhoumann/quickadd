@@ -1,36 +1,128 @@
 ---
 title: Format syntax
-description: "Reference for every QuickAdd format token, including {{DATE}}, {{VALUE}}, {{VDATE}}, {{FIELD}}, and {{FILE}} with their options"
+description: "Placeholders like {{DATE}} and {{VALUE}} that QuickAdd replaces with real values: dates, your answers, links, clipboard content, and more"
 slug: docs/FormatSyntax
 ---
 
-## `{{DATE}}` {#date}
+Format syntax lets you put **placeholders** in anything QuickAdd creates. When a
+choice runs, each placeholder is replaced with a real value: today's date, an
+answer you type, a link to the note you came from.
 
-Outputs the current date in `YYYY-MM-DD` format. You could write `{{DATE+3}}` to offset the date with 3 days. You can use `+-3` to offset with `-3` days.
+You can use placeholders anywhere QuickAdd asks for a format: file name fields,
+capture formats, folder paths, "Insert after" targets, and inside template files.
 
-Example: `Daily/{{DATE}}.md` or `Review on {{DATE+7}}`.
+For example, a Capture with this format:
 
-## `{{DATE:<DATEFORMAT>}}` {#date-format}
+```markdown
+- {{DATE:HH:mm}} {{VALUE}}
+```
 
-Replace `<DATEFORMAT>` with a [Moment.js date format](https://momentjs.com/docs/#/displaying/format/). You could write `{{DATE<DATEFORMAT>+3}}` to offset the date with 3 days.
+asks you for a value, and if you answer `Standup moved to Wednesday`, it inserts:
 
-Example: `{{DATE:YYYY-MM-DD_HH-mm}}` or `{{DATE:YYYY-MM-DD+3}}`.
+```markdown
+- 09:42 Standup moved to Wednesday
+```
 
-## `{{DATE:<DATEFORMAT>|startof:<unit>}}` / `{{...|endof:<unit>}}` {#date-snap}
+That is all format syntax is: you describe the shape once, QuickAdd fills in the
+blanks every time you run the choice.
 
-_Introduced in QuickAdd 2.14.0._
+## Quick reference {#quick-reference}
 
-Snap the date to the **start** or **end** of a period before formatting. The
-formatted output then reflects that boundary instead of the exact instant — so,
-for example, the month of a week-snapped date is the month the *week* belongs to,
-not today's calendar month.
+**Ask for input**
 
-`<unit>` is one of: `year`, `quarter`, `month`, `week`, `isoweek`, `day` (case-insensitive).
+| Placeholder | What it does |
+| --- | --- |
+| [`{{VALUE}}`](#value) | Ask for text |
+| [`{{VALUE:title}}`](#named-value) | Ask for text once, reuse the answer anywhere as `title` |
+| [`{{VALUE:Red,Green,Blue}}`](#value-suggest) | Pick from a list |
+| [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
+| [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
+| [`{{FILE:People}}`](#file) | Pick a note from a folder |
+| [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
-- `week` uses your locale's first day of the week (matching the `w`/`ww`/`gggg` tokens).
-- `isoweek` uses Monday (matching the `W`/`WW`/`GGGG` tokens).
+**Dates**
 
-| Token (on Thursday 2023-06-01) | Output |
+| Placeholder | What you get |
+| --- | --- |
+| [`{{DATE}}`](#date) | Today, like `2026-07-08` |
+| [`{{DATE:MMMM Do}}`](#date-format) | Today, formatted your way: `July 8th` |
+| [`{{DATE+7}}`](#date) | Seven days from today |
+| [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
+
+**The note you ran QuickAdd from**
+
+| Placeholder | What you get |
+| --- | --- |
+| [`{{LINKCURRENT}}`](#linkcurrent) | A link to it: `[[That note]]` |
+| [`{{LINKSECTION}}`](#linksection) | A link to the section your cursor is in |
+| [`{{FILENAMECURRENT}}`](#filenamecurrent) | Its file name |
+| [`{{FOLDERCURRENT}}`](#foldercurrent) | Its folder |
+| [`{{selected}}`](#selected) | The text you had selected |
+
+**The note being created**
+
+| Placeholder | What you get |
+| --- | --- |
+| [`{{TITLE}}`](#title) | The new note's file name |
+| [`{{FOLDER}}`](#folder) | The folder the new note lands in |
+
+**Other content**
+
+| Placeholder | What it inserts |
+| --- | --- |
+| [`{{CLIPBOARD}}`](#clipboard) | Whatever you copied last |
+| [`{{TEMPLATE:Templates/Meeting.md}}`](#template) | The contents of a template file |
+| [`{{MACRO:My Macro}}`](#macro) | Whatever a macro returns |
+| [`{{GLOBAL_VAR:Header}}`](#global-var) | A snippet you defined in settings |
+| [`{{RANDOM:6}}`](#random) | A random ID like `x7k2p9` |
+
+## Dates
+
+### Today's date: `{{DATE}}` {#date}
+
+`{{DATE}}` becomes today's date in `YYYY-MM-DD` format.
+
+Add `+N` to move the date: `{{DATE+3}}` is three days from now, `{{DATE+-3}}`
+is three days ago.
+
+```markdown title="You write"
+Daily/{{DATE}}.md
+Review on {{DATE+7}}
+```
+
+```markdown title="You get (on July 8th, 2026)"
+Daily/2026-07-08.md
+Review on 2026-07-15
+```
+
+### Choose the date format: `{{DATE:<format>}}` {#date-format}
+
+Put a [Moment.js format](https://momentjs.com/docs/#/displaying/format/) after
+the colon to control how the date looks. The `+N` day offset works here too:
+`{{DATE:YYYY-MM-DD+3}}`.
+
+| You write | You get |
+| --- | --- |
+| `{{DATE:MMMM Do, YYYY}}` | `July 8th, 2026` |
+| `{{DATE:YYYY-MM-DD_HH-mm}}` | `2026-07-08_09-42` |
+| `{{DATE:[Week] w}}` | `Week 28` |
+
+:::tip
+Literal text inside a date format goes in square brackets, like `[Week]` above.
+Otherwise Moment.js treats every letter as a date token.
+:::
+
+### Snap to the start or end of a week, month, or year {#date-snap}
+
+Add `|startof:<unit>` or `|endof:<unit>` to move the date to the boundary of a
+period before formatting. `<unit>` is one of `year`, `quarter`, `month`, `week`,
+`isoweek`, or `day` (case-insensitive).
+
+This matters when the formatted output should reflect the period rather than
+the exact day. The month of a week-snapped date is the month the *week* starts
+in, not today's calendar month.
+
+| You write (on Thursday 2023-06-01) | You get |
 | --- | --- |
 | `{{DATE:gggg.MM.[Wk]w\|startof:week}}` | `2023.05.Wk22` |
 | `{{DATE:YYYY-MM\|startof:month}}` | `2023-06` |
@@ -38,55 +130,77 @@ not today's calendar month.
 | `{{DATE:YYYY-[Q]Q\|startof:quarter}}` | `2023-Q2` |
 | `{{DATE:GGGG-[W]WW\|startof:isoweek}}` | ISO week, Monday-anchored |
 
-**Weekly notes that cross months (issue #511).** A planner named `gggg.MM.[Wk]w`
-should file the week of June 1 under May (`2023.05.Wk22`), while the in-note
-heading still uses the actual day. Snap only the filename:
+- `week` starts on your locale's first day of the week (matching the `w`/`ww`/`gggg` tokens).
+- `isoweek` starts on Monday (matching the `W`/`WW`/`GGGG` tokens).
+
+**Example: weekly notes that cross months.** A weekly note named
+`gggg.MM.[Wk]w` should file the week of June 1 under May (`2023.05.Wk22`),
+while the heading inside the note still shows the actual day. Snap only the
+file name:
 
 ```markdown
-# filename
-{{DATE:gggg.MM.[Wk]w|startof:week}}
-# heading inside the note
-{{DATE:M.DD dddd}}
+File name:  {{DATE:gggg.MM.[Wk]w|startof:week}}
+In the note: {{DATE:M.DD dddd}}
 ```
 
-This also works on `{{VDATE}}` — a single picked date can be week-snapped in one
-place and day-actual in another: `{{VDATE:d,gggg.MM.[Wk]w|startof:week}}` and
-`{{VDATE:d,M.DD dddd}}` share the same prompt. Combine freely with `|default`,
-`|optional`, and `|time` in any order.
+Snapping also works on [`{{VDATE}}`](#vdate), so one picked date can be
+week-snapped in the file name and day-accurate in the body:
+`{{VDATE:d,gggg.MM.[Wk]w|startof:week}}` and `{{VDATE:d,M.DD dddd}}` share the
+same prompt. Combine freely with `|default`, `|optional`, and `|time` in any
+order.
 
-**Notes:**
+Good to know:
 
-- The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` is "the start of next week".
-- `endof:` snaps to the last moment of the period (`23:59:59.999`), so with a time format `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
-- `|startof:` and `|endof:` are the only reserved pipe options in a date format; any other literal `|` is still rendered verbatim (e.g. `{{DATE:YYYY|MM}}` → `2023|06`).
-- An unknown unit (e.g. `|startof:fortnight`) reports an error listing the valid units.
+- The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` means "the start of next week".
+- `endof:` snaps to the last moment of the period (`23:59:59.999`), so `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
+- `|startof:` and `|endof:` are the only special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`.
+- An unknown unit (like `|startof:fortnight`) shows an error listing the valid units.
 
-## `{{VDATE:<variable name>, <date format>}}` {#vdate}
+_Introduced in QuickAdd 2.14.0._
 
-You'll get prompted to enter a date and it'll be parsed to the given date format. You could write 'today' or 'in two weeks' and it'll give you the date for that. Short aliases like `t` (today), `tm` (tomorrow), and `yd` (yesterday) are also supported and configurable in settings. Works like variables, so you can use the date in multiple places with different formats - enter once, format many times!
+### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 
-Example:
+`{{VDATE:due,YYYY-MM-DD}}` opens a date prompt and inserts your answer in the
+given format. You can type natural language: `today`, `in two weeks`,
+`next monday`. Short aliases like `t` (today), `tm` (tomorrow), and `yd`
+(yesterday) work too, and are configurable in settings.
 
-```markdown
+The name (`due` above) makes it a variable: enter the date once, use it in as
+many places and formats as you like.
+
+```markdown title="You write"
 Due: {{VDATE:due,YYYY-MM-DD}}
 Week: {{VDATE:due,gggg-[W]WW}}
 ```
 
-## `{{VDATE:<variable name>, <date format>|<default>}}` {#vdate-default}
+```markdown title="You get (after answering "friday")"
+Due: 2026-07-10
+Week: 2026-W28
+```
 
-Same as above, but with a default value. If you leave the prompt empty, the default value will be used instead. Example: `{{VDATE:date,YYYY-MM-DD|today}}` will use "today" if no input is provided. Default values can be any natural language date like "tomorrow", "next monday", "+7 days", etc. Short aliases like `t`, `tm`, and `yd` work here too.
+:::note
+Pipes (`|`) can't be part of a VDATE date format; everything after the first
+pipe is read as the default value and flags. For a literal separator, use
+bracketed text instead: `{{VDATE:due,[Due ]YYYY-MM-DD}}`.
+:::
 
-Example: `{{VDATE:due,YYYY-MM-DD|next monday}}`.
+#### Give the date prompt a default {#vdate-default}
 
-You can combine a default with the `optional` flag in any order: `{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}` and `{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}` are equivalent. See [Optional fields](#optional-fields).
+Add `|<default>` after the format. If you submit the prompt empty, the default
+is used. Defaults can be natural language too: `{{VDATE:date,YYYY-MM-DD|today}}`,
+`{{VDATE:due,YYYY-MM-DD|next monday}}`, `{{VDATE:d,YYYY-MM-DD|+7 days}}`. The
+short aliases (`t`, `tm`, `yd`) also work as defaults.
 
-**Note:** Pipe characters (`|`) cannot be used inside VDATE date formats — everything after the first pipe is treated as the default value (and flags). Use a different literal, e.g. wrap text in square brackets: `{{VDATE:due,[Due ]YYYY-MM-DD}}`.
+A default combines with the [`optional` flag](#optional-fields) in any order:
+`{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}` and
+`{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}` are equivalent.
 
-## `{{VDATE:<variable name>, <date format>|time}}` {#vdate-time}
+#### Ask for a time too: `|time` {#vdate-time}
 
-_Introduced in QuickAdd 2.14.0._
-
-Adds a **time picker** to the date prompt (aliases: `|datetime`, `|type:datetime`), for `Date & time` properties. The calendar gains an `HH:mm` control, and picking a day keeps the time you set (it isn't reset to midnight). If you omit the date format, it defaults to `YYYY-MM-DD HH:mm`.
+Add `|time` (aliases: `|datetime`, `|type:datetime`) to put a time picker on
+the date prompt - made for `Date & time` properties. The calendar gains an
+`HH:mm` control, and picking a day keeps the time you set. If you omit the
+date format, it defaults to `YYYY-MM-DD HH:mm`.
 
 ```markdown
 ---
@@ -94,96 +208,231 @@ start: {{VDATE:start,YYYY-MM-DDTHH:mm|time}}
 ---
 ```
 
-Combines with a default and `optional` in any order: `{{VDATE:meeting,YYYY-MM-DD HH:mm|tomorrow at 3pm|time|optional}}`. Without `|time`, the picker stays date-only and behaves exactly as before.
+Combines with a default and `optional` in any order:
+`{{VDATE:meeting,YYYY-MM-DD HH:mm|tomorrow at 3pm|time|optional}}`. Without
+`|time`, the picker stays date-only.
 
-## `{{VALUE}}` / `{{NAME}}` {#value}
+_Introduced in QuickAdd 2.14.0._
 
-Interchangeable. Represents the value given in an input prompt. If text is selected in the current editor, it will be used as the value. For Capture choices, selection-as-value can be disabled globally or per-capture. When using the QuickAdd API, this can be passed programmatically using the reserved variable name 'value'.
+## Ask for input
 
-**Image paste:** value prompts whose answer lands in note content accept a clipboard image. Paste (Ctrl/Cmd+V) a screenshot or a copied image into the prompt: QuickAdd saves it using Obsidian's attachment location settings and inserts an embedded attachment link at the cursor - you can mix typed text and pasted images in one value, and paste more than one image. Clipboard text always takes precedence over an image (copying a FILE from a file manager usually pastes its path as text). Prompts for file names, folders, capture targets, and insert-after/before targets never accept image paste, since an embed link would break the path. Pasted attachments are ordinary vault files; cancelling the prompt afterwards does not delete them.
+### Ask for text: `{{VALUE}}` {#value}
 
-**Inline script note:** For `js quickadd` blocks, prefer the QuickAdd API (`this.quickAddApi.inputPrompt(...)`) and `this.variables` for transformation flows. Do not rely on `{{VALUE}}` inside JavaScript string literals. See [Inline scripts](/docs/InlineScripts/#execution-order-and-value).
+`{{VALUE}}` opens a prompt and inserts whatever you type. `{{NAME}}` is the
+same thing under another name.
 
-**Macro note:** `{{VALUE}}` / `{{NAME}}` are scoped per template step, so each template in a macro prompts independently. Use `{{VALUE:sharedName}}` when you want one prompt reused across the macro.
-
-Example: `- [ ] {{VALUE|label:Task}}`.
-
-## `{{VALUE:<variable name>}}` {#named-value}
-
-You can now use variable names in values. They'll get saved and inserted just like values, but the difference is that you can have as many of them as you want. Use comma separation to get a suggester rather than a prompt.
-
-**Commas inside an option:** wrap an option in double quotes to include a literal comma in it. The quotes are stripped from the inserted value.
-
-```markdown
-{{VALUE:"This is a single choice, with a comma",Second choice}}
+```markdown title="You write (capture format)"
+- [ ] {{VALUE|label:Task}}
 ```
 
-This shows two options: `This is a single choice, with a comma` and `Second choice`. Notes:
+```markdown title="You get (after typing "Buy milk")"
+- [ ] Buy milk
+```
 
-- Both straight (`"`) and curly (`“ ”`) double quotes work, so pasting from a rich-text editor is fine.
-- To include a literal double quote inside a quoted option, double it: `"say ""hi"""` inserts `say "hi"`.
-- Single quotes/apostrophes are never special, so `Bob's,Alice's` keeps working unchanged.
-- The same quoting applies to `|text:` display labels and to `|default:` (e.g. `|default:"a, b"`).
-- Pipes (`|`) inside an option are still not supported; whitespace inside quotes is trimmed.
+If text is selected in the editor when the choice runs, the selection is used
+as the value instead of prompting. For Capture choices you can turn
+selection-as-value off, globally or per capture.
 
-If the same variable name appears in multiple macro steps, QuickAdd prompts once and reuses the value.
+:::note[Paste images straight into the prompt]
+Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
+screenshot or copied image: QuickAdd saves it using Obsidian's attachment
+settings and inserts an embedded link at the cursor. You can mix typed text
+and images, and paste more than one. Clipboard text wins over an image when
+both are present (copying a file in a file manager usually pastes its path as
+text). Prompts for file names, folders, capture targets, and
+insert-after/before targets never accept image paste, since an embed link
+would break the path. Pasted attachments are ordinary vault files; cancelling
+the prompt afterwards does not delete them.
+:::
 
-Example:
+Good to know:
 
-```markdown
+- **In macros**, `{{VALUE}}` / `{{NAME}}` ask again for each template step. Use a [named value](#named-value) like `{{VALUE:sharedName}}` when one answer should be reused across the whole macro.
+- **In `js quickadd` blocks**, don't put `{{VALUE}}` inside JavaScript string literals. Use the QuickAdd API (`this.quickAddApi.inputPrompt(...)`) and `this.variables` instead. See [Inline scripts](/docs/InlineScripts/#execution-order-and-value).
+- **From the API**, pass the value programmatically under the reserved variable name `value`.
+
+### Name the answer so you can reuse it: `{{VALUE:<name>}}` {#named-value}
+
+Give the value a name and QuickAdd asks once, then inserts the same answer at
+every other place the name appears - even across the steps of a macro.
+
+```markdown title="You write (template)"
 ---
 title: {{VALUE:title}}
 ---
 # {{VALUE:title}}
 ```
 
-## `{{VALUE:<variable name>|label:<helper text>}}` {#value-label}
-
-Adds helper text to the prompt for a single-value input. The helper appears below the header and is useful for reminders or instructions. For multi-value lists, use the same syntax to label the suggester (e.g., `{{VALUE:Red,Green,Blue|label:Pick a color}}`).
-
-Example: `{{VALUE:project|label:Client or project name}}`.
-
-## `{{VALUE:<items>|text:<display items>}}` {#value-text}
-
-For option lists, decouples what is shown in the suggester from what is inserted. `items` and `text` must have the same number of comma-separated entries, and each `text` entry must be unique. To put a comma inside one `items` or `text` entry, wrap that entry in double quotes (e.g. `text:"High, urgent",Low`). If you also use `|custom`, typed custom text is inserted as-is.
-
-Example: `priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}`.
-
-## `{{VALUE:<variable name>|<default>}}` {#value-default}
-
-Same as above, but with a default value. For single-value prompts (e.g., `{{VALUE:name|Anonymous}}`), the default is pre-populated in the input field - press Enter to accept or clear/edit it. For multi-value suggesters without `|custom`, you must select one of the provided options (no default applies). If you combine keyed options like `|label:`, `|default:`, `|type:`, or `|case:`, shorthand defaults like `|Anonymous` are ignored; use `|default:Anonymous` instead. The bare `|optional` flag is the exception: `{{VALUE:name|Anonymous|optional}}` keeps the shorthand default. Because `optional` is now a reserved flag word, a literal default of "optional" needs the keyed form: `|default:optional`.
-
-Example: `status: {{VALUE:status|Draft}}`.
-
-## `{{VALUE:<variable name>|default:<value>}}` {#value-default-option}
-
-Option-form default value, required when combining with other options like `|label:`.
-
-Example: `{{VALUE:title|label:Note title|default:Untitled}}`.
-
-## `{{VALUE|type:multiline}}` / `{{VALUE:<variable>|type:multiline}}` {#value-multiline}
-
-Forces a multi-line input prompt/textarea for that VALUE token. Only supported for single-value prompts (no comma options / `|custom`). Overrides the global "Use Multi-line Input Prompt" setting. If `|type:` is present, shorthand defaults like `|Some value` are ignored; use `|default:` instead.
-
-Example:
-
-```markdown
-## Summary
-{{VALUE:summary|type:multiline|label:Summary}}
+```markdown title="You get (after answering "Project kickoff")"
+---
+title: Project kickoff
+---
+# Project kickoff
 ```
 
-**Keyboard:** Submit the multi-line prompt with **Ctrl/Cmd+Enter** - plain **Enter** inserts a newline. Pressing **Tab** inserts a tab character at the cursor (handy for nested Markdown lists) instead of moving focus; with text selected, Tab indents every line the selection touches. **Shift+Tab** is left unbound, so it still moves focus out of the field. See [Controlling Prompts](/docs/ControllingPrompts/#submit-keys) for all prompt shortcuts.
+You can create as many named values as you need.
 
-## `{{VALUE:<variable>|type:number}}` / `|type:slider` / `|type:checkbox` / `|type:text` {#value-property-types}
+### Offer a list to pick from: `{{VALUE:<option>,<option>}}` {#value-suggest}
+
+Two or more comma-separated options turn the prompt into a searchable picker.
+
+```markdown title="You write"
+status: {{VALUE:Backlog,In progress,Done}}
+```
+
+```markdown title="You get (after picking)"
+status: In progress
+```
+
+Need a comma **inside** an option? Wrap the option in double quotes - the
+quotes are stripped from the inserted value:
+
+```markdown
+{{VALUE:"One choice, with a comma",Second choice}}
+```
+
+- Straight (`"`) and curly (`“ ”`) quotes both work, so pasting from a rich-text editor is fine.
+- For a literal double quote inside a quoted option, double it: `"say ""hi"""` inserts `say "hi"`.
+- Single quotes are never special: `Bob's,Alice's` works unchanged.
+- The same quoting works in `|text:` display labels and `|default:` values (e.g. `|default:"a, b"`).
+- Pipes (`|`) inside an option are not supported. Whitespace inside quotes is trimmed.
+
+#### Show friendlier labels: `|text:` {#value-text}
+
+Decouple what the picker shows from what gets inserted:
+
+```markdown title="You write"
+priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}
+```
+
+You pick "High", QuickAdd inserts `⏫`.
+
+`items` and `text` need the same number of entries, and each label must be
+unique. A comma inside an entry needs double quotes (`text:"High, urgent",Low`);
+pipes inside an entry are not supported. With [`|custom`](#value-custom), text
+you type yourself is inserted as-is.
+
+#### Allow answers outside the list: `|custom` {#value-custom}
+
+`{{VALUE:Red,Green,Blue|custom}}` suggests Red, Green, and Blue but also lets
+you type anything else, like "Purple". Useful when you have common options but
+want an escape hatch.
+
+Note: `|custom` can't be combined with a [shorthand default](#value-default);
+use `|default:` instead.
+
+#### Pick several: `|multi` {#value-multi}
+
+`|multi` turns the picker into a multi-select, and the picks are written as a
+YAML list. Requires an option list (2+ comma-separated values).
+
+```markdown title="You write"
+---
+tags: {{VALUE:work,home,urgent|multi}}
+---
+```
+
+```yaml title="You get (after picking work and urgent)"
+tags:
+  - work
+  - urgent
+```
+
+Variants and combinations:
+
+- `|multi:linklist` wraps each pick as a wikilink, for list properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` writes `- "[[Alice]]"` / `- "[[Bob]]"`.
+- `|multi|custom` adds a text box to the picker for values not in the list.
+- Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored (a list isn't case-transformed).
+
+Good to know:
+
+- The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
+- In a **Capture**, multi-select becomes a list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write comma-separated text.
+- With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 _Introduced in QuickAdd 2.14.0._
 
-Tailors the input to an Obsidian property type. These are single-value prompts (no comma options / `|custom`):
+#### Reuse the pick elsewhere: `|name:` {#value-name}
 
-- `|type:number` shows a numeric input. The value is written unquoted (`rating: 42`), so Obsidian reads it as a **Number**. Add `|min:`, `|max:`, and/or `|step:` to constrain the input.
-- `|type:slider` shows a bounded number picker with a slider and numeric input. `|min:` and `|max:` are required; `|step:` defaults to `1`. If the slider range is missing or invalid, QuickAdd falls back to the numeric input instead of guessing a range.
-- `|type:checkbox` (alias `|type:boolean`) shows a forced **true / false** picker — useful for a `checkbox` property. The `|label:` becomes the picker's title so you know which property you're setting. Writes `done: true` (a boolean).
-- `|type:text` keeps the value a **string**. It writes the value as a quoted YAML scalar (`id: "0042"`), so Obsidian can't retype it — without it, a text property given `0042` is read as the number `42`, `true` as a boolean, and a value like `#todo` or `[a]` is mis-parsed entirely.
+`|name:` gives a picker a reusable name, so one pick can drive several places.
+Define the options once, then reuse the answer anywhere with
+`{{VALUE:<name>}}`:
+
+```markdown title="File name"
+{{VALUE:Personal,Work,Errand|name:category}} - {{VALUE:title}}
+```
+
+```markdown title="In the body"
+tags: #{{VALUE:category}}
+```
+
+You pick the category once; the file name and the tag both use it.
+
+Good to know:
+
+- Reuse is always `{{VALUE:category}}`. A bare `{{category}}` is **not** QuickAdd syntax and is left untouched (it would collide with Templater and Dataview).
+- `|name` combines with the other options: `{{VALUE:🔽,🔼,⏫|name:priority|text:Low,Normal,High|label:Pick a priority}}`.
+- Within one field, definition and reuses can appear in any order. Across fields in the default one-prompt-at-a-time flow, define the named picker in the field that is resolved first (the file name comes before the body); a reuse that runs earlier than its definition falls back to a text prompt. The [one-page input form](/docs/Advanced/onePageInputs/) removes this caveat.
+- `value` and `title` are reserved and can't be used as names.
+- Names match case-insensitively: `{{VALUE:Category}}` reuses a pick named `category`.
+- **First definition wins.** If the same `|name` appears twice with different options in one run, the first definition's pick is reused and the second is never shown (a warning is logged to the developer console). Use distinct names for separate prompts.
+
+_Introduced in QuickAdd 2.14.0._
+
+### Fine-tune any prompt
+
+These options work on text prompts and pickers alike. Combine them freely:
+`{{VALUE:title|label:Note title|default:Untitled}}`.
+
+#### Add helper text: `|label:` {#value-label}
+
+`{{VALUE:project|label:Client or project name}}` shows the helper text below
+the prompt's header - handy for instructions or reminders. On an option list,
+the label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
+
+#### Pre-fill a default: `|<default>` {#value-default}
+
+`{{VALUE:name|Anonymous}}` pre-fills the input with `Anonymous` - press Enter
+to accept, or edit it.
+
+Good to know:
+
+- Pickers without `|custom` ignore defaults - you have to pick one of the options.
+- If the placeholder also uses keyed options (`|label:`, `|default:`, `|type:`, `|case:`), the shorthand form is ignored; write [`|default:Anonymous`](#value-default-option) instead. The bare `|optional` flag is the exception: `{{VALUE:name|Anonymous|optional}}` keeps the shorthand default.
+- `optional` is a reserved word, so a literal default of "optional" needs the keyed form: `|default:optional`.
+
+#### The keyed form: `|default:` {#value-default-option}
+
+Same as above, written `{{VALUE:title|default:Untitled}}`. Required whenever
+you combine a default with other keyed options like `|label:`.
+
+#### Ask for multiple lines: `|type:multiline` {#value-multiline}
+
+`{{VALUE:summary|type:multiline}}` opens a textarea instead of a single-line
+input. Works on single-value prompts only (no option lists or `|custom`), and
+overrides the global "Use Multi-line Input Prompt" setting for that
+placeholder.
+
+Mix single-line and multi-line in one format:
+
+```markdown
+- {{VALUE:Title|label:Title}}
+{{VALUE:Body|type:multiline|label:Body}}
+```
+
+**Keyboard:** submit with **Ctrl/Cmd+Enter**; plain **Enter** adds a newline.
+**Tab** inserts a tab character (with a selection, it indents every touched
+line), and **Shift+Tab** moves focus out of the field. See
+[Controlling Prompts](/docs/ControllingPrompts/#submit-keys) for all prompt
+shortcuts.
+
+If `|type:` is present, shorthand defaults like `|Some value` are ignored; use
+`|default:`.
+
+#### Match an Obsidian property type: `|type:number`, `|type:slider`, `|type:checkbox`, `|type:text` {#value-property-types}
+
+These give the prompt the right input widget for a property, and write a value
+Obsidian reads as the right type:
 
 ```markdown
 ---
@@ -194,97 +443,56 @@ id: {{VALUE:id|type:text}}
 ---
 ```
 
-`|min:`, `|max:`, and `|step:` are only parsed as numeric options when the token also uses `|type:number` or `|type:slider`. Without a numeric type, they remain ordinary text/default syntax for backwards compatibility.
+- `|type:number` shows a numeric input and writes the value unquoted (`rating: 42`), so Obsidian reads a **Number**. Constrain it with `|min:`, `|max:`, and/or `|step:`.
+- `|type:slider` shows a slider plus numeric input. `|min:` and `|max:` are required; `|step:` defaults to `1`. If the range is missing or invalid, QuickAdd falls back to the plain numeric input instead of guessing.
+- `|type:checkbox` (alias `|type:boolean`) shows a **true / false** picker for checkbox properties. The `|label:` becomes the picker's title, and it writes a real boolean: `done: true`.
+- `|type:text` keeps the value a **string** by writing it as a quoted YAML value (`id: "0042"`). Without it, a text property given `0042` is read as the number `42`, `true` becomes a boolean, and values starting with `#` or `[` are mis-parsed entirely.
 
-**Good to know:** plain number and checkbox values already round-trip correctly without `|type:` — `count: {{VALUE:count}}` typed `42` becomes a Number, and `{{VALUE:true,false}}` becomes a Boolean. The `|type:` options add the right input widget and validation, `|type:slider` gives bounded numeric range ergonomics, and `|type:text` closes the cases Obsidian gets "wrong" (a text value that looks like a number/boolean, or one that starts with a YAML character like `#` or `[`). Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
+Good to know:
 
-## `{{VALUE|case:<style>}}` / `{{NAME|case:<style>}}` / `{{VALUE:<variable>|case:<style>}}` {#value-case}
-
-Transforms the resolved value into a casing style. Supported: `kebab`, `snake`, `camel`, `pascal`, `title`, `lower`, `upper`, `slug`.
-
-Example: `{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md`.
-
-## `{{VALUE|trim}}` / `{{NAME|trim}}` / `{{VALUE:<variable>|trim}}` {#value-trim}
+- Plain numbers and booleans already round-trip without `|type:` - `count: {{VALUE:count}}` answered `42` becomes a Number. The `|type:` options add the right widget and validation, and `|type:text` fixes the cases Obsidian would otherwise mis-read.
+- Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
+- `|min:`, `|max:`, and `|step:` are only treated as numeric options together with `|type:number` or `|type:slider`. Without those, they keep their old meaning as ordinary text.
 
 _Introduced in QuickAdd 2.14.0._
 
-Trims leading and trailing whitespace from the resolved value for this token. This is useful for file names, links, and properties where accidental spaces from mobile keyboards or pasted text would create a different note or link target.
+#### Change the casing: `|case:` {#value-case}
 
-Example: `[[{{VALUE:title|trim}}]]`.
+Transforms the answer's casing. Styles: `kebab`, `snake`, `camel`, `pascal`,
+`title`, `lower`, `upper`, `slug`.
 
-`|trim` is applied per token and does not mutate the stored value. This means you can reuse the same answer in raw and trimmed forms:
+```markdown title="You write"
+{{DATE:YYYY-MM-DD}}-{{VALUE:title|case:slug}}.md
+```
+
+```markdown title="You get (after answering "My Great Idea!")"
+2026-07-08-my-great-idea.md
+```
+
+#### Trim stray spaces: `|trim` {#value-trim}
+
+`|trim` removes leading and trailing whitespace from the answer for that one
+placeholder - useful in file names, links, and properties where an accidental
+space from a mobile keyboard would create a different note.
 
 ```markdown
 Raw: {{VALUE:title}}
 Link: [[{{VALUE:title|trim}}]]
 ```
 
-It composes with other VALUE options, for example `{{VALUE:title|trim|case:slug}}`. For `|multi` values, string entries are trimmed while the value stays a List. The keyed form `|trim:false` turns trimming off when a shared snippet adds it.
-
-## `{{VALUE:<options>|custom}}` {#value-custom}
-
-Allows you to type custom values in addition to selecting from the provided options. Example: `{{VALUE:Red,Green,Blue|custom}}` will suggest Red, Green, and Blue, but also allows you to type any other value like "Purple". This is useful when you have common options but want flexibility for edge cases. **Note:** You cannot combine `|custom` with a shorthand default value - use `|default:` if you need both.
-
-## `{{VALUE:<options>|multi}}` {#value-multi}
+Trimming is per placeholder and doesn't change the stored value, so the same
+answer can be used raw in one place and trimmed in another. It composes with
+other options (`{{VALUE:title|trim|case:slug}}`). For `|multi` values, each
+entry is trimmed while the value stays a list. The keyed form `|trim:false`
+turns trimming off when a shared snippet adds it.
 
 _Introduced in QuickAdd 2.14.0._
 
-Turns an option-list suggester into a **multi-select**: pick several values and they're written as a YAML **List**. Requires an option list (2+ comma-separated values).
+### Make a prompt skippable: `|optional` {#optional-fields}
 
-```markdown
----
-tags: {{VALUE:work,home,urgent|multi}}
----
-```
-
-picks `work` and `urgent` → 
-
-```yaml
-tags:
-  - work
-  - urgent
-```
-
-Variants and combinations:
-
-- `|multi:linklist` wraps each pick as a wikilink, for List properties of links: `{{VALUE:Alice,Bob,Carol|multi:linklist}}` → `- "[[Alice]]"` / `- "[[Bob]]"`.
-- `|multi|custom` lets you add values not in the list (a text box in the picker).
-- Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored with `|multi` (a list isn't case-transformed).
-
-Notes:
-
-- Multi-select writes a real List with no settings required. It produces a List **inside front matter**; used in the note body it renders as a comma-separated string.
-- In a **Capture**, multi-select becomes a List only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write a comma-separated string instead.
-- With the **one-page input form** (Settings → QuickAdd), avoid commas inside an individual option (e.g. `|text:"High, urgent"`) on a `|multi` token — the one-page picker can't round-trip a comma that lives inside a single option. The default one-prompt-at-a-time picker handles it correctly.
-
-## `{{VALUE:<options>|name:<variable name>}}` {#value-name}
-
-_Introduced in QuickAdd 2.14.0._
-
-Gives a suggester a reusable **name**, so the value you pick can be inserted again elsewhere without prompting a second time. Pick from the options once at the definition, then reuse the choice anywhere with `{{VALUE:<variable name>}}`.
-
-This is what makes a single choice drive multiple places — for example choosing a category in the file name and reusing it as a tag in the body:
-
-```markdown
-File name: {{VALUE:Personal,Work,Errand|name:category}} - {{VALUE:title}}
-
-tags: #{{VALUE:category}}
-```
-
-You choose `category` once from the suggester; both the file name and the `tags` line use that selection.
-
-Notes:
-
-- Reuse is always `{{VALUE:category}}`. A bare `{{category}}` is **not** a QuickAdd token and is left untouched (it would collide with Templater/Dataview syntax).
-- `|name` combines with the other options, e.g. `{{VALUE:🔽,🔼,⏫|name:priority|text:Low,Normal,High|label:Pick a priority}}`.
-- Within a single field the order is free — the definition and its `{{VALUE:category}}` reuses can appear in any order, because the named suggester is resolved before the field's other prompts. Across fields in the default one-prompt-at-a-time flow, define the named suggester in the field that is resolved first (the file name is resolved before the body); a reuse in an earlier field than its definition falls back to a text prompt. The one-page input form (Settings → QuickAdd) removes this caveat entirely.
-- `value` and `title` are reserved and can't be used as a name.
-- Names match **case-insensitively**: `{{VALUE:Category}}` reuses a value picked at `{{VALUE:...|name:category}}`.
-- **First definition wins.** If you reuse the same `|name` with a different definition (different options, or a different `|custom` / `|text:` setting) in one run, the first definition's chosen value is reused for the rest — the later definition is not shown (a warning is logged to the developer console). Use distinct names if you want separate prompts.
-
-## Optional fields: `|optional` {#optional-fields}
-
-Marks a prompt as optional, so it can be skipped and resolve to nothing. Works on `{{VALUE}}`/`{{NAME}}`, `{{VALUE:<variable>}}`, option lists, `{{VDATE:...}}`, and `{{FILE:...}}`.
+`|optional` marks a prompt as fine to leave unanswered: skipping it resolves
+to nothing instead of blocking the run. Works on `{{VALUE}}`/`{{NAME}}`,
+`{{VALUE:<name>}}`, option lists, `{{VDATE:...}}`, and `{{FILE:...}}`.
 
 ```markdown
 {{VALUE:reminder|optional}}
@@ -294,174 +502,209 @@ Marks a prompt as optional, so it can be skipped and resolve to nothing. Works o
 
 What `optional` changes:
 
-- **Prompts gain a Skip button** (and a hint line). Skipping — or submitting an empty input — accepts "empty" as the answer: the placeholder resolves to nothing, and you are not re-prompted for the same variable later in the run.
-- **Empty beats the default.** For optional tokens with a default, the default is pre-filled in the input box; clearing it and submitting yields empty. (Required tokens keep today's behavior: an empty submission falls back to the default.)
-- **Optional dates accept blank input** instead of failing the whole choice. A typo like "tomorow" still errors — only a blank input means "leave empty".
-- **Option lists** show a skip instruction in the suggester footer (Ctrl/Cmd+Shift+Enter) instead of forcing a pick.
-- **In the One-Page Input modal**, optional fields show an "(optional)" badge and may be left empty; optional dropdowns get a "Skip (leave empty)" entry.
-- **Esc still cancels the whole choice** — skipping is an answer, cancelling is not.
+- **Prompts gain a Skip button** (and a hint line). Skipping - or submitting empty - counts as an answer: the placeholder becomes nothing, and you aren't asked again for the same variable later in the run.
+- **Empty beats the default.** With a default, the default is pre-filled; clearing it and submitting yields empty. (Required prompts keep the old behavior: empty falls back to the default.)
+- **Optional dates accept a blank** instead of failing the run. A typo like "tomorow" still errors - only blank means "leave empty".
+- **Option lists** show a skip shortcut in the footer (Ctrl/Cmd+Shift+Enter) instead of forcing a pick.
+- **The one-page input form** shows an "(optional)" badge; optional dropdowns get a "Skip (leave empty)" entry.
+- **Esc still cancels the whole run** - skipping is an answer, cancelling is not.
 
-The keyed form `|optional:false` turns the flag off explicitly (useful when a shared snippet adds it). The flag can sit next to a shorthand default: `{{VALUE:reminder|call mom|optional}}`. Because `optional` is a reserved flag word, a literal default of "optional" needs the keyed form: `{{VALUE:x|default:optional}}`.
-
-**Tip — make decoration disappear with the date:** put literal text inside the moment format using square brackets. With
+:::tip[Make decoration disappear with the answer]
+Put literal text inside the date format using square brackets:
 
 ```markdown
 - [ ] {{VALUE}} {{VDATE:due,[📅 ]YYYY-MM-DD|optional}}
 ```
 
-an answered date renders `📅 2026-06-14`, and a skipped date renders nothing at all — the emoji vanishes with it. The same works for prefixes like `[Due: ]YYYY-MM-DD`.
+An answered date renders `📅 2026-06-14`; a skipped date renders nothing at
+all - the emoji vanishes with it. Works for prefixes like `[Due: ]YYYY-MM-DD`
+too.
+:::
 
-**Scripting note:** setting a variable to the empty string (`params.variables.myVar = ""`) now counts as "answered, empty" for **all** token types, including `{{VDATE}}` — it renders empty instead of re-prompting. To force a prompt, leave the variable unset (or `delete` it / set it to `undefined`). The old workaround of assigning a single space (`" "`) still works but is no longer needed.
+Good to know:
 
-## `{{LINKCURRENT}}` {#linkcurrent}
+- The keyed form `|optional:false` turns the flag off explicitly (useful when a shared snippet adds it).
+- The flag sits happily next to a shorthand default: `{{VALUE:reminder|call mom|optional}}`. Because `optional` is reserved, a literal default of "optional" needs `{{VALUE:x|default:optional}}`.
+- **Scripting:** setting a variable to the empty string (`params.variables.myVar = ""`) counts as "answered, empty" for every placeholder type, including `{{VDATE}}` - it renders empty instead of prompting. To force a prompt, leave the variable unset (or `delete` it / set it to `undefined`). The old workaround of assigning a single space still works but is no longer needed.
 
-A link to the file from which the template or capture was triggered (`[[link]]` format). When the append-link setting is set to **Enabled (skip if no active file)**, this token resolves to an empty string instead of throwing an error if no note is focused.
+## The note you ran QuickAdd from
 
-Example: `Source: {{LINKCURRENT}}`.
+These placeholders read from the **active note** - the one that was focused
+when you triggered QuickAdd.
 
-## `{{LINKSECTION}}` {#linksection}
+### A link to the note: `{{LINKCURRENT}}` {#linkcurrent}
+
+Inserts a link to the active note, in `[[link]]` format.
+
+```markdown title="You write"
+Source: {{LINKCURRENT}}
+```
+
+```markdown title="You get"
+Source: [[Meeting with Alice]]
+```
+
+When the append-link setting is **Enabled (skip if no active file)**, this
+placeholder becomes empty instead of erroring when no note is focused.
+
+### A link to the current section: `{{LINKSECTION}}` {#linksection}
+
+Like `{{LINKCURRENT}}`, but links to the **heading your cursor is under**, in
+`[[Note#Heading]]` format - clicking the link jumps to that section instead of
+the top of the file.
+
+It picks the nearest heading at or above the cursor. With the cursor above the
+first heading (or in a file without headings), it falls back to a plain
+whole-file link. When a heading's text repeats in the file, it uses the
+disambiguating ancestor path (`[[Note#Parent#Heading]]`); if even that isn't
+unique, it falls back to a whole-file link rather than linking to the wrong
+section. Honors the same required/optional behavior as `{{LINKCURRENT}}`.
 
 _Introduced in QuickAdd 2.14.0._
 
-Like `{{LINKCURRENT}}`, but links to the **heading the cursor is currently under** (`[[Note#Heading]]` format), so clicking the link scrolls to that section instead of the top of the file. Honors the same **required/optional** behavior as `{{LINKCURRENT}}`.
+### The note's file name: `{{FILENAMECURRENT}}` {#filenamecurrent}
 
-It picks the nearest heading at or above the cursor. When the cursor is above the first heading (or the file has no headings), it falls back to a plain whole-file link. When a heading's text is repeated in the file, it uses the disambiguating ancestor path (`[[Note#Parent#Heading]]`) so the link resolves to the right one; if even that can't uniquely identify the heading, it falls back to a whole-file link rather than linking to the wrong section.
+The active note's file name, without the extension: `Notes from
+{{FILENAMECURRENT}}`. Honors the same required/optional behavior as
+`{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
-Example: `Source: {{LINKSECTION}}`.
+### The note's folder: `{{FOLDERCURRENT}}` {#foldercurrent}
 
-## `{{FILENAMECURRENT}}` {#filenamecurrent}
+The active note's folder, as a vault-relative path with no trailing slash
+(`Projects/Alpha`). For a note at the vault root it becomes empty. Not to be
+confused with [`{{FOLDER}}`](#folder), which is the folder a *new* note is
+being created in.
 
-The basename (without extension) of the file from which the template or capture was triggered. Honors the same **required/optional** behavior as `{{LINKCURRENT}}` - when optional and no active file exists, resolves to an empty string.
-
-Example: `Notes from {{FILENAMECURRENT}}`.
-
-## `{{FOLDERCURRENT}}` {#foldercurrent}
-
-_Introduced in QuickAdd 2.18.0._
-
-The folder of the file from which the template or capture was triggered (the active file), as a vault-relative path with no trailing slash. For an active file at the vault root it resolves to an empty string. Not to be confused with `{{FOLDER}}` below, which is the folder the *new* note is being created in.
-
-This makes per-project captures work without a macro: with **Capture To** set to
+This makes per-project captures work without a macro. With **Capture To** set
+to:
 
 ```text
 {{FOLDERCURRENT}}/Project Tasks.md
 ```
 
-running the capture from any note inside `Projects/Alpha` targets `Projects/Alpha/Project Tasks.md`, from `Projects/Beta` it targets `Projects/Beta/Project Tasks.md`, and so on. A trailing slash (`{{FOLDERCURRENT}}/`) instead opens a file picker confined to the active file's folder.
+running the capture from any note inside `Projects/Alpha` targets
+`Projects/Alpha/Project Tasks.md`, from `Projects/Beta` it targets
+`Projects/Beta/Project Tasks.md`, and so on. A trailing slash
+(`{{FOLDERCURRENT}}/`) instead opens a file picker confined to that folder.
 
-Where it resolves: capture targets and file name formats, note bodies/capture formats, and Template choice folder paths (e.g. `{{FOLDERCURRENT}}/Subnotes`).
+Works in capture targets, file name formats, note bodies and capture formats,
+and Template choice folder paths (like `{{FOLDERCURRENT}}/Subnotes`).
 
-**No active file:** in paths (capture targets, file names, folder paths) a missing active file always stops the run with a clear error - it never falls back to the vault root. In note bodies it honors the same **required/optional** behavior as `{{LINKCURRENT}}` (optional resolves to an empty string).
+**No active note:** in paths (capture targets, file names, folder paths) a
+missing active note always stops the run with a clear error - it never falls
+back to the vault root. In note bodies it honors the same required/optional
+behavior as `{{LINKCURRENT}}`.
 
-### `{{FOLDERCURRENT|name}}` - just the folder name
+_Introduced in QuickAdd 2.18.0._
 
-Add the `|name` modifier to get only the last path segment: for an active file in `Projects/Acme`, `{{FOLDERCURRENT}}` is `Projects/Acme` while `{{FOLDERCURRENT|name}}` is `Acme`. Use `|name` when you want the folder's name inside a file name or note body rather than a path.
+#### Just the folder's name: `{{FOLDERCURRENT|name}}` {#foldercurrent-name}
 
-Examples: `{{FOLDERCURRENT}}/Project Tasks.md`, `Tasks for {{FOLDERCURRENT|name}}`.
+`|name` keeps only the last path segment: for a note in `Projects/Acme`,
+`{{FOLDERCURRENT}}` is `Projects/Acme` while `{{FOLDERCURRENT|name}}` is
+`Acme`. Use it when you want the folder's name in a file name or sentence
+rather than a path: `Tasks for {{FOLDERCURRENT|name}}`.
 
-## `{{FOLDER}}` {#folder}
+### The selected text: `{{selected}}` {#selected}
 
-_Introduced in QuickAdd 2.14.0._
+Whatever text is selected in the editor, or empty when nothing is: `>
+{{selected}}`.
 
-The folder the note is being created in, as a vault-relative path (no trailing slash). For a note created at the vault root this resolves to an empty string. (For the *active* file's folder, use `{{FOLDERCURRENT}}` above.)
+## The note being created
+
+### The new note's folder: `{{FOLDER}}` {#folder}
+
+The folder the note is being created in, as a vault-relative path with no
+trailing slash. For a note created at the vault root it becomes empty. (For
+the *active* note's folder, use [`{{FOLDERCURRENT}}`](#foldercurrent).)
 
 Where it has a value:
 
-- **Template choices** — in the file name format (the folder is resolved before the name is built) and in the template body.
-- **Capture** — in the capture body, where it resolves to the destination file's folder.
-- **Apply template to a note** — the target note's folder.
+- **Template choices** - in the file name format (the folder is resolved before the name is built) and in the template body.
+- **Capture** - in the capture body, where it becomes the destination file's folder.
+- **Apply template to a note** - the target note's folder.
 
-Where it resolves to an empty string: the capture **Capture to** field (that field is what *chooses* the folder, so there is nothing to reference yet), the `format` JavaScript API, and macro file-path commands.
-
-### `{{FOLDER|name}}` — just the folder name
-
-Add the `|name` modifier to get only the last path segment. For a target folder `Projects/Acme`, `{{FOLDER}}` is `Projects/Acme` while `{{FOLDER|name}}` is `Acme`. Use `{{FOLDER|name}}` when you want the folder's name reflected in a file name; use the bare `{{FOLDER}}` in note bodies where you want the full path.
-
-> Note: in a Template file name format, prefixing with the full path (e.g. `{{FOLDER}}/{{VALUE}}`) is redundant — the note is already placed in the target folder, so the leading path is stripped. Use `{{FOLDER|name}}` to put the folder's name *into* the file name.
-
-Examples: `Filed under {{FOLDER}}`, `{{FOLDER|name}} - {{VALUE}}`.
-
-## `{{MACRO:<MACRONAME>}}` {#macro}
-
-Execute a macro and write the return value here.
-
-Example: `{{MACRO:Generate summary}}`.
-
-## `{{MACRO:<MACRONAME>|label:<label>}}` {#macro-label}
-
-Executes the macro but shows the label as the placeholder when the macro prompts you to choose an export from a script object. This is helpful when multiple macro calls show similar lists.
-
-Example: `{{MACRO:Choose project|label:Project}}`.
-
-## `{{TEMPLATE:<TEMPLATEPATH>}}` {#template}
-
-Include templates in your `format`. Supports Templater syntax.
-
-Example: `{{TEMPLATE:Templates/Meeting.md}}`.
-
-In Capture choices, this can be the entire capture format. Put the full capture body in a template file, then set the Capture format to `{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file contents and then runs the usual capture formatting passes on the result.
-
-## `{{GLOBAL_VAR:<name>}}` {#global-var}
-
-Inserts the value of a globally defined snippet from QuickAdd settings. Snippet values can include other QuickAdd tokens (e.g., `{{VALUE:...}}`, `{{VDATE:...}}`) and are processed by the usual formatter passes. The `GLOBAL_VAR` keyword itself is case‑insensitive, but the snippet name must match the name you defined (it is case‑sensitive).
-
-Example: `{{GLOBAL_VAR:Meeting Header}}`.
-
-## `{{MVALUE}}` {#mvalue}
-
-Math modal for writing LaTeX. Use Ctrl/Cmd + Enter to submit.
-
-Example: `Equation: ${{MVALUE}}$`.
-
-## `{{FIELD:<FIELDNAME>}}` {#field}
-
-Suggest the values of `FIELDNAME` anywhere `{{FIELD:FIELDNAME}}` is used. Fields are YAML fields, and the values represent any value this field has in your vault. If there exists no such field or value, you are instead prompted to enter one.
-
-Example: `project: {{FIELD:project}}`.
-
-### `{{FIELD:<FIELDNAME>|multi}}` {#field-multi}
+Where it stays empty: the capture **Capture to** field (that field is what
+*chooses* the folder, so there is nothing to reference yet), the `format`
+JavaScript API, and macro file-path commands.
 
 _Introduced in QuickAdd 2.14.0._
 
-Turns FIELD suggestions into a multi-select. Pick several existing field values,
-or add custom values in the picker.
+#### Just the folder's name: `{{FOLDER|name}}` {#folder-name}
+
+`|name` keeps only the last path segment: for a target folder `Projects/Acme`,
+`{{FOLDER}}` is `Projects/Acme` while `{{FOLDER|name}}` is `Acme`. Use it to
+put the folder's name *into* a file name: `{{FOLDER|name}} - {{VALUE}}`.
+
+:::note
+In a Template file name format, prefixing the full path (like
+`{{FOLDER}}/{{VALUE}}`) is redundant - the note is already placed in the
+target folder, so the leading path is stripped. Use `{{FOLDER|name}}` instead.
+:::
+
+### The new note's title: `{{TITLE}}` {#title}
+
+The final file name (without extension) of the note being created or captured
+to. Handy as the note's top heading:
 
 ```markdown
+# {{TITLE}}
+```
+
+## Pull data from your vault
+
+### Suggest values a property already has: `{{FIELD:<field name>}}` {#field}
+
+`{{FIELD:project}}` scans your vault for every value the `project` property
+has anywhere, and offers them as suggestions. If no values exist, you are
+prompted to type one.
+
+```markdown title="You write"
+project: {{FIELD:project}}
+```
+
+You get a picker listing every project name already used in your vault - no
+more typos creating a second "Websiet Redesign" project.
+
+#### Pick several: `|multi` {#field-multi}
+
+`{{FIELD:topic|multi}}` turns the suggestions into a multi-select. Pick
+several existing values, or add new ones in the picker.
+
+```markdown title="You write"
 ---
 topics: {{FIELD:topic|multi}}
 ---
 ```
 
-picks `Alpha` and `Beta` →
-
-```yaml
+```yaml title="You get (after picking Alpha and Beta)"
 topics:
   - Alpha
   - Beta
 ```
 
-Inside front matter, `|multi` writes a real YAML **List** when the token is the
-complete property value. In note bodies, file names, and other text positions it
-renders the selected values as comma-separated text. `|multi` combines with the
-same FIELD filters and defaults as single-value FIELD prompts, for example
+Inside front matter, `|multi` writes a real YAML list when the placeholder is
+the property's whole value. In note bodies, file names, and other text
+positions it writes comma-separated text. Combines with the same filters and
+defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
-The one-page input form intentionally does not inline FIELD multi-selects yet:
-vault field values can contain commas, and the current one-page multi input uses
-commas as separators. When a format contains `{{FIELD:...|multi}}`, QuickAdd
-collects other one-page inputs first, then opens the runtime multi-select for
-the FIELD value.
-
-### `{{FIELD:<FIELDNAME>|default-from:active}}` {#field-default-from-active}
+:::note
+The one-page input form doesn't inline FIELD multi-selects yet: vault values
+can contain commas, and the one-page multi input uses commas as separators.
+When a format contains `{{FIELD:...|multi}}`, QuickAdd collects the other
+one-page inputs first, then opens the regular multi-select for the FIELD
+value.
+:::
 
 _Introduced in QuickAdd 2.14.0._
 
-Defaults the FIELD prompt to the value the same property already has on the
-**active note** - the note that was focused when you triggered QuickAdd. This is
-useful for metadata inheritance: from an active project/person/area note, trigger
-a capture or template and carry a property such as `project`, `type`, or `area`
-over to the new content as the default. You can still accept it, pick another
-suggestion, or type a different value.
+#### Default to the active note's value: `|default-from:active` {#field-default-from-active}
+
+`{{FIELD:project|default-from:active}}` pre-fills the prompt with the value
+the **active note** already has for that property. This is metadata
+inheritance: trigger a capture from a project note, and the new content
+carries the project over as the default - accept it, pick another suggestion,
+or type something else.
 
 Active note:
 
@@ -477,136 +720,159 @@ Format:
 project: {{FIELD:project|default-from:active}}
 ```
 
-The `project` prompt defaults to `The Great Endeavor`. The active note is captured
-when the run starts, before any QuickAdd modal can move focus, so the default
-reflects the note you triggered from.
+The `project` prompt defaults to `The Great Endeavor`. The active note is
+captured when the run starts, before any QuickAdd window can move focus.
 
 Behavior:
 
-- The normal FIELD suggestion list still comes from your vault (and honors
-  `folder:`/`tag:`/`exclude-*`/`inline` filters); the active value is just
-  promoted to the top as the default and pre-filled in the one-page form. It is
-  promoted even if it already exists in the suggestions.
-- If no Markdown note is active, the note doesn't have the property, or the value
-  is empty, it falls back to a normal `{{FIELD:<field>}}` prompt with no default.
-- Scalar string/number/boolean values are used as-is. A YAML **list** value
-  applies only to `|multi` FIELD prompts, where each list item is pre-checked in
-  the multi-select picker; for a single-select prompt a list value is skipped (no
-  default). Object/map and null values are never used as defaults.
-- The property name is matched case-insensitively against the active note's
-  properties, so `{{FIELD:Project|default-from:active}}` still reads a `project`
-  property.
-- This is different from `|default:` (a literal default value) and intentionally
-  not `|default:current` (which would clash with `current` as a real field value).
+- The suggestion list still comes from your whole vault (honoring `folder:`/`tag:`/`exclude-*`/`inline` filters); the active note's value is promoted to the top as the default and pre-filled in the one-page form.
+- If no Markdown note is active, the note lacks the property, or the value is empty, you get a normal `{{FIELD:...}}` prompt with no default.
+- Plain string/number/boolean values are used as-is. A YAML **list** value applies only to `|multi` prompts, where each item is pre-checked in the picker; single-select prompts skip list values. Objects and null are never used.
+- The property name matches case-insensitively: `{{FIELD:Project|default-from:active}}` still reads a `project` property.
+- This differs from `|default:` (a literal value), and is deliberately not spelled `|default:current` - that would clash with "current" as a real field value.
 
-Combine it with `|multi` to inherit a list property:
+Combine with `|multi` to inherit a list property:
 
 ```md
 topics: {{FIELD:topics|multi|default-from:active}}
 ```
 
-**Enhanced Filtering Options:**
-
-- `{{FIELD:fieldname|folder:path/to/folder}}` - Only suggest values from files in a specific folder
-- `{{FIELD:fieldname|folder:goals|folder:projects}}` - Suggest values from either folder
-- `{{FIELD:fieldname|tag:tagname}}` - Only suggest values from files with a specific tag
-- `{{FIELD:fieldname|tag:active|tag:project}}` - Only suggest values from files that have both tags
-- `{{FIELD:fieldname|inline:true}}` - Include Dataview inline fields (fieldname:: value)
-- `{{FIELD:fieldname|inline:true|inline-code-blocks:ad-note}}` - Include inline fields inside specific fenced code blocks (opt-in)
-- `{{FIELD:fieldname|exclude-folder:templates}}` - Exclude values from files in specific folder
-- `{{FIELD:fieldname|exclude-tag:deprecated}}` - Exclude values from files with specific tag
-- `{{FIELD:fieldname|exclude-file:example.md}}` - Exclude values from specific file
-- `{{FIELD:fieldname|default:Status - To Do}}` - Prepend a default suggestion; the modal placeholder shows it and pressing Enter accepts it.
-- `{{FIELD:fieldname|default:Draft|default-empty:true}}` - Only add the default when no matching values are found.
-- `{{FIELD:fieldname|default:Draft|default-always:true}}` - Keep the default first even if other suggestions exist.
-- `{{FIELD:fieldname|default-from:active}}` - Default to the active note's current value of this property (see [above](#field-default-from-active)).
-- Combine filters: `{{FIELD:fieldname|folder:goals|folder:projects|tag:work|tag:active|exclude-folder:templates|inline:true|inline-code-blocks:ad-note}}`
-- Multiple exclusions: `{{FIELD:fieldname|exclude-folder:templates|exclude-folder:archive}}`
-
-Repeated `folder:` filters are OR filters. Repeated `tag:` filters are AND
-filters. Exclusions remove any matching file.
-
-Examples: `status: {{FIELD:status|default:Draft|default-always:true}}` or `id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}`.
-
-This is currently in beta, and the syntax can change—leave your thoughts [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
-
-## `{{FILE:<folder>}}` {#file}
-
 _Introduced in QuickAdd 2.14.0._
 
-Prompts you to pick a markdown **file** from `<folder>` and inserts the choice. Unlike `{{FIELD:...}}` (which suggests the *values* of a YAML field), this suggests the files themselves — handy for "metadata folders" such as a `People/` or `Research Topics/` folder where each note is an option. Because the options are real files, the list always reflects what currently exists, which keeps your links consistent.
+#### Filter where suggestions come from {#field-filters}
 
-The picker shows a note's frontmatter `title` when available, then its first
-level-1 heading, then its file basename. QuickAdd still stores the selected file
-path internally, so friendly labels do not change which file is inserted.
+| You write | Suggestions come from |
+| --- | --- |
+| `{{FIELD:status\|folder:projects}}` | Only files in `projects` |
+| `{{FIELD:status\|folder:goals\|folder:projects}}` | Files in either folder |
+| `{{FIELD:status\|tag:work}}` | Only files with `#work` |
+| `{{FIELD:status\|tag:active\|tag:project}}` | Files with **both** tags |
+| `{{FIELD:status\|exclude-folder:templates}}` | Everything except that folder |
+| `{{FIELD:status\|exclude-tag:deprecated}}` | Everything except files with that tag |
+| `{{FIELD:status\|exclude-file:example.md}}` | Everything except that file |
+| `{{FIELD:id\|inline:true}}` | Also Dataview inline fields (`id:: value`) |
+| `{{FIELD:id\|inline:true\|inline-code-blocks:ad-note}}` | Also inline fields inside those fenced code blocks (opt-in) |
 
-By default the **basename** (just the file name, no folder or extension) is inserted. Output modes:
+Repeated `folder:` filters are OR (either folder). Repeated `tag:` filters are
+AND (all tags). Exclusions remove any matching file. Filters combine freely:
 
-- `{{FILE:People}}` — inserts the basename, e.g. `Tom`.
-- `{{FILE:People|link}}` — inserts a resolved wikilink, e.g. `[[Tom]]`, using your link settings (wikilink vs. Markdown, shortest path, etc.). In a capture it resolves relative to the capture target; in a template it resolves like `{{LINKCURRENT}}`. Do **not** wrap this in `[[ ]]` yourself — you'd get `[[[[Tom]]]]`.
-- `{{FILE:People|path}}` — inserts the vault-relative path, e.g. `People/Tom.md`.
-- `{{FILE:People|multi}}` — lets you pick several files.
+```markdown
+{{FIELD:status|folder:goals|folder:projects|tag:work|exclude-folder:templates}}
+```
 
-Example — add a wikilink to a `research-topics` frontmatter list (quote it so the YAML stays a valid list item):
+Defaults work here too:
+
+- `{{FIELD:status|default:To Do}}` - put a default at the top of the suggestions; Enter accepts it.
+- `{{FIELD:status|default:Draft|default-empty:true}}` - only add the default when no values were found.
+- `{{FIELD:status|default:Draft|default-always:true}}` - keep the default first even when other suggestions exist.
+- `{{FIELD:project|default-from:active}}` - default to the active note's value ([above](#field-default-from-active)).
+
+:::caution[Beta]
+FIELD filtering is in beta and the syntax can change - leave your thoughts
+[on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
+:::
+
+### Pick a note from a folder: `{{FILE:<folder>}}` {#file}
+
+`{{FILE:People}}` opens a picker listing the Markdown files in your `People`
+folder and inserts your pick. Where [`{{FIELD}}`](#field) suggests the
+*values* of a property, `{{FILE}}` suggests the notes themselves - made for
+"metadata folders" like `People/` or `Research Topics/` where every note is an
+option. Because the options are real files, the list always reflects what
+currently exists.
+
+The picker labels each note by its frontmatter `title` if present, then its
+first level-1 heading, then its file name - but always inserts based on the
+actual file, so friendly labels never change what you get.
+
+Output modes:
+
+| You write | You get |
+| --- | --- |
+| `{{FILE:People}}` | The file name: `Tom` |
+| `{{FILE:People\|link}}` | A resolved wikilink: `[[Tom]]` |
+| `{{FILE:People\|path}}` | The vault path: `People/Tom.md` |
+| `{{FILE:People\|multi}}` | Several picks |
+
+`|link` follows your link settings (wikilink vs Markdown, shortest path). In a
+capture it resolves relative to the capture target; in a template it resolves
+like `{{LINKCURRENT}}`. Don't wrap it in `[[ ]]` yourself - you'd get
+`[[[[Tom]]]]`.
+
+Example - link a research topic in a frontmatter list (quote it so the YAML
+stays valid):
 
 ```yaml
 research-topics:
   - "{{FILE:Research Topics|link}}"
 ```
 
-**Options:**
+Options:
 
-- `{{FILE:<folder>|optional}}` — allow skipping the pick (resolves to nothing).
-- `{{FILE:<folder>|custom}}` — also allow typing a value that isn't in the folder.
-- `{{FILE:<folder>|multi}}` — select multiple files. In frontmatter/property positions where QuickAdd collects structured properties, QuickAdd writes a YAML list. In note bodies, file names, existing-note captures, and other text positions, it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every selected file.
-- `{{FILE:<folder>|label:Pick a person}}` — set the picker's placeholder text.
-- `{{FILE:<folder>|name:<id>}}` — give the pick a shared **id**. Like `{{VALUE}}` and `{{FIELD}}`, FILE tokens are cached by identity: tokens that differ (by folder, filters, mode, or `|label:`) prompt independently, while *identical* tokens reuse one pick. So to choose **two different** files from the same folder, give them distinct labels — e.g. `{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}` prompt separately. To reuse the *same* pick across tokens — for example to insert both the name and a link to one chosen file — give them the same `|name:`. Tokens that share an id should target the same folder/filters; the shared pick is required if *any* occurrence omits `|optional`.
-- Filtering reuses the `{{FIELD}}` grammar: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
+- `|optional` - allow skipping the pick (becomes nothing).
+- `|custom` - also allow typing a value that isn't in the folder.
+- `|multi` - pick several files. In frontmatter/property positions QuickAdd writes a YAML list; in note bodies, file names, existing-note captures, and other text positions it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every pick.
+- `|label:Pick a person` - set the picker's placeholder text.
+- `|name:<id>` - share one pick between placeholders. FILE placeholders are cached by their full definition: placeholders that differ (folder, filters, mode, or `|label:`) prompt independently, while identical ones reuse one pick. To pick **two different** people, give the placeholders different labels (`{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}`). To reuse **the same** pick - say, a name in one place and a link in another - give them the same `|name:`. Placeholders sharing an id should target the same folder and filters; the shared pick is required if *any* occurrence omits `|optional`.
+- Filters reuse the FIELD syntax: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
 
-Notes:
+Good to know:
 
-- The folder is the first part of the token; a `|folder:` option is **not** used here (that's `{{FIELD}}` syntax) and is ignored.
-- The folder is matched **recursively** (its subfolders are included). Point at the leaf folder (e.g. `{{FILE:fields/people}}`) to scope tightly.
+- The folder is the first part of the placeholder. A `|folder:` option is FIELD syntax and is ignored here.
+- The folder matches **recursively** (subfolders included). Point at a leaf folder (like `{{FILE:fields/people}}`) to scope tightly.
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
 - Markdown files only.
-- `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default basename mode.
-- One-page input forms collect other inputs first, then open the runtime FILE multi-select, because file names and title labels can contain commas.
+- `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
+- One-page input forms collect the other inputs first, then open the FILE multi-select, because file names and labels can contain commas.
 
-## `{{selected}}` {#selected}
+_Introduced in QuickAdd 2.14.0._
 
-The selected text in the current editor. Will be empty if no active editor exists.
+## Insert other content
 
-Example: `> {{selected}}`.
+### Your clipboard: `{{CLIPBOARD}}` {#clipboard}
 
-## `{{CLIPBOARD}}` {#clipboard}
+Inserts the current clipboard content: `Copied: {{CLIPBOARD}}`. Becomes empty
+if clipboard access fails due to permissions or security restrictions.
 
-The current clipboard content. Will be empty if clipboard access fails due to permissions or security restrictions.
+In Capture content, if the clipboard has no text but holds a supported image,
+QuickAdd saves the image using Obsidian's attachment settings and inserts an
+embedded link. Text wins when both are present. You can also paste an image
+straight into a [value prompt](#value) while typing - no placeholder needed.
 
-In Capture choice content, if the clipboard has no text but contains a supported image, QuickAdd saves the image using Obsidian's attachment location settings and inserts an embedded attachment link. Clipboard text takes precedence when both text and an image are available.
+### A template file: `{{TEMPLATE:<path>}}` {#template}
 
-You can also paste an image directly into a [value prompt](#value) while typing - no token required.
+`{{TEMPLATE:Templates/Meeting.md}}` inserts that file's contents. Templater
+syntax inside the file is supported.
 
-Example: `Copied: {{CLIPBOARD}}`.
+In Capture choices this can be the entire capture format: keep the full
+capture body in a template file and set the format to
+`{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file and then
+runs the usual formatting passes on the result.
 
-## `{{RANDOM:<length>}}` {#random}
+### A macro's result: `{{MACRO:<macro name>}}` {#macro}
 
-Generates a random alphanumeric string of the specified length (1-100). Useful for creating unique identifiers, block references, or temporary codes.
+`{{MACRO:Generate summary}}` runs that macro and inserts its return value.
 
-Example: `^{{RANDOM:6}}`.
+#### Label the macro's prompt: `|label:` {#macro-label}
 
-## `{{TITLE}}` {#title}
+When the macro asks you to choose an export from a script,
+`{{MACRO:Choose project|label:Project}}` shows "Project" as the placeholder -
+helpful when several macro calls show similar lists.
 
-The final rendered filename (without extension) of the note being created or captured to.
+### A snippet from settings: `{{GLOBAL_VAR:<name>}}` {#global-var}
 
-Example: `# {{TITLE}}`.
+Inserts the value of a [global variable](/docs/GlobalVariables/) defined in
+QuickAdd settings: `{{GLOBAL_VAR:Meeting Header}}`. Snippets can contain other
+placeholders (like `{{VALUE:...}}` or `{{VDATE:...}}`), which are processed as
+usual. The `GLOBAL_VAR` keyword is case-insensitive; the snippet name must
+match exactly as you defined it.
 
-`|text:` limitations (current): a comma inside an `items`/`text` entry needs double quotes (e.g. `"a, b"`); pipes (`|`) inside an entry are not supported.
+### A math formula: `{{MVALUE}}` {#mvalue}
 
-### Mixed-mode example
+Opens a math prompt for writing LaTeX, with a live preview. Submit with
+Ctrl/Cmd+Enter: `Equation: ${{MVALUE}}$`.
 
-Use single-line for a title and multi-line for a body:
+### A random ID: `{{RANDOM:<length>}}` {#random}
 
-```markdown
-- {{VALUE:Title|label:Title}}
-{{VALUE:Body|type:multiline|label:Body}}
-```
+Generates a random alphanumeric string of the given length (1-100). Useful for
+unique identifiers, like block references: `^{{RANDOM:6}}`.

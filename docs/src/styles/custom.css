@@ -25,3 +25,86 @@
 	--sl-color-accent: #5a4aec;
 	--sl-color-accent-high: #38288a;
 }
+
+/* ---------------------------------------------------------------------------
+ * Typography rhythm
+ * ------------------------------------------------------------------------ */
+
+/* Tighter tracking on large headings; Inter wants it at display sizes. */
+.sl-markdown-content :is(h1, h2):not(:where(.not-content *)),
+.content-panel h1 {
+	letter-spacing: -0.02em;
+}
+.sl-markdown-content :is(h3, h4):not(:where(.not-content *)) {
+	letter-spacing: -0.01em;
+}
+
+/* Generous whitespace between top-level sections keeps long reference pages
+ * scannable. */
+.sl-markdown-content h2:not(:where(.not-content *)) {
+	margin-top: 2em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Inline code
+ * ------------------------------------------------------------------------ */
+
+/* Quieter chips: softer fill, hairline border, rounded. The default solid
+ * gray-5 block is loud enough to shred reading flow on token-dense pages. */
+.sl-markdown-content code:not(:where(.not-content *)) {
+	background-color: color-mix(in srgb, var(--sl-color-gray-5) 55%, var(--sl-color-bg));
+	border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 80%, var(--sl-color-bg));
+	border-radius: 0.375rem;
+	padding: 0.125rem 0.3125rem;
+}
+:root[data-theme='light'] .sl-markdown-content code:not(:where(.not-content *)) {
+	background-color: color-mix(in srgb, var(--sl-color-gray-6) 70%, var(--sl-color-bg));
+	border-color: var(--sl-color-gray-5);
+}
+.sl-markdown-content pre code:not(:where(.not-content *)) {
+	all: unset;
+	font-family: var(--__sl-font-mono);
+}
+
+/* Code inside headings at full heading size reads as shouting (and giant
+ * mono chips dominated the old token pages). Scale it down and let the
+ * human-language part of the heading lead. */
+.sl-markdown-content :is(h1, h2, h3, h4, h5, h6) code {
+	font-size: 0.8em;
+	font-weight: 500;
+	padding: 0.1em 0.4em;
+	vertical-align: baseline;
+}
+
+/* Code blocks: match the chip radius. */
+.sl-markdown-content pre:not(:where(.not-content *)) {
+	border-radius: 0.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables
+ * ------------------------------------------------------------------------ */
+
+/* Calmer header row + slightly muted rules so token tables read as rows of
+ * facts, not grids of boxes. */
+.sl-markdown-content th:not(:where(.not-content *)) {
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+	border-bottom: 1px solid var(--sl-color-gray-4);
+}
+.sl-markdown-content td:not(:where(.not-content *)) {
+	border-bottom: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 60%, var(--sl-color-bg));
+}
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+	padding-block: 0.625rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Right-hand "On this page" list
+ * ------------------------------------------------------------------------ */
+
+/* Keep long task-style entries readable: a touch smaller with room to
+ * breathe. */
+starlight-toc a {
+	line-height: 1.4;
+}
