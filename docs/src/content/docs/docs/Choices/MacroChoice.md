@@ -200,6 +200,8 @@ file or in a ` ```js ` code block inside a note. Scripts have access to:
 - The QuickAdd API
 - A `variables` object for passing data between commands
 
+<a id="basic-script-structure"></a>
+
 The basic shape is an exported async function - QuickAdd calls it with a
 `params` object that carries everything you need:
 
@@ -216,10 +218,10 @@ module.exports = async (params) => {
 };
 ```
 
-<a id="basic-script-structure"></a>
 <a id="using-the-quickadd-api"></a>
 <a id="getting-the-current-selection"></a>
 <a id="accessing-other-plugins"></a>
+<a id="exporting-multiple-functions"></a>
 
 Everything else about writing scripts lives in the
 [User Scripts reference](/docs/UserScripts/):
@@ -242,7 +244,6 @@ variables, and the `executeChoice` boundary - see
 [Variables and data flow](/docs/VariablesDataFlow/).
 
 <a id="advanced-script-patterns"></a>
-<a id="exporting-multiple-functions"></a>
 
 ## Run one export directly: `Macro::member` {#direct-function-access}
 

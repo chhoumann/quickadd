@@ -168,14 +168,15 @@ This means you can safely type natural prose like `Hello, world` into a
 formatted array.
 
 <a id="complex-nested-structures"></a>
+<a id="project-management"></a>
 
 Nesting goes as deep as you need: objects inside objects, arrays inside
-objects, arrays **of** objects (`tasks: [{ name: "Research", complete: true }]`
-becomes a list of mappings), and `null` leaves all serialize the same way. The
-worked example below shows a nested structure end to end.
+objects, arrays **of** objects (a project's
+`tasks: [{ name: "Research", complete: true }]` becomes a list of mappings),
+and `null` leaves all serialize the same way. The worked example below shows a
+nested structure end to end.
 
 <a id="real-world-examples"></a>
-<a id="project-management"></a>
 
 ## A worked example: academic papers {#academic-papers}
 

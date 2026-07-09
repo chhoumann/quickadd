@@ -643,7 +643,9 @@ another way:
 
 ### Offer several actions from one script {#multiple-entry-points}
 
-Export an object with multiple functions that users can choose from:
+Export an object with multiple functions that users can choose from. The object
+can also carry plain values (a default or shared constant) alongside the
+functions:
 
 ```javascript
 module.exports = {
