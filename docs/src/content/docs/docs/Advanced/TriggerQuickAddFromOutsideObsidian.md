@@ -29,9 +29,10 @@ obsidian vault="My Vault" quickadd:list
 
 ## Build the link {#native-uri-syntax}
 
-Every recipe below opens the same link shape - the choice to run, plus a
-`value-<name>` parameter for each named value you want to pass (everything
-URL-encoded):
+The shortcut and in-note recipes below all open the same link shape - the
+`vault` to run in, the `choice` to run, plus a `value-<name>` parameter for
+each named value you want to pass (everything URL-encoded). Scheduled jobs use
+the [CLI](#run-quickadd-on-a-schedule) instead of a link.
 
 ```text
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-entry=Finished%20review
