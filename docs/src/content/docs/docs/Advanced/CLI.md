@@ -121,6 +121,10 @@ Add `ui` to allow interactive prompts:
 obsidian vault=dev quickadd choice="Daily log" ui
 ```
 
+In a [scheduled job](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/#run-quickadd-on-a-schedule),
+only add `ui` when the job runs while you are logged in and able to answer the
+prompts.
+
 ## Answer run-time prompts from outside: `quickadd:interactive` {#interactive-runs-quickaddinteractive}
 
 Some choices prompt at *run time* for inputs that can't be gathered up front -

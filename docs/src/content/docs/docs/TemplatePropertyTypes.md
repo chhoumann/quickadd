@@ -167,50 +167,19 @@ This means you can safely type natural prose like `Hello, world` into a
 `sources` marked as a multi-value property will still receive a properly
 formatted array.
 
-### Deeply nested data works too {#complex-nested-structures}
+<a id="complex-nested-structures"></a>
 
-The feature supports deeply nested structures:
+Nesting goes as deep as you need: objects inside objects, arrays inside
+objects, arrays **of** objects (`tasks: [{ name: "Research", complete: true }]`
+becomes a list of mappings), and `null` leaves all serialize the same way. The
+worked example below shows a nested structure end to end.
 
-```javascript
-QuickAdd.variables.paper = {
-    title: "Advanced Research",
-    authors: ["Alice", "Bob"],
-    metadata: {
-        year: 2023,
-        conference: "ICML",
-        tags: ["ML", "AI"],
-        metrics: {
-            pages: 12,
-            citations: null
-        }
-    },
-    reviewed: true
-};
-```
+<a id="real-world-examples"></a>
+<a id="project-management"></a>
 
-Results in:
+## A worked example: academic papers {#academic-papers}
 
-```yaml
-paper:
-  title: Advanced Research
-  authors:
-    - Alice
-    - Bob
-  metadata:
-    year: 2023
-    conference: ICML
-    tags:
-      - ML
-      - AI
-    metrics:
-      pages: 12
-      citations: null
-  reviewed: true
-```
-
-## Real-world examples {#real-world-examples}
-
-### Academic papers {#academic-papers}
+One structure from a script, through a template, into typed front matter.
 
 **Script:**
 ```javascript
@@ -272,44 +241,6 @@ metrics:
 
 ## Summary
 Paper by Ashish Vaswani,Noam Shazeer,Niki Parmar published in NIPS (2017).
-```
-
-### Project management {#project-management}
-
-**Script:**
-```javascript
-QuickAdd.variables.project = {
-    name: "Website Redesign",
-    status: "in-progress",
-    team: ["Alice", "Bob", "Carol"],
-    priority: 3,
-    tasks: [
-        { name: "Research", complete: true },
-        { name: "Design", complete: false },
-        { name: "Development", complete: false }
-    ],
-    deadline: "2023-12-01"
-};
-```
-
-**Result:**
-```yaml
-project:
-  name: Website Redesign
-  status: in-progress
-  team:
-    - Alice
-    - Bob
-    - Carol
-  priority: 3
-  tasks:
-    - name: Research
-      complete: true
-    - name: Design
-      complete: false
-    - name: Development
-      complete: false
-  deadline: "2023-12-01"
 ```
 
 ## Captures and fresh templates {#captures--fresh-templates}

@@ -40,8 +40,30 @@ A user script can live in either of two places inside your vault:
 
 The note form is handy on mobile, where Obsidian can't open `.js` files at all.
 
-Avoid `.obsidian` and hidden dot-folders such as `.scripts`, because Obsidian
-may exclude them from the vault file index QuickAdd uses for script discovery.
+:::caution[Where scripts can live]
+A user script must sit inside your Obsidian vault, but **not** in the
+`.obsidian` directory or in any hidden folder (one whose name starts with a
+dot). Obsidian may exclude those from the vault file index QuickAdd uses for
+script discovery, so a script there is intentionally ignored and won't appear
+in the script picker.
+
+✅ **Valid locations:**
+
+- `/scripts/myScript.js`
+- `/_quickadd/scripts/myScript.js`
+- `/macros/utilities/helper.js`
+- `/my-custom-folder/script.js`
+- Any folder in your vault except `.obsidian` or a hidden folder
+
+❌ **Invalid locations:**
+
+- `/.obsidian/plugins/quickadd/scripts/myScript.js`
+- `/.obsidian/scripts/myScript.js`
+- `/.quickadd/scripts/myScript.js` (hidden folder - use `_quickadd` instead)
+- `/.scripts/myScript.js` (hidden folder - use `_scripts` instead)
+- Any path within the `.obsidian` directory
+- Any path within a folder starting with a dot (.)
+:::
 
 In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
 (both `.js` files and notes that contain a code block); it is not a native file
@@ -375,6 +397,33 @@ await quickAddApi.executeChoice("My Other Choice", {
     customVariable: "value"
 });
 ```
+
+### Reach into other plugins {#accessing-other-plugins}
+
+A script can talk to other Obsidian plugins through `app.plugins.plugins`. Check
+that the plugin is there before using it:
+
+```javascript
+module.exports = async (params) => {
+    const { app } = params;
+
+    // Access Templater
+    const templater = app.plugins.plugins["templater-obsidian"];
+    if (templater) {
+        // Use Templater API
+    }
+
+    // Access MetaEdit
+    const metaedit = app.plugins.plugins["metaedit"];
+    if (metaedit) {
+        const { update } = metaedit.api;
+        await update("property", "value", "path/to/file.md");
+    }
+};
+```
+
+The plugin must be installed and enabled in the vault, so check for it and fail
+with a clear message when it's missing.
 
 ## Handle errors and stop a macro {#error-handling-and-macro-control}
 

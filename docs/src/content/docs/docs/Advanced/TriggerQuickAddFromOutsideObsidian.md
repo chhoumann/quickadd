@@ -29,36 +29,17 @@ obsidian vault="My Vault" quickadd:list
 
 ## Build the link {#native-uri-syntax}
 
-Use this shape:
-
-```text
-obsidian://quickadd?choice=<encoded choice name>[&value-<name>=<encoded value>]
-```
-
-For example:
+Every recipe below opens the same link shape - the choice to run, plus a
+`value-<name>` parameter for each named value you want to pass (everything
+URL-encoded):
 
 ```text
 obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-entry=Finished%20review
 ```
 
-The parts are:
-
-- `choice` - the exact choice name to run. Encode spaces and special characters, so `Daily log` becomes `Daily%20log`.
-- `value-<name>` - sets a named QuickAdd value. `value-entry=Done` fills `{{VALUE:entry}}`; `value-log%20notes=Done` fills `{{VALUE:log notes}}`.
-- `vault` - which vault to use. Obsidian handles this before QuickAdd sees the link.
-
-Values are used exactly as passed. If a choice should ignore an accidental
-leading or trailing space for a value, add `|trim` to the format, for example
-`{{VALUE:entry|trim}}`.
-
-Unnamed values like a bare `{{VALUE}}`, `{{NAME}}`, or `{{MVALUE}}` cannot be
-filled from the link. QuickAdd prompts for them inside Obsidian as usual.
-
-:::tip
-For the full link reference, including callback links like `x-success` and
-`x-error`, see [Open QuickAdd from a URI](/docs/Advanced/ObsidianUri/). Callback
-support is opt-in and has extra restrictions that ordinary triggers do not need.
-:::
+The full link reference - the parameter breakdown, passing values, `|trim`,
+which placeholders can't be filled from a link, and the opt-in callback links
+like `x-success` - is on [Open QuickAdd from a URI](/docs/Advanced/ObsidianUri/).
 
 ## Trigger from a desktop shortcut {#desktop-shortcuts}
 
@@ -115,30 +96,18 @@ Terminal=false
 ## Run QuickAdd on a schedule {#run-quickadd-on-a-schedule}
 
 QuickAdd has no built-in background scheduler. Use your operating system's
-scheduler to run Obsidian's native CLI command.
-
-Scheduled jobs should use `quickadd:run`:
+scheduler to run Obsidian's native CLI command:
 
 ```bash
 obsidian vault="My Vault" quickadd:run choice="Daily log" value-entry="Scheduled check"
 ```
 
-By default, `quickadd:run` is non-interactive. If the choice is missing a
-required input, QuickAdd returns JSON with `missingFlags` instead of opening
-prompts. Run `quickadd:check` while building the automation to see what still
-needs to be passed. See [QuickAdd CLI](/docs/Advanced/CLI/) for the full command
-reference.
-
-```bash
-obsidian vault="My Vault" quickadd:check choice="Daily log"
-```
-
-If you intentionally want Obsidian to prompt, add `ui` - but only for jobs that
-run while you are logged in and able to answer:
-
-```bash
-obsidian vault="My Vault" quickadd:run choice="Daily log" ui
-```
+`quickadd:run` is non-interactive by default - a choice that still needs input
+returns JSON with `missingFlags` instead of opening prompts, and
+`quickadd:check` tells you up front what to pass. Those semantics, the `ui`
+flag for runs that may prompt, and the rest of the commands are covered in the
+[QuickAdd CLI reference](/docs/Advanced/CLI/); this section is about wiring the
+command into each platform's scheduler.
 
 :::caution
 Use full paths in schedulers. They usually do not load the same `PATH` as your

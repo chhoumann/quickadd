@@ -113,7 +113,7 @@ whose name starts with a dot. Obsidian may exclude hidden folders from its file
 index, and QuickAdd builds the picker from Obsidian's indexed files, so a hidden
 script never shows up. Use a normal folder such as `scripts/`, or a visible
 underscore-prefixed folder such as `_quickadd/scripts/`. Full rules are in
-[User scripts](#user-scripts).
+[User Scripts](/docs/UserScripts/#adding-scripts-to-macros).
 :::
 
 Good to know:
@@ -200,36 +200,8 @@ file or in a ` ```js ` code block inside a note. Scripts have access to:
 - The QuickAdd API
 - A `variables` object for passing data between commands
 
-:::caution[Where scripts can live]
-A user script (a `.js` file, or a note with a ` ```js ` block) must sit inside
-your Obsidian vault, but **not** in the `.obsidian` directory or in any hidden
-folder (one whose name starts with a dot).
-
-✅ **Valid locations:**
-
-- `/scripts/myScript.js`
-- `/_quickadd/scripts/myScript.js`
-- `/macros/utilities/helper.js`
-- `/my-custom-folder/script.js`
-- Any folder in your vault except `.obsidian` or a hidden folder
-
-❌ **Invalid locations:**
-
-- `/.obsidian/plugins/quickadd/scripts/myScript.js`
-- `/.obsidian/scripts/myScript.js`
-- `/.quickadd/scripts/myScript.js` (hidden folder - use `_quickadd` instead)
-- `/.scripts/myScript.js` (hidden folder - use `_scripts` instead)
-- Any path within the `.obsidian` directory
-- Any path within a folder starting with a dot (.)
-
-Scripts in the `.obsidian` directory or in hidden folders are intentionally
-ignored and won't appear in the script picker.
-:::
-
-### The basic script shape {#basic-script-structure}
-
-Export an async function. QuickAdd calls it with a `params` object that carries
-everything you need.
+The basic shape is an exported async function - QuickAdd calls it with a
+`params` object that carries everything you need:
 
 ```javascript
 module.exports = async (params) => {
@@ -244,75 +216,20 @@ module.exports = async (params) => {
 };
 ```
 
-### Prompt the user: the QuickAdd API {#using-the-quickadd-api}
+<a id="basic-script-structure"></a>
+<a id="using-the-quickadd-api"></a>
+<a id="getting-the-current-selection"></a>
+<a id="accessing-other-plugins"></a>
 
-`quickAddApi` gives you ready-made prompts so you don't have to build UI:
+Everything else about writing scripts lives in the
+[User Scripts reference](/docs/UserScripts/):
 
-```javascript
-module.exports = async (params) => {
-    const { quickAddApi } = params;
-
-    // Input prompt - get text from user
-    const name = await quickAddApi.inputPrompt("Enter your name:");
-
-    // Yes/No prompt
-    const confirmed = await quickAddApi.yesNoPrompt("Are you sure?");
-
-    // Suggester - let user choose from options
-    const choice = await quickAddApi.suggester(
-        ["Option 1", "Option 2", "Option 3"],  // Display values
-        ["value1", "value2", "value3"]         // Actual values
-    );
-
-    // Wide input prompt - for longer text
-    const longText = await quickAddApi.wideInputPrompt("Enter description:");
-
-    // Checkbox prompt - multiple selections
-    const selections = await quickAddApi.checkboxPrompt(
-        ["Task 1", "Task 2", "Task 3"]
-    );
-};
-```
-
-For the full list of methods, see the [QuickAdd API](/docs/QuickAddAPI/).
-
-### Read the editor selection {#getting-the-current-selection}
-
-Use the utility helper to read whatever text is selected in the active editor.
-It returns an empty string when nothing is selected or no editor is active.
-
-```javascript
-module.exports = async (params) => {
-    const selection = params.quickAddApi.utility.getSelection();
-    if (selection) {
-        params.variables.selectedText = selection;
-    }
-};
-```
-
-### Reach into other plugins {#accessing-other-plugins}
-
-A script can talk to other Obsidian plugins through `app.plugins.plugins`. Check
-that the plugin is there before using it:
-
-```javascript
-module.exports = async (params) => {
-    const { app } = params;
-
-    // Access Templater
-    const templater = app.plugins.plugins["templater-obsidian"];
-    if (templater) {
-        // Use Templater API
-    }
-
-    // Access MetaEdit
-    const metaedit = app.plugins.plugins["metaedit"];
-    if (metaedit) {
-        const { update } = metaedit.api;
-        await update("property", "value", "path/to/file.md");
-    }
-};
-```
+- [Where a script can live](/docs/UserScripts/#adding-scripts-to-macros) - `.js` file or note code block, and which folders QuickAdd's picker can see.
+- [Prompt the user](/docs/UserScripts/#user-input) - input prompts, suggesters, yes/no, and checkbox prompts via `quickAddApi`; the full method list is in the [QuickAdd API](/docs/QuickAddAPI/).
+- [Read the editor selection](/docs/QuickAddAPI/#getselection-string) - `quickAddApi.utility.getSelection()`.
+- [Reach into other plugins](/docs/UserScripts/#accessing-other-plugins) - talk to Templater, MetaEdit, or any plugin through `app.plugins.plugins`.
+- [Offer several actions from one script](/docs/UserScripts/#multiple-entry-points) - export more than one function and pick at run time.
+- [Configurable settings](/docs/UserScripts/#configurable-options), [error handling and `abort()`](/docs/UserScripts/#error-handling-and-macro-control), and a shelf of [copy-paste recipes](/docs/UserScripts/#common-patterns--recipes).
 
 ## Pass data between commands: variables {#variables-and-data-flow}
 
@@ -324,46 +241,14 @@ For the full rules - named `VALUE` prompts, empty values, AI Assistant output
 variables, and the `executeChoice` boundary - see
 [Variables and data flow](/docs/VariablesDataFlow/).
 
-## Advanced script patterns {#advanced-script-patterns}
+<a id="advanced-script-patterns"></a>
+<a id="exporting-multiple-functions"></a>
 
-### Offer several actions from one script {#exporting-multiple-functions}
+## Run one export directly: `Macro::member` {#direct-function-access}
 
-A script can export more than one function, so one file offers a menu of
-actions:
-
-```javascript
-module.exports = {
-    option1: async (params) => {
-        console.log("Running option 1");
-    },
-
-    option2: async (params) => {
-        console.log("Running option 2");
-    },
-
-    // Can also include variables
-    defaultValue: "some default",
-
-    // Main entry point
-    start: async (params) => {
-        const { quickAddApi } = params;
-        const choice = await quickAddApi.suggester(
-            ["Run Option 1", "Run Option 2"],
-            ["option1", "option2"]
-        );
-
-        if (choice === "option1") {
-            await module.exports.option1(params);
-        } else if (choice === "option2") {
-            await module.exports.option2(params);
-        }
-    }
-};
-```
-
-### Run one export directly: `Macro::member` {#direct-function-access}
-
-You can skip the "which export?" prompt by naming the function:
+When a script [exports several functions](/docs/UserScripts/#multiple-entry-points),
+QuickAdd normally asks which one to run. You can skip that prompt by naming the
+function:
 
 - `{{MACRO:MyMacro::option1}}` runs `option1` directly.
 - `{{MACRO:MyMacro::start}}` runs the `start` function.
