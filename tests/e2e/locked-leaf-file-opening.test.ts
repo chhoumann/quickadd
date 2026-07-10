@@ -30,8 +30,6 @@ type QuickAddData = {
 };
 
 type LayoutResult = {
-	ok?: boolean;
-	error?: string;
 	leftLeafId?: string;
 	leftParentId?: string | null;
 	leftPinned?: boolean;
@@ -98,69 +96,41 @@ async function seedFile(path: string, content: string) {
 	});
 }
 
-async function waitForEvalResult<T extends { ok?: boolean; error?: string }>(
-	globalName: string,
-): Promise<T> {
-	const result = await obsidian.waitFor(async () => {
-		const value = await obsidian.dev.evalJson<T | null>(
-			`window.${globalName} ?? null`,
-		);
-		return value?.ok || value?.error ? value : false;
-	}, WAIT_OPTS);
-
-	if (result.error) throw new Error(result.error);
-	return result;
-}
-
-function setupPinnedOriginLayoutCode({
+function pinnedOriginLayoutCode({
 	leftPath,
 	rightPath,
-	globalName,
 }: {
 	leftPath: string;
 	rightPath: string;
-	globalName: string;
 }) {
-	return `
-window.${globalName} = { ok: false };
-(async () => {
-	try {
-		const getFile = (path) => {
-			const file = app.vault.getAbstractFileByPath(path);
-			if (!file) throw new Error(\`Missing file: \${path}\`);
-			return file;
-		};
+	return `(async () => {
+	const getFile = (path) => {
+		const file = app.vault.getAbstractFileByPath(path);
+		if (!file) throw new Error(\`Missing file: \${path}\`);
+		return file;
+	};
 
-		const leftFile = getFile(${JSON.stringify(leftPath)});
-		const rightFile = getFile(${JSON.stringify(rightPath)});
+	const leftFile = getFile(${JSON.stringify(leftPath)});
+	const rightFile = getFile(${JSON.stringify(rightPath)});
 
-		const leftLeaf = app.workspace.getLeaf(false);
-		await leftLeaf.openFile(leftFile);
-		leftLeaf.setPinned(true);
-		app.workspace.setActiveLeaf(leftLeaf, { focus: true });
+	const leftLeaf = app.workspace.getLeaf(false);
+	await leftLeaf.openFile(leftFile);
+	leftLeaf.setPinned(true);
+	app.workspace.setActiveLeaf(leftLeaf, { focus: true });
 
-		const rightLeaf = app.workspace.getLeaf("split", "vertical");
-		await rightLeaf.openFile(rightFile);
-		rightLeaf.setPinned(false);
+	const rightLeaf = app.workspace.getLeaf("split", "vertical");
+	await rightLeaf.openFile(rightFile);
+	rightLeaf.setPinned(false);
 
-		app.workspace.setActiveLeaf(leftLeaf, { focus: true });
-		window.${globalName} = {
-			ok: true,
-			leftLeafId: leftLeaf.id ?? null,
-			leftParentId: leftLeaf.parent?.id ?? null,
-			leftPinned: !!leftLeaf.pinned || !!leftLeaf.getViewState?.()?.pinned,
-			rightLeafId: rightLeaf.id ?? null,
-			rightParentId: rightLeaf.parent?.id ?? null,
-		};
-	} catch (error) {
-		window.${globalName} = {
-			ok: false,
-			error: error instanceof Error ? error.message : String(error),
-		};
-	}
-})();
-"started";
-`;
+	app.workspace.setActiveLeaf(leftLeaf, { focus: true });
+	return {
+		leftLeafId: leftLeaf.id ?? null,
+		leftParentId: leftLeaf.parent?.id ?? null,
+		leftPinned: !!leftLeaf.pinned || !!leftLeaf.getViewState?.()?.pinned,
+		rightLeafId: rightLeaf.id ?? null,
+		rightParentId: rightLeaf.parent?.id ?? null,
+	};
+})()`;
 }
 
 function inspectOpenResultCode({
@@ -226,7 +196,6 @@ async function runOpenFileScenario(
 	const leftPath = sandbox.path(`${location}-left-locked.md`);
 	const rightPath = sandbox.path(`${location}-right-unlocked.md`);
 	const targetPath = sandbox.path(`${location}-target.md`);
-	const layoutGlobal = `__qa1165Layout_${location}`;
 
 	await seedFile(`${location}-left-locked.md`, `${location.toUpperCase()} LEFT`);
 	await seedFile(`${location}-right-unlocked.md`, `${location.toUpperCase()} RIGHT`);
@@ -238,10 +207,9 @@ async function runOpenFileScenario(
 	});
 	await qa.reload({ waitUntilReady: true });
 
-	await obsidian.dev.evalRaw(
-		setupPinnedOriginLayoutCode({ leftPath, rightPath, globalName: layoutGlobal }),
+	const layout = await obsidian.dev.evalJsonAsync<LayoutResult>(
+		pinnedOriginLayoutCode({ leftPath, rightPath }),
 	);
-	const layout = await waitForEvalResult<LayoutResult>(layoutGlobal);
 	expect(layout.leftLeafId).toBeTruthy();
 	expect(layout.leftPinned).toBe(true);
 	expect(layout.rightParentId).toBeTruthy();

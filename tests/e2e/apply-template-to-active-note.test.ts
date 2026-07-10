@@ -1,42 +1,25 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-	captureFailureArtifacts,
-	clearVaultRunLockMarker,
-	createSandboxApi,
-} from "obsidian-e2e";
-import type {
-	ObsidianClient,
-	PluginHandle,
-	SandboxApi,
-	VaultRunLock,
-} from "obsidian-e2e";
-import {
-	acquireQuickAddVaultRunLock,
-	createQuickAddObsidianClient,
-} from "./e2eVault";
+import { beforeAll, describe, expect, it } from "vitest";
+import type { ObsidianClient, SandboxApi } from "obsidian-e2e";
+import { createQuickAddE2EHarness, PLUGIN_ID } from "./e2eVault";
 
 // ---------------------------------------------------------------------------
 // Constants & types
 // ---------------------------------------------------------------------------
 
-const PLUGIN_ID = "quickadd";
 const TPL_CONTENT = "APPLIED_TEMPLATE_CONTENT";
 const TPL_FM = "---\nstatus: draft\npriority: high\n---\nTPL_BODY";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 
-let obsidian: ObsidianClient;
-let sandbox: SandboxApi;
-let qa: PluginHandle;
-let lock: VaultRunLock | undefined;
-
 type ApplyResult = { ok: boolean; path?: string | null; error?: string };
+
+const getContext = createQuickAddE2EHarness("apply-template");
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 /** Write a file into the sandbox and wait for Obsidian to index it. */
-async function seedFile(name: string, content: string) {
+async function seedFile(sandbox: SandboxApi, name: string, content: string) {
 	await sandbox.write(name, content, {
 		waitForContent: true,
 		waitOptions: WAIT_OPTS,
@@ -45,10 +28,13 @@ async function seedFile(name: string, content: string) {
 
 /**
  * Opens the note in the active leaf, then calls the public API seam
- * `applyTemplateToActiveFile`. Results land in a window global which we poll
- * for, since dev.eval does not reliably await long async bodies.
+ * `applyTemplateToActiveFile`. Results land in a window global we poll for rather
+ * than reading `evalJsonAsync`'s return: template application emits `QuickAdd:`
+ * notices into the eval output channel that corrupt the JSON envelope, so the
+ * async work is decoupled from a clean, synchronous JSON read of the global.
  */
 async function applyTemplate(
+	obsidian: ObsidianClient,
 	notePath: string,
 	templatePath: string,
 	mode?: string,
@@ -102,50 +88,22 @@ function expectOrderedSubstrings(
 }
 
 // ---------------------------------------------------------------------------
-// Lifecycle
-// ---------------------------------------------------------------------------
-
-beforeAll(async () => {
-	obsidian = createQuickAddObsidianClient();
-	lock = await acquireQuickAddVaultRunLock(obsidian);
-	await lock.publishMarker(obsidian);
-
-	qa = obsidian.plugin(PLUGIN_ID);
-	sandbox = await createSandboxApi({
-		obsidian,
-		sandboxRoot: "__obsidian_e2e__",
-		testName: "apply-template",
-	});
-
-	await seedFile("tpl-plain.md", TPL_CONTENT);
-	await seedFile("tpl-fm.md", TPL_FM);
-}, 30_000);
-
-afterAll(async () => {
-	await sandbox.cleanup();
-	await clearVaultRunLockMarker(obsidian).catch(() => {});
-	await lock?.release();
-}, 15_000);
-
-beforeEach((ctx) => {
-	ctx.onTestFailed(async () => {
-		await captureFailureArtifacts(
-			{ id: ctx.task.id, name: ctx.task.name },
-			obsidian,
-			{ plugin: qa, captureOnFailure: true },
-		);
-	});
-});
-
-// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
 describe("apply template to active note (API seam)", () => {
+	beforeAll(async () => {
+		const { sandbox } = getContext();
+		await seedFile(sandbox, "tpl-plain.md", TPL_CONTENT);
+		await seedFile(sandbox, "tpl-fm.md", TPL_FM);
+	});
+
 	it("A01: empty note fast path - applies template as full content", async () => {
-		await seedFile("a01-empty.md", "");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a01-empty.md", "");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a01-empty.md"),
 			sandbox.path("tpl-plain.md"),
 		);
@@ -160,9 +118,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A02: bottom (default for non-empty notes) - appends after existing content", async () => {
-		await seedFile("a02-bottom.md", "EXISTING_CONTENT");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a02-bottom.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a02-bottom.md"),
 			sandbox.path("tpl-plain.md"),
 		);
@@ -177,9 +137,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A03: top - inserts before existing content", async () => {
-		await seedFile("a03-top.md", "EXISTING_CONTENT");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a03-top.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a03-top.md"),
 			sandbox.path("tpl-plain.md"),
 			"top",
@@ -195,9 +157,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A04: replace - replaces existing content", async () => {
-		await seedFile("a04-replace.md", "OLD_CONTENT_TO_REPLACE");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a04-replace.md", "OLD_CONTENT_TO_REPLACE");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a04-replace.md"),
 			sandbox.path("tpl-plain.md"),
 			"replace",
@@ -213,9 +177,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A05: cursor - inserts via the active editor", async () => {
-		await seedFile("a05-cursor.md", "EXISTING_CONTENT");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a05-cursor.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a05-cursor.md"),
 			sandbox.path("tpl-plain.md"),
 			"cursor",
@@ -231,12 +197,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A06: top with frontmatter - merges template properties, existing values win", async () => {
-		await seedFile(
-			"a06-fm.md",
-			"---\nstatus: done\n---\nEXISTING_CONTENT",
-		);
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a06-fm.md", "---\nstatus: done\n---\nEXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a06-fm.md"),
 			sandbox.path("tpl-fm.md"),
 			"top",
@@ -260,10 +225,12 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A07: canvas template - rejects with a helpful error", async () => {
-		await seedFile("tpl-board.canvas", '{"nodes":[],"edges":[]}');
-		await seedFile("a07-canvas-tpl.md", "EXISTING_CONTENT");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "tpl-board.canvas", '{"nodes":[],"edges":[]}');
+		await seedFile(sandbox, "a07-canvas-tpl.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a07-canvas-tpl.md"),
 			sandbox.path("tpl-board.canvas"),
 		);
@@ -274,9 +241,11 @@ describe("apply template to active note (API seam)", () => {
 	});
 
 	it("A08: invalid mode - rejects with a helpful error", async () => {
-		await seedFile("a08-invalid.md", "EXISTING_CONTENT");
+		const { obsidian, sandbox } = getContext();
+		await seedFile(sandbox, "a08-invalid.md", "EXISTING_CONTENT");
 
 		const result = await applyTemplate(
+			obsidian,
 			sandbox.path("a08-invalid.md"),
 			sandbox.path("tpl-plain.md"),
 			"sideways",
