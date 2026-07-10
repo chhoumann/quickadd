@@ -19,10 +19,13 @@
 #   --profile-root, stop it with the matching
 #   `pnpm run stop:e2e-obsidian -- --vault <name> [--profile-root <path>]` before
 #   removing the worktree.
-# - The hook needs `node` on the GUI app's PATH (Orca runs it via non-login
-#   /bin/bash). It is guarded with `command -v node` so a missing node degrades
-#   to a no-op (the reap-on-next-start safety net then handles cleanup) instead
-#   of erroring.
+# - The hook invokes this worktree's local runner bin directly
+#   (node_modules/.bin/obsidian-e2e) rather than via `pnpm exec`, so it needs
+#   only `node` on the GUI app's PATH - not pnpm, whose corepack/shell-startup
+#   shim is often absent in Orca's non-login /bin/bash. The bin is a POSIX-sh
+#   launcher that resolves its own module paths and execs node. It is guarded
+#   with `command -v node` so a missing node degrades to a no-op (the
+#   reap-on-next-start safety net then handles cleanup) instead of erroring.
 scripts:
   archive: |
-    command -v node >/dev/null 2>&1 && pnpm exec obsidian-e2e stop --worktree "$ORCA_WORKTREE_PATH" || true
+    command -v node >/dev/null 2>&1 && "$ORCA_WORKTREE_PATH/node_modules/.bin/obsidian-e2e" stop --worktree "$ORCA_WORKTREE_PATH" || true
