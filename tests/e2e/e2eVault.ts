@@ -13,9 +13,8 @@ export const PLUGIN_ID = "quickadd";
 // legacy QUICKADD_E2E_* aliases remain a fallback during the migration. The
 // resolver injects the Obsidian HOME into a per-client `defaultExecOptions.env`
 // (never mutating `process.env`) and surfaces the expected vault path.
-const { expectedVaultPath, ...clientOptions } = resolveObsidianEnvOptions({
-	legacyPrefix: "QUICKADD",
-});
+const resolvedEnv = resolveObsidianEnvOptions({ legacyPrefix: "QUICKADD" });
+const { expectedVaultPath, ...clientOptions } = resolvedEnv;
 
 export const E2E_VAULT = clientOptions.vault;
 export const E2E_VAULT_EXPECTED_PATH = expectedVaultPath;
@@ -52,7 +51,7 @@ export async function acquireQuickAddVaultRunLock(
  * back after every test.
  */
 export const createQuickAddE2EHarness = createPluginHarness({
-	...resolveObsidianEnvOptions({ legacyPrefix: "QUICKADD" }),
+	...resolvedEnv,
 	pluginId: PLUGIN_ID,
 	// QuickAdd exposes its public API on the plugin instance once loaded
 	// (`app.plugins.plugins.quickadd.api`), the most precise ready signal - the
