@@ -69,17 +69,20 @@ pnpm run dev                                # or: pnpm run build
 pnpm run obsidian:e2e -- quickadd:list
 pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins.quickadd)'
 pnpm run obsidian:e2e -- dev:errors
-pnpm run stop:e2e-obsidian                  # stop this worktree's instance on wrap-up
 
 # point the Vitest tests/e2e suite at the isolated instance:
 eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
-export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"   # re-point the CLI socket, then: pnpm run test:e2e
+export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"   # re-point the CLI socket
+pnpm run test:e2e
+
+pnpm run stop:e2e-obsidian                  # stop this worktree's instance on wrap-up
 ```
 
 The runner emits canonical `OBSIDIAN_E2E_*` env names, plus legacy
 `QUICKADD_E2E_*` aliases during the migration (`tests/e2e/e2eVault.ts` reads
 canonical first). `dev:console`/`dev:errors` are most reliable while debugger
-capture is attached (`obsidian vault=dev dev:debug on`); for non-trivial `eval`,
+capture is attached (`pnpm run obsidian:e2e -- dev:debug on`, which stays on this
+worktree's isolated instance); for non-trivial `eval`,
 pass code via `code=...` from a heredoc/file to avoid shell-quoting corruption.
 
 ## Evidence-First Bug Triage
