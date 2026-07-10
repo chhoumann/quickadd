@@ -25,4 +25,4 @@
 #   of erroring.
 scripts:
   archive: |
-    command -v node >/dev/null 2>&1 && node scripts/stop-obsidian-e2e-instance.mjs --worktree "$ORCA_WORKTREE_PATH" || true
+    command -v node >/dev/null 2>&1 && pnpm exec obsidian-e2e stop --worktree "$ORCA_WORKTREE_PATH" || true

@@ -70,16 +70,32 @@ Anything you can do in Obsidian can be done from the command line. Obsidian CLI 
 - In Codex worktrees, prefer the isolated worktree vault wrapper instead of the
   shared `dev` vault:
   `pnpm run obsidian:e2e -- <command> ...`.
-- The wrapper provisions the worktree-local vault, starts or reuses an isolated
-  Obsidian instance, disables Restricted Mode for that vault, waits until
-  QuickAdd is available, and then runs the requested command with the correct
-  private `HOME` and `vault=<worktree vault>` already applied.
+- The four `provision:e2e-vault` / `start:e2e-obsidian` / `stop:e2e-obsidian` /
+  `obsidian:e2e` scripts run on the shared `obsidian-e2e` instance-runner bin,
+  configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the three
+  symlinked artifacts, the `data.json` seed, and the `quickadd:list` ready
+  probe). The wrapper provisions the worktree-local vault, starts or reuses an
+  isolated Obsidian instance, disables Restricted Mode for that vault, waits
+  until QuickAdd is available, and then runs the requested command with the
+  correct private `HOME` and `vault=<worktree vault>` already applied.
 - Examples:
   - `pnpm run obsidian:e2e -- quickadd:list`
   - `pnpm run obsidian:e2e -- dev:errors`
   - `pnpm run obsidian:e2e -- eval code='app.vault.getName()'`
 - Use `pnpm run start:e2e-obsidian -- --print-env` only when you specifically
-  need to export `QUICKADD_E2E_*` variables for a separate E2E test process.
+  need to export the vault env for a separate E2E test process. `--print-env`
+  emits export-only lines on stdout, so `eval "$(...)"` is safe. It emits the
+  canonical `OBSIDIAN_E2E_*` names (and, during the migration, legacy
+  `QUICKADD_E2E_*` aliases); `tests/e2e/e2eVault.ts` reads the canonical name
+  first, then the alias. The `obsidian` CLI routes by `$HOME`, so remap `HOME`
+  as well as the vault when pointing the Vitest suite at the isolated instance:
+
+  ```bash
+  pnpm run build                                 # provisioning links main.js
+  eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
+  export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"      # re-point the CLI socket
+  pnpm run test:e2e
+  ```
 
 ### Stopping an isolated instance (avoid leaks)
 

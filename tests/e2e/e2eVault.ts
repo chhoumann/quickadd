@@ -8,9 +8,15 @@ import type {
 	VaultRunLock,
 } from "obsidian-e2e";
 
-export const E2E_VAULT = process.env.QUICKADD_E2E_VAULT ?? "dev";
-export const E2E_VAULT_EXPECTED_PATH = process.env.QUICKADD_E2E_VAULT_PATH;
-export const E2E_OBSIDIAN_HOME = process.env.QUICKADD_E2E_OBSIDIAN_HOME;
+// Canonical OBSIDIAN_E2E_* names are emitted by the shared obsidian-e2e runner;
+// the legacy QUICKADD_E2E_* aliases remain a fallback during the migration.
+export const E2E_VAULT =
+	process.env.OBSIDIAN_E2E_VAULT ?? process.env.QUICKADD_E2E_VAULT ?? "dev";
+export const E2E_VAULT_EXPECTED_PATH =
+	process.env.OBSIDIAN_E2E_VAULT_PATH ?? process.env.QUICKADD_E2E_VAULT_PATH;
+export const E2E_OBSIDIAN_HOME =
+	process.env.OBSIDIAN_E2E_OBSIDIAN_HOME ??
+	process.env.QUICKADD_E2E_OBSIDIAN_HOME;
 
 export function createQuickAddObsidianClient(): ObsidianClient {
 	return createObsidianClient({
@@ -35,7 +41,7 @@ export async function verifyE2EVault(obsidian: ObsidianClient): Promise<string> 
 		if (vaultPath !== expectedPath) {
 			throw new Error(
 				[
-					`Obsidian CLI resolved QUICKADD_E2E_VAULT=${E2E_VAULT} to ${vaultPath}.`,
+					`Obsidian CLI resolved E2E vault "${E2E_VAULT}" to ${vaultPath}.`,
 					`Expected ${expectedPath}.`,
 					"Refusing to run E2E tests against the wrong vault.",
 				].join(" "),
