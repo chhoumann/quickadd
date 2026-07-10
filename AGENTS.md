@@ -41,117 +41,46 @@ Old `/docs/<version>/...` and `/docs/next/...` URLs 301 to their current equival
 ## Agent Playbook
 Automation or scripted work should surface disruptive operations in the PR description and rerun `pnpm run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.
 
-## Dev workflow
-Always use the `obsidian` CLI to test changes. Use the shared `dev` vault in
-the main checkout, and use the isolated worktree wrapper in Codex worktrees.
+## Obsidian Runtime Workflow
+Agents with the `verify-in-obsidian` skill get the generic workflow there:
+vault-mode choice, the runner script quartet, the `--print-env` HOME remap,
+instance teardown, and the dev-tools loop. This section is the QuickAdd-specific
+brief that a skill-less agent still needs.
 
-Obsidian CLI is a command line interface that lets you control Obsidian from your terminal for scripting, automation, and integration with external tools.
-
-Anything you can do in Obsidian can be done from the command line. Obsidian CLI even includes developer commands to access developer tools, inspect elements, take screenshots, reload plugins, and more.
-
-## Obsidian Dev Vault Workflow
-- Always target the `dev` vault when using the Obsidian CLI by passing
-  `vault=dev` as a prefix argument before the command:
-  `obsidian vault=dev <command> ...`.
-- Critical: do not use suffix form (`obsidian <command> vault=dev ...`).
-  It may resolve to the wrong vault due to CLI parsing behavior.
-- Dev vault root path: `/Users/christian/Developer/dev_vault/dev/`.
-- QuickAdd plugin path in the vault:
-  `/Users/christian/Developer/dev_vault/dev/.obsidian/plugins/quickadd`.
-- Run `pnpm run dev` in this repository to generate/update `main.js` for
-  development.
-- Reload QuickAdd after build/deploy with:
-  `obsidian vault=dev plugin:reload id=quickadd`.
-- In this setup, the vault plugin `main.js` is symlinked to
-  `/Users/christian/Developer/quickadd/main.js`, so rebuilding updates
-  the active plugin code directly.
-
-## Obsidian Worktree Vault Workflow
-- In Codex worktrees, prefer the isolated worktree vault wrapper instead of the
-  shared `dev` vault:
-  `pnpm run obsidian:e2e -- <command> ...`.
-- The four `provision:e2e-vault` / `start:e2e-obsidian` / `stop:e2e-obsidian` /
-  `obsidian:e2e` scripts run on the shared `obsidian-e2e` instance-runner bin,
-  configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the three
+- Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
+  id=quickadd`; the runner's ready probe is `quickadd:list`. Trigger the test
+  action with `command id=quickadd:testQuickAdd`.
+- The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
+  `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
+  configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
   symlinked artifacts, the `data.json` seed, and the `quickadd:list` ready
-  probe). The wrapper provisions the worktree-local vault, starts or reuses an
-  isolated Obsidian instance, disables Restricted Mode for that vault, waits
-  until QuickAdd is available, and then runs the requested command with the
-  correct private `HOME` and `vault=<worktree vault>` already applied.
-- Examples:
-  - `pnpm run obsidian:e2e -- quickadd:list`
-  - `pnpm run obsidian:e2e -- dev:errors`
-  - `pnpm run obsidian:e2e -- eval code='app.vault.getName()'`
-- Use `pnpm run start:e2e-obsidian -- --print-env` only when you specifically
-  need to export the vault env for a separate E2E test process. `--print-env`
-  emits export-only lines on stdout, so `eval "$(...)"` is safe. It emits the
-  canonical `OBSIDIAN_E2E_*` names (and, during the migration, legacy
-  `QUICKADD_E2E_*` aliases); `tests/e2e/e2eVault.ts` reads the canonical name
-  first, then the alias. The `obsidian` CLI routes by `$HOME`, so remap `HOME`
-  as well as the vault when pointing the Vitest suite at the isolated instance:
-
-  ```bash
-  pnpm run build                                 # provisioning links main.js
-  eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
-  export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"      # re-point the CLI socket
-  pnpm run test:e2e
-  ```
-
-### Stopping an isolated instance (avoid leaks)
-
-Each started instance is a real Obsidian process tree plus a private profile
-directory under `/private/tmp/quickadd-obsidian-e2e/<vault>-<hash>/`. Removing a
-worktree does **not** stop it, so a finished worktree would leak an Obsidian
-process tree and a `/private/tmp` directory. Stop it explicitly:
+  probe).
+- Worktrees use the isolated vault (`.obsidian-e2e-vaults/quickadd-<worktree>`)
+  and must not race the shared `dev` vault. The main
+  `/Users/christian/Developer/quickadd` checkout uses the shared `dev` vault
+  (root `/Users/christian/Developer/dev_vault/dev`, plugin folder
+  `.obsidian/plugins/quickadd` symlinked to this checkout's `main.js`); only one
+  checkout can own those symlinks at a time. Run `pnpm run dev` to rebuild.
+- Always pass the `vault=` selector as a **prefix** argument, never a suffix -
+  suffix form can resolve to the wrong vault.
 
 ```bash
-pnpm run stop:e2e-obsidian            # stop THIS worktree's instance + remove its tmp dir
-pnpm run stop:e2e-obsidian -- --dry-run   # show what would be stopped/removed
-pnpm run stop:e2e-obsidian -- --prune     # also reap orphaned instances (worktree gone)
+pnpm run dev                                # or: pnpm run build
+pnpm run obsidian:e2e -- quickadd:list
+pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins.quickadd)'
+pnpm run obsidian:e2e -- dev:errors
+pnpm run stop:e2e-obsidian                  # stop this worktree's instance on wrap-up
+
+# point the Vitest tests/e2e suite at the isolated instance:
+eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
+export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"   # re-point the CLI socket, then: pnpm run test:e2e
 ```
 
-The teardown identifies only this worktree's instance by its private
-`--user-data-dir` token (which contains a per-worktree hash), terminates that
-process tree (SIGTERM, then SIGKILL for stragglers), and removes its profile
-directory. It never touches the shared `dev` vault, other worktrees, or PodNotes
-instances.
-
-Two layers keep instances from leaking, so you rarely need to run `stop` by hand:
-
-- **Orca archive hook** — `orca.yaml` defines a `scripts.archive` hook that runs
-  this teardown for the worktree being removed. Remove worktrees with
-  `orca worktree rm --worktree <selector> --run-hooks` so the hook fires (Orca
-  skips archive hooks without `--run-hooks`).
-- **Reap on next start** — `start:e2e-obsidian` and `obsidian:e2e` reap any
-  orphaned instance (one whose backing worktree no longer exists on disk, i.e.
-  it was removed) before launching, even if its Obsidian is still running. An
-  idle instance for a worktree that still exists is left alone so concurrent
-  workers can reuse it. Reaping scans the default profile root
-  (`/tmp/quickadd-obsidian-e2e`); instances started under a custom
-  `--profile-root` are only reaped by a start that uses that same root, so stop
-  those explicitly.
-
-## Obsidian DevTools Workflow
-- Developer commands are available through `obsidian`:
-  `devtools`, `dev:debug`, `dev:cdp`, `dev:errors`, `dev:screenshot`,
-  `dev:console`, `dev:css`, `dev:dom`, `dev:mobile`, and `eval`.
-- Keep `vault=dev` as a prefix argument on every developer command as well.
-- `dev:console` and `dev:errors` are only reliable while debugger capture is
-  attached (`obsidian vault=dev dev:debug on`).
-- For non-trivial `obsidian eval` code, use a heredoc/file and pass it to
-  `code=...` to avoid shell-quoting corruption.
-- Standard log-inspection sequence:
-  1. `obsidian vault=dev dev:debug on`
-  2. `obsidian vault=dev dev:console clear`
-  3. `obsidian vault=dev dev:errors clear`
-  4. Trigger a QuickAdd action, for example:
-     `obsidian vault=dev command id=quickadd:testQuickAdd`
-  5. Read logs:
-     `obsidian vault=dev dev:console limit=200`
-  6. Check runtime errors:
-     `obsidian vault=dev dev:errors`
-  7. Detach when done:
-     `obsidian vault=dev dev:debug off`
+The runner emits canonical `OBSIDIAN_E2E_*` env names, plus legacy
+`QUICKADD_E2E_*` aliases during the migration (`tests/e2e/e2eVault.ts` reads
+canonical first). `dev:console`/`dev:errors` are most reliable while debugger
+capture is attached (`obsidian vault=dev dev:debug on`); for non-trivial `eval`,
+pass code via `code=...` from a heredoc/file to avoid shell-quoting corruption.
 
 ## Evidence-First Bug Triage
 - Default bug workflow: reproduce in Obsidian first, then implement fix, then
