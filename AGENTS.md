@@ -49,7 +49,8 @@ brief that a skill-less agent still needs.
 
 - Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
   id=quickadd`; the runner's ready probe is `quickadd:list`. Trigger the test
-  action with `command id=quickadd:testQuickAdd`.
+  action with `obsidian vault=<vault> command id=quickadd:testQuickAdd` (or via
+  the runner: `pnpm run obsidian:e2e -- command id=quickadd:testQuickAdd`).
 - The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
   `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
