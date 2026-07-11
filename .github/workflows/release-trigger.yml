@@ -28,7 +28,7 @@ jobs:
             actions: write
             contents: write
             pull-requests: read
-        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-validate.yml@v2
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-validate.yml@v3
         with:
             pr-number: ${{ github.event.pull_request.number }}
             plugin-name: quickadd

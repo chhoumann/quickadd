@@ -40,7 +40,7 @@ jobs:
         permissions:
             contents: write
             pull-requests: write
-        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-prepare.yml@v2
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-prepare.yml@v3
         with:
             plugin-name: quickadd
             package-manager: pnpm
@@ -49,7 +49,7 @@ jobs:
             target-sha: ${{ github.event.workflow_run.head_sha || inputs.targetSha }}
             release-bot-app-slug: quickadd-release-bot
             app-id: ${{ vars.RELEASE_APP_ID }}
-            workflows-ref: v2
+            workflows-ref: v3
             # dry-run: true   # plan only; skip opening the PR (smoke test)
         secrets:
             release-app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
