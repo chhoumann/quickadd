@@ -40,14 +40,16 @@ const clickLast=(sel)=>{const e=q(sel);if(!e.length)return 'missing '+sel;e[e.le
 // a synchronous click + immediate return transmits reliably. Sequencing is
 // handled by waitUi(): every step waits for the observable condition it needs
 // instead of guessing durations with sleeps.
-const sev = (body: string) =>
-	obsidian.dev.eval<string>(
+// Conditions return booleans (dev.eval JSON-parses results); clicks and
+// probes return strings - callers pick the type.
+const sev = <T = string>(body: string) =>
+	obsidian.dev.eval<T>(
 		`(() => { ${HELP} try { ${body} } catch(e){ return 'ERR '+String(e&&e.message||e); } })()`,
 	);
 
 /** Poll a HELP-scoped boolean expression inside the app until it holds. */
 const waitUi = (label: string, cond: string, timeoutMs = 15_000) =>
-	obsidian.waitFor(async () => (await sev(`return ${cond};`)) === true, {
+	obsidian.waitFor(async () => (await sev<boolean | string>(`return ${cond};`)) === true, {
 		message: label,
 		timeoutMs,
 	});
