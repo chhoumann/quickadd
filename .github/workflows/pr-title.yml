@@ -1,8 +1,8 @@
 name: PR Title
 
-# Releases are driven by semantic-release from the squash-merge commit, which is
-# the PR title. Validate it as a Conventional Commit so a bad title can't produce
-# a wrong (or missing) release.
+# The shared release pipeline plans versions from Conventional Commits, and the
+# squash-merge commit is the PR title. Validate it as a Conventional Commit so a
+# bad title can't produce a wrong (or missing) release.
 on:
     pull_request_target:
         types: [opened, edited, synchronize, reopened]
