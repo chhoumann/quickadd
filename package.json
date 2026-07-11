@@ -21,8 +21,6 @@
   "author": "Christian B. B. Houmann",
   "license": "MIT",
   "devDependencies": {
-    "@semantic-release/exec": "^7.1.0",
-    "@semantic-release/git": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/svelte": "^5.4.2",
@@ -40,7 +38,6 @@
     "moment": "2.30.1",
     "obsidian": "1.13.1",
     "obsidian-e2e": "^0.8.1",
-    "semantic-release": "^25.0.5",
     "svelte": "^5",
     "svelte-check": "^4",
     "svelte-eslint-parser": "^1.8.0",
@@ -75,60 +72,7 @@
     ],
     "overrides": {
       "obsidian-calendar-ui>svelte": "^5.56.3",
-      "@semantic-release/github>undici": "7.28.0",
       "jsdom>undici": "7.28.0"
     }
-  },
-  "release": {
-    "tagFormat": "${version}",
-    "branches": [
-      "master"
-    ],
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
-      [
-        "@semantic-release/npm",
-        {
-          "npmPublish": false
-        }
-      ],
-      [
-        "@semantic-release/exec",
-        {
-          "prepareCmd": "node version-bump.mjs ${nextRelease.version}"
-        }
-      ],
-      [
-        "@semantic-release/git",
-        {
-          "assets": [
-            "package.json",
-            "manifest.json",
-            "versions.json"
-          ],
-          "message": "release(version): Release ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-        }
-      ],
-      [
-        "@semantic-release/github",
-        {
-          "assets": [
-            {
-              "path": "main.js",
-              "label": "main.js"
-            },
-            {
-              "path": "manifest.json",
-              "label": "manifest.json"
-            },
-            {
-              "path": "styles.css",
-              "label": "styles.css"
-            }
-          ]
-        }
-      ]
-    ]
   }
 }

@@ -1,0 +1,55 @@
+# Caller stub: release preparation (stage 1) for quickadd (pnpm).
+#
+# The workflow_run trigger cannot live in the reusable workflow, so it lives
+# here. The single job forwards the tested commit (or a manually dispatched SHA)
+# to the reusable prepare workflow, which re-confirms the SHA is still the
+# default-branch head and opens/refreshes the standing release PR.
+#
+# Escape hatch: workflow_dispatch lets you plan manually (e.g. a dry-run smoke
+# test before your first release) without waiting for a CI completion.
+
+name: Prepare release
+
+on:
+    workflow_run:
+        # Must match the name: of the CI workflow (the shared ci.yml is "CI").
+        workflows: ["CI"]
+        types: [completed]
+    workflow_dispatch:
+        inputs:
+            targetSha:
+                description: "Commit SHA to plan from (defaults to the default-branch head)"
+                required: false
+                type: string
+
+permissions: {}
+
+concurrency:
+    group: release-prepare
+    cancel-in-progress: false
+
+jobs:
+    prepare:
+        # Manual dispatch always runs; the automatic path only runs for a green
+        # CI run from a push to the default branch.
+        if: >-
+            github.event_name == 'workflow_dispatch' ||
+            (github.event.workflow_run.conclusion == 'success' &&
+             github.event.workflow_run.event == 'push' &&
+             github.event.workflow_run.head_branch == 'master')
+        permissions:
+            contents: write
+            pull-requests: write
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-prepare.yml@v2
+        with:
+            plugin-name: quickadd
+            package-manager: pnpm
+            default-branch: master
+            node-version: "24"
+            target-sha: ${{ github.event.workflow_run.head_sha || inputs.targetSha }}
+            release-bot-app-slug: quickadd-release-bot
+            app-id: ${{ vars.RELEASE_APP_ID }}
+            workflows-ref: v2
+            # dry-run: true   # plan only; skip opening the PR (smoke test)
+        secrets:
+            release-app-private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}

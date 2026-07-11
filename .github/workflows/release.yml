@@ -1,193 +1,52 @@
+# Caller stub: release (stage 3) for quickadd (pnpm, ships styles.css).
+#
+# workflow_dispatch is the only trigger: the reusable validate workflow (stage 2)
+# dispatches this on the durable release-run/<version> recovery branch. Keeping a
+# plain workflow_dispatch here also makes the release itself replayable for
+# recovery without re-running the whole pipeline.
+
 name: Release
+
 on:
     workflow_dispatch:
         inputs:
-            dryRun:
-                description: 'Dry run (analyze + notes only, no publish)'
-                required: false
-                default: false
-                type: boolean
+            releasePr:
+                description: "Merged machine-generated release PR number to recover"
+                required: true
+                type: string
 
-# Serialize releases so two triggers can never race on tags/commits.
-# Do NOT cancel-in-progress: an interrupted semantic-release is dangerous.
+permissions: {}
+
 concurrency:
-    group: release-${{ github.ref }}
+    group: release
     cancel-in-progress: false
-
-# Least-privilege default; the release job elevates exactly what it needs.
-permissions:
-    contents: read
 
 jobs:
     release:
-        name: Release
-        runs-on: ubuntu-latest
         permissions:
-            contents: write        # semantic-release/git pushes the release commit+tag; semantic-release/github creates the Release
-            issues: write          # semantic-release/github comments on released issues
-            pull-requests: write   # semantic-release/github comments on released PRs
-            id-token: write        # attest-build-provenance: OIDC token for Sigstore (NOT npm — npmPublish is false)
-            attestations: write    # attest-build-provenance: persist the attestation
-        outputs:
-            version: ${{ steps.extract-version.outputs.version }}
-            released: ${{ steps.release.outputs.released }}
-        steps:
-            - name: Harden Runner
-              uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
-              with:
-                  egress-policy: audit
-
-            # Mint a short-lived token for the "QuickAdd Release Bot" GitHub App.
-            # semantic-release pushes the release commit/tag with this token, so the
-            # push is attributed to the App, which is an allowed bypass actor on the
-            # master ruleset. The default GITHUB_TOKEN (github-actions[bot]) cannot
-            # be made a bypass actor, so its push would be blocked by branch protection.
-            - name: Generate release-bot token
-              id: app-token
-              uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-              with:
-                  app-id: ${{ secrets.RELEASE_APP_ID }}
-                  private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-                  # Least privilege: without these, the minted token inherits ALL of the
-                  # App's installation permissions. semantic-release only needs to push the
-                  # release commit/tag + create the Release (contents) and comment on the
-                  # released issues/PRs (issues/pull-requests). Attestation/Find-PR/Comment
-                  # steps use the default GITHUB_TOKEN, not this token.
-                  permission-contents: write
-                  permission-issues: write
-                  permission-pull-requests: write
-
-            - name: Checkout
-              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-              with:
-                  # semantic-release needs full history + tags to analyze commits.
-                  fetch-depth: 0
-                  # The token is still passed so checkout fetches as the App, but we do
-                  # NOT persist it into .git/config: install/build/test run BEFORE the
-                  # release and a compromised dependency could otherwise read the App
-                  # credential off disk. semantic-release authenticates its push from the
-                  # GITHUB_TOKEN env on the Release step (it builds an x-access-token URL,
-                  # it never reads .git/config), so the push still works without it.
-                  token: ${{ steps.app-token.outputs.token }}
-                  persist-credentials: false
-
-            - name: Setup pnpm
-              uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-
-            - name: Use Node.js 24
-              uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
-              with:
-                  node-version: 24
-                  check-latest: true
-                  cache: pnpm
-                  cache-dependency-path: pnpm-lock.yaml
-
-            - name: Install dependencies
-              run: pnpm install --frozen-lockfile
-
-            # Build must run before Release: it produces main.js / styles.css that
-            # @semantic-release/github uploads and attest-build-provenance signs.
-            - name: Build
-              run: pnpm run build
-
-            - name: Run tests
-              run: pnpm run test
-
-            - name: Release
-              id: release
-              env:
-                  GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
-                  DRY_RUN: ${{ github.event.inputs.dryRun || 'false' }}
-              run: |
-                  EXTRA_ARGS=""
-                  if [ "$DRY_RUN" == "true" ]; then
-                    echo "Running in dry-run mode"
-                    EXTRA_ARGS="--dry-run"
-                  fi
-
-                  BEFORE_HEAD="$(git rev-parse HEAD)"
-                  # `set -e` (default for run blocks) aborts the step if
-                  # semantic-release fails, so we only reach the check on success.
-                  pnpm exec semantic-release $EXTRA_ARGS
-
-                  # A real release advances HEAD via @semantic-release/git's release
-                  # commit; a dry run or "no relevant changes" leaves HEAD untouched.
-                  if [ "$DRY_RUN" != "true" ] && [ "$(git rev-parse HEAD)" != "$BEFORE_HEAD" ]; then
-                    echo "released=true" >> "$GITHUB_OUTPUT"
-                  else
-                    echo "released=false" >> "$GITHUB_OUTPUT"
-                  fi
-
-            - name: Attest release assets
-              if: steps.release.outputs.released == 'true'
-              uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
-              with:
-                  subject-path: |
-                      main.js
-                      manifest.json
-                      styles.css
-
-            # Extract version for notifications
-            - name: Extract version
-              id: extract-version
-              if: steps.release.outputs.released == 'true'
-              run: |
-                VERSION="$(node -p "require('./package.json').version")"
-                echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-            # Find related PR to comment on
-            - name: Find PR
-              id: find-pr
-              if: steps.release.outputs.released == 'true'
-              uses: jwalton/gh-find-current-pr@f3d61b485d2801773f7a07b2aaa3306bd8f8e653 # v1.3.5
-              with:
-                state: closed
-
-            # Comment on the PR that triggered this release
-            - name: Comment on PR
-              if: steps.release.outputs.released == 'true' && steps.find-pr.outputs.pr
-              uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-              env:
-                PR_NUMBER: ${{ steps.find-pr.outputs.pr }}
-                RELEASE_VERSION: ${{ steps.extract-version.outputs.version }}
-              with:
-                github-token: ${{ secrets.GITHUB_TOKEN }}
-                script: |
-                  await github.rest.issues.createComment({
-                    issue_number: Number(process.env.PR_NUMBER),
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    body: `🚀 Release has been published: v${process.env.RELEASE_VERSION}`
-                  })
-
-    # Notification job that runs after release
-    notify:
-        name: Send notifications
-        needs: release
-        if: needs.release.outputs.released == 'true'
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-        env:
-            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-            DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-            VERSION: ${{ needs.release.outputs.version }}
-        steps:
-            # Optional: Slack notifications
-            - name: Notify Slack
-              if: env.SLACK_WEBHOOK != ''
-              uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2.4.0
-              env:
-                SLACK_TITLE: "🚀 New Release"
-                SLACK_MESSAGE: "Version v${{ env.VERSION }} of QuickAdd has been released!"
-                SLACK_COLOR: "good"
-                SLACK_ICON: "https://github.com/chhoumann.png"
-                MSG_MINIMAL: true
-
-            # Optional: Discord notifications — plain webhook call, no third-party action.
-            # jq safely JSON-encodes the message; the step is skipped when the secret is unset.
-            - name: Notify Discord
-              if: env.DISCORD_WEBHOOK != ''
-              run: |
-                payload="$(jq -n --arg content "🚀 **New Release**: Version v${VERSION} of QuickAdd has been released!" '{content: $content}')"
-                curl -fsSL -X POST -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK"
+            actions: read
+            attestations: write
+            contents: write
+            id-token: write
+            pull-requests: read
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release.yml@v2
+        with:
+            release-pr: ${{ inputs.releasePr }}
+            plugin-name: quickadd
+            package-manager: pnpm
+            default-branch: master
+            node-version: "24"
+            release-bot-app-slug: quickadd-release-bot
+            release-assets: '["main.js","manifest.json","styles.css"]'
+            verify-commands: |
+                pnpm run lint
+                pnpm run check
+                pnpm run test
+            notify-name: QuickAdd
+            workflows-ref: v2
+        secrets:
+            # Optional: unset secrets resolve to '' and the notify job skips them.
+            # QuickAdd has DISCORD_WEBHOOK today; SLACK_WEBHOOK is wired for parity
+            # and simply skips until the secret is set.
+            slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+            discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}

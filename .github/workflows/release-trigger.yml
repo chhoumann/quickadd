@@ -1,0 +1,38 @@
+# Caller stub: release trigger (stage 2) for quickadd.
+#
+# pull_request_target cannot live in the reusable workflow, so it lives here.
+# The instant a release PR merges, this forwards the PR number to the reusable
+# validate workflow, which performs the full merged-PR forensics and dispatches
+# the release. The workflow never checks out PR head code, so pull_request_target
+# is safe here.
+
+name: Trigger release
+
+on:
+    pull_request_target:
+        types: [closed]
+
+permissions: {}
+
+concurrency:
+    group: release-trigger
+    cancel-in-progress: false
+
+jobs:
+    validate:
+        if: >-
+            github.event.pull_request.merged == true &&
+            github.event.pull_request.base.ref == 'master' &&
+            startsWith(github.event.pull_request.head.ref, 'release/')
+        permissions:
+            actions: write
+            contents: write
+            pull-requests: read
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-validate.yml@v2
+        with:
+            pr-number: ${{ github.event.pull_request.number }}
+            plugin-name: quickadd
+            package-manager: pnpm
+            default-branch: master
+            release-bot-app-slug: quickadd-release-bot
+            release-workflow: release.yml
