@@ -49,7 +49,7 @@
 	},
 	"dependencies": {
 		"@popperjs/core": "^2.11.8",
-		"chrono-node": "^2.9.1",
+		"chrono-node": "^2.10.0",
 		"fuse.js": "7",
 		"obsidian-dataview": "^0.5.68",
 		"svelte-dnd-action": "0.9.70",

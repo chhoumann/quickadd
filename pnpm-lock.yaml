@@ -16,8 +16,8 @@ importers:
         specifier: ^2.11.8
         version: 2.11.8
       chrono-node:
-        specifier: ^2.9.1
-        version: 2.9.1
+        specifier: ^2.10.0
+        version: 2.10.0
       fuse.js:
         specifier: '7'
         version: 7.4.2
@@ -1266,8 +1266,8 @@ packages:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
 
-  chrono-node@2.9.1:
-    resolution: {integrity: sha512-nqP8Zp11efCYQIESXPxeDM8ikzN5BDb3Zzou+a66fZq+X2hzKFdsNLQE2/uBAh//BZEMbaMo1eTnagK7hOenAg==}
+  chrono-node@2.10.0:
+    resolution: {integrity: sha512-5fJ4zr5W/5DEf+8FMPMXF2qk9L5dc1rAP9Pw009iMlKAghPgx5o7aUcnjEMe6PTwqiqTa5yzmfSm05EHuwr31Q==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   clsx@2.1.1:
@@ -1911,8 +1911,8 @@ packages:
     resolution: {integrity: sha512-vuwillviilfKZsg0VGj5R/YwwcHx4SLsIOI/7K6mQkWx+l5cUHTjj5g0AasTBcyXsbfTgrwsUNmVUb5xVwyPwg==}
     engines: {node: ^10 || ^12 || >=14}
 
-  postcss@8.5.18:
-    resolution: {integrity: sha512-xdB1oSLHbz1vRWgCDalrCqEFTWzFlhqFC5tIHLMOSUIjhm3XXQ1qrFy8S/ESr1JYRRXqM3c1QFiMZUJdUTqyMQ==}
+  postcss@8.5.19:
+    resolution: {integrity: sha512-Mz8SaolMd8nB+G13WkORcxQKHZ/NE4xXevtkJHVuG+guo9/wYKlIMTKAqGdEmYOXR2ijPjTYNHssizdaVSUNdQ==}
     engines: {node: ^10 || ^12 || >=14}
 
   preact@10.29.2:
@@ -3063,7 +3063,7 @@ snapshots:
       '@oxc-project/runtime': 0.133.0
       '@oxc-project/types': 0.133.0
       lightningcss: 1.32.0
-      postcss: 8.5.18
+      postcss: 8.5.19
     optionalDependencies:
       '@types/node': 26.1.1
       esbuild: 0.28.1
@@ -3195,7 +3195,7 @@ snapshots:
     dependencies:
       readdirp: 4.1.2
 
-  chrono-node@2.9.1: {}
+  chrono-node@2.10.0: {}
 
   clsx@2.1.1: {}
 
@@ -3839,7 +3839,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postcss@8.5.18:
+  postcss@8.5.19:
     dependencies:
       nanoid: 3.3.16
       picocolors: 1.1.1
