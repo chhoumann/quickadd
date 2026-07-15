@@ -112,6 +112,17 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
+		// add: 
+		this.addCommand({
+			id: "open-quickadd-settings",
+			name: "Open QuickAdd settings",
+			callback: () => {
+				const setting = (this.app as any).setting;
+				setting?.open?.();
+				setting?.openTabById?.(this.manifest.id);
+			},
+		});
+
 		this.addCommand({
 			id: "runTemplateFromFolder",
 			name: QUICK_ADD_COMMAND_LABELS.runTemplateFromFolder,
