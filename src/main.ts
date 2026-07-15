@@ -112,7 +112,7 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
-		// add: 
+		// add: Allows users to quickly open QuickAdd settings from the command palette
 		this.addCommand({
 			id: "open-quickadd-settings",
 			name: "Open QuickAdd settings",
