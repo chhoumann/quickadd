@@ -16,17 +16,17 @@ importers:
         specifier: ^2.11.8
         version: 2.11.8
       chrono-node:
-        specifier: ^2.10.0
-        version: 2.10.0
+        specifier: ^2.10.1
+        version: 2.10.1
       fuse.js:
         specifier: '7'
-        version: 7.4.2
+        version: 7.5.0
       obsidian-dataview:
         specifier: ^0.5.68
         version: 0.5.68(@typescript-eslint/types@8.64.0)
       svelte-dnd-action:
-        specifier: 0.9.70
-        version: 0.9.70(svelte@5.56.6(@typescript-eslint/types@8.64.0))
+        specifier: 0.9.74
+        version: 0.9.74(svelte@5.56.6(@typescript-eslint/types@8.64.0))
       three-way-merge:
         specifier: ^0.1.0
         version: 0.1.0
@@ -1261,8 +1261,8 @@ packages:
     resolution: {integrity: sha512-Qgzu8kfBvo+cA4962jnP1KkS6Dop5NS6g7R5LFYJr4b8Ub94PPQXUksCw9PvXoeXPRRddRNC5C1JQUR2SMGtnA==}
     engines: {node: '>= 14.16.0'}
 
-  chrono-node@2.10.0:
-    resolution: {integrity: sha512-5fJ4zr5W/5DEf+8FMPMXF2qk9L5dc1rAP9Pw009iMlKAghPgx5o7aUcnjEMe6PTwqiqTa5yzmfSm05EHuwr31Q==}
+  chrono-node@2.10.1:
+    resolution: {integrity: sha512-tPOsBzYVAK5zth+CiHCgp5NGeqRc4mMD8FPthQ5IxkgjPWWxIFdM5odnmfw//IRAzl6C++Xy8olQW7wn5qBR1g==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
   clsx@2.1.1:
@@ -1483,8 +1483,8 @@ packages:
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
     os: [darwin]
 
-  fuse.js@7.4.2:
-    resolution: {integrity: sha512-LVbzjD4WA6UP5B1UnP8wuaXJiLnqMdM/E4fiJXTJ5haJ5b/MBNsK29h2fm6swEoQaVQjvYFWKLE2RanyZIoRVQ==}
+  fuse.js@7.5.0:
+    resolution: {integrity: sha512-sQtrEfA+ez/3G0cCZecF70oqpCRttCexYUG4mUrtWL49ULUzUyxokt5kyqwtKzj1270RaKih+hcP3qLcumccow==}
     engines: {node: '>=10'}
 
   glob-parent@6.0.2:
@@ -2008,8 +2008,8 @@ packages:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: '>=5.0.0'
 
-  svelte-dnd-action@0.9.70:
-    resolution: {integrity: sha512-iVqDAW1PtQArA96dHhM5Lwxj39iKNjIuYE+tqpq9DUaBWfv410SpGGFJ3NzPtvptx+YkXBzMYV3lpey8s07q+w==}
+  svelte-dnd-action@0.9.74:
+    resolution: {integrity: sha512-zn//d8plF73Y05joRdj0g9S7Z8KY5zoTyzjHtnaJMqQP//6U6smHAHi0ArZWi60bxpoOwo+im8gKhK/M7Eq1pQ==}
     peerDependencies:
       svelte: '>=3.23.0 || ^5.0.0-next.0'
 
@@ -3179,7 +3179,7 @@ snapshots:
     dependencies:
       readdirp: 4.1.2
 
-  chrono-node@2.10.0: {}
+  chrono-node@2.10.1: {}
 
   clsx@2.1.1: {}
 
@@ -3416,7 +3416,7 @@ snapshots:
   fsevents@2.3.3:
     optional: true
 
-  fuse.js@7.4.2: {}
+  fuse.js@7.5.0: {}
 
   glob-parent@6.0.2:
     dependencies:
@@ -3934,7 +3934,7 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-dnd-action@0.9.70(svelte@5.56.6(@typescript-eslint/types@8.64.0)):
+  svelte-dnd-action@0.9.74(svelte@5.56.6(@typescript-eslint/types@8.64.0)):
     dependencies:
       svelte: 5.56.6(@typescript-eslint/types@8.64.0)
 
