@@ -51,19 +51,26 @@ export function hasConfiguredTemplateFolders(plugin: QuickAdd): boolean {
 	);
 }
 
-/** Best-effort: open QuickAdd's settings tab so the user can configure a template folder. */
-function openQuickAddSettings(app: App, pluginId: string): void {
-	const setting = (
-		app as unknown as {
-			setting?: { open?: () => void; openTabById?: (id: string) => void };
-		}
-	).setting;
-	try {
-		setting?.open?.();
-		setting?.openTabById?.(pluginId);
-	} catch {
-		// best-effort only; the Notice already tells the user where to go.
-	}
+/** Opens a plugin's settings tab. Returns false if the internal API is unavailable or throws. */
+export function tryOpenPluginSettings(app: App, pluginId: string): boolean {
+    try {
+        const setting = (
+            app as unknown as {
+                setting?: { open?: () => void; openTabById?: (id: string) => void };
+            }
+        ).setting;
+        
+        if (!setting?.open || !setting?.openTabById) {
+            console.error("QuickAdd: Obsidian internal settings API is unavailable.");
+            return false;
+        }
+        setting.open();
+        setting.openTabById(pluginId);
+        return true;
+    } catch (error) {
+        console.error("QuickAdd: Failed to open plugin settings automatically", error);
+        return false;
+    }
 }
 
 function renderTemplateRow(path: string, el: HTMLElement): void {
@@ -122,7 +129,7 @@ export async function runTemplateFromFolder(
 					"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & Properties to use “New note from template”.",
 					8000,
 				);
-				openQuickAddSettings(app, plugin.manifest.id);
+				tryOpenPluginSettings(app, plugin.manifest.id);
 				return;
 			}
 

@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
 import type { Debouncer } from "obsidian";
-import { Plugin, TFile, debounce } from "obsidian";
+import { Plugin, TFile, debounce, Notice } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -46,7 +46,7 @@ import {
 	parseCallbackTargets,
 	type CallbackTargets,
 } from "./uri/uriCallback";
-import { runTemplateFromFolder } from "./engine/runTemplateFromFolder";
+import { runTemplateFromFolder, tryOpenPluginSettings } from "./engine/runTemplateFromFolder";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
@@ -109,17 +109,6 @@ export default class QuickAdd extends Plugin {
 				ChoiceSuggester.Open(this, this.settings.choices, {
 					includeTemplateFolderRow: true,
 				});
-			},
-		});
-
-		// add: Allows users to quickly open QuickAdd settings from the command palette
-		this.addCommand({
-			id: "open-quickadd-settings",
-			name: "Open QuickAdd settings",
-			callback: () => {
-				const setting = (this.app as any).setting;
-				setting?.open?.();
-				setting?.openTabById?.(this.manifest.id);
 			},
 		});
 
@@ -221,6 +210,18 @@ export default class QuickAdd extends Plugin {
 				void fn();
 			},
 		});
+
+		this.addCommand({
+            id: "openQuickAddSettings",
+            name: QUICK_ADD_COMMAND_LABELS.openSettings,
+            callback: () => {
+                if (!tryOpenPluginSettings(this.app, this.manifest.id)) {
+                    new Notice(
+                        "QuickAdd: Unable to open settings automatically. Open Settings -> QuickAdd manually."
+                    );
+                }
+            },
+        });
 
 		this.registerObsidianProtocolHandler("quickadd", async (e) => {
 			const parameters = e as unknown as UriParameters;
