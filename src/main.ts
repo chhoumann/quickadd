@@ -9,6 +9,7 @@ import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
 import { reportError, withErrorHandling } from "./utils/errorUtils";
+import { tryOpenPluginSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -46,7 +47,7 @@ import {
 	parseCallbackTargets,
 	type CallbackTargets,
 } from "./uri/uriCallback";
-import { runTemplateFromFolder, tryOpenPluginSettings } from "./engine/runTemplateFromFolder";
+import { runTemplateFromFolder } from "./engine/runTemplateFromFolder";
 
 // Parameters prefixed with `value-` get used as named values for the executed choice
 type CaptureValueParameters = { [key in `value-${string}`]?: string };
