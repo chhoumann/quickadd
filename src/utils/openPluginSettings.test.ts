@@ -41,7 +41,7 @@ describe("tryOpenPluginSettings", () => {
 		);
 	});
 
-	it("should return false and log error if an exception is thrown", () => {
+	it("should return false and log error if an exception is thrown from setting.open", () => {
 		const fakeApp = {
 			setting: {
 				open: () => {
@@ -56,6 +56,22 @@ describe("tryOpenPluginSettings", () => {
 		expect(result).toBe(false);
 		expect(log.logError).toHaveBeenCalledWith(
 			"QuickAdd: Failed to open plugin settings automatically: Error: Simulated error"
+		);
+	});
+
+	it("should return false and log error if opening the tab throws", () => {
+		const fakeApp = {
+			setting: {
+				open: vi.fn(),
+				openTabById: () => {
+					throw new Error("Simulated tab error");
+				},
+			},
+		} as unknown as App;
+
+		expect(tryOpenPluginSettings(fakeApp, "my-plugin")).toBe(false);
+		expect(log.logError).toHaveBeenCalledWith(
+			"QuickAdd: Failed to open plugin settings automatically: Error: Simulated tab error"
 		);
 	});
 });
