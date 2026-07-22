@@ -212,16 +212,16 @@ export default class QuickAdd extends Plugin {
 		});
 
 		this.addCommand({
-            id: "openQuickAddSettings",
-            name: QUICK_ADD_COMMAND_LABELS.openSettings,
-            callback: () => {
-                if (!tryOpenPluginSettings(this.app, this.manifest.id)) {
-                    new Notice(
-                        "QuickAdd: Unable to open settings automatically. Open Settings -> QuickAdd manually."
-                    );
-                }
-            },
-        });
+			id: "openQuickAddSettings",
+			name: QUICK_ADD_COMMAND_LABELS.openSettings,
+			callback: () => {
+				if (!tryOpenPluginSettings(this.app, this.manifest.id)) {
+					new Notice(
+						"QuickAdd: Unable to open settings automatically. Open Settings -> QuickAdd manually."
+					);
+				}
+			},
+		});
 
 		this.registerObsidianProtocolHandler("quickadd", async (e) => {
 			const parameters = e as unknown as UriParameters;
