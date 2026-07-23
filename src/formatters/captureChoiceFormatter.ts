@@ -596,13 +596,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_CURSOR
 		) {
+			const activeView = getActiveMarkdownEditorView(this.app);
+
+			if (!activeView) {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
+				);
+			}
+
 			try {
-				const activeView = getActiveMarkdownEditorView(this.app);
-
-				if (!activeView) {
-					throw new Error("No active markdown editor.");
-				}
-
 				const cursor = activeView.editor.getCursor();
 				let targetPosition = cursor.line;
 
@@ -839,13 +841,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			insertBefore.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_CURSOR
 		) {
+			const activeView = getActiveMarkdownEditorView(this.app);
+
+			if (!activeView) {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${insertBefore.before}' at cursor position: no active markdown editor.`,
+				);
+			}
+
 			try {
-				const activeView = getActiveMarkdownEditorView(this.app);
-
-				if (!activeView) {
-					throw new Error("No active markdown editor.");
-				}
-
 				const cursor = activeView.editor.getCursor();
 
 				return this.insertTextBeforePositionInBody(
@@ -893,13 +897,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.choice.insertAfter?.createIfNotFoundLocation ===
 			CREATE_IF_NOT_FOUND_CURSOR
 		) {
+			const activeView = getActiveMarkdownEditorView(this.app);
+
+			if (!activeView) {
+				throw new ChoiceAbortError(
+					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
+				);
+			}
+
 			try {
-				const activeView = getActiveMarkdownEditorView(this.app);
-
-				if (!activeView) {
-					throw new Error("No active markdown editor.");
-				}
-
 				const cursor = activeView.editor.getCursor();
 				const targetPosition = cursor.line;
 
