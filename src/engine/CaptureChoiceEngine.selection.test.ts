@@ -1719,7 +1719,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			},
 		};
 		app.workspace.getActiveFile = vi.fn(() => canvasFile);
-		app.workspace.getActiveViewOfType = vi.fn(() => ({}));
+		app.workspace.getActiveViewOfType = vi.fn(() => ({ editor: {} }));
 		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
 			path === "Clipboard image.png" ? attachmentFile : null,
 		);

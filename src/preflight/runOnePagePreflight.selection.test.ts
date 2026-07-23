@@ -167,6 +167,33 @@ describe("runOnePagePreflight selection-as-value", () => {
 		expect(modalOpenMock).not.toHaveBeenCalled();
 	});
 
+	it("treats a Markdown view without an editor like no selection (#1536)", async () => {
+		const choice = createChoice();
+		const executor = createExecutor();
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+		// Thino-style Markdown-masquerading view: editor is null.
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue({ editor: null }),
+			},
+		} as unknown as App;
+		modalResult = { value: "Typed instead" };
+
+		const result = await runOnePagePreflight(app, plugin, executor, choice);
+
+		// The editor-less view yields no selection, so the modal collects
+		// {{VALUE}} instead of the run crashing on editor.getSelection().
+		expect(result).toBe(true);
+		expect(modalOpenMock).toHaveBeenCalled();
+		expect(executor.variables.get("value")).toBe("Typed instead");
+	});
+
 	it("collects via the promptProvider (not the Obsidian modal) for a remote run", async () => {
 		const choice = createChoice();
 		const executor = createExecutor();

@@ -32,6 +32,7 @@ import {
 } from "../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../utils/activeNoteFieldDefault";
+import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { log } from "../logger/logManager";
 import { Formatter, type PromptContext } from "./formatter";
 import {
@@ -1150,7 +1151,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getSelectedText(): Promise<string> {
-		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const activeView = getActiveMarkdownEditorView(this.app);
 		if (!activeView) return "";
 
 		return activeView.editor.getSelection();

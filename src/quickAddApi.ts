@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { MarkdownView } from "obsidian";
+import { getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
 import {
 	ChunkedPrompt,
 	clearAIRequestLogEntries,
@@ -731,7 +731,7 @@ export class QuickAddApi {
 					return await navigator.clipboard.writeText(text);
 				},
 				getSelection: () => {
-					const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+					const activeView = getActiveMarkdownEditorView(app);
 
 					if (!activeView) {
 						return "";
@@ -740,11 +740,11 @@ export class QuickAddApi {
 					return activeView.editor.getSelection() ?? "";
 				},
 				getSelectedText: () => {
-					const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+					const activeView = getActiveMarkdownEditorView(app);
 
 					if (!activeView) {
 						reportError(
-							new Error("No active view"),
+							new Error("No active Markdown editor"),
 							"Could not get selected text",
 						);
 						return "";

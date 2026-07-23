@@ -623,8 +623,30 @@ describe("utility selection helpers", () => {
 		expect(api.utility.getSelection()).toBe("");
 	});
 
+	it("getSelection returns empty string when the active view has no editor (#1536)", () => {
+		// Thino-style Markdown-masquerading view: editor is null.
+		const app = makeApp({
+			workspace: {
+				getActiveViewOfType: () => ({ editor: null }),
+			},
+		});
+		const { api } = getApi(app);
+		expect(api.utility.getSelection()).toBe("");
+	});
+
 	it("getSelectedText reports an error and returns '' with no view", () => {
 		const { api } = getApi();
+		expect(api.utility.getSelectedText()).toBe("");
+		expect(mocks.reportError).toHaveBeenCalled();
+	});
+
+	it("getSelectedText reports an error and returns '' when the active view has no editor (#1536)", () => {
+		const app = makeApp({
+			workspace: {
+				getActiveViewOfType: () => ({ editor: null }),
+			},
+		});
+		const { api } = getApi(app);
 		expect(api.utility.getSelectedText()).toBe("");
 		expect(mocks.reportError).toHaveBeenCalled();
 	});

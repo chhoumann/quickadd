@@ -1,10 +1,10 @@
 import {
-	MarkdownView,
 	Notice,
 	TFile,
 	type App,
 	type WorkspaceLeaf,
 } from "obsidian";
+import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "src/gui/InputSuggester/renderNotePathSuggestion";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
@@ -245,8 +245,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	private hasActiveMarkdownCaptureContext(): boolean {
 		const hasActiveFile = !!this.app.workspace.getActiveFile();
-		const hasActiveMarkdownView =
-			!!this.app.workspace.getActiveViewOfType(MarkdownView);
+		const hasActiveMarkdownView = !!getActiveMarkdownEditorView(this.app);
 		return hasActiveFile && hasActiveMarkdownView;
 	}
 

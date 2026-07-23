@@ -34,6 +34,14 @@ const createAppWithoutMarkdownView = (): App =>
 		},
 	}) as unknown as App;
 
+// A Markdown-masquerading view without an editor, as Thino returns (#1536).
+const createAppWithEditorlessView = (): App =>
+	({
+		workspace: {
+			getActiveViewOfType: vi.fn().mockReturnValue({ editor: null }),
+		},
+	}) as unknown as App;
+
 describe("navigation editor commands", () => {
 	it("moves cursor to file start", () => {
 		const setCursor = vi.fn();
@@ -82,7 +90,7 @@ describe("navigation editor commands", () => {
 		expect(setCursor).toHaveBeenCalledWith({ line: 7, ch: 11 });
 	});
 
-	it.each([
+	const allNavigationCommands = [
 		{
 			name: "MoveCursorToFileStartCommand",
 			run: MoveCursorToFileStartCommand.run,
@@ -99,8 +107,21 @@ describe("navigation editor commands", () => {
 			name: "MoveCursorToLineEndCommand",
 			run: MoveCursorToLineEndCommand.run,
 		},
-	])("throws when no active markdown view exists: $name", ({ run }) => {
-		const app = createAppWithoutMarkdownView();
-		expect(() => run(app)).toThrow("no active markdown view.");
-	});
+	];
+
+	it.each(allNavigationCommands)(
+		"throws when no active markdown view exists: $name",
+		({ run }) => {
+			const app = createAppWithoutMarkdownView();
+			expect(() => run(app)).toThrow("no active markdown editor.");
+		},
+	);
+
+	it.each(allNavigationCommands)(
+		"throws when the active view has no editor: $name",
+		({ run }) => {
+			const app = createAppWithEditorlessView();
+			expect(() => run(app)).toThrow("no active markdown editor.");
+		},
+	);
 });

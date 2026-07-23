@@ -1,5 +1,6 @@
 import type { App, Editor, EditorPosition, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
+import { getActiveMarkdownEditorView } from "./activeMarkdownEditor";
 import { log } from "../logger/logManager";
 import {
 	DEFAULT_FRONTMATTER_HANDLING,
@@ -19,7 +20,7 @@ export function getMarkdownEditorViewForFile(
 	app: App,
 	file: TFile,
 ): MarkdownView | null {
-	const view = app.workspace.getActiveViewOfType(MarkdownView);
+	const view = getActiveMarkdownEditorView(app);
 	if (view?.file?.path === file.path) return view;
 	return null;
 }
@@ -31,7 +32,7 @@ export function getMarkdownEditorViewForFile(
  */
 export function appendToCurrentLine(toAppend: string, app: App): boolean {
 	try {
-		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+		const activeView = getActiveMarkdownEditorView(app);
 
 		if (!activeView) {
 			log.logError(`unable to append '${toAppend}' to current line.`);
@@ -49,7 +50,7 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 /** @returns true if inserted, false if no active Markdown editor (or it threw). */
 export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App): boolean {
 	try {
-		const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+		const activeView = getActiveMarkdownEditorView(app);
 
 		if (!activeView) {
 			log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
@@ -204,6 +205,16 @@ export async function insertLinkWithPlacement(
 	}
 
 	const editor = view.editor;
+	// Editor-less Markdown-masquerading views (e.g. Thino's) support the
+	// frontmatter placement above, but no text placement.
+	if (!editor) {
+		const message = "Cannot append link because the active Markdown view has no editor.";
+		if (requireActiveView) {
+			throw new Error(message);
+		}
+		log.logMessage(message);
+		return;
+	}
 
 	// Snapshot current selections *before* mutating the document.
 	// We copy them because CodeMirror mutates the objects in-place.
@@ -314,7 +325,10 @@ export async function insertFileLinkToActiveView(
 	const normalized = normalizeAppendLinkOptions(linkOptions);
 
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
-	if (!view || !view.file) {
+	// Only the frontmatter placement works without an editor; for text
+	// placements an editor-less view is the same as no view.
+	const editorRequired = normalized.placement !== "inFrontmatter";
+	if (!view || !view.file || (editorRequired && !view.editor)) {
 		// Read the guard from the RAW options: normalization defaults a missing
 		// requireActiveFile to true, which would turn a raw caller's previous
 		// silent skip into a throw.

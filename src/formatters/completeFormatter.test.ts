@@ -775,6 +775,19 @@ describe("CompleteFormatter - selection handling", () => {
 		await expect(f.formatFolderPath("[{{SELECTED}}]")).resolves.toBe("[]");
 	});
 
+	it("replaces {{SELECTED}} with empty string when the active view has no editor (#1536)", async () => {
+		// Thino-style Markdown-masquerading view: editor is null.
+		const app = {
+			workspace: {
+				getActiveFile: () => null,
+				getActiveViewOfType: () => ({ editor: null }),
+			},
+			fileManager: { generateMarkdownLink: () => "" },
+		};
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFolderPath("[{{SELECTED}}]")).resolves.toBe("[]");
+	});
+
 	it("uses selected text as the {{VALUE}} when a selection exists", async () => {
 		const f = defaultFormatter({}, { selection: "picked" });
 		await expect(f.formatFolderPath("v={{VALUE}}")).resolves.toBe(

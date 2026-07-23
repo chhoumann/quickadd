@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
-import { MarkdownView, TFile } from "obsidian";
+import { TFile } from "obsidian";
+import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
@@ -321,7 +322,7 @@ async function collectForTemplateChoice(
 }
 
 function getEditorSelection(app: App): string {
-	const activeView = app.workspace.getActiveViewOfType(MarkdownView);
+	const activeView = getActiveMarkdownEditorView(app);
 	if (!activeView) return "";
 	return activeView.editor.getSelection();
 }

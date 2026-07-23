@@ -215,6 +215,75 @@ describe("insertFileLinkToActiveView", () => {
 		expect(editor.replaceSelection).not.toHaveBeenCalled();
 	});
 
+	it("appends frontmatter links even when the active view has no editor (#1536)", async () => {
+		// Thino-style Markdown-masquerading view: has a file, but editor is null.
+		// The frontmatter placement never touches the editor and must keep working.
+		const frontmatter: Record<string, unknown> = {};
+		const activeFile = { path: "Folder/Host.md" } as TFile;
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn(() => ({
+					file: activeFile,
+					editor: null,
+				})),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Created]]"),
+				processFrontMatter: vi.fn(
+					async (
+						_file: TFile,
+						update: (fm: Record<string, unknown>) => void,
+					) => update(frontmatter),
+				),
+			},
+		} as unknown as App;
+
+		await expect(
+			insertFileLinkToActiveView(app, { path: "Folder/Created.md" } as TFile, {
+				enabled: true,
+				placement: "inFrontmatter",
+				requireActiveFile: true,
+				frontmatterProperty: "related",
+				frontmatterHandling: "createProperty",
+			}),
+		).resolves.toBe(true);
+
+		expect(frontmatter.related).toEqual(["[[Created]]"]);
+	});
+
+	it("treats an editor-less view like no view for text placements (#1536)", async () => {
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn(() => ({
+					file: { path: "Host.md" },
+					editor: null,
+				})),
+			},
+			fileManager: {
+				generateMarkdownLink: vi.fn(() => "[[Created]]"),
+			},
+		} as unknown as App;
+		const createdFile = { path: "Created.md" } as TFile;
+
+		await expect(
+			insertFileLinkToActiveView(app, createdFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: false,
+			}),
+		).resolves.toBe(false);
+
+		await expect(
+			insertFileLinkToActiveView(app, createdFile, {
+				enabled: true,
+				placement: "replaceSelection",
+				requireActiveFile: true,
+			}),
+		).rejects.toThrow(
+			"Cannot append link because no active Markdown view is available.",
+		);
+	});
+
 	it("propagates configured frontmatter insertion failures", async () => {
 		const app = {
 			workspace: {
@@ -354,6 +423,34 @@ function createSelectionApp(
 		},
 	} as unknown as App;
 }
+
+describe("insertLinkWithPlacement editor-less view (#1536)", () => {
+	const editorlessApp = () =>
+		({
+			workspace: {
+				getActiveViewOfType: vi.fn(() => ({
+					file: { path: "Host.md" },
+					editor: null,
+				})),
+			},
+		}) as unknown as App;
+
+	it("throws a precise error for text placements when a view is required", async () => {
+		await expect(
+			insertLinkWithPlacement(editorlessApp(), "[[X]]", "replaceSelection"),
+		).rejects.toThrow(
+			"Cannot append link because the active Markdown view has no editor.",
+		);
+	});
+
+	it("silently skips text placements when no view is required", async () => {
+		await expect(
+			insertLinkWithPlacement(editorlessApp(), "[[X]]", "replaceSelection", {
+				requireActiveView: false,
+			}),
+		).resolves.toBeUndefined();
+	});
+});
 
 describe("insertLinkWithPlacement with textForSelection", () => {
 	const linkFor = (selectedText: string) => `[[X|${selectedText}]]`;
