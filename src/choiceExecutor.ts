@@ -10,7 +10,9 @@ import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type { PromptProvider } from "./interactive/promptProvider";
 import type IMultiChoice from "./types/choices/IMultiChoice";
-import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import ChoiceSuggester, {
+	emptyFolderNoticeText,
+} from "./gui/suggesters/choiceSuggester";
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
@@ -329,7 +331,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// picker (no Back row is appended on this path) that reads as a broken command.
 		// Surface a Notice instead so the user knows the folder simply has nothing in it.
 		if (multiChoice.choices.length === 0) {
-			new Notice(`Folder "${multiChoice.name}" is empty.`);
+			new Notice(emptyFolderNoticeText(multiChoice.name));
 			return;
 		}
 

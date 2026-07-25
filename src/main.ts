@@ -20,7 +20,7 @@ import {
 	isPathWithinTemplateFolders,
 	normalizeTemplateFolderPaths,
 } from "./utilityObsidian";
-import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
@@ -107,9 +107,7 @@ export default class QuickAdd extends Plugin {
 			id: "runQuickAdd",
 			name: QUICK_ADD_COMMAND_LABELS.run,
 			callback: () => {
-				ChoiceSuggester.Open(this, this.settings.choices, {
-					includeTemplateFolderRow: true,
-				});
+				openChoiceLauncher(this);
 			},
 		});
 
@@ -310,9 +308,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
-				ChoiceSuggester.Open(this, this.settings.choices, {
-					includeTemplateFolderRow: true,
-				});
+				openChoiceLauncher(this);
 			});
 		}
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
+import { App, Notice } from "obsidian";
 
 vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
@@ -492,7 +492,9 @@ describe("ChoiceSuggester", () => {
 			// still defaults from the original trigger note, not a re-read.
 			expect(options.triggerContext).toEqual({ activeFile: null });
 			expect(options.placeholder).toBe("Work");
-			expect(options.placeholderStack).toEqual([undefined]);
+			// The stack records the level we came FROM, so Back restores the
+			// launcher's default hint rather than a blank input (issue #1540).
+			expect(options.placeholderStack).toEqual(["Select a choice"]);
 		});
 
 		it("threads a captured trigger context to the leaf execution (issue #1429)", () => {
@@ -549,6 +551,42 @@ describe("ChoiceSuggester", () => {
 			];
 			// A real back item is appended, so the user is not stranded.
 			expect(passedChoices.some((c) => c.id === BACK_CHOICE_ID)).toBe(true);
+		});
+
+		// The command/URI path (choiceExecutor.onChooseMultiType) already refuses to
+		// open an empty folder; the picker used to open a level whose only row was
+		// "← Back". Both entry points to the same folder now say the same thing.
+		it("refuses to drill into an empty folder and says why", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const empty = multi("Reading", []);
+			(Notice as unknown as { instances: unknown[] }).instances = [];
+
+			makeSuggester([empty]).onChooseItem(empty, new MouseEvent("click"));
+
+			expect(openSpy).not.toHaveBeenCalled();
+			expect(
+				(Notice as unknown as { instances: Array<{ message: string }> })
+					.instances.map((n) => n.message),
+			).toEqual(['Folder "Reading" is empty.']);
+		});
+
+		// ...but Back must still work even when the level it returns to is empty,
+		// since the back item carries the previous level as its payload.
+		it("still navigates back when the back item wraps an empty level", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const back = makeBack([]);
+
+			makeSuggester([back]).onChooseItem(back, new MouseEvent("click"));
+
+			const [, passedChoices] = openSpy.mock.calls[0] as unknown as [
+				QuickAdd,
+				IChoice[],
+			];
+			expect(passedChoices).toEqual([]);
 		});
 	});
 
