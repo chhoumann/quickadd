@@ -4,13 +4,14 @@
  * modals, which do not share a base class: `GenericWideInputPrompt` extends
  * `Modal` directly and duplicates `display()`.
  *
- * The full text is mirrored into `title`/`aria-label` because the line is
- * clipped to one row: a narrow (mobile) modal would otherwise hide the tail of
- * a long destination path with no way to read it.
+ * `fullText` (the same line with the destination path un-elided) becomes the
+ * hover tooltip: the line is clipped to one row and long paths are shortened,
+ * so a narrow modal would otherwise leave no way to read the whole path.
  */
 export function renderPromptContextLine(
 	container: HTMLElement,
 	contextLine: string | undefined,
+	fullText?: string,
 ): HTMLElement | undefined {
 	const text = contextLine?.trim();
 	if (!text) return undefined;
@@ -19,7 +20,7 @@ export function renderPromptContextLine(
 		text,
 		cls: "qa-prompt-context",
 	});
-	el.setAttr("title", text);
-	el.setAttr("aria-label", text);
+	const tooltip = fullText?.trim() || text;
+	if (tooltip !== text) el.setAttr("title", tooltip);
 	return el;
 }

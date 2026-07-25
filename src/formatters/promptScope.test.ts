@@ -159,3 +159,22 @@ describe("buildPromptContextLine", () => {
 		).toBeUndefined();
 	});
 });
+
+describe("buildPromptContextLine tooltip form", () => {
+	it("can render the destination un-elided for the hover tooltip", () => {
+		const context = {
+			choiceName: "Note to self",
+			destination: "Work/Clients/Acme/Meetings/2026/Weekly standup notes.md",
+			destinationKind: "file" as const,
+		};
+
+		expect(buildPromptContextLine(context, "Text to capture")).toBe(
+			"Note to self → Work/…/Weekly standup notes.md",
+		);
+		expect(
+			buildPromptContextLine(context, "Text to capture", { elide: false }),
+		).toBe(
+			"Note to self → Work/Clients/Acme/Meetings/2026/Weekly standup notes.md",
+		);
+	});
+});

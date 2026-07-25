@@ -466,6 +466,7 @@ export class CompleteFormatter extends Formatter {
 		title: string;
 		placeholder?: string;
 		contextLine?: string;
+		contextLineFull?: string;
 	} {
 		const derived = describeValuePrompt(
 			this.promptScope,
@@ -478,6 +479,9 @@ export class CompleteFormatter extends Formatter {
 			title,
 			placeholder: derived.placeholder,
 			contextLine: buildPromptContextLine(this.promptRunContext, title),
+			contextLineFull: buildPromptContextLine(this.promptRunContext, title, {
+				elide: false,
+			}),
 		};
 	}
 
@@ -560,6 +564,7 @@ export class CompleteFormatter extends Formatter {
 				const promptOptions = this.buildInputPromptOptions(
 					this.valuePromptContext,
 					prompt.contextLine,
+					prompt.contextLineFull,
 				);
 				const placeholder =
 					this.valuePromptContext?.placeholder ?? prompt.placeholder;
@@ -626,6 +631,7 @@ export class CompleteFormatter extends Formatter {
 	private buildInputPromptOptions(
 		context: PromptContext | undefined,
 		contextLine?: string,
+		contextLineFull?: string,
 	): InputPromptOptions | undefined {
 		// Image paste only for free-text prompts opened while formatting note
 		// CONTENT — never for number/slider (numeric sinks) and never during
@@ -654,6 +660,7 @@ export class CompleteFormatter extends Formatter {
 			slider: context?.sliderConfig,
 			imagePaste,
 			contextLine,
+			contextLineFull,
 			draftScopeId,
 		};
 	}
@@ -705,6 +712,11 @@ export class CompleteFormatter extends Formatter {
 				this.promptRunContext,
 				variableTitle,
 			);
+			const namedContextLineFull = buildPromptContextLine(
+				this.promptRunContext,
+				variableTitle,
+				{ elide: false },
+			);
 
 			// Use VDateInputPrompt for VDATE variables
 			if (context?.type === "VDATE") {
@@ -719,6 +731,7 @@ export class CompleteFormatter extends Formatter {
 					{
 						optional: context.optional,
 						contextLine: namedContextLine,
+						contextLineFull: namedContextLineFull,
 						draftScopeId: this.promptRunContext?.draftScopeId,
 					},
 					context.withTime,
@@ -748,7 +761,11 @@ export class CompleteFormatter extends Formatter {
 					(context?.defaultValue ? context.defaultValue : undefined),
 				context?.defaultValue,
 				context?.description,
-				this.buildInputPromptOptions(context, namedContextLine),
+				this.buildInputPromptOptions(
+					context,
+					namedContextLine,
+					namedContextLineFull,
+				),
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {

@@ -30,6 +30,11 @@ export interface InputPromptOptions {
 	 */
 	contextLine?: string;
 	/**
+	 * {@link contextLine} with the destination path un-elided, shown as the
+	 * hover tooltip so the whole path stays reachable on a narrow modal.
+	 */
+	contextLineFull?: string;
+	/**
 	 * Stable per-choice discriminator for the input-draft key. The header used to
 	 * be the only thing distinguishing one choice's prompt from another's, so two
 	 * prompts that now share a derived title (e.g. "Note title") would otherwise

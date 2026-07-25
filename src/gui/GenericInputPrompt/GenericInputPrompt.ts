@@ -126,7 +126,11 @@ export default class GenericInputPrompt extends Modal {
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
 
-		renderPromptContextLine(this.contentEl, this.options?.contextLine);
+		renderPromptContextLine(
+			this.contentEl,
+			this.options?.contextLine,
+			this.options?.contextLineFull,
+		);
 
 		if (this.description) {
 			const descriptionEl = this.contentEl.createDiv({

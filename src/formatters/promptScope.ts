@@ -220,6 +220,7 @@ export function elideMiddlePath(path: string, maxLength = 44): string {
 export function buildPromptContextLine(
 	context: PromptRunContext | undefined,
 	title: string | undefined,
+	options?: { elide?: boolean },
 ): string | undefined {
 	if (!context) return undefined;
 
@@ -230,7 +231,8 @@ export function buildPromptContextLine(
 
 	const destination = context.destination?.trim();
 	if (destination) {
-		const shown = elideMiddlePath(destination);
+		const shown =
+			options?.elide === false ? destination : elideMiddlePath(destination);
 		parts.push(
 			`→ ${context.destinationKind === "folder" ? `${shown}/` : shown}`,
 		);
