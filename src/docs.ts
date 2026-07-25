@@ -45,7 +45,7 @@ export function openDocsUrl(url: string, owner?: Node): void {
  * at the main window.
  */
 export function createDocsLink(
-	parent: HTMLElement,
+	parent: HTMLElement | DocumentFragment,
 	url: string,
 	text: string,
 ): HTMLAnchorElement {
@@ -54,6 +54,10 @@ export function createDocsLink(
 	link.href = url;
 	link.target = "_blank";
 	link.rel = "noopener noreferrer";
+	// Obsidian's `a { color: var(--link-color) }` is invalid at computed-value
+	// time inside a setting description, so a bare anchor there inherits
+	// --text-muted and stops reading as a link. Pin the accent colour.
+	link.classList.add("quickadd-docs-link");
 	parent.append(link);
 	return link;
 }

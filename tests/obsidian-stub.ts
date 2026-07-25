@@ -55,7 +55,15 @@ export class ButtonComponent extends BaseComponent {
     return this;
   }
 
-  setTooltip(): this {
+  // Mirrors Obsidian: the disabled state lands on the native button, and the
+  // tooltip is driven by aria-label (its delegated pointerover handler).
+  setDisabled(disabled: boolean): this {
+    this.buttonEl.disabled = disabled;
+    return this;
+  }
+
+  setTooltip(tooltip: string): this {
+    this.buttonEl.setAttribute("aria-label", tooltip);
     return this;
   }
 
@@ -69,6 +77,36 @@ export class ButtonComponent extends BaseComponent {
 
   onClick(cb: () => void): this {
     this.buttonEl.addEventListener("click", cb);
+    return this;
+  }
+}
+
+export class ExtraButtonComponent extends BaseComponent {
+  extraSettingsEl: HTMLElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.extraSettingsEl = document.createElement("div");
+    containerEl.appendChild(this.extraSettingsEl);
+  }
+
+  setIcon(): this {
+    return this;
+  }
+
+  // Obsidian drives its tooltip off aria-label.
+  setTooltip(tooltip: string): this {
+    this.extraSettingsEl.setAttribute("aria-label", tooltip);
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.extraSettingsEl.toggleAttribute("disabled", disabled);
+    return this;
+  }
+
+  onClick(cb: () => void): this {
+    this.extraSettingsEl.addEventListener("click", cb);
     return this;
   }
 }
@@ -230,6 +268,9 @@ export class Setting {
   }
 
   setDesc(desc: string | DocumentFragment): this {
+    // Obsidian replaces the description; appending would let repeated calls
+    // accumulate copies that the real app never shows.
+    this.descEl.replaceChildren();
     if (typeof desc === "string") {
       this.descEl.textContent = desc;
     } else {
@@ -882,6 +923,7 @@ export default {
   Component,
   BaseComponent,
   ButtonComponent,
+  ExtraButtonComponent,
   ToggleComponent,
   DropdownComponent,
   TextComponent,

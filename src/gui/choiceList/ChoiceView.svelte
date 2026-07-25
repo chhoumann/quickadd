@@ -28,6 +28,7 @@
 	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { promptRenameChoice } from "../choiceRename";
+	import { DOCS_URLS } from "../../docs";
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
 	import ChoiceList from "./ChoiceList.svelte";
@@ -357,8 +358,16 @@
 			<ObsidianIcon iconId="folder-plus" size={28} />
 			<div class="choiceEmptyTitle">No choices yet</div>
 			<p class="choiceEmptyBody">
-				A choice is an action QuickAdd can run — create a note, capture
+				A choice is an action QuickAdd can run: create a note, capture
 				text, or run a macro. Group them with folders.
+				<!-- The one place a brand-new user is guaranteed to look, so it
+				     carries the plugin's only prominent docs link (#1541). -->
+				<a
+					class="quickadd-docs-link"
+					href={DOCS_URLS.gettingStarted}
+					target="_blank"
+					rel="noopener noreferrer">Learn more</a
+				>
 			</p>
 			<div class="choiceEmptyActions">
 				<AddChoiceControls onAddChoice={addChoiceToList} />

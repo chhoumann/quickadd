@@ -553,6 +553,20 @@
 	text-decoration: underline;
 }
 
+/* docs.ts — documentation links (#1541). Obsidian's own `a { color:
+   var(--link-color) }` is invalid at computed-value time inside a
+   `.setting-item-description`, so a bare anchor there inherits --text-muted and
+   reads as prose. Pin the accent colour so every docs link looks the same
+   wherever it lands. */
+.quickadd-docs-link {
+	color: var(--text-accent);
+	text-decoration: underline;
+}
+
+.quickadd-docs-link:hover {
+	color: var(--text-accent-hover, var(--text-accent));
+}
+
 /* Shared accessible icon button (IconButton.svelte / DragHandle.svelte, #1250).
    Resets Obsidian's default <button> chrome so an icon-only <button> looks like the
    borderless inline icons it replaced, while keeping native keyboard/focus behaviour.
