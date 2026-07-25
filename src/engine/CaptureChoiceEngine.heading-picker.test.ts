@@ -14,6 +14,7 @@ const { setInsertAfterTargetOverrideMock } = vi.hoisted(() => ({
 
 vi.mock("../formatters/captureChoiceFormatter", () => ({
 	CaptureChoiceFormatter: class {
+		setPromptRunContext() {}
 		setLinkToCurrentFileBehavior() {}
 		setUseSelectionAsCaptureValue() {}
 		setInsertAfterTargetOverride(target: string | null) {

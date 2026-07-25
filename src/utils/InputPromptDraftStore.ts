@@ -5,6 +5,15 @@ export interface InputPromptDraftKey {
 	header: string;
 	placeholder?: string;
 	linkSourcePath?: string;
+	/**
+	 * Stable per-choice discriminator. The header used to be the only thing
+	 * separating one choice's prompt from another's (it was the choice name), so
+	 * once prompts derive a shared title such as "Note title" (issue #1546) a
+	 * cancelled draft from one choice would pre-fill the next. Also separates two
+	 * choices that happen to have the same name. Absent for prompts raised
+	 * outside a choice (script API), which keep the header-only key.
+	 */
+	scopeId?: string;
 }
 
 interface DraftEntry {
@@ -38,6 +47,7 @@ export class InputPromptDraftStore {
 			header: key.header,
 			placeholder: key.placeholder ?? "",
 			linkSourcePath: key.linkSourcePath ?? "",
+			scopeId: key.scopeId ?? "",
 		});
 	}
 

@@ -66,6 +66,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
 		this.choice = choice;
+		// Every prompt this run opens can say which choice is asking (issue #1546).
+		this.formatter.setPromptRunContext({
+			draftScopeId: choice.id,
+			choiceName: choice.name,
+		});
 	}
 
 	public async run(): Promise<void> {
@@ -139,10 +144,21 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
+			// The title prompt below can now say where the note will be created -
+			// unless the file name format itself carries a folder while folder
+			// settings are off, in which case the format can reroute the note
+			// (shouldTreatFormattedNameAsVaultRelativePath) and the folder shown
+			// would be a lie.
+			if (this.choice.folder.enabled || !format.includes("/")) {
+				this.formatter.setPromptRunContext({
+					destination: folderPath,
+					destinationKind: "folder",
+				});
+			}
 
 			const formattedName = discoveryVaultRelativePath
 				? discoveryVaultRelativePath
-				: await this.formatter.formatFileName(format, this.choice.name);
+				: await this.formatter.formatFileName(format, "noteTitle");
 			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
 			const { fileName, strippedPrefix } = discoveryVaultRelativePath
 				? { fileName: routedName, strippedPrefix: false }
@@ -590,12 +606,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return null;
 	}
 
+	// Sequential, not Promise.all: these passes share one formatter, and
+	// overlapping passes interleave its per-pass prompt scope (and would stack
+	// several prompt modals at once if a folder definition contained {{VALUE}}).
 	private async formatFolderPaths(folders: string[]) {
-		const folderPaths = await Promise.all(
-			folders.map(async (folder) => {
-				return await this.formatter.formatFolderPath(folder);
-			}),
-		);
+		const folderPaths: string[] = [];
+		for (const folder of folders) {
+			folderPaths.push(await this.formatter.formatFolderPath(folder));
+		}
 
 		return folderPaths;
 	}

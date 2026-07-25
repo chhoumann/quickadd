@@ -55,6 +55,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 			return mocks.templateRun.call(this);
 		}
 		setTargetFolderPath() {}
+		setPromptRunContext() {}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
 		}
@@ -195,7 +196,7 @@ describe("circular {{title}} re-check after format() (format-file-title-token)",
 	it("formatFileName throws when a global snippet expands to {{title}}", async () => {
 		const f = formatter({ snip: "{{title}}" });
 		await expect(
-			f.formatFileName("{{GLOBAL_VAR:snip}}-note", "Value"),
+			f.formatFileName("{{GLOBAL_VAR:snip}}-note"),
 		).rejects.toThrow("circular dependency");
 	});
 
@@ -208,7 +209,7 @@ describe("circular {{title}} re-check after format() (format-file-title-token)",
 
 	it("formatFileName still throws on a raw {{title}} (unchanged)", async () => {
 		const f = formatter();
-		await expect(f.formatFileName("{{title}}-x", "V")).rejects.toThrow(
+		await expect(f.formatFileName("{{title}}-x")).rejects.toThrow(
 			"circular dependency",
 		);
 	});
@@ -216,7 +217,7 @@ describe("circular {{title}} re-check after format() (format-file-title-token)",
 	it("formatFileName does not false-positive on a global with no {{title}}", async () => {
 		const f = formatter({ greeting: "hello" });
 		await expect(
-			f.formatFileName("{{GLOBAL_VAR:greeting}}-note", "V"),
+			f.formatFileName("{{GLOBAL_VAR:greeting}}-note"),
 		).resolves.toBe("hello-note");
 	});
 });

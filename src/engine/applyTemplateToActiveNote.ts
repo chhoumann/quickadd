@@ -192,6 +192,18 @@ export async function applyTemplateToNote(
 			mode,
 			params.choiceExecutor,
 		);
+		// Prompts raised while applying the template say which choice is driving
+		// and which note is being written (issue #1546). Applying a bare template
+		// has no choice, so only the destination is known.
+		engine.setPromptRunContext({
+			choiceName: source.kind === "choice" ? source.choice.name : undefined,
+			draftScopeId:
+				source.kind === "choice"
+					? source.choice.id
+					: `template-insert#${templatePath}`,
+			destination: file.path,
+			destinationKind: "file",
+		});
 
 		// Resolve format tokens in the path (issue #620), then re-validate that
 		// the RESOLVED file is still a markdown template: a token can expand a

@@ -27,8 +27,10 @@ export class SingleTemplateEngine extends TemplateEngine {
 			log.logError(`Template ${resolvedTemplatePath} not found.`);
 		}
 
-		templateContent = await this.formatter.withTemplatePropertyCollection(
-			() => this.formatter.formatFileContent(templateContent),
+		templateContent = await this.formatter.withTemplatePropertyCollection(() =>
+			this.formatter.withPromptScope("noteBody", templateContent, () =>
+				this.formatter.formatFileContent(templateContent),
+			),
 		);
 
 		return templateContent;

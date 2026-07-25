@@ -5,6 +5,7 @@ import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
+import { renderPromptContextLine } from "../promptContextLine";
 import { attachTextareaIndent } from "../components/textareaIndent";
 import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
 import type { ImagePasteHandle } from "../imagePasteHandler";
@@ -85,6 +86,7 @@ export default class GenericWideInputPrompt extends Modal {
 			header: this.header,
 			placeholder: this.placeholder,
 			linkSourcePath: this.linkSourcePath,
+			scopeId: options?.draftScopeId,
 		});
 		this.input = this.draftHandler.hydrate(value ?? "");
 
@@ -108,6 +110,8 @@ export default class GenericWideInputPrompt extends Modal {
 		this.containerEl.addClass("quickAddModal", "qaWideInputPrompt");
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
+
+		renderPromptContextLine(this.contentEl, this.options?.contextLine);
 
 		if (this.description) {
 			const descriptionEl = this.contentEl.createDiv({

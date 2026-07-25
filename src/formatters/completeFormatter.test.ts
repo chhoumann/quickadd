@@ -625,7 +625,7 @@ describe("CompleteFormatter - #1358 token-named active file (production wiring)"
 		f.setTargetFolderPath("Projects");
 		// {{FILENAMECURRENT}} -> '{{folder}}' (the basename); the folder pass must
 		// NOT then rewrite that to 'Projects'.
-		await expect(f.formatFileName("{{FILENAMECURRENT}}", "header")).resolves.toBe(
+		await expect(f.formatFileName("{{FILENAMECURRENT}}")).resolves.toBe(
 			"{{folder}}",
 		);
 	});
@@ -640,14 +640,14 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 	it("formatFileName resolves a sibling capture target from the active file's folder", async () => {
 		const f = defaultFormatter({}, { activeFile: activeInAlpha });
 		await expect(
-			f.formatFileName("{{FOLDERCURRENT}}/Project Tasks.md", "Value"),
+			f.formatFileName("{{FOLDERCURRENT}}/Project Tasks.md"),
 		).resolves.toBe("Projects/Alpha/Project Tasks.md");
 	});
 
 	it("formatFileName resolves {{FOLDERCURRENT|name}} to the leaf folder", async () => {
 		const f = defaultFormatter({}, { activeFile: activeInAlpha });
 		await expect(
-			f.formatFileName("{{FOLDERCURRENT|name}} - notes", "Value"),
+			f.formatFileName("{{FOLDERCURRENT|name}} - notes"),
 		).resolves.toBe("Alpha - notes");
 	});
 
@@ -659,7 +659,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 		// Downstream path normalization strips the leading slash, so a root-level
 		// note captures to a root-level sibling.
 		await expect(
-			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md", "Value"),
+			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md"),
 		).resolves.toBe("/Tasks.md");
 	});
 
@@ -681,7 +681,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		f.setLinkToCurrentFileBehavior("optional");
 		await expect(
-			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md", "Value"),
+			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md"),
 		).rejects.toThrow("Unable to get the active file's folder");
 	});
 
@@ -723,7 +723,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 			},
 		);
 		await expect(
-			f.formatFileName("{{FOLDERCURRENT}}/{{FILENAMECURRENT}}", "Value"),
+			f.formatFileName("{{FOLDERCURRENT}}/{{FILENAMECURRENT}}"),
 		).resolves.toBe("{{filenamecurrent}}/Meeting");
 	});
 });
@@ -740,7 +740,7 @@ describe("CompleteFormatter - title handling", () => {
 	it("formatFileName rejects {{title}} to avoid circular dependency", async () => {
 		const f = defaultFormatter();
 		await expect(
-			f.formatFileName("{{title}}-suffix", "Value"),
+			f.formatFileName("{{title}}-suffix"),
 		).rejects.toThrow("circular dependency");
 	});
 
@@ -757,7 +757,7 @@ describe("CompleteFormatter - title handling", () => {
 			{ activeFile: { basename: "Source" } },
 		);
 		await expect(
-			f.formatFileName("{{FILENAMECURRENT}}-note", "Value"),
+			f.formatFileName("{{FILENAMECURRENT}}-note"),
 		).resolves.toBe("Source-note");
 	});
 });
@@ -857,10 +857,12 @@ describe("CompleteFormatter - {{VALUE}} prompting", () => {
 			),
 		).resolves.toBe("7");
 		expect(mocks.inputPromptFactory).toHaveBeenCalledWith("slider");
+		// A folder pass whose whole format is the token: the prompt names the
+		// folder it is filling in rather than showing a bare box (issue #1546).
 		expect(mocks.inputPromptPrompt).toHaveBeenCalledWith(
 			expect.anything(),
-			"Enter value",
-			undefined,
+			"Folder",
+			"Folder for the new note",
 			"5",
 			undefined,
 			{

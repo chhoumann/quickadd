@@ -181,6 +181,18 @@
 	display: block;
 }
 
+/* Run-time prompt context: which choice is asking, and where the answer lands.
+   One line: the middle of a long path is elided in JS (elideMiddlePath) so the
+   file name survives, and the tail is clipped here as a last resort. */
+.quickAddModal .qa-prompt-context {
+	margin-bottom: 0.75rem;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* Preview row styling for Choice Builders. The row sits BELOW the field it
    previews (#1543), so it is styled as a quiet secondary line — a bold,
    body-sized line here reads as a heading for whatever follows it. */

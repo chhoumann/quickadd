@@ -11,6 +11,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		targetFolderPath: string | null = null;
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext() {}
 		setTargetFolderPath(path: string | null) {
 			this.targetFolderPath = path;
 		}
@@ -38,6 +39,13 @@ vi.mock("../formatters/completeFormatter", () => {
 			return input;
 		}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
+			return await work();
+		}
+		async withPromptScope<T>(
+			_scope: string,
+			_input: string,
+			work: () => Promise<T>,
+		) {
 			return await work();
 		}
 		getAndClearTemplatePropertyVars() {

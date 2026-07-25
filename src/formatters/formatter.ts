@@ -29,6 +29,11 @@ import {
 	parseFileToken,
 } from "../utils/fileSyntax";
 import { renderStoredFileValue } from "./helpers/fileTokenRendering";
+import {
+	valueAnswersWholeScope,
+	type PromptRunContext,
+	type PromptScopeKind,
+} from "./promptScope";
 import { getDate } from "../utilityObsidian";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -149,6 +154,18 @@ export abstract class Formatter {
 	protected targetFolderPath: string | null = null;
 	protected valuePromptContext?: PromptContext;
 	protected templateInclusion?: TemplateInclusionState;
+	/**
+	 * What the string currently being formatted becomes, so a prompt can say what
+	 * it is asking for (issue #1546). DECLARED by the caller via
+	 * {@link withPromptScope} rather than inferred from which `format*` method
+	 * ran: `formatFileContent` is shared by template bodies, capture bodies, the
+	 * script API and the AI agent.
+	 */
+	protected promptScope: PromptScopeKind = "generic";
+	/** Whether an anonymous {{VALUE}} answers the whole of what the scope names. */
+	protected promptScopeSoleValue = false;
+	/** Which choice is asking and, once known, where the answer lands. */
+	protected promptRunContext?: PromptRunContext;
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -169,6 +186,42 @@ export abstract class Formatter {
 
 	public setTemplateInclusionState(state: TemplateInclusionState): void {
 		this.templateInclusion = state;
+	}
+
+	/**
+	 * Merges into the run context describing which choice is asking and where its
+	 * output lands. Engines call this at run start with the choice, then again
+	 * with `destination` as soon as the target resolves.
+	 */
+	public setPromptRunContext(context: PromptRunContext): void {
+		this.promptRunContext = { ...this.promptRunContext, ...context };
+	}
+
+	public getPromptRunContext(): PromptRunContext | undefined {
+		return this.promptRunContext;
+	}
+
+	/**
+	 * Runs `fn` with the prompt scope set to what `input` will become. Restored in
+	 * a `finally` so a throwing pass cannot leak its scope into the next one -
+	 * exactly the bug the sticky `valueHeader` this replaces used to have, where
+	 * a Capture's file-name pass silently retitled its body prompt.
+	 */
+	public async withPromptScope<T>(
+		scope: PromptScopeKind,
+		input: string,
+		fn: () => Promise<T>,
+	): Promise<T> {
+		const previousScope = this.promptScope;
+		const previousSoleValue = this.promptScopeSoleValue;
+		this.promptScope = scope;
+		this.promptScopeSoleValue = valueAnswersWholeScope(scope, input);
+		try {
+			return await fn();
+		} finally {
+			this.promptScope = previousScope;
+			this.promptScopeSoleValue = previousSoleValue;
+		}
 	}
 
 	/** Returns true when a variable is present AND its value is not undefined.

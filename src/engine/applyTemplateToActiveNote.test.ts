@@ -27,6 +27,7 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 		async computeChoiceTargetPath() {
 			return null;
 		}
+		setPromptRunContext() {}
 	}
 
 	return { ...actual, TemplateInsertEngine: TemplateInsertEngineMock };

@@ -101,6 +101,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		}
 		setLinkToCurrentFileBehavior() {}
 		setTargetFolderPath() {}
+		setPromptRunContext() {}
 	},
 }));
 
@@ -185,7 +186,7 @@ describe("image paste sink-context gating", () => {
 	it("never offers image paste in file name prompts", async () => {
 		const f = new CompleteFormatter(createMockApp(), plugin);
 
-		await f.formatFileName("{{VALUE}}", "value");
+		await f.formatFileName("{{VALUE}}");
 
 		expect(lastPromptOptions(mocks.inputPromptPrompt)).toBeUndefined();
 	});

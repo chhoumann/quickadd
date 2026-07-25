@@ -5,6 +5,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		targetFolderPath: string | null = null;
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext() {}
 		setTargetFolderPath(path: string | null) {
 			this.targetFolderPath = path;
 		}

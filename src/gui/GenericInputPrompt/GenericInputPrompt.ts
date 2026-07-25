@@ -5,6 +5,7 @@ import { TagSuggester } from "../suggesters/tagSuggester";
 import { InputPromptDraftHandler } from "../../utils/InputPromptDraftHandler";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
+import { renderPromptContextLine } from "../promptContextLine";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
 
@@ -97,6 +98,7 @@ export default class GenericInputPrompt extends Modal {
 			header: this.header,
 			placeholder: this.placeholder,
 			linkSourcePath: this.linkSourcePath,
+			scopeId: options?.draftScopeId,
 		});
 		this.input = this.draftHandler.hydrate(value ?? "");
 
@@ -123,6 +125,8 @@ export default class GenericInputPrompt extends Modal {
 		this.containerEl.addClass("quickAddModal", "qaInputPrompt");
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
+
+		renderPromptContextLine(this.contentEl, this.options?.contextLine);
 
 		if (this.description) {
 			const descriptionEl = this.contentEl.createDiv({

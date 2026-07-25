@@ -865,7 +865,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				this.choiceExecutor
 			);
 
-			const resolvedPath = await formatter.formatFileName(command.filePath, "");
+			const resolvedPath = await formatter.formatFileName(
+				command.filePath,
+				"filePath",
+			);
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
 			// Validate path segments to prevent traversal attacks. A substring check

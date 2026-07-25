@@ -37,6 +37,12 @@ function templateDisplayName(path: string): string {
  */
 export function createFolderTemplateChoice(templatePath: string): ITemplateChoice {
 	const choice = new TemplateChoice(templateDisplayName(templatePath));
+	// TemplateChoice's constructor mints a fresh uuid. This choice is ephemeral
+	// and rebuilt on every invocation, so a per-run id would give the note-name
+	// prompt a new input-draft key each time and break cancel-and-retry recovery
+	// (issue #1546). Derive it from the template instead: stable across runs,
+	// distinct per template.
+	choice.id = `folder-template:${templatePath}`;
 	choice.templatePath = templatePath;
 	// Creating a brand-new note from a template — land in it, like the user expects.
 	choice.openFile = true;

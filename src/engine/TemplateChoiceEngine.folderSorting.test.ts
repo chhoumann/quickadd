@@ -19,6 +19,7 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class {
 		setLinkToCurrentFileBehavior() {}
+		setPromptRunContext() {}
 		async formatTemplateFilePath(input: string): Promise<string> {
 			return input;
 		}
