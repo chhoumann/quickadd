@@ -118,6 +118,19 @@ describe("insertAtNoteBodyStart", () => {
 		);
 	});
 
+	it("counts a whitespace-only leading payload line as the payload's own blank line", () => {
+		// Same blank-line definition on both sides, so a template whose separator
+		// carries trailing spaces does not stack two blanks above the insert.
+		expect(insertAtNoteBodyStart("---\na: 1\n---\n\nBody", "   \nContent")).toBe(
+			"---\na: 1\n---\n   \nContent\n\nBody",
+		);
+		// ...but the payload still gets a leading separator when its first line has
+		// visible content, so it can never glue onto the closing fence.
+		expect(insertAtNoteBodyStart("---\na: 1\n---", "   Content")).toBe(
+			"---\na: 1\n---\n   Content",
+		);
+	});
+
 	it("never eats a blank first line when there is no frontmatter", () => {
 		expect(insertAtNoteBodyStart("\n## Log\n", "CAP")).toBe("CAP\n\n## Log\n");
 		expect(insertAtNoteBodyStart("\n\n## Log\n", "CAP")).toBe("CAP\n\n\n## Log\n");

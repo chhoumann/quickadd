@@ -7,6 +7,16 @@ export interface NoteBodyInsertionResult {
 }
 
 /**
+ * A leading BLANK line: everything up to the first line break, with no visible
+ * content. Trailing spaces/tabs count (`"   \n"` reads as blank to Obsidian) and
+ * CRLF is handled, but the line break itself is required — `"   text"` is content.
+ */
+const LEADING_BLANK_LINE = /^[^\S\r\n]*\r?\n/;
+
+/** A leading line break, i.e. "this text already begins on a line of its own". */
+const LEADING_LINE_BREAK = /^\r?\n/;
+
+/**
  * Offset at which the note body begins — immediately after the YAML frontmatter
  * block when present, otherwise 0.
  *
@@ -42,9 +52,11 @@ export function getBodyStartOffset(content: string): number {
  *    with a blank line still gets "top of file" taken literally, at offset 0.
  *  - only ONE line. A longer blank run is body spacing the user chose, and only the
  *    first line of it is the frontmatter separator.
- *  - only when `text` does not already open with a newline. Such a payload supplies
- *    its own separation, and skipping as well would stack two blank lines (same
- *    "don't double" rule the leading separator below applies).
+ *  - only when `text` does not already open with a blank line of its own. Such a
+ *    payload supplies its own separation, and skipping as well would stack two blank
+ *    lines (the "don't double" rule the leading separator below also applies). The
+ *    payload is judged by the SAME blank-line definition as the note, so a template
+ *    whose separator carries trailing spaces is recognised too.
  *
  * A closing fence sitting at EOF (`---\n---`) has nothing after it, so there is no
  * separator to find and the offset stays on the fence — where the leading separator
@@ -57,12 +69,10 @@ export function getBodyStartOffset(content: string): number {
 function getBodyInsertOffset(content: string, text: string): number {
 	const start = getBodyStartOffset(content);
 	if (start === 0) return 0;
-	if (/^\r?\n/.test(text)) return start;
+	if (LEADING_BLANK_LINE.test(text)) return start;
 
-	// A blank line is anything up to the next line break that has no visible
-	// content — `"   \n"` and CRLF blanks included. It is skipped over, never
-	// rewritten, so its bytes survive verbatim.
-	const separator = /^[^\S\r\n]*\r?\n/.exec(content.slice(start));
+	// The separator is skipped over, never rewritten, so its bytes survive verbatim.
+	const separator = LEADING_BLANK_LINE.exec(content.slice(start));
 	return separator ? start + separator[0].length : start;
 }
 
@@ -107,8 +117,13 @@ export function insertAtNoteBodyStartWithResult(
 	const head = content.slice(0, start);
 	const rest = content.slice(start);
 
+	// Note the deliberately different predicate here: this asks "does the payload
+	// already start on its own line", so a payload opening with `"   \n"` still needs
+	// the separator (its visible `"   "` would otherwise glue onto the fence).
 	const leadingSeparator =
-		head.length > 0 && !head.endsWith("\n") && !/^\r?\n/.test(text) ? "\n" : "";
+		head.length > 0 && !head.endsWith("\n") && !LEADING_LINE_BREAK.test(text)
+			? "\n"
+			: "";
 	const trailingSeparator =
 		rest.length > 0 && !text.endsWith("\n") ? "\n" : "";
 
