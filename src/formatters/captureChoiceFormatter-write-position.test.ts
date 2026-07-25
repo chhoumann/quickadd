@@ -235,6 +235,35 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 	});
 
+	it("tracks cursor past the frontmatter separator line (issue #1538)", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			{
+				settings: {
+					enableTemplatePropertyTypes: false,
+					globalVariables: {},
+					showCaptureNotification: false,
+					showInputCancellationNotification: true,
+				},
+			} as any,
+		);
+
+		const result = await formatter.formatContentWithFile(
+			"Call the dentist",
+			createChoice({ captureToActiveFile: false, prepend: false }),
+			"---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n",
+			createFile(),
+		);
+
+		expect(result).toBe(
+			"---\ndate: 2026-07-25\n---\n\nCall the dentist\n## Log\n\n## Tasks\n",
+		);
+		// The cursor lands at the end of the capture, not one line too early.
+		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+			"---\ndate: 2026-07-25\n---\n\nCall the dentist".length,
+		);
+	});
+
 	it("writes to bottom for non-active targets when prepend is true", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),

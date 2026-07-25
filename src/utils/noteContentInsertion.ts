@@ -15,6 +15,10 @@ export interface NoteBodyInsertionResult {
  * fence that is not at offset 0 is not, and `...`-style closes are rejected. This
  * is deliberately content-based (the metadata cache is not consulted) so a stale
  * or cold cache cannot place text in the wrong spot.
+ *
+ * This is the STRUCTURAL boundary, and it lands on the start of the blank line that
+ * usually separates frontmatter from the body. It is therefore the wrong offset to
+ * write at — see `getBodyInsertOffset` below, which is what the insertion uses.
  */
 export function getBodyStartOffset(content: string): number {
 	const info = getFrontMatterInfo(content);
@@ -22,17 +26,63 @@ export function getBodyStartOffset(content: string): number {
 }
 
 /**
- * Insert `text` at the start of the note body — after frontmatter when present —
- * guaranteeing the inserted text occupies its own line(s):
+ * Offset a top-of-body insertion actually lands on: the frontmatter boundary from
+ * {@link getBodyStartOffset}, plus the blank line that separates the frontmatter
+ * block from the body when the note has one.
+ *
+ * `getFrontMatterInfo().contentStart` points at the byte right after the closing
+ * fence's newline — i.e. at the START of that separator line, not after it. Writing
+ * there wedges the capture between the fence and the blank line, so the note reads
+ * as if its frontmatter and body were never separated (issue #1538). The separator
+ * line is document furniture belonging to the frontmatter block, so the body starts
+ * below it.
+ *
+ * Deliberately narrow:
+ *  - only when frontmatter exists. A note with no frontmatter that happens to start
+ *    with a blank line still gets "top of file" taken literally, at offset 0.
+ *  - only ONE line. A longer blank run is body spacing the user chose, and only the
+ *    first line of it is the frontmatter separator.
+ *  - only when `text` does not already open with a newline. Such a payload supplies
+ *    its own separation, and skipping as well would stack two blank lines (same
+ *    "don't double" rule the leading separator below applies).
+ *
+ * A closing fence sitting at EOF (`---\n---`) has nothing after it, so there is no
+ * separator to find and the offset stays on the fence — where the leading separator
+ * below takes over and keeps the fence intact.
+ *
+ * Not exported: {@link getBodyStartOffset} stays the pure frontmatter boundary that
+ * `insertionPositioning.getBodyStartLine` uses for heading masking and ordered
+ * section placement, and that boundary must not move.
+ */
+function getBodyInsertOffset(content: string, text: string): number {
+	const start = getBodyStartOffset(content);
+	if (start === 0) return 0;
+	if (/^\r?\n/.test(text)) return start;
+
+	// A blank line is anything up to the next line break that has no visible
+	// content — `"   \n"` and CRLF blanks included. It is skipped over, never
+	// rewritten, so its bytes survive verbatim.
+	const separator = /^[^\S\r\n]*\r?\n/.exec(content.slice(start));
+	return separator ? start + separator[0].length : start;
+}
+
+/**
+ * Insert `text` at the start of the note body — below frontmatter and its separator
+ * line when present — under one invariant: **the insertion adds whole lines. It never
+ * merges with, and never deletes, an existing line.** Two separators enforce it:
  *
  *  - a leading newline when the preceding block (frontmatter, or nothing) does not
  *    already end with one. This protects frontmatter-only notes whose closing fence
  *    sits at EOF (`---\n---`), where the body offset lands on the fence itself.
- *  - a trailing newline when body content would otherwise follow on the same line.
+ *  - a trailing newline whenever any body content follows, so the payload terminates
+ *    its own line. This is unconditional on purpose: a `rest` that begins with a
+ *    newline does NOT mean the payload is already separated — it means the first body
+ *    line is EMPTY, and an unterminated payload would take that empty line's place,
+ *    silently deleting a line from the note (issue #1538).
  *
- * The trailing check is CRLF-aware so an existing blank line is absorbed rather
- * than doubled. The injected separator is a lone `\n` (matching the existing
- * capture/template insertion helpers); Obsidian tolerates the resulting mixed EOL.
+ * The injected separator is a lone `\n` (matching the existing capture/template
+ * insertion helpers, which splice on `\n` too); Obsidian tolerates the resulting
+ * mixed EOL in a CRLF note.
  *
  * `TemplateInsertEngine.insertBodyIntoNoteContent` reuses this same primitive for its
  * "top" insert, but passes `body + "\n"` so an applied template block always ends on its
@@ -53,14 +103,14 @@ export function insertAtNoteBodyStartWithResult(
 		};
 	}
 
-	const start = getBodyStartOffset(content);
+	const start = getBodyInsertOffset(content, text);
 	const head = content.slice(0, start);
 	const rest = content.slice(start);
 
 	const leadingSeparator =
 		head.length > 0 && !head.endsWith("\n") && !/^\r?\n/.test(text) ? "\n" : "";
 	const trailingSeparator =
-		rest.length > 0 && !text.endsWith("\n") && !/^\r?\n/.test(rest) ? "\n" : "";
+		rest.length > 0 && !text.endsWith("\n") ? "\n" : "";
 
 	const insertedStartOffset = head.length + leadingSeparator.length;
 	const insertedEndOffset = insertedStartOffset + text.length;

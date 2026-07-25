@@ -301,6 +301,29 @@ describe("insertBodyIntoNoteContent", () => {
 			insertBodyIntoNoteContent("---\r\nt: 1\r\n---\r\nBody", "new", "top"),
 		).toBe("---\r\nt: 1\r\n---\r\nnew\nBody");
 	});
+
+	it("keeps the blank line separating the note's frontmatter from its body (issue #1538)", () => {
+		// Symmetric with the no-separator note above: the block lands tight against
+		// the following line, and the note's separator line stays where it was.
+		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL", "top")).toBe(
+			"---\na: 1\n---\n\nTPL\nBody\n",
+		);
+		// A body that already ends in a newline still gets exactly ONE blank line of
+		// separation below it (it used to get two, by stacking onto the separator).
+		expect(
+			insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL\n", "top"),
+		).toBe("---\na: 1\n---\n\nTPL\n\nBody\n");
+	});
+
+	it("does not double the blank line for a template whose own body starts blank", () => {
+		// splitTemplateFrontmatter keeps the template's separator newline, so this is
+		// the shape every "---\nfm\n---\n\nContent" template produces.
+		const { body } = splitTemplateFrontmatter("---\nt: x\n---\n\nContent");
+		expect(body).toBe("\nContent");
+		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nExisting", body, "top")).toBe(
+			"---\na: 1\n---\n\nContent\n\nExisting",
+		);
+	});
 });
 
 describe("TemplateInsertEngine.apply", () => {
