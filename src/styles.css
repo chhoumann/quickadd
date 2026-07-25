@@ -93,6 +93,38 @@
 	max-height: 70%;
 }
 
+/* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
+   the name/description, the body carries the field itself. Obsidian zeroes a
+   `.setting-item`'s border-top and padding-top when it is `:first-child` of its
+   parent, and its padding-bottom when it is `:last-child` — inside the wrapper
+   it is both — so the wrapper takes over the row separator and vertical rhythm. */
+.quickAddModal .qa-field {
+	border-top: var(--border-width) solid var(--background-modifier-border);
+	padding: var(--size-4-4) 0;
+}
+
+.quickAddModal .qa-field > .setting-item {
+	padding-top: 0;
+	padding-bottom: 0;
+}
+
+/* The wrapper also breaks Obsidian's `.setting-item + .setting-item-heading`
+   sibling rule, so restore the group spacing above a following section heading. */
+.quickAddModal .qa-field + .setting-item-heading {
+	margin-top: 0.75em;
+}
+
+/* The last element in the body owns the wrapper's bottom padding. */
+.quickAddModal .qa-field-body > *:last-child {
+	margin-bottom: 0;
+}
+
+/* `.setting-item-name` is styled by class, not tag; `<label>` is inline by
+   default, which would shift the name's line box by the inline leading. */
+.quickAddModal label.setting-item-name {
+	display: block;
+}
+
 /* Preview row styling for Choice Builders. The row sits BELOW the field it
    previews (#1543), so it is styled as a quiet secondary line — a bold,
    body-sized line here reads as a heading for whatever follows it. */

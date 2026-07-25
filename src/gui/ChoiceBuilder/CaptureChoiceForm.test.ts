@@ -231,11 +231,58 @@ describe("CaptureChoiceForm", () => {
 		expect(toggle.classList.contains("is-enabled")).toBe(true);
 	});
 
+	// #1544: the capture target used to be described by three rows — a control-less
+	// "Capture to", the "Capture to active file" toggle, a control-less "File path /
+	// format" — and the input that actually holds it advertised itself as a *file
+	// name* format. One decision, one label, one description, one input.
+	it("describes the capture target with a single labelled field", () => {
+		const { container, getByLabelText } = mountForm();
+		const names = settingNames(container);
+
+		expect(names).not.toContain("File path / format");
+		expect(names.filter((name) => name === "Capture to")).toHaveLength(1);
+
+		const input = getByLabelText("Capture to") as HTMLInputElement;
+		expect(input.placeholder).toBe("Daily/{{DATE}}.md");
+
+		// The label is a real <label for>, and the field lives in the same group.
+		const label = container.querySelector(
+			"label.setting-item-name",
+		) as HTMLLabelElement;
+		expect(label.htmlFor).toBe(input.id);
+		expect(input.closest(".qa-field")).toBe(label.closest(".qa-field"));
+	});
+
+	it("hides the capture format field entirely while the format toggle is off", async () => {
+		const { container, props } = mountForm();
+		const field = () =>
+			settingItem(container, "Capture format").closest(".qa-field") as HTMLElement;
+
+		expect(field().querySelector("textarea")).toBeNull();
+		// With no field to point at there is no dangling <label for>.
+		expect(field().querySelector("label.setting-item-name")).toBeNull();
+
+		const toggle = settingItem(container, "Capture format").querySelector(
+			".checkbox-container",
+		) as HTMLElement;
+		await fireEvent.click(toggle);
+		flushSync();
+
+		expect(props.choice.format.enabled).toBe(true);
+		const textarea = field().querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea).not.toBeNull();
+		expect(textarea.disabled).toBe(false);
+		expect(
+			(field().querySelector("label.setting-item-name") as HTMLLabelElement)
+				.htmlFor,
+		).toBe(textarea.id);
+	});
+
 	// #1543: the preview used to render above the field it previews, and rendered
 	// as a bare "Preview:" with nothing after it whenever the field was empty.
 	it("renders the preview after the field it previews, and only once the field has a value", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("File path / format") as HTMLInputElement;
+		const input = getByLabelText("Capture to") as HTMLInputElement;
 
 		await settleValidation();
 		const preview = previewRows(container)[0];
@@ -259,7 +306,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("File path / format") as HTMLInputElement;
+		const input = getByLabelText("Capture to") as HTMLInputElement;
 		// Only the capture-target preview renders: the capture format is empty, and
 		// an empty field shows no preview row at all (#1543).
 		expect(previewRows(container)).toHaveLength(1);
@@ -280,7 +327,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("rejects multi-select capture target filters before runtime", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("File path / format") as HTMLInputElement;
+		const input = getByLabelText("Capture to") as HTMLInputElement;
 		expect(previewRows(container)).toHaveLength(1);
 
 		input.value = "tag:work|multi";
@@ -298,7 +345,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("does not show the canvas node picker for filter syntax that ends in .canvas", async () => {
 		const { container, getByLabelText, props } = mountForm();
-		const input = getByLabelText("File path / format") as HTMLInputElement;
+		const input = getByLabelText("Capture to") as HTMLInputElement;
 		props.choice.captureToCanvasNodeId = "stale-node-id";
 
 		input.value = "folder:Boards.canvas";
