@@ -75,6 +75,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 			this.targetFolderPath = path;
 		}
 
+		setPromptScope() {}
+
+		setPromptRunContext() {}
+
 		run() {
 			return mocks.templateRun.call(this);
 		}

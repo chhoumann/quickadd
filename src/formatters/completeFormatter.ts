@@ -38,6 +38,7 @@ import { Formatter, type PromptContext } from "./formatter";
 import {
 	buildPromptContextLine,
 	describeValuePrompt,
+	isPathScope,
 	type PromptScopeKind,
 } from "./promptScope";
 import {
@@ -164,7 +165,10 @@ export class CompleteFormatter extends Formatter {
 		// (issue #1484). Restored in finally so a nested/failed pass can't
 		// leak the flag into a later path pass on the same formatter.
 		const previousImagePaste = this.contentValuePromptsAcceptImagePaste;
-		this.contentValuePromptsAcceptImagePaste = true;
+		// ...unless the declared scope says this content is destined for a PATH,
+		// which happens when a {{TEMPLATE:}} include is spliced into a file name
+		// or folder and rendered through its own formatter.
+		this.contentValuePromptsAcceptImagePaste = !isPathScope(this.promptScope);
 		try {
 			output = await this.format(output);
 		} finally {
@@ -1235,6 +1239,11 @@ export class CompleteFormatter extends Formatter {
 		// templates ({{TEMPLATE:...}}), which render via this child engine's own
 		// formatter.
 		childEngine.setTargetFolderPath(this.targetFolderPath);
+		// An include spliced into a path is part of that path: keep the caller's
+		// scope so its prompts do not claim to be asking for note content.
+		if (this.promptScope !== "generic") {
+			childEngine.setPromptScope(this.promptScope);
+		}
 		// Included templates prompt through the child's own formatter, so the run
 		// context has to travel with them or their prompts lose the choice name.
 		// The draft scope is narrowed to this template: the child raises its OWN

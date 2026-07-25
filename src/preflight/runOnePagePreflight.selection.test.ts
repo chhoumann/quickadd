@@ -316,7 +316,7 @@ describe("runOnePagePreflight template extension handling", () => {
 		);
 	});
 
-	it("leaves FIELD multi-select prompts for runtime instead of the one-page modal", async () => {
+	it("leaves FIELD multi-select prompts for runtime even when the form opens", async () => {
 		const templateFile = new TFile();
 		templateFile.path = "Templates/FieldMulti.md";
 		templateFile.name = "FieldMulti.md";
@@ -345,6 +345,8 @@ describe("runOnePagePreflight template extension handling", () => {
 
 		const executor = createExecutor();
 
+		modalResult = { value: "Some title" };
+
 		const result = await runOnePagePreflight(
 			app,
 			plugin,
@@ -352,8 +354,11 @@ describe("runOnePagePreflight template extension handling", () => {
 			createTemplateChoice("Templates/FieldMulti.md"),
 		);
 
-		expect(result).toBe(false);
-		expect(modalOpenMock).not.toHaveBeenCalled();
+		// The form opens for the implicit note title (the file name format falls
+		// back to {{VALUE}} at runtime), but the FIELD multi-select is still left
+		// to a runtime prompt rather than pre-collected.
+		expect(result).toBe(true);
+		expect(modalOpenMock).toHaveBeenCalledTimes(1);
 		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
 	});
 

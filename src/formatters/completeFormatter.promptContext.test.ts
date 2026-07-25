@@ -10,6 +10,26 @@ const mocks = vi.hoisted(() => ({
 	prompt: vi.fn(async () => "answer"),
 	promptWithContext: vi.fn(async () => "answer"),
 	suggest: vi.fn(async (..._args: unknown[]) => "true"),
+	childScopes: [] as string[],
+	childRunContexts: [] as unknown[],
+}));
+
+vi.mock("../engine/SingleTemplateEngine", () => ({
+	SingleTemplateEngine: class {
+		setTargetFolderPath() {}
+		setPromptScope(scope: string) {
+			mocks.childScopes.push(scope);
+		}
+		setPromptRunContext(context: unknown) {
+			mocks.childRunContexts.push(context);
+		}
+		async run() {
+			return "included";
+		}
+		getAndClearTemplatePropertyVars() {
+			return new Map();
+		}
+	},
 }));
 
 vi.mock("obsidian", () => {
@@ -189,6 +209,27 @@ describe("scope isolation", () => {
 		await f.formatFileContent("{{VALUE}}");
 
 		expect(lastPromptCall().header).toBe("New template");
+	});
+});
+
+describe("included templates", () => {
+	it("inherits the including pass's scope instead of claiming note content", async () => {
+		// `{{TEMPLATE:x}}` inside a FILE NAME is part of that file name; the child
+		// engine renders it through its own formatter, so the scope has to travel.
+		const f = makeFormatter();
+		f.setPromptRunContext({ choiceName: "My template", draftScopeId: "tpl" });
+		mocks.childScopes.length = 0;
+		mocks.childRunContexts.length = 0;
+
+		await f.formatFileName("{{TEMPLATE:Templates/Name.md}}", "noteTitle");
+
+		expect(mocks.childScopes).toEqual(["noteTitle"]);
+		// A separate draft scope, so the include's own prompt cannot open
+		// pre-filled with the parent's answer.
+		expect(mocks.childRunContexts.at(-1)).toMatchObject({
+			choiceName: "My template",
+			draftScopeId: "tpl#Templates/Name.md",
+		});
 	});
 });
 
