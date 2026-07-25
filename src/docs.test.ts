@@ -46,18 +46,35 @@ describe("openDocsUrl", () => {
 	it("opens from the owner's window so a popout does not target the main one", () => {
 		const open = vi.fn();
 		const owner = document.createElement("div");
+		// jsdom has no second window to borrow, so stand one in. Restored by hand:
+		// vi.restoreAllMocks() does not undo defineProperty, and leaving the real
+		// document.defaultView shadowed would poison every later test in the run.
+		const original = Object.getOwnPropertyDescriptor(
+			owner.ownerDocument,
+			"defaultView",
+		);
 		Object.defineProperty(owner.ownerDocument, "defaultView", {
 			configurable: true,
 			value: { open },
 		});
 
-		openDocsUrl(DOCS_URLS.gettingStarted, owner);
+		try {
+			openDocsUrl(DOCS_URLS.gettingStarted, owner);
+		} finally {
+			if (original) {
+				Object.defineProperty(owner.ownerDocument, "defaultView", original);
+			} else {
+				Reflect.deleteProperty(owner.ownerDocument, "defaultView");
+			}
+		}
 
 		expect(open).toHaveBeenCalledWith(
 			DOCS_URLS.gettingStarted,
 			"_blank",
 			"noopener,noreferrer",
 		);
+		// The real window is back, so a later openDocsUrl() targets it again.
+		expect(document.defaultView).toBe(window);
 	});
 
 	// A failure to open the docs must never take down the click handler it was
