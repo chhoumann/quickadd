@@ -8,7 +8,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { normalizeTemplateFolderPaths } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
-import { tryOpenPluginSettings } from "../utils/openPluginSettings";
+import { openQuickAddSettings } from "../utils/openPluginSettings";
 
 export interface RunTemplateFromFolderParams {
 	/** When set, skips the picker and runs this template directly (CLI / scripted). */
@@ -108,7 +108,7 @@ export async function runTemplateFromFolder(
 					"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & Properties to use “New note from template”.",
 					8000,
 				);
-				tryOpenPluginSettings(app, plugin.manifest.id);
+				openQuickAddSettings(app, plugin.manifest.id, { notice: false });
 				return;
 			}
 

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { tryOpenPluginSettings } from "./openPluginSettings";
+import { openQuickAddSettings, tryOpenPluginSettings } from "./openPluginSettings";
 import { log } from "../logger/logManager";
 import type { App } from "obsidian";
+import { Notice } from "obsidian";
 
 vi.mock("../logger/logManager", () => ({
 	log: {
@@ -73,5 +74,46 @@ describe("tryOpenPluginSettings", () => {
 		expect(log.logError).toHaveBeenCalledWith(
 			"QuickAdd: Failed to open plugin settings automatically: Error: Simulated tab error"
 		);
+	});
+});
+
+describe("openQuickAddSettings", () => {
+	const workingApp = () =>
+		({ setting: { open: vi.fn(), openTabById: vi.fn() } }) as unknown as App;
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		(Notice as unknown as { instances: unknown[] }).instances = [];
+	});
+
+	it("opens the tab and stays silent on success", () => {
+		const app = workingApp();
+
+		expect(openQuickAddSettings(app, "quickadd")).toBe(true);
+		expect(
+			(app as unknown as { setting: { openTabById: ReturnType<typeof vi.fn> } })
+				.setting.openTabById,
+		).toHaveBeenCalledWith("quickadd");
+		expect((Notice as unknown as { instances: unknown[] }).instances).toHaveLength(0);
+	});
+
+	it("tells the user where to go when the internal API is unavailable", () => {
+		expect(openQuickAddSettings({} as App, "quickadd")).toBe(false);
+
+		const notices = (Notice as unknown as { instances: Array<{ message: string }> })
+			.instances;
+		expect(notices).toHaveLength(1);
+		expect(notices[0].message).toBe(
+			"QuickAdd: Unable to open settings automatically. Open Settings → QuickAdd manually.",
+		);
+	});
+
+	// Callers that already explained themselves (runTemplateFromFolder) must not
+	// stack a second, generic notice on top of their specific one.
+	it("suppresses the fallback notice when asked to", () => {
+		expect(openQuickAddSettings({} as App, "quickadd", { notice: false })).toBe(
+			false,
+		);
+		expect((Notice as unknown as { instances: unknown[] }).instances).toHaveLength(0);
 	});
 });

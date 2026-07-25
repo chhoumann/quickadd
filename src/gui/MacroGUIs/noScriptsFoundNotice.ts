@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { Notice } from "obsidian";
+import { createDocsLink, DOCS_URLS } from "../../docs";
 
 /**
  * Shows a notice to the user when no user scripts are found in their vault.
@@ -30,13 +31,8 @@ export function showNoScriptsFoundNotice(app: App): void {
 	);
 	content.append(doc.createElement("br"));
 
-	const link = doc.createElement("a");
-	link.textContent = "View documentation";
-	link.href = "https://quickadd.obsidian.guide/docs/Choices/MacroChoice#user-scripts";
-	link.target = "_blank";
-	link.rel = "noopener noreferrer";
+	const link = createDocsLink(content, DOCS_URLS.userScripts, "View documentation");
 	link.classList.add("quickadd-notice-link");
-	content.append(link);
 }
 
 function appendDiv(parent: HTMLElement, text: string, cls?: string): HTMLDivElement {
