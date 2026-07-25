@@ -201,6 +201,10 @@ describe("format token insertion", () => {
 			return {
 				value: inputEl.value,
 				caret: inputEl.selectionStart ?? inputEl.value.length,
+				selection: [
+					inputEl.selectionStart ?? inputEl.value.length,
+					inputEl.selectionEnd ?? inputEl.value.length,
+				] as const,
 			};
 		} finally {
 			suggester.destroy();
@@ -234,5 +238,11 @@ describe("format token insertion", () => {
 	it("replaces only the token being typed", async () => {
 		const { value } = await accept("Log {{sel", "{{SELECTED}}");
 		expect(value).toBe("Log {{SELECTED}}");
+	});
+
+	it("selects the <placeholder> in an example row so it is typed over", async () => {
+		const { value, selection } = await accept("Note {{file", "{{FILE:<folder>}}");
+		expect(value).toBe("Note {{FILE:<folder>}}");
+		expect(value.slice(selection[0], selection[1])).toBe("<folder>");
 	});
 });

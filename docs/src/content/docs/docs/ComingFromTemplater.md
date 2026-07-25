@@ -36,7 +36,7 @@ The left column names the job; the middle names the Templater expression you may
 | Include one template in another | `tp.file.include` | [`{{TEMPLATE:Templates/Partial.md}}`](/docs/FormatSyntax/#template) |
 | Apply a template to an existing note | the insert template command | [Apply template to active note](/docs/ApplyTemplateToNote/) |
 | Insert the clipboard | `tp.system.clipboard` | [`{{CLIPBOARD}}`](/docs/FormatSyntax/#clipboard) |
-| Insert the selected text | `tp.selection` | [`{{selected}}`](/docs/FormatSyntax/#selected) |
+| Insert the selected text | `tp.selection` | [`{{SELECTED}}`](/docs/FormatSyntax/#selected) |
 | Reuse a property from the note you're in | `tp.frontmatter` | [`{{FIELD:project\|default-from:active}}`](/docs/FormatSyntax/#field-default-from-active); to re-render a value you prompted for, just [repeat `{{VALUE:name}}`](#prompt-once-reuse-everywhere) |
 | Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](/docs/FormatSyntax/#linkcurrent) (a link), [`{{FILENAMECURRENT}}`](/docs/FormatSyntax/#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](/docs/FormatSyntax/#linksection) (link to the heading you're in) |
 | Run JavaScript | `tp.user` | [Inline scripts](/docs/InlineScripts/), [user scripts in macros](/docs/Choices/MacroChoice/), [`{{MACRO:...}}`](/docs/FormatSyntax/#macro) |

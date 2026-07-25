@@ -47,6 +47,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{DATE:MMMM Do}}`](#date-format) | Today, formatted your way: `July 8th` |
 | [`{{DATE+7}}`](#date) | Seven days from today |
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
+| [`{{TIME}}`](#time) | The current time, like `14:05` |
 
 **The note you ran QuickAdd from**
 
@@ -156,6 +157,29 @@ Good to know:
 - An unknown unit (like `|startof:fortnight`) shows an error listing the valid units.
 
 _Introduced in QuickAdd 2.14.0._
+
+### The current time: `{{TIME}}` {#time}
+
+`{{TIME}}` becomes the current time in `HH:mm` format. `{{TIME:<format>}}`
+takes any [Moment.js format](https://momentjs.com/docs/#/displaying/format), the
+same as `{{DATE:<format>}}`.
+
+```markdown title="You write"
+- {{TIME}} {{VALUE}}
+Meeting {{DATE}} {{TIME:HH.mm}}
+```
+
+```markdown title="You get"
+- 14:05 Standup moved to Wednesday
+Meeting 2026-07-08 14.05
+```
+
+Use `{{TIME:HH.mm}}` rather than `{{TIME}}` inside a file name: `:` is not
+allowed in file names on Windows or macOS.
+
+Unlike `{{DATE}}`, `{{TIME}}` takes no `+N` offset. For a time other than "now",
+use `{{DATE:HH:mm}}` with an offset, or ask for one with
+[`{{VDATE:<name>, <format>|time}}`](#vdate).
 
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 

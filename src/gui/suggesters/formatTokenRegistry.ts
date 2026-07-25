@@ -27,7 +27,7 @@ import {
 /**
  * Which format field the suggester is attached to. Every field runs a different
  * CompleteFormatter entry point, and those entry points genuinely disagree
- * about which tokens resolve — {{TITLE}} *throws* in a file path, {{LINKCURRENT}}
+ * about which tokens resolve: {{TITLE}} *throws* in a file path, {{LINKCURRENT}}
  * is left literal there, and {{FOLDER}} collapses to "" in a capture target.
  * Offering a token the field cannot resolve is a bug, so the field context is
  * modelled explicitly rather than as a boolean plus an exclusion list.
@@ -83,8 +83,8 @@ export interface FormatTokenEntry {
 	contexts: readonly FormatSuggestContext[];
 	/**
 	 * Worked examples for this token family. Withheld until the user has typed
-	 * enough of the token's name to have asked for it — see
-	 * {@link EXPANSION_MIN_PREFIX} — so a bare "{{" stays a readable index.
+	 * enough of the token's name to have asked for it (see
+	 * {@link EXPANSION_MIN_PREFIX}), so a bare "{{" stays a readable index.
 	 */
 	expansions?: (data: FormatTokenExpansionData) => FormatTokenSuggestion[];
 }
@@ -121,7 +121,7 @@ function token(
 /**
  * The canonical list, in the order it is offered. Ordering follows the docs'
  * quick reference (ask for input, dates, the note you ran from, the note being
- * created, other content) so the first row a new user meets — {{VALUE}} — is
+ * created, other content) so the first row a new user meets, {{VALUE}}, is
  * the one that explains what format syntax is for.
  *
  * Casing matches the documentation (uppercase token, lowercase modifiers).
@@ -141,20 +141,31 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		contexts: ALL,
 		suggestion: token(
 			"{{VALUE:}}",
-			"Ask once and reuse by name, or list options to pick from",
+			"Asks once and reuses the answer by name, or lists options to pick from",
 		),
 		expansions: () => [
 			token("{{VALUE:title}}", 'Asks once, then reuses the answer as "title"'),
-			token("{{VALUE:option1,option2,option3}}", "Pick one of these options"),
-			token("{{VALUE:option1,option2,option3|custom}}", "Pick an option or type your own"),
-			token("{{VALUE:title|label:Helper text}}", "Word the prompt yourself"),
+			token("{{VALUE:option1,option2,option3}}", "Asks you to pick one of these options"),
+			token(
+				"{{VALUE:option1,option2,option3|custom}}",
+				"Same, but you can also type your own",
+			),
+			token("{{VALUE:title|label:Note title}}", "Words the prompt yourself"),
 			token("{{VALUE:option1,option2|label:Pick one}}", "A list with your own prompt text"),
 			token(
-				"{{VALUE:title|label:Snake case|default:My_Title}}",
-				"Start the prompt with an answer already filled in",
+				"{{VALUE:title|label:Note title|default:Untitled}}",
+				"Opens the prompt with an answer already filled in",
 			),
-			token("{{VALUE:title|trim}}", "Trim whitespace off the answer"),
-			token("{{VALUE:title|optional}}", "Let the prompt be skipped, leaving it empty"),
+			token(
+				"{{VALUE:<items>|text:<display items>}}",
+				"Shows one label in the list and inserts another",
+			),
+			token(
+				"{{VALUE:option1,option2|name:category}}",
+				'Names the pick, so {{VALUE:category}} reuses it',
+			),
+			token("{{VALUE:title|trim}}", "Trims whitespace off the answer"),
+			token("{{VALUE:title|optional}}", "Lets the prompt be skipped, leaving it empty"),
 		],
 	},
 	{
@@ -169,7 +180,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		expansions: () => [
 			token("{{VDATE:date,YYYY-MM-DD}}", 'Asks for a date, reused by name as "date"'),
 			token("{{VDATE:date,YYYY-MM-DD|today}}", "Same, with today filled in"),
-			token("{{VDATE:dueDate,YYYY-MM-DD|next monday}}", "Same, starting at next monday"),
+			token("{{VDATE:dueDate,YYYY-MM-DD|next monday}}", "Same, starting at next Monday"),
 			token("{{VDATE:dueDate,YYYY-MM-DD|optional}}", "Same, but skippable"),
 		],
 	},
@@ -184,10 +195,10 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		regex: FILE_SYNTAX_SUGGEST_REGEX,
 		contexts: ALL,
-		suggestion: token("{{FILE:}}", "Pick a note from a folder"),
+		suggestion: token("{{FILE:}}", "Picks a note from a folder"),
 		expansions: ({ context }) => {
 			const rows = [
-				token("{{FILE:<folder>}}", "Pick a note from that folder; inserts its name"),
+				token("{{FILE:<folder>}}", "Picks a note from that folder and inserts its name"),
 			];
 			// |link and |path insert characters that are invalid in a file name,
 			// and |optional permits an all-optional name resolving to nothing,
@@ -200,7 +211,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 				);
 			}
 			rows.push(
-				token("{{FILE:<folder>|custom}}", "Same, or type a name that isn't there yet"),
+				token("{{FILE:<folder>|custom}}", "Same, but you can also type a name that is not there yet"),
 			);
 			return rows;
 		},
@@ -208,7 +219,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
 		contexts: ALL,
-		suggestion: token("{{MVALUE}}", "Write a maths formula (LaTeX) with a live preview"),
+		suggestion: token("{{MVALUE}}", "Asks you for a math formula (LaTeX), with a live preview"),
 	},
 
 	// == Dates ==
@@ -227,10 +238,16 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		// Moment format strings are the one part of the syntax nobody guesses,
 		// so these show what they render to right now rather than a sample that
 		// would go stale in the source.
-		expansions: ({ formatDate }) =>
-			["YYYY-MM-DD", "MMMM Do, YYYY", "ddd D MMM", "gggg-[W]ww"].map((fmt) =>
+		expansions: ({ formatDate }) => [
+			...["YYYY-MM-DD", "MMMM Do, YYYY", "ddd D MMM", "gggg-[W]ww"].map((fmt) =>
 				token(`{{DATE:${fmt}}}`, formatDate(fmt)),
 			),
+			token("{{DATE+7}}", "Seven days from today"),
+			token(
+				"{{DATE:YYYY-MM-DD|startof:week}}",
+				"Snapped to the start of the week, month, quarter or year",
+			),
+		],
 	},
 	{
 		regex: TIME_SYNTAX_SUGGEST_REGEX,
@@ -250,7 +267,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 		// Left literal by formatFileName, so a capture target would be named
-		// "[[…]]" — offered only where a link is content.
+		// "[[...]]", so it is offered only where a link is content.
 		contexts: ["noteContent", "lineTarget"],
 		suggestion: token("{{LINKCURRENT}}", "A link to that note: [[That note]]"),
 	},
@@ -287,7 +304,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 
 	// == The note being created ==
 	{
-		// Throws in every path context — the title is derived from the path.
+		// Throws in every path context: the title is derived from the path.
 		regex: TITLE_SYNTAX_SUGGEST_REGEX,
 		contexts: ["noteContent", "lineTarget"],
 		suggestion: token("{{TITLE}}", "The new note's file name"),
@@ -357,7 +374,7 @@ export const CASE_STYLE_SUGGESTIONS: readonly FormatTokenSuggestion[] = [
 	{ insert: "title", description: "My Note Title", caretOffset: 0, isFragment: true },
 	{ insert: "lower", description: "my note title", caretOffset: 0, isFragment: true },
 	{ insert: "upper", description: "MY NOTE TITLE", caretOffset: 0, isFragment: true },
-	{ insert: "slug", description: "my-note-title, stripped of accents and symbols", caretOffset: 0, isFragment: true },
+	{ insert: "slug", description: "my-note-title, guarded against reserved file names", caretOffset: 0, isFragment: true },
 ];
 
 /** Entries offered in a given field, in display order. */

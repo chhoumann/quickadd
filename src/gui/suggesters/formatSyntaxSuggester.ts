@@ -16,6 +16,8 @@ import {
 export type { FormatSuggestContext } from "./formatTokenRegistry";
 
 const CASE_FRAGMENT_REGEX = /^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i;
+/** The `<folder>`-style fill-in-the-blank inside an example row. */
+const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 
 export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
 	/** Start offset of the fragment the accepted suggestion replaces. */
@@ -103,9 +105,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// Tokens the typed letters actually start come first. The matchers admit
 		// interior matches too ("{{dat" reaches {{VDATE:}} because its optional
 		// letter classes skip the V), and those should never outrank the token the
-		// user is most likely spelling. Stable, so within each half the curated
-		// registry order survives — including the bare "{{" case, where nothing
-		// prefix-matches and the whole list keeps its reading order.
+		// user is most likely spelling. The partition is stable, so the curated
+		// registry order survives within each half; at a bare "{{" the query is
+		// empty, every row prefix-matches, and the whole list keeps its order.
 		const query = this.matchedQuery.toLowerCase();
 		const startsWithQuery = (entry: (typeof matched)[number]) =>
 			entry.suggestion.insert.slice(2).toLowerCase().startsWith(query);
@@ -151,7 +153,14 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			fromCompletion: true,
 		});
 
-		if (item.caretOffset > 0) {
+		// A row like {{FILE:<folder>}} is a shape to fill in, not a finished token.
+		// Selecting the first <placeholder> means the next keystroke replaces it,
+		// instead of leaving the literal angle brackets in the format.
+		const placeholder = PLACEHOLDER_REGEX.exec(item.insert);
+		if (placeholder) {
+			const start = replaceStart + placeholder.index;
+			this.inputEl.setSelectionRange(start, start + placeholder[0].length);
+		} else if (item.caretOffset > 0) {
 			const newCursorPos = replaceStart + item.insert.length - item.caretOffset;
 			this.inputEl.setSelectionRange(newCursorPos, newCursorPos);
 		}

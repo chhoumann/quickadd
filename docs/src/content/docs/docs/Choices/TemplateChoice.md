@@ -106,7 +106,7 @@ A path is resolved with a **path-safe** subset of the format syntax:
 
 - Macros, inline JavaScript, and `{{TEMPLATE:...}}` inclusion are **not** run
   while computing a path.
-- `{{title}}` cannot be used in a path (the title is derived from the created
+- `{{TITLE}}` cannot be used in a path (the title is derived from the created
   file, not the source template).
 - The note-relative placeholders `{{FOLDER}}`, `{{FILENAMECURRENT}}`,
   `{{LINKCURRENT}}`, and `{{LINKSECTION}}` are left as-is in a template path,
@@ -260,7 +260,7 @@ display text:
 
 ```text title="You do"
 Select "Meeting with Mark", run a Template choice whose file name format is
-20240101 {{selected}}
+20240101 {{SELECTED}}
 ```
 
 ```text title="You get"

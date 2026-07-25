@@ -1,51 +1,15 @@
 export const VALUE_SYNTAX = "{{value}}";
-export const DATE_SYNTAX = "{{date}}";
-export const TIME_SYNTAX = "{{time}}";
 export const NAME_SYNTAX = "{{name}}";
-export const VARIABLE_SYNTAX = "{{value:<variable name>}}";
-export const VARIABLE_DEFAULT_SYNTAX =
-	"{{value:<variable name>|<default value>}}";
-export const VARIABLE_DEFAULT_OPTION_SYNTAX =
-	"{{value:<variable name>|default:<value>}}";
-export const VARIABLE_LABEL_SYNTAX =
-	"{{value:<variable name>|label:<helper text>}}";
-export const VARIABLE_TEXT_SYNTAX =
-	"{{value:<items>|text:<display items>}}";
-export const VARIABLE_NAME_SYNTAX =
-	"{{value:<options>|name:<variable name>}}";
-export const VARIABLE_OPTIONAL_SYNTAX =
-	"{{value:<variable name>|optional}}";
-export const VDATE_OPTIONAL_SYNTAX =
-	"{{vdate:<variable name>, <date format>|optional}}";
-export const VALUE_CASE_SYNTAX = "{{value|case:kebab}}";
-export const VARIABLE_CASE_SYNTAX = "{{value:<variable name>|case:kebab}}";
-export const VALUE_TRIM_SYNTAX = "{{value|trim}}";
-export const VARIABLE_TRIM_SYNTAX = "{{value:<variable name>|trim}}";
-export const FIELD_VAR_SYNTAX = "{{field:<field name>}}";
-export const FIELD_VAR_MULTI_SYNTAX = "{{field:<field name>|multi}}";
-export const FILE_SYNTAX = "{{file:<folder>}}";
-export const FILE_MULTI_SYNTAX = "{{file:<folder>|multi}}";
-export const FILE_LINK_SYNTAX = "{{file:<folder>|link}}";
-export const FILE_PATH_SYNTAX = "{{file:<folder>|path}}";
-export const MATH_VALUE_SYNTAX = "{{mvalue}}";
-export const LINKCURRENT_SYNTAX = "{{linkcurrent}}";
-export const LINKSECTION_SYNTAX = "{{linksection}}";
-export const FILENAMECURRENT_SYNTAX = "{{filenamecurrent}}";
-export const FOLDERCURRENT_SYNTAX = "{{foldercurrent}}";
-export const FOLDERCURRENT_NAME_SYNTAX = "{{foldercurrent|name}}";
-export const FOLDER_SYNTAX = "{{folder}}";
-export const TITLE_SYNTAX = "{{title}}";
-export const SELECTED_SYNTAX = "{{selected}}";
-export const CLIPBOARD_SYNTAX = "{{clipboard}}";
-export const RANDOM_SYNTAX = "{{random:<length>}}";
-export const GLOBAL_VAR_SYNTAX = "{{global_var:<name>}}";
 
-// The autocomplete's token list — with a one-line description per row and
-// per-field context gating — lives in gui/suggesters/formatTokenRegistry.ts.
-// The FORMAT_SYNTAX / FILE_NAME_FORMAT_SYNTAX / TEMPLATE_FORMAT_SYNTAX
-// cheat-sheet arrays that used to sit here were a second, undescribed copy of
-// the same token language in a third casing convention (#1542); the registry
-// replaces them.
+// The token language's authoring surface - one row per token, with a one-line
+// description and the fields it resolves in - lives in
+// gui/suggesters/formatTokenRegistry.ts. The FORMAT_SYNTAX /
+// FILE_NAME_FORMAT_SYNTAX / TEMPLATE_FORMAT_SYNTAX cheat-sheet arrays that used
+// to sit here were a second, undescribed copy of the same language in a third
+// casing convention (#1542), and the per-token constants existed only to build
+// them. VALUE_SYNTAX and NAME_SYNTAX stay: they are runtime defaults (the body
+// a format-less capture writes, the title prompt a template discovery step
+// looks for), not display strings.
 
 export const NUMBER_REGEX = new RegExp(/^-?[0-9]*$/);
 
@@ -218,7 +182,7 @@ export const FOLDER_SYNTAX_SUGGEST_REGEX = new RegExp(
 // Flat prefix matcher like its siblings, so {{FILE:}} shows up in the bare "{{"
 // index of every token (#1542) rather than only after the full literal "FILE".
 // {{FIELD:}}, {{FILENAMECURRENT}} and the folder tokens co-suggest at the shared
-// "{{f"/"{{fi" prefixes and disambiguate on the next letter — the same trade the
+// "{{f"/"{{fi" prefixes and disambiguate on the next letter, the same trade the
 // FOLDER/FOLDERCURRENT pair already makes.
 export const FILE_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[F]?[I]?[L]?[E]?[:]?$/i);
 // {{FIELD:}} is implemented and documented but had no matcher, so the

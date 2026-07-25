@@ -37,7 +37,7 @@ const captureTargetSuggestions = $derived.by(() => {
 		.map((file) => file.path);
 	// Paths only. Format tokens used to be mixed in here too, which put a second
 	// suggester's undescribed, differently-cased copy of the token list on the
-	// same input as FormatSyntaxSuggester — two stacked popups for one language,
+	// same input as FormatSyntaxSuggester: two stacked popups for one language,
 	// and the generic one replaces the whole field on accept (#1542).
 	return Array.from(new Set([...folderPaths, ...markdownPaths, ...canvasPaths]));
 });
