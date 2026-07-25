@@ -208,18 +208,18 @@ function onModeChange(value: string) {
 		<Toggle bind:checked={choice.fileNameFormat.enabled} />
 	{/snippet}
 </SettingItem>
-<FormatPreviewField
-	value={choice.fileNameFormat.format}
-	formatterKind="fileName"
-	{app}
-	{plugin}
-/>
 <ValidatedInput
 	bind:value={choice.fileNameFormat.format}
 	placeholder="File name format"
 	disabled={!choice.fileNameFormat.enabled}
 	makeSuggesters={fileNameSuggesters}
 	ariaLabel="File name format"
+/>
+<FormatPreviewField
+	value={choice.fileNameFormat.format}
+	formatterKind="fileName"
+	{app}
+	{plugin}
 />
 
 <SettingItem name="Location" heading />

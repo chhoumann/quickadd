@@ -58,7 +58,6 @@ const createLocationOptions = [
 	name="Insert before"
 	desc="Insert capture before specified text. Accepts format syntax."
 />
-<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
 <ValidatedInput
 	bind:value={insertBefore.before}
 	placeholder="Insert before"
@@ -67,6 +66,7 @@ const createLocationOptions = [
 	makeSuggesters={suggesters}
 	ariaLabel="Insert before"
 />
+<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
 
 <SettingItem
 	name="Create line if not found"

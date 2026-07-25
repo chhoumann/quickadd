@@ -128,9 +128,6 @@ function validateCaptureTo(value: string) {
 		name="File path / format"
 		desc={"Choose a file, folder, #tag, property:field=value, or format syntax (e.g., {{DATE}})"}
 	/>
-	{#if !usesPickerTargetSyntax}
-		<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
-	{/if}
 	<ValidatedInput
 		value={choice.captureTo}
 		placeholder="File name format"
@@ -142,6 +139,9 @@ function validateCaptureTo(value: string) {
 		ariaLabel="File path / format"
 		onChange={onCaptureToChange}
 	/>
+	{#if !usesPickerTargetSyntax}
+		<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
+	{/if}
 
 	{#if isCanvasTarget}
 		<SettingItem

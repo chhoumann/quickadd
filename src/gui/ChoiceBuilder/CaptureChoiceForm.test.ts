@@ -108,6 +108,10 @@ function mountForm() {
 async function settleValidation() {
 	await tick();
 	await tick();
+	// The preview row resolves through an async formatter, so a macrotask flush is
+	// required on top of the microtask ticks before asserting on preview rows.
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	await tick();
 }
 
 function describedHint(
@@ -227,17 +231,45 @@ describe("CaptureChoiceForm", () => {
 		expect(toggle.classList.contains("is-enabled")).toBe(true);
 	});
 
+	// #1543: the preview used to render above the field it previews, and rendered
+	// as a bare "Preview:" with nothing after it whenever the field was empty.
+	it("renders the preview after the field it previews, and only once the field has a value", async () => {
+		const { container, getByLabelText } = mountForm();
+		const input = getByLabelText("File path / format") as HTMLInputElement;
+
+		await settleValidation();
+		const preview = previewRows(container)[0];
+		expect(preview).toBeDefined();
+		expect(
+			input.compareDocumentPosition(preview) &
+				Node.DOCUMENT_POSITION_FOLLOWING,
+		).toBeTruthy();
+
+		input.value = "";
+		await fireEvent.input(input);
+		await settleValidation();
+		expect(previewRows(container)).toHaveLength(0);
+
+		input.value = "Inbox.md";
+		await fireEvent.input(input);
+		await settleValidation();
+		expect(previewRows(container)).toHaveLength(1);
+		expect(previewRows(container)[0].textContent).toContain("Inbox.md");
+	});
+
 	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {
 		const { container, getByLabelText } = mountForm();
 		const input = getByLabelText("File path / format") as HTMLInputElement;
-		expect(previewRows(container)).toHaveLength(2);
+		// Only the capture-target preview renders: the capture format is empty, and
+		// an empty field shows no preview row at all (#1543).
+		expect(previewRows(container)).toHaveLength(1);
 
 		input.value = "folder:Goals|folder:Projects|tag:active";
 		await fireEvent.input(input);
 		await settleValidation();
 
 		const hint = describedHint(container, input);
-		expect(previewRows(container)).toHaveLength(1);
+		expect(previewRows(container)).toHaveLength(0);
 		expect(hint.textContent).toContain("Recognized filtered picker");
 		expect(hint.textContent).toContain("folders Goals or Projects");
 		expect(hint.textContent).toContain("tag active");
@@ -249,14 +281,14 @@ describe("CaptureChoiceForm", () => {
 	it("rejects multi-select capture target filters before runtime", async () => {
 		const { container, getByLabelText } = mountForm();
 		const input = getByLabelText("File path / format") as HTMLInputElement;
-		expect(previewRows(container)).toHaveLength(2);
+		expect(previewRows(container)).toHaveLength(1);
 
 		input.value = "tag:work|multi";
 		await fireEvent.input(input);
 		await settleValidation();
 
 		const hint = describedHint(container, input);
-		expect(previewRows(container)).toHaveLength(1);
+		expect(previewRows(container)).toHaveLength(0);
 		expect(hint.textContent).toBe(
 			"Capture target filters select one destination file. Use {{FILE:...|multi}} in the capture format for multi-value metadata.",
 		);

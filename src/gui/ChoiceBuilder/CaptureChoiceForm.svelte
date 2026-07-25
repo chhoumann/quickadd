@@ -151,7 +151,6 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
 </SettingItem>
-<FormatPreviewField value={choice.format.format} {app} {plugin} />
 <ValidatedInput
 	inputKind="textarea"
 	bind:value={choice.format.format}
@@ -162,6 +161,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	makeSuggesters={formatSuggesters}
 	ariaLabel="Format"
 />
+<FormatPreviewField value={choice.format.format} {app} {plugin} />
 
 <SettingItem name="Behavior" heading />
 {#if !choice.captureToActiveFile}

@@ -93,12 +93,20 @@
 	max-height: 70%;
 }
 
-/* Preview row styling for Choice Builders */
+/* Preview row styling for Choice Builders. The row sits BELOW the field it
+   previews (#1543), so it is styled as a quiet secondary line — a bold,
+   body-sized line here reads as a heading for whatever follows it. */
 .quickAddModal .qa-preview-row {
-	margin: 6px 0;
+	margin: 0 0 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
 }
 .quickAddModal .qa-preview-label {
 	font-weight: 600;
+}
+.quickAddModal .qa-preview-value {
+	color: var(--text-normal);
 }
 
 .quickAddModal .qa-onepage-title {
@@ -1575,6 +1583,16 @@ body:not(.is-mobile)
 	font-size: 12px;
 	color: var(--text-error);
 	min-height: 16px;
+}
+
+/* With no message the hint reserved ~28px of dead space between a field and
+   whatever follows it — including its own preview row (#1543). Collapse it via
+   :empty rather than `display: none` so the aria-live region stays in the
+   accessibility tree and still announces the first message that lands in it. */
+.qa-field-hint:empty {
+	min-height: 0;
+	margin-top: 0;
+	margin-bottom: 0;
 }
 
 /* A valid field can still show an informational hint (e.g. a template path with
