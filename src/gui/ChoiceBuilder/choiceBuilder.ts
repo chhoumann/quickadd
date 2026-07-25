@@ -1,6 +1,7 @@
 import { type App, Modal } from "obsidian";
 import type { MountHandle } from "../svelte/mountComponent";
 import { snapshot } from "../svelte/persist.svelte";
+import { addAutosaveFooter } from "./components/autosaveFooter";
 import type IChoice from "../../types/choices/IChoice";
 
 /**
@@ -26,6 +27,9 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 
 		this.containerEl.addClass("quickAddModal");
+		// Installed here, not in display(): display() runs from the subclass
+		// constructor and is re-run by builders that rebuild their content.
+		addAutosaveFooter(this, "choice");
 		this.open();
 	}
 

@@ -14,6 +14,7 @@ import type { IConditionalCommand } from "../../types/macros/Conditional/ICondit
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
+import { addAutosaveFooter } from "../ChoiceBuilder/components/autosaveFooter";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -56,6 +57,9 @@ export class MacroBuilder extends Modal {
 		);
 
 		this.display();
+		// Installed here, not in display(): reload() re-runs display(), which
+		// empties contentEl. The footer lives on modalEl and survives that.
+		addAutosaveFooter(this, "macro");
 		this.open();
 	}
 

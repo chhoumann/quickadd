@@ -93,6 +93,46 @@
 	max-height: 70%;
 }
 
+/* Autosave footer for the choice builders (#1545). Core already lays `.modal`
+   out as a flex column with `.modal-content` as the growing item, so moving the
+   scrollport onto the content is all it takes to pin the footer — which also
+   re-pins the absolutely-positioned close button, previously scrolled away with
+   the rest of the modal. */
+.quickAddModal.qa-choice-builder .modal {
+	overflow: hidden;
+}
+
+.quickAddModal.qa-choice-builder .modal-content {
+	overflow-y: auto;
+}
+
+.quickAddModal.qa-choice-builder .qa-builder-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	flex-shrink: 0;
+	margin-top: var(--size-4-2);
+	padding-top: var(--size-4-3);
+	border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+.quickAddModal.qa-choice-builder .qa-builder-footer-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* On a phone the 70% cap above is the binding constraint, and a pinned footer
+   would eat into an already-short sheet. Hand the builder back Obsidian's own
+   dialog height, and keep the button clear of the home indicator. */
+.is-phone .quickAddModal.qa-choice-builder .modal {
+	max-height: var(--dialog-max-height);
+}
+
+.is-phone .quickAddModal.qa-choice-builder .qa-builder-footer {
+	padding-bottom: var(--safe-area-inset-bottom);
+}
+
 /* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
    the name/description, the body carries the field itself. Obsidian zeroes a
    `.setting-item`'s border-top and padding-top when it is `:first-child` of its
