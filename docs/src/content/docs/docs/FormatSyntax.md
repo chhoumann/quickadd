@@ -56,7 +56,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{LINKSECTION}}`](#linksection) | A link to the section your cursor is in |
 | [`{{FILENAMECURRENT}}`](#filenamecurrent) | Its file name |
 | [`{{FOLDERCURRENT}}`](#foldercurrent) | Its folder |
-| [`{{selected}}`](#selected) | The text you had selected |
+| [`{{SELECTED}}`](#selected) | The text you had selected |
 
 **The note being created**
 
@@ -607,10 +607,10 @@ _Introduced in QuickAdd 2.18.0._
 `Acme`. Use it when you want the folder's name in a file name or sentence
 rather than a path: `Tasks for {{FOLDERCURRENT|name}}`.
 
-### The selected text: `{{selected}}` {#selected}
+### The selected text: `{{SELECTED}}` {#selected}
 
 Whatever text is selected in the editor, or empty when nothing is: `>
-{{selected}}`.
+{{SELECTED}}`.
 
 ## The note being created
 
