@@ -6,7 +6,7 @@ import { Notice } from "obsidian";
 
 vi.mock("../logger/logManager", () => ({
 	log: {
-		logError: vi.fn(),
+		logMessage: vi.fn(),
 	},
 }));
 
@@ -28,21 +28,21 @@ describe("tryOpenPluginSettings", () => {
 		expect(result).toBe(true);
 		expect((fakeApp as any).setting.open).toHaveBeenCalledOnce();
 		expect((fakeApp as any).setting.openTabById).toHaveBeenCalledWith("my-plugin");
-		expect(log.logError).not.toHaveBeenCalled();
+		expect(log.logMessage).not.toHaveBeenCalled();
 	});
 
-	it("should return false and log error if internal API is missing", () => {
+	it("should return false and log (without a notice) if the internal API is missing", () => {
 		const fakeApp = {} as unknown as App;
 
 		const result = tryOpenPluginSettings(fakeApp, "my-plugin");
 
 		expect(result).toBe(false);
-		expect(log.logError).toHaveBeenCalledWith(
+		expect(log.logMessage).toHaveBeenCalledWith(
 			"QuickAdd: Obsidian internal settings API is unavailable."
 		);
 	});
 
-	it("should return false and log error if an exception is thrown from setting.open", () => {
+	it("should return false and log if an exception is thrown from setting.open", () => {
 		const fakeApp = {
 			setting: {
 				open: () => {
@@ -55,12 +55,12 @@ describe("tryOpenPluginSettings", () => {
 		const result = tryOpenPluginSettings(fakeApp, "my-plugin");
 
 		expect(result).toBe(false);
-		expect(log.logError).toHaveBeenCalledWith(
+		expect(log.logMessage).toHaveBeenCalledWith(
 			"QuickAdd: Failed to open plugin settings automatically: Error: Simulated error"
 		);
 	});
 
-	it("should return false and log error if opening the tab throws", () => {
+	it("should return false and log if opening the tab throws", () => {
 		const fakeApp = {
 			setting: {
 				open: vi.fn(),
@@ -71,7 +71,7 @@ describe("tryOpenPluginSettings", () => {
 		} as unknown as App;
 
 		expect(tryOpenPluginSettings(fakeApp, "my-plugin")).toBe(false);
-		expect(log.logError).toHaveBeenCalledWith(
+		expect(log.logMessage).toHaveBeenCalledWith(
 			"QuickAdd: Failed to open plugin settings automatically: Error: Simulated tab error"
 		);
 	});
@@ -108,12 +108,18 @@ describe("openQuickAddSettings", () => {
 		);
 	});
 
-	// Callers that already explained themselves (runTemplateFromFolder) must not
-	// stack a second, generic notice on top of their specific one.
-	it("suppresses the fallback notice when asked to", () => {
+	// Callers that already explained themselves (openChoiceLauncher,
+	// runTemplateFromFolder) must not stack a second, generic notice on top of
+	// their specific one. This is why the failure path logs through logMessage:
+	// GuiLogger turns every logError into a 15-second Notice, which would defeat
+	// the suppression entirely.
+	it("suppresses every notice when asked to, but still logs", () => {
 		expect(openQuickAddSettings({} as App, "quickadd", { notice: false })).toBe(
 			false,
 		);
 		expect((Notice as unknown as { instances: unknown[] }).instances).toHaveLength(0);
+		expect(log.logMessage).toHaveBeenCalledWith(
+			"QuickAdd: Obsidian internal settings API is unavailable.",
+		);
 	});
 });

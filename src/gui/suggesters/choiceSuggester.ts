@@ -29,10 +29,10 @@ import { createOwnedElement } from "../../utils/activeWindow";
 const backLabel = "← Back";
 
 /**
- * Search hint for the launcher's input. Obsidian's own pickers all label theirs
- * ("Find or create a note…", "Select a command…"); QuickAdd's rendered
- * completely blank, which reads as an unfinished surface (issue #1540). Nested
- * levels override this with the folder's name or custom placeholder.
+ * Search hint for the launcher's input. Every Obsidian picker labels its own;
+ * QuickAdd's rendered completely blank, which reads as an unfinished surface
+ * (issue #1540). Nested levels override this with the folder's name or its
+ * custom placeholder.
  */
 const DEFAULT_PLACEHOLDER = "Select a choice";
 
@@ -183,8 +183,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
-		// can restore it, so it must hold the effective placeholder — including the
-		// default — not just an explicitly-passed one.
+		// can restore it, so it must hold the effective placeholder (including the
+		// default), not just an explicitly-passed one.
 		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
 		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
@@ -372,8 +372,21 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// The command/URI path already refuses this with a Notice (choiceExecutor
 		// .onChooseMultiType); say the same thing here so both entry points to the
 		// same folder behave the same.
+		//
+		// SuggestModal.selectSuggestion closes the modal BEFORE onChooseItem runs,
+		// so returning here would eject the user from the picker entirely. Re-open
+		// the level they were on (this.choices already carries its Back row, and the
+		// synthetic template row at the top level) so a mis-click on an empty folder
+		// costs a notice, not the whole navigation stack.
 		if (!isBack && choices.length === 0) {
 			new Notice(emptyFolderNoticeText(multi.name));
+			ChoiceSuggester.Open(this.plugin, this.choices, {
+				choiceExecutor: this.choiceExecutor,
+				focusedProperty: this.focusedProperty,
+				triggerContext: this.triggerContext,
+				placeholder: this.currentPlaceholder,
+				placeholderStack: this.placeholderStack,
+			});
 			return;
 		}
 

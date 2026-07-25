@@ -5,9 +5,9 @@ import type { ChoiceType } from "../types/choices/choiceType";
 
 /**
  * Header for the rename prompt. Folders are `Multi` choices internally, but the
- * UI calls them folders everywhere else ("New folder", "Add folder to {name}"),
- * so asking for a *choice* name right after the user asked for a *folder* is a
- * jolt on the very first interaction with the plugin (issue #1539).
+ * UI calls them folders everywhere else ("New folder", "Add folder to {name}",
+ * "Edit folder"), so asking for a *choice* name right after the user asked for a
+ * *folder* is a jolt on the very first interaction with the plugin (#1539).
  */
 function renamePromptHeader(type?: ChoiceType): string {
 	return type === "Multi" ? "Folder name" : "Choice name";

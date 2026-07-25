@@ -31,8 +31,7 @@ export function showNoScriptsFoundNotice(app: App): void {
 	);
 	content.append(doc.createElement("br"));
 
-	const link = createDocsLink(content, DOCS_URLS.userScripts, "View documentation");
-	link.classList.add("quickadd-notice-link");
+	createDocsLink(content, DOCS_URLS.userScripts, "View documentation");
 }
 
 function appendDiv(parent: HTMLElement, text: string, cls?: string): HTMLDivElement {

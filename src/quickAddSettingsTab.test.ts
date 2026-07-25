@@ -10,6 +10,7 @@ import { settingsStore } from "./settingsStore";
 import { DEFAULT_SETTINGS, type QuickAddSettings } from "./settings";
 import { deepClone } from "./utils/deepClone";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
+import { DOCS_URLS } from "./docs";
 import type QuickAdd from "./main";
 
 // Importing the settings tab transitively pulls in ChoiceView -> the Dataview
@@ -295,15 +296,18 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 	// in a macro-builder notice.
 	it("puts a documentation control on the first group's heading", () => {
 		const tab = makeTab();
-		const [choicesGroup] = tab.getSettingDefinitions() as unknown as Array<{
-			extraButtons?: Array<(component: ExtraButtonComponent) => unknown>;
-		}>;
+		const choicesGroup = (
+			tab.getSettingDefinitions() as unknown as Array<{
+				heading?: string;
+				extraButtons?: Array<(component: ExtraButtonComponent) => unknown>;
+			}>
+		).find((group) => group.heading === "Choices & Packages");
 
-		expect(choicesGroup.extraButtons).toHaveLength(1);
+		expect(choicesGroup?.extraButtons).toHaveLength(1);
 
 		const button = new ExtraButtonComponent(document.createElement("div"));
 		const open = vi.spyOn(window, "open").mockImplementation(() => null);
-		choicesGroup.extraButtons?.[0](button);
+		choicesGroup?.extraButtons?.[0](button);
 		button.extraSettingsEl.dispatchEvent(new MouseEvent("click"));
 
 		expect(open).toHaveBeenCalledWith(
@@ -312,6 +316,17 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			"noopener,noreferrer",
 		);
 		open.mockRestore();
+	});
+
+	// docs.ts promises gettingStarted stays byte-identical to manifest.json's
+	// helpUrl. Obsidian 1.13 does not surface helpUrl anywhere, so nothing else
+	// would catch the two drifting apart.
+	it("keeps the getting-started URL in sync with manifest.json helpUrl", () => {
+		const manifest = JSON.parse(
+			readFileSync(join(__dirname, "../manifest.json"), "utf8"),
+		) as { helpUrl?: string };
+
+		expect(manifest.helpUrl).toBe(DOCS_URLS.gettingStarted);
 	});
 
 	it("links the one-page inputs docs instead of naming them in prose", () => {
@@ -330,7 +345,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		expect(link?.getAttribute("href")).toBe(
 			"https://quickadd.obsidian.guide/docs/Advanced/onePageInputs/",
 		);
-		expect(link?.textContent).toBe("Learn more");
+		expect(link?.textContent).toBe("Learn more about one-page inputs");
 		// The old prose pointed at docs the user could not reach.
 		expect(host.textContent).not.toContain("See One-page Inputs in the docs");
 	});

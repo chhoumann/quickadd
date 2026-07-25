@@ -55,9 +55,10 @@ export class ButtonComponent extends BaseComponent {
     return this;
   }
 
-  // Mirrors Obsidian: the disabled state lands on the native button, and the
-  // tooltip is driven by aria-label (its delegated pointerover handler).
+  // Mirrors Obsidian: BaseComponent tracks the flag, the native button carries
+  // it, and the tooltip is driven by aria-label (a delegated pointerover handler).
   setDisabled(disabled: boolean): this {
+    super.setDisabled(disabled);
     this.buttonEl.disabled = disabled;
     return this;
   }
@@ -100,13 +101,12 @@ export class ExtraButtonComponent extends BaseComponent {
     return this;
   }
 
-  setDisabled(disabled: boolean): this {
-    this.extraSettingsEl.toggleAttribute("disabled", disabled);
-    return this;
-  }
-
+  // Obsidian keeps a single callback rather than accumulating listeners, and
+  // skips it while disabled.
   onClick(cb: () => void): this {
-    this.extraSettingsEl.addEventListener("click", cb);
+    this.extraSettingsEl.onclick = () => {
+      if (!this.disabled) cb();
+    };
     return this;
   }
 }

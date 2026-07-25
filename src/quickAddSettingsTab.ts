@@ -40,6 +40,14 @@ import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
  * `control` keys so a mistyped key is caught at compile time. */
 type SettingsKey = Extract<keyof QuickAddSettings, string>;
 
+/**
+ * Shared by the Packages definition (which is what the settings search indexes)
+ * and by the rendered description (which the row rewrites as the export state
+ * changes), so the two can never drift.
+ */
+const PACKAGES_DESC =
+	"Bundle or import QuickAdd automations as reusable packages.";
+
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
 	private choiceViewHandle: MountHandle | null = null;
@@ -150,7 +158,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			// {{DATE}}, capture targets, ...) and until now the manual was reachable
 			// from exactly one place in the whole plugin (issue #1541). A help icon
 			// on the first heading is Obsidian's own idiom for this, and it costs the
-			// page no vertical space — the choices list stays the focus.
+			// page no vertical space, so the choices list stays the focus.
 			extraButtons: [
 				(button) =>
 					button
@@ -167,7 +175,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				},
 				{
 					name: "Packages",
-					desc: "Bundle or import QuickAdd automations as reusable packages.",
+					desc: PACKAGES_DESC,
 					render: (setting) => this.renderPackages(setting),
 				},
 			],
@@ -229,6 +237,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					desc: this.descWithDocsLink(
 						"Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. ",
 						DOCS_URLS.onePageInputs,
+						"Learn more about one-page inputs",
 					),
 					control: { type: "toggle", key: "onePageInputEnabled" },
 				},
@@ -365,15 +374,22 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	// ----- render helpers -----
 
 	/**
-	 * A description ending in a "Learn more" link. Built fresh on every call: the
+	 * A description ending in a documentation link. Built fresh on every call: the
 	 * declarative renderer clones fragments before inserting them, but
 	 * getSettingDefinitions() runs per render anyway, so a fresh fragment is free
 	 * and cannot be accidentally re-parented.
+	 *
+	 * `linkText` names its destination wherever two links could be on screen at
+	 * once, matching Obsidian's own "Learn more about ..." phrasing.
 	 */
-	private descWithDocsLink(text: string, url: string): DocumentFragment {
+	private descWithDocsLink(
+		text: string,
+		url: string,
+		linkText = "Learn more",
+	): DocumentFragment {
 		const fragment = document.createDocumentFragment();
 		fragment.append(document.createTextNode(text));
-		createDocsLink(fragment, url, "Learn more");
+		createDocsLink(fragment, url, linkText);
 		return fragment;
 	}
 
@@ -438,9 +454,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
 		return this.descWithDocsLink(
 			hasNothingToExport
-				? "Bundle or import QuickAdd automations as reusable packages. Export becomes available once you have a choice. "
-				: "Bundle or import QuickAdd automations as reusable packages. ",
+				? `${PACKAGES_DESC} Export becomes available once you have a choice. `
+				: `${PACKAGES_DESC} `,
 			DOCS_URLS.packages,
+			"Learn more about packages",
 		);
 	}
 
@@ -464,7 +481,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		// Import stays available with zero choices on purpose: importing a package
 		// is one of the most useful things a brand-new user can do, so the block as
-		// a whole is not de-emphasised — only the action that cannot work is.
+		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
 				new ImportPackageModal(this.app).open();
@@ -474,7 +491,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// "Export package…" used to be the first concrete action a new user saw
 		// below the "No choices yet" empty state, with nothing to export (issue
 		// #1547). The tooltip covers desktop hover; the description carries the
-		// same reason for touch, where there is no hover.
+		// same reason for touch, where there is no hover, and for screen readers.
 		const apply = (hasNothingToExport: boolean): void => {
 			setting.setDesc(this.packagesDesc(hasNothingToExport));
 			if (!exportButton) return;

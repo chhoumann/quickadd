@@ -9,8 +9,9 @@ import ChoiceSuggester from "./choiceSuggester";
 import { NO_CHOICES_NOTICE, openChoiceLauncher } from "./openChoiceLauncher";
 
 type LauncherPluginSettings = {
-	choices: IChoice[];
+	choices: unknown;
 	templateFolderPaths?: string[];
+	/** `undefined` is the legacy data.json shape, which means "bottom". */
 	templateFolderLauncherRow?: "off" | "top" | "bottom";
 };
 
@@ -31,9 +32,9 @@ describe("openChoiceLauncher", () => {
 			manifest: { id: "quickadd" },
 			settings: {
 				templateFolderPaths: settings.templateFolderPaths ?? [],
-				// Mirror DEFAULT_SETTINGS: undefined means "bottom".
-				templateFolderLauncherRow:
-					settings.templateFolderLauncherRow ?? "bottom",
+				// Passed through verbatim (including undefined) so the production
+				// `?? "bottom"` fallback is the thing under test.
+				templateFolderLauncherRow: settings.templateFolderLauncherRow,
 				choices: settings.choices,
 			},
 		} as unknown as QuickAdd;
@@ -119,11 +120,27 @@ describe("openChoiceLauncher", () => {
 		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
 	});
 
-	it("guards when a template folder is configured but the row would be empty", () => {
+	// Legacy data.json has no templateFolderLauncherRow at all; DEFAULT_SETTINGS
+	// treats that as "bottom", so the row (and the picker) must still appear.
+	it("treats a missing row position as 'bottom'", () => {
 		openChoiceLauncher(
-			pluginWith({ choices: [], templateFolderPaths: [] }),
+			pluginWith({
+				choices: [],
+				templateFolderPaths: ["Templates"],
+				templateFolderLauncherRow: undefined,
+			}),
 		);
 
+		expect(openSpy).toHaveBeenCalled();
+		expect(noticeMessages()).toEqual([]);
+	});
+
+	// A corrupt data.json keeps a non-array `choices` (main.ts deliberately does
+	// not overwrite it), which used to make "QuickAdd: Run" throw a TypeError.
+	it("falls back to the first-run guidance on a corrupt choices list", () => {
+		openChoiceLauncher(pluginWith({ choices: null }));
+
 		expect(openSpy).not.toHaveBeenCalled();
+		expect(noticeMessages()).toEqual([NO_CHOICES_NOTICE]);
 	});
 });

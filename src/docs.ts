@@ -54,9 +54,9 @@ export function createDocsLink(
 	link.href = url;
 	link.target = "_blank";
 	link.rel = "noopener noreferrer";
-	// Obsidian's `a { color: var(--link-color) }` is invalid at computed-value
-	// time inside a setting description, so a bare anchor there inherits
-	// --text-muted and stops reading as a link. Pin the accent colour.
+	// Obsidian deliberately mutes links inside `.setting-item-description`
+	// (--link-color: var(--text-muted)), where a docs link would read as prose.
+	// See .quickadd-docs-link in styles.css for the deliberate deviation.
 	link.classList.add("quickadd-docs-link");
 	parent.append(link);
 	return link;

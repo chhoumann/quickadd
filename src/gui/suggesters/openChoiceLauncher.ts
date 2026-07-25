@@ -17,8 +17,8 @@ export const NO_CHOICES_NOTICE =
  * ribbon icon).
  *
  * On a fresh install this used to open a fuzzy picker with a blank input over
- * Obsidian's bare "No results found." — the first thing a new user does landing
- * on a dead end with no hint that choices live in settings (issue #1540). When
+ * Obsidian's bare "No results found.": the first thing a new user does landing
+ * on a dead end, with no hint that choices live in settings (issue #1540). When
  * there is genuinely nothing to pick, say so and take them where they need to
  * go instead of opening an empty picker.
  *
@@ -26,8 +26,14 @@ export const NO_CHOICES_NOTICE =
  * that synthetic row is a working action in its own right.
  */
 export function openChoiceLauncher(plugin: QuickAdd): void {
+	// main.ts deliberately leaves a corrupt (non-array) `choices` intact rather
+	// than overwriting the user's data, so normalize here: a broken data.json
+	// should land on the first-run guidance, not a bare TypeError.
+	const choices = Array.isArray(plugin.settings.choices)
+		? plugin.settings.choices
+		: [];
 	const hasSomethingToPick =
-		plugin.settings.choices.length > 0 || shouldShowTemplateFolderRow(plugin);
+		choices.length > 0 || shouldShowTemplateFolderRow(plugin);
 
 	if (!hasSomethingToPick) {
 		new Notice(NO_CHOICES_NOTICE, 8000);
@@ -35,7 +41,7 @@ export function openChoiceLauncher(plugin: QuickAdd): void {
 		return;
 	}
 
-	ChoiceSuggester.Open(plugin, plugin.settings.choices, {
+	ChoiceSuggester.Open(plugin, choices, {
 		includeTemplateFolderRow: true,
 	});
 }
