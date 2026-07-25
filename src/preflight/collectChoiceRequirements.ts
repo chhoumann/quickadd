@@ -43,6 +43,7 @@ import {
 	type FieldRequirement,
 	type FieldType,
 } from "./RequirementCollector";
+import { isPathScope, type PromptScopeKind } from "src/formatters/promptScope";
 import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
 
 interface CollectChoiceRequirementsOptions {
@@ -200,13 +201,14 @@ async function scanContentWithTemplateIncludes(
 	content: string,
 	templateStack = new Set<string>(),
 	depth = 0,
-	pathContext = false,
+	scope: PromptScopeKind = "generic",
 ): Promise<void> {
+	const pathContext = isPathScope(scope);
 	// templatesToScan is a queue for this content scan. Clear it before and
 	// after scanning so refs from unrelated strings are not drained together.
 	const rawTemplateRefs = getRawTemplateRefs(content);
 	collector.templatesToScan.clear();
-	await collector.scanString(content, pathContext);
+	await collector.scanString(content, pathContext, scope);
 	const nested = [...collector.templatesToScan].filter((ref) =>
 		rawTemplateRefs.has(ref),
 	);
@@ -239,8 +241,8 @@ async function scanContentWithTemplateIncludes(
 				templateStack,
 				depth + 1,
 				// A template included FROM a path string is spliced into that
-				// path at runtime, so its tokens are path context too.
-				pathContext,
+				// path at runtime, so its tokens keep that scope too.
+				scope,
 			);
 		} finally {
 			templateStack.delete(ref);
@@ -265,7 +267,7 @@ async function scanTemplateSource(
 	templatePath: string,
 ): Promise<void> {
 	// The template PATH is path context; the template BODY below is content.
-	await collector.scanString(templatePath, true);
+	await collector.scanString(templatePath, true, "templatePath");
 
 	if (hasTemplatePathSyntax(templatePath)) {
 		log.logMessage(
@@ -279,6 +281,8 @@ async function scanTemplateSource(
 		collector,
 		await readTemplate(app, templatePath),
 		new Set([templatePath]),
+		0,
+		"noteBody",
 	);
 }
 
@@ -297,7 +301,7 @@ async function collectForTemplateChoice(
 			choice.fileNameFormat.format,
 			undefined,
 			0,
-			true, // file name = path context
+			"noteTitle",
 		);
 	}
 
@@ -309,7 +313,7 @@ async function collectForTemplateChoice(
 				folder,
 				undefined,
 				0,
-				true, // folder = path context
+				"folder",
 			);
 		}
 	}
@@ -342,7 +346,8 @@ async function collectForCaptureChoice(
 		choice.captureTo,
 		undefined,
 		0,
-		true, // capture target = path context (scanned BEFORE content so a dual-use {{VALUE}} is marked)
+		// Scanned BEFORE content so a dual-use {{VALUE}} is marked as path context.
+		"captureTarget",
 	);
 
 	if (choice.format?.enabled) {
@@ -350,6 +355,9 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.format.format,
+			undefined,
+			0,
+			"captureText",
 		);
 	}
 
@@ -360,7 +368,8 @@ async function collectForCaptureChoice(
 			choice.insertAfter.after,
 			undefined,
 			0,
-			true, // location target = path context (an embed link can never match a line)
+			// An embed link can never match a line, so this is path context.
+			"lineTarget",
 		);
 	}
 
@@ -371,7 +380,7 @@ async function collectForCaptureChoice(
 			choice.insertBefore.before,
 			undefined,
 			0,
-			true, // location target = path context
+			"lineTarget",
 		);
 	}
 

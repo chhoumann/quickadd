@@ -182,8 +182,9 @@
 }
 
 /* Run-time prompt context: which choice is asking, and where the answer lands.
-   One line: the middle of a long path is elided in JS (elideMiddlePath) so the
-   file name survives, and the tail is clipped here as a last resort. */
+   One line on a roomy modal: the middle of a long path is elided in JS
+   (elideMiddlePath) so the file name survives, and the tail is clipped here as
+   a last resort. */
 .quickAddModal .qa-prompt-context {
 	margin-bottom: 0.75rem;
 	color: var(--text-muted);
@@ -191,6 +192,19 @@
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+/* On a phone-width modal a clipped line would cut off the destination, which is
+   the whole point of the line. Wrap instead, bounded to two lines. */
+@media screen and (max-width: 540px) {
+	.quickAddModal .qa-prompt-context {
+		white-space: normal;
+		overflow-wrap: anywhere;
+		display: -webkit-box;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
+	}
 }
 
 /* Preview row styling for Choice Builders. The row sits BELOW the field it

@@ -222,6 +222,14 @@ export async function applyTemplateToNote(
 		if (!result) return null;
 
 		if (interactive && source.kind === "choice") {
+			// Reconciliation computes where the choice WOULD create the note so a
+			// move can be offered. Any prompt it raises does not land in the note
+			// being templated, so drop the destination rather than advertise a
+			// path the answer never reaches (issue #1546).
+			engine.setPromptRunContext({
+				destination: undefined,
+				destinationKind: undefined,
+			});
 			await maybeReconcileNoteLocation(app, engine, source.choice, file);
 		}
 

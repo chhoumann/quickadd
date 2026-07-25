@@ -62,14 +62,17 @@ interface ScopeCopy {
 
 /**
  * Scopes whose surrounding literal text is CONTENT FORMATTING rather than part
- * of the answer. A capture format of `- [ ] {{VALUE}}` still asks for exactly
- * "the text to capture" - the checkbox prefix is decoration nobody types. A
- * PATH is the opposite: in `Daily/{{VALUE}}.md` the literals are part of the
- * path, so claiming to ask for "the capture target" would over-promise.
+ * of the answer. A capture format is a one-line template: `- [ ] {{VALUE}}`
+ * still asks for exactly "the text to capture", because the checkbox prefix is
+ * decoration nobody types.
+ *
+ * Everything else uses the strict rule. A PATH's literals are part of the
+ * answer (`Daily/{{VALUE}}.md`), and so, in practice, are a template BODY's:
+ * a body of "---\nclient: {{VALUE}}\n---\n# Onboarding" has exactly one token
+ * but is asking for a client name, not for the note's content.
  */
 const FORMATTING_LITERAL_SCOPES: ReadonlySet<PromptScopeKind> = new Set([
 	"captureText",
-	"noteBody",
 ]);
 
 const SCOPE_COPY: Record<Exclude<PromptScopeKind, "generic">, ScopeCopy> = {
@@ -165,6 +168,22 @@ export function valueAnswersWholeScope(
 	return FORMATTING_LITERAL_SCOPES.has(scope)
 		? isOnlyValueToken(input)
 		: isSoleValueToken(input);
+}
+
+/**
+ * Whether a scope names a PATH. The preflight collector still needs the plain
+ * path/content boolean (it gates image paste and the template-scan memo key),
+ * so the two stay derived from one place.
+ */
+export function isPathScope(scope: PromptScopeKind): boolean {
+	return (
+		scope === "noteTitle" ||
+		scope === "captureTarget" ||
+		scope === "folder" ||
+		scope === "templatePath" ||
+		scope === "lineTarget" ||
+		scope === "filePath"
+	);
 }
 
 export interface ValuePromptCopy {

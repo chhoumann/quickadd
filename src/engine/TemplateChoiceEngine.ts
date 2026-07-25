@@ -544,6 +544,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			this.choiceExecutor,
 			resolvedTemplatePath,
 		);
+		// This engine owns its own formatter, so the run context has to be handed
+		// over or every prompt raised while appending loses the choice name, the
+		// destination and its draft scope (issue #1546).
+		insertEngine.setPromptRunContext({
+			draftScopeId: this.choice.id,
+			choiceName: this.choice.name,
+			destination: existingFile.path,
+			destinationKind: "file",
+		});
 		insertEngine.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"

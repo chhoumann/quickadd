@@ -20,7 +20,8 @@ export function renderPromptContextLine(
 		text,
 		cls: "qa-prompt-context",
 	});
-	const tooltip = fullText?.trim() || text;
-	if (tooltip !== text) el.setAttr("title", tooltip);
+	// Always set, not only when elision shortened it: a long choice name alone
+	// can overflow the line, and then the tooltip is the only way to read it.
+	el.setAttr("title", fullText?.trim() || text);
 	return el;
 }

@@ -70,7 +70,14 @@ describe("valueAnswersWholeScope", () => {
 		expect(valueAnswersWholeScope("noteTitle", "{{VALUE}}")).toBe(true);
 	});
 
-	it("is relaxed for content: a task prefix is decoration, not input", () => {
+	it("is strict for a template body: its literals ARE the note", () => {
+		// One token, but the ask is a client name, not the note's content.
+		const body = "---\nclient: {{VALUE}}\n---\n# Onboarding checklist\n";
+		expect(valueAnswersWholeScope("noteBody", body)).toBe(false);
+		expect(valueAnswersWholeScope("noteBody", "{{VALUE}}")).toBe(true);
+	});
+
+	it("is relaxed for a capture format: a task prefix is decoration, not input", () => {
 		// The "Add to task list" toggle rewrites the format to `- [ ] {{VALUE}}`;
 		// the ask is still exactly "the text to capture".
 		expect(valueAnswersWholeScope("captureText", "- [ ] {{value}}\n")).toBe(
