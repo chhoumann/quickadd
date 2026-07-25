@@ -13,7 +13,7 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 1. In QuickAdd settings, add a new **Capture** choice.
 2. Name it (for example, `Daily entry`) and open its settings.
 3. Disable **Capture to active file**.
-4. Set **File path / format** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
+4. Set **Capture to** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
 5. Enable **Create file if it doesn't exist**.
 6. Set **Write position** to **After line...**.
 7. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
@@ -122,7 +122,7 @@ This keeps the row attached to the table:
 
 ### Tomorrow's daily note
 
-Change **File path / format** to:
+Change **Capture to** to:
 
 ```
 Daily/{{DATE:YYYY-MM-DD+1}}.md
@@ -145,7 +145,7 @@ Enable **Create line if not found** with placement **Top** (or **Bottom**). Quic
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
 
 **Capture writes to the wrong file.**
-The date pattern in **File path / format** must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
+The date pattern in **Capture to** must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
 
 **Table rows or callout content breaks when using bottom-of-file placement.**
 Use **After line...** with **Insert at end of section** instead of **Bottom of file**. Bottom-of-file placement starts non-task captures on a new line, and when the file already ends with a newline that leaves a blank line before the captured content. That blank line splits table rows and callout blocks.

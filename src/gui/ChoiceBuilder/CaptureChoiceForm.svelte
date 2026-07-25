@@ -154,7 +154,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 <LabeledField
 	name="Capture format"
-	desc="Set the format of the capture. When off, the captured text is written as-is."
+	desc={"Set the format of the capture. When off, QuickAdd captures {{VALUE}} on its own - what you type at the prompt, or the current selection."}
 	bodyVisible={choice.format.enabled}
 >
 	{#snippet control()}

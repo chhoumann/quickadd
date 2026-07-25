@@ -64,7 +64,7 @@ from that path segment. The text inserted into the note is not changed.
 
 ### How QuickAdd picks the target {#how-quickadd-picks-a-target}
 
-When **Capture to active file** is off, the resolved _File path / format_
+When **Capture to active file** is off, the resolved _Capture to_
 value decides what happens:
 
 | You write | What happens |

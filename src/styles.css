@@ -100,10 +100,19 @@
    the rest of the modal. */
 .quickAddModal.qa-choice-builder .modal {
 	overflow: hidden;
+	/* A scrollport clips ink overflow at its padding box, and the builder's
+	   full-width fields are exactly as wide as it — so a focus or validity ring,
+	   which paints outside the border box, would lose its left and right edges.
+	   Hand the horizontal inset to the scrollport itself. */
+	padding-inline: 0;
 }
 
 .quickAddModal.qa-choice-builder .modal-content {
 	overflow-y: auto;
+	padding-inline: var(--size-4-4);
+	/* Reserve the scrollbar gutter unconditionally, so the pinned footer below can
+	   mirror it and stay aligned with the rows whether or not they scroll. */
+	scrollbar-gutter: stable;
 }
 
 .quickAddModal.qa-choice-builder .qa-builder-footer {
@@ -113,7 +122,14 @@
 	gap: var(--size-4-2);
 	flex-shrink: 0;
 	margin-top: var(--size-4-2);
-	padding-top: var(--size-4-3);
+	/* Sibling of the scrollport, so it carries the same inset itself — including
+	   the scrollbar gutter, which `overflow: hidden` + `scrollbar-gutter: stable`
+	   reserves at the platform's own width without ever showing a scrollbar. Without
+	   it the Done button and the footer rule overhang the rows above by the width
+	   of the scrollbar. */
+	padding: var(--size-4-3) var(--size-4-4) 0;
+	overflow: hidden;
+	scrollbar-gutter: stable;
 	border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
@@ -127,25 +143,25 @@
    dialog height, and keep the button clear of the home indicator. */
 .is-phone .quickAddModal.qa-choice-builder .modal {
 	max-height: var(--dialog-max-height);
+	/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
+	   above would otherwise drop them. */
+	padding-left: var(--safe-area-inset-left);
+	padding-right: var(--safe-area-inset-right);
 }
 
 .is-phone .quickAddModal.qa-choice-builder .qa-builder-footer {
-	padding-bottom: var(--safe-area-inset-bottom);
+	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
 }
 
 /* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
    the name/description, the body carries the field itself. Obsidian zeroes a
    `.setting-item`'s border-top and padding-top when it is `:first-child` of its
-   parent, and its padding-bottom when it is `:last-child` — inside the wrapper
-   it is both — so the wrapper takes over the row separator and vertical rhythm. */
+   parent — which it always is here — so the wrapper takes over the row separator
+   and the group's outer rhythm. The inner row keeps Obsidian's own padding-bottom,
+   and that is what separates the label from the field beneath it. */
 .quickAddModal .qa-field {
 	border-top: var(--border-width) solid var(--background-modifier-border);
 	padding: var(--size-4-4) 0;
-}
-
-.quickAddModal .qa-field > .setting-item {
-	padding-top: 0;
-	padding-bottom: 0;
 }
 
 /* The wrapper also breaks Obsidian's `.setting-item + .setting-item-heading`
