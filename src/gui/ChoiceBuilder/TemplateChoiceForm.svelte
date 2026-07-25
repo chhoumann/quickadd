@@ -83,7 +83,7 @@ function validateTemplatePath(
 // --- File name format ----------------------------------------------------
 const fileNameSuggesters = [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin, true),
+		new FormatSyntaxSuggester(app, el, plugin, "fileName"),
 ];
 const discoverySupported = $derived(
 	usesDefaultTemplateTitlePrompt(

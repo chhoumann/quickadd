@@ -1606,6 +1606,44 @@ textarea.is-valid {
 	border-radius: 2px;
 }
 
+/* Format-token autocomplete rows: the token, then what it does (#1542).
+   One line while both fit; the description wraps underneath rather than being
+   truncated, because half a sentence teaches nothing. */
+.suggestion-item.qa-format-suggestion {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 10px;
+	row-gap: 1px;
+	line-height: 1.35;
+}
+
+.qa-format-suggestion-token {
+	flex: 0 0 auto;
+	font-family: var(--font-monospace);
+	font-size: var(--font-smaller);
+	white-space: pre;
+}
+
+.qa-format-suggestion-token-fragment {
+	/* |case: styles are bare fragments, not tokens; keep them monospace but
+	   without the emphasis that says "this is insertable syntax on its own". */
+	color: var(--text-muted);
+}
+
+.qa-format-suggestion-description {
+	flex: 1 1 12em;
+	min-width: 0;
+	color: var(--text-muted);
+	font-size: var(--font-smaller);
+}
+
+.suggestion-item.qa-format-suggestion.is-selected .qa-format-suggestion-description,
+.suggestion-item.qa-format-suggestion.is-selected .qa-format-suggestion-token-fragment {
+	color: inherit;
+	opacity: 0.75;
+}
+
 /* User script settings modal - prevent textarea horizontal growth */
 .userScriptSettingsModal .setting-item-control {
 	min-width: 0;

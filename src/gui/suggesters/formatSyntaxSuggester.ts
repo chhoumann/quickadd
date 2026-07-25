@@ -1,255 +1,46 @@
 import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
-import {
-	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
-	DATE_SYNTAX,
-	DATE_SYNTAX_SUGGEST_REGEX,
-	TIME_SYNTAX,
-	LINKCURRENT_SYNTAX,
-	LINKCURRENT_SYNTAX_SUGGEST_REGEX,
-	LINKSECTION_SYNTAX,
-	LINKSECTION_SYNTAX_SUGGEST_REGEX,
-	FILENAMECURRENT_SYNTAX,
-	FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-	FILE_SYNTAX_SUGGEST_REGEX,
-	FOLDERCURRENT_SYNTAX,
-	FOLDERCURRENT_NAME_SYNTAX,
-	FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-	FOLDER_SYNTAX_SUGGEST_REGEX,
-	MACRO_SYNTAX_SUGGEST_REGEX,
-	MATH_VALUE_SYNTAX,
-	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
-	NAME_SYNTAX,
-	NAME_SYNTAX_SUGGEST_REGEX,
-	TEMPLATE_SYNTAX_SUGGEST_REGEX,
-	VALUE_SYNTAX,
-	VALUE_SYNTAX_SUGGEST_REGEX,
-	VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
-	VARIABLE_SYNTAX_SUGGEST_REGEX,
-	SELECTED_SYNTAX_SUGGEST_REGEX,
-	SELECTED_SYNTAX,
-	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
-	CLIPBOARD_SYNTAX,
-	TIME_SYNTAX_SUGGEST_REGEX,
-	TITLE_SYNTAX_SUGGEST_REGEX,
-	TITLE_SYNTAX,
-	RANDOM_SYNTAX_SUGGEST_REGEX,
-	GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
-} from "../../constants";
 import type QuickAdd from "../../main";
 import { replaceRange } from "./utils";
 import { flattenChoices } from "../../utils/choiceUtils";
+import type {
+	FormatSuggestContext,
+	FormatTokenSuggestion,
+} from "./formatTokenRegistry";
+import {
+	CASE_STYLE_SUGGESTIONS,
+	EXPANSION_MIN_PREFIX,
+	entriesForContext,
+} from "./formatTokenRegistry";
 
-export enum FormatSyntaxToken {
-	Date,
-	DateFormat,
-	VariableDate,
-	Value,
-	Name,
-	Variable,
-	File,
-	LinkCurrent,
-	LinkSection,
-	FilenameCurrent,
-	FolderCurrent,
-	FolderTarget,
-	Macro,
-	Template,
-	MathValue,
-	Time,
-	Selected,
-	Clipboard,
-	Random,
-	Title,
-	GlobalVar,
-}
+export type { FormatSuggestContext } from "./formatTokenRegistry";
 
-interface TokenDefinition {
-	regex: RegExp;
-	token: FormatSyntaxToken;
-	suggestion: string;
-	cursorOffset?: number; // How far back to position cursor from end
-}
+const CASE_FRAGMENT_REGEX = /^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i;
 
-export class FormatSyntaxSuggester extends TextInputSuggest<string> {
-	private lastInput = "";
-	private lastInputType: FormatSyntaxToken;
-	private lastInputStart = 0;
+export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
+	/** Start offset of the fragment the accepted suggestion replaces. */
+	private replaceFrom = 0;
+	/** The letters typed after "{{", used to highlight what matched. */
+	private matchedQuery = "";
 	private readonly macroNames: string[];
 	private readonly templatePaths: string[];
-
-	// Table-driven approach for cleaner token processing
-	private readonly tokenDefinitions: TokenDefinition[] = [
-		{
-			regex: DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.DateFormat,
-			suggestion: "{{DATE:}}",
-			cursorOffset: 2
-		},
-		{
-			regex: DATE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Date,
-			suggestion: DATE_SYNTAX
-		},
-		{
-			regex: TIME_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Time,
-			suggestion: TIME_SYNTAX
-		},
-		{
-			regex: NAME_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Name,
-			suggestion: NAME_SYNTAX
-		},
-		{
-			regex: VALUE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Value,
-			suggestion: VALUE_SYNTAX
-		},
-		{
-			regex: MATH_VALUE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.MathValue,
-			suggestion: MATH_VALUE_SYNTAX
-		},
-		{
-			regex: SELECTED_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Selected,
-			suggestion: SELECTED_SYNTAX
-		},
-		{
-			regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Clipboard,
-			suggestion: CLIPBOARD_SYNTAX
-		},
-		{
-			regex: RANDOM_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Random,
-			suggestion: "{{RANDOM:}}",
-			cursorOffset: 2
-		},
-		{
-			regex: GLOBAL_VAR_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.GlobalVar,
-			suggestion: "{{GLOBAL_VAR:}}",
-			cursorOffset: 2,
-		},
-		{
-			regex: VARIABLE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Variable,
-			suggestion: "{{VALUE:}}",
-			cursorOffset: 2
-		},
-		{
-			regex: VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.VariableDate,
-			suggestion: "{{VDATE:}}",
-			cursorOffset: 2
-		},
-		{
-			regex: FILE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.File,
-			suggestion: "{{FILE:}}",
-			cursorOffset: 2
-		},
-	];
-
-	private readonly contextualTokens: TokenDefinition[] = [
-		{
-			regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.LinkCurrent,
-			suggestion: LINKCURRENT_SYNTAX
-		},
-		{
-			regex: LINKSECTION_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.LinkSection,
-			suggestion: LINKSECTION_SYNTAX
-		},
-		{
-			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.FilenameCurrent,
-			suggestion: FILENAMECURRENT_SYNTAX
-		},
-		// Offered in the contextual set because it serves BOTH format bodies and
-		// the capture "Capture to" field (which constructs this suggester without
-		// suggestForFileNames) — the field the token was built for (#1480).
-		{
-			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.FolderCurrent,
-			suggestion: FOLDERCURRENT_SYNTAX
-		},
-		{
-			regex: TITLE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Title,
-			suggestion: TITLE_SYNTAX
-		},
-		{
-			regex: TEMPLATE_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Template,
-			suggestion: "{{TEMPLATE:"
-		},
-		{
-			regex: MACRO_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.Macro,
-			suggestion: "{{MACRO:"
-		},
-	];
-
-	// Shown only in the file-name context (suggestForFileNames). The target
-	// folder is meaningful in a Template file name, but the LEAF form is offered
-	// here: the bare {{FOLDER}} expands to the full path, so `{{FOLDER}} - Note`
-	// with a nested target like Projects/Acme would yield
-	// `Projects/Acme/Projects/Acme - Note.md`. {{FOLDER|name}} avoids that
-	// duplicated-segment footgun. {{FOLDER}} is kept out of the always-shown
-	// definitions because it would resolve to "" in the capture "Capture to"
-	// field.
-	private readonly fileNameTokens: TokenDefinition[] = [
-		{
-			regex: FOLDER_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.FolderTarget,
-			suggestion: "{{folder|name}}",
-		},
-		// formatFileName resolves {{FILENAMECURRENT}} (the source note's
-		// basename), so it is valid here; {{title}} is deliberately excluded
-		// because it throws in file names.
-		{
-			regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.FilenameCurrent,
-			suggestion: FILENAMECURRENT_SYNTAX,
-		},
-		// Same |name-only rationale as {{folder|name}} above: with a configured
-		// target folder, a full-path expansion in a Template file name nests under
-		// it ("Notes/Projects/Alpha/Note.md"); the leaf form avoids that footgun.
-		// The full {{foldercurrent}} remains available in the contextual set.
-		{
-			regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-			token: FormatSyntaxToken.FolderCurrent,
-			suggestion: FOLDERCURRENT_NAME_SYNTAX,
-		},
-	];
 
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
 		private plugin: QuickAdd,
-		private suggestForFileNames: boolean = false,
-		// Tokens to withhold in this field. Used by the insert-after/before
-		// line-target fields, where formatLocationString deliberately leaves
-		// {{foldercurrent}} literal (it can legitimately resolve to "", and an
-		// empty selector would match the first line) — offering it there would be
-		// a suggester/runtime mismatch.
-		private excludeTokens: FormatSyntaxToken[] = []
+		private context: FormatSuggestContext = "noteContent",
 	) {
 		super(app, inputEl);
 
-		// Get macro names from choices
 		this.macroNames = flattenChoices(this.plugin.settings.choices)
 			.filter((choice) => choice.type === "Macro")
 			.map((choice) => choice.name);
-		
+
 		this.templatePaths = this.plugin.getTemplateFiles().map((file) => file.path);
 	}
 
-	async getSuggestions(inputStr: string): Promise<string[]> {
+	getSuggestions(inputStr: string): FormatTokenSuggestion[] {
 		if (this.inputEl.selectionStart === null) return [];
 		const cursorPosition: number = this.inputEl.selectionStart;
 
@@ -266,31 +57,16 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 		}
 
 		// Special-case: suggest casing styles when typing `|case:` inside VALUE/NAME tokens.
-		{
-			const caseMatch = inputSegment.match(
-				/^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i,
-			);
-			if (caseMatch) {
-				const fragment = caseMatch[1] ?? "";
-				const normalizedFragment = fragment.toLowerCase();
-				const styles = [
-					"kebab",
-					"snake",
-					"camel",
-					"pascal",
-					"title",
-					"lower",
-					"upper",
-					"slug",
-				];
+		const caseMatch = inputSegment.match(CASE_FRAGMENT_REGEX);
+		if (caseMatch) {
+			const fragment = caseMatch[1] ?? "";
+			this.matchedQuery = fragment;
+			this.replaceFrom = cursorPosition - fragment.length;
 
-				this.lastInput = fragment;
-				this.lastInputStart = cursorPosition - fragment.length;
-
-				return styles.filter((style) =>
-					style.startsWith(normalizedFragment),
-				);
-			}
+			const normalizedFragment = fragment.toLowerCase();
+			return CASE_STYLE_SUGGESTIONS.filter((style) =>
+				style.insert.startsWith(normalizedFragment),
+			).map((style) => ({ ...style }));
 		}
 
 		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions.
@@ -298,120 +74,105 @@ export class FormatSyntaxSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
-		const suggestions: string[] = [];
+		const suggestions: FormatTokenSuggestion[] = [];
+		const seen = new Set<string>();
+		const add = (suggestion: FormatTokenSuggestion) => {
+			if (seen.has(suggestion.insert)) return;
+			seen.add(suggestion.insert);
+			suggestions.push(suggestion);
+		};
 
-		// Check all token definitions
-		const allTokens = [
-			...this.tokenDefinitions,
-			...(this.suggestForFileNames ? this.fileNameTokens : this.contextualTokens)
-		].filter((def) => !this.excludeTokens.includes(def.token));
+		// Every token matcher is anchored on the leading "{{", and a match is only
+		// accepted when it runs to the cursor, so an accepted match is always the
+		// whole segment: the replaced span and the matched letters are the same
+		// for every row and can be settled once.
+		this.replaceFrom = startBrace;
+		// Highlight only the letters typed after "{{": at a bare "{{" the braces
+		// are on every row, and marking them just adds noise.
+		this.matchedQuery = inputSegment.slice(2);
 
-		for (const tokenDef of allTokens) {
-			const match = tokenDef.regex.exec(inputSegment);
-			if (!match) continue;
-
+		const matched = entriesForContext(this.context).filter((entry) => {
+			const match = entry.regex.exec(inputSegment);
 			// Only accept matches that run right up to the cursor (i.e., the user is still typing this token)
-			if (match.index + match[0].length !== inputSegment.length) {
-				continue;
-			}
+			return (
+				match !== null &&
+				match.index + match[0].length === inputSegment.length
+			);
+		});
 
-			this.lastInput = match[0];
-			this.lastInputType = tokenDef.token;
-			this.lastInputStart = cursorPosition - match[0].length;
+		// Tokens the typed letters actually start come first. The matchers admit
+		// interior matches too ("{{dat" reaches {{VDATE:}} because its optional
+		// letter classes skip the V), and those should never outrank the token the
+		// user is most likely spelling. Stable, so within each half the curated
+		// registry order survives — including the bare "{{" case, where nothing
+		// prefix-matches and the whole list keeps its reading order.
+		const query = this.matchedQuery.toLowerCase();
+		const startsWithQuery = (entry: (typeof matched)[number]) =>
+			entry.suggestion.insert.slice(2).toLowerCase().startsWith(query);
+		const ranked = [
+			...matched.filter(startsWithQuery),
+			...matched.filter((entry) => !startsWithQuery(entry)),
+		];
 
-			// Avoid duplicates
-			if (!suggestions.includes(tokenDef.suggestion)) {
-				suggestions.push(tokenDef.suggestion);
-			}
+		for (const entry of ranked) {
+			add(entry.suggestion);
 
-			// Add dynamic suggestions for template and macro
-			if (tokenDef.token === FormatSyntaxToken.Template) {
-				suggestions.push(
-					...this.templatePaths.map(
-						(templatePath) => `{{TEMPLATE:${templatePath}}}`
-					)
-				);
-			} else if (tokenDef.token === FormatSyntaxToken.Macro) {
-				suggestions.push(
-					...this.macroNames.map(
-						(macroName) => `{{MACRO:${macroName}}}`
-					)
-				);
-				suggestions.push("{{MACRO:MyMacro|label:Label}}");
-			} else if (tokenDef.token === FormatSyntaxToken.VariableDate) {
-				// Add example suggestions for VDATE with and without default values
-				suggestions.push(
-					"{{VDATE:date,YYYY-MM-DD}}",
-					"{{VDATE:date,YYYY-MM-DD|today}}",
-					"{{VDATE:dueDate,YYYY-MM-DD|next monday}}",
-					"{{VDATE:dueDate,YYYY-MM-DD|optional}}"
-				);
-			} else if (tokenDef.token === FormatSyntaxToken.GlobalVar) {
-				// Suggest defined global variable names
-				const globals = Object.keys(this.plugin?.settings?.globalVariables ?? {});
-				suggestions.push(
-					...globals.map((name) => `{{GLOBAL_VAR:${name}}}`)
-				);
-			} else if (tokenDef.token === FormatSyntaxToken.Variable) {
-				// Add example suggestions for VALUE with and without custom modifier
-				suggestions.push(
-					"{{VALUE:option1,option2,option3}}",
-					"{{VALUE:option1,option2,option3|custom}}",
-					"{{VALUE:title|label:Helper text}}",
-					"{{VALUE:option1,option2|label:Pick one}}",
-					"{{VALUE:title|label:Snake case|default:My_Title}}",
-					"{{VALUE:title|trim}}",
-					"{{VALUE:title|optional}}"
-				);
-			} else if (tokenDef.token === FormatSyntaxToken.File) {
-				// Pick a file from a folder; default inserts the basename.
-				suggestions.push("{{FILE:<folder>}}");
-				// |link / |path insert characters invalid in a file name, and
-				// |optional permits an all-optional name that resolves empty
-				// (rejected at creation time), so only offer them outside the
-				// file-name field.
-				if (!this.suggestForFileNames) {
-					suggestions.push(
-						"{{FILE:<folder>|link}}",
-						"{{FILE:<folder>|path}}",
-						"{{FILE:<folder>|optional}}",
-					);
-				}
-				suggestions.push("{{FILE:<folder>|custom}}");
+			// Worked examples arrive once the user has named the token they want,
+			// so the bare "{{" list stays an index of what exists.
+			if (!entry.expansions) continue;
+			if (this.matchedQuery.length < EXPANSION_MIN_PREFIX) continue;
+			for (const expansion of entry.expansions({
+				templatePaths: this.templatePaths,
+				macroNames: this.macroNames,
+				globalVariableNames: Object.keys(
+					this.plugin?.settings?.globalVariables ?? {},
+				),
+				context: this.context,
+				formatDate: (momentFormat) =>
+					typeof window.moment === "function"
+						? window.moment().format(momentFormat)
+						: momentFormat,
+			})) {
+				add(expansion);
 			}
 		}
 
 		return suggestions;
 	}
 
-	selectSuggestion(item: string): void {
+	selectSuggestion(item: FormatTokenSuggestion): void {
 		if (this.inputEl.selectionStart === null) return;
-		
+
 		const cursorPosition: number = this.inputEl.selectionStart;
-		const replaceStart = this.lastInputStart;
-		const replaceEnd = cursorPosition;
+		const replaceStart = this.replaceFrom;
 
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, replaceEnd, item, { fromCompletion: true });
+		replaceRange(this.inputEl, replaceStart, cursorPosition, item.insert, {
+			fromCompletion: true,
+		});
 
-		// Determine cursor offset dynamically based on the chosen item
-		const offset = item.includes(":") ? 2 : 0; // place before "}}" if there is a colon
-		if (offset) {
-			const newCursorPos = replaceStart + item.length - offset;
+		if (item.caretOffset > 0) {
+			const newCursorPos = replaceStart + item.insert.length - item.caretOffset;
 			this.inputEl.setSelectionRange(newCursorPos, newCursorPos);
 		}
 
 		this.close();
 	}
 
-	renderSuggestion(value: string, el: HTMLElement): void {
+	renderSuggestion(value: FormatTokenSuggestion, el: HTMLElement): void {
 		if (!value) return;
-		// Highlight using the current query fragment for accuracy
-		this.renderMatch(el, value, this.getCurrentQuery());
-	}
+		el.classList.add("qa-format-suggestion");
 
-	private getTokenDefinition(token: FormatSyntaxToken): TokenDefinition | undefined {
-		return [...this.tokenDefinitions, ...this.contextualTokens, ...this.fileNameTokens]
-			.find(def => def.token === token);
+		const tokenEl = el.ownerDocument.createElement("span");
+		tokenEl.className = value.isFragment
+			? "qa-format-suggestion-token qa-format-suggestion-token-fragment"
+			: "qa-format-suggestion-token";
+		this.renderMatch(tokenEl, value.insert, this.matchedQuery);
+		el.appendChild(tokenEl);
+
+		const descriptionEl = el.ownerDocument.createElement("span");
+		descriptionEl.className = "qa-format-suggestion-description";
+		descriptionEl.textContent = value.description;
+		el.appendChild(descriptionEl);
 	}
 }

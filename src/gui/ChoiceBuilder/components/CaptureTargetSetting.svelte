@@ -2,7 +2,6 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../../main";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
-import { FILE_NAME_FORMAT_SYNTAX } from "../../../constants";
 import { getAllFolderPathsInVault } from "../../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
@@ -36,19 +35,16 @@ const captureTargetSuggestions = $derived.by(() => {
 		.getFiles()
 		.filter((file) => file.extension === "canvas")
 		.map((file) => file.path);
-	return Array.from(
-		new Set([
-			...folderPaths,
-			...markdownPaths,
-			...canvasPaths,
-			...FILE_NAME_FORMAT_SYNTAX,
-		]),
-	);
+	// Paths only. Format tokens used to be mixed in here too, which put a second
+	// suggester's undescribed, differently-cased copy of the token list on the
+	// same input as FormatSyntaxSuggester — two stacked popups for one language,
+	// and the generic one replaces the whole field on accept (#1542).
+	return Array.from(new Set([...folderPaths, ...markdownPaths, ...canvasPaths]));
 });
 
 const suggesters = [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin),
+		new FormatSyntaxSuggester(app, el, plugin, "captureTarget"),
 ];
 
 const captureTargetFeedback = $derived.by(() =>

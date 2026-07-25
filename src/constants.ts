@@ -40,84 +40,12 @@ export const CLIPBOARD_SYNTAX = "{{clipboard}}";
 export const RANDOM_SYNTAX = "{{random:<length>}}";
 export const GLOBAL_VAR_SYNTAX = "{{global_var:<name>}}";
 
-export const FORMAT_SYNTAX: string[] = [
-	DATE_SYNTAX,
-	"{{date:<dateformat>}}",
-	"{{date:<dateformat>|startof:<unit>}}",
-	"{{date:<dateformat>|endof:<unit>}}",
-	"{{vdate:<variable name>, <date format>}}",
-	"{{vdate:<variable name>, <date format>|<default value>}}",
-	VDATE_OPTIONAL_SYNTAX,
-	GLOBAL_VAR_SYNTAX,
-	VALUE_SYNTAX,
-	NAME_SYNTAX,
-	VALUE_CASE_SYNTAX,
-	VARIABLE_CASE_SYNTAX,
-	VALUE_TRIM_SYNTAX,
-	VARIABLE_TRIM_SYNTAX,
-	VARIABLE_SYNTAX,
-	VARIABLE_DEFAULT_SYNTAX,
-	VARIABLE_DEFAULT_OPTION_SYNTAX,
-	VARIABLE_LABEL_SYNTAX,
-	VARIABLE_TEXT_SYNTAX,
-	VARIABLE_NAME_SYNTAX,
-	VARIABLE_OPTIONAL_SYNTAX,
-	FIELD_VAR_SYNTAX,
-	FIELD_VAR_MULTI_SYNTAX,
-	"{{field:<fieldname>|folder:<path>}}",
-	"{{field:<fieldname>|tag:<tagname>}}",
-	"{{field:<fieldname>|inline:true}}",
-	"{{field:<fieldname>|inline:true|inline-code-blocks:ad-note}}",
-	FILE_SYNTAX,
-	FILE_MULTI_SYNTAX,
-	FILE_LINK_SYNTAX,
-	FILE_PATH_SYNTAX,
-	LINKCURRENT_SYNTAX,
-	LINKSECTION_SYNTAX,
-	FILENAMECURRENT_SYNTAX,
-	FOLDERCURRENT_SYNTAX,
-	FOLDERCURRENT_NAME_SYNTAX,
-	FOLDER_SYNTAX,
-	"{{folder|name}}",
-	"{{macro:<macroname>}}",
-	"{{macro:<macroname>|label:<label>}}",
-	"{{template:<templatepath>}}",
-	MATH_VALUE_SYNTAX,
-	SELECTED_SYNTAX,
-	CLIPBOARD_SYNTAX,
-	RANDOM_SYNTAX,
-];
-
-export const FILE_NAME_FORMAT_SYNTAX: string[] = [
-	DATE_SYNTAX,
-	"{{date:<dateformat>}}",
-	"{{date:<dateformat>|startof:<unit>}}",
-	"{{date:<dateformat>|endof:<unit>}}",
-	"{{vdate:<variable name>, <date format>}}",
-	"{{vdate:<variable name>, <date format>|<default value>}}",
-	GLOBAL_VAR_SYNTAX,
-	VALUE_SYNTAX,
-	NAME_SYNTAX,
-	VALUE_CASE_SYNTAX,
-	VARIABLE_CASE_SYNTAX,
-	VALUE_TRIM_SYNTAX,
-	VARIABLE_TRIM_SYNTAX,
-	VARIABLE_SYNTAX,
-	VARIABLE_DEFAULT_SYNTAX,
-	VARIABLE_DEFAULT_OPTION_SYNTAX,
-	VARIABLE_LABEL_SYNTAX,
-	VARIABLE_TEXT_SYNTAX,
-	VARIABLE_NAME_SYNTAX,
-	FIELD_VAR_SYNTAX,
-	FILE_SYNTAX,
-	FOLDERCURRENT_SYNTAX,
-	FOLDERCURRENT_NAME_SYNTAX,
-	RANDOM_SYNTAX,
-];
-// Note: |optional is deliberately absent from FILE_NAME_FORMAT_SYNTAX — an
-// all-optional file name that resolves empty is rejected at creation time.
-
-export const TEMPLATE_FORMAT_SYNTAX: string[] = [TITLE_SYNTAX];
+// The autocomplete's token list — with a one-line description per row and
+// per-field context gating — lives in gui/suggesters/formatTokenRegistry.ts.
+// The FORMAT_SYNTAX / FILE_NAME_FORMAT_SYNTAX / TEMPLATE_FORMAT_SYNTAX
+// cheat-sheet arrays that used to sit here were a second, undescribed copy of
+// the same token language in a third casing convention (#1542); the registry
+// replaces them.
 
 export const NUMBER_REGEX = new RegExp(/^-?[0-9]*$/);
 
@@ -287,12 +215,17 @@ export const FOLDERCURRENT_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const FOLDER_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[F]?[O]?[L]?[D]?[E]?[R]?[}]?[}]?$/i,
 );
-// Requires the full literal "FILE" before offering {{FILE:}}, so it isn't
-// offered prematurely at {{F/{{FI; {{FILENAMECURRENT}} still co-suggests at
-// {{FILE (benign — both are valid completions of that prefix).
-export const FILE_SYNTAX_SUGGEST_REGEX = new RegExp(
-	/{{FILE[:]?$|{{FILE:[^\n\r}]*}}$/i,
-);
+// Flat prefix matcher like its siblings, so {{FILE:}} shows up in the bare "{{"
+// index of every token (#1542) rather than only after the full literal "FILE".
+// {{FIELD:}}, {{FILENAMECURRENT}} and the folder tokens co-suggest at the shared
+// "{{f"/"{{fi" prefixes and disambiguate on the next letter — the same trade the
+// FOLDER/FOLDERCURRENT pair already makes.
+export const FILE_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[F]?[I]?[L]?[E]?[:]?$/i);
+// {{FIELD:}} is implemented and documented but had no matcher, so the
+// autocomplete never offered it (#1542). Only the pre-colon prefix is
+// reachable: the suggester stops suggesting as soon as the segment contains
+// ":", which is why no post-colon alternative is spelled out here.
+export const FIELD_SYNTAX_SUGGEST_REGEX = new RegExp(/{{[F]?[I]?[E]?[L]?[D]?[:]?$/i);
 export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[E]?[M]?[P]?[L]?[A]?[T]?[E]?[:]?$|{{TEMPLATE:[^\n\r}]*[}]?[}]?$/i,
 );
