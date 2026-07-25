@@ -239,7 +239,7 @@
 	async function handleRenameChoice(choice: IChoice) {
 		if (!choice) return;
 
-		const newName = await promptRenameChoice(app, choice.name);
+		const newName = await promptRenameChoice(app, choice.name, choice.type);
 		if (!newName) return;
 
 		const live = liveChoice(choice);
