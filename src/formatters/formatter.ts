@@ -54,6 +54,7 @@ import {
 	type SliderConfig,
 	type ValueInputType,
 } from "../utils/valueSyntax";
+import { SILENT_WARN } from "../utils/warnSink";
 import { parseVDateOptions } from "../utils/vdateSyntax";
 import { applyDateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
@@ -413,10 +414,12 @@ export abstract class Formatter {
 			if (optionsIndex === -1) continue;
 			const rawOptions = inner.slice(optionsIndex);
 
-			// Quiet: this is the prompt-context pre-pass; the actual replacer
+			// Silent: this is the prompt-context pre-pass; the actual replacer
 			// pass (replaceValueInString) emits any |case warning so it fires
 			// once, not twice.
-			const parsed = parseAnonymousValueOptions(rawOptions, { quiet: true });
+			const parsed = parseAnonymousValueOptions(rawOptions, {
+				warn: SILENT_WARN,
+			});
 			if (!context) context = {};
 
 			if (!context.description && parsed.label) {
@@ -985,8 +988,8 @@ export abstract class Formatter {
 			if (!match[1]) continue;
 			let parsed: ParsedValueToken | null;
 			try {
-				// Quiet: the main pass parses again and owns the user-facing warnings.
-				parsed = parseValueToken(match[1], { quiet: true });
+				// Silent: the main pass parses again and owns the user-facing warnings.
+				parsed = parseValueToken(match[1], { warn: SILENT_WARN });
 			} catch {
 				// A malformed token throws in the main pass; abort hoisting so the
 				// error surfaces before any suggester is shown.

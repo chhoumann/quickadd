@@ -1,4 +1,4 @@
-import { log } from "../logger/logManager";
+import { NOTICE_WARN, type WarnSink } from "./warnSink";
 import {
 	parseBooleanFlag,
 	parsePipeKeyValue,
@@ -44,7 +44,7 @@ export class FieldSuggestionParser {
 	 */
 	static parse(
 		input: string,
-		options?: { warnUnknown?: boolean },
+		options?: { warnUnknown?: boolean; warn?: WarnSink },
 	): {
 		fieldName: string;
 		filters: FieldFilter;
@@ -161,7 +161,7 @@ export class FieldSuggestionParser {
 					// false "Unknown FIELD filter" notices and leak internal
 					// sentinels like __capture_scope.
 					if (options?.warnUnknown) {
-						log.logWarning(
+						(options.warn ?? NOTICE_WARN)(
 							`Unknown FIELD filter "${filterType}" in "{{FIELD:${input}}}" was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi.`,
 						);
 					}

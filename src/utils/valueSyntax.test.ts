@@ -7,6 +7,7 @@ import {
 	parseValueToken,
 	resolveExistingVariableKey,
 } from "./valueSyntax";
+import { SILENT_WARN } from "./warnSink";
 import { log } from "../logger/logManager";
 
 describe("parseValueToken", () => {
@@ -385,10 +386,10 @@ describe("named variables (|name:, issue #148)", () => {
 		expect(warnSpy).toHaveBeenCalled();
 	});
 
-	it("stays silent when parsed in quiet mode", () => {
+	it("stays silent when parsed with a silent sink", () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
-		// Reserved name would normally warn; quiet mode (the pre-pass) suppresses it.
-		const parsed = parseValueToken("a,b|name:title", { quiet: true });
+		// Reserved name would normally warn; a silent sink (the pre-pass) drops it.
+		const parsed = parseValueToken("a,b|name:title", { warn: SILENT_WARN });
 		expect(parsed?.aliasName).toBeUndefined();
 		expect(warnSpy).not.toHaveBeenCalled();
 	});

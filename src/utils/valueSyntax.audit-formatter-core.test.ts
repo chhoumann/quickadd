@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseAnonymousValueOptions, parseValueToken } from "./valueSyntax";
+import { SILENT_WARN } from "./warnSink";
 import { log } from "../logger/logManager";
 
 describe("valueSyntax audit (formatter-core)", () => {
@@ -48,12 +49,12 @@ describe("valueSyntax audit (formatter-core)", () => {
 			).toBe(false);
 		});
 
-		it("stays silent in quiet mode (preflight pre-pass)", () => {
+		it("stays silent with a silent sink (preflight pre-pass)", () => {
 			const warnSpy = vi
 				.spyOn(log, "logWarning")
 				.mockImplementation(() => {});
 
-			parseValueToken("title|case:keb", { quiet: true });
+			parseValueToken("title|case:keb", { warn: SILENT_WARN });
 
 			expect(warnSpy).not.toHaveBeenCalled();
 		});
@@ -73,15 +74,15 @@ describe("valueSyntax audit (formatter-core)", () => {
 			).toBe(true);
 		});
 
-		it("stays silent on the anonymous form in quiet mode (prompt-context pre-pass)", () => {
+		it("stays silent on the anonymous form with a silent sink (prompt-context pre-pass)", () => {
 			// The formatter calls parseAnonymousValueOptions twice per token (a
-			// quiet prompt-context pre-pass + the real replacer). Only the
+			// silent prompt-context pre-pass + the real replacer). Only the
 			// replacer warns, so the |case typo notice fires once, not twice.
 			const warnSpy = vi
 				.spyOn(log, "logWarning")
 				.mockImplementation(() => {});
 
-			const parsed = parseAnonymousValueOptions("|case:keb", { quiet: true });
+			const parsed = parseAnonymousValueOptions("|case:keb", { warn: SILENT_WARN });
 
 			expect(parsed.caseStyle).toBeUndefined();
 			expect(warnSpy).not.toHaveBeenCalled();

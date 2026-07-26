@@ -5,8 +5,8 @@ import {
 	splitPipeParts,
 	stripLeadingPipe,
 } from "./pipeSyntax";
-import { log } from "../logger/logManager";
 import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
+import { NOTICE_WARN, SILENT_WARN, type WarnSink } from "./warnSink";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
 export const VALUE_LABEL_KEY_DELIMITER = "\u001F";
@@ -213,7 +213,8 @@ function parseOptions(
 	optionParts: string[],
 	hasOptions: boolean,
 	allowName: boolean,
-	quiet = false,
+	tokenDisplay: string,
+	warn: WarnSink,
 ): ParsedOptions {
 	if (optionParts.length === 0) {
 		return {
@@ -329,11 +330,13 @@ function parseOptions(
 				break;
 			case "name":
 				// Gated to the named grammar via optionKeys; empty `|name:` is a
-				// no-op alias and warns so the author notices the typo.
+				// no-op alias and warns so the author notices the typo. Names the
+				// token like every other warning here — this was the one message
+				// that left the author guessing which token it meant.
 				if (value) name = value;
-				else if (!quiet)
-					log.logWarning(
-						`QuickAdd: empty |name: ignored; provide a variable name, e.g. {{VALUE:a,b|name:category}}.`,
+				else
+					warn(
+						`QuickAdd: empty |name: ignored in "${tokenDisplay}"; provide a variable name, e.g. {{VALUE:a,b|name:category}}.`,
 					);
 				break;
 			default:
@@ -367,24 +370,22 @@ function resolveInputType(
 		hasOptions,
 		allowCustomInput,
 	}: { tokenDisplay: string; hasOptions: boolean; allowCustomInput: boolean },
-	quiet = false,
+	warn: WarnSink,
 ): ValueInputType | undefined {
 	if (!rawType) return undefined;
 	const raw = rawType.trim().toLowerCase();
 	// `boolean` is a friendly alias for the checkbox true/false picker.
 	const normalized = (raw === "boolean" ? "checkbox" : raw) as ValueInputType;
 	if (!OPTION_INCOMPATIBLE_TYPES.has(normalized)) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, slider, checkbox, text.`,
-			);
+		warn(
+			`QuickAdd: Unsupported VALUE type "${rawType}" in token "${tokenDisplay}". Supported types: multiline, number, slider, checkbox, text.`,
+		);
 		return undefined;
 	}
 	if (hasOptions || allowCustomInput) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: Ignoring type:${normalized} for option-list VALUE token "${tokenDisplay}".`,
-			);
+		warn(
+			`QuickAdd: Ignoring type:${normalized} for option-list VALUE token "${tokenDisplay}".`,
+		);
 		return undefined;
 	}
 	return normalized;
@@ -409,7 +410,7 @@ function hasNumericConfig(options: ParsedOptions): boolean {
 function buildNumericConfig(
 	options: ParsedOptions,
 	tokenDisplay: string,
-	quiet: boolean,
+	warn: WarnSink,
 ): NumericInputConfig | undefined {
 	const min = parseFiniteNumber(options.minRaw);
 	const max = parseFiniteNumber(options.maxRaw);
@@ -418,10 +419,9 @@ function buildNumericConfig(
 
 	if (options.minRaw !== undefined) {
 		if (min === undefined) {
-			if (!quiet)
-				log.logWarning(
-					`QuickAdd: Ignoring invalid min in VALUE token "${tokenDisplay}".`,
-				);
+			warn(
+				`QuickAdd: Ignoring invalid min in VALUE token "${tokenDisplay}".`,
+			);
 		} else {
 			config.min = min;
 		}
@@ -429,10 +429,9 @@ function buildNumericConfig(
 
 	if (options.maxRaw !== undefined) {
 		if (max === undefined) {
-			if (!quiet)
-				log.logWarning(
-					`QuickAdd: Ignoring invalid max in VALUE token "${tokenDisplay}".`,
-				);
+			warn(
+				`QuickAdd: Ignoring invalid max in VALUE token "${tokenDisplay}".`,
+			);
 		} else {
 			config.max = max;
 		}
@@ -443,20 +442,18 @@ function buildNumericConfig(
 		config.max !== undefined &&
 		config.max < config.min
 	) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: Ignoring invalid numeric range in VALUE token "${tokenDisplay}"; max must be greater than or equal to min.`,
-			);
+		warn(
+			`QuickAdd: Ignoring invalid numeric range in VALUE token "${tokenDisplay}"; max must be greater than or equal to min.`,
+		);
 		delete config.min;
 		delete config.max;
 	}
 
 	if (options.stepRaw !== undefined) {
 		if (step === undefined || step <= 0) {
-			if (!quiet)
-				log.logWarning(
-					`QuickAdd: Ignoring invalid step in VALUE token "${tokenDisplay}"; step must be greater than 0.`,
-				);
+			warn(
+				`QuickAdd: Ignoring invalid step in VALUE token "${tokenDisplay}"; step must be greater than 0.`,
+			);
 		} else {
 			config.step = step;
 		}
@@ -469,15 +466,15 @@ function resolveNumericInput(
 	options: ParsedOptions,
 	tokenDisplay: string,
 	inputTypeOverride: ValueInputType | undefined,
-	quiet: boolean,
+	warn: WarnSink,
 ): {
 	inputTypeOverride?: ValueInputType;
 	numericConfig?: NumericInputConfig;
 	sliderConfig?: SliderConfig;
 } {
 	if (inputTypeOverride !== "number" && inputTypeOverride !== "slider") {
-		if (hasNumericConfig(options) && !quiet) {
-			log.logWarning(
+		if (hasNumericConfig(options)) {
+			warn(
 				`QuickAdd: Ignoring numeric range options in "${tokenDisplay}" because type is not number or slider.`,
 			);
 		}
@@ -485,7 +482,7 @@ function resolveNumericInput(
 	}
 
 	if (inputTypeOverride !== "slider") {
-		const numericConfig = buildNumericConfig(options, tokenDisplay, quiet);
+		const numericConfig = buildNumericConfig(options, tokenDisplay, warn);
 		return { inputTypeOverride, numericConfig };
 	}
 
@@ -504,12 +501,12 @@ function resolveNumericInput(
 					: undefined;
 
 	if (invalidReason) {
-		if (!quiet) {
-			log.logWarning(
-				`QuickAdd: Invalid slider configuration in "${tokenDisplay}" (${invalidReason}); falling back to type:number.`,
-			);
-		}
-		const numericConfig = buildNumericConfig(options, tokenDisplay, true);
+		warn(
+			`QuickAdd: Invalid slider configuration in "${tokenDisplay}" (${invalidReason}); falling back to type:number.`,
+		);
+		// Silent: the fallback re-parses the same min/max/step and would repeat
+		// the complaint the slider message just made.
+		const numericConfig = buildNumericConfig(options, tokenDisplay, SILENT_WARN);
 		return { inputTypeOverride: "number", numericConfig };
 	}
 
@@ -681,10 +678,10 @@ export function unwrapQuotedValue(value: string): string {
 
 export function parseValueToken(
 	raw: string,
-	opts?: { quiet?: boolean },
+	opts?: { warn?: WarnSink },
 ): ParsedValueToken | null {
 	if (!raw) return null;
-	const quiet = opts?.quiet ?? false;
+	const warn = opts?.warn ?? NOTICE_WARN;
 
 	const parts = splitPipeParts(raw);
 	const variablePart = (parts.shift() ?? "").trim();
@@ -700,7 +697,8 @@ export function parseValueToken(
 		optional: bareOptional,
 		trim: bareTrim,
 	} = extractBareValueFlags(parts);
-	const options = parseOptions(optionParts, hasOptions, true, quiet);
+	const tokenDisplay = `{{VALUE:${raw}}}`;
+	const options = parseOptions(optionParts, hasOptions, true, tokenDisplay, warn);
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
 	let multiSelect = options.multiSelect ?? false;
 	const multiEmit: MultiEmit = options.multiEmit ?? "text";
@@ -720,7 +718,6 @@ export function parseValueToken(
 		defaultValue = unwrapQuotedValue(defaultValue);
 	}
 
-	const tokenDisplay = `{{VALUE:${raw}}}`;
 	const inputTypeOverride = resolveInputType(
 		options.inputTypeOverride,
 		{
@@ -728,13 +725,13 @@ export function parseValueToken(
 			hasOptions,
 			allowCustomInput,
 		},
-		quiet,
+		warn,
 	);
 	const numericInput = resolveNumericInput(
 		options,
 		tokenDisplay,
 		inputTypeOverride,
-		quiet,
+		warn,
 	);
 	let displayValues: string[] | undefined;
 
@@ -766,23 +763,21 @@ export function parseValueToken(
 	if (aliasName && aliasName.includes(VALUE_LABEL_KEY_DELIMITER)) {
 		// The delimiter is reserved for label-scoped keys; an alias containing it
 		// would corrupt resolveExistingVariableKey's base-name stripping.
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: |name in "${tokenDisplay}" contains a reserved control character and was ignored.`,
-			);
+		warn(
+			`QuickAdd: |name in "${tokenDisplay}" contains a reserved control character and was ignored.`,
+		);
 		aliasName = undefined;
 	}
 	if (aliasName && RESERVED_VALUE_NAMES.has(aliasName.toLowerCase())) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: |name:${aliasName} is reserved and was ignored in "${tokenDisplay}". Choose a different name.`,
-			);
+		warn(
+			`QuickAdd: |name:${aliasName} is reserved and was ignored in "${tokenDisplay}". Choose a different name.`,
+		);
 		aliasName = undefined;
 	}
-	if (aliasName && !hasOptions && !quiet) {
+	if (aliasName && !hasOptions) {
 		// A named single value is just a renamed prompt; the option list is what
 		// makes |name useful. Honor it but steer authors to the simpler form.
-		log.logWarning(
+		warn(
 			`QuickAdd: |name on a single value in "${tokenDisplay}" is redundant — use {{VALUE:${aliasName}}} directly.`,
 		);
 	}
@@ -792,27 +787,24 @@ export function parseValueToken(
 	// here — mirroring the |type: unsupported-value warning — so the author sees
 	// their mistake instead of debugging an untransformed value.
 	if (caseStyle && !isSupportedCaseStyle(caseStyle)) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
-			);
+		warn(
+			`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+		);
 		caseStyle = undefined;
 	}
 
 	// |multi needs an option list and is incompatible with |case (a list is not
 	// case-transformed, and routing an array through transformCase would throw).
 	if (multiSelect && !hasOptions) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: |multi needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
-			);
+		warn(
+			`QuickAdd: |multi needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
+		);
 		multiSelect = false;
 	}
 	if (multiSelect && caseStyle) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
-			);
+		warn(
+			`QuickAdd: |case is ignored with |multi in "${tokenDisplay}" — a list is not case-transformed.`,
+		);
 		caseStyle = undefined;
 	}
 
@@ -826,10 +818,9 @@ export function parseValueToken(
 		!options.usesOptions &&
 		optionParts.some((part) => part.trim().toLowerCase() === "custom")
 	) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: |custom needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
-			);
+		warn(
+			`QuickAdd: |custom needs an option list (2+ comma-separated values) in "${tokenDisplay}"; ignoring.`,
+		);
 		if (defaultValue.toLowerCase() === "custom") defaultValue = "";
 	}
 
@@ -861,7 +852,7 @@ export function parseValueToken(
 
 export function parseAnonymousValueOptions(
 	rawOptions: string,
-	opts?: { quiet?: boolean },
+	opts?: { warn?: WarnSink },
 ): {
 	label?: string;
 	caseStyle?: string;
@@ -872,7 +863,7 @@ export function parseAnonymousValueOptions(
 	optional: boolean;
 	trim: boolean;
 } {
-	const quiet = opts?.quiet ?? false;
+	const warn = opts?.warn ?? NOTICE_WARN;
 	const normalized = stripLeadingPipe(rawOptions);
 	const allParts = splitPipeParts(normalized)
 		.map((part) => part.trim())
@@ -888,8 +879,8 @@ export function parseAnonymousValueOptions(
 		return { defaultValue: "", optional: bareOptional, trim: bareTrim };
 	}
 
-	const options = parseOptions(parts, false, false);
 	const tokenDisplay = `{{VALUE${rawOptions}}}`;
+	const options = parseOptions(parts, false, false, tokenDisplay, warn);
 	if (options.displayValuesRaw !== undefined) {
 		throw new Error(
 			`QuickAdd: VALUE option "text" is only supported for option-list tokens in "${tokenDisplay}".`,
@@ -901,27 +892,30 @@ export function parseAnonymousValueOptions(
 	}
 
 	// Warn on an unrecognized |case style (typo) so the anonymous form gets the
-	// same feedback as the named/single form (parseValueToken). Gated on quiet
-	// so the prompt-context pre-pass (which also calls this) does not double the
-	// notice — mirroring parseValueToken's quiet handling.
+	// same feedback as the named/single form (parseValueToken). Routed through
+	// the caller's sink so the prompt-context pre-pass (which also calls this)
+	// does not double the notice.
 	if (caseStyle && !isSupportedCaseStyle(caseStyle)) {
-		if (!quiet)
-			log.logWarning(
-				`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
-			);
+		warn(
+			`QuickAdd: Unsupported |case style "${caseStyle}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+		);
 		caseStyle = undefined;
 	}
 
-	const inputTypeOverride = resolveInputType(options.inputTypeOverride, {
-		tokenDisplay,
-		hasOptions: false,
-		allowCustomInput: options.allowCustomInput,
-	});
+	const inputTypeOverride = resolveInputType(
+		options.inputTypeOverride,
+		{
+			tokenDisplay,
+			hasOptions: false,
+			allowCustomInput: options.allowCustomInput,
+		},
+		warn,
+	);
 	const numericInput = resolveNumericInput(
 		options,
 		tokenDisplay,
 		inputTypeOverride,
-		false,
+		warn,
 	);
 
 	return {
