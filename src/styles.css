@@ -216,6 +216,21 @@
 	color: var(--text-muted);
 	overflow-wrap: anywhere;
 }
+/* Text that only assistive tech reads. The standard clip-rect technique: unlike
+   `display:none` / `visibility:hidden` it stays in the accessibility tree. */
+.qa-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
 /* Problems the preview pass ran into, shown here instead of as a Notice per
    keystroke (#1558). Colour carries severity — no glyph — matching
    .qa-folder-mode-warning. Clamped with the full text in `title`, because the

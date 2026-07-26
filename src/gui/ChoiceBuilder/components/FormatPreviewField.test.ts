@@ -66,9 +66,17 @@ async function settleAndIdle() {
 	await settle();
 }
 
+/** The visible text of each problem line (drops the screen-reader severity). */
 const issues = (container: HTMLElement) =>
 	Array.from(container.querySelectorAll(".qa-preview-issue")).map((el) =>
-		el.textContent?.trim(),
+		Array.from(el.childNodes)
+			.filter(
+				(n) =>
+					!(n instanceof HTMLElement && n.classList.contains("qa-visually-hidden")),
+			)
+			.map((n) => n.textContent ?? "")
+			.join("")
+			.trim(),
 	);
 
 describe("FormatPreviewField", () => {
@@ -105,6 +113,27 @@ describe("FormatPreviewField", () => {
 		expect(issues(container as HTMLElement)).toEqual([
 			'Unsupported |case style "pasc" in token "{{VALUE:title|case:pasc}}". Supported styles: kebab, snake, camel, pascal, title, lower, upper, slug.',
 		]);
+	});
+
+	it("names the severity in text, not colour alone", async () => {
+		const { container } = render(FormatPreviewField, {
+			props: { value: "{{VALUE:title|case:pasc}}", app, plugin },
+		});
+		await settleAndIdle();
+		expect(
+			container.querySelector(".qa-preview-issue .qa-visually-hidden")
+				?.textContent,
+		).toBe("Warning: ");
+
+		const errored = render(FormatPreviewField, {
+			props: { value: "{{VALUE:a,b|text:x}}", app, plugin },
+		});
+		await settleAndIdle();
+		expect(
+			errored.container.querySelector(
+				".qa-preview-issue .qa-visually-hidden",
+			)?.textContent,
+		).toBe("Error: ");
 	});
 
 	it("holds the problem back until the field has been still", async () => {

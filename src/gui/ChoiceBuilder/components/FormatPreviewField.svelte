@@ -142,7 +142,14 @@ $effect(() => {
 					class:qa-preview-issue--error={diagnostic.severity === "error"}
 					title={diagnostic.message}
 				>
-					{diagnostic.message}
+					<!-- Severity in TEXT, not colour alone (WCAG 1.4.1). Visually hidden
+					     rather than a printed "Warning:"/"Error:" prefix: the messages
+					     already clamp at three lines, and what a sighted user needs -
+					     "did this resolve at all" - is carried by the Preview/Unresolved
+					     label above. -->
+					<span class="qa-visually-hidden"
+						>{diagnostic.severity === "error" ? "Error: " : "Warning: "}</span
+					>{diagnostic.message}
 				</div>
 			{/each}
 		</div>
