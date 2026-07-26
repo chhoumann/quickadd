@@ -602,36 +602,27 @@ describe("ChoiceSuggester", () => {
 			expect(passedChoices.some((c) => c.id === BACK_CHOICE_ID)).toBe(true);
 		});
 
-		// The command/URI path (choiceExecutor.onChooseMultiType) already refuses to
-		// open an empty folder; the picker used to open a level whose only row was
-		// "← Back". Both entry points to the same folder now say the same thing —
-		// and because SuggestModal closes before onChooseItem runs, the picker has
-		// to be re-opened on the SAME level or the mis-click ejects the user.
-		it("stays on the current level and says why for an empty folder", () => {
+		// Backstop only: the picker itself never reaches this, because
+		// selectSuggestion refuses an empty folder before the modal closes (#1554).
+		// Programmatic callers still get the notice rather than a level whose only
+		// row is "← Back".
+		it("refuses to open an empty folder and says why", () => {
 			const openSpy = vi
 				.spyOn(ChoiceSuggester, "Open")
 				.mockImplementation(() => {});
 			const empty = multi("Reading", []);
-			const level = [topNote, empty];
 			(Notice as unknown as { instances: unknown[] }).instances = [];
 
-			makeSuggester(level).onChooseItem(empty, new MouseEvent("click"));
+			makeSuggester([topNote, empty]).onChooseItem(
+				empty,
+				new MouseEvent("click"),
+			);
 
 			expect(
 				(Notice as unknown as { instances: Array<{ message: string }> })
 					.instances.map((n) => n.message),
 			).toEqual(['Folder "Reading" is empty.']);
-
-			const [, passedChoices, options] = openSpy.mock.calls[0] as unknown as [
-				QuickAdd,
-				IChoice[],
-				{ placeholder?: string; placeholderStack?: Array<string | undefined> },
-			];
-			// Same level, same navigation state — no extra Back item is pushed.
-			expect(passedChoices).toEqual(level);
-			expect(passedChoices.some((c) => c.id === BACK_CHOICE_ID)).toBe(false);
-			expect(options.placeholder).toBe("Select a choice");
-			expect(options.placeholderStack).toEqual([]);
+			expect(openSpy).not.toHaveBeenCalled();
 		});
 
 		// ...but Back must still work even when the level it returns to is empty,
@@ -649,6 +640,126 @@ describe("ChoiceSuggester", () => {
 				IChoice[],
 			];
 			expect(passedChoices).toEqual([]);
+		});
+	});
+
+	// An empty folder is a dead end, and the row now says so before the click
+	// (#1554). Activation is refused in selectSuggestion — the only seam above
+	// SuggestModal's close() — so the picker keeps its query and selection.
+	describe("selectSuggestion (empty folders)", () => {
+		function activate(
+			suggester: ChoiceSuggester,
+			item: IChoice,
+			evt: MouseEvent | KeyboardEvent = new MouseEvent("click"),
+		) {
+			suggester.selectSuggestion({ item, match: { score: 0, matches: [] } }, evt);
+		}
+
+		function noticeMessages(): string[] {
+			return (
+				Notice as unknown as { instances: Array<{ message: string }> }
+			).instances.map((n) => n.message);
+		}
+
+		beforeEach(() => {
+			(Notice as unknown as { instances: unknown[] }).instances = [];
+		});
+
+		it("refuses the activation, keeps the picker open, and restores input focus", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const empty = multi("Reading", []);
+			const suggester = makeSuggester([topNote, empty]);
+			// Real Obsidian's close() and onChooseSuggestion() are one indivisible
+			// expression, so "onChooseItem did not run" is what actually pins that
+			// super.selectSuggestion was skipped.
+			const onChooseItem = vi.spyOn(suggester, "onChooseItem");
+			const close = vi.spyOn(suggester, "close");
+			const focus = vi.spyOn(suggester.inputEl, "focus");
+
+			activate(suggester, empty);
+
+			expect(noticeMessages()).toEqual(['Folder "Reading" is empty.']);
+			expect(onChooseItem).not.toHaveBeenCalled();
+			expect(close).not.toHaveBeenCalled();
+			expect(openSpy).not.toHaveBeenCalled();
+			// A trusted mousedown on the row moves focus to <body>; nothing closes the
+			// modal any more, so the input has to be handed focus back.
+			expect(focus).toHaveBeenCalledTimes(1);
+		});
+
+		it("ignores key auto-repeat so a held Enter cannot stack notices", () => {
+			const empty = multi("Reading", []);
+			const suggester = makeSuggester([empty]);
+
+			activate(suggester, empty, new KeyboardEvent("keydown"));
+			for (let i = 0; i < 5; i++) {
+				activate(suggester, empty, new KeyboardEvent("keydown", { repeat: true }));
+			}
+
+			expect(noticeMessages()).toEqual(['Folder "Reading" is empty.']);
+		});
+
+		it("treats a folder with no choices array (corrupt data.json) as empty", () => {
+			const broken = {
+				...multi("Broken", []),
+				choices: undefined,
+			} as unknown as IChoice;
+			const suggester = makeSuggester([broken]);
+			const onChooseItem = vi.spyOn(suggester, "onChooseItem");
+
+			expect(() => activate(suggester, broken)).not.toThrow();
+			expect(noticeMessages()).toEqual(['Folder "Broken" is empty.']);
+			expect(onChooseItem).not.toHaveBeenCalled();
+		});
+
+		it("lets a folder with choices through to the drill-down", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const suggester = makeSuggester(rootChoices);
+
+			activate(suggester, work);
+
+			expect(noticeMessages()).toEqual([]);
+			const [, passedChoices] = openSpy.mock.calls[0] as unknown as [
+				QuickAdd,
+				IChoice[],
+			];
+			expect(passedChoices.map((c) => c.id)).toEqual([
+				...work.choices.map((c) => c.id),
+				BACK_CHOICE_ID,
+			]);
+		});
+
+		it("lets the back row through even when the level it returns to is empty", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const back = makeBack([]);
+			const suggester = makeSuggester([back]);
+
+			activate(suggester, back);
+
+			expect(noticeMessages()).toEqual([]);
+			const [, passedChoices] = openSpy.mock.calls[0] as unknown as [
+				QuickAdd,
+				IChoice[],
+			];
+			expect(passedChoices).toEqual([]);
+		});
+
+		it("keeps empty folders in the results — they are marked, never hidden", () => {
+			const empty = multi("Reading", []);
+			const suggester = makeSuggester([topNote, empty]);
+
+			expect(
+				suggester.getSuggestions("").map((s) => s.item.id),
+			).toContain(empty.id);
+			expect(
+				suggester.getSuggestions("read").map((s) => s.item.id),
+			).toContain(empty.id);
 		});
 	});
 
@@ -751,6 +862,97 @@ describe("ChoiceSuggester", () => {
 			expect(
 				impostorEl.classList.contains("quickadd-choice-suggestion-back")
 			).toBe(false);
+		});
+
+		// #1554: the dead end has to be visible before the click, not only after it.
+		describe("empty folders", () => {
+			function flairOf(el: HTMLElement): HTMLElement | null {
+				return el.querySelector(
+					".quickadd-choice-suggestion-content > .quickadd-choice-suggestion-empty-flair",
+				);
+			}
+
+			it("marks an empty folder with a dimming class, aria-disabled and a flair", async () => {
+				const empty = multi("Reading", []);
+				const suggester = makeSuggester([topNote, empty]);
+
+				const el = await render(suggester, empty);
+
+				expect(
+					el.classList.contains("quickadd-choice-suggestion-empty"),
+				).toBe(true);
+				expect(el.getAttribute("aria-disabled")).toBe("true");
+				expect(flairOf(el)?.textContent).toBe("Empty");
+			});
+
+			it("marks nested-search results too, keeping the flair last in the row", async () => {
+				const nestedEmpty = multi("Reading", []);
+				const parent = multi("Library", [nestedEmpty]);
+				const suggester = makeSuggester([parent]);
+				suggester.getSuggestions("read");
+
+				const el = await render(suggester, nestedEmpty);
+
+				// The breadcrumb branch renders a different subtree; the marker has to
+				// survive it, since renderSuggestion is the single render path.
+				expect(el.classList.contains("mod-complex")).toBe(true);
+				expect(el.querySelector(".suggestion-note")?.textContent).toBe(
+					"Library",
+				);
+				expect(
+					el.classList.contains("quickadd-choice-suggestion-empty"),
+				).toBe(true);
+				const row = el.querySelector(".quickadd-choice-suggestion-content");
+				expect(row?.lastElementChild).toBe(flairOf(el));
+			});
+
+			it("marks a folder whose choices array is missing (corrupt data.json)", async () => {
+				const broken = {
+					...multi("Broken", []),
+					choices: undefined,
+				} as unknown as IChoice;
+				const suggester = makeSuggester([broken]);
+
+				const el = await render(suggester, broken);
+
+				expect(flairOf(el)?.textContent).toBe("Empty");
+			});
+
+			it("leaves folders with choices, leaf choices and the back row unmarked", async () => {
+				const back = makeBack([]);
+				const suggester = makeSuggester([work, topNote, back]);
+
+				for (const item of [work, topNote, back]) {
+					const el = await render(suggester, item);
+					expect(
+						el.classList.contains("quickadd-choice-suggestion-empty"),
+					).toBe(false);
+					expect(el.hasAttribute("aria-disabled")).toBe(false);
+					expect(flairOf(el)).toBeNull();
+				}
+			});
+
+			it("clears the marker when a row element is reused for a normal choice", async () => {
+				const empty = multi("Reading", []);
+				const suggester = makeSuggester([empty, topNote]);
+				const el = document.createElement("div");
+
+				suggester.renderSuggestion(
+					{ item: empty, match: { score: 0, matches: [] } },
+					el,
+				);
+				suggester.renderSuggestion(
+					{ item: topNote, match: { score: 0, matches: [] } },
+					el,
+				);
+				await Promise.resolve();
+
+				expect(
+					el.classList.contains("quickadd-choice-suggestion-empty"),
+				).toBe(false);
+				expect(el.hasAttribute("aria-disabled")).toBe(false);
+				expect(flairOf(el)).toBeNull();
+			});
 		});
 
 		it("does not render an icon for the sentinel back item", async () => {
