@@ -1,4 +1,8 @@
 import { Formatter, type PromptContext } from "./formatter";
+import {
+	describePreviewFailure,
+	PreviewDiagnostics,
+} from "./previewDiagnostics";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
@@ -38,8 +42,32 @@ export class FormatDisplayFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 	}
 
+
+	/**
+	 * Problems this pass ran into, for passive display beside the preview.
+	 *
+	 * A preview is a speculative evaluation of INCOMPLETE input, re-run on every
+	 * keystroke, so it must not have the run's side effects: while you type
+	 * `pascal` into `{{VALUE:title|case:}}` every prefix is a complete, invalid
+	 * token, and the inherited `log.logWarning` stacked one Obsidian Notice per
+	 * character (issue #1558). The real run still warns; this collects.
+	 *
+	 * Replaced at the start of every `format()` so a pass never inherits the
+	 * previous one's complaints.
+	 */
+	public diagnostics = new PreviewDiagnostics();
+
+	protected warn(message: string): void {
+		this.diagnostics.add("warning", message);
+	}
+
+	protected reportProblem(message: string): void {
+		this.diagnostics.add("error", message);
+	}
+
 	public async format(input: string): Promise<string> {
 		let output: string = input;
+		this.diagnostics = new PreviewDiagnostics();
 
 		try {
 			// Expand global variables first so previews include their content
@@ -72,9 +100,13 @@ export class FormatDisplayFormatter extends Formatter {
 			output = await this.replaceFieldVarInString(output);
 			output = await this.replaceFileInString(output);
 			output = this.replaceRandomInString(output);
-		} catch {
-			// Return the input as-is if formatting fails during preview
-			// This prevents crashes when typing incomplete syntax
+		} catch (error) {
+			// Return the input as-is if formatting fails during preview: this
+			// prevents crashes when typing incomplete syntax. The failure itself is
+			// the most useful thing the preview can say, so it goes on the
+			// diagnostics channel rather than being swallowed (issue #1558).
+			const described = describePreviewFailure(error);
+			if (described) this.diagnostics.add("error", described);
 			return input;
 		}
 
