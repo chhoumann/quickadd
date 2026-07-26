@@ -15,6 +15,7 @@ vi.mock("../choiceRename", () => ({
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import ChoiceView from "./ChoiceView.svelte";
+import { promptRenameChoice } from "../choiceRename";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
@@ -311,5 +312,33 @@ describe("ChoiceView", () => {
 			"Child",
 			"New folder",
 		]);
+	});
+
+	// Issue #1541: the first-run empty state is the one place a brand-new user is
+	// guaranteed to look, so it carries the plugin's most prominent docs link.
+	it("links the documentation from the empty state", () => {
+		const { container } = renderChoiceView([], vi.fn());
+
+		const link = container.querySelector("a");
+		expect(link?.getAttribute("href")).toBe(
+			"https://quickadd.obsidian.guide/docs/",
+		);
+		expect(link?.getAttribute("target")).toBe("_blank");
+		expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+	});
+
+	// Issue #1539: the rename prompt that follows "New folder" must be told it is
+	// naming a folder, so its header reads "Folder name" and not "Choice name".
+	it("passes the choice type to the rename prompt so folders say 'folder'", async () => {
+		const { getByLabelText } = renderChoiceView([], vi.fn());
+
+		await fireEvent.click(getByLabelText("New folder"));
+
+		await vi.waitFor(() => expect(promptRenameChoice).toHaveBeenCalled());
+		expect(promptRenameChoice).toHaveBeenCalledWith(
+			expect.anything(),
+			"New folder",
+			"Multi",
+		);
 	});
 });

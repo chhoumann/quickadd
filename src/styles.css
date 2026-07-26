@@ -644,9 +644,18 @@
 	max-width: 100%;
 }
 
-.quickadd-notice-link {
-	color: var(--interactive-accent);
+/* docs.ts - documentation links (#1541). Obsidian deliberately mutes links inside
+   `.setting-item-description` (`--link-color: var(--text-muted)`), so a bare anchor
+   there reads as prose, which is a large part of why QuickAdd's docs stayed
+   invisible. This is an intentional deviation: pin the accent colour so every docs
+   link looks the same wherever it lands. */
+.quickadd-docs-link {
+	color: var(--text-accent);
 	text-decoration: underline;
+}
+
+.quickadd-docs-link:hover {
+	color: var(--text-accent-hover, var(--text-accent));
 }
 
 /* Shared accessible icon button (IconButton.svelte / DragHandle.svelte, #1250).

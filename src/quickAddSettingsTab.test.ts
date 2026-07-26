@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { App, Component } from "obsidian";
+import { App, Component, ExtraButtonComponent, Setting } from "obsidian";
 import { renderChoiceName } from "./gui/choiceList/renderChoiceName";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { formatDateAliasLines } from "./utils/dateAliases";
@@ -10,6 +10,7 @@ import { settingsStore } from "./settingsStore";
 import { DEFAULT_SETTINGS, type QuickAddSettings } from "./settings";
 import { deepClone } from "./utils/deepClone";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
+import { DOCS_URLS } from "./docs";
 import type QuickAdd from "./main";
 
 // Importing the settings tab transitively pulls in ChoiceView -> the Dataview
@@ -289,5 +290,147 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			"Search nested choices",
 			"“New note from template” in the launcher",
 		]);
+	});
+
+	// Issue #1541: the whole plugin used to contain exactly one docs URL, buried
+	// in a macro-builder notice.
+	it("puts a documentation control on the first group's heading", () => {
+		const tab = makeTab();
+		const choicesGroup = (
+			tab.getSettingDefinitions() as unknown as Array<{
+				heading?: string;
+				extraButtons?: Array<(component: ExtraButtonComponent) => unknown>;
+			}>
+		).find((group) => group.heading === "Choices & Packages");
+
+		expect(choicesGroup?.extraButtons).toHaveLength(1);
+
+		const button = new ExtraButtonComponent(document.createElement("div"));
+		const open = vi.spyOn(window, "open").mockImplementation(() => null);
+		choicesGroup?.extraButtons?.[0](button);
+		button.extraSettingsEl.dispatchEvent(new MouseEvent("click"));
+
+		expect(open).toHaveBeenCalledWith(
+			"https://quickadd.obsidian.guide/docs/",
+			"_blank",
+			"noopener,noreferrer",
+		);
+		open.mockRestore();
+	});
+
+	// docs.ts promises gettingStarted stays byte-identical to manifest.json's
+	// helpUrl. Obsidian 1.13 does not surface helpUrl anywhere, so nothing else
+	// would catch the two drifting apart.
+	it("keeps the getting-started URL in sync with manifest.json helpUrl", () => {
+		const manifest = JSON.parse(
+			readFileSync(join(__dirname, "../manifest.json"), "utf8"),
+		) as { helpUrl?: string };
+
+		expect(manifest.helpUrl).toBe(DOCS_URLS.gettingStarted);
+	});
+
+	it("links the one-page inputs docs instead of naming them in prose", () => {
+		const tab = makeTab();
+		const groups = tab.getSettingDefinitions() as unknown as Array<{
+			items?: Array<{ name?: string; desc?: string | DocumentFragment }>;
+		}>;
+		const item = groups
+			.flatMap((g) => g.items ?? [])
+			.find((i) => i.name === "One-page input for choices");
+		const desc = item?.desc as DocumentFragment;
+
+		const host = document.createElement("div");
+		host.append(desc.cloneNode(true));
+		const link = host.querySelector("a");
+		expect(link?.getAttribute("href")).toBe(
+			"https://quickadd.obsidian.guide/docs/Advanced/onePageInputs/",
+		);
+		expect(link?.textContent).toBe("Learn more about one-page inputs");
+		// The old prose pointed at docs the user could not reach.
+		expect(host.textContent).not.toContain("See One-page Inputs in the docs");
+	});
+});
+
+// Issue #1547: "Export package…" was the first concrete action a brand-new user
+// saw below the "No choices yet" empty state, with nothing to export.
+describe("Packages row export availability", () => {
+	function renderPackagesRow(): {
+		setting: Setting;
+		exportButton: HTMLButtonElement;
+		cleanup: () => void;
+	} {
+		const app = new App();
+		const plugin = { app } as unknown as QuickAdd;
+		const tab = new QuickAddSettingsTab(app, plugin);
+		const setting = new Setting(document.createElement("div"));
+		const cleanup = (
+			tab as unknown as { renderPackages: (s: Setting) => () => void }
+		).renderPackages(setting);
+		const buttons = setting.controlEl.querySelectorAll("button");
+		return {
+			setting,
+			exportButton: buttons[0] as HTMLButtonElement,
+			cleanup,
+		};
+	}
+
+	beforeEach(() => {
+		settingsStore.replaceState(deepClone(DEFAULT_SETTINGS));
+		settingsStore.setState({ choices: [] });
+	});
+
+	it("disables export and explains why when there is nothing to export", () => {
+		const { setting, exportButton, cleanup } = renderPackagesRow();
+
+		expect(exportButton.disabled).toBe(true);
+		expect(exportButton.getAttribute("aria-label")).toBe("Nothing to export yet");
+		// Touch has no hover, so the reason is also always visible.
+		expect(setting.descEl.textContent).toContain(
+			"Export becomes available once you have a choice.",
+		);
+		cleanup();
+	});
+
+	it("leaves import available so a starter package can be brought in", () => {
+		const { setting, cleanup } = renderPackagesRow();
+		const importButton = setting.controlEl.querySelectorAll("button")[1] as
+			HTMLButtonElement;
+
+		expect(importButton.disabled).toBe(false);
+		cleanup();
+	});
+
+	// The declarative tab renders once and never re-renders on store changes, so
+	// creating a first choice with the tab open must still flip the button.
+	it("enables export live when the first choice appears", () => {
+		const { setting, exportButton, cleanup } = renderPackagesRow();
+
+		settingsStore.setState({
+			choices: [
+				{ id: "c1", name: "Add task", type: "Capture", command: false },
+			] as unknown as QuickAddSettings["choices"],
+		});
+
+		expect(exportButton.disabled).toBe(false);
+		expect(exportButton.hasAttribute("aria-label")).toBe(false);
+		expect(setting.descEl.textContent).not.toContain(
+			"Export becomes available",
+		);
+		// No accumulated copies of the description from repeated applies.
+		expect(setting.descEl.querySelectorAll("a")).toHaveLength(1);
+		cleanup();
+	});
+
+	it("stops listening once the row is torn down", () => {
+		const { exportButton, cleanup } = renderPackagesRow();
+		cleanup();
+
+		settingsStore.setState({
+			choices: [
+				{ id: "c1", name: "Add task", type: "Capture", command: false },
+			] as unknown as QuickAddSettings["choices"],
+		});
+
+		expect(exportButton.disabled).toBe(true);
 	});
 });

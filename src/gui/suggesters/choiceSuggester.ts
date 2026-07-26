@@ -3,6 +3,7 @@ import {
 	Component,
 	FuzzySuggestModal,
 	MarkdownRenderer,
+	Notice,
 	prepareFuzzySearch,
 	setIcon,
 } from "obsidian";
@@ -26,6 +27,23 @@ import { resolveChoiceIcon } from "../../utils/choiceUtils";
 import { createOwnedElement } from "../../utils/activeWindow";
 
 const backLabel = "← Back";
+
+/**
+ * Search hint for the launcher's input. Every Obsidian picker labels its own;
+ * QuickAdd's rendered completely blank, which reads as an unfinished surface
+ * (issue #1540). Nested levels override this with the folder's name or its
+ * custom placeholder.
+ */
+const DEFAULT_PLACEHOLDER = "Select a choice";
+
+/**
+ * Shared wording for "you opened a folder that has nothing in it", so the
+ * picker's drill-down and the command/URI execute path (choiceExecutor) say the
+ * same thing.
+ */
+export function emptyFolderNoticeText(folderName: string): string {
+	return `Folder "${folderName}" is empty.`;
+}
 
 /**
  * Sentinel id for the synthetic "New note from template" launcher row (#1023).
@@ -100,6 +118,16 @@ type ChoiceSuggesterOptions = {
 	includeTemplateFolderRow?: boolean;
 };
 
+/**
+ * Whether the synthetic "New note from template" row would actually appear in
+ * the top-level launcher. Exported so the launcher entry point can tell whether
+ * the picker has anything at all to show before opening it (issue #1540).
+ */
+export function shouldShowTemplateFolderRow(plugin: QuickAdd): boolean {
+	const rowPosition = plugin.settings.templateFolderLauncherRow ?? "bottom";
+	return rowPosition !== "off" && hasConfiguredTemplateFolders(plugin);
+}
+
 function createTemplateFolderRow(): IChoice {
 	return {
 		id: RUN_TEMPLATE_FROM_FOLDER_ID,
@@ -154,8 +182,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				? options.triggerContext ?? null
 				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
-		this.currentPlaceholder = options?.placeholder?.trim() || undefined;
-		if (this.currentPlaceholder) this.setPlaceholder(this.currentPlaceholder);
+		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
+		// can restore it, so it must hold the effective placeholder (including the
+		// default), not just an explicitly-passed one.
+		this.currentPlaceholder = options?.placeholder?.trim() || DEFAULT_PLACEHOLDER;
+		this.setPlaceholder(this.currentPlaceholder);
 		this.markdownComponent.load();
 
 		// Insert the synthetic "New note from template" row only at the top level
@@ -168,7 +199,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		if (options?.includeTemplateFolderRow) {
 			const rowPosition =
 				this.plugin.settings.templateFolderLauncherRow ?? "bottom";
-			if (rowPosition !== "off" && hasConfiguredTemplateFolders(this.plugin)) {
+			if (shouldShowTemplateFolderRow(this.plugin)) {
 				const row = createTemplateFolderRow();
 				this.choices =
 					rowPosition === "top"
@@ -336,6 +367,28 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private onChooseMultiType(multi: IMultiChoice) {
 		const choices = [...multi.choices];
 		const isBack = multi.id === BACK_CHOICE_ID;
+
+		// Drilling into an empty folder would open a level whose only row is "← Back".
+		// The command/URI path already refuses this with a Notice (choiceExecutor
+		// .onChooseMultiType); say the same thing here so both entry points to the
+		// same folder behave the same.
+		//
+		// SuggestModal.selectSuggestion closes the modal BEFORE onChooseItem runs,
+		// so returning here would eject the user from the picker entirely. Re-open
+		// the level they were on (this.choices already carries its Back row, and the
+		// synthetic template row at the top level) so a mis-click on an empty folder
+		// costs a notice, not the whole navigation stack.
+		if (!isBack && choices.length === 0) {
+			new Notice(emptyFolderNoticeText(multi.name));
+			ChoiceSuggester.Open(this.plugin, this.choices, {
+				choiceExecutor: this.choiceExecutor,
+				focusedProperty: this.focusedProperty,
+				triggerContext: this.triggerContext,
+				placeholder: this.currentPlaceholder,
+				placeholderStack: this.placeholderStack,
+			});
+			return;
+		}
 
 		if (!isBack) {
 			const back = new MultiChoice(backLabel).addChoices(this.choices);

@@ -34,15 +34,26 @@ import {
 	parseDateAliasLines,
 } from "./utils/dateAliases";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
+import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
 
 /** String-named keys of {@link QuickAddSettings} — used to type the declarative
  * `control` keys so a mistyped key is caught at compile time. */
 type SettingsKey = Extract<keyof QuickAddSettings, string>;
 
+/**
+ * Shared by the Packages definition (which is what the settings search indexes)
+ * and by the rendered description (which the row rewrites as the export state
+ * changes), so the two can never drift.
+ */
+const PACKAGES_DESC =
+	"Bundle or import QuickAdd automations as reusable packages.";
+
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
 	private choiceViewHandle: MountHandle | null = null;
 	private globalVariablesViewHandle: MountHandle | null = null;
+	/** Live store subscription behind the Packages row's Export state. */
+	private packagesUnsubscribe: (() => void) | null = null;
 
 	constructor(app: App, plugin: QuickAdd) {
 		super(app, plugin);
@@ -130,6 +141,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.choiceViewHandle = null;
 		this.globalVariablesViewHandle?.destroy();
 		this.globalVariablesViewHandle = null;
+		// Safety net for the Packages subscription: the render cleanup already
+		// unsubscribes, but this row outlives no view of its own, so a missed
+		// cleanup would leak a listener for the plugin's lifetime.
+		this.packagesUnsubscribe?.();
+		this.packagesUnsubscribe = null;
 	}
 
 	// ----- group builders -----
@@ -138,6 +154,20 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		return {
 			type: "group",
 			heading: "Choices & Packages",
+			// QuickAdd's power surface is syntax you have to learn ({{VALUE}},
+			// {{DATE}}, capture targets, ...) and until now the manual was reachable
+			// from exactly one place in the whole plugin (issue #1541). A help icon
+			// on the first heading is Obsidian's own idiom for this, and it costs the
+			// page no vertical space, so the choices list stays the focus.
+			extraButtons: [
+				(button) =>
+					button
+						.setIcon("help-circle")
+						.setTooltip("QuickAdd documentation")
+						.onClick(() =>
+							openDocsUrl(DOCS_URLS.gettingStarted, button.extraSettingsEl),
+						),
+			],
 			items: [
 				{
 					name: "Choices",
@@ -145,7 +175,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				},
 				{
 					name: "Packages",
-					desc: "Bundle or import QuickAdd automations as reusable packages.",
+					desc: PACKAGES_DESC,
 					render: (setting) => this.renderPackages(setting),
 				},
 			],
@@ -202,7 +232,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				},
 				{
 					name: "One-page input for choices",
-					desc: "Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. See One-page Inputs in the docs.",
+					// The trailing sentence used to read "See One-page Inputs in the
+					// docs." as plain, unlinked prose (issue #1541).
+					desc: this.descWithDocsLink(
+						"Collect a choice's inputs in one form before it runs, instead of one prompt at a time. Works with Template and Capture choices, and with Macros whose scripts declare inputs. Template and Capture choices can override this individually. ",
+						DOCS_URLS.onePageInputs,
+						"Learn more about one-page inputs",
+					),
 					control: { type: "toggle", key: "onePageInputEnabled" },
 				},
 				{
@@ -337,6 +373,26 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	// ----- render helpers -----
 
+	/**
+	 * A description ending in a documentation link. Built fresh on every call: the
+	 * declarative renderer clones fragments before inserting them, but
+	 * getSettingDefinitions() runs per render anyway, so a fresh fragment is free
+	 * and cannot be accidentally re-parented.
+	 *
+	 * `linkText` names its destination wherever two links could be on screen at
+	 * once, matching Obsidian's own "Learn more about ..." phrasing.
+	 */
+	private descWithDocsLink(
+		text: string,
+		url: string,
+		linkText = "Learn more",
+	): DocumentFragment {
+		const fragment = document.createDocumentFragment();
+		fragment.append(document.createTextNode(text));
+		createDocsLink(fragment, url, linkText);
+		return fragment;
+	}
+
 	/** Strip the label/description column and let a row span the full width —
 	 * used to host the mounted Svelte views. The declarative API requires a
 	 * `name` on every definition (for search indexing); we set it on the def and
@@ -394,29 +450,81 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		};
 	}
 
-	private renderPackages(setting: Setting): void {
+	/** Packages description, with the reason Export is unavailable when it is. */
+	private packagesDesc(hasNothingToExport: boolean): DocumentFragment {
+		return this.descWithDocsLink(
+			hasNothingToExport
+				? `${PACKAGES_DESC} Export becomes available once you have a choice. `
+				: `${PACKAGES_DESC} `,
+			DOCS_URLS.packages,
+			"Learn more about packages",
+		);
+	}
+
+	private renderPackages(setting: Setting): () => void {
 		// Both package actions are secondary utilities — not the page's primary
 		// action ("New choice" is) — so neither is a CTA. Keeping only one filled
 		// primary button in the view avoids competing purple CTAs (per the
 		// one-primary-button-per-page rule).
-		setting.addButton((button) =>
-			button
-				.setButtonText("Export package…")
-				.onClick(() => {
-					const choicesSnapshot = settingsStore.getState().choices;
-					new ExportPackageModal(
-						this.app,
-						this.plugin,
-						choicesSnapshot,
-					).open();
-				}),
-		);
+		let exportButton: ButtonComponent | undefined;
+		setting.addButton((button) => {
+			exportButton = button;
+			button.setButtonText("Export package…").onClick(() => {
+				const choicesSnapshot = settingsStore.getState().choices;
+				new ExportPackageModal(
+					this.app,
+					this.plugin,
+					choicesSnapshot,
+				).open();
+			});
+		});
 
+		// Import stays available with zero choices on purpose: importing a package
+		// is one of the most useful things a brand-new user can do, so the block as
+		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
 				new ImportPackageModal(this.app).open();
 			}),
 		);
+
+		// "Export package…" used to be the first concrete action a new user saw
+		// below the "No choices yet" empty state, with nothing to export (issue
+		// #1547). The tooltip covers desktop hover; the description carries the
+		// same reason for touch, where there is no hover, and for screen readers.
+		const apply = (hasNothingToExport: boolean): void => {
+			setting.setDesc(this.packagesDesc(hasNothingToExport));
+			if (!exportButton) return;
+			exportButton.setDisabled(hasNothingToExport);
+			if (hasNothingToExport) {
+				exportButton.setTooltip("Nothing to export yet");
+			} else {
+				// setTooltip("") is unspecified; Obsidian's tooltip is driven by
+				// aria-label, so drop the attribute outright.
+				exportButton.buttonEl.removeAttribute("aria-label");
+			}
+		};
+
+		// The declarative tab renders once and does NOT re-render on store changes,
+		// so subscribe to keep the state honest while the tab stays open.
+		let hasNothingToExport = settingsStore.getState().choices.length === 0;
+		apply(hasNothingToExport);
+
+		this.packagesUnsubscribe?.();
+		const unsubscribe = settingsStore.subscribe((settings) => {
+			const next = settings.choices.length === 0;
+			if (next === hasNothingToExport) return;
+			hasNothingToExport = next;
+			apply(next);
+		});
+		this.packagesUnsubscribe = unsubscribe;
+
+		return () => {
+			unsubscribe();
+			if (this.packagesUnsubscribe === unsubscribe) {
+				this.packagesUnsubscribe = null;
+			}
+		};
 	}
 
 	private renderDateAliases(setting: Setting): void {

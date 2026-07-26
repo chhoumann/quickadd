@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
 import type { Debouncer } from "obsidian";
-import { Plugin, TFile, debounce, Notice } from "obsidian";
+import { Plugin, TFile, debounce } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -9,7 +9,7 @@ import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
 import { reportError, withErrorHandling } from "./utils/errorUtils";
-import { tryOpenPluginSettings } from "./utils/openPluginSettings";
+import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -20,7 +20,7 @@ import {
 	isPathWithinTemplateFolders,
 	normalizeTemplateFolderPaths,
 } from "./utilityObsidian";
-import ChoiceSuggester from "./gui/suggesters/choiceSuggester";
+import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
@@ -107,9 +107,7 @@ export default class QuickAdd extends Plugin {
 			id: "runQuickAdd",
 			name: QUICK_ADD_COMMAND_LABELS.run,
 			callback: () => {
-				ChoiceSuggester.Open(this, this.settings.choices, {
-					includeTemplateFolderRow: true,
-				});
+				openChoiceLauncher(this);
 			},
 		});
 
@@ -216,11 +214,7 @@ export default class QuickAdd extends Plugin {
 			id: "openQuickAddSettings",
 			name: QUICK_ADD_COMMAND_LABELS.openSettings,
 			callback: () => {
-				if (!tryOpenPluginSettings(this.app, this.manifest.id)) {
-					new Notice(
-						"QuickAdd: Unable to open settings automatically. Open Settings -> QuickAdd manually."
-					);
-				}
+				openQuickAddSettings(this.app, this.manifest.id);
 			},
 		});
 
@@ -314,9 +308,7 @@ export default class QuickAdd extends Plugin {
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
-				ChoiceSuggester.Open(this, this.settings.choices, {
-					includeTemplateFolderRow: true,
-				});
+				openChoiceLauncher(this);
 			});
 		}
 
