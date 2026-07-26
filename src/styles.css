@@ -216,8 +216,10 @@
 	color: var(--text-muted);
 	overflow-wrap: anywhere;
 }
-/* Text that only assistive tech reads. The standard clip-rect technique: unlike
-   `display:none` / `visibility:hidden` it stays in the accessibility tree. */
+/* Text that only assistive tech reads: unlike `display:none` /
+   `visibility:hidden` it stays in the accessibility tree. No deprecated
+   `clip: rect()` fallback - `clip-path` has been supported since Chrome 55, and
+   the plugin's minAppVersion (1.13.0) is far past that. */
 .qa-visually-hidden {
 	position: absolute;
 	width: 1px;
@@ -225,7 +227,6 @@
 	margin: -1px;
 	padding: 0;
 	overflow: hidden;
-	clip: rect(0 0 0 0);
 	clip-path: inset(50%);
 	white-space: nowrap;
 	border: 0;
