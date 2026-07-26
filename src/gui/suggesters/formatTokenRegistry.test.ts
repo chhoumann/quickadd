@@ -115,6 +115,9 @@ describe("format token autocomplete rows", () => {
 
 		const examples = await suggestInserts("{{val", VAULT);
 		expect(examples).toContain("{{VALUE:title|trim}}");
+		// Every |modifier the docs cover should be reachable as a complete,
+		// valid token, so nobody has to hand-type one inside a closed token.
+		expect(examples).toContain("{{VALUE:title|case:kebab}}");
 		expect(await suggestInserts("{{tem", VAULT)).toContain(
 			"{{TEMPLATE:Templates/Meeting.md}}",
 		);

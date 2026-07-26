@@ -164,6 +164,13 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 				"{{VALUE:option1,option2|name:category}}",
 				'Names the pick, so {{VALUE:category}} reuses it',
 			),
+			// A ready-made, valid |case: token. Without it the only way to reach
+			// |case: is to hand-type it inside an already-closed token, and the
+			// live preview warns on every keystroke of a half-typed style name.
+			token(
+				"{{VALUE:title|case:kebab}}",
+				"Reshapes the answer; type |case: for every style",
+			),
 			token("{{VALUE:title|trim}}", "Trims whitespace off the answer"),
 			token("{{VALUE:title|optional}}", "Lets the prompt be skipped, leaving it empty"),
 		],
