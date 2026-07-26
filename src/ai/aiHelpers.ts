@@ -217,7 +217,11 @@ export function resolveModelInputOrThrow(
 		];
 		const hint = candidates.length
 			? ` Did you mean ${candidates.join(" or ")}?`
-			: " Add it in Settings → QuickAdd → AI → Providers, or enable auto-sync for your provider.";
+			// There has never been an "AI" settings group. Providers live behind the
+			// sparkles "Configure AI Assistant" button under the choice list, and
+			// auto-sync is a per-provider flag in the same modal — so the old path
+			// sent people somewhere that does not exist.
+			: " Add it under Edit providers in QuickAdd's AI Assistant settings (the sparkles button below the choice list), or enable auto-sync for that provider.";
 		throw new Error(
 			`Model '${typeof input === "string" ? input : `${input.provider ?? ""}/${name}`}' not found in configured providers.${hint}`,
 		);
@@ -255,7 +259,7 @@ export function getLargestModelMaxTokens(): number {
 }
 
 /**
- * Upper bound for the "Max Chunk Tokens" slider: the model's estimated input
+ * Upper bound for the "Max chunk tokens" slider: the model's estimated input
  * budget minus the system-prompt overhead, floored at 1.
  *
  * The selected model can be unknown at config time — the "Ask me" sentinel

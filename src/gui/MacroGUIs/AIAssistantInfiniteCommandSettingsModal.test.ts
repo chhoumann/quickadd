@@ -47,7 +47,7 @@ function makeSettings(model: string): IInfiniteAIAssistantCommand {
 describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
 	beforeAll(() => {
 		// The shared obsidian stub's Setting lacks addSlider; shim it locally so
-		// the modal can render the Max Chunk Tokens slider (documented harness gap).
+		// the modal can render the Max chunk tokens slider (documented harness gap).
 		const settingProto = Setting.prototype as unknown as {
 			addSlider?: (cb: (slider: unknown) => void) => unknown;
 		};
