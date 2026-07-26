@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 
-const { formatFileNameMock, openFileMock } = vi.hoisted(() => ({
+const { formatFileNameMock, openFileMock, setPromptRunContextMock } =
+	vi.hoisted(() => ({
 	formatFileNameMock: vi.fn(async (path: string) => path),
+	setPromptRunContextMock: vi.fn(),
 	openFileMock: vi.fn(
 		async (_app: unknown, _file: unknown, _options?: unknown) => {}
 	),
-}));
+	}));
 
 vi.mock("../quickAddApi", () => ({
 	QuickAddApi: {
@@ -39,6 +41,9 @@ vi.mock("../settingsStore", () => ({
 vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {
 		formatFileName = formatFileNameMock;
+		// The engine hands its ad-hoc formatter the choice name and a per-command
+		// draft scope before formatting the path (issue #1546).
+		setPromptRunContext = setPromptRunContextMock;
 	},
 }));
 vi.mock("../utilityObsidian", () => ({

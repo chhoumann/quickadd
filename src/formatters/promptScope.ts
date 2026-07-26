@@ -229,10 +229,19 @@ export function elideMiddlePath(path: string, maxLength = 44): string {
 	if (path.length <= maxLength) return path;
 
 	const segments = path.split("/");
-	if (segments.length <= 2) return path;
+	// Nothing to elide: a single over-long segment IS the file name, and mangling
+	// it would make it read as a different file.
+	if (segments.length === 1) return path;
+
+	const last = segments[segments.length - 1];
+	// One folder: dropping it is the only elision available, and the file name is
+	// the half worth keeping.
+	if (segments.length === 2) {
+		const elided = `${ELIDE_MARKER}/${last}`;
+		return elided.length < path.length ? elided : path;
+	}
 
 	const first = segments[0];
-	const last = segments[segments.length - 1];
 	const elided = `${first}/${ELIDE_MARKER}/${last}`;
 	// Dropping every middle folder is the shortest form this can take; if even
 	// that overflows, the CSS ellipsis handles the rest rather than mangling the

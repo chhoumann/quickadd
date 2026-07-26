@@ -117,6 +117,11 @@ describe("elideMiddlePath", () => {
 		expect(elideMiddlePath(long)).toBe("Work/…/Weekly standup notes.md");
 	});
 
+	it("keeps the file name when there is only one folder to drop", () => {
+		const long = `Some Very Long Folder Name Indeed/${"n".repeat(20)}.md`;
+		expect(elideMiddlePath(long)).toBe(`…/${"n".repeat(20)}.md`);
+	});
+
 	it("does not mangle a long single segment", () => {
 		const long = `${"a".repeat(60)}.md`;
 		expect(elideMiddlePath(long)).toBe(long);
