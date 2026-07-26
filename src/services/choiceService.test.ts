@@ -443,7 +443,9 @@ describe("choiceService", () => {
 			const title = mocks.yesNoPrompt.mock.calls[0][1] as string;
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
 			expect(title).toBe("Confirm deletion of folder");
-			expect(message).toContain("Deleting this folder");
+			expect(message).toContain(
+				"Deleting this folder will also delete all (1) choice inside it",
+			);
 			expect(message).not.toContain("Deleting this choice");
 		});
 
