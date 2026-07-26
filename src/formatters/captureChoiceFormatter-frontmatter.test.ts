@@ -849,9 +849,15 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     );
   });
 
-  it('absorbs an existing CRLF blank line after the fence instead of doubling it', async () => {
+  it('keeps the blank line separating frontmatter from the body (issue #1538)', async () => {
+    expect(await topInsert('---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n')).toBe(
+      '---\ndate: 2026-07-25\n---\n\nINSERTED\n## Log\n\n## Tasks\n',
+    );
+  });
+
+  it('keeps an existing CRLF separator line after the fence (issue #1538)', async () => {
     expect(await topInsert('---\r\ntitle: A\r\n---\r\n\r\nBody')).toBe(
-      '---\r\ntitle: A\r\n---\r\nINSERTED\r\nBody',
+      '---\r\ntitle: A\r\n---\r\n\r\nINSERTED\nBody',
     );
   });
 
@@ -862,10 +868,11 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   });
 
   it('treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', async () => {
-    // exists:false (fence not at offset 0) -> capture lands at the very top; the
-    // note's existing leading blank line is reused as the separator, not doubled.
+    // exists:false (fence not at offset 0) -> capture lands at the very top. The
+    // note's leading blank line is kept: consuming it would move the fence to
+    // offset 0 territory and silently reshape the note (issue #1538).
     expect(await topInsert('\n---\ntitle: A\n---\n# Body')).toBe(
-      'INSERTED\n---\ntitle: A\n---\n# Body',
+      'INSERTED\n\n---\ntitle: A\n---\n# Body',
     );
   });
 
@@ -900,5 +907,98 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
       createTFile('Note.md'),
     );
     expect(result).toBe('## Missing\n- [ ] CAP\n# Header');
+  });
+
+  // Every "create the missing target at the top" path routes through the same
+  // frontmatter-aware primitive. Without a note that HAS a separator line, each of
+  // these could silently revert to the #1538 behaviour with the suite still green.
+  describe('create-if-not-found at top, into a note with a separator line', () => {
+    const NOTE = '---\ndate: 2026-07-25\n---\n\n## Log\n';
+    const insertAfterTarget = (overrides: Record<string, unknown> = {}) => ({
+      enabled: true,
+      after: '## Missing',
+      insertAtEnd: false,
+      considerSubsections: false,
+      createIfNotFound: true,
+      createIfNotFoundLocation: 'top',
+      inline: false,
+      replaceExisting: false,
+      blankLineAfterMatchMode: 'auto',
+      ...overrides,
+    });
+
+    it('creates a missing insert-after section below the separator line', async () => {
+      const result = await makeFormatter().formatContentWithFile(
+        '- entry',
+        createChoice({
+          captureToActiveFile: false,
+          insertAfter: insertAfterTarget() as any,
+        }),
+        NOTE,
+        createTFile('Note.md'),
+      );
+      expect(result).toBe(
+        '---\ndate: 2026-07-25\n---\n\n## Missing\n- entry\n## Log\n',
+      );
+    });
+
+    it('creates a missing INLINE insert-after target below the separator line', async () => {
+      const result = await makeFormatter().formatContentWithFile(
+        'Status: done',
+        createChoice({
+          captureToActiveFile: false,
+          insertAfter: insertAfterTarget({ after: 'MISSING', inline: true }) as any,
+        }),
+        NOTE,
+        createTFile('Note.md'),
+      );
+      expect(result).toBe(
+        '---\ndate: 2026-07-25\n---\n\nMISSINGStatus: done\n## Log\n',
+      );
+    });
+
+    it('degrades an ordered create with a non-heading anchor to below the separator line', async () => {
+      const result = await makeFormatter().formatContentWithFile(
+        '- entry\n',
+        createChoice({
+          captureToActiveFile: false,
+          insertAfter: insertAfterTarget({
+            after: 'Some anchor',
+            orderBy: { by: 'insertion', direction: 'desc', unparseable: 'bottom' },
+          }) as any,
+        }),
+        NOTE,
+        createTFile('Note.md'),
+      );
+      expect(result).toBe(
+        '---\ndate: 2026-07-25\n---\n\nSome anchor\n- entry\n## Log\n',
+      );
+    });
+
+    it('creates a missing insert-before target below the separator line and tracks the cursor', async () => {
+      const formatter = makeFormatter();
+      const result = await formatter.formatContentWithFile(
+        '- entry',
+        createChoice({
+          captureToActiveFile: false,
+          insertBefore: {
+            enabled: true,
+            before: '## Missing',
+            createIfNotFound: true,
+            createIfNotFoundLocation: 'top',
+          },
+        }),
+        NOTE,
+        createTFile('Note.md'),
+      );
+      expect(result).toBe(
+        '---\ndate: 2026-07-25\n---\n\n- entry\n## Missing\n## Log\n',
+      );
+      // This is the only caller passing a non-default cursorOffsetInText: the cursor
+      // must land at the end of the capture, not at the end of the created anchor.
+      expect(formatter.getCaptureInsertionEndOffset()).toBe(
+        '---\ndate: 2026-07-25\n---\n\n- entry'.length,
+      );
+    });
   });
 });

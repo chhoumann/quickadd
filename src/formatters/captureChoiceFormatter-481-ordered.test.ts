@@ -253,6 +253,27 @@ describe("#481 — ordered create-if-not-found placement", () => {
 		);
 	});
 
+	it("creates the first-ever section below the frontmatter separator line (issue #1538)", async () => {
+		// No headings in the body -> the "bodyStart" slot, which routes through the
+		// shared frontmatter-aware top insertion.
+		const choice = createChoice({
+			after: "## Log",
+			orderBy: { by: "insertion", direction: "desc", unparseable: "bottom" },
+		});
+		const seed = "---\ndate: 2026-07-25\n---\n\nSome text\n";
+		const out = await runOnce(choice, seed, "- entry\n");
+		expect(out).toBe("---\ndate: 2026-07-25\n---\n\n## Log\n- entry\nSome text\n");
+	});
+
+	it("never places a created section inside a frontmatter-only note's YAML", async () => {
+		const choice = createChoice({
+			after: "## Log",
+			orderBy: { by: "insertion", direction: "desc", unparseable: "bottom" },
+		});
+		const out = await runOnce(choice, "---\ntags: x\n---", "- entry\n");
+		expect(out).toBe("---\ntags: x\n---\n## Log\n- entry\n");
+	});
+
 	it("creates the first-ever section after the preamble, blurb stays above", async () => {
 		const choice = createChoice({
 			after: "## TODAY",

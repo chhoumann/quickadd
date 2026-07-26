@@ -104,6 +104,27 @@ describe("vault write tools — safety", () => {
 		).rejects.toThrow(/not found/i);
 	});
 
+	it("append_to_note position=top keeps the frontmatter separator line (issue #1538)", async () => {
+		const file = fileLike("Daily/2026-07-25.md");
+		const modify = vi.fn(async () => undefined);
+		const app = makeApp({
+			vault: {
+				getAbstractFileByPath: () => file,
+				read: vi.fn(async () => "---\ndate: 2026-07-25\n---\n\nExisting\n"),
+				modify,
+			},
+		});
+		const tools = createVaultTools(app);
+		await tools.append_to_note.execute(
+			{ path: "Daily/2026-07-25.md", content: "note text", position: "top" },
+			{ toolCallId: "c", toolName: "append_to_note" },
+		);
+		expect(modify).toHaveBeenCalledWith(
+			file,
+			"---\ndate: 2026-07-25\n---\n\nnote text\nExisting\n",
+		);
+	});
+
 	it("respects allowedRoots for reads", async () => {
 		const app = makeApp();
 		const tools = createVaultTools(app, { allowedRoots: ["AI"] });

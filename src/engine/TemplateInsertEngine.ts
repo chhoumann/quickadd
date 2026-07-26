@@ -71,7 +71,8 @@ export function splitTemplateFrontmatter(content: string): {
 
 /**
  * Inserts a template body into existing note content. "top" is
- * frontmatter-aware: the body lands below the note's frontmatter block.
+ * frontmatter-aware: the body lands below the note's frontmatter block, including
+ * the blank line that separates that block from the body (issue #1538).
  *
  * The "top" branch reuses the shared, fence-safe `insertAtNoteBodyStart`
  * (src/utils/noteContentInsertion.ts). Appending a newline to the body expresses
