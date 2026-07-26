@@ -335,7 +335,7 @@
 
 <div class="exportPackageModal">
 	<header>
-		<h2>Export QuickAdd Package</h2>
+		<h2>Export QuickAdd package</h2>
 		<p>Select choices to bundle. Dependencies are added automatically.</p>
 	</header>
 

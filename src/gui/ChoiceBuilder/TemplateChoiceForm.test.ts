@@ -241,11 +241,11 @@ describe("TemplateChoiceForm", () => {
 
 	it("reveals the file-opening settings only when openFile is enabled", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("File Opening Location");
+		expect(settingNames(container)).not.toContain("File opening location");
 
 		props.choice.openFile = true;
 		flushSync();
-		expect(settingNames(container)).toContain("File Opening Location");
+		expect(settingNames(container)).toContain("File opening location");
 	});
 
 	it("shows the file-exists mode row only for update/create categories", () => {

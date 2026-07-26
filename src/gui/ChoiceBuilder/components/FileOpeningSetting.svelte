@@ -53,7 +53,7 @@ const modeValue = $derived(
 </script>
 
 <SettingItem
-	name="File Opening Location"
+	name="File opening location"
 	desc={`Where to open the ${contextLabel} file`}
 >
 	{#snippet control()}
@@ -67,7 +67,7 @@ const modeValue = $derived(
 
 {#if fileOpening.location === "split"}
 	<SettingItem
-		name="Split Direction"
+		name="Split direction"
 		desc="How to arrange the new pane relative to the current one"
 	>
 		{#snippet control()}
@@ -81,7 +81,7 @@ const modeValue = $derived(
 	</SettingItem>
 {/if}
 
-<SettingItem name="View Mode" desc="How to display the opened file">
+<SettingItem name="View mode" desc="How to display the opened file">
 	{#snippet control()}
 		<Dropdown
 			value={modeValue}

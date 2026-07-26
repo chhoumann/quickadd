@@ -27,8 +27,8 @@ export type SamplingParamKey = (typeof SAMPLING_PARAM_KEYS)[number];
 const PARAM_LABELS: Record<SamplingParamKey, string> = {
 	temperature: "Temperature",
 	top_p: "Top P",
-	frequency_penalty: "Frequency Penalty",
-	presence_penalty: "Presence Penalty",
+	frequency_penalty: "Frequency penalty",
+	presence_penalty: "Presence penalty",
 };
 
 export function sentSamplingParams(

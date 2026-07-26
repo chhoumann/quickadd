@@ -131,6 +131,6 @@ describe("describeSamplingParams", () => {
 		);
 		expect(
 			describeSamplingParams(["temperature", "top_p", "presence_penalty"]),
-		).toBe("Temperature, Top P, and Presence Penalty");
+		).toBe("Temperature, Top P, and Presence penalty");
 	});
 });

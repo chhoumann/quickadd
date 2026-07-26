@@ -158,7 +158,7 @@ function getPromptTemplateControls(modal: AIAssistantCommandSettingsModal): {
 	const nameEl = Array.from(
 		modal.contentEl.querySelectorAll<HTMLElement>("div")
 	).find(
-		(el) => el.children.length === 0 && el.textContent === "Prompt Template"
+		(el) => el.children.length === 0 && el.textContent === "Prompt template"
 	);
 	const settingEl = nameEl?.parentElement?.parentElement;
 	if (!settingEl) throw new Error("Prompt Template setting not found");

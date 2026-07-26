@@ -53,7 +53,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.contentEl.empty();
 
 		const headerEl = this.contentEl.createEl("h2");
-		headerEl.textContent = "Open File Command Settings";
+		headerEl.textContent = "Open file command settings";
 		headerEl.addClass("qa-modal-title");
 
 		this.addFilePathSetting();

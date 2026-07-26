@@ -44,7 +44,7 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	},
 	{
 		key: "frequency_penalty",
-		name: "Frequency Penalty",
+		name: "Frequency penalty",
 		desc: "Positive values penalize tokens by how often they already appear, reducing verbatim repetition; negative values encourage it. Only sent to providers that support it.",
 		min: -2,
 		max: 2,
@@ -53,7 +53,7 @@ const SLIDER_SPECS: SamplingSliderSpec[] = [
 	},
 	{
 		key: "presence_penalty",
-		name: "Presence Penalty",
+		name: "Presence penalty",
 		desc: "Positive values penalize tokens that have appeared at all, encouraging new topics; negative values do the opposite. Only sent to providers that support it.",
 		min: -2,
 		max: 2,

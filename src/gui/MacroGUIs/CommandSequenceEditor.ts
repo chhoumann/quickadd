@@ -388,7 +388,7 @@ export class CommandSequenceEditor {
 		};
 
 		new Setting(parent)
-			.setName("User Scripts")
+			.setName("User scripts")
 			.setDesc("Add a .js file or a note with a ```js code block - type the name or click Browse")
 			.addText((textComponent) => {
 				input = textComponent;
@@ -487,8 +487,11 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setButtonText(typeName)
-			.setTooltip(`Add ${typeName} Choice`)
+			.setTooltip(`Add ${typeName} choice`)
 			.onClick(() => {
+				// NOT lowercased with the tooltip above: this is a persisted choice
+				// NAME, not a label, so changing it would only split existing and
+				// newly created choices into two spellings.
 				const newChoice: IChoice = new Type(`Untitled ${typeName} Choice`);
 				this.addCommand(new NestedChoiceCommand(newChoice));
 			});
@@ -498,7 +501,7 @@ export class CommandSequenceEditor {
 		const button: ButtonComponent = new ButtonComponent(container);
 		button
 			.setIcon("file-search")
-			.setTooltip("Add Open File command")
+			.setTooltip("Add open file command")
 			.onClick(() => {
 				this.addCommand(new OpenFileCommand());
 			});

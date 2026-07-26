@@ -90,8 +90,8 @@ describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
 		// display()) must render — proving display() did not abort midway and
 		// blank the modal.
 		const text = modal!.contentEl.textContent ?? "";
-		expect(text).toContain("Max Chunk Tokens");
-		expect(text).toContain("System Prompt");
+		expect(text).toContain("Max chunk tokens");
+		expect(text).toContain("System prompt");
 	});
 
 	it("renders without throwing when the configured model no longer exists", () => {
@@ -131,6 +131,6 @@ describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
 				settings,
 			);
 		}).not.toThrow();
-		expect(modal!.contentEl.textContent ?? "").toContain("Max Chunk Tokens");
+		expect(modal!.contentEl.textContent ?? "").toContain("Max chunk tokens");
 	});
 });
