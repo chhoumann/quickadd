@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
+import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
@@ -118,7 +118,13 @@ export async function runOnePagePreflight(
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (values: Record<string, string>) => {
 			try {
-				const formatter = new FormatDisplayFormatter(app, plugin);
+				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
+				// a FILE NAME, and only the file-name formatter matches what
+				// `formatFileName` actually does at run time - it resolves
+				// {{foldercurrent}} in "path" mode, never includes templates, and does
+				// not expand `\n` escapes (which are not linebreaks in a path). It is
+				// also the class the builder's own file-name preview uses.
+				const formatter = new FileNameDisplayFormatter(app, plugin);
 				const out: Record<string, string> = {};
 				// File name preview for Template
 				if (choice.type === "Template") {
