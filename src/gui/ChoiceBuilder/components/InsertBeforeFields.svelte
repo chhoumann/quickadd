@@ -15,6 +15,7 @@ import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
+import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
 /** Reactive port of captureChoiceBuilder.addInsertBeforeFields. */
@@ -54,19 +55,22 @@ const createLocationOptions = [
 ];
 </script>
 
-<SettingItem
+<LabeledField
 	name="Insert before"
 	desc="Insert capture before specified text. Accepts format syntax."
-/>
-<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
-<ValidatedInput
-	bind:value={insertBefore.before}
-	placeholder="Insert before"
-	required
-	requiredMessage="Insert before text is required"
-	makeSuggesters={suggesters}
-	ariaLabel="Insert before"
-/>
+>
+	{#snippet children(id)}
+		<ValidatedInput
+			{id}
+			bind:value={insertBefore.before}
+			placeholder="Insert before"
+			required
+			requiredMessage="Insert before text is required"
+			makeSuggesters={suggesters}
+		/>
+		<FormatPreviewField value={insertBefore.before} formatterKind="lineTarget" {app} {plugin} />
+	{/snippet}
+</LabeledField>
 
 <SettingItem
 	name="Create line if not found"

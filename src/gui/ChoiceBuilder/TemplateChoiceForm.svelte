@@ -32,6 +32,7 @@ import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
 import ChoiceNameHeader from "./components/ChoiceNameHeader.svelte";
 import ValidatedInput from "./components/ValidatedInput.svelte";
+import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
@@ -191,36 +192,44 @@ function onModeChange(value: string) {
 
 <SettingItem name="Template" heading />
 
-<SettingItem name="Template Path" desc="Path to the Template." />
-<ValidatedInput
-	value={choice.templatePath}
-	placeholder="Template path"
-	{app}
-	suggestions={templatePaths}
-	maxSuggestions={50}
-	validator={validateTemplatePath}
-	ariaLabel="Template path"
-	onChange={(value) => (choice.templatePath = value.trim())}
-/>
+<LabeledField name="Template path" desc="Path to the template this choice creates notes from.">
+	{#snippet children(id)}
+		<ValidatedInput
+			{id}
+			value={choice.templatePath}
+			placeholder="Template path"
+			{app}
+			suggestions={templatePaths}
+			maxSuggestions={50}
+			validator={validateTemplatePath}
+			onChange={(value) => (choice.templatePath = value.trim())}
+		/>
+	{/snippet}
+</LabeledField>
 
-<SettingItem name="File name format" desc="Set the file name format.">
+<LabeledField
+	name="File name format"
+	desc="Set the file name format. When off, QuickAdd asks for the note title."
+	bodyVisible={choice.fileNameFormat.enabled}
+>
 	{#snippet control()}
 		<Toggle bind:checked={choice.fileNameFormat.enabled} />
 	{/snippet}
-</SettingItem>
-<FormatPreviewField
-	value={choice.fileNameFormat.format}
-	formatterKind="fileName"
-	{app}
-	{plugin}
-/>
-<ValidatedInput
-	bind:value={choice.fileNameFormat.format}
-	placeholder="File name format"
-	disabled={!choice.fileNameFormat.enabled}
-	makeSuggesters={fileNameSuggesters}
-	ariaLabel="File name format"
-/>
+	{#snippet children(id)}
+		<ValidatedInput
+			{id}
+			bind:value={choice.fileNameFormat.format}
+			placeholder="File name format"
+			makeSuggesters={fileNameSuggesters}
+		/>
+		<FormatPreviewField
+			value={choice.fileNameFormat.format}
+			formatterKind="fileName"
+			{app}
+			{plugin}
+		/>
+	{/snippet}
+</LabeledField>
 
 <SettingItem name="Location" heading />
 

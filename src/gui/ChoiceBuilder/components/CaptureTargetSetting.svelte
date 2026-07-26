@@ -10,6 +10,7 @@ import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";
 import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
+import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 import CanvasNodePicker from "./CanvasNodePicker.svelte";
 import { getCaptureTargetFeedback } from "./captureTargetFeedback";
@@ -99,7 +100,18 @@ function onCaptureToChange(value: string) {
 
 function validateCaptureTo(value: string) {
 	const feedback = getCaptureTargetFeedback(value);
-	if (!feedback) return true;
+	if (!feedback) {
+		// An empty target is a supported mode, not an omission: it resolves to the
+		// vault-wide note picker at run time (resolveCaptureTarget -> "vault"). Say
+		// so, rather than leaving a blank field looking unfinished.
+		if (!value.trim()) {
+			return {
+				valid: true,
+				message: "Leave empty to pick the note each time this choice runs.",
+			};
+		}
+		return true;
+	}
 
 	return {
 		valid: feedback.valid,
@@ -110,11 +122,9 @@ function validateCaptureTo(value: string) {
 </script>
 
 <SettingItem
-	name="Capture to"
-	desc="Vault-relative path, #tag, or property:field=value. Supports format syntax (use trailing '/' for folders)."
-/>
-
-<SettingItem name="Capture to active file">
+	name="Capture to active file"
+	desc="Capture into whichever note is open when the choice runs, instead of a fixed target."
+>
 	{#snippet control()}
 		<Toggle
 			checked={choice.captureToActiveFile}
@@ -124,24 +134,27 @@ function validateCaptureTo(value: string) {
 </SettingItem>
 
 {#if !choice.captureToActiveFile}
-	<SettingItem
-		name="File path / format"
-		desc={"Choose a file, folder, #tag, property:field=value, or format syntax (e.g., {{DATE}})"}
-	/>
-	{#if !usesPickerTargetSyntax}
-		<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
-	{/if}
-	<ValidatedInput
-		value={choice.captureTo}
-		placeholder="File name format"
-		{app}
-		suggestions={captureTargetSuggestions}
-		maxSuggestions={50}
-		makeSuggesters={suggesters}
-		validator={validateCaptureTo}
-		ariaLabel="File path / format"
-		onChange={onCaptureToChange}
-	/>
+	<LabeledField
+		name="Capture to"
+		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
+	>
+		{#snippet children(id)}
+			<ValidatedInput
+				{id}
+				value={choice.captureTo}
+				placeholder={"Daily/{{DATE}}.md"}
+				{app}
+				suggestions={captureTargetSuggestions}
+				maxSuggestions={50}
+				makeSuggesters={suggesters}
+				validator={validateCaptureTo}
+				onChange={onCaptureToChange}
+			/>
+			{#if !usesPickerTargetSyntax}
+				<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
+			{/if}
+		{/snippet}
+	</LabeledField>
 
 	{#if isCanvasTarget}
 		<SettingItem

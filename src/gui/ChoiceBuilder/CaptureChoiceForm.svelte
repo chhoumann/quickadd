@@ -10,6 +10,7 @@ import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
 import ChoiceNameHeader from "./components/ChoiceNameHeader.svelte";
 import ValidatedInput from "./components/ValidatedInput.svelte";
+import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
@@ -100,25 +101,30 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	</SettingItem>
 
 	{#if choice.createFileIfItDoesntExist.enabled}
-		<SettingItem name="Create file with given template.">
+		<LabeledField
+			name="Create file with a template"
+			desc="Path to the template QuickAdd applies to the new file."
+			bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
+		>
 			{#snippet control()}
 				<Toggle
 					bind:checked={choice.createFileIfItDoesntExist.createWithTemplate}
 				/>
 			{/snippet}
-		</SettingItem>
-		<ValidatedInput
-			value={choice.createFileIfItDoesntExist.template}
-			placeholder="Template path"
-			disabled={!choice.createFileIfItDoesntExist.createWithTemplate}
-			{app}
-			suggestions={templateFilePaths}
-			maxSuggestions={50}
-			validator={validateTemplate}
-			ariaLabel="Template path"
-			onChange={(value) =>
-				(choice.createFileIfItDoesntExist.template = value.trim())}
-		/>
+			{#snippet children(id)}
+				<ValidatedInput
+					{id}
+					value={choice.createFileIfItDoesntExist.template}
+					placeholder="Template path"
+					{app}
+					suggestions={templateFilePaths}
+					maxSuggestions={50}
+					validator={validateTemplate}
+					onChange={(value) =>
+						(choice.createFileIfItDoesntExist.template = value.trim())}
+				/>
+			{/snippet}
+		</LabeledField>
 	{/if}
 {/if}
 
@@ -146,22 +152,27 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-<SettingItem name="Capture format" desc="Set the format of the capture.">
+<LabeledField
+	name="Capture format"
+	desc={"Set the format of the capture. When off, QuickAdd captures {{VALUE}} on its own - what you type at the prompt, or the current selection."}
+	bodyVisible={choice.format.enabled}
+>
 	{#snippet control()}
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
-</SettingItem>
-<FormatPreviewField value={choice.format.format} {app} {plugin} />
-<ValidatedInput
-	inputKind="textarea"
-	bind:value={choice.format.format}
-	placeholder="Format"
-	disabled={!choice.format.enabled}
-	required={choice.format.enabled}
-	requiredMessage="Capture format is required when enabled"
-	makeSuggesters={formatSuggesters}
-	ariaLabel="Format"
-/>
+	{#snippet children(id)}
+		<ValidatedInput
+			{id}
+			inputKind="textarea"
+			bind:value={choice.format.format}
+			placeholder="Format"
+			required
+			requiredMessage="Capture format is required when enabled"
+			makeSuggesters={formatSuggesters}
+		/>
+		<FormatPreviewField value={choice.format.format} {app} {plugin} />
+	{/snippet}
+</LabeledField>
 
 <SettingItem name="Behavior" heading />
 {#if !choice.captureToActiveFile}

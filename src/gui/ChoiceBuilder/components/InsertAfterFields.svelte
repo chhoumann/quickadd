@@ -20,6 +20,7 @@ import SettingItem from "../../components/SettingItem.svelte";
 import Toggle from "../../components/Toggle.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
+import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 
 /** Reactive port of captureChoiceBuilder.addInsertAfterFields. */
@@ -260,19 +261,22 @@ function onPromptHeadingToggle(value: boolean) {
 		section.
 	</div>
 {:else}
-	<SettingItem
+	<LabeledField
 		name="Insert after"
 		desc="Insert capture after specified text. Accepts format syntax. Tip: use a heading (starts with #) to target a section. Blank line handling is configurable below."
-	/>
-	<FormatPreviewField value={insertAfter.after} formatterKind="lineTarget" {app} {plugin} />
-	<ValidatedInput
-		bind:value={insertAfter.after}
-		placeholder="Insert after"
-		required
-		requiredMessage="Insert after text is required"
-		makeSuggesters={suggesters}
-		ariaLabel="Insert after"
-	/>
+	>
+		{#snippet children(id)}
+			<ValidatedInput
+				{id}
+				bind:value={insertAfter.after}
+				placeholder="Insert after"
+				required
+				requiredMessage="Insert after text is required"
+				makeSuggesters={suggesters}
+			/>
+			<FormatPreviewField value={insertAfter.after} formatterKind="lineTarget" {app} {plugin} />
+		{/snippet}
+	</LabeledField>
 
 	<SettingItem
 		name="Inline insertion"

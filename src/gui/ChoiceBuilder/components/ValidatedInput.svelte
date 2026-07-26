@@ -37,6 +37,7 @@ let {
 	maxSuggestions = Infinity,
 	makeSuggesters = [],
 	app = undefined,
+	id = undefined,
 	ariaLabel = undefined,
 	onChange = undefined,
 }: {
@@ -52,6 +53,8 @@ let {
 	maxSuggestions?: number;
 	makeSuggesters?: SuggesterFactory[];
 	app?: App | undefined;
+	/** Set by LabeledField so the row's `<label for>` binds to this control. */
+	id?: string | undefined;
 	ariaLabel?: string | undefined;
 	onChange?: ((value: string) => void) | undefined;
 } = $props();
@@ -144,6 +147,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		class="qa-validated-input-full-width qa-validated-input-margin-8 qa-validated-input-textarea"
 		class:is-invalid={invalid}
 		class:is-valid={!invalid && hintVariant === "success" && hintMessage.length > 0}
+		{id}
 		{placeholder}
 		{disabled}
 		aria-label={ariaLabel}
@@ -159,6 +163,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		class="qa-validated-input-full-width qa-validated-input-margin-8"
 		class:is-invalid={invalid}
 		class:is-valid={!invalid && hintVariant === "success" && hintMessage.length > 0}
+		{id}
 		{placeholder}
 		{disabled}
 		aria-label={ariaLabel}

@@ -13,7 +13,7 @@ For reference, the journal entry capture in compact form:
 
 | Setting | Value |
 | --- | --- |
-| File path / format | `Daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md` |
+| Capture to | `Daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md` |
 | Write position | **After line...** |
 | Insert after | `## What did I do today?` |
 | Capture format | `- {{DATE:HH:mm}} {{VALUE}}\n` |

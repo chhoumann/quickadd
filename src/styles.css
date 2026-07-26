@@ -93,12 +93,108 @@
 	max-height: 70%;
 }
 
-/* Preview row styling for Choice Builders */
+/* Autosave footer for the choice builders (#1545). Core already lays `.modal`
+   out as a flex column with `.modal-content` as the growing item, so moving the
+   scrollport onto the content is all it takes to pin the footer — which also
+   re-pins the absolutely-positioned close button, previously scrolled away with
+   the rest of the modal. */
+.quickAddModal.qa-choice-builder .modal {
+	overflow: hidden;
+	/* A scrollport clips ink overflow at its padding box, and the builder's
+	   full-width fields are exactly as wide as it — so a focus or validity ring,
+	   which paints outside the border box, would lose its left and right edges.
+	   Hand the horizontal inset to the scrollport itself. */
+	padding-inline: 0;
+}
+
+.quickAddModal.qa-choice-builder .modal-content {
+	overflow-y: auto;
+	padding-inline: var(--size-4-4);
+	/* Reserve the scrollbar gutter unconditionally, so the pinned footer below can
+	   mirror it and stay aligned with the rows whether or not they scroll. */
+	scrollbar-gutter: stable;
+}
+
+.quickAddModal.qa-choice-builder .qa-builder-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	flex-shrink: 0;
+	margin-top: var(--size-4-2);
+	/* Sibling of the scrollport, so it carries the same inset itself — including
+	   the scrollbar gutter, which `overflow: hidden` + `scrollbar-gutter: stable`
+	   reserves at the platform's own width without ever showing a scrollbar. Without
+	   it the Done button and the footer rule overhang the rows above by the width
+	   of the scrollbar. */
+	padding: var(--size-4-3) var(--size-4-4) 0;
+	overflow: hidden;
+	scrollbar-gutter: stable;
+	border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+.quickAddModal.qa-choice-builder .qa-builder-footer-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* On a phone the 70% cap above is the binding constraint, and a pinned footer
+   would eat into an already-short sheet. Hand the builder back Obsidian's own
+   dialog height, and keep the button clear of the home indicator. */
+.is-phone .quickAddModal.qa-choice-builder .modal {
+	max-height: var(--dialog-max-height);
+	/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
+	   above would otherwise drop them. */
+	padding-left: var(--safe-area-inset-left);
+	padding-right: var(--safe-area-inset-right);
+}
+
+.is-phone .quickAddModal.qa-choice-builder .qa-builder-footer {
+	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
+}
+
+/* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
+   the name/description, the body carries the field itself. Obsidian zeroes a
+   `.setting-item`'s border-top and padding-top when it is `:first-child` of its
+   parent — which it always is here — so the wrapper takes over the row separator
+   and the group's outer rhythm. The inner row keeps Obsidian's own padding-bottom,
+   and that is what separates the label from the field beneath it. */
+.quickAddModal .qa-field {
+	border-top: var(--border-width) solid var(--background-modifier-border);
+	padding: var(--size-4-4) 0;
+}
+
+/* The wrapper also breaks Obsidian's `.setting-item + .setting-item-heading`
+   sibling rule, so restore the group spacing above a following section heading. */
+.quickAddModal .qa-field + .setting-item-heading {
+	margin-top: 0.75em;
+}
+
+/* The last element in the body owns the wrapper's bottom padding. */
+.quickAddModal .qa-field-body > *:last-child {
+	margin-bottom: 0;
+}
+
+/* `.setting-item-name` is styled by class, not tag; `<label>` is inline by
+   default, which would shift the name's line box by the inline leading. */
+.quickAddModal label.setting-item-name {
+	display: block;
+}
+
+/* Preview row styling for Choice Builders. The row sits BELOW the field it
+   previews (#1543), so it is styled as a quiet secondary line — a bold,
+   body-sized line here reads as a heading for whatever follows it. */
 .quickAddModal .qa-preview-row {
-	margin: 6px 0;
+	margin: 0 0 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
 }
 .quickAddModal .qa-preview-label {
 	font-weight: 600;
+}
+.quickAddModal .qa-preview-value {
+	color: var(--text-normal);
 }
 
 .quickAddModal .qa-onepage-title {
@@ -1575,6 +1671,16 @@ body:not(.is-mobile)
 	font-size: 12px;
 	color: var(--text-error);
 	min-height: 16px;
+}
+
+/* With no message the hint reserved ~28px of dead space between a field and
+   whatever follows it — including its own preview row (#1543). Collapse it via
+   :empty rather than `display: none` so the aria-live region stays in the
+   accessibility tree and still announces the first message that lands in it. */
+.qa-field-hint:empty {
+	min-height: 0;
+	margin-top: 0;
+	margin-bottom: 0;
 }
 
 /* A valid field can still show an informational hint (e.g. a template path with
