@@ -129,10 +129,12 @@ describe("choiceService audit (commands-choicelist)", () => {
 			await deleteChoiceWithConfirmation(outer, fakeApp);
 
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			// 1 subfolder + 3 leaves = 4 descendants (NOT "(1)").
-			expect(message).toContain("(4)");
-			expect(message).not.toContain("(1)");
-			expect(message).toContain("including nested folders");
+			// 1 subfolder + 3 leaves = 4 descendants, counted by kind so the
+			// subfolder is not called a "choice" (#1552) — NOT "1 choice".
+			expect(message).toContain(
+				"everything inside it: 3 choices and 1 folder.",
+			);
+			expect(message).not.toContain("1 choice and");
 		});
 
 		it("omits the scary warning for an empty folder", async () => {
@@ -142,9 +144,9 @@ describe("choiceService audit (commands-choicelist)", () => {
 			await deleteChoiceWithConfirmation(empty, fakeApp);
 
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			expect(message).not.toContain("(0)");
-			expect(message).not.toContain("choices inside it");
-			expect(message).toContain("Empty");
+			// The whole clause is absent, not merely zero-valued.
+			expect(message).not.toContain("everything inside it");
+			expect(message).toBe("Are you sure you want to delete 'Empty'?");
 		});
 
 		it("uses singular 'choice' for a folder with exactly one descendant", async () => {
@@ -154,8 +156,19 @@ describe("choiceService audit (commands-choicelist)", () => {
 			await deleteChoiceWithConfirmation(one, fakeApp);
 
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			expect(message).toContain("(1) choice inside it");
-			expect(message).not.toContain("(1) choices inside it");
+			expect(message).toContain("everything inside it: 1 choice.");
+			expect(message).not.toContain("1 choices");
+		});
+
+		it("counts folders alone when a folder holds only folders", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const outer = makeMulti("Outer", [makeMulti("A"), makeMulti("B")]);
+
+			await deleteChoiceWithConfirmation(outer, fakeApp);
+
+			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(message).toContain("everything inside it: 2 folders.");
+			expect(message).not.toContain("choices");
 		});
 	});
 });

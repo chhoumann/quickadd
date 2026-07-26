@@ -18,6 +18,8 @@ import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
 import { flattenChoices } from "../utils/choiceUtils";
+import { choiceNoun } from "../utils/choiceNoun";
+import { isCancellationError, reportError } from "../utils/errorUtils";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -223,27 +225,49 @@ export async function deleteChoiceWithConfirmation(
 	const isMulti = choice.type === "Multi";
 	const isMacro = choice.type === "Macro";
 
-	// Count the FULL subtree (flattenChoices includes the folder itself, so drop it),
-	// not just direct children — a recursive delete removes everything nested. Special-
-	// case 0 (no scary "delete all (0) choices") and pluralize correctly.
+	// Count the FULL subtree — a recursive delete removes everything nested, so
+	// direct children would understate it. Folders and leaf choices are counted
+	// separately because a nested folder is not a "choice" in the UI's own
+	// vocabulary (#1552), and lumping them together is exactly the mislabel this
+	// dialog is being fixed for. Zero descendants gets no warning at all.
 	const buildMultiWarning = (multi: IMultiChoice): string => {
-		const descendantCount = flattenChoices(multi.choices).length;
-		if (descendantCount === 0) return "";
-		const noun = descendantCount === 1 ? "choice" : "choices";
-		return `Deleting this choice will delete all (${descendantCount}) ${noun} inside it (including nested folders)!`;
+		const descendants = flattenChoices(multi.choices);
+		if (descendants.length === 0) return "";
+
+		const folders = descendants.filter((c) => c.type === "Multi").length;
+		const choices = descendants.length - folders;
+		const parts: string[] = [];
+		if (choices > 0) parts.push(`${choices} ${choices === 1 ? "choice" : "choices"}`);
+		if (folders > 0) parts.push(`${folders} ${folders === 1 ? "folder" : "folders"}`);
+
+		return `Deleting this folder will also delete everything inside it: ${parts.join(" and ")}.`;
 	};
 
-	const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(
-		app,
-		`Confirm deletion of choice`,
-		`Please confirm that you wish to delete '${choice.name}'.
-            ${isMulti ? buildMultiWarning(choice as IMultiChoice) : ""}
-            ${isMacro
-			? "Deleting this choice will delete its macro commands!"
-			: ""
+	const body = [
+		`Are you sure you want to delete '${choice.name}'?`,
+		isMulti ? buildMultiWarning(choice as IMultiChoice) : "",
+		isMacro ? "Deleting this choice will also delete its macro commands." : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+
+	// GenericYesNoPrompt REJECTS with a bare "No answer given." string when the
+	// user dismisses it (Esc / the close button) rather than answering. The call
+	// sites are Svelte `onclick` handlers that discard the promise, so without
+	// this catch a cancelled delete surfaced as an unhandled rejection.
+	let userConfirmed: boolean;
+	try {
+		userConfirmed = await GenericYesNoPrompt.Prompt(
+			app,
+			`Delete ${choiceNoun(choice.type)}`,
+			body,
+		);
+	} catch (error) {
+		if (!isCancellationError(error)) {
+			reportError(error, "Could not confirm choice deletion");
 		}
-            `,
-	);
+		return false;
+	}
 
 	if (!userConfirmed) return false;
 
@@ -253,7 +277,9 @@ export async function deleteChoiceWithConfirmation(
 			choice,
 		});
 		if (!cleared) {
-			new Notice("Could not clear user script secrets. Choice was not deleted.");
+			new Notice(
+				`Could not clear user script secrets. The ${choiceNoun(choice.type)} was not deleted.`,
+			);
 			return false;
 		}
 	}

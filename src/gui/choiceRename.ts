@@ -2,15 +2,15 @@ import type { App } from "obsidian";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { log } from "src/logger/logManager";
 import type { ChoiceType } from "../types/choices/choiceType";
+import { choiceNounCapitalized } from "../utils/choiceNoun";
 
 /**
- * Header for the rename prompt. Folders are `Multi` choices internally, but the
- * UI calls them folders everywhere else ("New folder", "Add folder to {name}",
- * "Edit folder"), so asking for a *choice* name right after the user asked for a
- * *folder* is a jolt on the very first interaction with the plugin (#1539).
+ * Header for the rename prompt: "Folder name" / "Choice name". Asking for a
+ * *choice* name right after the user asked for a *folder* is a jolt on the very
+ * first interaction with the plugin (#1539). See {@link choiceNounCapitalized}.
  */
 function renamePromptHeader(type?: ChoiceType): string {
-	return type === "Multi" ? "Folder name" : "Choice name";
+	return `${choiceNounCapitalized(type)} name`;
 }
 
 export async function promptRenameChoice(
