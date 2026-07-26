@@ -106,22 +106,22 @@
 </script>
 
 <div class="qa-gv">
-  <div class="qa-gv__header">
-    <div class="qa-gv__title">Global Variables</div>
-    <div class="qa-gv__actions">
-      <button class="mod-cta" onclick={addVariable}>Add variable</button>
-    </div>
-  </div>
+  <!-- No panel title: this view is mounted directly under the "Global
+       variables" settings group heading, which already names it. -->
   <div class="qa-gv__desc">
     Define reusable snippets referenced as <code>&#123;&#123;GLOBAL_VAR:&lt;name&gt;&#125;&#125;</code>. Snippets support other QuickAdd tokens and expand before VALUE/VDATE/etc.
   </div>
 
   <div class="qa-gv__table">
+    {#if items.length === 0}
+      <div class="qa-gv__empty">No global variables yet.</div>
+    {:else}
     <div class="qa-gv__row qa-gv__row--head">
       <div class="qa-gv__cell qa-gv__name">Name</div>
       <div class="qa-gv__cell qa-gv__value">Value</div>
       <div class="qa-gv__cell qa-gv__ops">Actions</div>
     </div>
+    {/if}
     {#each items as it, idx (idx)}
       <div class="qa-gv__row">
         <div class="qa-gv__cell qa-gv__name">
@@ -144,13 +144,21 @@
       </div>
     {/each}
   </div>
+
+  <!-- Below the list, matching the sibling "Template folder paths" row and the
+       choices list, which both put their add affordance under what it adds to. -->
+  <div class="qa-gv__actions">
+    <button class="mod-cta" onclick={addVariable}>Add variable</button>
+  </div>
 </div>
 
 <style>
   .qa-gv { display: flex; flex-direction: column; gap: 8px; }
-  .qa-gv__header { display: flex; justify-content: space-between; align-items: center; }
-  .qa-gv__title { font-weight: 600; font-size: 16px; }
+  /* Keeps "Add variable" right-aligned now that it is the row's only child. */
+  .qa-gv__actions { display: flex; justify-content: flex-end; }
   .qa-gv__desc { color: var(--text-muted); font-size: 12px; }
+  /* Mirrors .qa-template-folder-empty, the sibling list's empty state. */
+  .qa-gv__empty { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 6px 0; }
   .qa-gv__table { display: grid; gap: 8px; }
   .qa-gv__row { display: grid; grid-template-columns: 180px 1fr 140px; gap: 8px; align-items: start; }
   .qa-gv__row--head { font-weight: 600; color: var(--text-muted); }

@@ -285,7 +285,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			"Choices",
 			"Packages",
 		]);
-		expect(choicePickerGroup.heading).toBe("Choice Picker");
+		expect(choicePickerGroup.heading).toBe("Choice picker");
 		expect(choicePickerGroup.items?.map((item) => item.name)).toEqual([
 			"Search nested choices",
 			"“New note from template” in the launcher",
@@ -301,7 +301,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 				heading?: string;
 				extraButtons?: Array<(component: ExtraButtonComponent) => unknown>;
 			}>
-		).find((group) => group.heading === "Choices & Packages");
+		).find((group) => group.heading === "Choices & packages");
 
 		expect(choicesGroup?.extraButtons).toHaveLength(1);
 
@@ -432,5 +432,90 @@ describe("Packages row export availability", () => {
 		});
 
 		expect(exportButton.disabled).toBe(true);
+	});
+});
+
+// Issue #1553. Obsidian is sentence case throughout ("Files and links",
+// "Community plugins", "Date & time"); QuickAdd had drifted into Title Case one
+// setting at a time, which is exactly the drift a ratchet is for.
+describe("QuickAddSettingsTab copy", () => {
+	/**
+	 * Words that may legitimately keep their capital mid-sentence: real proper
+	 * nouns, plus QuickAdd's choice TYPE names, which the UI uses as nouns
+	 * ("a Capture choice"). Note `Multi` is deliberately absent - it is the
+	 * internal type id for what the UI calls a folder (src/utils/choiceNoun.ts).
+	 */
+	const PROPER_NOUNS = new Set([
+		"AI",
+		"Assistant",
+		"Beta",
+		"Capture",
+		"Cmd",
+		"Ctrl",
+		"Enter",
+		"List",
+		"Macro",
+		"Number",
+		"Checkbox",
+		"Obsidian",
+		"OpenAI",
+		"QuickAdd",
+		"Templater",
+		"Template",
+		"URI",
+	]);
+
+	/** Capitalized words that are neither sentence-initial nor proper nouns. */
+	function titleCaseWords(text: string): string[] {
+		const words = text.split(/\s+/);
+		return words.filter((raw, i) => {
+			const previous = words[i - 1] ?? "";
+			// A word opening a quote or following terminal punctuation starts a
+			// sentence, so its capital is correct.
+			const startsSentence =
+				i === 0 || /^[“"'(]/.test(raw) || /[.:?!]["”]?$/.test(previous);
+			const word = raw.replace(/^[^\p{L}]+/u, "").replace(/[^\p{L}]+$/u, "");
+			if (!word || startsSentence) return false;
+			return /^\p{Lu}/u.test(word) && !PROPER_NOUNS.has(word);
+		});
+	}
+
+	function allDefinitionStrings() {
+		const app = new App();
+		const groups = new QuickAddSettingsTab(
+			app,
+			{ app } as unknown as QuickAdd,
+		).getSettingDefinitions() as unknown as Array<{
+			heading?: string;
+			items?: Array<{ name?: string; desc?: string | DocumentFragment }>;
+		}>;
+		const headings = groups.flatMap((g) => (g.heading ? [g.heading] : []));
+		const names = groups.flatMap((g) =>
+			(g.items ?? []).flatMap((i) => (i.name ? [i.name] : [])),
+		);
+		const descs = groups.flatMap((g) =>
+			(g.items ?? []).flatMap((i) =>
+				typeof i.desc === "string" ? [i.desc] : [],
+			),
+		);
+		return { headings, names, descs };
+	}
+
+	it("writes every heading and label in sentence case", () => {
+		const { headings, names } = allDefinitionStrings();
+		const offenders = [...headings, ...names]
+			.map((text) => [text, titleCaseWords(text)] as const)
+			.filter(([, bad]) => bad.length > 0);
+
+		expect(offenders).toEqual([]);
+	});
+
+	it("never shows the user the internal 'Multi' type name", () => {
+		const { headings, names, descs } = allDefinitionStrings();
+		const offenders = [...headings, ...names, ...descs].filter((text) =>
+			/\bMulti\b/.test(text),
+		);
+
+		expect(offenders).toEqual([]);
 	});
 });
