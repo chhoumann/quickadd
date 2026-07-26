@@ -164,6 +164,9 @@ describe("UI label copy across src/", () => {
 		/createEl\(\s*"h[1-6]"\s*,\s*\{\s*text:\s*"([^"$]+)"/g,
 		/<h[1-6]>([^<{]+)<\/h[1-6]>/g,
 		/\bname="([^"{]+)"/g,
+		// Svelte buttons with a literal label — GlobalVariablesView's "Add variable"
+		// and the package-manager actions never touch a Setting or setButtonText.
+		/<button\b[^>]*>\s*([^<>{]+?)\s*<\/button>/g,
 	];
 
 	function walk(dir: string, acc: string[] = []): string[] {
