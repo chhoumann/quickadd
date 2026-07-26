@@ -61,7 +61,7 @@ affected note. This follows the [x-callback-url](http://x-callback-url.com/)
 convention.
 
 :::note[Off by default]
-This is opt-in. Turn on **Settings → AI & Online → Allow URI x-callback-url**
+This is opt-in. Turn on **Settings → AI & online → Allow URI x-callback-url**
 first. It is off by default because the callback link is controlled by whoever
 creates the `obsidian://` link, and the callback can carry your note's vault
 path.

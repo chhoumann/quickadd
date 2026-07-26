@@ -15,7 +15,7 @@ summarize a selection, or answer a question from your vault.
 
 :::note
 The AI settings button and AI requests are available only when **Disable AI &
-Online features** is turned off in QuickAdd settings.
+online features** is turned off in QuickAdd settings.
 :::
 
 ## Setup {#setup}
@@ -23,9 +23,9 @@ Online features** is turned off in QuickAdd settings.
 1. Create a folder for AI prompt templates, for example `bins/ai_prompts`.
 2. Open QuickAdd settings.
 3. In the choice list, click the **Configure AI Assistant** icon button. It uses the sparkles icon at the bottom of the list.
-4. Set **Prompt Template Folder Path** to the folder you created.
-5. Click **Edit Providers** and configure at least one provider and model.
-6. Choose a **Default Model**, or leave it as **Ask me** to pick a model each run.
+4. Set **Prompt template folder path** to the folder you created.
+5. Click **Edit providers** and configure at least one provider and model.
+6. Choose a **Default model**, or leave it as **Ask me** to pick a model each run.
 
 ![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
 
@@ -44,19 +44,19 @@ response as macro variables for later steps.
 These settings apply across all AI Assistant commands unless a Macro command
 overrides them:
 
-- **Prompt Template Folder Path** is the folder QuickAdd reads prompt-template notes from.
+- **Prompt template folder path** is the folder QuickAdd reads prompt-template notes from.
 - **Providers** is the list of model endpoints and model ids QuickAdd can use.
-- **Default Model** is used when a command does not override the model. **Ask me** opens a model picker at run time.
-- **Default System Prompt** is sent with AI requests unless a command overrides it.
-- **Show Assistant** controls QuickAdd's AI progress notices.
+- **Default model** is used when a command does not override the model. **Ask me** opens a model picker at run time.
+- **Default system prompt** is sent with AI requests unless a command overrides it.
+- **Show assistant** controls QuickAdd's AI progress notices.
 - **Confirm AI tool calls** controls script-agent tool confirmation. See [Tool approval and safety](#tool-approval-and-safety).
 
 Individual AI Assistant Macro commands can override:
 
-- **Prompt Template**, which is a Markdown note in the prompt template folder, not raw prompt text.
+- **Prompt template**, which is a Markdown note in the prompt template folder, not raw prompt text.
 - **Model**, which overrides the default model for that command.
 - **Output variable name**, which controls the variable names written for later Macro steps.
-- **System Prompt**, which overrides the default system prompt for that command.
+- **System prompt**, which overrides the default system prompt for that command.
 - Advanced model parameters, described in [Advanced sampling settings](#advanced-sampling-settings).
 
 ## Connect a provider {#providers-and-local-models}
@@ -84,9 +84,9 @@ are migrated to SecretStorage.
 
 ### Add a provider {#add-a-provider}
 
-1. Open **AI Assistant Settings**.
-2. Click **Edit Providers**.
-3. Click **Add Provider**.
+1. Open **AI Assistant settings**.
+2. Click **Edit providers**.
+3. Click **Add provider**.
 4. Pick a provider card, select a SecretStorage entry for the API key, then click **Connect**.
 
 Connecting a provider imports its current model list right away, so you can pick
@@ -107,7 +107,7 @@ For Ollama:
 ```text
 Name: Ollama
 Endpoint: http://localhost:11434/v1
-API Key: leave blank
+API key: leave blank
 Model source: Provider models endpoint
 Models: import from the running Ollama server, or add the model name manually
 ```
@@ -119,7 +119,7 @@ that, configure the server to allow it or select a SecretStorage entry with the
 token it expects.
 
 When adding a model manually, the model name must match the id your server
-expects, such as `mistral` or `llama3.1`. The **Max Tokens** value is the model's
+expects, such as `mistral` or `llama3.1`. The **Max tokens** value is the model's
 context window. See [Model settings and token budgets](#model-settings-and-token-budgets).
 
 ### One name, two providers {#provider-ids-and-duplicate-model-names}
@@ -165,14 +165,14 @@ without plugin updates. Auto-sync only adds models and updates metadata - it
 never removes models you have configured. Use **Sync now** to refresh on demand.
 
 Auto-sync is on by default for the built-in OpenAI and Gemini providers and for
-providers added from a card. It does nothing while **Disable AI & Online
+providers added from a card. It does nothing while **Disable AI & online
 features** is on.
 
 ## Model settings and token budgets {#model-settings-and-token-budgets}
 
-### Max Tokens is the context window {#max-tokens}
+### Max tokens is the context window {#max-tokens}
 
-In the provider model list, **Max Tokens** means the model's context window. It
+In the provider model list, **Max tokens** means the model's context window. It
 is the total amount of prompt plus response context the model can handle,
 according to the configured provider metadata or the value you entered manually.
 
@@ -191,9 +191,9 @@ Use these rules when choosing a value:
 - For a local model, use the context window configured for that local model.
 - If you do not know the value, import models from the provider if possible, or use the provider's model documentation.
 
-### Max Chunk Tokens {#max-chunk-tokens}
+### Max chunk tokens {#max-chunk-tokens}
 
-The chunked AI prompt flow has a separate **Max Chunk Tokens** setting. It
+The chunked AI prompt flow has a separate **Max chunk tokens** setting. It
 controls the estimated token budget for the text inserted into `{{VALUE:chunk}}`
 for each chunk.
 
@@ -474,12 +474,12 @@ For the full script API surface, see the
 
 ### The AI settings button is missing {#the-ai-settings-button-is-missing}
 
-Turn off **Disable AI & Online features** in QuickAdd settings. The AI settings
+Turn off **Disable AI & online features** in QuickAdd settings. The AI settings
 button is hidden while AI and online features are disabled.
 
 ### My model is not listed {#my-model-is-not-listed}
 
-Open **AI Assistant Settings** > **Edit Providers** > your provider > **Edit**,
+Open **AI Assistant settings** > **Edit providers** > your provider > **Edit**,
 then click **Sync now**. Providers with **Auto-sync models** on pick up new
 models automatically once a day. You can also browse and import models, or add
 the model manually - the model name must exactly match what the provider expects.
@@ -497,7 +497,7 @@ If the server requires auth, select an API key secret. If the API key is blank,
 model import sends no `Authorization` header, while OpenAI-compatible chat
 requests include an empty `Bearer` header.
 
-### Max Tokens is confusing {#max-tokens-is-confusing}
+### Max tokens is confusing {#max-tokens-is-confusing}
 
 Use the model's context-window size. Do not use the model's advertised output
 limit. If a request is rejected for context length, shorten the prompt, pick a

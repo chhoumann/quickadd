@@ -60,7 +60,7 @@ targets first. Choose an existing note to open it unchanged, or choose the
 :::tip[Where the command shows up]
 When a template folder is configured, the same entry also appears in **Run
 QuickAdd** - at the bottom by default, or move it to the top / hide it under
-[Settings → Choice Picker](/docs/Settings/#choice-picker) - and it's scriptable
+[Settings → Choice picker](/docs/Settings/#choice-picker) - and it's scriptable
 via [`quickadd:run-template`](/docs/Advanced/CLI/#quickaddrun-template). Make a
 Template choice (below) when you need a fixed location, file-name format,
 linking, or a hotkey.
@@ -284,12 +284,12 @@ is a vault-path wikilink, ready to paste into another note.
 **Open** opens the created file. When enabled, additional file-opening controls
 appear (these are shared with the Capture choice):
 
-- **File Opening Location** - where to open the file: **Reuse current tab**,
+- **File opening location** - where to open the file: **Reuse current tab**,
   **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right
   sidebar**.
-- **Split Direction** - shown only when the location is **Split pane**. Arrange
+- **Split direction** - shown only when the location is **Split pane**. Arrange
   the new pane as **Split right** or **Split down**.
-- **View Mode** - how to display the opened file: **Source**, **Preview**,
+- **View mode** - how to display the opened file: **Source**, **Preview**,
   **Live Preview**, or **Default**.
 - **Focus new pane** - shown for every location except **Reuse current tab**.
   Focus the opened tab immediately after opening.

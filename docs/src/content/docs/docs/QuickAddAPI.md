@@ -549,7 +549,7 @@ Sends a prompt to an AI model and returns the response.
 
 **Parameters:**
 - `prompt`: The prompt text
-- `model`: Model identifier. The model must be configured in Settings → QuickAdd → AI → Providers. Accepts:
+- `model`: Model identifier. The model must be configured in QuickAdd's AI Assistant settings, under Edit providers. Accepts:
   - A model name string, e.g. `"gpt-4o"`. Resolves to the first provider that serves it.
   - A provider-qualified string, e.g. `"openai/gpt-4o"`, where the prefix is a provider's stable ID (shown in the provider's edit form) or display name. Use this when two providers serve the same model name. If a provider literally serves a model whose id IS the whole string (OpenRouter's `openai/gpt-4o`, for example), that literal model wins - use the object form to override.
   - An object, e.g. `{name: "gpt-4o", provider: "openai"}`. With `provider` set, the lookup is scoped to exactly that provider and cannot be shadowed by literal slash-named models.
@@ -598,7 +598,7 @@ const result = await quickAddApi.ai.prompt(
 );
 ```
 
-**Note:** For newer models like `gpt-4o` or custom provider models, add them in Settings → QuickAdd → AI → Providers. Some providers support auto-sync to automatically update available models.
+**Note:** For newer models like `gpt-4o` or custom provider models, add them under Edit providers in QuickAdd's AI Assistant settings. Some providers support auto-sync to automatically update available models.
 
 ### `chunkedPrompt(text: string, promptTemplate: string, model: string | {name: string, provider?: string}, settings?: object): Promise<object>`
 Splits `text` into chunks, runs `promptTemplate` once per chunk, and joins the

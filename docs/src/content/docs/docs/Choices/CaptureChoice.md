@@ -368,9 +368,9 @@ paste into another note.
 When **Capture to active file** is off, the **Behavior** section shows an
 _Open_ toggle. Enabling it reveals:
 
-- _File Opening Location_ - **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**
-- _Split Direction_ - **Split right** or **Split down** (shown for **Split pane**)
-- _View Mode_ - **Source**, **Preview**, **Live Preview**, or **Default**
+- _File opening location_ - **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**
+- _Split direction_ - **Split right** or **Split down** (shown for **Split pane**)
+- _View mode_ - **Source**, **Preview**, **Live Preview**, or **Default**
 - _Focus new pane_ - focus the opened tab immediately (shown for every location except **Reuse current tab**)
 
 When QuickAdd opens and focuses a Markdown target in an editable mode, it

@@ -16,7 +16,7 @@ every choice, every time.
 
 For example, define a snippet named `Signature`:
 
-```text title="Settings → QuickAdd → Global Variables"
+```text title="Settings → QuickAdd → Global variables"
 Name:  Signature
 Value: Logged by QuickAdd on {{DATE:YYYY-MM-DD}}
 ```
@@ -41,7 +41,7 @@ Good places to use one:
 
 ## Define a global variable {#define}
 
-1. Open **Settings → QuickAdd → Global Variables**.
+1. Open **Settings → QuickAdd → Global variables**.
 2. Add a **name** and a **value**. The value is free text and supports all of
    [format syntax](/docs/FormatSyntax/).
 3. That's it - changes save automatically as you type.
@@ -75,7 +75,7 @@ A snippet's value can contain any QuickAdd placeholder - `{{VALUE:...}}`,
 inserted, those placeholders run just like they would if you'd typed them
 directly.
 
-```text title="Settings → QuickAdd → Global Variables"
+```text title="Settings → QuickAdd → Global variables"
 Name:  MyProjects
 Value: {{VALUE:Inbox,Work,Personal,Archive}}
 ```

@@ -60,7 +60,7 @@ The full reference for every flag lives in [Format Syntax](/docs/FormatSyntax/).
 Good to know:
 
 - `|label:` works on `{{VALUE}}` placeholders and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers, not on `{{VDATE}}` or `{{FIELD}}`. On a plain text prompt the label shows as helper text below the title; on a pick list it becomes the placeholder.
-- `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use Multi-line Input Prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
+- `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use multi-line input prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
 - `|type:` flags only work on single-value placeholders. A pick list ignores them.
 
 ## Make a prompt skippable {#optional-prompts}
@@ -86,7 +86,7 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 | One-page input form | `Ctrl/Cmd+Enter` | `Tab` moves between fields |
 | Any optional prompt | | `Ctrl/Cmd+Shift+Enter` skips |
 
-`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show Input Cancellation Notifications** in [settings](/docs/Settings/#notifications).
+`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** in [settings](/docs/Settings/#notifications).
 
 ## Autocomplete while you type {#autocomplete-inside-prompts}
 
