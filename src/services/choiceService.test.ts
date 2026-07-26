@@ -492,14 +492,42 @@ describe("choiceService", () => {
 			expect(mocks.logError).not.toHaveBeenCalled();
 		});
 
-		it("reports a genuine prompt failure", async () => {
+		it("reports a genuine prompt failure, in the target's own noun", async () => {
 			mocks.yesNoPrompt.mockRejectedValue(new Error("boom"));
 			const result = await deleteChoiceWithConfirmation(
-				createChoice("Template", "Del"),
+				createChoice("Multi", "Journal"),
 				fakeApp,
 			);
 			expect(result).toBe(false);
-			expect(mocks.logError).toHaveBeenCalled();
+			// reportError surfaces as a Notice via GuiLogger, so this string is
+			// user-visible and must use the same vocabulary as the dialog above it.
+			expect(String(mocks.logError.mock.calls[0][0])).toContain(
+				"folder deletion",
+			);
+		});
+
+		// dedupeChoicesById deliberately preserves a malformed Multi (children
+		// missing or not an array) instead of fabricating []. The delete must stay
+		// usable for such a folder rather than throwing past the cancel guard.
+		it.each([
+			["missing children", undefined],
+			["non-array children", {} as unknown as IChoice[]],
+		])("still deletes a folder with %s", async (_label, children) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const folder = {
+				id: "corrupt",
+				name: "Journal",
+				type: "Multi",
+				command: false,
+				choices: children,
+			} as unknown as IChoice;
+
+			await expect(
+				deleteChoiceWithConfirmation(folder, fakeApp),
+			).resolves.toBe(true);
+			expect(mocks.yesNoPrompt.mock.calls[0][2]).toBe(
+				"Are you sure you want to delete 'Journal'?",
+			);
 		});
 
 		it("warns about macro commands for a Macro choice", async () => {

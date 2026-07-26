@@ -732,7 +732,7 @@
 	opacity: 0.5;
 }
 
-/* Toggle state (e.g. "Enable in Command Palette"): the accent colour mirrors the
+/* Toggle state (e.g. "Enable in command palette"): the accent colour mirrors the
    old .command-enabled cue; aria-pressed carries the authoritative state for AT. */
 .qa-icon-button.is-pressed {
 	color: var(--text-accent);

@@ -220,8 +220,8 @@ AI Assistant commands expose advanced model parameters:
 
 - **Temperature** controls randomness. Lower values are more focused. Higher values are more varied.
 - **Top P** controls nucleus sampling.
-- **Frequency Penalty** reduces repeated wording on providers that support it.
-- **Presence Penalty** encourages new topics on providers that support it.
+- **Frequency penalty** reduces repeated wording on providers that support it.
+- **Presence penalty** encourages new topics on providers that support it.
 
 A parameter is only sent when you set it. Untouched settings use the provider's
 defaults, and each slider has a reset button that returns it to that state.

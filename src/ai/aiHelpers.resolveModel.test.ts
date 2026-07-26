@@ -277,5 +277,14 @@ describe("resolveModelInputOrThrow", () => {
 		expect(() => resolveModelInputOrThrow("claude-x")).toThrow(
 			"not found in configured providers",
 		);
+		// The hint used to name "Settings → QuickAdd → AI → Providers", a settings
+		// group that has never existed — and the generic prefix above passed either
+		// way, so nothing caught it. Pin the route the docs actually document.
+		expect(() => resolveModelInputOrThrow("claude-x")).toThrow(
+			/Edit providers in QuickAdd's AI Assistant settings/,
+		);
+		expect(() => resolveModelInputOrThrow("claude-x")).not.toThrow(
+			/QuickAdd . AI . Providers/,
+		);
 	});
 });

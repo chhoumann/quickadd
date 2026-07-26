@@ -231,7 +231,13 @@ export async function deleteChoiceWithConfirmation(
 	// vocabulary (#1552), and lumping them together is exactly the mislabel this
 	// dialog is being fixed for. Zero descendants gets no warning at all.
 	const buildMultiWarning = (multi: IMultiChoice): string => {
-		const descendants = flattenChoices(multi.choices);
+		// A malformed Multi (children missing, or not an array) is deliberately
+		// preserved on load rather than repaired — see dedupeChoicesById — and
+		// flattenChoices would throw on it. Throwing here would leave the corrupt
+		// folder undeletable AND raise the unhandled rejection the catch below
+		// exists to prevent, so treat it as empty and let the delete through.
+		const children = Array.isArray(multi.choices) ? multi.choices : [];
+		const descendants = flattenChoices(children);
 		if (descendants.length === 0) return "";
 
 		const folders = descendants.filter((c) => c.type === "Multi").length;
@@ -264,7 +270,10 @@ export async function deleteChoiceWithConfirmation(
 		);
 	} catch (error) {
 		if (!isCancellationError(error)) {
-			reportError(error, "Could not confirm choice deletion");
+			reportError(
+				error,
+				`Could not confirm ${choiceNoun(choice.type)} deletion`,
+			);
 		}
 		return false;
 	}
