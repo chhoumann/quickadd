@@ -220,6 +220,9 @@ describe("#1558 a formatter that does not override the hooks still warns", () =>
 		protected isTemplatePropertyTypesEnabled(): boolean {
 			return false;
 		}
+		protected getCurrentFileName(): string | null {
+			return null;
+		}
 	}
 
 	it("warns for a named |case: typo", async () => {
