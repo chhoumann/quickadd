@@ -111,11 +111,15 @@ beforeEach(() => {
 
 /**
  * The one-page form's live preview previews a FILE NAME, but built a
- * `FormatDisplayFormatter` - the note-CONTENT formatter. It therefore expanded
- * `\n` escapes into real linebreaks, which are not linebreaks in a path, and
- * would have resolved a `{{TEMPLATE:...}}` inclusion into the name.
+ * `FormatDisplayFormatter` - the note-CONTENT formatter - so it expanded `\n`
+ * escapes into real linebreaks, which are not linebreaks in a path.
  * `FileNameDisplayFormatter` is what `formatFileName` mirrors at run time, and
- * is what the builder's own file-name preview already uses.
+ * what the builder's own file-name preview already uses.
+ *
+ * Note the second case is a DIVERGENCE from run time, not parity with it:
+ * `formatFileName` does resolve `{{TEMPLATE:}}` (see
+ * completeFormatter.promptContext.test.ts). Neither file-name preview does, and
+ * pinning that here keeps the gap visible rather than accidental.
  */
 describe("one-page preflight previews the file name with the file-name formatter", () => {
 	it("leaves a backslash-n in the name alone instead of splitting the path", async () => {
@@ -132,7 +136,7 @@ describe("one-page preflight previews the file name with the file-name formatter
 		expect(out.fileName).not.toContain("\n");
 	});
 
-	it("does not pull a template's body into the file name", async () => {
+	it("leaves a {{TEMPLATE:}} include literal rather than splicing a body into a path", async () => {
 		await runOnePagePreflight(
 			createApp(),
 			createPlugin(),

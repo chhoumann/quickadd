@@ -119,11 +119,18 @@ export async function runOnePagePreflight(
 		const computePreview = async (values: Record<string, string>) => {
 			try {
 				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
-				// a FILE NAME, and only the file-name formatter matches what
-				// `formatFileName` actually does at run time - it resolves
-				// {{foldercurrent}} in "path" mode, never includes templates, and does
-				// not expand `\n` escapes (which are not linebreaks in a path). It is
-				// also the class the builder's own file-name preview uses.
+				// a FILE NAME. The content formatter expands `\n` escapes (not
+				// linebreaks in a path) and resolves {{LINKCURRENT}}/{{LINKSECTION}},
+				// both of which the run-time `formatFileName` deliberately leaves
+				// literal. It is also the class the builder's own file-name preview
+				// uses.
+				//
+				// One deliberate divergence: `formatFileName` DOES resolve
+				// {{TEMPLATE:}} at run time (format() -> replaceTemplateInString, with
+				// path prompt scope propagated in CompleteFormatter.getTemplateContent).
+				// Neither file-name preview does - a multi-line template body is not a
+				// name, and the only inert reader available here returns a fabricated
+				// stub. Same gap the builder's file-name field already has.
 				const formatter = new FileNameDisplayFormatter(app, plugin);
 				const out: Record<string, string> = {};
 				// File name preview for Template

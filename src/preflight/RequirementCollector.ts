@@ -129,6 +129,10 @@ export class RequirementCollector extends Formatter {
 	 * Issue #1558.
 	 */
 	protected warn(): void {}
+	// Defence in depth: the scan's own format() never calls
+	// replaceTemplateInString (it records template paths for the caller to walk),
+	// so nothing routes here today. It stays so a future pass added to the scan
+	// cannot reintroduce a 15-second error Notice from a preflight walk.
 	protected reportProblem(): void {}
 
 	/**

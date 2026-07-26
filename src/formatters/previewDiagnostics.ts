@@ -44,9 +44,15 @@ export class PreviewDiagnostics {
  * "QuickAdd: (Warning) " (quickAddLogger.ts) - so most of them also open with a
  * literal "QuickAdd: " that reads as a stutter there and as pure noise inline
  * under a QuickAdd settings field.
+ *
+ * The template cycle/depth reports arrive wrapped as `[QuickAdd: ... ]` because
+ * the same string is ALSO spliced into the output as a placeholder. Unwrap those
+ * first, or the preview shows the identical bracketed sentence twice, twenty
+ * pixels apart.
  */
 function stripBrandPrefix(message: string): string {
-	return message.replace(/^QuickAdd:\s*/i, "");
+	const unwrapped = message.replace(/^\[(QuickAdd:[\s\S]*)\]$/i, "$1");
+	return unwrapped.replace(/^QuickAdd:\s*/i, "");
 }
 
 /**
@@ -59,9 +65,11 @@ function stripBrandPrefix(message: string): string {
  * already in. These are the most useful diagnostics the preview can produce, so
  * they go in the same channel as the warnings.
  *
- * The catch is untyped and catches everything, so a genuine plugin bug must not
- * render its raw message under a settings field: only QuickAdd-authored
- * messages are passed through, anything else degrades to a generic line.
+ * The catch is untyped and catches everything, so a non-Error throw degrades to
+ * a generic line. An `Error` message IS shown verbatim: there is deliberately no
+ * brand allowlist, because most of the reachable throws are QuickAdd-authored but
+ * unbranded, and on the rare occasion a genuine plugin bug surfaces here, its
+ * message is what makes the bug report actionable.
  */
 export function describePreviewFailure(error: unknown): string | null {
 	if (!(error instanceof Error)) return PREVIEW_FAILED_MESSAGE;

@@ -172,7 +172,7 @@ describe("#1558 previewing {{TEMPLATE:...}} is inert", () => {
 		);
 	});
 
-	it("stops a self-including template instead of recursing per keystroke", async () => {
+	it("reports a self-including template as a cycle, at the preview level", async () => {
 		templates["Loop.md"] = "before {{TEMPLATE:Loop.md}} after";
 		const f = new FormatDisplayFormatter(makeApp(), plugin);
 
@@ -182,6 +182,13 @@ describe("#1558 previewing {{TEMPLATE:...}} is inert", () => {
 		// The cycle report is a preview diagnostic, not a 15-second error Notice.
 		expect(reported).toEqual([]);
 		expect(f.diagnostics.hasError).toBe(true);
+		// The same sentence is ALSO spliced into the output as a placeholder, so
+		// the inline copy is unwrapped and unbranded rather than repeating the
+		// bracketed text verbatim twenty pixels below it.
+		const [entry] = f.diagnostics.list();
+		expect(entry.message.startsWith("[")).toBe(false);
+		expect(entry.message.startsWith("QuickAdd:")).toBe(false);
+		expect(entry.message).toContain("template inclusion cycle detected");
 	});
 
 	it("stops a long include chain at the inclusion depth limit", async () => {

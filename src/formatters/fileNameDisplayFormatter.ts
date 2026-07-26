@@ -34,7 +34,6 @@ export class FileNameDisplayFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 	}
 
-
 	/**
 	 * Problems this pass ran into, for passive display beside the preview.
 	 *
@@ -163,10 +162,21 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getVariablePromptExample(variableName);
 	}
 
+	/**
+	 * Unreachable today: this formatter's pass list (see `format()`) never calls
+	 * `replaceTemplateInString`, so `{{TEMPLATE:}}` stays literal in a file-name
+	 * preview. `getTemplateContent` is abstract on `Formatter`, so the override has
+	 * to exist.
+	 *
+	 * It used to return a fabricated `[<name> template content...]`, which would
+	 * have spliced text that READS like a real part of the file name the moment
+	 * anyone wired the pass up. It now names what actually happened. Run-time
+	 * `formatFileName` does resolve the include (`format()` ->
+	 * `replaceTemplateInString`); closing that gap needs a real inert reader, not
+	 * a stub.
+	 */
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		// Show template preview with realistic content length
-		const templateName = templatePath.split('/').pop()?.replace('.md', '') || templatePath;
-		return `[${templateName} template content...]`;
+		return `[QuickAdd: template not resolved in a file name] ${templatePath}`;
 	}
 
 	protected async getSelectedText(): Promise<string> {

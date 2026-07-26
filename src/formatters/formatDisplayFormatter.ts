@@ -42,7 +42,6 @@ export class FormatDisplayFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 	}
 
-
 	/**
 	 * Problems this pass ran into, for passive display beside the preview.
 	 *
@@ -236,10 +235,15 @@ export class FormatDisplayFormatter extends Formatter {
 		// the state with depth + 1, while `visited` is shared by reference — so
 		// incrementing depth inside the shared `replaceTemplateInString` would
 		// advance the runtime by two per level and halve its inclusion limit. The
-		// preview has no child formatter to carry it, so it counts here. This is
-		// new capability, not parity: before this change every nested level
-		// restarted with a fresh `visited` and depth 0, so a self-including
-		// template recursed unbounded, once per keystroke.
+		// preview has no child formatter to carry it, so it counts here. Preview
+		// and runtime both still cap at MAX_TEMPLATE_INCLUSION_DEPTH levels.
+		//
+		// What the local counter buys: cycle and depth accounting that spans the
+		// preview level itself, on one budget shared across the field. Before this
+		// change the preview handed the engine no inclusion state at all, so the
+		// first nested level always started over from an empty `visited` and depth
+		// 0. (It was not unbounded - inside the engine subtree `visited` was shared
+		// by reference, so a self-including template still terminated.)
 		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
 		this.templateInclusion.depth++;
 		try {
