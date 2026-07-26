@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { FormatDisplayFormatter } from "./formatDisplayFormatter";
 import { FileNameDisplayFormatter } from "./fileNameDisplayFormatter";
 import { Formatter } from "./formatter";
+import { describePreviewFailure } from "./previewDiagnostics";
 import type QuickAdd from "../main";
 import { LogManager } from "../logger/logManager";
 import type { ILogger } from "../logger/ilogger";
@@ -146,6 +147,21 @@ describe("#1558 the live format preview never fires a Notice", () => {
 		expect(entries).toHaveLength(1);
 		expect(entries[0].severity).toBe("error");
 		expect(formatter.diagnostics.hasError).toBe(true);
+	});
+
+	it("drops a cancellation rather than reporting it as a preview failure", async () => {
+		// QuickAdd's modals reject with a bare STRING, not an Error
+		// (GenericInputPrompt.ts: `rejectPromise("No input given.")`), and
+		// isCancellationError only ever matches strings.
+		expect(describePreviewFailure("No input given.")).toBeNull();
+		expect(describePreviewFailure("no input given.")).toBeNull();
+		expect(describePreviewFailure("cancelled")).toBeNull();
+		expect(describePreviewFailure(new Error("cancelled"))).toBeNull();
+		// Anything else still reports.
+		expect(describePreviewFailure("something else")).not.toBeNull();
+		expect(describePreviewFailure(new Error("real problem"))).toBe(
+			"real problem",
+		);
 	});
 
 	it("gives the half-typed {{VALUE:}} the autocomplete inserts real copy", async () => {
