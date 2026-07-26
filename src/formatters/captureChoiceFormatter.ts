@@ -92,6 +92,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.clipboardAttachmentLink = undefined;
 		// {{FOLDER}} in a capture body resolves to the destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
+		// Both destination setters run on EVERY write path (existing file, created
+		// file, canvas card) immediately before the content pass, so hooking them
+		// is what lets a capture's body prompt name its target note (issue #1546).
+		this.setPromptRunContext({
+			destination: file.path,
+			destinationKind: "file",
+		});
 	}
 
 	public setDestinationSourcePath(path: string): void {
@@ -99,6 +106,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.file = null;
 		this.clipboardAttachmentLink = undefined;
 		this.setTargetFolderPath(parentFolderPath(path));
+		this.setPromptRunContext({ destination: path, destinationKind: "file" });
 	}
 
 	public setUseSelectionAsCaptureValue(value: boolean): void {
@@ -275,8 +283,14 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
+		// Declared here rather than read from `this.choice`, which is still
+		// undefined on the formatContentOnly path (assigned only by
+		// formatContentWithFile/formatContent) - the very pass that opens the
+		// capture's body {{VALUE}} prompt (issue #1546).
 		let formatted = await this.withClipboardImageFallback(async () =>
-			super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			this.withPromptScope("captureText", input, async () =>
+				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			),
 		);
 
 		// Run templater only once per capture payload to prevent #533 double execution
@@ -335,7 +349,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
 		const formatted = await this.withClipboardImageFallback(async () =>
-			super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			this.withPromptScope("captureText", input, async () =>
+				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			),
 		);
 
 		// DON'T run templater parsing here - it will be handled either by:

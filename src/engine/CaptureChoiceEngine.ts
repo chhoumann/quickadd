@@ -141,6 +141,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		this.choice = choice;
 		this.plugin = plugin;
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		// Every prompt this run opens can say which choice is asking (issue #1546).
+		this.formatter.setPromptRunContext({
+			draftScopeId: choice.id,
+			choiceName: choice.name,
+		});
 	}
 
 	/**
@@ -952,7 +957,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const captureTo = this.choice.captureTo;
 		const formattedCaptureTo = await this.formatter.formatFileName(
 			captureTo,
-			this.choice.name,
+			"captureTarget",
 		);
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
@@ -1443,8 +1448,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			// The SingleTemplateEngine has its own formatter; give it the
-			// destination folder so {{FOLDER}} resolves in the template body.
+			// destination folder so {{FOLDER}} resolves in the template body, and
+			// the run context so its prompts still name the choice and target.
 			singleTemplateEngine.setTargetFolderPath(parentFolderPath(filePath));
+			singleTemplateEngine.setPromptRunContext({
+				// Scoped to the template: the engine has its own formatter and raises
+				// its own {{VALUE}} prompt, which must not share the capture body
+				// prompt's draft key.
+				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
+				choiceName: this.choice.name,
+				destination: filePath,
+				destinationKind: "file",
+			});
 
 			fileContent = await singleTemplateEngine.run();
 
@@ -1511,7 +1526,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	private async formatFilePath(captureTo: string) {
 		const formattedCaptureTo: string = await this.formatter.formatFileName(
 			captureTo,
-			this.choice.name,
+			"captureTarget",
 		);
 
 		return this.normalizeCaptureFilePath(formattedCaptureTo);

@@ -58,6 +58,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		constructor() {}
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext() {}
 		setDestinationFile() {}
 		setDestinationSourcePath() {}
 		setUseSelectionAsCaptureValue() {}

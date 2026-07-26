@@ -85,10 +85,15 @@ describe("createFolderTemplateChoice", () => {
 		);
 	});
 
-	it("returns a fresh uuid id each call (never persisted, no deterministic collision)", () => {
+	it("derives a stable, namespaced id from the template path", () => {
+		// Stable across runs so the note-name prompt keeps one input-draft key and
+		// cancel-and-retry restores what was typed (issue #1546); namespaced so it
+		// can never collide with a persisted choice's uuid.
 		const a = createFolderTemplateChoice("Templates/X.md");
 		const b = createFolderTemplateChoice("Templates/X.md");
-		expect(a.id).not.toBe(b.id);
+		expect(a.id).toBe(b.id);
+		expect(a.id).toBe("folder-template:Templates/X.md");
+		expect(createFolderTemplateChoice("Templates/Y.md").id).not.toBe(a.id);
 	});
 });
 

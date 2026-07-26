@@ -864,8 +864,19 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				getQuickAddInstance(),
 				this.choiceExecutor
 			);
+			// This formatter is built per command, so a {{VALUE}} in the path only
+			// gets the macro's name and its own draft scope if they are handed over
+			// (issue #1546). Scoped per command id: a macro can hold several Open
+			// File commands, and they must not share one draft.
+			formatter.setPromptRunContext({
+				choiceName: this.choice?.name,
+				draftScopeId: `${this.choice?.id ?? "macro"}#openFile:${command.id}`,
+			});
 
-			const resolvedPath = await formatter.formatFileName(command.filePath, "");
+			const resolvedPath = await formatter.formatFileName(
+				command.filePath,
+				"filePath",
+			);
 			const normalizedPath = resolvedPath.replace(/\\/g, "/");
 
 			// Validate path segments to prevent traversal attacks. A substring check

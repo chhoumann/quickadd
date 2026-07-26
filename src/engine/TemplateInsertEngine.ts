@@ -208,9 +208,13 @@ export class TemplateInsertEngine extends TemplateEngine {
 			// create the note in (the path just computed), matching what
 			// TemplateChoiceEngine produces.
 			this.formatter.setTargetFolderPath(folderPath);
+			// "generic": this computes where the choice WOULD have created the note
+			// so a move can be offered - nothing is created and nothing is opened,
+			// so no derived ask would be true here. Any prompt keeps the choice
+			// name as its title, as it does today.
 			const formattedName = await this.formatter.formatFileName(
 				choice.fileNameFormat.format,
-				choice.name,
+				"generic",
 			);
 			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
 			// Mirror TemplateChoiceEngine's resolution of formatted names that
@@ -303,7 +307,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 		this.formatter.setTargetFolderPath(parentFolderPath(this.targetFile.path));
 
 		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
-			this.formatter.formatFileContent(templateContent),
+			this.formatter.withPromptScope("noteBody", templateContent, () =>
+				this.formatter.formatFileContent(templateContent),
+			),
 		);
 		const templatePropertyVars =
 			this.formatter.getAndClearTemplatePropertyVars();

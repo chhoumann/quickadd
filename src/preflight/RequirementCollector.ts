@@ -10,6 +10,11 @@ import {
 	VARIABLE_REGEX,
 } from "src/constants";
 import { Formatter, type PromptContext } from "src/formatters/formatter";
+import {
+	describeValuePrompt,
+	valueAnswersWholeScope,
+	type PromptScopeKind,
+} from "src/formatters/promptScope";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import { NLDParser } from "src/parsers/NLDParser";
@@ -119,11 +124,27 @@ export class RequirementCollector extends Formatter {
 	 * into FieldRequirement.pathContext (sticky across occurrences).
 	 */
 	private scanningPathContext = false;
+	/**
+	 * What the string being scanned becomes, so the batched one-page form labels
+	 * the anonymous {{VALUE}} field the same way the sequential prompt titles it
+	 * (issue #1546). Falls back to the path/content split when a caller only
+	 * knows that much.
+	 */
+	private scanningScope: PromptScopeKind = "generic";
+	private scanningSoleValue = false;
 
 	// Entry points -------------------------------------------------------------
-	public async scanString(input: string, pathContext = false): Promise<void> {
+	public async scanString(
+		input: string,
+		pathContext = false,
+		scope: PromptScopeKind = "generic",
+	): Promise<void> {
 		const previousContext = this.scanningPathContext;
+		const previousScope = this.scanningScope;
+		const previousSoleValue = this.scanningSoleValue;
 		this.scanningPathContext = pathContext;
+		this.scanningScope = scope;
+		this.scanningSoleValue = valueAnswersWholeScope(scope, input);
 		try {
 			// Expand global variables first so we can detect inner requirements
 			const expanded = await this.replaceGlobalVarInString(input);
@@ -150,6 +171,8 @@ export class RequirementCollector extends Formatter {
 			await this.format(expanded);
 		} finally {
 			this.scanningPathContext = previousContext;
+			this.scanningScope = previousScope;
+			this.scanningSoleValue = previousSoleValue;
 		}
 	}
 
@@ -429,9 +452,13 @@ export class RequirementCollector extends Formatter {
 				this.valuePromptContext?.inputTypeOverride === "number";
 			const isSlider =
 				this.valuePromptContext?.inputTypeOverride === "slider";
+			const derived = describeValuePrompt(
+				this.scanningScope,
+				this.scanningSoleValue,
+			);
 			this.requirements.set(key, {
 				id: key,
-				label: header || "Enter value",
+				label: derived.title || header || "Enter value",
 				type:
 					isCheckbox
 						? "dropdown"
@@ -444,6 +471,7 @@ export class RequirementCollector extends Formatter {
 						? "textarea"
 						: "text",
 				description: this.valuePromptContext?.description,
+				placeholder: derived.placeholder,
 				defaultValue: this.valuePromptContext?.defaultValue,
 				numericConfig: this.valuePromptContext?.numericConfig,
 				sliderConfig: this.valuePromptContext?.sliderConfig,

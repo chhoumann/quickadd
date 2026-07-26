@@ -8,6 +8,7 @@ import type {
 	LinkToCurrentFileBehavior,
 	TemplateInclusionState,
 } from "../formatters/formatter";
+import type { PromptRunContext } from "../formatters/promptScope";
 import type { App, TFile } from "obsidian";
 import { Notice, TFolder } from "obsidian";
 import type QuickAdd from "../main";
@@ -587,10 +588,19 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			this.formatter.setTitle(fileBasename);
 			// {{FOLDER}} in the body reflects the file's actual on-disk folder.
 			this.formatter.setTargetFolderPath(parentFolderPath(filePath));
+			// Pin the prompt destination to the path actually being created, which
+			// is NOT always the choice's computed target: a "create another file"
+			// collision mode resolves an incremented name first (issue #1546).
+			this.formatter.setPromptRunContext({
+				destination: filePath,
+				destinationKind: "file",
+			});
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
-					this.formatter.formatFileContent(templateContent),
+					this.formatter.withPromptScope("noteBody", templateContent, () =>
+						this.formatter.formatFileContent(templateContent),
+					),
 				);
 
 			// Get template variables before creating the file
@@ -643,6 +653,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	/**
+	 * Propagates "which choice is asking, and where its output lands" into this
+	 * engine's own formatter, so prompts raised from a nested template
+	 * ({{TEMPLATE:...}} inclusion, or a capture creating its target file from a
+	 * template) still carry the run context (issue #1546).
+	 */
+	public setPromptRunContext(context: PromptRunContext) {
+		this.formatter.setPromptRunContext(context);
+	}
+
+	/**
 	 * Resolves QuickAdd format tokens in a template *source* path (issue #620)
 	 * via this engine's formatter, e.g. "Templates/{{value:type}} Template.md".
 	 * Call once at run() entry and reuse the result for BOTH target-path
@@ -671,10 +691,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			// {{FOLDER}} reflects the existing file's folder, which can differ
 			// from the choice's configured folder.
 			this.formatter.setTargetFolderPath(parentFolderPath(file.path));
+			this.formatter.setPromptRunContext({
+				destination: file.path,
+				destinationKind: "file",
+			});
 
 			const formattedTemplateContent: string =
 				await this.formatter.withTemplatePropertyCollection(() =>
-					this.formatter.formatFileContent(templateContent),
+					this.formatter.withPromptScope("noteBody", templateContent, () =>
+						this.formatter.formatFileContent(templateContent),
+					),
 				);
 
 			// Get template variables before modifying the file
@@ -719,9 +745,16 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			const fileBasename = file.basename;
 			this.formatter.setTitle(fileBasename);
 			this.formatter.setTargetFolderPath(parentFolderPath(file.path));
+			this.formatter.setPromptRunContext({
+				destination: file.path,
+				destinationKind: "file",
+			});
 
-			let formattedTemplateContent: string =
-				await this.formatter.formatFileContent(templateContent);
+			let formattedTemplateContent: string = await this.formatter.withPromptScope(
+				"noteBody",
+				templateContent,
+				() => this.formatter.formatFileContent(templateContent),
+			);
 			if (file.extension === "md") {
 				formattedTemplateContent = await templaterParseTemplate(
 					this.app,

@@ -66,6 +66,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
 		this.choice = choice;
+		// Every prompt this run opens can say which choice is asking (issue #1546).
+		this.formatter.setPromptRunContext({
+			draftScopeId: choice.id,
+			choiceName: choice.name,
+		});
 	}
 
 	public async run(): Promise<void> {
@@ -139,10 +144,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
+			// The title prompt below can say where the note will be created only
+			// when a folder is actually configured. With folder settings off the
+			// formatted name can reroute the note from the vault root
+			// (shouldTreatFormattedNameAsVaultRelativePath returns false as soon
+			// as folderEnabled), and the answer that reroutes it is the very one
+			// being typed - so Obsidian's default location is not something this
+			// prompt can promise.
+			if (this.choice.folder.enabled) {
+				this.formatter.setPromptRunContext({
+					destination: folderPath,
+					destinationKind: "folder",
+				});
+			}
 
 			const formattedName = discoveryVaultRelativePath
 				? discoveryVaultRelativePath
-				: await this.formatter.formatFileName(format, this.choice.name);
+				: await this.formatter.formatFileName(format, "noteTitle");
 			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
 			const { fileName, strippedPrefix } = discoveryVaultRelativePath
 				? { fileName: routedName, strippedPrefix: false }
@@ -528,6 +546,15 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			this.choiceExecutor,
 			resolvedTemplatePath,
 		);
+		// This engine owns its own formatter, so the run context has to be handed
+		// over or every prompt raised while appending loses the choice name, the
+		// destination and its draft scope (issue #1546).
+		insertEngine.setPromptRunContext({
+			draftScopeId: this.choice.id,
+			choiceName: this.choice.name,
+			destination: existingFile.path,
+			destinationKind: "file",
+		});
 		insertEngine.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"
@@ -590,12 +617,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		return null;
 	}
 
+	// Sequential, not Promise.all: these passes share one formatter, and
+	// overlapping passes interleave its per-pass prompt scope (and would stack
+	// several prompt modals at once if a folder definition contained {{VALUE}}).
 	private async formatFolderPaths(folders: string[]) {
-		const folderPaths = await Promise.all(
-			folders.map(async (folder) => {
-				return await this.formatter.formatFolderPath(folder);
-			}),
-		);
+		const folderPaths: string[] = [];
+		for (const folder of folders) {
+			folderPaths.push(await this.formatter.formatFolderPath(folder));
+		}
 
 		return folderPaths;
 	}

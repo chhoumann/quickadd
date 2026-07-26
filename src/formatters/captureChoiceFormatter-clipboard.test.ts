@@ -85,6 +85,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		}
 		setLinkToCurrentFileBehavior() {}
 		setTargetFolderPath() {}
+		setPromptRunContext() {}
 	},
 }));
 
@@ -256,7 +257,7 @@ describe("CaptureChoiceFormatter clipboard image support", () => {
 		const formatter = createFormatter(app);
 		formatter.setDestinationSourcePath("Notes/Clip.md");
 
-		const result = await formatter.formatFileName("{{clipboard}}", "Capture");
+		const result = await formatter.formatFileName("{{clipboard}}");
 
 		expect(result).toBe("");
 		expect(read).not.toHaveBeenCalled();

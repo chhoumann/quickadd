@@ -12,6 +12,14 @@ vi.mock('../formatters/completeFormatter', () => {
             return {
                 setTitle: vi.fn((t: string) => { title = t; }),
                 setTargetFolderPath: vi.fn(),
+                setPromptRunContext: vi.fn(),
+                withPromptScope: vi.fn(
+                    async (
+                        _scope: string,
+                        _input: string,
+                        work: () => Promise<unknown>,
+                    ) => await work(),
+                ),
                 getTitle: () => title,
                 withTemplatePropertyCollection: vi.fn(
                     async (work: () => Promise<unknown>) => await work(),

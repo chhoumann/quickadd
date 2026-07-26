@@ -192,6 +192,20 @@ export async function applyTemplateToNote(
 			mode,
 			params.choiceExecutor,
 		);
+		// Prompts raised while applying the template say which choice is driving
+		// and which note is being written (issue #1546). Applying a bare template
+		// has no choice, so only the destination is known. Prompts inside the
+		// template SOURCE path do not show the destination - scopeShowsDestination
+		// withholds it, because those answers pick which template to read.
+		engine.setPromptRunContext({
+			choiceName: source.kind === "choice" ? source.choice.name : undefined,
+			draftScopeId:
+				source.kind === "choice"
+					? source.choice.id
+					: `template-insert#${templatePath}`,
+			destination: file.path,
+			destinationKind: "file",
+		});
 
 		// Resolve format tokens in the path (issue #620), then re-validate that
 		// the RESOLVED file is still a markdown template: a token can expand a
@@ -210,6 +224,14 @@ export async function applyTemplateToNote(
 		if (!result) return null;
 
 		if (interactive && source.kind === "choice") {
+			// Reconciliation computes where the choice WOULD create the note so a
+			// move can be offered. Any prompt it raises does not land in the note
+			// being templated, so drop the destination rather than advertise a
+			// path the answer never reaches (issue #1546).
+			engine.setPromptRunContext({
+				destination: undefined,
+				destinationKind: undefined,
+			});
 			await maybeReconcileNoteLocation(app, engine, source.choice, file);
 		}
 

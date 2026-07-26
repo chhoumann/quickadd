@@ -36,6 +36,13 @@ import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { log } from "../logger/logManager";
 import { Formatter, type PromptContext } from "./formatter";
 import {
+	buildPromptContextLine,
+	describeValuePrompt,
+	isPathScope,
+	scopeShowsDestination,
+	type PromptScopeKind,
+} from "./promptScope";
+import {
 	buildSectionSubpath,
 	extractHeadingsFromLines,
 } from "./helpers/sectionLink";
@@ -44,7 +51,6 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 
 export class CompleteFormatter extends Formatter {
-	private valueHeader: string;
 	/**
 	 * True only while formatFileContent's format() pass runs. Value prompts
 	 * opened during that window accept clipboard-image paste; prompts opened
@@ -106,7 +112,15 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
-	async formatFileName(input: string, valueHeader: string): Promise<string> {
+	/**
+	 * Formats a file path. `scope` says WHAT the path is, so a `{{VALUE}}` inside
+	 * it can name itself at prompt time (issue #1546): the same entry point
+	 * produces Template note titles, Capture targets and a macro's file-to-open.
+	 */
+	async formatFileName(
+		input: string,
+		scope: PromptScopeKind = "generic",
+	): Promise<string> {
 		// Check for {{title}} usage in filename which would cause infinite recursion
 		if (/\{\{title\}\}/i.test(input)) {
 			throw new Error(
@@ -114,8 +128,9 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		this.valueHeader = valueHeader;
-		let output = await this.format(input);
+		let output = await this.withPromptScope(scope, input, () =>
+			this.format(input),
+		);
 		// A {{title}} produced AFTER the raw-input check — by an expanded global
 		// snippet ({{GLOBAL_VAR:x}} -> {{title}}) or a {{VALUE}} that resolved to
 		// the literal text "{{title}}" — would otherwise survive into the file name
@@ -151,7 +166,10 @@ export class CompleteFormatter extends Formatter {
 		// (issue #1484). Restored in finally so a nested/failed pass can't
 		// leak the flag into a later path pass on the same formatter.
 		const previousImagePaste = this.contentValuePromptsAcceptImagePaste;
-		this.contentValuePromptsAcceptImagePaste = true;
+		// ...unless the declared scope says this content is destined for a PATH,
+		// which happens when a {{TEMPLATE:}} include is spliced into a file name
+		// or folder and rendered through its own formatter.
+		this.contentValuePromptsAcceptImagePaste = !isPathScope(this.promptScope);
 		try {
 			output = await this.format(output);
 		} finally {
@@ -183,7 +201,9 @@ export class CompleteFormatter extends Formatter {
 			);
 		}
 
-		const formatted = await this.format(folderName);
+		const formatted = await this.withPromptScope("folder", folderName, () =>
+			this.format(folderName),
+		);
 		// As in formatFileName: a {{title}} injected by a global snippet or a
 		// {{VALUE}} resolving to "{{title}}" slips past the raw-input check above,
 		// then the folder-only token pass would leave it literal in the path.
@@ -259,21 +279,25 @@ export class CompleteFormatter extends Formatter {
 		// Path-safe replacers, mirroring the tail of format() (completeFormatter
 		// .format) MINUS macros, inline JS, and {{TEMPLATE:}} inclusion. Keep this
 		// list in sync with format() when adding a path-safe token.
-		output = this.replaceDateInString(output);
-		output = this.replaceTimeInString(output);
-		output = await this.replaceValueInString(output);
-		output = await this.replaceSelectedInString(output);
-		output = await this.replaceClipboardInString(output);
-		output = await this.replaceDateVariableInString(output);
-		output = await this.replaceVariableInString(output);
-		output = await this.replaceFieldVarInString(output);
-		// {{FILE:...}} is path-safe (lists files + a picker, runs no code) and is
-		// collected from the template path by preflight (scanTemplateSource), so it
-		// MUST resolve here too or a `Templates/{{FILE:...|path}}` source path would
-		// prompt up front and then fail to resolve at runtime.
-		output = await this.replaceFileInString(output);
-		output = await this.replaceMathValueInString(output);
-		output = this.replaceRandomInString(output);
+		// Scoped on the ORIGINAL input: prompts opened here are filling in the
+		// template's source path, not the note being created.
+		output = await this.withPromptScope("templatePath", input, async () => {
+			let scoped = this.replaceDateInString(output);
+			scoped = this.replaceTimeInString(scoped);
+			scoped = await this.replaceValueInString(scoped);
+			scoped = await this.replaceSelectedInString(scoped);
+			scoped = await this.replaceClipboardInString(scoped);
+			scoped = await this.replaceDateVariableInString(scoped);
+			scoped = await this.replaceVariableInString(scoped);
+			scoped = await this.replaceFieldVarInString(scoped);
+			// {{FILE:...}} is path-safe (lists files + a picker, runs no code) and
+			// is collected from the template path by preflight (scanTemplateSource),
+			// so it MUST resolve here too or a `Templates/{{FILE:...|path}}` source
+			// path would prompt up front and then fail to resolve at runtime.
+			scoped = await this.replaceFileInString(scoped);
+			scoped = await this.replaceMathValueInString(scoped);
+			return this.replaceRandomInString(scoped);
+		});
 
 		// Trim so the suffix the engine reads for the extension matches the path
 		// getTemplateFile ultimately resolves (which trims) — otherwise a token
@@ -288,7 +312,9 @@ export class CompleteFormatter extends Formatter {
 	 * so selectors can reference {{linkcurrent}} and {{title}} consistently.
 	 */
 	protected async formatLocationString(input: string): Promise<string> {
-		let output = await this.format(input);
+		let output = await this.withPromptScope("lineTarget", input, () =>
+			this.format(input),
+		);
 		// Links + {{filenamecurrent}} + {{title}} in one pass so no token re-scans
 		// another's output (#1358). {{FOLDER}} and {{FOLDERCURRENT}} are
 		// deliberately left literal in location selectors (insert-after/before
@@ -432,6 +458,42 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
+	/**
+	 * The anonymous `{{VALUE}}` prompt. Its title, placeholder and context line
+	 * come from the scope the caller declared for the string being formatted, so
+	 * a Template's title prompt and a Capture's text prompt stop looking
+	 * identical (issue #1546). The derived title is used ONLY when the answer is
+	 * the whole string; otherwise the choice name stays the title and only the
+	 * placeholder names the field, because "Note title" over a format of
+	 * `{{DATE:YYYY-MM-DD}} {{VALUE}}` would invite the user to retype the date.
+	 */
+	private describeAnonymousValuePrompt(): {
+		title: string;
+		placeholder?: string;
+		contextLine?: string;
+		contextLineFull?: string;
+	} {
+		const derived = describeValuePrompt(
+			this.promptScope,
+			this.promptScopeSoleValue,
+		);
+		const title =
+			derived.title ??
+			(this.promptRunContext?.choiceName?.trim() || "Enter value");
+		const showDestination = scopeShowsDestination(this.promptScope);
+		return {
+			title,
+			placeholder: derived.placeholder,
+			contextLine: buildPromptContextLine(this.promptRunContext, title, {
+				showDestination,
+			}),
+			contextLineFull: buildPromptContextLine(this.promptRunContext, title, {
+				elide: false,
+				showDestination,
+			}),
+		};
+	}
+
 	protected async promptForValue(header?: string): Promise<string> {
 		if (this.value === undefined) {
 			if (this.shouldUseSelectionForValue()) {
@@ -459,8 +521,7 @@ export class CompleteFormatter extends Formatter {
 							["true", "false"],
 							["true", "false"],
 							this.valuePromptContext.description ??
-								this.valueHeader ??
-								"Choose value",
+								this.describeAnonymousValuePrompt().title,
 							false,
 						),
 					);
@@ -472,8 +533,7 @@ export class CompleteFormatter extends Formatter {
 						["true", "false"],
 						["true", "false"],
 						this.valuePromptContext.description ??
-							this.valueHeader ??
-							"Choose value",
+							this.describeAnonymousValuePrompt().title,
 						undefined,
 						this.valuePromptContext.optional
 							? { skippable: true }
@@ -487,12 +547,18 @@ export class CompleteFormatter extends Formatter {
 					throw error;
 				}
 			}
+			const prompt = this.describeAnonymousValuePrompt();
 			// Route to a remote interactive session (Raycast) when one is driving.
+			// PromptProvider has no context-line channel, so it is folded into the
+			// header - otherwise a remote run would come out of this change with
+			// LESS context than before (the header used to be the choice name).
 			const valueProvider = this.choiceExecutor?.promptProvider;
 			if (valueProvider) {
 				this.value = await valueProvider.inputPrompt(
-					this.valueHeader ?? "Enter value",
-					this.valuePromptContext?.placeholder,
+					prompt.contextLine
+						? `${prompt.title} (${prompt.contextLine})`
+						: prompt.title,
+					this.valuePromptContext?.placeholder ?? prompt.placeholder,
 					this.valuePromptContext?.defaultValue,
 				);
 				return this.value;
@@ -506,12 +572,16 @@ export class CompleteFormatter extends Formatter {
 				const description = this.valuePromptContext?.description;
 				const promptOptions = this.buildInputPromptOptions(
 					this.valuePromptContext,
+					prompt.contextLine,
+					prompt.contextLineFull,
 				);
+				const placeholder =
+					this.valuePromptContext?.placeholder ?? prompt.placeholder;
 				if (linkSourcePath) {
 					this.value = await promptFactory.PromptWithContext(
 						this.app,
-						this.valueHeader ?? `Enter value`,
-						undefined,
+						prompt.title,
+						placeholder,
 						defaultValue,
 						linkSourcePath,
 						description,
@@ -520,8 +590,8 @@ export class CompleteFormatter extends Formatter {
 				} else {
 					this.value = await promptFactory.Prompt(
 						this.app,
-						this.valueHeader ?? `Enter value`,
-						undefined,
+						prompt.title,
+						placeholder,
 						defaultValue,
 						description,
 						promptOptions,
@@ -569,6 +639,8 @@ export class CompleteFormatter extends Formatter {
 
 	private buildInputPromptOptions(
 		context: PromptContext | undefined,
+		contextLine?: string,
+		contextLineFull?: string,
 	): InputPromptOptions | undefined {
 		// Image paste only for free-text prompts opened while formatting note
 		// CONTENT — never for number/slider (numeric sinks) and never during
@@ -580,11 +652,14 @@ export class CompleteFormatter extends Formatter {
 			context?.inputTypeOverride !== "slider"
 				? { sourcePath: this.getLinkSourcePath() ?? "" }
 				: undefined;
+		const draftScopeId = this.promptRunContext?.draftScopeId;
 		if (
 			!context?.optional &&
 			!context?.numericConfig &&
 			!context?.sliderConfig &&
-			!imagePaste
+			!imagePaste &&
+			!contextLine &&
+			!draftScopeId
 		) {
 			return undefined;
 		}
@@ -593,6 +668,9 @@ export class CompleteFormatter extends Formatter {
 			numeric: context?.numericConfig,
 			slider: context?.sliderConfig,
 			imagePaste,
+			contextLine,
+			contextLineFull,
+			draftScopeId,
 		};
 	}
 
@@ -635,6 +713,22 @@ export class CompleteFormatter extends Formatter {
 			header ? `{{VALUE:${header}}}` : "a template variable",
 		);
 		try {
+			// Named prompts already title themselves with the variable name, so they
+			// only gain the run context: which choice is asking, and where the
+			// answer lands (issue #1546).
+			const variableTitle = header ?? context?.label ?? "Enter value";
+			const showDestination = scopeShowsDestination(this.promptScope);
+			const namedContextLine = buildPromptContextLine(
+				this.promptRunContext,
+				variableTitle,
+				{ showDestination },
+			);
+			const namedContextLineFull = buildPromptContextLine(
+				this.promptRunContext,
+				variableTitle,
+				{ elide: false, showDestination },
+			);
+
 			// Use VDateInputPrompt for VDATE variables
 			if (context?.type === "VDATE") {
 				return await VDateInputPrompt.Prompt(
@@ -645,7 +739,12 @@ export class CompleteFormatter extends Formatter {
 						: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
 					context.defaultValue,
 					context.dateFormat ?? "YYYY-MM-DD",
-					context.optional ? { optional: true } : undefined,
+					{
+						optional: context.optional,
+						contextLine: namedContextLine,
+						contextLineFull: namedContextLineFull,
+						draftScopeId: this.promptRunContext?.draftScopeId,
+					},
 					context.withTime,
 				);
 			}
@@ -668,12 +767,16 @@ export class CompleteFormatter extends Formatter {
 			// Use default prompt for other variables
 			return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
 				this.app,
-				header ?? context?.label ?? "Enter value",
+				variableTitle,
 				context?.placeholder ??
 					(context?.defaultValue ? context.defaultValue : undefined),
 				context?.defaultValue,
 				context?.description,
-				this.buildInputPromptOptions(context),
+				this.buildInputPromptOptions(
+					context,
+					namedContextLine,
+					namedContextLineFull,
+				),
 			);
 		} catch (error) {
 			if (isCancellationError(error)) {
@@ -1143,6 +1246,22 @@ export class CompleteFormatter extends Formatter {
 		// templates ({{TEMPLATE:...}}), which render via this child engine's own
 		// formatter.
 		childEngine.setTargetFolderPath(this.targetFolderPath);
+		// An include spliced into a path is part of that path: keep the caller's
+		// scope so its prompts do not claim to be asking for note content.
+		if (this.promptScope !== "generic") {
+			childEngine.setPromptScope(this.promptScope);
+		}
+		// Included templates prompt through the child's own formatter, so the run
+		// context has to travel with them or their prompts lose the choice name.
+		// The draft scope is narrowed to this template: the child raises its OWN
+		// {{VALUE}} prompt in the same run, and sharing the parent's draft key
+		// would open it pre-filled with the parent's answer.
+		if (this.promptRunContext) {
+			childEngine.setPromptRunContext({
+				...this.promptRunContext,
+				draftScopeId: `${this.promptRunContext.draftScopeId ?? ""}#${templatePath}`,
+			});
+		}
 		const content = await childEngine.run();
 		this.mergeTemplatePropertyVars(
 			childEngine.getAndClearTemplatePropertyVars(),

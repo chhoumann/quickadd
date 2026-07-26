@@ -24,4 +24,22 @@ export interface InputPromptOptions {
 		max: number;
 		step: number;
 	};
+	/**
+	 * Muted one-liner under the modal title saying which choice is asking and,
+	 * when the engine already knows it, where the answer lands (issue #1546).
+	 */
+	contextLine?: string;
+	/**
+	 * {@link contextLine} with the destination path un-elided, shown as the
+	 * hover tooltip so the whole path stays reachable on a narrow modal.
+	 */
+	contextLineFull?: string;
+	/**
+	 * Stable per-choice discriminator for the input-draft key. The header used to
+	 * be the only thing distinguishing one choice's prompt from another's, so two
+	 * prompts that now share a derived title (e.g. "Note title") would otherwise
+	 * share a draft and pre-fill each other. Also separates two choices that
+	 * happen to have the same name.
+	 */
+	draftScopeId?: string;
 }

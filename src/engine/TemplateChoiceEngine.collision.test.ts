@@ -51,6 +51,7 @@ const {
 	templateInsertApplyMock,
 	templateInsertConstructorMock,
 	templateInsertSetLinkToCurrentFileBehaviorMock,
+	templateInsertSetPromptRunContextMock,
 } = vi.hoisted(() => {
 		const formatName =
 			vi.fn<(format: string, prompt: string) => Promise<string>>();
@@ -71,6 +72,7 @@ const {
 			templateInsertApplyMock: vi.fn(),
 			templateInsertConstructorMock: vi.fn(),
 			templateInsertSetLinkToCurrentFileBehaviorMock: vi.fn(),
+			templateInsertSetPromptRunContextMock: vi.fn(),
 		};
 	});
 
@@ -79,6 +81,7 @@ vi.mock("../formatters/completeFormatter", () => {
 		constructor() {}
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext() {}
 		setTargetFolderPath() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
@@ -128,6 +131,10 @@ vi.mock("./TemplateInsertEngine", () => {
 	class TemplateInsertEngineMock {
 		constructor(...args: unknown[]) {
 			templateInsertConstructorMock(...args);
+		}
+
+		setPromptRunContext(context: unknown) {
+			templateInsertSetPromptRunContextMock(context);
 		}
 
 		setLinkToCurrentFileBehavior(behavior: "required" | "optional") {
@@ -647,6 +654,15 @@ describe("TemplateChoiceEngine collision behavior", () => {
 			expect(templateInsertSetLinkToCurrentFileBehaviorMock).toHaveBeenCalledWith(
 				"required",
 			);
+			// The insert engine owns its own formatter, so prompts raised while
+			// appending only carry the choice name / destination / draft scope if
+			// the run context is handed over (issue #1546).
+			expect(templateInsertSetPromptRunContextMock).toHaveBeenCalledWith({
+				draftScopeId: engine.choice.id,
+				choiceName: engine.choice.name,
+				destination: existingFile.path,
+				destinationKind: "file",
+			});
 			expect(templateInsertApplyMock).toHaveBeenCalledTimes(1);
 		},
 	);

@@ -1,9 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { engineApplyMock, engineConstructorMock, resolvedPathMock } =
+const {
+	engineApplyMock,
+	engineConstructorMock,
+	resolvedPathMock,
+	setPromptRunContextMock,
+} =
 	vi.hoisted(() => ({
 		engineApplyMock: vi.fn(),
 		engineConstructorMock: vi.fn(),
+		setPromptRunContextMock: vi.fn<(context: unknown) => void>(),
 		// Identity by default (raw == resolved); override to simulate a path token
 		// that resolves to a different extension (issue #620).
 		resolvedPathMock: vi.fn((raw: string) => raw),
@@ -26,6 +32,9 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 		}
 		async computeChoiceTargetPath() {
 			return null;
+		}
+		setPromptRunContext(context: unknown) {
+			setPromptRunContextMock(context);
 		}
 	}
 
@@ -270,6 +279,49 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		});
 
 		expect(engineConstructorMock.mock.calls[0][4]).toBe("top");
+	});
+
+	// issue #1546: prompts raised while applying a template say which choice is
+	// driving and which note is being written, and get a stable per-source draft
+	// scope so one source's cancelled draft cannot pre-fill another's.
+	it("hands the engine a run context naming the target note", async () => {
+		const file = makeFile();
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: makeExecutor(),
+		});
+
+		expect(setPromptRunContextMock).toHaveBeenCalledWith({
+			choiceName: undefined,
+			draftScopeId: "template-insert#templates/tpl.md",
+			destination: file.path,
+			destinationKind: "file",
+		});
+	});
+
+	it("keeps the draft scope stable across applications of the same template", async () => {
+		// Two runs of the same bare template must share a draft key, so a
+		// cancelled answer is restored on the retry; a different template must not.
+		const file = makeFile();
+		for (const templatePath of [
+			"templates/tpl.md",
+			"templates/tpl.md",
+			"templates/other.md",
+		]) {
+			await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+				templatePath,
+				choiceExecutor: makeExecutor(),
+			});
+		}
+
+		const scopes = setPromptRunContextMock.mock.calls.map(
+			([context]) => (context as { draftScopeId?: string }).draftScopeId,
+		);
+		expect(scopes).toEqual([
+			"template-insert#templates/tpl.md",
+			"template-insert#templates/tpl.md",
+			"template-insert#templates/other.md",
+		]);
 	});
 
 	it("pre-fills {{VALUE}} with the note's basename", async () => {

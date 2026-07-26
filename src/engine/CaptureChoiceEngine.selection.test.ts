@@ -49,6 +49,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			setTitleMock(value);
 		}
 		setDestinationFile() {}
+		setPromptRunContext() {}
 		setDestinationSourcePath() {}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();

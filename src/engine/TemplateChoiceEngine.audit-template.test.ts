@@ -32,7 +32,9 @@ vi.mock("../quickAddSettingsTab", () => {
 	};
 });
 
-const { formatFileNameMock, formatFileContentMock } = vi.hoisted(() => ({
+const { formatFileNameMock, formatFileContentMock, setPromptRunContextMock } =
+	vi.hoisted(() => ({
+	setPromptRunContextMock: vi.fn<(context: unknown) => void>(),
 	formatFileNameMock: vi.fn<(format: string, prompt: string) => Promise<string>>(),
 	formatFileContentMock: vi
 		.fn<(...args: unknown[]) => Promise<string>>()
@@ -43,6 +45,9 @@ vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext(context: unknown) {
+			setPromptRunContextMock(context);
+		}
 		setTargetFolderPath() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
@@ -52,6 +57,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		}
 		async formatTemplateFilePath(input: string) {
 			return input;
+		}
+		async formatFolderPath(folder: string) {
+			return folder;
 		}
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
@@ -286,5 +294,41 @@ describe("TemplateChoiceEngine create-another collision feedback (audit)", () =>
 				instance.message.includes("Created 'Plan (1)'"),
 			),
 		).toBe(true);
+	});
+
+	// issue #1546: the prompt context line must never promise a folder the answer
+	// itself can reroute.
+	it("advertises the folder to the title prompt only when a folder is configured", async () => {
+		const { engine } = createEngine();
+		engine.choice.folder = {
+			enabled: true,
+			folders: ["Books"],
+			chooseWhenCreatingNote: false,
+			createInSameFolderAsActiveFile: false,
+			chooseFromSubfolders: false,
+		};
+		setPromptRunContextMock.mockClear();
+
+		await engine.run();
+
+		expect(setPromptRunContextMock).toHaveBeenCalledWith({
+			destination: "Books",
+			destinationKind: "folder",
+		});
+	});
+
+	it("withholds the folder when folder settings are off", async () => {
+		// Without a configured folder the formatted name can route the note from
+		// the vault root instead of Obsidian's default location, and the answer
+		// that reroutes it is the one being typed.
+		const { engine } = createEngine();
+		engine.choice.folder.enabled = false;
+		setPromptRunContextMock.mockClear();
+
+		await engine.run();
+
+		expect(setPromptRunContextMock).not.toHaveBeenCalledWith(
+			expect.objectContaining({ destinationKind: "folder" }),
+		);
 	});
 });

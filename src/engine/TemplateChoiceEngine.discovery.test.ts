@@ -22,6 +22,7 @@ vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
 		setLinkToCurrentFileBehavior() {}
 		setTitle() {}
+		setPromptRunContext() {}
 		setTargetFolderPath() {}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
@@ -241,7 +242,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		await engine.run();
 
 		expect(choiceExecutor.variables.has("value")).toBe(false);
-		expect(formatFileNameMock).toHaveBeenCalledWith("{{value}}", "Project note");
+		expect(formatFileNameMock).toHaveBeenCalledWith("{{value}}", "noteTitle");
 		expect(createSpy).toHaveBeenCalledWith(
 			"Brand New Project.md",
 			"Templates/Project.md",
