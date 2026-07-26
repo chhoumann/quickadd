@@ -137,7 +137,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private choicesAndPackagesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Choices & Packages",
+			heading: "Choices & packages",
 			items: [
 				{
 					name: "Choices",
@@ -155,7 +155,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private choicePickerGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Choice Picker",
+			heading: "Choice picker",
 			items: [
 				{
 					name: "Search nested choices",
@@ -186,12 +186,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			heading: "Input",
 			items: [
 				{
-					name: "Use Multi-line Input Prompt",
+					name: "Use multi-line input prompt",
 					desc: "Use multi-line input prompt instead of single-line input prompt. Submit multi-line prompts with Ctrl/Cmd+Enter; Enter inserts a newline.",
 					control: { type: "toggle", key: "inputPrompt" },
 				},
 				{
-					name: "Persist Input Prompt Drafts",
+					name: "Persist input prompt drafts",
 					desc: "Keep drafts when closing input prompts so they can be restored on reopen. Drafts are stored only for this session.",
 					control: { type: "toggle", key: "persistInputPromptDrafts" },
 				},
@@ -219,7 +219,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private templatesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Templates & Properties",
+			heading: "Templates & properties",
 			items: [
 				{
 					name: "Template folder paths",
@@ -244,7 +244,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			heading: "Notifications",
 			items: [
 				{
-					name: "Announce Updates",
+					name: "Announce updates",
 					desc: "Display release notes when a new version is installed. This includes new features, demo videos, and bug fixes.",
 					control: {
 						type: "dropdown",
@@ -259,12 +259,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					},
 				},
 				{
-					name: "Show Capture Notifications",
+					name: "Show capture notifications",
 					desc: "Display a notification when content is captured successfully to confirm the operation completed.",
 					control: { type: "toggle", key: "showCaptureNotification" },
 				},
 				{
-					name: "Show Input Cancellation Notifications",
+					name: "Show input cancellation notifications",
 					desc: "Display a notification when an input prompt is cancelled without submitting. Disable this to avoid extra notices when dismissing prompts.",
 					control: {
 						type: "toggle",
@@ -278,10 +278,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private globalVariablesGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "Global Variables",
+			heading: "Global variables",
 			items: [
 				{
-					name: "Global Variables",
+					name: "Global variables",
 					render: (setting) => this.renderGlobalVariablesView(setting),
 				},
 			],
@@ -291,10 +291,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private aiAndOnlineGroup(): SettingDefinitionGroup<SettingsKey> {
 		return {
 			type: "group",
-			heading: "AI & Online",
+			heading: "AI & online",
 			items: [
 				{
-					name: "Disable AI & Online features",
+					name: "Disable AI & online features",
 					desc: "This prevents the plugin from making requests to external providers like OpenAI. You can still use User Scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
 					control: { type: "toggle", key: "disableOnlineFeatures" },
 				},
@@ -327,7 +327,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			heading: "Developer",
 			items: [
 				{
-					name: "Development Information",
+					name: "Development information",
 					desc: "Git information for developers.",
 					render: (setting) => this.renderDevInfo(setting),
 				},

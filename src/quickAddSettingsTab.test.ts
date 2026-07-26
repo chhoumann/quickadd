@@ -284,7 +284,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			"Choices",
 			"Packages",
 		]);
-		expect(choicePickerGroup.heading).toBe("Choice Picker");
+		expect(choicePickerGroup.heading).toBe("Choice picker");
 		expect(choicePickerGroup.items?.map((item) => item.name)).toEqual([
 			"Search nested choices",
 			"“New note from template” in the launcher",
