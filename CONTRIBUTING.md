@@ -9,11 +9,21 @@ clear explanation of the problem, the fix, and how you validated it. If you are
 not sure whether an idea fits the project, please ask first by opening an issue
 or starting a discussion.
 
-AI-assisted contributions are welcome, but please review the result yourself
-before submitting it. Do not send maintainers code you have not read. At a
-minimum, validate that the change works on your machine and include evidence in
-the pull request, such as the commands you ran, the Obsidian version or dev
-vault flow you used, and any relevant screenshots for UI changes.
+## Before you open a pull request
+
+- Contribute as a user of the plugin. QuickAdd welcomes PRs from people who use
+  it and take part in the community. PRs from accounts with no prior interaction
+  here are likely to be closed.
+- Claim the issue first: comment on it and wait for a maintainer go-ahead before
+  writing code.
+- AI assistance is fine - plenty of good contributions are AI-assisted. But if a
+  PR is purely AI-generated, with no prior interaction and nothing human-written
+  in it, it's likely not going to be accepted. Show that some human thought went
+  into what you're submitting. Review the result yourself; do not send
+  maintainers code you have not read.
+- Describe how the change was verified in a real Obsidian vault - include the
+  commands you ran, the Obsidian version or dev vault flow you used, and
+  screenshots for UI changes.
 
 ## Development
 
