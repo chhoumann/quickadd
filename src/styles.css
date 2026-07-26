@@ -232,6 +232,19 @@
 	border: 0;
 }
 
+/* "Type {{ to insert a token" under a format field (#1542). A quiet secondary
+   line, matching .qa-preview-row: it is a teaching aid, not part of the field. */
+.quickAddModal .qa-token-hint {
+	margin: -4px 0 8px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.quickAddModal .qa-token-hint code {
+	font-size: inherit;
+	padding: 1px 4px;
+	border-radius: var(--radius-s, 4px);
+}
+
 /* Problems the preview pass ran into, shown here instead of as a Notice per
    keystroke (#1558). Colour carries severity — no glyph — matching
    .qa-folder-mode-warning. Clamped with the full text in `title`, because the

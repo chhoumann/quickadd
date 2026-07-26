@@ -11,6 +11,7 @@ import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
+import FormatTokenHint from "./FormatTokenHint.svelte";
 import CanvasNodePicker from "./CanvasNodePicker.svelte";
 import { getCaptureTargetFeedback } from "./captureTargetFeedback";
 
@@ -146,6 +147,7 @@ function validateCaptureTo(value: string) {
 				validator={validateCaptureTo}
 				onChange={onCaptureToChange}
 			/>
+			<FormatTokenHint value={choice.captureTo} />
 			{#if !usesPickerTargetSyntax}
 				<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
 			{/if}
