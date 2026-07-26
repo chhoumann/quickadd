@@ -303,19 +303,22 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		// Two runs of the same bare template must share a draft key, so a
 		// cancelled answer is restored on the retry; a different template must not.
 		const file = makeFile();
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
-			templatePath: "templates/tpl.md",
-			choiceExecutor: makeExecutor(),
-		});
-		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
-			templatePath: "templates/other.md",
-			choiceExecutor: makeExecutor(),
-		});
+		for (const templatePath of [
+			"templates/tpl.md",
+			"templates/tpl.md",
+			"templates/other.md",
+		]) {
+			await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+				templatePath,
+				choiceExecutor: makeExecutor(),
+			});
+		}
 
 		const scopes = setPromptRunContextMock.mock.calls.map(
 			([context]) => (context as { draftScopeId?: string }).draftScopeId,
 		);
 		expect(scopes).toEqual([
+			"template-insert#templates/tpl.md",
 			"template-insert#templates/tpl.md",
 			"template-insert#templates/other.md",
 		]);
