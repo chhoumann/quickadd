@@ -280,7 +280,7 @@ _Task_ formats your captured text as a task (`- [ ] ...`).
 _Use editor selection as default value_ controls whether selected text in the
 editor is used as `{{VALUE}}` instead of prompting: **Follow global setting**,
 **Use selection**, or **Ignore selection** (the global default lives in
-**Settings → Input**). This does not affect `{{selected}}`.
+**Settings → Input**). This does not affect `{{SELECTED}}`.
 
 ### Pick where in the note it lands: Write position {#write-position}
 
@@ -593,7 +593,7 @@ Content
 
 **Before line…** inserts the capture before the first line matching the text
 you specify. The target accepts [format syntax](/docs/FormatSyntax/), so
-values like `{{title}}` and `{{linkcurrent}}` work in the match text.
+values like `{{TITLE}}` and `{{LINKCURRENT}}` work in the match text.
 
 **Create line if not found** works here too: QuickAdd writes the captured
 content first, then creates the missing line below it. The created line can go

@@ -48,7 +48,7 @@ QuickAdd handles a few common situations for you so you don't have to think
 about them:
 
 - **Empty notes skip the prompt.** If the note is empty (or only whitespace), the "how to apply" step is skipped and the template becomes the note's full content. The usual case is a freshly created blank note.
-- **The title fills itself in.** The note already has a name, so `{{title}}` and the unnamed `{{VALUE}}` / `{{NAME}}` resolve to the note's file name instead of prompting. Named values like `{{VALUE:project}}` still prompt as usual.
+- **The title fills itself in.** The note already has a name, so `{{TITLE}}` and the unnamed `{{VALUE}}` / `{{NAME}}` resolve to the note's file name instead of prompting. Named values like `{{VALUE:project}}` still prompt as usual.
 - **Frontmatter merges instead of stacking.** For **Insert at top**, **Append to bottom**, and **Insert at cursor**, the template's frontmatter is not added as a second `---` block. Its properties are merged into the note's existing frontmatter, and your note's existing values always win - only properties that are missing or empty in the note are filled from the template. (**Replace note content** replaces the whole note, frontmatter included.)
 - **The note can move to match the choice.** If you picked a Template choice with a folder and/or file name format, and the note's current location or name doesn't match what that choice would have produced, QuickAdd offers to move or rename the note to match. Links to the note are updated automatically. This is skipped when the choice's folder settings need a runtime folder picker, or when a file already exists at the target path.
 

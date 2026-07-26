@@ -443,7 +443,7 @@ for (const contact of contacts) {
 ```
 
 ### `applyTemplateToActiveFile(templatePath: string, options?: { mode?: "cursor" | "top" | "bottom" | "replace" }): Promise<TFile | null>`
-Applies a template to the active note without creating a new file. The template runs through the full QuickAdd format pipeline (`{{title}}` and the unnamed `{{VALUE}}`/`{{NAME}}` resolve to the note's basename), and Templater syntax is processed. See [Apply Template to Note](/docs/ApplyTemplateToNote/) for the full behavior, including frontmatter merging.
+Applies a template to the active note without creating a new file. The template runs through the full QuickAdd format pipeline (`{{TITLE}}` and the unnamed `{{VALUE}}`/`{{NAME}}` resolve to the note's basename), and Templater syntax is processed. See [Apply Template to Note](/docs/ApplyTemplateToNote/) for the full behavior, including frontmatter merging.
 
 **Parameters:**
 - `templatePath`: Vault path to the template file
@@ -606,7 +606,7 @@ results. Use this for inputs that are too large for a single request.
 
 **Parameters:**
 - `text`: The full input text to process.
-- `promptTemplate`: The prompt run for each chunk. Reference the current chunk with `{{value:chunk}}`.
+- `promptTemplate`: The prompt run for each chunk. Reference the current chunk with `{{VALUE:chunk}}`.
 - `model`: Model identifier (bare or provider-qualified string, or `{name, provider?}` object), as for `prompt`.
 - `settings`: (Optional) Configuration object:
   - `variableName`: Output variable name (default: "output")
@@ -617,7 +617,7 @@ results. Use this for inputs that are too large for a single request.
   - `chunkSeparator`: `RegExp` used to split `text` (default: `/\n/`)
   - `chunkJoiner`: String inserted between chunk results (default: `"\n"`)
   - `shouldMerge`: Merge small adjacent chunks up to the budget (default: `true`)
-  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{value:chunk}}` portion only - the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
+  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{VALUE:chunk}}` portion only - the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
 
 **Behavior:**
 - Chunk sizes are estimated locally (QuickAdd no longer bundles model-specific tokenizers); the configured provider remains the source of truth for exact limits.
@@ -630,7 +630,7 @@ results. Use this for inputs that are too large for a single request.
 ```javascript
 const result = await quickAddApi.ai.chunkedPrompt(
     longText,
-    "Summarize this section:\n{{value:chunk}}",
+    "Summarize this section:\n{{VALUE:chunk}}",
     "gpt-4o",
     { variableName: "summary", chunkJoiner: "\n\n" }
 );
