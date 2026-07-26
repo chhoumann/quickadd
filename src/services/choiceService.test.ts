@@ -433,6 +433,29 @@ describe("choiceService", () => {
 			expect(message).toContain("choices inside it");
 		});
 
+		// Issue #1552: folders are Multi choices internally, but the confirmation must
+		// call them folders like the rest of the UI does.
+		it("calls a Multi choice a folder in the title and the warning", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const multi = createChoice("Multi", "Group") as IMultiChoice;
+			multi.choices = [createChoice("Template", "a")];
+			await deleteChoiceWithConfirmation(multi, fakeApp);
+			const title = mocks.yesNoPrompt.mock.calls[0][1] as string;
+			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(title).toBe("Confirm deletion of folder");
+			expect(message).toContain("Deleting this folder");
+			expect(message).not.toContain("Deleting this choice");
+		});
+
+		it("still calls a non-Multi choice a choice in the title", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const choice = createChoice("Template", "Del");
+			await deleteChoiceWithConfirmation(choice, fakeApp);
+			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe(
+				"Confirm deletion of choice",
+			);
+		});
+
 		it("warns about macro commands for a Macro choice", async () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const macro = createChoice("Macro", "MyMacro");

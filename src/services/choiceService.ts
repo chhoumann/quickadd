@@ -223,6 +223,12 @@ export async function deleteChoiceWithConfirmation(
 	const isMulti = choice.type === "Multi";
 	const isMacro = choice.type === "Macro";
 
+	// Folders are Multi choices internally, but the UI calls them folders everywhere
+	// else ("New folder", "Add folder to {name}", "Edit folder", and the rename prompt
+	// since #1539). The delete confirmation was the last place that leaked the internal
+	// name, so it takes the same treatment.
+	const targetNoun = isMulti ? "folder" : "choice";
+
 	// Count the FULL subtree (flattenChoices includes the folder itself, so drop it),
 	// not just direct children — a recursive delete removes everything nested. Special-
 	// case 0 (no scary "delete all (0) choices") and pluralize correctly.
@@ -230,12 +236,12 @@ export async function deleteChoiceWithConfirmation(
 		const descendantCount = flattenChoices(multi.choices).length;
 		if (descendantCount === 0) return "";
 		const noun = descendantCount === 1 ? "choice" : "choices";
-		return `Deleting this choice will delete all (${descendantCount}) ${noun} inside it (including nested folders)!`;
+		return `Deleting this folder will also delete all (${descendantCount}) ${noun} inside it (including nested folders)!`;
 	};
 
 	const userConfirmed: boolean = await GenericYesNoPrompt.Prompt(
 		app,
-		`Confirm deletion of choice`,
+		`Confirm deletion of ${targetNoun}`,
 		`Please confirm that you wish to delete '${choice.name}'.
             ${isMulti ? buildMultiWarning(choice as IMultiChoice) : ""}
             ${isMacro
