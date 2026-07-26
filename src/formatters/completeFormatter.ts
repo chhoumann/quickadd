@@ -39,6 +39,7 @@ import {
 	buildPromptContextLine,
 	describeValuePrompt,
 	isPathScope,
+	scopeShowsDestination,
 	type PromptScopeKind,
 } from "./promptScope";
 import {
@@ -479,12 +480,16 @@ export class CompleteFormatter extends Formatter {
 		const title =
 			derived.title ??
 			(this.promptRunContext?.choiceName?.trim() || "Enter value");
+		const showDestination = scopeShowsDestination(this.promptScope);
 		return {
 			title,
 			placeholder: derived.placeholder,
-			contextLine: buildPromptContextLine(this.promptRunContext, title),
+			contextLine: buildPromptContextLine(this.promptRunContext, title, {
+				showDestination,
+			}),
 			contextLineFull: buildPromptContextLine(this.promptRunContext, title, {
 				elide: false,
+				showDestination,
 			}),
 		};
 	}
@@ -712,14 +717,16 @@ export class CompleteFormatter extends Formatter {
 			// only gain the run context: which choice is asking, and where the
 			// answer lands (issue #1546).
 			const variableTitle = header ?? context?.label ?? "Enter value";
+			const showDestination = scopeShowsDestination(this.promptScope);
 			const namedContextLine = buildPromptContextLine(
 				this.promptRunContext,
 				variableTitle,
+				{ showDestination },
 			);
 			const namedContextLineFull = buildPromptContextLine(
 				this.promptRunContext,
 				variableTitle,
-				{ elide: false },
+				{ elide: false, showDestination },
 			);
 
 			// Use VDateInputPrompt for VDATE variables

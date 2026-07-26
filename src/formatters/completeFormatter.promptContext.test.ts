@@ -212,6 +212,24 @@ describe("scope isolation", () => {
 	});
 });
 
+describe("template source paths", () => {
+	it("does not claim the destination for a prompt that only picks a template", async () => {
+		const f = makeFormatter();
+		f.setPromptRunContext({
+			choiceName: "Book note",
+			destination: "Inbox/Draft.md",
+			destinationKind: "file",
+		});
+
+		// The answer chooses WHICH template file to read; it never lands in the
+		// note being written, so the line names the choice and stops there.
+		await f.formatTemplateFilePath("Templates/{{VALUE:kind}}.md");
+
+		expect(lastPromptCall()).toMatchObject({ header: "kind" });
+		expect(lastPromptCall().options?.contextLine).toBe("Book note");
+	});
+});
+
 describe("included templates", () => {
 	it("inherits the including pass's scope instead of claiming note content", async () => {
 		// `{{TEMPLATE:x}}` inside a FILE NAME is part of that file name; the child

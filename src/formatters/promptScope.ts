@@ -186,6 +186,15 @@ export function isPathScope(scope: PromptScopeKind): boolean {
 	);
 }
 
+/**
+ * Whether the context line may name a destination for this scope. A prompt
+ * inside a template SOURCE path chooses which template file to READ, so the
+ * note being written is not where that answer lands; `generic` knows nothing.
+ */
+export function scopeShowsDestination(scope: PromptScopeKind): boolean {
+	return scope !== "templatePath" && scope !== "generic";
+}
+
 export interface ValuePromptCopy {
 	/** Modal title, or undefined to keep the caller's fallback. */
 	title?: string;
@@ -239,7 +248,7 @@ export function elideMiddlePath(path: string, maxLength = 44): string {
 export function buildPromptContextLine(
 	context: PromptRunContext | undefined,
 	title: string | undefined,
-	options?: { elide?: boolean },
+	options?: { elide?: boolean; showDestination?: boolean },
 ): string | undefined {
 	if (!context) return undefined;
 
@@ -248,7 +257,8 @@ export function buildPromptContextLine(
 	// Omitted when it is already the title, so the name is never printed twice.
 	if (name && name !== title?.trim()) parts.push(name);
 
-	const destination = context.destination?.trim();
+	const destination =
+		options?.showDestination === false ? undefined : context.destination?.trim();
 	if (destination) {
 		const shown =
 			options?.elide === false ? destination : elideMiddlePath(destination);

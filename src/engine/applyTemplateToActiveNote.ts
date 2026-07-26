@@ -193,15 +193,18 @@ export async function applyTemplateToNote(
 			params.choiceExecutor,
 		);
 		// Prompts raised while applying the template say which choice is driving
-		// (issue #1546). The DESTINATION is deliberately withheld until the
-		// template source path has been resolved below: tokens in that path
-		// choose which template to read, and never land in this note.
+		// and which note is being written (issue #1546). Applying a bare template
+		// has no choice, so only the destination is known. Prompts inside the
+		// template SOURCE path do not show the destination - scopeShowsDestination
+		// withholds it, because those answers pick which template to read.
 		engine.setPromptRunContext({
 			choiceName: source.kind === "choice" ? source.choice.name : undefined,
 			draftScopeId:
 				source.kind === "choice"
 					? source.choice.id
 					: `template-insert#${templatePath}`,
+			destination: file.path,
+			destinationKind: "file",
 		});
 
 		// Resolve format tokens in the path (issue #620), then re-validate that
@@ -216,11 +219,6 @@ export async function applyTemplateToNote(
 			);
 			return null;
 		}
-
-		engine.setPromptRunContext({
-			destination: file.path,
-			destinationKind: "file",
-		});
 
 		const result = await engine.apply();
 		if (!result) return null;

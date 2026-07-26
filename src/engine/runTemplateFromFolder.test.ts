@@ -210,11 +210,7 @@ describe("createFolderTemplateChoice + real preflight collector", () => {
 		expect(unresolved.some((r) => r.id === "value")).toBe(true);
 	});
 
-	it("collects the note-name requirement even with fileNameFormat disabled", async () => {
-		// The engine resolves a disabled format to VALUE_SYNTAX either way, so
-		// preflight scans the EFFECTIVE format (issue #1546). Before that it only
-		// scanned the enabled one, leaving the implicit note-name prompt invisible
-		// to the non-interactive CLI guard and to the one-page form.
+	it("negative control: disabling fileNameFormat hides the note-name requirement", async () => {
 		const executor = createExecutor();
 		const choice = createFolderTemplateChoice("Templates/Daily.md");
 		choice.fileNameFormat = { enabled: false, format: VALUE_SYNTAX };
@@ -224,6 +220,6 @@ describe("createFolderTemplateChoice + real preflight collector", () => {
 			executor,
 			choice,
 		);
-		expect(reqs.some((r) => r.id === "value")).toBe(true);
+		expect(reqs.some((r) => r.id === "value")).toBe(false);
 	});
 });

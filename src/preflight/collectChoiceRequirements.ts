@@ -6,7 +6,6 @@ import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	TEMPLATE_REGEX,
-	VALUE_SYNTAX,
 } from "src/constants";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
@@ -295,22 +294,23 @@ async function collectForTemplateChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
-	// Scan the EFFECTIVE file name format, not the configured one: with the
-	// toggle off the engine still resolves VALUE_SYNTAX (TemplateChoiceEngine),
-	// so skipping it left the implicit note-name prompt invisible to the
-	// non-interactive CLI guard and to the one-page form - and, once prompts
-	// derive their copy from a scope, made the one-page form describe the note
-	// TITLE using whatever the template body said (issue #1546).
-	await scanContentWithTemplateIncludes(
-		app,
-		collector,
-		choice.fileNameFormat?.enabled
-			? choice.fileNameFormat.format
-			: VALUE_SYNTAX,
-		undefined,
-		0,
-		"noteTitle",
-	);
+	// Only the ENABLED format is scanned. The engine resolves a disabled one to
+	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
+	// collecting it would also make the non-interactive CLI guard reject runs the
+	// engine satisfies from the editor selection, and would show the one-page
+	// form an empty title field where the selection used to fill it in silently.
+	// Closing that needs the selection modelled here first (there is no Template
+	// counterpart to seedCaptureSelectionAsValue); tracked separately.
+	if (choice.fileNameFormat?.enabled) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.fileNameFormat.format,
+			undefined,
+			0,
+			"noteTitle",
+		);
+	}
 
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
@@ -357,16 +357,16 @@ async function collectForCaptureChoice(
 		"captureTarget",
 	);
 
-	// As for the Template file name: a disabled capture format still resolves to
-	// VALUE_SYNTAX at runtime (CaptureChoiceEngine.getCaptureContent).
-	await scanContentWithTemplateIncludes(
-		app,
-		collector,
-		choice.format?.enabled ? choice.format.format : VALUE_SYNTAX,
-		undefined,
-		0,
-		"captureText",
-	);
+	if (choice.format?.enabled) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.format.format,
+			undefined,
+			0,
+			"captureText",
+		);
+	}
 
 	if (choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(

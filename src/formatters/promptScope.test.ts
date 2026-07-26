@@ -5,6 +5,7 @@ import {
 	elideMiddlePath,
 	isOnlyValueToken,
 	isSoleValueToken,
+	scopeShowsDestination,
 	valueAnswersWholeScope,
 } from "./promptScope";
 
@@ -164,6 +165,25 @@ describe("buildPromptContextLine", () => {
 		expect(
 			buildPromptContextLine({ choiceName: "Add book" }, "Add book"),
 		).toBeUndefined();
+	});
+});
+
+describe("scopeShowsDestination", () => {
+	it("withholds the destination where the answer does not land there", () => {
+		expect(scopeShowsDestination("templatePath")).toBe(false);
+		expect(scopeShowsDestination("generic")).toBe(false);
+		expect(scopeShowsDestination("noteTitle")).toBe(true);
+		expect(scopeShowsDestination("captureText")).toBe(true);
+	});
+
+	it("drops the destination from the line when withheld", () => {
+		expect(
+			buildPromptContextLine(
+				{ choiceName: "Book note", destination: "Inbox/Draft.md" },
+				"Template",
+				{ showDestination: false },
+			),
+		).toBe("Book note");
 	});
 });
 
