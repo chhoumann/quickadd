@@ -144,12 +144,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			// Make the resolved folder available to {{FOLDER}} in the file name.
 			this.formatter.setTargetFolderPath(folderPath);
-			// The title prompt below can now say where the note will be created -
-			// unless the file name format itself carries a folder while folder
-			// settings are off, in which case the format can reroute the note
-			// (shouldTreatFormattedNameAsVaultRelativePath) and the folder shown
-			// would be a lie.
-			if (this.choice.folder.enabled || !format.includes("/")) {
+			// The title prompt below can say where the note will be created only
+			// when a folder is actually configured. With folder settings off the
+			// formatted name can reroute the note from the vault root
+			// (shouldTreatFormattedNameAsVaultRelativePath returns false as soon
+			// as folderEnabled), and the answer that reroutes it is the very one
+			// being typed - so Obsidian's default location is not something this
+			// prompt can promise.
+			if (this.choice.folder.enabled) {
 				this.formatter.setPromptRunContext({
 					destination: folderPath,
 					destinationKind: "folder",
