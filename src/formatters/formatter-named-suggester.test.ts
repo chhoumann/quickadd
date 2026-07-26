@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Formatter, type PromptContext } from "./formatter";
+import { log } from "../logger/logManager";
 
 /**
  * Exercises the REAL Formatter.replaceVariableInString (two-pass named-suggester
@@ -157,7 +158,7 @@ describe("named suggester (#148)", () => {
 	});
 
 	it("keeps the FIRST definition when two same-name defs have no preceding reuse", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const f = new TestFormatter();
 		f.suggestReturns.set("type", "a");
 
@@ -179,7 +180,7 @@ describe("named suggester (#148)", () => {
 	});
 
 	it("warns when the same name differs only by the custom flag", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const f = new TestFormatter();
 		f.suggestReturns.set("kind", "a");
 
@@ -219,7 +220,7 @@ describe("named suggester (#148)", () => {
 	});
 
 	it("warns and keeps the first value when a name is reused with different options", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const f = new TestFormatter();
 		f.suggestReturns.set("type", "bug");
 
@@ -239,7 +240,7 @@ describe("named suggester (#148)", () => {
 	});
 
 	it("does NOT warn when a seeded value is not one of the options (no false positive)", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		const f = new TestFormatter();
 		// Simulate api.format / a script / the one-page form pre-seeding the name
 		// with a value outside the literal option list.

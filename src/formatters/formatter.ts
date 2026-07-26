@@ -54,7 +54,7 @@ import {
 	type SliderConfig,
 	type ValueInputType,
 } from "../utils/valueSyntax";
-import { SILENT_WARN } from "../utils/warnSink";
+import { SILENT_WARN, type WarnSink } from "../utils/warnSink";
 import { parseVDateOptions } from "../utils/vdateSyntax";
 import { applyDateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
@@ -182,6 +182,42 @@ export abstract class Formatter {
 	protected constructor(protected readonly app?: App) {
 		this.propertyCollector = new TemplatePropertyCollector(app);
 	}
+
+	/**
+	 * Where this formatter reports an authoring mistake in the user's format
+	 * string (an unsupported `|case:` style, an unknown FIELD filter, ...).
+	 *
+	 * The default is the run-time contract: a user-facing Notice. Subclasses that
+	 * are not the authoritative run override it — the builders' live preview
+	 * collects them for passive display instead of stacking a Notice per
+	 * keystroke, and the preflight scan drops them because the run that follows
+	 * reports the same mistake (issue #1558).
+	 */
+	protected warn(message: string): void {
+		log.logWarning(message);
+	}
+
+	/**
+	 * Like {@link warn}, for a problem that stopped a token from resolving at all
+	 * (a template inclusion cycle, exceeding the inclusion depth). Named
+	 * `reportProblem` rather than `reportError` so it is not mistaken for the
+	 * widely imported `errorUtils.reportError`.
+	 */
+	protected reportProblem(message: string): void {
+		log.logError(message);
+	}
+
+	/**
+	 * Pre-bound {@link warn}, for handing to the token parsers.
+	 *
+	 * Always pass THIS, never `this.warn`: the parsers call the sink detached, so
+	 * a bare method reference would run an override with `this === undefined`.
+	 * Class bodies are strict mode, so a collecting override would throw a
+	 * TypeError — which `format()`'s catch swallows into "preview shows the raw
+	 * input". Neither `tsc` (strict is off) nor eslint (no type-aware config, so
+	 * `unbound-method` is unavailable) catches that, so the binding is the guard.
+	 */
+	protected readonly warnSink: WarnSink = (message) => this.warn(message);
 
 	protected abstract format(input: string): Promise<string>;
 
@@ -351,7 +387,9 @@ export abstract class Formatter {
 			const optionsIndex = inner.indexOf("|");
 			if (optionsIndex === -1) return this.value;
 			const rawOptions = inner.slice(optionsIndex);
-			const parsed = parseAnonymousValueOptions(rawOptions);
+			const parsed = parseAnonymousValueOptions(rawOptions, {
+				warn: this.warnSink,
+			});
 			// Apply |default on an empty submission, mirroring the named path
 			// (ensureValueVariableResolved): the |default pre-fills the prompt, but
 			// a user who clears the box should still get the default unless the
@@ -866,14 +904,16 @@ export abstract class Formatter {
 		}
 		if (previous !== signature && !this.namedSuggesterConflictsWarned.has(nameKey)) {
 			this.namedSuggesterConflictsWarned.add(nameKey);
-			const message = `QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`;
-			// Surface as a Notice (consistent with the other |name: warnings, which
-			// all use log.logWarning) — the conflict silently drops the second
-			// option list, so the user needs to see it on-screen, not only in
-			// devtools. Warn-once dedupe is kept by the guard above. The console.warn
-			// is retained for the diagnostic log/trail.
-			log.logWarning(message);
-			console.warn(message);
+			// Surface it (consistent with the other |name: warnings) — the conflict
+			// silently drops the second option list, so the user needs to see it,
+			// not only in devtools. Warn-once dedupe is kept by the guard above.
+			// The bare console.warn this used to carry "for the diagnostic trail"
+			// was redundant: ConsoleErrorLogger.logWarning already console.warns
+			// every message, and it bypassed this hook, so a preview would still
+			// have written one line per keystroke to devtools.
+			this.warn(
+				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
+			);
 		}
 	}
 
@@ -1037,7 +1077,7 @@ export abstract class Formatter {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
 
-			const parsed = parseValueToken(match[1]);
+			const parsed = parseValueToken(match[1], { warn: this.warnSink });
 			if (!parsed) {
 				throw new Error(`Unable to parse variable. Invalid syntax in: "${output.substring(Math.max(0, match.index - 10), Math.min(output.length, match.index + 30))}..."`);
 			}
@@ -1131,6 +1171,7 @@ export abstract class Formatter {
 				const fieldVariableKey = this.getFieldVariableKey(fullMatch);
 				const parsed = FieldSuggestionParser.parse(fullMatch, {
 					warnUnknown: true,
+					warn: this.warnSink,
 				});
 
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
@@ -1524,14 +1565,14 @@ export abstract class Formatter {
 
 			if (this.templateInclusion.visited.has(templatePath)) {
 				const placeholder = `[QuickAdd: template inclusion cycle detected at "${templatePath}"]`;
-				log.logError(placeholder);
+				this.reportProblem(placeholder);
 				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
 				continue;
 			}
 
 			if (this.templateInclusion.depth >= MAX_TEMPLATE_INCLUSION_DEPTH) {
 				const placeholder = `[QuickAdd: max template inclusion depth (${MAX_TEMPLATE_INCLUSION_DEPTH}) exceeded at "${templatePath}"]`;
-				log.logError(placeholder);
+				this.reportProblem(placeholder);
 				output = this.replacer(output, TEMPLATE_REGEX, placeholder);
 				continue;
 			}
