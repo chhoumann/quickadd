@@ -70,16 +70,35 @@ export function hasChildChoices(choice: IChoice): boolean {
  * repairs data.json by hand. Such a migration must stay pending instead, and
  * this is the question it has to ask about the WHOLE tree, not just the root.
  *
+ * This is the narrow, FOLDERS-ONLY question, for the migrations that recurse
+ * `Multi.choices` themselves (removeMacroIndirection via `flattenChoices`,
+ * incrementFileName..., mutualExclusion...). A migration that walks with
+ * `walkAllChoices` reaches macro commands too and must ask the wider
+ * `settingsTreeHasUnreadableData` instead. Matching the guard to the traversal
+ * is deliberate: blocking `removeMacroIndirection` on an unreadable
+ * `macro.commands` it was never going to descend would strand every legacy macro
+ * choice in the vault (nothing at runtime resolves `macroId`) in exchange for
+ * nothing at all.
+ *
+ * The root is judged strictly and everything below it by
+ * {@link isUnreadableChoiceList} - see the same asymmetry, and why, in
+ * `walkSettings`. A folder with no `choices` key carries nothing, and treating
+ * it as unreadable (as this did until #1610) kept `removeMacroIndirection`
+ * pending forever over a folder that was merely empty.
+ *
  * See #1566, and `MigrationResult` in src/migrations/Migrations.ts.
  */
 export function treeHasUnreadableChildren(choices: unknown): boolean {
 	if (!Array.isArray(choices)) return true;
-	return choices.some((choice) => {
-		if (!isChoiceLike(choice)) return false;
-		if (choice.type !== "Multi") return false;
-		if (!Array.isArray((choice as IMultiChoice).choices)) return true;
-		return treeHasUnreadableChildren((choice as IMultiChoice).choices);
-	});
+	const walk = (list: IChoice[]): boolean =>
+		list.some((choice) => {
+			if (!isChoiceLike(choice)) return false;
+			if (choice.type !== "Multi") return false;
+			const children: unknown = (choice as IMultiChoice).choices;
+			if (!Array.isArray(children)) return isUnreadableChoiceList(children);
+			return walk(children);
+		});
+	return walk(choices);
 }
 
 /**

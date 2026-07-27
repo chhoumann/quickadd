@@ -7,6 +7,7 @@ import type { Migration, MigrationResult } from "./Migrations";
 import { deepClone } from "src/utils/deepClone";
 import type QuickAdd from "src/main";
 import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
+import { isUnreadableCommandList, rootMacrosOf } from "src/utils/macroUtils";
 
 type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
 
@@ -63,17 +64,27 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 		// choices half simply has not run, so stay PENDING - migrations are flagged
 		// once and never retried, and a vault repaired by hand deserves to be
 		// migrated. The macros half below is independent and still runs.
-		const treeReadable = !treeHasUnreadableChildren(plugin.settings.choices);
+		// This migration recurses `Multi.choices` itself (and legacy macros
+		// separately), so it asks the FOLDERS-ONLY question - blocking it on a
+		// `macro.commands` it never descends would strand it for nothing (#1610).
+		const treeReadable =
+			!treeHasUnreadableChildren(plugin.settings.choices) &&
+			!isUnreadableCommandList(settings.macros);
 		if (Array.isArray(plugin.settings.choices)) {
 			const choicesCopy = deepClone(plugin.settings.choices);
 			plugin.settings.choices = recursiveMigrateSettingInChoices(choicesCopy);
 		}
 
-		const macrosCopy = deepClone(settings.macros ?? []);
+		// `settings.macros` is untrusted too, and `?? []` passes `{"0": {...}}`
+		// straight through (not nullish) - which then threw `macros is not
+		// iterable`, aborting and reverting the migration on every launch. Read
+		// through the total accessor, and only WRITE back when the original really
+		// was an array, so a malformed value survives to be recovered by hand.
+		const macrosCopy = deepClone(rootMacrosOf(settings.macros));
 		const macros = migrateSettingsInMacros(macrosCopy);
 		
 		// Save the migrated macros back to settings - later migrations still need it
-		settings.macros = macros;
+		if (Array.isArray(settings.macros)) settings.macros = macros;
 		
 		// DO NOT delete macros here – later migrations still need it.
 

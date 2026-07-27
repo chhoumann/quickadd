@@ -88,6 +88,23 @@ export function commandListOf(value: unknown): ICommand[] {
 }
 
 /**
+ * The pre-consolidation `settings.macros` array, as something always safe to
+ * iterate. The sibling of `rootChoicesOf` for the other legacy root container:
+ * it is as untrusted as the rest of `data.json`, and three migrations used to
+ * reach it through `settings.macros ?? []`, which passes `{"0": {...}}` straight
+ * through (not nullish) and then throws `macros is not iterable` - aborting the
+ * migration, reverting it, and firing a 15-second "please create an issue"
+ * notice on every single launch.
+ *
+ * READ view only. A WRITE back to `settings.macros` must stay guarded by
+ * `Array.isArray`, or it persists this `[]` over the value the user needs to
+ * recover by hand.
+ */
+export function rootMacrosOf<T = IMacro>(value: unknown): T[] {
+	return Array.isArray(value) ? (value as T[]) : [];
+}
+
+/**
  * Whether `value` is a real command array, i.e. whether a WRITE path may rebuild
  * it. Guards the `{ ...macro, commands: ... }` rebuilds so a malformed list is
  * passed through untouched instead of being silently rewritten to the `[]` that

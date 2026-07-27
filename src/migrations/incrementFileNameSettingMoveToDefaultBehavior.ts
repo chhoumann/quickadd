@@ -6,6 +6,7 @@ import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration, MigrationResult } from "./Migrations";
 import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
+import { isUnreadableCommandList, rootMacrosOf } from "src/utils/macroUtils";
 
 type OldTemplateChoice = {
 	type?: string;
@@ -72,7 +73,12 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		// See the sibling migrations (#1566): never rewrite a corrupt root with [],
 		// and stay PENDING when the choices half could not run, so a vault repaired
 		// by hand is still migrated.
-		const treeReadable = !treeHasUnreadableChildren(plugin.settings.choices);
+		// This migration recurses `Multi.choices` itself (and legacy macros
+		// separately), so it asks the FOLDERS-ONLY question - blocking it on a
+		// `macro.commands` it never descends would strand it for nothing (#1610).
+		const treeReadable =
+			!treeHasUnreadableChildren(plugin.settings.choices) &&
+			!isUnreadableCommandList(settings.macros);
 		if (Array.isArray(plugin.settings.choices)) {
 			const choicesCopy = deepClone(plugin.settings.choices);
 			plugin.settings.choices = deepClone(
@@ -80,11 +86,16 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 			);
 		}
 
-		const macrosCopy = deepClone(settings.macros ?? []);
+		// `settings.macros` is untrusted too, and `?? []` passes `{"0": {...}}`
+		// straight through (not nullish) - which then threw `macros is not
+		// iterable`, aborting and reverting the migration on every launch. Read
+		// through the total accessor, and only WRITE back when the original really
+		// was an array, so a malformed value survives to be recovered by hand.
+		const macrosCopy = deepClone(rootMacrosOf(settings.macros));
 		const macros = removeIncrementFileName(macrosCopy);
 		
 		// Save the migrated macros back to settings - later migrations still need it
-		settings.macros = macros;
+		if (Array.isArray(settings.macros)) settings.macros = macros;
 		
 		// DO NOT delete macros here – later migrations still need it.
 
