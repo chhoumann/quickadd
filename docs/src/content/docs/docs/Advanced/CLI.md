@@ -151,6 +151,25 @@ acknowledgement, `form` → an object mapping each field's `id` to its string
 value (date fields use the `@date:ISO` format). The run's outcome arrives as the
 `done`/`error` poll event.
 
+### Cancelling
+
+`{"cancelled":true}` is how you say *the user dismissed this prompt*. It aborts
+the run exactly as pressing Escape on the in-app dialog does. Two details worth
+knowing:
+
+- The flag must be the literal `true`. Any other value (`"true"`, `1`, `"no"`) is
+  ignored and your `value` is used as a normal answer, so a typo cannot silently
+  kill a run.
+- Do not use it just to close an `info` panel. `info` is the one prompt that
+  cannot be cancelled in the app - the dialog has no reject path - so cancelling
+  it remotely aborts a run that would have continued. Send a plain reply instead.
+  It stays cancellable because it is a client's only way to bail out mid-run.
+
+A `confirm` prompt is the one type that validates its reply: it needs `true` or
+`false`. Anything else (a missing `value`, `null`, a typo) fails the prompt with a
+protocol error rather than being read as "No" - the user never answered, so
+QuickAdd will not invent an answer for them.
+
 Good to know:
 
 - **Desktop only.** The bridge binds to `127.0.0.1`, is gated by the per-session `token`, rejects browser (`Origin`/`Referer`) and non-loopback `Host` requests, and the server is ephemeral - it starts on the first session and stops when the last one ends.

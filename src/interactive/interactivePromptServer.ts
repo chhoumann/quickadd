@@ -17,7 +17,10 @@
  * session is cleaned up, so nothing listens when no interactive run is active.
  */
 
-import { UserCancelError } from "../errors/UserCancelError";
+import {
+	PROMPT_CANCELLED_MESSAGE,
+	UserCancelError,
+} from "../errors/UserCancelError";
 
 // Minimal structural types for the slice of Node's `http` we use, declared
 // locally so this module never statically imports a Node builtin (keeps the
@@ -426,7 +429,7 @@ class InteractivePromptServer {
 		sessionId: string,
 		requestId: string,
 		value: unknown,
-		cancelled = false,
+		cancelled: unknown = false,
 	): boolean {
 		const session = this.sessions.get(sessionId);
 		if (!session) return false;
@@ -436,8 +439,13 @@ class InteractivePromptServer {
 		// A remote cancel must abort the run exactly like dismissing the Obsidian
 		// modal: reject with UserCancelError so downstream abort handling classifies
 		// it as a user cancellation (x-cancel, suppressed notice) rather than an error.
-		if (cancelled)
-			pending.reject(new UserCancelError("Input cancelled by user"));
+		//
+		// Strict `=== true`: the flag arrives from untrusted JSON, and a loose check
+		// meant any truthy value cancelled - so a client sending `"cancelled": "no"`
+		// killed the run, and a cancel beat a real `value` that was also present.
+		// The documented wire form has always been the literal `true`.
+		if (cancelled === true)
+			pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		else pending.resolve(value);
 		return true;
 	}

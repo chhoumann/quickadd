@@ -172,6 +172,27 @@ describe("interactivePromptServer session multiplexing", () => {
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
 
+	// The flag arrives from untrusted JSON. A loose truthy check meant
+	// `"cancelled": "no"` killed the run, and a cancel beat a real `value` that was
+	// also present. The documented wire form has always been the literal `true`.
+	it.each([["no"], [1], [{}], ["false"], [[]]])(
+		"treats a non-true cancelled flag (%o) as a normal answer",
+		async (flag) => {
+			const s = interactivePromptServer.createSession();
+			const prompt = interactivePromptServer.emitPrompt(s.id, {
+				type: "input",
+				header: "Name",
+				multiline: false,
+			});
+			const rid = pendingRequestId(s.id);
+			expect(
+				interactivePromptServer.submitReply(s.id, rid, "Ada", flag),
+			).toBe(true);
+			await expect(prompt).resolves.toBe("Ada");
+			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		},
+	);
+
 	it("caps the number of concurrent sessions", () => {
 		const created: string[] = [];
 		try {
