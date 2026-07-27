@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import type { App } from "obsidian";
+import { TFile } from "obsidian";
 import FormatPreviewField from "./FormatPreviewField.svelte";
 import type QuickAdd from "../../../main";
 import { LogManager } from "../../../logger/logManager";
@@ -283,5 +284,112 @@ describe("FormatPreviewField", () => {
 		await rerender({ value: "", app, plugin });
 		await settleAndIdle();
 		expect(container.querySelector(".qa-preview-row")).toBeNull();
+	});
+});
+
+/**
+ * The row's async pass can outlast the 500ms diagnostics gate (it may read up to
+ * 25 templates), so the gate can open while the previous value's result is still
+ * on screen. What must never happen is a MIX: a label or a complaint describing
+ * one value beside another value's text.
+ *
+ * Pinned because the obvious "fix" - clearing `diagnostics` when `value`
+ * changes - makes it worse, not better: it would leave the previous, known-bad
+ * name on screen under a plain "Preview:" label, which is the exact assertion
+ * this cluster exists to withdraw.
+ */
+describe("a slow pass never mixes two values in one row", () => {
+	const deferredApp = (release: { fn?: () => void }) =>
+		({
+			workspace: { getActiveFile: () => null },
+			vault: {
+				getMarkdownFiles: () => [],
+				getAbstractFileByPath: (path: string) =>
+					path === "Slow.md"
+						? Object.assign(new TFile(), {
+								path,
+								extension: "md",
+								basename: "Slow",
+							})
+						: null,
+				cachedRead: () =>
+					new Promise<string>((resolve) => {
+						release.fn = () => resolve("Bad: slow body");
+					}),
+			},
+			metadataCache: {
+				getFileCache: () => null,
+				getAllPropertyInfos: () => ({}),
+			},
+		}) as unknown as App;
+
+	it("keeps the old value's text under the old value's label until the new pass lands", async () => {
+		const release: { fn?: () => void } = {};
+		const { container, rerender } = render(FormatPreviewField, {
+			props: {
+				value: "Bad: {{VALUE:title}}",
+				formatterKind: "fileName" as const,
+				app: deferredApp(release),
+				plugin,
+			},
+		});
+		await settleAndIdle();
+
+		const label = () =>
+			container.querySelector(".qa-preview-label")?.textContent;
+		const text = () =>
+			container.querySelector(".qa-preview-value")?.textContent;
+
+		expect(label()).toBe("Won't be created: ");
+		expect(text()).toBe("Bad: Example Title");
+
+		// Switch to a format whose pass cannot finish (the template read hangs),
+		// then let the idle gate open while it is still in flight.
+		await rerender({ value: "{{TEMPLATE:Slow.md}}" });
+		await settleAndIdle();
+
+		// Stale, but COHERENT: the label still describes the text beside it, and
+		// the complaint still belongs to that same text.
+		expect(text()).toBe("Bad: Example Title");
+		expect(label()).toBe("Won't be created: ");
+		expect(issues(container as HTMLElement)).toEqual([
+			'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
+		]);
+
+		// Once it lands, text, label and complaint move together.
+		release.fn?.();
+		await settleAndIdle();
+		expect(text()).toBe("Bad: slow body");
+		expect(label()).toBe("Won't be created: ");
+	});
+
+	it("drops a stale pass that lands after a newer one", async () => {
+		const release: { fn?: () => void } = {};
+		const { container, rerender } = render(FormatPreviewField, {
+			props: {
+				value: "{{TEMPLATE:Slow.md}}",
+				formatterKind: "fileName" as const,
+				app: deferredApp(release),
+				plugin,
+			},
+		});
+		await settle();
+
+		await rerender({ value: "Clean {{VALUE:title}}" });
+		await settleAndIdle();
+		expect(container.querySelector(".qa-preview-value")?.textContent).toBe(
+			"Clean Example Title",
+		);
+
+		// The first pass finishes last; previewToken must discard it.
+		release.fn?.();
+		await settleAndIdle();
+		expect(container.querySelector(".qa-preview-value")?.textContent).toBe(
+			"Clean Example Title",
+		);
+		expect(container.querySelector(".qa-preview-label")?.textContent).toBe(
+			"Preview: ",
+		);
+		expect(issues(container as HTMLElement)).toEqual([]);
 	});
 });

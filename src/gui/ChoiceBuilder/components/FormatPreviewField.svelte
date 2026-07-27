@@ -110,6 +110,18 @@ const hidden = $derived(
 // Unresolved wins when both are present: if a template is missing AND the
 // result has an empty segment, the fundamental failure is that it did not
 // resolve.
+//
+// `diagnostics` deliberately SURVIVES a value change until the next pass
+// commits. A pass can outlast the 500ms gate (it may read up to 25 templates),
+// so the gate can open while the previous result is still shown - but `preview`
+// and `diagnostics` are written together under `previewToken`, so what is on
+// screen is always one pass's text under that same pass's label and complaint.
+// Stale, never mixed.
+//
+// Clearing `diagnostics` here instead would leave the previous, known-bad name
+// on screen under a plain "Preview:" label for the length of the pass, which is
+// precisely the assertion this row exists to withdraw. Pinned by "a slow pass
+// never mixes two values in one row" in the sibling test.
 const errors = $derived(showDiagnostics ? diagnostics.filter((d) => d.severity === "error") : []);
 const isUnresolved = $derived(errors.some((d) => d.kind !== "path"));
 const isInvalid = $derived(!isUnresolved && errors.length > 0);
