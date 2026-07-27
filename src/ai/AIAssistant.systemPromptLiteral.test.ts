@@ -18,8 +18,9 @@ import type { CommonResponse } from "./OpenAIRequest";
  *
  * If #1572 ever makes system prompts formattable, this test fails, and whoever
  * changes it is the person who should also restore the preview and the token
- * autocomplete in AIAssistantSettingsModal / AIAssistantCommandSettingsModal /
- * AIAssistantInfiniteCommandSettingsModal.
+ * autocomplete in AIAssistantSettingsModal / AIAssistantCommandSettingsModal.
+ * (A third modal, AIAssistantInfiniteCommandSettingsModal, carried the same
+ * affordance; it went with the unreachable command type it configured, #1571.)
  */
 
 const storeState = vi.hoisted(() => ({

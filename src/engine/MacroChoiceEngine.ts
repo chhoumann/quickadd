@@ -100,13 +100,30 @@ function getUserScriptSettings(
 }
 
 /**
+ * Command types QuickAdd used to declare and no longer does. Without this, the
+ * generic message would tell a user whose data.json holds one of these that it
+ * "can come from a newer version of QuickAdd" - the opposite of the truth, and
+ * no help at all. A removed type is a fact we know; say the known thing.
+ *
+ * A Map, not an object literal: the key comes straight from a hand-edited
+ * data.json, and `{}["constructor"]` is not a miss.
+ */
+const RETIRED_COMMAND_TYPES = new Map<string, string>([
+	[
+		"InfiniteAIAssistant",
+		'no released QuickAdd has ever been able to run an "Infinite AI Assistant" command - it had no macro-builder entry and no engine branch in any version, and it has now been removed. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() from a user script.',
+	],
+]);
+
+/**
  * Why a command could not be run, phrased for the person reading the notice.
  *
- * Two shapes reach here, and telling them apart is the difference between
- * actionable and baffling. A real-but-unknown type name is worth quoting: it is
- * what the user greps for. An entry with no usable type has nothing to quote -
- * printing `'undefined'` or `'[object Object]'` (a hand-authored package can put
- * any JSON here) would send them looking for a command type that never existed.
+ * Three shapes reach here, and telling them apart is the difference between
+ * actionable and baffling. A type QuickAdd used to declare gets the truth about
+ * where it came from. Any other real type name is worth quoting: it is what the
+ * user greps for. An entry with no usable type has nothing to quote - printing
+ * `'undefined'` or `'[object Object]'` (a hand-authored package can put any JSON
+ * here) would send them looking for a command type that never existed.
  */
 function describeUnknownType(
 	type: unknown,
@@ -115,6 +132,10 @@ function describeUnknownType(
 	if (typeof type !== "string" || !type.trim()) {
 		return `the saved entry has no ${kind} type, so QuickAdd cannot tell what it was meant to do. It is in .obsidian/plugins/quickadd/data.json.`;
 	}
+
+	const retired =
+		kind === "command" ? RETIRED_COMMAND_TYPES.get(type) : undefined;
+	if (retired) return retired;
 
 	return `QuickAdd does not recognise the ${kind} type '${type}'. It can come from a newer version of QuickAdd, an imported package, or a hand-edited .obsidian/plugins/quickadd/data.json.`;
 }
@@ -319,17 +340,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 						break;
 					case CommandType.AIAssistant:
 						await this.executeAIAssistant(command as IAIAssistantCommand);
-						break;
-					case CommandType.InfiniteAIAssistant:
-						// Never creatable, never executable: it shipped in 1.2.0 with no
-						// builder entry and no engine branch, so the only way to hold one
-						// is a hand-edited data.json or a hand-authored package. Naming it
-						// here is what the `never` check costs, and it turns the silent
-						// drop into a visible one until the type is removed outright.
-						this.reportUnrunnableCommand(
-							command,
-							'no released QuickAdd has ever been able to run an "Infinite AI Assistant" command - it cannot be created or configured in the macro builder either. Delete the step from the macro.',
-						);
 						break;
 					case CommandType.OpenFile:
 						await this.executeOpenFile(command as IOpenFileCommand);

@@ -125,12 +125,15 @@ describe("MacroChoiceEngine over a command type it cannot run (#1571)", () => {
 		expect(errors).toHaveLength(1);
 	});
 
-	it("shouts about the Infinite AI Assistant command, which never ran anywhere", async () => {
+	it("tells the truth about a retired type, not the newer-version guess", async () => {
+		// A real legacy string, exactly as 2.19.x and earlier wrote it. The
+		// generic message would say it "can come from a newer version of
+		// QuickAdd" - the opposite of the truth for a type we removed ourselves.
 		const { run, executeCommandById } = runMacro([
 			{
 				id: "c1",
 				name: "Summarise",
-				type: CommandType.InfiniteAIAssistant,
+				type: "InfiniteAIAssistant",
 				model: "gpt-4",
 				outputVariableName: "out",
 			},
@@ -141,6 +144,8 @@ describe("MacroChoiceEngine over a command type it cannot run (#1571)", () => {
 		expect(errors).toHaveLength(1);
 		expect(errors[0]).toContain("Summarise");
 		expect(errors[0]).toMatch(/Infinite AI Assistant/i);
+		expect(errors[0]).toContain("chunkedPrompt");
+		expect(errors[0]).not.toMatch(/newer version/i);
 		expect(executeCommandById).toHaveBeenCalledWith(OBSIDIAN_COMMAND_ID);
 	});
 

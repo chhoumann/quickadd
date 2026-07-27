@@ -13,7 +13,6 @@
 		Wait: "Wait",
 		EditorCommand: "Editor command",
 		AIAssistant: "AI assistant",
-		InfiniteAIAssistant: "AI assistant",
 		OpenFile: "Open file",
 	};
 

@@ -23,11 +23,3 @@ export interface IAIAssistantCommand extends IBaseAIAssistantCommand {
 		name: string;
 	};
 }
-
-export interface IInfiniteAIAssistantCommand extends IBaseAIAssistantCommand {
-	model: string;
-	resultJoiner: string;
-	chunkSeparator: string;
-	maxChunkTokens: number;
-	mergeChunks: boolean;
-}

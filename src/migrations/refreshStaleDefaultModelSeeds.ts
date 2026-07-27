@@ -90,10 +90,7 @@ type AICommandish = ICommand & {
 };
 
 function isAICommand(command: ICommand): command is AICommandish {
-	return (
-		command.type === CommandType.AIAssistant ||
-		command.type === CommandType.InfiniteAIAssistant
-	);
+	return command.type === CommandType.AIAssistant;
 }
 
 const refreshStaleDefaultModelSeeds: Migration = {

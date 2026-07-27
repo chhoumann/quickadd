@@ -13,7 +13,7 @@
  * All four are pinned by AIAssistant.systemPromptLiteral.test.ts.
  *
  * Until #1572 decides otherwise, `{{DATE}}` in a system prompt reaches the model
- * as the eight characters `{{DATE}}`. The three system-prompt modals used to
+ * as the eight characters `{{DATE}}`. The system-prompt modals used to
  * claim the opposite - a live "preview" resolving the tokens, plus a `{{`
  * autocomplete offering them (issues #1565, #1568). Both are gone; this note is
  * what replaces them.
