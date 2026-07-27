@@ -1,26 +1,10 @@
 import type { ILogger } from "./ilogger";
 
-/**
- * Helper function to convert any value to an Error object
- * This function ensures that an Error object is always returned, preserving
- * the original Error if provided or creating a new one otherwise.
- * 
- * @param err - The error value to convert (can be any type)
- * @returns A proper Error object with stack trace
- * 
- * @example
- * ```ts
- * try {
- *   // Some operation
- * } catch (err) {
- *   log.logError(toError(err));
- * }
- * ```
- */
-export function toError(err: unknown): Error {
-	if (err instanceof Error) return err;
-	return new Error(typeof err === 'string' ? err : String(err));
-}
+// There used to be a second `toError` here, a context-less twin of the one in
+// `utils/errorUtils`. Its existence is why #1604 happened: the two suggesters
+// imported THIS one, so the safe helper's "do NOT mutate the caller's Error"
+// contract did not apply to the call sites that most needed it, and they hand-rolled
+// the mutation it forbids. One helper now, in `utils/errorUtils`.
 
 export class LogManager {
 	public static loggers: ILogger[] = [];

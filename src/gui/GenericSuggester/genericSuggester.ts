@@ -1,7 +1,8 @@
 import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
-import { log, toError } from "src/logger/logManager";
+import { log } from "src/logger/logManager";
 import {
+	createRenderFallbackWarner,
 	installSkipAffordance,
 	normalizeDisplayItem,
 	normalizeQuery,
@@ -29,6 +30,9 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 	private displayItems: string[];
 	private items: T[];
 	private warnedOnEmptyDisplay = false;
+	private warnRenderItemFailure = createRenderFallbackWarner(
+		"Custom renderItem threw an error; falling back to default rendering",
+	);
 
 
 	public static Suggest<T>(
@@ -137,9 +141,7 @@ export default class GenericSuggester<T> extends FuzzySuggestModal<T> {
 			this.renderItem(value.item, el);
 		} catch (error) {
 			// Fallback to default rendering if custom render throws
-			const err = toError(error);
-			err.message = `Custom renderItem threw an error; falling back to default rendering. ${err.message}`;
-			log.logWarning(err);
+			this.warnRenderItemFailure(error);
 			el.empty();
 			super.renderSuggestion(value, el);
 		}
