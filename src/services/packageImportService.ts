@@ -17,6 +17,12 @@ import {
 	hasUnreadableChildren,
 	isChoiceLike,
 } from "../utils/choiceUtils";
+import {
+	commandListOf,
+	isCommandLike,
+	isMacroObject,
+	macroCommandsValueOf,
+} from "../utils/macroUtils";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -903,11 +909,20 @@ function remapChoiceTree(
 
 	if (choice.type === "Macro") {
 		const macroChoice = choice as IMacroChoice;
-		if (isDuplicated) {
+		// `macro` is untrusted too: an imported package can omit it entirely, or
+		// carry a primitive where the object belongs. isMacroObject, not the
+		// looser isCommandLike: an Array passes `typeof === "object"`, and
+		// `macro.id = ...` on one sets a non-index property that JSON.stringify
+		// drops - a silent no-op that would leave the duplicate sharing an id.
+		if (isDuplicated && isMacroObject(macroChoice.macro)) {
 			macroChoice.macro.id = uuidv4();
 		}
+		// macroCommandsValueOf, not `macro?.commands`: an array-valued `macro` IS
+		// the command list (see MacroBuilder's recovery path), and reading
+		// `.commands` off it would silently skip remapping every choice reference
+		// and secret ref it holds.
 		remapCommands(
-			macroChoice.macro.commands,
+			macroCommandsValueOf(macroChoice.macro),
 			idMap,
 			importableChoiceIds,
 			isDuplicated,
@@ -919,7 +934,10 @@ function remapChoiceTree(
 		const multi = choice as IMultiChoice;
 		if (Array.isArray(multi.choices)) {
 			multi.choices = multi.choices
-				.filter((child) => importableChoiceIds.has(child.id))
+				// A packaged folder's list can hold a `null` hole like any other
+				// (#1566); dereferencing it here aborted the whole import, taking
+				// healthy siblings with it.
+				.filter((child) => isChoiceLike(child) && importableChoiceIds.has(child.id))
 				.map((child) =>
 					remapChoiceTree(
 						child,
@@ -935,14 +953,17 @@ function remapChoiceTree(
 }
 
 function remapCommands(
-	commands: ICommand[],
+	// `unknown`: raw `macro.commands` / branch values out of an imported package.
+	commands: unknown,
 	idMap: Map<string, string>,
 	importableChoiceIds: Set<string>,
 	shouldRegenerateIds: boolean,
 	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): void {
-	for (const command of commands) {
-		if (!command) continue;
+	// Mutates each command in place, so a value we cannot read is simply left
+	// alone rather than replaced with the [] we read it as.
+	for (const command of commandListOf(commands)) {
+		if (!isCommandLike(command)) continue;
 		stripUserScriptSecretRefsFromCommand(command, secretSanitizerOptions);
 
 		if (shouldRegenerateIds) {
@@ -1076,7 +1097,10 @@ function applyAssetPathOverrides(
 	switch (choice.type) {
 		case "Macro": {
 			const macroChoice = choice as IMacroChoice;
-			applyOverridesToCommands(macroChoice.macro.commands, pathOverrides);
+			applyOverridesToCommands(
+				macroCommandsValueOf(macroChoice.macro),
+				pathOverrides,
+			);
 			break;
 		}
 		case "Template": {
@@ -1114,11 +1138,11 @@ function applyAssetPathOverrides(
 }
 
 function applyOverridesToCommands(
-	commands: ICommand[],
+	commands: unknown,
 	pathOverrides: Map<string, string>,
 ): void {
-	for (const command of commands) {
-		if (!command) continue;
+	for (const command of commandListOf(commands)) {
+		if (!isCommandLike(command)) continue;
 
 		switch (command.type) {
 			case CommandType.UserScript: {

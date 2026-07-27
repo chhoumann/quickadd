@@ -13,6 +13,7 @@ import type IChoice from "src/types/choices/IChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
+import { commandListOf } from "src/utils/macroUtils";
 import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import {
@@ -506,7 +507,8 @@ async function collectMacroScriptRequirements(
 	preloadedUserScripts?: Map<string, unknown>,
 ): Promise<FieldRequirement[]> {
 	const requirements: FieldRequirement[] = [];
-	const commands: ICommand[] = choice?.macro?.commands ?? [];
+	// `?? []` would pass an array-turned-object straight into the loop below.
+	const commands: ICommand[] = commandListOf(choice?.macro?.commands);
 
 	for (const command of commands) {
 		if (command?.type !== CommandType.UserScript) continue;

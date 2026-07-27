@@ -4,6 +4,7 @@ import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { ICommand } from "../../types/macros/ICommand";
 import { deepClone } from "../../utils/deepClone";
+import { commandListOf } from "../../utils/macroUtils";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -14,7 +15,8 @@ interface ConditionalBranchEditorModalOptions {
 	plugin: QuickAdd;
 	choices: IChoice[];
 	title: string;
-	commands: ICommand[];
+	/** Raw `thenCommands`/`elseCommands` out of data.json — see commandListOf. */
+	commands: unknown;
 	conditionalHandlers: CommandSequenceEditorConditionalHandlers;
 }
 
@@ -22,7 +24,7 @@ export class ConditionalBranchEditorModal extends Modal {
 	public waitForClose: Promise<ICommand[] | null>;
 	private resolvePromise!: (commands: ICommand[] | null) => void;
 	private commandEditor: CommandSequenceEditor | null = null;
-	private workingCommands: ICommand[];
+	private workingCommands: unknown;
 	private readonly plugin: QuickAdd;
 	private readonly choices: IChoice[];
 	private readonly conditionalHandlers: CommandSequenceEditorConditionalHandlers;
@@ -75,15 +77,34 @@ export class ConditionalBranchEditorModal extends Modal {
 			},
 			conditionalHandlers: this.conditionalHandlers,
 		});
-		this.commandEditor.render(editorContainer);
+		const editable = this.commandEditor.render(editorContainer);
 
-		this.renderButtonBar();
+		this.renderButtonBar(editable);
 	}
 
-	private renderButtonBar() {
+	/**
+	 * The Save button lives OUTSIDE the command editor, so suppressing the
+	 * editor's own controls is not enough: Save resolves `workingCommands`, which
+	 * MacroBuilder writes onto the conditional's `thenCommands`/`elseCommands`. If
+	 * the branch held a value we could not read, that one click would replace it
+	 * with the empty list we read it as. There is nothing to save in that state,
+	 * so the button bar offers only a way out (#1593).
+	 */
+	private renderButtonBar(editable: boolean) {
 		const buttonContainer = this.contentEl.createDiv({
 			cls: "qa-command-button-row",
 		});
+
+		if (!editable) {
+			new ButtonComponent(buttonContainer)
+				.setCta()
+				.setButtonText("Close")
+				.onClick(() => {
+					this.resolve(null);
+					this.close();
+				});
+			return;
+		}
 
 		new ButtonComponent(buttonContainer)
 			.setButtonText("Cancel")
@@ -96,7 +117,7 @@ export class ConditionalBranchEditorModal extends Modal {
 			.setCta()
 			.setButtonText("Save")
 			.onClick(() => {
-				this.resolve(this.workingCommands);
+				this.resolve(commandListOf(this.workingCommands));
 				this.close();
 			});
 	}

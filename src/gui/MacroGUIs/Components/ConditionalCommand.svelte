@@ -3,6 +3,7 @@
 	import DragHandle from "../../components/DragHandle.svelte";
 	import type { IConditionalCommand } from "../../../types/macros/Conditional/IConditionalCommand";
 	import { getConditionSummary } from "../../../utils/conditionalHelpers";
+	import { commandListOf } from "../../../utils/macroUtils";
 
 	let {
 		command,
@@ -27,8 +28,12 @@
 	} = $props();
 
 	const summary = $derived(getConditionSummary(command.condition));
-	const thenCount = $derived(command.thenCommands?.length ?? 0);
-	const elseCount = $derived(command.elseCommands?.length ?? 0);
+	// `?.length ?? 0` reads a LENGTH off whatever is there: a branch saved as
+	// "not a list" rendered "Then: 10" (its character count) and an
+	// array-turned-object rendered "Then: 0" as if the branch were empty. Count
+	// only what is actually a list of commands (#1593).
+	const thenCount = $derived(commandListOf(command.thenCommands).length);
+	const elseCount = $derived(commandListOf(command.elseCommands).length);
 </script>
 
 <li class="quickAddCommandListItem conditionalCommand">

@@ -59,6 +59,11 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
+import {
+	commandListOf,
+	hasCommandList,
+	isUnreadableCommandList,
+} from "../utils/macroUtils";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 type UserScriptFunction = (
@@ -263,14 +268,39 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	async run(): Promise<void> {
-		if (!this.macro || !this.macro.commands) {
-			log.logError(
-				`No commands in the macro for choice '${this.choice.name}'`
+		// `!this.macro.commands` is truthiness, so it used to wave through the two
+		// shapes that then failed outside the UI (#1593): an array-turned-object
+		// reached `for..of` and threw a bare "i is not iterable" at the user, and a
+		// string reached it INTACT (strings are iterable), so the macro reported
+		// success having walked its own characters and done nothing at all.
+		//
+		// THROWS rather than returning: none of the macro ran, so this is a
+		// failure and every caller has to see it as one. Returning quietly would
+		// let `quickadd:run` answer `ok: true` and automation carry on as if the
+		// macro had done its job (#1606's contract). The throw surfaces as one
+		// Notice through the executor's error path.
+		if (isUnreadableCommandList(this.macro?.commands)) {
+			throw new Error(
+				`Could not read the commands for macro '${this.choice.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
 			);
+		}
+
+		const commands = commandListOf(this.macro?.commands);
+		if (commands.length === 0) {
+			// `commands: []` is the HEALTHY default (QuickAddMacro's constructor),
+			// so an empty list stays as quiet as it was before this guard existed -
+			// otherwise every freshly created macro, and every launch with an
+			// unpopulated run-on-startup macro, would raise a 15s error notice.
+			// Only a MISSING macro is worth saying anything about.
+			if (!hasCommandList(this.macro?.commands)) {
+				log.logError(
+					`No commands in the macro for choice '${this.choice.name}'`
+				);
+			}
 			return;
 		}
 
-		await this.executeCommands(this.macro.commands);
+		await this.executeCommands(commands);
 	}
 
 	public getOutput(): unknown {
@@ -754,6 +784,21 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const branch = shouldRunThenBranch
 			? command.thenCommands
 			: command.elseCommands;
+
+		// An absent branch is normal (a conditional with no else), so it stays
+		// silent. A branch we could not read is not: say so rather than skipping
+		// it as if the user had left it empty (#1593).
+		//
+		// THROWS rather than returning, for the same reason run() does, and one
+		// more: returning here only exits executeConditional, so the outer loop
+		// would carry on with every command AFTER the conditional - running
+		// file-writing and script commands that were only ever meant to follow a
+		// branch that never ran.
+		if (isUnreadableCommandList(branch)) {
+			throw new Error(
+				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
+			);
+		}
 
 		if (!Array.isArray(branch) || branch.length === 0) {
 			return;

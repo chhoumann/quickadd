@@ -15,6 +15,11 @@ import {
 } from "../utils/userScriptSecrets";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import {
+	commandListOf,
+	hasCommandList,
+	isCommandLike,
+} from "../utils/macroUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
 // Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
@@ -206,8 +211,10 @@ export class SingleMacroEngine {
 		macroChoice: IMacroChoice,
 		memberAccess: string[],
 	): Promise<{ executed: boolean; result?: unknown }> {
-		const originalCommands = macroChoice.macro?.commands;
-		if (!originalCommands?.length) {
+		// commandListOf, not `?.length`: a string `commands` reports a length and
+		// then throws on `.map` below (#1593).
+		const originalCommands = commandListOf(macroChoice.macro?.commands);
+		if (!originalCommands.length) {
 			return { executed: false };
 		}
 
@@ -215,6 +222,12 @@ export class SingleMacroEngine {
 			.map((command, index) => ({ command, index }))
 			.filter(
 				(entry): entry is { command: IUserScript; index: number } =>
+					// isCommandLike, not just the type check: commandListOf converts the
+					// NON-ARRAY shapes, but a `null` hole INSIDE a real array sails
+					// straight through .map/.filter. Without this, `[ok, null, ok]` threw
+					// here on the `{{MACRO:Name::member}}` path while the same macro ran
+					// fine without member access (#1593).
+					isCommandLike(entry.command) &&
 					entry.command.type === CommandType.UserScript,
 			);
 
@@ -236,7 +249,13 @@ export class SingleMacroEngine {
 				this.ensureNotAborted();
 			}
 
-			const updatedCommands = macroChoice.macro?.commands ?? originalCommands;
+			// Fall back to the list we started from if a pre-command replaced
+			// `commands` with something unreadable, rather than carrying that value
+			// into the index arithmetic below.
+			const refreshed = macroChoice.macro?.commands;
+			const updatedCommands = hasCommandList(refreshed)
+				? (refreshed as typeof originalCommands)
+				: originalCommands;
 			// Pre-commands may have mutated the commands array, so re-resolve the selected
 			// command by its stable id. Both the candidate and the post-command slice are
 			// derived from this refreshed index so they cannot drift apart. The original
@@ -248,6 +267,9 @@ export class SingleMacroEngine {
 			if (candidateId !== undefined) {
 				refreshedIndex = updatedCommands.findIndex(
 					(command) =>
+						// A pre-command can rewrite `commands` to include a hole; the
+						// hasCommandList guard above only rejects a non-array refresh.
+						isCommandLike(command) &&
 						command.id === candidateId &&
 						command.type === CommandType.UserScript,
 				);

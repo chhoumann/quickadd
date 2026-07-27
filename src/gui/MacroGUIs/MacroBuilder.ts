@@ -19,6 +19,12 @@ import {
 	isChoiceLike,
 	rootChoicesOf,
 } from "../../utils/choiceUtils";
+import {
+	isMacroObject,
+	macroCommandsValueOf,
+} from "../../utils/macroUtils";
+import type { ICommand } from "../../types/macros/ICommand";
+import { v4 as uuidv4 } from "uuid";
 
 /** Exported for the malformed-tree sweep (src/utils/malformedChoices.entrypoints.test.ts). */
 export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
@@ -108,9 +114,11 @@ export class MacroBuilder extends Modal {
 					);
 					if (!newName) return;
 
-					// Keep choice name and macro name in sync
+					// Keep choice name and macro name in sync. The macro object can
+					// be missing from a hand-edited data.json; renaming the choice
+					// still has to work, so only sync a macro that is there.
 					this.choice.name = newName;
-					this.macro.name = newName;
+					if (isMacroObject(this.macro)) this.macro.name = newName;
 					this.reload();
 				} catch {
 					// Prompt cancelled (Esc/Cancel) — keep the current name.
@@ -143,15 +151,49 @@ export class MacroBuilder extends Modal {
 		this.display();
 	}
 
+	/**
+	 * The value to show as this macro's command list.
+	 *
+	 * `choice.macro` is untrusted too, and a Macro choice whose `macro` key is
+	 * missing entirely used to make "Configure" do nothing at all: `display()`
+	 * runs from the constructor, before `open()`, so the throw took the modal with
+	 * it.
+	 *
+	 * Three cases, and `macro` being an ARRAY is the one worth naming: `[]` and
+	 * `[{...}]` are both objects, but writing `macro.commands` onto an Array sets
+	 * a non-index property that `JSON.stringify` drops, so the user's edits would
+	 * vanish on every save while the editor happily showed them. Handing the array
+	 * itself over as the command list instead means its entries render as the
+	 * commands they probably are, and `setMacroCommands` materializes a real macro
+	 * object around them on the first edit - nothing lost either way.
+	 */
+	private macroCommandsValue(): unknown {
+		return macroCommandsValueOf(this.macro);
+	}
+
+	/**
+	 * Commit an edit back onto the choice, materializing the macro object if it
+	 * was missing. Only reachable when the editor is usable, which
+	 * `macroCommandsValue` guarantees means nothing readable is being replaced.
+	 */
+	private setMacroCommands(commands: ICommand[]) {
+		if (!isMacroObject(this.macro)) {
+			this.macro = { id: uuidv4(), name: this.choice.name, commands };
+			this.choice.macro = this.macro;
+			return;
+		}
+		this.macro.commands = commands;
+	}
+
 	private addCommandEditor() {
 		const editorContainer = this.contentEl.createDiv("macroBuilder__editor");
 		this.commandEditor = new CommandSequenceEditor({
 			app: this.app,
 			plugin: this.plugin,
-			commands: this.macro.commands,
+			commands: this.macroCommandsValue(),
 			choices: this.choices,
 			onCommandsChange: (commands) => {
-				this.macro.commands = commands;
+				this.setMacroCommands(commands);
 			},
 			conditionalHandlers: this.buildConditionalHandlers(),
 		});
