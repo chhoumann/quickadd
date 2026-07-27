@@ -61,14 +61,37 @@ export const MALFORMED_CHILDREN_SHAPES: {
  * One tree carrying every malformed shape plus healthy neighbours on both sides,
  * so a walker that dies partway through is caught by a missing TAIL choice and
  * not just by the throw.
+ *
+ * Corruption is placed at EVERY depth, not just the root. A first version of
+ * this fixture only had malformed folders at the top level, and a walker that
+ * guards its entry point but not its recursion passes that happily - which is
+ * exactly the bug being fixed, one level down.
  */
 export function malformedTree(): IChoice[] {
+	const broken = (suffix = "") =>
+		MALFORMED_CHILDREN_SHAPES.map((shape) =>
+			malformedFolder(
+				`Broken ${shape.key}${suffix}`,
+				`broken-${shape.key}${suffix}`,
+				shape.value,
+			),
+		);
+
 	return [
 		leaf("Head template", "head"),
 		folder("Healthy folder", "healthy", [leaf("Child note", "child")]),
-		...MALFORMED_CHILDREN_SHAPES.map((shape) =>
-			malformedFolder(`Broken ${shape.key}`, `broken-${shape.key}`, shape.value),
-		),
+		// A healthy folder is not a safe branch: its children can carry the same
+		// corruption, including a hole in ITS list.
+		folder("Nesting folder", "nesting", [
+			leaf("Nested note", "nested-note"),
+			...broken("-nested"),
+			null as unknown as IChoice,
+			folder("Deep folder", "deep", [
+				leaf("Deep note", "deep-note"),
+				...broken("-deep"),
+			]),
+		]),
+		...broken(),
 		// A hole in the list itself: `null` survives a truncated write, and it used
 		// to throw inside dedupeChoicesById during loadSettings.
 		null as unknown as IChoice,
@@ -78,7 +101,16 @@ export function malformedTree(): IChoice[] {
 }
 
 /** The ids of the choices in `malformedTree()` that are perfectly well-formed. */
-export const HEALTHY_IDS = ["head", "healthy", "child", "tail"];
+export const HEALTHY_IDS = [
+	"head",
+	"healthy",
+	"child",
+	"nesting",
+	"nested-note",
+	"deep",
+	"deep-note",
+	"tail",
+];
 
 /**
  * Every unreadable `choices` value still in the tree, keyed by folder id, as a
@@ -107,3 +139,4 @@ export function malformedSnapshot(choices: IChoice[]): string {
 	walk(choices);
 	return JSON.stringify(seen);
 }
+

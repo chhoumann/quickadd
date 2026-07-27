@@ -205,6 +205,7 @@
 	// registry (and so a folder with command-enabled children DOES get them
 	// registered via the recursive addCommandForChoice).
 	function subtreeHasCommand(choice: IChoice): boolean {
+		if (!isChoiceLike(choice)) return false;
 		if (choice.command) return true;
 		return childChoicesOf(choice).some(subtreeHasCommand);
 	}

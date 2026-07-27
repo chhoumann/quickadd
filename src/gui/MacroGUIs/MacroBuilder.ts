@@ -14,13 +14,19 @@ import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsMod
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { addAutosaveFooter } from "../ChoiceBuilder/components/autosaveFooter";
-import { childChoicesOf } from "../../utils/choiceUtils";
+import {
+	childChoicesOf,
+	isChoiceLike,
+	rootChoicesOf,
+} from "../../utils/choiceUtils";
 
-function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
+/** Exported for the malformed-tree sweep (src/utils/malformedChoices.entrypoints.test.ts). */
+export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
 
 	const recursive = (choices: IChoice[]) => {
 		choices.forEach((choice) => {
+			if (!isChoiceLike(choice)) return;
 			if (choice.type === "Multi") {
 				recursive(childChoicesOf(choice));
 			} else {
@@ -29,7 +35,7 @@ function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 		});
 	};
 
-	recursive(nestedChoices);
+	recursive(rootChoicesOf(nestedChoices));
 
 	return arr;
 }

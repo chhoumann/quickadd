@@ -33,7 +33,12 @@ import {
 	computeEligibleMultiTargets,
 } from "../gui/choiceList/contextMenu";
 import { uniqueDefaultChoiceName } from "../gui/choiceList/choiceTypeMeta";
-import { isEmptyFolderChoice } from "../gui/suggesters/choiceSuggester";
+import {
+	emptyFolderNoticeText,
+	folderFlairFor,
+	isEmptyFolderChoice,
+} from "../gui/suggesters/choiceSuggester";
+import { getChoicesAsList as macroBuilderChoiceList } from "../gui/MacroGUIs/MacroBuilder";
 import {
 	HEALTHY_IDS,
 	leaf,
@@ -122,6 +127,14 @@ const sweeps: Sweep[] = [
 
 	// --- picker
 	["isEmptyFolderChoice (every node)", (t) => t.filter(isChoiceLike).map((c) => isEmptyFolderChoice(c))],
+	["folderFlairFor (every node)", (t) => t.filter(isChoiceLike).map((c) => folderFlairFor(c))],
+	[
+		"emptyFolderNoticeText (every node)",
+		(t) => t.filter(isChoiceLike).map((c) => emptyFolderNoticeText(c)),
+	],
+
+	// --- macro builder
+	["getChoicesAsList", (t) => macroBuilderChoiceList(t)],
 ];
 
 describe("every choice-tree entry point over a malformed tree (#1566)", () => {

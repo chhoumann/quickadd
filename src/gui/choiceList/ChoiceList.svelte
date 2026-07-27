@@ -118,7 +118,9 @@
     // through MultiChoiceListItem's nestedActions just like a drag does.
     function moveChoice(choice: IChoice, direction: -1 | 1) {
         if (forceDragDisabled) return; // never persist a filtered/derived list
-        const list = stripShadow(choices);
+        // `renderable`, not `choices`: stripShadow reads `item.id`, so the raw
+        // list would throw on the very hole the render filter exists to hide.
+        const list = stripShadow(renderable);
         const index = list.findIndex((c) => c.id === choice.id);
         if (index === -1) return;
         const target = index + direction;

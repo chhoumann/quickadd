@@ -3,7 +3,7 @@ import type QuickAdd from "src/main";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import { MacroChoice } from "src/types/choices/MacroChoice";
 import { flattenChoices } from "src/utils/choiceUtils";
-import type { Migration } from "./Migrations";
+import type { Migration, MigrationResult } from "./Migrations";
 
 type LegacySettings = QuickAdd["settings"] & { macros?: LegacyMacro[] };
 type LegacyMacro = {
@@ -17,8 +17,20 @@ type LegacyMacroChoice = IMacroChoice & { macroId?: string };
 const removeMacroIndirection: Migration = {
 	description:
 		"Remove macro indirection - embed macros directly in macro choices",
-	migrate: async (plugin: QuickAdd) => {
+	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as LegacySettings;
+
+		// This migration MOVES legacy macros into the choice tree and then deletes
+		// the old `macros` array. With an unreadable root there is nowhere to move
+		// them to, so finishing would delete them outright - and being flagged
+		// complete, it would never retry. Stay pending instead, so a user who
+		// repairs data.json by hand still gets their macros migrated (#1566).
+		if (!Array.isArray(settings.choices)) {
+			log.logMessage(
+				"QuickAdd could not read the choice list, so legacy macros were left in place to be migrated later.",
+			);
+			return { complete: false };
+		}
 
 		// Check if we have the old macros array
 		const oldMacros = settings.macros ?? [];
@@ -59,10 +71,7 @@ const removeMacroIndirection: Migration = {
 					commands: macro.commands || [],
 				};
 				choice.runOnStartup = macro.runOnStartup || false;
-				// A corrupt (non-array) root is left alone rather than replaced, so
-				// there is nowhere to append an orphaned macro's choice; skip it
-				// instead of throwing and reverting the migration forever (#1566).
-				if (Array.isArray(settings.choices)) settings.choices.push(choice);
+				settings.choices.push(choice);
 			} else {
 				// Embed the macro in all referencing choices
 				for (const choice of referencingChoices) {

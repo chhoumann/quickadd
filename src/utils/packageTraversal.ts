@@ -8,7 +8,7 @@ import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
-import { isChoiceLike, rootChoicesOf } from "./choiceUtils";
+import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
 import { CommandType } from "../types/macros/CommandType";
 
 export interface ChoiceCatalogEntry {
@@ -141,10 +141,9 @@ function buildChoiceCatalog(
 function collectChoiceDependencies(choice: IChoice): Set<string> {
 	const dependencies = new Set<string>();
 
-	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
-		for (const child of choice.choices) {
-			dependencies.add(child.id);
-		}
+	for (const child of childChoicesOf(choice)) {
+		if (!isChoiceLike(child)) continue;
+		dependencies.add(child.id);
 	}
 
 	if (isMacroChoice(choice)) {

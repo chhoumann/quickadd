@@ -66,9 +66,9 @@ export function duplicateChoice(
 		// recursive map below so children get fresh ids, not the source's.
 		Object.assign(newMulti, excludeKeys(sourceMulti, ["id", "name", "choices"]));
 		if (hasChildChoices(sourceMulti)) {
-			newMulti.choices = childChoicesOf(sourceMulti).map((child) =>
-				duplicateChoice(child, secretSanitizerOptions),
-			);
+			newMulti.choices = childChoicesOf(sourceMulti)
+				.filter(isChoiceLike)
+				.map((child) => duplicateChoice(child, secretSanitizerOptions));
 		} else {
 			// The source's children are unreadable. Carry the value across
 			// verbatim rather than fabricating [], so the copy is as faithful as
@@ -253,7 +253,7 @@ export async function deleteChoiceWithConfirmation(
 		// predicate as the folder's own hint, so the two surfaces cannot
 		// disagree (#1566).
 		if (hasUnreadableChildren(multi)) {
-			return "QuickAdd could not read this folder's contents. Deleting it also deletes whatever is still stored under it in data.json.";
+			return "QuickAdd couldn't read this folder's contents. Deleting it also deletes whatever is still stored under it in data.json.";
 		}
 		const descendants = flattenChoices(childChoicesOf(multi));
 		if (descendants.length === 0) return "";

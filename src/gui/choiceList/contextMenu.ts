@@ -3,6 +3,7 @@ import { Menu as ObsidianMenu } from "obsidian";
 import type IChoice from "src/types/choices/IChoice";
 import {
   childChoicesOf,
+  hasUnreadableChildren,
   isChoiceLike,
   rootChoicesOf,
 } from "src/utils/choiceUtils";
@@ -74,6 +75,11 @@ export function computeEligibleMultiTargets(
 function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
   if (target.type !== "Multi") return true;
   if (moving.id === target.id) return true;
+  // A folder whose existing children could not be read refuses writes (see
+  // choiceService.insertIntoMulti), so offering it here would be a menu item
+  // that silently does nothing. Same predicate as the folder's hint, its drop
+  // zone and its delete warning (#1566).
+  if (hasUnreadableChildren(target)) return true;
   if (moving.type === "Multi") {
     const ids = new Set<string>();
     const collect = (c: IChoice) => {
