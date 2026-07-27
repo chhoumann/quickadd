@@ -77,7 +77,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 			const result = insertChoiceAfter([folder], inner.id, copy) as IChoice[];
 
 			const newFolder = result[0] as IMultiChoice;
-			expect(newFolder.choices.map((x) => x.id)).toEqual([inner.id, copy.id]);
+			expect(newFolder.choices!.map((x) => x.id)).toEqual([inner.id, copy.id]);
 			// The copy lands in the SAME folder as its source, not at root.
 			expect(result).toHaveLength(1);
 		});

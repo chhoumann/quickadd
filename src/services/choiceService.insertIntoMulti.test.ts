@@ -35,14 +35,14 @@ describe("insertIntoMulti", () => {
 		const result = insertIntoMulti(roots, "f1", leaf("c", "C"));
 
 		expect(result).toBeDefined();
-		expect((result?.[0] as IMultiChoice).choices.map((c) => c.id)).toEqual([
+		expect((result?.[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual([
 			"a",
 			"c",
 		]);
 		// Untouched sibling is referentially preserved.
 		expect(result?.[1]).toBe(roots[1]);
 		// Original tree is not mutated.
-		expect((roots[0] as IMultiChoice).choices.map((c) => c.id)).toEqual([
+		expect((roots[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual([
 			"a",
 		]);
 	});
@@ -53,11 +53,11 @@ describe("insertIntoMulti", () => {
 		const result = insertIntoMulti(roots, "f2", leaf("c", "C"));
 
 		expect(result).toBeDefined();
-		const f2 = (result?.[0] as IMultiChoice).choices[0] as IMultiChoice;
-		expect(f2.choices.map((c) => c.id)).toEqual(["c"]);
+		const f2 = (result?.[0] as IMultiChoice).choices![0] as IMultiChoice;
+		expect(f2.choices!.map((c) => c.id)).toEqual(["c"]);
 		// Original nested folder still empty.
 		expect(
-			((roots[0] as IMultiChoice).choices[0] as IMultiChoice).choices,
+			((roots[0] as IMultiChoice).choices![0] as IMultiChoice).choices!,
 		).toHaveLength(0);
 	});
 
@@ -83,17 +83,17 @@ describe("addChoiceToTree", () => {
 
 		const res = addChoiceToTree(roots, leaf("c", "C"), "f1");
 		const f1 = res[0] as IMultiChoice;
-		expect(f1.choices.map((c) => c.id)).toEqual(["a", "c"]);
+		expect(f1.choices!.map((c) => c.id)).toEqual(["a", "c"]);
 		expect(f1.collapsed).toBe(false);
 	});
 
 	it("inserts into a nested folder (depth >= 2) and expands it", () => {
 		const roots: IChoice[] = [folder("f1", "F1", [folder("f2", "F2", [])])];
-		((roots[0] as IMultiChoice).choices[0] as IMultiChoice).collapsed = true;
+		((roots[0] as IMultiChoice).choices![0] as IMultiChoice).collapsed = true;
 
 		const res = addChoiceToTree(roots, leaf("c", "C"), "f2");
-		const f2 = (res[0] as IMultiChoice).choices[0] as IMultiChoice;
-		expect(f2.choices.map((c) => c.id)).toEqual(["c"]);
+		const f2 = (res[0] as IMultiChoice).choices![0] as IMultiChoice;
+		expect(f2.choices!.map((c) => c.id)).toEqual(["c"]);
 		expect(f2.collapsed).toBe(false);
 	});
 
@@ -124,7 +124,7 @@ describe("setMultiCollapsedById", () => {
 
 		const f1 = res[0] as IMultiChoice;
 		expect(f1.collapsed).toBe(false); // ancestor unchanged
-		expect((f1.choices[0] as IMultiChoice).collapsed).toBe(true);
+		expect((f1.choices![0] as IMultiChoice).collapsed).toBe(true);
 	});
 
 	it("is a no-op (returns an equivalent tree) when the id is absent", () => {
@@ -142,10 +142,10 @@ describe("setFolderChildrenById", () => {
 
 		const res = setFolderChildrenById(roots, "f1", [leaf("x", "X")]);
 
-		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["x"]);
+		expect((res[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual(["x"]);
 		expect(res[1]).toBe(sib);
 		// Original untouched.
-		expect((roots[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["a"]);
+		expect((roots[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual(["a"]);
 	});
 
 	it("empties a folder by id at depth >= 2 (the cross-zone drag-OUT case)", () => {
@@ -155,15 +155,15 @@ describe("setFolderChildrenById", () => {
 
 		const res = setFolderChildrenById(roots, "f2", []);
 
-		const f2 = (res[0] as IMultiChoice).choices[0] as IMultiChoice;
+		const f2 = (res[0] as IMultiChoice).choices![0] as IMultiChoice;
 		expect(f2.choices).toEqual([]);
 		// Ancestor intact.
-		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["f2"]);
+		expect((res[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual(["f2"]);
 	});
 
 	it("is a no-op when the folder id is absent", () => {
 		const roots: IChoice[] = [folder("f1", "F1", [leaf("a", "A")])];
 		const res = setFolderChildrenById(roots, "nope", []);
-		expect((res[0] as IMultiChoice).choices.map((c) => c.id)).toEqual(["a"]);
+		expect((res[0] as IMultiChoice).choices!.map((c) => c.id)).toEqual(["a"]);
 	});
 });

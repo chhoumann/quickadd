@@ -17,7 +17,13 @@ import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
-import { flattenChoices } from "../utils/choiceUtils";
+import {
+	childChoicesOf,
+	flattenChoices,
+	hasChildChoices,
+	hasUnreadableChildren,
+	isChoiceLike,
+} from "../utils/choiceUtils";
 import { choiceNoun } from "../utils/choiceNoun";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
@@ -59,9 +65,16 @@ export function duplicateChoice(
 		// the other choice types). `choices` is excluded here and set via the
 		// recursive map below so children get fresh ids, not the source's.
 		Object.assign(newMulti, excludeKeys(sourceMulti, ["id", "name", "choices"]));
-		newMulti.choices = sourceMulti.choices.map((child) =>
-			duplicateChoice(child, secretSanitizerOptions)
-		);
+		if (hasChildChoices(sourceMulti)) {
+			newMulti.choices = childChoicesOf(sourceMulti).map((child) =>
+				duplicateChoice(child, secretSanitizerOptions),
+			);
+		} else {
+			// The source's children are unreadable. Carry the value across
+			// verbatim rather than fabricating [], so the copy is as faithful as
+			// the original and the user has two chances to recover it by hand.
+			newMulti.choices = sourceMulti.choices;
+		}
 		return newMulti;
 	}
 
@@ -231,13 +244,18 @@ export async function deleteChoiceWithConfirmation(
 	// dialog is being fixed for. Zero descendants gets no warning at all.
 	const buildMultiWarning = (multi: IMultiChoice): string => {
 		// A malformed Multi (children missing, or not an array) is deliberately
-		// preserved on load rather than repaired — see dedupeChoicesById — and
-		// flattenChoices would throw on it. Throwing here would leave the corrupt
-		// folder undeletable, and ChoiceView awaits this function from a click
-		// handler that discards the promise, so the throw would surface as an
-		// unhandled rejection. Treat it as empty and let the delete through.
-		const children = Array.isArray(multi.choices) ? multi.choices : [];
-		const descendants = flattenChoices(children);
+		// preserved on load rather than repaired - see dedupeChoicesById. It still
+		// has to be deletable, so it must not throw here: ChoiceView awaits this
+		// function from a click handler that discards the promise, so a throw
+		// would surface as an unhandled rejection and the corrupt folder would be
+		// undeletable. But when the value could still be HOLDING choices, saying
+		// nothing would let the user delete data the UI never showed them. Same
+		// predicate as the folder's own hint, so the two surfaces cannot
+		// disagree (#1566).
+		if (hasUnreadableChildren(multi)) {
+			return "QuickAdd could not read this folder's contents. Deleting it also deletes whatever is still stored under it in data.json.";
+		}
+		const descendants = flattenChoices(childChoicesOf(multi));
 		if (descendants.length === 0) return "";
 
 		const folders = descendants.filter((c) => c.type === "Multi").length;
@@ -390,7 +408,8 @@ export function moveChoiceToRoot(
 	if (!movingId) return rootChoices;
 
 	// Already at root: nothing to do.
-	if (rootChoices.some((c) => c.id === movingId)) return rootChoices;
+	if (rootChoices.some((c) => isChoiceLike(c) && c.id === movingId))
+		return rootChoices;
 
 	const { updated: withoutMoving, removed } = removeChoiceById(
 		rootChoices,
@@ -410,11 +429,13 @@ export function moveChoiceToRoot(
  */
 export function findChoiceById(choices: IChoice[], id: string): IChoice | undefined {
 	for (const c of choices) {
+		// A list entry can be a hole (`null`, a primitive) left by a bad edit or a
+		// truncated write. Every walker below steps over one rather than throwing
+		// on it, so a single hole cannot break an unrelated edit (#1566).
+		if (!isChoiceLike(c)) continue;
 		if (c.id === id) return c;
-		if (c.type === "Multi") {
-			const found = findChoiceById((c as IMultiChoice).choices, id);
-			if (found) return found;
-		}
+		const found = findChoiceById(childChoicesOf(c), id);
+		if (found) return found;
 	}
 	return undefined;
 }
@@ -422,10 +443,11 @@ export function findChoiceById(choices: IChoice[], id: string): IChoice | undefi
 function collectDescendantIds(multi: IMultiChoice): Set<string> {
 	const ids = new Set<string>();
 	const walk = (c: IChoice) => {
+		if (!isChoiceLike(c)) return;
 		ids.add(c.id);
-		if (c.type === "Multi") (c as IMultiChoice).choices.forEach(walk);
+		childChoicesOf(c).forEach(walk);
 	};
-	(multi.choices ?? []).forEach(walk);
+	childChoicesOf(multi).forEach(walk);
 	return ids;
 }
 
@@ -436,12 +458,16 @@ export function removeChoiceById(
 	let removed: IChoice | undefined;
 	const updated = choices
 		.map((c) => {
+			if (!isChoiceLike(c)) return c;
 			if (c.id === id) {
 				removed = c;
 				return undefined;
 			}
-			if (c.type !== "Multi") return c;
-			const res = removeChoiceById((c as IMultiChoice).choices, id);
+			// Pass a folder whose children are unreadable through untouched: there
+			// is nothing to remove inside it, and rebuilding it would replace the
+			// original value with the [] this walker reads it as.
+			if (!hasChildChoices(c)) return c;
+			const res = removeChoiceById(childChoicesOf(c), id);
 			if (res.removed) removed = res.removed;
 			if (res.removed) {
 				// Only recreate object when children changed
@@ -468,13 +494,20 @@ export function insertIntoMulti(
 ): IChoice[] | undefined {
 	let changed = false;
 	const updated = choices.map((c) => {
+		if (!isChoiceLike(c)) return c;
 		if (c.id === targetId && c.type === "Multi") {
+			// Refuse to write into a folder whose existing children we could not
+			// read - that write would discard them. The UI offers no add/drop
+			// affordance on such a folder (MultiChoiceListItem), so this is the
+			// backstop for the paths that reach it another way; returning
+			// `undefined` makes the caller fall back rather than destroy.
+			if (hasUnreadableChildren(c)) return c;
 			changed = true;
 			const mc = c as IMultiChoice;
-			return { ...mc, choices: [...mc.choices, child] } as IChoice;
+			return { ...mc, choices: [...childChoicesOf(mc), child] } as IChoice;
 		}
-		if (c.type !== "Multi") return c;
-		const inner = insertIntoMulti((c as IMultiChoice).choices, targetId, child);
+		if (!hasChildChoices(c)) return c;
+		const inner = insertIntoMulti(childChoicesOf(c), targetId, child);
 		if (inner) {
 			changed = true;
 			return { ...(c as IMultiChoice), choices: inner } as IChoice;
@@ -498,7 +531,7 @@ export function insertChoiceAfter(
 	afterId: string,
 	newChoice: IChoice,
 ): IChoice[] | undefined {
-	const index = choices.findIndex((c) => c.id === afterId);
+	const index = choices.findIndex((c) => isChoiceLike(c) && c.id === afterId);
 	if (index !== -1) {
 		const updated = [...choices];
 		updated.splice(index + 1, 0, newChoice);
@@ -507,9 +540,9 @@ export function insertChoiceAfter(
 
 	let changed = false;
 	const updated = choices.map((c) => {
-		if (c.type !== "Multi") return c;
+		if (!isChoiceLike(c) || !hasChildChoices(c)) return c;
 		const inner = insertChoiceAfter(
-			(c as IMultiChoice).choices,
+			childChoicesOf(c),
 			afterId,
 			newChoice,
 		);
@@ -559,10 +592,15 @@ export function updateMultiById(
 	patch: (folder: IMultiChoice) => IMultiChoice,
 ): IChoice[] {
 	return choices.map((c) => {
-		if (c.type !== "Multi") return c;
+		if (!isChoiceLike(c) || c.type !== "Multi") return c;
 		const mc = c as IMultiChoice;
 		if (mc.id === id) return patch(mc) as IChoice;
-		return { ...mc, choices: updateMultiById(mc.choices, id, patch) } as IChoice;
+		// A folder whose children are unreadable comes out byte-identical. This
+		// walker re-spreads EVERY folder it passes, and it is on the save path
+		// (collapse a folder, rename a leaf), so substituting the read accessor
+		// here would quietly persist [] over the preserved value (#1566).
+		if (!hasChildChoices(mc)) return c;
+		return { ...mc, choices: updateMultiById(childChoicesOf(mc), id, patch) } as IChoice;
 	});
 }
 

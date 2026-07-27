@@ -80,23 +80,27 @@ export function malformedTree(): IChoice[] {
 /** The ids of the choices in `malformedTree()` that are perfectly well-formed. */
 export const HEALTHY_IDS = ["head", "healthy", "child", "tail"];
 
-/** Deep-freeze-free snapshot of the malformed values, for preservation asserts. */
+/**
+ * Every unreadable `choices` value still in the tree, keyed by folder id, as a
+ * comparable string. This is what the preservation assertions compare: an edit
+ * elsewhere in the tree must not rewrite, drop, or "repair" any of them.
+ *
+ * List holes (`null`, a stray primitive) are deliberately NOT tracked. They hold
+ * nothing recoverable, so a walker is free to step over one or drop it; only a
+ * folder's children value can be hiding real choices.
+ */
 export function malformedSnapshot(choices: IChoice[]): string {
 	const seen: unknown[] = [];
 	const walk = (list: unknown) => {
 		if (!Array.isArray(list)) return;
 		for (const entry of list) {
-			if (typeof entry !== "object" || entry === null) {
-				seen.push(entry);
-				continue;
-			}
+			if (typeof entry !== "object" || entry === null) continue;
 			const node = entry as Record<string, unknown>;
-			if (node.type === "Multi") {
-				if (Array.isArray(node.choices)) {
-					walk(node.choices);
-				} else {
-					seen.push([node.id, "choices" in node, node.choices]);
-				}
+			if (node.type !== "Multi") continue;
+			if (Array.isArray(node.choices)) {
+				walk(node.choices);
+			} else {
+				seen.push([node.id, "choices" in node, node.choices]);
 			}
 		}
 	};
