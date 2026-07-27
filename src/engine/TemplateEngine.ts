@@ -41,6 +41,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
+import { assertCreatableFilePath } from "./assertCreatableFilePath";
 
 type FolderChoiceOptions = {
 	allowCreate?: boolean;
@@ -598,7 +599,23 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		filePath: string,
 		resolvedTemplatePath: string
 	) {
+		// Clear the previous run's swallowed cause FIRST, so the reset is
+		// unconditional even when the guard below aborts (#1617).
 		this.lastTemplateFileFailure = null;
+
+		// Then, before the template is read and long before its body is formatted
+		// (#1591). Both production callers - TemplateChoiceEngine's `else` branch of
+		// `vault.adapter.exists`, and its freshly incremented collision name - are
+		// paths where nothing is at `filePath` yet, so a name Obsidian refuses can
+		// only end in a failed `vault.create`. Letting it get that far means the
+		// user answers the whole prompt chain and their inline scripts run first,
+		// and QuickAddEngine.createFileWithInput leaves the target folder behind.
+		//
+		// It THROWS rather than recording into lastTemplateFileFailure: that field
+		// is for helpers that report-and-return-null, while this aborts the choice
+		// with a typed ChoiceAbortError carrying its own actionable message (#1606).
+		assertCreatableFilePath(filePath);
+
 		try {
 			const templateContent: string = await this.getTemplateContent(
 				resolvedTemplatePath
