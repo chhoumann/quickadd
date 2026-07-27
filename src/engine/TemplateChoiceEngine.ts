@@ -193,10 +193,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			let createdNew = false;
-			// What this run did to the vault (#1615). Derived from the file-exists
-			// resolution the engine actually performed, which is exact for the two
-			// answers an automation acts on: "createNew" always writes a new note, and
-			// "reuseExisting" — the shipped "Do nothing" mode — writes nothing at all.
+			// What this run did to its target note (#1615). Derived from the file-exists
+			// resolution the engine actually performed rather than from a byte compare,
+			// which is exact for the two answers an automation acts on: "createNew"
+			// always writes a new note, and "reuseExisting" — the shipped "Do nothing"
+			// mode — writes nothing at all. Only "modifyExisting" (append/overwrite) is
+			// inferred: it always writes, so `changed` can in principle over-report a
+			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
 				const modeId = await this.getSelectedFileExistsMode();

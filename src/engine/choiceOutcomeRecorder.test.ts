@@ -42,21 +42,23 @@ describe("ChoiceOutcomeRecorder (#1603)", () => {
 		},
 	);
 
-	// The close-guard exists to stop an automation retrying and DUPLICATING a side
-	// effect. An "unchanged" run left no side effect, so there is nothing to protect
-	// and a real post-commit failure must still reach the caller instead of being
-	// swallowed behind a benign "nothing to capture" (#1615).
-	it("stays open after an unchanged run, so a later failure is still reported", () => {
+	// An "unchanged" run wrote nothing to its TARGET, but the run is not over at the
+	// commit point: it goes on to append a link to a DIFFERENT note and to copy one to
+	// the clipboard. So it closes the outcome like any other success — letting a later
+	// append-link failure overwrite it would put the caller back to retrying a run that
+	// already had side effects (#1615).
+	it("closes the outcome on an unchanged run too, because the run had steps left", () => {
 		const target = executor();
 		const recorder = new ChoiceOutcomeRecorder(target);
 
 		recorder.success({ path: "Inbox.md" } as never, "unchanged");
 		recorder.failure("Append link target file not found.");
 
-		expect(target.recordExecutionResult).toHaveBeenCalledTimes(2);
-		expect(target.recordExecutionResult).toHaveBeenLastCalledWith({
-			status: "error",
-			reason: "Append link target file not found.",
+		expect(target.recordExecutionResult).toHaveBeenCalledTimes(1);
+		expect(target.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: { path: "Inbox.md" },
+			effect: "unchanged",
 		});
 	});
 

@@ -1,7 +1,12 @@
 import type { TFile } from "obsidian";
 
 /**
- * What a successful run actually did to the vault.
+ * What a successful run did to the file it was aiming at.
+ *
+ * Scoped to the choice's TARGET, not to the whole vault: a run can also append a link
+ * to another note or copy one to the clipboard, and those steps are not described here.
+ * "Did the capture land / was the note created" is the question an automation asks, and
+ * it is the one this answers.
  *
  * `success` alone answers "did the run finish?", which is not the question an
  * automation asks — it asks "did anything land?". Those came apart in two shipped
@@ -12,9 +17,9 @@ import type { TFile } from "obsidian";
  * caller counting captures or writing an idempotency marker recorded work that never
  * happened (#1615).
  *
- * `created` means the file did not exist before this run. `changed` means its bytes
- * differ. `unchanged` means the vault is byte-identical — nothing failed, and nothing
- * a retry could duplicate happened either.
+ * `created` means the target did not exist before this run. `changed` means its bytes
+ * differ. `unchanged` means the target is byte-identical — nothing failed, and the
+ * capture or template simply had nothing to write.
  *
  * The claim is about PERSISTED BYTES, never about the payload: a Capture with an empty
  * payload can still legitimately `create` a note (create-if-not-found, possibly with a

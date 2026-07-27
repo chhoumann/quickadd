@@ -294,17 +294,25 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		// re-prompt is indistinguishable from the first one - an unbounded loop of an
 		// identical question. Bound it there and end with the text the Notice carries.
 		let remoteAttempts = executor.promptProvider ? MAX_REMOTE_FOLDER_ATTEMPTS : 0;
+		// The reason the LAST answer was refused, so the abort says what the Notice
+		// would have. The loop rejects for two different reasons - a disallowed root and
+		// a name Obsidian cannot use - and blaming the roots for an invalid name would
+		// send the client looking in the wrong place.
+		let lastRejection: string | null = null;
 
 		// Keep prompting until the user provides an allowed selection or cancels.
 		for (;;) {
 			if (executor.promptProvider && remoteAttempts-- <= 0) {
-				throw new ChoiceAbortError(folderNotAllowedMessage(context.allowedRoots));
+				throw new ChoiceAbortError(
+					lastRejection ?? folderNotAllowedMessage(context.allowedRoots),
+				);
 			}
 			const raw = await this.promptForFolder(context, executor);
 			const selection = await this.resolveSelection(raw, context);
 
 			if (selection.isEmpty) {
 				if (!selection.isAllowed) {
+					lastRejection = folderNotAllowedMessage(context.allowedRoots);
 					this.showFolderNotAllowedNotice(context.allowedRoots);
 					continue;
 				}
@@ -312,6 +320,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			}
 
 			if (!selection.isAllowed) {
+				lastRejection = folderNotAllowedMessage(context.allowedRoots);
 				this.showFolderNotAllowedNotice(context.allowedRoots);
 				continue;
 			}
@@ -320,6 +329,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 				this.validateFolderPath(selection.resolved);
 			} catch (error) {
 				if (error instanceof InvalidFolderPathError) {
+					lastRejection = error.message;
 					new Notice(error.message);
 					continue;
 				}

@@ -59,14 +59,17 @@ export async function promptEngineChoice<T>(
 		spec.allowCustomInput ?? false,
 	);
 
-	if (values.includes(answer as T)) return answer as T;
-
 	const text = answer == null ? "" : String(answer);
-	// An empty reply is the shape `suggester` produces for a missing value, and no
-	// engine picker offers an empty row. Treat it as the dismissal it almost certainly
-	// is rather than acting on it — a client that means to cancel has
-	// `{"cancelled": true}`, which has already rejected before we get here.
+
+	// Checked BEFORE membership, so an absent value can never be read as picking an
+	// empty row. A folder list CAN contain "" (a `{{VALUE:sub}}` entry that resolved
+	// to nothing is the vault root), and that is precisely the reply whose two
+	// readings differ most: "the client sent nothing" vs "create the note at the vault
+	// root". A client that really means the root row replies with its index token,
+	// which is unambiguous; one that means to cancel sends `{"cancelled": true}`.
 	if (text === "") throw new UserCancelError("Input cancelled by user");
+
+	if (values.includes(answer as T)) return answer as T;
 
 	if (spec.allowCustomInput) return text;
 

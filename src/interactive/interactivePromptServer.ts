@@ -453,10 +453,11 @@ class InteractivePromptServer {
 	 * and delivers its real outcome, which is more truthful than a fabricated one.
 	 *
 	 * The honest limit, documented at the wire: this interrupts prompts that were routed
-	 * to the CLIENT. Prompts QuickAdd still opens in Obsidian on a Template/Capture run
-	 * (the file-exists suggester, the folder chooser, the capture-target picker) do not
-	 * go through this server and are unaffected, which is why the reply says how many
-	 * pending prompts it actually interrupted.
+	 * to the CLIENT. A run that is mid-work between prompts keeps going, which is why the
+	 * reply says how many pending prompts it actually interrupted. The Template/Capture
+	 * engine prompts that used to be outside that set - the file-exists chooser, the
+	 * folder chooser, the capture-target and heading pickers - now travel this bridge and
+	 * are interruptible (#1614); the AI tool-confirmation modal still is not.
 	 *
 	 * @returns the number of pending prompts rejected, or null if there is no live
 	 * session to abort.

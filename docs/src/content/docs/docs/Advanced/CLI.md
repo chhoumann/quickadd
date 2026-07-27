@@ -146,10 +146,12 @@ said so in a notice. A Template set to **Do nothing** when the file already exis
 reports the same. If you are counting captures, writing an idempotency marker, or
 deciding whether to retry, key off `effect`, not `ok`.
 
-`effect` is always present on a terminal frame, and `unknown` is stated rather than
-omitted - a missing key reads as `false` in both `jq` and JavaScript, which would
-turn "QuickAdd did not look" into "nothing happened". `verified:false` still means
-only *"not confirmed - go look"*; it never means *"confirmed that nothing changed"*.
+`effect` is present on every **success** payload (`ok:true`), and `unknown` is stated
+rather than omitted - a missing key reads as `false` in both `jq` and JavaScript, which
+would turn "QuickAdd did not look" into "nothing happened". A failed or cancelled run
+carries `error` instead and no `effect`, because there is no outcome to describe.
+`verified:false` still means only *"not confirmed - go look"*; it never means
+*"confirmed that nothing changed"*.
 
 The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
 success callback carries the same `effect` value.
@@ -176,8 +178,10 @@ background. Attach to the session and drive it:
 - `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected; `409` if the run had already finished (benign - poll for the terminal event); `404` for an unknown session or token, or for any method other than `POST`.
 
 Prompts a Template or Capture run opens itself - the "file already exists" chooser,
-the folder picker, the note-discovery picker, the heading picker - are forwarded like
-any other. They arrive as `suggester` prompts, and because the engine controls the
+the folder picker, the note-discovery picker, the heading picker, the capture-target
+picker - are forwarded like any other. (The AI assistant's tool-confirmation dialog is
+the one that is not: run such a choice at the desktop, or set tool confirmation to
+"never".) They arrive as `suggester` prompts, and because the engine controls the
 list, a reply that is not one of the offered `value` tokens is refused rather than
 acted on (unless the prompt sets `allowCustomInput`, as the folder and discovery
 pickers do so you can create something new).

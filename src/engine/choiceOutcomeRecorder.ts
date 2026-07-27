@@ -27,9 +27,11 @@ import type { ChoiceEffect } from "../types/ChoiceOutcome";
  *   (the note path and the canvas path), and the canvas path keeps going into link and
  *   open-file steps whose throws unwind into `run()`'s catch.
  *
- *   An `unchanged` run is the exception, and for the same reason: it left nothing a retry
- *   could duplicate, so closing the outcome there would only hide a real post-commit
- *   failure behind a benign "nothing to capture" (#1615).
+ *   That holds for an `unchanged` run too, even though it wrote nothing to its TARGET.
+ *   The run is not over at the commit point: it goes on to the append-link step, which
+ *   writes to a DIFFERENT note, and to the copy-link-to-clipboard step. So "nothing was
+ *   duplicable" is false, and letting a later failure overwrite the recorded success
+ *   would put the caller right back to retrying a run that already had side effects.
  */
 export class ChoiceOutcomeRecorder {
 	/**
@@ -52,7 +54,7 @@ export class ChoiceOutcomeRecorder {
 	 * open-an-existing-note discovery path) commit nothing at all.
 	 */
 	success(file: TFile | undefined, effect: ChoiceEffect): void {
-		if (effect !== "unchanged") this.closed = true;
+		this.closed = true;
 		this.executor.recordExecutionResult?.({ status: "success", file, effect });
 	}
 

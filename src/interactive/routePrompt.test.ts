@@ -153,6 +153,21 @@ describe("promptEngineChoice enforces what the in-app modal enforces structurall
 		).resolves.toBe("A brand new note");
 	});
 
+	// A folder list CAN legitimately contain "" (a `{{VALUE:sub}}` entry that resolved to
+	// nothing is the vault root). Membership must NOT win there, or an absent value silently
+	// becomes "create the note at the vault root" - the outcome the strict channel exists
+	// to prevent.
+	it("treats an empty reply as a dismissal even when '' is an offered row", async () => {
+		const withRoot = [
+			{ value: "", title: "/" },
+			{ value: "Archive", title: "Archive" },
+		];
+
+		await expect(
+			promptEngineChoice(providerReturning(""), { items: withRoot, what }),
+		).rejects.toBeInstanceOf(UserCancelError);
+	});
+
 	it("still refuses an empty reply where custom input is allowed", async () => {
 		await expect(
 			promptEngineChoice(providerReturning(""), {
