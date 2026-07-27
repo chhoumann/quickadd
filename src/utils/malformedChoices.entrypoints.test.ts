@@ -40,6 +40,16 @@ import {
 } from "../gui/suggesters/choiceSuggester";
 import { getChoicesAsList as macroBuilderChoiceList } from "../gui/MacroGUIs/MacroBuilder";
 import {
+	commandListOf,
+	hasCommandList,
+	isUnreadableCommandList,
+	normalizeCommandList,
+	regenerateIds,
+} from "./macroUtils";
+import type { IMacro } from "../types/macros/IMacro";
+import { buildPackagePreview } from "../services/packagePreview";
+import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
+import {
 	HEALTHY_IDS,
 	leaf,
 	malformedSnapshot,
@@ -135,7 +145,78 @@ const sweeps: Sweep[] = [
 
 	// --- macro builder
 	["getChoicesAsList", (t) => macroBuilderChoiceList(t)],
+
+	// --- macro command lists (#1593). Same argument as the folder walkers above,
+	// one type over: `macro.commands` is declared ICommand[] and read raw.
+	[
+		"commandListOf (every macro)",
+		(t) => macrosIn(t).map((m) => commandListOf(m?.commands)),
+	],
+	[
+		"hasCommandList (every macro)",
+		(t) => macrosIn(t).map((m) => hasCommandList(m?.commands)),
+	],
+	[
+		"isUnreadableCommandList (every macro)",
+		(t) => macrosIn(t).map((m) => isUnreadableCommandList(m?.commands)),
+	],
+	[
+		"normalizeCommandList (every macro)",
+		(t) => macrosIn(t).map((m) => normalizeCommandList(m?.commands)),
+	],
+	[
+		"regenerateIds (every macro)",
+		// A WRITE path (duplicateChoice). Runs over a CLONE so the shared fixture
+		// tree keeps its ids; the point is that it neither throws nor rewrites an
+		// unreadable value.
+		(t) => macrosIn(structuredCloneTree(t)).map((m) => regenerateIds(m as unknown as IMacro)),
+	],
+	[
+		"buildPackagePreview (whole tree as a package)",
+		(t) => buildPackagePreview([], packageOf(t), new Set()),
+	],
 ];
+
+/** The malformed tree wrapped as an importable package, for the preview walker. */
+function packageOf(tree: IChoice[]): QuickAddPackage {
+	return {
+		schemaVersion: 1,
+		quickAddVersion: "1.18.0",
+		createdAt: "2026-06-01T00:00:00.000Z",
+		entryChoiceIds: tree.filter(isChoiceLike).map((c) => c.id),
+		choices: tree
+			.filter(isChoiceLike)
+			.map((choice) => ({ choice, pathHint: [choice.name], parentChoiceId: null })),
+		assets: [],
+	} as unknown as QuickAddPackage;
+}
+
+/** Every `macro` object in the tree, including the unreadable ones. */
+function macrosIn(tree: IChoice[]): (Record<string, unknown> | null)[] {
+	const out: (Record<string, unknown> | null)[] = [];
+	const walk = (list: unknown) => {
+		if (!Array.isArray(list)) return;
+		for (const entry of list) {
+			if (typeof entry !== "object" || entry === null) continue;
+			const node = entry as Record<string, unknown>;
+			if (node.type === "Macro") {
+				out.push(
+					typeof node.macro === "object"
+						? (node.macro as Record<string, unknown> | null)
+						: null,
+				);
+			}
+			if (node.type === "Multi") walk(node.choices);
+		}
+	};
+	walk(tree);
+	return out;
+}
+
+function structuredCloneTree(tree: IChoice[]): IChoice[] {
+	return JSON.parse(JSON.stringify(tree)) as IChoice[];
+}
+
 
 describe("every choice-tree entry point over a malformed tree (#1566)", () => {
 	it.each(sweeps)("%s does not throw", (_name, run) => {

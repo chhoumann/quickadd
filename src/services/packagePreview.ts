@@ -14,7 +14,7 @@ import type {
 	QuickAddPackage,
 	QuickAddPackageAssetKind,
 } from "../types/packages/QuickAddPackage";
-import { flattenChoices } from "../utils/choiceUtils";
+import { flattenChoices, isChoiceLike } from "../utils/choiceUtils";
 import { commandListOf, isCommandLike } from "../utils/macroUtils";
 import { decodeFromBase64 } from "../utils/base64";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
@@ -507,6 +507,9 @@ function collectChoice(
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
 		for (const child of choice.choices) {
+			// A packaged folder's list can hold a `null` hole like any other
+			// (#1566); it carries nothing, so step over it rather than deref it.
+			if (!isChoiceLike(child)) continue;
 			// Skip children that have their own top-level row (avoids double
 			// counting); recurse inline-only children so they can't hide.
 			if (entryIds.has(child.id)) continue;
