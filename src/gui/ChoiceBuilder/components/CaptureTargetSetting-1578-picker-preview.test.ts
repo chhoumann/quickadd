@@ -112,6 +112,21 @@ describe("#1578 the capture target's picker syntax gets no file-name preview", (
 		);
 	});
 
+	it("shows the row when picker-looking text came out of a FAILED pass", async () => {
+		// `{{GLOBAL_VAR:inbox}}{{TEMPLATE:missing.md}}` resolves to picker syntax
+		// followed by a not-found placeholder, and the run aborts on the missing
+		// template. Hiding the row on the resolved text alone would take the one
+		// message that explains that with it.
+		const container = await renderTarget(
+			"{{GLOBAL_VAR:inbox}}{{TEMPLATE:missing.md}}",
+		);
+		await vi.advanceTimersByTimeAsync(600);
+		await tick();
+		expect(container.querySelector(".qa-preview-issue")?.textContent).toContain(
+			"Template not found",
+		);
+	});
+
 	it("still reports an impossible PATH target - the positive control", async () => {
 		// Without this the suite could not tell "the gate works" from "this
 		// component never shows a diagnostic": the row's problems are held back

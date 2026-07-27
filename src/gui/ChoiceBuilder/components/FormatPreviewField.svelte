@@ -77,7 +77,21 @@ const hasValue = $derived(value.trim().length > 0);
 // Gated on the RESOLVED text, so it can only be answered once the async pass
 // has produced one. Until then `preview` is "" and the row mounts empty, which
 // is what `aria-live` needs anyway.
-const hidden = $derived(hideWhen ? hideWhen(preview) : false);
+//
+// Never over an error about something OTHER than the path: a pass can fail and
+// still leave text that looks like picker syntax -
+// `{{GLOBAL_VAR:inbox}}{{TEMPLATE:missing.md}}` resolves to `property:type=draft`
+// followed by a not-found placeholder, and the run aborts on the missing
+// template. Hiding the row there would take the one message that explains it.
+// The `kind: "path"` problems are the ones this host is entitled to discard:
+// they say the result is not a usable path, which is exactly what it is not
+// trying to be.
+const hidden = $derived(
+	hideWhen
+		? hideWhen(preview) &&
+			!diagnostics.some((d) => d.severity === "error" && d.kind !== "path")
+		: false,
+);
 
 // A field whose format could not be resolved is not showing a preview of the
 // output — it is showing the raw text back. Say so, rather than letting

@@ -57,6 +57,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 		expect(problems).toEqual([
 			{
 				severity: "error",
+				kind: "path",
 				message: 'File path cannot contain "." or ".." path segments.',
 			},
 		]);
@@ -70,6 +71,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 		expect(problems).toEqual([
 			{
 				severity: "error",
+				kind: "path",
 				message: "File path contains an empty path segment after formatting.",
 			},
 		]);
@@ -108,6 +110,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 		expect(problems).toEqual([
 			{
 				severity: "error",
+				kind: "path",
 				message:
 					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
 			},

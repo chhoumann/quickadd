@@ -53,10 +53,12 @@ beforeEach(() => {
 	vi.setSystemTime(new Date("2023-06-01T14:30:05"));
 	templates = {};
 	globalVariables = {};
+	existingFiles = new Set();
 });
 
 let templates: Record<string, string> = {};
 let globalVariables: Record<string, string> = {};
+let existingFiles = new Set<string>();
 
 function makeApp(): App {
 	return {
@@ -70,7 +72,7 @@ function makeApp(): App {
 		vault: {
 			getMarkdownFiles: () => [],
 			getAbstractFileByPath: (path: string) =>
-				path in templates
+				path in templates || existingFiles.has(path)
 					? Object.assign(new TFile(), {
 							path,
 							extension: "md",
@@ -117,24 +119,24 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 		// Still shows the best-effort name: the diagnostic is what says it is
 		// unusable, and blanking the row would hide the shape of the mistake.
 		expect(text).toBe("Bad: Example Title");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags a colon in a folder segment, which Obsidian refuses too", async () => {
 		const { diagnostics } = await preview("Bad: folder/{{VALUE:title}}");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags {{TIME}}, which is HH:mm and which the author never typed", async () => {
 		const { text, diagnostics } = await preview("Meeting {{TIME}}");
 		expect(text).toBe("Meeting 14:30");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags a time format inside {{DATE:}}", async () => {
 		const { text, diagnostics } = await preview("Log {{DATE:HH:mm}}");
 		expect(text).toBe("Log 14:30");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags a colon a global snippet brought in", async () => {
@@ -143,14 +145,14 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 			"{{GLOBAL_VAR:prefix}}{{VALUE:title}}",
 		);
 		expect(text).toBe("Meeting: Example Title");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags a colon an included template body brought in", async () => {
 		templates["Naming.md"] = "Meeting: notes\n";
 		const { text, diagnostics } = await preview("{{TEMPLATE:Naming.md}}");
 		expect(text).toBe("Meeting: notes");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
 	it("flags a token that never matched and went to the vault verbatim", async () => {
@@ -160,7 +162,7 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 		// {{TEMPLATE:}} typo.
 		const { text, diagnostics } = await preview("{{TEMPLATE:Naming}}");
 		expect(text).toBe("{{TEMPLATE:Naming}}");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 });
 
@@ -211,6 +213,29 @@ describe("the file-name preview does not cry wolf", () => {
 		]);
 	});
 
+	it("stays quiet when the file is already there", async () => {
+		// `:` is legal on macOS/Linux at the filesystem level, so a note made
+		// outside Obsidian can carry one. A capture pointed at it appends
+		// (CaptureChoiceEngine takes the fileExists branch and never reaches
+		// vault.create), so nothing asks Obsidian to accept the name.
+		existingFiles.add("Notes/a:b.md");
+		const { diagnostics } = await preview("Notes/a:b.md");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("tolerates the missing extension a file-name format leaves off", async () => {
+		// The engine appends `.md` (normalizeMarkdownFilePath), so the preview's
+		// name and the file on disk differ by the extension.
+		existingFiles.add("Notes/a:b.md");
+		const { diagnostics } = await preview("Notes/a:b");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("still reports a colon when no such file exists", async () => {
+		const { diagnostics } = await preview("Notes/a:b.md");
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
+	});
+
 	it("does not invent a colon out of a prompt header", async () => {
 		// The run prompts with this header and splices in the ANSWER, so a colon
 		// in the header is never in the name. The stand-in degrades to the
@@ -254,6 +279,6 @@ describe("the file-name preview does not cry wolf", () => {
 		// name if it is the one picked, and then it cannot be created.
 		const { text, diagnostics } = await preview("{{VALUE:Meeting: standup,Note}}");
 		expect(text).toBe("Meeting: standup");
-		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
+		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 });

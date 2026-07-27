@@ -150,6 +150,7 @@ describe("#1563 the file-name preview resolves {{TEMPLATE:}}", () => {
 				// The frontmatter's "title: x" is now IN the name, so the name has a
 				// colon in it and Obsidian would refuse it (#1578).
 				severity: "error",
+				kind: "path",
 				message:
 					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
 			},

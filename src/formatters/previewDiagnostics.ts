@@ -2,9 +2,23 @@ import { isCancellationError } from "../utils/errorUtils";
 
 export type PreviewDiagnosticSeverity = "warning" | "error";
 
+/**
+ * `"path"` marks a problem with the resulting PATH rather than with resolving
+ * the format: the name came out fine, the vault will just not accept it (a "."
+ * or ".." segment, #1563; a character Obsidian refuses, #1578).
+ *
+ * The distinction exists because a host can know the field is not a path at all
+ * - the capture target may hold picker syntax like `property:type=draft`, which
+ * the run parses before ever treating it as a file - and must then be able to
+ * discard exactly these while keeping every other diagnostic. See #1594 for the
+ * "Unresolved:" label, which wants the same split.
+ */
+export type PreviewDiagnosticKind = "path";
+
 export type PreviewDiagnostic = {
 	severity: PreviewDiagnosticSeverity;
 	message: string;
+	kind?: PreviewDiagnosticKind;
 };
 
 /**
@@ -21,13 +35,17 @@ export class PreviewDiagnostics {
 	private readonly entries: PreviewDiagnostic[] = [];
 	private readonly seen = new Set<string>();
 
-	add(severity: PreviewDiagnosticSeverity, message: string): void {
+	add(
+		severity: PreviewDiagnosticSeverity,
+		message: string,
+		kind?: PreviewDiagnosticKind,
+	): void {
 		const cleaned = stripBrandPrefix(message).trim();
 		if (!cleaned) return;
 		const key = `${severity} ${cleaned}`;
 		if (this.seen.has(key)) return;
 		this.seen.add(key);
-		this.entries.push({ severity, message: cleaned });
+		this.entries.push({ severity, message: cleaned, ...(kind ? { kind } : {}) });
 	}
 
 	list(): readonly PreviewDiagnostic[] {

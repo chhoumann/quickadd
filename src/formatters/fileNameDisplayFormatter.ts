@@ -152,7 +152,10 @@ export class FileNameDisplayFormatter extends Formatter {
 		// the run would abort on become diagnostics instead.
 		const normalized = previewGeneratedFilePath(output);
 		for (const problem of normalized.problems) {
-			this.diagnostics.add("error", problem);
+			// "path": the format resolved fine, the vault just will not take the
+			// result. A host that knows this field may not be a path at all (the
+			// capture target) discards exactly these.
+			this.diagnostics.add("error", problem, "path");
 		}
 		// On `output`, not `normalized.path`: the normalizer collapses the line
 		// breaks that delimit an inline script fence, and the scan below has to
@@ -176,9 +179,9 @@ export class FileNameDisplayFormatter extends Formatter {
 	 * token mask, and a mask is blind to exactly the last case - a typo, which is
 	 * when the preview most needs to speak.
 	 *
-	 * Two things keep it from crying wolf: the preview's own stand-ins are kept
-	 * name-shaped ({@link fileNameSafeStandIn}, and the VDATE hints are gone), and
-	 * the two guards below.
+	 * What keeps it from crying wolf: the preview's own stand-ins are kept
+	 * name-shaped ({@link fileNameSafeStandIn}, and the VDATE hints are gone),
+	 * plus the guards below.
 	 */
 	private reportIllegalChars(input: string, name: string): void {
 		// A pass that already failed has said something better. All four of this
@@ -202,7 +205,37 @@ export class FileNameDisplayFormatter extends Formatter {
 
 		const illegal = findIllegalFilePathChars(textOutsideScriptSpans(name));
 		if (illegal.length === 0) return;
-		this.reportProblem(describeIllegalFilePathChars(illegal));
+
+		// A file that is already there is never created, so Obsidian is never
+		// asked to accept its name. `:` is legal on macOS/Linux at the filesystem
+		// level, so a note made outside Obsidian really can carry one - and a
+		// capture pointed at it appends happily (CaptureChoiceEngine takes the
+		// `fileExists` branch and never reaches `vault.create`), as does a
+		// Template choice set to append/increment. Claiming otherwise would mark a
+		// working configuration broken.
+		if (this.existsInVault(name)) return;
+
+		this.diagnostics.add("error", describeIllegalFilePathChars(illegal), "path");
+	}
+
+	/**
+	 * Is there already a file at this path? Tolerant of the missing extension,
+	 * because a "File name format" produces the name and the engine appends
+	 * `.md` (`normalizeMarkdownFilePath`), while a capture target usually carries
+	 * one already.
+	 */
+	private existsInVault(name: string): boolean {
+		const vault = this.app?.vault;
+		// Defensive because this runs OUTSIDE format()'s try/catch: a preview that
+		// throws its way out of a keystroke is the #1558 failure, and this is the
+		// only vault call the pass makes.
+		if (typeof vault?.getAbstractFileByPath !== "function") return false;
+		const trimmed = name.trim();
+		if (!trimmed) return false;
+		return Boolean(
+			vault.getAbstractFileByPath(trimmed) ??
+				vault.getAbstractFileByPath(`${trimmed}.md`),
+		);
 	}
 
 	/**
