@@ -1609,6 +1609,11 @@ body:not(.is-mobile)
 	align-items: center;
 	gap: 8px;
 	min-width: 0;
+	/* Breadcrumb rows nest this inside Obsidian's `.suggestion-item.mod-complex`
+	   flex container, where it would otherwise shrink-wrap and strand the trailing
+	   "Empty" marker beside the name instead of at the row's edge. Inert in the
+	   plain level view, where the row is already a full-width block. */
+	flex: 1 1 auto;
 }
 
 .quickadd-choice-icon {
@@ -1626,10 +1631,51 @@ body:not(.is-mobile)
 .quickadd-choice-suggestion-text {
 	min-width: 0;
 	flex: 1 1 auto;
+	/* A name with no break opportunities (CamelCase, a URL) would otherwise
+	   overrun its box - `min-width: 0` shrinks the box, not the glyphs - painting
+	   through the trailing "Empty" marker and giving the results list a horizontal
+	   scrollbar. `anywhere` rather than `overflow: hidden` + ellipsis, because rows
+	   are allowed to wrap and clipping would hide part of the name. */
+	overflow-wrap: anywhere;
 }
 
 .quickadd-choice-suggestion p {
 	margin: 0;
+}
+
+/* Empty folders (#1554). A folder with no choices in it cannot be drilled into,
+   so its row is de-emphasised and labelled before the click instead of only
+   answering with a notice after it — Obsidian's own dim-but-still-clickable
+   convention for unresolved links.
+
+   Colour rather than `opacity`: opacity would composite the whole row, marker
+   included, and cannot be undone on a descendant. The `--link-*` and `--tag-*`
+   pins are load-bearing because choice names are markdown-rendered and both
+   `a { color: var(--link-color) }` and `.tag` are global — a folder named
+   `[[Reading]] queue` or `#projects folder` would otherwise keep full accent
+   brightness inside a row that claims to be inert. Only constructs Obsidian
+   themes through variables are pinned; `<mark>` and `<kbd>` keep their theme
+   defaults rather than being chased with element selectors.
+
+   `--text-muted`, not `--text-faint`: faint is ~2.3:1 on the light theme.
+   No `is-selected` override either — the selected row only changes its
+   background, and un-dimming there would delete the signal at the exact moment
+   the user is about to press Enter. */
+.quickadd-choice-suggestion-empty {
+	color: var(--text-muted);
+	--link-color: var(--text-muted);
+	--link-unresolved-color: var(--text-muted);
+	--link-external-color: var(--text-muted);
+	--tag-color: var(--text-muted);
+	--tag-background: transparent;
+}
+
+.quickadd-choice-suggestion-empty-flair {
+	flex: 0 0 auto;
+	margin-inline-start: auto;
+	padding-inline-start: 8px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 }
 
 

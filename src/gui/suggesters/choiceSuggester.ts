@@ -46,6 +46,13 @@ export function emptyFolderNoticeText(folderName: string): string {
 }
 
 /**
+ * Trailing marker on a folder row the picker cannot drill into. Same word the
+ * settings tree already uses for this exact state ("Empty — add a choice or drag
+ * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
+ */
+export const EMPTY_FOLDER_FLAIR = "Empty";
+
+/**
  * Sentinel id for the synthetic "New note from template" launcher row (#1023).
  * Like {@link BACK_CHOICE_ID}, it is navigation/action — never a real choice —
  * so it is dispatched explicitly and excluded from nested search. The constant
@@ -63,6 +70,25 @@ const runTemplateFromFolderLabel = "New note from template…";
  * other modal could have threaded along.
  */
 export const BACK_CHOICE_ID = "quickadd:back";
+
+/**
+ * A folder row the picker cannot drill into (#1554): a Multi choice with no
+ * children. Deliberately NOT recursive — a folder containing only empty folders
+ * still has rows to show, so calling it empty would be false; its children carry
+ * the marker one level down. `?.length` rather than `.length === 0` tolerates a
+ * data.json whose `choices` is missing or not an array, which the loader
+ * preserves rather than heals.
+ *
+ * The Back row is excluded: it is navigation, and the level it wraps is
+ * legitimately allowed to be empty.
+ */
+export function isEmptyFolderChoice(choice: IChoice): boolean {
+	return (
+		choice.type === "Multi" &&
+		choice.id !== BACK_CHOICE_ID &&
+		!(choice as IMultiChoice).choices?.length
+	);
+}
 
 /**
  * Applied to matches that fall entirely within the breadcrumb prefix, so a
@@ -270,6 +296,40 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		return this.nestedSearchCandidates;
 	}
 
+	/**
+	 * Refuses to open an empty folder (#1554), which the row already announces
+	 * with its "Empty" marker. This is the only seam where the activation can be
+	 * refused without ejecting the user: `SuggestModal.selectSuggestion` closes
+	 * the modal *before* `onChooseItem` runs, so returning above `super` is what
+	 * keeps the picker open with its typed query, scroll position and selection
+	 * intact. Both input paths land here — the chooser routes clicks and Enter
+	 * through the owner's `selectSuggestion`.
+	 */
+	selectSuggestion(
+		value: FuzzyMatch<IChoice>,
+		evt: MouseEvent | KeyboardEvent
+	): void {
+		if (isEmptyFolderChoice(value.item)) {
+			// OS key auto-repeat: the chooser's Enter binding filters composition but
+			// not `repeat`, and nothing closes the modal any more, so a held Enter
+			// would stack one identical notice per repeat. Property read rather than
+			// `instanceof KeyboardEvent` — a popout window is a separate realm.
+			if ("repeat" in evt && evt.repeat) return;
+			new Notice(emptyFolderNoticeText(value.item.name));
+			// A trusted mousedown on `.suggestion-item` — a non-focusable div with no
+			// focusable ancestor, since neither `.modal` nor `.modal-container` carries
+			// a tabindex — moves focus to <body>. Obsidian never has to handle that
+			// because every other activation closes the modal; this is the first path
+			// that keeps it open, so without this the input goes dead while the picker
+			// still looks alive (arrow keys and Escape keep working, typing does not).
+			// No-op on the keyboard path, and on mobile it keeps the keyboard up.
+			this.inputEl.focus();
+			return;
+		}
+
+		super.selectSuggestion(value, evt);
+	}
+
 	renderSuggestion(item: FuzzyMatch<IChoice>, el: HTMLElement): void {
 		el.empty();
 		el.classList.remove("mod-complex");
@@ -301,6 +361,25 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			el.classList.add("quickadd-choice-suggestion-back");
 		if (item.item.id === RUN_TEMPLATE_FROM_FOLDER_ID)
 			el.classList.add("quickadd-choice-suggestion-run-template");
+
+		// Say the folder is a dead end before the click, not after it (#1554). The
+		// row keeps its place in the list — hiding it would make a configured folder
+		// vanish, which is a worse, unexplained dead end. `el.empty()` above clears
+		// children but never attributes, so the marker is cleared explicitly for
+		// rows Obsidian recycles (matching the defensive `mod-complex` reset).
+		const isEmptyFolder = isEmptyFolderChoice(item.item);
+		el.classList.toggle("quickadd-choice-suggestion-empty", isEmptyFolder);
+		if (isEmptyFolder) {
+			// Not operable, but still focusable and still able to explain itself —
+			// which is exactly what aria-disabled means, unlike HTML `disabled`.
+			el.setAttribute("aria-disabled", "true");
+			const flair = createOwnedElement(row, "span");
+			flair.classList.add("quickadd-choice-suggestion-empty-flair");
+			flair.textContent = EMPTY_FOLDER_FLAIR;
+			row.appendChild(flair);
+		} else {
+			el.removeAttribute("aria-disabled");
+		}
 	}
 
 	private renderChoiceIcon(choice: IChoice, parent: HTMLElement): void {
@@ -365,30 +444,23 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	}
 
 	private onChooseMultiType(multi: IMultiChoice) {
-		const choices = [...multi.choices];
 		const isBack = multi.id === BACK_CHOICE_ID;
 
-		// Drilling into an empty folder would open a level whose only row is "← Back".
-		// The command/URI path already refuses this with a Notice (choiceExecutor
-		// .onChooseMultiType); say the same thing here so both entry points to the
-		// same folder behave the same.
+		// Unreachable from the picker: selectSuggestion refuses empty folders above
+		// `super`, so the modal never closes and this never dispatches. Kept as a
+		// backstop for programmatic onChooseItem calls (it is public API on
+		// FuzzySuggestModal) so any future regression degrades to "notice, nothing
+		// happens" instead of opening a level whose only row is "← Back". It is also
+		// what makes the spread below safe on a folder with no `choices` array.
 		//
-		// SuggestModal.selectSuggestion closes the modal BEFORE onChooseItem runs,
-		// so returning here would eject the user from the picker entirely. Re-open
-		// the level they were on (this.choices already carries its Back row, and the
-		// synthetic template row at the top level) so a mis-click on an empty folder
-		// costs a notice, not the whole navigation stack.
-		if (!isBack && choices.length === 0) {
+		// #1550's close-and-reopen is gone with the ejection it worked around: it
+		// discarded the typed query, the scroll position and the selection.
+		if (!isBack && isEmptyFolderChoice(multi)) {
 			new Notice(emptyFolderNoticeText(multi.name));
-			ChoiceSuggester.Open(this.plugin, this.choices, {
-				choiceExecutor: this.choiceExecutor,
-				focusedProperty: this.focusedProperty,
-				triggerContext: this.triggerContext,
-				placeholder: this.currentPlaceholder,
-				placeholderStack: this.placeholderStack,
-			});
 			return;
 		}
+
+		const choices = [...multi.choices];
 
 		if (!isBack) {
 			const back = new MultiChoice(backLabel).addChoices(this.choices);
