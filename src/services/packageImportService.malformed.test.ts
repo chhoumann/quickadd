@@ -111,3 +111,158 @@ describe("package import over a malformed tree (#1566)", () => {
 		expect(find(result.updatedChoices, "imported-1")).toBeDefined();
 	});
 });
+
+/**
+ * #1593. The importer's macro writers dereferenced `macro` / `macro.commands`
+ * raw, and a PACKAGED folder's children list was dereferenced raw too. The
+ * second one only became reachable when this change guarded the preview walker:
+ * before that the package died at preview, so the Import button never lit.
+ */
+const importPackaged = async (
+	choices: IChoice[],
+	mode: "import" | "duplicate" = "import",
+	existing: IChoice[] = [],
+) =>
+	applyPackageImport({
+		app,
+		existingChoices: existing,
+		pkg: {
+			schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+			name: "Fixture",
+			description: "",
+			choices: choices.map((choice) => ({
+				choice,
+				parentChoiceId: null,
+				pathHint: [choice.name],
+			})),
+			assets: [],
+		} as never,
+		choiceDecisions: choices.map((c) => ({ choiceId: c.id, mode })),
+		assetDecisions: [],
+	});
+
+const macroChoice = (id: string, macro: unknown): IChoice =>
+	({
+		id,
+		name: `Macro ${id}`,
+		type: "Macro",
+		command: false,
+		runOnStartup: false,
+		macro,
+	}) as unknown as IChoice;
+
+const choiceCommand = (id: string, choiceId: string) => ({
+	id,
+	name: "Run choice",
+	type: "Choice",
+	choiceId,
+});
+
+describe("package import over a malformed macro (#1593)", () => {
+	it.each([
+		["null", null],
+		["a string", "not a macro"],
+		["an array-turned-object", { "0": {} }],
+		["commands as a string", { id: "m", name: "M", commands: "not a list" }],
+		["commands with a hole", { id: "m", name: "M", commands: [null] }],
+	])("imports a macro whose macro value is %s without throwing", async (_l, macro) => {
+		const result = await importPackaged([macroChoice("m1", macro)]);
+		expect(find(result.updatedChoices, "m1")).toBeDefined();
+	});
+
+	it.each([
+		["null", null],
+		["a string", "not a macro"],
+	])("leaves a %s macro value exactly as it found it", async (_l, macro) => {
+		const result = await importPackaged([macroChoice("m1", macro)]);
+		const imported = find(result.updatedChoices, "m1") as unknown as {
+			macro: unknown;
+		};
+		expect(imported.macro).toEqual(macro);
+	});
+
+	// An array-valued `macro` IS the command list (MacroBuilder's recovery path),
+	// so its entries have to be remapped like any other - otherwise a duplicated
+	// choice keeps the ORIGINAL id and invokes the pre-existing local choice
+	// instead of the imported copy.
+	it("remaps choice references inside an array-valued macro", async () => {
+		const target = leaf("Target", "target-1");
+		const macro = macroChoice("m1", [choiceCommand("cmd-1", "target-1")]);
+
+		const result = await importPackaged([target, macro], "duplicate", [
+			leaf("Target", "target-1"),
+		]);
+
+		const imported = result.updatedChoices.find(
+			(c) => c.type === "Macro",
+		) as unknown as { macro: { choiceId: string }[] };
+		const importedTarget = result.updatedChoices.find(
+			(c) => c.type === "Template" && c.id !== "target-1",
+		);
+
+		expect(importedTarget).toBeDefined();
+		// The reference follows the duplicate, not the pre-existing local choice.
+		expect(imported.macro[0].choiceId).toBe(importedTarget?.id);
+		expect(imported.macro[0].choiceId).not.toBe("target-1");
+	});
+
+	it("does not silently no-op the macro id when duplicating an array-valued macro", async () => {
+		const macro = macroChoice("m1", [choiceCommand("cmd-1", "nope")]);
+		const result = await importPackaged([macro], "duplicate", [
+			macroChoice("m1", [choiceCommand("cmd-1", "nope")]),
+		]);
+
+		// The array survives the JSON round-trip whole; nothing was written onto it
+		// as a non-index property (which JSON.stringify would have dropped).
+		const persisted = JSON.parse(JSON.stringify(result.updatedChoices));
+		const imported = persisted.filter(
+			(c: IChoice) => c.type === "Macro",
+		) as unknown as { macro: unknown[] }[];
+		expect(imported).toHaveLength(2);
+		for (const m of imported) {
+			expect(Array.isArray(m.macro)).toBe(true);
+			expect(m.macro).toHaveLength(1);
+		}
+	});
+
+	// Before this change the deref here threw and aborted the WHOLE import, and
+	// guarding the preview walker is what made it reachable: the package used to
+	// die at preview, so the Import button never lit.
+	it("imports a packaged folder whose children list holds a hole", async () => {
+		const kid = leaf("Kid", "kid-1");
+		const packagedFolder = {
+			id: "f1",
+			name: "Packaged folder",
+			type: "Multi",
+			command: false,
+			collapsed: false,
+			choices: [null, kid],
+		} as unknown as IChoice;
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: {
+				schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+				name: "Fixture",
+				description: "",
+				choices: [
+					{ choice: packagedFolder, parentChoiceId: null, pathHint: ["F"] },
+					{ choice: kid, parentChoiceId: "f1", pathHint: ["F", "Kid"] },
+				],
+				assets: [],
+			} as never,
+			choiceDecisions: [
+				{ choiceId: "f1", mode: "import" },
+				{ choiceId: "kid-1", mode: "import" },
+			],
+			assetDecisions: [],
+		});
+
+		const imported = find(result.updatedChoices, "f1") as IMultiChoice;
+		expect(imported).toBeDefined();
+		// The hole carried nothing and is gone; the real child survived, and the
+		// import completed rather than aborting on the deref.
+		expect(imported.choices?.map((c) => c.id)).toEqual(["kid-1"]);
+	});
+});
