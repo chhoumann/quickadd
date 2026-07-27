@@ -143,6 +143,43 @@ export function findInlineScriptSpans(
 	return spans;
 }
 
+/**
+ * Has an inline script fence been OPENED without a closing backtick run?
+ *
+ * `findInlineScriptSpans` reports only complete fences, which is right for the
+ * passes that skip over script source - a half-written fence is not a script
+ * yet. A live preview needs the other half of that fact: while the closing
+ * backticks are missing, the script's own text is being read as content, so a
+ * preview that judges the result is judging somebody's half-typed JavaScript
+ * (#1578).
+ *
+ * Shares the opener rules with the scanner above rather than re-deriving them,
+ * and stops at the first unterminated opener for the same reason the scanner
+ * does: no later opener can match, because its backticks would have closed this
+ * one.
+ */
+export function hasUnterminatedInlineScriptFence(input: string): boolean {
+	const spans = findInlineScriptSpans(input);
+	const n = input.length;
+	let i = spans.length > 0 ? spans[spans.length - 1].end : 0;
+
+	while (i < n) {
+		const runStart = input.indexOf("`", i);
+		if (runStart === -1) return false;
+		let runEnd = runStart;
+		while (runEnd < n && input[runEnd] === "`") runEnd++;
+
+		if (
+			runEnd - runStart >= 3 &&
+			input.startsWith(INLINE_SCRIPT_FENCE_LANG, runEnd)
+		) {
+			return true;
+		}
+		i = runEnd;
+	}
+	return false;
+}
+
 export abstract class Formatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();

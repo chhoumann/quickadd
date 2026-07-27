@@ -1,6 +1,7 @@
 import {
 	findInlineScriptSpans,
 	Formatter,
+	hasUnterminatedInlineScriptFence,
 	type PromptContext,
 } from "./formatter";
 import {
@@ -66,6 +67,13 @@ function hasUnterminatedToken(input: string): boolean {
  * So the fence's own punctuation is never in the created name, and reading the
  * preview literally there would report a colon out of somebody's JavaScript.
  * Same helper and the same reason as the template pass above (#1467).
+ *
+ * Known and accepted gap: a fence that only APPEARS after expansion - carried in
+ * by a `{{GLOBAL_VAR:}}` snippet, whose pass runs after the run's inline-JS pass
+ * has already gone by - is stripped here although the run would keep it as
+ * literal text. Mapping spans back through the passes to tell the two apart is
+ * not worth it for a script inside a global variable inside a file name, and the
+ * failure is silence rather than a wrong accusation.
  */
 function textOutsideScriptSpans(text: string): string {
 	const spans = findInlineScriptSpans(text);
@@ -184,16 +192,17 @@ export class FileNameDisplayFormatter extends Formatter {
 		// and the unmatched token stays literal in the output - so the colon is
 		// the caret's position, not a mistake. Costs only a literal `{{` in a
 		// name, which no format string has.
-		if (hasUnterminatedToken(input)) return;
+		// ...and mid-SCRIPT, for the same reason: until the closing backticks are
+		// typed there is no span to strip, so the half-written JavaScript is read
+		// as part of the name, and `{a: 1}` or `"HH:mm"` in it turns the row red
+		// on every pause.
+		if (hasUnterminatedToken(input) || hasUnterminatedInlineScriptFence(input)) {
+			return;
+		}
 
 		const illegal = findIllegalFilePathChars(textOutsideScriptSpans(name));
 		if (illegal.length === 0) return;
-		this.reportProblem(
-			describeIllegalFilePathChars(illegal, {
-				visibleInFormat:
-					findIllegalFilePathChars(textOutsideScriptSpans(input)).length > 0,
-			}),
-		);
+		this.reportProblem(describeIllegalFilePathChars(illegal));
 	}
 
 	/**

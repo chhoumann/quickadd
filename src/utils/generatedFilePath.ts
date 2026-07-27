@@ -98,27 +98,22 @@ export function findIllegalFilePathChars(path: string): string[] {
 /**
  * The sentence a preview shows for {@link findIllegalFilePathChars}' result.
  *
- * Two variants, keyed on whether the character is anywhere in the format string
- * the author is looking at. When it is, naming the rule is enough - they can see
- * what to change. When it is NOT, they have nothing to look for: `{{TIME}}` is
- * `HH:mm`, and QuickAdd's own autocomplete offers it in this very field
- * (formatTokenRegistry, `contexts: ALL`), so the message has to say that a token
- * produced it.
+ * One sentence, naming BOTH places the character can come from. Splitting it on
+ * "is the character in the format string" reads like a good idea and is not:
+ * every argument-bearing token has a colon in its own syntax, so
+ * `{{DATE:YYYY-MM-DD}} {{TIME}}` - the shape where the hint is most needed -
+ * would be told the author can see it, and only a format whose tokens take no
+ * argument at all would get the hint. Deciding it properly needs a token mask,
+ * and a mask is blind to the unmatched-token case this check exists for
+ * (`{{TEMPLATE:Naming}}` is not a token; the literal text goes to the vault).
  *
- * The rule comes BEFORE the explanation either way, so the three-line clamp on
- * the inline diagnostic (styles.css `.qa-preview-issue`) can never cut off the
- * part that says what is wrong (same reason as `describeUnknownFieldFilter`,
- * #1564).
+ * The rule comes FIRST, so the three-line clamp on the inline diagnostic
+ * (styles.css `.qa-preview-issue`) can never cut off the part that says what is
+ * wrong (same reason as `describeUnknownFieldFilter`, #1564).
  */
-export function describeIllegalFilePathChars(
-	chars: readonly string[],
-	{ visibleInFormat }: { visibleInFormat: boolean },
-): string {
+export function describeIllegalFilePathChars(chars: readonly string[]): string {
 	const quoted = chars.map((char) => `"${char}"`).join(", ");
-	const rule = `A file or folder name cannot contain ${quoted}.`;
-	return visibleInFormat
-		? `${rule} Obsidian refuses it, so this choice would fail at run time.`
-		: `${rule} A token in this format resolves to one - {{TIME}} is the usual cause.`;
+	return `A file or folder name cannot contain ${quoted}, so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.`;
 }
 
 /**

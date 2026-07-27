@@ -38,7 +38,14 @@ function makeApp(): App {
 	return {
 		workspace: { getActiveFile: () => activeFile },
 		vault: {
-			getMarkdownFiles: () => [],
+			getMarkdownFiles: () => [
+				Object.assign(new TFile(), {
+					path: "Templates/Daily.md",
+					extension: "md",
+					basename: "Daily",
+					parent: { path: "Templates" },
+				}),
+			],
 			getAbstractFileByPath: (path: string) =>
 				path in templates
 					? Object.assign(new TFile(), {
@@ -54,12 +61,17 @@ function makeApp(): App {
 }
 
 const plugin = {
-	settings: { globalVariables: {}, choices: [] },
+	settings: { globalVariables: { prefix: "Draft " }, choices: [] },
 	getTemplateFiles: () => [],
 } as unknown as QuickAdd;
 
 function makeFormatter(): FileNameDisplayFormatter {
-	return new FileNameDisplayFormatter(makeApp(), plugin);
+	const formatter = new FileNameDisplayFormatter(makeApp(), plugin);
+	// Every real caller sets this; leaving it unset makes {{FOLDER}} collapse to
+	// an empty path segment (FormatPreviewField passes the choice's folder, or a
+	// "Folder/Name" placeholder).
+	formatter.setTargetFolderPath("Folder/Name");
+	return formatter;
 }
 
 async function preview(input: string) {
@@ -111,6 +123,30 @@ describe("FileNameDisplayFormatter resolves the tokens a file name can hold", ()
 		expect(text).toBe("test/Note");
 	});
 
+	it("previews {{FILENAMECURRENT}} as the active file's name", async () => {
+		const { text } = await preview("Re {{FILENAMECURRENT}}");
+		expect(text).toBe("Re example");
+	});
+
+	it("previews {{TIME}}", async () => {
+		// The stub moment returns one string for every format, so this can only
+		// assert that the pass RAN. What {{TIME}} really renders (HH:mm, colon
+		// and all) is pinned with real moment in
+		// fileNameDisplayFormatter-1578-illegal-chars.test.ts.
+		const { text } = await preview("At {{TIME}}");
+		expect(text).not.toContain("{{TIME}}");
+	});
+
+	it("previews {{FILE:folder}} as a file from that folder", async () => {
+		const { text } = await preview("{{FILE:Templates}}");
+		expect(text).toBe("Daily");
+	});
+
+	it("expands a {{GLOBAL_VAR:}} snippet", async () => {
+		const { text } = await preview("{{GLOBAL_VAR:prefix}}Note");
+		expect(text).toBe("Draft Note");
+	});
+
 	it("reads a {{TEMPLATE:}} body inertly", async () => {
 		const { text, diagnostics } = await preview("{{TEMPLATE:Templates/Daily.md}}");
 		expect(text).toBe("Daily body");
@@ -147,16 +183,26 @@ describe("FileNameDisplayFormatter resolves the tokens a file name can hold", ()
 
 describe("tokens the file-name preview does NOT resolve today", () => {
 	/**
-	 * Both pinned as CURRENT behaviour with an issue number, not as desired
-	 * behaviour. The old mock in this file asserted the opposite for {{MATH:}}
-	 * ("File calculation_result") - which is exactly the kind of claim a test
-	 * that mocks itself can make forever without anyone noticing.
+	 * Pinned as CURRENT behaviour with the issue each is filed as, not as
+	 * desired behaviour.
 	 */
-	it("leaves {{MATH:}} literal even though the run resolves it (#1587)", async () => {
+	it("leaves {{MVALUE}} literal even though the run prompts for it (#1587)", async () => {
+		// The math token is `{{MVALUE}}` (MATH_VALUE_REGEX, constants.ts).
 		// CompleteFormatter.format runs replaceMathValueInString and
-		// formatFileName goes through format(), so the run really does prompt
-		// here. Neither display formatter has the pass, though both override
-		// `promptForMathValue` with a stand-in that is therefore unreachable.
+		// formatFileName goes through format(), so the run really does open the
+		// math modal here. Neither display formatter has the pass, though both
+		// override `promptForMathValue` with a stand-in that is therefore
+		// unreachable - a dead override is the tell.
+		const { text } = await preview("File {{MVALUE}}");
+		expect(text).toBe("File {{MVALUE}}");
+	});
+
+	it("leaves {{MATH:1+1}}, which is not a token at all, as plain text", async () => {
+		// The mock this file replaced asserted `File calculation_result` for
+		// this input, and #1580 was filed because nothing could contradict it.
+		// `{{MATH:...}}` matches no regex in QuickAdd; the run puts the literal
+		// text in the name, and Obsidian then refuses it over the colon - which
+		// is pinned in fileNameDisplayFormatter-1578-illegal-chars.test.ts.
 		const { text } = await preview("File {{MATH:1+1}}");
 		expect(text).toBe("File {{MATH:1+1}}");
 	});

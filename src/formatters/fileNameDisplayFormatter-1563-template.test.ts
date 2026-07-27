@@ -148,13 +148,10 @@ describe("#1563 the file-name preview resolves {{TEMPLATE:}}", () => {
 			},
 			{
 				// The frontmatter's "title: x" is now IN the name, so the name has a
-				// colon in it and Obsidian would refuse it (#1578). The
-				// "Obsidian refuses it" variant, because a colon IS visible in the
-				// field - `{{TEMPLATE:Body.md}}` has one, even though that is not the
-				// one that landed in the name.
+				// colon in it and Obsidian would refuse it (#1578).
 				severity: "error",
 				message:
-					'A file or folder name cannot contain ":". Obsidian refuses it, so this choice would fail at run time.',
+					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
 			},
 		]);
 	});

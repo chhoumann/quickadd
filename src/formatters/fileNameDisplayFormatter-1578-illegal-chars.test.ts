@@ -101,10 +101,15 @@ async function preview(input: string) {
 	return { text, diagnostics: formatter.diagnostics.list() };
 }
 
-const TYPED =
-	'A file or folder name cannot contain ":". Obsidian refuses it, so this choice would fail at run time.';
-const FROM_TOKEN =
-	'A file or folder name cannot contain ":". A token in this format resolves to one - {{TIME}} is the usual cause.';
+/**
+ * One sentence, naming both places the character can come from. An earlier draft
+ * split it on "is the colon anywhere in the format string", which sounds right
+ * and is not: every argument-bearing token carries a colon in its own syntax, so
+ * `{{DATE:YYYY-MM-DD}} {{TIME}}` - where the hint is needed most - would be told
+ * the author can see it.
+ */
+const REFUSED =
+	'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.';
 
 describe("the file-name preview says when Obsidian will refuse the name", () => {
 	it("flags the colon the author typed - the reported case", async () => {
@@ -112,25 +117,24 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 		// Still shows the best-effort name: the diagnostic is what says it is
 		// unusable, and blanking the row would hide the shape of the mistake.
 		expect(text).toBe("Bad: Example Title");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags a colon in a folder segment, which Obsidian refuses too", async () => {
 		const { diagnostics } = await preview("Bad: folder/{{VALUE:title}}");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags {{TIME}}, which is HH:mm and which the author never typed", async () => {
 		const { text, diagnostics } = await preview("Meeting {{TIME}}");
 		expect(text).toBe("Meeting 14:30");
-		expect(diagnostics).toEqual([{ severity: "error", message: FROM_TOKEN }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags a time format inside {{DATE:}}", async () => {
 		const { text, diagnostics } = await preview("Log {{DATE:HH:mm}}");
 		expect(text).toBe("Log 14:30");
-		// A colon IS visible in the field here, inside the token.
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags a colon a global snippet brought in", async () => {
@@ -139,14 +143,14 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 			"{{GLOBAL_VAR:prefix}}{{VALUE:title}}",
 		);
 		expect(text).toBe("Meeting: Example Title");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags a colon an included template body brought in", async () => {
 		templates["Naming.md"] = "Meeting: notes\n";
 		const { text, diagnostics } = await preview("{{TEMPLATE:Naming.md}}");
 		expect(text).toBe("Meeting: notes");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 
 	it("flags a token that never matched and went to the vault verbatim", async () => {
@@ -156,7 +160,7 @@ describe("the file-name preview says when Obsidian will refuse the name", () => 
 		// {{TEMPLATE:}} typo.
 		const { text, diagnostics } = await preview("{{TEMPLATE:Naming}}");
 		expect(text).toBe("{{TEMPLATE:Naming}}");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 });
 
@@ -176,6 +180,14 @@ describe("the file-name preview does not cry wolf", () => {
 		// turns the row red.
 		const { text, diagnostics } = await preview("Notes/{{DATE:");
 		expect(text).toBe("Notes/{{DATE:");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("stays quiet mid-SCRIPT, before the closing backticks are typed", async () => {
+		// Until the fence closes there is no span to strip, so the half-written
+		// JavaScript is read as part of the name. Without the guard, every pause
+		// while typing `{a: 1}` or a "HH:mm" literal turns the row red.
+		const { diagnostics } = await preview('```js quickadd\nreturn "a: b";');
 		expect(diagnostics).toEqual([]);
 	});
 
@@ -242,6 +254,6 @@ describe("the file-name preview does not cry wolf", () => {
 		// name if it is the one picked, and then it cannot be created.
 		const { text, diagnostics } = await preview("{{VALUE:Meeting: standup,Note}}");
 		expect(text).toBe("Meeting: standup");
-		expect(diagnostics).toEqual([{ severity: "error", message: TYPED }]);
+		expect(diagnostics).toEqual([{ severity: "error", message: REFUSED }]);
 	});
 });

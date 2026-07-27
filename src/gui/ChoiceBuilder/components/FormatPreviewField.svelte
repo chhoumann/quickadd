@@ -22,6 +22,7 @@ let {
 	app,
 	plugin,
 	targetFolderPath,
+	hideWhen,
 }: {
 	value: string;
 	/**
@@ -45,6 +46,18 @@ let {
 	 * in a folder, so the placeholder would invent a path the script cannot get.
 	 */
 	targetFolderPath?: string | null;
+	/**
+	 * Asked of the RESOLVED preview text: does this field's host consider the
+	 * result something other than the thing this row previews? When it answers
+	 * yes the row does not render at all.
+	 *
+	 * Exists for the capture target, whose value can be a path OR picker syntax
+	 * (`property:type=draft`), and which the run resolves BEFORE deciding which.
+	 * The host can gate on the raw field itself, but not on what a token expands
+	 * to - and previewing picker syntax as a path invents a fake path and, since
+	 * #1578, an illegal-character error for a capture that runs fine.
+	 */
+	hideWhen?: (resolvedPreview: string) => boolean;
 } = $props();
 
 /** How long the field must sit still before its problems are shown. */
@@ -60,6 +73,11 @@ let previewToken = 0;
 // announce the result. Gating on the resolved text would mount it already
 // populated, and the announcement would be lost.
 const hasValue = $derived(value.trim().length > 0);
+
+// Gated on the RESOLVED text, so it can only be answered once the async pass
+// has produced one. Until then `preview` is "" and the row mounts empty, which
+// is what `aria-live` needs anyway.
+const hidden = $derived(hideWhen ? hideWhen(preview) : false);
 
 // A field whose format could not be resolved is not showing a preview of the
 // output — it is showing the raw text back. Say so, rather than letting
@@ -138,7 +156,7 @@ $effect(() => {
 });
 </script>
 
-{#if hasValue}
+{#if hasValue && !hidden}
 	<!-- A file name is one line, and since #1563 this row can hold a whole
 	     included template - which would wrap to fifteen lines of muted text under
 	     a single-line input and push the rest of the builder down on every

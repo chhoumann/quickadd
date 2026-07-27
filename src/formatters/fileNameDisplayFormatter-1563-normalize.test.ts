@@ -109,7 +109,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 			{
 				severity: "error",
 				message:
-					'A file or folder name cannot contain ":". Obsidian refuses it, so this choice would fail at run time.',
+					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
 			},
 		]);
 	});

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
@@ -26,7 +26,12 @@ import CaptureTargetSetting from "./CaptureTargetSetting.svelte";
  */
 const plugin = {
 	getTemplateFiles: () => [],
-	settings: { choices: [], globalVariables: {} },
+	settings: {
+		choices: [],
+		// The run resolves a capture target's format tokens BEFORE parsing it, so
+		// picker syntax can arrive from a snippet rather than being typed.
+		globalVariables: { inbox: "property:type=draft" },
+	},
 } as unknown as QuickAdd;
 
 function captureChoice(captureTo: string): ICaptureChoice {
@@ -67,10 +72,19 @@ function captureChoice(captureTo: string): ICaptureChoice {
 	} as ICaptureChoice;
 }
 
+beforeEach(() => {
+	vi.useFakeTimers();
+});
+afterEach(() => {
+	vi.useRealTimers();
+});
+
 async function renderTarget(captureTo: string) {
 	const { container } = render(CaptureTargetSetting, {
 		props: { choice: captureChoice(captureTo), app: new App(), plugin },
 	});
+	// The preview resolves asynchronously; the row mounts empty and is filled.
+	await vi.advanceTimersByTimeAsync(0);
 	await tick();
 	await tick();
 	return container;
@@ -82,14 +96,31 @@ describe("#1578 the capture target's picker syntax gets no file-name preview", (
 		["a tag filter target", "tag:#inbox"],
 		["a folder filter target", "folder:Work"],
 		["a bare tag target", "#inbox"],
+		[
+			"picker syntax a token expands to",
+			"{{GLOBAL_VAR:inbox}}",
+		],
 	])("renders no preview row for %s", async (_label, captureTo) => {
 		const container = await renderTarget(captureTo);
 		expect(container.querySelector(".qa-preview-row")).toBeNull();
-		expect(container.querySelector(".qa-preview-issue")).toBeNull();
 	});
 
 	it("still previews an ordinary path target", async () => {
 		const container = await renderTarget("Inbox.md");
-		expect(container.querySelector(".qa-preview-row")).not.toBeNull();
+		expect(container.querySelector(".qa-preview-row")?.textContent).toContain(
+			"Inbox.md",
+		);
+	});
+
+	it("still reports an impossible PATH target - the positive control", async () => {
+		// Without this the suite could not tell "the gate works" from "this
+		// component never shows a diagnostic": the row's problems are held back
+		// until the field has been still for DIAGNOSTICS_IDLE_MS.
+		const container = await renderTarget("Bad: name.md");
+		await vi.advanceTimersByTimeAsync(600);
+		await tick();
+		expect(container.querySelector(".qa-preview-issue")?.textContent).toContain(
+			'cannot contain ":"',
+		);
 	});
 });
