@@ -55,6 +55,7 @@ import {
 	ChoiceOutcomeRecorder,
 	failureReason,
 } from "./choiceOutcomeRecorder";
+import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import {
 	resolveCaptureTarget as resolveCaptureTargetFromString,
@@ -114,6 +115,13 @@ type CaptureWriteResult = {
 	file: TFile;
 	newFileContent: string;
 	captureContent: string;
+	/**
+	 * The bytes on disk immediately before the write, so `run()` can report whether the
+	 * capture actually changed anything rather than inferring it from the payload
+	 * (#1615). An empty payload can still create a note, and a non-empty one can still
+	 * leave the file untouched, so the payload is the wrong thing to ask.
+	 */
+	priorContent: string;
 	cursorEndOffset?: number;
 	cursorPlacementSafe?: boolean;
 };
@@ -512,12 +520,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				file,
 				newFileContent,
 				captureContent,
+				priorContent,
 				cursorEndOffset,
 				cursorPlacementSafe = true,
 			} =
 				await getFileAndAddContentFn(filePath, content);
 			let expectedCursorContent: string | null = null;
 			let canPlaceCursorAtCapture = cursorPlacementSafe;
+			let wroteFrontmatter = false;
 			// The formatted capture payload is empty/whitespace-only: the formatter
 			// returns the file unchanged and editor insertion replaces the selection
 			// with "" — i.e. a no-op. Surface a distinct notice instead of a false
@@ -580,13 +590,32 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				if (frontmatterPostProcessed) {
 					canPlaceCursorAtCapture = false;
 				}
+				// Post-processing writes front matter of its own, so it counts as a
+				// change even when the capture body itself was a no-op.
+				wroteFrontmatter = frontmatterPostProcessed;
 				expectedCursorContent = canPlaceCursorAtCapture ? newFileContent : null;
 			}
 
 			// Content is committed. Record success before append-link/open-file steps
 			// so a later post-commit failure cannot make automation callers retry and
 			// duplicate the Capture side effect.
-			this.outcome.success(file);
+			//
+			// What landed, judged by the file rather than the payload (#1615). The
+			// editor-insertion branch above SKIPS the insertion entirely on a no-op, so
+			// there the payload is the file; every other branch compares persisted bytes.
+			// `createFileIfItDoesntExist` can legitimately create a note (possibly with a
+			// rendered template body) from an empty payload, which is why "created" is
+			// tested before emptiness.
+			const effect: ChoiceEffect = isEditorInsertionAction
+				? captureIsNoOp
+					? "unchanged"
+					: "changed"
+				: !fileAlreadyExists
+					? "created"
+					: newFileContent !== priorContent || wroteFrontmatter
+						? "changed"
+						: "unchanged";
+			this.outcome.success(file, effect);
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
@@ -745,16 +774,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		this.captureResolvedOrderedHeading();
 
-		await setCanvasTextCaptureContent(this.app, target, nextText);
-		markContentCommitted();
-
 		// An empty/whitespace capture leaves the card text unchanged (the formatter
 		// returns existingText as-is) — surface a no-op notice instead of a false
 		// "Captured to …" success, consistent with the note-body path in run().
 		const captureIsNoOp = nextText === existingText;
 
+		// Checked BEFORE the write, not after. `setCanvasTextCaptureContent` re-serialises
+		// the whole .canvas JSON, so writing identical card text can still rewrite the
+		// file's bytes — which would make the "unchanged" this run is about to report
+		// false, and would touch a file the user was told was left alone (#1615).
+		if (!captureIsNoOp) {
+			await setCanvasTextCaptureContent(this.app, target, nextText);
+		}
+		markContentCommitted();
+
 		// Committed; append-link/open-file steps remain post-commit (see run()).
-		this.outcome.success(file);
+		this.outcome.success(file, captureIsNoOp ? "unchanged" : "changed");
 
 		if (this.plugin.settings.showCaptureNotification) {
 			if (captureIsNoOp) {
@@ -1439,6 +1474,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			file,
 			newFileContent,
 			captureContent: formatted,
+			priorContent: secondReadFileContent,
 			cursorEndOffset: cursorEndOffset ?? undefined,
 			cursorPlacementSafe,
 		};
@@ -1556,6 +1592,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			file,
 			newFileContent,
 			captureContent: formattedCaptureContent,
+			priorContent: updatedFileContent,
 			cursorEndOffset: cursorEndOffset ?? undefined,
 			cursorPlacementSafe: true,
 		};

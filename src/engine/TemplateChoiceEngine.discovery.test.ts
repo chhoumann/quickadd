@@ -214,6 +214,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: existing,
+			effect: "unchanged",
 		});
 	});
 

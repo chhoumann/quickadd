@@ -17,6 +17,7 @@ import {
 	shouldRunTemplateNoteDiscovery,
 } from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -116,7 +117,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 				if (discovery.kind === "openExisting") {
 					await this.openDiscoveredExistingNote(discovery.file);
-					this.outcome.success(discovery.file);
+					// Opening a note is not writing one: this path exists precisely to
+					// AVOID creating a duplicate, so it leaves the vault byte-identical
+					// (#1615).
+					this.outcome.success(discovery.file, "unchanged");
 					return;
 				}
 
@@ -187,9 +191,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			let createdNew = false;
+			// What this run did to the vault (#1615). Derived from the file-exists
+			// resolution the engine actually performed, which is exact for the two
+			// answers an automation acts on: "createNew" always writes a new note, and
+			// "reuseExisting" — the shipped "Do nothing" mode — writes nothing at all.
+			let effect: ChoiceEffect = "created";
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
 				const modeId = await this.getSelectedFileExistsMode();
 				const mode = getFileExistsMode(modeId);
+				effect =
+					mode.resolutionKind === "reuseExisting"
+						? "unchanged"
+						: mode.resolutionKind === "createNew"
+							? "created"
+							: "changed";
 				const existingFile = mode.requiresExistingFile
 					? this.findExistingFile(targetFilePath)
 					: null;
@@ -250,7 +265,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.outcome.success(createdFile);
+			this.outcome.success(createdFile, effect);
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link

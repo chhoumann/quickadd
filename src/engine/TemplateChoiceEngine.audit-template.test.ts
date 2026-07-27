@@ -238,6 +238,7 @@ describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,
+			effect: "created",
 		});
 		// The link failure surfaces as a warning that names the created file, not
 		// a fatal "Error running template choice".

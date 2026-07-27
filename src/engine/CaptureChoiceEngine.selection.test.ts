@@ -1742,6 +1742,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: linkedFile,
+			effect: "changed",
 		});
 		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
 			app,

@@ -419,6 +419,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: captureFile,
+			effect: "changed",
 		});
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
@@ -440,6 +441,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: captureFile,
+			effect: "changed",
 		});
 	});
 
@@ -454,6 +456,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: captureFile,
+			effect: "changed",
 		});
 		expect(appendFileLinkToDestinationFileMock).toHaveBeenCalledWith(
 			app,

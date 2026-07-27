@@ -22,17 +22,41 @@ describe("ChoiceOutcomeRecorder (#1603)", () => {
 	// duplicate the side effect. Terminality has to belong to the recorder: Capture
 	// commits from two methods, and the canvas path keeps going into steps whose
 	// throws unwind into run()'s catch.
-	it("is a no-op once the run has committed", () => {
+	it.each(["created", "changed"] as const)(
+		"is a no-op once the run has committed (%s)",
+		(effect) => {
+			const target = executor();
+			const recorder = new ChoiceOutcomeRecorder(target);
+
+			recorder.success({ path: "Note.md" } as never, effect);
+			recorder.failure(
+				"Cannot append link because no active Markdown view is available.",
+			);
+
+			expect(target.recordExecutionResult).toHaveBeenCalledTimes(1);
+			expect(target.recordExecutionResult).toHaveBeenCalledWith({
+				status: "success",
+				file: { path: "Note.md" },
+				effect,
+			});
+		},
+	);
+
+	// The close-guard exists to stop an automation retrying and DUPLICATING a side
+	// effect. An "unchanged" run left no side effect, so there is nothing to protect
+	// and a real post-commit failure must still reach the caller instead of being
+	// swallowed behind a benign "nothing to capture" (#1615).
+	it("stays open after an unchanged run, so a later failure is still reported", () => {
 		const target = executor();
 		const recorder = new ChoiceOutcomeRecorder(target);
 
-		recorder.success({ path: "Note.md" } as never);
-		recorder.failure("Cannot append link because no active Markdown view is available.");
+		recorder.success({ path: "Inbox.md" } as never, "unchanged");
+		recorder.failure("Append link target file not found.");
 
-		expect(target.recordExecutionResult).toHaveBeenCalledTimes(1);
-		expect(target.recordExecutionResult).toHaveBeenCalledWith({
-			status: "success",
-			file: { path: "Note.md" },
+		expect(target.recordExecutionResult).toHaveBeenCalledTimes(2);
+		expect(target.recordExecutionResult).toHaveBeenLastCalledWith({
+			status: "error",
+			reason: "Append link target file not found.",
 		});
 	});
 
