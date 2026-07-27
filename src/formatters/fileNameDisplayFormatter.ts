@@ -12,7 +12,7 @@ import {
 	PreviewDiagnostics,
 } from "./previewDiagnostics";
 import type { App } from "obsidian";
-import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import {
@@ -144,6 +144,11 @@ export class FileNameDisplayFormatter extends Formatter {
 			return input;
 		}
 
+		// Before the normalizer, mirroring the run: formatFileName's
+		// circular-dependency check runs on the formatted string, and if it fires
+		// the choice dies there - no name is ever normalized (#1588).
+		this.reportCircularTitle(input, output);
+
 		// The run puts every generated name through this normalizer on the way to
 		// the vault (TemplateChoiceEngine, TemplateInsertEngine,
 		// templateNoteDiscovery, and the capture target via
@@ -167,6 +172,33 @@ export class FileNameDisplayFormatter extends Formatter {
 		// nor remove one of these characters.
 		this.reportIllegalChars(input, output);
 		return normalized.path;
+	}
+
+	/**
+	 * Says so when the format can never produce a name at all, because it uses
+	 * {{title}} (#1588).
+	 *
+	 * `CompleteFormatter.formatFileName` rejects this token outright - the title
+	 * IS the file name, so deriving one from the other is circular - and it does
+	 * so twice: on the raw input, and again on `format()`'s output, because an
+	 * expanded `{{GLOBAL_VAR:}}` snippet or a `{{VALUE}}` that resolves to the
+	 * literal text can smuggle one in after the first check. Both halves are
+	 * mirrored here, on the same inputs, so the preview refuses exactly what the
+	 * run refuses.
+	 *
+	 * NOT `kind: "path"`. The token is still on screen unresolved, so the row
+	 * says "Unresolved:" and means it - and the capture target, which discards
+	 * path problems as "this field may not be a path", must keep this one:
+	 * `formatFileName` is that field's entry point too, so `{{title}}` aborts a
+	 * capture just as hard.
+	 */
+	private reportCircularTitle(input: string, output: string): void {
+		if (!TITLE_REGEX.test(input) && !TITLE_REGEX.test(output)) {
+			return;
+		}
+		this.reportProblem(
+			"A file name cannot contain {{title}}, because the title is derived from the file name itself - so this choice would fail at run time.",
+		);
 	}
 
 	/**
@@ -464,7 +496,9 @@ export class FileNameDisplayFormatter extends Formatter {
 		this.templateInclusion.depth++;
 		try {
 			const body = await app.vault.cachedRead(file);
-			const resolved = await this.formatInternal(body, { included: true });
+			const resolved = this.resolveTitleInIncludedBody(
+				await this.formatInternal(body, { included: true }),
+			);
 			this.warnIfJoinedIntoOneLine(templatePath, resolved);
 			return resolved;
 		} catch (error) {
@@ -476,6 +510,32 @@ export class FileNameDisplayFormatter extends Formatter {
 		} finally {
 			this.templateInclusion.depth--;
 		}
+	}
+
+	/**
+	 * `{{title}}` inside a spliced-in `{{TEMPLATE:}}` body, resolved the way the
+	 * run's child engine resolves it.
+	 *
+	 * At run time an included body goes through `SingleTemplateEngine` ->
+	 * `CompleteFormatter.formatFileContent`, whose single-pass token resolver
+	 * runs with `title: true` and takes `variables.get("title") ?? ""` - so the
+	 * literal token never survives into the name that `formatFileName`'s
+	 * circular-dependency check then reads, and the run does NOT abort.
+	 *
+	 * Doing it here rather than in `formatInternal`'s `included` branch is
+	 * deliberate: routing `title` through the shared resolver would call this
+	 * class's `getVariableValue`, which invents an example ("My Document Title")
+	 * for an unstored variable - a fresh #1563-class lie in the one place the run
+	 * is guaranteed to produce the empty string. And without it, the
+	 * output-side {{title}} check above would turn a WORKING choice red.
+	 */
+	private resolveTitleInIncludedBody(body: string): string {
+		if (!TITLE_REGEX.test(body)) return body;
+		const title = this.variables.get("title");
+		// A function replacer, not a string: a title containing "$&" would
+		// otherwise be spliced through String.replace's substitution syntax.
+		const resolved = typeof title === "string" ? title : "";
+		return body.replace(new RegExp(TITLE_REGEX.source, "gi"), () => resolved);
 	}
 
 	/**
