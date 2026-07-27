@@ -24,8 +24,14 @@ export interface FormatPreviewHandle {
 	/** Push the field's current value; call from the input's `onChange`. */
 	setValue(value: string): void;
 	/**
-	 * Unmount and remove the host. Idempotent, because a Modal's `onClose()` runs
-	 * after a `display()`/`reload()` that already tore the component down.
+	 * Unmount the component and remove the host.
+	 *
+	 * The `destroyed` guard is not only about a double `destroy()` (mountComponent
+	 * already guards that): it also makes `setValue` a no-op afterwards. A
+	 * destroyed preview's textarea can still be alive and holding an `onChange`
+	 * closure over this handle - `display()` tears the previews down and only then
+	 * empties `contentEl` - and pushing into an unmounted component's `$state` is
+	 * a write nothing will ever read.
 	 */
 	destroy(): void;
 }
@@ -44,12 +50,19 @@ export function mountFormatPreview(
 	// these modals `createEl` straight onto `contentEl`, so mounting into a shared
 	// container would interleave the anchors with later `new Setting(...)` rows.
 	const host = container.ownerDocument.createElement("div");
+	host.className = "qa-format-preview-host";
 	container.appendChild(host);
 
 	const props = $state({
 		value: options.value,
 		app: options.app,
 		plugin: options.plugin,
+		// Explicitly "no folder", not "folder unknown". The builders' "Folder/Name"
+		// placeholder stands in for a choice's configured target folder; a modal
+		// field that never creates a note has none, and inventing one would preview
+		// `Folder/Name/2026-07-27` for a format the runtime resolves to
+		// `/2026-07-27`.
+		targetFolderPath: null,
 	});
 
 	const mounted: MountHandle = mountComponent(host, FormatPreviewField, props);

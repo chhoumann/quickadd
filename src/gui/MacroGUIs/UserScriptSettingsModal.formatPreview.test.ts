@@ -18,6 +18,8 @@ import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 const mocks = vi.hoisted(() => ({
 	/** Every FormatDisplayFormatter built, in construction order. */
 	instances: [] as Array<{ formatted: string[] }>,
+	/** Every setTargetFolderPath argument, in call order. */
+	targetFolderPaths: [] as Array<string | null>,
 	/** Resolves the next format() call manually, to test out-of-order passes. */
 	deferrals: [] as Array<() => void>,
 	deferNext: false,
@@ -45,7 +47,9 @@ vi.mock("../../formatters/formatDisplayFormatter", () => ({
 			mocks.instances.push(this.record);
 		}
 
-		setTargetFolderPath(): void {}
+		setTargetFolderPath(path: string | null): void {
+			mocks.targetFolderPaths.push(path);
+		}
 
 		format(value: string): Promise<string> {
 			this.record.formatted.push(value);
@@ -115,6 +119,7 @@ function type(el: HTMLTextAreaElement, value: string) {
 
 beforeEach(() => {
 	mocks.instances.length = 0;
+	mocks.targetFolderPaths.length = 0;
 	mocks.deferrals.length = 0;
 	mocks.diagnostics.length = 0;
 	mocks.deferNext = false;
@@ -201,6 +206,85 @@ describe("UserScriptSettingsModal format option preview", () => {
 
 		const issue = modal.contentEl.querySelector(".qa-preview-issue");
 		expect(issue?.textContent).toContain("Unsupported case option 'pasc'");
+
+		modal.close();
+	});
+
+	it("previews {{FOLDER}} as empty, not as an invented folder", async () => {
+		// The builders fall back to a "Folder/Name" placeholder because a choice HAS
+		// a configured target folder that no caller wires in yet. A user-script
+		// option has none at all, and the runtime resolves {{FOLDER}} to "" there
+		// (Formatter.replaceMacrosInString: `this.targetFolderPath ?? ""`), so the
+		// placeholder would preview a path the script can never produce.
+		const modal = openModal(formatOption("{{FOLDER}}/{{DATE}}"));
+		await flush();
+
+		expect(mocks.targetFolderPaths).not.toHaveLength(0);
+		for (const path of mocks.targetFolderPaths) expect(path).toBeNull();
+
+		modal.close();
+	});
+
+	it("opens for a format option that declares no defaultValue", async () => {
+		// `initializeUserScriptSettings` deliberately skips options with no
+		// defaultValue, so `value` reaches addFormatInput as undefined despite its
+		// `string` type. FormatPreviewField calls `value.trim()` during mount, so an
+		// uncoerced undefined throws out of display() and out of the constructor -
+		// and CommandList's `new UserScriptSettingsModal(...).open()` never reaches
+		// `.open()`, so the gear button silently does nothing.
+		const modal = openModal({
+			"Note format": { type: "format", placeholder: "Format" },
+		});
+		await flush();
+
+		expect(textarea(modal.contentEl).value).toBe("");
+		// Empty field, so no dangling "Preview:" row.
+		expect(modal.contentEl.querySelector(".qa-preview-row")).toBeNull();
+
+		modal.close();
+	});
+
+	it("opens when a stored value is not a string", async () => {
+		// A script that changed an option from `type: "toggle"` to `type: "format"`
+		// between versions leaves a boolean in the saved command settings.
+		const command = createCommand();
+		command.settings["Note format"] = true;
+		const modal = new UserScriptSettingsModal(
+			new App(),
+			command,
+			scriptSettings(formatOption("ignored")) as ConstructorParameters<
+				typeof UserScriptSettingsModal
+			>[2],
+		) as UserScriptSettingsModal & { contentEl: HTMLElement };
+		await flush();
+
+		expect(textarea(modal.contentEl).value).toBe("");
+		expect(modal.contentEl.querySelector(".qa-preview-row")).toBeNull();
+
+		modal.close();
+	});
+
+	it("ignores setValue after destroy, and destroys idempotently", async () => {
+		const modal = openModal(formatOption("start"));
+		const internals = modal as unknown as {
+			previewHandles: Array<{
+				setValue: (v: string) => void;
+				destroy: () => void;
+			}>;
+		};
+		await flush();
+		const handle = internals.previewHandles[0];
+		const passesBefore = mocks.instances.length;
+
+		handle.destroy();
+		handle.destroy();
+		// The textarea outlives the handle: display() tears the previews down and
+		// only THEN empties contentEl, so its onChange closure can still fire.
+		handle.setValue("after destroy");
+		await flush();
+
+		expect(mocks.instances.length).toBe(passesBefore);
+		expect(document.querySelectorAll(".qa-preview-row")).toHaveLength(0);
 
 		modal.close();
 	});

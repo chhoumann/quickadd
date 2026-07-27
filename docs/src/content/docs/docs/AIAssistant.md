@@ -59,6 +59,15 @@ Individual AI Assistant Macro commands can override:
 - **System prompt**, which overrides the default system prompt for that command.
 - Advanced model parameters, described in [Advanced sampling settings](#advanced-sampling-settings).
 
+### System prompts are sent as written {#system-prompt-is-literal}
+
+QuickAdd resolves [Format Syntax](/docs/FormatSyntax/) in the **prompt template**
+only. The system prompt - both the default and a command's override - goes to the
+model exactly as you typed it, so `{{DATE}}` in a system prompt arrives at the
+model as the eight characters `{{DATE}}`.
+
+Put anything that needs a token in the prompt template instead.
+
 ## Connect a provider {#providers-and-local-models}
 
 QuickAdd supports OpenAI-compatible providers, Google Gemini, and Anthropic.

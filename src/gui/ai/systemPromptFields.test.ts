@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * The three system-prompt modals must not offer a format affordance: the system
@@ -128,40 +128,58 @@ function infiniteCommand(systemPrompt: string): IInfiniteAIAssistantCommand {
 	} as unknown as IInfiniteAIAssistantCommand;
 }
 
-/** Each modal, paired with a factory that opens it and returns its contentEl. */
+interface OpenedModal {
+	contentEl: HTMLElement;
+	/** Every one of these modals re-renders in place; the AI settings modal does
+	 *  it on every "Edit providers", the command modals on every model change. */
+	reload: () => void;
+	close: () => void;
+	label: string;
+}
+
+function opened(
+	modal: { contentEl: HTMLElement; close: () => void },
+	label: string,
+): OpenedModal {
+	return {
+		contentEl: modal.contentEl,
+		reload: () => (modal as unknown as { reload: () => void }).reload(),
+		close: () => modal.close(),
+		label,
+	};
+}
+
+/** Each modal, paired with a factory that opens it. */
 const MODALS: Array<{
 	name: string;
-	open: (systemPrompt: string) => { contentEl: HTMLElement; close: () => void };
+	open: (systemPrompt: string) => OpenedModal;
 }> = [
 	{
 		name: "AIAssistantSettingsModal (default system prompt)",
-		open: (systemPrompt) => {
-			const modal = new AIAssistantSettingsModal(
-				testApp(),
-				aiSettings(systemPrompt),
-			);
-			return { contentEl: modal.contentEl, close: () => modal.close() };
-		},
+		open: (systemPrompt) =>
+			opened(
+				new AIAssistantSettingsModal(testApp(), aiSettings(systemPrompt)),
+				"Default system prompt",
+			),
 	},
 	{
 		name: "AIAssistantCommandSettingsModal (system prompt)",
-		open: (systemPrompt) => {
-			const modal = new AIAssistantCommandSettingsModal(
-				testApp(),
-				aiCommand(systemPrompt),
-			);
-			return { contentEl: modal.contentEl, close: () => modal.close() };
-		},
+		open: (systemPrompt) =>
+			opened(
+				new AIAssistantCommandSettingsModal(testApp(), aiCommand(systemPrompt)),
+				"System prompt",
+			),
 	},
 	{
 		name: "InfiniteAIAssistantCommandSettingsModal (system prompt)",
-		open: (systemPrompt) => {
-			const modal = new InfiniteAIAssistantCommandSettingsModal(
-				testApp(),
-				infiniteCommand(systemPrompt),
-			);
-			return { contentEl: modal.contentEl, close: () => modal.close() };
-		},
+		open: (systemPrompt) =>
+			opened(
+				new InfiniteAIAssistantCommandSettingsModal(
+					testApp(),
+					infiniteCommand(systemPrompt),
+				),
+				"System prompt",
+			),
 	},
 ];
 
@@ -174,20 +192,6 @@ function promptTextarea(contentEl: HTMLElement): HTMLTextAreaElement {
 }
 
 describe("AI system-prompt fields offer no format affordance", () => {
-	beforeAll(() => {
-		// The obsidian stub's Modal has no onClose; the modals call super.onClose().
-		for (const Ctor of [
-			AIAssistantSettingsModal,
-			AIAssistantCommandSettingsModal,
-			InfiniteAIAssistantCommandSettingsModal,
-		]) {
-			const proto = Object.getPrototypeOf(Ctor.prototype) as {
-				onClose?: () => void;
-			};
-			proto.onClose ??= function onClose() {};
-		}
-	});
-
 	beforeEach(() => {
 		vi.clearAllMocks();
 		document.body.innerHTML = "";
@@ -234,6 +238,37 @@ describe("AI system-prompt fields offer no format affordance", () => {
 						.querySelector(".qa-literal-format-note")
 						?.classList.contains("qa-literal-format-note--shown"),
 				).toBe(true);
+
+				close();
+			});
+
+			it("names the textarea, which sits outside its Setting row", () => {
+				const { contentEl, close, label } = open(PROSE_PROMPT);
+
+				expect(promptTextarea(contentEl).getAttribute("aria-label")).toBe(
+					label,
+				);
+
+				close();
+			});
+
+			it("keeps exactly one note, still correct, across a reload", () => {
+				// reload() empties contentEl and rebuilds. A note hoisted out of the
+				// field's own builder would survive the first render and vanish here,
+				// silently taking the field's last remaining signal with it.
+				const { contentEl, close, reload } = open(TOKENED_PROMPT);
+				reload();
+
+				const notes = contentEl.querySelectorAll(".qa-literal-format-note");
+				expect(notes).toHaveLength(1);
+				expect(
+					notes[0].classList.contains("qa-literal-format-note--shown"),
+				).toBe(true);
+				expect(promptTextarea(contentEl).getAttribute("aria-describedby")).toBe(
+					notes[0].id,
+				);
+				expect(mocks.formatDisplayFormatter).not.toHaveBeenCalled();
+				expect(mocks.formatSyntaxSuggester).not.toHaveBeenCalled();
 
 				close();
 			});

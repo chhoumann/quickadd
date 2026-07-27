@@ -95,8 +95,9 @@ export class UserScriptSettingsModal extends Modal {
 
 	protected display() {
 		this.containerEl.addClass("quickAddModal", "userScriptSettingsModal");
-		// Before empty(), not after: emptying orphans the mounted components
-		// instead of tearing them down.
+		// Emptying contentEl does not stop a Svelte component, it only detaches it,
+		// so every re-render must tear the previews down explicitly or each orphan
+		// keeps a live $effect and the preview's 500ms diagnostics timer.
 		this.destroyPreviews();
 		this.contentEl.empty();
 
@@ -322,9 +323,25 @@ export class UserScriptSettingsModal extends Modal {
 	private addFormatInput(name: string, value: string, placeholder?: string) {
 		const setting = new Setting(this.contentEl).setName(name);
 
+		// `value` comes from a third-party script's `settings.options`, so its
+		// declared `string` is a promise, not a guarantee: an option with no
+		// `defaultValue` arrives as undefined (initializeUserScriptSettings
+		// deliberately skips those), and an option whose `type` changed from
+		// `toggle` to `format` between script versions arrives as a boolean.
+		// Coerce here, at the boundary where untrusted data enters typed code -
+		// FormatPreviewField's `value.trim()` runs during mount, so a non-string
+		// would throw out of display() and out of the constructor, and the gear
+		// button in the command list would silently do nothing. Passing it to
+		// setValue is a pre-existing wart too: a real TextAreaComponent renders
+		// the literal text "undefined".
+		const text = typeof value === "string" ? value : "";
+
 		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
 		input.inputEl.addClass("qa-user-script-format-textarea");
+		// Appended to contentEl rather than the Setting's controlEl (it needs the
+		// full modal width), so nothing associates it with the option name above.
+		input.inputEl.setAttribute("aria-label", name);
 
 		// Mounted AFTER the textarea, so the preview reads as a result of the field
 		// rather than as its label - it used to be created first and rendered above
@@ -332,12 +349,12 @@ export class UserScriptSettingsModal extends Modal {
 		const preview = mountFormatPreview(this.contentEl, {
 			app: this.app,
 			plugin: getQuickAddInstance(),
-			value,
+			value: text,
 		});
 		this.previewHandles.push(preview);
 
 		input
-			.setValue(value)
+			.setValue(text)
 			.onChange((value) => {
 				this.command.settings[name] = value;
 				preview.setValue(value);

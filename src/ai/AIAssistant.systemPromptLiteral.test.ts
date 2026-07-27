@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { AIProvider } from "./Provider";
 import type { CommonResponse } from "./OpenAIRequest";
@@ -7,8 +8,8 @@ import type { CommonResponse } from "./OpenAIRequest";
  * The invariant behind #1565 / #1568: the AI system prompt is sent to the model
  * VERBATIM. Only the prompt (or prompt template) goes through the formatter.
  *
- * Three modals used to claim otherwise — a live preview resolving the tokens
- * plus a `{{` autocomplete offering them — so `{{DATE}}` previewed as a date and
+ * Three modals used to claim otherwise - a live preview resolving the tokens
+ * plus a `{{` autocomplete offering them - so `{{DATE}}` previewed as a date and
  * then reached the model as eight literal characters. The affordance is gone;
  * this pins the behaviour it was lying about, in both directions:
  *
@@ -30,8 +31,12 @@ const mocks = vi.hoisted(() => ({
 	openAIRequest: vi.fn(),
 	isLikelyContextLimitError: vi.fn(() => false),
 	getModelMaxTokens: vi.fn(() => 100000),
-	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesInFolder: vi.fn((): unknown[] => []),
 }));
+
+// Reached transitively from Agent -> CompleteFormatter; its real entry point
+// `require`s "obsidian", which does not exist outside the app.
+vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => storeState },
@@ -53,7 +58,7 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: mocks.getMarkdownFilesInFolder,
 }));
 
-const { Prompt, ChunkedPrompt } = await import("./AIAssistant");
+const { runAIAssistant, Prompt, ChunkedPrompt } = await import("./AIAssistant");
 
 vi.stubGlobal("sleep", async () => {});
 
@@ -129,7 +134,7 @@ describe("the AI system prompt is sent verbatim", () => {
 		);
 
 		expect(systemPromptSentToProvider()).toBe(SYSTEM_PROMPT);
-		// The prompt IS formatted — this is the contrast that makes the system
+		// The prompt IS formatted - this is the contrast that makes the system
 		// prompt's exemption a deliberate behaviour rather than a dead code path.
 		expect(mocks.makeRequest).toHaveBeenCalledWith("Summarise RESOLVED");
 		expect(resolvingFormatter).toHaveBeenCalledTimes(1);
@@ -159,6 +164,63 @@ describe("the AI system prompt is sent verbatim", () => {
 		for (const [prompt] of mocks.makeRequest.mock.calls) {
 			expect(prompt).not.toContain("RESOLVED");
 		}
+	});
+
+	it("runAIAssistant formats the prompt TEMPLATE and leaves the system prompt alone", async () => {
+		// The macro AI Assistant command's path, i.e. the modal that lost its
+		// preview. Covered explicitly because a partial #1572 implementation could
+		// format here and nowhere else, leaving a field that IS formatted with a
+		// note under it saying it is not.
+		const template = new TFile();
+		template.path = "Prompts/Summarise.md";
+		template.basename = "Summarise";
+		mocks.getMarkdownFilesInFolder.mockReturnValue([template]);
+
+		const app = {
+			vault: {
+				getAbstractFileByPath: () => template,
+				cachedRead: async () => "Summarise {{VALUE:body}}",
+			},
+		} as unknown as App;
+
+		await runAIAssistant(
+			app,
+			{
+				...baseSettings(),
+				promptTemplate: { enable: true, name: "Summarise.md" },
+				promptTemplateFolder: "Prompts",
+			},
+			resolvingFormatter,
+		);
+
+		expect(systemPromptSentToProvider()).toBe(SYSTEM_PROMPT);
+		expect(mocks.makeRequest).toHaveBeenCalledWith("Summarise RESOLVED");
+		expect(resolvingFormatter).toHaveBeenCalledTimes(1);
+		expect(resolvingFormatter).not.toHaveBeenCalledWith(SYSTEM_PROMPT);
+	});
+
+	it("Agent seeds the system message unformatted", async () => {
+		// `ai.agent()` falls back to the AI settings modal's default system prompt
+		// when the script passes none, so this path is fed by the same field.
+		const { Agent } = await import("./tools/Agent");
+		const agent = new Agent(
+			makeApp(),
+			{} as never,
+			{} as never,
+			{ model: "test-model", system: SYSTEM_PROMPT },
+		);
+
+		// prompt omitted: buildSeedMessages short-circuits to "" and never builds a
+		// CompleteFormatter, so this stays a unit test of the system-message seam.
+		const messages = await (
+			agent as unknown as {
+				buildSeedMessages: (o: object) => Promise<
+					Array<{ role: string; content: unknown }>
+				>;
+			}
+		).buildSeedMessages({});
+
+		expect(messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
 	});
 
 	it("keeps the token characters intact rather than stripping them", async () => {

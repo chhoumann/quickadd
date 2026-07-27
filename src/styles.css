@@ -651,6 +651,15 @@
 	box-sizing: border-box;
 }
 
+/* A format preview mounted under one of the textareas above (#1565). Those carry
+   `margin-bottom: 1em` for the gap to the NEXT setting, which would leave the
+   preview row floating midway between the field it describes and the one below.
+   Pull it back up so it reads as bound to its own field, and let the host carry
+   the separation instead. */
+.quickAddModal .qa-format-preview-host {
+	margin-top: -0.75em;
+}
+
 .qa-ai-token-count,
 .qa-ai-token-note {
 	color: var(--text-muted);

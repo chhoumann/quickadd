@@ -239,6 +239,9 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 		const textAreaComponent = new TextAreaComponent(contentEl);
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
+		// Appended to contentEl rather than the Setting's controlEl (it needs the
+		// full modal width), so nothing associates it with the name above.
+		textAreaComponent.inputEl.setAttribute("aria-label", "System prompt");
 
 		// No format preview and no `{{` token autocomplete here: the system prompt
 		// is sent to the model verbatim (see mountSystemPromptLiteralNote). The
@@ -246,6 +249,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		// same admission.
 		const updateLiteralNote = mountSystemPromptLiteralNote(
 			contentEl,
+			textAreaComponent.inputEl,
 			this.settings.systemPrompt ?? "",
 		);
 
