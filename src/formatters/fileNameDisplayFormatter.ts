@@ -1,4 +1,8 @@
-import { Formatter, type PromptContext } from "./formatter";
+import {
+	findInlineScriptSpans,
+	Formatter,
+	type PromptContext,
+} from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -128,7 +132,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		// value produced - which the run leaves literal, because its template pass
 		// has already gone by. (The globals/macros order below is older than this
 		// and is left as it was.)
-		output = await this.replaceTemplateInString(output);
+		output = await this.replaceTemplateOutsideScripts(output);
 		// Expand globals to preview inserted snippets
 		output = await this.replaceGlobalVarInString(output);
 		output = await this.replaceMacrosInString(output);
@@ -221,6 +225,36 @@ export class FileNameDisplayFormatter extends Formatter {
 		context?: PromptContext
 	): Promise<string> {
 		return getVariablePromptExample(variableName);
+	}
+
+	/**
+	 * The template pass, skipping inline script fences.
+	 *
+	 * A fence is verbatim JavaScript source, and the run consumes it BEFORE its
+	 * template pass (`replaceInlineJavascriptInString` is the run's first pass), so
+	 * a `"{{TEMPLATE:N.md}}"` written as a string literal inside a script is never
+	 * an include at run time. The preview has no inline-JS pass at all - by design,
+	 * it must not execute anything - so without this it would read that path,
+	 * splice the body into the middle of the displayed source, and report a
+	 * "Template not found" ERROR for a format that is fine.
+	 *
+	 * Same protection, same helper, and the same reason as
+	 * `expandLinebreakEscapesOutsideTokens` (#1467).
+	 */
+	private async replaceTemplateOutsideScripts(input: string): Promise<string> {
+		const spans = findInlineScriptSpans(input);
+		if (spans.length === 0) return this.replaceTemplateInString(input);
+
+		let output = "";
+		let index = 0;
+		for (const span of spans) {
+			output += await this.replaceTemplateInString(
+				input.slice(index, span.start),
+			);
+			output += input.slice(span.start, span.end);
+			index = span.end;
+		}
+		return output + (await this.replaceTemplateInString(input.slice(index)));
 	}
 
 	/**

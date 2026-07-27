@@ -286,3 +286,34 @@ describe("#1563 the file-name preview bounds and reports include failures", () =
 			.settings.globalVariables = {};
 	});
 });
+
+describe("#1563 the template pass respects inline script fences", () => {
+	it("does not expand a {{TEMPLATE:}} written inside a script's source", async () => {
+		// The run consumes the fence FIRST (replaceInlineJavascriptInString is its
+		// first pass), so this token is never an include there. The preview has no
+		// inline-JS pass at all, so without the span guard it would read N.md,
+		// splice the body into the middle of the source, and report a bogus
+		// "Template not found" for a format that is fine.
+		templates["N.md"] = "SPLICED";
+		const fence = 'a\n```js quickadd\nconst p = "{{TEMPLATE:Gone.md}}";\n```\nb';
+		const f = makeFormatter();
+
+		const out = await f.format(fence);
+
+		expect(out).toContain('"{{TEMPLATE:Gone.md}}"');
+		expect(out).not.toContain("template not found");
+		expect(f.diagnostics.list()).toEqual([]);
+	});
+
+	it("still expands an include that sits outside the fence", async () => {
+		templates["N.md"] = "SPLICED";
+		const f = makeFormatter();
+
+		const out = await f.format(
+			'{{TEMPLATE:N.md}}\n```js quickadd\nconst p = "{{TEMPLATE:N.md}}";\n```',
+		);
+
+		expect(out.startsWith("SPLICED")).toBe(true);
+		expect(out).toContain('"{{TEMPLATE:N.md}}"');
+	});
+});
