@@ -124,6 +124,10 @@ export class FormatDisplayFormatter extends Formatter {
 		output = await this.replaceTemplateInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
+		// Where the run has it (CompleteFormatter.format: after {{FILE:}}, before
+		// {{RANDOM:}}). `promptForMathValue` was already overridden below with a
+		// stand-in that nothing could reach (#1587).
+		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
 
 		return output;

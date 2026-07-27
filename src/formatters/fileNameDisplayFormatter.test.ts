@@ -181,22 +181,34 @@ describe("FileNameDisplayFormatter resolves the tokens a file name can hold", ()
 	});
 });
 
+describe("tokens the file-name preview resolves the way the run does", () => {
+	it("previews {{MVALUE}} with the math stand-in, because the run prompts (#1587)", async () => {
+		// The math token is `{{MVALUE}}` (MATH_VALUE_REGEX, constants.ts).
+		// CompleteFormatter.format runs replaceMathValueInString and
+		// formatFileName goes through format(), so the run really does open the
+		// math modal here.
+		const { text, diagnostics } = await preview("File {{MVALUE}}");
+		expect(text).toBe("File calculation_result");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("previews an already-collected {{MVALUE}} answer rather than the stand-in", async () => {
+		// The one-page form and the CLI both collect this token under the key
+		// "mvalue"; the preview reads it exactly as the run now does (#1607).
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"mvalue",
+			"2+2",
+		);
+		await expect(formatter.format("File {{MVALUE}}")).resolves.toBe("File 2+2");
+	});
+});
+
 describe("tokens the file-name preview does NOT resolve today", () => {
 	/**
 	 * Pinned as CURRENT behaviour with the issue each is filed as, not as
 	 * desired behaviour.
 	 */
-	it("leaves {{MVALUE}} literal even though the run prompts for it (#1587)", async () => {
-		// The math token is `{{MVALUE}}` (MATH_VALUE_REGEX, constants.ts).
-		// CompleteFormatter.format runs replaceMathValueInString and
-		// formatFileName goes through format(), so the run really does open the
-		// math modal here. Neither display formatter has the pass, though both
-		// override `promptForMathValue` with a stand-in that is therefore
-		// unreachable - a dead override is the tell.
-		const { text } = await preview("File {{MVALUE}}");
-		expect(text).toBe("File {{MVALUE}}");
-	});
-
 	it("leaves {{MATH:1+1}}, which is not a token at all, as plain text", async () => {
 		// The mock this file replaced asserted `File calculation_result` for
 		// this input, and #1580 was filed because nothing could contradict it.

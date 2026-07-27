@@ -1015,6 +1015,41 @@ describe("CompleteFormatter - math value prompting", () => {
 			MacroAbortError,
 		);
 	});
+
+	it("uses an already-collected mvalue instead of prompting (#1607)", async () => {
+		// RequirementCollector registers this token under the key "mvalue", so the
+		// one-page input form asks for a "Math expression" and the CLI advertises
+		// `value-mvalue=<value>`. Both answers used to be discarded and the modal
+		// opened anyway.
+		const f = defaultFormatter();
+		(f as unknown as { variables: Map<string, unknown> }).variables.set(
+			"mvalue",
+			"2+2*3",
+		);
+		await expect(f.formatFolderPath("= {{MVALUE}}")).resolves.toBe("= 2+2*3");
+		expect(mocks.mathPrompt).not.toHaveBeenCalled();
+	});
+
+	it("still prompts once per occurrence when nothing was collected", async () => {
+		// READ-only consumption: the prompt's own answer is deliberately not
+		// stored, so two tokens stay two questions, as they always have been.
+		mocks.mathPrompt.mockResolvedValueOnce("1").mockResolvedValueOnce("2");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath("{{MVALUE}}-{{MVALUE}}")).resolves.toBe(
+			"1-2",
+		);
+		expect(mocks.mathPrompt).toHaveBeenCalledTimes(2);
+	});
+
+	it("ignores a blank collected mvalue and prompts", async () => {
+		mocks.mathPrompt.mockResolvedValue("7");
+		const f = defaultFormatter();
+		(f as unknown as { variables: Map<string, unknown> }).variables.set(
+			"mvalue",
+			"   ",
+		);
+		await expect(f.formatFolderPath("{{MVALUE}}")).resolves.toBe("7");
+	});
 });
 
 describe("CompleteFormatter - field suggestion (suggestForField)", () => {

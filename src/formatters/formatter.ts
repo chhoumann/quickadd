@@ -1371,13 +1371,29 @@ export abstract class Formatter {
 		// This avoids infinite replacement loops when the provided math input contains {{MVALUE}}.
 		const regex = new RegExp(MATH_VALUE_REGEX.source, "gi");
 
+		// An already-collected answer wins, the way {{VALUE}} reads
+		// `this.variables` before prompting. `RequirementCollector` registers a
+		// requirement keyed "mvalue" for this token, so the one-page input form
+		// asks for a "Math expression" and the CLI advertises
+		// `value-mvalue=<value>` - and, without this, both answers were dropped:
+		// the form asked, then the run opened the math modal on top of it, and
+		// the CLI flag it had just recommended made no difference (#1607).
+		//
+		// READ, never write: leaving `promptForMathValue`'s answer unstored keeps
+		// the per-occurrence prompt that `{{MVALUE}} {{MVALUE}}` has always had.
+		// A single collected answer legitimately fills every occurrence, because
+		// the collector registers exactly one requirement for the token.
+		const collected = this.variables.get("mvalue");
+		const collectedValue =
+			typeof collected === "string" && collected.trim() ? collected : null;
+
 		let output = "";
 		let lastIndex = 0;
 		let match: RegExpExecArray | null;
 
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
-			output += await this.promptForMathValue();
+			output += collectedValue ?? (await this.promptForMathValue());
 			lastIndex = match.index + match[0].length;
 		}
 
