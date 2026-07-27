@@ -182,7 +182,8 @@ export class CommandSequenceEditor {
 		this.commandListHandle = mountComponent(
 			commandListEl,
 			CommandList,
-			this.commandListProps
+			this.commandListProps,
+			{ what: "this macro's commands" }
 		);
 	}
 

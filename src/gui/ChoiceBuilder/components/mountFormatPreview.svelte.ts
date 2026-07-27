@@ -65,7 +65,9 @@ export function mountFormatPreview(
 		targetFolderPath: null,
 	});
 
-	const mounted: MountHandle = mountComponent(host, FormatPreviewField, props);
+	const mounted: MountHandle = mountComponent(host, FormatPreviewField, props, {
+		what: "the preview for this field",
+	});
 	let destroyed = false;
 
 	return {

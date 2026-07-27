@@ -2,8 +2,13 @@
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 
 	let {
+		what = "your choices",
 		detail = "",
 	}: {
+		/** Noun phrase naming what could not be displayed. Defaults to the only
+		 *  thing this card is ever about; it exists so the component satisfies
+		 *  mountComponent's MountFallbackComponent contract (see mountComponent.ts). */
+		what?: string;
 		/** The underlying error message, when there is one. Shown verbatim: it is
 		 *  what makes a bug report actionable, and this view is otherwise a dead
 		 *  end for the user. */
@@ -26,7 +31,7 @@
 <div class="qaChoicesUnavailable">
 	<div class="qaChoicesUnavailableHead">
 		<ObsidianIcon iconId="alert-triangle" size={16} />
-		<span class="qaChoicesUnavailableTitle">QuickAdd couldn't display your choices</span>
+		<span class="qaChoicesUnavailableTitle">QuickAdd couldn't display {what}</span>
 	</div>
 	<p class="qaChoicesUnavailableBody">
 		Something in this vault's QuickAdd settings could not be read. Your choices
