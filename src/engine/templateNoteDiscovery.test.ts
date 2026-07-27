@@ -17,10 +17,14 @@ vi.mock("obsidian-dataview", () => ({
 import { TFile, type App } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import {
+
 	promptForTemplateNoteDiscovery,
 	shouldRunTemplateNoteDiscovery,
 	testExports,
 } from "./templateNoteDiscovery";
+// An ordinary in-app run: no interactive client attached and not headless, so the
+// picker opens the Obsidian modal - exactly the path these tests exercise.
+const IN_APP_RUN = {} as never;
 
 function file(path: string): TFile {
 	const tfile = new TFile();
@@ -189,7 +193,7 @@ describe("template note discovery", () => {
 		const alice = file("People/Alice.md");
 		inputSuggestMock.mockImplementation(async (_app, _display, items) => items[0]);
 
-		const result = await promptForTemplateNoteDiscovery(app([alice]), choice());
+		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
 		expect(result).toEqual({ kind: "openExisting", file: alice });
 	});
@@ -200,7 +204,7 @@ describe("template note discovery", () => {
 			items.find((item: string) => item.includes("Missing Project")),
 		);
 
-		const result = await promptForTemplateNoteDiscovery(app([alice]), choice());
+		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
 		expect(result).toEqual({ kind: "create", title: "Missing Project" });
 	});
@@ -211,7 +215,7 @@ describe("template note discovery", () => {
 			items.find((item: string) => item.includes("Projects/Missing Roadmap")),
 		);
 
-		const result = await promptForTemplateNoteDiscovery(app([alice]), choice());
+		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
 		expect(result).toEqual({
 			kind: "create",
@@ -228,7 +232,7 @@ describe("template note discovery", () => {
 		inputSuggestMock.mockImplementation(async (_app, _display, items) => items[0]);
 
 		await expect(
-			promptForTemplateNoteDiscovery(staleApp, choice()),
+			promptForTemplateNoteDiscovery(staleApp, choice(), IN_APP_RUN),
 		).rejects.toThrow("Selected note no longer exists");
 	});
 
@@ -236,7 +240,7 @@ describe("template note discovery", () => {
 		const alice = file("People/Alice.md");
 		inputSuggestMock.mockResolvedValue("Fresh Idea");
 
-		await promptForTemplateNoteDiscovery(app([alice]), choice());
+		await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
 		const options = inputSuggestMock.mock.calls[0]?.[3];
 		expect(options.valueExists("Alice")).toBe(true);

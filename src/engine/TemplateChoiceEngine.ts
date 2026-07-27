@@ -115,6 +115,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const discovery = await promptForTemplateNoteDiscovery(
 					this.app,
 					this.choice,
+					this.choiceExecutor,
 				);
 				if (discovery.kind === "openExisting") {
 					await this.openDiscoveredExistingNote(discovery.file);
@@ -702,9 +703,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		]);
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
-		// Propagate non-interactivity so a folder chooser aborts (instead of hanging)
-		// in a headless CLI run; a single configured folder never prompts regardless.
-		const interactive = this.choiceExecutor.interactive;
+		// Where the folder chooser goes: the client on an interactive run, an abort on
+		// a headless one, the modal otherwise. A single configured folder never prompts.
+		const executor = this.choiceExecutor;
 
 		if (
 			this.choice.folder?.chooseFromSubfolders &&
@@ -726,7 +727,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				allowCreate: true,
 				allowedRoots: folders,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -737,7 +738,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder(allFoldersInVault, {
 				allowCreate: true,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -754,7 +755,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder([activeFile.parent.path], {
 				allowCreate: true,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -762,7 +763,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowCreate: true,
 			allowedRoots: folders,
 			topItems,
-			interactive,
+			executor,
 		});
 	}
 

@@ -18,6 +18,10 @@ import { type App, type TFile } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { promptForTemplateNoteDiscovery } from "./templateNoteDiscovery";
 
+// An ordinary in-app run: no interactive client attached and not headless, so the
+// picker opens the Obsidian modal - exactly the path these tests exercise.
+const IN_APP_RUN = {} as never;
+
 function choice(overrides: Partial<ITemplateChoice> = {}): ITemplateChoice {
 	return {
 		id: "template",
@@ -78,7 +82,7 @@ describe("template note discovery — typed name vault-relative parity (audit)",
 		// (vault-relative), not anchor under the configured/default folder.
 		inputSuggestMock.mockResolvedValue("Projects/My New Note");
 
-		const result = await promptForTemplateNoteDiscovery(app([]), choice());
+		const result = await promptForTemplateNoteDiscovery(app([]), choice(), IN_APP_RUN);
 
 		expect(result).toEqual({
 			kind: "create",
@@ -90,7 +94,7 @@ describe("template note discovery — typed name vault-relative parity (audit)",
 	it("leaves a plain typed name without a vault-relative path", async () => {
 		inputSuggestMock.mockResolvedValue("My New Note");
 
-		const result = await promptForTemplateNoteDiscovery(app([]), choice());
+		const result = await promptForTemplateNoteDiscovery(app([]), choice(), IN_APP_RUN);
 
 		expect(result).toEqual({ kind: "create", title: "My New Note" });
 	});

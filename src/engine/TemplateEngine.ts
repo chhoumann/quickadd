@@ -36,12 +36,33 @@ import {
 	isReservedWindowsDeviceName,
 } from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { isCancellationError } from "../utils/errorUtils";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import {
+	routePrompt,
+	type PromptRoutingContext,
+} from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
+
+/** One wording for both surfaces: the desktop Notice, and the remote run's abort. */
+function folderNotAllowedMessage(roots: string[]): string {
+	const displayRoots = roots.map((root) => (root ? root : "/"));
+	const list =
+		displayRoots.length > 3
+			? `${displayRoots.slice(0, 3).join(", ")}...`
+			: displayRoots.join(", ");
+	return `Folder must be under: ${list}`;
+}
+
+/**
+ * How many times a REMOTE run may re-ask the folder chooser before giving up. The
+ * in-app loop is unbounded because the Notice tells the user why their pick was
+ * refused; a client sees an identical prompt with no explanation, so looping there
+ * is indistinguishable from a hang.
+ */
+const MAX_REMOTE_FOLDER_ATTEMPTS = 3;
 
 type FolderChoiceOptions = {
 	allowCreate?: boolean;
@@ -49,12 +70,15 @@ type FolderChoiceOptions = {
 	allowedRoots?: string[];
 	topItems?: Array<{ path: string; label: string }>;
 	/**
-	 * When `false`, refuse to open the folder-chooser suggester (no one can answer
-	 * it in a non-interactive CLI run) and abort with a clear error instead of
-	 * hanging. Defaults to interactive. A single configured folder never prompts,
-	 * so it is unaffected regardless of this flag.
+	 * Where the folder chooser goes: to a connected interactive client, to an abort
+	 * (a non-interactive CLI run has no one to answer it), or to the Obsidian modal.
+	 *
+	 * Required, not optional. It replaced a bare `interactive?: boolean` that could
+	 * only ever say "do not open the modal" - which is why an INTERACTIVE run, where
+	 * the flag is `true`, opened the chooser on a desktop nobody was watching (#1614).
+	 * A single configured folder never prompts, so it is unaffected either way.
 	 */
-	interactive?: boolean;
+	executor: PromptRoutingContext;
 };
 
 type FolderSelectionContext = {
@@ -120,7 +144,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	protected async getOrCreateFolder(
 		folders: string[],
-		options: FolderChoiceOptions = {},
+		options: FolderChoiceOptions,
 	): Promise<string> {
 		const context = this.buildFolderSelectionContext(folders, options);
 
@@ -128,16 +152,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			return await this.handleSingleSelection(context);
 		}
 
-		// Non-interactive run (CLI without `ui`): the folder chooser has no one to
-		// answer it, so opening it would hang. Abort with an actionable error.
-		if (options.interactive === false) {
-			throw new ChoiceAbortError(
-				"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
-					"Configure a single target folder, or re-run with the ui flag.",
-			);
-		}
-
-		const selection = await this.promptUntilAllowed(context);
+		const selection = await this.promptUntilAllowed(context, options.executor);
 		return selection.isEmpty ? "" : selection.resolved;
 	}
 
@@ -181,40 +196,64 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		);
 	}
 
-	private async promptForFolder(context: FolderSelectionContext): Promise<string> {
-		try {
-			if (context.allowCreate) {
-				return await InputSuggester.Suggest(
-					this.app,
-					context.displayItems,
-					context.items,
-					{
-						placeholder:
-							context.placeholder ?? "Choose a folder or type to create one",
-						renderItem: (item, el) => {
-							this.renderFolderSuggestion(
-								item,
-								el,
-								context.existingSet,
-								context.displayByNormalized,
-							);
-						},
-					},
-				);
-			}
+	private async promptForFolder(
+		context: FolderSelectionContext,
+		executor: PromptRoutingContext,
+	): Promise<string> {
+		const placeholder =
+			context.placeholder ?? "Choose a folder or type to create one";
 
-			return await GenericSuggester.Suggest(
-				this.app,
-				context.displayItems,
-				context.items,
-				context.placeholder,
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return String(
+			await routePrompt(executor, {
+				// The client renders its own list, so the in-app "Create folder" badge
+				// does not travel - but `allowCreate` does, as `allowCustomInput`, which
+				// is the part that changes what the run can DO. Every reply still goes
+				// through resolveSelection -> allowedRoots -> validateFolderPath below,
+				// so a routed answer is confined exactly like a typed-in one.
+				remote: (provider) =>
+					promptEngineChoice(provider, {
+						items: context.items.map((item, index) => ({
+							value: item,
+							title: context.displayItems[index] ?? item,
+						})),
+						placeholder,
+						allowCustomInput: context.allowCreate,
+						what: "the folder chooser",
+					}),
+				// Non-interactive run (CLI without `ui`): no one can answer, so opening
+				// it would hang. Abort with an actionable error.
+				headless: () => {
+					throw new ChoiceAbortError(
+						"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
+							"Configure a single target folder, or re-run with the ui flag.",
+					);
+				},
+				app: () =>
+					context.allowCreate
+						? InputSuggester.Suggest(
+								this.app,
+								context.displayItems,
+								context.items,
+								{
+									placeholder,
+									renderItem: (item, el) => {
+										this.renderFolderSuggestion(
+											item,
+											el,
+											context.existingSet,
+											context.displayByNormalized,
+										);
+									},
+								},
+							)
+						: GenericSuggester.Suggest(
+								this.app,
+								context.displayItems,
+								context.items,
+								context.placeholder,
+							),
+			}),
+		);
 	}
 
 	private async resolveSelection(
@@ -248,10 +287,20 @@ export abstract class TemplateEngine extends QuickAddEngine {
 
 	private async promptUntilAllowed(
 		context: FolderSelectionContext,
+		executor: PromptRoutingContext,
 	): Promise<FolderSelection> {
+		// A rejected selection is re-asked, and in Obsidian the reason arrives as a
+		// Notice next to the reopened modal. A remote client gets no Notice, so the
+		// re-prompt is indistinguishable from the first one - an unbounded loop of an
+		// identical question. Bound it there and end with the text the Notice carries.
+		let remoteAttempts = executor.promptProvider ? MAX_REMOTE_FOLDER_ATTEMPTS : 0;
+
 		// Keep prompting until the user provides an allowed selection or cancels.
 		for (;;) {
-			const raw = await this.promptForFolder(context);
+			if (executor.promptProvider && remoteAttempts-- <= 0) {
+				throw new ChoiceAbortError(folderNotAllowedMessage(context.allowedRoots));
+			}
+			const raw = await this.promptForFolder(context, executor);
 			const selection = await this.resolveSelection(raw, context);
 
 			if (selection.isEmpty) {
@@ -381,12 +430,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	private showFolderNotAllowedNotice(roots: string[]): void {
-		const displayRoots = roots.map((root) => (root ? root : "/"));
-		const list =
-			displayRoots.length > 3
-				? `${displayRoots.slice(0, 3).join(", ")}...`
-				: displayRoots.join(", ");
-		new Notice(`Folder must be under: ${list}`);
+		new Notice(folderNotAllowedMessage(roots));
 	}
 
 	private buildFolderSuggestions(

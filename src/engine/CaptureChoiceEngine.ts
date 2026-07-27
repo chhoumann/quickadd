@@ -56,6 +56,8 @@ import {
 	failureReason,
 } from "./choiceOutcomeRecorder";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import { routePrompt } from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import {
 	resolveCaptureTarget as resolveCaptureTargetFromString,
@@ -884,15 +886,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
 
-		// Non-interactive run (CLI without `ui`): the heading picker has no one to
-		// answer it, so opening it would hang. Abort with an actionable error.
-		if (this.choiceExecutor.interactive === false) {
-			throw new ChoiceAbortError(
-				`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
-					`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
-			);
-		}
-
 		const allowCreate = !!insertAfter.createIfNotFound;
 
 		const lines = getLinesInString(content);
@@ -903,28 +896,41 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const headingTexts = headings.map((h) => h.text);
 
-		let chosen: string;
-		try {
-			chosen = await InputSuggester.Suggest(
-				this.app,
-				headingDisplay,
-				headingLines,
-				{
-					allowCustomValue: allowCreate,
-					placeholder: "Choose a heading to insert under",
-					emptyStateText: allowCreate
-						? "No headings found — type a heading to create"
-						: "No headings found in the target note",
-					customValueLabel: (value) =>
-						`Insert after new line: ${value}`,
+		const placeholder = "Choose a heading to insert under";
+		const chosen = String(
+			await routePrompt(this.choiceExecutor, {
+				// Routed like every other prompt the run opens. Before, an interactive
+				// run opened this on the desktop while the client's /poll returned
+				// nothing (#1614).
+				remote: (provider) =>
+					promptEngineChoice(provider, {
+						items: headingLines.map((line, index) => ({
+							value: line,
+							title: headingDisplay[index] ?? line,
+						})),
+						placeholder,
+						allowCustomInput: allowCreate,
+						what: "the heading picker",
+					}),
+				// Non-interactive run (CLI without `ui`): no one can answer, so opening
+				// it would hang. Abort with an actionable error.
+				headless: () => {
+					throw new ChoiceAbortError(
+						`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
+							`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
+					);
 				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+				app: () =>
+					InputSuggester.Suggest(this.app, headingDisplay, headingLines, {
+						allowCustomValue: allowCreate,
+						placeholder,
+						emptyStateText: allowCreate
+							? "No headings found — type a heading to create"
+							: "No headings found in the target note",
+						customValueLabel: (value) => `Insert after new line: ${value}`,
+					}),
+			}),
+		);
 
 		invariant(
 			!!chosen && chosen.length > 0,

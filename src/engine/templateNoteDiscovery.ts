@@ -1,5 +1,11 @@
 import { TFile, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
+import {
+	routePrompt,
+	type PromptRoutingContext,
+} from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { renderNotePathSuggestion } from "src/gui/InputSuggester/renderNotePathSuggestion";
 import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
@@ -23,7 +29,16 @@ export type TemplateNoteDiscoveryResult =
 
 type DiscoveryCandidate = {
 	item: string;
+	/**
+	 * The fuzzy-SEARCH text, not a label: basename + path + aliases, joined. The
+	 * in-app picker feeds this to the matcher and draws the visible row from
+	 * `renderItem` instead. A remote client has no `renderItem`, so it gets
+	 * {@link DiscoveryCandidate.title} - sending `display` there would have shown
+	 * rows reading "Tom Areas/Work/Tom.md Thomas" (#1614).
+	 */
 	display: string;
+	/** The human label: the note's basename, or the unresolved link's target. */
+	title: string;
 	renderPath?: string;
 	renderAlias?: string;
 	unresolvedTitle?: string;
@@ -162,6 +177,7 @@ function buildDiscoveryCandidates(app: App, choice: ITemplateChoice): {
 		candidates.push({
 			item: encodeExisting(file.path),
 			display: searchable,
+			title: aliases[0] ? `${file.basename} (${file.path})` : file.path,
 			renderPath: file.path,
 			renderAlias: aliases[0],
 		});
@@ -173,6 +189,7 @@ function buildDiscoveryCandidates(app: App, choice: ITemplateChoice): {
 		candidates.push({
 			item: encodeUnresolved(target),
 			display: target,
+			title: `${target} (unresolved link)`,
 			unresolvedTitle: target,
 		});
 	}
@@ -202,19 +219,49 @@ function renderExistingSuggestion(
 export async function promptForTemplateNoteDiscovery(
 	app: App,
 	choice: ITemplateChoice,
+	executor: PromptRoutingContext,
 ): Promise<TemplateNoteDiscoveryResult> {
 	const { candidates, existingKeys } = buildDiscoveryCandidates(app, choice);
 	const candidateByItem = new Map(
 		candidates.map((candidate) => [candidate.item, candidate]),
 	);
 
+	const placeholder = `Search notes or create ${choice.name}`;
+
 	try {
-		const selected = await InputSuggester.Suggest(
+		const selected = String(
+			await routePrompt(executor, {
+				// This picker is the one the one-page preflight deliberately does NOT
+				// pre-collect (it filters the `value` requirement out for discovery), so
+				// before this an interactive run collected nothing and walked straight
+				// into a desktop list of every note in the vault (#1614).
+				remote: (provider) =>
+					promptEngineChoice(provider, {
+						items: candidates.map((candidate) => ({
+							value: candidate.item,
+							title: candidate.title,
+						})),
+						placeholder,
+						// "Create new note" - the whole point of the picker.
+						allowCustomInput: true,
+						what: "the note-discovery picker",
+					}),
+				// A headless run never reaches here: `shouldRunTemplateNoteDiscovery`
+				// needs an unresolved `value`, which the CLI refuses up front as a
+				// missing input. Guarded anyway, so the branch cannot become a hang.
+				headless: () => {
+					throw new ChoiceAbortError(
+						`'${choice.name}' needs to ask which note to open or create, but this run is non-interactive. ` +
+							`Pass the note name (e.g. value-value=<name>), or re-run with the ui flag.`,
+					);
+				},
+				app: () =>
+					InputSuggester.Suggest(
 			app,
 			candidates.map((candidate) => candidate.display),
 			candidates.map((candidate) => candidate.item),
 			{
-				placeholder: `Search notes or create ${choice.name}`,
+				placeholder,
 				allowCustomValue: true,
 				customValueLabel: (value) => `Create new note: ${value}`,
 				valueExists: (value) => {
@@ -244,6 +291,8 @@ export async function promptForTemplateNoteDiscovery(
 					}
 				},
 			},
+					),
+			}),
 		);
 
 		if (isExistingItem(selected)) {
