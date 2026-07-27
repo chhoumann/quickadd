@@ -28,6 +28,7 @@ import {
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
+import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
@@ -315,12 +316,17 @@ export class FormatDisplayFormatter extends Formatter {
 		// For preview, show helpful format examples instead of failing
 		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
+			const { options, error } = parseVDateOptionsForPreview(rawOptions);
+			// Reported, not swallowed: a unit that never resolves aborts the run.
+			// The options still come back usable, so the preview TEXT stays stable
+			// while the unit is half-typed.
+			if (error) this.reportProblem(error);
 			const {
 				defaultValue: cleanDefaultValue,
 				optional,
 				withTime,
 				snap,
-			} = parseVDateOptionsForPreview(rawOptions);
+			} = options;
 			// Only a NAMELESS token stays literal, as the run leaves it. A token
 			// that names no FORMAT is complete and working: the run supplies
 			// YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time (#1589).
@@ -341,13 +347,18 @@ export class FormatDisplayFormatter extends Formatter {
 			);
 			if (stored) return stored.text;
 
-			// Generate a preview using current date with the specified format
-			const previewDate = new Date();
+			// Generate a preview using current date with the specified format,
+			// snapped the way the run snaps it - matching both the ANSWERED branch
+			// above and {{DATE:...|startof:}}, which has always snapped in this
+			// same pass. Inside the try: the snap needs moment.
 			let formattedExample: string;
 
 			try {
 				// Try to generate a realistic preview using the format
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				formattedExample = DateFormatPreviewGenerator.generate(
+					cleanDateFormat,
+					snappedExampleDate(snap),
+				);
 			} catch {
 				// Fallback to showing the format pattern
 				formattedExample = `[${cleanDateFormat} format]`;
