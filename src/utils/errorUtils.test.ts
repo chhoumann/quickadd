@@ -94,7 +94,10 @@ describe("reportingHandler", () => {
 		);
 	});
 
-	it("catches a thenable that is not a native promise", async () => {
+	// A thenable is only required to have `.then`. Calling `.catch` on one directly
+	// reports "result.catch is not a function" INSTEAD of the real failure — which
+	// is the same lost error this helper exists to prevent, so assert the cause.
+	it("reports the real rejection of a thenable that is not a native promise", async () => {
 		const logError = spyOnLogError();
 		const wrapped = reportingHandler("Couldn't move that choice", () => ({
 			then: (_ok: unknown, fail: (err: unknown) => void) => fail(new Error("boom")),
@@ -102,8 +105,12 @@ describe("reportingHandler", () => {
 
 		wrapped();
 		await Promise.resolve();
+		await Promise.resolve();
 
 		expect(logError).toHaveBeenCalledTimes(1);
+		expect((logError.mock.calls[0][0] as Error).message).toBe(
+			"Couldn't move that choice: boom",
+		);
 	});
 
 	it("stays quiet for a cancelled prompt, which is an answer and not a failure", async () => {

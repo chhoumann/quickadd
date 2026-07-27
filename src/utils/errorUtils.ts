@@ -196,9 +196,13 @@ export function reportingHandler<A extends unknown[]>(
     try {
       const result = fn(...args);
       // Duck-typed rather than `instanceof Promise`: a thenable, or a promise from
-      // another realm, still needs its rejection caught.
+      // another realm, still needs its rejection caught. Assimilated with
+      // Promise.resolve rather than calling `.catch` on it directly — a thenable is
+      // only required to have `.then`, so `.catch` can be undefined, and reporting
+      // "result.catch is not a function" in place of the real failure is exactly the
+      // kind of lost error this helper exists to prevent.
       if (typeof (result as { then?: unknown } | null | undefined)?.then === "function") {
-        void (result as Promise<unknown>).catch(report);
+        void Promise.resolve(result).catch(report);
       }
     } catch (err) {
       report(err);
