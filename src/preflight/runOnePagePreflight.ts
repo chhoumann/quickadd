@@ -244,10 +244,10 @@ export async function runOnePagePreflight(
 		return true;
 	} catch (error) {
 		// Propagate an explicit cancellation/abort so the run stops instead of
-		// continuing with the inputs missing. The native modal throws the string
-		// "cancelled"; a remote provider rejects with UserCancelError (a
-		// MacroAbortError subclass).
-		if (error === "cancelled" || error instanceof MacroAbortError) {
+		// continuing with the inputs missing. Both the native modal and a remote
+		// provider signal a dismissal with UserCancelError, a MacroAbortError
+		// subclass (#1577), so one check covers both.
+		if (error instanceof MacroAbortError) {
 			throw error;
 		}
 		// Any other error degrades to the sequential runtime prompts. That

@@ -3,6 +3,7 @@ import { Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import GenericWideInputPrompt from "./GenericWideInputPrompt";
+import { UserCancelError } from "../../errors/UserCancelError";
 
 // The obsidian-stub Modal does not implement onOpen/onClose; the prompt calls
 // super.onOpen()/super.onClose(). Provide no-ops so construction and close do not
@@ -220,7 +221,7 @@ describe("image paste submit/cancel races (issue #1484)", () => {
 		).find((button) => button.textContent === "Cancel") as HTMLButtonElement;
 		cancelButton.click();
 
-		await expect(waitForClose).rejects.toBe("No input given.");
+		await expect(waitForClose).rejects.toBeInstanceOf(UserCancelError);
 
 		// The save landing later must NOT resurrect the submit on the closed
 		// modal (deferred submit is guarded by didClose).

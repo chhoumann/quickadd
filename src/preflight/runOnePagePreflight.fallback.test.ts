@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { runOnePagePreflight } from "./runOnePagePreflight";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { promptCancelled } from "../errors/UserCancelError";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -146,9 +147,10 @@ describe("runOnePagePreflight fallback warning", () => {
 		expect(logWarningMock).not.toHaveBeenCalled();
 	});
 
-	it("rethrows the modal's 'cancelled' rejection without warning", async () => {
-		modalOutcome = () => Promise.reject("cancelled");
-		await expect(run()).rejects.toBe("cancelled");
+	it("rethrows the modal's dismissal without warning", async () => {
+		const cancelled = promptCancelled();
+		modalOutcome = () => Promise.reject(cancelled);
+		await expect(run()).rejects.toBe(cancelled);
 		expect(logWarningMock).not.toHaveBeenCalled();
 	});
 

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
+import { UserCancelError } from "../errors/UserCancelError";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 
 const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
@@ -745,13 +746,13 @@ describe("OnePageInputModal", () => {
 	});
 
 	describe("Esc settles the modal promise (issue #1259 rider)", () => {
-		it("rejects with 'cancelled' when closed without submitting", async () => {
+		it("rejects with a typed cancellation when closed without submitting", async () => {
 			const requirements: FieldRequirement[] = [
 				{ id: "note", label: "note", type: "text" },
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
 			modal.onClose();
-			await expect(modal.waitForClose).rejects.toBe("cancelled");
+			await expect(modal.waitForClose).rejects.toBeInstanceOf(UserCancelError);
 		});
 
 		it("does not double-settle after a submit", async () => {

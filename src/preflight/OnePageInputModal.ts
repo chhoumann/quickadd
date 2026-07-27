@@ -33,6 +33,7 @@ import {
 	normalizeNumericValue,
 	normalizeSliderValue,
 } from "src/utils/valueSyntax";
+import { promptCancelled } from "../errors/UserCancelError";
 
 type PreviewComputer = (
 	values: Record<string, string>,
@@ -685,7 +686,7 @@ export class OnePageInputModal extends Modal {
 	private cancel() {
 		this.settled = true;
 		this.close();
-		this.rejectPromise("cancelled");
+		this.rejectPromise(promptCancelled());
 	}
 
 	onClose() {
@@ -695,7 +696,7 @@ export class OnePageInputModal extends Modal {
 		// otherwise the choice execution hangs forever on waitForClose.
 		if (!this.settled) {
 			this.settled = true;
-			this.rejectPromise("cancelled");
+			this.rejectPromise(promptCancelled());
 		}
 	}
 

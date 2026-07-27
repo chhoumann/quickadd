@@ -10,6 +10,7 @@ import { attachTextareaIndent } from "../components/textareaIndent";
 import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
+import { promptCancelled } from "../../errors/UserCancelError";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -281,7 +282,7 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	private resolveInput() {
-		if (!this.didSubmit) this.rejectPromise("No input given.");
+		if (!this.didSubmit) this.rejectPromise(promptCancelled());
 		else this.resolvePromise(this.input);
 	}
 

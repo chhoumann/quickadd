@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, ToggleComponent } from "obsidian";
+import { promptCancelled } from "../../errors/UserCancelError";
 
 export default class GenericCheckboxPrompt extends Modal {
 	private resolvePromise: (value: string[]) => void;
@@ -54,7 +55,7 @@ export default class GenericCheckboxPrompt extends Modal {
 	onClose() {
 		super.onClose();
 
-		if (!this.resolved) this.rejectPromise("no input given.");
+		if (!this.resolved) this.rejectPromise(promptCancelled());
 	}
 
 	private addCheckboxRows() {
