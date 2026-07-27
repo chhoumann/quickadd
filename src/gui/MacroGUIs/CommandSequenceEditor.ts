@@ -53,6 +53,11 @@ import type { IConditionalCommand } from "../../types/macros/Conditional/ICondit
 import { getUserScriptMemberAccess } from "../../utilityObsidian";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
+import {
+	isUnreadableCommandList,
+	normalizeCommandList,
+} from "../../utils/macroUtils";
+import DataUnreadable from "../svelte/DataUnreadable.svelte";
 
 type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
 
@@ -65,7 +70,11 @@ export interface CommandSequenceEditorConditionalHandlers {
 export interface CommandSequenceEditorOptions {
 	app: App;
 	plugin: QuickAdd;
-	commands: ICommand[];
+	/**
+	 * Typed `unknown` because it is not: this is `macro.commands` straight out of
+	 * `data.json` (see commandListOf). The editor normalizes it at construction.
+	 */
+	commands: unknown;
 	choices: IChoice[];
 	onCommandsChange?: (commands: ICommand[]) => void;
 	conditionalHandlers?: CommandSequenceEditorConditionalHandlers;
@@ -79,16 +88,32 @@ export class CommandSequenceEditor {
 	private readonly conditionalHandlers?: CommandSequenceEditorConditionalHandlers;
 
 	private commandsRef: ICommand[];
+	/**
+	 * True when the value handed to us was not a list we could read AND could
+	 * still be carrying commands (see isUnreadableCommandList). The editor is
+	 * read-only in that state: `commandsRef` is an empty array that must never
+	 * reach disk over the real value.
+	 */
+	private readonly unreadable: boolean;
 	private obsidianCommands: IObsidianCommand[] = [];
 	private scriptCandidates: ScriptCandidate[] = [];
 	private commandListHandle: MountHandle | null = null;
 	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
+	private unreadableCardHandle: MountHandle | null = null;
 
 	constructor(options: CommandSequenceEditorOptions) {
 		this.app = options.app;
 		this.plugin = options.plugin;
-		this.commandsRef = options.commands;
+		// data.json is untrusted, so the value arrives raw and is made editable
+		// here — the one seam every host that shows a command list goes through
+		// (MacroBuilder, ConditionalBranchEditorModal). Normalizing keeps a
+		// duplicate-id or id-less command under a fresh uuid instead of letting
+		// the keyed {#each} throw and cost the user the whole editor (#1593).
+		// Nothing is persisted by this: the repair reaches disk only with the
+		// user's first ordinary edit, so opening and closing changes nothing.
+		this.unreadable = isUnreadableCommandList(options.commands);
+		this.commandsRef = normalizeCommandList(options.commands).commands;
 		this.choices = options.choices;
 		this.onCommandsChange = options.onCommandsChange;
 		this.conditionalHandlers = options.conditionalHandlers;
@@ -97,34 +122,58 @@ export class CommandSequenceEditor {
 		this.loadScriptCandidates();
 	}
 
-	public render(containerEl: HTMLElement) {
+	/**
+	 * @returns whether the editor is fully usable. False means the command list is
+	 * showing a card instead, and the host must not commit `commandsRef` anywhere
+	 * (see ConditionalBranchEditorModal's Save button).
+	 */
+	public render(containerEl: HTMLElement): boolean {
 		this.destroy();
 		this.containerEl = containerEl;
 		containerEl.empty();
 		containerEl.addClass("quickAddCommandEditor");
 
-		// A list we could not draw must not be edited blind. Every control below
-		// appends to `commandsRef` and persists through onCommandsChange, so with the
-		// list invisible the user would be adding commands they cannot see, reorder or
-		// delete — and with a `null`/non-iterable `commands` the same controls throw
-		// silently instead. Before #1584 this was unreachable (the throw escaped and
-		// the modal never opened at all); now that the editor survives, it has to stop
-		// offering the affordances the failed view was the only way to review.
-		// The card explains what happened; the macro's name, "run on startup" and icon
-		// stay editable around it.
-		if (!this.renderCommandList(containerEl)) return;
+		// A list we could not read must not be edited blind. Every control below
+		// appends to `commandsRef` and persists through onCommandsChange, so an
+		// editor offered over a value we could not read would overwrite it with the
+		// `[]` we read it as — destroying the only copy the user has. Say so
+		// instead, and offer nothing that writes. The macro's name, "run on
+		// startup" and icon stay editable around it.
+		if (this.unreadable) {
+			this.renderUnreadableCard(containerEl);
+			return false;
+		}
+
+		// Belt and braces: the list is a readable array and every entry has been
+		// given a unique id, so a mount failure here is a genuine bug rather than
+		// bad data. Same reasoning as above though — with the list invisible the
+		// user would be adding commands they cannot see, reorder or delete.
+		if (!this.renderCommandList(containerEl)) return false;
 
 		this.renderCommandBar(containerEl);
 		this.renderAddObsidianCommandSetting(containerEl);
 		this.renderAddEditorCommandSetting(containerEl);
 		this.renderAddUserScriptSetting(containerEl);
 		this.renderAddChoiceSetting(containerEl);
+		return true;
+	}
+
+	private renderUnreadableCard(parent: HTMLElement) {
+		const cardEl = parent.createDiv("commandList");
+		this.unreadableCardHandle = mountComponent(
+			cardEl,
+			DataUnreadable,
+			{ what: "this macro's commands" },
+			{ what: "this macro's commands" },
+		);
 	}
 
 	public destroy() {
 		this.commandListHandle?.destroy();
 		this.commandListHandle = null;
 		this.commandListProps = null;
+		this.unreadableCardHandle?.destroy();
+		this.unreadableCardHandle = null;
 	}
 
 	private loadObsidianCommands(): void {

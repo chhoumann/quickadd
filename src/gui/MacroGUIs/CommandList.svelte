@@ -43,6 +43,32 @@ let {
 	onEditElseBranch,
 }: CommandListProps = $props();
 
+// Everything rendered, handed to the dnd zone, or reordered is filtered to
+// entries that can actually be keyed: an object with a unique, non-empty string
+// id. svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
+// `each_key_duplicate` on a repeat (#1451, #1593) — and on a POST-mount update
+// that throw escapes mountComponent's try entirely (see its doc comment), so
+// this has to be a $derived, not a one-off check at setup.
+//
+// CommandSequenceEditor normalizes the list before it ever gets here, so in
+// practice this filter is a no-op: an id-less or duplicate-id command has
+// already been given a fresh uuid and KEPT. That matters, because the persist
+// path below writes back the list this zone was seeded with — a filter that
+// silently dropped a real command would delete it from data.json on the first
+// reorder. The only thing it can still drop is a `null`/primitive hole, which
+// carries nothing.
+const renderable = $derived.by(() => {
+	const seen = new Set<string>();
+	if (!Array.isArray(commands)) return [];
+	return commands.filter((command) => {
+		if (typeof command !== "object" || command === null) return false;
+		const id = command.id;
+		if (typeof id !== "string" || id === "" || seen.has(id)) return false;
+		seen.add(id);
+		return true;
+	});
+});
+
 const isMobile = Platform.isMobile;
 // Desktop: drag is armed by grabbing the handle (shared with the choices list; see
 // createDragArming for the click-swallow failsafe). Mobile: no handle — the whole row
@@ -94,7 +120,9 @@ let startDrag = () => {
 // Keyboard reorder (ArrowUp/ArrowDown on a row's drag handle): move the command one
 // step and persist via the same snapshot path as a pointer drag's finalize.
 function moveCommand(id: string, direction: -1 | 1) {
-	const list = stripShadow(commands);
+	// `renderable`, not `commands`: stripShadow reads `item.id`, so the raw list
+	// would throw on the very hole the render filter exists to hide.
+	const list = stripShadow(renderable);
 	const index = list.findIndex((c) => c.id === id);
 	if (index === -1) return;
 	const target = index + direction;
@@ -112,7 +140,9 @@ function moveCommand(id: string, direction: -1 | 1) {
 }
 
 function updateCommand(command: ICommand) {
-	commands = replaceById(commands, command);
+	// `renderable` for the same reason as moveCommand: replaceById maps over
+	// `item.id`.
+	commands = replaceById(renderable, command);
 	persist();
 }
 
@@ -198,7 +228,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 <ol
 	class="quickAddCommandList"
 	use:dndzone={baseDndOptions({
-		items: commands,
+		items: renderable,
 		dragDisabled,
 		type: "command",
 		// A command's `.name` differs from its rendered label for Choice/Conditional
@@ -209,7 +239,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 	onconsider={handleConsider}
 	onfinalize={handleSort}
 >
-	{#each stripShadow(commands) as command (command.id)}
+	{#each stripShadow(renderable) as command (command.id)}
 		{#if command.type === CommandType.Wait}
 			<WaitCommand
 				command={asWait(command)}
