@@ -2,7 +2,10 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
+import {
+	mountFormatPreview,
+	type FormatPreviewHandle,
+} from "../ChoiceBuilder/components/mountFormatPreview.svelte";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
@@ -68,6 +71,9 @@ function formatTitlePart(value: unknown): string {
 }
 
 export class UserScriptSettingsModal extends Modal {
+	/** One per `type: "format"` option; a script may declare several. */
+	private previewHandles: FormatPreviewHandle[] = [];
+
 	constructor(
 		app: App,
 		private command: IUserScript,
@@ -89,6 +95,9 @@ export class UserScriptSettingsModal extends Modal {
 
 	protected display() {
 		this.containerEl.addClass("quickAddModal", "userScriptSettingsModal");
+		// Before empty(), not after: emptying orphans the mounted components
+		// instead of tearing them down.
+		this.destroyPreviews();
 		this.contentEl.empty();
 
 		const titleName = formatTitlePart(this.settings?.name ?? this.command.name);
@@ -313,29 +322,49 @@ export class UserScriptSettingsModal extends Modal {
 	private addFormatInput(name: string, value: string, placeholder?: string) {
 		const setting = new Setting(this.contentEl).setName(name);
 
-		const formatDisplay = this.contentEl.createEl("span");
 		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
-		const displayFormatter = new FormatDisplayFormatter(
-			this.app,
-			getQuickAddInstance()
-		);
+		input.inputEl.addClass("qa-user-script-format-textarea");
+
+		// Mounted AFTER the textarea, so the preview reads as a result of the field
+		// rather than as its label - it used to be created first and rendered above
+		// the input, the exact placement #1543 fixed in the choice builders.
+		const preview = mountFormatPreview(this.contentEl, {
+			app: this.app,
+			plugin: getQuickAddInstance(),
+			value,
+		});
+		this.previewHandles.push(preview);
 
 		input
 			.setValue(value)
-			.onChange(async (value) => {
+			.onChange((value) => {
 				this.command.settings[name] = value;
-				formatDisplay.innerText = await displayFormatter.format(value);
+				preview.setValue(value);
 				this.onCommandChange?.();
 			})
 			.setPlaceholder(placeholder ?? "");
 
-		input.inputEl.addClass("qa-user-script-format-textarea");
-
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(value)))();
-
 		return setting;
+	}
+
+	/**
+	 * Unmount every mounted preview.
+	 *
+	 * `display()` is re-entrant - the constructor calls it, and
+	 * `migrateSecretSettings()` calls it again from a `void`ed promise that can
+	 * land at any time - and it empties `contentEl`. Emptying the DOM does not
+	 * stop a Svelte component: each orphan would keep a live `$effect` and the
+	 * preview's 500ms diagnostics timer rescheduling forever.
+	 */
+	private destroyPreviews(): void {
+		for (const handle of this.previewHandles) handle.destroy();
+		this.previewHandles = [];
+	}
+
+	onClose(): void {
+		this.destroyPreviews();
+		super.onClose();
 	}
 
 	private async migrateSecretSettings() {
