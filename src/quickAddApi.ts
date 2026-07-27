@@ -52,7 +52,10 @@ import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
 import { InlineFieldParser } from "./utils/InlineFieldParser";
 import { MacroAbortError } from "./errors/MacroAbortError";
-import { UserCancelError } from "./errors/UserCancelError";
+import {
+	PROMPT_CANCELLED_MESSAGE,
+	UserCancelError,
+} from "./errors/UserCancelError";
 import { formatISODate } from "./utils/dateParser";
 import type { InputPromptOptions } from "./types/inputPrompt";
 import type { NumericInputConfig, SliderConfig } from "./utils/valueSyntax";
@@ -229,8 +232,7 @@ export class QuickAddApi {
 						try {
 							collected = await provider.requestInputs(missing);
 						} catch (error) {
-							throwIfPromptCancelled(error);
-							throw error;
+							rethrowPromptError(error);
 						}
 					} else {
 						const modal = new OnePageInputModal(
@@ -241,8 +243,7 @@ export class QuickAddApi {
 						try {
 							collected = await modal.waitForClose;
 						} catch (error) {
-							throwIfPromptCancelled(error);
-							throw error;
+							rethrowPromptError(error);
 						}
 					}
 				}
@@ -874,8 +875,7 @@ export class QuickAddApi {
 				options,
 			);
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 
@@ -905,8 +905,7 @@ export class QuickAddApi {
 			}
 			return value;
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 
@@ -927,8 +926,7 @@ export class QuickAddApi {
 				options,
 			);
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 
@@ -940,11 +938,10 @@ export class QuickAddApi {
 		try {
 			answer = await GenericYesNoPrompt.Ask(app, header, text);
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 
-		if (answer === null) throw new UserCancelError("Input cancelled by user");
+		if (answer === null) throw new UserCancelError(PROMPT_CANCELLED_MESSAGE);
 		return answer;
 	}
 
@@ -956,8 +953,7 @@ export class QuickAddApi {
 		try {
 			return await GenericInfoDialog.Show(app, header, text);
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 
@@ -1004,8 +1000,7 @@ export class QuickAddApi {
 				options?.renderItem,
 			);
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 
@@ -1022,17 +1017,34 @@ export class QuickAddApi {
 				? GenericCheckboxPrompt.Open(app, items, selectedItems)
 				: GenericCheckboxPrompt.Open(app, items, selectedItems, header));
 		} catch (error) {
-			throwIfPromptCancelled(error);
-			return undefined;
+			rethrowPromptError(error);
 		}
 	}
 }
 
-function throwIfPromptCancelled(error: unknown): void {
+/**
+ * The single error policy for every prompt on the script API surface.
+ *
+ * A dismissal becomes a `UserCancelError` (which the macro engine turns into a
+ * quiet abort); anything else propagates untouched. It returns `never`, which is
+ * the point: these wrappers used to call a `void` helper and then
+ * `return undefined`, so a genuine failure inside a modal - a throwing display
+ * callback, a bad argument, an Obsidian API error - was handed back to the script
+ * as "the user gave no input", with nothing logged and nothing shown (#1575).
+ * `never` makes that omission a compile error rather than a silent one.
+ *
+ * Not reported here on purpose: every path that runs a script already reports a
+ * propagating error exactly once (MacroChoiceEngine for user scripts,
+ * TemplateChoiceEngine for inline scripts, main.ts / choiceSuggester at the top),
+ * and `reportError` raises a 15-second Notice, so reporting here too would stack
+ * two or three notices for one failure.
+ */
+function rethrowPromptError(error: unknown): never {
 	if (error instanceof MacroAbortError) {
 		throw error;
 	}
 	if (isCancellationError(error)) {
-		throw new UserCancelError("Input cancelled by user");
+		throw new UserCancelError(PROMPT_CANCELLED_MESSAGE);
 	}
+	throw error;
 }

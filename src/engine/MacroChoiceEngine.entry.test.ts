@@ -874,11 +874,14 @@ describe("QuickAddApi prompt cancellation", () => {
 		).rejects.toThrow(MacroAbortError);
 	});
 
-	it("still resolves undefined for other prompt errors", async () => {
-		mockInputPrompt.mockRejectedValueOnce(new Error("boom"));
+	// A genuine failure must NOT come back as "the user gave no input" (#1575):
+	// the script would carry on and act on a value that was never entered.
+	it("propagates other prompt errors instead of resolving undefined", async () => {
+		const failure = new Error("boom");
+		mockInputPrompt.mockRejectedValueOnce(failure);
 
-		await expect(
-			QuickAddApi.inputPrompt(app, "Enter value"),
-		).resolves.toBeUndefined();
+		await expect(QuickAddApi.inputPrompt(app, "Enter value")).rejects.toBe(
+			failure,
+		);
 	});
 });
