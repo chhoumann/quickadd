@@ -6,7 +6,9 @@ import {
 	commandListOf,
 	hasCommandList,
 	isCommandLike,
+	isMacroObject,
 	isUnreadableCommandList,
+	isUnreadableMacro,
 	normalizeCommandList,
 	regenerateIds,
 } from "./macroUtils";
@@ -208,5 +210,40 @@ describe("regenerateIds", () => {
 	it("tolerates a macro that is not an object at all", () => {
 		expect(() => regenerateIds(null as unknown as IMacro)).not.toThrow();
 		expect(() => regenerateIds("x" as unknown as IMacro)).not.toThrow();
+	});
+});
+
+describe("isMacroObject / isUnreadableMacro", () => {
+	// An ARRAY is `typeof === "object"`, so the looser isCommandLike accepts one.
+	// That mattered: writing `macro.commands = [...]` onto an Array sets a
+	// non-index property, which JSON.stringify (i.e. saveData) silently drops -
+	// so the editor showed the user's new commands and every save discarded them.
+	it("rejects arrays, which cannot carry a macro's fields through JSON", () => {
+		expect(isMacroObject({})).toBe(true);
+		expect(isMacroObject({ id: "m", name: "M", commands: [] })).toBe(true);
+		expect(isMacroObject([])).toBe(false);
+		expect(isMacroObject([wait("a")])).toBe(false);
+		expect(isMacroObject(null)).toBe(false);
+		expect(isMacroObject("x")).toBe(false);
+	});
+
+	it("proves the JSON hazard the predicate exists for", () => {
+		const asArray: unknown = [];
+		(asArray as Record<string, unknown>).commands = [wait("new")];
+		expect(JSON.parse(JSON.stringify(asArray))).toEqual([]);
+	});
+
+	it.each([
+		["a macro object", {}, false],
+		["a populated macro object", { id: "m", commands: [] }, false],
+		["undefined", undefined, false],
+		["null", null, false],
+		["an empty array", [], false],
+		["an empty string", "", false],
+		["a populated array", [wait("a")], true],
+		["a string", "not a macro", true],
+		["a number", 7, true],
+	])("says whether %s could be carrying a macro", (_label, value, expected) => {
+		expect(isUnreadableMacro(value)).toBe(expected);
 	});
 });

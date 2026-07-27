@@ -904,8 +904,10 @@ function remapChoiceTree(
 
 	if (choice.type === "Macro") {
 		const macroChoice = choice as IMacroChoice;
-		// `macro` is untrusted too: an imported package can omit it entirely.
-		if (isDuplicated && macroChoice.macro) {
+		// `macro` is untrusted too: an imported package can omit it entirely, or
+		// carry a primitive where the object belongs (truthiness would let `"x"`
+		// through and then throw on the assignment).
+		if (isDuplicated && isCommandLike(macroChoice.macro)) {
 			macroChoice.macro.id = uuidv4();
 		}
 		remapCommands(
@@ -921,7 +923,10 @@ function remapChoiceTree(
 		const multi = choice as IMultiChoice;
 		if (Array.isArray(multi.choices)) {
 			multi.choices = multi.choices
-				.filter((child) => importableChoiceIds.has(child.id))
+				// A packaged folder's list can hold a `null` hole like any other
+				// (#1566); dereferencing it here aborted the whole import, taking
+				// healthy siblings with it.
+				.filter((child) => isChoiceLike(child) && importableChoiceIds.has(child.id))
 				.map((child) =>
 					remapChoiceTree(
 						child,

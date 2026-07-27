@@ -143,6 +143,89 @@ describe("SingleMacroEngine member access", () => {
 		});
 	});
 
+	// #1593: `commandListOf` converts the NON-ARRAY shapes, but a `null` hole
+	// INSIDE a real array sails straight through .map/.filter. This is the one
+	// entrypoint that was asymmetric: the same macro run WITHOUT `::member` was
+	// fine, because MacroChoiceEngine.executeCommands is record-guarded.
+	describe("over a malformed command list (#1593)", () => {
+		it("resolves the member through a list with a hole in it", async () => {
+			const userScript = createUserScript("user-script", "script.js");
+			const macroChoice = baseMacroChoice([
+				null as unknown as ICommand,
+				userScript,
+			]);
+
+			const engineInstance = macroEngineFactory();
+			macroEngineFactory = () => engineInstance;
+			mockGetUserScript.mockResolvedValue({ f: vi.fn().mockReturnValue("ok") });
+
+			const engine = new SingleMacroEngine(
+				app,
+				plugin,
+				[macroChoice],
+				choiceExecutor,
+			);
+
+			await expect(engine.runAndGetOutput("My Macro::f")).resolves.toBe("ok");
+		});
+
+		it.each([
+			["a string", "not a list"],
+			["an array-turned-object", { "0": {} }],
+			["null", null],
+		])("falls back to running the whole macro when commands is %s", async (
+			_label,
+			commands,
+		) => {
+			const macroChoice = baseMacroChoice(commands as unknown as ICommand[]);
+
+			const engineInstance = macroEngineFactory();
+			engineInstance.run = vi.fn().mockResolvedValue(undefined);
+			engineInstance.getOutput = vi.fn().mockReturnValue(undefined);
+			macroEngineFactory = () => engineInstance;
+			vi.spyOn(log, "logWarning").mockImplementation(() => {});
+
+			const engine = new SingleMacroEngine(
+				app,
+				plugin,
+				[macroChoice],
+				choiceExecutor,
+			);
+
+			// No throw: it cannot find a user-script command, so it runs the macro.
+			await expect(engine.runAndGetOutput("My Macro::f")).resolves.toBe("");
+			expect(engineInstance.run).toHaveBeenCalledTimes(1);
+		});
+
+		it("re-resolves past a hole a pre-command introduced", async () => {
+			const pre = { id: "pre", name: "Wait", type: CommandType.Wait } as ICommand;
+			const userScript = createUserScript("user-script", "script.js");
+			const macroChoice = baseMacroChoice([pre, userScript]);
+
+			const engineInstance = macroEngineFactory();
+			engineInstance.runSubset = vi.fn().mockImplementation(() => {
+				// A pre-command rewrote the list and left a hole in it.
+				macroChoice.macro.commands = [
+					pre,
+					null as unknown as ICommand,
+					userScript,
+				];
+				return Promise.resolve(undefined);
+			});
+			macroEngineFactory = () => engineInstance;
+			mockGetUserScript.mockResolvedValue({ f: vi.fn().mockReturnValue("ok") });
+
+			const engine = new SingleMacroEngine(
+				app,
+				plugin,
+				[macroChoice],
+				choiceExecutor,
+			);
+
+			await expect(engine.runAndGetOutput("My Macro::f")).resolves.toBe("ok");
+		});
+	});
+
 	it("runs the macro when no member access is requested", async () => {
 		const userScript = createUserScript("user-script", "script.js");
 		const macroChoice = baseMacroChoice([userScript]);

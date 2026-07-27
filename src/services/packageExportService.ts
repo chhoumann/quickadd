@@ -18,6 +18,7 @@ import { log } from "../logger/logManager";
 import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
 import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
 import { deepClone } from "../utils/deepClone";
+import { isChoiceLike } from "../utils/choiceUtils";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
 import {
 	detectUserScriptSecretOptions,
@@ -232,7 +233,9 @@ function pruneChoiceTree(
 	}
 
 	multi.choices = multi.choices
-		.filter((child) => includedIds.has(child.id))
+		// Same hole as the import side: a `null` in the folder's list is not a
+		// choice and must not be dereferenced (#1566).
+		.filter((child) => isChoiceLike(child) && includedIds.has(child.id))
 		.map((child) => {
 			pruneChoiceTree(child, includedIds);
 			return child;

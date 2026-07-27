@@ -19,10 +19,7 @@ import {
 	isChoiceLike,
 	rootChoicesOf,
 } from "../../utils/choiceUtils";
-import {
-	isCommandLike,
-	isUnreadableCommandList,
-} from "../../utils/macroUtils";
+import { isMacroObject, isUnreadableMacro } from "../../utils/macroUtils";
 import type { ICommand } from "../../types/macros/ICommand";
 import { v4 as uuidv4 } from "uuid";
 
@@ -118,7 +115,7 @@ export class MacroBuilder extends Modal {
 					// be missing from a hand-edited data.json; renaming the choice
 					// still has to work, so only sync a macro that is there.
 					this.choice.name = newName;
-					if (isCommandLike(this.macro)) this.macro.name = newName;
+					if (isMacroObject(this.macro)) this.macro.name = newName;
 					this.reload();
 				} catch {
 					// Prompt cancelled (Esc/Cancel) — keep the current name.
@@ -157,14 +154,23 @@ export class MacroBuilder extends Modal {
 	 * `choice.macro` is untrusted too, and a Macro choice whose `macro` key is
 	 * missing entirely used to make "Configure" do nothing at all: `display()`
 	 * runs from the constructor, before `open()`, so the throw took the modal with
-	 * it. When the value carries nothing there is nothing to lose and the editor
-	 * opens empty; when it is something we cannot read, it is passed straight
-	 * through so the editor shows its unreadable card rather than offering to
-	 * overwrite it.
+	 * it.
+	 *
+	 * Three cases, and `macro` being an ARRAY is the one worth naming: `[]` and
+	 * `[{...}]` are both objects, but writing `macro.commands` onto an Array sets
+	 * a non-index property that `JSON.stringify` drops, so the user's edits would
+	 * vanish on every save while the editor happily showed them. Handing the array
+	 * itself over as the command list instead means its entries render as the
+	 * commands they probably are, and `setMacroCommands` materializes a real macro
+	 * object around them on the first edit - nothing lost either way.
 	 */
 	private macroCommandsValue(): unknown {
-		if (isCommandLike(this.macro)) return this.macro.commands;
-		return isUnreadableCommandList(this.macro) ? this.macro : undefined;
+		if (isMacroObject(this.macro)) return this.macro.commands;
+		// Not a macro object. Hand the value itself over when it could be carrying
+		// something (an array renders as commands; a string gets the unreadable
+		// card); otherwise nothing, so the editor opens empty and the first edit
+		// materializes a real macro below.
+		return isUnreadableMacro(this.macro) ? this.macro : undefined;
 	}
 
 	/**
@@ -173,7 +179,7 @@ export class MacroBuilder extends Modal {
 	 * `macroCommandsValue` guarantees means nothing readable is being replaced.
 	 */
 	private setMacroCommands(commands: ICommand[]) {
-		if (!isCommandLike(this.macro)) {
+		if (!isMacroObject(this.macro)) {
 			this.macro = { id: uuidv4(), name: this.choice.name, commands };
 			this.choice.macro = this.macro;
 			return;

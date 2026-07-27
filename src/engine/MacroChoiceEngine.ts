@@ -59,7 +59,11 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
-import { commandListOf, isUnreadableCommandList } from "../utils/macroUtils";
+import {
+	commandListOf,
+	hasCommandList,
+	isUnreadableCommandList,
+} from "../utils/macroUtils";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 type UserScriptFunction = (
@@ -278,9 +282,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const commands = commandListOf(this.macro?.commands);
 		if (commands.length === 0) {
-			log.logError(
-				`No commands in the macro for choice '${this.choice.name}'`
-			);
+			// `commands: []` is the HEALTHY default (QuickAddMacro's constructor),
+			// so an empty list stays as quiet as it was before this guard existed -
+			// otherwise every freshly created macro, and every launch with an
+			// unpopulated run-on-startup macro, would raise a 15s error notice.
+			// Only a MISSING macro is worth saying anything about.
+			if (!hasCommandList(this.macro?.commands)) {
+				log.logError(
+					`No commands in the macro for choice '${this.choice.name}'`
+				);
+			}
 			return;
 		}
 

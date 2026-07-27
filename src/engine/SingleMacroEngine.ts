@@ -15,7 +15,11 @@ import {
 } from "../utils/userScriptSecrets";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
-import { commandListOf, hasCommandList } from "../utils/macroUtils";
+import {
+	commandListOf,
+	hasCommandList,
+	isCommandLike,
+} from "../utils/macroUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 
 // Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
@@ -218,6 +222,12 @@ export class SingleMacroEngine {
 			.map((command, index) => ({ command, index }))
 			.filter(
 				(entry): entry is { command: IUserScript; index: number } =>
+					// isCommandLike, not just the type check: commandListOf converts the
+					// NON-ARRAY shapes, but a `null` hole INSIDE a real array sails
+					// straight through .map/.filter. Without this, `[ok, null, ok]` threw
+					// here on the `{{MACRO:Name::member}}` path while the same macro ran
+					// fine without member access (#1593).
+					isCommandLike(entry.command) &&
 					entry.command.type === CommandType.UserScript,
 			);
 
@@ -257,6 +267,9 @@ export class SingleMacroEngine {
 			if (candidateId !== undefined) {
 				refreshedIndex = updatedCommands.findIndex(
 					(command) =>
+						// A pre-command can rewrite `commands` to include a hole; the
+						// hasCommandList guard above only rejects a non-array refresh.
+						isCommandLike(command) &&
 						command.id === candidateId &&
 						command.type === CommandType.UserScript,
 				);

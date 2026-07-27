@@ -14,6 +14,33 @@ export function isCommandLike(value: unknown): value is ICommand {
 }
 
 /**
+ * Whether `value` is a macro OBJECT we can read and write through.
+ *
+ * `isCommandLike` is not enough here, because `typeof [] === "object"`: an
+ * array-valued `macro` would pass it, and `macro.commands = [...]` on an Array
+ * writes a non-index property that `JSON.stringify` (i.e. `saveData`) and
+ * `$state.snapshot` both discard - so the user's edits would vanish on every
+ * save while the editor showed them happily.
+ */
+export function isMacroObject(
+	value: unknown,
+): value is Record<string, unknown> {
+	return isCommandLike(value) && !Array.isArray(value);
+}
+
+/**
+ * Whether a `macro` value is something we cannot read that could still be
+ * carrying a macro. Same "degrade quietly vs tell the user" line as
+ * {@link isUnreadableCommandList}, one level up: an empty array carries nothing
+ * (so the editor may replace it), a non-empty one might.
+ */
+export function isUnreadableMacro(value: unknown): boolean {
+	if (isMacroObject(value)) return false;
+	if (Array.isArray(value)) return value.length > 0;
+	return isUnreadableCommandList(value);
+}
+
+/**
  * A command list that is always safe to iterate, map or spread.
  *
  * `IMacro.commands` is declared `ICommand[]` and nothing enforces it. This is
