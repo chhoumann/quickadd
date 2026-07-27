@@ -1,8 +1,6 @@
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent, debounce } from "obsidian";
-import { FormatSyntaxSuggester } from "./../suggesters/formatSyntaxSuggester";
-import { getQuickAddInstance } from "src/quickAddInstance";
-import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
+import { mountSystemPromptLiteralNote } from "../ai/systemPromptLiteralNote";
 import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { estimateTokenCount } from "src/ai/tokenEstimator";
@@ -152,38 +150,30 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		container.appendChild(tokenCountNote);
 
 		const textAreaComponent = new TextAreaComponent(contentEl);
-		textAreaComponent
-			.setValue(this.settings.systemPrompt)
-			.onChange(async (value) => {
-				this.settings.systemPrompt = value;
-
-				formatDisplay.innerText = await displayFormatter.format(value);
-				updateTokenCount();
-			});
-
-		new FormatSyntaxSuggester(
-			this.app,
-			textAreaComponent.inputEl,
-			getQuickAddInstance()
-		);
-		const displayFormatter = new FormatDisplayFormatter(
-			this.app,
-			getQuickAddInstance()
-		);
-
 		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
 
-		const formatDisplay = this.contentEl.createEl("span");
+		// No format preview and no `{{` token autocomplete here: the system prompt
+		// is sent to the model verbatim (see mountSystemPromptLiteralNote). This
+		// path is the one that most obviously admitted it - the chunk budget below
+		// is sized with estimateTokenCount on the raw string.
+		const updateLiteralNote = mountSystemPromptLiteralNote(
+			contentEl,
+			this.settings.systemPrompt ?? "",
+		);
+
 		const updateTokenCount = debounce(() => {
 			tokenCount.innerText = `Estimated tokens: ${this.systemPromptTokenLength}`;
 		}, 50);
 
-		updateTokenCount();
+		textAreaComponent
+			.setValue(this.settings.systemPrompt)
+			.onChange((value) => {
+				this.settings.systemPrompt = value;
+				updateLiteralNote(value);
+				updateTokenCount();
+			});
 
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
-				this.settings.systemPrompt ?? ""
-			)))();
+		updateTokenCount();
 	}
 
 	addShowAdvancedSettingsToggle(container: HTMLElement) {

@@ -660,6 +660,25 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/* "This field is sent as written" note under a system prompt that contains `{{`
+   (#1565/#1568). Muted and font-ui-smaller to match .qa-ai-token-note directly
+   above it in the same modals: like that line it states how the field behaves,
+   rather than flagging the value as wrong - a `{{` a user wants the model to
+   read literally is a legitimate thing to type here.
+
+   Hidden by default rather than created on demand, so it can be appended in DOM
+   order under the field it belongs to instead of at the end of the modal. */
+.qa-literal-format-note {
+	display: none;
+	margin: -0.5em 0 1em;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.qa-literal-format-note--shown {
+	display: block;
+}
+
 .qa-command-button-row {
 	display: flex;
 	justify-content: flex-end;

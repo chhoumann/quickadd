@@ -1,0 +1,242 @@
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+
+/**
+ * The three system-prompt modals must not offer a format affordance: the system
+ * prompt reaches the model verbatim (pinned by
+ * AIAssistant.systemPromptLiteral.test.ts), so a live preview resolving its
+ * tokens asserted a substitution that never happens (#1565), and on the shipped
+ * token-free default it was a character-for-character duplicate of the textarea
+ * above it (#1568).
+ *
+ * The two mocks below are the load-bearing assertions: they COUNT construction.
+ * A test that only queried the DOM would keep passing if someone reinstated the
+ * formatter but rendered it somewhere new.
+ */
+
+const mocks = vi.hoisted(() => ({
+	formatDisplayFormatter: vi.fn(),
+	formatSyntaxSuggester: vi.fn(),
+}));
+
+vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+vi.mock("src/settingsStore", () => ({
+	settingsStore: {
+		getState: () => ({
+			ai: {
+				promptTemplatesFolderPath: "",
+				showAssistant: false,
+				providers: [
+					{
+						id: "test",
+						name: "TestProvider",
+						endpoint: "https://example.test/v1",
+						apiKey: "",
+						models: [{ name: "gpt-test", maxTokens: 1000 }],
+						modelSource: "providerApi",
+					},
+				],
+			},
+			disableOnlineFeatures: false,
+		}),
+	},
+}));
+vi.mock("src/quickAddInstance", () => ({
+	getQuickAddInstance: vi.fn(() => ({})),
+}));
+vi.mock("src/utilityObsidian", () => ({
+	getMarkdownFilesInFolder: vi.fn(() => []),
+	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+// Partial: the Infinite modal's chunk-budget slider reaches
+// estimateModelInputBudget through aiHelpers, so only the count is stubbed.
+vi.mock("src/ai/tokenEstimator", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	estimateTokenCount: vi.fn(() => 0),
+}));
+vi.mock("src/gui/suggesters/genericTextSuggester", () => ({
+	GenericTextSuggester: class {},
+}));
+vi.mock("src/formatters/formatDisplayFormatter", () => ({
+	FormatDisplayFormatter: class {
+		constructor(...args: unknown[]) {
+			mocks.formatDisplayFormatter(...args);
+		}
+		async format(input: string) {
+			return input;
+		}
+	},
+}));
+vi.mock("src/gui/suggesters/formatSyntaxSuggester", () => ({
+	FormatSyntaxSuggester: class {
+		constructor(...args: unknown[]) {
+			mocks.formatSyntaxSuggester(...args);
+		}
+	},
+}));
+
+import { App } from "obsidian";
+import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
+import type { QuickAddSettings } from "src/settings";
+import { AIAssistantSettingsModal } from "src/gui/AIAssistantSettingsModal";
+import { AIAssistantCommandSettingsModal } from "src/gui/MacroGUIs/AIAssistantCommandSettingsModal";
+import { InfiniteAIAssistantCommandSettingsModal } from "src/gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
+
+const PROSE_PROMPT = "As an AI assistant within Obsidian, help the user.";
+const TOKENED_PROMPT = "Today is {{DATE}}. Help the user.";
+
+function testApp(): App {
+	const app = new App() as App & {
+		dom: { appContainerEl: HTMLElement };
+		keymap: { pushScope: () => void; popScope: () => void };
+	};
+	app.dom = { appContainerEl: document.body };
+	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
+	return app;
+}
+
+function aiSettings(defaultSystemPrompt: string): QuickAddSettings["ai"] {
+	return {
+		defaultModel: "gpt-test",
+		defaultSystemPrompt,
+		promptTemplatesFolderPath: "",
+		showAssistant: false,
+		providers: [],
+	} as unknown as QuickAddSettings["ai"];
+}
+
+function aiCommand(systemPrompt: string): IAIAssistantCommand {
+	return {
+		id: "ai-1",
+		name: "AI Assistant",
+		type: "AIAssistant",
+		model: "gpt-test",
+		systemPrompt,
+		outputVariableName: "output",
+		modelParameters: {},
+		promptTemplate: { enable: false, name: "" },
+	} as IAIAssistantCommand;
+}
+
+function infiniteCommand(systemPrompt: string): IInfiniteAIAssistantCommand {
+	return {
+		...aiCommand(systemPrompt),
+		resultJoiner: "\\n",
+		chunkSeparator: "\\n",
+		maxChunkTokens: 100,
+		mergeChunks: false,
+	} as unknown as IInfiniteAIAssistantCommand;
+}
+
+/** Each modal, paired with a factory that opens it and returns its contentEl. */
+const MODALS: Array<{
+	name: string;
+	open: (systemPrompt: string) => { contentEl: HTMLElement; close: () => void };
+}> = [
+	{
+		name: "AIAssistantSettingsModal (default system prompt)",
+		open: (systemPrompt) => {
+			const modal = new AIAssistantSettingsModal(
+				testApp(),
+				aiSettings(systemPrompt),
+			);
+			return { contentEl: modal.contentEl, close: () => modal.close() };
+		},
+	},
+	{
+		name: "AIAssistantCommandSettingsModal (system prompt)",
+		open: (systemPrompt) => {
+			const modal = new AIAssistantCommandSettingsModal(
+				testApp(),
+				aiCommand(systemPrompt),
+			);
+			return { contentEl: modal.contentEl, close: () => modal.close() };
+		},
+	},
+	{
+		name: "InfiniteAIAssistantCommandSettingsModal (system prompt)",
+		open: (systemPrompt) => {
+			const modal = new InfiniteAIAssistantCommandSettingsModal(
+				testApp(),
+				infiniteCommand(systemPrompt),
+			);
+			return { contentEl: modal.contentEl, close: () => modal.close() };
+		},
+	},
+];
+
+function promptTextarea(contentEl: HTMLElement): HTMLTextAreaElement {
+	const textarea = contentEl.querySelector<HTMLTextAreaElement>(
+		"textarea.qa-ai-prompt-textarea",
+	);
+	if (!textarea) throw new Error("System prompt textarea not found");
+	return textarea;
+}
+
+describe("AI system-prompt fields offer no format affordance", () => {
+	beforeAll(() => {
+		// The obsidian stub's Modal has no onClose; the modals call super.onClose().
+		for (const Ctor of [
+			AIAssistantSettingsModal,
+			AIAssistantCommandSettingsModal,
+			InfiniteAIAssistantCommandSettingsModal,
+		]) {
+			const proto = Object.getPrototypeOf(Ctor.prototype) as {
+				onClose?: () => void;
+			};
+			proto.onClose ??= function onClose() {};
+		}
+	});
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		document.body.innerHTML = "";
+	});
+
+	for (const { name, open } of MODALS) {
+		describe(name, () => {
+			it("builds no preview formatter and no token autocomplete", () => {
+				const { contentEl, close } = open(PROSE_PROMPT);
+
+				expect(mocks.formatDisplayFormatter).not.toHaveBeenCalled();
+				expect(mocks.formatSyntaxSuggester).not.toHaveBeenCalled();
+				// #1568: no bare span echoing the prompt back under the field.
+				expect(contentEl.textContent).not.toContain(PROSE_PROMPT);
+				expect(promptTextarea(contentEl).value).toBe(PROSE_PROMPT);
+
+				close();
+			});
+
+			it("stays quiet for a prose prompt and explains itself once a token appears", () => {
+				const { contentEl, close } = open(PROSE_PROMPT);
+				const note = contentEl.querySelector(".qa-literal-format-note");
+				expect(note).not.toBeNull();
+				expect(
+					note?.classList.contains("qa-literal-format-note--shown"),
+				).toBe(false);
+
+				const textarea = promptTextarea(contentEl);
+				textarea.value = TOKENED_PROMPT;
+				textarea.dispatchEvent(new Event("input", { bubbles: true }));
+
+				expect(
+					note?.classList.contains("qa-literal-format-note--shown"),
+				).toBe(true);
+
+				close();
+			});
+
+			it("shows the note immediately when the stored prompt already has a token", () => {
+				const { contentEl, close } = open(TOKENED_PROMPT);
+
+				expect(
+					contentEl
+						.querySelector(".qa-literal-format-note")
+						?.classList.contains("qa-literal-format-note--shown"),
+				).toBe(true);
+
+				close();
+			});
+		});
+	}
+});

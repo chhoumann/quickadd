@@ -136,6 +136,52 @@ export class ToggleComponent extends BaseComponent {
   }
 }
 
+export class SliderComponent extends BaseComponent {
+  sliderEl: HTMLInputElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.sliderEl = document.createElement("input");
+    this.sliderEl.type = "range";
+    containerEl.appendChild(this.sliderEl);
+  }
+
+  setLimits(min: number, max: number, step: number): this {
+    this.sliderEl.min = String(min);
+    this.sliderEl.max = String(max);
+    this.sliderEl.step = String(step);
+    return this;
+  }
+
+  setValue(value: number): this {
+    this.sliderEl.value = String(value);
+    return this;
+  }
+
+  getValue(): number {
+    return Number(this.sliderEl.value);
+  }
+
+  setInstant(): this {
+    return this;
+  }
+
+  setDynamicTooltip(): this {
+    return this;
+  }
+
+  setTooltip(): this {
+    return this;
+  }
+
+  onChange(cb: (value: number) => void): this {
+    this.sliderEl.addEventListener("change", () =>
+      cb(Number(this.sliderEl.value)),
+    );
+    return this;
+  }
+}
+
 export class DropdownComponent extends BaseComponent {
   selectEl: HTMLSelectElement;
 
@@ -318,6 +364,11 @@ export class Setting {
 
   addDropdown(cb: (component: DropdownComponent) => any): this {
     cb(new DropdownComponent(this.controlEl));
+    return this;
+  }
+
+  addSlider(cb: (component: SliderComponent) => any): this {
+    cb(new SliderComponent(this.controlEl));
     return this;
   }
 

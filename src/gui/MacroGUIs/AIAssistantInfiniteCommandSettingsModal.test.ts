@@ -1,5 +1,5 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Setting } from "obsidian";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "obsidian";
 import { DEFAULT_SETTINGS } from "src/settings";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
@@ -45,28 +45,6 @@ function makeSettings(model: string): IInfiniteAIAssistantCommand {
 }
 
 describe("InfiniteAIAssistantCommandSettingsModal max-chunk-tokens", () => {
-	beforeAll(() => {
-		// The shared obsidian stub's Setting lacks addSlider; shim it locally so
-		// the modal can render the Max chunk tokens slider (documented harness gap).
-		const settingProto = Setting.prototype as unknown as {
-			addSlider?: (cb: (slider: unknown) => void) => unknown;
-		};
-		settingProto.addSlider ??= function addSlider(
-			this: unknown,
-			cb: (slider: unknown) => void,
-		) {
-			const slider = {
-				setLimits: () => slider,
-				setValue: () => slider,
-				setInstant: () => slider,
-				setDynamicTooltip: () => slider,
-				onChange: () => slider,
-			};
-			cb(slider);
-			return this;
-		};
-	});
-
 	beforeEach(() => {
 		settingsStore.replaceState(deepClone(DEFAULT_SETTINGS));
 	});
