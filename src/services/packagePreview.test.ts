@@ -331,8 +331,10 @@ describe("buildPackagePreview - choice flags & dedupe", () => {
 	it("stops promising AI for a legacy InfiniteAIAssistant command", () => {
 		// It used to share the AIAssistant row, so the disclosure said "Sends note
 		// content to your AI provider" for a step the engine could not run at all.
-		// With the type removed it falls to the unknown-command row, which is the
-		// honest answer: QuickAdd genuinely does not know what this step is.
+		// With the type removed it falls to the unknown-command row - a warning to
+		// review it by hand, which beats a promise the step cannot keep. (The
+		// engine still names the retired type by name when the macro runs; the
+		// preview deliberately derives its vocabulary from the live enum.)
 		const m = macro("m1", "Legacy", [
 			{
 				id: "c1",

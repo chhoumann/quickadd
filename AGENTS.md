@@ -49,9 +49,10 @@ brief that a skill-less agent still needs.
 
 - Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
   id=quickadd`; the runner's ready probe is `quickadd:list`. Run a choice with
-  `pnpm run obsidian:e2e -- quickadd:run choice=<name>`, and drive anything else
-  through `pnpm run obsidian:e2e -- eval code=<javascript>` (an expression, not
-  statements; wrap async work in an IIFE).
+  `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that `ok:true`
+  means the run finished, not that it did what you wanted. Drive anything else
+  through `pnpm run obsidian:e2e -- eval code=<javascript>`; top-level `await`
+  is not allowed there, so wrap async work in an IIFE the eval can await.
 - The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
   `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the
