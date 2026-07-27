@@ -3,11 +3,16 @@ import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import {
+	childChoicesOf,
 	dedupeChoicesById,
 	defaultIconForChoiceType,
 	flattenChoices,
 	flattenChoicesWithPath,
+	hasChildChoices,
+	hasUnreadableChildren,
 	resolveChoiceIcon,
+	rootChoicesOf,
+	treeHasUnreadableChildren,
 } from "./choiceUtils";
 
 let idCounter = 0;
@@ -130,7 +135,7 @@ describe("dedupeChoicesById", () => {
 		const dup = (): IChoice => withId("d", "supprimer taches dones");
 		const folder = multiWithId("folder", [withId("a"), dup(), dup()]);
 		const deduped = dedupeChoicesById([folder])[0] as IMultiChoice;
-		expect(deduped.choices.map((c) => c.id)).toEqual(["a", "d"]);
+		expect(deduped.choices!.map((c) => c.id)).toEqual(["a", "d"]);
 	});
 
 	it("re-ids a DIVERGENT same-id choice instead of dropping it (no data lost)", () => {
@@ -158,7 +163,7 @@ describe("dedupeChoicesById", () => {
 		const rebuilt = result[1] as IMultiChoice;
 		expect(rebuilt.id).not.toBe("m");
 		expect(rebuilt.id).toMatch(UUID_RE);
-		expect(rebuilt.choices.map((c) => c.id)).toEqual(["child2"]); // not lost
+		expect(rebuilt.choices!.map((c) => c.id)).toEqual(["child2"]); // not lost
 	});
 
 	it("de-dups globally across nesting levels (identical child re-using a top id -> dropped)", () => {
@@ -166,7 +171,7 @@ describe("dedupeChoicesById", () => {
 			withId("shared"),
 			multiWithId("m", [withId("shared"), withId("ok")]),
 		])[1] as IMultiChoice;
-		expect(folder.choices.map((c) => c.id)).toEqual(["ok"]);
+		expect(folder.choices!.map((c) => c.id)).toEqual(["ok"]);
 	});
 
 	it("produces a fully unique id set when there were collisions", () => {
@@ -256,5 +261,148 @@ describe("resolveChoiceIcon", () => {
 		};
 		expect(() => resolveChoiceIcon(bad)).not.toThrow();
 		expect(resolveChoiceIcon(bad)).toBe("file-text");
+	});
+});
+
+describe("malformed `choices` values (#1566)", () => {
+	const cases: [string, unknown][] = [
+		["missing", undefined],
+		["null", null],
+		["empty object", {}],
+		["array-like object", { "0": choice("Hidden") }],
+		["string", "nope"],
+		["number", 7],
+	];
+
+	function brokenFolder(children: unknown): IChoice {
+		const node: Record<string, unknown> = {
+			id: "broken",
+			name: "Broken",
+			type: "Multi",
+			command: false,
+			collapsed: false,
+		};
+		if (children !== undefined) node.choices = children;
+		return node as unknown as IChoice;
+	}
+
+	describe.each(cases)("children = %s", (_label, value) => {
+		const folder = brokenFolder(value);
+
+		it("reads as no children", () => {
+			expect(childChoicesOf(folder)).toEqual([]);
+		});
+
+		it("is refused by the write guard", () => {
+			expect(hasChildChoices(folder)).toBe(false);
+		});
+
+		it("does not stop a flatten from reaching later choices", () => {
+			const tail = choice("Tail");
+			expect(flattenChoices([folder, tail])).toContain(tail);
+			expect(
+				flattenChoicesWithPath([folder, tail]).map((e) => e.id),
+			).toContain(tail.id);
+		});
+	});
+
+	it("only calls a folder unreadable when the value could still hold choices", () => {
+		expect(hasUnreadableChildren(brokenFolder(undefined))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder(null))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder({}))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder([]))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder({ "0": choice("x") }))).toBe(true);
+		expect(hasUnreadableChildren(brokenFolder("nope"))).toBe(true);
+		expect(hasUnreadableChildren(choice("A leaf"))).toBe(false);
+	});
+
+	it("hands a well-formed folder back the very same array", () => {
+		const children = [choice("Kid")];
+		const healthy = multi("Healthy", children);
+		expect(childChoicesOf(healthy)).toBe(children);
+		expect(hasChildChoices(healthy)).toBe(true);
+	});
+
+	it("treats a non-array root as an empty list", () => {
+		expect(rootChoicesOf(undefined)).toEqual([]);
+		expect(rootChoicesOf({})).toEqual([]);
+		expect(rootChoicesOf(null)).toEqual([]);
+		const real = [choice("A")];
+		expect(rootChoicesOf(real)).toBe(real);
+	});
+
+	it("walks past a hole in the list instead of throwing on it", () => {
+		const tail = choice("Tail");
+		const tree = [null as unknown as IChoice, "x" as unknown as IChoice, tail];
+		expect(flattenChoices(tree)).toEqual([tail]);
+		expect(flattenChoicesWithPath(tree).map((e) => e.id)).toEqual([tail.id]);
+	});
+
+	it("keeps a hole in the list verbatim through dedupeChoicesById", () => {
+		// This runs inside loadSettings, ~200 lines before addSettingTab: a throw
+		// here costs the settings tab and every command, not just one row.
+		const a = choice("A");
+		const tree = [null as unknown as IChoice, a, undefined as unknown as IChoice];
+		const out = dedupeChoicesById(tree);
+		expect(out).toEqual([null, a, undefined]);
+	});
+
+	it("leaves a malformed folder's `choices` value exactly as it found it", () => {
+		const blob = { "0": choice("Hidden") };
+		const folder = brokenFolder(blob);
+		const deduped = dedupeChoicesById([folder])[0] as unknown as Record<
+			string,
+			unknown
+		>;
+		expect(deduped.choices).toBe(blob);
+	});
+});
+
+describe("treeHasUnreadableChildren (#1566)", () => {
+	function brokenFolder(children: unknown, id = "broken"): IChoice {
+		const node: Record<string, unknown> = {
+			id,
+			name: id,
+			type: "Multi",
+			command: false,
+			collapsed: false,
+		};
+		if (children !== undefined) node.choices = children;
+		return node as unknown as IChoice;
+	}
+
+	it("is false for a tree it can read end to end", () => {
+		expect(treeHasUnreadableChildren([])).toBe(false);
+		expect(
+			treeHasUnreadableChildren([
+				choice("Leaf"),
+				multi("Folder", [multi("Nested", [choice("Deep")])]),
+			]),
+		).toBe(false);
+	});
+
+	it("is true for an unreadable root", () => {
+		expect(treeHasUnreadableChildren(undefined)).toBe(true);
+		expect(treeHasUnreadableChildren({})).toBe(true);
+	});
+
+	it("is true for an unreadable folder at any depth", () => {
+		// The whole point: a root-only check passes this, and the migration that
+		// relies on it then destroys data it could not see.
+		expect(treeHasUnreadableChildren([brokenFolder({})])).toBe(true);
+		expect(
+			treeHasUnreadableChildren([multi("Folder", [brokenFolder(undefined)])]),
+		).toBe(true);
+		expect(
+			treeHasUnreadableChildren([
+				multi("Outer", [multi("Inner", [brokenFolder(null)])]),
+			]),
+		).toBe(true);
+	});
+
+	it("steps over a hole in the list rather than calling it unreadable", () => {
+		expect(
+			treeHasUnreadableChildren([null as unknown as IChoice, choice("Leaf")]),
+		).toBe(false);
 	});
 });

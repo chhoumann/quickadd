@@ -8,6 +8,7 @@
     import { baseDndOptions, stripShadow } from "../shared/dndReorder";
     import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
+    import { isChoiceLike, rootChoicesOf } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -45,6 +46,24 @@
         // up. False/absent at the root level.
         nested?: boolean;
     } = $props();
+
+    // Everything rendered and handed to the dnd zone is filtered to entries that
+    // are actually renderable choices: an object with an id. `data.json` is
+    // untrusted, so the list can contain a hole (a `null` or a stray primitive
+    // from a bad hand-edit or a truncated write) or an object with no id at all.
+    // svelte-dnd-action reads `.id` on every item, and the keyed {#each} needs
+    // that id to be present AND unique - two id-less entries raise
+    // `each_key_duplicate`, the #1451 crash, which without this filter blanks the
+    // entire list (#1566).
+    //
+    // Render-time view only. Nothing here rewrites the tree; a junk entry stays in
+    // data.json until an edit walks past it. It cannot be hiding a choice - only a
+    // Multi's `choices` value can, and that is preserved separately.
+    const renderable = $derived(
+        rootChoicesOf(choices).filter(
+            (choice) => isChoiceLike(choice) && typeof choice.id === "string" && choice.id !== "",
+        ),
+    );
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
@@ -109,7 +128,9 @@
     // through MultiChoiceListItem's nestedActions just like a drag does.
     function moveChoice(choice: IChoice, direction: -1 | 1) {
         if (forceDragDisabled) return; // never persist a filtered/derived list
-        const list = stripShadow(choices);
+        // `renderable`, not `choices`: stripShadow reads `item.id`, so the raw
+        // list would throw on the very hole the render filter exists to hide.
+        const list = stripShadow(renderable);
         const index = list.findIndex((c) => c.id === choice.id);
         if (index === -1) return;
         const target = index + direction;
@@ -128,14 +149,14 @@
 </script>
 
 <div
-        use:dndzone={baseDndOptions({items: choices, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
+        use:dndzone={baseDndOptions({items: renderable, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
         class:qa-nested={nested}
         class:qa-folder-empty={isEmptyFolder}
-        class:qa-empty={choices.length === 0}>
-    {#each stripShadow(choices) as choice (choice.id)}
+        class:qa-empty={renderable.length === 0}>
+    {#each stripShadow(renderable) as choice (choice.id)}
         <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
              Must stay margin/padding/border-less (the 2px inter-row margin lives on
              the inner row). data-choice-id stays on the inner row for tests/menus. -->

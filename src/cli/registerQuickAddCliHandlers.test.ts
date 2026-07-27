@@ -44,7 +44,7 @@ function flattenChoices(
 			byName.set(choice.name, choice);
 			byId.set(choice.id, choice);
 			if (choice.type === "Multi") {
-				walk((choice as IMultiChoice).choices);
+				walk((choice as IMultiChoice).choices!);
 			}
 		}
 	};

@@ -6,6 +6,7 @@ import type { IConditionalCommand } from "../../types/macros/Conditional/ICondit
 import { CommandType } from "../../types/macros/CommandType";
 import type { ICommand } from "../../types/macros/ICommand";
 import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
+import { rootChoicesOf } from "../../utils/choiceUtils";
 
 export type ChoiceVisitor = (choice: IChoice) => void;
 export type CommandVisitor = (command: ICommand) => void;
@@ -88,7 +89,9 @@ function walkSettings(
 ): void {
 	const visited = new Set<IChoice>();
 
-	for (const choice of settings.choices) {
+	// The ROOT `choices` is untrusted too: loadSettings deliberately leaves a
+	// non-array value in place rather than replacing it with [] (#1566).
+	for (const choice of rootChoicesOf(settings.choices)) {
 		walkChoice(choice, visitors, visited);
 	}
 

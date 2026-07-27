@@ -4,7 +4,8 @@ import type { IMacro } from "src/types/macros/IMacro";
 import { deepClone } from "src/utils/deepClone";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
-import type { Migration } from "./Migrations";
+import type { Migration, MigrationResult } from "./Migrations";
+import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 
 type OldTemplateChoice = {
 	type?: string;
@@ -65,20 +66,29 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	description:
 		"'Increment file name' setting moved to 'Set default behavior if file already exists' setting",
 	 
-	migrate: async (plugin: QuickAdd): Promise<void> => {
+	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		const choicesCopy = deepClone(plugin.settings.choices);
-		const choices = recursiveRemoveIncrementFileName(choicesCopy);
+
+		// See the sibling migrations (#1566): never rewrite a corrupt root with [],
+		// and stay PENDING when the choices half could not run, so a vault repaired
+		// by hand is still migrated.
+		const treeReadable = !treeHasUnreadableChildren(plugin.settings.choices);
+		if (Array.isArray(plugin.settings.choices)) {
+			const choicesCopy = deepClone(plugin.settings.choices);
+			plugin.settings.choices = deepClone(
+				recursiveRemoveIncrementFileName(choicesCopy),
+			);
+		}
 
 		const macrosCopy = deepClone(settings.macros ?? []);
 		const macros = removeIncrementFileName(macrosCopy);
-
-		plugin.settings.choices = deepClone(choices);
 		
 		// Save the migrated macros back to settings - later migrations still need it
 		settings.macros = macros;
 		
 		// DO NOT delete macros here – later migrations still need it.
+
+		if (!treeReadable) return { complete: false };
 	},
 };
 

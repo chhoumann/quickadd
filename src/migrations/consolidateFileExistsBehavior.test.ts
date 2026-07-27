@@ -208,17 +208,18 @@ describe("consolidateFileExistsBehavior migration", () => {
 		).toBeUndefined();
 	});
 
-	it("treats malformed persisted choice and macro collections as empty arrays", async () => {
-		const plugin = {
-			settings: {
-				choices: { invalid: true },
-				macros: "invalid",
-			},
-		} as any;
+	it("walks past malformed persisted collections without replacing them", async () => {
+		// It used to overwrite both with [], which the next ordinary save would
+		// persist - a migration destroying the very data a user would need to
+		// recover by hand (#1566). Walking past them is enough: the migration has
+		// nothing to normalize in a value it cannot read.
+		const choices = { invalid: true };
+		const macros = "invalid";
+		const plugin = { settings: { choices, macros } } as any;
 
 		await migration.migrate(plugin);
 
-		expect(plugin.settings.choices).toEqual([]);
-		expect(plugin.settings.macros).toEqual([]);
+		expect(plugin.settings.choices).toBe(choices);
+		expect(plugin.settings.macros).toBe(macros);
 	});
 });

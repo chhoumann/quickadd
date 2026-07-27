@@ -11,7 +11,12 @@ import {
 	isQuickAddPackage,
 	QUICKADD_PACKAGE_SCHEMA_VERSION,
 } from "../types/packages/QuickAddPackage";
-import { flattenChoices } from "../utils/choiceUtils";
+import {
+	childChoicesOf,
+	flattenChoices,
+	hasUnreadableChildren,
+	isChoiceLike,
+} from "../utils/choiceUtils";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -352,12 +357,9 @@ function findUncarriedChildChoiceId(
 		if (!parentEntry) continue;
 
 		const parent = parentEntry.choice;
-		const carriedInline =
-			parent.type === "Multi" &&
-			Array.isArray((parent as IMultiChoice).choices) &&
-			(parent as IMultiChoice).choices.some(
-				(child) => child?.id === entry.choice.id,
-			);
+		const carriedInline = childChoicesOf(parent).some(
+			(child) => child?.id === entry.choice.id,
+		);
 		if (!carriedInline) return entry.choice.id;
 	}
 
@@ -713,8 +715,7 @@ export async function applyPackageImport(
 				updatedChoices,
 				entry.pathHint.slice(0, -1),
 			);
-			if (parentByPath) {
-				insertIntoMulti(parentByPath, choiceClone);
+			if (parentByPath && insertIntoMulti(parentByPath, choiceClone)) {
 				addedChoiceIds.push(finalId);
 				handledChoices.add(originalId);
 				continue;
@@ -725,7 +726,9 @@ export async function applyPackageImport(
 		}
 
 		// Default: append to root
-		const existingIndex = updatedChoices.findIndex((c) => c.id === finalId);
+		const existingIndex = updatedChoices.findIndex(
+			(c) => isChoiceLike(c) && c.id === finalId,
+		);
 		if (existingIndex !== -1) {
 			updatedChoices.splice(existingIndex, 1, choiceClone);
 			overwrittenChoiceIds.push(finalId);
@@ -992,15 +995,13 @@ function remapCommands(
 function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): boolean {
 	for (let i = 0; i < choices.length; i++) {
 		const current = choices[i];
+		if (!isChoiceLike(current)) continue;
 		if (current.id === replacement.id) {
 			choices.splice(i, 1, replacement);
 			return true;
 		}
-		if (current.type === "Multi") {
-			const multi = current as IMultiChoice;
-			if (multi.choices && replaceChoiceInTree(multi.choices, replacement)) {
-				return true;
-			}
+		if (replaceChoiceInTree(childChoicesOf(current), replacement)) {
+			return true;
 		}
 	}
 	return false;
@@ -1012,30 +1013,37 @@ function insertUnderParent(
 	child: IChoice,
 ): boolean {
 	for (const choice of choices) {
+		if (!isChoiceLike(choice)) continue;
 		if (choice.id === parentId && choice.type === "Multi") {
-			insertIntoMulti(choice as IMultiChoice, child);
-			return true;
+			return insertIntoMulti(choice as IMultiChoice, child);
 		}
-		if (choice.type === "Multi") {
-			const multi = choice as IMultiChoice;
-			if (multi.choices && insertUnderParent(multi.choices, parentId, child)) {
-				return true;
-			}
+		if (insertUnderParent(childChoicesOf(choice), parentId, child)) {
+			return true;
 		}
 	}
 	return false;
 }
 
-function insertIntoMulti(parent: IMultiChoice, child: IChoice): void {
+/**
+ * Returns false when the parent's existing children could not be read: importing
+ * INTO such a folder would replace whatever data.json still holds under it with
+ * a one-element array. Callers fall back to a root append, so the imported
+ * choice still lands somewhere rather than costing the user that value (#1566).
+ */
+function insertIntoMulti(parent: IMultiChoice, child: IChoice): boolean {
 	if (!Array.isArray(parent.choices)) {
+		if (hasUnreadableChildren(parent)) return false;
 		parent.choices = [];
 	}
-	const idx = parent.choices.findIndex((choice) => choice.id === child.id);
+	const idx = parent.choices.findIndex(
+		(choice) => isChoiceLike(choice) && choice.id === child.id,
+	);
 	if (idx !== -1) {
 		parent.choices.splice(idx, 1, child);
 	} else {
 		parent.choices.push(child);
 	}
+	return true;
 }
 
 function findMultiByPath(
@@ -1048,11 +1056,14 @@ function findMultiByPath(
 
 	for (const segment of path) {
 		const next = currentChoices.find(
-			(choice) => choice.type === "Multi" && choice.name === segment,
+			(choice) =>
+				isChoiceLike(choice) &&
+				choice.type === "Multi" &&
+				choice.name === segment,
 		) as IMultiChoice | undefined;
 		if (!next) return null;
 		currentMulti = next;
-		currentChoices = next.choices ?? [];
+		currentChoices = childChoicesOf(next);
 	}
 
 	return currentMulti;

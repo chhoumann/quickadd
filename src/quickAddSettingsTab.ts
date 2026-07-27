@@ -14,6 +14,7 @@ import {
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
+import ChoicesUnavailable from "./gui/choiceList/ChoicesUnavailable.svelte";
 import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import type { Plain } from "./gui/svelte/persist.svelte";
 import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
@@ -35,6 +36,8 @@ import {
 } from "./utils/dateAliases";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
+import { rootChoicesOf } from "./utils/choiceUtils";
+import { reportError } from "./utils/errorUtils";
 
 /** String-named keys of {@link QuickAddSettings} — used to type the declarative
  * `control` keys so a mistyped key is caught at compile time. */
@@ -406,11 +409,44 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.controlEl.addClass("qa-setting-full-width-control");
 	}
 
+	/**
+	 * Last line of defence for the whole tab. The declarative framework builds
+	 * every group by calling these `render` closures in turn, so a throw out of
+	 * one of them abandons the rest: when ChoiceView's mount threw, QuickAdd's
+	 * settings came up as a lone "Choices & packages" heading with nothing under
+	 * it, and no other section rendered at all (#1451, #1507, #1566).
+	 *
+	 * ChoiceView has its own <svelte:boundary> for reactive failures inside the
+	 * list; this catches the setup that boundary sits inside, and anything a
+	 * future view mounted here might throw.
+	 */
+	private mountSettingView<C extends Parameters<typeof mountComponent>[1]>(
+		setting: Setting,
+		component: C,
+		props: Parameters<typeof mountComponent>[2],
+	): MountHandle | null {
+		try {
+			return mountComponent(setting.controlEl, component, props);
+		} catch (error) {
+			reportError(error, "QuickAdd could not render a settings view");
+			try {
+				return mountComponent(setting.controlEl, ChoicesUnavailable, {
+					detail: error instanceof Error ? error.message : String(error),
+				});
+			} catch {
+				// The fallback is the same machinery that just failed, so it gets
+				// one plain-text last resort rather than a third layer.
+				setting.controlEl.setText("QuickAdd could not render this section.");
+				return null;
+			}
+		}
+	}
+
 	private renderChoicesView(setting: Setting): () => void {
 		this.prepareFullWidthSetting(setting);
 
 		this.choiceViewHandle?.destroy();
-		const handle = mountComponent(setting.controlEl, ChoiceView, {
+		const handle = this.mountSettingView(setting, ChoiceView, {
 			app: this.app,
 			plugin: this.plugin,
 			choices: settingsStore.getState().choices,
@@ -427,7 +463,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// Capture the handle so a stale cleanup can only ever destroy its own
 		// mount (and only nulls the field while it still points at this mount).
 		return () => {
-			handle.destroy();
+			handle?.destroy();
 			if (this.choiceViewHandle === handle) {
 				this.choiceViewHandle = null;
 			}
@@ -438,15 +474,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.prepareFullWidthSetting(setting);
 
 		this.globalVariablesViewHandle?.destroy();
-		const handle = mountComponent(
-			setting.controlEl,
-			GlobalVariablesView,
-			{ app: this.app, plugin: this.plugin },
-		);
+		const handle = this.mountSettingView(setting, GlobalVariablesView, {
+			app: this.app,
+			plugin: this.plugin,
+		});
 		this.globalVariablesViewHandle = handle;
 
 		return () => {
-			handle.destroy();
+			handle?.destroy();
 			if (this.globalVariablesViewHandle === handle) {
 				this.globalVariablesViewHandle = null;
 			}
@@ -473,7 +508,9 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.addButton((button) => {
 			exportButton = button;
 			button.setButtonText("Export package…").onClick(() => {
-				const choicesSnapshot = settingsStore.getState().choices;
+				const choicesSnapshot = rootChoicesOf(
+					settingsStore.getState().choices,
+				);
 				new ExportPackageModal(
 					this.app,
 					this.plugin,
@@ -510,12 +547,13 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		// The declarative tab renders once and does NOT re-render on store changes,
 		// so subscribe to keep the state honest while the tab stays open.
-		let hasNothingToExport = settingsStore.getState().choices.length === 0;
+		let hasNothingToExport =
+			rootChoicesOf(settingsStore.getState().choices).length === 0;
 		apply(hasNothingToExport);
 
 		this.packagesUnsubscribe?.();
 		const unsubscribe = settingsStore.subscribe((settings) => {
-			const next = settings.choices.length === 0;
+			const next = rootChoicesOf(settings.choices).length === 0;
 			if (next === hasNothingToExport) return;
 			hasNothingToExport = next;
 			apply(next);

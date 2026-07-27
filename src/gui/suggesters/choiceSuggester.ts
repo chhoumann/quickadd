@@ -15,7 +15,11 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { log } from "../../logger/logManager";
 import { settingsStore } from "../../settingsStore";
-import { flattenChoicesWithPath } from "../../utils/choiceUtils";
+import {
+	childChoicesOf,
+	flattenChoicesWithPath,
+	hasUnreadableChildren,
+} from "../../utils/choiceUtils";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
@@ -41,8 +45,14 @@ const DEFAULT_PLACEHOLDER = "Select a choice";
  * picker's drill-down and the command/URI execute path (choiceExecutor) say the
  * same thing.
  */
-export function emptyFolderNoticeText(folderName: string): string {
-	return `Folder "${folderName}" is empty.`;
+export function emptyFolderNoticeText(folder: IChoice): string {
+	// A folder whose `choices` value could still be HOLDING choices is not empty,
+	// it is unreadable, and saying "empty" here would contradict what the settings
+	// list says about the same folder. Same predicate on both surfaces (#1566).
+	if (hasUnreadableChildren(folder)) {
+		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
+	}
+	return `Folder "${folder.name}" is empty.`;
 }
 
 /**
@@ -51,6 +61,22 @@ export function emptyFolderNoticeText(folderName: string): string {
  * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
  */
 export const EMPTY_FOLDER_FLAIR = "Empty";
+
+/**
+ * The same marker for a folder the picker cannot drill into because its contents
+ * could not be READ, as opposed to being absent. Calling that one "Empty" would
+ * contradict the settings list, which says the contents are still in data.json
+ * (#1566).
+ */
+export const UNREADABLE_FOLDER_FLAIR = "Unreadable";
+
+/** The trailing marker for a folder row that cannot be opened, or "" for one that can. */
+export function folderFlairFor(choice: IChoice): string {
+	if (!isEmptyFolderChoice(choice)) return "";
+	return hasUnreadableChildren(choice)
+		? UNREADABLE_FOLDER_FLAIR
+		: EMPTY_FOLDER_FLAIR;
+}
 
 /**
  * Sentinel id for the synthetic "New note from template" launcher row (#1023).
@@ -86,7 +112,7 @@ export function isEmptyFolderChoice(choice: IChoice): boolean {
 	return (
 		choice.type === "Multi" &&
 		choice.id !== BACK_CHOICE_ID &&
-		!(choice as IMultiChoice).choices?.length
+		childChoicesOf(choice).length === 0
 	);
 }
 
@@ -315,7 +341,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// would stack one identical notice per repeat. Property read rather than
 			// `instanceof KeyboardEvent` — a popout window is a separate realm.
 			if ("repeat" in evt && evt.repeat) return;
-			new Notice(emptyFolderNoticeText(value.item.name));
+			new Notice(emptyFolderNoticeText(value.item));
 			// A trusted mousedown on `.suggestion-item` — a non-focusable div with no
 			// focusable ancestor, since neither `.modal` nor `.modal-container` carries
 			// a tabindex — moves focus to <body>. Obsidian never has to handle that
@@ -367,7 +393,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// vanish, which is a worse, unexplained dead end. `el.empty()` above clears
 		// children but never attributes, so the marker is cleared explicitly for
 		// rows Obsidian recycles (matching the defensive `mod-complex` reset).
-		const isEmptyFolder = isEmptyFolderChoice(item.item);
+		const flairText = folderFlairFor(item.item);
+		const isEmptyFolder = flairText !== "";
 		el.classList.toggle("quickadd-choice-suggestion-empty", isEmptyFolder);
 		if (isEmptyFolder) {
 			// Not operable, but still focusable and still able to explain itself —
@@ -375,7 +402,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			el.setAttribute("aria-disabled", "true");
 			const flair = createOwnedElement(row, "span");
 			flair.classList.add("quickadd-choice-suggestion-empty-flair");
-			flair.textContent = EMPTY_FOLDER_FLAIR;
+			flair.textContent = flairText;
 			row.appendChild(flair);
 		} else {
 			el.removeAttribute("aria-disabled");
@@ -456,11 +483,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// #1550's close-and-reopen is gone with the ejection it worked around: it
 		// discarded the typed query, the scroll position and the selection.
 		if (!isBack && isEmptyFolderChoice(multi)) {
-			new Notice(emptyFolderNoticeText(multi.name));
+			new Notice(emptyFolderNoticeText(multi));
 			return;
 		}
 
-		const choices = [...multi.choices];
+		const choices = [...childChoicesOf(multi)];
 
 		if (!isBack) {
 			const back = new MultiChoice(backLabel).addChoices(this.choices);

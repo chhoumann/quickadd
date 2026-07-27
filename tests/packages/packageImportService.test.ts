@@ -437,7 +437,7 @@ describe("packageImportService", () => {
 			(choice) => choice.id === multi.id,
 		) as IMultiChoice | undefined;
 		expect(importedFolder).toBeTruthy();
-		expect(importedFolder?.choices.map((child) => child.id)).toEqual([childKeep.id]);
+		expect(importedFolder?.choices!.map((child) => child.id)).toEqual([childKeep.id]);
 	});
 
 	it("skips descendants marked as skip when importing multi choices", async () => {

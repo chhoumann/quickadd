@@ -1,7 +1,12 @@
 import type { App } from "obsidian";
 import { Menu as ObsidianMenu } from "obsidian";
 import type IChoice from "src/types/choices/IChoice";
-import type IMultiChoice from "src/types/choices/IMultiChoice";
+import {
+  childChoicesOf,
+  hasUnreadableChildren,
+  isChoiceLike,
+  rootChoicesOf,
+} from "src/utils/choiceUtils";
 
 export type MoveTarget = { id: string; path: string };
 
@@ -22,16 +27,15 @@ export function isChoiceNested(
   choice: IChoice,
   roots: IChoice[] | undefined,
 ): boolean {
-  const source: IChoice[] = Array.isArray(roots) ? roots : [];
-  if (source.some((c) => c.id === choice.id)) return false;
+  const source: IChoice[] = rootChoicesOf(roots);
+  if (source.some((c) => isChoiceLike(c) && c.id === choice.id)) return false;
 
   const walk = (list: IChoice[]): boolean => {
     for (const c of list) {
-      if (c.type === "Multi") {
-        const children = (c as IMultiChoice).choices ?? [];
-        if (children.some((child) => child.id === choice.id)) return true;
-        if (walk(children)) return true;
-      }
+      if (!isChoiceLike(c)) continue;
+      const children = childChoicesOf(c);
+      if (children.some((child) => child?.id === choice.id)) return true;
+      if (walk(children)) return true;
     }
     return false;
   };
@@ -52,13 +56,14 @@ export function computeEligibleMultiTargets(
 
   const walk = (list: IChoice[], prefix: string[] = []) => {
     for (const c of list) {
+      if (!isChoiceLike(c)) continue;
       const name = c.name ?? "";
       if (c.type === "Multi") {
         const path = [...prefix, name];
         if (!isInvalidTarget(moving, c)) {
           multiNodes.push({ id: c.id, path: path.join(" / ") });
         }
-        walk((c as IMultiChoice).choices ?? [], [...prefix, name]);
+        walk(childChoicesOf(c), [...prefix, name]);
       }
     }
   };
@@ -70,13 +75,19 @@ export function computeEligibleMultiTargets(
 function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
   if (target.type !== "Multi") return true;
   if (moving.id === target.id) return true;
+  // A folder whose existing children could not be read refuses writes (see
+  // choiceService.insertIntoMulti), so offering it here would be a menu item
+  // that silently does nothing. Same predicate as the folder's hint, its drop
+  // zone and its delete warning (#1566).
+  if (hasUnreadableChildren(target)) return true;
   if (moving.type === "Multi") {
     const ids = new Set<string>();
     const collect = (c: IChoice) => {
+      if (!isChoiceLike(c)) return;
       ids.add(c.id);
-      if (c.type === "Multi") (c as IMultiChoice).choices?.forEach(collect);
+      childChoicesOf(c).forEach(collect);
     };
-    (moving as IMultiChoice).choices?.forEach(collect);
+    childChoicesOf(moving).forEach(collect);
     if (ids.has(target.id)) return true;
   }
   return false;

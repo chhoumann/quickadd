@@ -224,7 +224,7 @@ describe("choiceService", () => {
 				(copy as unknown as { onePageInput?: string }).onePageInput,
 			).toBe("always");
 			// children still duplicated with fresh ids
-			expect(copy.choices[0].id).not.toBe(original.choices[0].id);
+			expect(copy.choices![0].id).not.toBe(original.choices![0].id);
 		});
 
 		it("deep clones a Macro's macro and regenerates ids", () => {
@@ -350,17 +350,17 @@ describe("choiceService", () => {
 			expect(copy.placeholder).toBe("ph");
 			expect(copy.collapsed).toBe(true);
 			expect(copy.choices).toHaveLength(2);
-			expect(copy.choices[0].name).toBe("Inner (copy)");
-			expect(copy.choices[1].name).toBe("Nested (copy)");
+			expect(copy.choices![0].name).toBe("Inner (copy)");
+			expect(copy.choices![1].name).toBe("Nested (copy)");
 
-			const copiedNested = copy.choices[1] as IMultiChoice;
+			const copiedNested = copy.choices![1] as IMultiChoice;
 			expect(copiedNested.choices).toHaveLength(1);
-			expect(copiedNested.choices[0].name).toBe("Child (copy)");
+			expect(copiedNested.choices![0].name).toBe("Child (copy)");
 
 			// New ids throughout — distinct from the originals.
 			expect(copy.id).not.toBe(root.id);
-			expect(copy.choices[0].id).not.toBe(inner.id);
-			expect(copiedNested.choices[0].id).not.toBe(innerChild.id);
+			expect(copy.choices![0].id).not.toBe(inner.id);
+			expect(copiedNested.choices![0].id).not.toBe(innerChild.id);
 		});
 	});
 
@@ -802,8 +802,8 @@ describe("choiceService", () => {
 				(c) => c.id === target.id,
 			) as IMultiChoice;
 			expect(newTarget.choices).toHaveLength(2);
-			expect(newTarget.choices[1].id).toBe(moving.id);
-			expect(newTarget.choices[0].name).toBe("Existing");
+			expect(newTarget.choices![1].id).toBe(moving.id);
+			expect(newTarget.choices![0].name).toBe("Existing");
 		});
 
 		it("does not mutate the original choices array", () => {
@@ -833,7 +833,7 @@ describe("choiceService", () => {
 			) as IMultiChoice;
 			expect(newSource.choices).toHaveLength(0);
 			expect(newDest.choices).toHaveLength(1);
-			expect(newDest.choices[0].id).toBe(moving.id);
+			expect(newDest.choices![0].id).toBe(moving.id);
 		});
 
 		it("prevents moving a Multi into itself", () => {
@@ -862,9 +862,9 @@ describe("choiceService", () => {
 			const newOuter = result.find(
 				(c) => c.id === outer.id,
 			) as IMultiChoice;
-			const newInner = newOuter.choices[0] as IMultiChoice;
+			const newInner = newOuter.choices![0] as IMultiChoice;
 			expect(newInner.choices).toHaveLength(1);
-			expect(newInner.choices[0].id).toBe(moving.id);
+			expect(newInner.choices![0].id).toBe(moving.id);
 		});
 	});
 

@@ -10,6 +10,7 @@
     import type IChoice from "src/types/choices/IChoice";
     import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
+    import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -39,6 +40,18 @@
         onMoveUp?: () => void;
         onMoveDown?: () => void;
     } = $props();
+
+    // Read the children ONCE, through the accessor: a folder in data.json can
+    // have no `choices` key at all, or a non-array value, and dereferencing it
+    // here threw during mount and took the entire settings tab with it (#1566).
+    // $derived, not a bare call: Svelte props are lazy getters, so calling the
+    // accessor per template read would hand ChoiceList a fresh [] every time and
+    // churn the dnd zone.
+    const children = $derived(childChoicesOf(choice));
+    // The one shape that can still be HOLDING choices we cannot read. Such a
+    // folder must not claim to be empty, and must not offer any affordance that
+    // would overwrite the value (the add row and the drop zone are its only two).
+    const unreadable = $derived(hasUnreadableChildren(choice));
 
     let showConfigureButton = $state(true);
     let nameElement = $state<HTMLSpanElement>();
@@ -148,10 +161,10 @@
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </span>
             <span class="choiceListItemName" bind:this={nameElement}></span>
-            {#if choice.collapsed && choice.choices.length > 0}
+            {#if choice.collapsed && children.length > 0}
                 <!-- What a closed folder hides is real information: a quiet
                      count keeps the list scannable without expanding. -->
-                <span class="qaFolderCount" aria-hidden="true">{choice.choices.length}</span>
+                <span class="qaFolderCount" aria-hidden="true">{children.length}</span>
             {/if}
         </button>
 
@@ -175,12 +188,22 @@
     {#if !collapseId || (collapseId && choice.id !== collapseId)}
         {#if !choice.collapsed}
             <div class="nestedChoiceList">
+                {#if unreadable}
+                    <!-- No list and no add row: both would write to this folder's
+                         children and discard whatever is still under it. Say what
+                         happened instead, in the same slot the ordinary empty-folder
+                         hint uses, and leave rename/move/delete working. -->
+                    <p class="qaUnreadableFolder">
+                        QuickAdd couldn't read this folder's contents. They're still
+                        in <code>data.json</code>.
+                    </p>
+                {:else}
                 <ChoiceList
                     {app}
                     roots={roots}
-                    choices={choice.choices}
+                    choices={children}
                     nested={true}
-                    isEmptyFolder={choice.choices.length === 0}
+                    isEmptyFolder={children.length === 0}
                     {forceDragDisabled}
                     rootReorder={rootReorder ?? actions.onReorderChoices}
                     actions={nestedActions}
@@ -199,6 +222,7 @@
                             onAddChoice={actions.onAddChoice}
                         />
                     </div>
+                {/if}
                 {/if}
             </div>
         {/if}
@@ -262,6 +286,20 @@
        grow — it keeps its ellipsis via flex-shrink + the shared min-width: 0. */
     .multiChoiceListItemName :global(.choiceListItemName) {
         flex: 0 1 auto;
+    }
+
+    /* Same slot, weight and colour as the empty-folder hint in ChoiceList, so a
+       folder we cannot read reads as a variation of "empty" rather than an alarm. */
+    .qaUnreadableFolder {
+        margin: 0;
+        padding: 6px 8px 8px;
+        color: var(--text-faint);
+        font-size: var(--font-ui-smaller, 12px);
+        line-height: 1.4;
+    }
+
+    .qaUnreadableFolder code {
+        font-size: inherit;
     }
 
     .qaFolderCount {

@@ -10,7 +10,9 @@
 		collectFileDependencies,
 	} from "../../utils/packageTraversal";
 	import {
+		childChoicesOf,
 		flattenChoicesWithPath,
+		isChoiceLike,
 		type FlatChoicePathEntry,
 	} from "../../utils/choiceUtils";
 	import {
@@ -91,11 +93,9 @@
 
 	function getDescendantIds(choice: IChoice): string[] {
 		const ids: string[] = [];
-		if (isMultiChoice(choice)) {
-			const children = (choice as IMultiChoice).choices ?? [];
-			for (const child of children) {
-				ids.push(child.id, ...getDescendantIds(child));
-			}
+		for (const child of childChoicesOf(choice)) {
+			if (!isChoiceLike(child)) continue;
+			ids.push(child.id, ...getDescendantIds(child));
 		}
 		return ids;
 	}

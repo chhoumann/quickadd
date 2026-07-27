@@ -5,7 +5,6 @@ import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import type QuickAdd from "../../main";
-import type { MultiChoice } from "src/types/choices/MultiChoice";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -15,21 +14,28 @@ import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsMod
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { addAutosaveFooter } from "../ChoiceBuilder/components/autosaveFooter";
+import {
+	childChoicesOf,
+	isChoiceLike,
+	rootChoicesOf,
+} from "../../utils/choiceUtils";
 
-function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
+/** Exported for the malformed-tree sweep (src/utils/malformedChoices.entrypoints.test.ts). */
+export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
 
 	const recursive = (choices: IChoice[]) => {
 		choices.forEach((choice) => {
+			if (!isChoiceLike(choice)) return;
 			if (choice.type === "Multi") {
-				recursive((choice as MultiChoice).choices);
+				recursive(childChoicesOf(choice));
 			} else {
 				arr.push(choice);
 			}
 		});
 	};
 
-	recursive(nestedChoices);
+	recursive(rootChoicesOf(nestedChoices));
 
 	return arr;
 }

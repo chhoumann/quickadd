@@ -26,6 +26,7 @@ import {
 	type FrontmatterPropertyTarget,
 } from "./utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
+import { childChoicesOf } from "./utils/choiceUtils";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -330,12 +331,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// An empty folder run via command/URI would otherwise open a dead, item-less
 		// picker (no Back row is appended on this path) that reads as a broken command.
 		// Surface a Notice instead so the user knows the folder simply has nothing in it.
-		if (multiChoice.choices.length === 0) {
-			new Notice(emptyFolderNoticeText(multiChoice.name));
+		// Read through the accessor, not `.length`: a non-array value such as `{}`
+		// has an `undefined` length, so a bare `=== 0` check would slide past this
+		// guard and hand the picker a non-list to iterate (#1566).
+		const children = childChoicesOf(multiChoice);
+		if (children.length === 0) {
+			new Notice(emptyFolderNoticeText(multiChoice));
 			return;
 		}
 
-		ChoiceSuggester.Open(this.plugin, multiChoice.choices, {
+		ChoiceSuggester.Open(this.plugin, children, {
 			choiceExecutor: this,
 			focusedProperty: this.focusedProperty,
 			triggerContext: this.triggerContext,

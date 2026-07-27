@@ -13,7 +13,6 @@ import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
-import type IMultiChoice from "./types/choices/IMultiChoice";
 import {
 	deleteObsidianCommand,
 	hasTemplateExtension,
@@ -30,7 +29,13 @@ import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssis
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
-import { dedupeChoicesById, resolveChoiceIcon } from "./utils/choiceUtils";
+import {
+	childChoicesOf,
+	dedupeChoicesById,
+	isChoiceLike,
+	resolveChoiceIcon,
+	rootChoicesOf,
+} from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
@@ -314,12 +319,27 @@ export default class QuickAdd extends Plugin {
 
 		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
 
+		// Everything from here on reads the choice tree, i.e. untrusted data.json.
+		// Each step is isolated so a defect in that data costs one capability
+		// instead of the whole plugin: onload throwing leaves Obsidian reporting
+		// only "Plugin failure: quickadd", with no commands, no migrations, no CLI
+		// and no startup macros, and no way for the user to tell why (#1566).
+		// The accessors below handle the corrupt shapes we know about; this is the
+		// blast radius bound for the ones nobody has thought of yet.
 		this.addCommandsForChoices(this.settings.choices);
 
-		await migrate(this);
+		try {
+			await migrate(this);
+		} catch (err) {
+			reportError(err, "QuickAdd could not run its settings migrations");
+		}
 
 		const registerCli = () => {
-			registerQuickAddCliHandlers(this);
+			try {
+				registerQuickAddCliHandlers(this);
+			} catch (err) {
+				reportError(err, "QuickAdd could not register its CLI handlers");
+			}
 		};
 
 		if (this.app.workspace.layoutReady) {
@@ -329,13 +349,18 @@ export default class QuickAdd extends Plugin {
 		}
 
 		// Run startup macros after migrations are complete
-		const launchStartupMacros = () =>
-			new StartupMacroEngine(
-				this.app,
-				this,
-				this.settings.choices,
-				new ChoiceExecutor(this.app, this),
-			).run();
+		const launchStartupMacros = async () => {
+			try {
+				await new StartupMacroEngine(
+					this.app,
+					this,
+					this.settings.choices,
+					new ChoiceExecutor(this.app, this),
+				).run();
+			} catch (err) {
+				reportError(err, "QuickAdd could not run its startup macros");
+			}
+		};
 
 		if (this.app.workspace.layoutReady) {
 			void launchStartupMacros();
@@ -498,14 +523,27 @@ export default class QuickAdd extends Plugin {
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {
-		for (const choice of choices) {
-			this.addCommandForChoice(choice);
+		for (const choice of rootChoicesOf(choices)) {
+			// A list entry can be a hole (`null`, a stray primitive) left by a bad
+			// edit or a truncated write; it is not a choice, so there is no command
+			// to register for it.
+			if (!isChoiceLike(choice)) continue;
+			// Fault-isolate the loop. This runs from onload against untrusted
+			// data.json, and everything after it - migrations, the CLI handlers,
+			// startup macros - used to be lost to a single bad choice (#1566: a
+			// folder with no `choices` key took the whole plugin down with
+			// "Plugin failure: quickadd"). One defect should cost one command.
+			try {
+				this.addCommandForChoice(choice);
+			} catch (err) {
+				reportError(err, `Could not add a command for a QuickAdd choice`);
+			}
 		}
 	}
 
 	public addCommandForChoice(choice: IChoice) {
 		if (choice.type === "Multi") {
-			this.addCommandsForChoices((<IMultiChoice>choice).choices);
+			this.addCommandsForChoices(childChoicesOf(choice));
 		}
 
 		if (choice.command) {
@@ -552,7 +590,8 @@ export default class QuickAdd extends Plugin {
 		targetPropertyValue: string,
 		choices: IChoice[] = this.settings.choices,
 	): IChoice | null {
-		for (const choice of choices) {
+		for (const choice of rootChoicesOf(choices)) {
+			if (!isChoiceLike(choice)) continue;
 			if (choice[by] === targetPropertyValue) {
 				return choice;
 			}
@@ -560,7 +599,7 @@ export default class QuickAdd extends Plugin {
 				const subChoice = this.getChoice(
 					by,
 					targetPropertyValue,
-					(choice as IMultiChoice).choices,
+					childChoicesOf(choice),
 				);
 				if (subChoice) {
 					return subChoice;
@@ -571,19 +610,19 @@ export default class QuickAdd extends Plugin {
 		return null;
 	}
 
-	/** Count how many choices anywhere in the tree carry `name` (names aren't unique). */
+	/** Count how many choices anywhere in the tree carry `name` (names aren't unique).
+	 * Choices hidden inside an unreadable `choices` value are not counted - the
+	 * warning this feeds can only ever under-report, never mis-fire. */
 	private countChoicesByName(
 		name: string,
 		choices: IChoice[] = this.settings.choices,
 	): number {
 		let count = 0;
-		for (const choice of choices) {
+		for (const choice of rootChoicesOf(choices)) {
+			if (!isChoiceLike(choice)) continue;
 			if (choice.name === name) count++;
 			if (choice.type === "Multi") {
-				count += this.countChoicesByName(
-					name,
-					(choice as IMultiChoice).choices,
-				);
+				count += this.countChoicesByName(name, childChoicesOf(choice));
 			}
 		}
 		return count;
@@ -613,7 +652,8 @@ export default class QuickAdd extends Plugin {
 		// toggling the folder's command off, or the remove half of an update): the
 		// children remain and their still-enabled commands must stay registered.
 		if (options?.recursive && choice.type === "Multi") {
-			for (const child of (<IMultiChoice>choice).choices) {
+			for (const child of childChoicesOf(choice)) {
+				if (!isChoiceLike(child)) continue;
 				this.removeCommandForChoice(child, options);
 			}
 		}
