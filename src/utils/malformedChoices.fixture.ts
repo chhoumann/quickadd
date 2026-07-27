@@ -52,6 +52,11 @@ export const MALFORMED_CHILDREN_SHAPES: {
 	{ key: "missing", value: undefined, lossy: false },
 	{ key: "null", value: null, lossy: false },
 	{ key: "emptyObject", value: {}, lossy: false },
+	// Falsy primitives carry nothing, exactly like `null` - #1611, where the
+	// predicate's `: true` arm contradicted its own doc and reported them lossy.
+	{ key: "emptyString", value: "", lossy: false },
+	{ key: "zero", value: 0, lossy: false },
+	{ key: "false", value: false, lossy: false },
 	{ key: "arrayLikeObject", value: { "0": leaf("Hidden", "hidden-1") }, lossy: true },
 	{ key: "string", value: "not a list", lossy: true },
 	{ key: "number", value: 7, lossy: true },
@@ -73,6 +78,9 @@ export const MALFORMED_COMMANDS_SHAPES: {
 	{ key: "missing", value: undefined, lossy: false },
 	{ key: "null", value: null, lossy: false },
 	{ key: "emptyObject", value: {}, lossy: false },
+	{ key: "emptyString", value: "", lossy: false },
+	{ key: "zero", value: 0, lossy: false },
+	{ key: "false", value: false, lossy: false },
 	{ key: "arrayLikeObject", value: { "0": waitCommand("hidden-cmd") }, lossy: true },
 	{ key: "string", value: "not a list", lossy: true },
 	{ key: "number", value: 7, lossy: true },

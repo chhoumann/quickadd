@@ -94,27 +94,41 @@ export function rootChoicesOf(value: unknown): IChoice[] {
 }
 
 /**
- * Whether a Multi's `choices` holds something we cannot read, as opposed to
+ * Whether a `choices` VALUE holds something we cannot read, as opposed to
  * nothing at all. True only for the malformed shapes that can still CARRY
  * choices: a non-empty object where an array belongs (`{"0": {...}, "1": {...}}`,
- * the classic array-turned-object JSON artefact) or some other non-empty
- * primitive. `undefined`, `null` and `{}` carry nothing, so for those the folder
- * really is empty and the ordinary empty-folder hint is the honest thing to say.
+ * the classic array-turned-object JSON artefact) or a non-empty primitive.
+ * `undefined`, `null`, `{}`, `""`, `0` and `false` carry nothing, so for those
+ * the folder really is empty and the ordinary empty-folder hint is honest.
  *
- * This is the line between "degrade quietly" and "tell the user": a folder whose
- * contents we cannot read must not claim to be empty, must offer no affordance
- * that would overwrite the value, and must say so before it is deleted. The
- * hint, the drop target and the delete confirmation all read this one predicate
- * so they cannot disagree.
+ * The sibling of `isUnreadableCommandList` in macroUtils.ts, deliberately kept
+ * as a sibling rather than a shared module (the same shape as
+ * `isChoiceLike`/`isCommandLike` and `hasChildChoices`/`hasCommandList`). The
+ * two must answer identically for every value; `unreadableValuePredicates.test.ts`
+ * is the ratchet that says so, over the union of both shape lists.
+ *
+ * This is the line between "degrade quietly" and "tell the user": a container
+ * whose contents we cannot read must not claim to be empty, must offer no
+ * affordance that would overwrite the value, and must say so before it is
+ * deleted. The hint, the drop target and the delete confirmation all read this
+ * one predicate so they cannot disagree.
  */
+export function isUnreadableChoiceList(value: unknown): boolean {
+	if (Array.isArray(value)) return false;
+	if (value === undefined || value === null) return false;
+	if (typeof value === "object") return Object.keys(value).length > 0;
+	// A non-empty primitive was never empty; an empty one carries nothing. The
+	// `""`/`0`/`false` arm is #1611: this function documented that rule from the
+	// start and its `: true` arm contradicted it, so a folder whose `choices` was
+	// `""` got the "couldn't read this" notice, lost its drop target, and got the
+	// scarier delete confirmation - for a value carrying nothing at all.
+	return Boolean(value);
+}
+
+/** {@link isUnreadableChoiceList}, asked about a Multi node rather than a value. */
 export function hasUnreadableChildren(choice: IChoice): boolean {
 	if (!isMultiChoice(choice)) return false;
-	const children: unknown = choice.choices;
-	if (children === undefined || children === null) return false;
-	if (Array.isArray(children)) return false;
-	// A non-array object is only lossy when it actually has keys; anything else
-	// non-nullish (a string, a number) was never empty either.
-	return typeof children === "object" ? Object.keys(children).length > 0 : true;
+	return isUnreadableChoiceList(choice.choices);
 }
 
 /**
