@@ -154,21 +154,30 @@ value (date fields use the `@date:ISO` format). The run's outcome arrives as the
 ### Cancelling
 
 `{"cancelled":true}` is how you say *the user dismissed this prompt*. It aborts
-the run exactly as pressing Escape on the in-app dialog does. Two details worth
-knowing:
+the run exactly as pressing Escape on the in-app dialog does.
 
-- The flag must be the literal `true`. Any other value (`"true"`, `1`, `"no"`) is
-  ignored and your `value` is used as a normal answer, so a typo cannot silently
-  kill a run.
-- Do not use it just to close an `info` panel. `info` is the one prompt that
-  cannot be cancelled in the app - the dialog has no reject path - so cancelling
-  it remotely aborts a run that would have continued. Send a plain reply instead.
-  It stays cancellable because it is a client's only way to bail out mid-run.
+Do not use it just to close an `info` panel. `info` is the one prompt that cannot
+be cancelled in the app - the dialog has no reject path - so cancelling it
+remotely aborts a run that would have continued. Send a plain reply instead. It
+stays cancellable because it is a client's only explicit way to bail out mid-run.
 
-A `confirm` prompt is the one type that validates its reply: it needs `true` or
-`false`. Anything else (a missing `value`, `null`, a typo) fails the prompt with a
-protocol error rather than being read as "No" - the user never answered, so
-QuickAdd will not invent an answer for them.
+### When a reply is rejected
+
+`/reply` answers `400` and leaves the prompt **pending** when it cannot honour
+what you sent, so you can correct the reply and POST again. Two cases:
+
+- `cancelled` is present but is not a boolean (`"true"`, `1`, `"no"`). QuickAdd
+  will neither abort on a flag it does not recognise nor quietly answer the prompt
+  on the user's behalf, so it asks you to fix the flag. Use the literal `true`;
+  `false` and omitting it both mean "this is a real answer".
+- a `confirm` reply whose `value` is not `true`/`false`. The user never answered,
+  and QuickAdd will not invent a "No" for them.
+
+Every other prompt type accepts whatever you send, including an empty answer:
+`""` and `[]` are things a user genuinely submits in the app (the Skip buttons,
+optional fields), so they must stay legal here too.
+
+A `409` means nothing was waiting on that `requestId`.
 
 Good to know:
 

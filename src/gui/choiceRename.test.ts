@@ -19,6 +19,8 @@ vi.mock("./GenericInputPrompt/GenericInputPrompt", () => ({
 
 import type { App } from "obsidian";
 import { promptRenameChoice } from "./choiceRename";
+import { promptCancelled } from "../errors/UserCancelError";
+import { log } from "src/logger/logManager";
 
 const app = {} as App;
 
@@ -65,5 +67,29 @@ describe("promptRenameChoice", () => {
 		await expect(promptRenameChoice(app, "New folder", "Multi")).resolves.toBe(
 			null,
 		);
+	});
+
+	// Since #1577 a dismissal IS an Error, so the previous `instanceof Error` gate
+	// would report every cancelled rename as a failure - a 15s error notice plus an
+	// error-log entry for pressing Escape. Nothing caught that, so pin both halves.
+	describe("dismissal versus failure", () => {
+		it("returns null and logs nothing when the user dismisses the prompt", async () => {
+			const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+			promptSpy.mockRejectedValue(promptCancelled());
+
+			await expect(promptRenameChoice(app, "Old", "Macro")).resolves.toBeNull();
+			expect(logError).not.toHaveBeenCalled();
+			logError.mockRestore();
+		});
+
+		it("returns null but DOES log when the prompt genuinely fails", async () => {
+			const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+			promptSpy.mockRejectedValue(new Error("boom"));
+
+			await expect(promptRenameChoice(app, "Old", "Macro")).resolves.toBeNull();
+			expect(logError).toHaveBeenCalledTimes(1);
+			expect(String(logError.mock.calls[0]?.[0])).toContain("boom");
+			logError.mockRestore();
+		});
 	});
 });

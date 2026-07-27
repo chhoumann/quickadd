@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { registerUnhandledRejectionReporter } from "./unhandledRejectionReporter";
-import { MacroAbortError } from "../errors/MacroAbortError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { promptCancelled } from "../errors/UserCancelError";
 import { log } from "../logger/logManager";
 
@@ -40,10 +40,16 @@ describe("unhandled rejection reporter (#1576)", () => {
 		},
 	};
 
-	/** A minimal stand-in for PromiseRejectionEvent (jsdom's needs a real promise). */
+	/**
+	 * A minimal stand-in for PromiseRejectionEvent (jsdom's needs a real promise).
+	 * Non-optional call on purpose: if the reporter ever stops registering a listener,
+	 * the negative tests below would otherwise pass vacuously - a dead listener
+	 * produces exactly the values they assert.
+	 */
 	function fire(reason: unknown) {
+		if (!listener) throw new Error("no unhandledrejection listener was registered");
 		let defaultPrevented = false;
-		listener?.({
+		listener({
 			reason,
 			preventDefault() {
 				defaultPrevented = true;
@@ -57,6 +63,7 @@ describe("unhandled rejection reporter (#1576)", () => {
 		clock = 1_000_000;
 		logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		registerUnhandledRejectionReporter(host, () => clock);
+		expect(listener, "the reporter must register a listener").not.toBeNull();
 	});
 
 	afterEach(() => {
@@ -96,13 +103,20 @@ describe("unhandled rejection reporter (#1576)", () => {
 		expect(logError).not.toHaveBeenCalled();
 	});
 
-	it("silences a deliberate abort", () => {
-		const abort = new MacroAbortError("target file missing");
+	// Not every MacroAbortError is a user cancellation. ChoiceAbortError carries copy
+	// the user needs ("Selected folder not allowed."), and the rest of the plugin keeps
+	// the two apart - so swallowing it here would leave a floated involuntary abort with
+	// LESS signal than the console line this replaces.
+	it("reports an involuntary abort, which is not a cancellation", () => {
+		const abort = new ChoiceAbortError("Selected folder not allowed.");
 		abort.stack = "MacroAbortError: x\n    at a (plugin:quickadd:1:1)";
 
 		fire(abort);
 
-		expect(logError).not.toHaveBeenCalled();
+		expect(logError).toHaveBeenCalledTimes(1);
+		expect(String(logError.mock.calls[0]?.[0])).toContain(
+			"Selected folder not allowed.",
+		);
 	});
 
 	it("reports a repeated failure once per window, not once per occurrence", () => {
@@ -135,9 +149,29 @@ describe("unhandled rejection reporter (#1576)", () => {
 		expect(logError).toHaveBeenCalledTimes(2);
 	});
 
-	it("bounds the dedupe map without wrongly suppressing distinct sites", () => {
+	it("reports every distinct throw site, however many there are", () => {
 		for (let i = 0; i < 200; i++) fire(pluginError("boom", `site${i}`));
-		// Every one is a distinct throw site, so every one is a distinct bug.
 		expect(logError).toHaveBeenCalledTimes(200);
+	});
+
+	// The map is bounded (MAX_TRACKED), so past that many LIVE sites the "one report
+	// per site per window" guarantee degrades to reporting again. That is the deliberate
+	// trade against unbounded growth; pin it so the behaviour is a decision, not a
+	// surprise. Fewer sites than the bound must still collapse within the window.
+	it("keeps collapsing a repeat while the site is still tracked", () => {
+		for (let i = 0; i < 10; i++) fire(pluginError("boom", `site${i}`));
+		expect(logError).toHaveBeenCalledTimes(10);
+
+		fire(pluginError("boom", "site0"));
+		expect(logError).toHaveBeenCalledTimes(10);
+	});
+
+	it("evicts under pressure rather than growing without limit", () => {
+		// Far more live sites than the bound; the oldest entries get dropped, so an
+		// early site is reported a second time instead of being remembered forever.
+		for (let i = 0; i < 200; i++) fire(pluginError("boom", `site${i}`));
+		logError.mockClear();
+		fire(pluginError("boom", "site0"));
+		expect(logError).toHaveBeenCalledTimes(1);
 	});
 });

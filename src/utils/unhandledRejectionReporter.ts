@@ -1,4 +1,3 @@
-import { MacroAbortError } from "../errors/MacroAbortError";
 import { isCancellationError, reportError } from "./errorUtils";
 
 /**
@@ -88,11 +87,19 @@ export function registerUnhandledRejectionReporter(
 		// Ours, so stop the console noise either way.
 		event.preventDefault();
 
-		// A dismissed prompt or a deliberate abort is not a failure. It reaches here
-		// when a handler floats a prompt (e.g. the macro editor's script picker), and
-		// telling the user "an error occurred" because they pressed Escape would be
-		// worse than the silence this replaces.
-		if (reason instanceof MacroAbortError || isCancellationError(reason)) return;
+		// A dismissed prompt is not a failure. It reaches here when a handler floats a
+		// prompt (e.g. the macro editor's script picker), and telling the user "an
+		// error occurred" because they pressed Escape would be worse than the silence
+		// this replaces.
+		//
+		// Only a USER cancellation is silenced, not every MacroAbortError. Its other
+		// subclass, ChoiceAbortError, is how QuickAdd reports involuntary aborts that
+		// carry copy the user needs ("Selected folder not allowed.", "…re-run with the
+		// ui flag."), and the rest of the plugin keeps the two apart everywhere it
+		// matters - choiceExecutor's cancelKind, macroAbortHandler's notice
+		// suppression, x-cancel vs x-error. Swallowing those here would leave a floated
+		// involuntary abort with LESS signal than the console line it replaces.
+		if (isCancellationError(reason)) return;
 
 		const error = reason as Error;
 		const key = dedupeKey(error, pluginId);

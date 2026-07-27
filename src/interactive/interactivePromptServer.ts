@@ -142,7 +142,12 @@ interface Session {
 	waiterTimer: number | null;
 	pending: Map<
 		string,
-		{ resolve: (value: unknown) => void; reject: (error: Error) => void }
+		{
+			resolve: (value: unknown) => void;
+			reject: (error: Error) => void;
+			/** What kind of reply this prompt accepts, for wire-level validation. */
+			promptType: PromptSpec["type"];
+		}
 	>;
 	finished: boolean;
 	cleanupTimer: number | null;
@@ -213,6 +218,67 @@ function randomId(): string {
 	throw new Error(
 		"Interactive prompts require a secure random source (crypto), which is unavailable here.",
 	);
+}
+
+/** Body of a `POST /reply`. Every field is untrusted JSON, hence the `unknown`s. */
+export interface ReplyBody {
+	requestId?: string;
+	value?: unknown;
+	cancelled?: unknown;
+}
+
+export type ReplyOutcome =
+	| { ok: true }
+	| { ok: false; status: 400 | 409; error: string };
+
+const NO_PENDING_PROMPT = "No pending prompt for that requestId";
+
+/**
+ * Why this reply cannot be honoured, or null if it can.
+ *
+ * Validating here rather than deeper in is what makes a malformed reply safe: the
+ * client is still waiting on the HTTP response, so it gets an actionable 400 and the
+ * prompt stays pending. Deeper in, the only options are to invent an answer (which
+ * is the bug this seam had) or to fail the whole run with a message the client may
+ * never see - the Template/Capture path replaces it with a generic sentence.
+ *
+ * Only two things are checked, both because a wrong answer there is
+ * indistinguishable from a real one. Empty answers stay legal everywhere else:
+ * `""` and `[]` are things a user genuinely submits in-app via the Skip
+ * affordances and optional fields, so rejecting them would break optional prompts
+ * on remote runs.
+ */
+function describeReplyProblem(
+	promptType: PromptSpec["type"],
+	body: ReplyBody,
+): string | null {
+	if (body.cancelled !== undefined && typeof body.cancelled !== "boolean") {
+		return 'The "cancelled" flag must be the literal true (or omitted). A cancel that is not recognised would otherwise be answered on the user\'s behalf.';
+	}
+	if (body.cancelled === true) return null;
+
+	if (promptType === "confirm") {
+		const value = body.value;
+		const isBoolean =
+			value === true ||
+			value === false ||
+			value === "true" ||
+			value === "false";
+		if (!isBoolean) {
+			return `A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeValue(value)}.`;
+		}
+	}
+	return null;
+}
+
+/** A short, safe rendering of a bad reply value for an error message. */
+function describeValue(value: unknown): string {
+	if (value === undefined) return "no value";
+	if (value === null) return "null";
+	if (typeof value === "string") return JSON.stringify(value.slice(0, 40));
+	if (typeof value === "number" || typeof value === "boolean")
+		return String(value);
+	return Array.isArray(value) ? "an array" : typeof value;
 }
 
 class InteractivePromptServer {
@@ -308,7 +374,11 @@ class InteractivePromptServer {
 		}
 		const requestId = randomId();
 		return new Promise<unknown>((resolve, reject) => {
-			session.pending.set(requestId, { resolve, reject });
+			session.pending.set(requestId, {
+				resolve,
+				reject,
+				promptType: prompt.type,
+			});
 			this.push(session, { kind: "prompt", requestId, prompt });
 		});
 	}
@@ -440,14 +510,22 @@ class InteractivePromptServer {
 		// modal: reject with UserCancelError so downstream abort handling classifies
 		// it as a user cancellation (x-cancel, suppressed notice) rather than an error.
 		//
-		// Strict `=== true`: the flag arrives from untrusted JSON, and a loose check
-		// meant any truthy value cancelled - so a client sending `"cancelled": "no"`
-		// killed the run, and a cancel beat a real `value` that was also present.
-		// The documented wire form has always been the literal `true`.
+		// Strict `=== true`. A malformed flag must never reach here as a plain answer -
+		// `describeReplyProblem` turns it into a 400 at the wire, leaving the prompt
+		// pending - because resolving it would hand the run an empty answer the user
+		// never gave, which is worse than the spurious abort a loose truthy check caused.
 		if (cancelled === true)
 			pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		else pending.resolve(value);
 		return true;
+	}
+
+	/** The pending prompt's type, or undefined if nothing is waiting on that id. */
+	private pendingPromptType(
+		session: Session,
+		requestId: string,
+	): PromptSpec["type"] | undefined {
+		return session.pending.get(requestId)?.promptType;
 	}
 
 	private send(res: HttpServerResponse, status: number, body: unknown): void {
@@ -495,20 +573,17 @@ class InteractivePromptServer {
 				return;
 			}
 			if (req.method === "POST" && url.pathname === "/reply") {
-				const body = (await this.readBody(req)) as {
-					requestId?: string;
-					value?: unknown;
-					cancelled?: boolean;
-				};
-				const accepted = this.handleReply(session, body);
-				// A missing/stale requestId matched no pending prompt: tell the
-				// client so it doesn't believe a blocked run was answered.
-				if (accepted) this.send(res, 200, { ok: true });
-				else
-					this.send(res, 409, {
-						ok: false,
-						error: "No pending prompt for that requestId",
-					});
+				const body = (await this.readBody(req)) as ReplyBody;
+				const outcome = this.submitWireReply(session.id, body);
+				if (outcome.ok) {
+					this.send(res, 200, { ok: true });
+				} else {
+					// 400: the reply itself is malformed, and the prompt is STILL
+					// pending so the client can correct itself and try again.
+					// 409: nothing was waiting on that requestId, so the client
+					// doesn't believe a blocked run was answered.
+					this.send(res, outcome.status, { ok: false, error: outcome.error });
+				}
 				return;
 			}
 
@@ -572,17 +647,37 @@ class InteractivePromptServer {
 		});
 	}
 
-	private handleReply(
-		session: Session,
-		body: { requestId?: string; value?: unknown; cancelled?: boolean },
-	): boolean {
-		if (!body.requestId) return false;
-		return this.submitReply(
+	/**
+	 * Validate and deliver a reply that arrived over the wire. Public so the HTTP layer
+	 * and tests share ONE path - the validation is the interesting part, and a test that
+	 * bypassed it would be testing a shape production never sees.
+	 */
+	submitWireReply(sessionId: string, body: ReplyBody): ReplyOutcome {
+		const session = this.sessions.get(sessionId);
+		if (!session) {
+			return { ok: false, status: 409, error: NO_PENDING_PROMPT };
+		}
+		if (!body.requestId) {
+			return { ok: false, status: 409, error: NO_PENDING_PROMPT };
+		}
+		const promptType = this.pendingPromptType(session, body.requestId);
+		if (!promptType) {
+			return { ok: false, status: 409, error: NO_PENDING_PROMPT };
+		}
+		// Validate BEFORE settling. A reply we cannot honour must leave the prompt
+		// pending and say why, never resolve it with something the user did not send.
+		const problem = describeReplyProblem(promptType, body);
+		if (problem) return { ok: false, status: 400, error: problem };
+
+		const accepted = this.submitReply(
 			session.id,
 			body.requestId,
 			body.value,
 			body.cancelled,
 		);
+		return accepted
+			? { ok: true }
+			: { ok: false, status: 409, error: NO_PENDING_PROMPT };
 	}
 }
 

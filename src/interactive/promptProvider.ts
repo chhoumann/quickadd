@@ -272,7 +272,14 @@ export class RemotePromptProvider implements PromptProvider {
 	 * script walked its else-branch (#1574). A dismissal already has a wire
 	 * representation - `{"cancelled": true}`, documented and rejecting with
 	 * UserCancelError - so anything that is neither a boolean nor a cancel is a
-	 * client bug, and failing loudly beats inventing an answer the user never gave.
+	 * client bug, and failing beats inventing an answer the user never gave.
+	 *
+	 * A live client never sees this throw: the same rule is enforced at `/reply`
+	 * (`describeReplyProblem`), where a 400 reaches the client while it is still
+	 * holding the response and the prompt stays pending. This is the backstop for
+	 * every other caller of the provider, and the reason it is not the primary check
+	 * is that on the Template/Capture path a thrown message is replaced by a generic
+	 * sentence before the client ever polls for it.
 	 *
 	 * The other prompt types stay lenient on purpose: `""` and `[]` are answers a
 	 * user really can give in-app (the Skip affordances, optional fields), so

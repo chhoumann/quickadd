@@ -3,8 +3,24 @@ import {
 	interactivePromptServer,
 	isLoopbackClient,
 	safeEqual,
+	type ReplyBody,
 } from "./interactivePromptServer";
 import { UserCancelError } from "../errors/UserCancelError";
+
+/**
+ * A reply as it arrives from a client: validated, then delivered. Goes through the
+ * same method the HTTP handler calls, so the validation under test is production's.
+ */
+function replyOverWire(
+	sessionId: string,
+	body: ReplyBody,
+): { status: number; body: { error?: string } } {
+	const outcome = interactivePromptServer.submitWireReply(sessionId, body);
+	return outcome.ok
+		? { status: 200, body: {} }
+		: { status: outcome.status, body: { error: outcome.error } };
+}
+
 
 afterEach(() => {
 	vi.useRealTimers();
@@ -172,11 +188,13 @@ describe("interactivePromptServer session multiplexing", () => {
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
 
-	// The flag arrives from untrusted JSON. A loose truthy check meant
-	// `"cancelled": "no"` killed the run, and a cancel beat a real `value` that was
-	// also present. The documented wire form has always been the literal `true`.
-	it.each([["no"], [1], [{}], ["false"], [[]]])(
-		"treats a non-true cancelled flag (%o) as a normal answer",
+	// The flag arrives from untrusted JSON. A loose truthy check let
+	// `"cancelled": "no"` kill a run; strict `=== true` alone would be worse - it would
+	// resolve a mistyped cancel as an EMPTY ANSWER (textPrompt maps undefined -> ""),
+	// handing the run a value the user never gave. So the wire rejects it and the prompt
+	// stays pending. Note the value-less shape, which is what a mistaken cancel has.
+	it.each([["no"], [1], [{}], ["true"], [[]], [null]])(
+		"rejects a non-boolean cancelled flag (%o) with 400 and keeps the prompt pending",
 		async (flag) => {
 			const s = interactivePromptServer.createSession();
 			const prompt = interactivePromptServer.emitPrompt(s.id, {
@@ -184,14 +202,109 @@ describe("interactivePromptServer session multiplexing", () => {
 				header: "Name",
 				multiline: false,
 			});
+			let settled = false;
+			void prompt.then(
+				() => (settled = true),
+				() => (settled = true),
+			);
 			const rid = pendingRequestId(s.id);
+
+			const outcome = replyOverWire(s.id, { requestId: rid, cancelled: flag });
+
+			expect(outcome.status).toBe(400);
+			expect(String(outcome.body.error)).toMatch(/cancelled/i);
+			await Promise.resolve();
+			expect(settled, "the prompt must stay pending so the client can retry").toBe(
+				false,
+			);
+
+			// ...and the corrected reply still works.
 			expect(
-				interactivePromptServer.submitReply(s.id, rid, "Ada", flag),
-			).toBe(true);
-			await expect(prompt).resolves.toBe("Ada");
+				replyOverWire(s.id, { requestId: rid, cancelled: true }).status,
+			).toBe(200);
+			await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
 			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 		},
 	);
+
+	it("accepts an explicit cancelled:false as a normal answer", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "input",
+			header: "Name",
+			multiline: false,
+		});
+		const rid = pendingRequestId(s.id);
+		expect(
+			replyOverWire(s.id, { requestId: rid, value: "Ada", cancelled: false }).status,
+		).toBe(200);
+		await expect(prompt).resolves.toBe("Ada");
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	// A confirm reply that is neither boolean nor a cancel is validated HERE, while the
+	// client is still holding the HTTP response, because deeper in the only options are
+	// to invent an answer or to fail the run with a message the Template/Capture path
+	// replaces with a generic sentence the client never sees.
+	it.each([[undefined], [null], ["yes"], [0], [{}]])(
+		"rejects a non-boolean confirm reply (%o) with 400",
+		async (value) => {
+			const s = interactivePromptServer.createSession();
+			const prompt = interactivePromptServer.emitPrompt(s.id, {
+				type: "confirm",
+				header: "Proceed?",
+			});
+			const rid = pendingRequestId(s.id);
+
+			const outcome = replyOverWire(s.id, { requestId: rid, value });
+
+			expect(outcome.status).toBe(400);
+			expect(String(outcome.body.error)).toContain("confirm prompt needs a boolean");
+			expect(String(outcome.body.error)).toContain('{"cancelled": true}');
+
+			expect(replyOverWire(s.id, { requestId: rid, value: false }).status).toBe(200);
+			await expect(prompt).resolves.toBe(false);
+			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		},
+	);
+
+	it.each([[true], [false], ["true"], ["false"]])(
+		"accepts a boolean-ish confirm reply (%o)",
+		async (value) => {
+			const s = interactivePromptServer.createSession();
+			const prompt = interactivePromptServer.emitPrompt(s.id, {
+				type: "confirm",
+				header: "Proceed?",
+			});
+			const rid = pendingRequestId(s.id);
+			expect(replyOverWire(s.id, { requestId: rid, value }).status).toBe(200);
+			await expect(prompt).resolves.toBe(value);
+			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		},
+	);
+
+	it("still 409s an unknown requestId", () => {
+		const s = interactivePromptServer.createSession();
+		const outcome = replyOverWire(s.id, { requestId: "nope", value: "x" });
+		expect(outcome.status).toBe(409);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	// Leniency preserved on purpose: "" and [] are answers a user really gives in-app
+	// via the Skip affordances and optional fields, so an empty reply must stay legal or
+	// optional prompts break on remote runs.
+	it("leaves an empty answer to a non-confirm prompt alone", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "input",
+			header: "Name",
+			multiline: false,
+		});
+		const rid = pendingRequestId(s.id);
+		expect(replyOverWire(s.id, { requestId: rid, value: null }).status).toBe(200);
+		await expect(prompt).resolves.toBeNull();
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
 
 	it("caps the number of concurrent sessions", () => {
 		const created: string[] = [];

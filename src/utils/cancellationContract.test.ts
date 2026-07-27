@@ -34,34 +34,76 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 /**
- * A reject/throw whose argument is a bare string literal. Deliberately narrow:
- * it catches the exact shape every prompt used before #1577 and would use again
- * by copy-paste, without flagging `new Error("...")`.
+ * Comments talk ABOUT the shapes below ("would throw \"Unknown location\""), so scanning
+ * raw text produces false positives. Blank them, preserving offsets so reported line
+ * numbers still point at the real line.
  */
-const BARE_STRING_REJECTION =
-	/\b(?:reject|rejectPromise|rejectPromise!)\s*\(\s*(["'`])/g;
+function stripComments(text: string): string {
+	return text
+		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+		.replace(/(^|[^:])\/\/[^\n]*/g, (m, lead: string) => lead + " ".repeat(m.length - lead.length));
+}
+
+/**
+ * Any `reject(...)` / `rejectPromise(...)` CALL, capturing the rest of the line.
+ * Matching the call rather than a bare-string argument is deliberate: the shape that
+ * would actually reintroduce #1577 is not only `reject("dismissed")` but also
+ * `reject(new Error("dismissed"))` - an Error `isCancellationError` cannot recognise,
+ * so a dismissal reads as a failure again with nothing to catch it.
+ */
+const REJECT_CALL = /\b(?:reject|rejectPromise)!?\??\s*\(\s*([^\n]*)/g;
+/** A `throw` of a string literal, i.e. a bare-string rejection inside an async method. */
+const THROW_STRING = /\bthrow\s+["'`]/g;
+
+/** Directories whose modules are prompt surfaces: a rejection there means a dismissal. */
+const PROMPT_DIRS = [join(SRC, "gui"), join(SRC, "preflight")];
 
 describe("cancellation contract (#1577)", () => {
-	it("no source file rejects a promise with a bare string literal", () => {
+	// The positive invariant, not a negative syntax shape: inside the prompt
+	// surfaces, the ONLY thing a promise may be rejected with is promptCancelled().
+	it("every prompt rejection is promptCancelled()", () => {
 		const offenders: string[] = [];
-		for (const file of walk(SRC)) {
-			const text = readFileSync(file, "utf8");
-			for (const match of text.matchAll(BARE_STRING_REJECTION)) {
-				const line = text.slice(0, match.index).split("\n").length;
-				offenders.push(
-					`${file.slice(SRC.length + 1)}:${line} — ${match[0].trim()}…`,
-				);
+		for (const dir of PROMPT_DIRS) {
+			for (const file of walk(dir)) {
+				const text = stripComments(readFileSync(file, "utf8"));
+				for (const match of text.matchAll(REJECT_CALL)) {
+					const arg = (match[1] ?? "").trim();
+					// `(resolve, reject) => {` etc: the binding, not a call on it.
+					if (arg === "" || arg.startsWith(")")) continue;
+					if (arg.startsWith("promptCancelled(")) continue;
+					const line = text.slice(0, match.index).split("\n").length;
+					offenders.push(
+						`${file.slice(SRC.length + 1)}:${line} — ${match[0].trim().slice(0, 60)}`,
+					);
+				}
 			}
 		}
 		expect(
 			offenders,
-			"A dismissed prompt must reject with promptCancelled(), not a string. " +
-				"For a genuine failure, reject with an Error so it carries a stack.",
+			"A dismissed prompt must reject with promptCancelled(). A bare string is " +
+				"unrecognisable and untraceable; a plain Error reads as a genuine failure.",
+		).toEqual([]);
+	});
+
+	it("no source file throws a bare string literal", () => {
+		const offenders: string[] = [];
+		for (const file of walk(SRC)) {
+			const text = stripComments(readFileSync(file, "utf8"));
+			for (const match of text.matchAll(THROW_STRING)) {
+				const line = text.slice(0, match.index).split("\n").length;
+				offenders.push(`${file.slice(SRC.length + 1)}:${line} — ${match[0].trim()}…`);
+			}
+		}
+		expect(
+			offenders,
+			"Throw an Error so the value carries a stack and can be classified.",
 		).toEqual([]);
 	});
 
 	it("no source file re-introduces a legacy cancellation sentinel", () => {
-		const sentinels = ['"No input given."', '"no input given."'];
+		// Unquoted so single-quoted and template forms count too, and including
+		// "cancelled" - the sentinel OnePageInputModal actually used.
+		const sentinels = ["No input given.", "no input given."];
 		const offenders: string[] = [];
 		for (const file of walk(SRC)) {
 			// errorUtils owns the compatibility list by design.
@@ -74,6 +116,19 @@ describe("cancellation contract (#1577)", () => {
 			}
 		}
 		expect(offenders).toEqual([]);
+	});
+
+	// Guards the guard: if the walk stops finding files (a moved directory, a changed
+	// extension filter), every scan above passes vacuously.
+	it("the scan actually reads the prompt sources", () => {
+		const scanned = PROMPT_DIRS.flatMap((dir) => walk(dir));
+		expect(scanned.length).toBeGreaterThan(50);
+		expect(
+			scanned.some((f) => f.endsWith(join("GenericSuggester", "genericSuggester.ts"))),
+		).toBe(true);
+		expect(
+			scanned.some((f) => f.endsWith(join("preflight", "OnePageInputModal.ts"))),
+		).toBe(true);
 	});
 
 	it("recognises a typed prompt dismissal", () => {
