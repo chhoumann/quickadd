@@ -12,6 +12,7 @@ import {
 	hasUnreadableChildren,
 	resolveChoiceIcon,
 	rootChoicesOf,
+	treeHasUnreadableChildren,
 } from "./choiceUtils";
 
 let idCounter = 0;
@@ -354,5 +355,54 @@ describe("malformed `choices` values (#1566)", () => {
 			unknown
 		>;
 		expect(deduped.choices).toBe(blob);
+	});
+});
+
+describe("treeHasUnreadableChildren (#1566)", () => {
+	function brokenFolder(children: unknown, id = "broken"): IChoice {
+		const node: Record<string, unknown> = {
+			id,
+			name: id,
+			type: "Multi",
+			command: false,
+			collapsed: false,
+		};
+		if (children !== undefined) node.choices = children;
+		return node as unknown as IChoice;
+	}
+
+	it("is false for a tree it can read end to end", () => {
+		expect(treeHasUnreadableChildren([])).toBe(false);
+		expect(
+			treeHasUnreadableChildren([
+				choice("Leaf"),
+				multi("Folder", [multi("Nested", [choice("Deep")])]),
+			]),
+		).toBe(false);
+	});
+
+	it("is true for an unreadable root", () => {
+		expect(treeHasUnreadableChildren(undefined)).toBe(true);
+		expect(treeHasUnreadableChildren({})).toBe(true);
+	});
+
+	it("is true for an unreadable folder at any depth", () => {
+		// The whole point: a root-only check passes this, and the migration that
+		// relies on it then destroys data it could not see.
+		expect(treeHasUnreadableChildren([brokenFolder({})])).toBe(true);
+		expect(
+			treeHasUnreadableChildren([multi("Folder", [brokenFolder(undefined)])]),
+		).toBe(true);
+		expect(
+			treeHasUnreadableChildren([
+				multi("Outer", [multi("Inner", [brokenFolder(null)])]),
+			]),
+		).toBe(true);
+	});
+
+	it("steps over a hole in the list rather than calling it unreadable", () => {
+		expect(
+			treeHasUnreadableChildren([null as unknown as IChoice, choice("Leaf")]),
+		).toBe(false);
 	});
 });

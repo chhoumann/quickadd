@@ -7,6 +7,7 @@ import {
 import { walkAllChoices } from "./helpers/choice-traversal";
 import type { Migration, MigrationResult } from "./Migrations";
 import type { IMacro } from "src/types/macros/IMacro";
+import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 
 type SettingsWithLegacyMacros = QuickAdd["settings"] & { macros?: IMacro[] };
 
@@ -21,8 +22,8 @@ const consolidateFileExistsBehavior: Migration = {
 		// data.json, which is the opposite of what a migration should do (#1566).
 		// When it is unreadable the walk below covers nothing, so stay pending and
 		// re-run once the user has repaired the file.
-		const rootReadable = Array.isArray(plugin.settings.choices);
-		if (rootReadable) {
+		const treeReadable = !treeHasUnreadableChildren(plugin.settings.choices);
+		if (Array.isArray(plugin.settings.choices)) {
 			plugin.settings.choices = deepClone(plugin.settings.choices);
 		}
 		if (Array.isArray(settings.macros)) {
@@ -35,7 +36,7 @@ const consolidateFileExistsBehavior: Migration = {
 			}
 		});
 
-		if (!rootReadable) return { complete: false };
+		if (!treeReadable) return { complete: false };
 	},
 };
 

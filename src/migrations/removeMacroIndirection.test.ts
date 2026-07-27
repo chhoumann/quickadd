@@ -34,6 +34,36 @@ describe("removeMacroIndirection with an unreadable root (#1566)", () => {
 		expect(plugin.settings.choices).toEqual({ invalid: true });
 	});
 
+	it("stays pending for an unreadable folder NESTED in a readable root", async () => {
+		// The root array is fine, so a root-only guard lets the migration finish.
+		// flattenChoices then cannot see the folder's descendants, so a macro one
+		// of them references looks orphaned: it is duplicated at the root, the
+		// shared `macros` array is deleted, and the hidden choice keeps a dangling
+		// macroId forever - a completed migration never retries.
+		const macros = [legacyMacro()];
+		const plugin = {
+			settings: {
+				choices: [
+					{
+						id: "folder",
+						name: "Folder",
+						type: "Multi",
+						command: false,
+						collapsed: false,
+						choices: { "0": { id: "hidden", type: "Macro", macroId: "macro-1" } },
+					},
+				],
+				macros,
+			},
+		} as unknown as QuickAdd;
+
+		const result = await removeMacroIndirection.migrate(plugin);
+
+		expect(result).toEqual({ complete: false });
+		expect((plugin.settings as { macros?: unknown }).macros).toBe(macros);
+		expect(plugin.settings.choices).toHaveLength(1);
+	});
+
 	it("still migrates and cleans up when the root is readable", async () => {
 		const plugin = {
 			settings: { choices: [], macros: [legacyMacro()] },

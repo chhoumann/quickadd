@@ -2,7 +2,10 @@ import { log } from "src/logger/logManager";
 import type QuickAdd from "src/main";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import { MacroChoice } from "src/types/choices/MacroChoice";
-import { flattenChoices } from "src/utils/choiceUtils";
+import {
+	flattenChoices,
+	treeHasUnreadableChildren,
+} from "src/utils/choiceUtils";
 import type { Migration, MigrationResult } from "./Migrations";
 
 type LegacySettings = QuickAdd["settings"] & { macros?: LegacyMacro[] };
@@ -21,13 +24,16 @@ const removeMacroIndirection: Migration = {
 		const settings = plugin.settings as LegacySettings;
 
 		// This migration MOVES legacy macros into the choice tree and then deletes
-		// the old `macros` array. With an unreadable root there is nowhere to move
-		// them to, so finishing would delete them outright - and being flagged
-		// complete, it would never retry. Stay pending instead, so a user who
-		// repairs data.json by hand still gets their macros migrated (#1566).
-		if (!Array.isArray(settings.choices)) {
+		// the old `macros` array, so it must see the WHOLE tree before it destroys
+		// the source. Any unreadable `choices` value - at the root or in a nested
+		// folder - hides choices from flattenChoices below, which would classify
+		// the macros they reference as orphaned, duplicate them at the root, and
+		// then delete `settings.macros`; the hidden choice would keep a dangling
+		// macroId forever, because a completed migration never retries. Stay
+		// pending instead, so a vault repaired by hand is still migrated (#1566).
+		if (treeHasUnreadableChildren(settings.choices)) {
 			log.logMessage(
-				"QuickAdd could not read the choice list, so legacy macros were left in place to be migrated later.",
+				"QuickAdd could not read part of the choice list, so legacy macros were left in place to be migrated later.",
 			);
 			return { complete: false };
 		}

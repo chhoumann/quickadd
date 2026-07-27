@@ -5,6 +5,7 @@ import { deepClone } from "src/utils/deepClone";
 import { isMultiChoice } from "./helpers/isMultiChoice";
 import { isNestedChoiceCommand } from "./helpers/isNestedChoiceCommand";
 import type { Migration, MigrationResult } from "./Migrations";
+import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 
 type OldTemplateChoice = {
 	type?: string;
@@ -71,8 +72,8 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		// See the sibling migrations (#1566): never rewrite a corrupt root with [],
 		// and stay PENDING when the choices half could not run, so a vault repaired
 		// by hand is still migrated.
-		const rootReadable = Array.isArray(plugin.settings.choices);
-		if (rootReadable) {
+		const treeReadable = !treeHasUnreadableChildren(plugin.settings.choices);
+		if (Array.isArray(plugin.settings.choices)) {
 			const choicesCopy = deepClone(plugin.settings.choices);
 			plugin.settings.choices = deepClone(
 				recursiveRemoveIncrementFileName(choicesCopy),
@@ -87,7 +88,7 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 		
 		// DO NOT delete macros here – later migrations still need it.
 
-		if (!rootReadable) return { complete: false };
+		if (!treeReadable) return { complete: false };
 	},
 };
 

@@ -61,6 +61,28 @@ export function hasChildChoices(choice: IChoice): boolean {
 }
 
 /**
+ * Whether ANY node in the tree has children we cannot read.
+ *
+ * The distinction matters to migrations. A reader can walk past an unreadable
+ * folder and be correct; a migration that MOVES data (or deletes the source it
+ * moved from) cannot, because it is flagged complete and never retried - so the
+ * subtree it silently skipped stays un-migrated forever, even after the user
+ * repairs data.json by hand. Such a migration must stay pending instead, and
+ * this is the question it has to ask about the WHOLE tree, not just the root.
+ *
+ * See #1566, and `MigrationResult` in src/migrations/Migrations.ts.
+ */
+export function treeHasUnreadableChildren(choices: unknown): boolean {
+	if (!Array.isArray(choices)) return true;
+	return choices.some((choice) => {
+		if (!isChoiceLike(choice)) return false;
+		if (choice.type !== "Multi") return false;
+		if (!Array.isArray((choice as IMultiChoice).choices)) return true;
+		return treeHasUnreadableChildren((choice as IMultiChoice).choices);
+	});
+}
+
+/**
  * A choice list that is always safe to iterate. Same argument as
  * `childChoicesOf`, one level up: the ROOT `settings.choices` is untrusted too,
  * and `loadSettings` deliberately leaves a non-array value in place rather than
