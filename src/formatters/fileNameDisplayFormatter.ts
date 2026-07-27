@@ -1,9 +1,12 @@
 import {
+	defaultDateVariableFormat,
 	findInlineScriptSpans,
 	Formatter,
 	hasUnterminatedInlineScriptFence,
+	renderStoredDateVariable,
 	type PromptContext,
 } from "./formatter";
+import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -545,15 +548,38 @@ export class FileNameDisplayFormatter extends Formatter {
 		// date WITHOUT applying |startof:/|endof: snap - snap is only resolved in
 		// the real CompleteFormatter pass, and snapping only the file-name
 		// preview would diverge from the body preview.
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
 
-			if (!cleanVariableName || !cleanDateFormat) {
-				return match; // Return original if incomplete
+			// Only a NAMELESS token stays literal, which is what the run does with
+			// it too. A token that names no FORMAT is complete and working - the
+			// run supplies YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time - so
+			// echoing it back promised a name with a token in it (#1589).
+			if (!cleanVariableName) {
+				return match;
 			}
 
-			// Generate a realistic preview using the current date.
+			const { withTime, snap } = parseVDateOptionsForPreview(rawOptions);
+			const cleanDateFormat =
+				dateFormat?.trim() || defaultDateVariableFormat(withTime);
+
+			// An ANSWERED date wins over the example. The one-page input form
+			// seeds the user's real picks into this formatter before computing the
+			// preview (runOnePagePreflight.computePreview), so without this the row
+			// showed today's date beside the date they had just chosen (#1590).
+			const stored = renderStoredDateVariable(
+				this.variables.get(cleanVariableName),
+				cleanDateFormat,
+				snap,
+				this.dateParser,
+			);
+			if (stored) return stored.text;
+
+			// Nothing answered: a realistic example from the current date. Like the
+			// body preview, this renders WITHOUT applying |startof:/|endof: snap -
+			// snap is only resolved in the real CompleteFormatter pass, and
+			// snapping only the file-name preview would diverge from the body
+			// preview.
 			const previewDate = new Date();
 			try {
 				return DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);

@@ -1,4 +1,9 @@
-import { Formatter, type PromptContext } from "./formatter";
+import {
+	defaultDateVariableFormat,
+	Formatter,
+	renderStoredDateVariable,
+	type PromptContext,
+} from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -22,7 +27,7 @@ import {
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
-import { parseVDateOptions } from "../utils/vdateSyntax";
+import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
@@ -310,18 +315,36 @@ export class FormatDisplayFormatter extends Formatter {
 		// For preview, show helpful format examples instead of failing
 		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
-			const { defaultValue: cleanDefaultValue, optional } =
-				parseVDateOptions(rawOptions);
+			const {
+				defaultValue: cleanDefaultValue,
+				optional,
+				withTime,
+				snap,
+			} = parseVDateOptionsForPreview(rawOptions);
+			// Only a NAMELESS token stays literal, as the run leaves it. A token
+			// that names no FORMAT is complete and working: the run supplies
+			// YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time (#1589).
+			const cleanDateFormat =
+				dateFormat?.trim() || defaultDateVariableFormat(withTime);
 
-			if (!cleanVariableName || !cleanDateFormat) {
+			if (!cleanVariableName) {
 				return match; // Return original if incomplete
 			}
+
+			// An ANSWERED date wins over the example, resolved through the run's
+			// own renderer so a seeded @date:ISO renders exactly as it will.
+			const stored = renderStoredDateVariable(
+				this.variables.get(cleanVariableName),
+				cleanDateFormat,
+				snap,
+				this.dateParser,
+			);
+			if (stored) return stored.text;
 
 			// Generate a preview using current date with the specified format
 			const previewDate = new Date();
 			let formattedExample: string;
-			
+
 			try {
 				// Try to generate a realistic preview using the format
 				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
@@ -329,7 +352,7 @@ export class FormatDisplayFormatter extends Formatter {
 				// Fallback to showing the format pattern
 				formattedExample = `[${cleanDateFormat} format]`;
 			}
-			
+
 			// If there's a default value, indicate it in the preview
 			if (cleanDefaultValue) {
 				formattedExample += ` (default: ${cleanDefaultValue})`;
