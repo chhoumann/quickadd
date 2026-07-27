@@ -25,6 +25,13 @@
 import { UserCancelError } from "../errors/UserCancelError";
 import type { PromptProvider } from "./promptProvider";
 
+/**
+ * Prefix for this module's own row handles. The NUL char makes a collision with a
+ * value a user could type effectively impossible, mirroring the provider's own
+ * index token.
+ */
+const HANDLE_PREFIX = "\u0000qa-eng:";
+
 export interface EngineChoiceItem<T> {
 	/** The real item. Never crosses the wire — the provider tokenises by index. */
 	value: T;
@@ -49,27 +56,31 @@ export async function promptEngineChoice<T>(
 		what: string;
 	},
 ): Promise<T | string> {
-	const values = spec.items.map((item) => item.value);
+	// Hand the provider OUR OWN opaque handles rather than the real values, so a
+	// picked row is distinguishable from a typed one no matter what the row's value
+	// is. This matters for exactly one case, and it is a real one: a folder list can
+	// contain "" (a `{{VALUE:sub}}` entry that resolved to nothing is the vault root).
+	// The provider's own index token is decoded back to the raw value before this
+	// function sees it, so without a handle of our own, PICKING the root row and
+	// sending NO ANSWER AT ALL arrive here as the same empty string — and those two
+	// have to mean opposite things.
+	const handles = spec.items.map((_, index) => `${HANDLE_PREFIX}${index}`);
 	const answer = await provider.suggester(
 		spec.items.map((item) => item.title),
-		// The provider tokenises by index and hands back the ORIGINAL entry, so object
-		// identity survives even though only titles are sent.
-		values as unknown as string[],
+		handles,
 		spec.placeholder,
 		spec.allowCustomInput ?? false,
 	);
 
 	const text = answer == null ? "" : String(answer);
 
-	// Checked BEFORE membership, so an absent value can never be read as picking an
-	// empty row. A folder list CAN contain "" (a `{{VALUE:sub}}` entry that resolved
-	// to nothing is the vault root), and that is precisely the reply whose two
-	// readings differ most: "the client sent nothing" vs "create the note at the vault
-	// root". A client that really means the root row replies with its index token,
-	// which is unambiguous; one that means to cancel sends `{"cancelled": true}`.
-	if (text === "") throw new UserCancelError("Input cancelled by user");
+	const picked = handles.indexOf(text);
+	if (picked !== -1) return spec.items[picked].value;
 
-	if (values.includes(answer as T)) return answer as T;
+	// Not a handle, so the client either typed something or answered nothing. An
+	// empty reply is what `suggester` produces for a missing value; a client that
+	// means to cancel sends `{"cancelled": true}`, which rejects before we get here.
+	if (text === "") throw new UserCancelError("Input cancelled by user");
 
 	if (spec.allowCustomInput) return text;
 

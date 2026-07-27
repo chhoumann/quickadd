@@ -156,6 +156,11 @@ carries `error` instead and no `effect`, because there is no outcome to describe
 The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
 success callback carries the same `effect` value.
 
+:::note[Available in the next release]
+`effect` is new. `capabilities` in the `quickadd:interactive` handshake contains
+`outcome-effect` on a build that has it.
+:::
+
 ## Answer run-time prompts from outside: `quickadd:interactive` {#interactive-runs-quickaddinteractive}
 
 Some choices prompt at *run time* for inputs that can't be gathered up front -
@@ -181,7 +186,12 @@ Prompts a Template or Capture run opens itself - the "file already exists" choos
 the folder picker, the note-discovery picker, the heading picker, the capture-target
 picker - are forwarded like any other. (The AI assistant's tool-confirmation dialog is
 the one that is not: run such a choice at the desktop, or set tool confirmation to
-"never".) They arrive as `suggester` prompts, and because the engine controls the
+"never".)
+
+:::note[Available in the next release]
+Forwarding the run's own pickers is new. Before it, a Template or Capture run opened
+them in Obsidian and `/abort` could not reach them.
+::: They arrive as `suggester` prompts, and because the engine controls the
 list, a reply that is not one of the offered `value` tokens is refused rather than
 acted on (unless the prompt sets `allowCustomInput`, as the folder and discovery
 pickers do so you can create something new).

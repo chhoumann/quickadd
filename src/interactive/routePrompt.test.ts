@@ -116,10 +116,10 @@ describe("promptEngineChoice enforces what the in-app modal enforces structurall
 	const providerReturning = (answer: unknown) =>
 		({ suggester: vi.fn(async () => answer) }) as unknown as PromptProvider;
 
-	it("returns the offered value when the client picks one", async () => {
+	it("refuses a reply that echoes a raw value instead of the row's handle", async () => {
 		await expect(
 			promptEngineChoice(providerReturning("doNothing"), { items, what }),
-		).resolves.toBe("doNothing");
+		).rejects.toThrow(/has to be one of the offered options/);
 	});
 
 	// GenericSuggester can only ever resolve an element of its list. Routing the prompt
@@ -154,18 +154,33 @@ describe("promptEngineChoice enforces what the in-app modal enforces structurall
 	});
 
 	// A folder list CAN legitimately contain "" (a `{{VALUE:sub}}` entry that resolved to
-	// nothing is the vault root). Membership must NOT win there, or an absent value silently
-	// becomes "create the note at the vault root" - the outcome the strict channel exists
-	// to prevent.
-	it("treats an empty reply as a dismissal even when '' is an offered row", async () => {
+	// nothing is the vault root). Picking that row and answering nothing at all must not
+	// collapse into the same thing: one creates the note at the vault root, the other has
+	// to abort. The row handles are what keep them apart.
+	describe("when '' is one of the offered rows", () => {
 		const withRoot = [
 			{ value: "", title: "/" },
 			{ value: "Archive", title: "Archive" },
 		];
 
-		await expect(
-			promptEngineChoice(providerReturning(""), { items: withRoot, what }),
-		).rejects.toBeInstanceOf(UserCancelError);
+		it("returns the root value when the client PICKS that row", async () => {
+			// The client echoes the row's opaque handle, as it does for any row.
+			const provider = {
+				suggester: vi.fn(
+					async (_display: unknown, handles: string[]) => handles[0],
+				),
+			} as unknown as PromptProvider;
+
+			await expect(
+				promptEngineChoice(provider, { items: withRoot, what }),
+			).resolves.toBe("");
+		});
+
+		it("cancels when the client answers NOTHING", async () => {
+			await expect(
+				promptEngineChoice(providerReturning(""), { items: withRoot, what }),
+			).rejects.toBeInstanceOf(UserCancelError);
+		});
 	});
 
 	it("still refuses an empty reply where custom input is allowed", async () => {
@@ -178,16 +193,30 @@ describe("promptEngineChoice enforces what the in-app modal enforces structurall
 		).rejects.toBeInstanceOf(UserCancelError);
 	});
 
-	it("sends titles, not the underlying values, and asks for a closed list by default", async () => {
+	it("sends titles and opaque handles, never the underlying values, and closes the list by default", async () => {
 		const provider = providerReturning("appendBottom");
 
-		await promptEngineChoice(provider, { items, what, placeholder: "Pick one" });
-
-		expect(provider.suggester).toHaveBeenCalledWith(
-			["Append to bottom", "Do nothing"],
-			["appendBottom", "doNothing"],
-			"Pick one",
-			false,
+		await promptEngineChoice(provider, { items, what, placeholder: "Pick one" }).catch(
+			() => undefined,
 		);
+
+		const [displays, handles, placeholder, allowCustom] = (
+			provider.suggester as ReturnType<typeof vi.fn>
+		).mock.calls[0];
+		expect(displays).toEqual(["Append to bottom", "Do nothing"]);
+		expect(handles).toHaveLength(2);
+		expect(handles[0]).not.toBe("appendBottom");
+		expect(placeholder).toBe("Pick one");
+		expect(allowCustom).toBe(false);
+	});
+
+	it("round-trips a picked row back to its original value", async () => {
+		const provider = {
+			suggester: vi.fn(async (_d: unknown, handles: string[]) => handles[1]),
+		} as unknown as PromptProvider;
+
+		await expect(
+			promptEngineChoice(provider, { items, what }),
+		).resolves.toBe("doNothing");
 	});
 });
