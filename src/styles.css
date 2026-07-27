@@ -401,6 +401,19 @@
 	font-family: var(--font-monospace);
 }
 
+/* Same bound as .qa-preview-row--one-line in the builder, for the same reason:
+   since #1563 this row can hold a whole included template joined onto one line,
+   and it sits above every input in a modal that re-renders it as you type. */
+.quickAddModal .qa-preview-val {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+}
+
 .quickAddModal .qa-onepage-preview-row {
 	display: flex;
 	gap: 0.5rem;

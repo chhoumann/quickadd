@@ -40,10 +40,12 @@ export const FIELD_FILTER_KEYS = [
  * `case-sensitive:true` - silently inverting what they asked for. A negation is
  * not a typo, so it gets an explicit answer instead of a guess.
  */
-const FIELD_FILTER_HINTS: Record<string, string> = {
-	"case-insensitive":
+const FIELD_FILTER_HINTS = new Map<string, string>([
+	[
+		"case-insensitive",
 		'matching is already case-insensitive; use "case-sensitive:true" to match exactly',
-};
+	],
+]);
 
 /** Keeps one absurd key or one very long token from re-inflating the warning. */
 function clampForMessage(value: string, max: number): string {
@@ -73,7 +75,11 @@ export function describeUnknownFieldFilter(
 	// dangling `"` at a line break in the inline diagnostic.
 	const token = `{{FIELD:${clampForMessage(input, 48)}}}`;
 
-	const hint = FIELD_FILTER_HINTS[filterKey];
+	// A Map, not an object literal: `filterKey` is whatever the user typed after a
+	// pipe, and an object lookup would answer `constructor` or `__proto__` with a
+	// member of Object.prototype - stringified into the warning as
+	// "function Object() { [native code] }".
+	const hint = FIELD_FILTER_HINTS.get(filterKey);
 	if (hint) {
 		return `Unknown FIELD filter "${key}" - ${hint}. Ignored in ${token}.`;
 	}
@@ -84,6 +90,24 @@ export function describeUnknownFieldFilter(
 	}
 
 	return `Unknown FIELD filter "${key}" in ${token} was ignored. Supported filters: ${FIELD_FILTER_KEYS.join(", ")}.`;
+}
+
+/**
+ * A RECOGNISED filter written without its value, e.g. `{{FIELD:status|folder}}`.
+ *
+ * It is not an unknown key and must not be described as one: calling `folder`
+ * unknown and then listing `folder` among the supported filters is a
+ * self-contradiction, and running it through the typo suggester - which excludes
+ * the exact match from its own pool - answers a correctly spelled key with one of
+ * its siblings. This is also what a live preview sees for the one keystroke
+ * between `|folder` and `|folder:`, so it has to read as "not finished yet".
+ */
+export function describeValuelessFieldFilter(
+	filterKey: string,
+	input: string,
+): string {
+	const key = clampForMessage(filterKey, 32);
+	return `FIELD filter "${key}" needs a value - write "${key}:value". Ignored in {{FIELD:${clampForMessage(input, 48)}}}.`;
 }
 
 export interface FieldFilter {
@@ -154,11 +178,18 @@ export class FieldSuggestionParser {
 			const parsed = parsePipeKeyValue(filterPart);
 			if (!parsed) {
 				// A pipe part with no colon. `multi` is the only legal bare flag and
-				// was consumed above, so anything left here is a mistyped filter that
-				// would otherwise vanish without a trace - including `|mutli`, which
-				// quietly downgrades a multi-select prompt to a single-select one.
-				if (options?.warnUnknown && filterPart) {
-					warnUnknownFilter(filterPart.toLowerCase(), input, options);
+				// was consumed above, so anything left here does nothing at all and
+				// would otherwise vanish without a trace - `|mutli` quietly
+				// downgrades a multi-select prompt to a single-select one. A
+				// correctly spelled key is a different mistake (a missing value) and
+				// gets a different sentence.
+				const bareKey = filterPart.toLowerCase();
+				if (options?.warnUnknown && bareKey) {
+					(options.warn ?? NOTICE_WARN)(
+						(FIELD_FILTER_KEYS as readonly string[]).includes(bareKey)
+							? describeValuelessFieldFilter(bareKey, input)
+							: describeUnknownFieldFilter(bareKey, input),
+					);
 				}
 				continue;
 			}

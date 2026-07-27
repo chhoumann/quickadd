@@ -120,6 +120,33 @@ describe("FieldSuggestionParser warns through the new message", () => {
 		]);
 	});
 
+	it("never answers a prototype member as if it were a hint", () => {
+		// The hint table is keyed by whatever the user typed after a pipe, and an
+		// object lookup would answer `constructor` with Object itself - stringified
+		// into the warning as "function Object() { [native code] }".
+		for (const key of ["constructor", "__proto__", "tostring", "valueof"]) {
+			const message = describeUnknownFieldFilter(key, `status|${key}:x`);
+			expect(message).not.toContain("native code");
+			expect(message).not.toContain("[object Object]");
+			expect(message).toContain(`Unknown FIELD filter "${key}"`);
+		}
+	});
+
+	it("tells a correctly spelled filter it is missing its value, not that it is unknown", () => {
+		// `|folder` is one keystroke short of `|folder:`, which a live preview sees
+		// constantly. Calling it unknown and then listing `folder` among the
+		// supported filters contradicts itself; running it through the suggester
+		// answers it with a sibling key, because the suggester excludes the exact
+		// match from its own pool.
+		for (const key of FIELD_FILTER_KEYS) {
+			if (key === "multi") continue; // the one legal bare flag
+			const { warnings } = parse(`status|${key}`);
+			expect(warnings).toEqual([
+				`FIELD filter "${key}" needs a value - write "${key}:value". Ignored in {{FIELD:status|${key}}}.`,
+			]);
+		}
+	});
+
 	it("warns about a mistyped bare flag, which used to vanish silently", () => {
 		// `|mutli` parses as no filter at all: the prompt quietly stays
 		// single-select and nothing anywhere says why.
