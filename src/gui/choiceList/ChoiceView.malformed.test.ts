@@ -130,13 +130,17 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 		// Two entries with no id give the keyed {#each} the same (undefined) key,
 		// which raises `each_key_duplicate` - the #1451 crash. The boundary would
 		// catch it, but the user would lose every real row with it.
-		const { getByLabelText, container } = renderChoiceView([
-			{} as IChoice,
+		const { getByLabelText, queryByText, container } = renderChoiceView([
+			{ name: "Missing id" } as IChoice,
 			{ name: "No id" } as IChoice,
 			leaf("Survivor", "survivor"),
 		]);
 
 		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
+		// Absent from the DOM entirely, not merely unkeyed: a regression that still
+		// painted them as rows without a data-choice-id would pass a count check.
+		expect(queryByText("Missing id")).toBeNull();
+		expect(queryByText("No id")).toBeNull();
 		expect(container.querySelector(".qaChoicesUnavailable")).toBeNull();
 		expect(container.querySelectorAll("[data-choice-id]")).toHaveLength(1);
 	});
