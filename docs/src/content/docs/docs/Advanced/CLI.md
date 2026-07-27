@@ -125,6 +125,35 @@ In a [scheduled job](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/#run-quic
 only add `ui` when the job runs while you are logged in and able to answer the
 prompts.
 
+## Knowing whether anything actually landed {#verified-and-effect}
+
+`ok:true` means the choice ran without aborting. It does **not** mean your vault
+changed. Two more keys answer the questions an automation actually asks:
+
+| Key | Question it answers | Values |
+| --- | --- | --- |
+| `verified` | Did QuickAdd confirm what the engine did? | `true` on the outcome path (`verify` on a Template/Capture choice), `false` when it could not look |
+| `effect` | What did the run do to the vault? | `created`, `changed`, `unchanged`, `unknown` |
+
+```bash
+obsidian vault=dev quickadd:run choice="Inbox" value-value="  " verify=true
+# -> {"ok":true,"choice":{…},"file":"Inbox.md","verified":true,"effect":"unchanged","durationMs":6}
+```
+
+That run is working exactly as designed: the capture's payload was empty, so
+QuickAdd deliberately left `Inbox.md` alone rather than writing a blank line, and
+said so in a notice. A Template set to **Do nothing** when the file already exists
+reports the same. If you are counting captures, writing an idempotency marker, or
+deciding whether to retry, key off `effect`, not `ok`.
+
+`effect` is always present on a terminal frame, and `unknown` is stated rather than
+omitted - a missing key reads as `false` in both `jq` and JavaScript, which would
+turn "QuickAdd did not look" into "nothing happened". `verified:false` still means
+only *"not confirmed - go look"*; it never means *"confirmed that nothing changed"*.
+
+The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
+success callback carries the same `effect` value.
+
 ## Answer run-time prompts from outside: `quickadd:interactive` {#interactive-runs-quickaddinteractive}
 
 Some choices prompt at *run time* for inputs that can't be gathered up front -
@@ -136,7 +165,7 @@ the prompts opening in Obsidian.
 
 ```bash
 obsidian vault=dev quickadd:interactive choice="Import from Readwise"
-# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…","capabilities":["abort"]}
+# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…","capabilities":["abort","outcome-effect"]}
 ```
 
 The command returns connection details immediately and runs the choice in the
@@ -150,7 +179,8 @@ Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
 acknowledgement, `form` → an object mapping each field's `id` to its string
 value (date fields use the `@date:ISO` format). The run's outcome arrives as the
-`done`/`error` poll event.
+`done`/`error` poll event: `done` carries the same `verified` and `effect` keys
+described under [Knowing whether anything actually landed](#verified-and-effect).
 
 ### Cancelling, and ending a run
 

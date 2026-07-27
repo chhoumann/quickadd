@@ -79,7 +79,7 @@ const RUN_FLAGS: CliFlags = {
 	},
 	verify: {
 		description:
-			"Report the verified outcome for Template/Capture choices (file path on success, honest failure when the engine swallows an error)",
+			"Report the verified outcome for Template/Capture choices (file path and effect on success, honest failure when the engine swallows an error)",
 	},
 };
 
@@ -433,6 +433,12 @@ async function runResolvedChoice(
 					// The outcome path confirms the engine actually completed (a file
 					// was created / capture written), so this success is verified.
 					verified: true,
+					// What the run did to the vault. `verified` answers "did QuickAdd
+					// confirm the run?"; `effect` answers "did anything land?" - the
+					// question an automation counting captures or writing an idempotency
+					// marker actually asks. A correctly-behaving no-op is
+					// `verified:true, effect:"unchanged"` (#1615).
+					effect: outcome.effect,
 					durationMs,
 				});
 			}
@@ -493,6 +499,9 @@ async function runResolvedChoice(
 			// logic off `ok` can tell it apart from the verified outcome path (and use
 			// quickadd:check up front, or quickadd:run-template for a verified create).
 			verified: false,
+			// Stated, never left absent: a missing key reads as `false` to both `jq`
+			// and JS, which would turn "we did not look" into "nothing happened".
+			effect: "unknown",
 			durationMs,
 		});
 	} catch (error) {
@@ -784,6 +793,7 @@ async function interactiveHandler(
 								choice: describeChoice(choice),
 								file: outcome.file?.path,
 								verified: true,
+								effect: outcome.effect,
 							},
 						});
 						return;
@@ -816,7 +826,16 @@ async function interactiveHandler(
 				}
 				interactivePromptServer.finish(sessionId, {
 					kind: "done",
-					result: { ok: true, choice: describeChoice(choice) },
+					// The legacy void-execute tail (Macro, and anything without the
+					// outcome path). It used to emit neither flag, so a client could not
+					// tell this frame apart from the verified one above; both are now
+					// stated explicitly (#1615).
+					result: {
+						ok: true,
+						choice: describeChoice(choice),
+						verified: false,
+						effect: "unknown",
+					},
 				});
 			} catch (error) {
 				interactivePromptServer.finish(sessionId, {
@@ -839,7 +858,7 @@ async function interactiveHandler(
 			// panel instead of ending the run (#1605). Without it a client could only
 			// tell the two behaviours apart by string-matching a 404 body, since an
 			// unknown path and an unauthed session answer the same shape.
-			capabilities: ["abort"],
+			capabilities: ["abort", "outcome-effect"],
 		});
 	} catch (error) {
 		return serialize({
@@ -908,14 +927,14 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 
 	register(
 		CLI_COMMANDS.runDefault,
-		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check the verified flag to know if a file was created)",
+		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check verified to know QuickAdd confirmed the run, and effect to know whether the vault changed: created/changed/unchanged/unknown)",
 		RUN_FLAGS,
 		(params: CliData) =>
 			runChoiceHandler(plugin, params, CLI_COMMANDS.runDefault),
 	);
 	register(
 		CLI_COMMANDS.run,
-		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check the verified flag to know if a file was created)",
+		"Run a QuickAdd choice (ok:true reports the choice ran without aborting; check verified to know QuickAdd confirmed the run, and effect to know whether the vault changed: created/changed/unchanged/unknown)",
 		RUN_FLAGS,
 		(params: CliData) => runChoiceHandler(plugin, params, CLI_COMMANDS.run),
 	);
