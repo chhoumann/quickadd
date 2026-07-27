@@ -65,7 +65,7 @@ obsidian vault=dev quickadd:run-template \
 - `path=` is the template file (vault-relative). A leading slash is allowed and a missing `.md` extension is added, matching how Template choices resolve paths. If no file resolves there, the command returns `{"ok":false}` up front.
 - The new note's name comes from `{{VALUE}}` - pass it as `value-value=...`. A non-interactive run with an empty or missing name returns `missingFlags` instead of creating an unnamed note. The note is created in Obsidian's "Default location for new notes".
 - The picker (interactive command) only lists templates inside your configured template folder(s); `path=` here is explicit, so any vault file resolves.
-- Like `quickadd:run`, name collisions on the target note still prompt interactively (the file-exists choice is not a pre-collected input).
+- Like `quickadd:run`, name collisions on the target note still prompt (the file-exists choice is not a pre-collected input). Under `quickadd:interactive` that prompt is forwarded to you like any other.
 
 _Introduced in QuickAdd 2.14.0._
 
@@ -175,6 +175,13 @@ background. Attach to the session and drive it:
 - `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which ends the run - except on an `info` panel, see below).
 - `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected; `409` if the run had already finished (benign - poll for the terminal event); `404` for an unknown session or token, or for any method other than `POST`.
 
+Prompts a Template or Capture run opens itself - the "file already exists" chooser,
+the folder picker, the note-discovery picker, the heading picker - are forwarded like
+any other. They arrive as `suggester` prompts, and because the engine controls the
+list, a reply that is not one of the offered `value` tokens is refused rather than
+acted on (unless the prompt sets `allowCustomInput`, as the folder and discovery
+pickers do so you can create something new).
+
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
 acknowledgement, `form` → an object mapping each field's `id` to its string
@@ -201,12 +208,9 @@ whether it stopped anything.
 
 :::caution[What `/abort` cannot reach]
 `/abort` interrupts prompts that were routed **to you**. A run that is mid-work
-between prompts keeps going, and a Template or Capture run still opens some prompts in
-Obsidian itself - the "file already exists" chooser, the folder picker, the
-capture-target picker - which do not travel over this bridge
-([#1614](https://github.com/chhoumann/quickadd/issues/1614)). So `"interrupted":0`
-means nothing was waiting on you, and the run may still succeed and commit its side
-effects.
+between prompts keeps going, so `"interrupted":0` means nothing was waiting on you and
+the run may still finish and commit its side effects. Keep polling for the terminal
+event either way.
 :::
 
 :::note[Available in the next release]
