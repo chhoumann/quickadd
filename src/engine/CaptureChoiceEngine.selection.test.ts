@@ -1248,8 +1248,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(app.fileManager.trashFile).toHaveBeenCalledWith(attachmentFile);
+		// The reason travels with the outcome so a CLI/interactive caller is told WHY,
+		// instead of the fixed "Choice execution failed; no file was created." (#1603).
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "error",
+			reason: expect.stringContaining("no active Markdown editor"),
 		});
 	});
 

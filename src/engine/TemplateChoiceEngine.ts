@@ -30,6 +30,10 @@ import {
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import {
+	ChoiceOutcomeRecorder,
+	failureReason,
+} from "./choiceOutcomeRecorder";
+import {
 	filterFolderPathsWithinRoots,
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
@@ -55,6 +59,7 @@ type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>
 export class TemplateChoiceEngine extends TemplateEngine {
 	public choice: ITemplateChoice;
 	private readonly choiceExecutor: IChoiceExecutor;
+	private readonly outcome: ChoiceOutcomeRecorder;
 
 	constructor(
 		app: App,
@@ -65,6 +70,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
+		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.choice = choice;
 		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
@@ -110,10 +116,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				);
 				if (discovery.kind === "openExisting") {
 					await this.openDiscoveredExistingNote(discovery.file);
-					this.choiceExecutor.recordExecutionResult?.({
-						status: "success",
-						file: discovery.file,
-					});
+					this.outcome.success(discovery.file);
 					return;
 				}
 
@@ -198,8 +201,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 							existingFile.extension !== "canvas" &&
 							existingFile.extension !== "base"))
 				) {
-					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-					log.logError(
+					this.failRun(
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
@@ -213,8 +215,16 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					linkOptions,
 				));
 				if (!createdFile) {
-					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-					log.logWarning(`Could not resolve file exists behavior for '${targetFilePath}'.`);
+					// applyFileExistsMode's createNew branch may have already reported a
+					// creation failure; prefer its cause and do not log a vaguer second line.
+					if (this.lastTemplateFileFailure) {
+						this.failRun(this.lastTemplateFileFailure, "none");
+					} else {
+						this.failRun(
+							`Could not resolve file exists behavior for '${targetFilePath}'.`,
+							"warning",
+						);
+					}
 					return;
 				}
 			} else {
@@ -223,8 +233,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					templatePath,
 				);
 				if (!createdFile) {
-					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-					log.logWarning(`Could not create file '${targetFilePath}'.`);
+					// No second log line: createFileWithTemplate already reported the real
+					// cause. Record that same cause as the outcome, so a caller who cannot
+					// see notices is told what the notice said (#1603).
+					this.failRun(
+						this.lastTemplateFileFailure ??
+							`Could not create file '${targetFilePath}'.`,
+						"none",
+					);
 					return;
 				}
 				createdNew = true;
@@ -233,10 +249,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.choiceExecutor.recordExecutionResult?.({
-				status: "success",
-				file: createdFile,
-			});
+			this.outcome.success(createdFile);
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
@@ -332,10 +345,32 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				return;
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+			// Record BEFORE reporting: the notice is for whoever is at the desktop, the
+			// reason is for whoever is not (a CLI or interactive-bridge caller), and both
+			// must say the same thing (#1603).
+			this.outcome.failure(failureReason(err));
 			reportError(err, `Error running template choice "${this.choice.name}"`);
 		} finally {
 			restoreDiscoveryValue?.();
 		}
+	}
+
+	/**
+	 * A failure exit that is not a throw: log it for the desktop, and record the same
+	 * message as the run's outcome so a caller who cannot see notices learns the cause
+	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
+	 */
+	private failRun(
+		message: string,
+		level: "error" | "warning" | "none" = "error",
+	): void {
+		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+		// "none" is for a failure a lower layer has ALREADY reported: logging again
+		// would put a second notice on screen for one failure, which is exactly what
+		// report-once removes elsewhere (#1601).
+		if (level === "warning") log.logWarning(message);
+		else if (level === "error") log.logError(message);
+		this.outcome.failure(message);
 	}
 
 	private setTemporaryValueVariable(value: string): () => void {
@@ -368,8 +403,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return true;
 		}
 
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		log.logError(
+		this.failRun(
 			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
 		);
 		return false;

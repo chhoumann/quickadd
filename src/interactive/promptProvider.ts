@@ -276,10 +276,11 @@ export class RemotePromptProvider implements PromptProvider {
 	 *
 	 * A live client never sees this throw: the same rule is enforced at `/reply`
 	 * (`describeReplyProblem`), where a 400 reaches the client while it is still
-	 * holding the response and the prompt stays pending. This is the backstop for
-	 * every other caller of the provider, and the reason it is not the primary check
-	 * is that on the Template/Capture path a thrown message is replaced by a generic
-	 * sentence before the client ever polls for it.
+	 * holding the response and the prompt stays pending. Validating at the wire is what
+	 * makes a malformed reply RECOVERABLE - the client is still awaiting the HTTP
+	 * response and the prompt has not been settled - so it stays the primary check even
+	 * now that a thrown message survives to the client (#1603). This is the backstop for
+	 * every other caller of the provider.
 	 *
 	 * The other prompt types stay lenient on purpose: `""` and `[]` are answers a
 	 * user really can give in-app (the Skip affordances, optional fields), so

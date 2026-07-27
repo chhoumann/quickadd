@@ -240,7 +240,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				return { status: "cancelled", cancelKind: "aborted", reason: error.message };
 			}
 			reportError(error, "Error executing choice from URI");
-			return { status: "error" };
+			return {
+				status: "error",
+				reason: error instanceof Error ? error.message : String(error),
+			};
 		} finally {
 			this.endExecutionContext();
 		}

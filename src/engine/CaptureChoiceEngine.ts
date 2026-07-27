@@ -51,6 +51,10 @@ import {
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import {
+	ChoiceOutcomeRecorder,
+	failureReason,
+} from "./choiceOutcomeRecorder";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import {
 	resolveCaptureTarget as resolveCaptureTargetFromString,
@@ -129,6 +133,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	// TEXT (without '#' markers) for the success notice; the verbatim line goes to the
 	// formatter override. Null when not in heading mode.
 	private resolvedInsertAfterHeading: string | null = null;
+	private readonly outcome: ChoiceOutcomeRecorder;
 
 	constructor(
 		app: App,
@@ -140,6 +145,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
+		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
@@ -336,8 +342,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			return true;
 		}
 
-		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		log.logError(
+		this.failRun(
 			`Append link target file not found or is not a Markdown file: ${linkOptions.destination.path}`,
 		);
 		return false;
@@ -543,11 +548,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					// No active Markdown editor — the capture did not land. Report a
 					// failure instead of falling through to the success notice/callback.
 					await this.cleanupCreatedClipboardAttachments();
-					InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-					log.logError(
+					this.failRun(
 						`Capture "${this.choice.name}": no active Markdown editor to insert into.`,
 					);
-					this.choiceExecutor.recordExecutionResult?.({ status: "error" });
 					return;
 				}
 				contentCommitted = true;
@@ -570,7 +573,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// Content is committed. Record success before append-link/open-file steps
 			// so a later post-commit failure cannot make automation callers retry and
 			// duplicate the Capture side effect.
-			this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
+			this.outcome.success(file);
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
@@ -636,12 +639,30 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				return;
 			}
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+			// Record BEFORE reporting: the notice is for whoever is at the desktop, the
+			// reason is for whoever is not (a CLI or interactive-bridge caller), and both
+			// must say the same thing (#1603). A no-op once the capture committed, so a
+			// post-commit link/open failure cannot make an automation retry and write
+			// the capture twice.
+			this.outcome.failure(failureReason(err));
 			reportError(err, `Error running capture choice "${this.choice.name}"`);
 		} finally {
 			if (contentCommitted) {
 				this.formatter.consumeCreatedClipboardAttachmentPaths();
 			}
 		}
+	}
+
+	/**
+	 * A failure exit that is not a throw: log it for the desktop, and record the same
+	 * message as the run's outcome so a caller who cannot see notices learns the cause
+	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
+	 */
+	private failRun(message: string, level: "error" | "warning" = "error"): void {
+		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
+		if (level === "warning") log.logWarning(message);
+		else log.logError(message);
+		this.outcome.failure(message);
 	}
 
 	private async cleanupCreatedClipboardAttachments(): Promise<void> {
@@ -721,7 +742,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const captureIsNoOp = nextText === existingText;
 
 		// Committed; append-link/open-file steps remain post-commit (see run()).
-		this.choiceExecutor.recordExecutionResult?.({ status: "success", file });
+		this.outcome.success(file);
 
 		if (this.plugin.settings.showCaptureNotification) {
 			if (captureIsNoOp) {

@@ -574,10 +574,22 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		return assembledPath;
 	}
 
+	/**
+	 * Why the last {@link createFileWithTemplate} call returned null.
+	 *
+	 * That method reports the real cause ("Template file not found at path …") and then
+	 * returns null, so its caller only knew THAT creation failed, not why - and the
+	 * caller is what records the run's outcome. A remote client was told
+	 * "Choice execution failed; no file was created." while the actionable sentence went
+	 * to a desktop notice nobody was watching (#1603).
+	 */
+	protected lastTemplateFileFailure: string | null = null;
+
 	protected async createFileWithTemplate(
 		filePath: string,
 		resolvedTemplatePath: string
 	) {
+		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
 				resolvedTemplatePath
@@ -633,6 +645,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			if (isMacroAbortError(err)) {
 				throw err;
 			}
+			this.lastTemplateFileFailure =
+				err instanceof Error && err.message
+					? err.message
+					: `Could not create file with template at ${filePath}`;
 			reportError(err, `Could not create file with template at ${filePath}`);
 			return null;
 		}
