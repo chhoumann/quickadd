@@ -16,15 +16,15 @@ const consolidateFileExistsBehavior: Migration = {
 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		const choices = Array.isArray(plugin.settings.choices)
-			? plugin.settings.choices
-			: [];
-		const macros = Array.isArray(settings.macros)
-			? settings.macros
-			: [];
-
-		plugin.settings.choices = deepClone(choices);
-		settings.macros = deepClone(macros);
+		// Only re-clone a real array. Substituting [] for a corrupt root would
+		// persist that [] on the next save and destroy whatever is still in
+		// data.json, which is the opposite of what a migration should do (#1566).
+		if (Array.isArray(plugin.settings.choices)) {
+			plugin.settings.choices = deepClone(plugin.settings.choices);
+		}
+		if (Array.isArray(settings.macros)) {
+			settings.macros = deepClone(settings.macros);
+		}
 
 		walkAllChoices(plugin, (choice) => {
 			if (isTemplateChoice(choice)) {

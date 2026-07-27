@@ -11,7 +11,7 @@ import {
 	isQuickAddPackage,
 	QUICKADD_PACKAGE_SCHEMA_VERSION,
 } from "../types/packages/QuickAddPackage";
-import { flattenChoices } from "../utils/choiceUtils";
+import { childChoicesOf, flattenChoices } from "../utils/choiceUtils";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -352,12 +352,9 @@ function findUncarriedChildChoiceId(
 		if (!parentEntry) continue;
 
 		const parent = parentEntry.choice;
-		const carriedInline =
-			parent.type === "Multi" &&
-			Array.isArray((parent as IMultiChoice).choices) &&
-			(parent as IMultiChoice).choices.some(
-				(child) => child?.id === entry.choice.id,
-			);
+		const carriedInline = childChoicesOf(parent).some(
+			(child) => child?.id === entry.choice.id,
+		);
 		if (!carriedInline) return entry.choice.id;
 	}
 

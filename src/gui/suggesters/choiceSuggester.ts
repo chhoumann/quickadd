@@ -15,7 +15,7 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { log } from "../../logger/logManager";
 import { settingsStore } from "../../settingsStore";
-import { flattenChoicesWithPath } from "../../utils/choiceUtils";
+import { childChoicesOf, flattenChoicesWithPath } from "../../utils/choiceUtils";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
@@ -86,7 +86,7 @@ export function isEmptyFolderChoice(choice: IChoice): boolean {
 	return (
 		choice.type === "Multi" &&
 		choice.id !== BACK_CHOICE_ID &&
-		!(choice as IMultiChoice).choices?.length
+		childChoicesOf(choice).length === 0
 	);
 }
 
@@ -460,7 +460,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			return;
 		}
 
-		const choices = [...multi.choices];
+		const choices = [...childChoicesOf(multi)];
 
 		if (!isBack) {
 			const back = new MultiChoice(backLabel).addChoices(this.choices);

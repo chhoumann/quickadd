@@ -13,7 +13,11 @@ import type { FieldRequirement } from "../preflight/RequirementCollector";
 import { interactivePromptServer } from "../interactive/interactivePromptServer";
 import { RemotePromptProvider } from "../interactive/promptProvider";
 import type IChoice from "../types/choices/IChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
+import {
+	childChoicesOf,
+	isChoiceLike,
+	rootChoicesOf,
+} from "../utils/choiceUtils";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import {
@@ -249,7 +253,8 @@ function flattenChoices(
 ): CliChoiceSummary[] {
 	const flattened: CliChoiceSummary[] = [];
 
-	for (const choice of choices) {
+	for (const choice of rootChoicesOf(choices)) {
+		if (!isChoiceLike(choice)) continue;
 		const pathSegments = [...segments, choice.name];
 		const path = pathSegments.join(" / ");
 		const isMulti = choice.type === "Multi";
@@ -263,8 +268,7 @@ function flattenChoices(
 		});
 
 		if (isMulti) {
-			const multiChoice = choice as IMultiChoice;
-			flattened.push(...flattenChoices(multiChoice.choices, pathSegments));
+			flattened.push(...flattenChoices(childChoicesOf(choice), pathSegments));
 		}
 	}
 

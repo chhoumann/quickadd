@@ -15,6 +15,7 @@ import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsMod
 import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { addAutosaveFooter } from "../ChoiceBuilder/components/autosaveFooter";
+import { childChoicesOf } from "../../utils/choiceUtils";
 
 function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const arr: IChoice[] = [];
@@ -22,7 +23,7 @@ function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	const recursive = (choices: IChoice[]) => {
 		choices.forEach((choice) => {
 			if (choice.type === "Multi") {
-				recursive((choice as MultiChoice).choices);
+				recursive(childChoicesOf(choice));
 			} else {
 				arr.push(choice);
 			}
