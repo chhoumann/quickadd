@@ -936,6 +936,11 @@ module.exports = async (params) => {
 
 ## Error Handling Best Practices
 
+:::note[Available in the next release]
+Until then, a prompt that failed for a reason other than the user cancelling resolved
+`undefined` instead of rejecting, so a script could not tell a failure from an empty answer.
+:::
+
 A prompt has exactly two non-happy outcomes, and they are different things:
 
 - **The user dismissed it** (Escape, Cancel, closing the dialog). The promise rejects with `MacroAbortError("Input cancelled by user")`. Let it bubble and QuickAdd stops the run quietly - which is almost always what you want.

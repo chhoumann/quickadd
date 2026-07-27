@@ -163,6 +163,12 @@ stays cancellable because it is a client's only explicit way to bail out mid-run
 
 ### When a reply is rejected
 
+:::note[Available in the next release]
+The `400`-and-retry semantics below are new. Before them, a `cancelled` flag that was not the
+literal `true` was consumed as a cancellation, and a `confirm` prompt with no value was read as
+"No".
+:::
+
 `/reply` answers `400` and leaves the prompt **pending** when it cannot honour
 what you sent, so you can correct the reply and POST again. Two cases:
 
