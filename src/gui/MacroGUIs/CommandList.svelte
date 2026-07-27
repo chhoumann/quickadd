@@ -3,6 +3,7 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
+import { nextCommandZoneId } from "./commandZoneId";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
@@ -68,6 +69,28 @@ const renderable = $derived.by(() => {
 		return true;
 	});
 });
+
+// A drop-zone type unique to THIS list, so no two command lists are ever drop
+// targets for each other (#1613).
+//
+// They used to share `type: "command"`. The conditional-branch editor opens ON
+// TOP of the still-open macro builder, and svelte-dnd-action hit-tests every
+// registered zone of a type GEOMETRICALLY — a modal backdrop shields nothing — so
+// dragging a command a little too far down inside the branch editor dropped it
+// into the builder underneath, and both editors then rendered a list that
+// disagreed with the stored macro.
+//
+// A unique type rather than `dropFromOthersDisabled`, which was tried first and
+// is worse: the target does refuse, but the library then runs its
+// "left for a zone that refuses" path, which re-dispatches the origin's items
+// twice — once with its shadow placeholder and once without — and our
+// stripShadow (#1244/#883) drops the placeholder the library goes on to measure,
+// so the drag ends in an uncaught TypeError with the command gone from the
+// source list. With a unique type the other zone is not a candidate at all, so
+// leaving this one is an ordinary "outside of any zone" drag: the command
+// springs back, which is the correct behaviour for a gesture QuickAdd does not
+// offer.
+const zoneType = `command:${nextCommandZoneId()}`;
 
 const isMobile = Platform.isMobile;
 // Desktop: drag is armed by grabbing the handle (shared with the choices list; see
@@ -230,7 +253,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 	use:dndzone={baseDndOptions({
 		items: renderable,
 		dragDisabled,
-		type: "command",
+		type: zoneType,
 		// A command's `.name` differs from its rendered label for Choice/Conditional
 		// commands (getCommandDisplayName resolves the referenced choice's name / the
 		// "If …" summary), so the pill must resolve the label the same way the row does.

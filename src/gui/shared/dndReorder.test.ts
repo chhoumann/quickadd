@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-import { replaceById, stripShadow } from "./dndReorder";
+import { baseDndOptions, replaceById, stripShadow } from "./dndReorder";
 
 const item = (id: string, extra: Record<string, unknown> = {}) => ({ id, ...extra });
 
@@ -56,5 +56,18 @@ describe("replaceById", () => {
 		const input = [item("a"), item("b")];
 		const out = replaceById(input, item("z", { v: 1 }));
 		expect(out.map((i) => i.id)).toEqual(["a", "b"]);
+	});
+});
+
+describe("baseDndOptions", () => {
+	it("keeps the coupled pill options together", () => {
+		// These four move as a set (see the doc comment): breaking one silently
+		// makes the custom drag pill fight the library's own clone.
+		const options = baseDndOptions({ items: [], dragDisabled: false });
+
+		expect(options.morphDisabled).toBe(true);
+		expect(options.useCursorForDetection).toBe(true);
+		expect(options.centreDraggedOnCursor).toBe(false);
+		expect(options.autoAriaDisabled).toBe(true);
 	});
 });
