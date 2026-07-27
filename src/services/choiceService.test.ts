@@ -525,6 +525,74 @@ describe("choiceService", () => {
 			expect(message).toContain("macro commands");
 		});
 
+		// #1612. Delete is the one irreversible action in the list, and the two
+		// container types were asymmetric: a folder whose children could not be read
+		// said so, a macro whose commands could not be read said only the generic
+		// line - true, and silent about the case that matters. Since #1593 the
+		// builder tells the user about that state and refuses to overwrite it, so
+		// the one screen that is about to destroy it must not be the quiet one.
+		it.each([
+			["array-turned-object commands", { "0": { id: "c", type: "Wait" } }, undefined],
+			["string commands", "not a list", undefined],
+			["number commands", 7, undefined],
+			["an unreadable macro object", undefined, "not a macro"],
+			["a numeric macro", undefined, 7],
+		])("says QuickAdd could not read the commands: %s", async (_label, commands, macroValue) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const macro = {
+				id: "m",
+				name: "MyMacro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: macroValue !== undefined ? macroValue : { id: "mm", name: "MyMacro", commands },
+			} as unknown as IChoice;
+
+			await expect(deleteChoiceWithConfirmation(macro, fakeApp)).resolves.toBe(
+				true,
+			);
+			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(message).toContain("couldn't read this macro's commands");
+			expect(message).toContain("still stored under it in data.json");
+		});
+
+		it.each([
+			["an empty list", []],
+			["a real list", [{ id: "c", name: "Wait", type: "Wait", time: 1 }]],
+			["no commands key", undefined],
+			["a null macro", null],
+			// An OBJECT-valued macro is a macro object with no commands - #1593's
+			// `isMacroObject`. It is empty, not unreadable, and the builder can write
+			// a real list into it, so it keeps the ordinary line.
+			["an object macro with no commands key", undefined],
+			// An ARRAY-valued macro IS the command list, so the builder can read and
+			// edit it - it must keep the ordinary line, not the alarming one.
+			["an array-valued macro", "ARRAY"],
+		])("keeps the ordinary line when the commands are readable: %s", async (label, value) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const macroValue =
+				value === "ARRAY"
+					? [{ id: "c", name: "Wait", type: "Wait", time: 1 }]
+					: value === null
+						? null
+						: { id: "mm", name: "MyMacro", ...(value === undefined ? {} : { commands: value }) };
+			const macro = {
+				id: "m",
+				name: "MyMacro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: macroValue,
+			} as unknown as IChoice;
+
+			await deleteChoiceWithConfirmation(macro, fakeApp);
+			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(message, label).toContain(
+				"Deleting this choice will also delete its macro commands.",
+			);
+			expect(message, label).not.toContain("couldn't read");
+		});
+
 		it("clears nested user-script secrets when deleting a Macro choice", async () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const deleteSecret = vi.fn();
