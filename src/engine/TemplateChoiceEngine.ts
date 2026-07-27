@@ -18,6 +18,8 @@ import {
 } from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import { routePrompt } from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -29,7 +31,7 @@ import {
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
-import { isCancellationError, reportError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
 	failureReason,
@@ -49,7 +51,6 @@ import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLin
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
-import { UserCancelError } from "../errors/UserCancelError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -432,32 +433,40 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return this.choice.fileExistsBehavior.mode;
 		}
 
-		// Non-interactive run (CLI without `ui`): there is no one to answer the
-		// "file already exists" prompt, so opening it would hang forever. Abort with
-		// an actionable error instead. This is the default behaviour for new Template
-		// choices, so it is the most common non-interactive hang.
-		if (this.choiceExecutor.interactive === false) {
-			throw new ChoiceAbortError(
-				`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
-					`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
-			);
-		}
-
 		const promptModes = getPromptModes();
+		const placeholder = "If the target file already exists";
 
-		try {
-			return await GenericSuggester.Suggest(
-				this.app,
-				promptModes.map((mode) => mode.label),
-				promptModes.map((mode) => mode.id),
-				"If the target file already exists",
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return (await routePrompt(this.choiceExecutor, {
+			// An interactive run drives this from the client, like every other prompt
+			// the run opens. Before, it opened on the desktop while the client's /poll
+			// returned nothing, and the run waited for someone to walk past (#1614).
+			remote: (provider) =>
+				promptEngineChoice(provider, {
+					items: promptModes.map((mode) => ({
+						value: mode.id,
+						title: mode.label,
+					})),
+					placeholder,
+					what: 'the "file already exists" chooser',
+				}),
+			// Non-interactive run (CLI without `ui`): there is no one to answer, so
+			// opening it would hang forever. Abort with an actionable error instead.
+			// This is the default behaviour for new Template choices, so it is the most
+			// common non-interactive hang.
+			headless: () => {
+				throw new ChoiceAbortError(
+					`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
+						`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
+				);
+			},
+			app: () =>
+				GenericSuggester.Suggest(
+					this.app,
+					promptModes.map((mode) => mode.label),
+					promptModes.map((mode) => mode.id),
+					placeholder,
+				),
+		})) as FileExistsModeId;
 	}
 
 	private async applyFileExistsMode(
