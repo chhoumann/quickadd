@@ -1,6 +1,7 @@
 /**
  * Shared utilities for generating realistic preview examples in display formatters
  */
+import { findIllegalFilePathChars } from "../../utils/generatedFilePath";
 
 /** Common variable examples for consistent previews across formatters */
 export const VARIABLE_EXAMPLES: Record<string, string> = {
@@ -81,6 +82,21 @@ export function getSuggestionPreview(suggestedValues: string[]): string {
 		return `${suggestedValues[0]} (${suggestedValues.length} options)`;
 	}
 	return "suggestion_list";
+}
+
+/**
+ * A file-name preview stand-in, or a neutral one when it could not be a name.
+ *
+ * Most stand-ins echo the token's own argument - `{{VALUE:Cost: USD}}` previews
+ * `Cost: USD_value`, `{{MACRO:a:b}}` previews `a:b_output` - and at run time
+ * that argument is a PROMPT HEADER or a macro name, not part of the file name.
+ * So the echoed colon is the preview's own invention, and the illegal-character
+ * diagnostic that reads the finished preview would blame the author for a
+ * character the run never produces. A stand-in is fiction either way; fiction
+ * that could not be a real file name is worse fiction (#1578).
+ */
+export function fileNameSafeStandIn(standIn: string, neutral: string): string {
+	return findIllegalFilePathChars(standIn).length > 0 ? neutral : standIn;
 }
 
 /**

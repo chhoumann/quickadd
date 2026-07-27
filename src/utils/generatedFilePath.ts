@@ -64,6 +64,64 @@ function trimTrailingCharsLinear(value: string, chars: string): string {
 }
 
 /**
+ * Characters Obsidian itself refuses inside a path segment.
+ *
+ * MEASURED against `vault.create` / `vault.createFolder` on Obsidian 1.13.0
+ * (macOS), one candidate character per name:
+ *
+ * - `:` throws Obsidian's own guard, "File name cannot contain any of the
+ *   following characters: \ / :", for BOTH files and folder segments.
+ * - `\` and `/` never reach a segment: Obsidian's `normalizePath` treats them as
+ *   separators, and {@link normalizeGeneratedFilePathCore} converts `\` to `/`
+ *   before this check for exactly that reason. QuickAdd then creates the parent
+ *   folder (QuickAddEngine.createFileWithInput), so they are legal here.
+ * - `* ? " < > | ^ [ ] #` and tab all CREATE SUCCESSFULLY on macOS/Linux, so
+ *   copying the stricter set from `TemplateEngine.validateFolderSegment` would
+ *   reject names that Obsidian makes without complaint. (On Windows the
+ *   filesystem rejects `* ? " < > |`; a platform-gated portability warning is
+ *   deliberately not attempted from an untestable platform.)
+ * - Control characters and NUL are already collapsed away by the normalizer.
+ */
+const OBSIDIAN_ILLEGAL_PATH_CHARS = [":"] as const;
+
+/**
+ * The characters in `path` that Obsidian will refuse, in the order listed above.
+ *
+ * A plain `includes` scan per character: no regex, because every path here
+ * embeds untrusted format output ({{VALUE}}, clipboard, an included template
+ * body) and this runs on every keystroke of a preview.
+ */
+export function findIllegalFilePathChars(path: string): string[] {
+	return OBSIDIAN_ILLEGAL_PATH_CHARS.filter((char) => path.includes(char));
+}
+
+/**
+ * The sentence a preview shows for {@link findIllegalFilePathChars}' result.
+ *
+ * Two variants, keyed on whether the character is anywhere in the format string
+ * the author is looking at. When it is, naming the rule is enough - they can see
+ * what to change. When it is NOT, they have nothing to look for: `{{TIME}}` is
+ * `HH:mm`, and QuickAdd's own autocomplete offers it in this very field
+ * (formatTokenRegistry, `contexts: ALL`), so the message has to say that a token
+ * produced it.
+ *
+ * The rule comes BEFORE the explanation either way, so the three-line clamp on
+ * the inline diagnostic (styles.css `.qa-preview-issue`) can never cut off the
+ * part that says what is wrong (same reason as `describeUnknownFieldFilter`,
+ * #1564).
+ */
+export function describeIllegalFilePathChars(
+	chars: readonly string[],
+	{ visibleInFormat }: { visibleInFormat: boolean },
+): string {
+	const quoted = chars.map((char) => `"${char}"`).join(", ");
+	const rule = `A file or folder name cannot contain ${quoted}.`;
+	return visibleInFormat
+		? `${rule} Obsidian refuses it, so this choice would fail at run time.`
+		: `${rule} A token in this format resolves to one - {{TIME}} is the usual cause.`;
+}
+
+/**
  * The normalized path plus the reasons the strict entry point would have
  * rejected it. See {@link previewGeneratedFilePath}.
  */

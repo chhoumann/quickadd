@@ -17,16 +17,20 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	fieldValuePreview,
+	fileNameSafeStandIn,
 	getCurrentFileLinkPreview,
 	getCurrentFileLinkToSectionPreview,
 	getCurrentFileNamePreview,
 	getCurrentFolderPathPreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
-import { previewGeneratedFilePath } from "../utils/generatedFilePath";
+import {
+	describeIllegalFilePathChars,
+	findIllegalFilePathChars,
+	previewGeneratedFilePath,
+} from "../utils/generatedFilePath";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
-import { parseVDateOptions } from "../utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
@@ -38,6 +42,43 @@ import type QuickAdd from "../main";
  * and small enough that a pathological include tree cannot stall a keystroke.
  */
 const MAX_PREVIEW_TEMPLATE_INCLUDES = 25;
+
+/**
+ * Is the last `{{` in `input` still waiting for its `}}`?
+ *
+ * `indexOf` scans, not a regex: this runs on every keystroke over a string that
+ * can be a whole included template body, and a lazy `/\{\{[\s\S]*?\}\}/` over
+ * that is quadratic on pathological input (the shape this repo has fixed four
+ * times over).
+ */
+function hasUnterminatedToken(input: string): boolean {
+	const lastOpen = input.lastIndexOf("{{");
+	if (lastOpen === -1) return false;
+	return input.indexOf("}}", lastOpen + 2) === -1;
+}
+
+/**
+ * `text` with any inline `js quickadd` fence removed.
+ *
+ * The run replaces a fence with whatever the script RETURNS
+ * (`replaceInlineJavascriptInString` is its very first pass), while the preview
+ * leaves the source verbatim - by design, it must not execute anything (#1558).
+ * So the fence's own punctuation is never in the created name, and reading the
+ * preview literally there would report a colon out of somebody's JavaScript.
+ * Same helper and the same reason as the template pass above (#1467).
+ */
+function textOutsideScriptSpans(text: string): string {
+	const spans = findInlineScriptSpans(text);
+	if (spans.length === 0) return text;
+
+	let output = "";
+	let index = 0;
+	for (const span of spans) {
+		output += text.slice(index, span.start);
+		index = span.end;
+	}
+	return output + text.slice(index);
+}
 
 export class FileNameDisplayFormatter extends Formatter {
 	constructor(
@@ -105,7 +146,54 @@ export class FileNameDisplayFormatter extends Formatter {
 		for (const problem of normalized.problems) {
 			this.diagnostics.add("error", problem);
 		}
+		// On `output`, not `normalized.path`: the normalizer collapses the line
+		// breaks that delimit an inline script fence, and the scan below has to
+		// still be able to find one. It costs nothing - the normalizer only trims
+		// trailing dots/spaces and collapses control runs, so it can neither add
+		// nor remove one of these characters.
+		this.reportIllegalChars(input, output);
 		return normalized.path;
+	}
+
+	/**
+	 * Says so when the name on screen is one Obsidian will not create (#1578).
+	 *
+	 * The check reads the FINISHED name rather than the format string, because
+	 * that is the only place all the sources meet: a colon the author typed, one
+	 * `{{TIME}}` produced (it is `HH:mm`, and the token autocomplete offers it in
+	 * this field), one a `{{GLOBAL_VAR:}}` snippet or an included `{{TEMPLATE:}}`
+	 * body carried in, and one left behind by a token that never matched
+	 * (`{{TEMPLATE:Naming}}` without the extension is not a token, so the literal
+	 * text goes to the vault). Reading the format string instead would need a
+	 * token mask, and a mask is blind to exactly the last case - a typo, which is
+	 * when the preview most needs to speak.
+	 *
+	 * Two things keep it from crying wolf: the preview's own stand-ins are kept
+	 * name-shaped ({@link fileNameSafeStandIn}, and the VDATE hints are gone), and
+	 * the two guards below.
+	 */
+	private reportIllegalChars(input: string, name: string): void {
+		// A pass that already failed has said something better. All four of this
+		// formatter's `[QuickAdd: ...]` placeholders carry a colon and all four
+		// report their real problem first, so without this the row would pile a
+		// second, misleading sentence on top of "Template not found".
+		if (this.diagnostics.hasError) return;
+
+		// Mid-token. `Notes/{{DATE:` is what the field holds for as long as
+		// someone reads the format-suggester popup that this exact prefix opens,
+		// and the unmatched token stays literal in the output - so the colon is
+		// the caret's position, not a mistake. Costs only a literal `{{` in a
+		// name, which no format string has.
+		if (hasUnterminatedToken(input)) return;
+
+		const illegal = findIllegalFilePathChars(textOutsideScriptSpans(name));
+		if (illegal.length === 0) return;
+		this.reportProblem(
+			describeIllegalFilePathChars(illegal, {
+				visibleInFormat:
+					findIllegalFilePathChars(textOutsideScriptSpans(input)).length > 0,
+			}),
+		);
 	}
 
 	/**
@@ -177,14 +265,17 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	protected promptForValue(header?: string): string {
-		return header || "user input";
+		// The header is a PROMPT header at run time, not part of the name, so an
+		// unusable one degrades to the generic stand-in rather than putting a
+		// character in the preview that the run would never produce.
+		return fileNameSafeStandIn(header || "user input", "user input");
 	}
 
 	protected getVariableValue(variableName: string): string {
 		const stored = this.variables.get(variableName);
 		if (typeof stored === "string") return stored;
 		const baseName = getValueVariableBaseName(variableName);
-		return getVariableExample(baseName);
+		return fileNameSafeStandIn(getVariableExample(baseName), "user input");
 	}
 
 	protected getCurrentFileLink(): string | null {
@@ -207,7 +298,10 @@ export class FileNameDisplayFormatter extends Formatter {
 		allowCustomInput = false,
 		_context?: { placeholder?: string; variableKey?: string },
 	) {
-		return getSuggestionPreview(suggestedValues);
+		// The first option, without the body preview's " (N options)" count: the
+		// run splices in exactly the option that gets picked, so the count would
+		// be text in a file name that no created file can have.
+		return suggestedValues[0] ?? getSuggestionPreview(suggestedValues);
 	}
 
 	protected promptForMathValue(): Promise<string> {
@@ -218,14 +312,17 @@ export class FileNameDisplayFormatter extends Formatter {
 		macroName: string,
 		_context?: { label?: string },
 	) {
-		return getMacroPreview(macroName);
+		return fileNameSafeStandIn(getMacroPreview(macroName), "macro_output");
 	}
 
 	protected async promptForVariable(
 		variableName: string,
 		context?: PromptContext
 	): Promise<string> {
-		return getVariablePromptExample(variableName);
+		return fileNameSafeStandIn(
+			getVariablePromptExample(variableName),
+			"user input",
+		);
 	}
 
 	/**
@@ -371,7 +468,7 @@ export class FileNameDisplayFormatter extends Formatter {
 		_variableName: string,
 		parsed: { fieldName: string },
 	): Promise<string> {
-		return fieldValuePreview(parsed);
+		return fileNameSafeStandIn(fieldValuePreview(parsed), "field_value");
 	}
 
 	protected suggestForFile(parsed: ParsedFileToken): string {
@@ -390,28 +487,19 @@ export class FileNameDisplayFormatter extends Formatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		let output: string = input;
 
-		// Mirror FormatDisplayFormatter's VDATE preview so the file-name preview
-		// shows the same default/optional hints (issue #511). Like the body
-		// preview, this renders the current date WITHOUT applying |startof:/
-		// |endof: snap — snap is only resolved in the real CompleteFormatter
-		// pass, and snapping only the file-name preview would diverge from the
-		// body preview.
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+		// The date only. FormatDisplayFormatter appends " (default: X)" /
+		// " (optional)" hints about the token; this row is a FILE NAME, and the
+		// run splices in the formatted date and nothing else - so a hint here
+		// asserted a name that could never be created, which is the whole point
+		// of #1563/#1578. The hints survive where they are true: on the body
+		// preview, and in the run's own prompt placeholder ("Enter value for due
+		// (default: tomorrow)"). Like the body preview, this renders the current
+		// date WITHOUT applying |startof:/|endof: snap - snap is only resolved in
+		// the real CompleteFormatter pass, and snapping only the file-name
+		// preview would diverge from the body preview.
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
 			const cleanVariableName = variableName?.trim();
 			const cleanDateFormat = dateFormat?.trim();
-			// Parse defensively: a malformed |startof:/|endof: option can throw, and
-			// since format() catches and returns the whole raw input on any error, an
-			// unparseable VDATE option would otherwise blank out EVERY other preview
-			// substitution. Treat a parse failure as "no options".
-			let cleanDefaultValue: string | undefined;
-			let optional = false;
-			try {
-				({ defaultValue: cleanDefaultValue, optional } =
-					parseVDateOptions(rawOptions));
-			} catch {
-				cleanDefaultValue = undefined;
-				optional = false;
-			}
 
 			if (!cleanVariableName || !cleanDateFormat) {
 				return match; // Return original if incomplete
@@ -419,23 +507,11 @@ export class FileNameDisplayFormatter extends Formatter {
 
 			// Generate a realistic preview using the current date.
 			const previewDate = new Date();
-			let formattedExample: string;
-
 			try {
-				formattedExample = DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				return DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
 			} catch {
-				formattedExample = `[${cleanDateFormat}]`;
+				return `[${cleanDateFormat}]`;
 			}
-
-			// If there's a default value, indicate it in the preview
-			if (cleanDefaultValue) {
-				formattedExample += ` (default: ${cleanDefaultValue})`;
-			}
-			if (optional) {
-				formattedExample += ` (optional)`;
-			}
-
-			return formattedExample;
 		});
 
 		return output;

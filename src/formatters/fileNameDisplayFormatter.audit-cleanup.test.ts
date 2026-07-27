@@ -4,15 +4,23 @@ import { FileNameDisplayFormatter } from "./fileNameDisplayFormatter";
 import type { App } from "obsidian";
 
 /**
- * Regression for the audit-cleanup fix (bucket cu-filename-preview, task
- * format-core-format-preview): FileNameDisplayFormatter.replaceDateVariableInString
- * used to stop at (match, variableName, dateFormat) and ignore the third capture
- * group, so the file-name VDATE preview dropped the "(default: X)" / "(optional)"
- * hints and the |startof:/|endof: period-snap that FormatDisplayFormatter's body
- * preview shows. It now mirrors that behaviour.
+ * The file-name VDATE preview: the formatted date, and nothing else.
  *
- * Snap rendering needs real moment + a frozen clock (the obsidian-stub moment has
- * no startOf/endOf), mirroring formatter-datesnap.test.ts. en locale =
+ * The audit-cleanup fix (bucket cu-filename-preview, task
+ * format-core-format-preview) had this formatter mirror FormatDisplayFormatter
+ * and append " (default: X)" / " (optional)" hints about the token. #1578
+ * removed them again, for the same reason #1563 put the run's name normalizer
+ * here: this row is a FILE NAME, the run splices in the formatted date and
+ * nothing else, so a hint made the preview assert a name that could never be
+ * created - and `(default: X)` put a colon, which Obsidian refuses outright,
+ * into the middle of it.
+ *
+ * The hints survive where they are true: on the body preview
+ * (FormatDisplayFormatter), and in the run's own prompt placeholder ("Enter
+ * value for due (default: tomorrow)").
+ *
+ * Date rendering needs real moment + a frozen clock (the obsidian-stub moment
+ * has no startOf/endOf), mirroring formatter-datesnap.test.ts. en locale =
  * Sunday-first week.
  */
 const originalMoment = (window as unknown as { moment?: unknown }).moment;
@@ -43,26 +51,28 @@ function makeFormatter(): FileNameDisplayFormatter {
 	return new FileNameDisplayFormatter(mockApp);
 }
 
-describe("FileNameDisplayFormatter VDATE preview (audit-cleanup)", () => {
-	it("appends the (default: X) hint", async () => {
-		const out = await makeFormatter().format(
-			"{{VDATE:due,YYYY-MM-DD|tomorrow}}",
-		);
-		expect(out).toBe("2023-06-01 (default: tomorrow)");
+describe("FileNameDisplayFormatter VDATE preview", () => {
+	it("shows the date alone, not the (default: X) hint (#1578)", async () => {
+		const formatter = makeFormatter();
+		const out = await formatter.format("{{VDATE:due,YYYY-MM-DD|tomorrow}}");
+		expect(out).toBe("2023-06-01");
+		// And therefore no colon, so the row does not accuse the author of a
+		// character that only the preview ever wrote.
+		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 
-	it("appends the (optional) hint", async () => {
+	it("shows the date alone, not the (optional) hint (#1578)", async () => {
 		const out = await makeFormatter().format(
 			"{{VDATE:due,YYYY-MM-DD|optional}}",
 		);
-		expect(out).toBe("2023-06-01 (optional)");
+		expect(out).toBe("2023-06-01");
 	});
 
-	it("appends both hints together (default + optional, order-insensitive)", async () => {
+	it("shows the date alone when both options are present (#1578)", async () => {
 		const out = await makeFormatter().format(
 			"{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}",
 		);
-		expect(out).toBe("2023-06-01 (default: tomorrow) (optional)");
+		expect(out).toBe("2023-06-01");
 	});
 
 	it("does NOT apply |startof: snap to the preview (matches body preview)", async () => {
@@ -76,12 +86,16 @@ describe("FileNameDisplayFormatter VDATE preview (audit-cleanup)", () => {
 		expect(out).toBe("gggg.06.[Wk]22");
 	});
 
-	it("ignores snap but still appends a default hint", async () => {
-		const out = await makeFormatter().format(
+	it("ignores both the snap and the default hint", async () => {
+		const formatter = makeFormatter();
+		const out = await formatter.format(
 			"{{VDATE:eom,YYYY-MM-DD|endof:month|tomorrow}}",
 		);
-		// No snap applied to the preview; current date + default hint.
-		expect(out).toBe("2023-06-01 (default: tomorrow)");
+		// No snap applied to the preview, no hint appended: the current date.
+		// Note the token's own `|endof:month` carries a colon, and it is still
+		// not reported - the check reads the finished NAME, not the format.
+		expect(out).toBe("2023-06-01");
+		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 
 	it("leaves a snap-free VDATE preview unchanged (no spurious hints)", async () => {

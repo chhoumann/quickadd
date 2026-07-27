@@ -146,6 +146,16 @@ describe("#1563 the file-name preview resolves {{TEMPLATE:}}", () => {
 				message:
 					'Template "Body.md" is 5 lines; a file name is one line, so they are joined with spaces.',
 			},
+			{
+				// The frontmatter's "title: x" is now IN the name, so the name has a
+				// colon in it and Obsidian would refuse it (#1578). The
+				// "Obsidian refuses it" variant, because a colon IS visible in the
+				// field - `{{TEMPLATE:Body.md}}` has one, even though that is not the
+				// one that landed in the name.
+				severity: "error",
+				message:
+					'A file or folder name cannot contain ":". Obsidian refuses it, so this choice would fail at run time.',
+			},
 		]);
 	});
 
