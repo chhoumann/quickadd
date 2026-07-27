@@ -12,6 +12,7 @@ import {
 	PreviewDiagnostics,
 } from "./previewDiagnostics";
 import type { App } from "obsidian";
+import { TFile, TFolder } from "obsidian";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
@@ -254,10 +255,25 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	/**
-	 * Is there already a file at this path? Tolerant of the missing extension,
-	 * because a "File name format" produces the name and the engine appends
-	 * `.md` (`normalizeMarkdownFilePath`), while a capture target usually carries
-	 * one already.
+	 * Is the thing this name refers to already in the vault? Tolerant of the
+	 * missing extension, because a "File name format" produces the name and the
+	 * engine appends `.md` (`normalizeMarkdownFilePath`), while a capture target
+	 * usually carries one already.
+	 *
+	 * SHAPE-AWARE, in both directions. Obsidian's path map holds no trailing
+	 * slash, so a bare `getAbstractFileByPath` was wrong twice over:
+	 *
+	 * - a capture target written as `Meetings: 2026/` names a FOLDER to pick
+	 *   inside, and the folder existing is exactly what makes it work - yet the
+	 *   trailing slash meant neither probe matched and the row went red;
+	 * - a file-name format of `Meetings: 2026` was silently excused by a FOLDER
+	 *   of that name, although the run would still fail creating
+	 *   `Meetings: 2026.md`.
+	 *
+	 * Accepted residual: with "create file if it doesn't exist" on, a
+	 * folder-shaped capture target can still create a new note inside a
+	 * colon-bearing folder, which Obsidian's per-segment check refuses. The
+	 * preview cannot know the name that will be picked.
 	 */
 	private existsInVault(name: string): boolean {
 		const vault = this.app?.vault;
@@ -267,9 +283,14 @@ export class FileNameDisplayFormatter extends Formatter {
 		if (typeof vault?.getAbstractFileByPath !== "function") return false;
 		const trimmed = name.trim();
 		if (!trimmed) return false;
-		return Boolean(
-			vault.getAbstractFileByPath(trimmed) ??
-				vault.getAbstractFileByPath(`${trimmed}.md`),
+
+		if (trimmed.endsWith("/")) {
+			const folder = vault.getAbstractFileByPath(trimmed.slice(0, -1));
+			return folder instanceof TFolder;
+		}
+		return (
+			vault.getAbstractFileByPath(trimmed) instanceof TFile ||
+			vault.getAbstractFileByPath(`${trimmed}.md`) instanceof TFile
 		);
 	}
 

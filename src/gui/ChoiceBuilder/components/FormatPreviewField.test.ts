@@ -179,6 +179,77 @@ describe("FormatPreviewField", () => {
 		).not.toBeNull();
 	});
 
+	describe("the label tells the two error classes apart (#1594)", () => {
+		it("says the name will not be created when everything RESOLVED", async () => {
+			// Every token resolved; the vault just refuses the result. "Unresolved:"
+			// here sent the reader hunting for a broken token that does not exist.
+			const { container } = render(FormatPreviewField, {
+				props: {
+					value: "Bad: {{VALUE:title}}",
+					formatterKind: "fileName" as const,
+					app,
+					plugin,
+				},
+			});
+			await settleAndIdle();
+
+			expect(container.querySelector(".qa-preview-label")?.textContent).toBe(
+				"Won't be created: ",
+			);
+			expect(container.querySelector(".qa-preview-value")?.textContent).toBe(
+				"Bad: Example Title",
+			);
+			expect(
+				container.querySelector(".qa-preview-issue--error"),
+			).not.toBeNull();
+		});
+
+		it("keeps saying Unresolved when a token could not resolve at all", async () => {
+			const { container } = render(FormatPreviewField, {
+				props: {
+					value: "{{TEMPLATE:missing.md}}",
+					formatterKind: "fileName" as const,
+					app,
+					plugin,
+				},
+			});
+			await settleAndIdle();
+
+			expect(container.querySelector(".qa-preview-label")?.textContent).toBe(
+				"Unresolved: ",
+			);
+		});
+
+		it("prefers Unresolved when both classes are present", async () => {
+			// A missing template AND an empty path segment: the fundamental failure
+			// is that it did not resolve, so that is what the label says.
+			const { container } = render(FormatPreviewField, {
+				props: {
+					value: "{{TEMPLATE:missing.md}}//x",
+					formatterKind: "fileName" as const,
+					app,
+					plugin,
+				},
+			});
+			await settleAndIdle();
+
+			expect(container.querySelector(".qa-preview-label")?.textContent).toBe(
+				"Unresolved: ",
+			);
+		});
+
+		it("says Preview when a pass only produced warnings", async () => {
+			const { container } = render(FormatPreviewField, {
+				props: { value: "{{VALUE:title}}", app, plugin },
+			});
+			await settleAndIdle();
+
+			expect(container.querySelector(".qa-preview-label")?.textContent).toBe(
+				"Preview: ",
+			);
+		});
+	});
+
 	it("re-previews an edited named option list instead of the stale first value", async () => {
 		// The formatter used to be memoized for the field's lifetime. Its
 		// `variables` map short-circuits an already-resolved key, so editing the
