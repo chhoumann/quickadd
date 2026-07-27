@@ -15,7 +15,11 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { log } from "../../logger/logManager";
 import { settingsStore } from "../../settingsStore";
-import { childChoicesOf, flattenChoicesWithPath } from "../../utils/choiceUtils";
+import {
+	childChoicesOf,
+	flattenChoicesWithPath,
+	hasUnreadableChildren,
+} from "../../utils/choiceUtils";
 import type { FrontmatterPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import { getFocusedPropertyTarget } from "../../utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "../../types/QuickAddTriggerContext";
@@ -41,8 +45,14 @@ const DEFAULT_PLACEHOLDER = "Select a choice";
  * picker's drill-down and the command/URI execute path (choiceExecutor) say the
  * same thing.
  */
-export function emptyFolderNoticeText(folderName: string): string {
-	return `Folder "${folderName}" is empty.`;
+export function emptyFolderNoticeText(folder: IChoice): string {
+	// A folder whose `choices` value could still be HOLDING choices is not empty,
+	// it is unreadable, and saying "empty" here would contradict what the settings
+	// list says about the same folder. Same predicate on both surfaces (#1566).
+	if (hasUnreadableChildren(folder)) {
+		return `QuickAdd couldn't read the contents of "${folder.name}". They're still in data.json.`;
+	}
+	return `Folder "${folder.name}" is empty.`;
 }
 
 /**
@@ -315,7 +325,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// would stack one identical notice per repeat. Property read rather than
 			// `instanceof KeyboardEvent` — a popout window is a separate realm.
 			if ("repeat" in evt && evt.repeat) return;
-			new Notice(emptyFolderNoticeText(value.item.name));
+			new Notice(emptyFolderNoticeText(value.item));
 			// A trusted mousedown on `.suggestion-item` — a non-focusable div with no
 			// focusable ancestor, since neither `.modal` nor `.modal-container` carries
 			// a tabindex — moves focus to <body>. Obsidian never has to handle that
@@ -456,7 +466,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// #1550's close-and-reopen is gone with the ejection it worked around: it
 		// discarded the typed query, the scroll position and the selection.
 		if (!isBack && isEmptyFolderChoice(multi)) {
-			new Notice(emptyFolderNoticeText(multi.name));
+			new Notice(emptyFolderNoticeText(multi));
 			return;
 		}
 

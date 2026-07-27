@@ -59,7 +59,10 @@ const removeMacroIndirection: Migration = {
 					commands: macro.commands || [],
 				};
 				choice.runOnStartup = macro.runOnStartup || false;
-				settings.choices.push(choice);
+				// A corrupt (non-array) root is left alone rather than replaced, so
+				// there is nowhere to append an orphaned macro's choice; skip it
+				// instead of throwing and reverting the migration forever (#1566).
+				if (Array.isArray(settings.choices)) settings.choices.push(choice);
 			} else {
 				// Embed the macro in all referencing choices
 				for (const choice of referencingChoices) {

@@ -336,7 +336,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// guard and hand the picker a non-list to iterate (#1566).
 		const children = childChoicesOf(multiChoice);
 		if (children.length === 0) {
-			new Notice(emptyFolderNoticeText(multiChoice.name));
+			new Notice(emptyFolderNoticeText(multiChoice));
 			return;
 		}
 

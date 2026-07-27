@@ -56,13 +56,18 @@ const mutualExclusionInsertAfterAndWriteToBottomOfFile: Migration = {
 	 
 	migrate: async (plugin) => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		const choicesCopy = deepClone(plugin.settings.choices);
-		const choices = recursiveMigrateSettingInChoices(choicesCopy);
+
+		// Only touch a real list. Rewriting a corrupt root with [] would persist
+		// that [] on the next save and destroy what a user would need to recover
+		// by hand (#1566); there is nothing here to migrate in a value we cannot
+		// read anyway.
+		if (Array.isArray(plugin.settings.choices)) {
+			const choicesCopy = deepClone(plugin.settings.choices);
+			plugin.settings.choices = recursiveMigrateSettingInChoices(choicesCopy);
+		}
 
 		const macrosCopy = deepClone(settings.macros ?? []);
 		const macros = migrateSettingsInMacros(macrosCopy);
-
-		plugin.settings.choices = choices;
 		
 		// Save the migrated macros back to settings - later migrations still need it
 		settings.macros = macros;

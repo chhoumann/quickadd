@@ -32,6 +32,7 @@ import { parseSemver } from "./utils/semver";
 import {
 	childChoicesOf,
 	dedupeChoicesById,
+	isChoiceLike,
 	resolveChoiceIcon,
 	rootChoicesOf,
 } from "./utils/choiceUtils";
@@ -523,6 +524,10 @@ export default class QuickAdd extends Plugin {
 
 	private addCommandsForChoices(choices: IChoice[]) {
 		for (const choice of rootChoicesOf(choices)) {
+			// A list entry can be a hole (`null`, a stray primitive) left by a bad
+			// edit or a truncated write; it is not a choice, so there is no command
+			// to register for it.
+			if (!isChoiceLike(choice)) continue;
 			// Fault-isolate the loop. This runs from onload against untrusted
 			// data.json, and everything after it - migrations, the CLI handlers,
 			// startup macros - used to be lost to a single bad choice (#1566: a
@@ -586,6 +591,7 @@ export default class QuickAdd extends Plugin {
 		choices: IChoice[] = this.settings.choices,
 	): IChoice | null {
 		for (const choice of rootChoicesOf(choices)) {
+			if (!isChoiceLike(choice)) continue;
 			if (choice[by] === targetPropertyValue) {
 				return choice;
 			}
@@ -613,6 +619,7 @@ export default class QuickAdd extends Plugin {
 	): number {
 		let count = 0;
 		for (const choice of rootChoicesOf(choices)) {
+			if (!isChoiceLike(choice)) continue;
 			if (choice.name === name) count++;
 			if (choice.type === "Multi") {
 				count += this.countChoicesByName(name, childChoicesOf(choice));
@@ -646,6 +653,7 @@ export default class QuickAdd extends Plugin {
 		// children remain and their still-enabled commands must stay registered.
 		if (options?.recursive && choice.type === "Multi") {
 			for (const child of childChoicesOf(choice)) {
+				if (!isChoiceLike(child)) continue;
 				this.removeCommandForChoice(child, options);
 			}
 		}

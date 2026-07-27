@@ -63,6 +63,11 @@
 	// render the list at all instead, which also means nothing in this view can
 	// call save() while the tree is unreadable (#1566).
 	const rootUnreadable = $derived(!Array.isArray(choices));
+	const rootUnreadableDetail = $derived(
+		`The "choices" value in data.json is ${
+			choices === null ? "null" : `of type "${typeof choices}"`
+		}, but QuickAdd expects a list.`,
+	);
 
 	// On mobile the bottom-bar controls fill the width instead of cramming right.
 	const isMobile = Platform.isMobile;
@@ -374,9 +379,7 @@
 	{#if rootUnreadable}
 	<!-- Nothing below this point may run: every branch of the list reads the tree
 	     and the add controls would write a new one over it. -->
-	<ChoicesUnavailable
-		detail={`settings.choices is ${choices === null ? "null" : typeof choices}, not a list of choices.`}
-	/>
+	<ChoicesUnavailable detail={rootUnreadableDetail} />
 	{:else}
 	<!-- A throw anywhere below used to escape mount() and abort the whole
 	     declarative settings tab, so ONE bad choice cost every QuickAdd setting

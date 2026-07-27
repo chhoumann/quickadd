@@ -33,6 +33,7 @@ import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
 import type * as RunTemplateFromFolderModule from "../../engine/runTemplateFromFolder";
 import ChoiceSuggester, {
 	BACK_CHOICE_ID,
+	emptyFolderNoticeText,
 	RUN_TEMPLATE_FROM_FOLDER_ID,
 	stripInlineMarkdown,
 } from "./choiceSuggester";
@@ -998,5 +999,34 @@ describe("stripInlineMarkdown", () => {
 		["**Work** / not nested", "Work / not nested"],
 	])("reduces %s to %s", (input, expected) => {
 		expect(stripInlineMarkdown(input)).toBe(expected);
+	});
+});
+
+describe("emptyFolderNoticeText over a malformed folder (#1566)", () => {
+	const brokenFolder = (children: unknown): IChoice => {
+		const node: Record<string, unknown> = {
+			id: "broken",
+			name: "Broken",
+			type: "Multi",
+			command: false,
+			collapsed: false,
+		};
+		if (children !== undefined) node.choices = children;
+		return node as unknown as IChoice;
+	};
+
+	it("calls a folder that lost nothing empty", () => {
+		for (const value of [undefined, null, {}, []]) {
+			expect(emptyFolderNoticeText(brokenFolder(value))).toBe(
+				'Folder "Broken" is empty.',
+			);
+		}
+	});
+
+	it("does not call a folder empty when its contents merely could not be read", () => {
+		// Otherwise the picker contradicts the settings list about the same folder.
+		expect(emptyFolderNoticeText(brokenFolder({ "0": {} }))).toContain(
+			"couldn't read the contents",
+		);
 	});
 });

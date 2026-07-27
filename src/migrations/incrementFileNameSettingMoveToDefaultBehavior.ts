@@ -67,13 +67,18 @@ const incrementFileNameSettingMoveToDefaultBehavior: Migration = {
 	 
 	migrate: async (plugin: QuickAdd): Promise<void> => {
 		const settings = plugin.settings as SettingsWithLegacyMacros;
-		const choicesCopy = deepClone(plugin.settings.choices);
-		const choices = recursiveRemoveIncrementFileName(choicesCopy);
+
+		// Only touch a real list - see the same guard in the sibling migrations
+		// (#1566): rewriting a corrupt root with [] would persist that [].
+		if (Array.isArray(plugin.settings.choices)) {
+			const choicesCopy = deepClone(plugin.settings.choices);
+			plugin.settings.choices = deepClone(
+				recursiveRemoveIncrementFileName(choicesCopy),
+			);
+		}
 
 		const macrosCopy = deepClone(settings.macros ?? []);
 		const macros = removeIncrementFileName(macrosCopy);
-
-		plugin.settings.choices = deepClone(choices);
 		
 		// Save the migrated macros back to settings - later migrations still need it
 		settings.macros = macros;
