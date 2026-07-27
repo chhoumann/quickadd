@@ -385,8 +385,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				? `'${command.name}'`
 				: "an unnamed command";
 
+		// "QuickAdd did not stop the macro" rather than "the rest of the macro
+		// ran": this fires BEFORE the rest runs, and when the skipped step is the
+		// last one there is no rest. What the user needs from the tail is that
+		// the macro was not aborted, so the result they get is a partial one.
 		log.logError(
-			`Skipped ${name} in the macro for '${this.choice.name}': ${reason} The rest of the macro continues, so its result may be incomplete.`
+			`Skipped ${name} in the macro for '${this.choice.name}': ${reason} QuickAdd did not stop the macro, so its result may be incomplete.`
 		);
 	}
 

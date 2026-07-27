@@ -190,6 +190,17 @@ describe("MacroChoiceEngine over a command type it cannot run (#1571)", () => {
 		}
 	});
 
+	it("does not quote a name it does not have either", async () => {
+		// A hand-authored package step can omit `name`. `'undefined'` in the
+		// notice is the same class of lie as quoting a type that is not there.
+		const { run } = runMacro([{ id: "c1", type: "SomeFutureThing" }]);
+		await run;
+
+		expect(errors).toHaveLength(1);
+		expect(errors[0]).toContain("an unnamed command");
+		expect(errors[0]).not.toMatch(/undefined/);
+	});
+
 	it("skips an unknown editor command instead of aborting the macro", async () => {
 		// Editor commands dispatch through their own switch, which used to THROW
 		// on an unknown type and take the whole macro down. Same threat model as
