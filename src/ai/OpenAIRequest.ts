@@ -516,8 +516,6 @@ export function OpenAIRequest(
 				`[AI Request ${requestLogId}] Failed in ${durationMs}ms: ${errorMessage}`
 			);
 
-			reportError(error);
-
 			// Help users act on the most common failure: a prompt that overflows
 			// the model's context window. (ChunkedPrompt retries these automatically;
 			// the single-prompt path cannot, so we point the user at a remedy.)
@@ -526,10 +524,18 @@ export function OpenAIRequest(
 					? " The prompt likely exceeds the model's context window — shorten it, choose a model with a larger context, or use the chunked AI prompt API."
 					: "";
 
-			throw new Error(
+			// Report the WRAPPER, not the bare provider error, and report it before
+			// throwing so the failure is surfaced even if a caller swallows it. The
+			// wrapper's message is a strict superset - it names the provider and
+			// carries the guidance above - and since `reportError` reports a failure
+			// once (#1601), reporting the cause instead would leave the user with the
+			// least informative half of the pair.
+			const failure = new Error(
 				`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 				{ cause: error }
 			);
+			reportError(failure);
+			throw failure;
 		}
 	};
 }
@@ -729,10 +735,14 @@ export async function chatRequest(
 			durationMs,
 			errorMessage,
 		});
-		reportError(error);
-		throw new Error(
+		// Report the wrapper, not the bare cause: its message names the provider, and
+		// `reportError` reports a failure once (#1601), so reporting the cause first
+		// would suppress the more informative message at every layer above.
+		const failure = new Error(
 			`Error while making request to ${modelProvider.name}: ${errorMessage}`,
 			{ cause: error },
 		);
+		reportError(failure);
+		throw failure;
 	}
 }

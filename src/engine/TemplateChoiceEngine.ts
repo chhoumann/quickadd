@@ -215,8 +215,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					linkOptions,
 				));
 				if (!createdFile) {
-					// applyFileExistsMode's createNew branch may have already reported a
-					// creation failure; prefer its cause and do not log a vaguer second line.
+					// applyFileExistsMode's write helper has already reported the real
+					// cause (whichever mode ran - create, overwrite or append); prefer it
+					// and do not log a vaguer second line for the same failure.
 					if (this.lastTemplateFileFailure) {
 						this.failRun(this.lastTemplateFileFailure, "none");
 					} else {

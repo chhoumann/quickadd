@@ -658,10 +658,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 * message as the run's outcome so a caller who cannot see notices learns the cause
 	 * instead of the CLI's fixed "Choice execution failed" sentence (#1603).
 	 */
-	private failRun(message: string, level: "error" | "warning" = "error"): void {
+	private failRun(message: string): void {
 		InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-		if (level === "warning") log.logWarning(message);
-		else log.logError(message);
+		log.logError(message);
 		this.outcome.failure(message);
 	}
 

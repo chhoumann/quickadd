@@ -70,7 +70,23 @@ function stackFrames(error: Error): string[] {
 
 /**
  * The topmost frame that names a plugin bundle: the one closest to where the Error was
- * constructed. Null when no frame names a plugin at all.
+ * constructed, and therefore the one that decides whose bug this is. Null when no frame
+ * names a plugin at all.
+ *
+ * `Error.stack` is captured at construction with the whole live call stack, so the old
+ * rule - "does ANY frame name us" - claimed other people's bugs: another plugin calling
+ * `quickadd.api.suggester(v => v.nope.trim(), items)` builds its TypeError inside its own
+ * callback, with QuickAdd frames underneath, and QuickAdd would raise "A QuickAdd action
+ * failed" for it AND `preventDefault()` away the console line naming the real culprit
+ * (#1602).
+ *
+ * Measured, so the cost of the stricter rule is known rather than assumed: an Error
+ * constructed inside Obsidian's own async plumbing (`vault.create` into a missing folder,
+ * awaited from a plugin) carries NO plugin frame at all - not even the caller's - so the
+ * old rule was never catching that class either. It stays unclaimed, as before. What the
+ * old rule caught and this does not is precisely a foreign frame above ours, which is the
+ * false positive. A non-Error rejection (a bare string has no stack) is likewise left
+ * alone: with nothing to attribute it to, reporting it would be a guess.
  */
 function attributingFrame(
 	error: Error,
@@ -83,43 +99,16 @@ function attributingFrame(
 }
 
 /**
- * True only when the rejection was CONSTRUCTED inside QuickAdd's bundle rather than
- * merely passing through it.
- *
- * `Error.stack` is captured at construction with the whole live call stack, so "does any
- * frame name us" claimed other people's bugs: another plugin calling
- * `quickadd.api.suggester(v => v.nope.trim(), items)` builds its TypeError inside its own
- * callback, with QuickAdd frames underneath - and QuickAdd would raise "A QuickAdd action
- * failed" for it AND `preventDefault()` away the console line naming the real culprit
- * (#1602). The topmost plugin frame is the construction site, so it decides.
- *
- * Measured, so the cost of the stricter rule is known rather than assumed: an Error
- * constructed inside Obsidian's own async plumbing (`vault.create` into a missing folder,
- * awaited from a plugin) carries NO plugin frame at all - not even the caller's - so the
- * old rule was never catching that class either. It stays unclaimed, as before. What the
- * old rule caught and this does not is precisely a foreign frame above ours, which is the
- * false positive. A non-Error rejection (a bare string has no stack) is still left alone:
- * with nothing to attribute it to, reporting it would be a guess.
- */
-function isFromPlugin(reason: unknown, pluginId: string): boolean {
-	return (
-		reason instanceof Error &&
-		typeof reason.stack === "string" &&
-		attributingFrame(reason)?.pluginId === pluginId
-	);
-}
-
-/**
  * Dedupe on the throw SITE, not the message.
  *
  * A message often embeds a varying value ("Could not read note <path>"), so keying on it
  * would let one broken loop over 500 notes raise 500 notices. The attributing frame is
  * where the Error was constructed, so the same bug collapses to one report however many
- * values it fails on, while two genuinely different bugs stay distinct.
+ * values it fails on, while two genuinely different bugs stay distinct. The frame is
+ * passed in, not re-derived: nothing reaches this point without one.
  */
-function dedupeKey(error: Error): string {
-	const frame = attributingFrame(error)?.frame;
-	return `${error.name}@${frame ?? error.message}`;
+function dedupeKey(error: Error, frame: string): string {
+	return `${error.name}@${frame}`;
 }
 
 export function registerUnhandledRejectionReporter(
@@ -136,7 +125,9 @@ export function registerUnhandledRejectionReporter(
 
 	plugin.registerDomEvent(window, "unhandledrejection", (event) => {
 		const reason = event.reason;
-		if (!isFromPlugin(reason, pluginId)) return;
+		const attribution =
+			reason instanceof Error ? attributingFrame(reason) : null;
+		if (attribution?.pluginId !== pluginId) return;
 
 		// A dismissed prompt is not a failure. It reaches here when a handler floats a
 		// prompt (e.g. the macro editor's script picker), and telling the user "an
@@ -157,7 +148,7 @@ export function registerUnhandledRejectionReporter(
 		}
 
 		const error = reason as Error;
-		const key = dedupeKey(error);
+		const key = dedupeKey(error, attribution.frame);
 		const at = now();
 		const last = recentlySeen.get(key);
 		// Stamp every OCCURRENCE, not every report. Stamping only on report restarts

@@ -144,7 +144,7 @@ background. Attach to the session and drive it:
 
 - `GET  http://127.0.0.1:<port>/poll?session=<id>&token=<token>` - long-polls for the next event: `{"kind":"prompt","requestId":…,"prompt":{…}}`, `{"kind":"done","result":…}`, `{"kind":"error","error":…}`, or a periodic `{"kind":"idle"}` keepalive (just poll again).
 - `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which ends the run - except on an `info` panel, see below).
-- `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected.
+- `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected; `409` if the run had already finished (benign - poll for the terminal event); `404` for an unknown session or token, or for any method other than `POST`.
 
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
@@ -163,16 +163,20 @@ Obsidian continues past the panel. Escape is the only gesture an info panel affo
 so cancelling one just closes it and the run carries on - matching the app.
 
 To end a run deliberately, `POST /abort`. It rejects whatever the run is blocked on
-and makes the next prompt fail too, so the run unwinds and delivers its real outcome
-as a normal `error` poll event. The `interrupted` count in the reply tells you
-whether it actually stopped something.
+and makes its next prompt fail too, so the run unwinds and delivers its **real**
+outcome - usually `{"kind":"error","error":"Input cancelled by user"}`, but `done` if
+it had nothing left to interrupt and simply finished. `/abort` never fabricates a
+terminal event; keep polling until one arrives. The `interrupted` count tells you
+whether it stopped anything.
 
 :::caution[What `/abort` cannot reach]
-`/abort` interrupts prompts that were routed **to you**. A Template or Capture run
-still opens some prompts in Obsidian itself - the "file already exists" chooser, the
-folder picker, the capture-target picker - and those do not travel over this bridge,
-so they are unaffected. `"interrupted":0` means nothing was waiting on you: the run
-was mid-work, or it is blocked on one of those.
+`/abort` interrupts prompts that were routed **to you**. A run that is mid-work
+between prompts keeps going, and a Template or Capture run still opens some prompts in
+Obsidian itself - the "file already exists" chooser, the folder picker, the
+capture-target picker - which do not travel over this bridge
+([#1614](https://github.com/chhoumann/quickadd/issues/1614)). So `"interrupted":0`
+means nothing was waiting on you, and the run may still succeed and commit its side
+effects.
 :::
 
 :::note[Available in the next release]
@@ -204,7 +208,7 @@ Every other prompt type accepts whatever you send, including an empty answer:
 `""` and `[]` are things a user genuinely submits in the app (the Skip buttons,
 optional fields), so they must stay legal here too.
 
-A `409` means nothing was waiting on that `requestId`.
+A `409` from `/reply` means nothing was waiting on that `requestId`.
 
 Good to know:
 

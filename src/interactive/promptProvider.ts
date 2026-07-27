@@ -11,8 +11,9 @@
  * A dismissal is part of that contract, not an exception to it: a client replies
  * `{"cancelled": true}` (see `submitReply`), the pending prompt rejects with
  * `UserCancelError`, and the run aborts exactly as it does when the Obsidian modal
- * is dismissed - same class, same message. `promptProvider.test.ts` pins that for
- * every method.
+ * is dismissed - same class, same message. That holds for every prompt except `info`
+ * (below), and `promptProvider.test.ts` pins the half that lives here: no method
+ * swallows an abort on its way to the script.
  *
  * `info` is the one prompt where a cancel does NOT abort, and that too is parity
  * rather than an exception to it: `GenericInfoDialog` resolves on every close path and

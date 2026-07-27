@@ -25,6 +25,10 @@ function replyOverWire(
 
 afterEach(() => {
 	vi.useRealTimers();
+	// Sessions live for SESSION_TTL_MS after finish(), so without this the file
+	// accumulates them across tests and eventually trips MAX_SESSIONS - a capacity
+	// failure that looks like whatever test happens to be 33rd.
+	interactivePromptServer.stop();
 });
 
 describe("safeEqual", () => {
@@ -388,6 +392,78 @@ describe("interactivePromptServer session multiplexing", () => {
 		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 	});
 
+	// The wire contract this PR adds and documents: everything above goes through
+	// abortSession() directly, so without these the POST-only routing, the status
+	// mapping and the response shape rest on manual verification alone.
+	it("serves POST /abort over the router, and only POST", async () => {
+		const s = interactivePromptServer.createSession();
+		const qs = `session=${s.id}&token=${s.token}`;
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "info",
+			header: "Heads up",
+			text: ["Something to read."],
+		});
+		void prompt.catch(() => {});
+
+		// A browser can issue a GET with no Origin; the method gate is what stops it
+		// from ending a run.
+		expect((await overWire("GET", "/abort", qs)).status).toBe(404);
+
+		const aborted = await overWire("POST", "/abort", qs);
+		expect(aborted.status).toBe(200);
+		expect(aborted.body).toEqual({ ok: true, interrupted: 1 });
+		await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
+
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		// Aborting a run that already ended must not report that it stopped something.
+		const late = await overWire("POST", "/abort", qs);
+		expect(late.status).toBe(409);
+
+		expect((await overWire("POST", "/abort", `session=${s.id}&token=nope`)).status).toBe(
+			404,
+		);
+	});
+
+	// A prompt raised while no poll was parked sits in the queue. Left there, the next
+	// poll hands the client a dialog it just asked to cancel, for a requestId that no
+	// longer exists, in FRONT of the run's real terminal event.
+	it("does not hand the client a prompt it already aborted", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "input",
+			header: "Name",
+			multiline: false,
+		});
+		void prompt.catch(() => {});
+
+		interactivePromptServer.abortSession(s.id);
+		interactivePromptServer.finish(s.id, {
+			kind: "error",
+			error: "Input cancelled by user",
+		});
+
+		const { res, events } = fakeRes();
+		(
+			interactivePromptServer as unknown as {
+				handlePoll: (session: unknown, res: unknown) => void;
+				sessions: Map<string, unknown>;
+			}
+		).handlePoll(
+			(
+				interactivePromptServer as unknown as {
+					sessions: Map<string, unknown>;
+				}
+			).sessions.get(s.id),
+			res,
+		);
+
+		expect(events[0]).toEqual({
+			kind: "error",
+			error: "Input cancelled by user",
+		});
+		await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
+	});
+
 	it("still 409s an unknown requestId", () => {
 		const s = interactivePromptServer.createSession();
 		const outcome = replyOverWire(s.id, { requestId: "nope", value: "x" });
@@ -425,6 +501,37 @@ describe("interactivePromptServer session multiplexing", () => {
 		}
 	});
 });
+
+/**
+ * Drives a request through the real `handle()` router, so the method gate, the auth
+ * gate and the status mapping are the ones production uses. Everything below the
+ * router (session lookup, abort, reply) is shared with the direct-call tests.
+ */
+async function overWire(
+	method: string,
+	path: string,
+	query: string,
+): Promise<{ status: number; body: Record<string, unknown> }> {
+	const { res, events } = fakeRes();
+	let status = 0;
+	(res as { writeHead: (code: number) => void }).writeHead = (code: number) => {
+		status = code;
+	};
+	await (
+		interactivePromptServer as unknown as {
+			handle: (req: unknown, res: unknown) => Promise<void>;
+		}
+	).handle(
+		{
+			method,
+			url: `${path}?${query}`,
+			headers: { host: "127.0.0.1" },
+			on() {},
+		},
+		res,
+	);
+	return { status, body: (events[0] ?? {}) as Record<string, unknown> };
+}
 
 /** Minimal ServerResponse stand-in capturing what `send()` writes. */
 function fakeRes(): {

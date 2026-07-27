@@ -414,6 +414,12 @@ describe("registerQuickAddCliHandlers", () => {
 			String(await interactive!.handler({ choice: "Template Choice" })),
 		);
 		expect(response.ok).toBe(true);
+		// The only feature-detection signal clients are told to use: it says both that
+		// POST /abort exists and that cancelling an `info` prompt no longer ends the
+		// run (#1605). An unknown path and an unauthed session answer the same 404
+		// shape, so without this a client could only detect the build by string-matching
+		// an error body.
+		expect(response.capabilities).toEqual(["abort"]);
 		// The run is fire-and-forget; let its microtasks settle.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 

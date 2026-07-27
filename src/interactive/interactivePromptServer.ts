@@ -458,6 +458,12 @@ class InteractivePromptServer {
 		for (const prompt of pending) {
 			prompt.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		}
+		// Drop prompts the client has not collected yet. A prompt raised while no poll
+		// was parked sits in the queue, and the next poll would hand the client a dialog
+		// it just asked to cancel - for a requestId that no longer exists, in front of
+		// the run's real terminal event. Only prompts are dropped; a queued done/error
+		// is the outcome the client is waiting for.
+		session.queue = session.queue.filter((event) => event.kind !== "prompt");
 		return pending.length;
 	}
 

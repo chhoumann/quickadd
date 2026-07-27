@@ -575,15 +575,24 @@ export abstract class TemplateEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * Why the last {@link createFileWithTemplate} call returned null.
+	 * Why the last template write failed.
 	 *
-	 * That method reports the real cause ("Template file not found at path …") and then
-	 * returns null, so its caller only knew THAT creation failed, not why - and the
-	 * caller is what records the run's outcome. A remote client was told
+	 * Each of the write helpers below reports the real cause ("Template file not found at
+	 * path …") and then returns null, so its caller only knew THAT the write failed, not
+	 * why - and the caller is what records the run's outcome. A remote client was told
 	 * "Choice execution failed; no file was created." while the actionable sentence went
 	 * to a desktop notice nobody was watching (#1603).
+	 *
+	 * Every helper that reports-and-returns-null sets this, so a new one that forgets is
+	 * the only way back to a vague outcome.
 	 */
 	protected lastTemplateFileFailure: string | null = null;
+
+	/** Record the cause a report-and-return-null helper is about to swallow. */
+	protected noteTemplateFileFailure(err: unknown, fallback: string): void {
+		this.lastTemplateFileFailure =
+			err instanceof Error && err.message ? err.message : fallback;
+	}
 
 	protected async createFileWithTemplate(
 		filePath: string,
@@ -645,10 +654,10 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			if (isMacroAbortError(err)) {
 				throw err;
 			}
-			this.lastTemplateFileFailure =
-				err instanceof Error && err.message
-					? err.message
-					: `Could not create file with template at ${filePath}`;
+			this.noteTemplateFileFailure(
+				err,
+				`Could not create file with template at ${filePath}`,
+			);
 			reportError(err, `Could not create file with template at ${filePath}`);
 			return null;
 		}
@@ -696,6 +705,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		file: TFile,
 		resolvedTemplatePath: string
 	) {
+		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
 				resolvedTemplatePath
@@ -742,6 +752,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			if (isMacroAbortError(err)) {
 				throw err;
 			}
+			this.noteTemplateFileFailure(err, "Could not overwrite file with template");
 			reportError(err, "Could not overwrite file with template");
 			return null;
 		}
@@ -752,6 +763,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		resolvedTemplatePath: string,
 		section: "top" | "bottom"
 	) {
+		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
 				resolvedTemplatePath
@@ -790,6 +802,7 @@ export abstract class TemplateEngine extends QuickAddEngine {
 			if (isMacroAbortError(err)) {
 				throw err;
 			}
+			this.noteTemplateFileFailure(err, "Could not append to file with template");
 			reportError(err, "Could not append to file with template");
 			return null;
 		}

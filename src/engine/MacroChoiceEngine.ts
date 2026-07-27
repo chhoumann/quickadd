@@ -363,8 +363,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			if (err instanceof MacroAbortError) {
 				throw err;
 			}
-			// Report and re-throw script errors so users can debug them
-			reportError(err, `Failed to run user script ${command.name}`);
+			// Report and re-throw script errors so users can debug them. This report is
+			// the one the user sees - `reportError` reports a failure once (#1601), and
+			// the layers above catch the same instance - so it names the CHOICE as well
+			// as the script. Without that, a run-on-startup macro failing has no user
+			// action to correlate it with and nothing on screen says which macro broke.
+			reportError(
+				err,
+				`Failed to run user script ${command.name} in "${this.choice.name}"`,
+			);
 			throw err;
 		} finally {
 			this.userScriptCommand = null;
