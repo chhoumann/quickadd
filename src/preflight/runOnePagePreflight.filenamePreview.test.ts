@@ -9,9 +9,15 @@ vi.mock("src/logger/logManager", () => ({
 	log: { logWarning: vi.fn(), logError: vi.fn(), logMessage: vi.fn() },
 }));
 
+type PreviewRow = {
+	label: string;
+	text: string;
+	diagnostics: readonly { severity: string; message: string; kind?: string }[];
+};
+
 /** Captures the `computePreview` callback the modal is constructed with. */
 let computePreview:
-	| ((values: Record<string, string>) => Promise<Record<string, string>>)
+	| ((values: Record<string, string>) => Promise<PreviewRow[]>)
 	| null = null;
 
 vi.mock("./OnePageInputModal", () => ({
@@ -20,9 +26,7 @@ vi.mock("./OnePageInputModal", () => ({
 			_app: unknown,
 			_requirements: unknown,
 			_variables: unknown,
-			preview: (
-				values: Record<string, string>,
-			) => Promise<Record<string, string>>,
+			preview: (values: Record<string, string>) => Promise<PreviewRow[]>,
 		) {
 			computePreview = preview;
 		}
@@ -45,6 +49,9 @@ vi.mock("src/utilityObsidian", async () => {
 		getMarkdownFilesWithTag: vi.fn(() => []),
 		getUserScript: vi.fn(),
 		isFolder: vi.fn(() => false),
+		// A configured folder can hold {{DATE:}}, which the requirement scan
+		// resolves through this helper.
+		getDate: ({ format }: { format: string }) => format,
 		getTemplateFile: vi.fn((app: App, path: string) => {
 			const f = app.vault.getAbstractFileByPath(path);
 			return f instanceof TFileCls ? f : null;
@@ -74,7 +81,10 @@ const createApp = (templates: Record<string, string> = {}) =>
 		metadataCache: { getFileCache: () => null, getAllPropertyInfos: () => ({}) },
 	}) as unknown as App;
 
-const createChoice = (fileNameFormat: string): ITemplateChoice =>
+const createChoice = (
+	fileNameFormat: string,
+	folder?: Partial<ITemplateChoice["folder"]>,
+): ITemplateChoice =>
 	({
 		id: "tmpl",
 		name: "Template Choice",
@@ -88,6 +98,7 @@ const createChoice = (fileNameFormat: string): ITemplateChoice =>
 			chooseWhenCreatingNote: false,
 			createInSameFolderAsActiveFile: false,
 			chooseFromSubfolders: false,
+			...folder,
 		},
 		appendLink: false,
 		openFile: false,
@@ -141,8 +152,9 @@ describe("one-page preflight previews the file name with the file-name formatter
 		// path); a separator, because that is what the run makes of it -
 		// `normalizeGeneratedFilePath` rewrites "\" to "/" before the note is
 		// created, exactly as Obsidian's own `normalizePath` does (#1563).
-		expect(out.fileName).toBe("Notes/name-My Note");
-		expect(out.fileName).not.toContain("\n");
+		expect(out[0].text).toBe("Notes/name-My Note");
+		expect(out[0].text).not.toContain("\n");
+		expect(out[0].label).toBe("File name");
 	});
 
 	it("resolves a {{TEMPLATE:}} include the way the run does", async () => {
@@ -160,7 +172,7 @@ describe("one-page preflight previews the file name with the file-name formatter
 		// The template file's trailing newline is not part of the name: the run's
 		// normalizer collapses the control run and the space around it, so the
 		// seam between the include and "-My Note" reads the same in both.
-		expect(out.fileName).toBe("Log-My Note -My Note");
+		expect(out[0].text).toBe("Log-My Note -My Note");
 	});
 
 	it("says the run would abort when the include does not exist", async () => {
@@ -172,6 +184,89 @@ describe("one-page preflight previews the file name with the file-name formatter
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out.fileName).toBe("[QuickAdd: template not found] Gone.md-My Note");
+		expect(out[0].text).toBe("[QuickAdd: template not found] Gone.md-My Note");
+		// The diagnostic used to be dropped on the floor here: computePreview
+		// returned strings and the modal rendered only those (#1590).
+		expect(out[0].diagnostics).toEqual([
+			{ severity: "error", message: "Template not found: Gone.md" },
+		]);
+	});
+});
+
+describe("the one-page preview carries its problems and its target folder (#1590)", () => {
+	it("reports a name Obsidian will refuse, with the user's real answer in it", async () => {
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			createChoice("Bad: {{VALUE:title}}"),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		expect(out[0].text).toBe("Bad: My Note");
+		expect(out[0].diagnostics).toEqual([
+			{
+				severity: "error",
+				kind: "path",
+				message:
+					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
+			},
+		]);
+	});
+
+	it("resolves {{FOLDER}} against the choice's single configured folder", async () => {
+		// Nothing called setTargetFolderPath, so this rendered `Notes//x` plus an
+		// empty-segment error nobody could see.
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			createChoice("Notes/{{FOLDER}}/{{VALUE:title}}", {
+				enabled: true,
+				folders: ["Work"],
+			}),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		expect(out[0].text).toBe("Notes/Work/My Note");
+		expect(out[0].diagnostics).toEqual([]);
+	});
+
+	it("falls back to the builder's placeholder when the run has not picked a folder", async () => {
+		// Two configured folders means the run opens a suggester, so no folder can
+		// be promised - but an empty string would produce `Notes//x` and a false
+		// "empty path segment" error on a choice that works.
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			createChoice("Notes/{{FOLDER}}/{{VALUE:title}}", {
+				enabled: true,
+				folders: ["Work", "Personal"],
+			}),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		expect(out[0].text).toBe("Notes/Folder/Name/My Note");
+		expect(out[0].diagnostics).toEqual([]);
+	});
+
+	it("does not splice a format token out of a configured folder into the name", async () => {
+		// The run formats the folder first (formatFolderPath); setTargetFolderPath
+		// does not. Handing over the raw text would put the literal token in the
+		// name AND raise the colon error from the token's own syntax.
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			createChoice("{{FOLDER}}/{{VALUE:title}}", {
+				enabled: true,
+				folders: ["Journal/{{DATE:YYYY-MM}}"],
+			}),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		expect(out[0].text).toBe("Folder/Name/My Note");
+		expect(out[0].diagnostics).toEqual([]);
 	});
 });
