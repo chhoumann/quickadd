@@ -328,6 +328,34 @@ describe("buildPackagePreview - choice flags & dedupe", () => {
 		expect(row?.detail).toContain("app:toggle-left-sidebar");
 	});
 
+	it("stops promising AI for a legacy InfiniteAIAssistant command", () => {
+		// It used to share the AIAssistant row, so the disclosure said "Sends note
+		// content to your AI provider" for a step the engine could not run at all.
+		// With the type removed it falls to the unknown-command row, which is the
+		// honest answer: QuickAdd genuinely does not know what this step is.
+		const m = macro("m1", "Legacy", [
+			{
+				id: "c1",
+				name: "Summarise",
+				type: "InfiniteAIAssistant" as CommandType,
+			} as ICommand,
+		]);
+		const pkg = makePackage([pkgChoice(m, ["Legacy"])]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.capabilityRows.some((r) => r.flag === "ai")).toBe(false);
+		expect(
+			preview.capabilityRows.some((r) => r.flag === "unknown-command"),
+		).toBe(true);
+		// The disclosure renders a capability tag for a flagged command, never the
+		// raw type string that no longer has a human label.
+		expect(
+			preview.choices
+				.flatMap((choice) => choice.commands)
+				.find((c) => c.name === "Summarise")?.flag,
+		).toBe("unknown-command");
+	});
+
 	it("flags an unknown CommandType instead of dropping it", () => {
 		const m = macro("m1", "Future", [
 			{ id: "c1", name: "Mystery", type: "FutureThing" as CommandType } as ICommand,

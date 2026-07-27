@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The three system-prompt modals must not offer a format affordance: the system
+ * Both system-prompt modals must not offer a format affordance: the system
  * prompt reaches the model verbatim (pinned by
  * AIAssistant.systemPromptLiteral.test.ts), so a live preview resolving its
  * tokens asserted a substitution that never happens (#1565), and on the shipped
@@ -47,8 +47,8 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));
-// Partial: the Infinite modal's chunk-budget slider reaches
-// estimateModelInputBudget through aiHelpers, so only the count is stubbed.
+// Partial: the rest of tokenEstimator stays real, so only the count the
+// command modal renders is stubbed.
 vi.mock("src/ai/tokenEstimator", async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
 	estimateTokenCount: vi.fn(() => 0),
@@ -76,11 +76,9 @@ vi.mock("src/gui/suggesters/formatSyntaxSuggester", () => ({
 
 import { App } from "obsidian";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import type { IInfiniteAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import type { QuickAddSettings } from "src/settings";
 import { AIAssistantSettingsModal } from "src/gui/AIAssistantSettingsModal";
 import { AIAssistantCommandSettingsModal } from "src/gui/MacroGUIs/AIAssistantCommandSettingsModal";
-import { InfiniteAIAssistantCommandSettingsModal } from "src/gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 
 const PROSE_PROMPT = "As an AI assistant within Obsidian, help the user.";
 const TOKENED_PROMPT = "Today is {{DATE}}. Help the user.";
@@ -116,16 +114,6 @@ function aiCommand(systemPrompt: string): IAIAssistantCommand {
 		modelParameters: {},
 		promptTemplate: { enable: false, name: "" },
 	} as IAIAssistantCommand;
-}
-
-function infiniteCommand(systemPrompt: string): IInfiniteAIAssistantCommand {
-	return {
-		...aiCommand(systemPrompt),
-		resultJoiner: "\\n",
-		chunkSeparator: "\\n",
-		maxChunkTokens: 100,
-		mergeChunks: false,
-	} as unknown as IInfiniteAIAssistantCommand;
 }
 
 interface OpenedModal {
@@ -167,17 +155,6 @@ const MODALS: Array<{
 		open: (systemPrompt) =>
 			opened(
 				new AIAssistantCommandSettingsModal(testApp(), aiCommand(systemPrompt)),
-				"System prompt",
-			),
-	},
-	{
-		name: "InfiniteAIAssistantCommandSettingsModal (system prompt)",
-		open: (systemPrompt) =>
-			opened(
-				new InfiniteAIAssistantCommandSettingsModal(
-					testApp(),
-					infiniteCommand(systemPrompt),
-				),
 				"System prompt",
 			),
 	},

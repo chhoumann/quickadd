@@ -29,8 +29,6 @@ import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
-import { CommandType } from "./types/macros/CommandType";
-import { InfiniteAIAssistantCommandSettingsModal } from "./gui/MacroGUIs/AIAssistantInfiniteCommandSettingsModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
@@ -197,36 +195,6 @@ export default class QuickAdd extends Plugin {
 		cache.startAutomaticCleanup((intervalId) =>
 			this.registerInterval(intervalId),
 		);
-
-		this.addCommand({
-			id: "testQuickAdd",
-			name: QUICK_ADD_COMMAND_LABELS.testDev,
-			checkCallback: (checking) => {
-				if (checking) {
-					return this.settings.devMode;
-				}
-
-				log.logMessage(QUICK_ADD_COMMAND_LABELS.testDev);
-
-				const fn = () => {
-					new InfiniteAIAssistantCommandSettingsModal(this.app, {
-						id: "test",
-						name: "Test",
-						model: "gpt-4",
-						modelParameters: {},
-						outputVariableName: "test",
-						systemPrompt: "test",
-						type: CommandType.AIAssistant,
-						resultJoiner: "\\n",
-						chunkSeparator: "\\n",
-						maxChunkTokens: 100,
-						mergeChunks: false,
-					});
-				};
-
-				void fn();
-			},
-		});
 
 		this.addCommand({
 			id: "openQuickAddSettings",
