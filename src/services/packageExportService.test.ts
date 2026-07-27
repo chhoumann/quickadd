@@ -328,7 +328,7 @@ describe("buildPackage", () => {
 		// The cloned Multi choice should only retain the kept child.
 		const multiEntry = result.pkg.choices.find((c) => c.choice.id === "m1");
 		const multiChoice = multiEntry?.choice as IMultiChoice;
-		expect(multiChoice.choices.map((c) => c.id)).toEqual(["keep"]);
+		expect(multiChoice.choices!.map((c) => c.id)).toEqual(["keep"]);
 
 		// Only the kept template asset is encoded.
 		const assetPaths = result.pkg.assets.map((a) => a.originalPath);
@@ -357,7 +357,7 @@ describe("buildPackage", () => {
 		);
 
 		// Source structure untouched.
-		expect(multi.choices.map((c) => c.id)).toEqual(["keep", "drop"]);
+		expect(multi.choices!.map((c) => c.id)).toEqual(["keep", "drop"]);
 	});
 
 	it("excludes a root choice entirely when its id is in excludedChoiceIds", async () => {

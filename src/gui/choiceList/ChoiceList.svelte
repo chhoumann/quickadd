@@ -8,6 +8,7 @@
     import { baseDndOptions, stripShadow } from "../shared/dndReorder";
     import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
+    import { isChoiceLike, rootChoicesOf } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -45,6 +46,14 @@
         // up. False/absent at the root level.
         nested?: boolean;
     } = $props();
+
+    // Everything rendered and handed to the dnd zone is filtered to entries that
+    // are actually choices. A hole in the list (a `null` or a stray primitive from
+    // a bad hand-edit or a truncated write) has no `id`, so the keyed {#each} and
+    // svelte-dnd-action would both throw on it and blank the settings tab (#1566).
+    // Filtering is a render-time view only; the hole stays in the persisted tree
+    // unless an edit walks past it.
+    const renderable = $derived(rootChoicesOf(choices).filter(isChoiceLike));
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
@@ -128,14 +137,14 @@
 </script>
 
 <div
-        use:dndzone={baseDndOptions({items: choices, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
+        use:dndzone={baseDndOptions({items: renderable, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
         class:qa-nested={nested}
         class:qa-folder-empty={isEmptyFolder}
-        class:qa-empty={choices.length === 0}>
-    {#each stripShadow(choices) as choice (choice.id)}
+        class:qa-empty={renderable.length === 0}>
+    {#each stripShadow(renderable) as choice (choice.id)}
         <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
              Must stay margin/padding/border-less (the 2px inter-row margin lives on
              the inner row). data-choice-id stays on the inner row for tests/menus. -->

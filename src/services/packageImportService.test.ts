@@ -457,7 +457,7 @@ describe("parseQuickAddPackage", () => {
 		const childAppearances = pkg.choices.filter((c) => c.choice.id === "child");
 		expect(childAppearances.length).toBe(1); // one flat entry
 		const parentEntry = pkg.choices.find((c) => c.choice.id === "parent");
-		expect((parentEntry?.choice as IMultiChoice).choices[0].id).toBe("child"); // + inline
+		expect((parentEntry?.choice as IMultiChoice).choices![0].id).toBe("child"); // + inline
 		// And the consistency check accepts it.
 		expect(() => parseQuickAddPackage(JSON.stringify(pkg))).not.toThrow();
 	});
@@ -1176,7 +1176,7 @@ describe("applyPackageImport - parent/child trees", () => {
 		expect(result.updatedChoices).toHaveLength(1);
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
 		expect(insertedParent.id).toBe("parent");
-		expect(insertedParent.choices.map((c) => c.id)).toEqual(["child"]);
+		expect(insertedParent.choices!.map((c) => c.id)).toEqual(["child"]);
 	});
 
 	it("inserts a new child under an already-existing parent multi", async () => {
@@ -1197,7 +1197,7 @@ describe("applyPackageImport - parent/child trees", () => {
 
 		expect(result.addedChoiceIds).toEqual(["child"]);
 		const parent = result.updatedChoices[0] as IMultiChoice;
-		expect(parent.choices.map((c) => c.id)).toEqual(["child"]);
+		expect(parent.choices!.map((c) => c.id)).toEqual(["child"]);
 	});
 
 	it("falls back to pathHint to locate a parent multi by name", async () => {
@@ -1224,7 +1224,7 @@ describe("applyPackageImport - parent/child trees", () => {
 
 		expect(result.addedChoiceIds).toEqual(["child"]);
 		const parent = result.updatedChoices[0] as IMultiChoice;
-		expect(parent.choices.map((c) => c.id)).toEqual(["child"]);
+		expect(parent.choices!.map((c) => c.id)).toEqual(["child"]);
 	});
 
 	it("adds an orphan child to the root when its parent cannot be found", async () => {
@@ -1280,7 +1280,7 @@ describe("applyPackageImport - parent/child trees", () => {
 		const destParent = result.updatedChoices.find(
 			(c) => c.id === "parent",
 		) as IMultiChoice;
-		expect(destParent.choices.map((c) => c.id)).toEqual(["child"]);
+		expect(destParent.choices!.map((c) => c.id)).toEqual(["child"]);
 	});
 });
 
@@ -1416,7 +1416,7 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
 		// Parent and child both get new ids.
 		expect(insertedParent.id).not.toBe("parent");
-		const insertedMacro = insertedParent.choices[0] as IMacroChoice;
+		const insertedMacro = insertedParent.choices![0] as IMacroChoice;
 		expect(insertedMacro.id).not.toBe("macroChild");
 		// Macro + command ids regenerated.
 		expect(insertedMacro.macro.id).not.toBe("macro-orig");
@@ -1495,7 +1495,7 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
 		// The skipped child must not appear inside the imported parent's tree.
-		expect(insertedParent.choices.map((c) => c.id)).toEqual(["keep"]);
+		expect(insertedParent.choices!.map((c) => c.id)).toEqual(["keep"]);
 		expect(result.skippedChoiceIds).toContain("drop");
 	});
 });

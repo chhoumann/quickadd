@@ -32,6 +32,12 @@
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
 	import ChoiceList from "./ChoiceList.svelte";
+	import ChoicesUnavailable from "./ChoicesUnavailable.svelte";
+	import {
+		childChoicesOf,
+		hasChildChoices,
+		isChoiceLike,
+	} from "../../utils/choiceUtils";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { type Plain, snapshot } from "../svelte/persist.svelte";
 
@@ -49,6 +55,14 @@
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
+
+	// The ROOT `choices` is untrusted too: loadSettings deliberately leaves a
+	// non-array value in place rather than replacing it with [] (which the next
+	// save would persist). Coercing it to [] here would show the "No choices yet"
+	// hero, whose one CTA writes a fresh list straight over it - so refuse to
+	// render the list at all instead, which also means nothing in this view can
+	// call save() while the tree is unreadable (#1566).
+	const rootUnreadable = $derived(!Array.isArray(choices));
 
 	// On mobile the bottom-bar controls fill the width instead of cramming right.
 	const isMobile = Platform.isMobile;
@@ -89,12 +103,13 @@
 		const match = prepareFuzzySearch(q);
 
 		const walk = (c: IChoice): IChoice | null => {
+			if (!isChoiceLike(c)) return null;
 			const selfMatches = !!match(c.name ?? "");
 			if (!isMultiChoice(c)) {
 				return selfMatches ? c : null;
 			}
 
-			const filteredChildren = (c.choices ?? [])
+			const filteredChildren = childChoicesOf(c)
 				.map((child) => walk(child))
 				.filter(Boolean) as IChoice[];
 
@@ -186,10 +201,7 @@
 	// registered via the recursive addCommandForChoice).
 	function subtreeHasCommand(choice: IChoice): boolean {
 		if (choice.command) return true;
-		if (isMultiChoice(choice)) {
-			return (choice.choices ?? []).some(subtreeHasCommand);
-		}
-		return false;
+		return childChoicesOf(choice).some(subtreeHasCommand);
 	}
 
 	async function deleteChoice(choice: IChoice) {
@@ -222,15 +234,23 @@
 	}
 
 	function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): IChoice {
+		if (!isChoiceLike(oldChoice)) return oldChoice;
 		if (oldChoice.id === newChoice.id) {
 			return { ...oldChoice, ...newChoice };
 		}
 
-		if (isMultiChoice(oldChoice)) {
-			const updatedChoices = oldChoice.choices.map((c) =>
+		// Only rebuild a folder whose children we could actually read. This runs
+		// over the WHOLE tree on every rename/configure/toggle and is followed by
+		// save(), so spreading a folder with an unreadable `choices` value would
+		// persist [] over it the first time the user renamed anything (#1566).
+		if (hasChildChoices(oldChoice)) {
+			const updatedChoices = childChoicesOf(oldChoice).map((c) =>
 				updateChoiceHelper(c, newChoice),
 			);
-			const updated: IMultiChoice = { ...oldChoice, choices: updatedChoices };
+			const updated: IMultiChoice = {
+				...(oldChoice as IMultiChoice),
+				choices: updatedChoices,
+			};
 			return updated;
 		}
 
@@ -351,6 +371,21 @@
 
 
 <div>
+	{#if rootUnreadable}
+	<!-- Nothing below this point may run: every branch of the list reads the tree
+	     and the add controls would write a new one over it. -->
+	<ChoicesUnavailable
+		detail={`settings.choices is ${choices === null ? "null" : typeof choices}, not a list of choices.`}
+	/>
+	{:else}
+	<!-- A throw anywhere below used to escape mount() and abort the whole
+	     declarative settings tab, so ONE bad choice cost every QuickAdd setting
+	     (#1451, #1566). The boundary keeps that damage inside this view; the
+	     try/catch in quickAddSettingsTab.renderChoicesView covers the setup this
+	     boundary sits inside. -->
+	<svelte:boundary onerror={(error) => log.logError(
+		`QuickAdd could not render the choice list: ${error instanceof Error ? error.message : String(error)}`,
+	)}>
 	{#if choices.length === 0 && filterQuery.trim().length === 0}
 		<!-- First-run / empty state: the hero is the single focal CTA (the top-bar
 		     add controls are not rendered here, so there's no duplicate). -->
@@ -445,6 +480,13 @@
 			{/if}
 			<AddChoiceControls onAddChoice={addChoiceToList} fill={isMobile} />
 		</div>
+	{/if}
+	{#snippet failed(error)}
+		<ChoicesUnavailable
+			detail={error instanceof Error ? error.message : String(error)}
+		/>
+	{/snippet}
+	</svelte:boundary>
 	{/if}
 </div>
 

@@ -1,7 +1,11 @@
 import type { App } from "obsidian";
 import { Menu as ObsidianMenu } from "obsidian";
 import type IChoice from "src/types/choices/IChoice";
-import type IMultiChoice from "src/types/choices/IMultiChoice";
+import {
+  childChoicesOf,
+  isChoiceLike,
+  rootChoicesOf,
+} from "src/utils/choiceUtils";
 
 export type MoveTarget = { id: string; path: string };
 
@@ -22,16 +26,15 @@ export function isChoiceNested(
   choice: IChoice,
   roots: IChoice[] | undefined,
 ): boolean {
-  const source: IChoice[] = Array.isArray(roots) ? roots : [];
-  if (source.some((c) => c.id === choice.id)) return false;
+  const source: IChoice[] = rootChoicesOf(roots);
+  if (source.some((c) => isChoiceLike(c) && c.id === choice.id)) return false;
 
   const walk = (list: IChoice[]): boolean => {
     for (const c of list) {
-      if (c.type === "Multi") {
-        const children = (c as IMultiChoice).choices ?? [];
-        if (children.some((child) => child.id === choice.id)) return true;
-        if (walk(children)) return true;
-      }
+      if (!isChoiceLike(c)) continue;
+      const children = childChoicesOf(c);
+      if (children.some((child) => child?.id === choice.id)) return true;
+      if (walk(children)) return true;
     }
     return false;
   };
@@ -58,7 +61,7 @@ export function computeEligibleMultiTargets(
         if (!isInvalidTarget(moving, c)) {
           multiNodes.push({ id: c.id, path: path.join(" / ") });
         }
-        walk((c as IMultiChoice).choices ?? [], [...prefix, name]);
+        walk(childChoicesOf(c), [...prefix, name]);
       }
     }
   };
@@ -73,10 +76,11 @@ function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
   if (moving.type === "Multi") {
     const ids = new Set<string>();
     const collect = (c: IChoice) => {
+      if (!isChoiceLike(c)) return;
       ids.add(c.id);
-      if (c.type === "Multi") (c as IMultiChoice).choices?.forEach(collect);
+      childChoicesOf(c).forEach(collect);
     };
-    (moving as IMultiChoice).choices?.forEach(collect);
+    childChoicesOf(moving).forEach(collect);
     if (ids.has(target.id)) return true;
   }
   return false;

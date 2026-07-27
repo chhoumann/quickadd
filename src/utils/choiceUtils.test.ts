@@ -134,7 +134,7 @@ describe("dedupeChoicesById", () => {
 		const dup = (): IChoice => withId("d", "supprimer taches dones");
 		const folder = multiWithId("folder", [withId("a"), dup(), dup()]);
 		const deduped = dedupeChoicesById([folder])[0] as IMultiChoice;
-		expect(deduped.choices.map((c) => c.id)).toEqual(["a", "d"]);
+		expect(deduped.choices!.map((c) => c.id)).toEqual(["a", "d"]);
 	});
 
 	it("re-ids a DIVERGENT same-id choice instead of dropping it (no data lost)", () => {
@@ -162,7 +162,7 @@ describe("dedupeChoicesById", () => {
 		const rebuilt = result[1] as IMultiChoice;
 		expect(rebuilt.id).not.toBe("m");
 		expect(rebuilt.id).toMatch(UUID_RE);
-		expect(rebuilt.choices.map((c) => c.id)).toEqual(["child2"]); // not lost
+		expect(rebuilt.choices!.map((c) => c.id)).toEqual(["child2"]); // not lost
 	});
 
 	it("de-dups globally across nesting levels (identical child re-using a top id -> dropped)", () => {
@@ -170,7 +170,7 @@ describe("dedupeChoicesById", () => {
 			withId("shared"),
 			multiWithId("m", [withId("shared"), withId("ok")]),
 		])[1] as IMultiChoice;
-		expect(folder.choices.map((c) => c.id)).toEqual(["ok"]);
+		expect(folder.choices!.map((c) => c.id)).toEqual(["ok"]);
 	});
 
 	it("produces a fully unique id set when there were collisions", () => {
@@ -349,7 +349,10 @@ describe("malformed `choices` values (#1566)", () => {
 	it("leaves a malformed folder's `choices` value exactly as it found it", () => {
 		const blob = { "0": choice("Hidden") };
 		const folder = brokenFolder(blob);
-		const [deduped] = dedupeChoicesById([folder]) as [Record<string, unknown>];
+		const deduped = dedupeChoicesById([folder])[0] as unknown as Record<
+			string,
+			unknown
+		>;
 		expect(deduped.choices).toBe(blob);
 	});
 });

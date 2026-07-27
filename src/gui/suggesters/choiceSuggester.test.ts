@@ -415,7 +415,7 @@ describe("ChoiceSuggester", () => {
 		});
 
 		it("never traverses into the back item or returns it for typed queries", () => {
-			const drilledLevel = [...work.choices, makeBack(rootChoices)];
+			const drilledLevel = [...work.choices!, makeBack(rootChoices)];
 			const suggester = makeSuggester(drilledLevel);
 
 			expect(
@@ -427,7 +427,7 @@ describe("ChoiceSuggester", () => {
 		});
 
 		it("keeps the back item in the empty-query view", () => {
-			const drilledLevel = [...work.choices, makeBack(rootChoices)];
+			const drilledLevel = [...work.choices!, makeBack(rootChoices)];
 			const suggester = makeSuggester(drilledLevel);
 
 			const ids = suggester.getSuggestions("").map((s) => s.item.id);
@@ -439,11 +439,11 @@ describe("ChoiceSuggester", () => {
 			// Drill root -> Work -> Meetings, then press Back: the restored level
 			// is back_meetings.choices, which still contains back_work. The
 			// sentinel id must catch that ancestor back item statelessly.
-			const workLevel = [...work.choices, makeBack(rootChoices)];
-			const meetingsLevel = [...meetings.choices, makeBack(workLevel)];
+			const workLevel = [...work.choices!, makeBack(rootChoices)];
+			const meetingsLevel = [...meetings.choices!, makeBack(workLevel)];
 			const backToWork = meetingsLevel[meetingsLevel.length - 1] as IMultiChoice;
 
-			const restored = makeSuggester([...backToWork.choices]);
+			const restored = makeSuggester([...backToWork.choices!]);
 			const items = restored.getSuggestions("o").map((s) => s.item);
 
 			expect(items).toContain(workLog);
@@ -570,7 +570,7 @@ describe("ChoiceSuggester", () => {
 			const openSpy = vi
 				.spyOn(ChoiceSuggester, "Open")
 				.mockImplementation(() => {});
-			const drilledLevel = [...work.choices, makeBack(rootChoices)];
+			const drilledLevel = [...work.choices!, makeBack(rootChoices)];
 			const suggester = makeSuggester(drilledLevel);
 
 			suggester.onChooseItem(
@@ -728,7 +728,7 @@ describe("ChoiceSuggester", () => {
 				IChoice[],
 			];
 			expect(passedChoices.map((c) => c.id)).toEqual([
-				...work.choices.map((c) => c.id),
+				...work.choices!.map((c) => c.id),
 				BACK_CHOICE_ID,
 			]);
 		});

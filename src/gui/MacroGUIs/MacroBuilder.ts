@@ -5,7 +5,6 @@ import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import type QuickAdd from "../../main";
-import type { MultiChoice } from "src/types/choices/MultiChoice";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,

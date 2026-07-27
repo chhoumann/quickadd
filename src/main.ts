@@ -13,7 +13,6 @@ import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
-import type IMultiChoice from "./types/choices/IMultiChoice";
 import {
 	deleteObsidianCommand,
 	hasTemplateExtension,
