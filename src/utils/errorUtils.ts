@@ -157,6 +157,56 @@ export function withErrorHandling<T>(
 }
 
 /**
+ * Wraps a UI event handler so a failure is REPORTED instead of vanishing.
+ *
+ * Svelte re-throws event-handler errors to the window
+ * (`internal/client/dom/elements/events.js`), and an `async` handler's rejection
+ * is an unhandled rejection - Obsidian surfaces neither. The result is a button
+ * that simply does nothing, with no Notice and no message the user would ever
+ * think to look for, which reads as "the plugin is broken" and gives them nothing
+ * to report (#1585). `<svelte:boundary>` does not help: it catches render and
+ * effect errors, not event handlers.
+ *
+ * Handles both halves of the problem - a synchronous throw and a rejected promise
+ * - and stays quiet for the cancellations that are an answer rather than a
+ * failure (see {@link isCancellationError}).
+ *
+ * The wrapper returns `void`: it is for handlers whose result nobody awaits. Keep
+ * calling the unwrapped function anywhere the caller needs its value or wants to
+ * handle the failure itself.
+ *
+ * @param contextMessage - Names the action that failed, e.g. "Couldn't delete that choice"
+ * @param fn - The handler to wrap
+ *
+ * @example
+ * ```ts
+ * const actions = { onDelete: reportingHandler("Couldn't delete that choice", deleteChoice) };
+ * ```
+ */
+export function reportingHandler<A extends unknown[]>(
+  contextMessage: string,
+  fn: (...args: A) => unknown,
+): (...args: A) => void {
+  const report = (err: unknown): void => {
+    if (isCancellationError(err)) return;
+    reportError(err, contextMessage);
+  };
+
+  return (...args: A): void => {
+    try {
+      const result = fn(...args);
+      // Duck-typed rather than `instanceof Promise`: a thenable, or a promise from
+      // another realm, still needs its rejection caught.
+      if (typeof (result as { then?: unknown } | null | undefined)?.then === "function") {
+        void (result as Promise<unknown>).catch(report);
+      }
+    } catch (err) {
+      report(err);
+    }
+  };
+}
+
+/**
  * Async error boundary - wraps an async function and reports any errors it throws
  * 
  * @param fn - Async function to execute
