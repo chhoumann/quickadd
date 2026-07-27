@@ -43,6 +43,7 @@ import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
 import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscoveryEligibility";
+import { likelyTargetFolderPath } from "../../utils/previewTargetFolder";
 
 /**
  * Reactive replacement for TemplateChoiceBuilder.display(). Conditional rows are
@@ -227,6 +228,7 @@ function onModeChange(value: string) {
 		<FormatPreviewField
 			value={choice.fileNameFormat.format}
 			formatterKind="fileName"
+			targetFolderPath={likelyTargetFolderPath(choice.folder)}
 			{app}
 			{plugin}
 		/>

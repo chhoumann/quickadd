@@ -7,7 +7,8 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "src/constants";
 import { MacroAbortError } from "src/errors/MacroAbortError";
 import { log } from "src/logger/logManager";
-import { OnePageInputModal } from "./OnePageInputModal";
+import { OnePageInputModal, type PreviewRow } from "./OnePageInputModal";
+import { likelyTargetFolderPath } from "src/utils/previewTargetFolder";
 import {
 	canonicalizeOnePageFileValue,
 	FILE_VARIABLE_PREFIX,
@@ -116,7 +117,9 @@ export async function runOnePagePreflight(
 
 		// Show modal
 		// Optional live preview of a couple of key outputs (best-effort)
-		const computePreview = async (values: Record<string, string>) => {
+		const computePreview = async (
+			values: Record<string, string>,
+		): Promise<PreviewRow[]> => {
 			try {
 				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
 				// a FILE NAME. The content formatter expands `\n` escapes (not
@@ -133,21 +136,37 @@ export async function runOnePagePreflight(
 				// formatter has no inert stand-in for: inline `js quickadd` fences and
 				// macros, which the run really does execute inside an included body.
 				const formatter = new FileNameDisplayFormatter(app, plugin);
-				const out: Record<string, string> = {};
+				const out: PreviewRow[] = [];
 				// File name preview for Template
 				if (choice.type === "Template") {
 					const tmpl = choice as ITemplateChoice;
 					if (tmpl.fileNameFormat?.enabled) {
+						// {{FOLDER}} previewed nothing at all here: nobody called
+						// setTargetFolderPath, so `Notes/{{FOLDER}}/x` rendered `Notes//x`
+						// plus an empty-segment error that the modal then discarded
+						// (#1590). The builder's own neutral placeholder is the fallback
+						// when the run has not decided the folder yet.
+						formatter.setTargetFolderPath(
+							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
+						);
 						// Seed variables map-like into formatter
 						for (const [k, v] of Object.entries(values)) {
 							formatter["variables"].set(k, v);
 						}
-						out.fileName = await formatter.format(tmpl.fileNameFormat.format);
+						out.push({
+							label: "File name",
+							text: await formatter.format(tmpl.fileNameFormat.format),
+							// The channel #1558 added and #1563/#1578/#1588 fill with
+							// "this name would abort the run". This is the surface where
+							// it is worth the most: the user's REAL answers are seeded
+							// above, so the row shows the exact name about to fail.
+							diagnostics: formatter.diagnostics.list(),
+						});
 					}
 				}
 				return out;
 			} catch {
-				return {};
+				return [];
 			}
 		};
 

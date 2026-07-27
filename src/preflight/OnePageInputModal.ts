@@ -34,10 +34,26 @@ import {
 	normalizeSliderValue,
 } from "src/utils/valueSyntax";
 import { promptCancelled } from "../errors/UserCancelError";
+import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
+
+/**
+ * One row of the live preview block, with the problems that pass ran into.
+ *
+ * An ordered list, not a keyed record: the row needs a display LABEL, and the
+ * record's raw key was being rendered - so the file-name row read `fileName:`
+ * (#1590). `diagnostics` is the channel the builder's row has had since #1558
+ * and this one silently dropped, which is how a name Obsidian refuses could be
+ * presented here in ordinary styling with nothing said.
+ */
+export type PreviewRow = {
+	label: string;
+	text: string;
+	diagnostics: readonly PreviewDiagnostic[];
+};
 
 type PreviewComputer = (
 	values: Record<string, string>,
-) => Promise<Record<string, string>> | Record<string, string>;
+) => Promise<PreviewRow[]> | PreviewRow[];
 
 export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
@@ -53,6 +69,8 @@ export class OnePageInputModal extends Modal {
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
 	private previewContainerEl: HTMLElement | null = null;
+	/** Monotonic guard so a slow preview pass cannot commit over a newer one. */
+	private previewToken = 0;
 	private updatePreviewDebounced: () => void;
 	private settled = false;
 	private readonly imagePasteHandles: ImagePasteHandle[] = [];
@@ -99,19 +117,23 @@ export class OnePageInputModal extends Modal {
 		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
 		title.addClass("qa-onepage-title");
 
-		// Optional live preview area
+		// Optional live preview area. Created (empty and collapsed) before the
+		// fields so it keeps its place between the title and the first input; the
+		// standing "Preview" heading is gone, because each row now carries its own
+		// label and a heading reading "Preview" would re-assert the promise
+		// "Won't be created:" exists to withdraw (#1590/#1594).
 		if (this.computePreview) {
 			this.previewContainerEl = this.contentEl.createDiv();
-			this.previewContainerEl.addClass("qa-onepage-preview");
-			const label = this.previewContainerEl.createEl("div", {
-				text: "Preview",
-			});
-			label.addClass("qa-onepage-preview-label");
-			void this.updatePreviews();
+			this.previewContainerEl.addClass("qa-onepage-preview", "qa-hidden");
 		}
 
 		// Render fields
 		this.requirements.forEach((req) => this.renderField(req));
+
+		// AFTER the fields: `this.result` is populated inside renderField, so the
+		// first pass used to run against an empty map and flash a stand-in
+		// ("Example Title") over prefilled answers for 150ms.
+		if (this.computePreview) void this.updatePreviews();
 
 		// Action bar
 		const btnRow = this.contentEl.createDiv();
@@ -702,34 +724,73 @@ export class OnePageInputModal extends Modal {
 
 	private async updatePreviews() {
 		if (!this.computePreview || !this.previewContainerEl) return;
+		// The builder's guard (FormatPreviewField), which this block never had:
+		// the 150ms debounce orders the STARTS of these passes, not their
+		// completions, and a pass can read up to 25 templates. Text and problems
+		// have to commit together, or one pass's name stands beside another's
+		// complaint.
+		const token = ++this.previewToken;
 		try {
 			const values: Record<string, string> = {};
 			this.result.forEach((v, k) => (values[k] = v));
-			const preview = await this.computePreview(values);
-			// Clear old preview lines (leave the label at index 0)
-			const children = Array.from(this.previewContainerEl.children);
-			for (let i = 1; i < children.length; i++) {
-				children[i].remove();
-			}
-			Object.entries(preview).forEach(([k, v]) => {
-				const row = this.previewContainerEl!.createDiv({
+			const rows = await this.computePreview(values);
+			if (token !== this.previewToken || !this.previewContainerEl) return;
+
+			this.previewContainerEl.empty();
+			// A choice with nothing to preview (every Capture, Macro and Multi, and
+			// every Template using the default note-title prompt) rendered an empty
+			// tinted box containing the single word "Preview". The container is
+			// still created up front - its position between the title and the first
+			// field is load-bearing, and an async append would land it under the
+			// Submit row - so it collapses instead.
+			this.previewContainerEl.toggleClass("qa-hidden", rows.length === 0);
+
+			for (const row of rows) {
+				const errors = row.diagnostics.filter((d) => d.severity === "error");
+				// Same three-state vocabulary as the builder's row (#1594): a format
+				// that could not RESOLVE is showing raw text back, while a name the
+				// vault will refuse is an accurate preview of a note that will not
+				// exist. Unresolved wins when both are present.
+				const unresolved = errors.some((d) => d.kind !== "path");
+				const label = unresolved
+					? "Unresolved"
+					: errors.length > 0
+						? "Won't be created"
+						: row.label;
+
+				const rowEl = this.previewContainerEl.createDiv({
 					cls: "qa-onepage-preview-row",
 				});
-				row.createEl("div", {
-					text: `${k}:`,
-					cls: "qa-preview-key",
-				});
+				rowEl.createEl("div", { text: `${label}:`, cls: "qa-preview-key" });
 				// Clamped in CSS, with the whole string on the element: this block
 				// sits ABOVE every input and re-renders as you type, and since #1563
 				// a file-name preview can be a whole included template joined onto
 				// one line - unclamped it would push the fields and Submit down and
 				// shift them under the caret.
-				const valueEl = row.createEl("div", {
-					text: String(v),
+				const valueEl = rowEl.createEl("div", {
+					text: row.text,
 					cls: "qa-preview-val",
 				});
-				valueEl.setAttribute("title", String(v));
-			});
+				valueEl.setAttribute("title", row.text);
+
+				for (const diagnostic of row.diagnostics) {
+					const issueEl = this.previewContainerEl.createDiv({
+						cls: "qa-preview-issue",
+					});
+					issueEl.toggleClass(
+						"qa-preview-issue--error",
+						diagnostic.severity === "error",
+					);
+					// Severity in TEXT, not colour alone (WCAG 1.4.1), matching the
+					// builder's row.
+					issueEl.createSpan({
+						cls: "qa-visually-hidden",
+						text: diagnostic.severity === "error" ? "Error: " : "Warning: ",
+					});
+					issueEl.appendText(diagnostic.message);
+					issueEl.setAttribute("title", diagnostic.message);
+				}
+			}
 		} catch {
 			// Ignore preview errors
 		}

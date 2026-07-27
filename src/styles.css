@@ -306,13 +306,11 @@
 	font-size: 0.9em;
 }
 
-.quickAddModal .qa-onepage-preview-label,
 .quickAddModal .vdate-preview-label,
 .quickAddModal .qa-preview-key {
 	font-weight: 600;
 }
 
-.quickAddModal .qa-onepage-preview-label,
 .quickAddModal .vdate-preview-label {
 	margin-bottom: 0.25rem;
 	color: var(--text-muted);
@@ -417,6 +415,14 @@
 .quickAddModal .qa-onepage-preview-row {
 	display: flex;
 	gap: 0.5rem;
+}
+
+/* The one-page form's problems reuse .qa-preview-issue (already scoped to
+   .quickAddModal, which this modal carries) so the builder and the run surface
+   describe a refused name identically. They sit directly under their row rather
+   than in the builder's .qa-preview-issues grid, so the gap is set here. */
+.quickAddModal .qa-onepage-preview .qa-preview-issue {
+	margin-top: 0.25rem;
 }
 
 .quickAddModal .qa-vdate-input,
