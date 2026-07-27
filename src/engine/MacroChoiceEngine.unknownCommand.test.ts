@@ -174,16 +174,19 @@ describe("MacroChoiceEngine over a command type it cannot run (#1571)", () => {
 
 	it("never quotes a type it does not have", async () => {
 		// A truncated write or a hand-authored package step can leave an entry with
-		// no type at all, or a non-string one. Quoting `'undefined'` (or
-		// `'[object Object]'`) would send the user hunting for a command type that
-		// never existed.
+		// no type at all, a non-string one, or no object at all. Quoting
+		// `'undefined'` (or `'[object Object]'`) would send the user hunting for a
+		// command type that never existed - but staying silent would be the very
+		// hole this change closes, so each of these still gets said out loud.
 		const { run } = runMacro([
 			{ id: "c1", name: "Half a command" },
 			{ id: "c2", name: "Weird", type: { nested: true } },
+			5,
+			"Wait",
 		]);
 		await run;
 
-		expect(errors).toHaveLength(2);
+		expect(errors).toHaveLength(4);
 		for (const message of errors) {
 			expect(message).toMatch(/has no command type/);
 			expect(message).not.toMatch(/undefined|\[object Object\]/);
