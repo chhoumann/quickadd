@@ -62,18 +62,22 @@ describe("MacroChoiceEngine.run over a malformed command list (#1593)", () => {
 		["an array-turned-object", { "0": wait("hidden") }],
 		["a string", "not a list"],
 		["a number", 7],
-	])("says it could not read %s, instead of throwing or lying", async (_l, commands) => {
+	])("FAILS, with an actionable message, for %s", async (_l, commands) => {
 		// Before: `{"0":...}` reached `for..of` and surfaced a bare
 		// "i is not iterable"; "not a list" reached it INTACT (strings are
 		// iterable) so the macro reported success having run nothing at all.
+		//
+		// It throws rather than logging and returning, so `quickadd:run` reports
+		// ok:false and automation cannot carry on as if the macro had run.
 		await expect(
 			runMacro({ id: "m", name: "M", commands }),
-		).resolves.toBeUndefined();
+		).rejects.toThrow(/Could not read the commands for macro 'Test choice'/);
+	});
 
-		expect(errors).toHaveLength(1);
-		expect(errors[0]).toContain("Could not read the commands for macro");
-		expect(errors[0]).toContain("Test choice");
-		expect(errors[0]).toContain("data.json");
+	it("names data.json, so the message is actionable", async () => {
+		await expect(
+			runMacro({ id: "m", name: "M", commands: "not a list" }),
+		).rejects.toThrow(/data\.json/);
 	});
 
 	// `commands: []` is what QuickAddMacro's constructor produces, so every
@@ -129,15 +133,28 @@ describe("MacroChoiceEngine conditional branches over a malformed value (#1593)"
 		elseCommands,
 	});
 
-	it("says it could not read the branch instead of skipping it silently", async () => {
-		await runMacro({
-			id: "m",
-			name: "M",
-			commands: [conditional([], { "0": wait("hidden") })],
-		});
+	it("fails instead of skipping an unreadable branch silently", async () => {
+		await expect(
+			runMacro({
+				id: "m",
+				name: "M",
+				commands: [conditional([], { "0": wait("hidden") })],
+			}),
+		).rejects.toThrow(/Could not read the else commands/);
+	});
 
-		expect(errors).toHaveLength(1);
-		expect(errors[0]).toContain("Could not read the else commands");
+	// Returning would only exit executeConditional: the outer loop would run
+	// every command AFTER the conditional, which were only ever meant to follow
+	// a branch that never ran.
+	it("does not run the commands after an unreadable conditional", async () => {
+		const after = { id: "after", name: "Wait", type: CommandType.Wait, time: 1 };
+		await expect(
+			runMacro({
+				id: "m",
+				name: "M",
+				commands: [conditional([], "not a list"), after],
+			}),
+		).rejects.toThrow(/Could not read the else commands/);
 	});
 
 	// A conditional with no else branch is entirely normal, and must stay quiet.

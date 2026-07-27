@@ -19,7 +19,10 @@ import {
 	isChoiceLike,
 	rootChoicesOf,
 } from "../../utils/choiceUtils";
-import { isMacroObject, isUnreadableMacro } from "../../utils/macroUtils";
+import {
+	isMacroObject,
+	macroCommandsValueOf,
+} from "../../utils/macroUtils";
 import type { ICommand } from "../../types/macros/ICommand";
 import { v4 as uuidv4 } from "uuid";
 
@@ -165,12 +168,7 @@ export class MacroBuilder extends Modal {
 	 * object around them on the first edit - nothing lost either way.
 	 */
 	private macroCommandsValue(): unknown {
-		if (isMacroObject(this.macro)) return this.macro.commands;
-		// Not a macro object. Hand the value itself over when it could be carrying
-		// something (an array renders as commands; a string gets the unreadable
-		// card); otherwise nothing, so the editor opens empty and the first edit
-		// materializes a real macro below.
-		return isUnreadableMacro(this.macro) ? this.macro : undefined;
+		return macroCommandsValueOf(this.macro);
 	}
 
 	/**

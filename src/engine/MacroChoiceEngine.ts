@@ -273,11 +273,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// reached `for..of` and threw a bare "i is not iterable" at the user, and a
 		// string reached it INTACT (strings are iterable), so the macro reported
 		// success having walked its own characters and done nothing at all.
+		//
+		// THROWS rather than returning: none of the macro ran, so this is a
+		// failure and every caller has to see it as one. Returning quietly would
+		// let `quickadd:run` answer `ok: true` and automation carry on as if the
+		// macro had done its job (#1606's contract). The throw surfaces as one
+		// Notice through the executor's error path.
 		if (isUnreadableCommandList(this.macro?.commands)) {
-			log.logError(
+			throw new Error(
 				`Could not read the commands for macro '${this.choice.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
 			);
-			return;
 		}
 
 		const commands = commandListOf(this.macro?.commands);
@@ -783,11 +788,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		// An absent branch is normal (a conditional with no else), so it stays
 		// silent. A branch we could not read is not: say so rather than skipping
 		// it as if the user had left it empty (#1593).
+		//
+		// THROWS rather than returning, for the same reason run() does, and one
+		// more: returning here only exits executeConditional, so the outer loop
+		// would carry on with every command AFTER the conditional - running
+		// file-writing and script commands that were only ever meant to follow a
+		// branch that never ran.
 		if (isUnreadableCommandList(branch)) {
-			log.logError(
-				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it.`
+			throw new Error(
+				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
 			);
-			return;
 		}
 
 		if (!Array.isArray(branch) || branch.length === 0) {

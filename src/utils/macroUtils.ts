@@ -41,6 +41,25 @@ export function isUnreadableMacro(value: unknown): boolean {
 }
 
 /**
+ * Where a macro's command list actually lives, given an untrusted `macro`.
+ *
+ * Normally `macro.commands`. But an ARRAY-valued `macro` is treated as the
+ * command list itself: writing `macro.commands` onto an Array is dropped by
+ * `JSON.stringify`, so the recoverable reading is that the array IS the
+ * commands (someone saved `macro: commands`). Every consumer has to agree on
+ * that, or the macro builder repairs one list while the package importer
+ * remaps another - hence one function rather than a convention.
+ *
+ * Returns `undefined` for a value that carries nothing, so the caller can tell
+ * "no commands" from "commands we could not read" via
+ * {@link isUnreadableCommandList} on the result.
+ */
+export function macroCommandsValueOf(macro: unknown): unknown {
+	if (isMacroObject(macro)) return macro.commands;
+	return isUnreadableMacro(macro) ? macro : undefined;
+}
+
+/**
  * A command list that is always safe to iterate, map or spread.
  *
  * `IMacro.commands` is declared `ICommand[]` and nothing enforces it. This is
