@@ -55,7 +55,31 @@ describe("ChoiceView row actions that fail (#1585)", () => {
 		await vi.waitFor(() => expect(logError).toHaveBeenCalled());
 		// GuiLogger turns exactly this into the Notice the user sees.
 		expect((logError.mock.calls[0][0] as Error).message).toBe(
-			"Couldn't open the settings for that choice: Invalid choice type",
+			"Couldn't open the settings for the choice “Choice with a bad type”: Invalid choice type",
+		);
+	});
+
+	// #1552's vocabulary rule reaches the error copy too: "Multi" is the internal
+	// type id for what every user-facing surface calls a folder. Duplicating a
+	// folder recurses into its children, so a bad child makes the FOLDER's row
+	// action fail - and the message has to name a folder, not a choice.
+	it("calls a folder a folder", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const folder = {
+			id: "folder",
+			name: "My folder",
+			type: "Multi",
+			command: false,
+			collapsed: false,
+			choices: [choiceWithUnknownType()],
+		} as unknown as IChoice;
+		const { getByLabelText } = renderChoiceView([folder]);
+
+		await fireEvent.click(getByLabelText("Duplicate My folder"));
+
+		await vi.waitFor(() => expect(logError).toHaveBeenCalled());
+		expect((logError.mock.calls[0][0] as Error).message).toBe(
+			"Couldn't duplicate the folder “My folder”: Unknown choice type: Templat",
 		);
 	});
 

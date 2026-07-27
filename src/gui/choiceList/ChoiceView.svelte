@@ -357,17 +357,21 @@
 	// wrapping it here is what makes a failing row action impossible to miss —
 	// hand-wrapping the call sites would silently skip the nested and menu paths.
 	//
-	// The verb is completed with the ROW's own noun so a folder is never called a
-	// choice in the message (see choiceNoun; #1552).
+	// The message is built from the ROW: its own noun, so a folder is never called
+	// a choice (see choiceNoun; #1552), and its name, so a user with a long list
+	// knows which row the Notice is about. A malformed entry can have neither, so
+	// both degrade rather than printing "undefined".
 	function rowAction<Rest extends unknown[]>(
 		verb: string,
 		fn: (choice: IChoice, ...rest: Rest) => unknown,
 	): (choice: IChoice, ...rest: Rest) => void {
-		return (choice, ...rest) =>
-			reportingHandler(
-				`Couldn't ${verb} that ${choiceNoun(choice?.type)}`,
-				fn,
-			)(choice, ...rest);
+		return (choice, ...rest) => {
+			const noun = choiceNoun(choice?.type);
+			const subject = choice?.name
+				? `the ${noun} “${choice.name}”`
+				: `that ${noun}`;
+			reportingHandler(`Couldn't ${verb} ${subject}`, fn)(choice, ...rest);
+		};
 	}
 
 	const actions: ChoiceListActions = {

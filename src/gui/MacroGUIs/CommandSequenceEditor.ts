@@ -103,7 +103,17 @@ export class CommandSequenceEditor {
 		containerEl.empty();
 		containerEl.addClass("quickAddCommandEditor");
 
-		this.renderCommandList(containerEl);
+		// A list we could not draw must not be edited blind. Every control below
+		// appends to `commandsRef` and persists through onCommandsChange, so with the
+		// list invisible the user would be adding commands they cannot see, reorder or
+		// delete — and with a `null`/non-iterable `commands` the same controls throw
+		// silently instead. Before #1584 this was unreachable (the throw escaped and
+		// the modal never opened at all); now that the editor survives, it has to stop
+		// offering the affordances the failed view was the only way to review.
+		// The card explains what happened; the macro's name, "run on startup" and icon
+		// stay editable around it.
+		if (!this.renderCommandList(containerEl)) return;
+
 		this.renderCommandBar(containerEl);
 		this.renderAddObsidianCommandSetting(containerEl);
 		this.renderAddEditorCommandSetting(containerEl);
@@ -132,7 +142,8 @@ export class CommandSequenceEditor {
 		this.scriptCandidates = loadScriptCandidates(this.app);
 	}
 
-	private renderCommandList(parent: HTMLElement) {
+	/** @returns whether the list actually rendered (see render()). */
+	private renderCommandList(parent: HTMLElement): boolean {
 		const commandListEl = parent.createDiv("commandList");
 
 		this.commandListProps = createCommandListProps({
@@ -185,6 +196,8 @@ export class CommandSequenceEditor {
 			this.commandListProps,
 			{ what: "this macro's commands" }
 		);
+
+		return this.commandListHandle.ok;
 	}
 
 	private renderCommandBar(parent: HTMLElement) {

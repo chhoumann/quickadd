@@ -29,9 +29,20 @@
 		<ObsidianIcon iconId="alert-triangle" size={16} />
 		<span class="qaMountFailedTitle">QuickAdd couldn't display {what}</span>
 	</div>
+	<!--
+	  The body claims only what this card can actually vouch for. Two earlier
+	  drafts overreached and both were wrong somewhere:
+	    "nothing in your vault has been changed" - an action earlier in the same
+	      flow may well have written something (adding a choice saves it, THEN
+	      opens the builder).
+	    "everything else on this screen still works" - not for a host whose
+	      remaining controls only made sense alongside the view that failed.
+	  A card that can be wrong is worse than one that says less, so this one says
+	  what happened, that the failure itself changed nothing, and what to report.
+	-->
 	<p class="qaMountFailedBody">
-		This part of QuickAdd ran into an error and has been left out. Everything
-		else on this screen still works, and nothing in your vault has been changed.
+		This part of QuickAdd could not be drawn, so it has been left out. Nothing
+		was changed by the error. Include the message below if you report this.
 	</p>
 	{#if detail}
 		<pre class="qaMountFailedDetail">{detail}</pre>
