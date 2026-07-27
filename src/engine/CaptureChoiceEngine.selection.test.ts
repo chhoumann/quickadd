@@ -1256,6 +1256,122 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		});
 	});
 
+	it("refuses an impossible target before prompting or creating (#1591)", async () => {
+		// The refusal used to arrive from vault.create, after the user had
+		// answered the whole prompt chain.
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad: Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				format: { enabled: true, format: "{{VALUE}}" },
+			}),
+			createExecutor(),
+		);
+
+		const createFileWithInput = vi.fn();
+		(engine as any).createFileWithInput = createFileWithInput;
+
+		await engine.run();
+
+		expect(createFileWithInput).not.toHaveBeenCalled();
+		// And the capture's own {{VALUE}} prompt never opened: the whole point of
+		// #1591 is that the user does not answer a prompt chain for a note that
+		// cannot be created.
+		expect(promptHydratedValues).toHaveLength(0);
+	});
+
+	it("refuses before the heading picker, not after it (#1591)", async () => {
+		// Placement, not just presence: the "Choose heading when capturing" picker
+		// runs between the existence check and the create dispatch, so a guard
+		// sited at the sink would still have asked the user to pick a heading for
+		// a note that cannot be created. This case fails if the guard moves down.
+		const suggestSpy = vi.fn(async () => "## Today");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad: Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				insertAfter: {
+					enabled: true,
+					after: "",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					promptHeading: true,
+				},
+			}),
+			createExecutor(),
+		);
+		const createFileWithInput = vi.fn();
+		(engine as any).createFileWithInput = createFileWithInput;
+
+		await engine.run();
+
+		expect(suggestSpy).not.toHaveBeenCalled();
+		expect(createFileWithInput).not.toHaveBeenCalled();
+	});
+
+	it("still appends to an EXISTING file whose name carries a colon (#1591)", async () => {
+		// ":" is legal on macOS/Linux at the filesystem level, so a note made
+		// outside Obsidian can have one - and capturing to it works today,
+		// because nothing ever asks Obsidian to accept the name.
+		const app = createApp();
+		const engine = new CaptureChoiceEngine(
+			app,
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad: Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+			}),
+			createExecutor(),
+		);
+		(engine as any).fileExists = vi.fn(async () => true);
+		const onFileExists = vi.fn(async () => ({
+			file: { path: "Bad: Title.md", basename: "Bad: Title" },
+			newFileContent: "",
+			captureContent: "x",
+		}));
+		(engine as any).onFileExists = onFileExists;
+
+		await engine.run();
+
+		expect(onFileExists).toHaveBeenCalled();
+	});
+
 	it("keeps submitted VALUE prompt draft after failed target creation and clears it after success", async () => {
 		promptResponses.push("Capture body to preserve");
 		const store = InputPromptDraftStore.getInstance();
@@ -1274,7 +1390,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 				},
 			} as any,
 			createChoice({
-				captureTo: "Bad:Title.md",
+				// A LEGAL target: an impossible one is now refused before the
+				// prompt is ever opened (#1591), which is a different behaviour
+				// with its own test below. What this case is about is a create
+				// that fails for some other reason after the answer is in.
+				captureTo: "Notes/Target.md",
 				createFileIfItDoesntExist: {
 					enabled: true,
 					createWithTemplate: false,
@@ -1289,7 +1409,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		);
 
 		(engine as any).createFileWithInput = vi.fn(async () => {
-			throw new Error("File name cannot contain ':'");
+			throw new Error("Disk is on fire");
 		});
 
 		const clipboardWriteText = vi.fn(async () => {});

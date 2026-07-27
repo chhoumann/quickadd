@@ -93,12 +93,38 @@ const hidden = $derived(
 		: false,
 );
 
-// A field whose format could not be resolved is not showing a preview of the
+// Two different things can be wrong, and one label for both sent readers
+// hunting for a broken token when every token had resolved (issue #1594).
+//
+// A field whose format could not be RESOLVED is not showing a preview of the
 // output — it is showing the raw text back. Say so, rather than letting
 // "Preview:" assert that this IS what you will get.
-const isUnresolved = $derived(
-	showDiagnostics && diagnostics.some((d) => d.severity === "error"),
-);
+//
+// The `kind: "path"` problems are the other class: the format resolved
+// perfectly, the vault just will not accept the result (a "."/".." or empty
+// segment, #1563; a character Obsidian refuses, #1578). That is the ordinary
+// case on a file-name field, and the row IS an accurate preview — of a name
+// that will never exist. Reusing the axis #1582 already added for `hideWhen`
+// keeps one classification instead of two that can disagree.
+//
+// Unresolved wins when both are present: if a template is missing AND the
+// result has an empty segment, the fundamental failure is that it did not
+// resolve.
+//
+// `diagnostics` deliberately SURVIVES a value change until the next pass
+// commits. A pass can outlast the 500ms gate (it may read up to 25 templates),
+// so the gate can open while the previous result is still shown - but `preview`
+// and `diagnostics` are written together under `previewToken`, so what is on
+// screen is always one pass's text under that same pass's label and complaint.
+// Stale, never mixed.
+//
+// Clearing `diagnostics` here instead would leave the previous, known-bad name
+// on screen under a plain "Preview:" label for the length of the pass, which is
+// precisely the assertion this row exists to withdraw. Pinned by "a slow pass
+// never mixes two values in one row" in the sibling test.
+const errors = $derived(showDiagnostics ? diagnostics.filter((d) => d.severity === "error") : []);
+const isUnresolved = $derived(errors.some((d) => d.kind !== "path"));
+const isInvalid = $derived(!isUnresolved && errors.length > 0);
 
 $effect(() => {
 	const current = value;
@@ -180,7 +206,12 @@ $effect(() => {
 		class:qa-preview-row--one-line={formatterKind === "fileName"}
 		title={formatterKind === "fileName" ? preview : undefined}
 	>
-		<span class="qa-preview-label">{isUnresolved ? "Unresolved: " : "Preview: "}</span
+		<span class="qa-preview-label"
+			>{isUnresolved
+				? "Unresolved: "
+				: isInvalid
+					? "Won't be created: "
+					: "Preview: "}</span
 		><span class="qa-preview-value" aria-live="polite">{preview}</span>
 	</div>
 	{#if showDiagnostics && diagnostics.length > 0}

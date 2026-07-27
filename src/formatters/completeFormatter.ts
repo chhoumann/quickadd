@@ -5,7 +5,14 @@ import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import MultiSuggester from "src/gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { GLOBAL_VAR_REGEX, INLINE_JAVASCRIPT_REGEX } from "../constants";
+import {
+	GLOBAL_VAR_REGEX,
+	INLINE_JAVASCRIPT_REGEX,
+	// Replaces six inlined copies of `/\{\{title\}\}/i` in this file. The
+	// file-name PREVIEW now mirrors the same rule (#1588), so the pattern has to
+	// be one shared constant rather than a seventh copy that can drift.
+	TITLE_REGEX,
+} from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -122,7 +129,7 @@ export class CompleteFormatter extends Formatter {
 		scope: PromptScopeKind = "generic",
 	): Promise<string> {
 		// Check for {{title}} usage in filename which would cause infinite recursion
-		if (/\{\{title\}\}/i.test(input)) {
+		if (TITLE_REGEX.test(input)) {
 			throw new Error(
 				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
 			);
@@ -137,7 +144,7 @@ export class CompleteFormatter extends Formatter {
 		// (the token pass below omits `title`, leaving it verbatim). Re-check post
 		// format() so it throws the same circular-dependency error, mirroring
 		// formatTemplateFilePath's post-global-expansion guard.
-		if (/\{\{title\}\}/i.test(output)) {
+		if (TITLE_REGEX.test(output)) {
 			throw new Error(
 				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
 			);
@@ -195,7 +202,7 @@ export class CompleteFormatter extends Formatter {
 
 	async formatFolderPath(folderName: string): Promise<string> {
 		// Check for {{title}} usage in folder path which would cause issues
-		if (/\{\{title\}\}/i.test(folderName)) {
+		if (TITLE_REGEX.test(folderName)) {
 			throw new Error(
 				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
 			);
@@ -208,7 +215,7 @@ export class CompleteFormatter extends Formatter {
 		// {{VALUE}} resolving to "{{title}}" slips past the raw-input check above,
 		// then the folder-only token pass would leave it literal in the path.
 		// Re-check post format() so it throws the circular-dependency error.
-		if (/\{\{title\}\}/i.test(formatted)) {
+		if (TITLE_REGEX.test(formatted)) {
 			throw new Error(
 				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
 			);
@@ -255,7 +262,7 @@ export class CompleteFormatter extends Formatter {
 	 * {{date}} / {{random}} would re-evaluate to a different value.
 	 */
 	async formatTemplateFilePath(input: string): Promise<string> {
-		if (/\{\{title\}\}/i.test(input)) {
+		if (TITLE_REGEX.test(input)) {
 			throw new Error(
 				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
 			);
@@ -270,7 +277,7 @@ export class CompleteFormatter extends Formatter {
 		// user-input substitution — so a global-injected {{title}} throws the
 		// clear circular-title error, without false-positiving on a user value
 		// that merely contains the literal text "{{title}}".
-		if (/\{\{title\}\}/i.test(output)) {
+		if (TITLE_REGEX.test(output)) {
 			throw new Error(
 				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
 			);
@@ -791,7 +798,10 @@ export class CompleteFormatter extends Formatter {
 		if (provider) {
 			return await provider.inputPrompt("Enter a math expression");
 		}
-		this.assertInteractivePrompt("a {{MATH}} expression");
+		// The token is {{MVALUE}} (MATH_VALUE_REGEX). "a {{MATH}} expression"
+		// named a token QuickAdd has never had, in the one message whose whole
+		// job is to tell a non-interactive caller which flag to pass (#1587).
+		this.assertInteractivePrompt("a {{MVALUE}} math expression");
 		try {
 			return await MathModal.Prompt();
 		} catch (error) {

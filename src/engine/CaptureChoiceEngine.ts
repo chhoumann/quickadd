@@ -83,6 +83,7 @@ import {
 	shouldPostProcessFrontMatter,
 } from "./helpers/frontmatterPostProcessor";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { assertCreatableFilePath } from "./assertCreatableFilePath";
 import { UserCancelError } from "../errors/UserCancelError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
@@ -433,6 +434,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			) => Promise<CaptureWriteResult>;
 			let getFileAndAddContentFn: GetFileAndAddContentFn;
 			const fileAlreadyExists = await this.fileExists(filePath);
+
+			// Refuse an impossible target here rather than at vault.create (#1591).
+			// Gated character-for-character on the dispatch condition below, so a
+			// missing target with creation OFF still gets its own message - and an
+			// EXISTING file with a colon in its name (legal on macOS/Linux, so a note
+			// made outside Obsidian can have one) keeps appending as it does today.
+			// Placed above the heading picker rather than inside
+			// onCreateFileIfItDoesntExist so the user is not asked to choose a
+			// heading for a note that cannot be created.
+			if (!fileAlreadyExists && this.choice?.createFileIfItDoesntExist?.enabled) {
+				assertCreatableFilePath(filePath);
+			}
 
 			// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
 			// target note and feed the picked line to the formatter as an insert-after
@@ -1436,6 +1449,11 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		captureContent: string,
 		linkOptions?: AppendLinkOptions,
 	): Promise<CaptureWriteResult> {
+		// Re-asserted at the sink, so the invariant is local to the one function
+		// that creates the file, not only to its caller's branch. It is an
+		// `includes` scan over a short string and costs nothing (#1591).
+		assertCreatableFilePath(filePath);
+
 		// Extract filename without extension from the full path.
 		const fileBasename = basenameWithoutMdOrCanvas(filePath);
 		this.formatter.setTitle(fileBasename);

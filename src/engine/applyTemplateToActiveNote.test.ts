@@ -5,6 +5,9 @@ const {
 	engineConstructorMock,
 	resolvedPathMock,
 	setPromptRunContextMock,
+	targetPathMock,
+	yesNoPromptMock,
+	suggestMock,
 } =
 	vi.hoisted(() => ({
 		engineApplyMock: vi.fn(),
@@ -13,7 +16,19 @@ const {
 		// Identity by default (raw == resolved); override to simulate a path token
 		// that resolves to a different extension (issue #620).
 		resolvedPathMock: vi.fn((raw: string) => raw),
+		// null by default: no move offer. Override to drive the reconcile path.
+		targetPathMock: vi.fn<() => Promise<string | null>>(async () => null),
+		yesNoPromptMock: vi.fn(async () => true),
+		suggestMock: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
 	}));
+
+vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
+	default: { Suggest: (...args: unknown[]) => suggestMock(...args) },
+}));
+
+vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
+	default: { Prompt: (...args: unknown[]) => yesNoPromptMock(...(args as [])) },
+}));
 
 vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	const actual = await importOriginal<object>();
@@ -31,7 +46,7 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 			return await engineApplyMock();
 		}
 		async computeChoiceTargetPath() {
-			return null;
+			return await targetPathMock();
 		}
 		setPromptRunContext(context: unknown) {
 			setPromptRunContextMock(context);
@@ -464,5 +479,97 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		});
 
 		expect(result).toBeNull();
+	});
+});
+
+/**
+ * Issue #1591. Answering "Yes" to the move offer creates the target FOLDER and
+ * then fails at `renameFile`, leaving an empty folder behind and reporting it
+ * as a warning the user did nothing to deserve. The offer is an optional
+ * convenience, so an impossible target declines it quietly.
+ */
+describe("the move offer refuses an impossible target (#1591)", () => {
+	function makeFile(): TFile {
+		const file = new TFile();
+		file.path = "notes/My note.md";
+		file.basename = "My note";
+		file.extension = "md";
+		return file;
+	}
+
+	function makeApp(activeFile: TFile) {
+		const createFolder = vi.fn(async () => {});
+		const renameFile = vi.fn(async () => {});
+		const app = {
+			workspace: { getActiveFile: () => activeFile },
+			vault: {
+				// Empty, so the empty-note fast path picks "replace" and the insert
+				// MODE picker is skipped; only the template picker is driven below.
+				cachedRead: async () => "",
+				adapter: { exists: async () => false },
+				createFolder,
+			},
+			fileManager: { renameFile },
+		} as unknown as App;
+		return { app, createFolder, renameFile };
+	}
+
+	const choice = makeTemplateChoice("Choice", "templates/tpl.md");
+	const plugin = {
+		settings: { choices: [choice] },
+		getTemplateFiles: () => [],
+	} as unknown as QuickAdd;
+	const executor = (): IChoiceExecutor => ({
+		execute: async () => {},
+		variables: new Map<string, unknown>(),
+	});
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		engineApplyMock.mockImplementation(async () => makeFile());
+		yesNoPromptMock.mockImplementation(async () => true);
+	});
+
+	it("does not ask, create a folder, or rename for a name Obsidian refuses", async () => {
+		// The INTERACTIVE path: reconciliation only runs when the template came
+		// from a choice picked by the user, so a `templatePath` argument would
+		// skip the branch under test entirely.
+		suggestMock.mockImplementation(async (_app, _labels, values) => {
+			const items = values as Array<unknown>;
+			// First call picks the template, second picks the insert mode.
+			return typeof items[0] === "string" ? items[0] : items[0];
+		});
+		targetPathMock.mockImplementation(async () => "Bad: Notes/My note.md");
+		const file = makeFile();
+		const { app, createFolder, renameFile } = makeApp(file);
+
+		await applyTemplateToNote(app, plugin, {
+			file,
+			choiceExecutor: executor(),
+		});
+
+		expect(targetPathMock).toHaveBeenCalled();
+		expect(yesNoPromptMock).not.toHaveBeenCalled();
+		expect(createFolder).not.toHaveBeenCalled();
+		expect(renameFile).not.toHaveBeenCalled();
+	});
+
+	it("still offers the move for a legal target", async () => {
+		// The other half, so the case above cannot pass by never reaching the
+		// reconcile branch at all.
+		suggestMock.mockImplementation(async (_app, _labels, values) =>
+			(values as Array<unknown>)[0],
+		);
+		targetPathMock.mockImplementation(async () => "Notes/My note.md");
+		const file = makeFile();
+		const { app, renameFile } = makeApp(file);
+
+		await applyTemplateToNote(app, plugin, {
+			file,
+			choiceExecutor: executor(),
+		});
+
+		expect(yesNoPromptMock).toHaveBeenCalled();
+		expect(renameFile).toHaveBeenCalled();
 	});
 });

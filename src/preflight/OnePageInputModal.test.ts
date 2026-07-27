@@ -220,11 +220,24 @@ function ensureObsidianDomPolyfills(): void {
 		return this;
 	};
 
-	proto.createEl ??= function (tag: string, options?: { text?: string }) {
+	proto.createEl ??= function (
+		tag: string,
+		options?: { text?: string; cls?: string },
+	) {
 		const el = document.createElement(tag);
 		if (options?.text !== undefined) el.textContent = options.text;
+		if (options?.cls) el.className = options.cls;
 		this.appendChild(el);
 		return el;
+	};
+
+	proto.createSpan ??= function (options?: { text?: string; cls?: string }) {
+		return this.createEl("span", options);
+	};
+
+	proto.appendText ??= function (text: string) {
+		this.appendChild(document.createTextNode(text));
+		return this;
 	};
 
 	proto.createDiv ??= function (options?: { cls?: string; text?: string }) {
@@ -869,5 +882,213 @@ describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 		busy = false;
 		resolveIdle();
 		await expect(modal.waitForClose).resolves.toEqual({ body: "" });
+	});
+});
+
+/**
+ * The live preview block, which used to render only the text `computePreview`
+ * returned - dropping the formatter's diagnostics entirely, so a name Obsidian
+ * refuses was presented here in ordinary styling with nothing said (#1590).
+ */
+describe("OnePageInputModal preview block (#1590)", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+	});
+
+	const requirement: FieldRequirement[] = [
+		{ id: "title", label: "title", type: "text" },
+	];
+
+	/** Lets the preview's async pass settle. */
+	const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+	const previewEl = (modal: OnePageInputModal) =>
+		(modal as any).contentEl.querySelector(
+			".qa-onepage-preview",
+		) as HTMLElement;
+
+	it("renders each diagnostic with the builder's error styling", async () => {
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirement,
+			undefined,
+			() => [
+				{
+					label: "File name",
+					text: "Bad: My Note",
+					diagnostics: [
+						{ severity: "error", message: "refused", kind: "path" },
+					],
+				},
+			],
+		);
+		await settle();
+
+		const block = previewEl(modal);
+		// The block un-hides for a row (the inverse of the collapse below).
+		expect(block.classList.contains("qa-hidden")).toBe(false);
+		expect(block.querySelector(".qa-preview-val")?.textContent).toBe(
+			"Bad: My Note",
+		);
+		const issue = block.querySelector(".qa-preview-issue");
+		expect(issue).not.toBeNull();
+		expect(issue?.classList.contains("qa-preview-issue--error")).toBe(true);
+		// Severity in text, not colour alone (WCAG 1.4.1).
+		expect(
+			issue?.querySelector(".qa-visually-hidden")?.textContent,
+		).toBe("Error: ");
+		expect(issue?.textContent).toContain("refused");
+		modal.close();
+	});
+
+	it("uses the builder's three-state label vocabulary (#1594)", async () => {
+		const withDiagnostics = (
+			diagnostics: { severity: string; message: string; kind?: string }[],
+		) =>
+			new OnePageInputModal({} as App, requirement, undefined, () => [
+				{ label: "File name", text: "x", diagnostics } as never,
+			]);
+
+		const clean = withDiagnostics([]);
+		await settle();
+		expect(previewEl(clean).querySelector(".qa-preview-key")?.textContent).toBe(
+			"File name:",
+		);
+		clean.close();
+
+		// Resolved, but the vault will refuse it.
+		const invalid = withDiagnostics([
+			{ severity: "error", message: "refused", kind: "path" },
+		]);
+		await settle();
+		expect(
+			previewEl(invalid).querySelector(".qa-preview-key")?.textContent,
+		).toBe("Won't be created:");
+		invalid.close();
+
+		// Could not resolve at all - and it wins when both are present.
+		const unresolved = withDiagnostics([
+			{ severity: "error", message: "refused", kind: "path" },
+			{ severity: "error", message: "Template not found: Gone.md" },
+		]);
+		await settle();
+		expect(
+			previewEl(unresolved).querySelector(".qa-preview-key")?.textContent,
+		).toBe("Unresolved:");
+		unresolved.close();
+	});
+
+	it("collapses to nothing when the choice has no preview to show", async () => {
+		// Every Capture, Macro and Multi choice, and every Template using the
+		// default note-title prompt, rendered a padded tinted box containing the
+		// single word "Preview".
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirement,
+			undefined,
+			() => [],
+		);
+		await settle();
+
+		const block = previewEl(modal);
+		expect(block.classList.contains("qa-hidden")).toBe(true);
+		expect(block.textContent).toBe("");
+		modal.close();
+	});
+
+	it("computes its FIRST preview from the prefilled answers", async () => {
+		// display() used to fire updatePreviews above the renderField loop, and
+		// this.result is only populated inside it - so the opening pass ran with
+		// {} and flashed a stand-in over answers that were already known.
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirement,
+			new Map([["title", "Prefilled"]]),
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).toEqual({ title: "Prefilled" });
+		modal.close();
+	});
+
+	it("withholds an untouched required date, as submit() does", async () => {
+		// A required blank date is OMITTED on submit so the sequential date prompt
+		// still fires. Previewing it as answered-empty rendered a name the run
+		// will never create (#1590).
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			[
+				{ id: "title", label: "title", type: "text" },
+				{ id: "due", label: "due", type: "date" },
+			],
+			undefined,
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).not.toHaveProperty("due");
+		modal.close();
+	});
+
+	it("keeps an untouched OPTIONAL date, which is answered-empty", async () => {
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			[{ id: "due", label: "due", type: "date", optional: true }],
+			undefined,
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).toEqual({ due: "" });
+		modal.close();
+	});
+
+	it("commits text and problems from the same pass, never a mix", async () => {
+		// The 150ms debounce orders the STARTS of these passes, not their
+		// completions, and a pass can read up to 25 templates.
+		const deferred: Array<(rows: unknown) => void> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirement,
+			undefined,
+			() => new Promise((resolve) => deferred.push(resolve as never)),
+		);
+		// Second pass starts while the first is still pending.
+		void (modal as any).updatePreviews();
+		await settle();
+		expect(deferred).toHaveLength(2);
+
+		// The NEWER pass lands first...
+		deferred[1]([
+			{ label: "File name", text: "new", diagnostics: [] },
+		] as never);
+		await settle();
+		// ...then the stale one, which must not overwrite it.
+		deferred[0]([
+			{
+				label: "File name",
+				text: "stale",
+				diagnostics: [{ severity: "error", message: "stale problem" }],
+			},
+		] as never);
+		await settle();
+
+		const block = previewEl(modal);
+		expect(block.querySelector(".qa-preview-val")?.textContent).toBe("new");
+		expect(block.querySelector(".qa-preview-issue")).toBeNull();
+		modal.close();
 	});
 });

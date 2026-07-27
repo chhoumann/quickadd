@@ -112,8 +112,29 @@ export function findIllegalFilePathChars(path: string): string[] {
  * wrong (same reason as `describeUnknownFieldFilter`, #1564).
  */
 export function describeIllegalFilePathChars(chars: readonly string[]): string {
-	const quoted = chars.map((char) => `"${char}"`).join(", ");
-	return `A file or folder name cannot contain ${quoted}, so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.`;
+	return `A file or folder name cannot contain ${quoteChars(chars)}, so this choice would fail at run time. ${CHECK_YOUR_TOKENS}`;
+}
+
+/**
+ * The same finding, at RUN time (#1591).
+ *
+ * Different tense and a concrete path, because by now it is not a warning about
+ * a hypothetical - the choice is stopping, and the name is known. The character
+ * set and the `{{TIME}}` hint are shared with the preview's sentence above so
+ * the two surfaces cannot describe the same rule differently.
+ */
+export function describeIllegalFilePathCharsForRun(
+	chars: readonly string[],
+	path: string,
+): string {
+	return `Cannot create "${path}": a file or folder name cannot contain ${quoteChars(chars)}. ${CHECK_YOUR_TOKENS}`;
+}
+
+const CHECK_YOUR_TOKENS =
+	"Check your own text and tokens like {{TIME}}, which is HH:mm.";
+
+function quoteChars(chars: readonly string[]): string {
+	return chars.map((char) => `"${char}"`).join(", ");
 }
 
 /**

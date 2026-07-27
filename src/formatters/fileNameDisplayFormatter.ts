@@ -1,15 +1,20 @@
 import {
+	defaultDateVariableFormat,
 	findInlineScriptSpans,
 	Formatter,
 	hasUnterminatedInlineScriptFence,
+	renderStoredDateVariable,
 	type PromptContext,
 } from "./formatter";
+import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
+import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
 } from "./previewDiagnostics";
 import type { App } from "obsidian";
-import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
+import { TFile, TFolder } from "obsidian";
+import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import {
@@ -141,6 +146,11 @@ export class FileNameDisplayFormatter extends Formatter {
 			return input;
 		}
 
+		// Before the normalizer, mirroring the run: formatFileName's
+		// circular-dependency check runs on the formatted string, and if it fires
+		// the choice dies there - no name is ever normalized (#1588).
+		this.reportCircularTitle(input, output);
+
 		// The run puts every generated name through this normalizer on the way to
 		// the vault (TemplateChoiceEngine, TemplateInsertEngine,
 		// templateNoteDiscovery, and the capture target via
@@ -164,6 +174,33 @@ export class FileNameDisplayFormatter extends Formatter {
 		// nor remove one of these characters.
 		this.reportIllegalChars(input, output);
 		return normalized.path;
+	}
+
+	/**
+	 * Says so when the format can never produce a name at all, because it uses
+	 * {{title}} (#1588).
+	 *
+	 * `CompleteFormatter.formatFileName` rejects this token outright - the title
+	 * IS the file name, so deriving one from the other is circular - and it does
+	 * so twice: on the raw input, and again on `format()`'s output, because an
+	 * expanded `{{GLOBAL_VAR:}}` snippet or a `{{VALUE}}` that resolves to the
+	 * literal text can smuggle one in after the first check. Both halves are
+	 * mirrored here, on the same inputs, so the preview refuses exactly what the
+	 * run refuses.
+	 *
+	 * NOT `kind: "path"`. The token is still on screen unresolved, so the row
+	 * says "Unresolved:" and means it - and the capture target, which discards
+	 * path problems as "this field may not be a path", must keep this one:
+	 * `formatFileName` is that field's entry point too, so `{{title}}` aborts a
+	 * capture just as hard.
+	 */
+	private reportCircularTitle(input: string, output: string): void {
+		if (!TITLE_REGEX.test(input) && !TITLE_REGEX.test(output)) {
+			return;
+		}
+		this.reportProblem(
+			"A file name cannot contain {{title}}, because the title is derived from the file name itself - so this choice would fail at run time.",
+		);
 	}
 
 	/**
@@ -219,10 +256,29 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	/**
-	 * Is there already a file at this path? Tolerant of the missing extension,
-	 * because a "File name format" produces the name and the engine appends
-	 * `.md` (`normalizeMarkdownFilePath`), while a capture target usually carries
-	 * one already.
+	 * Is the thing this name refers to already in the vault? Tolerant of the
+	 * missing extension, because a "File name format" produces the name and the
+	 * engine appends `.md` (`normalizeMarkdownFilePath`), while a capture target
+	 * usually carries one already.
+	 *
+	 * SHAPE-AWARE, because Obsidian's path map holds files AND folders with no
+	 * trailing slash on either, and a bare `getAbstractFileByPath` conflated
+	 * them:
+	 *
+	 * - a capture target written as `Meetings: 2026/` names a FOLDER to pick
+	 *   inside, and the folder existing is exactly what makes it work - yet the
+	 *   trailing slash matched neither probe, so the row went red for a capture
+	 *   that runs fine;
+	 * - a bare `Meetings: 2026` may ALSO be a folder scope, and
+	 *   `captureTargetResolution` says exactly when: an existing folder with no
+	 *   real note at `Meetings: 2026.md`. That rule is mirrored here rather than
+	 *   approximated, so the preview and the resolver agree.
+	 *
+	 * Accepted residual, unchanged from before: a FOLDER named exactly like a
+	 * Template choice's file-name format excuses the warning, although the run
+	 * would still fail creating the `.md` beside it. Telling the two hosts apart
+	 * needs the host to say which it is, and erring toward silence is this
+	 * cluster's rule - a wrong accusation is worse than a missing one.
 	 */
 	private existsInVault(name: string): boolean {
 		const vault = this.app?.vault;
@@ -232,10 +288,20 @@ export class FileNameDisplayFormatter extends Formatter {
 		if (typeof vault?.getAbstractFileByPath !== "function") return false;
 		const trimmed = name.trim();
 		if (!trimmed) return false;
-		return Boolean(
-			vault.getAbstractFileByPath(trimmed) ??
-				vault.getAbstractFileByPath(`${trimmed}.md`),
-		);
+
+		if (trimmed.endsWith("/")) {
+			return (
+				vault.getAbstractFileByPath(trimmed.slice(0, -1)) instanceof TFolder
+			);
+		}
+
+		if (vault.getAbstractFileByPath(trimmed) instanceof TFile) return true;
+		const withExtension = vault.getAbstractFileByPath(`${trimmed}.md`);
+		if (withExtension instanceof TFile) return true;
+		// `captureTargetResolution` rule: a bare name that is an existing folder
+		// with no real note beside it is a folder SCOPE, and the capture picks a
+		// file inside it - nothing asks Obsidian to accept this string as a name.
+		return vault.getAbstractFileByPath(trimmed) instanceof TFolder;
 	}
 
 	/**
@@ -276,6 +342,12 @@ export class FileNameDisplayFormatter extends Formatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
+		// Where the run has it (CompleteFormatter.format: after {{FILE:}}, before
+		// {{RANDOM:}}). The run really does prompt here - formatFileName goes
+		// through format() - so leaving {{MVALUE}} literal made the preview
+		// promise a name with a token in it (#1587). `promptForMathValue` was
+		// already overridden with a stand-in below; it was simply unreachable.
+		output = await this.replaceMathValueInString(output);
 		// Note-derived tokens in ONE pass so no token re-scans another's output
 		// (#1358). Every preview resolver returns a placeholder rather than null,
 		// so neither mode can hit the runtime's missing-active-file throw.
@@ -455,7 +527,9 @@ export class FileNameDisplayFormatter extends Formatter {
 		this.templateInclusion.depth++;
 		try {
 			const body = await app.vault.cachedRead(file);
-			const resolved = await this.formatInternal(body, { included: true });
+			const resolved = this.resolveTitleInIncludedBody(
+				await this.formatInternal(body, { included: true }),
+			);
 			this.warnIfJoinedIntoOneLine(templatePath, resolved);
 			return resolved;
 		} catch (error) {
@@ -467,6 +541,32 @@ export class FileNameDisplayFormatter extends Formatter {
 		} finally {
 			this.templateInclusion.depth--;
 		}
+	}
+
+	/**
+	 * `{{title}}` inside a spliced-in `{{TEMPLATE:}}` body, resolved the way the
+	 * run's child engine resolves it.
+	 *
+	 * At run time an included body goes through `SingleTemplateEngine` ->
+	 * `CompleteFormatter.formatFileContent`, whose single-pass token resolver
+	 * runs with `title: true` and takes `variables.get("title") ?? ""` - so the
+	 * literal token never survives into the name that `formatFileName`'s
+	 * circular-dependency check then reads, and the run does NOT abort.
+	 *
+	 * Doing it here rather than in `formatInternal`'s `included` branch is
+	 * deliberate: routing `title` through the shared resolver would call this
+	 * class's `getVariableValue`, which invents an example ("My Document Title")
+	 * for an unstored variable - a fresh #1563-class lie in the one place the run
+	 * is guaranteed to produce the empty string. And without it, the
+	 * output-side {{title}} check above would turn a WORKING choice red.
+	 */
+	private resolveTitleInIncludedBody(body: string): string {
+		if (!TITLE_REGEX.test(body)) return body;
+		const title = this.variables.get("title");
+		// A function replacer, not a string: a title containing "$&" would
+		// otherwise be spliced through String.replace's substitution syntax.
+		const resolved = typeof title === "string" ? title : "";
+		return body.replace(new RegExp(TITLE_REGEX.source, "gi"), () => resolved);
 	}
 
 	/**
@@ -539,18 +639,53 @@ export class FileNameDisplayFormatter extends Formatter {
 		// date WITHOUT applying |startof:/|endof: snap - snap is only resolved in
 		// the real CompleteFormatter pass, and snapping only the file-name
 		// preview would diverge from the body preview.
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat) => {
+		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const cleanVariableName = variableName?.trim();
-			const cleanDateFormat = dateFormat?.trim();
 
-			if (!cleanVariableName || !cleanDateFormat) {
-				return match; // Return original if incomplete
+			// Only a NAMELESS token stays literal, which is what the run does with
+			// it too. A token that names no FORMAT is complete and working - the
+			// run supplies YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time - so
+			// echoing it back promised a name with a token in it (#1589).
+			if (!cleanVariableName) {
+				return match;
 			}
 
-			// Generate a realistic preview using the current date.
-			const previewDate = new Date();
+			const { options, error } = parseVDateOptionsForPreview(rawOptions);
+			// A unit that never resolves is an authoring mistake the run aborts on,
+			// so it belongs on the diagnostics channel (held back until the field is
+			// idle) rather than being swallowed. The options still come back usable,
+			// so the TEXT does not flicker while the unit is being typed.
+			if (error) this.reportProblem(error);
+			const { withTime, snap } = options;
+			const cleanDateFormat =
+				dateFormat?.trim() || defaultDateVariableFormat(withTime);
+
+			// An ANSWERED date wins over the example. The one-page input form
+			// seeds the user's real picks into this formatter before computing the
+			// preview (runOnePagePreflight.computePreview), so without this the row
+			// showed today's date beside the date they had just chosen (#1590).
+			const stored = renderStoredDateVariable(
+				this.variables.get(cleanVariableName),
+				cleanDateFormat,
+				snap,
+				this.dateParser,
+			);
+			if (stored) return stored.text;
+
+			// Nothing answered: a realistic example from the current date, snapped
+			// the way the run snaps it. #1595 deliberately left snap out of this
+			// preview, on the grounds that snapping only the file-name row would
+			// split it from the body row - both rows do it now, so that reason is
+			// gone, and the alternative was worse: the ANSWERED branch above snaps
+			// (it is the run's own renderer), and {{DATE:...|startof:month}} in the
+			// very same pass has always snapped, so the row contradicted itself
+			// depending on which token you used. Inside the try, because the snap
+			// needs moment and a throw here would redden the row per keystroke.
 			try {
-				return DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				return DateFormatPreviewGenerator.generate(
+					cleanDateFormat,
+					snappedExampleDate(snap),
+				);
 			} catch {
 				return `[${cleanDateFormat}]`;
 			}

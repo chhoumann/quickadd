@@ -9,7 +9,7 @@ import {
 	vi,
 } from "vitest";
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { TFile, TFolder } from "obsidian";
 import { FileNameDisplayFormatter } from "./fileNameDisplayFormatter";
 import type QuickAdd from "../main";
 
@@ -54,11 +54,13 @@ beforeEach(() => {
 	templates = {};
 	globalVariables = {};
 	existingFiles = new Set();
+	existingFolders = new Set();
 });
 
 let templates: Record<string, string> = {};
 let globalVariables: Record<string, string> = {};
 let existingFiles = new Set<string>();
+let existingFolders = new Set<string>();
 
 function makeApp(): App {
 	return {
@@ -71,14 +73,20 @@ function makeApp(): App {
 		},
 		vault: {
 			getMarkdownFiles: () => [],
-			getAbstractFileByPath: (path: string) =>
-				path in templates || existingFiles.has(path)
+			getAbstractFileByPath: (path: string) => {
+				// Obsidian's path map holds files AND folders, with no trailing
+				// slash on either, which is what the shape-aware probe turns on.
+				if (existingFolders.has(path)) {
+					return Object.assign(new TFolder(), { path, children: [] });
+				}
+				return path in templates || existingFiles.has(path)
 					? Object.assign(new TFile(), {
 							path,
 							extension: "md",
 							basename: path.replace(/\.md$/, ""),
 						})
-					: null,
+					: null;
+			},
 			cachedRead: async (file: { path: string }) => templates[file.path],
 		},
 		metadataCache: { getFileCache: () => null, getAllPropertyInfos: () => ({}) },
@@ -229,6 +237,44 @@ describe("the file-name preview does not cry wolf", () => {
 		existingFiles.add("Notes/a:b.md");
 		const { diagnostics } = await preview("Notes/a:b");
 		expect(diagnostics).toEqual([]);
+	});
+
+	it("stays quiet for a folder-shaped capture target whose folder exists", async () => {
+		// A capture target written with a trailing slash names a FOLDER to pick
+		// inside, and the folder being there is exactly what makes it work.
+		// Obsidian's path map holds no trailing slash, so a bare lookup missed it
+		// and the row went red for a capture that runs fine.
+		existingFolders.add("Meetings: 2026");
+		const { diagnostics } = await preview("Meetings: 2026/");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("stays quiet for a BARE name that resolves to an existing folder scope", async () => {
+		// captureTargetResolution: an existing folder with no real note beside it
+		// is a folder SCOPE, and the capture picks a file inside it - so nothing
+		// asks Obsidian to accept this string as a name. Reddening it would mark a
+		// working capture broken, and would contradict the trailing-slash case
+		// above for the same runtime target.
+		existingFolders.add("Meetings: 2026");
+		const { diagnostics } = await preview("Meetings: 2026");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("still reports a colon when a FOLDER is merely named like the note", async () => {
+		// A folder called `Meetings: 2026.md` is not a note, so it cannot be the
+		// target of a capture and cannot excuse the name either.
+		existingFolders.add("Meetings: 2026.md");
+		const { diagnostics } = await preview("Meetings: 2026");
+		expect(diagnostics).toEqual([
+			{ severity: "error", kind: "path", message: REFUSED },
+		]);
+	});
+
+	it("still reports a colon when the trailing-slash folder does not exist", async () => {
+		const { diagnostics } = await preview("Meetings: 2026/");
+		expect(diagnostics).toEqual([
+			{ severity: "error", kind: "path", message: REFUSED },
+		]);
 	});
 
 	it("still reports a colon when no such file exists", async () => {
