@@ -127,10 +127,38 @@ describe("unhandled rejection reporter (#1576)", () => {
 		clock += 9_000;
 		fire(pluginError("validator exploded"));
 		expect(logError).toHaveBeenCalledTimes(1);
+	});
 
-		clock += 2_000;
-		fire(pluginError("validator exploded"));
+	// The window SLIDES on occurrences, it does not restart on reports. Stamping only
+	// on report would let a continuously failing site raise a notice every 10 seconds
+	// indefinitely - six 15-second notices a minute, worse than the silence it replaced.
+	it("stays quiet while a failure keeps recurring inside the window", () => {
+		fire(pluginError("stuck loop"));
+		expect(logError).toHaveBeenCalledTimes(1);
+
+		// Failing every 9s for two minutes: still one report.
+		for (let i = 0; i < 14; i++) {
+			clock += 9_000;
+			fire(pluginError("stuck loop"));
+		}
+		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	it("reports again once the failure has stopped and recurs", () => {
+		fire(pluginError("intermittent"));
+		expect(logError).toHaveBeenCalledTimes(1);
+
+		clock += 11_000; // quiet for longer than the window
+		fire(pluginError("intermittent"));
 		expect(logError).toHaveBeenCalledTimes(2);
+	});
+
+	// Silencing the notice must never leave an occurrence with LESS evidence than
+	// before this reporter existed, so a suppressed repeat keeps the browser's own
+	// unhandled-rejection line.
+	it("leaves the browser default alone for a suppressed repeat", () => {
+		expect(fire(pluginError("noisy")).defaultPrevented).toBe(true);
+		expect(fire(pluginError("noisy")).defaultPrevented).toBe(false);
 	});
 
 	it("collapses one broken loop that fails on many different values", () => {
@@ -139,6 +167,18 @@ describe("unhandled rejection reporter (#1576)", () => {
 			fire(pluginError(`Could not read note ${i}.md`, "readNote"));
 		}
 		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	// `plugin:quickadd` is a PREFIX of `plugin:quickadd-beta`, so an undelimited match
+	// would claim a fork's rejections and suppress their only console line.
+	it("does not claim a plugin whose id merely starts with ours", () => {
+		const error = new Error("beta bug");
+		error.stack = "Error: beta bug\n    at f (plugin:quickadd-beta:1:1)";
+
+		const { defaultPrevented } = fire(error);
+
+		expect(defaultPrevented).toBe(false);
+		expect(logError).not.toHaveBeenCalled();
 	});
 
 	it("does not let one noisy failure mask a different one", () => {
@@ -172,6 +212,17 @@ describe("unhandled rejection reporter (#1576)", () => {
 		for (let i = 0; i < 200; i++) fire(pluginError("boom", `site${i}`));
 		logError.mockClear();
 		fire(pluginError("boom", "site0"));
+		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	// Eviction must never drop the key it just stamped, or the site currently failing
+	// would report on every single occurrence.
+	it("does not evict the site it is currently handling", () => {
+		for (let i = 0; i < 200; i++) fire(pluginError("boom", `site${i}`));
+		logError.mockClear();
+		fire(pluginError("boom", "hot"));
+		expect(logError).toHaveBeenCalledTimes(1);
+		fire(pluginError("boom", "hot"));
 		expect(logError).toHaveBeenCalledTimes(1);
 	});
 });

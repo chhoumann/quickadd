@@ -80,7 +80,12 @@ export function describePreviewFailure(error: unknown): string | null {
 	if (isCancellationError(error)) return null;
 	if (!(error instanceof Error)) return PREVIEW_FAILED_MESSAGE;
 	const message = error.message ?? "";
-	// Also covers a cancellation that was wrapped in an Error on the way up.
+	// Covers a USER SCRIPT that throws an Error whose message is one of the legacy
+	// sentinels (see `isCancellationError`) - the shape a script written against the
+	// pre-#1577 strings still uses. It deliberately does NOT cover
+	// `toError(err, context)`, which prefixes the context and so matches no sentinel;
+	// adding the canonical message to that set would not fix it either, and nothing
+	// wraps on the way into this function.
 	if (isCancellationError(message)) return null;
 	// By far the most frequent throw: the token autocomplete inserts `{{VALUE:}}`
 	// with the caret between the colon and the braces, and VARIABLE_REGEX matches

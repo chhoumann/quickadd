@@ -47,7 +47,7 @@ export interface UnhandledRejectionReporterHost {
 function dedupeKey(error: Error, pluginId: string): string {
 	const frame = (error.stack ?? "")
 		.split("\n")
-		.find((line) => line.includes(`plugin:${pluginId}`));
+		.find((line) => line.includes(`plugin:${pluginId}:`));
 	return `${error.name}@${frame?.trim() ?? error.message}`;
 }
 
@@ -64,7 +64,10 @@ function isFromPlugin(reason: unknown, pluginId: string): boolean {
 	return (
 		reason instanceof Error &&
 		typeof reason.stack === "string" &&
-		reason.stack.includes(`plugin:${pluginId}`)
+		// Trailing colon: the frame is `plugin:<id>:<line>:<col>`, so an undelimited
+		// match would claim `plugin:quickadd-beta` - a fork's or beta's rejections,
+		// whose only console line we would then suppress on their behalf.
+		reason.stack.includes(`plugin:${pluginId}:`)
 	);
 }
 
@@ -78,14 +81,11 @@ export function registerUnhandledRejectionReporter(
 	now: () => number = Date.now,
 ): void {
 	const pluginId = plugin.manifest.id;
-	const recentlyReported = new Map<string, number>();
+	const recentlySeen = new Map<string, number>();
 
 	plugin.registerDomEvent(window, "unhandledrejection", (event) => {
 		const reason = event.reason;
 		if (!isFromPlugin(reason, pluginId)) return;
-
-		// Ours, so stop the console noise either way.
-		event.preventDefault();
 
 		// A dismissed prompt is not a failure. It reaches here when a handler floats a
 		// prompt (e.g. the macro editor's script picker), and telling the user "an
@@ -99,26 +99,42 @@ export function registerUnhandledRejectionReporter(
 		// matters - choiceExecutor's cancelKind, macroAbortHandler's notice
 		// suppression, x-cancel vs x-error. Swallowing those here would leave a floated
 		// involuntary abort with LESS signal than the console line it replaces.
-		if (isCancellationError(reason)) return;
+		if (isCancellationError(reason)) {
+			// Claimed: a dismissal is not something the console should shout about.
+			event.preventDefault();
+			return;
+		}
 
 		const error = reason as Error;
 		const key = dedupeKey(error, pluginId);
 		const at = now();
-		const last = recentlyReported.get(key);
-		if (last !== undefined && at - last < REPEAT_WINDOW_MS) return;
+		const last = recentlySeen.get(key);
+		// Stamp every OCCURRENCE, not every report. Stamping only on report restarts
+		// the window each time, so a site failing continuously would raise a notice
+		// every REPEAT_WINDOW_MS forever; stamping here makes the window slide, so a
+		// sustained failure reports once and then stays quiet until it stops and recurs.
+		recentlySeen.set(key, at);
+		if (last !== undefined && at - last < REPEAT_WINDOW_MS) {
+			// Deliberately NOT preventDefault: a suppressed repeat keeps the browser's
+			// own unhandled-rejection line, so silencing the notice never leaves the
+			// occurrence with less evidence than before this reporter existed.
+			return;
+		}
 
-		if (recentlyReported.size >= MAX_TRACKED) {
-			for (const [tracked, seenAt] of recentlyReported) {
-				if (at - seenAt >= REPEAT_WINDOW_MS) recentlyReported.delete(tracked);
+		if (recentlySeen.size >= MAX_TRACKED) {
+			for (const [tracked, seenAt] of recentlySeen) {
+				if (at - seenAt >= REPEAT_WINDOW_MS) recentlySeen.delete(tracked);
 			}
 			// Still full: every entry is fresh, so drop the oldest to make room.
-			if (recentlyReported.size >= MAX_TRACKED) {
-				const oldest = recentlyReported.keys().next();
-				if (!oldest.done) recentlyReported.delete(oldest.value);
+			if (recentlySeen.size >= MAX_TRACKED) {
+				const oldest = recentlySeen.keys().next();
+				if (!oldest.done && oldest.value !== key) {
+					recentlySeen.delete(oldest.value);
+				}
 			}
 		}
-		recentlyReported.set(key, at);
 
+		event.preventDefault();
 		reportError(error, "A QuickAdd action failed");
 	});
 }

@@ -85,10 +85,18 @@ export default class QuickAdd extends Plugin {
 	private unsubscribeSettingsStore: () => void;
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
 	// (migrations await it) and cancels this; onunload flushes it.
-	private requestSave: Debouncer<[], void> = debounce(
-		() => void this.saveData(this.settings),
-		SETTINGS_SAVE_DEBOUNCE_MS,
-	);
+	//
+	// The async IIFE is load-bearing, not style: floating `saveData()` straight from a
+	// non-async arrow leaves NO QuickAdd frame on the rejection's stack (it is
+	// constructed inside Obsidian's own FS plumbing, after an await), so a failed
+	// settings write would be invisible to the unhandled-rejection reporter - which is
+	// the one failure here the user most needs to hear about, since their settings
+	// silently did not persist. Awaiting inside a QuickAdd frame puts us on the stack.
+	private requestSave: Debouncer<[], void> = debounce(() => {
+		void (async () => {
+			await this.saveData(this.settings);
+		})();
+	}, SETTINGS_SAVE_DEBOUNCE_MS);
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(

@@ -101,8 +101,10 @@ describe("cancellation contract (#1577)", () => {
 	});
 
 	it("no source file re-introduces a legacy cancellation sentinel", () => {
-		// Unquoted so single-quoted and template forms count too, and including
-		// "cancelled" - the sentinel OnePageInputModal actually used.
+		// Unquoted so single-quoted and template forms count too. OnePageInputModal's
+		// old sentinel, "cancelled", is deliberately absent: as a bare substring it is
+		// far too common a word in src/ to scan for. The reject-call invariant above is
+		// what actually guards that modal.
 		const sentinels = ["No input given.", "no input given."];
 		const offenders: string[] = [];
 		for (const file of walk(SRC)) {

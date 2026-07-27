@@ -1034,10 +1034,14 @@ export class QuickAddApi {
  * `never` makes that omission a compile error rather than a silent one.
  *
  * Not reported here on purpose: every path that runs a script already reports a
- * propagating error exactly once (MacroChoiceEngine for user scripts,
- * TemplateChoiceEngine for inline scripts, main.ts / choiceSuggester at the top),
- * and `reportError` raises a 15-second Notice, so reporting here too would stack
- * two or three notices for one failure.
+ * propagating error (MacroChoiceEngine for user scripts, TemplateChoiceEngine for
+ * inline scripts, main.ts / choiceSuggester at the top), and `reportError` raises a
+ * 15-second Notice - so reporting here too would stack another one.
+ *
+ * "Already reports" is at least once, not exactly once: on the command-palette macro
+ * path MacroChoiceEngine reports and rethrows into main.ts, which reports again, so a
+ * user script error raises TWO notices today. That is pre-existing and tracked
+ * separately; adding a third here would make it worse, not better.
  */
 function rethrowPromptError(error: unknown): never {
 	if (error instanceof MacroAbortError) {
