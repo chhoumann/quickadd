@@ -17,6 +17,7 @@ import {
 	hasUnreadableChildren,
 	isChoiceLike,
 } from "../utils/choiceUtils";
+import { commandListOf, isCommandLike } from "../utils/macroUtils";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -903,11 +904,12 @@ function remapChoiceTree(
 
 	if (choice.type === "Macro") {
 		const macroChoice = choice as IMacroChoice;
-		if (isDuplicated) {
+		// `macro` is untrusted too: an imported package can omit it entirely.
+		if (isDuplicated && macroChoice.macro) {
 			macroChoice.macro.id = uuidv4();
 		}
 		remapCommands(
-			macroChoice.macro.commands,
+			macroChoice.macro?.commands,
 			idMap,
 			importableChoiceIds,
 			isDuplicated,
@@ -935,14 +937,17 @@ function remapChoiceTree(
 }
 
 function remapCommands(
-	commands: ICommand[],
+	// `unknown`: raw `macro.commands` / branch values out of an imported package.
+	commands: unknown,
 	idMap: Map<string, string>,
 	importableChoiceIds: Set<string>,
 	shouldRegenerateIds: boolean,
 	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): void {
-	for (const command of commands) {
-		if (!command) continue;
+	// Mutates each command in place, so a value we cannot read is simply left
+	// alone rather than replaced with the [] we read it as.
+	for (const command of commandListOf(commands)) {
+		if (!isCommandLike(command)) continue;
 		stripUserScriptSecretRefsFromCommand(command, secretSanitizerOptions);
 
 		if (shouldRegenerateIds) {
@@ -1076,7 +1081,7 @@ function applyAssetPathOverrides(
 	switch (choice.type) {
 		case "Macro": {
 			const macroChoice = choice as IMacroChoice;
-			applyOverridesToCommands(macroChoice.macro.commands, pathOverrides);
+			applyOverridesToCommands(macroChoice.macro?.commands, pathOverrides);
 			break;
 		}
 		case "Template": {
@@ -1114,11 +1119,11 @@ function applyAssetPathOverrides(
 }
 
 function applyOverridesToCommands(
-	commands: ICommand[],
+	commands: unknown,
 	pathOverrides: Map<string, string>,
 ): void {
-	for (const command of commands) {
-		if (!command) continue;
+	for (const command of commandListOf(commands)) {
+		if (!isCommandLike(command)) continue;
 
 		switch (command.type) {
 			case CommandType.UserScript: {

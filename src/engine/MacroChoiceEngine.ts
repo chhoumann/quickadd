@@ -59,6 +59,7 @@ import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
 import { createVariablesProxy } from "../utils/variablesProxy";
+import { commandListOf, isUnreadableCommandList } from "../utils/macroUtils";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
 type UserScriptFunction = (
@@ -263,14 +264,27 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	async run(): Promise<void> {
-		if (!this.macro || !this.macro.commands) {
+		// `!this.macro.commands` is truthiness, so it used to wave through the two
+		// shapes that then failed outside the UI (#1593): an array-turned-object
+		// reached `for..of` and threw a bare "i is not iterable" at the user, and a
+		// string reached it INTACT (strings are iterable), so the macro reported
+		// success having walked its own characters and done nothing at all.
+		if (isUnreadableCommandList(this.macro?.commands)) {
+			log.logError(
+				`Could not read the commands for macro '${this.choice.name}'. The saved value is not a list of commands - QuickAdd has not changed it. It is in .obsidian/plugins/quickadd/data.json.`
+			);
+			return;
+		}
+
+		const commands = commandListOf(this.macro?.commands);
+		if (commands.length === 0) {
 			log.logError(
 				`No commands in the macro for choice '${this.choice.name}'`
 			);
 			return;
 		}
 
-		await this.executeCommands(this.macro.commands);
+		await this.executeCommands(commands);
 	}
 
 	public getOutput(): unknown {
@@ -754,6 +768,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		const branch = shouldRunThenBranch
 			? command.thenCommands
 			: command.elseCommands;
+
+		// An absent branch is normal (a conditional with no else), so it stays
+		// silent. A branch we could not read is not: say so rather than skipping
+		// it as if the user had left it empty (#1593).
+		if (isUnreadableCommandList(branch)) {
+			log.logError(
+				`Could not read the ${shouldRunThenBranch ? "then" : "else"} commands for '${command.name}'. The saved value is not a list of commands - QuickAdd has not changed it.`
+			);
+			return;
+		}
 
 		if (!Array.isArray(branch) || branch.length === 0) {
 			return;

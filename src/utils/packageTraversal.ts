@@ -9,6 +9,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
+import { commandListOf, isCommandLike } from "./macroUtils";
 import { CommandType } from "../types/macros/CommandType";
 
 export interface ChoiceCatalogEntry {
@@ -147,18 +148,20 @@ function collectChoiceDependencies(choice: IChoice): Set<string> {
 	}
 
 	if (isMacroChoice(choice)) {
-		collectDependenciesFromCommands(choice.macro.commands, dependencies);
+		collectDependenciesFromCommands(choice.macro?.commands, dependencies);
 	}
 
 	return dependencies;
 }
 
 function collectDependenciesFromCommands(
-	commands: ICommand[],
+	// `unknown`: this is `macro.commands` / a conditional's branch out of
+	// data.json, and the recursion below feeds itself (see commandListOf).
+	commands: unknown,
 	accumulator: Set<string>,
 ): void {
-	for (const command of commands) {
-		if (!command) continue;
+	for (const command of commandListOf(commands)) {
+		if (!isCommandLike(command)) continue;
 
 		switch (command.type) {
 			case CommandType.Choice: {
@@ -277,13 +280,13 @@ export function collectScriptDependencies(
 		}
 
 		if (isMacroChoice(choice)) {
-			visitCommands(choice.macro.commands);
+			visitCommands(choice.macro?.commands);
 		}
 	};
 
-	const visitCommands = (commands: ICommand[]) => {
-		for (const command of commands) {
-			if (!command) continue;
+	const visitCommands = (commands: unknown) => {
+		for (const command of commandListOf(commands)) {
+			if (!isCommandLike(command)) continue;
 			if (
 				visitReferencedChoiceFromCommand(
 					command,
@@ -364,13 +367,13 @@ export function collectFileDependencies(
 		}
 
 		if (isMacroChoice(choice)) {
-			visitCommands(choice.macro.commands);
+			visitCommands(choice.macro?.commands);
 		}
 	};
 
-	const visitCommands = (commands: ICommand[]) => {
-		for (const command of commands) {
-			if (!command) continue;
+	const visitCommands = (commands: unknown) => {
+		for (const command of commandListOf(commands)) {
+			if (!isCommandLike(command)) continue;
 			if (
 				visitReferencedChoiceFromCommand(
 					command,
