@@ -1,7 +1,11 @@
 import { Formatter, type PromptContext } from "./formatter";
+import {
+	describePreviewFailure,
+	PreviewDiagnostics,
+} from "./previewDiagnostics";
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
-import { SingleTemplateEngine } from "../engine/SingleTemplateEngine";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
@@ -38,45 +42,88 @@ export class FormatDisplayFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 	}
 
-	public async format(input: string): Promise<string> {
-		let output: string = input;
+	/**
+	 * Problems this pass ran into, for passive display beside the preview.
+	 *
+	 * A preview is a speculative evaluation of INCOMPLETE input, re-run on every
+	 * keystroke, so it must not have the run's side effects: while you type
+	 * `pascal` into `{{VALUE:title|case:}}` every prefix is a complete, invalid
+	 * token, and the inherited `log.logWarning` stacked one Obsidian Notice per
+	 * character (issue #1558). The real run still warns; this collects.
+	 *
+	 * Replaced at the start of every `format()` so a pass never inherits the
+	 * previous one's complaints.
+	 */
+	public diagnostics = new PreviewDiagnostics();
 
+	protected warn(message: string): void {
+		this.diagnostics.add("warning", message);
+	}
+
+	protected reportProblem(message: string): void {
+		this.diagnostics.add("error", message);
+	}
+
+	public async format(input: string): Promise<string> {
+		this.diagnostics = new PreviewDiagnostics();
 		try {
-			// Expand global variables first so previews include their content
-			output = await this.replaceGlobalVarInString(output);
-			// Mirror CaptureChoiceFormatter: linebreak escapes are format-template
-			// material (including global snippets) and expand before token
-			// substitution, never on substituted content (issue #527).
-			output = this.expandLinebreakEscapesOutsideTokens(output);
-			output = this.replaceDateInString(output);
-			output = this.replaceTimeInString(output);
-			output = await this.replaceValueInString(output);
-			output = await this.replaceSelectedInString(output);
-			output = await this.replaceClipboardInString(output);
-			output = await this.replaceDateVariableInString(output);
-			output = await this.replaceVariableInString(output);
-			// Links + {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one
-			// pass so no token re-scans another's output (#1358). ({{title}} has
-			// never been resolved in this preview formatter — preserved by omitting
-			// it.) The preview resolver never returns null, so no throw here.
-			output = this.replaceCurrentFileTokensInString(output, {
-				links: true,
-				fileName: true,
-				folder: true,
-				...(this.opts.resolveActiveFolder === false
-					? {}
-					: { activeFolder: "content" as const }),
+			return await this.formatInternal(input, {
+				expandLinebreakEscapes: true,
 			});
-			output = await this.replaceMacrosInString(output);
-			output = await this.replaceTemplateInString(output);
-			output = await this.replaceFieldVarInString(output);
-			output = await this.replaceFileInString(output);
-			output = this.replaceRandomInString(output);
-		} catch {
-			// Return the input as-is if formatting fails during preview
-			// This prevents crashes when typing incomplete syntax
+		} catch (error) {
+			// Return the input as-is if formatting fails during preview: this
+			// prevents crashes when typing incomplete syntax. The failure itself is
+			// the most useful thing the preview can say, so it goes on the
+			// diagnostics channel rather than being swallowed (issue #1558).
+			const described = describePreviewFailure(error);
+			if (described) this.diagnostics.add("error", described);
 			return input;
 		}
+	}
+
+	/**
+	 * The preview pass list. `expandLinebreakEscapes` is false for an INCLUDED
+	 * template body: the runtime treats `\n` as format-template material and never
+	 * expands it on substituted content (issue #527), so expanding it here would
+	 * corrupt a template containing `\nabla` or `C:\Users\nadia`.
+	 */
+	private async formatInternal(
+		input: string,
+		{ expandLinebreakEscapes }: { expandLinebreakEscapes: boolean },
+	): Promise<string> {
+		let output: string = input;
+		// Expand global variables first so previews include their content
+		output = await this.replaceGlobalVarInString(output);
+		// Mirror CaptureChoiceFormatter: linebreak escapes are format-template
+		// material (including global snippets) and expand before token
+		// substitution, never on substituted content (issue #527).
+		if (expandLinebreakEscapes) {
+			output = this.expandLinebreakEscapesOutsideTokens(output);
+		}
+		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
+		output = await this.replaceValueInString(output);
+		output = await this.replaceSelectedInString(output);
+		output = await this.replaceClipboardInString(output);
+		output = await this.replaceDateVariableInString(output);
+		output = await this.replaceVariableInString(output);
+		// Links + {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one
+		// pass so no token re-scans another's output (#1358). ({{title}} has
+		// never been resolved in this preview formatter — preserved by omitting
+		// it.) The preview resolver never returns null, so no throw here.
+		output = this.replaceCurrentFileTokensInString(output, {
+			links: true,
+			fileName: true,
+			folder: true,
+			...(this.opts.resolveActiveFolder === false
+				? {}
+				: { activeFolder: "content" as const }),
+		});
+		output = await this.replaceMacrosInString(output);
+		output = await this.replaceTemplateInString(output);
+		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceFileInString(output);
+		output = this.replaceRandomInString(output);
 
 		return output;
 	}
@@ -159,21 +206,58 @@ export class FormatDisplayFormatter extends Formatter {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
+	/**
+	 * Previews an included template's body WITHOUT the runtime engine.
+	 *
+	 * This used to build a `SingleTemplateEngine`, whose base `TemplateEngine`
+	 * constructs a real `CompleteFormatter` — so typing `{{TEMPLATE:x.md}}` into a
+	 * builder field ran the RUN-TIME formatter over that template on every
+	 * keystroke. Verified live on Obsidian 1.13.0: it opened real, blocking input
+	 * prompt modals on top of the settings window, fired the run's warning
+	 * Notices for tokens inside the template, and reached the macro engine — where
+	 * it threw, because the preview passes no choice executor, and the throw was
+	 * swallowed into a "Template (not found)" that was simply a lie (issue #1558).
+	 *
+	 * Resolving the body through THIS formatter keeps the preview inert: the same
+	 * substitutions the top level gets, no prompts, no macro engine, no inline JS.
+	 */
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		const app = this.app;
 		if (!app) {
-			return `Template (app unavailable): ${templatePath}`;
+			return `[QuickAdd: template preview unavailable] ${templatePath}`;
 		}
 
+		const file = getTemplateFile(app, templatePath);
+		if (!file) return `[QuickAdd: template not found] ${templatePath}`;
+
+		// The depth counter is preview-LOCAL on purpose. At run time
+		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of
+		// the state with depth + 1, while `visited` is shared by reference — so
+		// incrementing depth inside the shared `replaceTemplateInString` would
+		// advance the runtime by two per level and halve its inclusion limit. The
+		// preview has no child formatter to carry it, so it counts here. Preview
+		// and runtime both still cap at MAX_TEMPLATE_INCLUSION_DEPTH levels.
+		//
+		// What the local counter buys: cycle and depth accounting that spans the
+		// preview level itself, on one budget shared across the field. Before this
+		// change the preview handed the engine no inclusion state at all, so the
+		// first nested level always started over from an empty `visited` and depth
+		// 0. (It was not unbounded - inside the engine subtree `visited` was shared
+		// by reference, so a self-including template still terminated.)
+		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
+		this.templateInclusion.depth++;
 		try {
-			return await new SingleTemplateEngine(
-				app,
-				this.plugin,
-				templatePath,
-				undefined,
-			).run();
-		} catch {
-			return `Template (not found): ${templatePath}`;
+			return await this.formatInternal(await app.vault.cachedRead(file), {
+				expandLinebreakEscapes: false,
+			});
+		} catch (error) {
+			// Contained here rather than by format()'s catch, so one bad token
+			// inside an included template does not blank the whole field's preview.
+			const described = describePreviewFailure(error);
+			if (described) this.diagnostics.add("error", described);
+			return `[QuickAdd: template preview failed] ${templatePath}`;
+		} finally {
+			this.templateInclusion.depth--;
 		}
 	}
 

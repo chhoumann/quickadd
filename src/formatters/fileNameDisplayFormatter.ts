@@ -1,4 +1,8 @@
 import { Formatter, type PromptContext } from "./formatter";
+import {
+	describePreviewFailure,
+	PreviewDiagnostics,
+} from "./previewDiagnostics";
 import type { App } from "obsidian";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
@@ -30,8 +34,31 @@ export class FileNameDisplayFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 	}
 
+	/**
+	 * Problems this pass ran into, for passive display beside the preview.
+	 *
+	 * A preview is a speculative evaluation of INCOMPLETE input, re-run on every
+	 * keystroke, so it must not have the run's side effects: while you type
+	 * `pascal` into `{{VALUE:title|case:}}` every prefix is a complete, invalid
+	 * token, and the inherited `log.logWarning` stacked one Obsidian Notice per
+	 * character (issue #1558). The real run still warns; this collects.
+	 *
+	 * Replaced at the start of every `format()` so a pass never inherits the
+	 * previous one's complaints.
+	 */
+	public diagnostics = new PreviewDiagnostics();
+
+	protected warn(message: string): void {
+		this.diagnostics.add("warning", message);
+	}
+
+	protected reportProblem(message: string): void {
+		this.diagnostics.add("error", message);
+	}
+
 	public async format(input: string): Promise<string> {
 		let output: string = input;
+		this.diagnostics = new PreviewDiagnostics();
 
 		try {
 			// Expand globals first to preview inserted snippets
@@ -55,8 +82,12 @@ export class FileNameDisplayFormatter extends Formatter {
 				activeFolder: "path",
 			});
 			output = this.replaceRandomInString(output);
-		} catch {
-			// Return the input as-is if formatting fails during preview
+		} catch (error) {
+			// Return the input as-is if formatting fails during preview. The failure
+			// itself is the most useful thing the preview can say, so it goes on the
+			// diagnostics channel rather than being swallowed (issue #1558).
+			const described = describePreviewFailure(error);
+			if (described) this.diagnostics.add("error", described);
 			return input;
 		}
 
@@ -131,10 +162,21 @@ export class FileNameDisplayFormatter extends Formatter {
 		return getVariablePromptExample(variableName);
 	}
 
+	/**
+	 * Unreachable today: this formatter's pass list (see `format()`) never calls
+	 * `replaceTemplateInString`, so `{{TEMPLATE:}}` stays literal in a file-name
+	 * preview. `getTemplateContent` is abstract on `Formatter`, so the override has
+	 * to exist.
+	 *
+	 * It used to return a fabricated `[<name> template content...]`, which would
+	 * have spliced text that READS like a real part of the file name the moment
+	 * anyone wired the pass up. It now names what actually happened. Run-time
+	 * `formatFileName` does resolve the include (`format()` ->
+	 * `replaceTemplateInString`); closing that gap needs a real inert reader, not
+	 * a stub.
+	 */
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		// Show template preview with realistic content length
-		const templateName = templatePath.split('/').pop()?.replace('.md', '') || templatePath;
-		return `[${templateName} template content...]`;
+		return `[QuickAdd: template not resolved in a file name] ${templatePath}`;
 	}
 
 	protected async getSelectedText(): Promise<string> {

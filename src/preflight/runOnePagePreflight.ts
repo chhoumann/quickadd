@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
+import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
@@ -118,7 +118,20 @@ export async function runOnePagePreflight(
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (values: Record<string, string>) => {
 			try {
-				const formatter = new FormatDisplayFormatter(app, plugin);
+				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
+				// a FILE NAME. The content formatter expands `\n` escapes (not
+				// linebreaks in a path) and resolves {{LINKCURRENT}}/{{LINKSECTION}},
+				// both of which the run-time `formatFileName` deliberately leaves
+				// literal. It is also the class the builder's own file-name preview
+				// uses.
+				//
+				// One deliberate divergence: `formatFileName` DOES resolve
+				// {{TEMPLATE:}} at run time (format() -> replaceTemplateInString, with
+				// path prompt scope propagated in CompleteFormatter.getTemplateContent).
+				// Neither file-name preview does - a multi-line template body is not a
+				// name, and the only inert reader available here returns a fabricated
+				// stub. Same gap the builder's file-name field already has.
+				const formatter = new FileNameDisplayFormatter(app, plugin);
 				const out: Record<string, string> = {};
 				// File name preview for Template
 				if (choice.type === "Template") {

@@ -120,6 +120,22 @@ export class RequirementCollector extends Formatter {
 	}
 
 	/**
+	 * Preflight is a SCAN, not the run. It walks the same strings the run is
+	 * about to format, so every authoring warning it produced arrived a second
+	 * time (twice, in fact - it parses each token in both a pre-pass and the main
+	 * pass) before the run reported the same mistake itself. With one-page inputs
+	 * on, a single `|case:` typo showed two Notices before the form even opened
+	 * and a third on submit. The run owns the warning; the scan stays quiet.
+	 * Issue #1558.
+	 */
+	protected warn(): void {}
+	// Defence in depth: the scan's own format() never calls
+	// replaceTemplateInString (it records template paths for the caller to walk),
+	// so nothing routes here today. It stays so a future pass added to the scan
+	// cannot reintroduce a 15-second error Notice from a preflight walk.
+	protected reportProblem(): void {}
+
+	/**
 	 * True while the current scanString walks a path-context string. Flows
 	 * into FieldRequirement.pathContext (sticky across occurrences).
 	 */
@@ -250,7 +266,9 @@ export class RequirementCollector extends Formatter {
 			const inner = (match[1] ?? "").trim();
 			if (!inner) continue;
 
-			const parsed = parseValueToken(inner);
+			// Explicit sink: this is a direct module-level call, so the hook
+			// overrides above do not cover it.
+			const parsed = parseValueToken(inner, { warn: this.warnSink });
 			if (!parsed) continue;
 
 			const {
