@@ -77,7 +77,11 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		const formatter = makeFormatter();
 		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
 			"due",
-			"@date:2026-08-15T00:00:00.000Z",
+			// Built from a LOCAL date, not a "Z" literal: the stored value is an
+			// instant and moment formats it in local time, so a midnight-UTC
+			// literal renders as the 14th anywhere west of UTC (this test file's
+			// sibling carries the same warning).
+			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
 		);
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
 	});
