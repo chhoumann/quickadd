@@ -69,7 +69,9 @@ export function describeUnknownFieldFilter(
 	input: string,
 ): string {
 	const key = clampForMessage(filterKey, 32);
-	const token = `"{{FIELD:${clampForMessage(input, 48)}}}"`;
+	// The braces already delimit the token; wrapping it in quotes too left a
+	// dangling `"` at a line break in the inline diagnostic.
+	const token = `{{FIELD:${clampForMessage(input, 48)}}}`;
 
 	const hint = FIELD_FILTER_HINTS[filterKey];
 	if (hint) {

@@ -56,7 +56,7 @@ describe("suggestSimilarKeys over the real FIELD filter vocabulary", () => {
 		expect(
 			describeUnknownFieldFilter("case-insensitive", "status|case-insensitive:true"),
 		).toBe(
-			'Unknown FIELD filter "case-insensitive" - matching is already case-insensitive; use "case-sensitive:true" to match exactly. Ignored in "{{FIELD:status|case-insensitive:true}}".',
+			'Unknown FIELD filter "case-insensitive" - matching is already case-insensitive; use "case-sensitive:true" to match exactly. Ignored in {{FIELD:status|case-insensitive:true}}.',
 		);
 	});
 
@@ -71,7 +71,7 @@ describe("describeUnknownFieldFilter", () => {
 	it("leads with the fix, not with the vocabulary", () => {
 		const message = describeUnknownFieldFilter("fodler", "status|fodler:abc");
 		expect(message).toBe(
-			'Unknown FIELD filter "fodler" - did you mean "folder"? Ignored in "{{FIELD:status|fodler:abc}}".',
+			'Unknown FIELD filter "fodler" - did you mean "folder"? Ignored in {{FIELD:status|fodler:abc}}.',
 		);
 		// The message this replaced was 256 characters.
 		expect(message.length).toBeLessThan(120);
@@ -79,14 +79,14 @@ describe("describeUnknownFieldFilter", () => {
 
 	it("lists several candidates when the family is ambiguous", () => {
 		expect(describeUnknownFieldFilter("exclude", "status|exclude:x")).toBe(
-			'Unknown FIELD filter "exclude" - did you mean "exclude-folder", "exclude-tag" or "exclude-file"? Ignored in "{{FIELD:status|exclude:x}}".',
+			'Unknown FIELD filter "exclude" - did you mean "exclude-folder", "exclude-tag" or "exclude-file"? Ignored in {{FIELD:status|exclude:x}}.',
 		);
 	});
 
 	it("keeps the full vocabulary when nothing is close", () => {
 		const message = describeUnknownFieldFilter("sortby", "status|sortby:x");
 		expect(message).toBe(
-			'Unknown FIELD filter "sortby" in "{{FIELD:status|sortby:x}}" was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi.',
+			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi.',
 		);
 	});
 
@@ -116,7 +116,7 @@ describe("FieldSuggestionParser warns through the new message", () => {
 	it("diagnoses a mistyped filter key", () => {
 		const { warnings } = parse("status|fodler:abc");
 		expect(warnings).toEqual([
-			'Unknown FIELD filter "fodler" - did you mean "folder"? Ignored in "{{FIELD:status|fodler:abc}}".',
+			'Unknown FIELD filter "fodler" - did you mean "folder"? Ignored in {{FIELD:status|fodler:abc}}.',
 		]);
 	});
 
@@ -126,7 +126,7 @@ describe("FieldSuggestionParser warns through the new message", () => {
 		const { result, warnings } = parse("status|mutli");
 		expect(result.multiSelect).toBeUndefined();
 		expect(warnings).toEqual([
-			'Unknown FIELD filter "mutli" - did you mean "multi"? Ignored in "{{FIELD:status|mutli}}".',
+			'Unknown FIELD filter "mutli" - did you mean "multi"? Ignored in {{FIELD:status|mutli}}.',
 		]);
 	});
 
