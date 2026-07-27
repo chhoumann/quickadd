@@ -56,7 +56,7 @@ import {
 } from "../utils/valueSyntax";
 import { SILENT_WARN, type WarnSink } from "../utils/warnSink";
 import { parseVDateOptions } from "../utils/vdateSyntax";
-import { applyDateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
+import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
 
@@ -178,6 +178,102 @@ export function hasUnterminatedInlineScriptFence(input: string): boolean {
 		i = runEnd;
 	}
 	return false;
+}
+
+/**
+ * The default format a `{{VDATE:}}` token gets when it names none.
+ *
+ * `{{VDATE:due}}` is a complete, working token - the run supplies this and
+ * splices the result in. Shared with both preview formatters, which used to
+ * bail out and echo the raw token instead, so the builder showed
+ * `{{VDATE:due}}` for a choice that creates `2026-07-27.md` (#1589). A
+ * `|time`/`|datetime` token needs the picked time in the output, hence the
+ * second shape - note it contains a colon, which is why fixing this preview is
+ * what lets the illegal-character diagnostic (#1578) fire on `{{VDATE:d|time}}`
+ * in a FILE NAME, where it always should have.
+ */
+export function defaultDateVariableFormat(withTime: boolean): string {
+	return withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD";
+}
+
+/**
+ * What a STORED `{{VDATE:}}` answer renders to, and the canonical form it
+ * should be written back as.
+ *
+ * Extracted from `replaceDateVariableInString`'s tail so the run and both
+ * previews share one implementation. The previews need it because the one-page
+ * input form seeds the user's real answers into the formatter before computing
+ * the preview: without this they rendered `new Date()` and showed today beside
+ * the date the user had just picked (#1589/#1590). Every other seeded
+ * requirement type already round-trips through `getVariableValue`; VDATE was
+ * the one that did not.
+ *
+ * `null` means nothing is stored (`undefined`), which is the run's signal to
+ * prompt and a preview's signal to fall back to an example date. Every other
+ * value - including `null` and `""`, which are answered-empty under the same
+ * contract as VALUE variables (#872) - renders.
+ *
+ * `normalized` is present only when the caller should write the coerced
+ * `@date:ISO` form back into its variables map; a preview may ignore it.
+ */
+export function renderStoredDateVariable(
+	stored: unknown,
+	dateFormat: string,
+	snap: DateSnap | undefined,
+	dateParser: IDateParser | undefined,
+): { text: string; normalized?: string } | null {
+	if (stored === undefined) return null;
+
+	let value = stored;
+	let normalized: string | undefined;
+
+	// A VDATE variable pre-seeded as a plain string (via the JS API, a URI
+	// parameter, or a `quickadd:run value-x=` flag) is coerced into the internal
+	// @date:ISO form so formatting works. Only when it parses: an unparseable
+	// string keeps the verbatim branch below, for back-compat.
+	if (typeof value === "string" && value && !value.startsWith("@date:")) {
+		if (dateParser) {
+			const aliasMap = settingsStore.getState().dateAliases;
+			const parseAttempt = dateParser.parseDate(
+				normalizeDateInput(value, aliasMap),
+			);
+			if (parseAttempt) {
+				normalized = `@date:${parseAttempt.moment.toISOString()}`;
+				value = normalized;
+			}
+		}
+	} else if (value instanceof Date) {
+		// Some callers pass actual Date objects through the JS API.
+		if (!Number.isNaN(value.getTime())) {
+			normalized = `@date:${value.toISOString()}`;
+			value = normalized;
+		}
+	}
+
+	if (typeof value === "string" && value.startsWith("@date:")) {
+		const isoString = value.substring(6);
+		if (dateParser && window.moment) {
+			const moment = window.moment(isoString);
+			if (moment?.isValid()) {
+				// Snap is per-occurrence (issue #511): the stored @date:ISO stays
+				// raw, so {{VDATE:d,F1|startof:week}} and {{VDATE:d,F2}} share one
+				// picked date but only one snaps. A fresh moment per call prevents
+				// leaks.
+				return { text: applyDateSnap(moment, snap).format(dateFormat), ...(normalized !== undefined ? { normalized } : {}) };
+			}
+		}
+		return { text: "", ...(normalized !== undefined ? { normalized } : {}) };
+	}
+	if (typeof value === "string" && value) {
+		// Backward compatibility: use the stored value as-is.
+		return { text: value };
+	}
+	if (value != null) {
+		// Avoid throwing if a non-string value is stored.
+		return { text: formatUnknownValue(value) };
+	}
+	// null, or "" - answered-empty.
+	return { text: "" };
 }
 
 export abstract class Formatter {
@@ -1510,7 +1606,7 @@ export abstract class Formatter {
 			// A |time/|datetime token with no explicit format gets a datetime
 			// default so the rendered value carries the picked time.
 			const dateFormat =
-				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
+				match[2]?.trim() || defaultDateVariableFormat(withTime);
 
 			const existingValue = this.variables.get(variableName);
 
@@ -1558,64 +1654,21 @@ export abstract class Formatter {
 				}
 			}
 
-			// Format the date based on what's stored
-			let formattedDate = "";
-			let storedValue = this.variables.get(variableName);
-
-			// If a VDATE variable was pre-seeded (e.g., via API/URL) as a plain string,
-			// attempt to coerce it into the internal @date:ISO form so formatting works.
-			if (
-				typeof storedValue === "string" &&
-				storedValue &&
-				!storedValue.startsWith("@date:")
-			) {
-				if (this.dateParser) {
-					const aliasMap = settingsStore.getState().dateAliases;
-					const normalizedInput = normalizeDateInput(storedValue, aliasMap);
-					const parseAttempt = this.dateParser.parseDate(normalizedInput);
-
-					// Keep backwards compatibility: only coerce if we can parse it.
-					if (parseAttempt) {
-						const iso = parseAttempt.moment.toISOString();
-						const coerced = `@date:${iso}`;
-						this.variables.set(variableName, coerced);
-						storedValue = coerced;
-					}
-				}
-			} else if (storedValue instanceof Date) {
-				// Some callers may pass actual Date objects through the JS API.
-				if (!Number.isNaN(storedValue.getTime())) {
-					const coerced = `@date:${storedValue.toISOString()}`;
-					this.variables.set(variableName, coerced);
-					storedValue = coerced;
-				}
+			// Format the date based on what's stored. Shared with both preview
+			// formatters, which resolve an ANSWERED {{VDATE:}} through the same
+			// helper so the one-page form's preview shows the date the user just
+			// picked rather than today's (#1589).
+			const rendered = renderStoredDateVariable(
+				this.variables.get(variableName),
+				dateFormat,
+				snap,
+				this.dateParser,
+			);
+			if (rendered?.normalized !== undefined) {
+				this.variables.set(variableName, rendered.normalized);
 			}
 
-			if (typeof storedValue === "string" && storedValue.startsWith("@date:")) {
-				// It's a date variable, extract and format it
-				const isoString = storedValue.substring(6);
-
-				if (this.dateParser && window.moment) {
-					const moment = window.moment(isoString);
-					if (moment && moment.isValid()) {
-						// Snap is per-occurrence (issue #511): the stored
-						// @date:ISO stays raw, so {{VDATE:d,F1|startof:week}}
-						// and {{VDATE:d,F2}} share one picked date but only one
-						// snaps. A fresh moment per iteration prevents leaks.
-						formattedDate = applyDateSnap(moment, snap).format(
-							dateFormat,
-						);
-					}
-				}
-			} else if (typeof storedValue === "string" && storedValue) {
-				// Backward compatibility: use the stored value as-is
-				formattedDate = storedValue;
-			} else if (storedValue != null) {
-				// Fallback: avoid throwing if a non-string value is stored.
-				formattedDate = formatUnknownValue(storedValue);
-			}
-
-			output += formattedDate;
+			output += rendered?.text ?? "";
 		}
 
 		return output + input.slice(lastIndex);

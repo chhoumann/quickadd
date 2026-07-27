@@ -103,8 +103,69 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		expect(out).toBe("2023-06-01");
 	});
 
-	it("returns the token literally when the format is missing", async () => {
-		const out = await makeFormatter().format("{{VDATE:noformat}}");
-		expect(out).toBe("{{VDATE:noformat}}");
+	it("supplies the run's default format when the token names none (#1589)", async () => {
+		// The run's own default (Formatter.replaceDateVariableInString), so a
+		// working `{{VDATE:due}}` no longer previews as the raw token - and no
+		// longer collects the colon inside that token as an illegal character.
+		const formatter = makeFormatter();
+		const out = await formatter.format("{{VDATE:noformat}}");
+		expect(out).toBe("2023-06-01");
+		expect(formatter.diagnostics.list()).toEqual([]);
+	});
+
+	it("uses the datetime default under |time, colon and all (#1589)", async () => {
+		// YYYY-MM-DD HH:mm is what the run splices in, so the file-name preview
+		// must show it - and then the #1578 diagnostic fires on its own, because
+		// the finished NAME really does contain a colon Obsidian refuses.
+		const formatter = makeFormatter();
+		const out = await formatter.format("{{VDATE:due|time}}");
+		expect(out).toMatch(/^2023-06-01 \d{2}:\d{2}$/);
+		expect(formatter.diagnostics.list()).toEqual([
+			{
+				severity: "error",
+				kind: "path",
+				message:
+					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
+			},
+		]);
+	});
+
+	it("still leaves a NAMELESS token literal, as the run does", async () => {
+		const formatter = makeFormatter();
+		const out = await formatter.format("{{VDATE:}}");
+		expect(out).toBe("{{VDATE:}}");
+	});
+
+	it("renders an ANSWERED date instead of today (#1589/#1590)", async () => {
+		// The one-page input form seeds the user's real picks into this formatter
+		// before computing the preview; VDATE was the only seeded requirement type
+		// the preview ignored.
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			"@date:2026-08-15T00:00:00.000Z",
+		);
+		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
+	});
+
+	it("renders an answered-empty optional date as empty, not as today", async () => {
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			"",
+		);
+		await expect(
+			formatter.format("note {{VDATE:due,YYYY-MM-DD|optional}}"),
+		).resolves.toBe("note");
+	});
+
+	it("does not blank the row for a half-typed |startof: unit", async () => {
+		// Every prefix of "week" throws out of normalizeDateUnit, and this runs on
+		// every keystroke (#1558).
+		const formatter = makeFormatter();
+		await expect(
+			formatter.format("{{VDATE:wk,YYYY-MM-DD|startof:w}}"),
+		).resolves.toBe("2023-06-01");
+		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 });

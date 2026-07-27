@@ -87,3 +87,25 @@ export function parseVDateOptions(
 		snap,
 	};
 }
+
+/**
+ * {@link parseVDateOptions} for a PREVIEW, which evaluates INCOMPLETE input on
+ * every keystroke.
+ *
+ * `|startof:<unit>` throws out of `normalizeDateUnit` for a unit that is not
+ * finished being typed, and every prefix of `week` is one of those. In the run
+ * that throw is the right answer - the token is wrong and the choice should
+ * stop. In a preview it blanks the row and turns it red between two keystrokes,
+ * which is the per-keystroke noise #1558 removed. The options are simply not
+ * known yet, so the preview renders as though none were given and picks the
+ * real ones up as soon as the token parses.
+ */
+export function parseVDateOptionsForPreview(
+	rawOptions: string | undefined | null,
+): ParsedVDateOptions {
+	try {
+		return parseVDateOptions(rawOptions);
+	} catch {
+		return { optional: false, withTime: false };
+	}
+}
