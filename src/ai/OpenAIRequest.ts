@@ -14,6 +14,7 @@ import {
 	finishAIRequestLogEntry,
 } from "./AIAssistant";
 import { preventCursorChange } from "./preventCursorChange";
+import { reportError } from "../utils/errorUtils";
 import type { AIProvider, Model } from "./Provider";
 import { getProviderKind } from "./Provider";
 import type { NormalizedChatRequest } from "./tools/NormalizedTools";
@@ -515,7 +516,7 @@ export function OpenAIRequest(
 				`[AI Request ${requestLogId}] Failed in ${durationMs}ms: ${errorMessage}`
 			);
 
-			log.logError(error as Error);
+			reportError(error);
 
 			// Help users act on the most common failure: a prompt that overflows
 			// the model's context window. (ChunkedPrompt retries these automatically;
@@ -728,7 +729,7 @@ export async function chatRequest(
 			durationMs,
 			errorMessage,
 		});
-		log.logError(error as Error);
+		reportError(error);
 		throw new Error(
 			`Error while making request to ${modelProvider.name}: ${errorMessage}`,
 			{ cause: error },
