@@ -396,7 +396,7 @@
 
 <div class="importPackageModal">
 	<header>
-		<h2>Import QuickAdd Package</h2>
+		<h2>Import QuickAdd package</h2>
 		<p>Review what this package adds and runs before importing.</p>
 	</header>
 

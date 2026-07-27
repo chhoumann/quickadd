@@ -36,7 +36,7 @@ function clickButtonByText(modal: AIAssistantProvidersModal, text: string) {
 }
 
 // Enter edit mode for the single provider, then return the modal so callers can
-// drive the "Add Model" flow.
+// drive the "Add model" flow.
 function openProviderEdit(providers: AIProvider[]): AIAssistantProvidersModal {
 	const modal = new AIAssistantProvidersModal(providers, new App() as App);
 	clickButtonByText(modal, "Edit");
@@ -86,7 +86,7 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 			.mockResolvedValueOnce("gpt-4o") // name
 			.mockResolvedValueOnce("not-a-number"); // max tokens
 
-		clickButtonByText(modal, "Add Model");
+		clickButtonByText(modal, "Add model");
 		await vi.waitFor(() =>
 			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
 		);
@@ -105,7 +105,7 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 			.mockResolvedValueOnce("gpt-4o") // name
 			.mockResolvedValueOnce("10abc"); // parseInt would coerce this to 10
 
-		clickButtonByText(modal, "Add Model");
+		clickButtonByText(modal, "Add model");
 		await vi.waitFor(() =>
 			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
 		);
@@ -123,7 +123,7 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 			.mockResolvedValueOnce("   ") // blank name
 			.mockResolvedValueOnce("8000");
 
-		clickButtonByText(modal, "Add Model");
+		clickButtonByText(modal, "Add model");
 		await vi.waitFor(() =>
 			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
 		);
@@ -141,7 +141,7 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 			.mockResolvedValueOnce("gpt-4o")
 			.mockRejectedValueOnce(new Error("No input given."));
 
-		clickButtonByText(modal, "Add Model");
+		clickButtonByText(modal, "Add model");
 		await vi.waitFor(() =>
 			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
 		);
@@ -159,7 +159,7 @@ describe("AIAssistantProvidersModal Add Model validation", () => {
 			.mockResolvedValueOnce("gpt-4o")
 			.mockResolvedValueOnce("128000");
 
-		clickButtonByText(modal, "Add Model");
+		clickButtonByText(modal, "Add model");
 		await vi.waitFor(() =>
 			expect(mocks.genericInputPromptMock).toHaveBeenCalledTimes(2),
 		);

@@ -15,6 +15,17 @@ const mocks = vi.hoisted(() => ({
 	multiModal: vi.fn(),
 	yesNoPrompt: vi.fn(),
 	storeChoices: [] as IChoice[],
+	logError: vi.fn(),
+}));
+
+// The real GuiLogger turns every logError into a 15s Notice, which would make
+// "did we log?" assertions indistinguishable from "did we notify?".
+vi.mock("../logger/logManager", () => ({
+	log: {
+		logError: (...args: unknown[]) => mocks.logError(...args),
+		logWarning: vi.fn(),
+		logMessage: vi.fn(),
+	},
 }));
 
 // Mock the GUI builders so importing the module does not pull in the full
@@ -126,6 +137,7 @@ describe("choiceService", () => {
 		mocks.macroBuilder.mockReset();
 		mocks.multiModal.mockReset();
 		mocks.yesNoPrompt.mockReset();
+		mocks.logError.mockReset();
 		mocks.storeChoices = [];
 		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
 	});
@@ -429,8 +441,93 @@ describe("choiceService", () => {
 			await deleteChoiceWithConfirmation(multi, fakeApp);
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
 			expect(message).toContain("Group");
-			expect(message).toContain("(2)");
-			expect(message).toContain("choices inside it");
+			expect(message).toContain("everything inside it: 2 choices.");
+		});
+
+		// #1552: folders are Multi choices internally, but every other surface
+		// calls them folders. The confirmation was the last place the internal
+		// name leaked.
+		it("calls a Multi choice a folder, and a leaf choice a choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [createChoice("Template", "a")];
+
+			await deleteChoiceWithConfirmation(folder, fakeApp);
+			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete folder");
+			const folderMessage = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(folderMessage).toContain("Deleting this folder");
+			expect(folderMessage).not.toContain("Deleting this choice");
+
+			mocks.yesNoPrompt.mockClear();
+			await deleteChoiceWithConfirmation(
+				createChoice("Template", "Daily note"),
+				fakeApp,
+			);
+			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete choice");
+		});
+
+		it("does not call a nested folder a choice", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const nested = createChoice("Multi", "Archive") as IMultiChoice;
+			nested.choices = [createChoice("Template", "old")];
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [createChoice("Template", "daily"), nested];
+
+			await deleteChoiceWithConfirmation(folder, fakeApp);
+
+			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect(message).toContain("everything inside it: 2 choices and 1 folder.");
+		});
+
+		// GenericYesNoPrompt REJECTS on Esc/close instead of resolving false, and
+		// the Svelte call sites discard the promise — so this used to surface as
+		// an unhandled rejection in the console on every cancelled delete.
+		it("treats a dismissed prompt as 'no' without logging an error", async () => {
+			mocks.yesNoPrompt.mockRejectedValue("No answer given.");
+			const result = await deleteChoiceWithConfirmation(
+				createChoice("Multi", "Journal"),
+				fakeApp,
+			);
+			expect(result).toBe(false);
+			expect(mocks.logError).not.toHaveBeenCalled();
+		});
+
+		it("reports a genuine prompt failure, in the target's own noun", async () => {
+			mocks.yesNoPrompt.mockRejectedValue(new Error("boom"));
+			const result = await deleteChoiceWithConfirmation(
+				createChoice("Multi", "Journal"),
+				fakeApp,
+			);
+			expect(result).toBe(false);
+			// reportError surfaces as a Notice via GuiLogger, so this string is
+			// user-visible and must use the same vocabulary as the dialog above it.
+			expect(String(mocks.logError.mock.calls[0][0])).toContain(
+				"folder deletion",
+			);
+		});
+
+		// dedupeChoicesById deliberately preserves a malformed Multi (children
+		// missing or not an array) instead of fabricating []. The delete must stay
+		// usable for such a folder rather than throwing past the cancel guard.
+		it.each([
+			["missing children", undefined],
+			["non-array children", {} as unknown as IChoice[]],
+		])("still deletes a folder with %s", async (_label, children) => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const folder = {
+				id: "corrupt",
+				name: "Journal",
+				type: "Multi",
+				command: false,
+				choices: children,
+			} as unknown as IChoice;
+
+			await expect(
+				deleteChoiceWithConfirmation(folder, fakeApp),
+			).resolves.toBe(true);
+			expect(mocks.yesNoPrompt.mock.calls[0][2]).toBe(
+				"Are you sure you want to delete 'Journal'?",
+			);
 		});
 
 		it("warns about macro commands for a Macro choice", async () => {
@@ -489,7 +586,42 @@ describe("choiceService", () => {
 			expect(result).toBe(false);
 			expect((Notice as unknown as { instances: { message: string }[] }).instances)
 				.toContainEqual({
-					message: "Could not clear user script secrets. Choice was not deleted.",
+					message:
+						"Could not clear user script secrets. The choice was not deleted.",
+					timeout: undefined,
+					messageEl: expect.any(HTMLElement),
+				});
+		});
+
+		// The failure notice is reachable for a folder too (the secret lives on a
+		// Macro nested inside it), so it must not call the folder a choice either.
+		it("keeps a folder — and calls it a folder — when clearing nested secrets fails", async () => {
+			mocks.yesNoPrompt.mockResolvedValue(true);
+			const app = {
+				secretStorage: {
+					delete: vi.fn().mockRejectedValue(new Error("delete failed")),
+				},
+			} as unknown as App;
+			const macro = createChoice("Macro", "MyMacro") as IMacroChoice;
+			macro.macro.commands.push({
+				id: "cmd",
+				name: "Run script",
+				type: "UserScript",
+				path: "Scripts/script.js",
+				settings: {
+					"API Key": createUserScriptSecretRef("local-secret-ref"),
+				},
+			} as unknown as IMacroChoice["macro"]["commands"][number]);
+			const folder = createChoice("Multi", "Journal") as IMultiChoice;
+			folder.choices = [macro];
+
+			const result = await deleteChoiceWithConfirmation(folder, app);
+
+			expect(result).toBe(false);
+			expect((Notice as unknown as { instances: { message: string }[] }).instances)
+				.toContainEqual({
+					message:
+						"Could not clear user script secrets. The folder was not deleted.",
 					timeout: undefined,
 					messageEl: expect.any(HTMLElement),
 				});
@@ -500,8 +632,7 @@ describe("choiceService", () => {
 			const choice = createChoice("Template", "Plain");
 			await deleteChoiceWithConfirmation(choice, fakeApp);
 			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			expect(message).not.toContain("choices inside it");
-			expect(message).not.toContain("macro commands");
+			expect(message).toBe("Are you sure you want to delete 'Plain'?");
 		});
 	});
 

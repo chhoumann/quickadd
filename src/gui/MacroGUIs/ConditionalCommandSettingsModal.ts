@@ -92,7 +92,7 @@ export class ConditionalCommandSettingsModal extends Modal {
 		this.contentEl.empty();
 
 		const headerEl = this.contentEl.createEl("h2", {
-			text: "Configure Conditional Command",
+			text: "Configure conditional command",
 		});
 		headerEl.addClass("qa-modal-title");
 

@@ -95,7 +95,7 @@ export class AIAssistantProvidersModal extends Modal {
 			.setName("Providers")
 			.setDesc("Providers for the AI Assistant")
             .addButton((button) => {
-                button.setButtonText("Add Provider").onClick(async () => {
+                button.setButtonText("Add provider").onClick(async () => {
                     await new ProviderPickerModal(this.app, this.providers).waitForClose;
                     this.reload();
                 });
@@ -189,7 +189,7 @@ export class AIAssistantProvidersModal extends Modal {
 			: "Select a secret from SecretStorage";
 
 		new Setting(container)
-			.setName("API Key")
+			.setName("API key")
 			.setDesc(description)
 			.addComponent((el) =>
 				new SecretComponent(this.app, el)
@@ -285,19 +285,19 @@ export class AIAssistantProvidersModal extends Modal {
         });
 
         new Setting(modelsContainer)
-            .setName("Add Model")
+            .setName("Add model")
             .addButton((button) => {
-                button.setButtonText("Add Model").onClick(async () => {
+                button.setButtonText("Add model").onClick(async () => {
                     let modelName: string;
                     let maxTokens: string;
                     try {
                         modelName = await GenericInputPrompt.Prompt(
                             this.app,
-                            "Model Name"
+                            "Model name"
                         );
                         maxTokens = await GenericInputPrompt.Prompt(
                             this.app,
-                            "Max Tokens"
+                            "Max tokens"
                         );
                     } catch {
                         // Cancelling either prompt is a clean no-op.

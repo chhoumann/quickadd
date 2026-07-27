@@ -24,9 +24,9 @@ describe("FileOpeningSetting", () => {
 		const { container } = render(FileOpeningSetting, {
 			props: { fileOpening: base({ location: "tab" }), contextLabel: "captured" },
 		});
-		expect(settingNames(container)).not.toContain("Split Direction");
-		expect(settingNames(container)).toContain("File Opening Location");
-		expect(settingNames(container)).toContain("View Mode");
+		expect(settingNames(container)).not.toContain("Split direction");
+		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("View mode");
 	});
 
 	it("shows Split Direction when location is split", () => {
@@ -36,7 +36,7 @@ describe("FileOpeningSetting", () => {
 				contextLabel: "created",
 			},
 		});
-		expect(settingNames(container)).toContain("Split Direction");
+		expect(settingNames(container)).toContain("Split direction");
 	});
 
 	it("hides Focus new pane when location is reuse", () => {
@@ -57,10 +57,10 @@ describe("FileOpeningSetting", () => {
 				contextLabel: "created",
 			},
 		});
-		expect(settingNames(container)).toContain("File Opening Location");
-		expect(settingNames(container)).toContain("View Mode");
+		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("View mode");
 		// default location is "tab" -> not reuse -> Focus row present; not split.
 		expect(settingNames(container)).toContain("Focus new pane");
-		expect(settingNames(container)).not.toContain("Split Direction");
+		expect(settingNames(container)).not.toContain("Split direction");
 	});
 });

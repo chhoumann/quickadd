@@ -60,7 +60,7 @@ export class ProviderPickerModal extends Modal {
 
       let apiKeyRef = "";
       const apiSetting = new Setting(card)
-        .setName("API Key")
+        .setName("API key")
         .setDesc("Select a secret from SecretStorage")
         .addComponent((el) => new SecretComponent(this.app, el)
           .setValue(apiKeyRef)

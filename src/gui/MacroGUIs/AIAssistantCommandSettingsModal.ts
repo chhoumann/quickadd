@@ -82,7 +82,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
 		const renameButton = header.createEl("button", {
 			cls: "qa-rename-title-button",
-			text: `${this.settings.name} Settings`,
+			text: `${this.settings.name} settings`,
 			attr: { type: "button", "aria-label": `Rename ${this.settings.name}` },
 		});
 
@@ -168,7 +168,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 		).map((f) => f.name);
 
 		new Setting(container)
-			.setName("Prompt Template")
+			.setName("Prompt template")
 			.setDesc(
 				"Enabling this will have the assistant use the prompt template you specify. If disable, the assistant will ask you for a prompt template to use."
 			)
@@ -224,7 +224,7 @@ export class AIAssistantCommandSettingsModal extends Modal {
 
 	addSystemPromptSetting(contentEl: HTMLElement) {
 		new Setting(contentEl)
-			.setName("System Prompt")
+			.setName("System prompt")
 			.setDesc("The system prompt for the AI Assistant");
 
 		const container = this.contentEl.createEl("div");

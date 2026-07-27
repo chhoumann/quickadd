@@ -433,7 +433,7 @@ you combine a default with other keyed options like `|label:`.
 
 `{{VALUE:summary|type:multiline}}` opens a textarea instead of a single-line
 input. Works on single-value prompts only (no option lists or `|custom`), and
-overrides the global "Use Multi-line Input Prompt" setting for that
+overrides the global "Use multi-line input prompt" setting for that
 placeholder.
 
 <a id="mixed-mode-example"></a>

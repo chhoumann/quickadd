@@ -14,7 +14,7 @@ New to QuickAdd entirely? Start with [Getting Started](/docs/) for the choice ty
 
 ## Point QuickAdd at your template folder
 
-You don't need to move or rewrite your template files to start. Add your existing template folder(s) under **Template folder paths** in [Settings → Templates & Properties](/docs/Settings/#templates--properties). That single step powers:
+You don't need to move or rewrite your template files to start. Add your existing template folder(s) under **Template folder paths** in [Settings → Templates & properties](/docs/Settings/#templates--properties). That single step powers:
 
 - the **QuickAdd: New note from template** command, which lists every template in those folders and prompts for the new note's name - no per-template setup;
 - the **QuickAdd: Apply template to active note** command, whose picker offers those template files too;

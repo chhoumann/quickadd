@@ -107,7 +107,7 @@ function buildChoiceMenu(
     .addItem((item) =>
       item
         .setTitle(
-          choice.command ? "Disable in Command Palette" : "Enable in Command Palette",
+          choice.command ? "Disable in command palette" : "Enable in command palette",
         )
         .setIcon("zap")
         .onClick(actions.onToggle),

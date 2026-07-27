@@ -50,7 +50,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
 		const renameButton = header.createEl("button", {
 			cls: "qa-rename-title-button",
-			text: `${this.settings.name} Settings`,
+			text: `${this.settings.name} settings`,
 			attr: { type: "button", "aria-label": `Rename ${this.settings.name}` },
 		});
 
@@ -136,7 +136,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	addSystemPromptSetting(contentEl: HTMLElement) {
 		new Setting(contentEl)
-			.setName("System Prompt")
+			.setName("System prompt")
 			.setDesc("The system prompt for the AI Assistant");
 
 		const container = this.contentEl.createEl("div");
@@ -203,7 +203,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	addResultJoinerSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Result Joiner")
+			.setName("Result joiner")
 			.setDesc(
 				"The string used to join multiple LLM responses together. The default is a newline."
 			)
@@ -216,7 +216,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	addChunkSeparatorSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Chunk Separator")
+			.setName("Chunk separator")
 			.setDesc(
 				"The string used to separate chunks of text. The default is a newline."
 			)
@@ -231,7 +231,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	addMaxTokensSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Max Chunk Tokens")
+			.setName("Max chunk tokens")
 			.setDesc(
 				"Maximum estimated tokens for each chunk of your text (the {{chunk}} portion only — the system prompt and prompt template are accounted for separately). Counts are estimated locally; the provider enforces the exact limit. Leave room for the model's response. Values above the model's estimated input budget are capped automatically."
 			)
@@ -255,7 +255,7 @@ export class InfiniteAIAssistantCommandSettingsModal extends Modal {
 
 	addMergeChunksSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Merge Chunks")
+			.setName("Merge chunks")
 			.setDesc(
 				"Merge chunks together by putting them in the same prompt, until the max tokens limit is reached. Useful for sending fewer queries overall, but may result in less coherent responses."
 			)

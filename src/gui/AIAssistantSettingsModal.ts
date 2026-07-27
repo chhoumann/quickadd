@@ -40,7 +40,7 @@ export class AIAssistantSettingsModal extends Modal {
 		this.contentEl.addClass("qa-ai-scroll-content");
 
 		this.contentEl.createEl("h2", {
-			text: "AI Assistant Settings",
+			text: "AI Assistant settings",
 			cls: "qa-modal-title",
 		});
 
@@ -64,7 +64,7 @@ export class AIAssistantSettingsModal extends Modal {
 			.setName("Providers")
 			.setDesc("The providers for the AI Assistant")
 			.addButton((button) => {
-				button.setButtonText("Edit Providers").onClick(() => {
+				button.setButtonText("Edit providers").onClick(() => {
 					void new AIAssistantProvidersModal(
 						this.settings.providers,
 						this.app
@@ -77,7 +77,7 @@ export class AIAssistantSettingsModal extends Modal {
  
 	addDefaultModelSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Default Model")
+			.setName("Default model")
 			.setDesc("The default model for the AI Assistant")
 			.addDropdown((dropdown) => {
 				populateModelDropdown(
@@ -96,7 +96,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addPromptTemplateFolderPathSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Prompt Template Folder Path")
+			.setName("Prompt template folder path")
 			.setDesc("Path to your folder with prompt templates")
 			.addText((text) => {
 				text.setValue(this.settings.promptTemplatesFolderPath).onChange(
@@ -115,7 +115,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addShowAssistantSetting(container: HTMLElement) {
 		new Setting(container)
-			.setName("Show Assistant")
+			.setName("Show assistant")
 			.setDesc("Show status messages from the AI Assistant")
 			.addToggle((toggle) => {
 				toggle.setValue(this.settings.showAssistant);
@@ -145,7 +145,7 @@ export class AIAssistantSettingsModal extends Modal {
 
 	addDefaultSystemPromptSetting(contentEl: HTMLElement) {
 		new Setting(contentEl)
-			.setName("Default System Prompt")
+			.setName("Default system prompt")
 			.setDesc("The default system prompt for the AI Assistant");
 
 		const textAreaComponent = new TextAreaComponent(contentEl);

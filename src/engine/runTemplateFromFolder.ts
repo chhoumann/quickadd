@@ -111,7 +111,7 @@ export async function runTemplateFromFolder(
 		if (!templatePath) {
 			if (!hasConfiguredTemplateFolders(plugin)) {
 				new Notice(
-					"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & Properties to use “New note from template”.",
+					"QuickAdd: Set a template folder in Settings → QuickAdd → Templates & properties to use “New note from template”.",
 					8000,
 				);
 				openQuickAddSettings(app, plugin.manifest.id, { notice: false });
