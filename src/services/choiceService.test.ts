@@ -494,7 +494,7 @@ describe("choiceService", () => {
 
 		// dedupeChoicesById deliberately preserves a malformed Multi (children
 		// missing or not an array) instead of fabricating []. The delete must stay
-		// usable for such a folder rather than throwing past the cancel guard.
+		// usable for such a folder rather than throwing out of the delete handler.
 		it.each([
 			["missing children", undefined],
 			["non-array children", {} as unknown as IChoice[]],

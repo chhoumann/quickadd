@@ -233,8 +233,9 @@ export async function deleteChoiceWithConfirmation(
 		// A malformed Multi (children missing, or not an array) is deliberately
 		// preserved on load rather than repaired — see dedupeChoicesById — and
 		// flattenChoices would throw on it. Throwing here would leave the corrupt
-		// folder undeletable AND raise the unhandled rejection the catch below
-		// exists to prevent, so treat it as empty and let the delete through.
+		// folder undeletable, and ChoiceView awaits this function from a click
+		// handler that discards the promise, so the throw would surface as an
+		// unhandled rejection. Treat it as empty and let the delete through.
 		const children = Array.isArray(multi.choices) ? multi.choices : [];
 		const descendants = flattenChoices(children);
 		if (descendants.length === 0) return "";
