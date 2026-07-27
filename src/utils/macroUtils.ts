@@ -187,6 +187,26 @@ export function normalizeCommandList(value: unknown): NormalizedCommandList {
 
 	const commands: ICommand[] = [];
 	for (const entry of input) {
+		// An ARRAY entry is read as a NESTED LIST and spliced in, the same
+		// recoverable reading `macroCommandsValueOf` gives an array-valued `macro`.
+		// `isCommandLike([])` is true, so the alternative is spreading it into one
+		// nameless, typeless row. Kept byte-symmetric with `normalizeChoiceList`.
+		if (Array.isArray(entry)) {
+			const inner = normalizeCommandList(entry);
+			for (const command of inner.commands) {
+				const id = command.id;
+				if (typeof id === "string" && id !== "" && !seen.has(id)) {
+					seen.add(id);
+					commands.push(command);
+					continue;
+				}
+				const replacement = { ...command, id: uuidv4() };
+				seen.add(replacement.id);
+				commands.push(replacement);
+			}
+			changed = true;
+			continue;
+		}
 		if (!isCommandLike(entry)) {
 			changed = true;
 			continue;

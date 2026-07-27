@@ -37,6 +37,7 @@
 		childChoicesOf,
 		hasChildChoices,
 		isChoiceLike,
+		normalizeChoiceList,
 	} from "../../utils/choiceUtils";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { choiceNoun } from "../../utils/choiceNoun";
@@ -86,12 +87,58 @@
 	// component's life; untrack avoids a spurious state_referenced_locally warning).
 	const commandRegistry = new CommandRegistry(untrack(() => plugin));
 
+	// The seam where an unrenderable choice is REPAIRED rather than hidden (#1608).
+	//
+	// ChoiceList can only render an entry it can key, and the list it renders is
+	// the list its persist path writes back — so before this, an entry with a
+	// missing or non-string id was invisible in the settings tab AND deleted from
+	// data.json by the first drag or ArrowDown. Re-keying here makes it visible,
+	// editable and deletable instead, and leaves ChoiceList's filter able to drop
+	// only a hole, which carries nothing.
+	//
+	// Nothing is persisted by this: the repair reaches disk with the user's first
+	// ordinary edit, so opening and closing the settings tab changes nothing —
+	// the same contract CommandSequenceEditor's constructor keeps for commands.
+	//
+	// MEMOIZED on the raw store value, and that is load-bearing rather than an
+	// optimization. This subscription fires on EVERY settingsStore write, including
+	// ones nothing here caused (the AI provider auto-sync lands one a few seconds
+	// after launch). Re-normalizing an unrepaired array each time would mint a
+	// fresh uuid each time, and every by-id write in this view resolves its target
+	// BEFORE an await — handleConfigureChoice captures the choice, awaits the
+	// builder, then matches on `oldChoice.id === newChoice.id` — so a re-mint
+	// inside that window turns the match into a no-op and silently discards the
+	// user's edits. zustand merges partials, so an unrelated setState leaves
+	// `state.choices` reference-identical and this memo hits.
+	let lastRawChoices: unknown;
+	let lastSeededChoices: IChoice[] = [];
+	function seedChoices(raw: unknown): IChoice[] {
+		// A non-array root is left EXACTLY as it is: `rootUnreadable` refuses to
+		// render it, which is what keeps anything in this view from saving over it.
+		if (!Array.isArray(raw)) return raw as IChoice[];
+		if (raw === lastRawChoices) return lastSeededChoices;
+		const { choices: seeded, repaired } = normalizeChoiceList(raw);
+		lastRawChoices = raw;
+		lastSeededChoices = seeded;
+		// A command was registered at onload under the id data.json held, so a
+		// repaired choice's palette entry would otherwise point at an id that no
+		// longer exists. Register the new one. The stale entry survives until the
+		// next reload — an honest "Choice not found" rather than a silent miss, and
+		// the alternative was the choice being deleted outright.
+		for (const { choice } of repaired) {
+			if (choice.command) commandRegistry.enableCommand(choice);
+		}
+		return seeded;
+	}
+
+	choices = seedChoices(choices);
+
 	// Keep choices in sync with external store changes. The subscribe callback runs
 	// only on store changes (not during this effect's synchronous setup), so the
 	// effect registers no reactive deps and subscribes exactly once.
 	$effect(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = settings.choices;
+			choices = seedChoices(settings.choices);
 			disableOnlineFeatures = settings.disableOnlineFeatures;
 		});
 		return () => unsubSettingsStore();

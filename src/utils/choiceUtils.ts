@@ -281,6 +281,122 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 	return walk(choices);
 }
 
+export interface RepairedChoiceId {
+	/** The id the choice had, exactly as `data.json` held it. */
+	previousId: unknown;
+	/** The choice as it is now, under an id that can be keyed. */
+	choice: IChoice;
+}
+
+export interface NormalizedChoiceList {
+	choices: IChoice[];
+	/** False when `choices` is the input array itself, unchanged. */
+	changed: boolean;
+	repaired: RepairedChoiceId[];
+}
+
+/**
+ * The choice tree an EDITOR should work over: every entry an object with an id
+ * that is unique across the whole tree.
+ *
+ * The sibling of `normalizeCommandList` (macroUtils.ts) and the same argument,
+ * on the list one level up. `ChoiceList` renders a keyed `{#each ... (choice.id)}`
+ * and seeds svelte-dnd-action from the same array, so an entry with no usable id
+ * cannot be rendered - and the list it filtered for rendering is the list its
+ * persist path writes back. So the filter was not a "render-time view only" after
+ * all: the first drag or ArrowDown wrote the filtered array to disk, and
+ *
+ *     { "name": "Daily note", "type": "Template", "templatePath": "...", "id": 12 }
+ *
+ * - a complete, working, runnable choice whose id was written as a JSON number by
+ * a hand-edit, a script or a merge - was deleted with no prompt and no undo, from
+ * a row the user could never see in the first place (#1608).
+ *
+ * The two cases are NOT the same and are deliberately not treated the same:
+ *
+ *   - An entry that cannot be KEYED (id missing, empty, not a string, or already
+ *     used elsewhere in the tree) is a real choice. It is given a fresh uuid and
+ *     kept, so it becomes visible, editable and deletable for the first time.
+ *   - A `null` or a stray primitive carries nothing. There is nothing to re-key,
+ *     every walker already steps over one, and it is dropped.
+ *   - An ARRAY entry is read as a NESTED LIST and its members are spliced in -
+ *     the same recoverable reading `macroCommandsValueOf` gives an array-valued
+ *     `macro`. `isChoiceLike([])` is true, so the alternative is spreading it
+ *     into one nameless, typeless row whose delete dialog says `delete
+ *     'undefined'`.
+ *
+ * A repaired id is always a fresh uuid, never a coercion of the old value.
+ * `String(12)` looks tempting - it would keep the registered `quickadd:choice:12`
+ * alive - but ids are compared with `===` in `getChoice`, so a `12` -> `"12"`
+ * rewrite silently breaks a `ChoiceCommand{choiceId: 12}` (MacroChoiceEngine
+ * matches /not found/i and skips the step), and "that string is free" can only
+ * mean "not seen YET" during a pre-order walk, so it can also steal a healthy
+ * later sibling's id. A stored reference to a malformed id does break here - but
+ * the behaviour it replaces DELETED the choice on the first reorder, which broke
+ * the same reference and lost the choice with it.
+ *
+ * Recurses only through `hasChildChoices`, so a folder whose `choices` value
+ * could not be read is passed through exactly as found - never replaced with the
+ * `[]` that `childChoicesOf` reads it as.
+ *
+ * Returns the input array itself when there was nothing to change, so a healthy
+ * tree is provably untouched, and takes `unknown` because `settings.choices` is.
+ * A non-array root reads as `[]` here; the CALLER must refuse to render (and
+ * therefore to save) rather than pass it in - see ChoiceView's `rootUnreadable`.
+ */
+export function normalizeChoiceList(value: unknown): NormalizedChoiceList {
+	if (!Array.isArray(value)) return { choices: [], changed: false, repaired: [] };
+
+	const seen = new Set<string>();
+	const repaired: RepairedChoiceId[] = [];
+
+	const walk = (list: unknown[]): IChoice[] => {
+		let changed = false;
+		const out: IChoice[] = [];
+
+		for (const entry of list) {
+			if (Array.isArray(entry)) {
+				changed = true;
+				out.push(...walk(entry));
+				continue;
+			}
+			if (!isChoiceLike(entry)) {
+				changed = true;
+				continue;
+			}
+
+			let node: IChoice = entry;
+			if (hasChildChoices(node)) {
+				// `hasChildChoices` already proved this is a real array.
+				const children = (node as IMultiChoice).choices as IChoice[];
+				const next = walk(children);
+				if (next !== children) {
+					node = { ...(node as IMultiChoice), choices: next } as IChoice;
+					changed = true;
+				}
+			}
+
+			const id: unknown = node.id;
+			if (typeof id === "string" && id !== "" && !seen.has(id)) {
+				seen.add(id);
+				out.push(node);
+				continue;
+			}
+
+			const replacement = { ...node, id: uuidv4() } as IChoice;
+			seen.add(replacement.id);
+			repaired.push({ previousId: id, choice: replacement });
+			out.push(replacement);
+			changed = true;
+		}
+
+		return changed ? out : (list as IChoice[]);
+	};
+
+	const choices = walk(value);
+	return { choices, changed: choices !== value, repaired };
+}
+
 export interface FlatChoicePathEntry {
 	choice: IChoice;
 	id: string;
