@@ -26,6 +26,9 @@ import type QuickAdd from "../main";
 
 const templates: Record<string, string> = {
 	"Templates/Daily.md": "Daily body\n",
+	// The run resolves {{title}} inside an included body (child engine ->
+	// formatFileContent), so this previews as "note", not as an error (#1588).
+	"Templates/Titled.md": "{{title}} note\n",
 };
 
 const activeFile = {
@@ -219,11 +222,54 @@ describe("tokens the file-name preview does NOT resolve today", () => {
 		expect(text).toBe("File {{MATH:1+1}}");
 	});
 
-	it("leaves {{title}} literal even though the run throws on it (#1588)", async () => {
-		// formatFileName rejects {{title}} in a file name outright
-		// ("circular dependency"), so this format string can never create a note.
+});
+
+describe("{{title}} in a file-name format (#1588)", () => {
+	const CIRCULAR =
+		"A file name cannot contain {{title}}, because the title is derived from the file name itself - so this choice would fail at run time.";
+
+	it("reports an error, because formatFileName throws on it", async () => {
+		// The token stays literal - the run resolves it to nothing here, and an
+		// example title would be a name that can never exist - so the row keeps
+		// saying "Unresolved:" and the diagnostic explains why it never will.
 		const { text, diagnostics } = await preview("{{title}} note");
 		expect(text).toBe("{{title}} note");
+		expect(diagnostics).toEqual([{ severity: "error", message: CIRCULAR }]);
+	});
+
+	it("matches the run's case-insensitive check", async () => {
+		const { diagnostics } = await preview("{{TITLE}} note");
+		expect(diagnostics).toEqual([{ severity: "error", message: CIRCULAR }]);
+	});
+
+	it("catches a {{title}} produced by a global snippet, as the run's second check does", async () => {
+		// formatFileName re-checks format()'s OUTPUT precisely because a
+		// {{GLOBAL_VAR:}} snippet can smuggle the token in after the input check.
+		const formatter = new FileNameDisplayFormatter(
+			makeApp(),
+			{
+				settings: { globalVariables: { circular: "{{title}}" }, choices: [] },
+				getTemplateFiles: () => [],
+			} as unknown as QuickAdd,
+		);
+		formatter.setTargetFolderPath("Folder/Name");
+		await formatter.format("{{GLOBAL_VAR:circular}} note");
+		expect(formatter.diagnostics.list()).toEqual([
+			{ severity: "error", message: CIRCULAR },
+		]);
+	});
+
+	it("stays quiet for a {{title}} inside an included template body", async () => {
+		// The run splices that body in through the child engine's
+		// formatFileContent, which resolves {{title}} to the stored title (or "")
+		// BEFORE formatFileName's check ever sees it - so the choice works, and
+		// accusing it would be the cry-wolf this cluster exists to delete.
+		const { text, diagnostics } = await preview(
+			"{{TEMPLATE:Templates/Titled.md}}",
+		);
+		// The empty title leaves the space it was followed by, exactly as the run
+		// does - the name normalizer only trims TRAILING spaces.
+		expect(text).toBe(" note");
 		expect(diagnostics).toEqual([]);
 	});
 });
