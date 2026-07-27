@@ -276,6 +276,12 @@ export class FileNameDisplayFormatter extends Formatter {
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		output = await this.replaceFileInString(output);
+		// Where the run has it (CompleteFormatter.format: after {{FILE:}}, before
+		// {{RANDOM:}}). The run really does prompt here - formatFileName goes
+		// through format() - so leaving {{MVALUE}} literal made the preview
+		// promise a name with a token in it (#1587). `promptForMathValue` was
+		// already overridden with a stand-in below; it was simply unreachable.
+		output = await this.replaceMathValueInString(output);
 		// Note-derived tokens in ONE pass so no token re-scans another's output
 		// (#1358). Every preview resolver returns a placeholder rather than null,
 		// so neither mode can hit the runtime's missing-active-file throw.

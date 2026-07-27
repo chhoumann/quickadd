@@ -791,7 +791,10 @@ export class CompleteFormatter extends Formatter {
 		if (provider) {
 			return await provider.inputPrompt("Enter a math expression");
 		}
-		this.assertInteractivePrompt("a {{MATH}} expression");
+		// The token is {{MVALUE}} (MATH_VALUE_REGEX). "a {{MATH}} expression"
+		// named a token QuickAdd has never had, in the one message whose whole
+		// job is to tell a non-interactive caller which flag to pass (#1587).
+		this.assertInteractivePrompt("a {{MVALUE}} math expression");
 		try {
 			return await MathModal.Prompt();
 		} catch (error) {
