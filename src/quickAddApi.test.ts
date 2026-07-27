@@ -152,6 +152,7 @@ vi.mock("./utils/errorUtils", async () => {
 
 const { QuickAddApi } = await import("./quickAddApi");
 const { MacroAbortError } = await import("./errors/MacroAbortError");
+const { promptCancelled } = await import("./errors/UserCancelError");
 
 // ---------------------------------------------------------------------------
 // Test doubles for app / plugin / choiceExecutor
@@ -248,10 +249,12 @@ describe("static prompt wrappers", () => {
 			);
 		});
 
-		it("returns undefined for a generic (non-cancellation) error", async () => {
-			mocks.genericInputPrompt.mockRejectedValue(new Error("boom"));
-			const out = await QuickAddApi.inputPrompt(app, "Header");
-			expect(out).toBeUndefined();
+		it("propagates a generic (non-cancellation) error", async () => {
+			const failure = new Error("boom");
+			mocks.genericInputPrompt.mockRejectedValue(failure);
+			await expect(QuickAddApi.inputPrompt(app, "Header")).rejects.toBe(
+				failure,
+			);
 		});
 
 		it("converts a cancellation string into a MacroAbortError", async () => {
@@ -300,9 +303,10 @@ describe("static prompt wrappers", () => {
 			);
 		});
 
-		it("swallows generic errors as undefined", async () => {
-			mocks.genericWideInputPrompt.mockRejectedValue(new Error("x"));
-			expect(await QuickAddApi.wideInputPrompt(app, "H")).toBeUndefined();
+		it("propagates generic errors", async () => {
+			const failure = new Error("x");
+			mocks.genericWideInputPrompt.mockRejectedValue(failure);
+			await expect(QuickAddApi.wideInputPrompt(app, "H")).rejects.toBe(failure);
 		});
 	});
 
@@ -327,9 +331,12 @@ describe("static prompt wrappers", () => {
 			);
 		});
 
-		it("swallows generic errors as undefined", async () => {
-			mocks.genericYesNoPromptAsk.mockRejectedValue(new Error("x"));
-			expect(await QuickAddApi.yesNoPrompt(app, "H")).toBeUndefined();
+		// The worst-typed swallow of all: `undefined` is falsy, so a defect used to
+		// read to the script as "the user answered No".
+		it("propagates generic errors instead of reading as a falsy No", async () => {
+			const failure = new Error("x");
+			mocks.genericYesNoPromptAsk.mockRejectedValue(failure);
+			await expect(QuickAddApi.yesNoPrompt(app, "H")).rejects.toBe(failure);
 		});
 	});
 
@@ -338,6 +345,21 @@ describe("static prompt wrappers", () => {
 			mocks.genericInfoDialog.mockResolvedValue(undefined);
 			await QuickAddApi.infoDialog(app, "H", ["a", "b"]);
 			expect(mocks.genericInfoDialog).toHaveBeenCalledWith(app, "H", ["a", "b"]);
+		});
+
+		// Declared `Promise<void>`, so a swallowed failure was indistinguishable
+		// from success - the error was not merely unlogged, it was unrepresentable.
+		it("propagates a generic error", async () => {
+			const failure = new Error("dom exploded");
+			mocks.genericInfoDialog.mockRejectedValue(failure);
+			await expect(QuickAddApi.infoDialog(app, "H", "x")).rejects.toBe(failure);
+		});
+
+		it("converts a dismissal into a MacroAbortError", async () => {
+			mocks.genericInfoDialog.mockRejectedValue(promptCancelled());
+			await expect(QuickAddApi.infoDialog(app, "H", "x")).rejects.toBeInstanceOf(
+				MacroAbortError,
+			);
 		});
 	});
 
@@ -353,9 +375,10 @@ describe("static prompt wrappers", () => {
 			);
 		});
 
-		it("returns undefined on a generic error", async () => {
-			mocks.genericCheckboxPrompt.mockRejectedValue(new Error("nope"));
-			expect(await QuickAddApi.checkboxPrompt(app, [])).toBeUndefined();
+		it("propagates a generic error", async () => {
+			const failure = new Error("nope");
+			mocks.genericCheckboxPrompt.mockRejectedValue(failure);
+			await expect(QuickAddApi.checkboxPrompt(app, [])).rejects.toBe(failure);
 		});
 	});
 });
@@ -403,9 +426,10 @@ describe("datePrompt", () => {
 		);
 	});
 
-	it("returns undefined on a generic error", async () => {
-		mocks.vDateInputPrompt.mockRejectedValue(new Error("fail"));
-		expect(await QuickAddApi.datePrompt(app, "H")).toBeUndefined();
+	it("propagates a generic error", async () => {
+		const failure = new Error("fail");
+		mocks.vDateInputPrompt.mockRejectedValue(failure);
+		await expect(QuickAddApi.datePrompt(app, "H")).rejects.toBe(failure);
 	});
 
 	it("converts a cancellation into a MacroAbortError", async () => {
@@ -501,9 +525,23 @@ describe("suggester", () => {
 		});
 	});
 
-	it("returns undefined on a generic error", async () => {
-		mocks.genericSuggester.mockRejectedValue(new Error("boom"));
-		expect(await QuickAddApi.suggester(app, ["a"], ["a"])).toBeUndefined();
+	it("propagates a generic error", async () => {
+		const failure = new Error("boom");
+		mocks.genericSuggester.mockRejectedValue(failure);
+		await expect(QuickAddApi.suggester(app, ["a"], ["a"])).rejects.toBe(failure);
+	});
+
+	// The try also spans the caller-supplied display mapping, so a buggy display
+	// callback used to be swallowed too - the exact #1575 field report.
+	it("propagates a throwing display callback instead of returning undefined", async () => {
+		mocks.genericSuggester.mockResolvedValue("a");
+		await expect(
+			QuickAddApi.suggester(
+				app,
+				(value: string) => (value as unknown as { nope: string }).nope.trim(),
+				["a"],
+			),
+		).rejects.toBeInstanceOf(TypeError);
 	});
 });
 

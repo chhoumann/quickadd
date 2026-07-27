@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { beforeAll, describe, expect, it, vi } from "vitest";
+import { UserCancelError } from "../../errors/UserCancelError";
 
 // Mock obsidian with a local Modal/ButtonComponent/ToggleComponent so
 // super.onClose() resolves (the shared stub's Modal omits onClose on the
@@ -161,7 +162,7 @@ describe("GenericCheckboxPrompt header + cancel (audit: prompts-gui-checkbox-pro
 		expect(() => buttonByText(prompt, "Cancel")).not.toThrow();
 	});
 
-	it("Cancel rejects the promise (no input given)", async () => {
+	it("Cancel rejects the promise with a typed cancellation", async () => {
 		const prompt = new GenericCheckboxPrompt(app, ["a", "b"], ["a"]);
 		const promise = prompt.promise;
 
@@ -169,7 +170,7 @@ describe("GenericCheckboxPrompt header + cancel (audit: prompts-gui-checkbox-pro
 			new Event("click", { bubbles: true }),
 		);
 
-		await expect(promise).rejects.toBe("no input given.");
+		await expect(promise).rejects.toBeInstanceOf(UserCancelError);
 	});
 
 	it("Submit resolves the selected items", async () => {

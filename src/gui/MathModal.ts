@@ -10,6 +10,7 @@ import {
 import { getQuickAddInstance } from "../quickAddInstance";
 import { LATEX_CURSOR_MOVE_HERE } from "../LaTeXSymbols";
 import { LaTeXSuggester } from "./suggesters/LaTeXSuggester";
+import { promptCancelled } from "../errors/UserCancelError";
 
 export class MathModal extends Modal {
 	public waitForClose: Promise<string>;
@@ -154,7 +155,7 @@ export class MathModal extends Modal {
 		const output = this.inputEl.value
 			.replace(/\\n/g, `\\\\n`)
 			.replace(new RegExp(LATEX_CURSOR_MOVE_HERE, "g"), "");
-		if (!this.didSubmit) this.rejectPromise("No input given.");
+		if (!this.didSubmit) this.rejectPromise(promptCancelled());
 		else this.resolvePromise(output);
 	}
 

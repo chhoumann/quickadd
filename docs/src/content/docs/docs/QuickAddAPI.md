@@ -936,29 +936,47 @@ module.exports = async (params) => {
 
 ## Error Handling Best Practices
 
-Always wrap API calls in try-catch blocks:
+:::note[Available in the next release]
+Until then, a prompt that failed for a reason other than the user cancelling resolved
+`undefined` instead of rejecting, so a script could not tell a failure from an empty answer.
+:::
+
+A prompt has exactly two non-happy outcomes, and they are different things:
+
+- **The user dismissed it** (Escape, Cancel, closing the dialog). The promise rejects with `MacroAbortError("Input cancelled by user")`. Let it bubble and QuickAdd stops the run quietly - which is almost always what you want.
+- **Something broke** (a bug in your script, a vault error). The promise rejects with that error. Let it bubble and QuickAdd reports it once, so you get a notice and a console entry to debug from.
+
+A prompt never resolves `undefined` to mean either of those. An empty string means the user submitted an empty answer, which is a real answer.
 
 ```javascript
 module.exports = async (params) => {
     const { quickAddApi } = params;
-    
+
+    // The simplest correct script: no try/catch at all. A dismissal stops the
+    // macro; a real failure is reported. Only catch if you need to do something
+    // in between.
+    const input = await quickAddApi.inputPrompt("Enter value:");
+    if (input === "") return; // submitted empty on purpose
+
+    // Process input...
+};
+```
+
+If your script does need to react to a cancellation, tell the two apart by the error name:
+
+```javascript
+module.exports = async (params) => {
+    const { quickAddApi } = params;
+
     try {
         const input = await quickAddApi.inputPrompt("Enter value:");
-        
-        if (!input) {
-            // User cancelled - handle gracefully
+        // Process input...
+    } catch (error) {
+        if (error?.name === "MacroAbortError") {
+            // The user backed out. Clean up and stop.
             return;
         }
-        
-        // Process input...
-        
-    } catch (error) {
-        console.error("Script error:", error);
-        
-        await quickAddApi.infoDialog(
-            "Error",
-            `An error occurred: ${error.message}`
-        );
+        throw error; // a real failure - let QuickAdd report it
     }
 };
 ```

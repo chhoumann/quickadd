@@ -92,14 +92,18 @@ function stripBrandPrefix(message: string): string {
 export function describePreviewFailure(error: unknown): string | null {
 	// A cancelled prompt is a user action, not an authoring mistake. The preview
 	// formatters never prompt, but a nested resolver still can. Check the RAW
-	// value first: QuickAdd's modals reject with a bare string
-	// (`rejectPromise("No input given.")`), and `isCancellationError` only ever
-	// matches strings - so an `instanceof Error` gate ahead of it would let every
-	// cancellation through as "Preview unavailable".
+	// value first, before the `instanceof Error` gate below: a dismissal is a
+	// typed UserCancelError (#1577), and letting it reach that gate would report
+	// every cancellation as "Preview unavailable".
 	if (isCancellationError(error)) return null;
 	if (!(error instanceof Error)) return PREVIEW_FAILED_MESSAGE;
 	const message = error.message ?? "";
-	// Also covers a cancellation that was wrapped in an Error on the way up.
+	// Covers a USER SCRIPT that throws an Error whose message is one of the legacy
+	// sentinels (see `isCancellationError`) - the shape a script written against the
+	// pre-#1577 strings still uses. It deliberately does NOT cover
+	// `toError(err, context)`, which prefixes the context and so matches no sentinel;
+	// adding the canonical message to that set would not fix it either, and nothing
+	// wraps on the way into this function.
 	if (isCancellationError(message)) return null;
 	// By far the most frequent throw: the token autocomplete inserts `{{VALUE:}}`
 	// with the caret between the colon and the braces, and VARIABLE_REGEX matches

@@ -1,6 +1,7 @@
 import { log } from "../logger/logManager";
 import type { ErrorLevel } from "../logger/errorLevel";
 import { ErrorLevel as ErrorLevelEnum } from "../logger/errorLevel";
+import { UserCancelError } from "../errors/UserCancelError";
 
 /**
  * Maximum number of errors to keep in the error log
@@ -54,38 +55,50 @@ export function toError(err: unknown, contextMessage?: string): Error {
 }
 
 /**
- * Checks if an error indicates user cancellation rather than a real error.
- * Used to distinguish between intentional user cancellations (Escape key, Cancel button)
- * and actual errors (network failures, file system errors, etc.)
- * 
+ * Checks if a caught value means "the user backed out" rather than "something broke".
+ *
+ * Every QuickAdd prompt signals a dismissal by throwing {@link UserCancelError}
+ * (see `promptCancelled()`), so this is an `instanceof` check. Because
+ * `UserCancelError extends MacroAbortError`, a dismissal that nobody classifies still
+ * aborts the run quietly instead of being reported as a failure.
+ *
  * @param error - The error to check
  * @returns true if the error indicates user cancellation, false otherwise
- * 
+ *
  * @example
  * ```ts
  * try {
  *   const result = await promptUser();
  * } catch (error) {
- *   if (isCancellationError(error)) {
- *     throw new MacroAbortError("Input cancelled by user");
- *   }
- *   throw error; // Re-throw actual errors
+ *   if (isCancellationError(error)) return null; // the user backed out
+ *   throw error; // a real failure
  * }
  * ```
  */
 export function isCancellationError(error: unknown): boolean {
-	if (typeof error !== "string") return false;
-	
-	const cancellationMessages = [
-		"no input given.",      // GenericSuggester, InputSuggester, GenericCheckboxPrompt
-		"No input given.",      // GenericInputPrompt, MathModal
-		// GenericYesNoPrompt is deliberately absent: it resolves a dismissal
-		// instead of rejecting, so it never reaches this check (#1567).
-		"cancelled"             // OnePagePreflight
-	];
-	
-	return cancellationMessages.includes(error);
+	// QuickAdd's own prompts throw a typed cancellation (#1577). This is the whole
+	// check for every in-plugin prompt; the sentinels below are compatibility only.
+	if (error instanceof UserCancelError) return true;
+
+	// Legacy sentinels. QuickAdd's prompts used to reject with one of these bare
+	// English sentences and nothing else, so a *user script* may still throw one
+	// (or re-throw one it caught), and MacroChoiceEngine has honoured that for as
+	// long as the sentinels existed. Kept for that reason alone - no QuickAdd code
+	// produces them any more, which `errorUtils.cancellationContract.test.ts`
+	// pins. Do not add to this list: a new prompt throws `promptCancelled()`.
+	return typeof error === "string" && LEGACY_CANCELLATION_SENTINELS.has(error);
 }
+
+/**
+ * Bare-string cancellations QuickAdd's prompts rejected with before #1577.
+ * Note the two case variants of one sentence - that inconsistency is exactly why
+ * string matching was the wrong signal.
+ */
+const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
+	"no input given.", // GenericSuggester, InputSuggester, GenericCheckboxPrompt, MultiSuggester
+	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal, MultiChoiceSettingsModal
+	"cancelled", // OnePageInputModal
+]);
 
 /**
  * Reports an error to the logging system with additional context

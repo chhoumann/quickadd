@@ -4,6 +4,8 @@ import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "../constants";
+import { promptCancelled } from "../errors/UserCancelError";
+import { log } from "../logger/logManager";
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: vi.fn() },
@@ -171,10 +173,16 @@ describe("runTemplateFromFolder", () => {
 		expect(choice.templatePath).toBe("Templates/Daily.md");
 	});
 
-	it("does not execute when the picker is cancelled", async () => {
+	// The `isCancellationError -> return null` shape, driven with what the picker
+	// ACTUALLY rejects with since #1577. The legacy string is kept as a second case
+	// because a user script can still throw one and the contract honours that.
+	it.each([
+		["a typed dismissal", () => promptCancelled()],
+		["a legacy sentinel a user script may throw", () => "no input given."],
+	])("does not execute when the picker is cancelled with %s", async (_label, make) => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const executor = createExecutor();
-		// GenericSuggester rejects with this exact reason on dismissal.
-		suggestMock.mockRejectedValueOnce("no input given.");
+		suggestMock.mockRejectedValueOnce(make());
 		await runTemplateFromFolder(
 			app,
 			createPlugin({
@@ -184,6 +192,26 @@ describe("runTemplateFromFolder", () => {
 			{ choiceExecutor: executor },
 		);
 		expect(executor.execute).not.toHaveBeenCalled();
+		// Quietly: backing out of the picker is not an error to report.
+		expect(logError).not.toHaveBeenCalled();
+		logError.mockRestore();
+	});
+
+	it("reports a genuine picker failure instead of failing silently", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const executor = createExecutor();
+		suggestMock.mockRejectedValueOnce(new Error("index unavailable"));
+		await runTemplateFromFolder(
+			app,
+			createPlugin({
+				templateFolderPaths: ["Templates"],
+				templateFiles: [tfile("Templates/Daily.md")],
+			}),
+			{ choiceExecutor: executor },
+		);
+		expect(executor.execute).not.toHaveBeenCalled();
+		expect(logError).toHaveBeenCalledTimes(1);
+		logError.mockRestore();
 	});
 });
 

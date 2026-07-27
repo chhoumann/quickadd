@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemotePromptProvider } from "./promptProvider";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import type { interactivePromptServer } from "./interactivePromptServer";
+import { promptCancelled } from "../errors/UserCancelError";
 
 type ServerLike = typeof interactivePromptServer;
 
@@ -9,6 +10,19 @@ type ServerLike = typeof interactivePromptServer;
 function fakeServer(answer: unknown): ServerLike {
 	return {
 		emitPrompt: vi.fn(async () => answer),
+	} as unknown as ServerLike;
+}
+
+/**
+ * A server stub that REJECTS every emitPrompt, which is what a client cancel does
+ * (`submitReply(..., cancelled: true)`). The resolving stub above cannot express
+ * that, which is why nothing pinned cancel propagation through the provider before.
+ */
+function rejectingServer(error: unknown): ServerLike {
+	return {
+		emitPrompt: vi.fn(async () => {
+			throw error;
+		}),
 	} as unknown as ServerLike;
 }
 
@@ -176,5 +190,76 @@ describe("RemotePromptProvider suggester marshaling", () => {
 			allowCustomInput: true,
 		});
 		expect(result).toEqual(["custom-x"]);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Cancel propagation (#1574)
+// ---------------------------------------------------------------------------
+
+describe("RemotePromptProvider cancel propagation", () => {
+	// A client cancel must abort the run exactly like dismissing the Obsidian modal.
+	// The file's own contract ("returns exactly what its in-app counterpart returns")
+	// only holds if this is true for EVERY method, so every method is covered.
+	const calls: Array<[string, (p: RemotePromptProvider) => Promise<unknown>]> = [
+		["suggester", (p) => p.suggester(["a"], ["a"])],
+		["suggesterMulti", (p) => p.suggesterMulti(["a"], ["a"])],
+		["inputPrompt", (p) => p.inputPrompt("H")],
+		["wideInputPrompt", (p) => p.wideInputPrompt("H")],
+		["datePrompt", (p) => p.datePrompt("H")],
+		["yesNoPrompt", (p) => p.yesNoPrompt("H")],
+		["checkboxPrompt", (p) => p.checkboxPrompt(["a"])],
+		["infoDialog", (p) => p.infoDialog("H", "t")],
+		["requestInputs", (p) => p.requestInputs([dateField("d")])],
+	];
+
+	for (const [name, call] of calls) {
+		it(`${name} propagates a client cancel as UserCancelError`, async () => {
+			const cancelled = promptCancelled();
+			const provider = new RemotePromptProvider("s", rejectingServer(cancelled));
+			await expect(call(provider)).rejects.toBe(cancelled);
+		});
+
+		it(`${name} propagates a session failure untouched`, async () => {
+			const failure = new Error("Interactive session ended");
+			const provider = new RemotePromptProvider("s", rejectingServer(failure));
+			await expect(call(provider)).rejects.toBe(failure);
+		});
+	}
+});
+
+// ---------------------------------------------------------------------------
+// confirm replies (#1574)
+// ---------------------------------------------------------------------------
+
+describe("RemotePromptProvider yesNoPrompt reply validation", () => {
+	it.each([
+		[true, true],
+		["true", true],
+		[false, false],
+		["false", false],
+	])("accepts %o as %s", async (answer, expected) => {
+		const provider = new RemotePromptProvider("s", fakeServer(answer));
+		expect(await provider.yesNoPrompt("H")).toBe(expected);
+	});
+
+	// In-app, `false` can ONLY come from clicking No. A reply that is neither a
+	// boolean nor a cancel used to be silently read as No, so the script took its
+	// else-branch on an answer the user never gave (#1574).
+	it.each([[null], [undefined], ["nope"], [0], [1], [{}], [[]]])(
+		"rejects %o instead of fabricating a No",
+		async (answer) => {
+			const provider = new RemotePromptProvider("s", fakeServer(answer));
+			await expect(provider.yesNoPrompt("H")).rejects.toThrow(
+				/confirm prompt needs a boolean reply/,
+			);
+		},
+	);
+
+	it("names the documented cancel form in the error so a client can fix itself", async () => {
+		const provider = new RemotePromptProvider("s", fakeServer(null));
+		await expect(provider.yesNoPrompt("H")).rejects.toThrow(
+			/\{"cancelled": true\}/,
+		);
 	});
 });

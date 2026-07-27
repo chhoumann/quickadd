@@ -6,6 +6,7 @@ import {
 	normalizeDisplayItem,
 	normalizeQuery,
 } from "../suggesters/utils";
+import { promptCancelled } from "../../errors/UserCancelError";
 
 type SuggestRender<T> = (value: T, el: HTMLElement) => void;
 
@@ -275,7 +276,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	onClose() {
 		super.onClose();
 
-		if (!this.resolved) this.rejectPromise("no input given.");
+		if (!this.resolved) this.rejectPromise(promptCancelled());
 	}
 
 	private warnIfEmptyDisplay(): void {

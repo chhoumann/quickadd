@@ -7,6 +7,19 @@
  * datePrompt / yesNoPrompt / checkboxPrompt / infoDialog. Each method returns
  * exactly what its in-app counterpart returns, so a script cannot tell it was
  * driven remotely.
+ *
+ * A dismissal is part of that contract, not an exception to it: a client replies
+ * `{"cancelled": true}` (see `submitReply`), the pending prompt rejects with
+ * `UserCancelError`, and the run aborts exactly as it does when the Obsidian modal
+ * is dismissed - same class, same message. `promptProvider.test.ts` pins that for
+ * every method.
+ *
+ * One genuine asymmetry, kept deliberately: cancelling an `info` prompt aborts the
+ * run, while `GenericInfoDialog` in-app has no reject path and can never abort
+ * anything. Removing it would take away a remote client's only way to bail out
+ * mid-run, so it stays and is documented at the wire (docs/.../Advanced/CLI.md)
+ * instead: a client that just wants to close an info panel should send a plain
+ * reply, not a cancel.
  */
 
 import { formatISODate } from "../utils/dateParser";
@@ -22,6 +35,16 @@ import {
  * user input effectively impossible.
  */
 const SUGGESTER_INDEX_PREFIX = "\u0000qa-idx:";
+
+/** A short, safe rendering of a bad reply for a protocol error message. */
+function describeReply(answer: unknown): string {
+	if (answer === undefined) return "no value";
+	if (answer === null) return "null";
+	if (typeof answer === "string") return JSON.stringify(answer.slice(0, 40));
+	if (typeof answer === "number" || typeof answer === "boolean")
+		return String(answer);
+	return Array.isArray(answer) ? "an array" : typeof answer;
+}
 
 export interface PromptProvider {
 	/** Batch multi-field prompt (`quickAddApi.requestInputs`). Returns id -> value. */
@@ -238,13 +261,41 @@ export class RemotePromptProvider implements PromptProvider {
 		return formatted ?? iso;
 	}
 
+	/**
+	 * Yes/No is the one prompt where a malformed reply is indistinguishable from a
+	 * real answer, so it is the one prompt that validates.
+	 *
+	 * In-app, `false` can only come from clicking No: dismissing resolves a
+	 * three-state `null` that aborts the run. This used to collapse every non-`true`
+	 * reply to `false`, so a client that omitted `value`, sent `null` (the shape
+	 * #1574 proposed for a dismissal), or sent a typo silently answered "No" and the
+	 * script walked its else-branch (#1574). A dismissal already has a wire
+	 * representation - `{"cancelled": true}`, documented and rejecting with
+	 * UserCancelError - so anything that is neither a boolean nor a cancel is a
+	 * client bug, and failing beats inventing an answer the user never gave.
+	 *
+	 * A live client never sees this throw: the same rule is enforced at `/reply`
+	 * (`describeReplyProblem`), where a 400 reaches the client while it is still
+	 * holding the response and the prompt stays pending. This is the backstop for
+	 * every other caller of the provider, and the reason it is not the primary check
+	 * is that on the Template/Capture path a thrown message is replaced by a generic
+	 * sentence before the client ever polls for it.
+	 *
+	 * The other prompt types stay lenient on purpose: `""` and `[]` are answers a
+	 * user really can give in-app (the Skip affordances, optional fields), so
+	 * tightening them would break optional prompts on remote runs.
+	 */
 	async yesNoPrompt(header: string, text?: string): Promise<boolean> {
 		const answer = await this.server.emitPrompt(this.sessionId, {
 			type: "confirm",
 			header,
 			text,
 		});
-		return answer === true || answer === "true";
+		if (answer === true || answer === "true") return true;
+		if (answer === false || answer === "false") return false;
+		throw new Error(
+			`A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeReply(answer)}.`,
+		);
 	}
 
 	async checkboxPrompt(

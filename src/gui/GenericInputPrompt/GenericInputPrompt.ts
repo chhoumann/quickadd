@@ -8,6 +8,7 @@ import { positionInputPromptCursor } from "../inputPromptCursor";
 import { renderPromptContextLine } from "../promptContextLine";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
+import { promptCancelled } from "../../errors/UserCancelError";
 
 /**
  * The keyboard gesture that skips an optional prompt: ctrl/cmd+shift+Enter.
@@ -290,7 +291,7 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	private resolveInput() {
-		if (!this.didSubmit) this.rejectPromise("No input given.");
+		if (!this.didSubmit) this.rejectPromise(promptCancelled());
 		else this.resolvePromise(this.input);
 	}
 

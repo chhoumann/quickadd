@@ -151,6 +151,40 @@ acknowledgement, `form` → an object mapping each field's `id` to its string
 value (date fields use the `@date:ISO` format). The run's outcome arrives as the
 `done`/`error` poll event.
 
+### Cancelling
+
+`{"cancelled":true}` is how you say *the user dismissed this prompt*. It aborts
+the run exactly as pressing Escape on the in-app dialog does.
+
+Do not use it just to close an `info` panel. `info` is the one prompt that cannot
+be cancelled in the app - the dialog has no reject path - so cancelling it
+remotely aborts a run that would have continued. Send a plain reply instead. It
+stays cancellable because it is a client's only explicit way to bail out mid-run.
+
+### When a reply is rejected
+
+:::note[Available in the next release]
+The `400`-and-retry semantics below are new. Before them, a `cancelled` flag that was not the
+literal `true` was consumed as a cancellation, and a `confirm` prompt with no value was read as
+"No".
+:::
+
+`/reply` answers `400` and leaves the prompt **pending** when it cannot honour
+what you sent, so you can correct the reply and POST again. Two cases:
+
+- `cancelled` is present but is not a boolean (`"true"`, `1`, `"no"`). QuickAdd
+  will neither abort on a flag it does not recognise nor quietly answer the prompt
+  on the user's behalf, so it asks you to fix the flag. Use the literal `true`;
+  `false` and omitting it both mean "this is a real answer".
+- a `confirm` reply whose `value` is not `true`/`false`. The user never answered,
+  and QuickAdd will not invent a "No" for them.
+
+Every other prompt type accepts whatever you send, including an empty answer:
+`""` and `[]` are things a user genuinely submits in the app (the Skip buttons,
+optional fields), so they must stay legal here too.
+
+A `409` means nothing was waiting on that `requestId`.
+
 Good to know:
 
 - **Desktop only.** The bridge binds to `127.0.0.1`, is gated by the per-session `token`, rejects browser (`Origin`/`Referer`) and non-loopback `Host` requests, and the server is ephemeral - it starts on the first session and stops when the last one ends.

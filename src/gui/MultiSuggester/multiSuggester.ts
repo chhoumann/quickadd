@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
+import { promptCancelled } from "../../errors/UserCancelError";
 
 export interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
@@ -237,7 +238,7 @@ export default class MultiSuggester extends Modal {
 		if (this.didSubmit) {
 			this.resolvePromise(this.skipped ? [] : this.collectResult());
 		} else {
-			this.rejectPromise("no input given.");
+			this.rejectPromise(promptCancelled());
 		}
 	}
 }

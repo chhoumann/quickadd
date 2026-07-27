@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { addChoiceIconSetting } from "./ChoiceBuilder/components/choiceIconSetting";
+import { promptCancelled } from "../errors/UserCancelError";
 
 export class MultiChoiceSettingsModal extends Modal {
 	public waitForClose: Promise<IMultiChoice | undefined>;
@@ -88,7 +89,7 @@ export class MultiChoiceSettingsModal extends Modal {
 	onClose() {
 		super.onClose();
 		if (!this.didSubmit) {
-			this.rejectPromise("No input given.");
+			this.rejectPromise(promptCancelled());
 			return;
 		}
 

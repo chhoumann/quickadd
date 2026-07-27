@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { log } from "src/logger/logManager";
+import { isCancellationError, toError } from "../utils/errorUtils";
 import type { ChoiceType } from "../types/choices/choiceType";
 import { choiceNounCapitalized } from "../utils/choiceNoun";
 
@@ -29,10 +30,11 @@ export async function promptRenameChoice(
 		if (!trimmed || trimmed === currentName) return null;
 		return trimmed;
 	} catch (error) {
-		// GenericInputPrompt rejects with a string ("No input given.") when the
-		// user cancels (Esc/Cancel) — that is expected, not an error. Surface only
-		// genuine failures (Error instances) instead of swallowing them silently.
-		if (error instanceof Error) log.logError(error);
+		// A dismissal (Esc/Cancel) is expected, not an error. Ask the cancellation
+		// contract rather than gating on `instanceof Error`: since #1577 a dismissal
+		// IS an Error, so that gate would report every cancelled rename as a failure.
+		if (isCancellationError(error)) return null;
+		log.logError(toError(error, "Could not rename"));
 		return null;
 	}
 }
