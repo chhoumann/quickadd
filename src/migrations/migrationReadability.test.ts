@@ -93,6 +93,35 @@ describe("settingsTreeHasUnreadableData", () => {
 		});
 	});
 
+	it("reads a nested ARRAY as a list, the same way the editor seam does", () => {
+		// `typeof [] === "object"`, so without an explicit branch the visitor is
+		// handed the array itself, descends nothing, and reports READABLE - while
+		// `normalizeChoiceList` splices its members into the tree at the settings
+		// seam. The two halves must agree, or a migration is flagged complete over
+		// a choice the settings tab then makes real.
+		const plugin = makePlugin({
+			choices: [[hiddenCapture()]],
+			migrations: {},
+		});
+
+		expect(
+			settingsTreeHasUnreadableData({ choices: [[hiddenCapture()]] as never }),
+		).toBe(false);
+
+		void backfillFileOpeningDefaults.migrate(plugin);
+
+		const nested = (
+			(plugin.settings as unknown as { choices: Record<string, unknown>[][] })
+				.choices[0]
+		)[0];
+		expect(nested.fileOpening).toEqual({
+			location: "split",
+			direction: "horizontal",
+			mode: "default",
+			focus: false,
+		});
+	});
+
 	it("sees an unreadable conditional branch", () => {
 		expect(
 			settingsTreeHasUnreadableData({
@@ -155,24 +184,54 @@ describe("the guarded migrations over an unreadable macro.commands", () => {
 		macroChoiceWith({ "0": nested() }),
 	];
 
+	// Each row carries its OWN effect assertion. A shared one that merely checked
+	// "something is truthy" would pass with every visitor body deleted, which is
+	// exactly what the first version of this test did.
+	const legacyFileOpening = {
+		location: "split",
+		direction: "horizontal",
+		mode: "default",
+		focus: false,
+	};
+
 	it.each([
-		["backfillFileOpeningDefaults", backfillFileOpeningDefaults],
-		["migrateFileOpeningSettings", migrateFileOpeningSettings],
-		["consolidateFileExistsBehavior", consolidateFileExistsBehavior],
-	])("%s stays pending instead of being flagged complete", async (_name, migration) => {
-		const plugin = makePlugin({
-			choices: treeWithHiddenChoice(),
-			migrations: {},
-		});
+		[
+			"backfillFileOpeningDefaults",
+			backfillFileOpeningDefaults,
+			(c: Record<string, unknown>) =>
+				expect(c.fileOpening).toEqual(legacyFileOpening),
+		],
+		[
+			"migrateFileOpeningSettings",
+			migrateFileOpeningSettings,
+			(c: Record<string, unknown>) =>
+				expect(c.fileOpening).toEqual(legacyFileOpening),
+		],
+		[
+			"consolidateFileExistsBehavior",
+			consolidateFileExistsBehavior,
+			(c: Record<string, unknown>) =>
+				expect(c.fileExistsBehavior).toBeDefined(),
+		],
+	])(
+		"%s stays pending instead of being flagged complete",
+		async (_name, migration, assertReadableHalfRan) => {
+			const plugin = makePlugin({
+				choices: treeWithHiddenChoice(),
+				migrations: {},
+			});
 
-		const result = await migration.migrate(plugin);
+			const result = await migration.migrate(plugin);
 
-		expect(result).toEqual({ complete: false });
-		// The readable half still ran - staying pending must not mean doing nothing,
-		// or a user who never repairs data.json gets no migration at all.
-		const settings = plugin.settings as unknown as { choices: Record<string, unknown>[] };
-		expect(settings.choices[0].fileOpening ?? settings.choices[0].type).toBeTruthy();
-	});
+			expect(result).toEqual({ complete: false });
+			// The readable half still ran - staying pending must not mean doing
+			// nothing, or a user who never repairs data.json gets no migration at all.
+			const settings = plugin.settings as unknown as {
+				choices: Record<string, unknown>[];
+			};
+			assertReadableHalfRan(settings.choices[0]);
+		},
+	);
 
 	it("does not write data.json itself while pending", async () => {
 		const plugin = makePlugin({ choices: treeWithHiddenChoice(), migrations: {} });
@@ -238,14 +297,46 @@ describe("an untrusted settings.macros", () => {
 		);
 	});
 
-	it("steps over a hole in the legacy macro list", async () => {
+	it.each([
+		["removeMacroIndirection", removeMacroIndirection],
+		[
+			"incrementFileNameSettingMoveToDefaultBehavior",
+			incrementFileNameSettingMoveToDefaultBehavior,
+		],
+		[
+			"mutualExclusionInsertAfterAndWriteToBottomOfFile",
+			mutualExclusionInsertAfterAndWriteToBottomOfFile,
+		],
+	])("%s steps over a hole in the legacy macro list", async (_name, migration) => {
+		// `macros: [null, ...]` IS an array, so it reads as readable and reaches the
+		// loop - where `macro.commands` on a hole throws, aborting and reverting the
+		// migration on every launch.
 		const plugin = makePlugin({
 			choices: [],
-			macros: [null, { id: "m", name: "M", commands: [] }],
+			macros: [null, "stray", { id: "m", name: "M", commands: [] }],
 			migrations: {},
 		});
 
-		await expect(removeMacroIndirection.migrate(plugin)).resolves.toBeUndefined();
+		await expect(migration.migrate(plugin)).resolves.not.toThrow();
+	});
+
+	it.each([
+		[
+			"incrementFileNameSettingMoveToDefaultBehavior",
+			incrementFileNameSettingMoveToDefaultBehavior,
+		],
+		[
+			"mutualExclusionInsertAfterAndWriteToBottomOfFile",
+			mutualExclusionInsertAfterAndWriteToBottomOfFile,
+		],
+	])("%s reads an ARRAY-valued legacy macro as its command list", async (_name, migration) => {
+		const plugin = makePlugin({
+			choices: [],
+			macros: [[nested()]],
+			migrations: {},
+		});
+
+		await expect(migration.migrate(plugin)).resolves.toBeUndefined();
 	});
 });
 

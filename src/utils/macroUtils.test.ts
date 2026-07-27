@@ -84,6 +84,39 @@ describe("isCommandLike", () => {
 	});
 });
 
+describe("normalizeCommandList over a nested array entry", () => {
+	// `isCommandLike([])` is true, so without an explicit branch an array entry
+	// takes the re-key path and the normalizer MANUFACTURES `{"0":…,"1":…,id:…}` -
+	// two real commands collapsed into one nameless row, persisted by the next
+	// edit. Read as a nested list instead, byte-symmetric with
+	// `normalizeChoiceList` (#1608).
+	it("splices a nested list in, preserving order and ids", () => {
+		const { commands, changed } = normalizeCommandList([
+			wait("a"),
+			[wait("b"), wait("c")],
+			wait("d"),
+		]);
+
+		expect(changed).toBe(true);
+		expect(commands.map((c) => c.id)).toEqual(["a", "b", "c", "d"]);
+	});
+
+	it("re-keys an id that collides ACROSS nesting levels", () => {
+		const { commands } = normalizeCommandList([wait("dup"), [wait("dup")]]);
+
+		expect(commands).toHaveLength(2);
+		expect(commands[0].id).toBe("dup");
+		expect(commands[1].id).not.toBe("dup");
+		expect(commands[1].id).not.toBe("");
+	});
+
+	it("splices a junk array away to nothing", () => {
+		const { commands } = normalizeCommandList([[1, 2, 3], wait("a")]);
+
+		expect(commands.map((c) => c.id)).toEqual(["a"]);
+	});
+});
+
 describe("normalizeCommandList", () => {
 	it("is identity for a healthy list - same array, nothing changed", () => {
 		const commands = [wait("a"), wait("b")];

@@ -32,8 +32,12 @@ const backfillFileOpeningDefaults: Migration = {
 		// A MISSING `fileOpening`, by contrast, needs no guard at all: the engines
 		// call `normalizeFileOpening(this.choice.fileOpening)` on every run, so the
 		// defaults half is fully compensated at runtime.
+		//
+		// This migration does NOT call saveSettings() itself: migrate.ts re-syncs the
+		// store and saves once after the whole run. A per-migration write would be a
+		// full data.json rewrite, and once this can stay PENDING that is one on every
+		// launch, straight into Obsidian Sync's whole-file last-write-wins.
 		const unreadable = settingsTreeHasUnreadableData(plugin.settings);
-
 
 		let migratedCount = 0;
 
@@ -83,9 +87,6 @@ const backfillFileOpeningDefaults: Migration = {
 			`File opening defaults backfill complete. Updated ${migratedCount} choice(s).`,
 		);
 
-		// See migrateFileOpeningSettings: migrate.ts owns the single post-migration
-		// save, so a per-migration write here is redundant and, while pending, is
-		// charged on every launch.
 		if (unreadable) return { complete: false };
 	},
 };

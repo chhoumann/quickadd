@@ -33,6 +33,11 @@ const migrateFileOpeningSettings: Migration = {
 		// A MISSING `fileOpening`, by contrast, needs no guard at all: the engines
 		// call `normalizeFileOpening(this.choice.fileOpening)` on every run, so the
 		// defaults half is fully compensated at runtime.
+		//
+		// This migration does NOT call saveSettings() itself: migrate.ts re-syncs the
+		// store and saves once after the whole run. A per-migration write would be a
+		// full data.json rewrite, and once this can stay PENDING that is one on every
+		// launch, straight into Obsidian Sync's whole-file last-write-wins.
 		const unreadable = settingsTreeHasUnreadableData(plugin.settings);
 
 		
@@ -73,10 +78,6 @@ const migrateFileOpeningSettings: Migration = {
 		
 		log.logMessage(`Migration complete. Migrated ${migratedCount} choices.`);
 
-		// No saveSettings() here: migrate.ts re-syncs the store and saves once after
-		// every migration has run. Saving per-migration cost a full data.json write
-		// each - which, for a vault that stays PENDING, is a write on every single
-		// launch, straight into Obsidian Sync's whole-file last-write-wins.
 		if (unreadable) return { complete: false };
 	},
 };

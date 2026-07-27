@@ -41,6 +41,15 @@ function walkChoice(
 	visited: Set<IChoice>,
 ): void {
 	if (!choice || typeof choice !== "object") return;
+	// An ARRAY entry is a NESTED LIST, not a choice - the same reading
+	// `normalizeChoiceList` gives it at the editor seam, and the two have to agree
+	// or this walk reports "readable" for a subtree the settings tab will happily
+	// splice back into the tree (#1608/#1610). `typeof [] === "object"`, so
+	// without this the visitor is handed the array itself and descends nothing.
+	if (Array.isArray(choice)) {
+		for (const child of choice) walkChoice(child, visitors, visited);
+		return;
+	}
 	if (visited.has(choice)) return;
 
 	visited.add(choice);
@@ -79,6 +88,11 @@ function walkCommands(
 
 	for (const command of commands) {
 		if (!command || typeof command !== "object") continue;
+		// Same reading as `normalizeCommandList`: a nested list is spliced in.
+		if (Array.isArray(command)) {
+			walkCommands(command, visitors, visited);
+			continue;
+		}
 
 		visitors.onCommand?.(command);
 

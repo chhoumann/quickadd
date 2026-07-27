@@ -122,7 +122,7 @@ export function rootChoicesOf(value: unknown): IChoice[] {
  *
  * The sibling of `isUnreadableCommandList` in macroUtils.ts, deliberately kept
  * as a sibling rather than a shared module (the same shape as
- * `isChoiceLike`/`isCommandLike` and `hasChildChoices`/`hasCommandList`). The
+ * `isChoiceLike`/`isCommandLike` and `rootChoicesOf`/`rootMacrosOf`). The
  * two must answer identically for every value; `unreadableValuePredicates.test.ts`
  * is the ratchet that says so, over the union of both shape lists.
  *

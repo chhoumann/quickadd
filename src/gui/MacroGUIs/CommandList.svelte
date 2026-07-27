@@ -3,7 +3,6 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
-import { nextCommandZoneId } from "./commandZoneId";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
@@ -80,6 +79,9 @@ const renderable = $derived.by(() => {
 // into the builder underneath, and both editors then rendered a list that
 // disagreed with the stored macro.
 //
+// The id comes from Svelte's own `$props.id()` (a runtime-wide uid counter,
+// already used by LabeledField), so no bespoke counter is needed.
+//
 // A unique type rather than `dropFromOthersDisabled`, which was tried first and
 // is worse: the target does refuse, but the library then runs its
 // "left for a zone that refuses" path, which re-dispatches the origin's items
@@ -90,7 +92,8 @@ const renderable = $derived.by(() => {
 // leaving this one is an ordinary "outside of any zone" drag: the command
 // springs back, which is the correct behaviour for a gesture QuickAdd does not
 // offer.
-const zoneType = `command:${nextCommandZoneId()}`;
+const zoneId = $props.id();
+const zoneType = `command:${zoneId}`;
 
 const isMobile = Platform.isMobile;
 // Desktop: drag is armed by grabbing the handle (shared with the choices list; see

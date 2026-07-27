@@ -4,7 +4,11 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { duplicateChoice } from "./choiceService";
 import type IChoice from "../types/choices/IChoice";
-import { createUserScriptSecretRef } from "../utils/userScriptSecrets";
+import {
+	buildUserScriptSecretId,
+	createUserScriptSecretRef,
+} from "../utils/userScriptSecrets";
+import type { IUserScript } from "../types/macros/IUserScript";
 
 /**
  * #1609. `regenerateIds` re-ided the macro and its TOP-LEVEL commands only, so a
@@ -119,8 +123,8 @@ describe("duplicating a macro", () => {
 	});
 
 	it("carries no secret reference belonging to the original", () => {
-		// The symptom, not the mechanism: an ids-only assertion passes while the
-		// reported bug still reproduces through a path that never re-ids.
+		// Pins the STRIP half: it already recursed branch commands and a nested
+		// choice's own macro before this change, and must keep doing so.
 		const source = macroChoice({
 			id: "m",
 			name: "Macro",
@@ -131,6 +135,32 @@ describe("duplicating a macro", () => {
 
 		expect(collectSecretRefs(source)).toContain("secrets-api-key");
 		expect(collectSecretRefs(copy)).toEqual([]);
+	});
+
+	it("gives a nested user script a DIFFERENT stored-secret slot", () => {
+		// The reported symptom, asserted directly. Stripping the ref is not enough:
+		// `migrateUserScriptSecretSettings` re-adopts an existing secret by
+		// `buildUserScriptSecretId`, which keys on `command.id` - so while the copy's
+		// nested command kept the original's id, the copy silently adopted the
+		// original's slot and the next edit overwrote the original's key.
+		const source = macroChoice({
+			id: "m",
+			name: "Macro",
+			commands: deepMacroCommands(),
+		});
+
+		const copy = duplicateChoice(source);
+
+		const nestedScript = (choice: IChoice): IUserScript => {
+			const commands = (choice as unknown as Record<string, Record<string, unknown[]>>)
+				.macro.commands as Record<string, unknown>[];
+			const conditional = commands[1] as unknown as Record<string, IUserScript[]>;
+			return conditional.thenCommands[0];
+		};
+
+		expect(
+			buildUserScriptSecretId(nestedScript(copy), "API key"),
+		).not.toBe(buildUserScriptSecretId(nestedScript(source), "API key"));
 	});
 
 	it("does the same for an ARRAY-valued macro, where the array IS the commands", () => {

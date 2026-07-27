@@ -254,6 +254,37 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 		expect(row!.getAttribute("data-choice-id")).toBe(idBefore);
 	});
 
+	it("keeps repaired ids stable, and registers one command, across a RE-MOUNT", () => {
+		// The settings tab destroys and re-mounts this view every time it is opened,
+		// so a memo living in the component would miss it: each open would mint a
+		// fresh uuid for the same unrepaired choice and register another command for
+		// it, leaving one dead palette entry per open (nothing is persisted at seed
+		// time, so the old id is still what `getChoice` resolves).
+		const addCommandForChoice = vi.fn();
+		const tree = [
+			{ name: "No id", type: "Capture", command: true } as IChoice,
+		];
+
+		const ids = [0, 1, 2].map(() => {
+			const { container, unmount } = render(ChoiceView, {
+				props: {
+					app: new App() as never,
+					plugin: { addCommandForChoice } as unknown as QuickAdd,
+					choices: tree,
+					saveChoices: vi.fn(),
+				},
+			});
+			const id = container
+				.querySelector("[data-choice-id]")!
+				.getAttribute("data-choice-id");
+			unmount();
+			return id;
+		});
+
+		expect(new Set(ids).size, `ids across mounts: ${ids.join(", ")}`).toBe(1);
+		expect(addCommandForChoice).toHaveBeenCalledTimes(1);
+	});
+
 	it("does not persist a fabricated [] when an unrelated folder is collapsed", () => {
 		// The regression that a naive "use the accessor everywhere" fix introduces:
 		// updateMultiById re-spreads every folder it walks past, and collapsing runs

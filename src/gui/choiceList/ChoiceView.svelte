@@ -37,8 +37,8 @@
 		childChoicesOf,
 		hasChildChoices,
 		isChoiceLike,
-		normalizeChoiceList,
 	} from "../../utils/choiceUtils";
+	import { hasSeeded, seedChoiceTree } from "./seedChoiceTree";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { choiceNoun } from "../../utils/choiceNoun";
 	import { reportingHandler } from "../../utils/errorUtils";
@@ -99,34 +99,37 @@
 	// Nothing is persisted by this: the repair reaches disk with the user's first
 	// ordinary edit, so opening and closing the settings tab changes nothing —
 	// the same contract CommandSequenceEditor's constructor keeps for commands.
-	//
-	// MEMOIZED on the raw store value, and that is load-bearing rather than an
-	// optimization. This subscription fires on EVERY settingsStore write, including
-	// ones nothing here caused (the AI provider auto-sync lands one a few seconds
-	// after launch). Re-normalizing an unrepaired array each time would mint a
-	// fresh uuid each time, and every by-id write in this view resolves its target
-	// BEFORE an await — handleConfigureChoice captures the choice, awaits the
-	// builder, then matches on `oldChoice.id === newChoice.id` — so a re-mint
-	// inside that window turns the match into a no-op and silently discards the
-	// user's edits. zustand merges partials, so an unrelated setState leaves
-	// `state.choices` reference-identical and this memo hits.
-	let lastRawChoices: unknown;
-	let lastSeededChoices: IChoice[] = [];
-	function seedChoices(raw: unknown): IChoice[] {
+	// That holds only because the memo behind `seedChoiceTree` outlives this
+	// component; the settings tab destroys and re-mounts the view on every open.
+	function seedChoices(raw: IChoice[]): IChoice[] {
 		// A non-array root is left EXACTLY as it is: `rootUnreadable` refuses to
 		// render it, which is what keeps anything in this view from saving over it.
-		if (!Array.isArray(raw)) return raw as IChoice[];
-		if (raw === lastRawChoices) return lastSeededChoices;
-		const { choices: seeded, repaired } = normalizeChoiceList(raw);
-		lastRawChoices = raw;
-		lastSeededChoices = seeded;
-		// A command was registered at onload under the id data.json held, so a
-		// repaired choice's palette entry would otherwise point at an id that no
-		// longer exists. Register the new one. The stale entry survives until the
-		// next reload — an honest "Choice not found" rather than a silent miss, and
-		// the alternative was the choice being deleted outright.
+		if (!Array.isArray(raw)) return raw;
+		const alreadySeeded = hasSeeded(raw);
+		const { choices: seeded, repaired } = seedChoiceTree(raw);
+		if (alreadySeeded) return seeded;
+
+		// Commands were registered at onload from the ids data.json held, so a
+		// repaired choice has no command under its NEW id. Register one, so it works
+		// the moment the repair is persisted. Until then the OLD id is still what
+		// `getChoice` resolves, so the new entry reports "Choice not found" if run —
+		// an honest error, and the alternative was the choice being deleted outright.
+		//
+		// One failure must cost one command, not the whole list: this runs during
+		// component setup, so an uncaught throw escapes mountComponent and swaps the
+		// entire choice list for the error card (the same argument as main.ts's
+		// per-choice guard around addCommandForChoice).
 		for (const { choice } of repaired) {
-			if (choice.command) commandRegistry.enableCommand(choice);
+			if (!choice.command) continue;
+			try {
+				commandRegistry.enableCommand(choice);
+			} catch (err) {
+				log.logError(
+					`Could not register a command for the repaired choice "${choice.name}": ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+			}
 		}
 		return seeded;
 	}
