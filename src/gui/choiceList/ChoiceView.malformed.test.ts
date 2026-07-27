@@ -93,8 +93,15 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			// No nested list and no add-into-folder control: both write to this
 			// folder's children, and that write would discard the value.
 			expect(container.querySelector(".qa-nested"), shape.key).toBeNull();
+			// Both insertion CTAs write to the same children value, so both must be
+			// absent - covering only one would leave the other destructive path
+			// unguarded by this test.
 			expect(
 				queryByLabelText("Add a choice to Broken"),
+				shape.key,
+			).toBeNull();
+			expect(
+				queryByLabelText("Add a folder to Broken"),
 				shape.key,
 			).toBeNull();
 			unmount();
