@@ -200,7 +200,7 @@ Use these rules when choosing a value:
 - For a local model, use the context window configured for that local model.
 - If you do not know the value, import models from the provider if possible, or use the provider's model documentation.
 
-<a id="max-chunk-tokens"></a>
+### Max chunk tokens {#max-chunk-tokens}
 
 Chunk sizing has no setting of its own. It is the `maxChunkTokens` option of
 [`chunkedPrompt()`](/docs/QuickAddAPI/#max-chunk-tokens) in the script API.

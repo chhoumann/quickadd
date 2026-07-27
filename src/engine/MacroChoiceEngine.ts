@@ -111,7 +111,7 @@ function getUserScriptSettings(
 const RETIRED_COMMAND_TYPES = new Map<string, string>([
 	[
 		"InfiniteAIAssistant",
-		'no released QuickAdd has ever been able to run an "Infinite AI Assistant" command - it had no macro-builder entry and no engine branch in any version, and it has now been removed. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() from a user script.',
+		'QuickAdd has removed the "Infinite AI Assistant" command type - no released version could ever run one. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() in a user script.',
 	],
 ]);
 
