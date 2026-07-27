@@ -17,6 +17,7 @@ import {
 	getCurrentFolderPathPreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
+import { previewGeneratedFilePath } from "../utils/generatedFilePath";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptions } from "../utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
@@ -91,7 +92,20 @@ export class FileNameDisplayFormatter extends Formatter {
 			return input;
 		}
 
-		return output;
+		// The run puts every generated name through this normalizer on the way to
+		// the vault (TemplateChoiceEngine, TemplateInsertEngine,
+		// templateNoteDiscovery, and the capture target via
+		// captureTargetResolution), so a preview that skips it asserts a name the
+		// run will never create: a trailing "." or space is stripped, a backslash is
+		// a path separator, and a run of line breaks - the shape a {{TEMPLATE:}}
+		// body arrives in - collapses to one space (#1563). Non-throwing here: a
+		// preview evaluates incomplete input on every keystroke, so the rejections
+		// the run would abort on become diagnostics instead.
+		const normalized = previewGeneratedFilePath(output);
+		for (const problem of normalized.problems) {
+			this.diagnostics.add("error", problem);
+		}
+		return normalized.path;
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {

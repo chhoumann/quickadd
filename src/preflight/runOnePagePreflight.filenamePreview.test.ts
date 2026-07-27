@@ -115,14 +115,9 @@ beforeEach(() => {
  * escapes into real linebreaks, which are not linebreaks in a path.
  * `FileNameDisplayFormatter` is what `formatFileName` mirrors at run time, and
  * what the builder's own file-name preview already uses.
- *
- * Note the second case is a DIVERGENCE from run time, not parity with it:
- * `formatFileName` does resolve `{{TEMPLATE:}}` (see
- * completeFormatter.promptContext.test.ts). Neither file-name preview does, and
- * pinning that here keeps the gap visible rather than accidental.
  */
 describe("one-page preflight previews the file name with the file-name formatter", () => {
-	it("leaves a backslash-n in the name alone instead of splitting the path", async () => {
+	it("treats a backslash-n as a path separator, not as a linebreak", async () => {
 		await runOnePagePreflight(
 			createApp(),
 			createPlugin(),
@@ -132,7 +127,11 @@ describe("one-page preflight previews the file name with the file-name formatter
 
 		expect(computePreview).not.toBeNull();
 		const out = await computePreview!({ title: "My Note" });
-		expect(out.fileName).toBe(String.raw`Notes\name-My Note`);
+		// Not a linebreak (that is the content formatter's rule, and this is a
+		// path); a separator, because that is what the run makes of it -
+		// `normalizeGeneratedFilePath` rewrites "\" to "/" before the note is
+		// created, exactly as Obsidian's own `normalizePath` does (#1563).
+		expect(out.fileName).toBe("Notes/name-My Note");
 		expect(out.fileName).not.toContain("\n");
 	});
 
