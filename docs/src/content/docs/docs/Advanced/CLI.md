@@ -136,14 +136,15 @@ the prompts opening in Obsidian.
 
 ```bash
 obsidian vault=dev quickadd:interactive choice="Import from Readwise"
-# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…"}
+# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…","capabilities":["abort"]}
 ```
 
 The command returns connection details immediately and runs the choice in the
 background. Attach to the session and drive it:
 
 - `GET  http://127.0.0.1:<port>/poll?session=<id>&token=<token>` - long-polls for the next event: `{"kind":"prompt","requestId":…,"prompt":{…}}`, `{"kind":"done","result":…}`, `{"kind":"error","error":…}`, or a periodic `{"kind":"idle"}` keepalive (just poll again).
-- `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which aborts the run).
+- `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which ends the run - except on an `info` panel, see below).
+- `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected.
 
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
@@ -151,15 +152,35 @@ acknowledgement, `form` → an object mapping each field's `id` to its string
 value (date fields use the `@date:ISO` format). The run's outcome arrives as the
 `done`/`error` poll event.
 
-### Cancelling
+### Cancelling, and ending a run
 
-`{"cancelled":true}` is how you say *the user dismissed this prompt*. It aborts
-the run exactly as pressing Escape on the in-app dialog does.
+`{"cancelled":true}` is how you say *the user dismissed this prompt*. It ends the
+run exactly as pressing Escape on the in-app dialog does.
 
-Do not use it just to close an `info` panel. `info` is the one prompt that cannot
-be cancelled in the app - the dialog has no reject path - so cancelling it
-remotely aborts a run that would have continued. Send a plain reply instead. It
-stays cancellable because it is a client's only explicit way to bail out mid-run.
+`info` is the exception, because the in-app dialog is: `GenericInfoDialog` resolves
+on every close path and has no way to abort anything, so the same choice run in
+Obsidian continues past the panel. Escape is the only gesture an info panel affords,
+so cancelling one just closes it and the run carries on - matching the app.
+
+To end a run deliberately, `POST /abort`. It rejects whatever the run is blocked on
+and makes the next prompt fail too, so the run unwinds and delivers its real outcome
+as a normal `error` poll event. The `interrupted` count in the reply tells you
+whether it actually stopped something.
+
+:::caution[What `/abort` cannot reach]
+`/abort` interrupts prompts that were routed **to you**. A Template or Capture run
+still opens some prompts in Obsidian itself - the "file already exists" chooser, the
+folder picker, the capture-target picker - and those do not travel over this bridge,
+so they are unaffected. `"interrupted":0` means nothing was waiting on you: the run
+was mid-work, or it is blocked on one of those.
+:::
+
+:::note[Available in the next release]
+`POST /abort` and the `info` behaviour above are new; `"capabilities":["abort"]` in
+the handshake tells you a build has them. Before them, cancelling an `info` prompt
+ended the run, and there was no explicit way to end one other than to stop polling
+and wait out the ~75s disconnect watchdog.
+:::
 
 ### When a reply is rejected
 

@@ -834,6 +834,12 @@ async function interactiveHandler(
 			port,
 			sessionId,
 			token,
+			// Feature detection for the wire. `abort` says two things at once: this
+			// build serves `POST /abort`, and cancelling an `info` prompt closes the
+			// panel instead of ending the run (#1605). Without it a client could only
+			// tell the two behaviours apart by string-matching a 404 body, since an
+			// unknown path and an unauthed session answer the same shape.
+			capabilities: ["abort"],
 		});
 	} catch (error) {
 		return serialize({

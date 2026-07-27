@@ -3,6 +3,7 @@ import {
 	interactivePromptServer,
 	isLoopbackClient,
 	safeEqual,
+	type PromptSpec,
 	type ReplyBody,
 } from "./interactivePromptServer";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -243,9 +244,9 @@ describe("interactivePromptServer session multiplexing", () => {
 	});
 
 	// A confirm reply that is neither boolean nor a cancel is validated HERE, while the
-	// client is still holding the HTTP response, because deeper in the only options are
-	// to invent an answer or to fail the run with a message the Template/Capture path
-	// replaces with a generic sentence the client never sees.
+	// client is still holding the HTTP response and the prompt is still PENDING, so the
+	// client can correct itself. Deeper in, the only options are to invent an answer or
+	// to fail the whole run.
 	it.each([[undefined], [null], ["yes"], [0], [{}]])(
 		"rejects a non-boolean confirm reply (%o) with 400",
 		async (value) => {
@@ -282,6 +283,110 @@ describe("interactivePromptServer session multiplexing", () => {
 			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
 		},
 	);
+
+	/**
+	 * #1605. `GenericInfoDialog` resolves on EVERY close path and has no reject path at
+	 * all, so the same choice run in the app continues past the panel. Escape is the only
+	 * gesture an info panel affords, so a client mapping it to a cancel used to kill a run
+	 * the app would have finished.
+	 */
+	it("closes an info panel on a cancel instead of ending the run", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "info",
+			header: "Heads up",
+			text: ["Something to read."],
+		});
+		const rid = pendingRequestId(s.id);
+
+		expect(replyOverWire(s.id, { requestId: rid, cancelled: true }).status).toBe(200);
+
+		await expect(prompt).resolves.toBeUndefined();
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	it.each<[string, PromptSpec]>([
+		["input", { type: "input", header: "Name", multiline: false }],
+		["confirm", { type: "confirm", header: "Proceed?" }],
+		["checkbox", { type: "checkbox", items: [] }],
+	])(
+		"still ends the run on a cancelled %s prompt",
+		async (_name, spec) => {
+			const s = interactivePromptServer.createSession();
+			const prompt = interactivePromptServer.emitPrompt(s.id, spec);
+			const rid = pendingRequestId(s.id);
+
+			expect(replyOverWire(s.id, { requestId: rid, cancelled: true }).status).toBe(
+				200,
+			);
+
+			await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
+			interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+		},
+	);
+
+	// The replacement for info-cancel-as-bail-out. Without it, making an info cancel
+	// resolve would take away a client's only explicit way out, leaving it to stop
+	// polling and wait out the 75-second watchdog.
+	it("ends the run on abort, whatever prompt it is blocked on", async () => {
+		const s = interactivePromptServer.createSession();
+		const info = interactivePromptServer.emitPrompt(s.id, {
+			type: "info",
+			header: "Heads up",
+			text: ["Something to read."],
+		});
+
+		expect(interactivePromptServer.abortSession(s.id)).toBe(1);
+
+		await expect(info).rejects.toBeInstanceOf(UserCancelError);
+		// And a prompt raised afterwards rejects immediately rather than parking, so a
+		// run that was mid-work when the abort arrived unwinds at its next prompt.
+		await expect(
+			interactivePromptServer.emitPrompt(s.id, {
+				type: "input",
+				header: "Name",
+				multiline: false,
+			}),
+		).rejects.toBeInstanceOf(UserCancelError);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	// Reported so a client can tell an effective abort from a no-op: 0 means the run was
+	// mid-work, or blocked on a prompt QuickAdd opened in Obsidian rather than here.
+	it("reports how many pending prompts it interrupted", () => {
+		const s = interactivePromptServer.createSession();
+
+		expect(interactivePromptServer.abortSession(s.id)).toBe(0);
+
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	it("refuses to abort a session that already ended", () => {
+		const s = interactivePromptServer.createSession();
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+
+		expect(interactivePromptServer.abortSession(s.id)).toBeNull();
+		expect(interactivePromptServer.abortSession("no-such-session")).toBeNull();
+	});
+
+	// The pending entry is dropped BEFORE it is rejected, exactly as finish() does, so a
+	// reply that was already mid-flight cannot be answered 200 for a settle that is a
+	// no-op on an already-rejected promise.
+	it("leaves no pending entry for a reply that arrives after the abort", async () => {
+		const s = interactivePromptServer.createSession();
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "input",
+			header: "Name",
+			multiline: false,
+		});
+		const rid = pendingRequestId(s.id);
+
+		interactivePromptServer.abortSession(s.id);
+
+		expect(replyOverWire(s.id, { requestId: rid, value: "Ada" }).status).toBe(409);
+		await expect(prompt).rejects.toBeInstanceOf(UserCancelError);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
 
 	it("still 409s an unknown requestId", () => {
 		const s = interactivePromptServer.createSession();

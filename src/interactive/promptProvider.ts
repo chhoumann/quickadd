@@ -14,12 +14,12 @@
  * is dismissed - same class, same message. `promptProvider.test.ts` pins that for
  * every method.
  *
- * One genuine asymmetry, kept deliberately: cancelling an `info` prompt aborts the
- * run, while `GenericInfoDialog` in-app has no reject path and can never abort
- * anything. Removing it would take away a remote client's only way to bail out
- * mid-run, so it stays and is documented at the wire (docs/.../Advanced/CLI.md)
- * instead: a client that just wants to close an info panel should send a plain
- * reply, not a cancel.
+ * `info` is the one prompt where a cancel does NOT abort, and that too is parity
+ * rather than an exception to it: `GenericInfoDialog` resolves on every close path and
+ * has no reject path at all, so the identical choice run in the app continues past the
+ * panel. Escape is the only gesture an info panel affords, so a client mapping it to a
+ * cancel used to kill a run the app would have finished (#1605). A client that really
+ * wants out sends `POST /abort`, which ends the run whatever it is blocked on.
  */
 
 import { formatISODate } from "../utils/dateParser";
