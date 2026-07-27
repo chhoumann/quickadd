@@ -16,6 +16,7 @@ import {
 	getMacroPreview,
 	getVariablePromptExample,
 	getSuggestionPreview,
+	fieldValuePreview,
 	getCurrentFileLinkPreview,
 	getCurrentFileLinkToSectionPreview,
 	getCurrentFileNamePreview,
@@ -366,8 +367,11 @@ export class FileNameDisplayFormatter extends Formatter {
 		return "clipboard_content";
 	}
 
-	protected async suggestForField(variableName: string): Promise<string> {
-		return `${variableName}_field_value`;
+	protected async suggestForField(
+		_variableName: string,
+		parsed: { fieldName: string },
+	): Promise<string> {
+		return fieldValuePreview(parsed);
 	}
 
 	protected suggestForFile(parsed: ParsedFileToken): string {

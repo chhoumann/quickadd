@@ -84,6 +84,31 @@ export function getSuggestionPreview(suggestedValues: string[]): string {
 }
 
 /**
+ * The stand-in a preview shows for a `{{FIELD:...}}` token.
+ *
+ * Named after the FIELD, not the whole specifier: the token's inner text is the
+ * field name plus any filters, and building the placeholder out of all of it
+ * meant the more precisely you filtered, the less the preview looked like a
+ * value - `{{FIELD:status|folder:Work}}` previewed
+ * `status|folder:Work_field_value` (#1579). The field is `status`; at run time
+ * the token resolves to one of that property's values.
+ *
+ * Deliberately still a placeholder rather than a real value from the vault, the
+ * way `{{FILE:}}` previews a real file: FIELD PROMPTS at run time, so any
+ * concrete value would assert a pick the user has not made, and would change
+ * from keystroke to keystroke as the filter narrowed the candidate set.
+ *
+ * `fieldName` is empty for a specifier that starts with a pipe
+ * (`{{FIELD:|folder:x}}`, and every prefix of it while that is being typed).
+ * Falling back to the raw specifier there would print the filters again, which
+ * is the bug; a neutral noun is what is left to say.
+ */
+export function fieldValuePreview(parsed: { fieldName: string }): string {
+	const fieldName = parsed.fieldName.trim();
+	return fieldName ? `${fieldName}_field_value` : "field_value";
+}
+
+/**
  * Gets a current file link preview
  */
 export function getCurrentFileLinkPreview(activeFile?: {basename: string, path: string} | null): string {

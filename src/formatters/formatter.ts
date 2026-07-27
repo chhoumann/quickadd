@@ -1177,13 +1177,20 @@ export abstract class Formatter {
 				if (!this.hasConcreteVariable(fieldVariableKey)) {
 					this.variables.set(
 						fieldVariableKey,
-						await this.suggestForField(fullMatch),
+						await this.suggestForField(fullMatch, parsed),
 					);
 				}
 
+				// The FIELD key, not the bare specifier. `getVariableValue` is only
+				// reached when the suggester resolved `undefined` (a remote prompt
+				// provider can), and looking up `status|folder:Work` there both
+				// misses the value that WAS stored and cross-reads the {{VALUE}}
+				// namespace, so a `{{VALUE:status}}` answer could be served to a
+				// `{{FIELD:status}}` token - the separation FIELD_VARIABLE_PREFIX
+				// exists for.
 				const rawValue = this.hasConcreteVariable(fieldVariableKey)
 					? this.variables.get(fieldVariableKey)
-					: this.getVariableValue(fullMatch);
+					: this.getVariableValue(fieldVariableKey);
 				let replacement: string;
 
 				if (Array.isArray(rawValue)) {
@@ -1409,8 +1416,16 @@ export abstract class Formatter {
 		return [];
 	}
 
+	/**
+	 * @param variableName the WHOLE `{{FIELD:...}}` specifier, filters included.
+	 *   It is what the runtime suggesters parse and what the variable is keyed on.
+	 * @param parsed the same specifier already parsed by the caller. The preview
+	 *   formatters need only `fieldName` from it, and passing it in is what keeps
+	 *   their placeholder from reading `status|folder:Work_field_value` (#1579).
+	 */
 	protected abstract suggestForField(
 		variableName: string,
+		parsed: { fieldName: string },
 	): Promise<string | string[]>;
 
 	protected async replaceDateVariableInString(input: string) {
