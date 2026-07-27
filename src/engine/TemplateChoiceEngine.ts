@@ -557,10 +557,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// Appending raw template text to a canvas/base file would splice it
 			// into the file's structured JSON content and corrupt it. Only the
 			// "Overwrite" file-exists option is safe for these formats.
+			//
+			// Recorded, not just logged: this is one of the report-and-return-null exits
+			// whose caller owns the run's outcome, and it carries the most actionable
+			// sentence of any of them (it names the fix). A CLI or interactive caller
+			// would otherwise be told "Could not resolve file exists behavior" (#1603).
+			this.lastTemplateFileFailure = `Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`;
 			InputPromptDraftStore.getInstance().markExecutionScopeFailed();
-			log.logError(
-				`Cannot append to '${existingFile.path}': appending a template to a ${existingFile.extension} file would corrupt it. Use the "Overwrite" file-exists option instead.`,
-			);
+			log.logError(this.lastTemplateFileFailure);
 			return null;
 		}
 

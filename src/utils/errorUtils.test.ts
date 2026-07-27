@@ -195,6 +195,30 @@ describe("reportError reports each failure once", () => {
 		expect(logError).toHaveBeenCalledTimes(1);
 	});
 
+	// Suppression has to EXPIRE. A long-lived user-script module that re-throws one
+	// cached Error on every invocation would otherwise be reported the first time and
+	// then be silent forever - a command that does nothing, which is the failure the
+	// whole reporting seam exists to remove.
+	it("reports the same instance again on a later, independent run", () => {
+		const logError = spyOnLogError();
+		const cached = new Error("config missing");
+
+		vi.useFakeTimers({ toFake: ["Date"] });
+		try {
+			vi.setSystemTime(new Date("2026-07-27T12:00:00Z"));
+			expect(reportError(cached, "first run")).toBe(true);
+			expect(reportError(cached, "same propagation")).toBe(false);
+
+			// A minute later the user runs the command again.
+			vi.setSystemTime(new Date("2026-07-27T12:01:00Z"));
+			expect(reportError(cached, "second run")).toBe(true);
+		} finally {
+			vi.useRealTimers();
+		}
+
+		expect(logError).toHaveBeenCalledTimes(2);
+	});
+
 	it("survives a cyclic cause chain", () => {
 		spyOnLogError();
 		const a = new Error("a") as Error & { cause?: unknown };

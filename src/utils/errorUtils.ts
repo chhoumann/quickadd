@@ -101,7 +101,7 @@ const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * The values {@link reportError} has already shown the user.
+ * When {@link reportError} last showed the user each value.
  *
  * One failure travelled up through two reporting layers and produced two stacked
  * 15-second notices for one bug (#1601): `MacroChoiceEngine` reports a script failure
@@ -112,9 +112,22 @@ const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
  *
  * Keyed on the value's IDENTITY, not its message: two independent failures with the
  * same text still both report, and the same failure re-thrown through five layers
- * reports once. A `WeakSet` so a reported Error is still collectable.
+ * reports once. A `WeakMap` so a reported Error is still collectable.
  */
-const reportedErrors = new WeakSet<object>();
+const reportedErrors = new WeakMap<object, number>();
+
+/**
+ * How long a value stays "already reported".
+ *
+ * Suppression has to expire, or a long-lived user-script module that re-throws one
+ * cached `Error` on every invocation would be reported the first time and then
+ * silently forever after - a command that does nothing, which is the failure the whole
+ * reporting seam exists to remove. One propagation unwinds in microseconds, so any
+ * window comfortably above that collapses the stacked notices while leaving separate
+ * runs separate. Same value, and the same reasoning, as the unhandled-rejection
+ * reporter's repeat window.
+ */
+const REPORT_WINDOW_MS = 10_000;
 
 /** Bound the `cause` walk; also what stops a cyclic `cause` chain from spinning. */
 const MAX_CAUSE_DEPTH = 8;
@@ -131,10 +144,11 @@ function isTrackable(value: unknown): value is object {
  * `new Error("Error while making request to …", { cause: error })`, so identity alone
  * would let that pair through as two notices for one failed request.
  */
-function alreadyReported(err: unknown): boolean {
+function alreadyReported(err: unknown, at: number): boolean {
   let current: unknown = err;
   for (let depth = 0; depth < MAX_CAUSE_DEPTH && isTrackable(current); depth++) {
-    if (reportedErrors.has(current)) return true;
+    const reportedAt = reportedErrors.get(current);
+    if (reportedAt !== undefined && at - reportedAt < REPORT_WINDOW_MS) return true;
     current = (current as { cause?: unknown }).cause;
   }
   return false;
@@ -145,8 +159,8 @@ function alreadyReported(err: unknown): boolean {
  * Converts any error type to a proper Error object and logs it with the appropriate level
  *
  * Reports each failure ONCE: a value already reported (directly, or as the `cause` of one)
- * is dropped, so the innermost layer - the one with the most specific context - is the one
- * the user sees. See {@link reportedErrors}.
+ * is dropped for {@link REPORT_WINDOW_MS}, so the innermost layer - the one with the most
+ * specific context - is the one the user sees. See {@link reportedErrors}.
  *
  * @param err - The error to report
  * @param contextMessage - Optional context message to add
@@ -167,10 +181,11 @@ export function reportError(
   contextMessage?: string,
   level: ErrorLevel = ErrorLevelEnum.Error
 ): boolean {
-  if (alreadyReported(err)) return false;
+  const at = Date.now();
+  if (alreadyReported(err, at)) return false;
   // Mark the value itself, not the whole chain: the rule is "do not report a failure
   // whose cause the user has already seen", not "reporting a wrapper silences its parts".
-  if (isTrackable(err)) reportedErrors.add(err);
+  if (isTrackable(err)) reportedErrors.set(err, at);
 
   const error = toError(err, contextMessage);
 

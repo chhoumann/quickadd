@@ -597,6 +597,33 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		});
 	});
 
+	// The most actionable of the report-and-return-null exits - it names the fix - and it
+	// was the last one still handing a headless caller "Could not resolve file exists
+	// behavior".
+	it("records why a template cannot be appended to a canvas file", async () => {
+		const { engine, choiceExecutor, app } = createEngine("unused", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		choiceExecutor.recordExecutionResult = vi.fn();
+		const canvas = new TFile();
+		canvas.path = "Board.canvas";
+		canvas.extension = "canvas";
+		canvas.basename = "Board";
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			canvas,
+		);
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendTop" };
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: expect.stringContaining('Use the "Overwrite" file-exists option'),
+		});
+	});
+
 	it("keeps template execution successful when clipboard copying throws", async () => {
 		const store = InputPromptDraftStore.getInstance();
 		const draftKey = store.makeKey({
