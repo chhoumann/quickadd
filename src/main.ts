@@ -9,6 +9,7 @@ import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
 import { reportError, withErrorHandling } from "./utils/errorUtils";
+import { registerUnhandledRejectionReporter } from "./utils/unhandledRejectionReporter";
 import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
@@ -310,6 +311,12 @@ export default class QuickAdd extends Plugin {
 		});
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
+
+		// Must come after the loggers: a QuickAdd promise that rejects with nobody
+		// awaiting it (a settings click handler, a floated call) used to leave the user
+		// with nothing but a console line. Now it reports through the same channel as
+		// every other failure (#1576).
+		registerUnhandledRejectionReporter(this);
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
