@@ -229,17 +229,77 @@ export function normalizeCommandList(value: unknown): NormalizedCommandList {
 /**
  * Regenerates all IDs in a macro to prevent collisions after duplication.
  *
- * Total over a malformed macro: a missing or non-array `commands` is left
- * exactly as it is (this is a WRITE path - see `hasCommandList`), and a hole in
- * the list is stepped over rather than dereferenced. Reached from
- * `duplicateChoice`, which runs over whatever the user's data.json holds.
+ * Recurses the whole macro, not just its top level. Re-iding only the outermost
+ * commands left every id BELOW that identical between the original and the copy -
+ * a Conditional's `thenCommands`/`elseCommands`, a NestedChoice's inner choice,
+ * and that choice's own macro if it had one (#1609). Nothing crashed, because it
+ * is not a within-list collision, but:
+ *
+ *   - `buildUserScriptSecretId` keys a stored user-script secret on
+ *     `command.id`, so a duplicated macro's NESTED UserScript command re-adopted
+ *     the ORIGINAL's secret slot. Setting the API key on the copy set it on the
+ *     original.
+ *   - the nested `IChoice` kept its id too, colliding with the original's in
+ *     every by-id walk over commands (packageTraversal, collectChoiceClosure).
+ *
+ * Total over a malformed macro, because `duplicateChoice` runs over whatever
+ * data.json holds: the command list is resolved through `macroCommandsValueOf`
+ * (so an ARRAY-valued macro is re-ided as the command list it is, rather than
+ * having a non-index `id` written onto it that JSON.stringify would drop), a
+ * non-array list is left exactly as found (this is a WRITE path - see
+ * `hasCommandList`), and a hole is stepped over rather than dereferenced.
+ *
+ * `visited` is about SHARED references, not cycles: `deepClone` is
+ * `structuredClone`, which preserves both. Two pointers to one command are one
+ * command, so it is re-ided once rather than twice. (A true cycle cannot come
+ * out of `data.json` - JSON has no way to express one - and the secret sanitizer
+ * `duplicateChoice` runs afterwards would recurse forever on one regardless, so
+ * this does not claim to make that survivable.)
  */
 export function regenerateIds(macro: IMacro): void {
+	regenerateMacroIds(macro, new Set<unknown>());
+}
+
+function regenerateMacroIds(macro: unknown, visited: Set<unknown>): void {
 	if (!isCommandLike(macro)) return;
-	macro.id = uuidv4();
-	if (!hasCommandList(macro.commands)) return;
-	macro.commands.forEach((command) => {
-		if (!isCommandLike(command)) return;
+	if (visited.has(macro)) return;
+	visited.add(macro);
+	// Only a real macro OBJECT has an `id` worth minting. Writing one onto an
+	// array-valued macro is a no-op JSON.stringify discards, not a repair.
+	if (isMacroObject(macro)) macro.id = uuidv4();
+	regenerateCommandIds(macroCommandsValueOf(macro), visited);
+}
+
+function regenerateCommandIds(commands: unknown, visited: Set<unknown>): void {
+	if (!hasCommandList(commands)) return;
+	for (const command of commands as ICommand[]) {
+		if (!isCommandLike(command)) continue;
+		if (visited.has(command)) continue;
+		visited.add(command);
+
 		command.id = uuidv4();
-	});
+
+		const branching = command as unknown as {
+			thenCommands?: unknown;
+			elseCommands?: unknown;
+			choice?: unknown;
+		};
+		regenerateCommandIds(branching.thenCommands, visited);
+		regenerateCommandIds(branching.elseCommands, visited);
+		regenerateChoiceIds(branching.choice, visited);
+	}
+}
+
+function regenerateChoiceIds(choice: unknown, visited: Set<unknown>): void {
+	if (!isCommandLike(choice)) return;
+	if (visited.has(choice)) return;
+	visited.add(choice);
+
+	const node = choice as { id?: unknown; type?: unknown; macro?: unknown; choices?: unknown };
+	node.id = uuidv4();
+
+	if (node.type === "Macro") regenerateMacroIds(node.macro, visited);
+	if (node.type === "Multi" && Array.isArray(node.choices)) {
+		for (const child of node.choices) regenerateChoiceIds(child, visited);
+	}
 }

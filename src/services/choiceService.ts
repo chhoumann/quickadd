@@ -16,7 +16,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
-import { regenerateIds } from "../utils/macroUtils";
+import { macroCommandsValueOf, regenerateIds } from "../utils/macroUtils";
 import {
 	childChoicesOf,
 	flattenChoices,
@@ -137,8 +137,10 @@ function collectUserScriptPathsFromChoice(
 ): void {
 	if (!isRecord(choice)) return;
 
-	if (choice.type === "Macro" && isRecord(choice.macro)) {
-		const commands = choice.macro.commands;
+	if (choice.type === "Macro") {
+		// Same reading as the macro builder and the secret sanitizer: an
+		// ARRAY-valued `macro` IS the command list (#1609).
+		const commands = macroCommandsValueOf(choice.macro);
 		if (Array.isArray(commands)) {
 			for (const command of commands) {
 				collectUserScriptPathsFromCommand(command, paths);
