@@ -125,12 +125,13 @@ export async function runOnePagePreflight(
 				// literal. It is also the class the builder's own file-name preview
 				// uses.
 				//
-				// One deliberate divergence: `formatFileName` DOES resolve
-				// {{TEMPLATE:}} at run time (format() -> replaceTemplateInString, with
-				// path prompt scope propagated in CompleteFormatter.getTemplateContent).
-				// Neither file-name preview does - a multi-line template body is not a
-				// name, and the only inert reader available here returns a fabricated
-				// stub. Same gap the builder's file-name field already has.
+				// It resolves {{TEMPLATE:}} the way the run does (#1563) - which
+				// matters most here, because the requirement scan behind this very
+				// modal already walks INTO the include (collectChoiceRequirements,
+				// scope "noteTitle"), so the form asks for variables it found inside
+				// the template. What stays literal in the preview is what the
+				// formatter has no inert stand-in for: inline `js quickadd` fences and
+				// macros, which the run really does execute inside an included body.
 				const formatter = new FileNameDisplayFormatter(app, plugin);
 				const out: Record<string, string> = {};
 				// File name preview for Template

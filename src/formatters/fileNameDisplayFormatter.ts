@@ -13,17 +13,26 @@ import {
 	getVariablePromptExample,
 	getSuggestionPreview,
 	getCurrentFileLinkPreview,
+	getCurrentFileLinkToSectionPreview,
 	getCurrentFileNamePreview,
 	getCurrentFolderPathPreview,
 	DateFormatPreviewGenerator
 } from "./helpers/previewHelpers";
 import { previewGeneratedFilePath } from "../utils/generatedFilePath";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptions } from "../utils/vdateSyntax";
 import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
 import type QuickAdd from "../main";
+
+/**
+ * Includes one preview pass may expand, across the whole format string.
+ * Generous next to any real naming template (which includes one file, or none),
+ * and small enough that a pathological include tree cannot stall a keystroke.
+ */
+const MAX_PREVIEW_TEMPLATE_INCLUDES = 25;
 
 export class FileNameDisplayFormatter extends Formatter {
 	constructor(
@@ -57,32 +66,18 @@ export class FileNameDisplayFormatter extends Formatter {
 		this.diagnostics.add("error", message);
 	}
 
+	/**
+	 * Includes this pass may still expand. See {@link getTemplateContent}.
+	 */
+	private templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
+
 	public async format(input: string): Promise<string> {
 		let output: string = input;
 		this.diagnostics = new PreviewDiagnostics();
+		this.templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
 
 		try {
-			// Expand globals first to preview inserted snippets
-			output = await this.replaceGlobalVarInString(output);
-			output = await this.replaceMacrosInString(output);
-			output = this.replaceDateInString(output);
-			output = this.replaceTimeInString(output);
-			output = await this.replaceValueInString(output);
-			output = await this.replaceSelectedInString(output);
-			output = await this.replaceClipboardInString(output);
-			output = await this.replaceDateVariableInString(output);
-			output = await this.replaceVariableInString(output);
-			output = await this.replaceFieldVarInString(output);
-			output = await this.replaceFileInString(output);
-			// {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one pass so no
-			// token re-scans another's output (#1358). The preview resolver below
-			// never returns null, so "path" mode cannot throw here.
-			output = this.replaceCurrentFileTokensInString(output, {
-				fileName: true,
-				folder: true,
-				activeFolder: "path",
-			});
-			output = this.replaceRandomInString(output);
+			output = await this.formatInternal(input, { included: false });
 		} catch (error) {
 			// Return the input as-is if formatting fails during preview. The failure
 			// itself is the most useful thing the preview can say, so it goes on the
@@ -106,6 +101,58 @@ export class FileNameDisplayFormatter extends Formatter {
 			this.diagnostics.add("error", problem);
 		}
 		return normalized.path;
+	}
+
+	/**
+	 * The preview pass list.
+	 *
+	 * `included` marks a `{{TEMPLATE:}}` body being resolved for splicing into
+	 * the name. At run time that body goes through a child engine's
+	 * `formatFileContent` (SingleTemplateEngine.run), which resolves the
+	 * note-derived tokens with CONTENT semantics - so an included body previewed
+	 * with the file-name pass list would leave literal exactly the tokens people
+	 * put in templates ({{linkcurrent}}, {{linksection}}). `{{title}}` stays out
+	 * of both: the run resolves it to the empty string here (the title is derived
+	 * from the name being built, so it is not known yet), and neither a blank nor
+	 * this formatter's example title is a preview worth showing.
+	 */
+	private async formatInternal(
+		input: string,
+		{ included }: { included: boolean },
+	): Promise<string> {
+		let output = input;
+
+		// {{TEMPLATE:}} FIRST, mirroring the run (CompleteFormatter.format resolves
+		// includes before globals and before {{VALUE}}). Resolving it later would
+		// make the preview splice in a body for a token that a global snippet or a
+		// value produced - which the run leaves literal, because its template pass
+		// has already gone by. (The globals/macros order below is older than this
+		// and is left as it was.)
+		output = await this.replaceTemplateInString(output);
+		// Expand globals to preview inserted snippets
+		output = await this.replaceGlobalVarInString(output);
+		output = await this.replaceMacrosInString(output);
+		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
+		output = await this.replaceValueInString(output);
+		output = await this.replaceSelectedInString(output);
+		output = await this.replaceClipboardInString(output);
+		output = await this.replaceDateVariableInString(output);
+		output = await this.replaceVariableInString(output);
+		output = await this.replaceFieldVarInString(output);
+		output = await this.replaceFileInString(output);
+		// Note-derived tokens in ONE pass so no token re-scans another's output
+		// (#1358). Every preview resolver returns a placeholder rather than null,
+		// so neither mode can hit the runtime's missing-active-file throw.
+		output = this.replaceCurrentFileTokensInString(
+			output,
+			included
+				? { links: true, fileName: true, folder: true, activeFolder: "content" }
+				: { fileName: true, folder: true, activeFolder: "path" },
+		);
+		output = this.replaceRandomInString(output);
+
+		return output;
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
@@ -177,20 +224,104 @@ export class FileNameDisplayFormatter extends Formatter {
 	}
 
 	/**
-	 * Unreachable today: this formatter's pass list (see `format()`) never calls
-	 * `replaceTemplateInString`, so `{{TEMPLATE:}}` stays literal in a file-name
-	 * preview. `getTemplateContent` is abstract on `Formatter`, so the override has
-	 * to exist.
+	 * Previews an included template's body WITHOUT the runtime engine (#1563).
 	 *
-	 * It used to return a fabricated `[<name> template content...]`, which would
-	 * have spliced text that READS like a real part of the file name the moment
-	 * anyone wired the pass up. It now names what actually happened. Run-time
-	 * `formatFileName` does resolve the include (`format()` ->
-	 * `replaceTemplateInString`); closing that gap needs a real inert reader, not
-	 * a stub.
+	 * `formatFileName` really does resolve `{{TEMPLATE:}}` - `format()` runs
+	 * `replaceTemplateInString`, and path prompt scope is deliberately propagated
+	 * into the child engine - so leaving the token literal made the preview say
+	 * `{{TEMPLATE:Naming.md}}-My Note` while the run produced whatever Naming.md
+	 * rendered to. The one-page input form contradicted itself even harder: its
+	 * preflight scans INTO the include for that same field, so it would prompt
+	 * for a variable it could only have found inside the template, and then
+	 * preview the unresolved token beside the answer.
+	 *
+	 * Reading it through THIS formatter is what keeps the preview inert: the same
+	 * substitutions the top level gets, no prompts, no macro engine, no inline JS
+	 * (issue #1558). Building a `SingleTemplateEngine` here would construct a real
+	 * `CompleteFormatter` and open blocking modals on every keystroke, which is
+	 * the bug #1560 fixed on the content field.
 	 */
 	protected async getTemplateContent(templatePath: string): Promise<string> {
-		return `[QuickAdd: template not resolved in a file name] ${templatePath}`;
+		const app = this.app;
+		if (!app) {
+			this.reportProblem(`Template preview unavailable: ${templatePath}`);
+			return `[QuickAdd: template preview unavailable] ${templatePath}`;
+		}
+
+		// Depth and cycle detection (in the shared `replaceTemplateInString`) both
+		// unwind per include, so neither bounds a format string that keeps
+		// producing NEW includes - and it can, now that the template pass runs
+		// before global expansion: a global snippet holding a {{TEMPLATE:}} token
+		// re-arms the loop with an empty `visited` set. One budget for the whole
+		// pass terminates that, and bounds the fan-out of a wide include tree on a
+		// field that resolves on every keystroke.
+		if (this.templateIncludeBudget <= 0) {
+			const placeholder = `[QuickAdd: too many template includes to preview]`;
+			this.reportProblem(placeholder);
+			return placeholder;
+		}
+
+		const file = getTemplateFile(app, templatePath);
+		if (!file) {
+			// An error, not a quiet placeholder: the run THROWS here
+			// (TemplateEngine.getTemplateContent) and the choice dies, so the row
+			// must read "Unresolved:" rather than presenting a name.
+			this.reportProblem(`Template not found: ${templatePath}`);
+			return `[QuickAdd: template not found] ${templatePath}`;
+		}
+
+		this.templateIncludeBudget--;
+		// The depth counter is preview-LOCAL on purpose. At run time
+		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of
+		// the state with depth + 1, while `visited` is shared by reference - so
+		// incrementing depth inside the shared `replaceTemplateInString` would
+		// advance the runtime by two per level and halve its inclusion limit. The
+		// preview has no child formatter to carry it, so it counts here.
+		this.templateInclusion ??= { visited: new Set<string>(), depth: 0 };
+		this.templateInclusion.depth++;
+		try {
+			const body = await app.vault.cachedRead(file);
+			const resolved = await this.formatInternal(body, { included: true });
+			this.warnIfJoinedIntoOneLine(templatePath, resolved);
+			return resolved;
+		} catch (error) {
+			// Contained here rather than by format()'s catch, so one bad token
+			// inside an included template does not blank the whole field's preview.
+			const described = describePreviewFailure(error);
+			if (described) this.diagnostics.add("error", described);
+			return `[QuickAdd: template preview failed] ${templatePath}`;
+		} finally {
+			this.templateInclusion.depth--;
+		}
+	}
+
+	/**
+	 * A template body is many lines and a file name is one, so the normalizer at
+	 * the end of `format()` joins them with spaces - which is what the run does
+	 * too, and is therefore the honest preview. But a name assembled out of
+	 * someone's whole note template reads as a puzzle, and the preview is the only
+	 * thing here that knows those were separate lines.
+	 *
+	 * Deliberately NOT fired for a body that merely ends in a newline: every
+	 * well-formed one-line naming template does, and warning about those would be
+	 * the per-keystroke noise #1558 removed.
+	 */
+	private warnIfJoinedIntoOneLine(templatePath: string, resolved: string): void {
+		const lines = resolved.split(/\r?\n/).filter((line) => line.trim());
+		if (lines.length < 2) return;
+		this.warn(
+			`Template "${templatePath}" is ${lines.length} lines; a file name is one line, so they are joined with spaces.`,
+		);
+	}
+
+	protected getCurrentFileLinkToSection(): string | null {
+		// Only reachable for an INCLUDED body (the file-name pass leaves links
+		// literal, as the run does). Mirrors FormatDisplayFormatter's static
+		// example so the two previews describe the token the same way.
+		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
+		return getCurrentFileLinkToSectionPreview(
+			this.app.workspace.getActiveFile(),
+		);
 	}
 
 	protected async getSelectedText(): Promise<string> {

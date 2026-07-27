@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { runOnePagePreflight } from "./runOnePagePreflight";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -51,15 +52,24 @@ vi.mock("src/utilityObsidian", async () => {
 	};
 });
 
-const createApp = () =>
+const createApp = (templates: Record<string, string> = {}) =>
 	({
 		workspace: {
 			getActiveViewOfType: vi.fn().mockReturnValue(null),
 			getActiveFile: () => null,
 		},
 		vault: {
-			getAbstractFileByPath: vi.fn().mockReturnValue(null),
+			getAbstractFileByPath: vi.fn((path: string) =>
+				path in templates
+					? Object.assign(new TFile(), {
+							path,
+							extension: "md",
+							basename: path.replace(/\.md$/, ""),
+						})
+					: null,
+			),
 			getMarkdownFiles: () => [],
+			cachedRead: async (file: { path: string }) => templates[file.path],
 		},
 		metadataCache: { getFileCache: () => null, getAllPropertyInfos: () => ({}) },
 	}) as unknown as App;
@@ -135,15 +145,33 @@ describe("one-page preflight previews the file name with the file-name formatter
 		expect(out.fileName).not.toContain("\n");
 	});
 
-	it("leaves a {{TEMPLATE:}} include literal rather than splicing a body into a path", async () => {
+	it("resolves a {{TEMPLATE:}} include the way the run does", async () => {
+		// The requirement scan behind this same modal already walks into the
+		// include, so leaving the token literal here made the form ask for a
+		// variable and then preview the question instead of the answer (#1563).
+		await runOnePagePreflight(
+			createApp({ "Naming.md": "Log-{{VALUE:title}}\n" }),
+			createPlugin(),
+			createExecutor(),
+			createChoice("{{TEMPLATE:Naming.md}}-{{VALUE:title}}"),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		// The template file's trailing newline is not part of the name: the run's
+		// normalizer collapses the control run and the space around it, so the
+		// seam between the include and "-My Note" reads the same in both.
+		expect(out.fileName).toBe("Log-My Note -My Note");
+	});
+
+	it("says the run would abort when the include does not exist", async () => {
 		await runOnePagePreflight(
 			createApp(),
 			createPlugin(),
 			createExecutor(),
-			createChoice("{{TEMPLATE:Some.md}}-{{VALUE:title}}"),
+			createChoice("{{TEMPLATE:Gone.md}}-{{VALUE:title}}"),
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out.fileName).toBe("{{TEMPLATE:Some.md}}-My Note");
+		expect(out.fileName).toBe("[QuickAdd: template not found] Gone.md-My Note");
 	});
 });
