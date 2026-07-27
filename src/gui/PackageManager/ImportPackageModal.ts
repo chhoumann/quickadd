@@ -12,10 +12,15 @@ export class ImportPackageModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("quickAddModal", "packageImportModal");
-		this.handle = mountComponent(this.contentEl, ImportPackageModalComponent, {
-			app: this.app,
-			close: () => this.close(),
-		});
+		this.handle = mountComponent(
+			this.contentEl,
+			ImportPackageModalComponent,
+			{
+				app: this.app,
+				close: () => this.close(),
+			},
+			{ what: "the package importer" },
+		);
 	}
 
 	onClose(): void {

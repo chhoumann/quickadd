@@ -65,9 +65,18 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 			app: this.app,
 			plugin: this.plugin,
 		});
-		this.svelteElements.push(
-			mountComponent(this.contentEl, TemplateChoiceForm, this.formProps),
+		const handle = mountComponent(
+			this.contentEl,
+			TemplateChoiceForm,
+			this.formProps,
+			{ what: "this template choice's settings" },
 		);
+		// The form never rendered, so its $state clone of the choice holds no edits
+		// — only whatever normalizeChoice() and $state.snapshot() made of it. Drop it
+		// so onClose resolves the ORIGINAL choice and a form the user never saw can't
+		// write itself back over their data (#1584).
+		if (!handle.ok) this.formProps = undefined;
+		this.svelteElements.push(handle);
 	}
 
 	protected getResultChoice(): IChoice {

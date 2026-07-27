@@ -18,12 +18,17 @@ export class ExportPackageModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("quickAddModal", "packageExportModal");
-		this.handle = mountComponent(this.contentEl, ExportPackageModalComponent, {
-			app: this.app,
-			plugin: this.plugin,
-			allChoices: this.choices,
-			close: () => this.close(),
-		});
+		this.handle = mountComponent(
+			this.contentEl,
+			ExportPackageModalComponent,
+			{
+				app: this.app,
+				plugin: this.plugin,
+				allChoices: this.choices,
+				close: () => this.close(),
+			},
+			{ what: "the package exporter" },
+		);
 	}
 
 	onClose(): void {

@@ -39,6 +39,8 @@
 		isChoiceLike,
 	} from "../../utils/choiceUtils";
 	import type { ChoiceListActions } from "./choiceListActions";
+	import { choiceNoun } from "../../utils/choiceNoun";
+	import { reportingHandler } from "../../utils/errorUtils";
 	import { type Plain, snapshot } from "../svelte/persist.svelte";
 
 	let {
@@ -350,29 +352,70 @@
 		save();
 	}
 
+	// Every row button, context-menu item and nested list reaches these handlers
+	// through this one bag (MultiChoiceListItem's nestedActions spreads it), so
+	// wrapping it here is what makes a failing row action impossible to miss —
+	// hand-wrapping the call sites would silently skip the nested and menu paths.
+	//
+	// The message is built from the ROW: its own noun, so a folder is never called
+	// a choice (see choiceNoun; #1552), and its name, so a user with a long list
+	// knows which row the Notice is about. A malformed entry can have neither, so
+	// both degrade rather than printing "undefined".
+	function rowAction<Rest extends unknown[]>(
+		verb: string,
+		fn: (choice: IChoice, ...rest: Rest) => unknown,
+	): (choice: IChoice, ...rest: Rest) => void {
+		return (choice, ...rest) => {
+			const noun = choiceNoun(choice?.type);
+			const subject = choice?.name
+				? `the ${noun} “${choice.name}”`
+				: `that ${noun}`;
+			reportingHandler(`Couldn't ${verb} ${subject}`, fn)(choice, ...rest);
+		};
+	}
+
 	const actions: ChoiceListActions = {
-		onDeleteChoice: deleteChoice,
-		onConfigureChoice: handleConfigureChoice,
-		onToggleCommand: toggleCommandForChoice,
-		onDuplicateChoice: handleDuplicateChoice,
-		onRenameChoice: handleRenameChoice,
-		onMoveChoice: handleMoveChoice,
-		onReorderChoices: handleReorderChoices,
-		onAddChoice: addChoiceToList,
-		onToggleCollapsed: handleToggleCollapsed,
-		onCommitFolder: handleCommitFolder,
+		onDeleteChoice: rowAction("delete", deleteChoice),
+		onConfigureChoice: rowAction("open the settings for", handleConfigureChoice),
+		onToggleCommand: rowAction(
+			"update the command palette entry for",
+			toggleCommandForChoice,
+		),
+		onDuplicateChoice: rowAction("duplicate", handleDuplicateChoice),
+		onRenameChoice: rowAction("rename", handleRenameChoice),
+		onMoveChoice: rowAction("move", handleMoveChoice),
+		onToggleCollapsed: rowAction("open or close", handleToggleCollapsed),
+		onReorderChoices: reportingHandler(
+			"Couldn't save the new order",
+			handleReorderChoices,
+		),
+		onCommitFolder: reportingHandler(
+			"Couldn't save that folder's contents",
+			handleCommitFolder,
+		),
+		// Same noun rule, from the type being added rather than an existing row.
+		onAddChoice: (name, type, targetFolderId, skipConfigure) =>
+			reportingHandler(`Couldn't add that ${choiceNoun(type)}`, addChoiceToList)(
+				name,
+				type,
+				targetFolderId,
+				skipConfigure,
+			),
 	};
 
-	async function openAISettings() {
-		const newSettings = await new AIAssistantSettingsModal(
-			app,
-			settingsStore.getState().ai,
-		).waitForClose;
+	const openAISettings = reportingHandler(
+		"Couldn't open the AI assistant settings",
+		async () => {
+			const newSettings = await new AIAssistantSettingsModal(
+				app,
+				settingsStore.getState().ai,
+			).waitForClose;
 
-		if (newSettings) {
-			settingsStore.setState((state) => ({ ...state, ai: newSettings }));
-		}
-	}
+			if (newSettings) {
+				settingsStore.setState((state) => ({ ...state, ai: newSettings }));
+			}
+		},
+	);
 </script>
 
 
@@ -409,7 +452,7 @@
 				>
 			</p>
 			<div class="choiceEmptyActions">
-				<AddChoiceControls onAddChoice={addChoiceToList} />
+				<AddChoiceControls onAddChoice={actions.onAddChoice} />
 			</div>
 		</div>
 	{:else}
@@ -482,7 +525,7 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={addChoiceToList} fill={isMobile} />
+			<AddChoiceControls onAddChoice={actions.onAddChoice} fill={isMobile} />
 		</div>
 	{/if}
 	{#snippet failed(error)}

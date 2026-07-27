@@ -37,7 +37,6 @@ import {
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "./docs";
 import { rootChoicesOf } from "./utils/choiceUtils";
-import { reportError } from "./utils/errorUtils";
 
 /** String-named keys of {@link QuickAddSettings} — used to type the declarative
  * `control` keys so a mistyped key is caught at compile time. */
@@ -409,61 +408,48 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		setting.controlEl.addClass("qa-setting-full-width-control");
 	}
 
-	/**
-	 * Last line of defence for the whole tab. The declarative framework builds
-	 * every group by calling these `render` closures in turn, so a throw out of
-	 * one of them abandons the rest: when ChoiceView's mount threw, QuickAdd's
-	 * settings came up as a lone "Choices & packages" heading with nothing under
-	 * it, and no other section rendered at all (#1451, #1507, #1566).
-	 *
-	 * ChoiceView has its own <svelte:boundary> for reactive failures inside the
-	 * list; this catches the setup that boundary sits inside, and anything a
-	 * future view mounted here might throw.
-	 */
-	private mountSettingView<C extends Parameters<typeof mountComponent>[1]>(
-		setting: Setting,
-		component: C,
-		props: Parameters<typeof mountComponent>[2],
-	): MountHandle | null {
-		try {
-			return mountComponent(setting.controlEl, component, props);
-		} catch (error) {
-			reportError(error, "QuickAdd could not render a settings view");
-			try {
-				return mountComponent(setting.controlEl, ChoicesUnavailable, {
-					detail: error instanceof Error ? error.message : String(error),
-				});
-			} catch {
-				// The fallback is the same machinery that just failed, so it gets
-				// one plain-text last resort rather than a third layer.
-				setting.controlEl.setText("QuickAdd could not render this section.");
-				return null;
-			}
-		}
-	}
+	// The declarative framework builds every group by calling these `render`
+	// closures in turn, so a throw out of one of them abandons the rest: when
+	// ChoiceView's mount threw, QuickAdd's settings came up as a lone "Choices &
+	// packages" heading with nothing under it, and no other section rendered at
+	// all (#1451, #1507, #1566). That guard now lives in mountComponent itself, so
+	// every Svelte host in the plugin gets it (#1584) — here we only choose which
+	// card takes the view's place.
+	//
+	// ChoiceView has its own <svelte:boundary> for reactive failures inside the
+	// list; mountComponent catches the setup that boundary sits inside.
 
 	private renderChoicesView(setting: Setting): () => void {
 		this.prepareFullWidthSetting(setting);
 
 		this.choiceViewHandle?.destroy();
-		const handle = this.mountSettingView(setting, ChoiceView, {
-			app: this.app,
-			plugin: this.plugin,
-			choices: settingsStore.getState().choices,
-			// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
-			// the call site is a COMPILE error here — this is the real persistence sink
-			// that must never receive a live Svelte $state proxy. Plain<T> is assignable
-			// to T, so setState still accepts it.
-			saveChoices: (choices: Plain<IChoice[]>) => {
-				settingsStore.setState({ choices });
+		const handle = mountComponent(
+			setting.controlEl,
+			ChoiceView,
+			{
+				app: this.app,
+				plugin: this.plugin,
+				choices: settingsStore.getState().choices,
+				// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
+				// the call site is a COMPILE error here — this is the real persistence sink
+				// that must never receive a live Svelte $state proxy. Plain<T> is assignable
+				// to T, so setState still accepts it.
+				saveChoices: (choices: Plain<IChoice[]>) => {
+					settingsStore.setState({ choices });
+				},
 			},
-		});
+			// The choice list is the one view whose failure has a recovery story worth
+			// spelling out (the data.json advice in ChoicesUnavailable), and the same
+			// card the view itself shows when the tree is unreadable — so a mount
+			// failure and a render failure look identical to the user.
+			{ what: "your choices", fallbackComponent: ChoicesUnavailable },
+		);
 		this.choiceViewHandle = handle;
 
 		// Capture the handle so a stale cleanup can only ever destroy its own
 		// mount (and only nulls the field while it still points at this mount).
 		return () => {
-			handle?.destroy();
+			handle.destroy();
 			if (this.choiceViewHandle === handle) {
 				this.choiceViewHandle = null;
 			}
@@ -474,14 +460,19 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		this.prepareFullWidthSetting(setting);
 
 		this.globalVariablesViewHandle?.destroy();
-		const handle = this.mountSettingView(setting, GlobalVariablesView, {
-			app: this.app,
-			plugin: this.plugin,
-		});
+		const handle = mountComponent(
+			setting.controlEl,
+			GlobalVariablesView,
+			{
+				app: this.app,
+				plugin: this.plugin,
+			},
+			{ what: "your global variables" },
+		);
 		this.globalVariablesViewHandle = handle;
 
 		return () => {
-			handle?.destroy();
+			handle.destroy();
 			if (this.globalVariablesViewHandle === handle) {
 				this.globalVariablesViewHandle = null;
 			}
