@@ -3,11 +3,15 @@ import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import {
+	childChoicesOf,
 	dedupeChoicesById,
 	defaultIconForChoiceType,
 	flattenChoices,
 	flattenChoicesWithPath,
+	hasChildChoices,
+	hasUnreadableChildren,
 	resolveChoiceIcon,
+	rootChoicesOf,
 } from "./choiceUtils";
 
 let idCounter = 0;
@@ -256,5 +260,96 @@ describe("resolveChoiceIcon", () => {
 		};
 		expect(() => resolveChoiceIcon(bad)).not.toThrow();
 		expect(resolveChoiceIcon(bad)).toBe("file-text");
+	});
+});
+
+describe("malformed `choices` values (#1566)", () => {
+	const cases: [string, unknown][] = [
+		["missing", undefined],
+		["null", null],
+		["empty object", {}],
+		["array-like object", { "0": choice("Hidden") }],
+		["string", "nope"],
+		["number", 7],
+	];
+
+	function brokenFolder(children: unknown): IChoice {
+		const node: Record<string, unknown> = {
+			id: "broken",
+			name: "Broken",
+			type: "Multi",
+			command: false,
+			collapsed: false,
+		};
+		if (children !== undefined) node.choices = children;
+		return node as unknown as IChoice;
+	}
+
+	describe.each(cases)("children = %s", (_label, value) => {
+		const folder = brokenFolder(value);
+
+		it("reads as no children", () => {
+			expect(childChoicesOf(folder)).toEqual([]);
+		});
+
+		it("is refused by the write guard", () => {
+			expect(hasChildChoices(folder)).toBe(false);
+		});
+
+		it("does not stop a flatten from reaching later choices", () => {
+			const tail = choice("Tail");
+			expect(flattenChoices([folder, tail])).toContain(tail);
+			expect(
+				flattenChoicesWithPath([folder, tail]).map((e) => e.id),
+			).toContain(tail.id);
+		});
+	});
+
+	it("only calls a folder unreadable when the value could still hold choices", () => {
+		expect(hasUnreadableChildren(brokenFolder(undefined))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder(null))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder({}))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder([]))).toBe(false);
+		expect(hasUnreadableChildren(brokenFolder({ "0": choice("x") }))).toBe(true);
+		expect(hasUnreadableChildren(brokenFolder("nope"))).toBe(true);
+		expect(hasUnreadableChildren(choice("A leaf"))).toBe(false);
+	});
+
+	it("hands a well-formed folder back the very same array", () => {
+		const children = [choice("Kid")];
+		const healthy = multi("Healthy", children);
+		expect(childChoicesOf(healthy)).toBe(children);
+		expect(hasChildChoices(healthy)).toBe(true);
+	});
+
+	it("treats a non-array root as an empty list", () => {
+		expect(rootChoicesOf(undefined)).toEqual([]);
+		expect(rootChoicesOf({})).toEqual([]);
+		expect(rootChoicesOf(null)).toEqual([]);
+		const real = [choice("A")];
+		expect(rootChoicesOf(real)).toBe(real);
+	});
+
+	it("walks past a hole in the list instead of throwing on it", () => {
+		const tail = choice("Tail");
+		const tree = [null as unknown as IChoice, "x" as unknown as IChoice, tail];
+		expect(flattenChoices(tree)).toEqual([tail]);
+		expect(flattenChoicesWithPath(tree).map((e) => e.id)).toEqual([tail.id]);
+	});
+
+	it("keeps a hole in the list verbatim through dedupeChoicesById", () => {
+		// This runs inside loadSettings, ~200 lines before addSettingTab: a throw
+		// here costs the settings tab and every command, not just one row.
+		const a = choice("A");
+		const tree = [null as unknown as IChoice, a, undefined as unknown as IChoice];
+		const out = dedupeChoicesById(tree);
+		expect(out).toEqual([null, a, undefined]);
+	});
+
+	it("leaves a malformed folder's `choices` value exactly as it found it", () => {
+		const blob = { "0": choice("Hidden") };
+		const folder = brokenFolder(blob);
+		const [deduped] = dedupeChoicesById([folder]) as [Record<string, unknown>];
+		expect(deduped.choices).toBe(blob);
 	});
 });
