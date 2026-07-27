@@ -12,6 +12,7 @@ import ChoiceNameHeader from "./components/ChoiceNameHeader.svelte";
 import ValidatedInput from "./components/ValidatedInput.svelte";
 import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
+import FormatTokenHint from "./components/FormatTokenHint.svelte";
 import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
@@ -170,6 +171,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 			requiredMessage="Capture format is required when enabled"
 			makeSuggesters={formatSuggesters}
 		/>
+		<FormatTokenHint value={choice.format.format} />
 		<FormatPreviewField value={choice.format.format} {app} {plugin} />
 	{/snippet}
 </LabeledField>

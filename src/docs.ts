@@ -17,6 +17,7 @@ export const DOCS_BASE_URL = "https://quickadd.obsidian.guide";
 
 export const DOCS_URLS = {
 	gettingStarted: `${DOCS_BASE_URL}/docs/`,
+	formatSyntax: `${DOCS_BASE_URL}/docs/FormatSyntax/`,
 	onePageInputs: `${DOCS_BASE_URL}/docs/Advanced/onePageInputs/`,
 	userScripts: `${DOCS_BASE_URL}/docs/Choices/MacroChoice/#user-scripts`,
 	packages: `${DOCS_BASE_URL}/docs/Choices/Packages/`,
