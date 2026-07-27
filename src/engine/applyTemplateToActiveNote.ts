@@ -16,6 +16,7 @@ import {
 	jumpToNextTemplaterCursorIfPossible,
 } from "../utilityObsidian";
 import { flattenChoices } from "../utils/choiceUtils";
+import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import {
 	TemplateInsertEngine,
@@ -326,6 +327,12 @@ async function maybeReconcileNoteLocation(
 		const targetPath = await engine.computeChoiceTargetPath(choice);
 		if (!targetPath || targetPath === file.path) return;
 		if (await app.vault.adapter.exists(targetPath)) return;
+		// Do not offer a move that cannot succeed (#1591). Answering "Yes" here
+		// creates the target FOLDER and then fails at renameFile, leaving an empty
+		// folder behind and reporting it as a warning the user did nothing to
+		// deserve. This offer is an optional convenience, so it declines quietly;
+		// the choice's own file-name preview is where the problem is explained.
+		if (!isCreatableFilePath(targetPath)) return;
 
 		const shouldMove = await GenericYesNoPrompt.Prompt(
 			app,
