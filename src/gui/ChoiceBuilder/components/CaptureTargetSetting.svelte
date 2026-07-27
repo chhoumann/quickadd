@@ -55,6 +55,14 @@ const captureTargetFeedback = $derived.by(() =>
 // Filter/property targets are not paths, so showing the file-name format preview
 // would render a misleading fake path.
 const usesPickerTargetSyntax = $derived(captureTargetFeedback !== null);
+// The same question, asked of the RESOLVED text. The gate above reads the raw
+// field, but the run resolves the target's format tokens BEFORE parsing it
+// (CaptureChoiceEngine formats captureTo, then resolveCaptureTarget), so a
+// target written as `{{GLOBAL_VAR:inbox}}` that expands to `property:type=draft`
+// passes the raw gate and then gets previewed as a path - complete with #1578's
+// "cannot contain a colon" error for a capture that runs perfectly well.
+const isPickerTargetSyntax = (resolved: string) =>
+	getCaptureTargetFeedback(resolved) !== null;
 // Exclude picker syntax from canvas detection so a contrived value like
 // `property:type=foo.canvas` never offers the (meaningless) canvas-node picker.
 const isCanvasTarget = $derived(
@@ -149,7 +157,13 @@ function validateCaptureTo(value: string) {
 			/>
 			<FormatTokenHint value={choice.captureTo} />
 			{#if !usesPickerTargetSyntax}
-				<FormatPreviewField value={choice.captureTo} formatterKind="fileName" {app} {plugin} />
+				<FormatPreviewField
+					value={choice.captureTo}
+					formatterKind="fileName"
+					{app}
+					{plugin}
+					hideWhen={isPickerTargetSyntax}
+				/>
 			{/if}
 		{/snippet}
 	</LabeledField>

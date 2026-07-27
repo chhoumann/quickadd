@@ -57,6 +57,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 		expect(problems).toEqual([
 			{
 				severity: "error",
+				kind: "path",
 				message: 'File path cannot contain "." or ".." path segments.',
 			},
 		]);
@@ -70,6 +71,7 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 		expect(problems).toEqual([
 			{
 				severity: "error",
+				kind: "path",
 				message: "File path contains an empty path segment after formatting.",
 			},
 		]);
@@ -87,9 +89,31 @@ describe("the file-name preview mirrors the run's name normalizer", () => {
 			"tag:#inbox",
 			"Daily/2026-07-27.md",
 		]) {
-			const { out, problems } = await preview(target);
+			const { out } = await preview(target);
 			expect(out).toBe(target);
-			expect(problems).toEqual([]);
 		}
+	});
+
+	it("does report the colon in a picker target, which the builder hides", async () => {
+		// This formatter previews FILE NAMES. `property:x=y` and `tag:#inbox` are
+		// capture-target syntax, not paths, and a colon in an actual name really
+		// is fatal - so the rule is right and the SURFACE is what knows the
+		// difference: CaptureTargetSetting.svelte renders no preview row at all
+		// while the field holds recognised picker syntax
+		// (`{#if !usesPickerTargetSyntax}`), and that gate is pinned by
+		// CaptureTargetSetting-1578-picker-preview.test.ts.
+		//
+		// Teaching the formatter capture semantics would be the wrong layer: the
+		// same class previews a Template choice's file name, where a literal
+		// `property:x=y` IS a path and the colon IS the problem.
+		const { problems } = await preview("property:status=done");
+		expect(problems).toEqual([
+			{
+				severity: "error",
+				kind: "path",
+				message:
+					'A file or folder name cannot contain ":", so this choice would fail at run time. Check your own text and tokens like {{TIME}}, which is HH:mm.',
+			},
+		]);
 	});
 });
