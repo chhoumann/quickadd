@@ -92,20 +92,31 @@ export function parseVDateOptions(
  * {@link parseVDateOptions} for a PREVIEW, which evaluates INCOMPLETE input on
  * every keystroke.
  *
- * `|startof:<unit>` throws out of `normalizeDateUnit` for a unit that is not
- * finished being typed, and every prefix of `week` is one of those. In the run
- * that throw is the right answer - the token is wrong and the choice should
- * stop. In a preview it blanks the row and turns it red between two keystrokes,
- * which is the per-keystroke noise #1558 removed. The options are simply not
- * known yet, so the preview renders as though none were given and picks the
- * real ones up as soon as the token parses.
+ * `|startof:<unit>` throws out of `normalizeDateUnit` for a unit that does not
+ * resolve, and half of a unit usually does not (`we`, `mont`) - so in the run
+ * that throw is the right answer, and in a preview it would blank the row
+ * between two keystrokes, which is the noise #1558 removed. Note that some
+ * short forms ARE valid aliases (`w`, `d`, `M`), so "unfinished" is not a
+ * property of the string.
+ *
+ * The two channels are therefore split. The OPTIONS come back usable either
+ * way, so the preview TEXT stays stable while you type; the ERROR comes back
+ * separately for the caller to put on the diagnostics channel, which the
+ * builder holds back until the field has been still for 500ms
+ * (`DIAGNOSTICS_IDLE_MS`). Swallowing it outright would have deleted a
+ * diagnostic the body preview already shipped - and left a format the run
+ * cannot execute previewing as a finished date.
  */
-export function parseVDateOptionsForPreview(
-	rawOptions: string | undefined | null,
-): ParsedVDateOptions {
+export function parseVDateOptionsForPreview(rawOptions: string | undefined | null): {
+	options: ParsedVDateOptions;
+	error?: string;
+} {
 	try {
-		return parseVDateOptions(rawOptions);
-	} catch {
-		return { optional: false, withTime: false };
+		return { options: parseVDateOptions(rawOptions) };
+	} catch (error) {
+		return {
+			options: { optional: false, withTime: false },
+			error: error instanceof Error ? error.message : String(error),
+		};
 	}
 }

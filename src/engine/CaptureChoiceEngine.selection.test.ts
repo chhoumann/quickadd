@@ -1283,8 +1283,50 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(createFileWithInput).not.toHaveBeenCalled();
-		// No prompt was opened: the queued response is still queued.
-		expect(promptResponses).toHaveLength(0);
+	});
+
+	it("refuses before the heading picker, not after it (#1591)", async () => {
+		// Placement, not just presence: the "Choose heading when capturing" picker
+		// runs between the existence check and the create dispatch, so a guard
+		// sited at the sink would still have asked the user to pick a heading for
+		// a note that cannot be created. This case fails if the guard moves down.
+		const suggestSpy = vi.fn(async () => "## Today");
+		(InputSuggester as any).Suggest = suggestSpy;
+
+		const engine = new CaptureChoiceEngine(
+			createApp(),
+			{
+				settings: {
+					useSelectionAsCaptureValue: false,
+					showCaptureNotification: true,
+				},
+			} as any,
+			createChoice({
+				captureTo: "Bad: Title.md",
+				createFileIfItDoesntExist: {
+					enabled: true,
+					createWithTemplate: false,
+					template: "",
+				},
+				insertAfter: {
+					enabled: true,
+					after: "",
+					insertAtEnd: false,
+					considerSubsections: false,
+					createIfNotFound: false,
+					createIfNotFoundLocation: "",
+					promptHeading: true,
+				},
+			}),
+			createExecutor(),
+		);
+		const createFileWithInput = vi.fn();
+		(engine as any).createFileWithInput = createFileWithInput;
+
+		await engine.run();
+
+		expect(suggestSpy).not.toHaveBeenCalled();
+		expect(createFileWithInput).not.toHaveBeenCalled();
 	});
 
 	it("still appends to an EXISTING file whose name carries a colon (#1591)", async () => {

@@ -925,6 +925,8 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		await settle();
 
 		const block = previewEl(modal);
+		// The block un-hides for a row (the inverse of the collapse below).
+		expect(block.classList.contains("qa-hidden")).toBe(false);
 		expect(block.querySelector(".qa-preview-val")?.textContent).toBe(
 			"Bad: My Note",
 		);
@@ -991,6 +993,66 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		const block = previewEl(modal);
 		expect(block.classList.contains("qa-hidden")).toBe(true);
 		expect(block.textContent).toBe("");
+		modal.close();
+	});
+
+	it("computes its FIRST preview from the prefilled answers", async () => {
+		// display() used to fire updatePreviews above the renderField loop, and
+		// this.result is only populated inside it - so the opening pass ran with
+		// {} and flashed a stand-in over answers that were already known.
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			requirement,
+			new Map([["title", "Prefilled"]]),
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).toEqual({ title: "Prefilled" });
+		modal.close();
+	});
+
+	it("withholds an untouched required date, as submit() does", async () => {
+		// A required blank date is OMITTED on submit so the sequential date prompt
+		// still fires. Previewing it as answered-empty rendered a name the run
+		// will never create (#1590).
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			[
+				{ id: "title", label: "title", type: "text" },
+				{ id: "due", label: "due", type: "date" },
+			],
+			undefined,
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).not.toHaveProperty("due");
+		modal.close();
+	});
+
+	it("keeps an untouched OPTIONAL date, which is answered-empty", async () => {
+		const calls: Array<Record<string, string>> = [];
+		const modal = new OnePageInputModal(
+			{} as App,
+			[{ id: "due", label: "due", type: "date", optional: true }],
+			undefined,
+			(values) => {
+				calls.push({ ...values });
+				return [];
+			},
+		);
+		await settle();
+
+		expect(calls[0]).toEqual({ due: "" });
 		modal.close();
 	});
 

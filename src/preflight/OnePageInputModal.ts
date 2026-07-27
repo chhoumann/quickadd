@@ -650,9 +650,6 @@ export class OnePageInputModal extends Modal {
 			return;
 		}
 		const out: Record<string, string> = {};
-		const requirementsById = new Map(
-			this.requirements.map((req) => [req.id, req]),
-		);
 
 		// A required date whose typed text failed to parse must not slip through:
 		// without a parse error the value would be silently dropped (and the
@@ -680,13 +677,32 @@ export class OnePageInputModal extends Modal {
 			if (picks.join(", ") !== text) this.multiSelections.delete(id);
 		}
 
+		Object.assign(out, this.collectAnswers());
+		this.settled = true;
+		this.close();
+		this.resolvePromise(out);
+	}
+
+	/**
+	 * The answers as the consumer will actually receive them.
+	 *
+	 * Shared by `submit()` and the live preview so the preview cannot render a
+	 * value the submit path is about to withhold (#1590). The one rule that
+	 * differs from a plain copy of `this.result`: an empty DATE field is only an
+	 * answer when the token said `|optional`. A required blank date, or any date
+	 * whose text failed to parse, is OMITTED so it stays unresolved and the
+	 * sequential date prompt - with its picker and aliases - still fires.
+	 *
+	 * Deriving that in the preflight instead would only get half of it: the
+	 * parse-error set lives here, on the modal.
+	 */
+	private collectAnswers(): Record<string, string> {
+		const requirementsById = new Map(
+			this.requirements.map((req) => [req.id, req] as const),
+		);
+		const out: Record<string, string> = {};
 		this.result.forEach((v, k) => {
 			const requirement = requirementsById.get(k);
-
-			// Empty date fields: an optional date that is genuinely blank is
-			// answered-empty (""). A required blank date — or any date whose
-			// text failed to parse — is OMITTED so it stays unresolved and the
-			// sequential date prompt (with picker and aliases) still fires.
 			if (requirement?.type === "date" && v === "") {
 				const hasParseError = this.dateParseErrors.has(k);
 				if (!requirement.optional || hasParseError) return;
@@ -700,9 +716,7 @@ export class OnePageInputModal extends Modal {
 			// matching the wide and single-line prompts.
 			out[k] = v;
 		});
-		this.settled = true;
-		this.close();
-		this.resolvePromise(out);
+		return out;
 	}
 
 	private cancel() {
@@ -731,9 +745,11 @@ export class OnePageInputModal extends Modal {
 		// complaint.
 		const token = ++this.previewToken;
 		try {
-			const values: Record<string, string> = {};
-			this.result.forEach((v, k) => (values[k] = v));
-			const rows = await this.computePreview(values);
+			// The same answers submit() will hand over, so the row never previews a
+			// value the run is about to re-ask for: an untouched required
+			// {{VDATE:}} is withheld here too, and the preview falls back to its
+			// example date instead of rendering an empty one (#1590).
+			const rows = await this.computePreview(this.collectAnswers());
 			if (token !== this.previewToken || !this.previewContainerEl) return;
 
 			this.previewContainerEl.empty();

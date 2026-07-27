@@ -82,14 +82,27 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
 	});
 
-	it("does not blank the row for a half-typed |startof: unit", async () => {
-		// parseVDateOptions throws on an unfinished unit, and every prefix of
-		// "week" is one. Before this the whole body preview went blank and red
-		// between two keystrokes (#1558's failure mode).
+	it("keeps the text stable for a half-typed |startof: unit, and still reports it", async () => {
+		// parseVDateOptions throws on a unit that does not resolve. Before, that
+		// blanked the whole body preview between two keystrokes (#1558's failure
+		// mode); swallowing it outright would have deleted a diagnostic this
+		// preview already shipped. The text stays a date, the complaint goes on
+		// the channel the builder holds back until the field is idle.
 		const formatter = makeFormatter();
 		await expect(
-			formatter.format("{{VDATE:wk,YYYY-MM-DD|startof:w}}"),
+			formatter.format("{{VDATE:wk,YYYY-MM-DD|startof:we}}"),
 		).resolves.toBe("2023-06-01");
-		expect(formatter.diagnostics.list()).toEqual([]);
+		expect(formatter.diagnostics.list()).toEqual([
+			{
+				severity: "error",
+				message: expect.stringContaining('Unknown date unit "we"') as never,
+			},
+		]);
+	});
+
+	it("applies a valid snap to the example, matching {{DATE:...|startof:}}", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:wk,YYYY-MM-DD|startof:month}}"),
+		).resolves.toBe("2023-06-01");
 	});
 });

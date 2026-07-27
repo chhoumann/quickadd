@@ -249,11 +249,21 @@ describe("the file-name preview does not cry wolf", () => {
 		expect(diagnostics).toEqual([]);
 	});
 
-	it("still reports a colon when only a FOLDER of that name exists", async () => {
-		// The other direction: a file-name format of `Meetings: 2026` produces
-		// `Meetings: 2026.md`, which the run cannot create - a same-named folder
-		// must not excuse it.
+	it("stays quiet for a BARE name that resolves to an existing folder scope", async () => {
+		// captureTargetResolution: an existing folder with no real note beside it
+		// is a folder SCOPE, and the capture picks a file inside it - so nothing
+		// asks Obsidian to accept this string as a name. Reddening it would mark a
+		// working capture broken, and would contradict the trailing-slash case
+		// above for the same runtime target.
 		existingFolders.add("Meetings: 2026");
+		const { diagnostics } = await preview("Meetings: 2026");
+		expect(diagnostics).toEqual([]);
+	});
+
+	it("still reports a colon when a FOLDER is merely named like the note", async () => {
+		// A folder called `Meetings: 2026.md` is not a note, so it cannot be the
+		// target of a capture and cannot excuse the name either.
+		existingFolders.add("Meetings: 2026.md");
 		const { diagnostics } = await preview("Meetings: 2026");
 		expect(diagnostics).toEqual([
 			{ severity: "error", kind: "path", message: REFUSED },

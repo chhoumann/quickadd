@@ -7,6 +7,7 @@ import {
 	type PromptContext,
 } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
+import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -260,20 +261,24 @@ export class FileNameDisplayFormatter extends Formatter {
 	 * engine appends `.md` (`normalizeMarkdownFilePath`), while a capture target
 	 * usually carries one already.
 	 *
-	 * SHAPE-AWARE, in both directions. Obsidian's path map holds no trailing
-	 * slash, so a bare `getAbstractFileByPath` was wrong twice over:
+	 * SHAPE-AWARE, because Obsidian's path map holds files AND folders with no
+	 * trailing slash on either, and a bare `getAbstractFileByPath` conflated
+	 * them:
 	 *
 	 * - a capture target written as `Meetings: 2026/` names a FOLDER to pick
 	 *   inside, and the folder existing is exactly what makes it work - yet the
-	 *   trailing slash meant neither probe matched and the row went red;
-	 * - a file-name format of `Meetings: 2026` was silently excused by a FOLDER
-	 *   of that name, although the run would still fail creating
-	 *   `Meetings: 2026.md`.
+	 *   trailing slash matched neither probe, so the row went red for a capture
+	 *   that runs fine;
+	 * - a bare `Meetings: 2026` may ALSO be a folder scope, and
+	 *   `captureTargetResolution` says exactly when: an existing folder with no
+	 *   real note at `Meetings: 2026.md`. That rule is mirrored here rather than
+	 *   approximated, so the preview and the resolver agree.
 	 *
-	 * Accepted residual: with "create file if it doesn't exist" on, a
-	 * folder-shaped capture target can still create a new note inside a
-	 * colon-bearing folder, which Obsidian's per-segment check refuses. The
-	 * preview cannot know the name that will be picked.
+	 * Accepted residual, unchanged from before: a FOLDER named exactly like a
+	 * Template choice's file-name format excuses the warning, although the run
+	 * would still fail creating the `.md` beside it. Telling the two hosts apart
+	 * needs the host to say which it is, and erring toward silence is this
+	 * cluster's rule - a wrong accusation is worse than a missing one.
 	 */
 	private existsInVault(name: string): boolean {
 		const vault = this.app?.vault;
@@ -285,13 +290,18 @@ export class FileNameDisplayFormatter extends Formatter {
 		if (!trimmed) return false;
 
 		if (trimmed.endsWith("/")) {
-			const folder = vault.getAbstractFileByPath(trimmed.slice(0, -1));
-			return folder instanceof TFolder;
+			return (
+				vault.getAbstractFileByPath(trimmed.slice(0, -1)) instanceof TFolder
+			);
 		}
-		return (
-			vault.getAbstractFileByPath(trimmed) instanceof TFile ||
-			vault.getAbstractFileByPath(`${trimmed}.md`) instanceof TFile
-		);
+
+		if (vault.getAbstractFileByPath(trimmed) instanceof TFile) return true;
+		const withExtension = vault.getAbstractFileByPath(`${trimmed}.md`);
+		if (withExtension instanceof TFile) return true;
+		// `captureTargetResolution` rule: a bare name that is an existing folder
+		// with no real note beside it is a folder SCOPE, and the capture picks a
+		// file inside it - nothing asks Obsidian to accept this string as a name.
+		return vault.getAbstractFileByPath(trimmed) instanceof TFolder;
 	}
 
 	/**
@@ -640,7 +650,13 @@ export class FileNameDisplayFormatter extends Formatter {
 				return match;
 			}
 
-			const { withTime, snap } = parseVDateOptionsForPreview(rawOptions);
+			const { options, error } = parseVDateOptionsForPreview(rawOptions);
+			// A unit that never resolves is an authoring mistake the run aborts on,
+			// so it belongs on the diagnostics channel (held back until the field is
+			// idle) rather than being swallowed. The options still come back usable,
+			// so the TEXT does not flicker while the unit is being typed.
+			if (error) this.reportProblem(error);
+			const { withTime, snap } = options;
 			const cleanDateFormat =
 				dateFormat?.trim() || defaultDateVariableFormat(withTime);
 
@@ -656,14 +672,20 @@ export class FileNameDisplayFormatter extends Formatter {
 			);
 			if (stored) return stored.text;
 
-			// Nothing answered: a realistic example from the current date. Like the
-			// body preview, this renders WITHOUT applying |startof:/|endof: snap -
-			// snap is only resolved in the real CompleteFormatter pass, and
-			// snapping only the file-name preview would diverge from the body
-			// preview.
-			const previewDate = new Date();
+			// Nothing answered: a realistic example from the current date, snapped
+			// the way the run snaps it. #1595 deliberately left snap out of this
+			// preview, on the grounds that snapping only the file-name row would
+			// split it from the body row - both rows do it now, so that reason is
+			// gone, and the alternative was worse: the ANSWERED branch above snaps
+			// (it is the run's own renderer), and {{DATE:...|startof:month}} in the
+			// very same pass has always snapped, so the row contradicted itself
+			// depending on which token you used. Inside the try, because the snap
+			// needs moment and a throw here would redden the row per keystroke.
 			try {
-				return DateFormatPreviewGenerator.generate(cleanDateFormat, previewDate);
+				return DateFormatPreviewGenerator.generate(
+					cleanDateFormat,
+					snappedExampleDate(snap),
+				);
 			} catch {
 				return `[${cleanDateFormat}]`;
 			}

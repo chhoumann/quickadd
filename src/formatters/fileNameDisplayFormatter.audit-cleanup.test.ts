@@ -75,26 +75,29 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		expect(out).toBe("2023-06-01");
 	});
 
-	it("does NOT apply |startof: snap to the preview (matches body preview)", async () => {
+	it("applies |startof: snap to the example, as the run does", async () => {
 		const out = await makeFormatter().format(
 			"{{VDATE:wk,gggg.MM.[Wk]w|startof:week}}",
 		);
-		// Snap is only resolved in the real CompleteFormatter pass; the preview
-		// renders the current date (2023-06-01) like the body preview does, so
-		// the two previews stay consistent. (DateFormatPreviewGenerator leaves
-		// gggg / [Wk] literal — that's its existing simplified-preview behavior.)
-		expect(out).toBe("gggg.06.[Wk]22");
+		// The clock is Thursday 2023-06-01; start of week (en locale, Sunday
+		// first) is 2023-05-28. #1595 left snap out here on the grounds that
+		// snapping only this row would split it from the body row; both rows snap
+		// now, and {{DATE:...|startof:}} in this same pass always did.
+		// (DateFormatPreviewGenerator leaves gggg / [Wk] literal — that's its
+		// existing simplified-preview behavior.)
+		expect(out).toBe("gggg.05.[Wk]22");
 	});
 
-	it("ignores both the snap and the default hint", async () => {
+	it("applies |endof: snap and still appends no hint", async () => {
 		const formatter = makeFormatter();
 		const out = await formatter.format(
 			"{{VDATE:eom,YYYY-MM-DD|endof:month|tomorrow}}",
 		);
-		// No snap applied to the preview, no hint appended: the current date.
-		// Note the token's own `|endof:month` carries a colon, and it is still
-		// not reported - the check reads the finished NAME, not the format.
-		expect(out).toBe("2023-06-01");
+		// End of June. No hint appended: this row is a FILE NAME, and the run
+		// splices in the date and nothing else. Note the token's own
+		// `|endof:month` carries a colon and is still not reported - the check
+		// reads the finished NAME, not the format.
+		expect(out).toBe("2023-06-30");
 		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 
@@ -160,12 +163,28 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 	});
 
 	it("does not blank the row for a half-typed |startof: unit", async () => {
-		// Every prefix of "week" throws out of normalizeDateUnit, and this runs on
-		// every keystroke (#1558).
+		// "we" does not resolve (unlike "w", which is a real alias for week), so
+		// normalizeDateUnit throws - and this runs on every keystroke (#1558). The
+		// TEXT stays a date; the complaint goes on the diagnostics channel, which
+		// the builder holds back until the field has been still for 500ms.
+		const formatter = makeFormatter();
+		await expect(
+			formatter.format("{{VDATE:wk,YYYY-MM-DD|startof:we}}"),
+		).resolves.toBe("2023-06-01");
+		expect(formatter.diagnostics.list()).toEqual([
+			{
+				severity: "error",
+				message: expect.stringContaining('Unknown date unit "we"') as never,
+			},
+		]);
+	});
+
+	it("says nothing for a SHORT unit that really is an alias", async () => {
+		// "w" is week. Reporting it would be the cry-wolf this cluster deletes.
 		const formatter = makeFormatter();
 		await expect(
 			formatter.format("{{VDATE:wk,YYYY-MM-DD|startof:w}}"),
-		).resolves.toBe("2023-06-01");
+		).resolves.toBe("2023-05-28");
 		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 });
