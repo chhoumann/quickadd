@@ -19,7 +19,6 @@ import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
 import { flattenChoices } from "../utils/choiceUtils";
 import { choiceNoun } from "../utils/choiceNoun";
-import { isCancellationError, reportError } from "../utils/errorUtils";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -257,26 +256,11 @@ export async function deleteChoiceWithConfirmation(
 		.filter(Boolean)
 		.join(" ");
 
-	// GenericYesNoPrompt REJECTS with a bare "No answer given." string when the
-	// user dismisses it (Esc / the close button) rather than answering. The call
-	// sites are Svelte `onclick` handlers that discard the promise, so without
-	// this catch a cancelled delete surfaced as an unhandled rejection.
-	let userConfirmed: boolean;
-	try {
-		userConfirmed = await GenericYesNoPrompt.Prompt(
-			app,
-			`Delete ${choiceNoun(choice.type)}`,
-			body,
-		);
-	} catch (error) {
-		if (!isCancellationError(error)) {
-			reportError(
-				error,
-				`Could not confirm ${choiceNoun(choice.type)} deletion`,
-			);
-		}
-		return false;
-	}
+	const userConfirmed = await GenericYesNoPrompt.Prompt(
+		app,
+		`Delete ${choiceNoun(choice.type)}`,
+		body,
+	);
 
 	if (!userConfirmed) return false;
 

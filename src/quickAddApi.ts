@@ -933,12 +933,19 @@ export class QuickAddApi {
 	}
 
 	public static async yesNoPrompt(app: App, header: string, text?: string) {
+		// Scripts are the one caller that must tell "No" from "the user walked
+		// away": answering No returns false and the script carries on, while
+		// dismissing the dialog aborts the macro like every other prompt does.
+		let answer: boolean | null;
 		try {
-			return await GenericYesNoPrompt.Prompt(app, header, text);
+			answer = await GenericYesNoPrompt.Ask(app, header, text);
 		} catch (error) {
 			throwIfPromptCancelled(error);
 			return undefined;
 		}
+
+		if (answer === null) throw new UserCancelError("Input cancelled by user");
+		return answer;
 	}
 
 	public static async infoDialog(

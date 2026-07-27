@@ -479,31 +479,17 @@ describe("choiceService", () => {
 			expect(message).toContain("everything inside it: 2 choices and 1 folder.");
 		});
 
-		// GenericYesNoPrompt REJECTS on Esc/close instead of resolving false, and
-		// the Svelte call sites discard the promise — so this used to surface as
-		// an unhandled rejection in the console on every cancelled delete.
+		// A dismissal reaches this call site as a plain `false` (GenericYesNoPrompt
+		// resolves rather than rejects, #1567), so it takes the declined path with
+		// no error of any kind — this used to be an unhandled rejection.
 		it("treats a dismissed prompt as 'no' without logging an error", async () => {
-			mocks.yesNoPrompt.mockRejectedValue("No answer given.");
+			mocks.yesNoPrompt.mockResolvedValue(false);
 			const result = await deleteChoiceWithConfirmation(
 				createChoice("Multi", "Journal"),
 				fakeApp,
 			);
 			expect(result).toBe(false);
 			expect(mocks.logError).not.toHaveBeenCalled();
-		});
-
-		it("reports a genuine prompt failure, in the target's own noun", async () => {
-			mocks.yesNoPrompt.mockRejectedValue(new Error("boom"));
-			const result = await deleteChoiceWithConfirmation(
-				createChoice("Multi", "Journal"),
-				fakeApp,
-			);
-			expect(result).toBe(false);
-			// reportError surfaces as a Notice via GuiLogger, so this string is
-			// user-visible and must use the same vocabulary as the dialog above it.
-			expect(String(mocks.logError.mock.calls[0][0])).toContain(
-				"folder deletion",
-			);
 		});
 
 		// dedupeChoicesById deliberately preserves a malformed Multi (children

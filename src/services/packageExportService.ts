@@ -257,16 +257,11 @@ async function defaultConfirmOverwrite(
 	app: App,
 	normalizedPath: string,
 ): Promise<boolean> {
-	try {
-		return await GenericYesNoPrompt.Prompt(
-			app,
-			"Overwrite existing file?",
-			`A file already exists at '${normalizedPath}'. Saving the package will overwrite it. Continue?`,
-		);
-	} catch {
-		// Dismissing the prompt (Esc) is treated as "do not overwrite".
-		return false;
-	}
+	return GenericYesNoPrompt.Prompt(
+		app,
+		"Overwrite existing file?",
+		`A file already exists at '${normalizedPath}'. Saving the package will overwrite it. Continue?`,
+	);
 }
 
 export async function writePackageToVault(

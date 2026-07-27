@@ -19,7 +19,7 @@ vi.mock("./gui/GenericWideInputPrompt/GenericWideInputPrompt", () => ({
 	default: { Prompt: vi.fn() },
 }));
 vi.mock("./gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: vi.fn() },
+	default: { Ask: vi.fn(), Prompt: vi.fn() },
 }));
 vi.mock("./gui/GenericInfoDialog/GenericInfoDialog", () => ({
 	default: { Show: vi.fn() },

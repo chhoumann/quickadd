@@ -1,20 +1,44 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
 
+/**
+ * A yes/no dialog. Walking away from it is an answer, not an error: dismissing
+ * the dialog (Esc, the close button, clicking outside) never rejects.
+ *
+ * Use {@link GenericYesNoPrompt.Prompt} for confirmations, where a dismissal is
+ * simply "no". Use {@link GenericYesNoPrompt.Ask} only where a dismissal has to
+ * be told apart from an explicit "No".
+ */
 export default class GenericYesNoPrompt extends Modal {
-	private resolvePromise: (input: boolean) => void;
-	private rejectPromise: (reason?: unknown) => void;
-	private input: boolean;
-	public waitForClose: Promise<boolean>;
-	private didSubmit = false;
+	private resolvePromise: (input: boolean | null) => void;
+	/** `null` until an answer is given, which is what a dismissal resolves. */
+	private input: boolean | null = null;
+	public waitForClose: Promise<boolean | null>;
 
-	public static Prompt(
+	/**
+	 * Ask a yes/no question, keeping "No" and "the user walked away" apart.
+	 *
+	 * Yes = `true`, No = `false`, dismissed = `null`. Never rejects.
+	 */
+	public static Ask(
+		app: App,
+		header: string,
+		text?: string
+	): Promise<boolean | null> {
+		const newPromptModal = new GenericYesNoPrompt(app, header, text);
+		return newPromptModal.waitForClose;
+	}
+
+	/**
+	 * Ask for confirmation. Only an explicit "Yes" confirms, so dismissing the
+	 * dialog counts as "No". Never rejects.
+	 */
+	public static async Prompt(
 		app: App,
 		header: string,
 		text?: string
 	): Promise<boolean> {
-		const newPromptModal = new GenericYesNoPrompt(app, header, text);
-		return newPromptModal.waitForClose;
+		return (await GenericYesNoPrompt.Ask(app, header, text)) === true;
 	}
 
 	private constructor(
@@ -24,9 +48,8 @@ export default class GenericYesNoPrompt extends Modal {
 	) {
 		super(app);
 
-		this.waitForClose = new Promise<boolean>((resolve, reject) => {
+		this.waitForClose = new Promise<boolean | null>((resolve) => {
 			this.resolvePromise = resolve;
-			this.rejectPromise = reject;
 		});
 
 		this.open();
@@ -61,15 +84,13 @@ export default class GenericYesNoPrompt extends Modal {
 
 	private submit(input: boolean) {
 		this.input = input;
-		this.didSubmit = true;
 		this.close();
 	}
 
 	onClose() {
 		super.onClose();
 
-		if (!this.didSubmit) this.rejectPromise("No answer given.");
-		else this.resolvePromise(this.input);
+		this.resolvePromise(this.input);
 	}
 }
 

@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 	// GUI prompts
 	genericInputPrompt: vi.fn(),
 	genericWideInputPrompt: vi.fn(),
-	genericYesNoPrompt: vi.fn(),
+	genericYesNoPromptAsk: vi.fn(),
 	genericInfoDialog: vi.fn(),
 	genericCheckboxPrompt: vi.fn(),
 	genericSuggester: vi.fn(),
@@ -53,7 +53,7 @@ vi.mock("./gui/GenericWideInputPrompt/GenericWideInputPrompt", () => ({
 	default: { Prompt: mocks.genericWideInputPrompt },
 }));
 vi.mock("./gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: mocks.genericYesNoPrompt },
+	default: { Ask: mocks.genericYesNoPromptAsk },
 }));
 vi.mock("./gui/GenericInfoDialog/GenericInfoDialog", () => ({
 	default: { Show: mocks.genericInfoDialog },
@@ -306,18 +306,30 @@ describe("static prompt wrappers", () => {
 		});
 	});
 
+	// Scripts are the one caller that needs "No" and "dismissed" kept apart:
+	// answering No is a value the script acts on, dismissing aborts the macro.
 	describe("yesNoPrompt", () => {
 		it("returns the boolean answer", async () => {
-			mocks.genericYesNoPrompt.mockResolvedValue(true);
+			mocks.genericYesNoPromptAsk.mockResolvedValue(true);
 			expect(await QuickAddApi.yesNoPrompt(app, "H", "txt")).toBe(true);
-			expect(mocks.genericYesNoPrompt).toHaveBeenCalledWith(app, "H", "txt");
+			expect(mocks.genericYesNoPromptAsk).toHaveBeenCalledWith(app, "H", "txt");
 		});
 
-		it("treats 'No answer given.' as a cancellation abort", async () => {
-			mocks.genericYesNoPrompt.mockRejectedValue("No answer given.");
+		it("returns false for an explicit No rather than aborting", async () => {
+			mocks.genericYesNoPromptAsk.mockResolvedValue(false);
+			expect(await QuickAddApi.yesNoPrompt(app, "H")).toBe(false);
+		});
+
+		it("treats a dismissal as a cancellation abort", async () => {
+			mocks.genericYesNoPromptAsk.mockResolvedValue(null);
 			await expect(QuickAddApi.yesNoPrompt(app, "H")).rejects.toBeInstanceOf(
 				MacroAbortError,
 			);
+		});
+
+		it("swallows generic errors as undefined", async () => {
+			mocks.genericYesNoPromptAsk.mockRejectedValue(new Error("x"));
+			expect(await QuickAddApi.yesNoPrompt(app, "H")).toBeUndefined();
 		});
 	});
 
