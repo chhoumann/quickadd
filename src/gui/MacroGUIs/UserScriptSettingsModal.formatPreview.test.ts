@@ -244,9 +244,11 @@ describe("UserScriptSettingsModal format option preview", () => {
 		modal.close();
 	});
 
-	it("opens when a stored value is not a string", async () => {
+	it("opens when a stored value is not a string, and shows what the script will get", async () => {
 		// A script that changed an option from `type: "toggle"` to `type: "format"`
-		// between versions leaves a boolean in the saved command settings.
+		// between versions leaves a boolean in the saved command settings. Blanking
+		// the field would claim the setting is empty while
+		// `resolveUserScriptSettings` still forwards `true` to the script.
 		const command = createCommand();
 		command.settings["Note format"] = true;
 		const modal = new UserScriptSettingsModal(
@@ -258,8 +260,12 @@ describe("UserScriptSettingsModal format option preview", () => {
 		) as UserScriptSettingsModal & { contentEl: HTMLElement };
 		await flush();
 
-		expect(textarea(modal.contentEl).value).toBe("");
-		expect(modal.contentEl.querySelector(".qa-preview-row")).toBeNull();
+		expect(textarea(modal.contentEl).value).toBe("true");
+		expect(
+			modal.contentEl.querySelector(".qa-preview-value")?.textContent,
+		).toBe("resolved(true)");
+		// Untouched until the user actually edits the field.
+		expect(command.settings["Note format"]).toBe(true);
 
 		modal.close();
 	});

@@ -57,6 +57,22 @@ type Option = { description?: string; id?: string } & (
 	  }
 );
 
+/**
+ * The text a `type: "format"` option should render for a stored value that a
+ * third-party script may have left in any shape.
+ *
+ * Absent means absent: `initializeUserScriptSettings` deliberately leaves an
+ * option with no `defaultValue` unset so the script can apply its own, and
+ * printing "undefined" into the field would be a lie about what it will receive.
+ * Anything else is stringified rather than blanked, so the field agrees with the
+ * value `resolveUserScriptSettings` forwards.
+ */
+function formatOptionText(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (value === undefined || value === null) return "";
+	return String(value);
+}
+
 function formatTitlePart(value: unknown): string {
 	if (typeof value === "string") return value;
 	if (value === null || value === undefined) return "";
@@ -326,15 +342,21 @@ export class UserScriptSettingsModal extends Modal {
 		// `value` comes from a third-party script's `settings.options`, so its
 		// declared `string` is a promise, not a guarantee: an option with no
 		// `defaultValue` arrives as undefined (initializeUserScriptSettings
-		// deliberately skips those), and an option whose `type` changed from
-		// `toggle` to `format` between script versions arrives as a boolean.
-		// Coerce here, at the boundary where untrusted data enters typed code -
-		// FormatPreviewField's `value.trim()` runs during mount, so a non-string
-		// would throw out of display() and out of the constructor, and the gear
-		// button in the command list would silently do nothing. Passing it to
-		// setValue is a pre-existing wart too: a real TextAreaComponent renders
-		// the literal text "undefined".
-		const text = typeof value === "string" ? value : "";
+		// deliberately skips those, so the script can apply its own default), and
+		// an option whose `type` changed from `toggle` to `format` between script
+		// versions arrives as a boolean. Coerce here, at the boundary where
+		// untrusted data enters typed code - FormatPreviewField's `value.trim()`
+		// runs during mount, so a non-string would throw out of display() and out
+		// of the constructor, and the gear button in the command list would
+		// silently do nothing.
+		//
+		// A present non-string is STRINGIFIED rather than blanked, so what the
+		// field shows still corresponds to what `resolveUserScriptSettings` will
+		// forward to the script. That also keeps this method consistent with its
+		// four siblings, which all render `value as string` unchanged. Absent
+		// (undefined/null) renders empty instead of the literal text "undefined",
+		// which is what a real TextAreaComponent would print.
+		const text = formatOptionText(value);
 
 		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
