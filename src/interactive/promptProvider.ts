@@ -11,15 +11,16 @@
  * A dismissal is part of that contract, not an exception to it: a client replies
  * `{"cancelled": true}` (see `submitReply`), the pending prompt rejects with
  * `UserCancelError`, and the run aborts exactly as it does when the Obsidian modal
- * is dismissed - same class, same message. `promptProvider.test.ts` pins that for
- * every method.
+ * is dismissed - same class, same message. That holds for every prompt except `info`
+ * (below), and `promptProvider.test.ts` pins the half that lives here: no method
+ * swallows an abort on its way to the script.
  *
- * One genuine asymmetry, kept deliberately: cancelling an `info` prompt aborts the
- * run, while `GenericInfoDialog` in-app has no reject path and can never abort
- * anything. Removing it would take away a remote client's only way to bail out
- * mid-run, so it stays and is documented at the wire (docs/.../Advanced/CLI.md)
- * instead: a client that just wants to close an info panel should send a plain
- * reply, not a cancel.
+ * `info` is the one prompt where a cancel does NOT abort, and that too is parity
+ * rather than an exception to it: `GenericInfoDialog` resolves on every close path and
+ * has no reject path at all, so the identical choice run in the app continues past the
+ * panel. Escape is the only gesture an info panel affords, so a client mapping it to a
+ * cancel used to kill a run the app would have finished (#1605). A client that really
+ * wants out sends `POST /abort`, which ends the run whatever it is blocked on.
  */
 
 import { formatISODate } from "../utils/dateParser";
@@ -276,10 +277,11 @@ export class RemotePromptProvider implements PromptProvider {
 	 *
 	 * A live client never sees this throw: the same rule is enforced at `/reply`
 	 * (`describeReplyProblem`), where a 400 reaches the client while it is still
-	 * holding the response and the prompt stays pending. This is the backstop for
-	 * every other caller of the provider, and the reason it is not the primary check
-	 * is that on the Template/Capture path a thrown message is replaced by a generic
-	 * sentence before the client ever polls for it.
+	 * holding the response and the prompt stays pending. Validating at the wire is what
+	 * makes a malformed reply RECOVERABLE - the client is still awaiting the HTTP
+	 * response and the prompt has not been settled - so it stays the primary check even
+	 * now that a thrown message survives to the client (#1603). This is the backstop for
+	 * every other caller of the provider.
 	 *
 	 * The other prompt types stay lenient on purpose: `""` and `[]` are answers a
 	 * user really can give in-app (the Skip affordances, optional fields), so

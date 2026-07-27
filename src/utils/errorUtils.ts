@@ -101,13 +101,72 @@ const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * When {@link reportError} last showed the user each value.
+ *
+ * One failure travelled up through two reporting layers and produced two stacked
+ * 15-second notices for one bug (#1601): `MacroChoiceEngine` reports a script failure
+ * AND re-throws it, and the command-palette handler in `main.ts` reports it again. Both
+ * layers are right to report - neither can know whether anything above it will - so
+ * "report once" belongs in the function they both call, not in a rule each has to
+ * remember.
+ *
+ * Keyed on the value's IDENTITY, not its message: two independent failures with the
+ * same text still both report, and the same failure re-thrown through five layers
+ * reports once. A `WeakMap` so a reported Error is still collectable.
+ */
+const reportedErrors = new WeakMap<object, number>();
+
+/**
+ * How long a value stays "already reported".
+ *
+ * Suppression has to expire, or a long-lived user-script module that re-throws one
+ * cached `Error` on every invocation would be reported the first time and then
+ * silently forever after - a command that does nothing, which is the failure the whole
+ * reporting seam exists to remove. One propagation unwinds in microseconds, so any
+ * window comfortably above that collapses the stacked notices while leaving separate
+ * runs separate. Same value, and the same reasoning, as the unhandled-rejection
+ * reporter's repeat window.
+ */
+const REPORT_WINDOW_MS = 10_000;
+
+/** Bound the `cause` walk; also what stops a cyclic `cause` chain from spinning. */
+const MAX_CAUSE_DEPTH = 8;
+
+function isTrackable(value: unknown): value is object {
+  return (typeof value === "object" && value !== null) || typeof value === "function";
+}
+
+/**
+ * True if this value, or any error it was wrapped around, has already been reported.
+ *
+ * The `cause` chain matters because not every layer re-throws the same instance: the AI
+ * request path reports the provider error and then throws
+ * `new Error("Error while making request to …", { cause: error })`, so identity alone
+ * would let that pair through as two notices for one failed request.
+ */
+function alreadyReported(err: unknown, at: number): boolean {
+  let current: unknown = err;
+  for (let depth = 0; depth < MAX_CAUSE_DEPTH && isTrackable(current); depth++) {
+    const reportedAt = reportedErrors.get(current);
+    if (reportedAt !== undefined && at - reportedAt < REPORT_WINDOW_MS) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+/**
  * Reports an error to the logging system with additional context
  * Converts any error type to a proper Error object and logs it with the appropriate level
- * 
+ *
+ * Reports each failure ONCE: a value already reported (directly, or as the `cause` of one)
+ * is dropped for {@link REPORT_WINDOW_MS}, so the innermost layer - the one with the most
+ * specific context - is the one the user sees. See {@link reportedErrors}.
+ *
  * @param err - The error to report
  * @param contextMessage - Optional context message to add
  * @param level - Error level (defaults to ERROR)
- * 
+ * @returns true if this call reported, false if the failure had already been reported
+ *
  * @example
  * ```ts
  * try {
@@ -118,12 +177,18 @@ const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
  * ```
  */
 export function reportError(
-  err: unknown, 
+  err: unknown,
   contextMessage?: string,
   level: ErrorLevel = ErrorLevelEnum.Error
-): void {
+): boolean {
+  const at = Date.now();
+  if (alreadyReported(err, at)) return false;
+  // Mark the value itself, not the whole chain: the rule is "do not report a failure
+  // whose cause the user has already seen", not "reporting a wrapper silences its parts".
+  if (isTrackable(err)) reportedErrors.set(err, at);
+
   const error = toError(err, contextMessage);
-  
+
   switch (level) {
     case ErrorLevelEnum.Error:
       log.logError(error);
@@ -138,6 +203,27 @@ export function reportError(
       // Ensure exhaustiveness
       log.logError(error);
   }
+  return true;
+}
+
+/**
+ * Reports a failure, staying silent for a dismissal.
+ *
+ * The outermost handlers - the command-palette callback, the choice picker - catch
+ * whatever a run threw, and a user pressing Escape reaches them exactly like a bug does.
+ * Reporting that as `(ERROR) Error executing choice <uuid>: One-page input cancelled by
+ * user` for a deliberate Escape is the failure PR #1606's first rule exists to prevent,
+ * and it is what those handlers did before this guard.
+ *
+ * @returns true if it reported; false for a cancellation or an already-reported failure.
+ */
+export function reportUnlessCancelled(
+  err: unknown,
+  contextMessage?: string,
+  level: ErrorLevel = ErrorLevelEnum.Error,
+): boolean {
+  if (isCancellationError(err)) return false;
+  return reportError(err, contextMessage, level);
 }
 
 /**
@@ -201,8 +287,7 @@ export function reportingHandler<A extends unknown[]>(
   fn: (...args: A) => unknown,
 ): (...args: A) => void {
   const report = (err: unknown): void => {
-    if (isCancellationError(err)) return;
-    reportError(err, contextMessage);
+    reportUnlessCancelled(err, contextMessage);
   };
 
   return (...args: A): void => {

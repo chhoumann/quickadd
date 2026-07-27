@@ -4,6 +4,7 @@ import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
+import { reportError } from "./errorUtils";
 
 type GetUserScriptOptions = {
 	reportLoadErrors?: boolean;
@@ -45,7 +46,11 @@ function reportAndThrowUserScriptLoadError(
 ): never {
 	const error = new UserScriptLoadError(message);
 	if (options.reportLoadErrors !== false) {
-		log.logError(error);
+		// reportError, not log.logError: this error is thrown straight past
+		// MacroChoiceEngine's own reporting catch and lands in the command-palette
+		// handler, which reported it a second time - two stacked 15-second notices with
+		// the same 300-character message for one typo'd require (#1601).
+		reportError(error);
 	}
 
 	throw error;

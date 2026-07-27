@@ -1,5 +1,7 @@
 import type { Instruction, Scope } from "obsidian";
+import { log } from "src/logger/logManager";
 import { createOwnedElement, createOwnedTextNode } from "src/utils/activeWindow";
+import { toError } from "src/utils/errorUtils";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -67,6 +69,35 @@ export function installSkipAffordance(
 			onSkip();
 		});
 	}
+}
+
+/**
+ * A one-shot warner for a render fallback, scoped to one modal instance.
+ *
+ * `renderSuggestion` runs once per visible row and re-runs on every keystroke, so a
+ * caller-supplied `renderItem` that throws fails dozens of times for ONE defect.
+ * `log.logWarning` raises a Notice, so reporting each failure buried the user - measured
+ * live: three items over three renders put NINE stacked notices on screen (#1604). One
+ * broken callback is one defect, and the fallback rendering it triggers is identical for
+ * every row, so the first failure is the whole message.
+ *
+ * The trade accepted: a `renderItem` that throws a DIFFERENT error per row surfaces only
+ * the first. Warning per distinct message instead would restore the storm for the shape
+ * most likely to produce one (a message embedding the row's value).
+ *
+ * The context is passed to {@link toError}, which builds a fresh Error rather than
+ * mutating the caller's - assigning to `err.message` compounded the prefix on every
+ * render when a callback rethrew one cached Error (#1604).
+ */
+export function createRenderFallbackWarner(
+	context: string,
+): (error: unknown) => void {
+	let warned = false;
+	return (error: unknown): void => {
+		if (warned) return;
+		warned = true;
+		log.logWarning(toError(error, context));
+	};
 }
 
 export function normalizeQuery(value: unknown): string {

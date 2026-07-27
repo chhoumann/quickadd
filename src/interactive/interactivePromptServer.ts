@@ -150,6 +150,13 @@ interface Session {
 		}
 	>;
 	finished: boolean;
+	/**
+	 * The client asked to end the run (`POST /abort`). Every pending prompt has been
+	 * rejected; this makes a prompt raised AFTERWARDS reject immediately instead of
+	 * parking, so a run that was mid-work when the abort arrived unwinds at its next
+	 * prompt rather than carrying on to completion.
+	 */
+	aborted: boolean;
 	cleanupTimer: number | null;
 	/** True once a client has polled at least once. */
 	attached: boolean;
@@ -345,6 +352,7 @@ class InteractivePromptServer {
 			waiterTimer: null,
 			pending: new Map(),
 			finished: false,
+			aborted: false,
 			cleanupTimer: null,
 			attached: false,
 			attachTimer: null,
@@ -371,6 +379,11 @@ class InteractivePromptServer {
 		// aborts instead of hanging.
 		if (session.finished) {
 			return Promise.reject(new Error("Interactive session ended"));
+		}
+		// The client already asked to end this run; do not park a new prompt it will
+		// never answer.
+		if (session.aborted) {
+			return Promise.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		}
 		const requestId = randomId();
 		return new Promise<unknown>((resolve, reject) => {
@@ -408,6 +421,50 @@ class InteractivePromptServer {
 			() => this.destroySession(session),
 			SESSION_TTL_MS,
 		);
+	}
+
+	/**
+	 * End a run at the client's request: reject everything it is blocked on, and make
+	 * the next prompt reject too.
+	 *
+	 * This exists because cancelling an `info` prompt no longer aborts. Escape is the
+	 * only gesture an info panel affords, so treating it as "end the run" made a remote
+	 * run diverge from the identical run in the app, where `GenericInfoDialog` resolves
+	 * on every close path and can never abort anything (#1605). Taking that away without
+	 * replacing it would have left a client with no explicit way out at all - only
+	 * stopping its polling and waiting out the 75-second watchdog.
+	 *
+	 * No final event is pushed: the run unwinds through the ordinary cancellation path
+	 * and delivers its real outcome, which is more truthful than a fabricated one.
+	 *
+	 * The honest limit, documented at the wire: this interrupts prompts that were routed
+	 * to the CLIENT. Prompts QuickAdd still opens in Obsidian on a Template/Capture run
+	 * (the file-exists suggester, the folder chooser, the capture-target picker) do not
+	 * go through this server and are unaffected, which is why the reply says how many
+	 * pending prompts it actually interrupted.
+	 *
+	 * @returns the number of pending prompts rejected, or null if there is no live
+	 * session to abort.
+	 */
+	abortSession(sessionId: string): number | null {
+		const session = this.sessions.get(sessionId);
+		if (!session || session.finished) return null;
+		session.aborted = true;
+		// Delete before rejecting, exactly as finish() does: a `/reply` that was already
+		// mid-readBody would otherwise still find a pending entry, pass validation and
+		// be answered 200 for a settle that is a no-op on an already-rejected promise.
+		const pending = [...session.pending.values()];
+		session.pending.clear();
+		for (const prompt of pending) {
+			prompt.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
+		}
+		// Drop prompts the client has not collected yet. A prompt raised while no poll
+		// was parked sits in the queue, and the next poll would hand the client a dialog
+		// it just asked to cancel - for a requestId that no longer exists, in front of
+		// the run's real terminal event. Only prompts are dropped; a queued done/error
+		// is the outcome the client is waiting for.
+		session.queue = session.queue.filter((event) => event.kind !== "prompt");
+		return pending.length;
 	}
 
 	/** Stop the server and drop all sessions (plugin unload). */
@@ -514,9 +571,22 @@ class InteractivePromptServer {
 		// `describeReplyProblem` turns it into a 400 at the wire, leaving the prompt
 		// pending - because resolving it would hand the run an empty answer the user
 		// never gave, which is worse than the spurious abort a loose truthy check caused.
-		if (cancelled === true)
-			pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
-		else pending.resolve(value);
+		if (cancelled === true) {
+			// An `info` prompt is the exception, and it is the in-app behaviour that
+			// makes it one: `GenericInfoDialog` resolves on EVERY close path and has no
+			// reject path at all, so pressing Escape on it in the app continues the run.
+			// Escape is the only gesture an info panel affords, so a client that maps it
+			// to a cancel used to kill a run the same choice would have finished in the
+			// app (#1605). Closing an info panel is not a cancellation; a client that
+			// really wants out sends `POST /abort`.
+			//
+			// Decided here rather than in RemotePromptProvider.infoDialog because the
+			// provider cannot tell a per-prompt cancel from a session abort without a
+			// second error class - and swallowing both would leave /abort unable to end
+			// a run blocked on an info panel, the one case it exists for.
+			if (pending.promptType === "info") pending.resolve(value);
+			else pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
+		} else pending.resolve(value);
 		return true;
 	}
 
@@ -535,6 +605,15 @@ class InteractivePromptServer {
 			"cache-control": "no-store",
 		});
 		res.end(payload);
+	}
+
+	/** Read and discard a request body we have no use for. */
+	private async drainBody(req: HttpIncomingMessage): Promise<void> {
+		let size = 0;
+		for await (const chunk of req) {
+			size += (chunk as Buffer).length;
+			if (size > 1_000_000) throw new Error("Request body too large");
+		}
 	}
 
 	private async readBody(req: HttpIncomingMessage): Promise<unknown> {
@@ -570,6 +649,29 @@ class InteractivePromptServer {
 
 			if (req.method === "GET" && url.pathname === "/poll") {
 				this.handlePoll(session, res);
+				return;
+			}
+			if (req.method === "POST" && url.pathname === "/abort") {
+				// Consume the request before answering, like /reply does. /abort takes no
+				// body, but a client may still send one, and unread bytes left on a
+				// keep-alive socket are the next request's problem. Node drains an
+				// unconsumed request itself when the response finishes; doing it here
+				// makes the route independent of that internal.
+				await this.drainBody(req);
+				const interrupted = this.abortSession(session.id);
+				if (interrupted === null) {
+					// The run already ended, so nothing was aborted. Saying ok:true would
+					// tell the client it stopped something it did not.
+					this.send(res, 409, {
+						ok: false,
+						error: "The interactive session has already ended",
+					});
+					return;
+				}
+				// `interrupted` lets a client tell an effective abort from a no-op: it is
+				// 0 when the run was mid-work, or blocked on a prompt QuickAdd opened in
+				// Obsidian rather than routing here.
+				this.send(res, 200, { ok: true, interrupted });
 				return;
 			}
 			if (req.method === "POST" && url.pathname === "/reply") {

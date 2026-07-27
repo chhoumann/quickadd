@@ -456,7 +456,12 @@ async function runResolvedChoice(
 			return serialize({
 				ok: false,
 				command,
-				error: "Choice execution failed; no file was created.",
+				// The engine's own message, so a headless caller learns the cause
+				// (`Template file not found at path "…"`) instead of a fixed sentence
+				// while the actionable text goes to a desktop notice nobody is
+				// watching (#1603). The fallback is for an outcome that carries
+				// nothing at all - every engine failure exit records a reason.
+				error: outcome.reason || "Choice execution failed; no file was created.",
 				choice: describeChoice(choice),
 				durationMs,
 			});
@@ -791,7 +796,11 @@ async function interactiveHandler(
 									(outcome.cancelKind === "user"
 										? "Execution cancelled by user"
 										: "Execution aborted")
-								: "Choice execution failed; no file was created.",
+								: // The engine's real message. A remote client is the whole
+									// premise of this seam - nobody is at the desktop to read
+									// the notice that carries the same text (#1603).
+									outcome.reason ||
+									"Choice execution failed; no file was created.",
 					});
 					return;
 				}
@@ -825,6 +834,12 @@ async function interactiveHandler(
 			port,
 			sessionId,
 			token,
+			// Feature detection for the wire. `abort` says two things at once: this
+			// build serves `POST /abort`, and cancelling an `info` prompt closes the
+			// panel instead of ending the run (#1605). Without it a client could only
+			// tell the two behaviours apart by string-matching a 404 body, since an
+			// unknown path and an unauthed session answer the same shape.
+			capabilities: ["abort"],
 		});
 	} catch (error) {
 		return serialize({

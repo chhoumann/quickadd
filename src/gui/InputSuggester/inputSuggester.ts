@@ -1,7 +1,8 @@
 import { FuzzySuggestModal, setIcon } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
-import { log, toError } from "src/logger/logManager";
+import { log } from "src/logger/logManager";
 import {
+	createRenderFallbackWarner,
 	installSkipAffordance,
 	normalizeDisplayItem,
 	normalizeQuery,
@@ -58,6 +59,12 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 	private searchItems: string[];
 	private items: string[];
 	private warnedOnEmptyDisplay = false;
+	private warnRenderItemFailure = createRenderFallbackWarner(
+		"Custom renderItem threw an error; falling back to default rendering",
+	);
+	private warnCustomValueFailure = createRenderFallbackWarner(
+		"Custom create-row rendering threw an error; falling back to default rendering",
+	);
 	private allowCustomValue = true;
 	private customValueLabel?: (value: string) => string;
 	private valueExists?: (value: string) => boolean;
@@ -230,9 +237,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			el.empty();
 			this.renderItem(value.item, el);
 		} catch (error) {
-			const err = toError(error);
-			err.message = `Custom renderItem threw an error; falling back to default rendering. ${err.message}`;
-			log.logWarning(err);
+			this.warnRenderItemFailure(error);
 			el.empty();
 			super.renderSuggestion(value, el);
 		}
@@ -250,9 +255,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			const aux = el.createDiv({ cls: "suggestion-aux" });
 			setIcon(aux.createSpan({ cls: "suggestion-flair" }), "file-plus");
 		} catch (error) {
-			const err = toError(error);
-			err.message = `Custom create-row rendering threw an error; falling back to default rendering. ${err.message}`;
-			log.logWarning(err);
+			this.warnCustomValueFailure(error);
 			el.empty();
 			super.renderSuggestion(
 				{ item: value, match: { score: 0, matches: [] } },

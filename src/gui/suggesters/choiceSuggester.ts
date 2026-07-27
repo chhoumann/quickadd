@@ -13,7 +13,8 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
-import { log } from "../../logger/logManager";
+import { createRenderFallbackWarner } from "./utils";
+import { reportUnlessCancelled } from "../../utils/errorUtils";
 import { settingsStore } from "../../settingsStore";
 import {
 	childChoicesOf,
@@ -203,6 +204,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// so they are torn down when the suggester closes instead of leaking onto the
 	// long-lived plugin instance.
 	private readonly markdownComponent = new Component();
+	private readonly warnRenderFailure = createRenderFallbackWarner(
+		"Could not render a choice name as Markdown; showing it as plain text",
+	);
 
 	public static Open(
 		plugin: QuickAdd,
@@ -380,7 +384,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		void MarkdownRenderer.render(this.app, item.item.name, nameEl, "", this.markdownComponent)
 			.catch((error) => {
 				nameEl.textContent = item.item.name;
-				log.logError(`Failed to render choice suggestion: ${error}`);
+				// renderSuggestion runs per row and re-runs on every keystroke, so a
+				// renderer that keeps failing would raise a 15-second ERROR notice per
+				// row per keypress. Same shape as the renderItem storm in #1604: one
+				// broken renderer is one defect, and the plain-text fallback above is
+				// what every row gets anyway.
+				this.warnRenderFailure(error);
 			});
 		el.classList.add("quickadd-choice-suggestion");
 		if (item.item.id === BACK_CHOICE_ID)
@@ -444,7 +453,10 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			void runTemplateFromFolder(this.app, this.plugin, {
 				choiceExecutor: this.choiceExecutor,
 			}).catch((error) => {
-				log.logError(`Failed to run template from folder: ${error}`);
+				// reportError, not a template-stringified log line: interpolating the
+				// error throws its stack away, and only a value passed through
+				// reportError participates in the report-once contract (#1601).
+				reportUnlessCancelled(error, "Could not run a template from that folder");
 			});
 			return;
 		}
@@ -465,7 +477,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 					)
 				: this.choiceExecutor.execute(item);
 			void execute.catch((error) => {
-				log.logError(`Failed to execute selected choice: ${error}`);
+				reportUnlessCancelled(error, `Could not run "${item.name}"`);
 			});
 		}
 	}

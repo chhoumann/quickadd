@@ -474,7 +474,14 @@ describe("CaptureChoiceEngine append-link destination", () => {
 
 		expect(app.vault.adapter.exists).not.toHaveBeenCalled();
 		expect(app.vault.modify).not.toHaveBeenCalled();
-		expect(choiceExecutor.recordExecutionResult).not.toHaveBeenCalled();
+		// This exit used to record NOTHING, so `executeWithOutcome` produced a
+		// reason-less error and the CLI substituted its fixed sentence - #1603's exact
+		// symptom, reachable without any throw. It now carries the message the desktop
+		// notice carries.
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: expect.stringContaining("Append link target file not found"),
+		});
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
 		expect(copyFileLinkToClipboardMock).not.toHaveBeenCalled();
 	});

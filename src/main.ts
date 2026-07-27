@@ -8,7 +8,11 @@ import { log } from "./logger/logManager";
 import { ConsoleErrorLogger } from "./logger/consoleErrorLogger";
 import { GuiLogger } from "./logger/guiLogger";
 import { LogManager } from "./logger/logManager";
-import { reportError, withErrorHandling } from "./utils/errorUtils";
+import {
+	reportError,
+	reportUnlessCancelled,
+	withErrorHandling,
+} from "./utils/errorUtils";
 import { registerUnhandledRejectionReporter } from "./utils/unhandledRejectionReporter";
 import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
@@ -421,7 +425,9 @@ export default class QuickAdd extends Plugin {
 		try {
 			await choiceExecutor.execute(choice);
 		} catch (err) {
-			reportError(err, "Error executing choice from URI");
+			// Silent for a dismissal: a URI run that opens a prompt the user escapes is
+			// not a failure, and this legacy path has no x-cancel target to tell.
+			reportUnlessCancelled(err, `Could not run "${choice.name}"`);
 		}
 	}
 
@@ -569,11 +575,22 @@ export default class QuickAdd extends Plugin {
 				name: choice.name,
 				icon: resolveChoiceIcon(choice),
 				callback: async () => {
+					// Resolved outside the try so the failure can name the choice the user
+					// actually ran; a bare UUID tells them nothing. Falls back to the name
+					// captured at registration when the lookup itself is what failed.
+					let current: IChoice | undefined;
 					try {
-						const current = this.getChoiceById(choiceId);
+						current = this.getChoiceById(choiceId);
 						await new ChoiceExecutor(this.app, this).execute(current);
 					} catch (err) {
-						reportError(err, `Error executing choice ${choiceId}`);
+						// The outermost handler: the last chance to say which choice failed.
+						// It reports only what nothing below it already reported (#1601), and
+						// stays silent when the user simply dismissed a prompt - Escape on the
+						// one-page input modal used to raise a 15-second ERROR notice here.
+						reportUnlessCancelled(
+							err,
+							`Could not run "${current?.name ?? choice.name}"`,
+						);
 					}
 				},
 			});

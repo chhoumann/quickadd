@@ -1038,10 +1038,10 @@ export class QuickAddApi {
  * inline scripts, main.ts / choiceSuggester at the top), and `reportError` raises a
  * 15-second Notice - so reporting here too would stack another one.
  *
- * "Already reports" is at least once, not exactly once: on the command-palette macro
- * path MacroChoiceEngine reports and rethrows into main.ts, which reports again, so a
- * user script error raises TWO notices today. That is pre-existing and tracked
- * separately; adding a third here would make it worse, not better.
+ * "Already reports" is now exactly once: `reportError` drops a value it has already
+ * shown the user, so the layer with the most specific context wins however many layers
+ * catch it (#1601). Reporting here would still be the wrong layer - it knows only that
+ * "a prompt failed", not which script or choice was running.
  */
 function rethrowPromptError(error: unknown): never {
 	if (error instanceof MacroAbortError) {

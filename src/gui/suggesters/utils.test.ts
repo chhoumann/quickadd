@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { log } from "../../logger/logManager";
 import { 
 	insertAtCursor, 
 	replaceRange, 
@@ -6,6 +7,7 @@ import {
 	renderExactHighlight, 
 	renderFuzzyHighlight,
 	stripMdExtensionForDisplay,
+	createRenderFallbackWarner,
 } from "./utils";
 
 // Mock HTMLInputElement for testing
@@ -250,5 +252,74 @@ describe("Suggester Utils", () => {
 				"{{TEMPLATE:folder/file.md}}",
 			);
 		});
+	});
+});
+
+/**
+ * #1604. `renderSuggestion` runs once per visible row and re-runs on every keystroke, so
+ * a caller-supplied `renderItem` that throws fails dozens of times for ONE defect. The
+ * old handler assigned to `err.message` on the CALLER's Error - measured live: three
+ * items over three renders put nine stacked Notices on screen, each message one prefix
+ * longer than the last.
+ */
+describe("createRenderFallbackWarner (#1604)", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("warns once however many rows and renders fail", () => {
+		const logWarning = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const warn = createRenderFallbackWarner("Custom renderItem threw an error");
+
+		for (let i = 0; i < 30; i++) warn(new Error("renderItem is broken"));
+
+		expect(logWarning).toHaveBeenCalledTimes(1);
+	});
+
+	it("never mutates the Error it was handed", () => {
+		const logWarning = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const cached = new TypeError("renderItem is broken");
+		const warn = createRenderFallbackWarner("Custom renderItem threw an error");
+
+		warn(cached);
+
+		expect(cached.message).toBe("renderItem is broken");
+		const reported = logWarning.mock.calls[0][0] as Error;
+		expect(reported).not.toBe(cached);
+		expect(reported.message).toBe(
+			"Custom renderItem threw an error: renderItem is broken",
+		);
+		// The fresh Error keeps the original's identity so DevTools still points at the
+		// callback that threw, not at the fallback handler.
+		expect(reported.name).toBe("TypeError");
+		expect(reported.stack).toBe(cached.stack);
+	});
+
+	// The compounding shape, pinned directly: the same instance through many renders.
+	it("does not grow the message when one cached Error is rethrown per row", () => {
+		const logWarning = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const cached = new Error("renderItem is broken");
+		const first = createRenderFallbackWarner("ctx");
+		const second = createRenderFallbackWarner("ctx");
+
+		first(cached);
+		second(cached);
+
+		expect(
+			logWarning.mock.calls.map((call) => (call[0] as Error).message),
+		).toEqual(["ctx: renderItem is broken", "ctx: renderItem is broken"]);
+	});
+
+	// Two independent fallbacks in one modal (renderItem vs the custom "create" row) must
+	// not silence each other - they have different root causes and different copy.
+	it("keeps separate call sites independent", () => {
+		const logWarning = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const renderItem = createRenderFallbackWarner("renderItem failed");
+		const customRow = createRenderFallbackWarner("create-row failed");
+
+		renderItem(new Error("a"));
+		customRow(new Error("b"));
+
+		expect(logWarning).toHaveBeenCalledTimes(2);
 	});
 });

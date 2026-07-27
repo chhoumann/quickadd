@@ -198,9 +198,16 @@ describe("RemotePromptProvider suggester marshaling", () => {
 // ---------------------------------------------------------------------------
 
 describe("RemotePromptProvider cancel propagation", () => {
-	// A client cancel must abort the run exactly like dismissing the Obsidian modal.
-	// The file's own contract ("returns exactly what its in-app counterpart returns")
-	// only holds if this is true for EVERY method, so every method is covered.
+	// An abort reaching the provider must propagate untouched, for EVERY method: the
+	// file's own contract ("returns exactly what its in-app counterpart returns") only
+	// holds if none of them swallows one.
+	//
+	// This table drives `rejectingServer`, so it pins the PROVIDER's behaviour, not the
+	// wire's. Which client replies produce a rejection in the first place is decided in
+	// `submitReply` and covered in interactivePromptServer.test.ts - including the one
+	// case where they differ, an `info` prompt, whose cancel resolves because the in-app
+	// dialog cannot abort anything either (#1605). A session abort still rejects here,
+	// which is why `infoDialog` must keep propagating it.
 	const calls: Array<[string, (p: RemotePromptProvider) => Promise<unknown>]> = [
 		["suggester", (p) => p.suggester(["a"], ["a"])],
 		["suggesterMulti", (p) => p.suggesterMulti(["a"], ["a"])],
@@ -214,7 +221,7 @@ describe("RemotePromptProvider cancel propagation", () => {
 	];
 
 	for (const [name, call] of calls) {
-		it(`${name} propagates a client cancel as UserCancelError`, async () => {
+		it(`${name} propagates an abort as UserCancelError`, async () => {
 			const cancelled = promptCancelled();
 			const provider = new RemotePromptProvider("s", rejectingServer(cancelled));
 			await expect(call(provider)).rejects.toBe(cancelled);

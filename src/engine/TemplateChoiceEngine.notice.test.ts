@@ -551,6 +551,79 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		});
 	});
 
+	/**
+	 * #1603. A genuine failure (a missing template file, a vault error) reported a
+	 * desktop notice and recorded nothing, so `executeWithOutcome` produced a
+	 * reason-less error and the CLI replaced it with "Choice execution failed; no file
+	 * was created." - on the interactive path, for a client that is the whole reason
+	 * nobody is watching the desktop.
+	 */
+	it("records the real failure message so a headless caller learns the cause", async () => {
+		const { engine, choiceExecutor } = createEngine("unused", {
+			throwDuringFileName: false,
+		});
+		choiceExecutor.recordExecutionResult = vi.fn();
+		formatFileNameMock.mockRejectedValue(
+			new Error('Template file not found at path "templates/x.md".'),
+		);
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: 'Template file not found at path "templates/x.md".',
+		});
+	});
+
+	// A failure exit that is not a throw used to record nothing at all, which is the
+	// same reason-less outcome reached without any exception.
+	it("records a reason when the file could not be created", async () => {
+		const { engine, choiceExecutor } = createEngine("unused", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		choiceExecutor.recordExecutionResult = vi.fn();
+		(
+			engine as unknown as {
+				createFileWithTemplate: () => Promise<TFile | null>;
+			}
+		).createFileWithTemplate = vi.fn().mockResolvedValue(null);
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: expect.stringContaining("Could not create file"),
+		});
+	});
+
+	// The most actionable of the report-and-return-null exits - it names the fix - and it
+	// was the last one still handing a headless caller "Could not resolve file exists
+	// behavior".
+	it("records why a template cannot be appended to a canvas file", async () => {
+		const { engine, choiceExecutor, app } = createEngine("unused", {
+			throwDuringFileName: false,
+			stubTemplateContent: true,
+		});
+		choiceExecutor.recordExecutionResult = vi.fn();
+		const canvas = new TFile();
+		canvas.path = "Board.canvas";
+		canvas.extension = "canvas";
+		canvas.basename = "Board";
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(
+			canvas,
+		);
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+		engine.choice.fileExistsBehavior = { kind: "apply", mode: "appendTop" };
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: expect.stringContaining('Use the "Overwrite" file-exists option'),
+		});
+	});
+
 	it("keeps template execution successful when clipboard copying throws", async () => {
 		const store = InputPromptDraftStore.getInstance();
 		const draftKey = store.makeKey({

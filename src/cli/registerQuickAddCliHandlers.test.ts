@@ -11,10 +11,22 @@ const {
 	ChoiceExecutorMock,
 	collectChoiceRequirementsMock,
 	getUnresolvedRequirementsMock,
+	interactiveServerMock,
 } = vi.hoisted(() => ({
 	ChoiceExecutorMock: vi.fn(),
 	collectChoiceRequirementsMock: vi.fn(),
 	getUnresolvedRequirementsMock: vi.fn(),
+	// Stubbed so driving quickadd:interactive does not really bind a loopback port
+	// (and leave watchdog timers behind) just to read the terminal event.
+	interactiveServerMock: {
+		ensureStarted: vi.fn(),
+		createSession: vi.fn(),
+		finish: vi.fn(),
+	},
+}));
+
+vi.mock("../interactive/interactivePromptServer", () => ({
+	interactivePromptServer: interactiveServerMock,
 }));
 
 vi.mock("../choiceExecutor", () => ({
@@ -150,6 +162,15 @@ describe("registerQuickAddCliHandlers", () => {
 
 		collectChoiceRequirementsMock.mockResolvedValue([]);
 		getUnresolvedRequirementsMock.mockReturnValue([]);
+
+		interactiveServerMock.ensureStarted.mockReset();
+		interactiveServerMock.createSession.mockReset();
+		interactiveServerMock.finish.mockReset();
+		interactiveServerMock.ensureStarted.mockResolvedValue(51789);
+		interactiveServerMock.createSession.mockReturnValue({
+			id: "session-1",
+			token: "token-1",
+		});
 	});
 
 	it("registers run/list/check/preview handlers when CLI API is available", () => {
@@ -361,6 +382,109 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.file).toBe("Created Note.md");
 		expect(executors[0].executeWithOutcome).toHaveBeenCalledTimes(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * #1603. The engines report a failure with a desktop notice and return without
+	 * recording anything, so the outcome carried no reason and the CLI substituted a
+	 * fixed sentence - on the interactive path, to a client that is the whole reason
+	 * nobody is looking at the desktop.
+	 */
+	it("forwards the engine's real message to an interactive client", async () => {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const interactive = handlers.find(
+			(handler) => handler.command === "quickadd:interactive",
+		);
+		ChoiceExecutorMock.mockImplementationOnce(function () {
+			const executor: IChoiceExecutor = {
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({
+					status: "error",
+					reason: 'Template file not found at path "templates/x.md".',
+				}),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+			};
+			executors.push(executor);
+			return executor;
+		});
+
+		const response = JSON.parse(
+			String(await interactive!.handler({ choice: "Template Choice" })),
+		);
+		expect(response.ok).toBe(true);
+		// The only feature-detection signal clients are told to use: it says both that
+		// POST /abort exists and that cancelling an `info` prompt no longer ends the
+		// run (#1605). An unknown path and an unauthed session answer the same 404
+		// shape, so without this a client could only detect the build by string-matching
+		// an error body.
+		expect(response.capabilities).toEqual(["abort"]);
+		// The run is fire-and-forget; let its microtasks settle.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(interactiveServerMock.finish).toHaveBeenCalledWith("session-1", {
+			kind: "error",
+			error: 'Template file not found at path "templates/x.md".',
+		});
+	});
+
+	it("keeps the fixed sentence for an outcome that carries no reason", async () => {
+		const { plugin, handlers } = createPlugin([templateChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const interactive = handlers.find(
+			(handler) => handler.command === "quickadd:interactive",
+		);
+		ChoiceExecutorMock.mockImplementationOnce(function () {
+			const executor: IChoiceExecutor = {
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({ status: "error" }),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+			};
+			executors.push(executor);
+			return executor;
+		});
+
+		await interactive!.handler({ choice: "Template Choice" });
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(interactiveServerMock.finish).toHaveBeenCalledWith("session-1", {
+			kind: "error",
+			error: "Choice execution failed; no file was created.",
+		});
+	});
+
+	it("forwards the engine's real message on the verified run-template path too", async () => {
+		const { plugin, handlers } = createPlugin([]);
+		withTemplateFile(plugin, "Templates/Daily.md");
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((h) => h.command === "quickadd:run-template");
+		ChoiceExecutorMock.mockImplementationOnce(function () {
+			const executor: IChoiceExecutor = {
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({
+					status: "error",
+					reason: "Could not create file 'Daily.md'.",
+				}),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+			};
+			executors.push(executor);
+			return executor;
+		});
+
+		const payload = JSON.parse(
+			String(
+				await run!.handler({
+					path: "Templates/Daily.md",
+					"value-value": "Daily",
+				}),
+			),
+		);
+
+		expect(payload.ok).toBe(false);
+		expect(payload.error).toBe("Could not create file 'Daily.md'.");
 	});
 
 	it("maps an error outcome to ok:false even when execute() would have resolved", async () => {

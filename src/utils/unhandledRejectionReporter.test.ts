@@ -3,6 +3,7 @@ import { registerUnhandledRejectionReporter } from "./unhandledRejectionReporter
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { promptCancelled } from "../errors/UserCancelError";
 import { log } from "../logger/logManager";
+import { reportError } from "./errorUtils";
 
 /**
  * Errors get attributed to QuickAdd by the `plugin:<id>` marker Obsidian puts in a
@@ -19,6 +20,41 @@ function pluginError(message: string, site = "doThing", name = "Error"): Error {
 function foreignError(message: string): Error {
 	const error = new Error(message);
 	error.stack = `Error: ${message}\n    at x (plugin:some-other-plugin:1:1)`;
+	return error;
+}
+
+/**
+ * A rejection CONSTRUCTED in another plugin's callback but running inside QuickAdd -
+ * the shape #1602 is about. Measured live: another plugin calling
+ * `quickadd.api.suggester(v => v.nope.trim(), items)` produces exactly this.
+ */
+function foreignCallbackInsideQuickAdd(message: string): Error {
+	const error = new TypeError(message);
+	error.name = "TypeError";
+	error.stack = [
+		`TypeError: ${message}`,
+		"    at eval (plugin:probe-foreign:19:43)",
+		"    at eval (plugin:quickadd:88:3004)",
+		"    at Array.map (<anonymous>)",
+		"    at r.suggester (plugin:quickadd:88:2988)",
+		"    at Object.callback (plugin:probe-foreign:19:19)",
+		"    at f3 (app://obsidian.md/app.js:1:2995616)",
+	].join("\n");
+	return error;
+}
+
+/**
+ * JavaScriptCore's shape. QuickAdd is `isDesktopOnly: false`, and Obsidian mobile runs
+ * WKWebView: frames are `fn@url:line:col`, with no `at ` and no `Name: message` header.
+ * A frame filter keyed on `at ` would leave the whole reporter dead on iOS with every
+ * desktop-shaped test still green.
+ */
+function jscError(message: string, site = "doThing", plugin = "quickadd"): Error {
+	const error = new Error(message);
+	error.stack = [
+		`${site}@plugin:${plugin}:88:3004`,
+		"forEach@[native code]",
+	].join("\n");
 	return error;
 }
 
@@ -179,6 +215,96 @@ describe("unhandled rejection reporter (#1576)", () => {
 
 		expect(defaultPrevented).toBe(false);
 		expect(logError).not.toHaveBeenCalled();
+	});
+
+	// `Error.stack` is captured at construction with the WHOLE live call stack, so "any
+	// frame is ours" claimed a foreign caller's bug the moment it ran through QuickAdd -
+	// and preventDefault() took away the console line naming the real culprit (#1602).
+	it("does not claim a foreign callback's bug that merely ran inside QuickAdd", () => {
+		const { defaultPrevented } = fire(
+			foreignCallbackInsideQuickAdd("Cannot read properties of undefined"),
+		);
+
+		expect(defaultPrevented).toBe(false);
+		expect(logError).not.toHaveBeenCalled();
+	});
+
+	// The mirror: OUR bug, called into by another plugin. The construction frame is ours,
+	// so it is still reported even though a foreign frame sits below it.
+	it("still claims a QuickAdd bug reached through another plugin", () => {
+		const error = new Error("Choice not found");
+		error.stack = [
+			"Error: Choice not found",
+			"    at mS.getChoiceByName (plugin:quickadd:414:30553)",
+			"    at Object.callback (plugin:probe-foreign:19:19)",
+		].join("\n");
+
+		fire(error);
+
+		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	// An eval'd frame names the bundle as an ORIGIN, with no :line:col - which is how a
+	// user script's own code and a dataviewjs snippet appear. Requiring a position would
+	// skip straight past them to the QuickAdd frame underneath and mis-claim the bug.
+	it("attributes an eval'd frame to the bundle that evaluated it", () => {
+		const error = new TypeError("x.nope is not a function");
+		error.name = "TypeError";
+		error.stack = [
+			"TypeError: x.nope is not a function",
+			"    at eval (eval at <anonymous> (plugin:dataview), <anonymous>:3:47)",
+			"    at r.suggester (plugin:quickadd:88:2988)",
+		].join("\n");
+
+		const { defaultPrevented } = fire(error);
+
+		expect(defaultPrevented).toBe(false);
+		expect(logError).not.toHaveBeenCalled();
+	});
+
+	// A message is part of `stack` on V8, so without stripping the header an Error could
+	// name a plugin in its own text and dictate who gets blamed.
+	it("ignores a plugin name that appears only in the message", () => {
+		const error = new Error("could not reach plugin:some-other-plugin:1:1");
+		error.stack = [
+			"Error: could not reach plugin:some-other-plugin:1:1",
+			"    at mS.fetchThing (plugin:quickadd:414:30553)",
+		].join("\n");
+
+		fire(error);
+
+		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	// Obsidian mobile is JavaScriptCore. QuickAdd ships there (isDesktopOnly: false), so
+	// attribution must not assume V8's `    at fn (url)` frame syntax.
+	it("attributes a JavaScriptCore stack, which has no `at ` frames", () => {
+		fire(jscError("mobile bug"));
+
+		expect(logError).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves another plugin alone on a JavaScriptCore stack too", () => {
+		const { defaultPrevented } = fire(
+			jscError("not ours", "theirThing", "some-other-plugin"),
+		);
+
+		expect(defaultPrevented).toBe(false);
+		expect(logError).not.toHaveBeenCalled();
+	});
+
+	// #1601: reportError drops a failure a lower layer already showed the user. Claiming
+	// the event anyway would take the console's async trace away and put nothing in its
+	// place - strictly less evidence than before this reporter existed.
+	it("leaves the browser default alone when the failure was already reported", () => {
+		const error = pluginError("reported downstream");
+		reportError(error, "an inner layer");
+		logError.mockClear();
+
+		const { defaultPrevented } = fire(error);
+
+		expect(logError).not.toHaveBeenCalled();
+		expect(defaultPrevented).toBe(false);
 	});
 
 	it("does not let one noisy failure mask a different one", () => {

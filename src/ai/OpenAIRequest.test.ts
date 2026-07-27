@@ -735,7 +735,17 @@ describe("OpenAIRequest", () => {
 			const [, result] = finishAIRequestLogEntryMock.mock.calls[0];
 			expect(result.status).toBe("error");
 			expect(result.errorMessage).toBe("Network down");
-			expect(logErrorMock).toHaveBeenCalledWith(networkError);
+			// The WRAPPER is what gets reported, not the bare provider error. Its message
+			// is a strict superset - it names the provider, and on a context-overflow it
+			// carries QuickAdd's remediation sentence - and `reportError` reports a
+			// failure once (#1601), so reporting the cause first would leave the user
+			// with the least informative half of the pair.
+			expect(logErrorMock).toHaveBeenCalledTimes(1);
+			const reported = logErrorMock.mock.calls[0][0] as Error;
+			expect(reported.message).toBe(
+				"Error while making request to OpenAI: Network down",
+			);
+			expect(reported.cause).toBe(networkError);
 		});
 
 		it("preserves the original error as the cause of the wrapped error", async () => {

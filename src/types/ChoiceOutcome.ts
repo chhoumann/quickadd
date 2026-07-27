@@ -8,15 +8,17 @@ import type { TFile } from "obsidian";
  *
  * `success` carries the affected file when one is known (Template, Capture).
  * `cancelled` distinguishes a genuine user prompt-dismissal (`"user"`) from an
- * involuntary script/config abort (`"aborted"`). `error` means the choice failed
- * (the detailed message is kept in the internal log, never surfaced externally).
+ * involuntary script/config abort (`"aborted"`). `error` means the choice failed.
  *
- * `reason` carries the abort message for a local, trusted caller (the CLI) to
- * surface — e.g. "needs to ask … re-run with the ui flag". The URI x-callback
- * handler deliberately ignores it, reporting only `cancelKind`, so no vault detail
- * leaks to an external callback URL.
+ * `reason` carries the message that explains the outcome — the abort reason ("needs
+ * to ask … re-run with the ui flag") or the failure itself (`Template file not found
+ * at path "templates/x.md"`). It is for a local, trusted caller: the CLI and the
+ * interactive bridge, both loopback- and token-gated, surface it, because on those
+ * paths nobody is looking at the desktop notice that carries the same text (#1603).
+ * The URI x-callback handler deliberately ignores it on BOTH variants, reporting only
+ * a fixed code, so no vault detail leaks to an external callback URL.
  */
 export type ChoiceOutcome =
 	| { status: "success"; file?: TFile }
-	| { status: "error" }
+	| { status: "error"; reason?: string }
 	| { status: "cancelled"; cancelKind: "user" | "aborted"; reason?: string };
