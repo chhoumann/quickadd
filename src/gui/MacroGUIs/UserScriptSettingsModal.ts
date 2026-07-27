@@ -2,7 +2,10 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { getQuickAddInstance } from "../../quickAddInstance";
-import { FormatDisplayFormatter } from "../../formatters/formatDisplayFormatter";
+import {
+	mountFormatPreview,
+	type FormatPreviewHandle,
+} from "../ChoiceBuilder/components/mountFormatPreview.svelte";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
@@ -54,6 +57,22 @@ type Option = { description?: string; id?: string } & (
 	  }
 );
 
+/**
+ * The text a `type: "format"` option should render for a stored value that a
+ * third-party script may have left in any shape.
+ *
+ * Absent means absent: `initializeUserScriptSettings` deliberately leaves an
+ * option with no `defaultValue` unset so the script can apply its own, and
+ * printing "undefined" into the field would be a lie about what it will receive.
+ * Anything else is stringified rather than blanked, so the field agrees with the
+ * value `resolveUserScriptSettings` forwards.
+ */
+function formatOptionText(value: unknown): string {
+	if (typeof value === "string") return value;
+	if (value === undefined || value === null) return "";
+	return String(value);
+}
+
 function formatTitlePart(value: unknown): string {
 	if (typeof value === "string") return value;
 	if (value === null || value === undefined) return "";
@@ -68,6 +87,9 @@ function formatTitlePart(value: unknown): string {
 }
 
 export class UserScriptSettingsModal extends Modal {
+	/** One per `type: "format"` option; a script may declare several. */
+	private previewHandles: FormatPreviewHandle[] = [];
+
 	constructor(
 		app: App,
 		private command: IUserScript,
@@ -89,6 +111,10 @@ export class UserScriptSettingsModal extends Modal {
 
 	protected display() {
 		this.containerEl.addClass("quickAddModal", "userScriptSettingsModal");
+		// Emptying contentEl does not stop a Svelte component, it only detaches it,
+		// so every re-render must tear the previews down explicitly or each orphan
+		// keeps a live $effect and the preview's 500ms diagnostics timer.
+		this.destroyPreviews();
 		this.contentEl.empty();
 
 		const titleName = formatTitlePart(this.settings?.name ?? this.command.name);
@@ -313,29 +339,71 @@ export class UserScriptSettingsModal extends Modal {
 	private addFormatInput(name: string, value: string, placeholder?: string) {
 		const setting = new Setting(this.contentEl).setName(name);
 
-		const formatDisplay = this.contentEl.createEl("span");
+		// `value` comes from a third-party script's `settings.options`, so its
+		// declared `string` is a promise, not a guarantee: an option with no
+		// `defaultValue` arrives as undefined (initializeUserScriptSettings
+		// deliberately skips those, so the script can apply its own default), and
+		// an option whose `type` changed from `toggle` to `format` between script
+		// versions arrives as a boolean. Coerce here, at the boundary where
+		// untrusted data enters typed code - FormatPreviewField's `value.trim()`
+		// runs during mount, so a non-string would throw out of display() and out
+		// of the constructor, and the gear button in the command list would
+		// silently do nothing.
+		//
+		// A present non-string is STRINGIFIED rather than blanked, so what the
+		// field shows still corresponds to what `resolveUserScriptSettings` will
+		// forward to the script. That also keeps this method consistent with its
+		// four siblings, which all render `value as string` unchanged. Absent
+		// (undefined/null) renders empty instead of the literal text "undefined",
+		// which is what a real TextAreaComponent would print.
+		const text = formatOptionText(value);
+
 		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
-		const displayFormatter = new FormatDisplayFormatter(
-			this.app,
-			getQuickAddInstance()
-		);
+		input.inputEl.addClass("qa-user-script-format-textarea");
+		// Appended to contentEl rather than the Setting's controlEl (it needs the
+		// full modal width), so nothing associates it with the option name above.
+		input.inputEl.setAttribute("aria-label", name);
+
+		// Mounted AFTER the textarea, so the preview reads as a result of the field
+		// rather than as its label - it used to be created first and rendered above
+		// the input, the exact placement #1543 fixed in the choice builders.
+		const preview = mountFormatPreview(this.contentEl, {
+			app: this.app,
+			plugin: getQuickAddInstance(),
+			value: text,
+		});
+		this.previewHandles.push(preview);
 
 		input
-			.setValue(value)
-			.onChange(async (value) => {
+			.setValue(text)
+			.onChange((value) => {
 				this.command.settings[name] = value;
-				formatDisplay.innerText = await displayFormatter.format(value);
+				preview.setValue(value);
 				this.onCommandChange?.();
 			})
 			.setPlaceholder(placeholder ?? "");
 
-		input.inputEl.addClass("qa-user-script-format-textarea");
-
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(value)))();
-
 		return setting;
+	}
+
+	/**
+	 * Unmount every mounted preview.
+	 *
+	 * `display()` is re-entrant - the constructor calls it, and
+	 * `migrateSecretSettings()` calls it again from a `void`ed promise that can
+	 * land at any time - and it empties `contentEl`. Emptying the DOM does not
+	 * stop a Svelte component: each orphan would keep a live `$effect` and the
+	 * preview's 500ms diagnostics timer rescheduling forever.
+	 */
+	private destroyPreviews(): void {
+		for (const handle of this.previewHandles) handle.destroy();
+		this.previewHandles = [];
+	}
+
+	onClose(): void {
+		this.destroyPreviews();
+		super.onClose();
 	}
 
 	private async migrateSecretSettings() {

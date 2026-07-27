@@ -1,9 +1,7 @@
 import type { App } from "obsidian";
 import { Modal, Setting, TextAreaComponent } from "obsidian";
 import type { QuickAddSettings } from "src/settings";
-import { FormatSyntaxSuggester } from "./suggesters/formatSyntaxSuggester";
-import { getQuickAddInstance } from "src/quickAddInstance";
-import { FormatDisplayFormatter } from "src/formatters/formatDisplayFormatter";
+import { mountSystemPromptLiteralNote } from "./ai/systemPromptLiteralNote";
 import { AIAssistantProvidersModal } from "./AIAssistantProvidersModal";
 import { populateModelDropdown } from "./modelSelect";
 import { GenericTextSuggester } from "./suggesters/genericTextSuggester";
@@ -149,32 +147,32 @@ export class AIAssistantSettingsModal extends Modal {
 			.setDesc("The default system prompt for the AI Assistant");
 
 		const textAreaComponent = new TextAreaComponent(contentEl);
+		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
+		// The textarea is appended to contentEl rather than to the Setting's
+		// controlEl (it needs the full modal width), so nothing associates it with
+		// the "Default system prompt" name above.
+		textAreaComponent.inputEl.setAttribute(
+			"aria-label",
+			"Default system prompt",
+		);
+
+		// No format preview and no `{{` token autocomplete here: the system prompt
+		// is sent to the model verbatim (see mountSystemPromptLiteralNote). The
+		// preview this replaces resolved the tokens on screen and was, for the
+		// shipped token-free default, a character-for-character duplicate of the
+		// textarea above it (#1568).
+		const updateLiteralNote = mountSystemPromptLiteralNote(
+			contentEl,
+			textAreaComponent.inputEl,
+			this.settings.defaultSystemPrompt ?? "",
+		);
+
 		textAreaComponent
 			.setValue(this.settings.defaultSystemPrompt)
-			.onChange(async (value) => {
+			.onChange((value) => {
 				this.settings.defaultSystemPrompt = value;
-
-				formatDisplay.innerText = await displayFormatter.format(value);
+				updateLiteralNote(value);
 			});
-
-		new FormatSyntaxSuggester(
-			this.app,
-			textAreaComponent.inputEl,
-			getQuickAddInstance()
-		);
-		const displayFormatter = new FormatDisplayFormatter(
-			this.app,
-			getQuickAddInstance()
-		);
-
-		textAreaComponent.inputEl.addClass("qa-ai-prompt-textarea");
-
-		const formatDisplay = this.contentEl.createEl("span");
-
-		void (async () =>
-			(formatDisplay.innerText = await displayFormatter.format(
-				this.settings.defaultSystemPrompt ?? ""
-			)))();
 	}
 
 	onClose(): void {

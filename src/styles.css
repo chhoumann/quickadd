@@ -651,6 +651,15 @@
 	box-sizing: border-box;
 }
 
+/* A format preview mounted under one of the textareas above (#1565). Those carry
+   `margin-bottom: 1em` for the gap to the NEXT setting, which would leave the
+   preview row floating midway between the field it describes and the one below.
+   Pull it back up so it reads as bound to its own field, and let the host carry
+   the separation instead. */
+.quickAddModal .qa-format-preview-host {
+	margin-top: -0.75em;
+}
+
 .qa-ai-token-count,
 .qa-ai-token-note {
 	color: var(--text-muted);
@@ -658,6 +667,25 @@
 
 .qa-ai-token-note {
 	font-size: var(--font-ui-smaller);
+}
+
+/* "This field is sent as written" note under a system prompt that contains `{{`
+   (#1565/#1568). Muted and font-ui-smaller to match .qa-ai-token-note directly
+   above it in the same modals: like that line it states how the field behaves,
+   rather than flagging the value as wrong - a `{{` a user wants the model to
+   read literally is a legitimate thing to type here.
+
+   Hidden by default rather than created on demand, so it can be appended in DOM
+   order under the field it belongs to instead of at the end of the modal. */
+.qa-literal-format-note {
+	display: none;
+	margin: -0.5em 0 1em;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.qa-literal-format-note--shown {
+	display: block;
 }
 
 .qa-command-button-row {

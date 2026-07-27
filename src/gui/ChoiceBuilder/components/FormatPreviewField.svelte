@@ -34,11 +34,17 @@ let {
 	plugin: QuickAdd;
 	/**
 	 * The choice's configured target folder, so {{FOLDER}} / {{FOLDER|name}}
-	 * preview meaningfully. When unknown we fall back to a "Folder/Name"
+	 * preview meaningfully. When `undefined` we fall back to a "Folder/Name"
 	 * placeholder rather than an empty string (no caller wires the real path in
 	 * yet, but the placeholder keeps the FOLDER token from previewing blank).
+	 *
+	 * `null` means the host has no target folder CONCEPT at all — not "unknown"
+	 * — and {{FOLDER}} previews as the empty string the runtime produces
+	 * (`Formatter.replaceMacrosInString`: `this.targetFolderPath ?? ""`). The
+	 * user-script format option is such a host: nothing there ever creates a note
+	 * in a folder, so the placeholder would invent a path the script cannot get.
 	 */
-	targetFolderPath?: string;
+	targetFolderPath?: string | null;
 } = $props();
 
 /** How long the field must sit still before its problems are shown. */
@@ -86,9 +92,14 @@ $effect(() => {
 				});
 	// Resolve {{FOLDER}} / {{FOLDER|name}} against the configured target folder,
 	// or a "Folder/Name" placeholder so the token never previews blank when no
-	// caller wires the real path in (issue: FOLDER preview always empty).
+	// caller wires the real path in (issue: FOLDER preview always empty). An
+	// explicit null says this host has no folder at all, and previews "".
 	formatter.setTargetFolderPath(
-		targetFolderPath?.trim() ? targetFolderPath : "Folder/Name",
+		targetFolderPath === null
+			? null
+			: targetFolderPath?.trim()
+				? targetFolderPath
+				: "Folder/Name",
 	);
 	const token = ++previewToken;
 	void (async () => {
