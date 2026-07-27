@@ -48,7 +48,10 @@ import {
 } from "./macroUtils";
 import type { IMacro } from "../types/macros/IMacro";
 import { buildPackagePreview } from "../services/packagePreview";
-import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
+import {
+	QUICKADD_PACKAGE_SCHEMA_VERSION,
+	type QuickAddPackage,
+} from "../types/packages/QuickAddPackage";
 import {
 	HEALTHY_IDS,
 	leaf,
@@ -177,18 +180,26 @@ const sweeps: Sweep[] = [
 	],
 ];
 
-/** The malformed tree wrapped as an importable package, for the preview walker. */
+/**
+ * The malformed tree wrapped as an importable package, for the preview walker.
+ * Structurally typed, with NO cast: a cast here would let the fixture drift out
+ * of the shape the walker is handed in production, which is the one thing this
+ * sweep is for.
+ */
 function packageOf(tree: IChoice[]): QuickAddPackage {
+	const roots = tree.filter(isChoiceLike);
 	return {
-		schemaVersion: 1,
+		schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
 		quickAddVersion: "1.18.0",
 		createdAt: "2026-06-01T00:00:00.000Z",
-		entryChoiceIds: tree.filter(isChoiceLike).map((c) => c.id),
-		choices: tree
-			.filter(isChoiceLike)
-			.map((choice) => ({ choice, pathHint: [choice.name], parentChoiceId: null })),
+		rootChoiceIds: roots.map((c) => c.id),
+		choices: roots.map((choice) => ({
+			choice,
+			pathHint: [choice.name],
+			parentChoiceId: null,
+		})),
 		assets: [],
-	} as unknown as QuickAddPackage;
+	};
 }
 
 /** Every `macro` object in the tree, including the unreadable ones. */
