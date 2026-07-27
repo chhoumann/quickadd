@@ -527,6 +527,9 @@ async function overWire(
 			url: `${path}?${query}`,
 			headers: { host: "127.0.0.1" },
 			on() {},
+			// A real IncomingMessage is an async iterable; the router drains the body
+			// before answering, so a stand-in that is not iterable would 400 here.
+			async *[Symbol.asyncIterator]() {},
 		},
 		res,
 	);

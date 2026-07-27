@@ -607,6 +607,15 @@ class InteractivePromptServer {
 		res.end(payload);
 	}
 
+	/** Read and discard a request body we have no use for. */
+	private async drainBody(req: HttpIncomingMessage): Promise<void> {
+		let size = 0;
+		for await (const chunk of req) {
+			size += (chunk as Buffer).length;
+			if (size > 1_000_000) throw new Error("Request body too large");
+		}
+	}
+
 	private async readBody(req: HttpIncomingMessage): Promise<unknown> {
 		const chunks: Buffer[] = [];
 		let size = 0;
@@ -643,6 +652,12 @@ class InteractivePromptServer {
 				return;
 			}
 			if (req.method === "POST" && url.pathname === "/abort") {
+				// Consume the request before answering, like /reply does. /abort takes no
+				// body, but a client may still send one, and unread bytes left on a
+				// keep-alive socket are the next request's problem. Node drains an
+				// unconsumed request itself when the response finishes; doing it here
+				// makes the route independent of that internal.
+				await this.drainBody(req);
 				const interrupted = this.abortSession(session.id);
 				if (interrupted === null) {
 					// The run already ended, so nothing was aborted. Saying ok:true would
