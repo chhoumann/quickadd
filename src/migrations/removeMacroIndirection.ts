@@ -96,6 +96,10 @@ const removeMacroIndirection: Migration = {
 			// A hole (`null`, a stray primitive) carries no macro to rehome, and
 			// dereferencing `macro.id` on one would abort the whole migration.
 			if (!macro || typeof macro !== "object") continue;
+			// Nor can an entry with no usable identity: with no `id` the lookup below
+			// misses, the orphan branch runs, and a nameless MacroChoice is pushed
+			// into the choice tree - then made permanent when `macros` is deleted.
+			if (typeof macro.id !== "string" || macro.id === "") continue;
 			const referencingChoices =
 				choicesByMacroId.get(macro.id) ??
 				allChoices.filter(

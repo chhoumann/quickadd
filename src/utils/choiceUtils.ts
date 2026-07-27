@@ -92,6 +92,13 @@ export function treeHasUnreadableChildren(choices: unknown): boolean {
 	if (!Array.isArray(choices)) return true;
 	const walk = (list: IChoice[]): boolean =>
 		list.some((choice) => {
+			// A nested ARRAY can be carrying choices - the editor seam splices one
+			// into the tree - and `flattenChoices` pushes it as if it were a choice
+			// rather than descending it. So removeMacroIndirection would classify a
+			// macro referenced from inside one as orphaned, duplicate it at the root
+			// and delete `settings.macros`. Stay pending until the seam has repaired
+			// it (#1608/#1610).
+			if (Array.isArray(choice)) return true;
 			if (!isChoiceLike(choice)) return false;
 			if (choice.type !== "Multi") return false;
 			const children: unknown = (choice as IMultiChoice).choices;

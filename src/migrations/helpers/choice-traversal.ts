@@ -41,13 +41,20 @@ function walkChoice(
 	visited: Set<IChoice>,
 ): void {
 	if (!choice || typeof choice !== "object") return;
-	// An ARRAY entry is a NESTED LIST, not a choice - the same reading
-	// `normalizeChoiceList` gives it at the editor seam, and the two have to agree
-	// or this walk reports "readable" for a subtree the settings tab will happily
-	// splice back into the tree (#1608/#1610). `typeof [] === "object"`, so
-	// without this the visitor is handed the array itself and descends nothing.
+	// An ARRAY entry is a NESTED LIST, which the editor seam splices into the tree
+	// (`normalizeChoiceList`) - so it can be CARRYING choices, and `typeof [] ===
+	// "object"` means the visitor would otherwise be handed the array itself and
+	// descend nothing.
+	//
+	// Reported unreadable rather than descended, even though this walk could
+	// descend it. The narrower migrations cannot: `flattenChoices` pushes the array
+	// as if it were a choice, and the increment / mutual-exclusion recursions step
+	// straight past it. Descending here would make the guard say "I saw everything"
+	// on behalf of traversals that did not, which is exactly the failure #1610 is
+	// about. Staying pending costs one launch: the user opens the settings tab, the
+	// seam splices the entries into real choices, and the next launch is readable.
 	if (Array.isArray(choice)) {
-		for (const child of choice) walkChoice(child, visitors, visited);
+		visitors.onUnreadable?.();
 		return;
 	}
 	if (visited.has(choice)) return;
@@ -88,9 +95,10 @@ function walkCommands(
 
 	for (const command of commands) {
 		if (!command || typeof command !== "object") continue;
-		// Same reading as `normalizeCommandList`: a nested list is spliced in.
+		// Same reasoning as the choice side: a nested list can be carrying commands,
+		// and reporting it is honest about what the narrower walkers see.
 		if (Array.isArray(command)) {
-			walkCommands(command, visitors, visited);
+			visitors.onUnreadable?.();
 			continue;
 		}
 

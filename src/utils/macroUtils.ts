@@ -273,6 +273,13 @@ function regenerateMacroIds(macro: unknown, visited: Set<unknown>): void {
 function regenerateCommandIds(commands: unknown, visited: Set<unknown>): void {
 	if (!hasCommandList(commands)) return;
 	for (const command of commands as ICommand[]) {
+		// A nested ARRAY is a command list (`normalizeCommandList` splices one in),
+		// so recurse rather than writing an `id` onto it that JSON.stringify drops -
+		// which would leave every id inside it shared with the original.
+		if (Array.isArray(command)) {
+			regenerateCommandIds(command, visited);
+			continue;
+		}
 		if (!isCommandLike(command)) continue;
 		if (visited.has(command)) continue;
 		visited.add(command);

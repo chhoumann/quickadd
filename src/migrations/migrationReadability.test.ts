@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import { settingsTreeHasUnreadableData } from "./helpers/choice-traversal";
+import { treeHasUnreadableChildren } from "src/utils/choiceUtils";
 import removeMacroIndirection from "./removeMacroIndirection";
 import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 import migrateFileOpeningSettings from "./migrateFileOpeningSettings";
@@ -93,7 +94,7 @@ describe("settingsTreeHasUnreadableData", () => {
 		});
 	});
 
-	it("reads a nested ARRAY as a list, the same way the editor seam does", () => {
+	it("reports a nested ARRAY, which the narrow migrations cannot descend", async () => {
 		// `typeof [] === "object"`, so without an explicit branch the visitor is
 		// handed the array itself, descends nothing, and reports READABLE - while
 		// `normalizeChoiceList` splices its members into the tree at the settings
@@ -106,20 +107,18 @@ describe("settingsTreeHasUnreadableData", () => {
 
 		expect(
 			settingsTreeHasUnreadableData({ choices: [[hiddenCapture()]] as never }),
-		).toBe(false);
+		).toBe(true);
+		expect(treeHasUnreadableChildren([[hiddenCapture()]])).toBe(true);
 
-		void backfillFileOpeningDefaults.migrate(plugin);
-
-		const nested = (
-			(plugin.settings as unknown as { choices: Record<string, unknown>[][] })
-				.choices[0]
-		)[0];
-		expect(nested.fileOpening).toEqual({
-			location: "split",
-			direction: "horizontal",
-			mode: "default",
-			focus: false,
-		});
+		// ...so every migration stays PENDING rather than completing over a choice
+		// its own traversal cannot reach. The user's first visit to the settings tab
+		// splices the entry into a real choice, and the next launch is readable.
+		await expect(
+			backfillFileOpeningDefaults.migrate(plugin),
+		).resolves.toEqual({ complete: false });
+		await expect(
+			removeMacroIndirection.migrate(plugin),
+		).resolves.toEqual({ complete: false });
 	});
 
 	it("sees an unreadable conditional branch", () => {

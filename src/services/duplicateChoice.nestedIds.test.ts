@@ -178,6 +178,27 @@ describe("duplicating a macro", () => {
 		).toEqual([]);
 	});
 
+	it("recurses a NESTED command array, which is a list and not a command", () => {
+		// `normalizeCommandList` splices a nested array into the list at the editor
+		// seam, so its entries are real commands. Treating the array itself as one
+		// writes an `id` that JSON.stringify drops and leaves every id inside it -
+		// and every secretRef - shared with the original.
+		const source = macroChoice({
+			id: "m",
+			name: "M",
+			commands: [[userScript("nested-in-array")]],
+		});
+
+		const copy = duplicateChoice(source) as unknown as Record<
+			string,
+			Record<string, unknown[][]>
+		>;
+
+		const inner = copy.macro.commands[0][0] as Record<string, unknown>;
+		expect(inner.id).not.toBe("nested-in-array");
+		expect(collectSecretRefs(copy)).toEqual([]);
+	});
+
 	it("leaves a malformed command list exactly as found", () => {
 		// A WRITE path: `{"0": {...}}` must survive on disk to be recovered by hand,
 		// so the copy is as faithful as the original rather than "repaired" to [].

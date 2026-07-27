@@ -863,6 +863,11 @@ export async function clearUserScriptSecretsFromCommands(
 	let cleared = true;
 
 	for (const command of commands) {
+		if (Array.isArray(command)) {
+			cleared =
+				(await clearUserScriptSecretsFromCommands(app, command)) && cleared;
+			continue;
+		}
 		cleared = (await clearUserScriptSecretsFromCommand(app, command)) && cleared;
 	}
 
@@ -935,6 +940,12 @@ export function stripUserScriptSecretRefsFromCommands(
 	if (!Array.isArray(commands)) return;
 
 	for (const command of commands) {
+		// A nested ARRAY is a command list, not a command (see normalizeCommandList).
+		// Missing it leaves the copy holding the original's literal secretRef.
+		if (Array.isArray(command)) {
+			stripUserScriptSecretRefsFromCommands(command, options);
+			continue;
+		}
 		stripUserScriptSecretRefsFromCommand(command, options);
 	}
 }
