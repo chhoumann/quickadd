@@ -2,6 +2,11 @@ import type { App } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import GenericYesNoPrompt from "./GenericYesNoPrompt";
 
+// Obsidian routes Esc, the close button and a click outside through the same
+// Modal.close(), so the test hook onto the live instance is how a dismissal is
+// reproduced faithfully without a real Obsidian.
+const modals = vi.hoisted(() => ({ last: null as { close(): void } | null }));
+
 vi.mock("obsidian", () => {
 	class Modal {
 		containerEl: HTMLElement;
@@ -14,6 +19,7 @@ vi.mock("obsidian", () => {
 			this.titleEl = document.createElement("h1");
 			this.containerEl.append(this.titleEl, this.contentEl);
 			document.body.appendChild(this.containerEl);
+			modals.last = this;
 		}
 
 		open() {}
@@ -96,9 +102,64 @@ function installObsidianElementHelpers(): void {
 
 installObsidianElementHelpers();
 
+function clickButton(text: string): void {
+	const button = Array.from(document.querySelectorAll("button")).find(
+		(buttonEl) => buttonEl.textContent === text,
+	);
+	button?.click();
+}
+
+/** Esc / the close button / a click outside — Obsidian closes the modal. */
+function dismiss(): void {
+	modals.last?.close();
+}
+
 describe("GenericYesNoPrompt", () => {
 	afterEach(() => {
 		document.body.replaceChildren();
+		modals.last = null;
+	});
+
+	// The contract, in one place: walking away from the dialog is an answer, not
+	// an error. It used to reject with a bare "No answer given." string, which
+	// turned every cancelled confirmation into an unhandled rejection at the
+	// call sites that (reasonably) just awaited a boolean (#1567).
+	describe("contract", () => {
+		it.each([
+			["Yes", true],
+			["No", false],
+		])("Ask resolves %s as %s", async (buttonText, expected) => {
+			const answer = GenericYesNoPrompt.Ask({} as App, "Confirm", "Continue?");
+			clickButton(buttonText);
+			await expect(answer).resolves.toBe(expected);
+		});
+
+		it("Ask resolves null when the dialog is dismissed", async () => {
+			const answer = GenericYesNoPrompt.Ask({} as App, "Confirm", "Continue?");
+			dismiss();
+			await expect(answer).resolves.toBeNull();
+		});
+
+		it("Prompt resolves false when the dialog is dismissed", async () => {
+			const answer = GenericYesNoPrompt.Prompt(
+				{} as App,
+				"Confirm",
+				"Continue?",
+			);
+			dismiss();
+			await expect(answer).resolves.toBe(false);
+		});
+
+		it.each([
+			["Ask", () => GenericYesNoPrompt.Ask({} as App, "Confirm")],
+			["Prompt", () => GenericYesNoPrompt.Prompt({} as App, "Confirm")],
+		])("%s never rejects on dismissal", async (_name, open) => {
+			const onRejected = vi.fn();
+			const answer = open().catch(onRejected);
+			dismiss();
+			await answer;
+			expect(onRejected).not.toHaveBeenCalled();
+		});
 	});
 
 	it.each([

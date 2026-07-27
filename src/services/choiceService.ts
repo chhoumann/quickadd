@@ -19,7 +19,6 @@ import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { regenerateIds } from "../utils/macroUtils";
 import { flattenChoices } from "../utils/choiceUtils";
 import { choiceNoun } from "../utils/choiceNoun";
-import { isCancellationError, reportError } from "../utils/errorUtils";
 import { excludeKeys } from "../utils/excludeKeys";
 import { deepClone } from "../utils/deepClone";
 import {
@@ -234,8 +233,9 @@ export async function deleteChoiceWithConfirmation(
 		// A malformed Multi (children missing, or not an array) is deliberately
 		// preserved on load rather than repaired — see dedupeChoicesById — and
 		// flattenChoices would throw on it. Throwing here would leave the corrupt
-		// folder undeletable AND raise the unhandled rejection the catch below
-		// exists to prevent, so treat it as empty and let the delete through.
+		// folder undeletable, and ChoiceView awaits this function from a click
+		// handler that discards the promise, so the throw would surface as an
+		// unhandled rejection. Treat it as empty and let the delete through.
 		const children = Array.isArray(multi.choices) ? multi.choices : [];
 		const descendants = flattenChoices(children);
 		if (descendants.length === 0) return "";
@@ -257,26 +257,11 @@ export async function deleteChoiceWithConfirmation(
 		.filter(Boolean)
 		.join(" ");
 
-	// GenericYesNoPrompt REJECTS with a bare "No answer given." string when the
-	// user dismisses it (Esc / the close button) rather than answering. The call
-	// sites are Svelte `onclick` handlers that discard the promise, so without
-	// this catch a cancelled delete surfaced as an unhandled rejection.
-	let userConfirmed: boolean;
-	try {
-		userConfirmed = await GenericYesNoPrompt.Prompt(
-			app,
-			`Delete ${choiceNoun(choice.type)}`,
-			body,
-		);
-	} catch (error) {
-		if (!isCancellationError(error)) {
-			reportError(
-				error,
-				`Could not confirm ${choiceNoun(choice.type)} deletion`,
-			);
-		}
-		return false;
-	}
+	const userConfirmed = await GenericYesNoPrompt.Prompt(
+		app,
+		`Delete ${choiceNoun(choice.type)}`,
+		body,
+	);
 
 	if (!userConfirmed) return false;
 

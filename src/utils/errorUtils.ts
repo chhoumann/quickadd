@@ -79,7 +79,8 @@ export function isCancellationError(error: unknown): boolean {
 	const cancellationMessages = [
 		"no input given.",      // GenericSuggester, InputSuggester, GenericCheckboxPrompt
 		"No input given.",      // GenericInputPrompt, MathModal
-		"No answer given.",     // GenericYesNoPrompt
+		// GenericYesNoPrompt is deliberately absent: it resolves a dismissal
+		// instead of rejecting, so it never reaches this check (#1567).
 		"cancelled"             // OnePagePreflight
 	];
 	
