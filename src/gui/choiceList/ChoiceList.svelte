@@ -48,12 +48,22 @@
     } = $props();
 
     // Everything rendered and handed to the dnd zone is filtered to entries that
-    // are actually choices. A hole in the list (a `null` or a stray primitive from
-    // a bad hand-edit or a truncated write) has no `id`, so the keyed {#each} and
-    // svelte-dnd-action would both throw on it and blank the settings tab (#1566).
-    // Filtering is a render-time view only; the hole stays in the persisted tree
-    // unless an edit walks past it.
-    const renderable = $derived(rootChoicesOf(choices).filter(isChoiceLike));
+    // are actually renderable choices: an object with an id. `data.json` is
+    // untrusted, so the list can contain a hole (a `null` or a stray primitive
+    // from a bad hand-edit or a truncated write) or an object with no id at all.
+    // svelte-dnd-action reads `.id` on every item, and the keyed {#each} needs
+    // that id to be present AND unique - two id-less entries raise
+    // `each_key_duplicate`, the #1451 crash, which without this filter blanks the
+    // entire list (#1566).
+    //
+    // Render-time view only. Nothing here rewrites the tree; a junk entry stays in
+    // data.json until an edit walks past it. It cannot be hiding a choice - only a
+    // Multi's `choices` value can, and that is preserved separately.
+    const renderable = $derived(
+        rootChoicesOf(choices).filter(
+            (choice) => isChoiceLike(choice) && typeof choice.id === "string" && choice.id !== "",
+        ),
+    );
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.

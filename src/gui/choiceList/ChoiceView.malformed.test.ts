@@ -126,6 +126,21 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
 	});
 
+	it("drops entries that cannot be keyed instead of losing the whole list", () => {
+		// Two entries with no id give the keyed {#each} the same (undefined) key,
+		// which raises `each_key_duplicate` - the #1451 crash. The boundary would
+		// catch it, but the user would lose every real row with it.
+		const { getByLabelText, container } = renderChoiceView([
+			{} as IChoice,
+			{ name: "No id" } as IChoice,
+			leaf("Survivor", "survivor"),
+		]);
+
+		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
+		expect(container.querySelector(".qaChoicesUnavailable")).toBeNull();
+		expect(container.querySelectorAll("[data-choice-id]")).toHaveLength(1);
+	});
+
 	it("refuses to render, rather than to offer a CTA, when the root list is unreadable", () => {
 		// Coercing a corrupt root to [] would show the "No choices yet" hero, whose
 		// single CTA writes a fresh list straight over whatever is in data.json.
