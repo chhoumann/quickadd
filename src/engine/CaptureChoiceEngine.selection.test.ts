@@ -1286,6 +1286,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(createFileWithInput).not.toHaveBeenCalled();
+		// And the capture's own {{VALUE}} prompt never opened: the whole point of
+		// #1591 is that the user does not answer a prompt chain for a note that
+		// cannot be created.
+		expect(promptHydratedValues).toHaveLength(0);
 	});
 
 	it("refuses before the heading picker, not after it (#1591)", async () => {
