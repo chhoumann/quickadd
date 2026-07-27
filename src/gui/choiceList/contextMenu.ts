@@ -55,6 +55,7 @@ export function computeEligibleMultiTargets(
 
   const walk = (list: IChoice[], prefix: string[] = []) => {
     for (const c of list) {
+      if (!isChoiceLike(c)) continue;
       const name = c.name ?? "";
       if (c.type === "Multi") {
         const path = [...prefix, name];

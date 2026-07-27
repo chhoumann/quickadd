@@ -8,6 +8,7 @@ import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
+import { isChoiceLike, rootChoicesOf } from "./choiceUtils";
 import { CommandType } from "../types/macros/CommandType";
 
 export interface ChoiceCatalogEntry {
@@ -116,6 +117,9 @@ function buildChoiceCatalog(
 		parentPath: string[],
 	) => {
 		for (const choice of choices) {
+			// A hole in the list (null, a stray primitive) is not a choice; step over
+			// it rather than dereferencing it (#1566).
+			if (!isChoiceLike(choice)) continue;
 			const path = [...parentPath, choice.name];
 			catalog.set(choice.id, {
 				choice,
@@ -129,7 +133,7 @@ function buildChoiceCatalog(
 		}
 	};
 
-	walk(allChoices, null, []);
+	walk(rootChoicesOf(allChoices), null, []);
 
 	return catalog;
 }
