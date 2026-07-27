@@ -63,10 +63,55 @@ function trimTrailingCharsLinear(value: string, chars: string): string {
 	return value.slice(0, end);
 }
 
+/**
+ * The normalized path plus the reasons the strict entry point would have
+ * rejected it. See {@link previewGeneratedFilePath}.
+ */
+export type GeneratedFilePathPreview = {
+	path: string;
+	problems: string[];
+};
+
 export function normalizeGeneratedFilePath(
 	path: string,
 	label = "File path",
 ): string {
+	const { path: normalized, problems } = normalizeGeneratedFilePathCore(
+		path,
+		label,
+	);
+	// Problems are collected left to right, so the first one is the one the
+	// historical throw-on-sight implementation would have raised.
+	if (problems.length > 0) throw new Error(problems[0]);
+	return normalized;
+}
+
+/**
+ * What {@link normalizeGeneratedFilePath} would make of this path, without
+ * throwing - for the file-name PREVIEW, which is a speculative evaluation of
+ * incomplete input and must never throw its way out of a keystroke (#1558).
+ *
+ * The preview needs this because the run applies the normalizer to every
+ * generated name (TemplateChoiceEngine, TemplateInsertEngine,
+ * templateNoteDiscovery, and the capture target via captureTargetResolution),
+ * so it is the last thing standing between the formatted string and the file
+ * that appears in the vault. Without it a preview showing `Daily/Note.` or a
+ * multi-line `{{TEMPLATE:}}` body claims a name the run will never create
+ * (#1563). The rejections come back as `problems` instead of an exception, so
+ * the preview can show the best-effort name AND say that the run would abort.
+ */
+export function previewGeneratedFilePath(
+	path: string,
+	label = "File path",
+): GeneratedFilePathPreview {
+	return normalizeGeneratedFilePathCore(path, label);
+}
+
+function normalizeGeneratedFilePathCore(
+	path: string,
+	label: string,
+): GeneratedFilePathPreview {
+	const problems: string[] = [];
 	// Treat a backslash as a path separator BEFORE the per-segment "." / ".."
 	// rejection below. Obsidian's own `normalizePath` converts "\\" -> "/" before
 	// any path is touched on disk, so a formatted name like "..\\..\\..\\evil"
@@ -78,26 +123,28 @@ export function normalizeGeneratedFilePath(
 	// (createFileWithInput -> escapesVaultBoundary) is the authoritative boundary
 	// for absolute / drive / UNC paths.
 	const segments = path.replace(/\\/g, "/").split("/");
-	return segments
-		.map((segment, index) => {
-			if (
-				segment.length === 0
-				&& index !== 0
-				&& index !== segments.length - 1
-			) {
-				throw new Error(
-					`${label} contains an empty path segment after formatting.`,
-				);
-			}
+	const normalized = segments.map((segment, index) => {
+		if (
+			segment.length === 0
+			&& index !== 0
+			&& index !== segments.length - 1
+		) {
+			problems.push(
+				`${label} contains an empty path segment after formatting.`,
+			);
+			return segment;
+		}
 
-			return normalizeGeneratedFilePathSegment(segment, label);
-		})
-		.join("/");
+		return normalizeGeneratedFilePathSegment(segment, label, problems);
+	});
+
+	return { path: normalized.join("/"), problems };
 }
 
 function normalizeGeneratedFilePathSegment(
 	segment: string,
 	label: string,
+	problems: string[],
 ): string {
 	if (segment.length === 0) return segment;
 
@@ -111,13 +158,14 @@ function normalizeGeneratedFilePathSegment(
 
 	const withoutTrailingSpaces = trimTrailingCharsLinear(normalized, " ");
 	if (withoutTrailingSpaces === "." || withoutTrailingSpaces === "..") {
-		throw new Error(`${label} cannot contain "." or ".." path segments.`);
+		problems.push(`${label} cannot contain "." or ".." path segments.`);
+		return withoutTrailingSpaces;
 	}
 
 	normalized = trimTrailingCharsLinear(normalized, ". ");
 
 	if (!normalized) {
-		throw new Error(`${label} contains an empty path segment after formatting.`);
+		problems.push(`${label} contains an empty path segment after formatting.`);
 	}
 
 	return normalized;

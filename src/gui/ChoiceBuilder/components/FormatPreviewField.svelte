@@ -139,7 +139,15 @@ $effect(() => {
 </script>
 
 {#if hasValue}
-	<div class="qa-preview-row">
+	<!-- A file name is one line, and since #1563 this row can hold a whole
+	     included template - which would wrap to fifteen lines of muted text under
+	     a single-line input and push the rest of the builder down on every
+	     keystroke. Clamped like .qa-preview-issue, with the full text in `title`. -->
+	<div
+		class="qa-preview-row"
+		class:qa-preview-row--one-line={formatterKind === "fileName"}
+		title={formatterKind === "fileName" ? preview : undefined}
+	>
 		<span class="qa-preview-label">{isUnresolved ? "Unresolved: " : "Preview: "}</span
 		><span class="qa-preview-value" aria-live="polite">{preview}</span>
 	</div>

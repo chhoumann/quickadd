@@ -273,6 +273,21 @@
 .quickAddModal .qa-preview-value {
 	color: var(--text-normal);
 }
+/* A file name is one line. Since #1563 this row can hold a whole included
+   template, which would otherwise wrap to fifteen lines of muted text under a
+   single-line input and push the rest of the builder down on every keystroke.
+   Two lines, so a long-but-real name still shows whole; the full text is in
+   `title`, as on .qa-preview-issue. Clamped on the ROW, not the value span:
+   -webkit-box is block-level, and clamping the span would drop the value onto
+   its own line. The content field is deliberately left unclamped - a multi-line
+   preview is the point there. */
+.quickAddModal .qa-preview-row--one-line {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+}
 
 .quickAddModal .qa-onepage-title {
 	text-align: center;
@@ -384,6 +399,19 @@
 .quickAddModal .qa-date-alias-list,
 .quickAddModal .vdate-alias-list {
 	font-family: var(--font-monospace);
+}
+
+/* Same bound as .qa-preview-row--one-line in the builder, for the same reason:
+   since #1563 this row can hold a whole included template joined onto one line,
+   and it sits above every input in a modal that re-renders it as you type. */
+.quickAddModal .qa-preview-val {
+	min-width: 0;
+	overflow-wrap: anywhere;
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
 }
 
 .quickAddModal .qa-onepage-preview-row {

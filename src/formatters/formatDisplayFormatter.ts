@@ -224,11 +224,20 @@ export class FormatDisplayFormatter extends Formatter {
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		const app = this.app;
 		if (!app) {
+			this.reportProblem(`Template preview unavailable: ${templatePath}`);
 			return `[QuickAdd: template preview unavailable] ${templatePath}`;
 		}
 
 		const file = getTemplateFile(app, templatePath);
-		if (!file) return `[QuickAdd: template not found] ${templatePath}`;
+		if (!file) {
+			// An error, not a quiet placeholder: the run THROWS here
+			// (TemplateEngine.getTemplateContent) and the choice dies, so the row
+			// must read "Unresolved:" rather than presenting a preview. The cycle
+			// and max-depth branches in replaceTemplateInString already report;
+			// not-found was the odd one out.
+			this.reportProblem(`Template not found: ${templatePath}`);
+			return `[QuickAdd: template not found] ${templatePath}`;
+		}
 
 		// The depth counter is preview-LOCAL on purpose. At run time
 		// `CompleteFormatter.getTemplateContent` hands the child engine a COPY of

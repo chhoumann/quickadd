@@ -718,7 +718,16 @@ export class OnePageInputModal extends Modal {
 					text: `${k}:`,
 					cls: "qa-preview-key",
 				});
-				row.createEl("div", { text: String(v), cls: "qa-preview-val" });
+				// Clamped in CSS, with the whole string on the element: this block
+				// sits ABOVE every input and re-renders as you type, and since #1563
+				// a file-name preview can be a whole included template joined onto
+				// one line - unclamped it would push the fields and Submit down and
+				// shift them under the caret.
+				const valueEl = row.createEl("div", {
+					text: String(v),
+					cls: "qa-preview-val",
+				});
+				valueEl.setAttribute("title", String(v));
 			});
 		} catch {
 			// Ignore preview errors
