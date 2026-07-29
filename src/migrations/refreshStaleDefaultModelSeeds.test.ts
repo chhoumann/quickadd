@@ -193,6 +193,7 @@ describe("refreshStaleDefaultModelSeeds migration", () => {
 	function seedAICommandChoice(
 		model: string,
 		modelParameters: Record<string, number>,
+		type = "AIAssistant",
 	) {
 		settingsStore.setState({
 			choices: [
@@ -208,7 +209,7 @@ describe("refreshStaleDefaultModelSeeds migration", () => {
 							{
 								id: "cmd1",
 								name: "AI Assistant",
-								type: "AIAssistant",
+								type,
 								model,
 								systemPrompt: "",
 								outputVariableName: "output",
@@ -272,6 +273,30 @@ describe("refreshStaleDefaultModelSeeds migration", () => {
 		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
 
 		expect(storedAICommand().model).toBe("gpt-4o");
+	});
+
+	// A macro can still hold an "InfiniteAIAssistant" step from a hand-edited
+	// data.json or a hand-authored package. Removing the type deliberately ships
+	// NO migration, so the two paths that rewrite AI commands have to leave it
+	// exactly as the user's file has it - re-pointing a model or stripping
+	// parameters on a step nothing can run is a write with no upside.
+	it("does not touch a legacy InfiniteAIAssistant command", async () => {
+		setProviders([legacyOpenAIProvider()]);
+		seedAICommandChoice(
+			"gpt-4-32k",
+			{ temperature: 1, top_p: 1 },
+			"InfiniteAIAssistant",
+		);
+
+		await refreshStaleDefaultModelSeeds.migrate(mockPlugin);
+
+		// The same seed on an AIAssistant command re-points to "Ask me" and has
+		// its baked defaults stripped (the two tests above).
+		expect(storedAICommand().model).toBe("gpt-4-32k");
+		expect(storedAICommand().modelParameters).toEqual({
+			temperature: 1,
+			top_p: 1,
+		});
 	});
 
 	it("strips the legacy baked-in sampling defaults but keeps user-set values", async () => {

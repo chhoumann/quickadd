@@ -247,6 +247,37 @@ describe("pinAiModelRefs migration", () => {
 		});
 	});
 
+	// Same contract as the seed-refresh migration: removing the
+	// InfiniteAIAssistant type ships NO migration, so a legacy step from a
+	// hand-edited data.json or a hand-authored package keeps whatever the user's
+	// file says. Pinning a modelRef onto a step nothing can run is a write with
+	// no upside, and pinAiCommandModelRefs runs on package import too.
+	it("leaves a legacy InfiniteAIAssistant command unpinned", async () => {
+		const legacy = {
+			...aiCommand("gpt-4o"),
+			type: "InfiniteAIAssistant",
+		} as unknown as IAIAssistantCommand;
+
+		settingsStore.setState({
+			choices: [macroChoiceWith([legacy])],
+			ai: {
+				...settingsStore.getState().ai,
+				providers: [
+					provider({
+						name: "OpenAI",
+						models: [{ name: "gpt-4o", maxTokens: 1 }],
+					}),
+				],
+			},
+		});
+
+		await pinAiModelRefs.migrate(mockPlugin);
+
+		// An AIAssistant command with this exact model gets pinned.
+		expect(storedCommands()[0].modelRef).toBeUndefined();
+		expect(storedCommands()[0].model).toBe("gpt-4o");
+	});
+
 	it("reaches AI commands nested in Multi folders", async () => {
 		const nested = {
 			id: "multi-1",
