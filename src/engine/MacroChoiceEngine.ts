@@ -71,54 +71,6 @@ type UserScriptFunction = (
 	settings: Record<string, unknown>
 ) => Promise<unknown>;
 
-function hasCommandType(
-	command: unknown,
-	type: CommandType
-): command is ICommand {
-	return isRecord(command) && command.type === type;
-}
-
-function isObsidianCommand(command: unknown): command is IObsidianCommand {
-	return hasCommandType(command, CommandType.Obsidian);
-}
-
-function isUserScriptCommand(command: unknown): command is IUserScript {
-	return hasCommandType(command, CommandType.UserScript);
-}
-
-function isChoiceCommand(command: unknown): command is IChoiceCommand {
-	return hasCommandType(command, CommandType.Choice);
-}
-
-function isWaitCommand(command: unknown): command is IWaitCommand {
-	return hasCommandType(command, CommandType.Wait);
-}
-
-function isNestedChoiceCommand(
-	command: unknown
-): command is INestedChoiceCommand {
-	return hasCommandType(command, CommandType.NestedChoice);
-}
-
-function isEditorCommand(command: unknown): command is IEditorCommand {
-	return hasCommandType(command, CommandType.EditorCommand);
-}
-
-function isAIAssistantCommand(
-	command: unknown
-): command is IAIAssistantCommand {
-	return hasCommandType(command, CommandType.AIAssistant);
-}
-
-function isOpenFileCommand(command: unknown): command is IOpenFileCommand {
-	return hasCommandType(command, CommandType.OpenFile);
-}
-
-function isConditionalCommand(
-	command: unknown
-): command is IConditionalCommand {
-	return hasCommandType(command, CommandType.Conditional);
-}
 type UserScriptObjectExport = Record<string, unknown> & {
 	entry?: UserScriptFunction;
 	settings?: Record<string, unknown>;
@@ -143,6 +95,26 @@ function getUserScriptSettings(
 	if (!isUserScriptObjectExport(value)) return undefined;
 	const { settings } = value;
 	return isRecord(settings) ? settings : undefined;
+}
+
+/**
+ * Why a command could not be run, phrased for the person reading the notice.
+ *
+ * Two shapes reach here, and telling them apart is the difference between
+ * actionable and baffling. A real-but-unknown type name is worth quoting: it is
+ * what the user greps for. An entry with no usable type has nothing to quote -
+ * printing `'undefined'` or `'[object Object]'` (a hand-authored package can put
+ * any JSON here) would send them looking for a command type that never existed.
+ */
+function describeUnknownType(
+	type: unknown,
+	kind: "command" | "editor command" = "command",
+): string {
+	if (typeof type !== "string" || !type.trim()) {
+		return `the saved entry has no ${kind} type, so QuickAdd cannot tell what it was meant to do. It is in .obsidian/plugins/quickadd/data.json.`;
+	}
+
+	return `QuickAdd does not recognise the ${kind} type '${type}'. It can come from a newer version of QuickAdd, an imported package, or a hand-edited .obsidian/plugins/quickadd/data.json.`;
 }
 
 function getConditionalScriptCacheKey(condition: ScriptCondition): string {
@@ -310,29 +282,72 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected async executeCommands(commands: ICommand[]) {
 		try {
 			for (const command of commands) {
-				if (isObsidianCommand(command))
-					this.executeObsidianCommand(command);
-				if (isUserScriptCommand(command))
-					await this.executeUserScript(command);
-				if (isChoiceCommand(command))
-					await this.executeChoice(command);
-				if (isWaitCommand(command)) {
-					await waitFor(command.time);
-				}
-				if (isNestedChoiceCommand(command)) {
-					await this.executeNestedChoice(command);
-				}
-				if (isEditorCommand(command)) {
-					await this.executeEditorCommand(command);
-				}
-				if (isAIAssistantCommand(command)) {
-					await this.executeAIAssistant(command);
-				}
-				if (isOpenFileCommand(command)) {
-					await this.executeOpenFile(command);
-				}
-				if (isConditionalCommand(command)) {
-					await this.executeConditional(command);
+				// A null/undefined entry is corruption, not a command, and the old
+				// `isRecord` inside every type guard was the only thing keeping it
+				// from throwing here. It stays SILENT: the same shape package import
+				// skips without comment (packageImportService), and a red notice per
+				// hole would bury the #1583 resilience work under noise.
+				if (!command) continue;
+
+				// A switch, not the old flat `if (isX(command))` chain: that chain had
+				// no else, so a type it did not know was dropped on the floor with no
+				// error, no notice and no log, and the macro still reported success
+				// (#1571). The `never` assignment in the default branch makes adding a
+				// CommandType without a handler a tsc error, so the hole cannot come
+				// back. `type` is all the old guards ever checked, so the casts are
+				// exactly as strict as what they replaced.
+				switch (command.type) {
+					case CommandType.Obsidian:
+						this.executeObsidianCommand(command as IObsidianCommand);
+						break;
+					case CommandType.UserScript:
+						await this.executeUserScript(command as IUserScript);
+						break;
+					case CommandType.Choice:
+						await this.executeChoice(command as IChoiceCommand);
+						break;
+					case CommandType.Wait:
+						await waitFor((command as IWaitCommand).time);
+						break;
+					case CommandType.NestedChoice:
+						await this.executeNestedChoice(command as INestedChoiceCommand);
+						break;
+					case CommandType.EditorCommand:
+						await this.executeEditorCommand(command as IEditorCommand);
+						break;
+					case CommandType.AIAssistant:
+						await this.executeAIAssistant(command as IAIAssistantCommand);
+						break;
+					case CommandType.InfiniteAIAssistant:
+						// Never creatable, never executable: it shipped in 1.2.0 with no
+						// builder entry and no engine branch, so the only way to hold one
+						// is a hand-edited data.json or a hand-authored package. Naming it
+						// here is what the `never` check costs, and it turns the silent
+						// drop into a visible one until the type is removed outright.
+						this.reportUnrunnableCommand(
+							command,
+							'no released QuickAdd has ever been able to run an "Infinite AI Assistant" command - it cannot be created or configured in the macro builder either. Delete the step from the macro.',
+						);
+						break;
+					case CommandType.OpenFile:
+						await this.executeOpenFile(command as IOpenFileCommand);
+						break;
+					case CommandType.Conditional:
+						await this.executeConditional(command as IConditionalCommand);
+						break;
+					default: {
+						// Compile-time exhaustiveness (the idiom executeEditorCommand
+						// already uses) AND a runtime shout: `type` is only typed at the
+						// edges, so a newer QuickAdd's data.json read by an older one -
+						// which our own downgrade recipe produces - really does arrive
+						// here with a string TypeScript says is impossible.
+						const exhaustiveCheck: never = command.type;
+						this.reportUnrunnableCommand(
+							command,
+							describeUnknownType(exhaustiveCheck),
+						);
+						break;
+					}
 				}
 			}
 		} catch (error) {
@@ -348,6 +363,35 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			}
 			throw error;
 		}
+	}
+
+	/**
+	 * Say out loud that a command was skipped, then carry on with the rest of
+	 * the macro - the same shape `executeObsidianCommand` uses for a command
+	 * whose plugin is gone. Skipping is the safer half of the choice: the step
+	 * did nothing either way, and aborting a macro on load-order noise would
+	 * take the file-writing steps that DID work with it. The shout is the half
+	 * that was missing (#1571) - without it the macro reports success and the
+	 * user's next step inherits the hole, e.g. an unset output variable that
+	 * turns into a mid-macro prompt asking them to type the missing value.
+	 *
+	 * One notice per skipped command, not per type: the same cadence as every
+	 * other skip in this file, and a macro that holds several is exactly the
+	 * case where seeing each one matters.
+	 */
+	private reportUnrunnableCommand(command: ICommand, reason: string): void {
+		const name =
+			typeof command?.name === "string" && command.name.trim()
+				? `'${command.name}'`
+				: "an unnamed command";
+
+		// "QuickAdd did not stop the macro" rather than "the rest of the macro
+		// ran": this fires BEFORE the rest runs, and when the skipped step is the
+		// last one there is no rest. What the user needs from the tail is that
+		// the macro was not aborted, so the result they get is a partial one.
+		log.logError(
+			`Skipped ${name} in the macro for '${this.choice.name}': ${reason} QuickAdd did not stop the macro, so its result may be incomplete.`
+		);
 	}
 
 	// Slightly modified from Templater's user script engine:
@@ -650,8 +694,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				MoveCursorToLineEndCommand.run(this.app);
 				break;
 			default: {
+				// Skip and shout, like the outer loop - this used to throw, which
+				// aborted the whole macro. Same threat model, so it deserves the same
+				// answer: a newer QuickAdd that adds an EditorCommandType writes a
+				// data.json an older one still has to read, and one unknown editor
+				// step is no reason to take the file-writing steps around it down
+				// with it.
 				const exhaustiveCheck: never = command.editorCommandType;
-				throw new Error(`Unhandled editor command type: ${exhaustiveCheck}`);
+				this.reportUnrunnableCommand(
+					command,
+					describeUnknownType(exhaustiveCheck, "editor command"),
+				);
 			}
 		}
 	}
