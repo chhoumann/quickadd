@@ -17,6 +17,9 @@ import {
 	shouldRunTemplateNoteDiscovery,
 } from "./templateNoteDiscovery";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import { routePrompt } from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -28,7 +31,7 @@ import {
 	openExistingFileTab,
 	openFile,
 } from "../utilityObsidian";
-import { isCancellationError, reportError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
 	failureReason,
@@ -48,7 +51,6 @@ import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLin
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
-import { UserCancelError } from "../errors/UserCancelError";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -113,10 +115,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				const discovery = await promptForTemplateNoteDiscovery(
 					this.app,
 					this.choice,
+					this.choiceExecutor,
 				);
 				if (discovery.kind === "openExisting") {
 					await this.openDiscoveredExistingNote(discovery.file);
-					this.outcome.success(discovery.file);
+					// Opening a note is not writing one: this path exists precisely to
+					// AVOID creating a duplicate, so it leaves the vault byte-identical
+					// (#1615).
+					this.outcome.success(discovery.file, "unchanged");
 					return;
 				}
 
@@ -187,9 +193,23 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
 			let createdNew = false;
+			// What this run did to its target note (#1615). Derived from the file-exists
+			// resolution the engine actually performed rather than from a byte compare,
+			// which is exact for the two answers an automation acts on: "createNew"
+			// always writes a new note, and "reuseExisting" — the shipped "Do nothing"
+			// mode — writes nothing at all. Only "modifyExisting" (append/overwrite) is
+			// inferred: it always writes, so `changed` can in principle over-report a
+			// write whose bytes happened to match, which is the harmless direction.
+			let effect: ChoiceEffect = "created";
 			if (await this.app.vault.adapter.exists(targetFilePath)) {
 				const modeId = await this.getSelectedFileExistsMode();
 				const mode = getFileExistsMode(modeId);
+				effect =
+					mode.resolutionKind === "reuseExisting"
+						? "unchanged"
+						: mode.resolutionKind === "createNew"
+							? "created"
+							: "changed";
 				const existingFile = mode.requiresExistingFile
 					? this.findExistingFile(targetFilePath)
 					: null;
@@ -250,7 +270,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.outcome.success(createdFile);
+			this.outcome.success(createdFile, effect);
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
@@ -417,32 +437,40 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return this.choice.fileExistsBehavior.mode;
 		}
 
-		// Non-interactive run (CLI without `ui`): there is no one to answer the
-		// "file already exists" prompt, so opening it would hang forever. Abort with
-		// an actionable error instead. This is the default behaviour for new Template
-		// choices, so it is the most common non-interactive hang.
-		if (this.choiceExecutor.interactive === false) {
-			throw new ChoiceAbortError(
-				`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
-					`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
-			);
-		}
-
 		const promptModes = getPromptModes();
+		const placeholder = "If the target file already exists";
 
-		try {
-			return await GenericSuggester.Suggest(
-				this.app,
-				promptModes.map((mode) => mode.label),
-				promptModes.map((mode) => mode.id),
-				"If the target file already exists",
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return (await routePrompt(this.choiceExecutor, {
+			// An interactive run drives this from the client, like every other prompt
+			// the run opens. Before, it opened on the desktop while the client's /poll
+			// returned nothing, and the run waited for someone to walk past (#1614).
+			remote: (provider) =>
+				promptEngineChoice(provider, {
+					items: promptModes.map((mode) => ({
+						value: mode.id,
+						title: mode.label,
+					})),
+					placeholder,
+					what: 'the "file already exists" chooser',
+				}),
+			// Non-interactive run (CLI without `ui`): there is no one to answer, so
+			// opening it would hang forever. Abort with an actionable error instead.
+			// This is the default behaviour for new Template choices, so it is the most
+			// common non-interactive hang.
+			headless: () => {
+				throw new ChoiceAbortError(
+					`'${this.choice.name}' needs to ask what to do because a note with that name already exists, but this run is non-interactive. ` +
+						`Set the choice's "If the file already exists" behaviour to a specific action (e.g. Increment, Overwrite), or re-run with the ui flag.`,
+				);
+			},
+			app: () =>
+				GenericSuggester.Suggest(
+					this.app,
+					promptModes.map((mode) => mode.label),
+					promptModes.map((mode) => mode.id),
+					placeholder,
+				),
+		})) as FileExistsModeId;
 	}
 
 	private async applyFileExistsMode(
@@ -678,9 +706,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		]);
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
-		// Propagate non-interactivity so a folder chooser aborts (instead of hanging)
-		// in a headless CLI run; a single configured folder never prompts regardless.
-		const interactive = this.choiceExecutor.interactive;
+		// Where the folder chooser goes: the client on an interactive run, an abort on
+		// a headless one, the modal otherwise. A single configured folder never prompts.
+		const executor = this.choiceExecutor;
 
 		if (
 			this.choice.folder?.chooseFromSubfolders &&
@@ -702,7 +730,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				allowCreate: true,
 				allowedRoots: folders,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -713,7 +741,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder(allFoldersInVault, {
 				allowCreate: true,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -730,7 +758,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			return await this.getOrCreateFolder([activeFile.parent.path], {
 				allowCreate: true,
 				topItems,
-				interactive,
+				executor,
 			});
 		}
 
@@ -738,7 +766,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			allowCreate: true,
 			allowedRoots: folders,
 			topItems,
-			interactive,
+			executor,
 		});
 	}
 

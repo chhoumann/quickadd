@@ -13,6 +13,7 @@ import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { settingsStore } from "../../settingsStore";
 import { CompleteFormatter } from "../../formatters/completeFormatter";
 import { makeNoticeHandler } from "../makeNoticeHandler";
+import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import { MacroAbortError } from "../../errors/MacroAbortError";
 import { resolveModelInputOrThrow } from "../aiHelpers";
 import type { AIProvider, Model } from "../Provider";
@@ -372,6 +373,18 @@ export class Agent {
 		const needs = perToolFloor || this.needsGlobalConfirmation(tool);
 		if (!needs) return true;
 		if (this.approveAllThisRun && !perToolFloor) return true;
+
+		// Non-interactive run (CLI without `ui`): nobody can approve this, and the
+		// modal would park forever - a plain `quickadd:run` of a Macro whose script
+		// calls `quickAddApi.ai.agent` with a non-readOnly tool simply never returned
+		// (`needsGlobalConfirmation` defaults to "destructive", so most tools ask).
+		// Refuse with the text that says how to make the choice runnable headlessly.
+		if (this.choiceExecutor.interactive === false) {
+			throw new ChoiceAbortError(
+				`'${call.name}' needs approval before it runs, but this run is non-interactive. ` +
+					`Set the AI assistant's tool-confirmation to "never", mark the tool readOnly, or re-run with the ui flag.`,
+			);
+		}
 
 		const outcome = await AIToolConfirmModal.Prompt(
 			this.app,

@@ -152,6 +152,7 @@ describe("registerQuickAddCliHandlers", () => {
 				executeWithOutcome: vi.fn().mockResolvedValue({
 					status: "success",
 					file: { path: "Created Note.md" },
+					effect: "created",
 				}),
 				variables: new Map<string, unknown>(),
 				consumeAbortSignal: vi.fn().mockReturnValue(null),
@@ -250,6 +251,11 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(verified.ok).toBe(true);
 		expect(verified.verified).toBe(true);
 		expect(verified.file).toBe("Created Note.md");
+		// `verified` says QuickAdd confirmed the run; `effect` says what it did to the
+		// vault. They are separate keys on purpose - a correctly-behaving no-op is
+		// `verified:true` with `effect:"unchanged"`, and overloading `verified` would
+		// have made it look retryable forever (#1615).
+		expect(verified.effect).toBe("created");
 		expect(executors[0].executeWithOutcome).toHaveBeenCalledWith(
 			templateChoice,
 		);
@@ -269,6 +275,9 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(legacy.ok).toBe(true);
 		expect(legacy.verified).toBe(false);
 		expect(legacy.file).toBeUndefined();
+		// Stated, not omitted: an absent key reads as `false` to both `jq` and JS,
+		// which would turn "we did not look" into "nothing happened".
+		expect(legacy.effect).toBe("unknown");
 		expect(executors[1].execute).toHaveBeenCalledWith(templateChoice);
 	});
 
@@ -419,7 +428,7 @@ describe("registerQuickAddCliHandlers", () => {
 		// run (#1605). An unknown path and an unauthed session answer the same 404
 		// shape, so without this a client could only detect the build by string-matching
 		// an error body.
-		expect(response.capabilities).toEqual(["abort"]);
+		expect(response.capabilities).toEqual(["abort", "outcome-effect"]);
 		// The run is fire-and-forget; let its microtasks settle.
 		await new Promise((resolve) => setTimeout(resolve, 0));
 

@@ -50,11 +50,14 @@ import {
 	templaterParseTemplate,
 	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
-import { isCancellationError, reportError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
 	failureReason,
 } from "./choiceOutcomeRecorder";
+import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import { routePrompt } from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import {
 	resolveCaptureTarget as resolveCaptureTargetFromString,
@@ -84,7 +87,6 @@ import {
 } from "./helpers/frontmatterPostProcessor";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
-import { UserCancelError } from "../errors/UserCancelError";
 import { SingleTemplateEngine } from "./SingleTemplateEngine";
 import { getCaptureAction, type CaptureAction } from "./captureAction";
 import {
@@ -114,6 +116,13 @@ type CaptureWriteResult = {
 	file: TFile;
 	newFileContent: string;
 	captureContent: string;
+	/**
+	 * The bytes on disk immediately before the write, so `run()` can report whether the
+	 * capture actually changed anything rather than inferring it from the payload
+	 * (#1615). An empty payload can still create a note, and a non-empty one can still
+	 * leave the file untouched, so the payload is the wrong thing to ask.
+	 */
+	priorContent: string;
 	cursorEndOffset?: number;
 	cursorPlacementSafe?: boolean;
 };
@@ -512,12 +521,17 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				file,
 				newFileContent,
 				captureContent,
+				priorContent,
 				cursorEndOffset,
 				cursorPlacementSafe = true,
 			} =
 				await getFileAndAddContentFn(filePath, content);
 			let expectedCursorContent: string | null = null;
 			let canPlaceCursorAtCapture = cursorPlacementSafe;
+			// Set by a post-commit step that writes the file AGAIN, after `newFileContent`
+			// was compared against `priorContent` — whole-file Templater, or front-matter
+			// post-processing. Either makes an otherwise-identical write a real change.
+			let rewroteAfterCompare = false;
 			// The formatted capture payload is empty/whitespace-only: the formatter
 			// returns the file unchanged and editor insertion replaces the selection
 			// with "" — i.e. a no-op. Surface a distinct notice instead of a false
@@ -574,19 +588,42 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				if (this.choice.templater?.afterCapture === "wholeFile") {
 					await overwriteTemplaterOnce(this.app, file);
 					canPlaceCursorAtCapture = false;
+					// Templater rewrote the whole file AFTER the bytes we compared, so a
+					// note that still contained `<% %>` has changed even when the capture
+					// payload itself was a no-op.
+					rewroteAfterCompare = true;
 				}
 				const frontmatterPostProcessed =
 					await this.applyCapturePropertyVars(file);
 				if (frontmatterPostProcessed) {
 					canPlaceCursorAtCapture = false;
 				}
+				// Post-processing writes front matter of its own, so it counts as a
+				// change even when the capture body itself was a no-op.
+				if (frontmatterPostProcessed) rewroteAfterCompare = true;
 				expectedCursorContent = canPlaceCursorAtCapture ? newFileContent : null;
 			}
 
 			// Content is committed. Record success before append-link/open-file steps
 			// so a later post-commit failure cannot make automation callers retry and
 			// duplicate the Capture side effect.
-			this.outcome.success(file);
+			//
+			// What landed, judged by the file rather than the payload (#1615). The
+			// editor-insertion branch above SKIPS the insertion entirely on a no-op, so
+			// there the payload is the file; every other branch compares persisted bytes.
+			// `createFileIfItDoesntExist` can legitimately create a note (possibly with a
+			// rendered template body) from an empty payload, which is why "created" is
+			// tested before emptiness.
+			const effect: ChoiceEffect = isEditorInsertionAction
+				? captureIsNoOp
+					? "unchanged"
+					: "changed"
+				: !fileAlreadyExists
+					? "created"
+					: newFileContent !== priorContent || rewroteAfterCompare
+						? "changed"
+						: "unchanged";
+			this.outcome.success(file, effect);
 
 			// Show success notification
 			if (this.plugin.settings.showCaptureNotification) {
@@ -745,16 +782,22 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		this.captureResolvedOrderedHeading();
 
-		await setCanvasTextCaptureContent(this.app, target, nextText);
-		markContentCommitted();
-
 		// An empty/whitespace capture leaves the card text unchanged (the formatter
 		// returns existingText as-is) — surface a no-op notice instead of a false
 		// "Captured to …" success, consistent with the note-body path in run().
 		const captureIsNoOp = nextText === existingText;
 
+		// Checked BEFORE the write, not after. `setCanvasTextCaptureContent` re-serialises
+		// the whole .canvas JSON, so writing identical card text can still rewrite the
+		// file's bytes — which would make the "unchanged" this run is about to report
+		// false, and would touch a file the user was told was left alone (#1615).
+		if (!captureIsNoOp) {
+			await setCanvasTextCaptureContent(this.app, target, nextText);
+		}
+		markContentCommitted();
+
 		// Committed; append-link/open-file steps remain post-commit (see run()).
-		this.outcome.success(file);
+		this.outcome.success(file, captureIsNoOp ? "unchanged" : "changed");
 
 		if (this.plugin.settings.showCaptureNotification) {
 			if (captureIsNoOp) {
@@ -849,15 +892,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
 
-		// Non-interactive run (CLI without `ui`): the heading picker has no one to
-		// answer it, so opening it would hang. Abort with an actionable error.
-		if (this.choiceExecutor.interactive === false) {
-			throw new ChoiceAbortError(
-				`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
-					`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
-			);
-		}
-
 		const allowCreate = !!insertAfter.createIfNotFound;
 
 		const lines = getLinesInString(content);
@@ -868,28 +902,41 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 		const headingTexts = headings.map((h) => h.text);
 
-		let chosen: string;
-		try {
-			chosen = await InputSuggester.Suggest(
-				this.app,
-				headingDisplay,
-				headingLines,
-				{
-					allowCustomValue: allowCreate,
-					placeholder: "Choose a heading to insert under",
-					emptyStateText: allowCreate
-						? "No headings found — type a heading to create"
-						: "No headings found in the target note",
-					customValueLabel: (value) =>
-						`Insert after new line: ${value}`,
+		const placeholder = "Choose a heading to insert under";
+		const chosen = String(
+			await routePrompt(this.choiceExecutor, {
+				// Routed like every other prompt the run opens. Before, an interactive
+				// run opened this on the desktop while the client's /poll returned
+				// nothing (#1614).
+				remote: (provider) =>
+					promptEngineChoice(provider, {
+						items: headingLines.map((line, index) => ({
+							value: line,
+							title: headingDisplay[index] ?? line,
+						})),
+						placeholder,
+						allowCustomInput: allowCreate,
+						what: "the heading picker",
+					}),
+				// Non-interactive run (CLI without `ui`): no one can answer, so opening
+				// it would hang. Abort with an actionable error.
+				headless: () => {
+					throw new ChoiceAbortError(
+						`'${this.choice.name}' needs to ask which heading to capture under, but this run is non-interactive. ` +
+							`Turn off "Choose heading when capturing" and set a fixed heading, or re-run with the ui flag.`,
+					);
 				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+				app: () =>
+					InputSuggester.Suggest(this.app, headingDisplay, headingLines, {
+						allowCustomValue: allowCreate,
+						placeholder,
+						emptyStateText: allowCreate
+							? "No headings found — type a heading to create"
+							: "No headings found in the target note",
+						customValueLabel: (value) => `Insert after new line: ${value}`,
+					}),
+			}),
+		);
 
 		invariant(
 			!!chosen && chosen.length > 0,
@@ -1168,12 +1215,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			`Folder ${folderPathSlash} is empty.`,
 		);
 
-		// Non-interactive run (CLI without `ui`): a format-syntax "Capture to" target
-		// resolves to a folder/vault scope at runtime (the requirement collector
-		// cannot pre-collect it), so this picker would hang. Abort with a clear error.
-		// Placed after the empty-folder check so a genuinely empty scope surfaces its
-		// own accurate error rather than the prompt message.
-		this.assertInteractiveCaptureTarget();
 
 		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
 		const orderedFiles = orderFilesForPicker(
@@ -1191,35 +1232,50 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingLabels = new Set(
 			displayItems.map((label) => label.toLowerCase()),
 		);
-		let targetFilePath: string;
-		try {
-			targetFilePath = await InputSuggester.Suggest(
-				this.app,
-				displayItems,
-				filePaths,
-				{
-					placeholder: allowCreate
-						? "Choose a note or type to create one"
-						: undefined,
-					emptyStateText: allowCreate
-						? "Type a note name to create it"
-						: undefined,
-					renderItem: (path, el) =>
-						renderNotePathSuggestion(el, path, this.app),
-					searchItems,
-					allowCustomValue: allowCreate,
-					customValueLabel: (value) => `Create new note: ${value}`,
-					valueExists: (value) =>
-						existingLabels.has(value.toLowerCase()) ||
-						this.captureTargetExists(folderPathSlash, value),
+		const placeholder = allowCreate
+			? "Choose a note or type to create one"
+			: undefined;
+		const targetFilePath = String(
+			await routePrompt(this.choiceExecutor, {
+				// A custom reply needs no extra confinement here: every reply is
+				// re-prefixed into `folderPathSlash` below, which is exactly what
+				// `confinePreselectedToScope` does for a folder scope.
+				remote: (provider) =>
+					promptEngineChoice(provider, {
+						items: filePaths.map((path, index) => ({
+							value: path,
+							title: displayItems[index] ?? path,
+						})),
+						placeholder,
+						allowCustomInput: allowCreate,
+						what: "the capture-target picker",
+					}),
+				// Non-interactive run (CLI without `ui`): a format-syntax "Capture to"
+				// target resolves to a folder/vault scope at runtime (the requirement
+				// collector cannot pre-collect it), so this picker would hang. Abort with
+				// a clear error. Placed after the empty-folder check so a genuinely empty
+				// scope surfaces its own accurate error rather than the prompt message.
+				headless: () => {
+					this.assertInteractiveCaptureTarget();
+					throw new Error("unreachable");
 				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+				app: () =>
+					InputSuggester.Suggest(this.app, displayItems, filePaths, {
+						placeholder,
+						emptyStateText: allowCreate
+							? "Type a note name to create it"
+							: undefined,
+						renderItem: (path, el) =>
+							renderNotePathSuggestion(el, path, this.app),
+						searchItems,
+						allowCustomValue: allowCreate,
+						customValueLabel: (value) => `Create new note: ${value}`,
+						valueExists: (value) =>
+							existingLabels.has(value.toLowerCase()) ||
+							this.captureTargetExists(folderPathSlash, value),
+					}),
+			}),
+		);
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
@@ -1316,10 +1372,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		invariant(allowCreate || files.length > 0, notFoundMessage);
 
-		// See selectFileInFolder: a format-syntax tag/property capture target resolves
-		// to a runtime file picker the requirement collector can't pre-collect. Placed
-		// after the no-match check so an empty result surfaces its own accurate error.
-		this.assertInteractiveCaptureTarget();
 
 		// Quick-Switcher-style ordering; show note names (not raw paths).
 		const orderedFiles = orderFilesForPicker(
@@ -1343,35 +1395,63 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingLabels = new Set(
 			displayItems.map((label) => label.toLowerCase()),
 		);
-		let targetFilePath: string;
-		try {
-			targetFilePath = await InputSuggester.Suggest(
-				this.app,
-				displayItems,
-				filePaths,
-				{
-					placeholder: allowCreate
-						? "Choose a note or type to create one"
-						: undefined,
-					emptyStateText: allowCreate
-						? "Type a note name to create it"
-						: undefined,
-					renderItem: (path, el) =>
-						renderNotePathSuggestion(el, path, this.app),
-					searchItems,
-					allowCustomValue: allowCreate,
-					customValueLabel: (value) => `Create new note: ${value}`,
-					valueExists: (value) =>
-						existingLabels.has(value.toLowerCase()) ||
-						this.captureTargetAlreadyExists(value, vaultBasenames),
+		const nameIsTaken = (value: string) =>
+			existingLabels.has(value.toLowerCase()) ||
+			this.captureTargetAlreadyExists(value, vaultBasenames);
+		const placeholder = allowCreate
+			? "Choose a note or type to create one"
+			: undefined;
+
+		const targetFilePath = String(
+			await routePrompt(this.choiceExecutor, {
+				remote: async (provider) => {
+					const reply = await promptEngineChoice(provider, {
+						items: filePaths.map((path, index) => ({
+							value: path,
+							title: displayItems[index] ?? path,
+						})),
+						placeholder,
+						allowCustomInput: allowCreate,
+						what: "the capture-target picker",
+					});
+					// Unlike the folder scope, nothing downstream re-confines this reply -
+					// it goes straight to formatFilePath. In Obsidian the picker enforces
+					// the rule structurally: `valueExists` suppresses the "Create new
+					// note" row for a name that already exists, so a typed value can only
+					// ever create a NEW note, never redirect the capture into an existing
+					// one the tag/property scope does not match. Enforce the same rule on
+					// a routed reply, mirroring `confinePreselectedToScope`.
+					if (!filePaths.includes(reply) && nameIsTaken(reply)) {
+						throw new Error(
+							`"${reply}" already exists but is not one of the notes this capture targets. ` +
+								`Pick one of the offered notes, or type a name that does not exist yet.`,
+						);
+					}
+					return reply;
 				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+				// See selectFileInFolder: a format-syntax tag/property capture target
+				// resolves to a runtime file picker the requirement collector can't
+				// pre-collect. Placed after the no-match check so an empty result
+				// surfaces its own accurate error.
+				headless: () => {
+					this.assertInteractiveCaptureTarget();
+					throw new Error("unreachable");
+				},
+				app: () =>
+					InputSuggester.Suggest(this.app, displayItems, filePaths, {
+						placeholder,
+						emptyStateText: allowCreate
+							? "Type a note name to create it"
+							: undefined,
+						renderItem: (path, el) =>
+							renderNotePathSuggestion(el, path, this.app),
+						searchItems,
+						allowCustomValue: allowCreate,
+						customValueLabel: (value) => `Create new note: ${value}`,
+						valueExists: nameIsTaken,
+					}),
+			}),
+		);
 
 		invariant(
 			!!targetFilePath && targetFilePath.length > 0,
@@ -1439,6 +1519,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			file,
 			newFileContent,
 			captureContent: formatted,
+			priorContent: secondReadFileContent,
 			cursorEndOffset: cursorEndOffset ?? undefined,
 			cursorPlacementSafe,
 		};
@@ -1556,6 +1637,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			file,
 			newFileContent,
 			captureContent: formattedCaptureContent,
+			priorContent: updatedFileContent,
 			cursorEndOffset: cursorEndOffset ?? undefined,
 			cursorPlacementSafe: true,
 		};

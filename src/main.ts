@@ -49,6 +49,7 @@ import { setQuickAddInstance } from "./quickAddInstance";
 import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
+import type { ChoiceEffect } from "./types/ChoiceOutcome";
 import {
 	buildCallbackUrl,
 	buildObsidianOpenUrl,
@@ -307,7 +308,7 @@ export default class QuickAdd extends Plugin {
 
 			switch (outcome.status) {
 				case "success":
-					this.fireUriSuccess(targets, outcome.file);
+					this.fireUriSuccess(targets, outcome.file, outcome.effect);
 					break;
 				case "cancelled":
 					if (outcome.cancelKind === "user") {
@@ -454,8 +455,23 @@ export default class QuickAdd extends Plugin {
 			});
 	}
 
-	private fireUriSuccess(targets: CallbackTargets, file?: TFile): void {
-		const params: Record<string, string> = { status: "success" };
+	/**
+	 * `effect` rides along with the success callback, unlike `reason`, which this
+	 * handler deliberately withholds on both failure variants.
+	 *
+	 * The rule it is not breaking is "leak no vault detail to an external callback
+	 * URL": `effect` is a three-token enum (`created`/`changed`/`unchanged`) with
+	 * nothing vault-specific in it, and this same callback already carries the note's
+	 * path and the vault name. Withholding it would leave the exact automation #1615
+	 * is about — a Shortcut writing an idempotency marker on `status=success` — still
+	 * marking captures that never happened.
+	 */
+	private fireUriSuccess(
+		targets: CallbackTargets,
+		file: TFile | undefined,
+		effect: ChoiceEffect,
+	): void {
+		const params: Record<string, string> = { status: "success", effect };
 		if (file) {
 			params.path = file.path;
 			params.url = buildObsidianOpenUrl(this.app.vault.getName(), file.path);

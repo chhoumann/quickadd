@@ -11,6 +11,8 @@ import type { ICommand } from "../types/macros/ICommand";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import { routePrompt } from "../interactive/routePrompt";
+import { promptEngineChoice } from "../interactive/engineChoice";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import { getQuickAddInstance } from "../quickAddInstance";
@@ -568,31 +570,43 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		// Non-interactive run (CLI without `ui`): a user script that exports an object
-		// of MULTIPLE named members opens a picker to choose which to run, which has
-		// no one to answer it headlessly. A single-member export is unambiguous, so
-		// run it directly (the interactive path keeps its existing picker behaviour).
-		if (this.choiceExecutor.interactive === false) {
-			const keys = Object.keys(obj);
-			if (keys.length === 1) {
-				await this.userScriptDelegator(obj[keys[0]]);
-				return;
-			}
-			throw new ChoiceAbortError(
-				"This macro's user script exports multiple members and needs to ask which one to run, but this run is non-interactive. " +
-					"Reference a single member (e.g. myScript::start), or re-run with the ui flag.",
-			);
-		}
+		const keys = Object.keys(obj);
 
 		try {
-			const keys = Object.keys(obj);
-			const selected: string = await GenericSuggester.Suggest(
-				this.app,
-				keys,
-				keys,
-				this.promptLabel,
+			const selected = String(
+				await routePrompt(this.choiceExecutor, {
+					// Routed like the run's other prompts, instead of opening on a desktop
+					// nobody is watching during an interactive run (#1614).
+					remote: (provider) =>
+						promptEngineChoice(provider, {
+							items: keys.map((key) => ({ value: key, title: key })),
+							placeholder: this.promptLabel,
+							what: "the user-script member picker",
+						}),
+					// A single-member export is unambiguous, so a headless run just runs
+					// it. This is why the seam takes a closure per destination rather than
+					// imposing one headless behaviour: most sites abort here, and this one
+					// legitimately answers itself.
+					headless: () => {
+						if (keys.length === 1) return Promise.resolve(keys[0]);
+						throw new ChoiceAbortError(
+							"This macro's user script exports multiple members and needs to ask which one to run, but this run is non-interactive. " +
+								"Reference a single member (e.g. myScript::start), or re-run with the ui flag.",
+						);
+					},
+					app: () =>
+						GenericSuggester.Suggest(this.app, keys, keys, this.promptLabel),
+				}),
 			);
 
+			// `Object.hasOwn`, not `obj[selected]`: the reply now travels over the wire,
+			// and a member name like "constructor" would otherwise resolve to something
+			// that is not an exported script at all.
+			if (!Object.hasOwn(obj, selected)) {
+				throw new Error(
+					`This macro's user script does not export a member named "${selected}".`,
+				);
+			}
 			await this.userScriptDelegator(obj[selected]);
 		} catch (err) {
 			if (err instanceof MacroAbortError) {

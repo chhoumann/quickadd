@@ -1734,6 +1734,10 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			file: linkedFile,
 			newFileContent: "updated",
 			captureContent: "capture",
+			// Stated, so the `effect: "changed"` assertion below rests on a real
+			// comparison. Left undefined, `newFileContent !== priorContent` is
+			// `"updated" !== undefined`, which can never yield "unchanged" (#1615).
+			priorContent: "existing",
 		}));
 
 		await engine.run();
@@ -1742,6 +1746,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: linkedFile,
+			effect: "changed",
 		});
 		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
 			app,

@@ -548,6 +548,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,
+			effect: "created",
 		});
 	});
 
@@ -659,6 +660,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,
+			effect: "created",
 		});
 		expect(store.get(draftKey)).toBeUndefined();
 	});
@@ -704,6 +706,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
 			status: "success",
 			file: createdFile,
+			effect: "created",
 		});
 	});
 });

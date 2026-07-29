@@ -65,7 +65,7 @@ obsidian vault=dev quickadd:run-template \
 - `path=` is the template file (vault-relative). A leading slash is allowed and a missing `.md` extension is added, matching how Template choices resolve paths. If no file resolves there, the command returns `{"ok":false}` up front.
 - The new note's name comes from `{{VALUE}}` - pass it as `value-value=...`. A non-interactive run with an empty or missing name returns `missingFlags` instead of creating an unnamed note. The note is created in Obsidian's "Default location for new notes".
 - The picker (interactive command) only lists templates inside your configured template folder(s); `path=` here is explicit, so any vault file resolves.
-- Like `quickadd:run`, name collisions on the target note still prompt interactively (the file-exists choice is not a pre-collected input).
+- Like `quickadd:run`, name collisions on the target note still prompt (the file-exists choice is not a pre-collected input). Under `quickadd:interactive` that prompt is forwarded to you like any other.
 
 _Introduced in QuickAdd 2.14.0._
 
@@ -125,6 +125,42 @@ In a [scheduled job](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/#run-quic
 only add `ui` when the job runs while you are logged in and able to answer the
 prompts.
 
+## Knowing whether anything actually landed {#verified-and-effect}
+
+`ok:true` means the choice ran without aborting. It does **not** mean your vault
+changed. Two more keys answer the questions an automation actually asks:
+
+| Key | Question it answers | Values |
+| --- | --- | --- |
+| `verified` | Did QuickAdd confirm what the engine did? | `true` on the outcome path (`verify` on a Template/Capture choice), `false` when it could not look |
+| `effect` | What did the run do to the vault? | `created`, `changed`, `unchanged`, `unknown` |
+
+```bash
+obsidian vault=dev quickadd:run choice="Inbox" value-value="  " verify=true
+# -> {"ok":true,"choice":{…},"file":"Inbox.md","verified":true,"effect":"unchanged","durationMs":6}
+```
+
+That run is working exactly as designed: the capture's payload was empty, so
+QuickAdd deliberately left `Inbox.md` alone rather than writing a blank line, and
+said so in a notice. A Template set to **Do nothing** when the file already exists
+reports the same. If you are counting captures, writing an idempotency marker, or
+deciding whether to retry, key off `effect`, not `ok`.
+
+`effect` is present on every **success** payload (`ok:true`), and `unknown` is stated
+rather than omitted - a missing key reads as `false` in both `jq` and JavaScript, which
+would turn "QuickAdd did not look" into "nothing happened". A failed or cancelled run
+carries `error` instead and no `effect`, because there is no outcome to describe.
+`verified:false` still means only *"not confirmed - go look"*; it never means
+*"confirmed that nothing changed"*.
+
+The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
+success callback carries the same `effect` value.
+
+:::note[Available in the next release]
+`effect` is new. `capabilities` in the `quickadd:interactive` handshake contains
+`outcome-effect` on a build that has it.
+:::
+
 ## Answer run-time prompts from outside: `quickadd:interactive` {#interactive-runs-quickaddinteractive}
 
 Some choices prompt at *run time* for inputs that can't be gathered up front -
@@ -136,7 +172,7 @@ the prompts opening in Obsidian.
 
 ```bash
 obsidian vault=dev quickadd:interactive choice="Import from Readwise"
-# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…","capabilities":["abort"]}
+# -> {"ok":true,"host":"127.0.0.1","port":51789,"sessionId":"…","token":"…","capabilities":["abort","outcome-effect"]}
 ```
 
 The command returns connection details immediately and runs the choice in the
@@ -146,11 +182,26 @@ background. Attach to the session and drive it:
 - `POST http://127.0.0.1:<port>/reply?session=<id>&token=<token>` with body `{"requestId":…,"value":…}` to answer, or `{"requestId":…,"cancelled":true}` to cancel (which ends the run - except on an `info` panel, see below).
 - `POST http://127.0.0.1:<port>/abort?session=<id>&token=<token>` - end the run. Answers `{"ok":true,"interrupted":<n>}`, where `n` is how many pending prompts it rejected; `409` if the run had already finished (benign - poll for the terminal event); `404` for an unknown session or token, or for any method other than `POST`.
 
+Prompts a Template or Capture run opens itself - the "file already exists" chooser,
+the folder picker, the note-discovery picker, the heading picker, the capture-target
+picker - are forwarded like any other. (The AI assistant's tool-confirmation dialog is
+the one that is not: run such a choice at the desktop, or set tool confirmation to
+"never".)
+
+:::note[Available in the next release]
+Forwarding the run's own pickers is new. Before it, a Template or Capture run opened
+them in Obsidian and `/abort` could not reach them.
+::: They arrive as `suggester` prompts, and because the engine controls the
+list, a reply that is not one of the offered `value` tokens is refused rather than
+acted on (unless the prompt sets `allowCustomInput`, as the folder and discovery
+pickers do so you can create something new).
+
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
 acknowledgement, `form` → an object mapping each field's `id` to its string
 value (date fields use the `@date:ISO` format). The run's outcome arrives as the
-`done`/`error` poll event.
+`done`/`error` poll event: `done` carries the same `verified` and `effect` keys
+described under [Knowing whether anything actually landed](#verified-and-effect).
 
 ### Cancelling, and ending a run
 
@@ -171,12 +222,9 @@ whether it stopped anything.
 
 :::caution[What `/abort` cannot reach]
 `/abort` interrupts prompts that were routed **to you**. A run that is mid-work
-between prompts keeps going, and a Template or Capture run still opens some prompts in
-Obsidian itself - the "file already exists" chooser, the folder picker, the
-capture-target picker - which do not travel over this bridge
-([#1614](https://github.com/chhoumann/quickadd/issues/1614)). So `"interrupted":0`
-means nothing was waiting on you, and the run may still succeed and commit its side
-effects.
+between prompts keeps going, so `"interrupted":0` means nothing was waiting on you and
+the run may still finish and commit its side effects. Keep polling for the terminal
+event either way.
 :::
 
 :::note[Available in the next release]

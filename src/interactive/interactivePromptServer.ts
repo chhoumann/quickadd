@@ -21,6 +21,7 @@ import {
 	PROMPT_CANCELLED_MESSAGE,
 	UserCancelError,
 } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
 // Minimal structural types for the slice of Node's `http` we use, declared
 // locally so this module never statically imports a Node builtin (keeps the
@@ -241,6 +242,20 @@ export type ReplyOutcome =
 const NO_PENDING_PROMPT = "No pending prompt for that requestId";
 
 /**
+ * Why a prompt that was waiting on the client will never be answered.
+ *
+ * Thrown as a {@link ChoiceAbortError}, not a bare `Error`, and that matters now that
+ * ENGINE prompts travel this bridge too (#1614). `isCancellationError` is false for a
+ * plain Error, so the engines' catch blocks would classify a client that simply stopped
+ * polling as a run FAILURE - a red "Error running choice" notice on a desktop nobody is
+ * sitting at, and an `error` outcome where the truth is an abort. A ChoiceAbortError
+ * flows through the existing abort handling and lands as `cancelled`/`aborted` carrying
+ * this reason.
+ */
+const SESSION_ENDED_REASON =
+	"The interactive client disconnected, so the run was ended.";
+
+/**
  * Why this reply cannot be honoured, or null if it can.
  *
  * Validating here rather than deeper in is what makes a malformed reply safe: the
@@ -378,7 +393,7 @@ class InteractivePromptServer {
 		// already fired finish()) must reject, not park forever, so the executor
 		// aborts instead of hanging.
 		if (session.finished) {
-			return Promise.reject(new Error("Interactive session ended"));
+			return Promise.reject(new ChoiceAbortError(SESSION_ENDED_REASON));
 		}
 		// The client already asked to end this run; do not park a new prompt it will
 		// never answer.
@@ -413,7 +428,7 @@ class InteractivePromptServer {
 			session.pollWatchdog = null;
 		}
 		for (const [, pending] of session.pending) {
-			pending.reject(new Error("Interactive session ended"));
+			pending.reject(new ChoiceAbortError(SESSION_ENDED_REASON));
 		}
 		session.pending.clear();
 		this.push(session, event);
@@ -438,10 +453,11 @@ class InteractivePromptServer {
 	 * and delivers its real outcome, which is more truthful than a fabricated one.
 	 *
 	 * The honest limit, documented at the wire: this interrupts prompts that were routed
-	 * to the CLIENT. Prompts QuickAdd still opens in Obsidian on a Template/Capture run
-	 * (the file-exists suggester, the folder chooser, the capture-target picker) do not
-	 * go through this server and are unaffected, which is why the reply says how many
-	 * pending prompts it actually interrupted.
+	 * to the CLIENT. A run that is mid-work between prompts keeps going, which is why the
+	 * reply says how many pending prompts it actually interrupted. The Template/Capture
+	 * engine prompts that used to be outside that set - the file-exists chooser, the
+	 * folder chooser, the capture-target and heading pickers - now travel this bridge and
+	 * are interruptible (#1614); the AI tool-confirmation modal still is not.
 	 *
 	 * @returns the number of pending prompts rejected, or null if there is no live
 	 * session to abort.
@@ -478,7 +494,9 @@ class InteractivePromptServer {
 			if (session.attachTimer) window.clearTimeout(session.attachTimer);
 			if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
 			for (const [, pending] of session.pending) {
-				pending.reject(new Error("QuickAdd unloaded"));
+				pending.reject(
+					new ChoiceAbortError("QuickAdd was unloaded during an interactive run."),
+				);
 			}
 			// Close any parked long-poll response so it isn't orphaned after
 			// server.close() (which won't terminate in-flight connections).
@@ -517,7 +535,7 @@ class InteractivePromptServer {
 		// Reject any still-pending prompt so a caller awaiting it aborts rather
 		// than hanging (finish() normally clears these, but be defensive).
 		for (const [, pending] of session.pending) {
-			pending.reject(new Error("Interactive session ended"));
+			pending.reject(new ChoiceAbortError(SESSION_ENDED_REASON));
 		}
 		session.pending.clear();
 		this.sessions.delete(session.id);
