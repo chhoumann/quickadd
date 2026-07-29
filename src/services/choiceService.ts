@@ -16,7 +16,11 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
-import { regenerateIds } from "../utils/macroUtils";
+import {
+	isUnreadableCommandList,
+	macroCommandsValueOf,
+	regenerateIds,
+} from "../utils/macroUtils";
 import {
 	childChoicesOf,
 	flattenChoices,
@@ -137,8 +141,10 @@ function collectUserScriptPathsFromChoice(
 ): void {
 	if (!isRecord(choice)) return;
 
-	if (choice.type === "Macro" && isRecord(choice.macro)) {
-		const commands = choice.macro.commands;
+	if (choice.type === "Macro") {
+		// Same reading as the macro builder and the secret sanitizer: an
+		// ARRAY-valued `macro` IS the command list (#1609).
+		const commands = macroCommandsValueOf(choice.macro);
 		if (Array.isArray(commands)) {
 			for (const command of commands) {
 				collectUserScriptPathsFromCommand(command, paths);
@@ -267,10 +273,28 @@ export async function deleteChoiceWithConfirmation(
 		return `Deleting this folder will also delete everything inside it: ${parts.join(" and ")}.`;
 	};
 
+	// Delete is the one irreversible action in the settings list, and until #1612
+	// the two container types were treated asymmetrically: a folder whose children
+	// could not be read said so, a macro whose commands could not be read said only
+	// the generic line - which is true, and silent about the case that matters.
+	//
+	// Since #1593 the macro builder tells the user about that state and refuses to
+	// overwrite it. This reads the SAME predicate through the SAME accessor the
+	// builder resolves its list with, so the screen that reports the state and the
+	// screen that destroys it cannot disagree. `macroCommandsValueOf` (not
+	// `macro?.commands`) is what makes the unreadable-`macro`-object case - a
+	// string, a number, an array-turned-object - resolve here exactly as it does
+	// there; a genuinely array-valued `macro` IS the command list, is readable, and
+	// correctly keeps the ordinary line.
+	const buildMacroWarning = (macroChoice: IMacroChoice): string =>
+		isUnreadableCommandList(macroCommandsValueOf(macroChoice.macro))
+			? "QuickAdd couldn't read this macro's commands. Deleting it also deletes whatever is still stored under it in data.json."
+			: "Deleting this choice will also delete its macro commands.";
+
 	const body = [
 		`Are you sure you want to delete '${choice.name}'?`,
 		isMulti ? buildMultiWarning(choice as IMultiChoice) : "",
-		isMacro ? "Deleting this choice will also delete its macro commands." : "",
+		isMacro ? buildMacroWarning(choice as IMacroChoice) : "",
 	]
 		.filter(Boolean)
 		.join(" ");

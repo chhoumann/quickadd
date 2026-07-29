@@ -46,7 +46,7 @@ export function replaceById<T extends Reorderable>(
  *  - zoneItemTabIndex:-1 keeps rows out of the tab order,
  *  - delayTouchStart gates touch drags (desktop is gated by the dragArmed handle).
  * Per-zone overrides: items, dragDisabled, type, dropTargetClasses, flipDurationMs (kept
- * in sync with animate:flip), and resolveLabel (the pill text — defaults to item.name;
+ * in sync with animate:flip), resolveLabel (the pill text — defaults to item.name;
  * the macro builder passes getCommandDisplayName, since a command's `.name` differs from
  * its rendered label for Choice/Conditional commands).
  */

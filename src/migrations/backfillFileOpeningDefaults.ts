@@ -1,6 +1,6 @@
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
-import type { Migration } from "./Migrations";
+import type { Migration, MigrationResult } from "./Migrations";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -8,7 +8,10 @@ import {
 	coerceLegacyOpenFileInNewTab,
 	createFileOpeningFromLegacy,
 } from "./helpers/file-opening-legacy";
-import { walkAllChoices } from "./helpers/choice-traversal";
+import {
+	settingsTreeHasUnreadableData,
+	walkAllChoices,
+} from "./helpers/choice-traversal";
 import {
 	normalizeFileOpening,
 	type FileOpeningSettings,
@@ -16,8 +19,25 @@ import {
 
 const backfillFileOpeningDefaults: Migration = {
 	description: "Backfill missing file opening defaults for older choices",
-	migrate: async (plugin: QuickAdd) => {
+	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
 		log.logMessage("Starting file opening defaults backfill...");
+
+		// Both halves of this migration MOVE data: they translate the legacy
+		// `openFileInNewTab` / `openFileInMode` keys into `fileOpening`, and nothing
+		// at runtime reads the legacy keys. A choice hidden behind a container this
+		// walk could not read would therefore lose its "open in new tab" preference
+		// permanently once the migration is flagged complete, even after the user
+		// repairs data.json. Stay pending instead (#1610).
+		//
+		// A MISSING `fileOpening`, by contrast, needs no guard at all: the engines
+		// call `normalizeFileOpening(this.choice.fileOpening)` on every run, so the
+		// defaults half is fully compensated at runtime.
+		//
+		// This migration does NOT call saveSettings() itself: migrate.ts re-syncs the
+		// store and saves once after the whole run. A per-migration write would be a
+		// full data.json rewrite, and once this can stay PENDING that is one on every
+		// launch, straight into Obsidian Sync's whole-file last-write-wins.
+		const unreadable = settingsTreeHasUnreadableData(plugin.settings);
 
 		let migratedCount = 0;
 
@@ -67,7 +87,7 @@ const backfillFileOpeningDefaults: Migration = {
 			`File opening defaults backfill complete. Updated ${migratedCount} choice(s).`,
 		);
 
-		await plugin.saveSettings();
+		if (unreadable) return { complete: false };
 	},
 };
 

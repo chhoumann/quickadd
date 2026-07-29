@@ -1,10 +1,13 @@
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
-import type { Migration } from "./Migrations";
+import type { Migration, MigrationResult } from "./Migrations";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
-import { walkAllChoices } from "./helpers/choice-traversal";
+import {
+	settingsTreeHasUnreadableData,
+	walkAllChoices,
+} from "./helpers/choice-traversal";
 import {
 	coerceLegacyOpenFileInNewTab,
 	createFileOpeningFromLegacy,
@@ -17,8 +20,26 @@ type LegacyFileOpeningChoice = (ITemplateChoice | ICaptureChoice) & {
 
 const migrateFileOpeningSettings: Migration = {
 	description: "Migrate legacy openFileInNewTab settings to new fileOpening format",
-	migrate: async (plugin: QuickAdd) => {
+	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
 		log.logMessage("Starting migration of file opening settings...");
+
+		// Both halves of this migration MOVE data: they translate the legacy
+		// `openFileInNewTab` / `openFileInMode` keys into `fileOpening`, and nothing
+		// at runtime reads the legacy keys. A choice hidden behind a container this
+		// walk could not read would therefore lose its "open in new tab" preference
+		// permanently once the migration is flagged complete, even after the user
+		// repairs data.json. Stay pending instead (#1610).
+		//
+		// A MISSING `fileOpening`, by contrast, needs no guard at all: the engines
+		// call `normalizeFileOpening(this.choice.fileOpening)` on every run, so the
+		// defaults half is fully compensated at runtime.
+		//
+		// This migration does NOT call saveSettings() itself: migrate.ts re-syncs the
+		// store and saves once after the whole run. A per-migration write would be a
+		// full data.json rewrite, and once this can stay PENDING that is one on every
+		// launch, straight into Obsidian Sync's whole-file last-write-wins.
+		const unreadable = settingsTreeHasUnreadableData(plugin.settings);
+
 		
 		let migratedCount = 0;
 		
@@ -56,9 +77,8 @@ const migrateFileOpeningSettings: Migration = {
 		walkAllChoices(plugin, migrateFileOpening);
 		
 		log.logMessage(`Migration complete. Migrated ${migratedCount} choices.`);
-		
-		// Save the updated settings
-		await plugin.saveSettings();
+
+		if (unreadable) return { complete: false };
 	},
 };
 

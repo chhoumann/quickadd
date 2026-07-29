@@ -389,15 +389,45 @@ describe("treeHasUnreadableChildren (#1566)", () => {
 	it("is true for an unreadable folder at any depth", () => {
 		// The whole point: a root-only check passes this, and the migration that
 		// relies on it then destroys data it could not see.
-		expect(treeHasUnreadableChildren([brokenFolder({})])).toBe(true);
 		expect(
-			treeHasUnreadableChildren([multi("Folder", [brokenFolder(undefined)])]),
+			treeHasUnreadableChildren([brokenFolder({ "0": choice("Hidden") })]),
+		).toBe(true);
+		expect(
+			treeHasUnreadableChildren([multi("Folder", [brokenFolder("not a list")])]),
 		).toBe(true);
 		expect(
 			treeHasUnreadableChildren([
-				multi("Outer", [multi("Inner", [brokenFolder(null)])]),
+				multi("Outer", [multi("Inner", [brokenFolder(7)])]),
 			]),
 		).toBe(true);
+	});
+
+	it("is false for a folder whose children value carries nothing", () => {
+		// #1610/#1611. Below the root this asks the same question the folder hint
+		// asks (isUnreadableChoiceList), and `undefined`/`null`/`{}`/`""`/`0`/`false`
+		// hide no choices - they are an empty folder. Calling them unreadable kept
+		// removeMacroIndirection PENDING FOREVER over one folder with no `choices`
+		// key: legacy macros were never embedded, never removed, and every legacy
+		// macro choice in the vault stayed dead, because nothing at runtime resolves
+		// a `macroId`.
+		for (const empty of [undefined, null, {}, "", 0, false]) {
+			expect(
+				treeHasUnreadableChildren([brokenFolder(empty)]),
+				JSON.stringify(empty) ?? "undefined",
+			).toBe(false);
+		}
+	});
+
+	it("keeps the ROOT strict, where any non-array is corruption", () => {
+		// The asymmetry with the folder rule is deliberate: loadSettings merges over
+		// DEFAULT_SETTINGS, so a MISSING `choices` key is already []. A root that is
+		// not an array is therefore never an honest empty - and removeMacroIndirection
+		// pushes straight into it.
+		for (const root of [undefined, null, {}, "", 0, false, "not a list", 7]) {
+			expect(treeHasUnreadableChildren(root), JSON.stringify(root) ?? "undefined").toBe(
+				true,
+			);
+		}
 	});
 
 	it("steps over a hole in the list rather than calling it unreadable", () => {

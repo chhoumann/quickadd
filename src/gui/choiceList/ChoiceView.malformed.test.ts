@@ -11,6 +11,8 @@ import ChoiceView from "./ChoiceView.svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
+import { settingsStore } from "../../settingsStore";
+import { tick } from "svelte";
 import {
 	folder,
 	leaf,
@@ -133,23 +135,31 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
 	});
 
-	it("drops entries that cannot be keyed instead of losing the whole list", () => {
+	it("repairs entries that cannot be keyed instead of hiding them", () => {
 		// Two entries with no id give the keyed {#each} the same (undefined) key,
-		// which raises `each_key_duplicate` - the #1451 crash. The boundary would
-		// catch it, but the user would lose every real row with it.
-		const { getByLabelText, queryByText, container } = renderChoiceView([
+		// which raises `each_key_duplicate` - the #1451 crash. Hiding them avoided
+		// the crash and cost the user the choices instead: the list the view renders
+		// is the list it persists, so the first reorder deleted them (#1608). They
+		// are given a fresh uuid at the seam and KEPT, so they can finally be seen,
+		// edited and deleted.
+		const { getByLabelText, getByText, container } = renderChoiceView([
 			{ name: "Missing id" } as IChoice,
 			{ name: "No id" } as IChoice,
 			leaf("Survivor", "survivor"),
 		]);
 
 		expect(getByLabelText("Configure Survivor")).toBeInTheDocument();
-		// Absent from the DOM entirely, not merely unkeyed: a regression that still
-		// painted them as rows without a data-choice-id would pass a count check.
-		expect(queryByText("Missing id")).toBeNull();
-		expect(queryByText("No id")).toBeNull();
+		expect(getByText("Missing id")).toBeInTheDocument();
+		expect(getByText("No id")).toBeInTheDocument();
 		expect(container.querySelector(".qaChoicesUnavailable")).toBeNull();
-		expect(container.querySelectorAll("[data-choice-id]")).toHaveLength(1);
+		// Every row keyed, and keyed DISTINCTLY - the repair must not hand the two
+		// id-less entries the same replacement.
+		const ids = [...container.querySelectorAll("[data-choice-id]")].map((el) =>
+			el.getAttribute("data-choice-id"),
+		);
+		expect(ids).toHaveLength(3);
+		expect(new Set(ids).size).toBe(3);
+		expect(ids).toContain("survivor");
 	});
 
 	it("refuses to render, rather than to offer a CTA, when the root list is unreadable", () => {
@@ -167,6 +177,112 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 		expect(queryByLabelText("New choice")).toBeNull();
 		expect(queryByLabelText("New folder")).toBeNull();
 		expect(saveChoices).not.toHaveBeenCalled();
+	});
+
+	it("a reorder can only reorder - it can never delete", () => {
+		// #1608, the headline. `renderable` seeded the drop zone AND was what the
+		// persist path wrote back, so the first drag or ArrowDown committed the
+		// FILTERED list and every entry the filter had dropped was gone from
+		// data.json - including a complete, working choice whose id happened to be a
+		// JSON number, from a row the user could never see.
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const numeric = {
+			id: 12,
+			name: "Daily note",
+			type: "Template",
+			command: false,
+			templatePath: "Templates/Daily.md",
+		} as unknown as IChoice;
+		const tree = [
+			leaf("Alpha", "alpha"),
+			numeric,
+			null as unknown as IChoice,
+			{ name: "No id", type: "Capture", command: false } as IChoice,
+			leaf("Beta", "beta"),
+		];
+		const { container } = renderChoiceView(tree, saveChoices);
+
+		const handle = container.querySelector<HTMLElement>(
+			'[data-choice-id="alpha"] .qa-drag-handle',
+		)!;
+		handle.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+		);
+
+		expect(saveChoices).toHaveBeenCalled();
+		const saved = saveChoices.mock.calls.at(-1)![0] as unknown as Record<
+			string,
+			unknown
+		>[];
+
+		// Everything that carried data survived; only the `null` hole is gone.
+		expect(saved.map((c) => c.name)).toEqual([
+			"Daily note",
+			"Alpha",
+			"No id",
+			"Beta",
+		]);
+		// ...and byte-identical apart from the reorder and the repaired ids.
+		const daily = saved.find((c) => c.name === "Daily note")!;
+		expect(daily.templatePath).toBe("Templates/Daily.md");
+		expect(daily.type).toBe("Template");
+		expect(typeof daily.id).toBe("string");
+		expect(saved.filter((c) => c.name === "Alpha")[0].id).toBe("alpha");
+	});
+
+	it("keeps repaired ids STABLE across an unrelated settings store write", async () => {
+		// The seam is fed by a subscription that fires on EVERY settingsStore write,
+		// including ones nothing in this view caused (the AI provider auto-sync lands
+		// one a few seconds after launch). Re-minting on each of those would not just
+		// churn rows: every by-id write here resolves its target before an await -
+		// handleConfigureChoice captures the choice, awaits the builder, then matches
+		// on `oldChoice.id === newChoice.id` - so a re-mint inside that window turns
+		// the match into a no-op and silently discards the user's edits.
+		const tree = [{ name: "No id", type: "Capture", command: false } as IChoice];
+		settingsStore.setState({ choices: tree });
+		const { container } = renderChoiceView(tree);
+		const idBefore = container
+			.querySelector("[data-choice-id]")!
+			.getAttribute("data-choice-id");
+
+		// zustand merges partials, so `state.choices` stays reference-identical.
+		settingsStore.setState({ disableOnlineFeatures: true });
+		await tick();
+
+		const row = container.querySelector("[data-choice-id]");
+		expect(row).not.toBeNull();
+		expect(row!.getAttribute("data-choice-id")).toBe(idBefore);
+	});
+
+	it("keeps repaired ids stable, and registers one command, across a RE-MOUNT", () => {
+		// The settings tab destroys and re-mounts this view every time it is opened,
+		// so a memo living in the component would miss it: each open would mint a
+		// fresh uuid for the same unrepaired choice and register another command for
+		// it, leaving one dead palette entry per open (nothing is persisted at seed
+		// time, so the old id is still what `getChoice` resolves).
+		const addCommandForChoice = vi.fn();
+		const tree = [
+			{ name: "No id", type: "Capture", command: true } as IChoice,
+		];
+
+		const ids = [0, 1, 2].map(() => {
+			const { container, unmount } = render(ChoiceView, {
+				props: {
+					app: new App() as never,
+					plugin: { addCommandForChoice } as unknown as QuickAdd,
+					choices: tree,
+					saveChoices: vi.fn(),
+				},
+			});
+			const id = container
+				.querySelector("[data-choice-id]")!
+				.getAttribute("data-choice-id");
+			unmount();
+			return id;
+		});
+
+		expect(new Set(ids).size, `ids across mounts: ${ids.join(", ")}`).toBe(1);
+		expect(addCommandForChoice).toHaveBeenCalledTimes(1);
 	});
 
 	it("does not persist a fabricated [] when an unrelated folder is collapsed", () => {

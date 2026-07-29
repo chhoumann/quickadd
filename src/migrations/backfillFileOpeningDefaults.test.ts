@@ -204,6 +204,11 @@ describe("backfillFileOpeningDefaults migration", () => {
 			mode: "default",
 			focus: true,
 		});
-		expect(plugin.saveSettings).toHaveBeenCalled();
+		// migrate.ts owns the single post-migration save (it re-syncs the store and
+		// saves after the whole run). A per-migration write here is redundant, and
+		// once this migration can stay PENDING it would be charged on every launch -
+		// a full data.json rewrite per launch, into Obsidian Sync's whole-file
+		// last-write-wins.
+		expect(plugin.saveSettings).not.toHaveBeenCalled();
 	});
 });

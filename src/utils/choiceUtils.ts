@@ -70,16 +70,42 @@ export function hasChildChoices(choice: IChoice): boolean {
  * repairs data.json by hand. Such a migration must stay pending instead, and
  * this is the question it has to ask about the WHOLE tree, not just the root.
  *
+ * This is the narrow, FOLDERS-ONLY question, for the migrations that recurse
+ * `Multi.choices` themselves (removeMacroIndirection via `flattenChoices`,
+ * incrementFileName..., mutualExclusion...). A migration that walks with
+ * `walkAllChoices` reaches macro commands too and must ask the wider
+ * `settingsTreeHasUnreadableData` instead. Matching the guard to the traversal
+ * is deliberate: blocking `removeMacroIndirection` on an unreadable
+ * `macro.commands` it was never going to descend would strand every legacy macro
+ * choice in the vault (nothing at runtime resolves `macroId`) in exchange for
+ * nothing at all.
+ *
+ * The root is judged strictly and everything below it by
+ * {@link isUnreadableChoiceList} - see the same asymmetry, and why, in
+ * `walkSettings`. A folder with no `choices` key carries nothing, and treating
+ * it as unreadable (as this did until #1610) kept `removeMacroIndirection`
+ * pending forever over a folder that was merely empty.
+ *
  * See #1566, and `MigrationResult` in src/migrations/Migrations.ts.
  */
 export function treeHasUnreadableChildren(choices: unknown): boolean {
 	if (!Array.isArray(choices)) return true;
-	return choices.some((choice) => {
-		if (!isChoiceLike(choice)) return false;
-		if (choice.type !== "Multi") return false;
-		if (!Array.isArray((choice as IMultiChoice).choices)) return true;
-		return treeHasUnreadableChildren((choice as IMultiChoice).choices);
-	});
+	const walk = (list: IChoice[]): boolean =>
+		list.some((choice) => {
+			// A nested ARRAY can be carrying choices - the editor seam splices one
+			// into the tree - and `flattenChoices` pushes it as if it were a choice
+			// rather than descending it. So removeMacroIndirection would classify a
+			// macro referenced from inside one as orphaned, duplicate it at the root
+			// and delete `settings.macros`. Stay pending until the seam has repaired
+			// it (#1608/#1610).
+			if (Array.isArray(choice)) return true;
+			if (!isChoiceLike(choice)) return false;
+			if (choice.type !== "Multi") return false;
+			const children: unknown = (choice as IMultiChoice).choices;
+			if (!Array.isArray(children)) return isUnreadableChoiceList(children);
+			return walk(children);
+		});
+	return walk(choices);
 }
 
 /**
@@ -94,27 +120,41 @@ export function rootChoicesOf(value: unknown): IChoice[] {
 }
 
 /**
- * Whether a Multi's `choices` holds something we cannot read, as opposed to
+ * Whether a `choices` VALUE holds something we cannot read, as opposed to
  * nothing at all. True only for the malformed shapes that can still CARRY
  * choices: a non-empty object where an array belongs (`{"0": {...}, "1": {...}}`,
- * the classic array-turned-object JSON artefact) or some other non-empty
- * primitive. `undefined`, `null` and `{}` carry nothing, so for those the folder
- * really is empty and the ordinary empty-folder hint is the honest thing to say.
+ * the classic array-turned-object JSON artefact) or a non-empty primitive.
+ * `undefined`, `null`, `{}`, `""`, `0` and `false` carry nothing, so for those
+ * the folder really is empty and the ordinary empty-folder hint is honest.
  *
- * This is the line between "degrade quietly" and "tell the user": a folder whose
- * contents we cannot read must not claim to be empty, must offer no affordance
- * that would overwrite the value, and must say so before it is deleted. The
- * hint, the drop target and the delete confirmation all read this one predicate
- * so they cannot disagree.
+ * The sibling of `isUnreadableCommandList` in macroUtils.ts, deliberately kept
+ * as a sibling rather than a shared module (the same shape as
+ * `isChoiceLike`/`isCommandLike` and `rootChoicesOf`/`rootMacrosOf`). The
+ * two must answer identically for every value; `unreadableValuePredicates.test.ts`
+ * is the ratchet that says so, over the union of both shape lists.
+ *
+ * This is the line between "degrade quietly" and "tell the user": a container
+ * whose contents we cannot read must not claim to be empty, must offer no
+ * affordance that would overwrite the value, and must say so before it is
+ * deleted. The hint, the drop target and the delete confirmation all read this
+ * one predicate so they cannot disagree.
  */
+export function isUnreadableChoiceList(value: unknown): boolean {
+	if (Array.isArray(value)) return false;
+	if (value === undefined || value === null) return false;
+	if (typeof value === "object") return Object.keys(value).length > 0;
+	// A non-empty primitive was never empty; an empty one carries nothing. The
+	// `""`/`0`/`false` arm is #1611: this function documented that rule from the
+	// start and its `: true` arm contradicted it, so a folder whose `choices` was
+	// `""` got the "couldn't read this" notice, lost its drop target, and got the
+	// scarier delete confirmation - for a value carrying nothing at all.
+	return Boolean(value);
+}
+
+/** {@link isUnreadableChoiceList}, asked about a Multi node rather than a value. */
 export function hasUnreadableChildren(choice: IChoice): boolean {
 	if (!isMultiChoice(choice)) return false;
-	const children: unknown = choice.choices;
-	if (children === undefined || children === null) return false;
-	if (Array.isArray(children)) return false;
-	// A non-array object is only lossy when it actually has keys; anything else
-	// non-nullish (a string, a number) was never empty either.
-	return typeof children === "object" ? Object.keys(children).length > 0 : true;
+	return isUnreadableChoiceList(choice.choices);
 }
 
 /**
@@ -246,6 +286,122 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 	};
 
 	return walk(choices);
+}
+
+export interface RepairedChoiceId {
+	/** The id the choice had, exactly as `data.json` held it. */
+	previousId: unknown;
+	/** The choice as it is now, under an id that can be keyed. */
+	choice: IChoice;
+}
+
+export interface NormalizedChoiceList {
+	choices: IChoice[];
+	/** False when `choices` is the input array itself, unchanged. */
+	changed: boolean;
+	repaired: RepairedChoiceId[];
+}
+
+/**
+ * The choice tree an EDITOR should work over: every entry an object with an id
+ * that is unique across the whole tree.
+ *
+ * The sibling of `normalizeCommandList` (macroUtils.ts) and the same argument,
+ * on the list one level up. `ChoiceList` renders a keyed `{#each ... (choice.id)}`
+ * and seeds svelte-dnd-action from the same array, so an entry with no usable id
+ * cannot be rendered - and the list it filtered for rendering is the list its
+ * persist path writes back. So the filter was not a "render-time view only" after
+ * all: the first drag or ArrowDown wrote the filtered array to disk, and
+ *
+ *     { "name": "Daily note", "type": "Template", "templatePath": "...", "id": 12 }
+ *
+ * - a complete, working, runnable choice whose id was written as a JSON number by
+ * a hand-edit, a script or a merge - was deleted with no prompt and no undo, from
+ * a row the user could never see in the first place (#1608).
+ *
+ * The two cases are NOT the same and are deliberately not treated the same:
+ *
+ *   - An entry that cannot be KEYED (id missing, empty, not a string, or already
+ *     used elsewhere in the tree) is a real choice. It is given a fresh uuid and
+ *     kept, so it becomes visible, editable and deletable for the first time.
+ *   - A `null` or a stray primitive carries nothing. There is nothing to re-key,
+ *     every walker already steps over one, and it is dropped.
+ *   - An ARRAY entry is read as a NESTED LIST and its members are spliced in -
+ *     the same recoverable reading `macroCommandsValueOf` gives an array-valued
+ *     `macro`. `isChoiceLike([])` is true, so the alternative is spreading it
+ *     into one nameless, typeless row whose delete dialog says `delete
+ *     'undefined'`.
+ *
+ * A repaired id is always a fresh uuid, never a coercion of the old value.
+ * `String(12)` looks tempting - it would keep the registered `quickadd:choice:12`
+ * alive - but ids are compared with `===` in `getChoice`, so a `12` -> `"12"`
+ * rewrite silently breaks a `ChoiceCommand{choiceId: 12}` (MacroChoiceEngine
+ * matches /not found/i and skips the step), and "that string is free" can only
+ * mean "not seen YET" during a pre-order walk, so it can also steal a healthy
+ * later sibling's id. A stored reference to a malformed id does break here - but
+ * the behaviour it replaces DELETED the choice on the first reorder, which broke
+ * the same reference and lost the choice with it.
+ *
+ * Recurses only through `hasChildChoices`, so a folder whose `choices` value
+ * could not be read is passed through exactly as found - never replaced with the
+ * `[]` that `childChoicesOf` reads it as.
+ *
+ * Returns the input array itself when there was nothing to change, so a healthy
+ * tree is provably untouched, and takes `unknown` because `settings.choices` is.
+ * A non-array root reads as `[]` here; the CALLER must refuse to render (and
+ * therefore to save) rather than pass it in - see ChoiceView's `rootUnreadable`.
+ */
+export function normalizeChoiceList(value: unknown): NormalizedChoiceList {
+	if (!Array.isArray(value)) return { choices: [], changed: false, repaired: [] };
+
+	const seen = new Set<string>();
+	const repaired: RepairedChoiceId[] = [];
+
+	const walk = (list: unknown[]): IChoice[] => {
+		let changed = false;
+		const out: IChoice[] = [];
+
+		for (const entry of list) {
+			if (Array.isArray(entry)) {
+				changed = true;
+				out.push(...walk(entry));
+				continue;
+			}
+			if (!isChoiceLike(entry)) {
+				changed = true;
+				continue;
+			}
+
+			let node: IChoice = entry;
+			if (hasChildChoices(node)) {
+				// `hasChildChoices` already proved this is a real array.
+				const children = (node as IMultiChoice).choices as IChoice[];
+				const next = walk(children);
+				if (next !== children) {
+					node = { ...(node as IMultiChoice), choices: next } as IChoice;
+					changed = true;
+				}
+			}
+
+			const id: unknown = node.id;
+			if (typeof id === "string" && id !== "" && !seen.has(id)) {
+				seen.add(id);
+				out.push(node);
+				continue;
+			}
+
+			const replacement = { ...node, id: uuidv4() } as IChoice;
+			seen.add(replacement.id);
+			repaired.push({ previousId: id, choice: replacement });
+			out.push(replacement);
+			changed = true;
+		}
+
+		return changed ? out : (list as IChoice[]);
+	};
+
+	const choices = walk(value);
+	return { choices, changed: choices !== value, repaired };
 }
 
 export interface FlatChoicePathEntry {

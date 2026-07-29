@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
+import { macroCommandsValueOf } from "./macroUtils";
 
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
 const SECRET_MARKER = "__quickaddSecret";
@@ -804,10 +805,17 @@ async function clearSecretsFromChoice(
 
 	let cleared = true;
 
-	if (choice.type === "Macro" && isRecord(choice.macro)) {
+	if (choice.type === "Macro") {
+	// `macroCommandsValueOf`, not `choice.macro.commands`: an ARRAY-valued `macro`
+	// IS the command list, and `isRecord` accepts an array, so reading `.commands`
+	// off it yielded `undefined` and this walked nothing at all. That is the shape
+	// where a duplicated macro kept the ORIGINAL's literal `secretRef` and editing
+	// the copy's key overwrote the original's SecretStorage slot (#1609).
 		cleared =
-			(await clearUserScriptSecretsFromCommands(app, choice.macro.commands)) &&
-			cleared;
+			(await clearUserScriptSecretsFromCommands(
+				app,
+				macroCommandsValueOf(choice.macro),
+			)) && cleared;
 	}
 
 	if (choice.type === "Multi" && Array.isArray(choice.choices)) {
@@ -855,6 +863,11 @@ export async function clearUserScriptSecretsFromCommands(
 	let cleared = true;
 
 	for (const command of commands) {
+		if (Array.isArray(command)) {
+			cleared =
+				(await clearUserScriptSecretsFromCommands(app, command)) && cleared;
+			continue;
+		}
 		cleared = (await clearUserScriptSecretsFromCommand(app, command)) && cleared;
 	}
 
@@ -927,6 +940,12 @@ export function stripUserScriptSecretRefsFromCommands(
 	if (!Array.isArray(commands)) return;
 
 	for (const command of commands) {
+		// A nested ARRAY is a command list, not a command (see normalizeCommandList).
+		// Missing it leaves the copy holding the original's literal secretRef.
+		if (Array.isArray(command)) {
+			stripUserScriptSecretRefsFromCommands(command, options);
+			continue;
+		}
 		stripUserScriptSecretRefsFromCommand(command, options);
 	}
 }
@@ -937,8 +956,16 @@ export function stripUserScriptSecretRefsFromChoice(
 ): void {
 	if (!isRecord(choice)) return;
 
-	if (choice.type === "Macro" && isRecord(choice.macro)) {
-		stripUserScriptSecretRefsFromCommands(choice.macro.commands, options);
+	if (choice.type === "Macro") {
+	// `macroCommandsValueOf`, not `choice.macro.commands`: an ARRAY-valued `macro`
+	// IS the command list, and `isRecord` accepts an array, so reading `.commands`
+	// off it yielded `undefined` and this walked nothing at all. That is the shape
+	// where a duplicated macro kept the ORIGINAL's literal `secretRef` and editing
+	// the copy's key overwrote the original's SecretStorage slot (#1609).
+		stripUserScriptSecretRefsFromCommands(
+			macroCommandsValueOf(choice.macro),
+			options,
+		);
 	}
 
 	if (choice.type === "Multi" && Array.isArray(choice.choices)) {

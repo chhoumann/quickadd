@@ -38,6 +38,7 @@
 		hasChildChoices,
 		isChoiceLike,
 	} from "../../utils/choiceUtils";
+	import { hasSeeded, seedChoiceTree } from "./seedChoiceTree";
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { choiceNoun } from "../../utils/choiceNoun";
 	import { reportingHandler } from "../../utils/errorUtils";
@@ -86,12 +87,61 @@
 	// component's life; untrack avoids a spurious state_referenced_locally warning).
 	const commandRegistry = new CommandRegistry(untrack(() => plugin));
 
+	// The seam where an unrenderable choice is REPAIRED rather than hidden (#1608).
+	//
+	// ChoiceList can only render an entry it can key, and the list it renders is
+	// the list its persist path writes back — so before this, an entry with a
+	// missing or non-string id was invisible in the settings tab AND deleted from
+	// data.json by the first drag or ArrowDown. Re-keying here makes it visible,
+	// editable and deletable instead, and leaves ChoiceList's filter able to drop
+	// only a hole, which carries nothing.
+	//
+	// Nothing is persisted by this: the repair reaches disk with the user's first
+	// ordinary edit, so opening and closing the settings tab changes nothing —
+	// the same contract CommandSequenceEditor's constructor keeps for commands.
+	// That holds only because the memo behind `seedChoiceTree` outlives this
+	// component; the settings tab destroys and re-mounts the view on every open.
+	function seedChoices(raw: IChoice[]): IChoice[] {
+		// A non-array root is left EXACTLY as it is: `rootUnreadable` refuses to
+		// render it, which is what keeps anything in this view from saving over it.
+		if (!Array.isArray(raw)) return raw;
+		const alreadySeeded = hasSeeded(raw);
+		const { choices: seeded, repaired } = seedChoiceTree(raw);
+		if (alreadySeeded) return seeded;
+
+		// Commands were registered at onload from the ids data.json held, so a
+		// repaired choice has no command under its NEW id. Register one, so it works
+		// the moment the repair is persisted. Until then the OLD id is still what
+		// `getChoice` resolves, so the new entry reports "Choice not found" if run —
+		// an honest error, and the alternative was the choice being deleted outright.
+		//
+		// One failure must cost one command, not the whole list: this runs during
+		// component setup, so an uncaught throw escapes mountComponent and swaps the
+		// entire choice list for the error card (the same argument as main.ts's
+		// per-choice guard around addCommandForChoice).
+		for (const { choice } of repaired) {
+			if (!choice.command) continue;
+			try {
+				commandRegistry.enableCommand(choice);
+			} catch (err) {
+				log.logError(
+					`Could not register a command for the repaired choice "${choice.name}": ${
+						err instanceof Error ? err.message : String(err)
+					}`,
+				);
+			}
+		}
+		return seeded;
+	}
+
+	choices = seedChoices(choices);
+
 	// Keep choices in sync with external store changes. The subscribe callback runs
 	// only on store changes (not during this effect's synchronous setup), so the
 	// effect registers no reactive deps and subscribes exactly once.
 	$effect(() => {
 		const unsubSettingsStore = settingsStore.subscribe((settings) => {
-			choices = settings.choices;
+			choices = seedChoices(settings.choices);
 			disableOnlineFeatures = settings.disableOnlineFeatures;
 		});
 		return () => unsubSettingsStore();

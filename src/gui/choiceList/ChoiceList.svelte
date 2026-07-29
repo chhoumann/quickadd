@@ -48,22 +48,31 @@
     } = $props();
 
     // Everything rendered and handed to the dnd zone is filtered to entries that
-    // are actually renderable choices: an object with an id. `data.json` is
-    // untrusted, so the list can contain a hole (a `null` or a stray primitive
-    // from a bad hand-edit or a truncated write) or an object with no id at all.
-    // svelte-dnd-action reads `.id` on every item, and the keyed {#each} needs
-    // that id to be present AND unique - two id-less entries raise
-    // `each_key_duplicate`, the #1451 crash, which without this filter blanks the
-    // entire list (#1566).
+    // can actually be keyed: an object with a unique, non-empty string id.
+    // svelte-dnd-action reads `.id` on every item and the keyed {#each} throws
+    // `each_key_duplicate` on a repeat (#1451) — and on a POST-mount update that
+    // throw escapes mountComponent's try entirely (see its doc comment), so this
+    // has to be a $derived, not a one-off check at setup.
     //
-    // Render-time view only. Nothing here rewrites the tree; a junk entry stays in
-    // data.json until an edit walks past it. It cannot be hiding a choice - only a
-    // Multi's `choices` value can, and that is preserved separately.
-    const renderable = $derived(
-        rootChoicesOf(choices).filter(
-            (choice) => isChoiceLike(choice) && typeof choice.id === "string" && choice.id !== "",
-        ),
-    );
+    // ChoiceView normalizes the tree at its seam before it ever gets here, so in
+    // practice this filter is a no-op: an id-less, non-string-id or duplicate-id
+    // choice has already been given a fresh uuid and KEPT. That matters, because
+    // the persist path below writes back the list this zone was seeded with — a
+    // filter that silently dropped a real choice would delete it from data.json on
+    // the first reorder, which is exactly what it used to do (#1608). The only
+    // thing it can still drop is a `null`/primitive hole, which carries nothing.
+    //
+    // Identical in shape to CommandList's `renderable`, deliberately.
+    const renderable = $derived.by(() => {
+        const seen = new Set<string>();
+        return rootChoicesOf(choices).filter((choice) => {
+            if (!isChoiceLike(choice)) return false;
+            const id = choice.id;
+            if (typeof id !== "string" || id === "" || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+        });
+    });
 
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
