@@ -475,6 +475,27 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		return this.choices;
 	}
 
+	/**
+	 * Settle the awaiting run (#1630) when a terminal action's promise does: no
+	 * argument on success, the SAME error instance on failure so report-once
+	 * (#1601) keeps it to a single notice. One place for both terminal branches,
+	 * because a stranded completion silently hangs an awaiting run - the two
+	 * call sites must never drift apart. `errorContext` names the action the
+	 * user actually picked; the awaiting caller only knows the folder.
+	 */
+	private settleCompletion(promise: Promise<void>, errorContext: string): void {
+		void promise.then(
+			() => this.completion?.(),
+			(error) => {
+				// reportError, not a template-stringified log line: interpolating the
+				// error throws its stack away, and only a value passed through
+				// reportError participates in the report-once contract (#1601).
+				reportUnlessCancelled(error, errorContext);
+				this.completion?.(error);
+			},
+		);
+	}
+
 	onChooseItem(
 		item: IChoice,
 		evt: MouseEvent | KeyboardEvent
@@ -482,19 +503,13 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// Sentinel action row — must be handled before the type dispatch, since it
 		// carries no templatePath and would fail the Template engine's invariant.
 		if (item.id === RUN_TEMPLATE_FROM_FOLDER_ID) {
-			void runTemplateFromFolder(this.app, this.plugin, {
-				choiceExecutor: this.choiceExecutor,
-			}).then(
-				// The row is launcher-only today (no completion there), but settle it
-				// anyway: a stranded completion would silently hang an awaiting run.
-				() => this.completion?.(),
-				(error) => {
-					// reportError, not a template-stringified log line: interpolating the
-					// error throws its stack away, and only a value passed through
-					// reportError participates in the report-once contract (#1601).
-					reportUnlessCancelled(error, "Could not run a template from that folder");
-					this.completion?.(error);
-				},
+			// The row is launcher-only today (no completion there), but settle it
+			// anyway: a stranded completion would silently hang an awaiting run.
+			this.settleCompletion(
+				runTemplateFromFolder(this.app, this.plugin, {
+					choiceExecutor: this.choiceExecutor,
+				}),
+				"Could not run a template from that folder",
 			);
 			return;
 		}
@@ -517,18 +532,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						this.triggerContext,
 					)
 				: this.choiceExecutor.execute(item);
-			// The leaf still names itself in the failure report (the awaiting
-			// caller only knows the folder); forwarding the SAME instance keeps it
-			// to one notice via the report-once contract (#1601). The completion,
-			// when present, is what lets the awaiting run (#1630) finish only
-			// after the picked choice actually has.
-			void execute.then(
-				() => this.completion?.(),
-				(error) => {
-					reportUnlessCancelled(error, `Could not run "${item.name}"`);
-					this.completion?.(error);
-				},
-			);
+			this.settleCompletion(execute, `Could not run "${item.name}"`);
 		}
 	}
 
