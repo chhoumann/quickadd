@@ -1,0 +1,47 @@
+name: CodeQL
+
+on:
+    push:
+        branches: [master]
+    pull_request:
+        branches: [master]
+    schedule:
+        - cron: '0 6 * * 1'
+
+concurrency:
+    group: codeql-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+jobs:
+    analyze:
+        name: Analyze (${{ matrix.language }})
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            security-events: write
+            actions: read
+        strategy:
+            fail-fast: false
+            matrix:
+                language: [javascript-typescript, actions]
+        steps:
+            - name: Harden Runner
+              uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+              with:
+                  egress-policy: audit
+            - name: Checkout
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Initialize CodeQL
+              uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+              with:
+                  languages: ${{ matrix.language }}
+                  queries: security-extended
+            - name: Perform CodeQL Analysis
+              uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4
+              with:
+                  category: "/language:${{ matrix.language }}"

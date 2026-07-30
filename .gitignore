@@ -1,0 +1,36 @@
+# Intellij
+*.iml
+.idea
+
+# Dependencies
+node_modules
+
+# Foreign package-manager lockfiles (this project uses pnpm; pnpm-lock.yaml is committed)
+package-lock.json
+yarn.lock
+bun.lock
+
+# build
+main.js
+styles.css
+*.js.map
+
+# obsidian
+data.json
+
+**/*.map
+src/**/*.js
+
+# e2e test failure artifacts
+.obsidian-e2e-artifacts
+.obsidian-e2e-vaults
+.obsidian-e2e-instances
+# Test coverage output
+coverage/
+
+# Claude Code session/runtime state (ephemeral, machine-local)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
+
+# Obsidian application bundle (only ever extracted transiently for inspection)
+/app.js

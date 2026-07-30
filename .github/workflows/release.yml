@@ -1,0 +1,53 @@
+# Caller stub: release (stage 3) for quickadd (pnpm, ships styles.css).
+#
+# workflow_dispatch is the only trigger: the reusable validate workflow (stage 2)
+# dispatches this on the durable release-run/<version> recovery branch. Keeping a
+# plain workflow_dispatch here also makes the release itself replayable for
+# recovery without re-running the whole pipeline.
+
+name: Release
+
+on:
+    workflow_dispatch:
+        inputs:
+            releasePr:
+                description: "Merged machine-generated release PR number to recover"
+                required: true
+                type: string
+
+permissions: {}
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    release:
+        permissions:
+            actions: read
+            attestations: write
+            contents: write
+            id-token: write
+            pull-requests: read
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release.yml@v4
+        with:
+            release-pr: ${{ inputs.releasePr }}
+            plugin-name: quickadd
+            package-manager: pnpm
+            # Must match the release-policy pinned in release-prepare.yml.
+            release-policy: '[{"scope":"deps","type":"build","release":"patch"}]'
+            default-branch: master
+            node-version: "24"
+            release-bot-app-slug: quickadd-release-bot
+            release-assets: '["main.js","manifest.json","styles.css"]'
+            verify-commands: |
+                pnpm run lint
+                pnpm run check
+                pnpm run test
+            notify-name: QuickAdd
+        secrets:
+            # Optional: unset secrets resolve to '' and the notify job skips them.
+            # QuickAdd has DISCORD_WEBHOOK today; SLACK_WEBHOOK is wired for parity
+            # and simply skips until the secret is set.
+            slack-webhook: ${{ secrets.SLACK_WEBHOOK }}
+            discord-webhook: ${{ secrets.DISCORD_WEBHOOK }}

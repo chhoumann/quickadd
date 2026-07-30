@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & discussions
+    url: https://github.com/chhoumann/quickadd/discussions
+    about: Ask questions, share workflows, and get help from the community here.
+  - name: QuickAdd documentation
+    url: https://quickadd.obsidian.guide
+    about: Guides and reference for QuickAdd's features before filing an issue.

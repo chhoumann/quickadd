@@ -1,0 +1,1 @@
+{"ok":false,"command":"quickadd:run","error":"\"QA Folder\" is a folder of choices, and picking from it needs someone at the window. Run one of its choices directly, or re-run with the ui flag.","aborted":true,"choice":{"id":"qa-outer","name":"QA Outer","type":"Macro"},"durationMs":2}
