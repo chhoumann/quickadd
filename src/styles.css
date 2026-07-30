@@ -1567,13 +1567,15 @@ body.is-mobile .multiChoiceListItemName {
    builders' full-width labelled fields, wrong for a toggle-only row: its
    checkbox lands below its own description while the settings TAB keeps
    toggles inline on the same device. Restore the native inline layout for
-   rows whose only control is a checkbox. */
-body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control .checkbox-container) {
+   rows whose ONLY control is a checkbox - :only-child keeps mixed rows
+   (e.g. toggle + dropdown in the insert-after fields) on the stacked
+   layout, where inline would squeeze them. */
+body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) {
 	flex-direction: row;
 	align-items: center;
 }
 
-body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control .checkbox-container) > .setting-item-control {
+body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) > .setting-item-control {
 	width: auto;
 	margin-top: 0;
 }
