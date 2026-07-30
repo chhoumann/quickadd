@@ -522,6 +522,38 @@ describe("TemplateInsertEngine.apply", () => {
 		});
 	});
 
+	it("does not normalize existing set-like values when the template adds nothing", async () => {
+		const existingTags = ["work", "work", ""];
+		const harness = makeHarness({
+			templateContent: "---\ntags: [work, \"\"]\n---\n",
+			noteContent: "---\ntags: [work, work, \"\"]\n---\nEXISTING",
+			frontmatter: { tags: existingTags },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter.tags).toBe(existingTags);
+	});
+
+	it("preserves the existing list verbatim when appending template-only values", async () => {
+		const harness = makeHarness({
+			templateContent: "---\ntags: [work, template]\n---\n",
+			noteContent: "---\ntags: [work, work, \"\"]\n---\nEXISTING",
+			frontmatter: { tags: ["work", "work", ""] },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter.tags).toEqual([
+			"work",
+			"work",
+			"",
+			"template",
+		]);
+	});
+
 	it("combines scalar values for reserved set-like properties only when needed", async () => {
 		const harness = makeHarness({
 			templateContent: "---\naliases: Template alias\n---\n",

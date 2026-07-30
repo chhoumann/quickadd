@@ -112,7 +112,7 @@ function toSetLikeStrings(value: unknown): string[] | null {
 		return null;
 	}
 
-	return value.filter((item) => item.length > 0);
+	return value;
 }
 
 /**
@@ -130,22 +130,17 @@ function mergeSetLikeValues(
 	const templateValues = toSetLikeStrings(template);
 	if (existingValues === null || templateValues === null) return undefined;
 
-	const merged: string[] = [];
-	const seen = new Set<string>();
-	for (const value of [...existingValues, ...templateValues]) {
-		if (seen.has(value)) continue;
+	const additions: string[] = [];
+	const seen = new Set(existingValues);
+	for (const value of templateValues) {
+		if (value.length === 0 || seen.has(value)) continue;
 		seen.add(value);
-		merged.push(value);
+		additions.push(value);
 	}
 
-	if (
-		merged.length === existingValues.length &&
-		merged.every((value, index) => value === existingValues[index])
-	) {
-		return undefined;
-	}
+	if (additions.length === 0) return undefined;
 
-	return merged;
+	return [...existingValues, ...additions];
 }
 
 /**
