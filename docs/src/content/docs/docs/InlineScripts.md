@@ -6,7 +6,9 @@ slug: docs/InlineScripts
 
 An inline script is a small block of JavaScript you drop straight into a
 [Template](/docs/Choices/TemplateChoice/) or
-[Capture](/docs/Choices/CaptureChoice/) choice. When the choice runs, QuickAdd
+[Capture](/docs/Choices/CaptureChoice/) choice - or an
+[AI Assistant prompt template](/docs/AIAssistant/#setup), which runs the same
+format pass. When the choice runs, QuickAdd
 runs your code and inserts whatever it returns, so you can compute the text
 instead of typing it. Reach for one when a [placeholder](/docs/FormatSyntax/)
 isn't enough: you need to transform what you typed, look something up, or build
