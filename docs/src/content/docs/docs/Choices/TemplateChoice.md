@@ -337,7 +337,6 @@ block. Existing scalar values win, missing or empty properties are filled from
 the template, and set-like Obsidian properties add distinct template values.
 Canvas and base files receive the template content as-is.
 
-_Set-like frontmatter merging is available in the next release._
 :::
 
 ### Create a new note instead {#create-another-file}

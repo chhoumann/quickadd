@@ -52,8 +52,6 @@ about them:
 - **Frontmatter merges instead of stacking.** For **Insert at top**, **Append to bottom**, and **Insert at cursor**, the template's frontmatter is not added as a second `---` block. Missing or empty properties are filled from the template, and the note's existing scalar values win conflicts. Set-like Obsidian properties such as tags, aliases, and multi-text properties keep their existing values and add distinct values from the template. Reapplying the same template does not duplicate them. (**Replace note content** replaces the whole note, frontmatter included.)
 - **The note can move to match the choice.** If you picked a Template choice with a folder and/or file name format, and the note's current location or name doesn't match what that choice would have produced, QuickAdd offers to move or rename the note to match. Links to the note are updated automatically. This is skipped when the choice's folder settings need a runtime folder picker, or when a file already exists at the target path.
 
-_Set-like frontmatter merging is available in the next release._
-
 ## From scripts and macros {#from-scripts-and-macros}
 
 The [QuickAdd API](/docs/QuickAddAPI/) does the same thing without any prompts:
