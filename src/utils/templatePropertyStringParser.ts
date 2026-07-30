@@ -1,4 +1,5 @@
 import type { App } from "obsidian";
+import { resolveObsidianPropertyType } from "./obsidianPropertyTypes";
 
 const OPEN_TO_CLOSE: Record<string, string> = {
 	"[": "]",
@@ -90,27 +91,6 @@ export interface ParseOptions {
 	propertyType?: string | null;
 }
 
-function resolvePropertyType(app: App | undefined, propertyKey: string | undefined): string | null {
-	if (!app || !propertyKey) return null;
-	const metadataCache = (app as unknown as { metadataCache?: unknown }).metadataCache as
-		| { app?: { metadataTypeManager?: { getTypeInfo?: (key: string) => unknown } } }
-		| undefined;
-	const metadataTypeManager =
-		(app as unknown as { metadataTypeManager?: { getTypeInfo?: (key: string) => unknown } })
-			.metadataTypeManager ?? metadataCache?.app?.metadataTypeManager;
-	if (!metadataTypeManager || typeof metadataTypeManager.getTypeInfo !== "function") {
-		return null;
-	}
-	const info = metadataTypeManager.getTypeInfo(propertyKey) as
-		| {
-				expected?: { type?: string } | null;
-				inferred?: { type?: string } | null;
-			}
-		| undefined;
-	const type = info?.expected?.type ?? info?.inferred?.type;
-	return typeof type === "string" ? type : null;
-}
-
 function supportsCommaList(propertyType: string | null): boolean {
 	if (!propertyType) return false;
 	const normalized = propertyType.toLowerCase();
@@ -125,7 +105,9 @@ export function parseStructuredPropertyValueFromString(
 	if (!trimmed) return undefined;
 
 	const normalized = normalizeNewlines(trimmed);
-	const propertyType = options?.propertyType ?? resolvePropertyType(options?.app, options?.propertyKey);
+	const propertyType =
+		options?.propertyType ??
+		resolveObsidianPropertyType(options?.app, options?.propertyKey);
 	const explicitMultiValue = supportsCommaList(propertyType);
 	const allowHeuristicMultiValue = propertyType === null;
 	const allowMultiValue = explicitMultiValue || allowHeuristicMultiValue;

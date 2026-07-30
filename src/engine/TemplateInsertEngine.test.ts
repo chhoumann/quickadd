@@ -139,6 +139,7 @@ function makeHarness(options: {
 	noteContent: string;
 	frontmatter?: Record<string, unknown>;
 	rootFolders?: string[];
+	propertyTypes?: Record<string, string>;
 }): TestHarness {
 	const templateFile = makeFile({
 		path: TEMPLATE_PATH,
@@ -189,6 +190,11 @@ function makeHarness(options: {
 			) => {
 				fn(frontmatter);
 			},
+		},
+		metadataTypeManager: {
+			getTypeInfo: (key: string) => ({
+				expected: { type: options.propertyTypes?.[key] ?? "text" },
+			}),
 		},
 		workspace: {
 			getActiveViewOfType: () =>
@@ -363,7 +369,7 @@ describe("TemplateInsertEngine.apply", () => {
 		);
 	});
 
-	it("top: inserts body below note frontmatter and merges template properties with existing-wins", async () => {
+	it("top: inserts body below note frontmatter and keeps existing scalar values", async () => {
 		const harness = makeHarness({
 			templateContent: "---\nstatus: draft\npriority: high\n---\nTPL_BODY",
 			noteContent: "---\nstatus: done\n---\nEXISTING",
@@ -485,7 +491,7 @@ describe("TemplateInsertEngine.apply", () => {
 		});
 	});
 
-	it("top: existing note values still win over structured template values", async () => {
+	it("top: adds distinct structured template values to existing tags (#1628)", async () => {
 		const harness = makeHarness({
 			templateContent: "---\ntags: []\n---\nTPL_BODY",
 			noteContent: "---\ntags: [keep]\n---\nEXISTING",
@@ -496,8 +502,117 @@ describe("TemplateInsertEngine.apply", () => {
 
 		await makeEngine(harness, file, "top").apply();
 
-		expect(harness.frontmatter).toEqual({ tags: ["keep"] });
+		expect(harness.frontmatter).toEqual({ tags: ["keep", "work"] });
 	});
+
+	it("unions set-like properties in stable order and de-duplicates values", async () => {
+		const harness = makeHarness({
+			templateContent: "---\ntopics: [shared, template]\n---\n",
+			noteContent: "---\ntopics: [existing, shared]\n---\nEXISTING",
+			frontmatter: { topics: ["existing", "shared"] },
+			propertyTypes: { topics: "multitext" },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "bottom").apply();
+		await makeEngine(harness, file, "bottom").apply();
+
+		expect(harness.frontmatter).toEqual({
+			topics: ["existing", "shared", "template"],
+		});
+	});
+
+	it("does not normalize existing set-like values when the template adds nothing", async () => {
+		const existingTags = ["work", "work", ""];
+		const harness = makeHarness({
+			templateContent: "---\ntags: [work, \"\"]\n---\n",
+			noteContent: "---\ntags: [work, work, \"\"]\n---\nEXISTING",
+			frontmatter: { tags: existingTags },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter.tags).toBe(existingTags);
+	});
+
+	it("preserves the existing list verbatim when appending template-only values", async () => {
+		const harness = makeHarness({
+			templateContent: "---\ntags: [work, template]\n---\n",
+			noteContent: "---\ntags: [work, work, \"\"]\n---\nEXISTING",
+			frontmatter: { tags: ["work", "work", ""] },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter.tags).toEqual([
+			"work",
+			"work",
+			"",
+			"template",
+		]);
+	});
+
+	it("combines scalar values for reserved set-like properties only when needed", async () => {
+		const harness = makeHarness({
+			templateContent: "---\naliases: Template alias\n---\n",
+			noteContent: "---\naliases: Existing alias\n---\nEXISTING",
+			frontmatter: { aliases: "Existing alias" },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter).toEqual({
+			aliases: ["Existing alias", "Template alias"],
+		});
+	});
+
+	it("keeps unknown arrays unchanged instead of assuming every list is set-like", async () => {
+		const harness = makeHarness({
+			templateContent: "---\nsteps: [template]\n---\n",
+			noteContent: "---\nsteps: [existing]\n---\nEXISTING",
+			frontmatter: { steps: ["existing"] },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter).toEqual({ steps: ["existing"] });
+	});
+
+	it("fills an empty array from the template", async () => {
+		const harness = makeHarness({
+			templateContent: "---\ntags: [work]\n---\n",
+			noteContent: "---\ntags: []\n---\nEXISTING",
+			frontmatter: { tags: [] },
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "top").apply();
+
+		expect(harness.frontmatter).toEqual({ tags: ["work"] });
+	});
+
+	it.each([
+		["a missing property", {}],
+		["an empty property", { tags: [] }],
+	])(
+		"de-duplicates a set-like template array when filling %s",
+		async (_description, frontmatter) => {
+			const harness = makeHarness({
+				templateContent: "---\ntags: [work, work, \"\"]\n---\n",
+				noteContent: "EXISTING",
+				frontmatter,
+			});
+			const file = makeFile();
+
+			await makeEngine(harness, file, "top").apply();
+
+			expect(harness.frontmatter).toEqual({ tags: ["work"] });
+		},
+	);
 
 	it("cursor: throws when the note is not open in the active editor", async () => {
 		const harness = makeHarness({

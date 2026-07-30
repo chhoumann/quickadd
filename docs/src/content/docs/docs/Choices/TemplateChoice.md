@@ -333,8 +333,11 @@ For markdown files, **Append to bottom** and **Append to top** handle template
 frontmatter the same way as
 [Apply Template to Note](/docs/ApplyTemplateToNote/): the template's frontmatter
 properties are merged into the existing note instead of inserting a second `---`
-block. Existing note values win, and missing or empty properties are filled from
-the template. Canvas and base files receive the template content as-is.
+block. Missing or empty properties are filled from the template. If a property
+already contains one value, the note's value wins. Properties that can contain
+multiple values add any template values that are not already present. Canvas and
+base files receive the template content as-is.
+
 :::
 
 ### Create a new note instead {#create-another-file}
