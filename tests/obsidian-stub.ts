@@ -909,6 +909,14 @@ export class Menu {
   addSeparator(): this {
     return this;
   }
+  hideCallback: (() => void) | null = null;
+  onHide(cb: () => void): void {
+    this.hideCallback = cb;
+  }
+  hide(): this {
+    this.hideCallback?.();
+    return this;
+  }
   showAtMouseEvent(evt: MouseEvent): this {
     this.shownAt = { type: "mouse", detail: evt };
     Menu.lastShown = this;
