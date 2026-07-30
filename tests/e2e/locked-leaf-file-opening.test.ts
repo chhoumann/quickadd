@@ -94,6 +94,18 @@ async function seedFile(path: string, content: string) {
 		waitForContent: true,
 		waitOptions: WAIT_OPTS,
 	});
+
+	const vaultPath = sandbox.path(path);
+	await obsidian.waitFor(
+		() =>
+			obsidian.dev.evalJson<boolean>(
+				`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(vaultPath)}))`,
+			),
+		{
+			...WAIT_OPTS,
+			message: `Obsidian to index "${vaultPath}"`,
+		},
+	);
 }
 
 function pinnedOriginLayoutCode({
