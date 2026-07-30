@@ -16,6 +16,7 @@ import ChoiceSuggester, {
 import { settingsStore } from "./settingsStore";
 import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
 import { isCancellationError, reportError } from "./utils/errorUtils";
 import { getOpenFileOriginLeaf } from "./utilityObsidian";
@@ -77,13 +78,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			// nested execute() (a {{MACRO}} that opens a file then runs a FIELD
 			// template, or the API path) keeps the ORIGINAL trigger note as the source
 			// for {{...|default-from:active}}, mirroring focusedProperty's depth-0
-			// semantics. The Multi path opens a nested suggester and lets the outer
-			// execute() return (clearing this at depth 0), so — like focusedProperty —
-			// the captured context is threaded through the suggester and re-injected as
-			// triggerContextOverride for the chosen leaf's own depth-0 run, instead of a
-			// live re-read at leaf time. A direct execute() (command palette/ribbon) has
-			// no override and reads live, which is the trigger note (the active markdown
-			// leaf is unchanged by the launching modal).
+			// semantics. The captured context is still threaded through the suggester
+			// and re-injected via executeWithFocusedProperty for the chosen leaf: on
+			// the LAUNCHER path (Run QuickAdd drill-down) the leaf is its own depth-0
+			// run and the override is what carries the context; on the executor Multi
+			// path the outer execute() now stays pending while the picker is open
+			// (#1630), so the leaf runs nested and simply inherits these still-live
+			// fields — the override it is handed holds the same values. A direct
+			// execute() (command palette/ribbon) has no override and reads live, which
+			// is the trigger note (the active markdown leaf is unchanged by the
+			// launching modal).
 			this.triggerContext =
 				this.triggerContextOverride !== undefined
 					? this.triggerContextOverride
@@ -140,7 +144,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				}
 				case "Multi": {
 					const multiChoice: IMultiChoice = choice as IMultiChoice;
-					this.onChooseMultiType(multiChoice);
+					await this.onChooseMultiType(multiChoice);
 					break;
 				}
 				default:
@@ -330,27 +334,58 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		});
 	}
 
-	private onChooseMultiType(multiChoice: IMultiChoice) {
-		// An empty folder run via command/URI would otherwise open a dead, item-less
-		// picker (no Back row is appended on this path) that reads as a broken command.
-		// Surface a Notice instead so the user knows the folder simply has nothing in it.
+	private async onChooseMultiType(multiChoice: IMultiChoice): Promise<void> {
 		// Read through the accessor, not `.length`: a non-array value such as `{}`
 		// has an `undefined` length, so a bare `=== 0` check would slide past this
 		// guard and hand the picker a non-list to iterate (#1566).
 		const children = childChoicesOf(multiChoice);
+
+		// A remote or non-interactive run has nobody in front of the Obsidian
+		// window, so the folder picker below would sit unanswered on a desktop the
+		// caller cannot see - and before #1630 the run then reported done with the
+		// picker still open. Refuse instead. Signalled rather than thrown so the
+		// CLI serializes the same aborted frame every engine guard produces.
+		if (this.promptProvider || this.interactive === false) {
+			// The remedy differs per arm: a remote session has no ui flag to offer.
+			const remedy = this.promptProvider
+				? "Run one of its choices directly."
+				: "Run one of its choices directly, or re-run with the ui flag.";
+			this.signalAbort(
+				new ChoiceAbortError(
+					children.length === 0
+						? emptyFolderNoticeText(multiChoice)
+						: `"${multiChoice.name}" is a folder of choices, and picking from it needs someone at the window. ${remedy}`,
+				),
+			);
+			return;
+		}
+
+		// An empty folder run via command/URI would otherwise open a dead, item-less
+		// picker (no Back row is appended on this path) that reads as a broken command.
+		// Surface a Notice instead so the user knows the folder simply has nothing in it.
 		if (children.length === 0) {
 			new Notice(emptyFolderNoticeText(multiChoice));
 			return;
 		}
 
-		ChoiceSuggester.Open(this.plugin, children, {
-			choiceExecutor: this,
-			focusedProperty: this.focusedProperty,
-			triggerContext: this.triggerContext,
-			// Fall back to the folder name when no custom placeholder is set, matching the
-			// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
-			// the same folder show the same search hint.
-			placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
+		// Await the picker: the promise settles when the picked leaf choice
+		// finishes (or fails), or when the picker is dismissed - so this
+		// execute() no longer resolves while its own picker is open (#1630). A
+		// macro's Choice command therefore runs its remaining steps AFTER the
+		// picked child, and dismissing the picker cancels the run exactly like
+		// dismissing any other prompt mid-run.
+		await new Promise<void>((resolve, reject) => {
+			ChoiceSuggester.Open(this.plugin, children, {
+				choiceExecutor: this,
+				focusedProperty: this.focusedProperty,
+				triggerContext: this.triggerContext,
+				// Fall back to the folder name when no custom placeholder is set, matching the
+				// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
+				// the same folder show the same search hint.
+				placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
+				completion: (error) =>
+					error === undefined ? resolve() : reject(error),
+			});
 		});
 	}
 }

@@ -409,6 +409,12 @@ export class QuickAddApi {
 					});
 				}
 
+				// The clear stays on the non-throw path only, deliberately: this
+				// executor can be a calling macro's own (params.quickAddApi), so the
+				// map holds the CALLER's variables too, and a script that catches a
+				// cancelled sub-choice and carries on must not lose them. The cost is
+				// the long-standing quirk that variables seeded into a cancelled call
+				// linger until the next completed one.
 				await choiceExecutor.execute(choice);
 				const abort = choiceExecutor.consumeAbortSignal?.();
 				choiceExecutor.variables.clear();

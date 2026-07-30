@@ -15,6 +15,7 @@ import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
 import { createRenderFallbackWarner } from "./utils";
 import { reportUnlessCancelled } from "../../utils/errorUtils";
+import { promptCancelled } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
 import {
 	childChoicesOf,
@@ -169,6 +170,17 @@ type ChoiceSuggesterOptions = {
 	 * by nested Multi navigation, so the row stays top-level only.
 	 */
 	includeTemplateFolderRow?: boolean;
+	/**
+	 * Called once when the picker session is over: with no argument when the
+	 * picked leaf choice finished, with the leaf's own error when it failed,
+	 * and with a `promptCancelled()` cancellation when the picker was dismissed
+	 * without a pick. Threaded through nested folder levels so only the
+	 * terminal action settles it. Set by ChoiceExecutor's Multi path, whose
+	 * execute() awaits it so a run can no longer report done while its own
+	 * picker is open (#1630). Absent for the top-level launcher, which has no
+	 * caller waiting and stays fire-and-forget.
+	 */
+	completion?: (error?: unknown) => void;
 };
 
 /**
@@ -195,6 +207,16 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private triggerContext: QuickAddTriggerContext | null = null;
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
+	private readonly completion?: ChoiceSuggesterOptions["completion"];
+	/**
+	 * Set the moment an activation is accepted (selectSuggestion, BEFORE the
+	 * modal closes), so onClose can tell a dismissal from a pick:
+	 * SuggestModal.selectSuggestion closes the modal before onChooseItem runs,
+	 * which makes onClose alone ambiguous. A drill-down/Back activation hands
+	 * the completion to the next level, so it must not be treated as a
+	 * dismissal either - the flag covers both.
+	 */
+	private selectionDispatched = false;
 	private nestedSearchCandidates?: NestedSearchCandidate[];
 	// Populated by getNestedSearchCandidates(); nested items can only reach
 	// renderSuggestion through the nested-search branch of getSuggestions,
@@ -238,6 +260,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				? options.triggerContext ?? null
 				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
+		this.completion = options?.completion;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
@@ -268,6 +291,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	onClose(): void {
 		super.onClose();
 		this.markdownComponent.unload();
+		// Closed without any accepted activation = the user dismissed the picker
+		// (Escape, scrim click). The awaiting run is cancelled like any other
+		// dismissed prompt; without this it would hang forever on the completion.
+		if (this.completion && !this.selectionDispatched) {
+			this.completion(promptCancelled());
+		}
 	}
 
 	getSuggestions(query: string): FuzzyMatch<IChoice>[] {
@@ -357,6 +386,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			return;
 		}
 
+		// Every accepted activation - leaf, folder drill-down, Back, the template
+		// row - passes here before the modal closes; see selectionDispatched.
+		this.selectionDispatched = true;
 		super.selectSuggestion(value, evt);
 	}
 
@@ -452,12 +484,18 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		if (item.id === RUN_TEMPLATE_FROM_FOLDER_ID) {
 			void runTemplateFromFolder(this.app, this.plugin, {
 				choiceExecutor: this.choiceExecutor,
-			}).catch((error) => {
-				// reportError, not a template-stringified log line: interpolating the
-				// error throws its stack away, and only a value passed through
-				// reportError participates in the report-once contract (#1601).
-				reportUnlessCancelled(error, "Could not run a template from that folder");
-			});
+			}).then(
+				// The row is launcher-only today (no completion there), but settle it
+				// anyway: a stranded completion would silently hang an awaiting run.
+				() => this.completion?.(),
+				(error) => {
+					// reportError, not a template-stringified log line: interpolating the
+					// error throws its stack away, and only a value passed through
+					// reportError participates in the report-once contract (#1601).
+					reportUnlessCancelled(error, "Could not run a template from that folder");
+					this.completion?.(error);
+				},
+			);
 			return;
 		}
 
@@ -466,9 +504,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		else {
 			// Route through executeWithFocusedProperty whenever it exists so the
 			// captured focusedProperty AND triggerContext (issue #1429) are both
-			// re-injected for the leaf run — the suggester cleared the executor's
-			// live context when the outer Multi execute() returned. Falls back to
-			// execute() only for stub executors without the method.
+			// re-injected for the leaf run. On the launcher path the leaf is its own
+			// depth-0 run and needs them (its executor context was never set); on the
+			// executor Multi path the outer execute() stays pending (#1630) and the
+			// leaf inherits the executor's still-live context, which holds the same
+			// values this level was handed. Falls back to execute() only for stub
+			// executors without the method.
 			const execute = this.choiceExecutor.executeWithFocusedProperty
 				? this.choiceExecutor.executeWithFocusedProperty(
 						item,
@@ -476,9 +517,18 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						this.triggerContext,
 					)
 				: this.choiceExecutor.execute(item);
-			void execute.catch((error) => {
-				reportUnlessCancelled(error, `Could not run "${item.name}"`);
-			});
+			// The leaf still names itself in the failure report (the awaiting
+			// caller only knows the folder); forwarding the SAME instance keeps it
+			// to one notice via the report-once contract (#1601). The completion,
+			// when present, is what lets the awaiting run (#1630) finish only
+			// after the picked choice actually has.
+			void execute.then(
+				() => this.completion?.(),
+				(error) => {
+					reportUnlessCancelled(error, `Could not run "${item.name}"`);
+					this.completion?.(error);
+				},
+			);
 		}
 	}
 
@@ -496,6 +546,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		// discarded the typed query, the scroll position and the selection.
 		if (!isBack && isEmptyFolderChoice(multi)) {
 			new Notice(emptyFolderNoticeText(multi));
+			// The modal already closed (this is post-dispatch), so nothing else can
+			// settle an awaiting run: resolve it as "finished, nothing ran".
+			this.completion?.();
 			return;
 		}
 
@@ -520,6 +573,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			triggerContext: this.triggerContext,
 			placeholder: nextPlaceholder,
 			placeholderStack: nextStack,
+			// Hand the awaiting run down through every drill-down/Back level; only
+			// the terminal action settles it.
+			completion: this.completion,
 		});
 	}
 }

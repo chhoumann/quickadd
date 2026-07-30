@@ -28,6 +28,7 @@ import {
 	type FrontmatterPropertyTarget,
 } from "../../utils/frontmatterPropertyLinks";
 import { MultiChoice } from "../../types/choices/MultiChoice";
+import { UserCancelError } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
 import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
 import type * as RunTemplateFromFolderModule from "../../engine/runTemplateFromFolder";
@@ -980,6 +981,109 @@ describe("ChoiceSuggester", () => {
 				"data-icon",
 				"file-plus",
 			);
+		});
+	});
+
+	// The completion is what lets an awaiting run (ChoiceExecutor's Multi path,
+	// #1630) finish only when the picked choice actually has - or learn that the
+	// picker was dismissed.
+	describe("completion (#1630)", () => {
+		function makeCompletion() {
+			return vi.fn<(error?: unknown) => void>();
+		}
+
+		function completionSuggester(
+			choices: IChoice[],
+			completion: (error?: unknown) => void,
+		): ChoiceSuggester {
+			return new ChoiceSuggester(plugin, choices, {
+				choiceExecutor: executor,
+				completion,
+			});
+		}
+
+		const flushMicrotasks = () => new Promise<void>((r) => setTimeout(r, 0));
+
+		it("resolves only after the picked leaf's run settles", async () => {
+			let finishLeaf: () => void = () => {};
+			executor.execute = () =>
+				new Promise<void>((resolve) => {
+					finishLeaf = resolve;
+				});
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+
+			suggester.selectSuggestion(
+				{ item: topNote, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+			await flushMicrotasks();
+			expect(completion).not.toHaveBeenCalled();
+
+			finishLeaf();
+			await flushMicrotasks();
+			expect(completion).toHaveBeenCalledTimes(1);
+			expect(completion).toHaveBeenCalledWith();
+		});
+
+		it("rejects with the leaf's own error instance", async () => {
+			const leafError = new Error("leaf blew up");
+			executor.execute = () => Promise.reject(leafError);
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+
+			suggester.selectSuggestion(
+				{ item: topNote, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+			await flushMicrotasks();
+
+			expect(completion).toHaveBeenCalledWith(leafError);
+		});
+
+		it("rejects as a cancellation when the picker closes without a pick", () => {
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+
+			suggester.onClose();
+
+			expect(completion).toHaveBeenCalledTimes(1);
+			expect(completion.mock.calls[0][0]).toBeInstanceOf(UserCancelError);
+		});
+
+		it("does not treat an accepted pick's close as a dismissal", async () => {
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+
+			// Real Obsidian closes the modal (onClose) between selectSuggestion and
+			// onChooseItem; the dispatched flag is what disambiguates.
+			suggester.selectSuggestion(
+				{ item: topNote, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+			suggester.onClose();
+			await flushMicrotasks();
+
+			expect(completion).toHaveBeenCalledTimes(1);
+			expect(completion).toHaveBeenCalledWith();
+		});
+
+		it("threads the completion through a folder drill-down", () => {
+			const openSpy = vi
+				.spyOn(ChoiceSuggester, "Open")
+				.mockImplementation(() => {});
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+
+			suggester.selectSuggestion(
+				{ item: work, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+
+			expect(openSpy).toHaveBeenCalledTimes(1);
+			expect(openSpy.mock.calls[0][2]?.completion).toBe(completion);
+			// Handed down, not settled: the nested level owns it now.
+			expect(completion).not.toHaveBeenCalled();
 		});
 	});
 });

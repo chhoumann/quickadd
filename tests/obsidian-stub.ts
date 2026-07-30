@@ -550,7 +550,14 @@ export class FuzzySuggestModal<T = unknown> {
   }
 
   open() {}
-  close() {}
+  close() {
+    (this as any).onClose?.();
+  }
+
+  // Real SuggestModal defines no-op lifecycle hooks, so subclasses may call
+  // super.onOpen()/super.onClose() (ChoiceSuggester.onClose does).
+  onOpen() {}
+  onClose() {}
 
   setPlaceholder(placeholder: string) {
     this.inputEl.placeholder = placeholder;
