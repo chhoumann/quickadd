@@ -210,8 +210,16 @@
 			await handleRenameChoice(newChoice);
 			await revealChoice(newChoice.id);
 		} else if (!skipConfigure) {
-			// Doers hand off to their builder, which both names and configures the
-			// choice and persists the result — no eager save (avoids a double write).
+			// Save BEFORE handing off to the builder. The store subscription above
+			// re-seeds this view's tree on EVERY settings write, and writes land on
+			// their own schedule (model auto-sync, migrations) - so an unsaved
+			// choice would be wiped from the local tree while its builder is open,
+			// and the builder's save-by-id would then persist a tree without it
+			// (issue #1625). The second write this costs is debounced away; losing
+			// a choice the user just configured is not. Dismissing the builder
+			// keeps the default-named choice, which is what the folder and
+			// Alt-click arms already do.
+			save();
 			try {
 				await handleConfigureChoice(newChoice);
 			} catch (err) {

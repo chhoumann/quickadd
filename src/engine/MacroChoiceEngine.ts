@@ -767,6 +767,15 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			getQuickAddInstance(),
 			this.choiceExecutor
 		);
+		// Same run context every other prompt surface gets (issue #1546): a
+		// {{VALUE}} inside the AI prompt template names the choice that is asking
+		// instead of prompting generically. Scoped per command id, like
+		// executeOpenFile below: a macro can hold several AI commands, and their
+		// prompts must not share one draft.
+		formatter.setPromptRunContext({
+			choiceName: this.choice?.name,
+			draftScopeId: `${this.choice?.id ?? "macro"}#aiAssistant:${command.id}`,
+		});
 
 		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
 

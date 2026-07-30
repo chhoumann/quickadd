@@ -33,6 +33,16 @@ Prompt templates are Markdown notes in your prompt template folder. They can use
 QuickAdd [Format Syntax](/docs/FormatSyntax/), including values collected earlier
 in the same macro.
 
+:::caution[Prompt templates can run code]
+A prompt template goes through the **full** QuickAdd format pass every time the
+AI command fires - including [inline scripts](/docs/InlineScripts/) (`js
+quickadd` code fences), `{{MACRO:}}` and `{{TEMPLATE:}}`. That is the same
+trust model as a Template choice: a prompt template is not just text sent to
+the model, it is a note QuickAdd executes. Review prompt templates you did not
+write yourself - for example ones that arrive with an imported
+[package](/docs/Choices/Packages/) - exactly as you would review a script.
+:::
+
 After setup, add an **AI Assistant** command to a Macro. The command formats the
 selected prompt template, sends it to the selected model, then stores the
 response as macro variables for later steps.
@@ -41,28 +51,33 @@ response as macro variables for later steps.
 
 ## What each setting does {#settings-semantics}
 
-These settings apply across all AI Assistant commands unless a Macro command
-overrides them:
+Some of these settings are read live on every run; two of them are only a
+template for new commands. The difference matters, so it is called out per
+setting:
 
-- **Prompt template folder path** is the folder QuickAdd reads prompt-template notes from.
-- **Providers** is the list of model endpoints and model ids QuickAdd can use.
-- **Default model** is used when a command does not override the model. **Ask me** opens a model picker at run time.
-- **Default system prompt** is sent with AI requests unless a command overrides it.
-- **Show assistant** controls QuickAdd's AI progress notices.
-- **Confirm AI tool calls** controls script-agent tool confirmation. See [Tool approval and safety](#tool-approval-and-safety).
+- **Prompt template folder path** is the folder QuickAdd reads prompt-template notes from. Read live on every run.
+- **Providers** is the list of model endpoints and model ids QuickAdd can use. Read live on every run.
+- **Default model** and **Default system prompt** are the starting values for **new** AI Assistant Macro commands: they are copied into a command when you add it. Editing a default later does not change commands you already created - edit each command instead. Setting the default model to **Ask me** makes new commands open a model picker at run time.
+- **Show assistant** controls QuickAdd's AI progress notices. Read live on every run.
+- **Confirm AI tool calls** controls script-agent tool confirmation. Read live on every run. See [Tool approval and safety](#tool-approval-and-safety).
 
-Individual AI Assistant Macro commands can override:
+The script APIs behave differently from Macro commands here:
+`quickAddApi.ai.prompt()`, `chunkedPrompt()`, and `ai.agent()` read the **live**
+default system prompt at call time when you pass no `systemPrompt`/`system`
+override (the model is always passed explicitly).
+
+Each AI Assistant Macro command holds its own:
 
 - **Prompt template**, which is a Markdown note in the prompt template folder, not raw prompt text.
-- **Model**, which overrides the default model for that command.
+- **Model**, the model this command uses. Copied from the default at creation; **Ask me** opens a model picker at run time.
 - **Output variable name**, which controls the variable names written for later Macro steps.
-- **System prompt**, which overrides the default system prompt for that command.
+- **System prompt**, sent with this command's requests. Copied from the default at creation.
 - Advanced model parameters, described in [Advanced sampling settings](#advanced-sampling-settings).
 
 ### System prompts are sent as written {#system-prompt-is-literal}
 
 QuickAdd resolves [Format Syntax](/docs/FormatSyntax/) in the **prompt template**
-only. The system prompt - both the default and a command's override - goes to the
+only. The system prompt - both the default and a command's own - goes to the
 model exactly as you typed it, so `{{DATE}}` in a system prompt arrives at the
 model as the eight characters `{{DATE}}`.
 

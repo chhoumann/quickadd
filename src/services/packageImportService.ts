@@ -322,7 +322,7 @@ function canonicalizeJsonValue(value: unknown): string {
 		// `undefined` (not valid JSON, never produced by JSON.parse) stringifies to
 		// the JS value `undefined`; encode it distinctly so it can't collide with a
 		// real value.
-		return serialized === undefined ? " undefined" : serialized;
+		return serialized === undefined ? "\u0000undefined" : serialized;
 	}
 	if (Array.isArray(value)) {
 		return `[${value.map(canonicalizeJsonValue).join(",")}]`;
