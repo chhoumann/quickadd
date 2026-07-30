@@ -1552,6 +1552,32 @@
 	--icon-size: 17px;
 }
 
+/* Obsidian's mobile button chrome forces inline padding (10px) and a 40px
+   height onto the folder-name <button> hard enough that the component reset in
+   MultiChoiceListItem.svelte loses on phones, shifting the chevron 10px off
+   the shared icon column and making folder rows taller than leaf rows.
+   Matching force, tightly scoped to the one affected element. */
+body.is-mobile .multiChoiceListItemName {
+	padding: 0 !important;
+	height: auto !important;
+	min-height: 0 !important;
+}
+
+/* On phones Obsidian stacks modal .setting-items vertically. Right for the
+   builders' full-width labelled fields, wrong for a toggle-only row: its
+   checkbox lands below its own description while the settings TAB keeps
+   toggles inline on the same device. Restore the native inline layout for
+   rows whose only control is a checkbox. */
+body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control .checkbox-container) {
+	flex-direction: row;
+	align-items: center;
+}
+
+body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control .checkbox-container) > .setting-item-control {
+	width: auto;
+	margin-top: 0;
+}
+
 /* Reveal the per-row actions on intent (hover / keyboard focus in the row).
    Scoped to the choice rows — the macro builder's rightButtonsContainer keeps
    its always-visible icons. Opacity (not display) so hidden buttons keep their
