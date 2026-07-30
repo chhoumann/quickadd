@@ -333,8 +333,11 @@ For markdown files, **Append to bottom** and **Append to top** handle template
 frontmatter the same way as
 [Apply Template to Note](/docs/ApplyTemplateToNote/): the template's frontmatter
 properties are merged into the existing note instead of inserting a second `---`
-block. Existing note values win, and missing or empty properties are filled from
-the template. Canvas and base files receive the template content as-is.
+block. Existing scalar values win, missing or empty properties are filled from
+the template, and set-like Obsidian properties add distinct template values.
+Canvas and base files receive the template content as-is.
+
+_Set-like frontmatter merging is available in the next release._
 :::
 
 ### Create a new note instead {#create-another-file}

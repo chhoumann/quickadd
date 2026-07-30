@@ -8,6 +8,7 @@ import { createQuickAddE2EHarness, PLUGIN_ID } from "./e2eVault";
 
 const TPL_CONTENT = "APPLIED_TEMPLATE_CONTENT";
 const TPL_FM = "---\nstatus: draft\npriority: high\n---\nTPL_BODY";
+const TPL_TAGS = "---\ntags:\n  - from-template\n---\nTPL_TAGS_BODY";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 
 type ApplyResult = { ok: boolean; path?: string | null; error?: string };
@@ -100,6 +101,7 @@ describe("apply template to active note (API seam)", () => {
 		const { sandbox } = getContext();
 		await seedFile(sandbox, "tpl-plain.md", TPL_CONTENT);
 		await seedFile(sandbox, "tpl-fm.md", TPL_FM);
+		await seedFile(sandbox, "tpl-tags.md", TPL_TAGS);
 	});
 
 	it("A00: evalJsonAsync survives QuickAdd console noise on the eval channel (obsidian-e2e#18)", async () => {
@@ -218,7 +220,7 @@ describe("apply template to active note (API seam)", () => {
 		expect(content).toContain("EXISTING_CONTENT");
 	});
 
-	it("A06: top with frontmatter - merges template properties, existing values win", async () => {
+	it("A06: top with frontmatter - merges template properties, existing scalar values win", async () => {
 		const { obsidian, sandbox } = getContext();
 		await seedFile(sandbox, "a06-fm.md", "---\nstatus: done\n---\nEXISTING_CONTENT");
 
@@ -245,6 +247,39 @@ describe("apply template to active note (API seam)", () => {
 		// No duplicate frontmatter blocks.
 		expect(content.match(/^---$/gm)?.length).toBe(2);
 	});
+
+	it.each(["top", "bottom"] as const)(
+		"A06b: %s with frontmatter - adds template tags without duplicating existing tags",
+		async (mode) => {
+			const { obsidian, sandbox } = getContext();
+			const noteName = `a06b-tags-${mode}.md`;
+			await seedFile(
+				sandbox,
+				noteName,
+				"---\ntags:\n  - existing\n  - shared\n---\nEXISTING_CONTENT",
+			);
+
+			const result = await applyTemplate(
+				obsidian,
+				sandbox.path(noteName),
+				sandbox.path("tpl-tags.md"),
+				mode,
+			);
+
+			expect(result.ok).toBe(true);
+			const content = await sandbox.waitForContent(
+				noteName,
+				(c) => c.includes("TPL_TAGS_BODY") && c.includes("from-template"),
+				WAIT_OPTS,
+			);
+
+			expect(content).toContain("existing");
+			expect(content).toContain("shared");
+			expect(content).toContain("from-template");
+			expect(content.match(/from-template/g)).toHaveLength(1);
+			expect(content.match(/^---$/gm)?.length).toBe(2);
+		},
+	);
 
 	it("A07: canvas template - rejects with a helpful error", async () => {
 		const { obsidian, sandbox } = getContext();

@@ -5,6 +5,7 @@ import {
 	type ParseOptions,
 } from "./templatePropertyStringParser";
 import { isContainerYamlValue, isStructuredYamlValue } from "./yamlValues";
+import { resolveObsidianPropertyType } from "./obsidianPropertyTypes";
 
 const PATH_SEPARATOR = "\u0000";
 
@@ -163,28 +164,7 @@ export class TemplatePropertyCollector {
       return this.propertyTypeCache.get(propertyKey) ?? null;
     }
 
-    const appAny = this.app as unknown as {
-      metadataTypeManager?: { getTypeInfo?: (key: string) => unknown };
-      metadataCache?: { app?: { metadataTypeManager?: { getTypeInfo?: (key: string) => unknown } } };
-    };
-
-    const manager =
-      appAny.metadataTypeManager ?? appAny.metadataCache?.app?.metadataTypeManager;
-
-    if (!manager || typeof manager.getTypeInfo !== "function") {
-      this.propertyTypeCache.set(propertyKey, null);
-      return null;
-    }
-
-    const info = manager.getTypeInfo(propertyKey) as
-      | {
-          expected?: { type?: string } | null;
-          inferred?: { type?: string } | null;
-        }
-      | undefined;
-
-    const type = info?.expected?.type ?? info?.inferred?.type ?? null;
-    const normalized = typeof type === "string" ? type : null;
+    const normalized = resolveObsidianPropertyType(this.app, propertyKey);
     this.propertyTypeCache.set(propertyKey, normalized);
     return normalized;
   }

@@ -19,6 +19,7 @@ import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
+import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
 
 export const templateInsertModes = [
 	{
@@ -93,12 +94,66 @@ export function insertBodyIntoNoteContent(
 	return insertAtNoteBodyStart(noteContent, `${body}\n`);
 }
 
+function isEmptyFrontmatterValue(value: unknown): boolean {
+	return (
+		value === undefined ||
+		value === null ||
+		value === "" ||
+		(Array.isArray(value) && value.length === 0)
+	);
+}
+
+function toSetLikeStrings(value: unknown): string[] | null {
+	if (typeof value === "string") {
+		return value.length > 0 ? [value] : [];
+	}
+
+	if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+		return null;
+	}
+
+	return value.filter((item) => item.length > 0);
+}
+
+/**
+ * Adds template-only values to an existing set-like property.
+ *
+ * Returning undefined means the existing value should remain byte-for-byte
+ * untouched, either because the values are incompatible or because the
+ * template contributes nothing new.
+ */
+function mergeSetLikeValues(
+	existing: unknown,
+	template: unknown,
+): string[] | undefined {
+	const existingValues = toSetLikeStrings(existing);
+	const templateValues = toSetLikeStrings(template);
+	if (existingValues === null || templateValues === null) return undefined;
+
+	const merged: string[] = [];
+	const seen = new Set<string>();
+	for (const value of [...existingValues, ...templateValues]) {
+		if (seen.has(value)) continue;
+		seen.add(value);
+		merged.push(value);
+	}
+
+	if (
+		merged.length === existingValues.length &&
+		merged.every((value, index) => value === existingValues[index])
+	) {
+		return undefined;
+	}
+
+	return merged;
+}
+
 /**
  * Applies a template to an existing note (issue #526). Unlike
  * TemplateChoiceEngine, this never creates a file: it inserts, prepends,
  * appends, or replaces content in the target note. Top/bottom/cursor modes
- * merge the template's frontmatter properties into the note's existing
- * frontmatter, with existing values winning.
+ * merge the template's frontmatter properties into the note. Existing scalar
+ * values win, while set-like Obsidian properties add distinct template values.
  */
 export class TemplateInsertEngine extends TemplateEngine {
 	constructor(
@@ -327,8 +382,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 	/**
 	 * Merges template frontmatter properties into the note's frontmatter via
-	 * Obsidian's YAML processor. Existing note values win: only missing or
-	 * empty (undefined/null/"") properties are filled from the template.
+	 * Obsidian's YAML processor. Existing scalar note values win. Missing or
+	 * empty properties are filled, while set-like Obsidian properties (tags,
+	 * aliases, and multi-text) add distinct template values.
 	 *
 	 * Structured values (arrays/objects) collected during formatting replace
 	 * their YAML placeholders before merging, so Template Property Types are
@@ -388,12 +444,16 @@ export class TemplateInsertEngine extends TemplateEngine {
 					const existing = Object.hasOwn(frontmatter, key)
 						? frontmatter[key]
 						: undefined;
-					if (
-						existing === undefined ||
-						existing === null ||
-						existing === ""
-					) {
+					if (isEmptyFrontmatterValue(existing)) {
 						frontmatter[key] = value;
+						continue;
+					}
+
+					if (isSetLikeObsidianProperty(this.app, key)) {
+						const merged = mergeSetLikeValues(existing, value);
+						if (merged !== undefined) {
+							frontmatter[key] = merged;
+						}
 					}
 				}
 			},
