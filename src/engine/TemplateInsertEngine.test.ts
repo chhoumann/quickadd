@@ -595,6 +595,25 @@ describe("TemplateInsertEngine.apply", () => {
 		expect(harness.frontmatter).toEqual({ tags: ["work"] });
 	});
 
+	it.each([
+		["a missing property", {}],
+		["an empty property", { tags: [] }],
+	])(
+		"de-duplicates a set-like template array when filling %s",
+		async (_description, frontmatter) => {
+			const harness = makeHarness({
+				templateContent: "---\ntags: [work, work, \"\"]\n---\n",
+				noteContent: "EXISTING",
+				frontmatter,
+			});
+			const file = makeFile();
+
+			await makeEngine(harness, file, "top").apply();
+
+			expect(harness.frontmatter).toEqual({ tags: ["work"] });
+		},
+	);
+
 	it("cursor: throws when the note is not open in the active editor", async () => {
 		const harness = makeHarness({
 			templateContent: "TEMPLATE_CONTENT",

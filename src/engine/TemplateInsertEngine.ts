@@ -439,12 +439,17 @@ export class TemplateInsertEngine extends TemplateEngine {
 					const existing = Object.hasOwn(frontmatter, key)
 						? frontmatter[key]
 						: undefined;
+					const setLike = isSetLikeObsidianProperty(this.app, key);
 					if (isEmptyFrontmatterValue(existing)) {
-						frontmatter[key] = value;
+						if (setLike && Array.isArray(value)) {
+							frontmatter[key] = mergeSetLikeValues([], value) ?? [];
+						} else {
+							frontmatter[key] = value;
+						}
 						continue;
 					}
 
-					if (isSetLikeObsidianProperty(this.app, key)) {
+					if (setLike) {
 						const merged = mergeSetLikeValues(existing, value);
 						if (merged !== undefined) {
 							frontmatter[key] = merged;
