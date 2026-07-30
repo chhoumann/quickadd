@@ -638,8 +638,7 @@ function collectCommands(
 				});
 				break;
 			}
-			case CommandType.AIAssistant:
-			case CommandType.InfiniteAIAssistant: {
+			case CommandType.AIAssistant: {
 				walk.flags.add("ai");
 				walk.commands.push({ name: label, type: command.type, depth });
 				walk.rows.push({

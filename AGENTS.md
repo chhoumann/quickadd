@@ -48,9 +48,11 @@ instance teardown, and the dev-tools loop. This section is the QuickAdd-specific
 brief that a skill-less agent still needs.
 
 - Plugin id `quickadd`. Reload with `obsidian vault=<vault> plugin:reload
-  id=quickadd`; the runner's ready probe is `quickadd:list`. Trigger the test
-  action with `obsidian vault=<vault> command id=quickadd:testQuickAdd` (or via
-  the runner: `pnpm run obsidian:e2e -- command id=quickadd:testQuickAdd`).
+  id=quickadd`; the runner's ready probe is `quickadd:list`. Run a choice with
+  `pnpm run obsidian:e2e -- quickadd:run choice=<name>` - note that `ok:true`
+  means the run finished, not that it did what you wanted. Drive anything else
+  through `pnpm run obsidian:e2e -- eval code=<javascript>`; top-level `await`
+  is not allowed there, so wrap async work in an IIFE the eval can await.
 - The four runner scripts - `provision:e2e-vault`, `start:e2e-obsidian`,
   `stop:e2e-obsidian`, `obsidian:e2e` - run the shared `obsidian-e2e` bin,
   configured by `obsidian-e2e.config.mjs` at the repo root (plugin id, the

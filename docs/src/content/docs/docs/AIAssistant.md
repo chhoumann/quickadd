@@ -202,12 +202,8 @@ Use these rules when choosing a value:
 
 ### Max chunk tokens {#max-chunk-tokens}
 
-The chunked AI prompt flow has a separate **Max chunk tokens** setting. It
-controls the estimated token budget for the text inserted into `{{VALUE:chunk}}`
-for each chunk.
-
-The system prompt and prompt template are counted separately. Values above the
-selected model's estimated input budget are capped automatically.
+Chunk sizing has no setting of its own. It is the `maxChunkTokens` option of
+[`chunkedPrompt()`](/docs/QuickAddAPI/#max-chunk-tokens) in the script API.
 
 ### Output length {#output-length}
 

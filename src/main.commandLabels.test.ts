@@ -8,7 +8,6 @@ describe("QuickAdd command labels", () => {
 			runTemplateFromFolder: "New note from template",
 			applyTemplate: "Apply template to active note",
 			reloadDev: "Reload (dev)",
-			testDev: "Test (dev)",
 			openSettings: "Open settings"
 		});
 

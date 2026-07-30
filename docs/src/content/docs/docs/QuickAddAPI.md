@@ -617,7 +617,7 @@ results. Use this for inputs that are too large for a single request.
   - `chunkSeparator`: `RegExp` used to split `text` (default: `/\n/`)
   - `chunkJoiner`: String inserted between chunk results (default: `"\n"`)
   - `shouldMerge`: Merge small adjacent chunks up to the budget (default: `true`)
-  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text (the `{{VALUE:chunk}}` portion only - the system prompt and prompt template are budgeted separately). Token counts are estimated locally; values above the model's estimated input budget are capped automatically.
+  - `maxChunkTokens`: Maximum **estimated** tokens for each chunk's text - see [Max chunk tokens](#max-chunk-tokens) below.
 
 **Behavior:**
 - Chunk sizes are estimated locally (QuickAdd no longer bundles model-specific tokenizers); the configured provider remains the source of truth for exact limits.
@@ -635,6 +635,17 @@ const result = await quickAddApi.ai.chunkedPrompt(
     { variableName: "summary", chunkJoiner: "\n\n" }
 );
 ```
+
+#### Max chunk tokens {#max-chunk-tokens}
+
+`maxChunkTokens` is the estimated token budget for the text inserted into
+`{{VALUE:chunk}}` for each chunk. It is an option of this API call, not a
+QuickAdd setting - there is no **Max chunk tokens** field anywhere in the
+plugin's settings or in the Macro AI Assistant command.
+
+The system prompt and prompt template are counted separately. Token counts are
+estimated locally, and values above the selected model's estimated input budget
+are capped automatically.
 
 ### Give the model tools to call: `ai.agent(config)` {#tool--function-calling--aiagentconfig}
 

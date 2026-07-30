@@ -6,7 +6,6 @@ export enum CommandType {
 	NestedChoice = "NestedChoice",
 	EditorCommand = "EditorCommand",
 	AIAssistant = "AIAssistant",
-	InfiniteAIAssistant = "InfiniteAIAssistant",
 	OpenFile = "OpenFile",
 	Conditional = "Conditional",
 }
