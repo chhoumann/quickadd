@@ -66,6 +66,28 @@ export function splitMultiSelectLabels(
 	return out;
 }
 
+/**
+ * Match MultiSuggester's output contract for structured FILE replies: known
+ * options follow source order, then unique custom entries follow reply order.
+ */
+export function orderOnePageFilePicks(
+	rawPicks: string[],
+	options: string[],
+	allowCustom: boolean,
+): string[] {
+	const validPicks = rawPicks.filter(
+		(value) => allowCustom || options.includes(value),
+	);
+	const selected = new Set(validPicks);
+	return [
+		...options.filter((value) => selected.has(value)),
+		...validPicks.filter(
+			(value, index) =>
+				!options.includes(value) && validPicks.indexOf(value) === index,
+		),
+	];
+}
+
 function shouldPromptAtRuntimeForDiscovery(
 	choice: IChoice,
 	requirementId: string,
@@ -261,14 +283,14 @@ export async function runOnePagePreflight(
 								(label) => fileInfo.displayToValue.get(label) ?? label,
 							)
 						: [String(v)]);
-				const normalized = rawPicks
-					.filter(
-						(value) =>
-							fileInfo.allowCustom || fileInfo.options.includes(value),
-					)
-					.map((value) =>
-						canonicalizeOnePageFileValue(value, fileInfo.options),
-					);
+				const orderedPicks = orderOnePageFilePicks(
+					rawPicks,
+					fileInfo.options,
+					fileInfo.allowCustom,
+				);
+				const normalized = orderedPicks.map((value) =>
+					canonicalizeOnePageFileValue(value, fileInfo.options),
+				);
 				choiceExecutor.variables.set(
 					k,
 					fileInfo.multiSelect ? normalized : (normalized[0] ?? ""),

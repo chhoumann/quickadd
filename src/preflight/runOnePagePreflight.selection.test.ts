@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
-import { runOnePagePreflight } from "./runOnePagePreflight";
+import {
+	orderOnePageFilePicks,
+	runOnePagePreflight,
+} from "./runOnePagePreflight";
 import { UserCancelError } from "../errors/UserCancelError";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -265,6 +268,28 @@ describe("runOnePagePreflight selection-as-value", () => {
 		expect(result).toBe(true);
 		expect(executor.variables.get("value")).toBe("Manual");
 		expect(modalOpenMock).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("orderOnePageFilePicks", () => {
+	it("restores source order for remote arrays and appends unique custom values", () => {
+		expect(
+			orderOnePageFilePicks(
+				["@file:People/B.md", "custom", "@file:People/A.md", "custom"],
+				["@file:People/A.md", "@file:People/B.md"],
+				true,
+			),
+		).toEqual(["@file:People/A.md", "@file:People/B.md", "custom"]);
+	});
+
+	it("drops unknown values when custom input is disabled", () => {
+		expect(
+			orderOnePageFilePicks(
+				["unknown", "@file:People/B.md"],
+				["@file:People/A.md", "@file:People/B.md"],
+				false,
+			),
+		).toEqual(["@file:People/B.md"]);
 	});
 });
 

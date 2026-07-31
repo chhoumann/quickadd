@@ -48,7 +48,10 @@ function describeReply(answer: unknown): string {
 }
 
 export interface PromptProvider {
-	/** Batch multi-field prompt (`quickAddApi.requestInputs`). Returns id -> value. */
+	/**
+	 * Batch multi-field prompt (`quickAddApi.requestInputs`). Returns scalar fields
+	 * as strings and multi-select fields as string arrays.
+	 */
 	requestInputs(fields: FieldRequirement[]): Promise<Record<string, FormAnswer>>;
 	suggester(
 		displayItems:
