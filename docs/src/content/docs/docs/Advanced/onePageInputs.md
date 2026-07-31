@@ -34,7 +34,7 @@ dropdown that overrides the global setting for that one choice:
 
 QuickAdd scans the choice for placeholders and turns each one into a field:
 
-- Placeholders in file names, templates, and capture content: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`.
+- Placeholders in file names, templates, and capture content: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`, and `{{FILE:folder|...}}`.
 - Nested `{{TEMPLATE:path}}` includes are scanned recursively, so their prompts show up too.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` become textareas.
 - `{{VALUE:name|type:number|min:1|max:10}}` becomes a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` becomes a slider plus numeric input.
@@ -51,6 +51,18 @@ QuickAdd scans the choice for placeholders and turns each one into a field:
 
 - `{{FIELD:...}}` inputs suggest values from your vault (using Dataview when it is available, with a manual fallback otherwise).
 - `{{FIELD:...|multi}}` is not shown inline in the form, because vault field values can contain commas. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
+
+### How FILE inputs behave {#file-ux}
+
+:::note[Available in the next release]
+The inline searchable FILE picker described below is on `master` and will ship
+in the next QuickAdd release.
+:::
+
+- `{{FILE:folder}}` appears as a searchable picker in the form. Search matches the friendly note title, file name, and full vault path.
+- The selected file is shown above the search field and can be removed or replaced. Single-select fields keep the same first-file default as the previous dropdown.
+- `{{FILE:folder|multi}}` stays in the same form. Pick several files without opening a second modal, and remove the last pick by pressing Backspace in an empty search field.
+- Multi-select results keep the folder's file order. File names and friendly labels containing commas are handled as complete values.
 
 ## Fields you can leave empty {#optional-fields}
 

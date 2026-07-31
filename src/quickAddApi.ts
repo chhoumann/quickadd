@@ -230,7 +230,13 @@ export class QuickAddApi {
 					const provider = choiceExecutor?.promptProvider;
 					if (provider) {
 						try {
-							collected = await provider.requestInputs(missing);
+							const providerAnswers = await provider.requestInputs(missing);
+							collected = Object.fromEntries(
+								Object.entries(providerAnswers).map(([key, value]) => [
+									key,
+									Array.isArray(value) ? value.join(", ") : value,
+								]),
+							);
 						} catch (error) {
 							rethrowPromptError(error);
 						}

@@ -803,6 +803,12 @@ FIELD filtering is in beta and the syntax can change - leave your thoughts
 
 ### Pick a note from a folder: `{{FILE:<folder>}}` {#file}
 
+:::note[Available in the next release]
+When one-page inputs are enabled, FILE placeholders use the inline searchable
+picker described below. This improvement is on `master` and will ship in the
+next QuickAdd release.
+:::
+
 `{{FILE:People}}` opens a picker listing the Markdown files in your `People`
 folder and inserts your pick. Where [`{{FIELD}}`](#field) suggests the
 *values* of a property, `{{FILE}}` suggests the notes themselves - made for
@@ -852,7 +858,7 @@ Good to know:
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
 - Markdown files only.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
-- One-page input forms collect the other inputs first, then open the FILE multi-select, because file names and labels can contain commas.
+- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
 _Introduced in QuickAdd 2.14.0._
 

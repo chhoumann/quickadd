@@ -49,7 +49,7 @@ function describeReply(answer: unknown): string {
 
 export interface PromptProvider {
 	/** Batch multi-field prompt (`quickAddApi.requestInputs`). Returns id -> value. */
-	requestInputs(fields: FieldRequirement[]): Promise<Record<string, string>>;
+	requestInputs(fields: FieldRequirement[]): Promise<Record<string, FormAnswer>>;
 	suggester(
 		displayItems:
 			| string[]
@@ -98,6 +98,8 @@ export interface PromptProvider {
 	): Promise<string[]>;
 	infoDialog(header: string, text: string[] | string): Promise<void>;
 }
+
+export type FormAnswer = string | string[];
 
 /** Routes prompts to a connected front end over the interactive server session. */
 export class RemotePromptProvider implements PromptProvider {
@@ -328,7 +330,7 @@ export class RemotePromptProvider implements PromptProvider {
 
 	async requestInputs(
 		fields: FieldRequirement[],
-	): Promise<Record<string, string>> {
+	): Promise<Record<string, FormAnswer>> {
 		const formFields: FormField[] = fields.map((field) => ({
 			id: field.id,
 			label: field.label ?? field.id,
@@ -337,6 +339,7 @@ export class RemotePromptProvider implements PromptProvider {
 			defaultValue: field.defaultValue,
 			description: field.description,
 			options: field.options,
+			displayOptions: field.displayOptions,
 			dateFormat: field.dateFormat,
 			optional: field.optional,
 			numericConfig: field.numericConfig,
@@ -359,8 +362,12 @@ export class RemotePromptProvider implements PromptProvider {
 		const dateFieldIds = new Set(
 			fields.filter((field) => field.type === "date").map((field) => field.id),
 		);
-		const result: Record<string, string> = {};
+		const result: Record<string, FormAnswer> = {};
 		for (const [key, value] of Object.entries(answer as Record<string, unknown>)) {
+			if (Array.isArray(value)) {
+				result[key] = value.map((entry) => String(entry));
+				continue;
+			}
 			let str = value == null ? "" : String(value);
 			if (str && dateFieldIds.has(key) && !str.startsWith("@date:")) {
 				str = `@date:${str}`;

@@ -5,16 +5,20 @@ import { UserCancelError } from "../errors/UserCancelError";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { parseFileToken } from "src/utils/fileSyntax";
 
 const { modalOpenMock } = vi.hoisted(() => ({
 	modalOpenMock: vi.fn(),
 }));
 
 let modalResult: Record<string, string> = {};
+let modalFileSelections = new Map<string, string[]>();
 
 vi.mock("./OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose = Promise.resolve(modalResult);
+		fileSelections = modalFileSelections;
+		multiSelections = new Map<string, string[]>();
 		constructor(...args: unknown[]) {
 			modalOpenMock(...args);
 		}
@@ -142,6 +146,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 	beforeEach(() => {
 		modalOpenMock.mockClear();
 		modalResult = {};
+		modalFileSelections = new Map();
 	});
 
 	it("prefills {{VALUE}} from selection when enabled", async () => {
@@ -267,6 +272,7 @@ describe("runOnePagePreflight template extension handling", () => {
 	beforeEach(() => {
 		modalOpenMock.mockClear();
 		modalResult = {};
+		modalFileSelections = new Map();
 	});
 
 	it("reads .base template files without forcing .md", async () => {
@@ -355,6 +361,79 @@ describe("runOnePagePreflight template extension handling", () => {
 		expect(result).toBe(false);
 		expect(modalOpenMock).not.toHaveBeenCalled();
 		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
+	});
+
+	it("collects multi FILE picks inline without parsing comma-bearing labels", async () => {
+		const templateFile = new TFile();
+		templateFile.path = "Templates/People.md";
+		templateFile.name = "People.md";
+		templateFile.basename = "People";
+		templateFile.extension = "md";
+
+		const jane = new TFile();
+		jane.path = "People/Doe, Jane.md";
+		jane.name = "Doe, Jane.md";
+		jane.basename = "Doe, Jane";
+		jane.extension = "md";
+		(jane as any).parent = { path: "People" };
+		const grace = new TFile();
+		grace.path = "People/Grace.md";
+		grace.name = "Grace.md";
+		grace.basename = "Grace";
+		grace.extension = "md";
+		(grace as any).parent = { path: "People" };
+
+		const app = {
+			workspace: {
+				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getActiveFile: vi.fn().mockReturnValue(null),
+			},
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) =>
+					path === templateFile.path ? templateFile : null,
+				),
+				cachedRead: vi.fn(async () =>
+					"related: {{FILE:People|link|multi|label:Related people}}",
+				),
+				getMarkdownFiles: vi.fn(() => [jane, grace]),
+			},
+			metadataCache: { getFileCache: vi.fn(() => null) },
+		} as unknown as App;
+
+		const plugin = {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+		} as any;
+		const key = parseFileToken(
+			"People|link|multi|label:Related people",
+		)!.variableKey;
+		modalResult = {
+			[key]: "@file:People/Doe, Jane.md, @file:People/Grace.md",
+		};
+		modalFileSelections = new Map([
+			[
+				key,
+				["@file:People/Doe, Jane.md", "@file:People/Grace.md"],
+			],
+		]);
+
+		const executor = createExecutor();
+		const result = await runOnePagePreflight(
+			app,
+			plugin,
+			executor,
+			createTemplateChoice(templateFile.path),
+		);
+
+		expect(result).toBe(true);
+		expect(modalOpenMock).toHaveBeenCalledTimes(1);
+		expect(executor.variables.get(key)).toEqual([
+			"@file:People/Doe, Jane.md",
+			"@file:People/Grace.md",
+		]);
 	});
 
 	it("leaves the default Template note title for discovery instead of the one-page modal", async () => {

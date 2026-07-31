@@ -13,6 +13,18 @@ const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
 	})),
 }));
 
+const { filePickerSuggesters } = vi.hoisted(() => ({
+	filePickerSuggesters: [] as Array<{
+		onSelect: (option: {
+			value: string;
+			label: string;
+			path: string;
+			isCustom?: boolean;
+		}) => void;
+		destroy: ReturnType<typeof vi.fn>;
+	}>,
+}));
+
 vi.mock("src/gui/imagePasteHandler", () => ({
 	attachImagePasteHandler: attachImagePasteHandlerMock,
 }));
@@ -85,6 +97,11 @@ vi.mock("obsidian", () => {
 			this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
 			return this;
 		}
+
+		setDisabled(disabled: boolean): this {
+			this.inputEl.disabled = disabled;
+			return this;
+		}
 	}
 
 	class TextAreaComponent {
@@ -135,6 +152,7 @@ vi.mock("obsidian", () => {
 	}
 
 	class Setting {
+		settingEl: HTMLElement;
 		controlEl: HTMLElement;
 		private readonly infoEl: HTMLElement;
 		private readonly nameEl: HTMLElement;
@@ -142,6 +160,7 @@ vi.mock("obsidian", () => {
 
 		constructor(containerEl: HTMLElement) {
 			const settingEl = document.createElement("div");
+			this.settingEl = settingEl;
 			this.infoEl = document.createElement("div");
 			this.nameEl = document.createElement("div");
 			this.descEl = document.createElement("div");
@@ -203,6 +222,27 @@ vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
 	SuggesterInputSuggest: class {},
 }));
 
+vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({
+	FilePickerInputSuggest: class {
+		destroy = vi.fn();
+
+		constructor(
+			_app: App,
+			_input: HTMLInputElement,
+			_getOptions: () => unknown[],
+			_isSelected: (value: string) => boolean,
+			onSelect: (option: {
+				value: string;
+				label: string;
+				path: string;
+				isCustom?: boolean;
+			}) => void,
+		) {
+			filePickerSuggesters.push({ onSelect, destroy: this.destroy });
+		}
+	},
+}));
+
 vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => ({ dateAliases: {} }) },
 }));
@@ -262,6 +302,7 @@ function ensureObsidianDomPolyfills(): void {
 describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
+		filePickerSuggesters.length = 0;
 	});
 
 	it("submits the first raw mapped dropdown option when untouched", async () => {
@@ -288,6 +329,110 @@ describe("OnePageInputModal", () => {
 		await expect(modal.waitForClose).resolves.toEqual({
 			[id]: "#BF616A",
 		});
+	});
+
+	it("shows and submits the first FILE option by default", async () => {
+		const id = "FILE:people";
+		const requirements: FieldRequirement[] = [
+			{
+				id,
+				label: "Related person",
+				type: "file-picker",
+				options: ["@file:People/Ada.md", "@file:People/Grace.md"],
+				displayOptions: ["Ada", "Grace"],
+				suggesterConfig: { multiSelect: false, allowCustomInput: false },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		const contentEl = (modal as any).contentEl as HTMLElement;
+		expect(
+			contentEl.querySelector(".qa-onepage-file-picker__chip-label")
+				?.textContent,
+		).toBe("Ada");
+		expect(modal.fileSelections.get(id)).toEqual(["@file:People/Ada.md"]);
+		expect(
+			contentEl.querySelector(".qa-onepage-file-picker__input")?.getAttribute(
+				"aria-label",
+			),
+		).toBe("Choose file for Related person");
+
+		const submitButton = Array.from(
+			contentEl.querySelectorAll("button"),
+		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		submitButton.click();
+
+		await expect(modal.waitForClose).resolves.toEqual({
+			[id]: "@file:People/Ada.md",
+		});
+	});
+
+	it("keeps multi FILE picks structured and ordered by the source list", () => {
+		const id = "FILE:people|multi";
+		const requirements: FieldRequirement[] = [
+			{
+				id,
+				label: "Related people",
+				type: "file-picker",
+				options: [
+					"@file:People/Doe, Jane.md",
+					"@file:People/Grace.md",
+				],
+				displayOptions: ["Doe, Jane", "Grace"],
+				suggesterConfig: { multiSelect: true, allowCustomInput: false },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		filePickerSuggesters[0].onSelect({
+			value: "@file:People/Grace.md",
+			label: "Grace",
+			path: "People/Grace.md",
+		});
+		filePickerSuggesters[0].onSelect({
+			value: "@file:People/Doe, Jane.md",
+			label: "Doe, Jane",
+			path: "People/Doe, Jane.md",
+		});
+
+		expect(modal.fileSelections.get(id)).toEqual([
+			"@file:People/Doe, Jane.md",
+			"@file:People/Grace.md",
+		]);
+		expect(
+				Array.from(
+					(modal as any).contentEl.querySelectorAll(
+						".qa-onepage-file-picker__chip-label",
+					) as NodeListOf<HTMLElement>,
+				).map((element) => element.textContent),
+		).toEqual(["Doe, Jane", "Grace"]);
+	});
+
+	it("removes the last FILE pick with Backspace on an empty search", () => {
+		const id = "FILE:people|multi";
+		const requirements: FieldRequirement[] = [
+			{
+				id,
+				label: "Related people",
+				type: "file-picker",
+				options: ["@file:People/Ada.md"],
+				displayOptions: ["Ada"],
+				suggesterConfig: { multiSelect: true, allowCustomInput: false },
+			},
+		];
+
+		const modal = new OnePageInputModal({} as App, requirements, new Map());
+		filePickerSuggesters[0].onSelect({
+			value: "@file:People/Ada.md",
+			label: "Ada",
+			path: "People/Ada.md",
+		});
+		const search = (modal as any).contentEl.querySelector(
+			".qa-onepage-file-picker__input",
+		) as HTMLInputElement;
+		search.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+
+		expect(modal.fileSelections.get(id)).toEqual([]);
 	});
 
 	it("returns a textarea field value verbatim, without doubling backslashes", async () => {
@@ -1000,7 +1145,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		// display() used to fire updatePreviews above the renderField loop, and
 		// this.result is only populated inside it - so the opening pass ran with
 		// {} and flashed a stand-in over answers that were already known.
-		const calls: Array<Record<string, string>> = [];
+		const calls: Array<Record<string, unknown>> = [];
 		const modal = new OnePageInputModal(
 			{} as App,
 			requirement,
@@ -1020,7 +1165,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		// A required blank date is OMITTED on submit so the sequential date prompt
 		// still fires. Previewing it as answered-empty rendered a name the run
 		// will never create (#1590).
-		const calls: Array<Record<string, string>> = [];
+		const calls: Array<Record<string, unknown>> = [];
 		const modal = new OnePageInputModal(
 			{} as App,
 			[
@@ -1040,7 +1185,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 	});
 
 	it("keeps an untouched OPTIONAL date, which is answered-empty", async () => {
-		const calls: Array<Record<string, string>> = [];
+		const calls: Array<Record<string, unknown>> = [];
 		const modal = new OnePageInputModal(
 			{} as App,
 			[{ id: "due", label: "due", type: "date", optional: true }],
