@@ -359,6 +359,7 @@
 }
 
 .quickAddModal .qa-onepage-file-picker__chip-label {
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
