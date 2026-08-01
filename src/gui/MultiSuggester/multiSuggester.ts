@@ -2,6 +2,9 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
+import SearchableMultiSelect, {
+	type SearchableMultiSelectItem,
+} from "../SearchableMultiSelect/searchableMultiSelect";
 
 export interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
@@ -39,6 +42,7 @@ export default class MultiSuggester extends Modal {
 	private readonly opts: MultiSuggesterOptions;
 	private readonly selected = new Set<string>();
 	private readonly customValues: string[] = [];
+	private picker: SearchableMultiSelect<string>;
 	// The in-progress custom-value text. Held on the instance (not a render-scoped
 	// local) so submit() can fold an un-"Add"ed draft into the result instead of
 	// silently dropping it.
@@ -71,6 +75,7 @@ export default class MultiSuggester extends Modal {
 		});
 		this.render();
 		this.open();
+		this.picker.focusSearch();
 	}
 
 	/**
@@ -95,30 +100,28 @@ export default class MultiSuggester extends Modal {
 	}
 
 	private render() {
-		this.containerEl.addClass("quickAddModal", "qaMultiSuggester");
+		this.containerEl.addClass(
+			"quickAddModal",
+			"qaSearchableMultiSelectModal",
+			"qaMultiSuggester",
+		);
 		this.titleEl.setText(this.opts.placeholder ?? "Select one or more");
 		const { contentEl } = this;
 		contentEl.empty();
 
 		const list = contentEl.createDiv({ cls: "qa-multi-list" });
-		const rows = [
-			...this.items.map((value, i) => ({
-				value,
-				display: normalizeDisplayItem(this.displayItems[i] ?? value),
-			})),
-			...this.customValues.map((value) => ({ value, display: value })),
-		];
-		for (const { value, display } of rows) {
-			new Setting(list).setName(display).addToggle((toggle) =>
-				toggle.setValue(this.selected.has(value)).onChange((on) => {
-					if (on) this.selected.add(value);
-					else this.selected.delete(value);
-				}),
-			);
-		}
+		this.picker = new SearchableMultiSelect(list, {
+			items: this.getSearchableItems(),
+			isSelected: ({ value }) => this.selected.has(value),
+			onToggle: ({ value }, selected) => {
+				if (selected) this.selected.add(value);
+				else this.selected.delete(value);
+			},
+			getSelectedCount: () => this.selected.size,
+		});
 
 		if (this.opts.allowCustomValue) {
-			new Setting(contentEl)
+			const customSetting = new Setting(contentEl)
 				.setName("Add a custom value")
 				.addText((text) => {
 					text
@@ -139,9 +142,11 @@ export default class MultiSuggester extends Modal {
 				.addButton((btn) =>
 					btn.setButtonText("Add").onClick(() => this.commitDraft()),
 				);
+			customSetting.settingEl.addClass("qa-multi-custom");
 		}
 
 		const buttons = new Setting(contentEl);
+		buttons.settingEl.addClass("qa-multi-actions");
 		buttons.addButton((btn) =>
 			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
 		);
@@ -160,6 +165,22 @@ export default class MultiSuggester extends Modal {
 					}),
 			);
 		}
+	}
+
+	private getSearchableItems(): SearchableMultiSelectItem<string>[] {
+		return [
+			...this.items.map((value, index) => ({
+				key: value,
+				value,
+				label: normalizeDisplayItem(this.displayItems[index] ?? value),
+				searchText: value,
+			})),
+			...this.customValues.map((value) => ({
+				key: value,
+				value,
+				label: value,
+			})),
+		];
 	}
 
 	/**
