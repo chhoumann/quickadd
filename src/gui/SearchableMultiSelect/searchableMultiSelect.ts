@@ -123,7 +123,8 @@ export default class SearchableMultiSelect<T> {
 		this.renderList();
 	}
 
-	focusSearch(): void {
+	focusSearchOnOpen(): void {
+		if (document.body.classList.contains("is-mobile")) return;
 		this.searchInputEl.focus();
 	}
 

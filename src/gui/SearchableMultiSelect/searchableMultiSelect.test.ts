@@ -97,6 +97,27 @@ describe("SearchableMultiSelect", () => {
 		expect(selected.has("alpha")).toBe(true);
 	});
 
+	it("does not autofocus the search field when a mobile modal opens", () => {
+		const { container, picker } = createPicker([
+			{ key: "alpha", value: "a", label: "Alpha" },
+		]);
+		const input = container.querySelector<HTMLInputElement>(
+			".qa-searchable-multi-select__search",
+		);
+		if (!input) throw new Error("search input not found");
+
+		document.body.classList.add("is-mobile");
+		try {
+			picker.focusSearchOnOpen();
+			expect(document.activeElement).not.toBe(input);
+		} finally {
+			document.body.classList.remove("is-mobile");
+		}
+
+		picker.focusSearchOnOpen();
+		expect(document.activeElement).toBe(input);
+	});
+
 	it("selects and removes options with Arrow keys and Enter or Space", () => {
 		const { container, selected } = createPicker([
 			{ key: "alpha", value: "a", label: "Alpha" },

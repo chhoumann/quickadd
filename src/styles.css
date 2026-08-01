@@ -1193,6 +1193,7 @@
 
 .qa-searchable-multi-select__option {
 	display: flex;
+	flex: 0 0 auto;
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: var(--size-4-3);

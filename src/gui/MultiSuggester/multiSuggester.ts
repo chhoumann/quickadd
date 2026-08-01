@@ -75,7 +75,7 @@ export default class MultiSuggester extends Modal {
 		});
 		this.render();
 		this.open();
-		this.picker.focusSearch();
+		this.picker.focusSearchOnOpen();
 	}
 
 	/**

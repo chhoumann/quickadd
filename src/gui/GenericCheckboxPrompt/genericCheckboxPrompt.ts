@@ -44,7 +44,7 @@ export default class GenericCheckboxPrompt extends Modal {
 
 		this.display();
 		this.open();
-		this.picker.focusSearch();
+		this.picker.focusSearchOnOpen();
 	}
 
 	private display() {
