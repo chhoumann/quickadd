@@ -392,6 +392,8 @@ Opens a checkbox prompt allowing multiple selections.
 The prompt includes fast option filtering, full-row click targets, and Arrow key plus Enter/Space navigation for large lists. Filtering does not clear selections, and the returned array keeps the existing selection-order contract.
 :::
 
+![Searchable checkbox prompt with selected options and fixed action buttons](/img/checkbox-prompt-searchable.png)
+
 **Parameters:**
 - `items`: Array of options to display
 - `selectedItems`: (Optional) Array of pre-selected items
