@@ -1304,7 +1304,8 @@ export class CompleteFormatter extends Formatter {
 
 		while (INLINE_JAVASCRIPT_REGEX.test(output)) {
 			const match = INLINE_JAVASCRIPT_REGEX.exec(output);
-			const code = match?.at(1)?.trim();
+			if (!match) break;
+			const code = match.at(1)?.trim();
 
 			if (code) {
 				// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
@@ -1324,10 +1325,36 @@ export class CompleteFormatter extends Formatter {
 					this.variables.set(key, executor.params.variables[key]);
 				}
 
-				output =
-					typeof outVal === "string"
-						? this.replacer(output, INLINE_JAVASCRIPT_REGEX, outVal)
-						: this.replacer(output, INLINE_JAVASCRIPT_REGEX, "");
+				let replacement = "";
+				if (typeof outVal === "string") {
+					// Keep string insertion byte-for-byte compatible, including the
+					// later formatter passes that may process tokens in the result.
+					replacement = outVal;
+				} else if (
+					typeof outVal === "number" ||
+					typeof outVal === "boolean" ||
+					Array.isArray(outVal)
+				) {
+					// Reuse the same typed-value route as {{VALUE:key}}: containers in a
+					// sole frontmatter position are collected for processFrontMatter,
+					// arrays elsewhere join with commas, and scalars render directly.
+					replacement =
+						this.renderCollectedOrArrayValue({
+							input: output,
+							matchStart: match.index,
+							matchEnd: match.index + match[0].length,
+							rawValue: outVal,
+							fallbackKey: "inlineScript",
+							heuristicEnabled: this.isTemplatePropertyTypesEnabled(),
+						}) ?? String(outVal);
+				}
+				// null/undefined and unsupported values intentionally keep the
+				// legacy empty-output behavior rather than inventing serialization.
+				output = this.replacer(
+					output,
+					INLINE_JAVASCRIPT_REGEX,
+					replacement,
+				);
 			} else {
 				// Empty/whitespace-only fence (e.g. ```js quickadd\n```): consume the
 				// matched block so the loop terminates instead of spinning forever.
