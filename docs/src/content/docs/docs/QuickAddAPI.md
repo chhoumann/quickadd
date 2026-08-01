@@ -388,6 +388,8 @@ module.exports = async (params) => {
 ### `checkboxPrompt(items: string[], selectedItems?: string[]): Promise<string[]>`
 Opens a checkbox prompt allowing multiple selections.
 
+![Searchable checkbox prompt with selected options and fixed action buttons](/img/checkbox-prompt-searchable.png)
+
 **Parameters:**
 - `items`: Array of options to display
 - `selectedItems`: (Optional) Array of pre-selected items

@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, ToggleComponent } from "obsidian";
+import { ButtonComponent, Modal } from "obsidian";
 import { promptCancelled } from "../../errors/UserCancelError";
+import SearchableMultiSelect from "../SearchableMultiSelect/searchableMultiSelect";
 
 export default class GenericCheckboxPrompt extends Modal {
 	private resolvePromise: (value: string[]) => void;
@@ -8,6 +9,7 @@ export default class GenericCheckboxPrompt extends Modal {
 	public promise: Promise<string[]>;
 	private resolved: boolean;
 	private _selectedItems: string[];
+	private picker: SearchableMultiSelect<string>;
 
 	public static Open(
 		app: App,
@@ -42,13 +44,18 @@ export default class GenericCheckboxPrompt extends Modal {
 
 		this.display();
 		this.open();
+		this.picker.focusSearchOnOpen();
 	}
 
 	private display() {
 		this.contentEl.empty();
-		this.containerEl.addClass("quickAddModal", "checkboxPrompt");
+		this.containerEl.addClass(
+			"quickAddModal",
+			"qaSearchableMultiSelectModal",
+			"checkboxPrompt",
+		);
 		if (this.header) this.titleEl.textContent = this.header;
-		this.addCheckboxRows();
+		this.addSearchableOptions();
 		this.addSubmitButton();
 	}
 
@@ -58,37 +65,32 @@ export default class GenericCheckboxPrompt extends Modal {
 		if (!this.resolved) this.rejectPromise(promptCancelled());
 	}
 
-	private addCheckboxRows() {
-		const rowContainer: HTMLDivElement = this.contentEl.createDiv(
-			"checkboxRowContainer"
-		);
-		this.items.forEach((item) => this.addCheckboxRow(item, rowContainer));
-	}
-
-	private addCheckboxRow(item: string, container: HTMLDivElement) {
-		const checkboxRow: HTMLDivElement = container.createDiv("checkboxRow");
-
-		checkboxRow.createEl("span", {
-			text: item,
-		});
-		const checkbox: ToggleComponent = new ToggleComponent(checkboxRow);
-		checkbox
-			.setTooltip(`Toggle ${item}`)
-			.setValue(this._selectedItems.contains(item))
-			.onChange((value) => {
-				if (value) this._selectedItems.push(item);
-				else {
-					const index = this._selectedItems.findIndex(
-						(value) => item === value
-					);
-					this._selectedItems.splice(index, 1);
+	private addSearchableOptions() {
+		this.picker = new SearchableMultiSelect(this.contentEl, {
+			items: this.items.map((item) => ({
+				key: item,
+				value: item,
+				label: item,
+			})),
+			isSelected: ({ value }) => this._selectedItems.includes(value),
+			onToggle: ({ value }, selected) => {
+				if (selected) {
+					if (!this._selectedItems.includes(value)) {
+						this._selectedItems.push(value);
+					}
+					return;
 				}
-			});
+				this._selectedItems = this._selectedItems.filter(
+					(selectedItem) => selectedItem !== value,
+				);
+			},
+			getSelectedCount: () => new Set(this._selectedItems).size,
+		});
 	}
 
 	private addSubmitButton() {
 		const submitButtonContainer: HTMLDivElement = this.contentEl.createDiv(
-			"submitButtonContainer"
+			"submitButtonContainer",
 		);
 		const submitButton: ButtonComponent = new ButtonComponent(
 			submitButtonContainer
@@ -97,7 +99,7 @@ export default class GenericCheckboxPrompt extends Modal {
 		submitButton
 			.setButtonText("Submit")
 			.setCta()
-			.onClick((evt) => {
+			.onClick(() => {
 				this.resolved = true;
 				this.resolvePromise(this._selectedItems);
 
@@ -111,7 +113,7 @@ export default class GenericCheckboxPrompt extends Modal {
 			submitButtonContainer
 		);
 
-		cancelButton.setButtonText("Cancel").onClick((evt) => {
+		cancelButton.setButtonText("Cancel").onClick(() => {
 			this.close();
 		});
 	}
