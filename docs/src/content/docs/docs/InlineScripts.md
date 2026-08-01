@@ -1,6 +1,6 @@
 ---
 title: Inline scripts
-description: Run JavaScript inside Template and Capture choices with js quickadd code blocks, returning a string to be inserted
+description: Run JavaScript inside Template and Capture choices with js quickadd code blocks, returning text or typed values to be inserted
 slug: docs/InlineScripts
 ---
 
@@ -33,7 +33,28 @@ Good to know:
 
 - Label the block `js quickadd`, not plain `js`. A plain `js` block is inserted as an ordinary code snippet and never runs.
 - The [QuickAdd API](/docs/QuickAddAPI/) is available as `this` (the same API user scripts get, where it arrives as a parameter instead).
-- To insert something, `return` it. The return value **must** be a string.
+- To insert something, `return` it. Strings, numbers, booleans, and arrays are
+  supported.
+
+:::note[Available in the next release]
+Typed inline-script returns are on `master` and will ship in the next QuickAdd
+release. Released versions through 2.20.0 insert only string returns.
+:::
+
+Return values follow the same rendering contract as a typed
+[`{{VALUE:name}}`](/docs/FormatSyntax/#named-value):
+
+| Return value | In ordinary text | As the sole value of a frontmatter property |
+| --- | --- | --- |
+| String | Inserted unchanged | Inserted unchanged |
+| Number or boolean | Inserted as scalar text | Written as a Number or Checkbox value |
+| Array | Joined with commas | Written as a native YAML list |
+| `null` or `undefined` | Inserts nothing | Leaves the property empty |
+
+Plain objects and other unsupported JavaScript values also insert nothing.
+QuickAdd does not guess how to serialize them into Markdown. Assign an object to
+`this.variables` and reference its fields explicitly, or return the exact string
+you want to insert.
 
 ## Execution order and `{{VALUE}}` {#execution-order-and-value}
 

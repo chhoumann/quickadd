@@ -492,18 +492,73 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 	});
 
 	it("replaces inline JavaScript with its string output", async () => {
-		mocks.inlineRunAndGetOutput.mockResolvedValue("scripted");
+		mocks.inlineRunAndGetOutput.mockResolvedValue("scripted $&");
 		const f = defaultFormatter();
 		await expect(
 			f.formatFolderPath("```js quickadd\nreturn 'x'\n```"),
-		).resolves.toBe("scripted");
+		).resolves.toBe("scripted $&");
 	});
 
-	it("replaces inline JavaScript with empty string when output is non-string", async () => {
+	it("renders number and boolean outputs as scalar text", async () => {
 		mocks.inlineRunAndGetOutput.mockResolvedValue(42);
 		const f = defaultFormatter();
 		await expect(
 			f.formatFolderPath("[```js quickadd\n1+1\n```]"),
+		).resolves.toBe("[42]");
+
+		mocks.inlineRunAndGetOutput.mockResolvedValue(true);
+		await expect(
+			f.formatFolderPath("[```js quickadd\nreturn true\n```]"),
+		).resolves.toBe("[true]");
+	});
+
+	it("collects an array output in a sole frontmatter property position", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
+		const f = defaultFormatter();
+		const template = [
+			"---",
+			"items: ```js quickadd",
+			"return ['alpha', 'beta'];",
+			"```",
+			"---",
+		].join("\n");
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent(template),
+		);
+		const vars = f.getAndClearTemplatePropertyVars();
+
+		expect(result).toBe("---\nitems: []\n---");
+		expect(vars.get("items")).toEqual(["alpha", "beta"]);
+	});
+
+	it("renders an array output as comma-joined ordinary text", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent(
+				"Body: ```js quickadd\nreturn ['alpha', 'beta'];\n```",
+			),
+		).resolves.toBe("Body: alpha,beta");
+	});
+
+	it.each([null, undefined])(
+		"keeps nullish output empty (%s)",
+		async (value) => {
+			mocks.inlineRunAndGetOutput.mockResolvedValue(value);
+			const f = defaultFormatter();
+			await expect(
+				f.formatFolderPath("[```js quickadd\nnoop\n```]"),
+			).resolves.toBe("[]");
+		},
+	);
+
+	it("keeps unsupported object output empty", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue({ answer: 42 });
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath("[```js quickadd\nnoop\n```]"),
 		).resolves.toBe("[]");
 	});
 

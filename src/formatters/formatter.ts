@@ -961,6 +961,32 @@ export abstract class Formatter {
 	}
 
 	/**
+	 * Renders the shared structured-value part of a typed replacement.
+	 *
+	 * A sole frontmatter value is first offered to TemplatePropertyCollector so
+	 * Obsidian can write containers through processFrontMatter. Arrays outside a
+	 * collected position use the established {{VALUE:key}} text contract and join
+	 * with commas. Callers retain control of scalar and unsupported-value policy.
+	 */
+	protected renderCollectedOrArrayValue(args: {
+		input: string;
+		matchStart: number;
+		matchEnd: number;
+		rawValue: unknown;
+		fallbackKey: string;
+		heuristicEnabled: boolean;
+	}): string | undefined {
+		const structuredYamlValue = this.propertyCollector.maybeCollect({
+			...args,
+			collectionActive: this.templatePropertyCollectionDepth > 0,
+		});
+		const placeholder = getYamlPlaceholder(structuredYamlValue);
+		if (placeholder !== undefined) return placeholder;
+		if (Array.isArray(args.rawValue)) return args.rawValue.join(",");
+		return undefined;
+	}
+
+	/**
 	 * Runs a formatting operation in a scope where structured YAML values should
 	 * be collected and replaced with temporary placeholders for later
 	 * `processFrontMatter()` post-processing.
@@ -1228,20 +1254,18 @@ export abstract class Formatter {
 			// processFrontMatter pass is always-on inside a collection scope so that
 			// scripts returning real arrays produce valid YAML regardless of the
 			// beta toggle. Only the string -> structured *heuristic* is flag-gated.
-			const collectionActive = this.templatePropertyCollectionDepth > 0;
-			const structuredYamlValue = this.propertyCollector.maybeCollect({
+			const structuredReplacement = this.renderCollectedOrArrayValue({
 				input: output,
 				matchStart: match.index,
 				matchEnd: match.index + match[0].length,
 				rawValue: effectiveRawValue,
 				fallbackKey: variableName,
-				collectionActive,
 				// |type:text forces a string: never run the string->structured
 				// heuristic on it, or a comma/bracket value (`a,b`, `[x]`) would be
 				// collected as a List and bypass the quoting path below.
 				heuristicEnabled:
 					propertyTypesEnabled &&
-					collectionActive &&
+					this.templatePropertyCollectionDepth > 0 &&
 					parsed.inputTypeOverride !== "text",
 			});
 
@@ -1249,15 +1273,9 @@ export abstract class Formatter {
 			// writes the real structured value back through Obsidian. Coerce the
 			// fallback replacement to a string so non-string variable values (e.g.
 			// arrays from scripts on the non-collected path) don't desync the scanner.
-			const placeholder = getYamlPlaceholder(structuredYamlValue);
 			let replacement: string;
-			if (placeholder !== undefined) {
-				replacement = placeholder;
-			} else if (Array.isArray(effectiveRawValue)) {
-				// A |multi (or script) array that was NOT collected (body text, or a
-				// capture flow that suppresses frontmatter collection): join with
-				// commas. Guards against transformCase()/String() on an array.
-				replacement = effectiveRawValue.join(",");
+			if (structuredReplacement !== undefined) {
+				replacement = structuredReplacement;
 			} else {
 				const stringVal = String(
 					this.applyValueTextOptions(
