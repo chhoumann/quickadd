@@ -36,11 +36,6 @@ Good to know:
 - To insert something, `return` it. Strings, numbers, booleans, and arrays are
   supported.
 
-:::note[Available in the next release]
-Typed inline-script returns are on `master` and will ship in the next QuickAdd
-release. Released versions through 2.20.0 insert only string returns.
-:::
-
 Return values follow the same rendering contract as a typed
 [`{{VALUE:name}}`](/docs/FormatSyntax/#named-value):
 
