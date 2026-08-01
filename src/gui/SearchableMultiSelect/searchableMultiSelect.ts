@@ -34,7 +34,7 @@ const MAX_VISIBLE_OPTIONS = 200;
 let pickerId = 0;
 
 function normalizeSearchText(value: string): string {
-	return value.normalize("NFKD").toLocaleLowerCase();
+	return value.normalize("NFKD").toLowerCase();
 }
 
 /**

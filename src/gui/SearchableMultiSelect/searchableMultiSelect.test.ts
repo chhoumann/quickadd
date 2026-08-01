@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "./searchableMultiSelect";
@@ -63,6 +63,26 @@ describe("SearchableMultiSelect", () => {
 			".qa-searchable-multi-select__option input[type=checkbox]",
 		);
 		expect(checkboxes[1].checked).toBe(true);
+	});
+
+	it("uses locale-independent case folding for ASCII search", () => {
+		const localeLowerCase = vi
+			.spyOn(String.prototype, "toLocaleLowerCase")
+			.mockImplementation(function (this: string) {
+				return this.replaceAll("I", "ı").toLowerCase();
+			});
+
+		try {
+			const { container } = createPicker([
+				{ key: "inbox", value: "inbox", label: "INBOX" },
+			]);
+
+			search(container, "i");
+			expect(optionLabels(container)).toEqual(["INBOX"]);
+			expect(localeLowerCase).not.toHaveBeenCalled();
+		} finally {
+			localeLowerCase.mockRestore();
+		}
 	});
 
 	it("uses the whole labelled row as the native checkbox target", () => {
