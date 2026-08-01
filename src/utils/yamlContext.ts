@@ -48,7 +48,11 @@ export function getYamlContextForMatch(
   }
 
   const lineStart = input.lastIndexOf("\n", matchStart - 1) + 1;
-  const lineEndIdx = input.indexOf("\n", matchStart);
+  // A match may span several lines, as an inline `js quickadd` fence does.
+  // Find the end of the line containing the match's END so sole-value checks
+  // can see a suffix after the closing fence. Using matchStart here silently
+  // treated `key: <multiline match> suffix` as a sole property value.
+  const lineEndIdx = input.indexOf("\n", Math.max(matchStart, matchEnd));
   const lineEnd = lineEndIdx === -1 ? input.length : lineEndIdx;
 
   const before = input.slice(lineStart, matchStart);

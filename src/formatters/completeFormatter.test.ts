@@ -532,6 +532,46 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(vars.get("items")).toEqual(["alpha", "beta"]);
 	});
 
+	it("does not collect an array when text follows the closing fence", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
+		const f = defaultFormatter();
+		const template = [
+			"---",
+			"items: ```js quickadd",
+			"return ['alpha', 'beta'];",
+			"``` suffix",
+			"---",
+		].join("\n");
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent(template),
+		);
+		const vars = f.getAndClearTemplatePropertyVars();
+
+		expect(result).toBe("---\nitems: alpha,beta suffix\n---");
+		expect(vars.has("items")).toBe(false);
+	});
+
+	it("collects an array when only a comment follows the closing fence", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
+		const f = defaultFormatter();
+		const template = [
+			"---",
+			"items: ```js quickadd",
+			"return ['alpha', 'beta'];",
+			"``` # keep this comment",
+			"---",
+		].join("\n");
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent(template),
+		);
+		const vars = f.getAndClearTemplatePropertyVars();
+
+		expect(result).toBe("---\nitems: [] # keep this comment\n---");
+		expect(vars.get("items")).toEqual(["alpha", "beta"]);
+	});
+
 	it("renders an array output as comma-joined ordinary text", async () => {
 		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
 		const f = defaultFormatter();
