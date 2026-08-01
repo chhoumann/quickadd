@@ -37,7 +37,7 @@ const makePlugin = () =>
 	}) as never;
 
 describe("RequirementCollector — {{FILE:...}}", () => {
-	it("records a forced DROPDOWN (non-custom) whose options round-trip as encoded paths", async () => {
+	it("records a searchable file picker whose options round-trip as encoded paths", async () => {
 		const app = makeApp([
 			"Research Topics/Alpha.md",
 			"Research Topics/Beta.md",
@@ -49,9 +49,7 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		const key = parseFileToken("Research Topics|link")!.variableKey;
 		const req = rc.requirements.get(key);
 		expect(req).toBeDefined();
-		// Non-custom FILE is a forced dropdown so a one-page user cannot type a raw
-		// value that bypasses the option list.
-		expect(req?.type).toBe("dropdown");
+		expect(req?.type).toBe("file-picker");
 		expect(req?.options).toEqual([
 			`${FILE_PICK_PREFIX}Research Topics/Alpha.md`,
 			`${FILE_PICK_PREFIX}Research Topics/Beta.md`,
@@ -71,38 +69,39 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(req?.displayOptions).toEqual(["Ada Lovelace (01HX)"]);
 	});
 
-	it("records a suggester (free text) only when |custom, with the flags set", async () => {
+	it("enables custom values only when |custom, with the flags set", async () => {
 		const app = makeApp(["People/Tom.md"]);
 		const rc = new RequirementCollector(app, makePlugin());
 		await rc.scanString("{{FILE:People|optional|custom}}");
 
 		const key = parseFileToken("People|optional|custom")!.variableKey;
 		const req = rc.requirements.get(key);
-		expect(req?.type).toBe("suggester");
+		expect(req?.type).toBe("file-picker");
 		expect(req?.optional).toBe(true);
 		expect(req?.suggesterConfig?.allowCustomInput).toBe(true);
 	});
 
-	it("falls back to a suggester when the folder has no markdown files", async () => {
+	it("allows custom input when the folder has no markdown files", async () => {
 		const app = makeApp(["People/Tom.md"]); // nothing under Empty/
 		const rc = new RequirementCollector(app, makePlugin());
 		await rc.scanString("{{FILE:Empty}}");
 
 		const key = parseFileToken("Empty")!.variableKey;
 		const req = rc.requirements.get(key);
-		expect(req?.type).toBe("suggester");
+		expect(req?.type).toBe("file-picker");
 		expect(req?.options).toEqual([]);
+		expect(req?.suggesterConfig?.allowCustomInput).toBe(true);
 	});
 
-	it("marks FILE multi-select requirements as runtime-only", async () => {
+	it("collects FILE multi-select requirements in the one-page form", async () => {
 		const app = makeApp(["People/Tom.md", "People/Jack.md"]);
 		const rc = new RequirementCollector(app, makePlugin());
 		await rc.scanString("{{FILE:People|multi|link}}");
 
 		const key = parseFileToken("People|multi|link")!.variableKey;
 		const req = rc.requirements.get(key);
-		expect(req?.runtimeOnly).toBe(true);
-		expect(req?.type).toBe("suggester");
+		expect(req?.runtimeOnly).toBeUndefined();
+		expect(req?.type).toBe("file-picker");
 		expect(req?.suggesterConfig?.multiSelect).toBe(true);
 	});
 
@@ -139,7 +138,7 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(rc.requirements.get(key)?.optional).toBe(true);
 	});
 
-	it("upgrades a shared-id requirement to a custom suggester order-independently", async () => {
+	it("upgrades a shared-id file picker to custom input order-independently", async () => {
 		const app = makeApp(["People/Tom.md"]);
 		const rc = new RequirementCollector(app, makePlugin());
 		// non-custom first (would be a forced dropdown), |custom second.
@@ -148,7 +147,7 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		);
 		const key = parseFileToken("People|name:ref")!.variableKey;
 		const req = rc.requirements.get(key);
-		expect(req?.type).toBe("suggester");
+		expect(req?.type).toBe("file-picker");
 		expect(req?.suggesterConfig?.allowCustomInput).toBe(true);
 	});
 
@@ -159,7 +158,7 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 
 		const key = parseFileToken("People")!.variableKey;
 		const fileReq = rc.requirements.get(key);
-		expect(fileReq?.type).toBe("dropdown");
+		expect(fileReq?.type).toBe("file-picker");
 		expect(fileReq?.label).toBe("File from People");
 		// Only the FILE token created a requirement.
 		expect(rc.requirements.size).toBe(1);

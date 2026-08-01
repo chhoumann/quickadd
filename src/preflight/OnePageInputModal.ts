@@ -11,6 +11,10 @@ import {
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
+import {
+	FilePickerInputSuggest,
+	type FilePickerOption,
+} from "src/gui/suggesters/FilePickerInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import {
@@ -35,6 +39,7 @@ import {
 } from "src/utils/valueSyntax";
 import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
+import { decodeFileValue } from "src/utils/fileSyntax";
 
 /**
  * One row of the live preview block, with the problems that pass ran into.
@@ -52,7 +57,7 @@ export type PreviewRow = {
 };
 
 type PreviewComputer = (
-	values: Record<string, string>,
+	values: Record<string, unknown>,
 ) => Promise<PreviewRow[]> | PreviewRow[];
 
 export class OnePageInputModal extends Modal {
@@ -65,6 +70,10 @@ export class OnePageInputModal extends Modal {
 	// option named "a, b"; consumers prefer this array when it still matches the
 	// final text (pure click flow), falling back to text parsing after manual edits.
 	public readonly multiSelections = new Map<string, string[]>();
+	// FILE selections stay structured and path-backed even though the public
+	// requestInputs result remains string-based. runOnePagePreflight consumes this
+	// map before the formatter renders name/link/path output.
+	public readonly fileSelections = new Map<string, string[]>();
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
@@ -74,6 +83,7 @@ export class OnePageInputModal extends Modal {
 	private updatePreviewDebounced: () => void;
 	private settled = false;
 	private readonly imagePasteHandles: ImagePasteHandle[] = [];
+	private readonly filePickerSuggesters: FilePickerInputSuggest[] = [];
 
 	public waitForClose: Promise<Record<string, string>>;
 	private resolvePromise!: (values: Record<string, string>) => void;
@@ -580,15 +590,7 @@ export class OnePageInputModal extends Modal {
 				break;
 			}
 			case "file-picker": {
-				const setting = new Setting(this.contentEl).setName(
-					this.decorateLabel(req),
-				);
-				if (req.description) setting.setDesc(req.description);
-				const input = new TextComponent(setting.controlEl);
-				input
-					.setPlaceholder(req.placeholder ?? "")
-					.setValue(starting)
-					.onChange((v) => setValue(req.id, v));
+				this.renderFilePickerField(req, starting, setValue);
 				break;
 			}
 			default: {
@@ -606,6 +608,163 @@ export class OnePageInputModal extends Modal {
 
 		// Initialize stored value for empty inputs to ensure presence
 		if (!this.result.has(req.id)) this.result.set(req.id, starting);
+	}
+
+	private renderFilePickerField(
+		req: FieldRequirement,
+		starting: string,
+		setValue: (id: string, value: string) => void,
+	): void {
+		const setting = new Setting(this.contentEl).setName(
+			this.decorateLabel(req),
+		);
+		setting.settingEl.addClass("qa-onepage-file-picker-setting");
+		if (req.description) setting.setDesc(req.description);
+
+		const values = req.options ?? [];
+		const displayValues = req.displayOptions ?? values;
+		const options: FilePickerOption[] = values.map((value, index) => {
+			const decoded = decodeFileValue(value);
+			return {
+				value,
+				label: displayValues[index] ?? value,
+				path: decoded.kind === "file" ? decoded.path : value,
+			};
+		});
+		const optionByValue = new Map(options.map((option) => [option.value, option]));
+		const multiSelect = req.suggesterConfig?.multiSelect ?? false;
+		const allowCustomInput =
+			req.suggesterConfig?.allowCustomInput ?? false;
+		const selected = new Set<string>();
+		const customOptions = new Map<string, FilePickerOption>();
+
+		const addCustomOption = (value: string): FilePickerOption => {
+			const existing = customOptions.get(value);
+			if (existing) return existing;
+			const option = {
+				value,
+				label: value,
+				path: "Custom value",
+				isCustom: true,
+			};
+			customOptions.set(value, option);
+			return option;
+		};
+
+		if (starting && optionByValue.has(starting)) {
+			selected.add(starting);
+		} else if (starting && allowCustomInput) {
+			const decoded = decodeFileValue(starting);
+			const customValue =
+				decoded.kind === "custom" ? decoded.text : starting;
+			addCustomOption(customValue);
+			selected.add(customValue);
+		} else if (!multiSelect && options.length > 0) {
+			// Preserve the former dropdown's untouched-submit behavior. The first
+			// file stays selected by default, but is now visible and removable.
+			selected.add(options[0].value);
+		}
+
+		const container = setting.controlEl.createDiv({
+			cls: "qa-onepage-file-picker",
+		});
+		const selectionEl = container.createDiv({
+			cls: "qa-onepage-file-picker__selection",
+		});
+		selectionEl.setAttribute("aria-live", "polite");
+		const input = new TextComponent(container);
+		input.inputEl.addClass("qa-onepage-file-picker__input");
+		input.setPlaceholder(
+			req.placeholder ??
+				(multiSelect ? "Search and add files..." : "Search files..."),
+		);
+		input.inputEl.setAttribute(
+			"aria-label",
+			multiSelect ? `Add files for ${req.label}` : `Choose file for ${req.label}`,
+		);
+
+		const orderedSelections = (): FilePickerOption[] => {
+			const ordered = options.filter((option) => selected.has(option.value));
+			for (const option of customOptions.values()) {
+				if (selected.has(option.value)) ordered.push(option);
+			}
+			return ordered;
+		};
+
+		const sync = () => {
+			const picked = orderedSelections();
+			const pickedValues = picked.map((option) => option.value);
+			this.fileSelections.set(req.id, pickedValues);
+			setValue(
+				req.id,
+				multiSelect ? pickedValues.join(", ") : (pickedValues[0] ?? ""),
+			);
+
+			selectionEl.empty();
+			selectionEl.toggleClass("qa-hidden", picked.length === 0);
+			for (const option of picked) {
+				const chip = selectionEl.createDiv({
+					cls: "qa-onepage-file-picker__chip",
+				});
+				chip.setAttribute("title", option.path);
+				chip.createSpan({
+					cls: "qa-onepage-file-picker__chip-label",
+					text: option.label,
+				});
+				const remove = chip.createEl("button", {
+					cls: "qa-onepage-file-picker__remove",
+					text: "×",
+				});
+				remove.type = "button";
+				remove.setAttribute("aria-label", `Remove ${option.label}`);
+				remove.addEventListener("click", () => {
+					selected.delete(option.value);
+					sync();
+					input.inputEl.focus();
+				});
+			}
+		};
+
+		const selectOption = (option: FilePickerOption) => {
+			const selectedOption = option.isCustom
+				? addCustomOption(option.value)
+				: option;
+			if (!multiSelect) selected.clear();
+			selected.add(selectedOption.value);
+			sync();
+		};
+
+		input.inputEl.addEventListener("keydown", (event) => {
+			if (
+				event.key === "Backspace" &&
+				input.inputEl.value === "" &&
+				selected.size > 0
+			) {
+				const last = orderedSelections().at(-1);
+				if (!last) return;
+				event.preventDefault();
+				selected.delete(last.value);
+				sync();
+			}
+		});
+
+		try {
+			const suggester = new FilePickerInputSuggest(
+				this.app,
+				input.inputEl,
+				() => [...options, ...customOptions.values()],
+				(value) => selected.has(value),
+				selectOption,
+				multiSelect,
+				allowCustomInput,
+			);
+			this.filePickerSuggesters.push(suggester);
+		} catch {
+			// A failed suggester should not break the rest of the one-page form.
+			input.setDisabled(true);
+		}
+
+		sync();
 	}
 
 	/**
@@ -719,6 +878,19 @@ export class OnePageInputModal extends Modal {
 		return out;
 	}
 
+	private collectPreviewAnswers(): Record<string, unknown> {
+		const out: Record<string, unknown> = this.collectAnswers();
+		const requirementsById = new Map(
+			this.requirements.map((req) => [req.id, req] as const),
+		);
+		for (const [id, picks] of this.fileSelections) {
+			out[id] = requirementsById.get(id)?.suggesterConfig?.multiSelect
+				? [...picks]
+				: (picks[0] ?? "");
+		}
+		return out;
+	}
+
 	private cancel() {
 		this.settled = true;
 		this.close();
@@ -728,6 +900,8 @@ export class OnePageInputModal extends Modal {
 	onClose() {
 		for (const handle of this.imagePasteHandles) handle.detach();
 		this.imagePasteHandles.length = 0;
+		for (const suggester of this.filePickerSuggesters) suggester.destroy();
+		this.filePickerSuggesters.length = 0;
 		// Esc (or any close that isn't submit/cancel) must settle the promise,
 		// otherwise the choice execution hangs forever on waitForClose.
 		if (!this.settled) {
@@ -749,7 +923,7 @@ export class OnePageInputModal extends Modal {
 			// value the run is about to re-ask for: an untouched required
 			// {{VDATE:}} is withheld here too, and the preview falls back to its
 			// example date instead of rendering an empty one (#1590).
-			const rows = await this.computePreview(this.collectAnswers());
+			const rows = await this.computePreview(this.collectPreviewAnswers());
 			if (token !== this.previewToken || !this.previewContainerEl) return;
 
 			this.previewContainerEl.empty();

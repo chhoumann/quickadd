@@ -198,8 +198,10 @@ pickers do so you can create something new).
 
 Prompt `type`s and the `value` you reply with: `suggester`/`input`/`date` →
 string, `confirm` → boolean, `checkbox` → string array, `info` →
-acknowledgement, `form` → an object mapping each field's `id` to its string
-value (date fields use the `@date:ISO` format). The run's outcome arrives as the
+acknowledgement, `form` → an object mapping each field's `id` to its value.
+Ordinary and date fields use strings (dates use the `@date:ISO` format), while
+multi-select fields use string arrays. Use the array form for multi-selects so
+values containing commas remain unambiguous. The run's outcome arrives as the
 `done`/`error` poll event: `done` carries the same `verified` and `effect` keys
 described under [Knowing whether anything actually landed](#verified-and-effect).
 

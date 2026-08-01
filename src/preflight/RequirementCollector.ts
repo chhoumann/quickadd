@@ -656,28 +656,19 @@ export class RequirementCollector extends Formatter {
 			// AND rule as VALUE/VDATE: optional only if EVERY occurrence is
 			// optional, so a later required use still prompts.
 			existing.optional = (existing.optional ?? false) && parsed.optional;
-			// Merge custom-input capability order-independently: if ANY occurrence
-			// allows custom input, the shared field must expose the free-text
-			// suggester (most-permissive wins, mirroring VALUE's option upgrade).
-			if (parsed.allowCustomInput) {
-				existing.type = "suggester";
-				existing.suggesterConfig = {
-					allowCustomInput: true,
-					caseSensitive: false,
-					multiSelect: parsed.multiSelect,
-				};
-			}
-			if (parsed.multiSelect) {
-				existing.type = "suggester";
-				existing.runtimeOnly = true;
-				existing.suggesterConfig = {
-					allowCustomInput:
-						existing.suggesterConfig?.allowCustomInput ??
-						parsed.allowCustomInput,
-					caseSensitive: false,
-					multiSelect: true,
-				};
-			}
+			// Shared |name: occurrences collapse into one typed FILE picker. Merge
+			// capabilities order-independently so any |custom / |multi occurrence
+			// upgrades the shared field without changing its stable path values.
+			existing.type = "file-picker";
+			existing.suggesterConfig = {
+				allowCustomInput:
+					(existing.suggesterConfig?.allowCustomInput ?? false) ||
+					parsed.allowCustomInput,
+				caseSensitive: false,
+				multiSelect:
+					(existing.suggesterConfig?.multiSelect ?? false) ||
+					parsed.multiSelect,
+			};
 			return;
 		}
 
@@ -694,14 +685,12 @@ export class RequirementCollector extends Formatter {
 			files,
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
-		// A non-custom FILE is a FORCED choice: render it as a dropdown so the
-		// one-page form can't store a raw typed value (a free-text suggester would
-		// let "type name + Enter" bypass the option list, mirroring the runtime
-		// GenericSuggester vs InputSuggester split). Fall back to a suggester (free
-		// text) when |custom, or when the folder is empty so the field isn't a
-		// dead, disabled dropdown.
-		const useSuggester =
-			parsed.allowCustomInput || parsed.multiSelect || options.length === 0;
+		// The dedicated picker keeps display labels separate from the encoded file
+		// paths, so both single and multi FILE tokens can search inline without the
+		// comma serialization that made multi-select runtime-only. Preserve the
+		// previous empty-folder one-page behavior by permitting a literal value when
+		// no real file options exist.
+		const allowCustomInput = parsed.allowCustomInput || options.length === 0;
 		// Disambiguate same-scope tokens that differ only by mode (e.g. a basename
 		// and a link to the same folder) when no explicit |label.
 		const autoLabel =
@@ -711,21 +700,16 @@ export class RequirementCollector extends Formatter {
 		this.requirements.set(key, {
 			id: key,
 			label: parsed.label ?? autoLabel,
-			type: useSuggester ? "suggester" : "dropdown",
+			type: "file-picker",
 			source: "collected",
 			options,
 			displayOptions,
 			optional: parsed.optional,
-			runtimeOnly: parsed.multiSelect,
-			...(useSuggester
-				? {
-						suggesterConfig: {
-							allowCustomInput: parsed.allowCustomInput,
-							caseSensitive: false,
-							multiSelect: parsed.multiSelect,
-						},
-					}
-				: {}),
+			suggesterConfig: {
+				allowCustomInput,
+				caseSensitive: false,
+				multiSelect: parsed.multiSelect,
+			},
 		});
 	}
 

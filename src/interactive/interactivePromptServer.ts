@@ -78,6 +78,7 @@ export interface FormField {
 	defaultValue?: string;
 	description?: string;
 	options?: string[];
+	displayOptions?: string[];
 	dateFormat?: string;
 	optional?: boolean;
 	numericConfig?: { min?: number; max?: number; step?: number };

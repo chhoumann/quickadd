@@ -19,6 +19,7 @@ import {
 	getUnresolvedRequirements,
 } from "./collectChoiceRequirements";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+import type { FormAnswer } from "src/interactive/promptProvider";
 
 /**
  * Reconstruct the picked labels from the ", "-joined suggester string.
@@ -63,6 +64,28 @@ export function splitMultiSelectLabels(
 	}
 
 	return out;
+}
+
+/**
+ * Match MultiSuggester's output contract for structured FILE replies: known
+ * options follow source order, then unique custom entries follow reply order.
+ */
+export function orderOnePageFilePicks(
+	rawPicks: string[],
+	options: string[],
+	allowCustom: boolean,
+): string[] {
+	const validPicks = rawPicks.filter(
+		(value) => allowCustom || options.includes(value),
+	);
+	const selected = new Set(validPicks);
+	return [
+		...options.filter((value) => selected.has(value)),
+		...validPicks.filter(
+			(value, index) =>
+				!options.includes(value) && validPicks.indexOf(value) === index,
+		),
+	];
 }
 
 function shouldPromptAtRuntimeForDiscovery(
@@ -118,7 +141,7 @@ export async function runOnePagePreflight(
 		// Show modal
 		// Optional live preview of a couple of key outputs (best-effort)
 		const computePreview = async (
-			values: Record<string, string>,
+			values: Record<string, unknown>,
 		): Promise<PreviewRow[]> => {
 			try {
 				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
@@ -171,12 +194,11 @@ export async function runOnePagePreflight(
 		};
 
 		// A remote interactive session (Raycast) collects the batch form through the
-		// provider instead of the Obsidian modal; the values come back in the same
-		// id -> string shape, so the post-processing below is unchanged (the modal's
-		// per-pick multi-select map is simply absent, falling back to string parsing).
+		// provider instead of the Obsidian modal. Multi-select FILE answers stay as
+		// arrays across this internal boundary so display labels are never parsed.
 		const provider = choiceExecutor.promptProvider;
 		let modal: OnePageInputModal | null = null;
-		let values: Record<string, string>;
+		let values: Record<string, FormAnswer>;
 		if (provider) {
 			values = await provider.requestInputs(modalRequirements);
 		} else {
@@ -193,7 +215,15 @@ export async function runOnePagePreflight(
 		// generic suggester stores raw typed text, so a value that isn't one of the
 		// requirement's encoded `@file:` picks is treated as typed custom text (and
 		// can't spoof a pick by typing the internal `@file:` sentinel).
-		const fileOptionsByKey = new Map<string, string[]>();
+		const fileInfoByKey = new Map<
+			string,
+			{
+				options: string[];
+				displayToValue: Map<string, string>;
+				allowCustom: boolean;
+				multiSelect: boolean;
+			}
+		>();
 		// |multi requirements: the suggester stores a ", "-joined string of the
 		// DISPLAY labels; split it, map each label back to its option value (so
 		// |text: mappings round-trip), and store a real array so the formatter
@@ -209,9 +239,24 @@ export async function runOnePagePreflight(
 		>();
 		for (const req of modalRequirements) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
-				fileOptionsByKey.set(req.id, req.options ?? []);
+				const options = req.options ?? [];
+				const displayOptions = req.displayOptions ?? options;
+				fileInfoByKey.set(req.id, {
+					options,
+					displayToValue: new Map(
+						options.map((value, index) => [
+							(displayOptions[index] ?? value).trim(),
+							value,
+						]),
+					),
+					allowCustom: req.suggesterConfig?.allowCustomInput ?? false,
+					multiSelect: req.suggesterConfig?.multiSelect ?? false,
+				});
 			}
-			if (req.suggesterConfig?.multiSelect) {
+			if (
+				req.suggesterConfig?.multiSelect &&
+				!req.id.startsWith(FILE_VARIABLE_PREFIX)
+			) {
 				const options = req.options ?? [];
 				const displayOptions = req.displayOptions ?? options;
 				const displayToValue = new Map<string, string>();
@@ -228,6 +273,30 @@ export async function runOnePagePreflight(
 
 		// Store results into executor variables
 		Object.entries(values).forEach(([k, v]) => {
+			const fileInfo = fileInfoByKey.get(k);
+			if (fileInfo !== undefined) {
+				const structuredPicks = modal?.fileSelections.get(k) ??
+					(Array.isArray(v) ? v.map(String) : undefined);
+				const rawPicks = structuredPicks ??
+					(fileInfo.multiSelect
+						? splitMultiSelectLabels(String(v), fileInfo.displayToValue).map(
+								(label) => fileInfo.displayToValue.get(label) ?? label,
+							)
+						: [String(v)]);
+				const orderedPicks = orderOnePageFilePicks(
+					rawPicks,
+					fileInfo.options,
+					fileInfo.allowCustom,
+				);
+				const normalized = orderedPicks.map((value) =>
+					canonicalizeOnePageFileValue(value, fileInfo.options),
+				);
+				choiceExecutor.variables.set(
+					k,
+					fileInfo.multiSelect ? normalized : (normalized[0] ?? ""),
+				);
+				return;
+			}
 			const multiInfo = multiInfoByKey.get(k);
 			if (multiInfo !== undefined) {
 				// Prefer the modal's unambiguous per-pick selection (survives the
@@ -253,11 +322,7 @@ export async function runOnePagePreflight(
 				);
 				return;
 			}
-			const fileOptions = fileOptionsByKey.get(k);
-			const normalized = fileOptions
-				? canonicalizeOnePageFileValue(v, fileOptions)
-				: v;
-			choiceExecutor.variables.set(k, normalized);
+			choiceExecutor.variables.set(k, v);
 		});
 
 		return true;

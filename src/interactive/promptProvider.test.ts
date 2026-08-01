@@ -94,6 +94,51 @@ describe("RemotePromptProvider date marshaling", () => {
 	});
 });
 
+describe("RemotePromptProvider form marshaling", () => {
+	it("preserves multi-select arrays and sends FILE display labels", async () => {
+		let sentSpec: unknown;
+		const server = {
+			emitPrompt: vi.fn(async (_id: string, spec: unknown) => {
+				sentSpec = spec;
+				return {
+					people: ["@file:People/Doe, Jane.md", "@file:People/Grace.md"],
+				};
+			}),
+		} as unknown as ServerLike;
+		const provider = new RemotePromptProvider("s", server);
+
+		const out = await provider.requestInputs([
+			{
+				id: "people",
+				label: "Related people",
+				type: "file-picker",
+				options: [
+					"@file:People/Doe, Jane.md",
+					"@file:People/Grace.md",
+				],
+				displayOptions: ["Doe, Jane", "Grace"],
+				suggesterConfig: { multiSelect: true, allowCustomInput: false },
+			},
+		]);
+
+		expect(out.people).toEqual([
+			"@file:People/Doe, Jane.md",
+			"@file:People/Grace.md",
+		]);
+		expect(sentSpec).toMatchObject({
+			type: "form",
+			fields: [
+				{
+					id: "people",
+					type: "suggester",
+					displayOptions: ["Doe, Jane", "Grace"],
+					suggesterConfig: { multiSelect: true },
+				},
+			],
+		});
+	});
+});
+
 describe("RemotePromptProvider suggester marshaling", () => {
 	it("returns the original actualItems entry (object identity), not a stringified copy", async () => {
 		const file = { basename: "note", path: "a/note.md" };
