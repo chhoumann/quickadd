@@ -110,6 +110,17 @@ function isCaptureContentEmpty(content: string): boolean {
 	return ASCII_WHITESPACE_ONLY_REGEX.test(content);
 }
 
+const MULTI_SELECT_TOKEN_REGEX =
+	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi(?=[:}|]|$)[^}]*\}\}/gi;
+const EXPLICIT_MULTI_FORMAT_REGEX =
+	/\|\s*format\s*:\s*(?:inline|yaml|markdown)\s*(?=\||}})/i;
+
+function hasContextualMultiSelectToken(input: string): boolean {
+	return Array.from(input.matchAll(MULTI_SELECT_TOKEN_REGEX)).some(
+		(match) => !EXPLICIT_MULTI_FORMAT_REGEX.test(match[0]),
+	);
+}
+
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
 type CaptureWriteResult = {
@@ -495,12 +506,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				// `|multi1`, `|multi-select`, etc. FIELD is included because
 				// {{FIELD:…|multi}} degrades to a comma-joined string in the exact
 				// same way VALUE/FILE do (see formatter.ts replaceFieldVarInString).
-				/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi(?=[:}|]|$)/i.test(
-					this.choice?.format?.format ?? "",
-				)
+				hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings, not YAML lists. Multi-select produces a real list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template).",
+					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown or |format:inline to choose the output explicitly.",
 				);
 			}
 

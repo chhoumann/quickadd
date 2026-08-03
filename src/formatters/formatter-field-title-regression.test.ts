@@ -198,6 +198,39 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 		expect(formatter.getAndClearTemplatePropertyVars().size).toBe(0);
 	});
 
+	it("writes an explicit YAML list without property collection", async () => {
+		formatter.setMockFieldResponse("topic|multi|format:yaml", ["0042", "a: b"]);
+
+		await expect(
+			formatter.runFormat("topics: {{FIELD:topic|multi|format:yaml}}"),
+		).resolves.toBe('topics: ["0042", "a: b"]');
+	});
+
+	it("writes an explicit vertical Markdown list", async () => {
+		formatter.setMockFieldResponse("topic|multi|format:markdown", [
+			"Alpha",
+			"Beta",
+		]);
+
+		await expect(
+			formatter.runFormat("  {{FIELD:topic|multi|format:markdown}}"),
+		).resolves.toBe("  - Alpha\n  - Beta");
+	});
+
+	it("keeps explicit inline output textual inside a collection scope", async () => {
+		formatter.setMockFieldResponse("topic|multi|format:inline", [
+			"Alpha",
+			"Beta",
+		]);
+
+		await expect(
+			formatter.runFormatWithPropertyCollection(
+				"---\ntopics: {{FIELD:topic|multi|format:inline}}\n---\n",
+			),
+		).resolves.toBe("---\ntopics: Alpha,Beta\n---\n");
+		expect(formatter.getAndClearTemplatePropertyVars().size).toBe(0);
+	});
+
 	it("collects FIELD multi arrays from YAML list item token positions", async () => {
 		formatter.setMockFieldResponse("topic|multi", ["Alpha", "Beta"]);
 

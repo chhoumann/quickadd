@@ -367,6 +367,28 @@ Variants and combinations:
 - `|multi|custom` adds a text box to the picker for values not in the list.
 - Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored (a list isn't case-transformed).
 
+:::note[Available in the next release]
+Add `|format:` when the output shape should be intentional instead of inferred
+from where the placeholder appears:
+
+- `|format:yaml` writes a quoted YAML flow sequence. Obsidian recognizes it as
+  a native list, including in capture content inserted into a template:
+  `topics: {{VALUE:Alpha,Beta|multi|format:yaml}}` becomes
+  `topics: ["Alpha", "Beta"]`.
+- `|format:markdown` writes a vertical Markdown bullet list. Put the placeholder
+  on its own line: `{{VALUE:Alpha,Beta|multi|format:markdown}}` becomes `- Alpha`
+  followed by `- Beta`.
+- `|format:inline` always writes the existing comma-separated text form:
+  `Alpha,Beta`.
+- `|format:auto` is the default and preserves the context-sensitive behavior
+  described below.
+
+Formatting is separate from the selected item representation, so it composes
+with `|multi:linklist`, `|text:`, `|custom`, and the other multi-select options.
+For example, `|multi:linklist|format:yaml` writes a native YAML list of
+wikilinks.
+:::
+
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
@@ -717,6 +739,13 @@ positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
+:::note[Available in the next release]
+FIELD multi-selects support the same explicit output formats as VALUE:
+`|format:yaml`, `|format:markdown`, `|format:inline`, and `|format:auto`.
+For example, `topics: {{FIELD:topic|multi|format:yaml}}` always writes a native
+YAML list, including in template-backed captures.
+:::
+
 :::note
 The one-page input form doesn't inline FIELD multi-selects yet: vault values
 can contain commas, and the one-page multi input uses commas as separators.
@@ -859,6 +888,13 @@ Good to know:
 - Markdown files only.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
+
+:::note[Available in the next release]
+FILE multi-selects support `|format:yaml`, `|format:markdown`,
+`|format:inline`, and `|format:auto`. The format composes with `|link` and
+`|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
+of links without relying on the capture context.
+:::
 
 _Introduced in QuickAdd 2.14.0._
 

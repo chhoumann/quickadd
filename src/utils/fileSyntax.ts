@@ -8,6 +8,8 @@ import {
 	parsePipeKeyValue,
 	splitPipeParts,
 } from "./pipeSyntax";
+import type { MultiValueFormat } from "./multiValueFormat";
+import type { WarnSink } from "./warnSink";
 
 // Namespaces FILE variable values in the variables map, separate from plain
 // VALUE/FIELD variables (parallel to FIELD_VARIABLE_PREFIX in constants.ts).
@@ -38,6 +40,8 @@ export type ParsedFileToken = {
 	filter: FieldFilter;
 	/** Pick several files and store/render them as a list. */
 	multiSelect: boolean;
+	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
+	multiFormat: MultiValueFormat;
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
 	variableKey: string;
 };
@@ -126,7 +130,10 @@ function buildFileSignature(parsed: {
  *
  * Returns `null` for an empty folder (the token is left literal by the caller).
  */
-export function parseFileToken(raw: string): ParsedFileToken | null {
+export function parseFileToken(
+	raw: string,
+	options?: { warn?: WarnSink },
+): ParsedFileToken | null {
 	if (!raw) return null;
 
 	const allParts = splitPipeParts(raw);
@@ -173,8 +180,11 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 	// like label/name and bare flags), then force the scope folder. The first
 	// segment is the folder, so any `|folder:` sub-option the parser picks up is
 	// intentionally discarded below (the positional folder always wins).
-	const fieldParsed = FieldSuggestionParser.parse(raw);
+	const fieldParsed = FieldSuggestionParser.parse(raw, {
+		warn: options?.warn,
+	});
 	const multiSelect = bareMultiSelect || (fieldParsed.multiSelect ?? false);
+	const multiFormat = fieldParsed.multiFormat ?? "auto";
 	const filter: FieldFilter = {
 		folder: folderPath,
 		tags: fieldParsed.filters.tags,
@@ -210,6 +220,7 @@ export function parseFileToken(raw: string): ParsedFileToken | null {
 		allowCustomInput,
 		filter,
 		multiSelect,
+		multiFormat,
 		variableKey,
 	};
 }

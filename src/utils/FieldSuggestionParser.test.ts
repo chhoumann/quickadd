@@ -113,6 +113,14 @@ describe("FieldSuggestionParser", () => {
 			});
 		});
 
+		it("parses an explicit multi-select format", () => {
+			const result = FieldSuggestionParser.parse(
+				"topics|multi|format:markdown",
+			);
+			expect(result.multiSelect).toBe(true);
+			expect(result.multiFormat).toBe("markdown");
+		});
+
 		it("should handle tags with # prefix", () => {
 			const result = FieldSuggestionParser.parse("fieldname|tag:#work");
 			expect(result).toEqual({

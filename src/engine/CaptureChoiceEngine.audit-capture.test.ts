@@ -449,4 +449,16 @@ describe("CaptureChoiceEngine |multi degradation warning", () => {
 			messages.some((m) => m.includes("comma-separated strings")),
 		).toBe(false);
 	});
+
+	it.each(["yaml", "markdown", "inline"])(
+		"does not warn when |format:%s makes the output explicit",
+		async (format) => {
+			const messages = await runWithFormat(
+				`{{FIELD:tags|multi|format:${format}}}`,
+			);
+			expect(
+				messages.some((m) => m.includes("comma-separated strings")),
+			).toBe(false);
+		},
+	);
 });
