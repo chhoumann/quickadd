@@ -35,13 +35,7 @@ export async function collectFieldValuesProcessed(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<string[]> {
-	const cache = FieldSuggestionCache.getInstance();
-	const cacheKey = generateFieldCacheKey(filters);
-	let rawValues = cache.get(fieldName, cacheKey);
-	if (!rawValues) {
-		rawValues = await collectFieldValuesRaw(app, fieldName, filters);
-		cache.set(fieldName, rawValues, cacheKey);
-	}
+	const rawValues = await collectFieldValuesCached(app, fieldName, filters);
 
 	const processed = FieldValueProcessor.processValues(rawValues, filters);
 	return processed.values;
@@ -52,19 +46,32 @@ export async function collectFieldValuesProcessedDetailed(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<{ values: string[]; hasDefaultValue: boolean }> {
-	const cache = FieldSuggestionCache.getInstance();
-	const cacheKey = generateFieldCacheKey(filters);
-	let rawValues = cache.get(fieldName, cacheKey);
-	if (!rawValues) {
-		rawValues = await collectFieldValuesRaw(app, fieldName, filters);
-		cache.set(fieldName, rawValues, cacheKey);
-	}
+	const rawValues = await collectFieldValuesCached(app, fieldName, filters);
 
 	const processed = FieldValueProcessor.processValues(rawValues, filters);
 	return {
 		values: processed.values,
 		hasDefaultValue: processed.hasDefaultValue,
 	};
+}
+
+async function collectFieldValuesCached(
+	app: App,
+	fieldName: string,
+	filters: FieldFilter,
+): Promise<Set<string>> {
+	const cache = FieldSuggestionCache.getInstance();
+	const cacheKey = generateFieldCacheKey(filters);
+	const cachedValues = cache.get(fieldName, cacheKey);
+	if (cachedValues) return cachedValues;
+
+	const revision = cache.getRevision();
+	const collectedValues = await collectFieldValuesRaw(app, fieldName, filters);
+	// A metadata event may fire while the async vault scan is in progress. Do not
+	// let that older scan repopulate the cache after the event cleared it; the next
+	// input refresh will scan the now-current vault state again.
+	cache.setIfRevision(fieldName, collectedValues, cacheKey, revision);
+	return collectedValues;
 }
 
 export async function collectFieldValuesRaw(

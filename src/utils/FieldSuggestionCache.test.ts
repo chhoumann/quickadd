@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import type { App } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 
 describe("FieldSuggestionCache", () => {
@@ -134,6 +135,56 @@ describe("FieldSuggestionCache", () => {
 				maxSize: 100,
 				cleanupInterval: null // No interval started in test
 			});
+		});
+	});
+
+	describe("vault invalidation", () => {
+		it.each(["changed", "deleted", "rename"] as const)(
+			"clears all filtered field entries after %s",
+			(eventName) => {
+				const listeners = new Map<string, () => void>();
+				const app = {
+					metadataCache: {
+						on: vi.fn((name: string, callback: () => void) => {
+							listeners.set(name, callback);
+							return { name };
+						}),
+					},
+					vault: {
+						on: vi.fn((name: string, callback: () => void) => {
+							listeners.set(name, callback);
+							return { name };
+						}),
+					},
+				} as unknown as App;
+				const registerEvent = vi.fn();
+
+				cache.registerInvalidationListeners(app, registerEvent);
+				cache.set("status", new Set(["ValueA"]));
+				cache.set("status", new Set(["ScopedValue"]), "folder:Projects");
+
+				listeners.get(eventName)?.();
+
+				expect(cache.get("status")).toBeNull();
+				expect(cache.get("status", "folder:Projects")).toBeNull();
+				expect(registerEvent).toHaveBeenCalledTimes(3);
+			},
+		);
+
+		it("does not let an in-flight scan repopulate an invalidated cache", () => {
+			const revision = cache.getRevision();
+
+			cache.clear();
+
+			expect(
+				cache.setIfRevision(
+					"status",
+					new Set(["stale"]),
+					undefined,
+					revision,
+				),
+			).toBe(false);
+			expect(cache.get("status")).toBeNull();
 		});
 	});
 });
