@@ -803,12 +803,6 @@ FIELD filtering is in beta and the syntax can change - leave your thoughts
 
 ### Pick a note from a folder: `{{FILE:<folder>}}` {#file}
 
-:::note[Available in the next release]
-When one-page inputs are enabled, FILE placeholders use the inline searchable
-picker described below. This improvement is on `master` and will ship in the
-next QuickAdd release.
-:::
-
 `{{FILE:People}}` opens a picker listing the Markdown files in your `People`
 folder and inserts your pick. Where [`{{FIELD}}`](#field) suggests the
 *values* of a property, `{{FILE}}` suggests the notes themselves - made for
