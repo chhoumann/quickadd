@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { quoteYamlDouble, shouldQuoteTextScalar } from "./yamlScalarQuoting";
+import {
+	escapeValueInsideQuotedYamlScalar,
+	quoteYamlDouble,
+	shouldQuoteTextScalar,
+} from "./yamlScalarQuoting";
 
 const TOKEN = "{{VALUE:x}}";
 
@@ -53,5 +57,50 @@ describe("shouldQuoteTextScalar", () => {
 	it("does NOT quote in the note body (outside front matter)", () => {
 		expect(check(`---\ntitle: x\n---\nSome ${TOKEN} prose`)).toBe(false);
 		expect(check(`No front matter here ${TOKEN}`)).toBe(false);
+	});
+});
+
+describe("escapeValueInsideQuotedYamlScalar", () => {
+	/** Helper: locate the token and escape `value` for that position. */
+	function escape(input: string, value: string): string {
+		const start = input.indexOf(TOKEN);
+		return escapeValueInsideQuotedYamlScalar(
+			input,
+			start,
+			start + TOKEN.length,
+			value,
+		);
+	}
+
+	it("escapes double quotes, backslashes, and control chars inside a double-quoted scalar", () => {
+		const input = `---\ntitle: "${TOKEN}"\n---\nbody`;
+		expect(escape(input, 'My "Great" Note')).toBe('My \\"Great\\" Note');
+		expect(escape(input, "a\\b")).toBe("a\\\\b");
+		expect(escape(input, "a\nb")).toBe("a\\nb");
+	});
+
+	it("doubles apostrophes inside a single-quoted scalar", () => {
+		const input = `---\ntitle: '${TOKEN}'\n---\nbody`;
+		expect(escape(input, "O'Brien")).toBe("O''Brien");
+	});
+
+	it("escapes inside a quoted list item", () => {
+		const input = `---\ntags:\n  - "${TOKEN}"\n---\nbody`;
+		expect(escape(input, 'say "hi"')).toBe('say \\"hi\\"');
+	});
+
+	it("passes through untouched when the token is not quoted", () => {
+		const input = `---\ntitle: ${TOKEN}\n---\nbody`;
+		expect(escape(input, 'My "Great" Note')).toBe('My "Great" Note');
+	});
+
+	it("passes through untouched when quotes wrap more than the token", () => {
+		const input = `---\ntitle: "prefix ${TOKEN}"\n---\nbody`;
+		expect(escape(input, 'a "b"')).toBe('a "b"');
+	});
+
+	it("passes through untouched in the note body", () => {
+		const input = `---\ntitle: x\n---\nSaid "${TOKEN}" today`;
+		expect(escape(input, 'a "b"')).toBe('a "b"');
 	});
 });

@@ -42,7 +42,11 @@ import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
-import { quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
+import {
+	escapeValueInsideQuotedYamlScalar,
+	quoteYamlDouble,
+	shouldQuoteTextScalar,
+} from "../utils/yamlScalarQuoting";
 import { toWikiLink } from "../utils/linkWrap";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import {
@@ -1294,7 +1298,14 @@ export abstract class Formatter {
 						match.index,
 						match.index + match[0].length,
 					);
-				replacement = quote ? quoteYamlDouble(stringVal) : stringVal;
+				replacement = quote
+					? quoteYamlDouble(stringVal)
+					: escapeValueInsideQuotedYamlScalar(
+							output,
+							match.index,
+							match.index + match[0].length,
+							stringVal,
+						);
 			}
 
 			// Replace in output and adjust regex position
@@ -1357,7 +1368,12 @@ export abstract class Formatter {
 					replacement =
 						getYamlPlaceholder(structuredYamlValue) ?? rawValue.join(",");
 				} else {
-					replacement = String(rawValue ?? "");
+					replacement = escapeValueInsideQuotedYamlScalar(
+						input,
+						match.index,
+						match.index + match[0].length,
+						String(rawValue ?? ""),
+					);
 				}
 
 				output += replacement;

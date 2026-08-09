@@ -44,6 +44,26 @@ QuickAdd creates `Books/Dune.md` from your template, with the title, date, and
 frontmatter filled in. Assign the choice a hotkey (⚡ icon, or Obsidian's
 Hotkeys settings) once it behaves the way you want.
 
+### Tokens in template properties {#tokens-in-properties}
+
+A bare token in frontmatter, like `Title: {{VALUE:fileName}}`, is not valid
+YAML, so Obsidian logs a console warning when it indexes the template file
+itself. The warning is cosmetic - QuickAdd reads the template as text and the
+created note is fine - but if you want a quiet console, wrap the token in
+quotes:
+
+```yaml
+Title: "{{VALUE:fileName}}"
+```
+
+Two things to know about the quoted form:
+
+- QuickAdd escapes the filled-in value for the surrounding quotes, so answers
+  containing `"` or `'` can't break the created note's frontmatter.
+  _Available in the next release._
+- Quotes make the property a **string**. Leave tokens unquoted on number,
+  checkbox, and date properties so Obsidian reads the typed value.
+
 ## Run a template without making a choice {#run-without-choice}
 
 If you just want to spin up a note from a template in your

@@ -37,6 +37,42 @@ export function quoteYamlDouble(value: string): string {
  * that silently retype or break an unquoted string; a single static predicate
  * for "safe plain scalar" is error-prone, while quoting is always correct.
  */
+/**
+ * Escape a value that is being substituted INSIDE an author-quoted front matter
+ * scalar (`key: "{{VALUE:x}}"` / `- '{{FIELD:y}}'`). Authors quote tokens so the
+ * raw template stays valid YAML (Obsidian's parser warns on bare `{{...}}`,
+ * issue #1655); without escaping, a value containing the surrounding quote
+ * character corrupts the created note's front matter. Applies only when the
+ * token exactly spans the quoted scalar at a sole-value position - everywhere
+ * else the value passes through untouched.
+ */
+export function escapeValueInsideQuotedYamlScalar(
+	input: string,
+	matchStart: number,
+	matchEnd: number,
+	value: string,
+): string {
+	const ctx = getYamlContextForMatch(
+		input,
+		matchStart,
+		matchEnd,
+		findYamlFrontMatterRange(input),
+	);
+	if (!ctx.isInYaml || !ctx.isQuoted) return value;
+	if (!ctx.isKeyValuePosition && !ctx.isListItemPosition) return value;
+
+	if (input[matchStart - 1] === '"') {
+		return value
+			.replace(/\\/g, "\\\\")
+			.replace(/"/g, '\\"')
+			.replace(/\n/g, "\\n")
+			.replace(/\r/g, "\\r")
+			.replace(/\t/g, "\\t");
+	}
+	// Single-quoted YAML has exactly one escape: '' for a literal apostrophe.
+	return value.replace(/'/g, "''");
+}
+
 export function shouldQuoteTextScalar(
 	input: string,
 	matchStart: number,
