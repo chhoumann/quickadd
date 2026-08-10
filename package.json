@@ -71,6 +71,7 @@
 			"esbuild"
 		],
 		"overrides": {
+			"brace-expansion": "5.0.9",
 			"obsidian-calendar-ui>svelte": "^5.56.3",
 			"postcss": "8.5.25"
 		}
