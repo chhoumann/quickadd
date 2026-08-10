@@ -261,6 +261,32 @@ describe("Formatter {{FILE:...}} token", () => {
 		);
 	});
 
+	it("renders FILE multi-selects in an explicit YAML format", async () => {
+		const f = new FileTestFormatter(
+			makeApp(["People/Tom.md", "People/Jack.md"]),
+			() => [
+				`${FILE_PICK_PREFIX}People/Tom.md`,
+				`${FILE_PICK_PREFIX}People/Jack.md`,
+			],
+		);
+		expect(
+			await f.run("people: {{FILE:People|multi|link|format:yaml}}"),
+		).toBe('people: ["[[Tom@]]", "[[Jack@]]"]');
+	});
+
+	it("renders FILE multi-selects as a vertical Markdown list", async () => {
+		const f = new FileTestFormatter(
+			makeApp(["People/Tom.md", "People/Jack.md"]),
+			() => [
+				`${FILE_PICK_PREFIX}People/Tom.md`,
+				`${FILE_PICK_PREFIX}People/Jack.md`,
+			],
+		);
+		expect(
+			await f.run("{{FILE:People|multi|format:markdown}}"),
+		).toBe("- Tom\n- Jack");
+	});
+
 	it("collects FILE multi-select arrays as YAML list properties", async () => {
 		const f = new FileTestFormatter(
 			makeApp(["People/Tom.md", "People/Jack.md"]),

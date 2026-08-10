@@ -249,6 +249,30 @@ describe("parseValueToken", () => {
 		expect(parsed?.multiEmit).toBe("linklist");
 	});
 
+	it.each(["yaml", "markdown", "inline"] as const)(
+		"parses |format:%s separately from |multi item emission",
+		(format) => {
+			const parsed = parseValueToken(
+				`Alice,Bob|multi:linklist|format:${format}`,
+			);
+			expect(parsed?.multiSelect).toBe(true);
+			expect(parsed?.multiEmit).toBe("linklist");
+			expect(parsed?.multiFormat).toBe(format);
+		},
+	);
+
+	it("warns and ignores an explicit format without |multi", () => {
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		expect(parseValueToken("Only|format:yaml")?.multiFormat).toBe("auto");
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("needs |multi"));
+	});
+
+	it("warns on an explicit |format:auto without |multi (a silent no-op otherwise)", () => {
+		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		expect(parseValueToken("Only|format:auto")?.multiFormat).toBe("auto");
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("needs |multi"));
+	});
+
 	it("warns and ignores |multi without an option list", () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
 		expect(parseValueToken("Only|multi")?.multiSelect).toBe(false);

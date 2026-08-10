@@ -6,6 +6,10 @@ import {
 	stripLeadingPipe,
 } from "./pipeSyntax";
 import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
+import {
+	parseMultiValueFormat,
+	type MultiValueFormat,
+} from "./multiValueFormat";
 import { NOTICE_WARN, SILENT_WARN, type WarnSink } from "./warnSink";
 
 // Internal-only delimiter for scoping labeled VALUE lists. Unlikely to appear in user input.
@@ -52,6 +56,7 @@ const VALUE_OPTION_KEYS = new Set([
 	"optional",
 	"trim",
 	"multi",
+	"format",
 ]);
 
 export type MultiEmit = "text" | "linklist";
@@ -87,6 +92,8 @@ export type ParsedValueToken = {
 	multiSelect: boolean;
 	/** |multi:linklist wraps each pick as [[name]]; defaults to plain text. */
 	multiEmit: MultiEmit;
+	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
+	multiFormat: MultiValueFormat;
 };
 
 export function buildValueVariableKey(
@@ -160,6 +167,7 @@ type ParsedOptions = {
 	name?: string;
 	multiSelect?: boolean;
 	multiEmit?: MultiEmit;
+	multiFormat?: MultiValueFormat;
 };
 
 /**
@@ -265,6 +273,7 @@ function parseOptions(
 	let name: string | undefined;
 	let multiSelect = false;
 	let multiEmit: MultiEmit | undefined;
+	let multiFormat: MultiValueFormat | undefined;
 
 	for (const part of optionParts) {
 		const trimmed = part.trim();
@@ -328,6 +337,9 @@ function parseOptions(
 				multiEmit =
 					value.trim().toLowerCase() === "linklist" ? "linklist" : "text";
 				break;
+			case "format":
+				multiFormat = parseMultiValueFormat(value, tokenDisplay, warn);
+				break;
 			case "name":
 				// Gated to the named grammar via optionKeys; empty `|name:` is a
 				// no-op alias and warns so the author notices the typo. Names the
@@ -360,6 +372,7 @@ function parseOptions(
 		trimExplicit,
 		multiSelect,
 		multiEmit,
+		multiFormat,
 	};
 }
 
@@ -702,6 +715,7 @@ export function parseValueToken(
 	let { label, caseStyle, defaultValue, allowCustomInput } = options;
 	let multiSelect = options.multiSelect ?? false;
 	const multiEmit: MultiEmit = options.multiEmit ?? "text";
+	let multiFormat: MultiValueFormat = options.multiFormat ?? "auto";
 	const optional = options.optionalExplicit ?? bareOptional;
 	const trim = options.trimExplicit ?? bareTrim;
 
@@ -807,6 +821,14 @@ export function parseValueToken(
 		);
 		caseStyle = undefined;
 	}
+	// Warn on ANY explicit |format: without |multi - including |format:auto,
+	// which is a no-op the author probably didn't intend.
+	if (!multiSelect && options.multiFormat !== undefined) {
+		warn(
+			`QuickAdd: |format: needs |multi in "${tokenDisplay}"; ignoring.`,
+		);
+		multiFormat = "auto";
+	}
 
 	// A bare `|custom` only enables free-text-with-autocomplete on an option-list
 	// token (2+ values). On a single value it falls through to being parsed as the
@@ -847,6 +869,7 @@ export function parseValueToken(
 		trim,
 		multiSelect,
 		multiEmit,
+		multiFormat,
 	};
 }
 
