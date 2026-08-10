@@ -48,6 +48,10 @@ import {
 	quoteYamlDouble,
 	shouldQuoteTextScalar,
 } from "../utils/yamlScalarQuoting";
+import {
+	renderExplicitMultiValue,
+	type MultiValueFormat,
+} from "../utils/multiValueFormat";
 
 // |type: overrides whose value is a typed YAML scalar (Number, Boolean): an
 // author-quoted token with one of these consumes the quotes so Obsidian reads
@@ -1004,7 +1008,18 @@ export abstract class Formatter {
 		rawValue: unknown;
 		fallbackKey: string;
 		heuristicEnabled: boolean;
+		multiFormat?: MultiValueFormat;
 	}): string | undefined {
+		if (Array.isArray(args.rawValue) && args.multiFormat) {
+			const explicit = renderExplicitMultiValue({
+				input: args.input,
+				matchStart: args.matchStart,
+				values: args.rawValue,
+				format: args.multiFormat,
+			});
+			if (explicit !== undefined) return explicit;
+		}
+
 		const structuredYamlValue = this.propertyCollector.maybeCollect({
 			...args,
 			collectionActive: this.templatePropertyCollectionDepth > 0,
@@ -1303,6 +1318,7 @@ export abstract class Formatter {
 					propertyTypesEnabled &&
 					this.templatePropertyCollectionDepth > 0 &&
 					parsed.inputTypeOverride !== "text",
+				multiFormat: parsed.multiFormat,
 			});
 
 			// Keep the interim frontmatter YAML-parseable until post-processing
@@ -1410,23 +1426,16 @@ export abstract class Formatter {
 				let replacement: string;
 
 				if (Array.isArray(rawValue)) {
-					const structuredYamlValue = this.propertyCollector.maybeCollect({
+					replacement =
+						this.renderCollectedOrArrayValue({
 						input,
 						matchStart: match.index,
 						matchEnd: match.index + match[0].length,
 						rawValue,
 						fallbackKey: parsed.fieldName,
-						collectionActive: this.templatePropertyCollectionDepth > 0,
 						heuristicEnabled: false,
-					});
-					replacement =
-						getYamlPlaceholder(structuredYamlValue) ??
-						escapeValueInsideQuotedYamlScalar(
-							input,
-							match.index,
-							match.index + match[0].length,
-							rawValue.join(","),
-						);
+						multiFormat: parsed.multiFormat ?? "auto",
+						}) ?? rawValue.join(",");
 				} else {
 					replacement = escapeValueInsideQuotedYamlScalar(
 						input,
@@ -1467,7 +1476,9 @@ export abstract class Formatter {
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
 
-			const parsed = parseFileToken(match[1] ?? "");
+			const parsed = parseFileToken(match[1] ?? "", {
+				warn: this.warnSink,
+			});
 			if (!parsed) {
 				// Empty folder / malformed: leave the token literal and move on.
 				output += match[0];
@@ -1486,23 +1497,16 @@ export abstract class Formatter {
 				(stored) => this.getFileLinkForStoredValue(stored),
 			);
 			if (Array.isArray(renderedValue)) {
-				const structuredYamlValue = this.propertyCollector.maybeCollect({
+				const replacement = this.renderCollectedOrArrayValue({
 					input,
 					matchStart: match.index,
 					matchEnd: match.index + match[0].length,
 					rawValue: renderedValue,
 					fallbackKey: parsed.aliasName ?? parsed.folderPath,
-					collectionActive: this.templatePropertyCollectionDepth > 0,
 					heuristicEnabled: false,
+					multiFormat: parsed.multiFormat,
 				});
-				output +=
-					getYamlPlaceholder(structuredYamlValue) ??
-					escapeValueInsideQuotedYamlScalar(
-						input,
-						match.index,
-						match.index + match[0].length,
-						renderedValue.join(","),
-					);
+				output += replacement ?? renderedValue.join(",");
 			} else {
 				output += renderedValue;
 			}

@@ -35,7 +35,7 @@ const SUGGESTIONS: Array<[typed: string, expected: string[]]> = [
 	["inline-code", ["inline-code-blocks", "inline"]],
 	["multi-select", ["multi"]],
 	// Half-typed, which is most of what a live preview sees.
-	["fo", ["folder"]],
+	["fo", ["folder", "format"]],
 	["de", ["default", "default-from", "default-empty"]],
 	// Not a typo of anything: no guess, fall back to the vocabulary.
 	["filter", []],
@@ -86,7 +86,7 @@ describe("describeUnknownFieldFilter", () => {
 	it("keeps the full vocabulary when nothing is close", () => {
 		const message = describeUnknownFieldFilter("sortby", "status|sortby:x");
 		expect(message).toBe(
-			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi.',
+			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format.',
 		);
 	});
 

@@ -80,6 +80,13 @@ export class TemplatePropertyCollector {
 
     if (!isStructuredYamlValue(structuredValue)) return undefined;
 
+    // An empty multi-select pick means "no value". Skip collection so the
+    // inline fallback (`[].join(",")` -> "") leaves the property empty
+    // (`topics:`) instead of writing an explicit empty list (issue #1656).
+    if (Array.isArray(structuredValue) && structuredValue.length === 0) {
+      return undefined;
+    }
+
     // Always-on (flag-off) collection is limited to container types
     // (arrays/objects) that break when inlined as text. Scalars
     // (number/boolean/null) are already YAML-safe inline, so they are only

@@ -1,4 +1,4 @@
-
+import type { App, EventRef } from "obsidian";
 
 interface CacheEntry {
 	values: Set<string>;
@@ -12,6 +12,7 @@ export class FieldSuggestionCache {
 	private readonly MAX_CACHE_ENTRIES = 100; // Maximum number of cache entries
 	private readonly MAX_VALUES_PER_ENTRY = 1000; // Maximum values per field
 	private cleanupInterval: number | null = null;
+	private revision = 0;
 
 	static getInstance(): FieldSuggestionCache {
 		if (!FieldSuggestionCache.instance) {
@@ -35,6 +36,27 @@ export class FieldSuggestionCache {
 			}, 60 * 1000);
 			this.cleanupInterval = registerInterval(intervalId);
 		}
+	}
+
+	/**
+	 * Invalidate suggestions whenever Obsidian's indexed vault state changes.
+	 * FIELD cache entries can depend on any Markdown file because folder, tag,
+	 * exclusion, and inline-field filters all share this cache. Clearing the small
+	 * bounded cache is both safer and cheaper than trying to reconstruct which
+	 * field/filter combinations a changed file might affect.
+	 */
+	registerInvalidationListeners(
+		app: App,
+		registerEvent: (eventRef: EventRef) => unknown,
+	): void {
+		const clear = () => this.clear();
+
+		registerEvent(app.metadataCache.on("changed", clear));
+		registerEvent(app.metadataCache.on("deleted", clear));
+		// MetadataCache deliberately does not emit "changed" for renames. A rename
+		// can move a note into or out of a folder filter, or change an exclude-file
+		// match, so the vault event is required even when file contents are unchanged.
+		registerEvent(app.vault.on("rename", clear));
 	}
 
 	/**
@@ -88,6 +110,25 @@ export class FieldSuggestionCache {
 	}
 
 	/**
+	 * Snapshot used to keep an in-flight vault scan from repopulating the cache
+	 * after a metadata event has invalidated it.
+	 */
+	getRevision(): number {
+		return this.revision;
+	}
+
+	setIfRevision(
+		fieldName: string,
+		values: Set<string>,
+		cacheKey: string | undefined,
+		expectedRevision: number,
+	): boolean {
+		if (this.revision !== expectedRevision) return false;
+		this.set(fieldName, values, cacheKey);
+		return true;
+	}
+
+	/**
 	 * Evict the oldest cache entries
 	 * @param count Number of entries to evict
 	 */
@@ -106,6 +147,7 @@ export class FieldSuggestionCache {
 	 * @param fieldName Optional field name to clear specific cache
 	 */
 	clear(fieldName?: string): void {
+		this.revision++;
 		if (fieldName) {
 			// Clear all entries for this field. Compare the decoded field-name
 			// component rather than a raw `${fieldName}:` prefix, which would both
@@ -165,7 +207,7 @@ export class FieldSuggestionCache {
 	 */
 	destroy(): void {
 		this.cleanupInterval = null;
-		this.cache.clear();
+		this.clear();
 	}
 
 	private makeKey(fieldName: string, cacheKey?: string): string {

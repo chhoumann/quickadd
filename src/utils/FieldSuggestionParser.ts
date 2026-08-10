@@ -5,6 +5,10 @@ import {
 	splitPipeParts,
 } from "./pipeSyntax";
 import { suggestSimilarKeys } from "./suggestSimilarKeys";
+import {
+	parseMultiValueFormat,
+	type MultiValueFormat,
+} from "./multiValueFormat";
 
 /**
  * Every filter key the `{{FIELD:...}}` grammar recognises, in the order the
@@ -30,6 +34,7 @@ export const FIELD_FILTER_KEYS = [
 	"default-always",
 	"case-sensitive",
 	"multi",
+	"format",
 ] as const;
 
 /**
@@ -162,11 +167,14 @@ export class FieldSuggestionParser {
 		fieldName: string;
 		filters: FieldFilter;
 		multiSelect?: boolean;
+		multiFormat?: MultiValueFormat;
 	} {
 		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
 		const filters: FieldFilter = {};
 		let multiSelect = false;
+		let multiFormat: MultiValueFormat = "auto";
+		let multiFormatExplicit = false;
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
@@ -216,6 +224,15 @@ export class FieldSuggestionParser {
 			switch (filterType) {
 				case "multi":
 					multiSelect = parseBooleanFlag(filterValue);
+					break;
+				case "format":
+					multiFormatExplicit = true;
+					multiFormat =
+						parseMultiValueFormat(
+							filterValue,
+							`{{FIELD:${input}}}`,
+							options?.warn,
+						) ?? "auto";
 					break;
 				case "folder":
 					if (!filters.folders) {
@@ -296,8 +313,20 @@ export class FieldSuggestionParser {
 			}
 		}
 
-		return multiSelect
-			? { fieldName, filters, multiSelect }
-			: { fieldName, filters };
+		// Warn on ANY explicit |format: without |multi - including |format:auto,
+		// which is a no-op the author probably didn't intend.
+		if (!multiSelect && multiFormatExplicit) {
+			options?.warn?.(
+				`QuickAdd: |format: needs |multi in "{{FIELD:${input}}}"; ignoring.`,
+			);
+			multiFormat = "auto";
+		}
+
+		return {
+			fieldName,
+			filters,
+			...(multiSelect ? { multiSelect } : {}),
+			...(multiFormat !== "auto" ? { multiFormat } : {}),
+		};
 	}
 }

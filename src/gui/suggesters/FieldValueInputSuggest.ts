@@ -4,7 +4,7 @@ import {
 	type FieldFilter,
 } from "src/utils/FieldSuggestionParser";
 import {
-	collectFieldValuesProcessed
+	collectFieldValuesProcessed,
 } from "src/utils/FieldValueCollector";
 import { TextInputSuggest } from "./suggest";
 
@@ -16,7 +16,6 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	private readonly fieldInput: string;
 	private readonly fieldName: string;
 	private readonly filters: FieldFilter;
-	private cachedValues: string[] | null = null;
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
@@ -27,17 +26,18 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	}
 
 	async getSuggestions(inputStr: string): Promise<string[]> {
-		if (!this.cachedValues) {
-			this.cachedValues = await collectFieldValuesProcessed(
-				this.app,
-				this.fieldName,
-				this.filters,
-			);
-		}
+		// FieldSuggestionCache already avoids repeated vault scans. Ask it on every
+		// refresh so a metadata event that invalidated the shared cache is visible to
+		// an already-open input instead of being shadowed by a second per-modal cache.
+		const values = await collectFieldValuesProcessed(
+			this.app,
+			this.fieldName,
+			this.filters,
+		);
 
 		const query = (inputStr || "").toLowerCase();
-		if (!query) return this.cachedValues.slice(0, 200);
-		return this.cachedValues
+		if (!query) return values.slice(0, 200);
+		return values
 			.filter((v) => v.toLowerCase().includes(query))
 			.slice(0, 200);
 	}

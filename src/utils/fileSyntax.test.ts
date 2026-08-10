@@ -42,7 +42,23 @@ describe("parseFileToken", () => {
 	it("parses multi-select as FILE behavior", () => {
 		const parsed = parseFileToken("People|multi");
 		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiFormat).toBe("auto");
 		expect(parsed?.variableKey).toContain("|multi");
+	});
+
+	it("parses an explicit multi-select format", () => {
+		const parsed = parseFileToken("People|multi|format:yaml");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiFormat).toBe("yaml");
+	});
+
+	it("warns on |format: without |multi, even |format:auto", () => {
+		const warnings: string[] = [];
+		const parsed = parseFileToken("People|format:auto", {
+			warn: (msg) => warnings.push(msg),
+		});
+		expect(parsed?.multiFormat).toBe("auto");
+		expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
 	});
 
 	it("parses label and the |name: alias", () => {
