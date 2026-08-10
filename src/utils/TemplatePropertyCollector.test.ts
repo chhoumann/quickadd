@@ -55,6 +55,23 @@ describe("TemplatePropertyCollector", () => {
     expect([...result.keys()].sort()).toEqual(["authors", "title"]);
   });
 
+  it("does not collect an empty multi-select pick (issue #1656: property stays empty, not [])", () => {
+    const c = new TemplatePropertyCollector();
+
+    const [aStart, aEnd] = idxRange(yaml, "{{VALUE:authors}}");
+    const collected = c.maybeCollect({
+      input: yaml,
+      matchStart: aStart,
+      matchEnd: aEnd,
+      rawValue: [],
+      fallbackKey: "authors",
+      collectionActive: true, heuristicEnabled: true,
+    });
+
+    expect(collected).toBeUndefined();
+    expect(c.drain().size).toBe(0);
+  });
+
   it("ignores placeholders not in a pure key-value position", () => {
     const c = new TemplatePropertyCollector();
     const [iStart, iEnd] = idxRange(yaml, "{{VALUE:inline}}");

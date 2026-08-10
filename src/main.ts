@@ -196,6 +196,9 @@ export default class QuickAdd extends Plugin {
 		cache.startAutomaticCleanup((intervalId) =>
 			this.registerInterval(intervalId),
 		);
+		cache.registerInvalidationListeners(this.app, (eventRef) =>
+			this.registerEvent(eventRef),
+		);
 
 		this.addCommand({
 			id: "openQuickAddSettings",
