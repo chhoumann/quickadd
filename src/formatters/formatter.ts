@@ -42,11 +42,26 @@ import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
 import { transformCase } from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
-import { quoteYamlDouble, shouldQuoteTextScalar } from "../utils/yamlScalarQuoting";
+import {
+	escapeValueInsideQuotedYamlScalar,
+	isTokenExactlyQuotedYamlScalar,
+	quoteYamlDouble,
+	shouldQuoteTextScalar,
+} from "../utils/yamlScalarQuoting";
 import {
 	renderExplicitMultiValue,
 	type MultiValueFormat,
 } from "../utils/multiValueFormat";
+
+// |type: overrides whose value is a typed YAML scalar (Number, Boolean): an
+// author-quoted token with one of these consumes the quotes so Obsidian reads
+// the typed value. "text" and "multiline" declare string semantics and keep
+// their quotes.
+const TYPED_SCALAR_OVERRIDES: ReadonlySet<string> = new Set([
+	"number",
+	"slider",
+	"checkbox",
+]);
 import { toWikiLink } from "../utils/linkWrap";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import {
@@ -522,7 +537,14 @@ export abstract class Formatter {
 			const source = args[args.length - 1] as string;
 			const inner = token.slice(2, -2);
 			const optionsIndex = inner.indexOf("|");
-			if (optionsIndex === -1) return this.value;
+			if (optionsIndex === -1) {
+				return escapeValueInsideQuotedYamlScalar(
+					source,
+					offset,
+					offset + token.length,
+					this.value,
+				);
+			}
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions, {
 				warn: this.warnSink,
@@ -545,7 +567,14 @@ export abstract class Formatter {
 			) {
 				return quoteYamlDouble(transformed);
 			}
-			return transformed;
+			// Same contract as the named form: a value substituted inside an
+			// author-quoted front matter scalar must be escaped for those quotes.
+			return escapeValueInsideQuotedYamlScalar(
+				source,
+				offset,
+				offset + token.length,
+				transformed,
+			);
 		});
 
 		return output;
@@ -997,7 +1026,14 @@ export abstract class Formatter {
 		});
 		const placeholder = getYamlPlaceholder(structuredYamlValue);
 		if (placeholder !== undefined) return placeholder;
-		if (Array.isArray(args.rawValue)) return args.rawValue.join(",");
+		if (Array.isArray(args.rawValue)) {
+			return escapeValueInsideQuotedYamlScalar(
+				args.input,
+				args.matchStart,
+				args.matchEnd,
+				args.rawValue.join(","),
+			);
+		}
 		return undefined;
 	}
 
@@ -1290,6 +1326,7 @@ export abstract class Formatter {
 			// fallback replacement to a string so non-string variable values (e.g.
 			// arrays from scripts on the non-collected path) don't desync the scanner.
 			let replacement: string;
+			let consumeQuotes = false;
 			if (structuredReplacement !== undefined) {
 				replacement = structuredReplacement;
 			} else {
@@ -1310,12 +1347,40 @@ export abstract class Formatter {
 						match.index,
 						match.index + match[0].length,
 					);
-				replacement = quote ? quoteYamlDouble(stringVal) : stringVal;
+				if (quote) {
+					replacement = quoteYamlDouble(stringVal);
+				} else if (
+					TYPED_SCALAR_OVERRIDES.has(parsed.inputTypeOverride ?? "") &&
+					isTokenExactlyQuotedYamlScalar(
+						output,
+						match.index,
+						match.index + match[0].length,
+					)
+				) {
+					// An explicit typed |type: wins over the author's quotes: the
+					// quotes exist to keep the raw template valid YAML (#1655), while
+					// the |type: declares the intended property type. Consume the
+					// quotes so `rating: "{{VALUE:r|type:number}}"` writes `rating: 42`
+					// and Obsidian reads a Number. |type:text and |type:multiline keep
+					// string semantics, so their quotes stay (with escaping).
+					consumeQuotes = true;
+					replacement = stringVal;
+				} else {
+					replacement = escapeValueInsideQuotedYamlScalar(
+						output,
+						match.index,
+						match.index + match[0].length,
+						stringVal,
+					);
+				}
 			}
 
 			// Replace in output and adjust regex position
-			output = output.slice(0, match.index) + replacement + output.slice(match.index + match[0].length);
-			regex.lastIndex = match.index + replacement.length;
+			const replaceStart = consumeQuotes ? match.index - 1 : match.index;
+			const replaceEnd =
+				match.index + match[0].length + (consumeQuotes ? 1 : 0);
+			output = output.slice(0, replaceStart) + replacement + output.slice(replaceEnd);
+			regex.lastIndex = replaceStart + replacement.length;
 		}
 
 		return output;
@@ -1372,7 +1437,12 @@ export abstract class Formatter {
 						multiFormat: parsed.multiFormat ?? "auto",
 						}) ?? rawValue.join(",");
 				} else {
-					replacement = String(rawValue ?? "");
+					replacement = escapeValueInsideQuotedYamlScalar(
+						input,
+						match.index,
+						match.index + match[0].length,
+						String(rawValue ?? ""),
+					);
 				}
 
 				output += replacement;
