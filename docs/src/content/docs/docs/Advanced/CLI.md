@@ -156,7 +156,7 @@ carries `error` instead and no `effect`, because there is no outcome to describe
 The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
 success callback carries the same `effect` value.
 
-:::note[Introduced in QuickAdd 2.21.0]
+:::note[Introduced in QuickAdd 2.20.0]
 `capabilities` in the `quickadd:interactive` handshake contains
 `outcome-effect` on a build that has `effect`.
 :::
@@ -188,8 +188,8 @@ picker - are forwarded like any other. (The AI assistant's tool-confirmation dia
 the one that is not: run such a choice at the desktop, or set tool confirmation to
 "never".)
 
-:::note[Introduced in QuickAdd 2.21.0]
-Before 2.21.0, a Template or Capture run opened its own pickers in Obsidian and
+:::note[Introduced in QuickAdd 2.20.0]
+Before 2.20.0, a Template or Capture run opened its own pickers in Obsidian and
 `/abort` could not reach them.
 ::: They arrive as `suggester` prompts, and because the engine controls the
 list, a reply that is not one of the offered `value` tokens is refused rather than
@@ -229,7 +229,7 @@ the run may still finish and commit its side effects. Keep polling for the termi
 event either way.
 :::
 
-:::note[Introduced in QuickAdd 2.21.0]
+:::note[Introduced in QuickAdd 2.20.0]
 `"capabilities":["abort"]` in the handshake tells you a build has `POST /abort`
 and the `info` behaviour above. Before them, cancelling an `info` prompt
 ended the run, and there was no explicit way to end one other than to stop polling
@@ -238,8 +238,8 @@ and wait out the ~75s disconnect watchdog.
 
 ### When a reply is rejected
 
-:::note[Changed in QuickAdd 2.21.0]
-Before 2.21.0, a `cancelled` flag that was not the
+:::note[Changed in QuickAdd 2.20.0]
+Before 2.20.0, a `cancelled` flag that was not the
 literal `true` was consumed as a cancellation, and a `confirm` prompt with no value was read as
 "No".
 :::
