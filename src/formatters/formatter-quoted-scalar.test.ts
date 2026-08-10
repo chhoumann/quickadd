@@ -13,14 +13,17 @@ class QuotedScalarTestFormatter extends Formatter {
 
 	protected async format(input: string): Promise<string> {
 		let output = input;
+		output = await this.replaceValueInString(output);
 		output = await this.replaceVariableInString(output);
 		output = await this.replaceFieldVarInString(output);
 		return output;
 	}
 
 	protected promptForValue(): string {
-		return "";
+		return this.anonymousValue;
 	}
+
+	public anonymousValue = "";
 
 	protected getCurrentFileLink(): string | null {
 		return null;
@@ -138,6 +141,22 @@ describe("issue #1655: values substituted into author-quoted front matter scalar
 			"---\nTitle: {{VALUE:fileName}}\n---\nBody",
 		);
 		expect(result).toBe('---\nTitle: My "Great" Note\n---\nBody');
+	});
+
+	it("escapes the anonymous {{VALUE}} inside a double-quoted scalar", async () => {
+		formatter.anonymousValue = 'he said "hi"';
+		const result = await formatter.testFormat(
+			'---\ntitle: "{{VALUE}}"\n---\nBody',
+		);
+		expect(result).toBe('---\ntitle: "he said \\"hi\\""\n---\nBody');
+	});
+
+	it("escapes a joined multi-select FIELD fallback inside a quoted scalar", async () => {
+		formatter.seed(`${FIELD_VARIABLE_PREFIX}tags|multi`, ['say "hi"', "b"]);
+		const result = await formatter.testFormat(
+			'---\ntags: "{{FIELD:tags|multi}}"\n---\nBody',
+		);
+		expect(result).toBe('---\ntags: "say \\"hi\\",b"\n---\nBody');
 	});
 
 	it("consumes author quotes when an explicit |type:number is declared", async () => {

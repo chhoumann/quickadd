@@ -28,6 +28,14 @@ describe("quoteYamlDouble", () => {
 		expect(quoteYamlDouble("a\nb")).toBe('"a\\nb"');
 		expect(quoteYamlDouble("a\tb")).toBe('"a\\tb"');
 	});
+
+	it("escapes the remaining C0/DEL control characters as \\xNN", () => {
+		expect(quoteYamlDouble("a\x00b")).toBe('"a\\x00b"');
+		expect(quoteYamlDouble("a\bb")).toBe('"a\\x08b"');
+		expect(quoteYamlDouble("a\fb")).toBe('"a\\x0cb"');
+		expect(quoteYamlDouble("a\x1bb")).toBe('"a\\x1bb"');
+		expect(quoteYamlDouble("a\x7fb")).toBe('"a\\x7fb"');
+	});
 });
 
 describe("shouldQuoteTextScalar", () => {
@@ -77,6 +85,8 @@ describe("escapeValueInsideQuotedYamlScalar", () => {
 		expect(escape(input, 'My "Great" Note')).toBe('My \\"Great\\" Note');
 		expect(escape(input, "a\\b")).toBe("a\\\\b");
 		expect(escape(input, "a\nb")).toBe("a\\nb");
+		expect(escape(input, "a\x00b")).toBe("a\\x00b");
+		expect(escape(input, "a\x1bb")).toBe("a\\x1bb");
 	});
 
 	it("doubles apostrophes inside a single-quoted scalar", () => {

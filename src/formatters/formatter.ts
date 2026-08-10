@@ -533,7 +533,14 @@ export abstract class Formatter {
 			const source = args[args.length - 1] as string;
 			const inner = token.slice(2, -2);
 			const optionsIndex = inner.indexOf("|");
-			if (optionsIndex === -1) return this.value;
+			if (optionsIndex === -1) {
+				return escapeValueInsideQuotedYamlScalar(
+					source,
+					offset,
+					offset + token.length,
+					this.value,
+				);
+			}
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions, {
 				warn: this.warnSink,
@@ -556,7 +563,14 @@ export abstract class Formatter {
 			) {
 				return quoteYamlDouble(transformed);
 			}
-			return transformed;
+			// Same contract as the named form: a value substituted inside an
+			// author-quoted front matter scalar must be escaped for those quotes.
+			return escapeValueInsideQuotedYamlScalar(
+				source,
+				offset,
+				offset + token.length,
+				transformed,
+			);
 		});
 
 		return output;
@@ -997,7 +1011,14 @@ export abstract class Formatter {
 		});
 		const placeholder = getYamlPlaceholder(structuredYamlValue);
 		if (placeholder !== undefined) return placeholder;
-		if (Array.isArray(args.rawValue)) return args.rawValue.join(",");
+		if (Array.isArray(args.rawValue)) {
+			return escapeValueInsideQuotedYamlScalar(
+				args.input,
+				args.matchStart,
+				args.matchEnd,
+				args.rawValue.join(","),
+			);
+		}
 		return undefined;
 	}
 
@@ -1399,7 +1420,13 @@ export abstract class Formatter {
 						heuristicEnabled: false,
 					});
 					replacement =
-						getYamlPlaceholder(structuredYamlValue) ?? rawValue.join(",");
+						getYamlPlaceholder(structuredYamlValue) ??
+						escapeValueInsideQuotedYamlScalar(
+							input,
+							match.index,
+							match.index + match[0].length,
+							rawValue.join(","),
+						);
 				} else {
 					replacement = escapeValueInsideQuotedYamlScalar(
 						input,
@@ -1468,7 +1495,14 @@ export abstract class Formatter {
 					collectionActive: this.templatePropertyCollectionDepth > 0,
 					heuristicEnabled: false,
 				});
-				output += getYamlPlaceholder(structuredYamlValue) ?? renderedValue.join(",");
+				output +=
+					getYamlPlaceholder(structuredYamlValue) ??
+					escapeValueInsideQuotedYamlScalar(
+						input,
+						match.index,
+						match.index + match[0].length,
+						renderedValue.join(","),
+					);
 			} else {
 				output += renderedValue;
 			}
