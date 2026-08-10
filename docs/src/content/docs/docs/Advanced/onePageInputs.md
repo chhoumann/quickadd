@@ -54,15 +54,12 @@ QuickAdd scans the choice for placeholders and turns each one into a field:
 
 ### How FILE inputs behave {#file-ux}
 
-:::note[Available in the next release]
-The inline searchable FILE picker described below is on `master` and will ship
-in the next QuickAdd release.
-:::
-
 - `{{FILE:folder}}` appears as a searchable picker in the form. Search matches the friendly note title, file name, and full vault path.
 - The selected file is shown above the search field and can be removed or replaced. Single-select fields keep the same first-file default as the previous dropdown.
 - `{{FILE:folder|multi}}` stays in the same form. Pick several files without opening a second modal, and remove the last pick by pressing Backspace in an empty search field.
 - Multi-select results keep the folder's file order. File names and friendly labels containing commas are handled as complete values.
+
+_Inline FILE pickers introduced in QuickAdd 2.21.0._
 
 ## Fields you can leave empty {#optional-fields}
 

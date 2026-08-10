@@ -949,8 +949,8 @@ module.exports = async (params) => {
 
 ## Error Handling Best Practices
 
-:::note[Available in the next release]
-Until then, a prompt that failed for a reason other than the user cancelling resolved
+:::note[Changed in QuickAdd 2.20.0]
+Before 2.20.0, a prompt that failed for a reason other than the user cancelling resolved
 `undefined` instead of rejecting, so a script could not tell a failure from an empty answer.
 :::
 
