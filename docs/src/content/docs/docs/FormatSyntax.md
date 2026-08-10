@@ -367,7 +367,7 @@ Variants and combinations:
 - `|multi|custom` adds a text box to the picker for values not in the list.
 - Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored (a list isn't case-transformed).
 
-:::note[Available in the next release]
+:::note[Introduced in QuickAdd 2.22.0]
 Add `|format:` when the output shape should be intentional instead of inferred
 from where the placeholder appears:
 
@@ -739,7 +739,7 @@ positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
-:::note[Available in the next release]
+:::note[Introduced in QuickAdd 2.22.0]
 FIELD multi-selects support the same explicit output formats as VALUE:
 `|format:yaml`, `|format:markdown`, `|format:inline`, and `|format:auto`.
 For example, `topics: {{FIELD:topic|multi|format:yaml}}` always writes a native
@@ -883,7 +883,7 @@ Good to know:
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
-:::note[Available in the next release]
+:::note[Introduced in QuickAdd 2.22.0]
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list

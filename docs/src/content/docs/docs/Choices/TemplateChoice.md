@@ -60,12 +60,12 @@ Two things to know about the quoted form:
 
 - QuickAdd escapes the filled-in value for the surrounding quotes, so answers
   containing `"` or `'` can't break the created note's frontmatter.
-  _Available in the next release._
+  _Introduced in QuickAdd 2.22.0._
 - Quotes normally make the property a **string**. For a typed property, declare
   the type on the token and the quotes are consumed:
   `rating: "{{VALUE:rating|type:number}}"` writes `rating: 42`, which Obsidian
   reads as a Number (same for `|type:checkbox` and `|type:slider`).
-  _Available in the next release._
+  _Introduced in QuickAdd 2.22.0._
 
 ## Run a template without making a choice {#run-without-choice}
 
