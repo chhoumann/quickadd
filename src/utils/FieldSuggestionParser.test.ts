@@ -121,6 +121,15 @@ describe("FieldSuggestionParser", () => {
 			expect(result.multiFormat).toBe("markdown");
 		});
 
+		it("warns on |format: without |multi, even |format:auto", () => {
+			const warnings: string[] = [];
+			const result = FieldSuggestionParser.parse("topics|format:auto", {
+				warn: (msg) => warnings.push(msg),
+			});
+			expect(result.multiFormat).toBeUndefined();
+			expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
+		});
+
 		it("should handle tags with # prefix", () => {
 			const result = FieldSuggestionParser.parse("fieldname|tag:#work");
 			expect(result).toEqual({

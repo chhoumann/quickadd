@@ -111,7 +111,7 @@ function isCaptureContentEmpty(content: string): boolean {
 }
 
 const MULTI_SELECT_TOKEN_REGEX =
-	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi(?=[:}|]|$)[^}]*\}\}/gi;
+	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi\s*(?=[:}|]|$)[^}]*\}\}/gi;
 const EXPLICIT_MULTI_FORMAT_REGEX =
 	/\|\s*format\s*:\s*(?:inline|yaml|markdown)\s*(?=\||}})/i;
 

@@ -821,9 +821,11 @@ export function parseValueToken(
 		);
 		caseStyle = undefined;
 	}
-	if (!multiSelect && multiFormat !== "auto") {
+	// Warn on ANY explicit |format: without |multi - including |format:auto,
+	// which is a no-op the author probably didn't intend.
+	if (!multiSelect && options.multiFormat !== undefined) {
 		warn(
-			`QuickAdd: |format:${multiFormat} needs |multi in "${tokenDisplay}"; ignoring.`,
+			`QuickAdd: |format: needs |multi in "${tokenDisplay}"; ignoring.`,
 		);
 		multiFormat = "auto";
 	}

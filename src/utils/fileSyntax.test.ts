@@ -52,6 +52,15 @@ describe("parseFileToken", () => {
 		expect(parsed?.multiFormat).toBe("yaml");
 	});
 
+	it("warns on |format: without |multi, even |format:auto", () => {
+		const warnings: string[] = [];
+		const parsed = parseFileToken("People|format:auto", {
+			warn: (msg) => warnings.push(msg),
+		});
+		expect(parsed?.multiFormat).toBe("auto");
+		expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
+	});
+
 	it("parses label and the |name: alias", () => {
 		const parsed = parseFileToken("People|link|label:Pick a person|name:reviewer");
 		expect(parsed?.label).toBe("Pick a person");

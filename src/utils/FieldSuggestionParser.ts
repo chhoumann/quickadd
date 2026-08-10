@@ -174,6 +174,7 @@ export class FieldSuggestionParser {
 		const filters: FieldFilter = {};
 		let multiSelect = false;
 		let multiFormat: MultiValueFormat = "auto";
+		let multiFormatExplicit = false;
 
 		for (let i = 1; i < parts.length; i++) {
 			const filterPart = parts[i];
@@ -225,6 +226,7 @@ export class FieldSuggestionParser {
 					multiSelect = parseBooleanFlag(filterValue);
 					break;
 				case "format":
+					multiFormatExplicit = true;
 					multiFormat =
 						parseMultiValueFormat(
 							filterValue,
@@ -311,9 +313,11 @@ export class FieldSuggestionParser {
 			}
 		}
 
-		if (!multiSelect && multiFormat !== "auto") {
+		// Warn on ANY explicit |format: without |multi - including |format:auto,
+		// which is a no-op the author probably didn't intend.
+		if (!multiSelect && multiFormatExplicit) {
 			options?.warn?.(
-				`QuickAdd: |format:${multiFormat} needs |multi in "{{FIELD:${input}}}"; ignoring.`,
+				`QuickAdd: |format: needs |multi in "{{FIELD:${input}}}"; ignoring.`,
 			);
 			multiFormat = "auto";
 		}

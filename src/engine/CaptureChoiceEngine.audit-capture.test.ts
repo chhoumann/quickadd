@@ -443,6 +443,13 @@ describe("CaptureChoiceEngine |multi degradation warning", () => {
 		).toBe(true);
 	});
 
+	it("warns for a |multi flag with trailing whitespace ({{FIELD:tags|multi }})", async () => {
+		const messages = await runWithFormat("{{FIELD:tags|multi }}");
+		expect(
+			messages.some((m) => m.includes("comma-separated strings")),
+		).toBe(true);
+	});
+
 	it("does not warn for non-multi FIELD tokens", async () => {
 		const messages = await runWithFormat("{{FIELD:tags}}");
 		expect(
