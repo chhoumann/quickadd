@@ -46,20 +46,34 @@ export function quoteYamlDouble(value: string): string {
  * token exactly spans the quoted scalar at a sole-value position - everywhere
  * else the value passes through untouched.
  */
-export function escapeValueInsideQuotedYamlScalar(
+/**
+ * Whether the token at [matchStart, matchEnd) exactly spans an author-quoted
+ * sole-value front matter scalar (`key: "{{TOKEN}}"` / `- '{{TOKEN}}'`).
+ */
+export function isTokenExactlyQuotedYamlScalar(
 	input: string,
 	matchStart: number,
 	matchEnd: number,
-	value: string,
-): string {
+): boolean {
 	const ctx = getYamlContextForMatch(
 		input,
 		matchStart,
 		matchEnd,
 		findYamlFrontMatterRange(input),
 	);
-	if (!ctx.isInYaml || !ctx.isQuoted) return value;
-	if (!ctx.isKeyValuePosition && !ctx.isListItemPosition) return value;
+	if (!ctx.isInYaml || !ctx.isQuoted) return false;
+	return ctx.isKeyValuePosition || ctx.isListItemPosition;
+}
+
+export function escapeValueInsideQuotedYamlScalar(
+	input: string,
+	matchStart: number,
+	matchEnd: number,
+	value: string,
+): string {
+	if (!isTokenExactlyQuotedYamlScalar(input, matchStart, matchEnd)) {
+		return value;
+	}
 
 	if (input[matchStart - 1] === '"') {
 		return value

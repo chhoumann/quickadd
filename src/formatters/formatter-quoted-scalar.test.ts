@@ -140,6 +140,46 @@ describe("issue #1655: values substituted into author-quoted front matter scalar
 		expect(result).toBe('---\nTitle: My "Great" Note\n---\nBody');
 	});
 
+	it("consumes author quotes when an explicit |type:number is declared", async () => {
+		formatter.seed("num", "42");
+		const result = await formatter.testFormat(
+			'---\nrating: "{{VALUE:num|type:number}}"\n---\nBody',
+		);
+		expect(result).toBe("---\nrating: 42\n---\nBody");
+	});
+
+	it("consumes author quotes for |type:checkbox", async () => {
+		formatter.seed("d", "true");
+		const result = await formatter.testFormat(
+			'---\ndone: "{{VALUE:d|type:checkbox}}"\n---\nBody',
+		);
+		expect(result).toBe("---\ndone: true\n---\nBody");
+	});
+
+	it("keeps quotes for |type:text (string semantics)", async () => {
+		formatter.seed("id", "0042");
+		const result = await formatter.testFormat(
+			'---\nid: "{{VALUE:id|type:text}}"\n---\nBody',
+		);
+		expect(result).toBe('---\nid: "0042"\n---\nBody');
+	});
+
+	it("keeps quotes and escapes for |type:multiline", async () => {
+		formatter.seed("n", "a\nb");
+		const result = await formatter.testFormat(
+			'---\nnotes: "{{VALUE:n|type:multiline}}"\n---\nBody',
+		);
+		expect(result).toBe('---\nnotes: "a\\nb"\n---\nBody');
+	});
+
+	it("does not consume quotes in the note body", async () => {
+		formatter.seed("num", "42");
+		const result = await formatter.testFormat(
+			'---\nTitle: x\n---\nSaid "{{VALUE:num|type:number}}" today',
+		);
+		expect(result).toBe('---\nTitle: x\n---\nSaid "42" today');
+	});
+
 	it("leaves body substitutions untouched even when the author wrote quotes", async () => {
 		formatter.seed("quote", 'she said "hi"');
 		const result = await formatter.testFormat(
