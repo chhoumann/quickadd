@@ -151,6 +151,14 @@ describe("issue #1655: values substituted into author-quoted front matter scalar
 		expect(result).toBe('---\ntitle: "he said \\"hi\\""\n---\nBody');
 	});
 
+	it("escapes the anonymous {{NAME}} form the same way", async () => {
+		formatter.anonymousValue = 'he said "hi"';
+		const result = await formatter.testFormat(
+			'---\ntitle: "{{NAME}}"\n---\nBody',
+		);
+		expect(result).toBe('---\ntitle: "he said \\"hi\\""\n---\nBody');
+	});
+
 	it("escapes a joined multi-select FIELD fallback inside a quoted scalar", async () => {
 		formatter.seed(`${FIELD_VARIABLE_PREFIX}tags|multi`, ['say "hi"', "b"]);
 		const result = await formatter.testFormat(
