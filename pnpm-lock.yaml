@@ -87,8 +87,8 @@ importers:
         specifier: 1.13.1
         version: 1.13.1(@codemirror/state@6.5.0)(@codemirror/view@6.38.6)
       obsidian-e2e:
-        specifier: ^0.9.0
-        version: 0.9.0(vite-plus@0.1.24(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@30.0.1)(svelte@5.56.8(@typescript-eslint/types@8.66.0))(typescript@6.0.3)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0))(vitest@4.1.10)
+        specifier: ^0.10.0
+        version: 0.10.0(vite-plus@0.1.24(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@30.0.1)(svelte@5.56.8(@typescript-eslint/types@8.66.0))(typescript@6.0.3)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0))(vitest@4.1.10)
       svelte:
         specifier: ^5
         version: 5.56.8(@typescript-eslint/types@8.66.0)
@@ -1738,8 +1738,8 @@ packages:
   obsidian-dataview@0.5.68:
     resolution: {integrity: sha512-eoYVxqgeAUM64fV6/YXWuXvmm9DaVoR1h/O+vBIHS0yQ+n9x5MaVndD3WjcVWuaJmrMM9iwvutkbZ0aCWpLmHw==}
 
-  obsidian-e2e@0.9.0:
-    resolution: {integrity: sha512-eolHF8eiwidRmT8JK+KLzv2o28ckKLUvBhwfiz5rfxx5mmbGqaJyNnne8uQ5YaURowX9u7T7Jga1Q6jihUv2eQ==}
+  obsidian-e2e@0.10.0:
+    resolution: {integrity: sha512-MEMljU5IqVSVq3QKKUBpSj1a+AIkhi9TQoJjWBQof18FDadixc4XrPTFVaBJ54R1zsi1NV4c86w//NmG5OeWfg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -2378,7 +2378,7 @@ snapshots:
 
   '@codemirror/view@6.38.6':
     dependencies:
-      '@codemirror/state': 6.5.0
+      '@codemirror/state': 6.6.0
       crelt: 1.0.7
       style-mod: 4.1.3
       w3c-keyname: 2.2.8
@@ -3616,7 +3616,7 @@ snapshots:
     transitivePeerDependencies:
       - '@typescript-eslint/types'
 
-  obsidian-e2e@0.9.0(vite-plus@0.1.24(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@30.0.1)(svelte@5.56.8(@typescript-eslint/types@8.66.0))(typescript@6.0.3)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0))(vitest@4.1.10):
+  obsidian-e2e@0.10.0(vite-plus@0.1.24(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@30.0.1)(svelte@5.56.8(@typescript-eslint/types@8.66.0))(typescript@6.0.3)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0))(vitest@4.1.10):
     dependencies:
       vite-plus: 0.1.24(@types/node@26.1.2)(@vitest/coverage-v8@4.1.10)(esbuild@0.28.1)(jiti@2.6.1)(jsdom@30.0.1)(svelte@5.56.8(@typescript-eslint/types@8.66.0))(typescript@6.0.3)(vite@8.2.1(@types/node@26.1.2)(esbuild@0.28.1)(jiti@2.6.1)(yaml@2.9.0))(yaml@2.9.0)
       yaml: 2.9.0
