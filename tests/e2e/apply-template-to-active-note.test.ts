@@ -29,14 +29,8 @@ async function seedFile(sandbox: SandboxApi, name: string, content: string) {
 
 /**
  * Opens the note in the active leaf, then calls the public API seam
- * `applyTemplateToActiveFile`. Results land in a window global we poll for
- * rather than awaiting `evalJsonAsync`'s return. The original reason (QuickAdd
- * notices corrupting the JSON envelope) is fixed by obsidian-e2e >= 0.8.2's
- * per-call envelope framing (obsidian-e2e#18) - see the A00 regression below.
- * What remains is a transport-level flake: a long-awaited eval can stall and
- * time out even after the in-app operation completed (artifacts show the
- * template fully applied while the CLI response never arrived), so the
- * long-running work stays decoupled from short, reliable JSON reads.
+ * `applyTemplateToActiveFile`. Failures come back as `{ ok: false, error }`
+ * so tests can assert on the rejection message.
  */
 async function applyTemplate(
 	obsidian: ObsidianClient,
@@ -46,8 +40,7 @@ async function applyTemplate(
 ): Promise<ApplyResult> {
 	const options = mode ? `{ mode: ${JSON.stringify(mode)} }` : "undefined";
 
-	await obsidian.dev.evalRaw(`(async () => {
-		window.__qaApplyTplResult = null;
+	return obsidian.dev.evalJsonAsync<ApplyResult>(`(async () => {
 		try {
 			// The vault index can lag behind sandbox writes; poll for the note.
 			let file = null;
@@ -63,20 +56,11 @@ async function applyTemplate(
 				${JSON.stringify(templatePath)},
 				${options},
 			);
-			window.__qaApplyTplResult = { ok: true, path: result ? result.path : null };
+			return { ok: true, path: result ? result.path : null };
 		} catch (e) {
-			window.__qaApplyTplResult = { ok: false, error: String((e && e.message) || e) };
+			return { ok: false, error: String((e && e.message) || e) };
 		}
 	})()`);
-
-	const result = await obsidian.waitFor(async () => {
-		const value = await obsidian.dev.evalJson<ApplyResult | null>(
-			"window.__qaApplyTplResult ?? null",
-		);
-		return value ?? false;
-	}, WAIT_OPTS);
-
-	return result as ApplyResult;
 }
 
 function expectOrderedSubstrings(
