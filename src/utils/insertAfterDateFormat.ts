@@ -5,13 +5,13 @@
  * literal-`+` format, or a multi-token heading — those can't be reliably
  * round-tripped, so the UI falls back to insertion + a warning.
  *
- * The DATE regex mirrors DATE_REGEX_FORMATTED: the snap option (`|startof:`/
- * `|endof:` + letters, issue #511) is excluded from the captured sort format,
- * while any other literal `|` is preserved ({{DATE:YYYY|MM}} -> "YYYY|MM").
+ * The DATE regex mirrors DATE_REGEX_FORMATTED: snap and case options are
+ * excluded from the captured sort format, while any other literal `|` is
+ * preserved ({{DATE:YYYY|MM}} -> "YYYY|MM").
  */
 export function detectDateFormatFromAfter(after: string): string | undefined {
 	const date = after.match(
-		/\{\{DATE:((?:[^}\n\r+|]|\|(?!(?:startof|endof):[a-z]))*)(?:\+-?\d+)?(?:\|(?:startof|endof):[a-z]+)?\}\}/i,
+		/\{\{DATE:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(?:\+-?\d+)?(?:\|(?:startof|endof):[a-z]+)?(?:\|case:[a-z-]+)?\}\}/i,
 	);
 	const dateFormat = date?.[1]?.trim();
 	if (dateFormat) return dateFormat;

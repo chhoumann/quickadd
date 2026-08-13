@@ -15,7 +15,8 @@ import {
 
 export type { FormatSuggestContext } from "./formatTokenRegistry";
 
-const CASE_FRAGMENT_REGEX = /^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i;
+const CASE_FRAGMENT_REGEX =
+	/^\{\{(?:VALUE|NAME|DATE|TIME|VDATE)[^\n\r}]*\|case:([a-z-]*)$/i;
 /** The `<folder>`-style fill-in-the-blank inside an example row. */
 const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 
@@ -58,7 +59,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			return [];
 		}
 
-		// Special-case: suggest casing styles when typing `|case:` inside VALUE/NAME tokens.
+		// Suggest casing styles inside every token family that supports |case:.
 		const caseMatch = inputSegment.match(CASE_FRAGMENT_REGEX);
 		if (caseMatch) {
 			const fragment = caseMatch[1] ?? "";

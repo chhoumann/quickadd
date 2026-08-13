@@ -404,6 +404,13 @@ content instead.
 this is how entries land under the right heading. A journal capture might
 insert after `## What did I do today?`.
 
+Matching is exact, including letter case. When a formatted date needs to match
+a lowercase heading, transform the date explicitly instead of loosening the
+match. For example, `## {{DATE:dddd, MMMM Do, yyyy.|case:lower}}` matches
+`## tuesday, august 11th, 2026.`. See [date text casing](/docs/FormatSyntax/#date-case).
+
+_Available in the next release._
+
 By default, QuickAdd preserves blank lines after headings to keep spacing
 intact. **Blank lines after match** controls this:
 
