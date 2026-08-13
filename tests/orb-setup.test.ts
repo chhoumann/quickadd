@@ -261,7 +261,7 @@ describe.skipIf(process.platform !== "linux")("Linux Obsidian launcher validatio
 	});
 });
 
-describe("obsidian-e2e Linux patcher", () => {
+describe.skipIf(process.platform !== "linux")("obsidian-e2e Linux patcher", () => {
 	const originalLaunch = 'resolveExec(deps)("/usr/bin/open", [';
 	const originalAsar =
 		'return [path.join("/Applications", leaf), path.join(os.userInfo().homedir, "Applications", leaf)];';
