@@ -9,7 +9,10 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const runE2E = path.join(repoRoot, ".agents", "run-e2e");
 const openShim = path.join(repoRoot, ".agents", "obsidian-open");
 const patcher = path.join(repoRoot, ".agents", "patch-obsidian-e2e-linux.mjs");
-const profileRoot = "/tmp/quickadd-obsidian-e2e";
+const profileRoot = path.join(
+	fs.realpathSync("/tmp"),
+	"quickadd-obsidian-e2e",
+);
 const temporaryPaths: string[] = [];
 
 interface ProfileRootState {
@@ -173,7 +176,9 @@ exit 0
 	});
 });
 
-describe("Linux Obsidian launcher validation", () => {
+const describeLinux = process.platform === "linux" ? describe : describe.skip;
+
+describeLinux("Linux Obsidian launcher validation", () => {
 	function validArgs(validHome: string): string[] {
 		return [
 		"-n",

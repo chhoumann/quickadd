@@ -92,6 +92,11 @@ an existing note in scope, so typing an existing name selects it instead of
 offering a duplicate. The picker still opens for an empty folder, tag,
 property, or filtered scope so you can create the first note there.
 
+:::note[Available in the next release]
+The create row is selected first, so press Enter to create the exact name you
+typed even when existing notes are fuzzy matches.
+:::
+
 ### Capture to a folder {#capturing-to-folders}
 
 Type a folder name (like `CRM/people`) and QuickAdd asks which note in that
