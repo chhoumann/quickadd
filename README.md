@@ -33,9 +33,9 @@ QuickAdd uses `pnpm` for local development tasks:
 - `pnpm run build` type-checks and bundles the plugin.
 - `pnpm run test:e2e` runs Obsidian-backed end-to-end tests.
 
-The E2E suite is local-only today. It depends on a locally installed Obsidian
-app and the `obsidian` CLI being available on `PATH`. By default it targets the
-`dev` vault, but the target is configurable:
+The E2E suite depends on an installed Obsidian app and the `obsidian` CLI being
+available on `PATH`. By default it targets the `dev` vault, but the target is
+configurable:
 
 ```bash
 pnpm run provision:e2e-vault -- --vault quickadd-my-worktree --register-via dev --print-env
@@ -89,6 +89,37 @@ and waits until `quickadd:list` succeeds. Set the printed
 worktree's Obsidian instance instead of the shared desktop instance.
 
 Failed E2E runs may write artifacts to `.obsidian-e2e-artifacts/`.
+
+### Amp orb setup
+
+Fresh Amp orbs run [`.agents/setup`](.agents/setup). It reproducibly installs
+the pinned Node.js/pnpm toolchain, the checksum-verified official Obsidian Linux
+package, Xvfb, and xauth; installs project dependencies; builds the plugin; and
+provisions the worktree-local test vault. The setup is idempotent and caches its
+downloads under `~/.cache/quickadd-orb/`.
+
+`obsidian-e2e` 0.10 launches isolated instances through macOS's `open` command.
+On Linux, setup patches only this worktree's installed runner to invoke the
+repository-local [`.agents/obsidian-open`](.agents/obsidian-open) compatibility
+shim and to read the installed `obsidian.asar` directly. It does not replace the
+system `/usr/bin/open`. The shim launches official Obsidian on an ephemeral Xvfb
+display, while `~/.local/bin/obsidian` exposes the official CLI redirector.
+Instances still use the runner's private HOME, user-data directory, vault
+registration, readiness probe, and teardown logic.
+
+Run the complete suite in an orb with:
+
+```bash
+pnpm run test:e2e:orb
+```
+
+The wrapper starts the isolated instance, points the tests at its private HOME,
+and traps exit and interruption so teardown always runs. A teardown failure also
+makes the command fail instead of silently leaking an Obsidian process.
+
+Amp runs [`.agents/resume`](.agents/resume) after an existing orb wakes. It only
+performs fast prerequisite checks; Obsidian is intentionally started on demand
+because GUI processes do not survive orb pause/resume.
 
 ## Support
 

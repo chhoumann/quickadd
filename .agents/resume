@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly NODE_VERSION="24.19.0"
+readonly PNPM_VERSION="10.32.1"
+readonly OBSIDIAN_VERSION="1.13.7"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+readonly NODE_ROOT="$HOME/.local/share/node-v${NODE_VERSION}-linux-x64"
+export COREPACK_HOME="$HOME/.cache/quickadd-corepack"
+export PATH="$HOME/.local/bin:$NODE_ROOT/bin:$PATH"
+
+# Processes are intentionally not preserved across an orb pause. obsidian-e2e
+# starts or reuses the isolated instance on demand; resume only checks that the
+# snapshotted setup remains available and returns well within Amp's 10s limit.
+for command_name in node pnpm obsidian xvfb-run xauth; do
+	if ! command -v "$command_name" >/dev/null 2>&1; then
+		echo "Missing $command_name; rerun .agents/setup." >&2
+		exit 1
+	fi
+done
+
+[[ "$(node --version)" == "v$NODE_VERSION" ]] || {
+	echo "Unexpected Node.js version; rerun .agents/setup." >&2
+	exit 1
+}
+[[ "$(readlink -f "$HOME/.local/bin/node")" == "$NODE_ROOT/bin/node" ]] || {
+	echo "Invalid Node.js bridge; rerun .agents/setup." >&2
+	exit 1
+}
+[[ "$(cd "$REPO_ROOT" && pnpm --version)" == "$PNPM_VERSION" ]] || {
+	echo "Unexpected pnpm version; rerun .agents/setup." >&2
+	exit 1
+}
+[[ "$(dpkg-query -W -f='${Version}' obsidian 2>/dev/null)" == "$OBSIDIAN_VERSION" ]] || {
+	echo "Unexpected Obsidian version; rerun .agents/setup." >&2
+	exit 1
+}
+for package_name in xvfb xauth; do
+	dpkg-query -W -f='${Status}' "$package_name" 2>/dev/null | grep -Fqx "install ok installed" || {
+		echo "Missing installed package $package_name; rerun .agents/setup." >&2
+		exit 1
+	}
+done
+[[ "$(readlink -f "$HOME/.local/bin/obsidian")" == "/opt/Obsidian/obsidian-cli" ]] || {
+	echo "Invalid Obsidian CLI bridge; rerun .agents/setup." >&2
+	exit 1
+}
+[[ -x "$SCRIPT_DIR/obsidian-open" && -r /opt/Obsidian/resources/obsidian.asar ]] || {
+	echo "Invalid Obsidian app bridge; rerun .agents/setup." >&2
+	exit 1
+}
+[[ -z "$(dpkg -V obsidian 2>/dev/null || true)" ]] || {
+	echo "Obsidian package integrity check failed; rerun .agents/setup." >&2
+	exit 1
+}
+node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" --check >/dev/null
+
+echo "QuickAdd E2E prerequisites are available; Obsidian starts on demand."

@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly NODE_VERSION="24.19.0"
+readonly NODE_SHA256="14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647"
+readonly PNPM_VERSION="10.32.1"
+readonly PNPM_INTEGRITY="sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+readonly OBSIDIAN_VERSION="1.13.7"
+readonly OBSIDIAN_SHA256="17dc33b49cb3e785ecc27edd2ea0c79e40207798b554fd2886e36ebee7af9ae0"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+readonly CACHE_DIR="$HOME/.cache/quickadd-orb"
+readonly COREPACK_HOME="$HOME/.cache/quickadd-corepack"
+readonly NODE_ROOT="$HOME/.local/share/node-v${NODE_VERSION}-linux-x64"
+readonly PNPM_SPEC="pnpm@${PNPM_VERSION}+${PNPM_INTEGRITY}"
+export COREPACK_HOME
+
+download_verified() {
+	local url="$1" destination="$2" expected_sha256="$3"
+	if [[ -f "$destination" ]] && ! echo "$expected_sha256  $destination" | sha256sum -c - >/dev/null; then
+		echo "[setup] Removing corrupt cached download: $destination"
+		rm -f -- "$destination"
+	fi
+	if [[ ! -f "$destination" ]]; then
+		local temporary="${destination}.tmp.$$"
+		if ! curl -fsSL --retry 3 "$url" -o "$temporary" || \
+			! echo "$expected_sha256  $temporary" | sha256sum -c - >/dev/null; then
+			rm -f -- "$temporary"
+			return 1
+		fi
+		mv -f -- "$temporary" "$destination"
+	fi
+	echo "$expected_sha256  $destination" | sha256sum -c - >/dev/null
+}
+
+remove_corrupt_cache() {
+	local file="$1" expected_sha256="$2"
+	if [[ -f "$file" ]] && ! echo "$expected_sha256  $file" | sha256sum -c - >/dev/null 2>&1; then
+		echo "[setup] Removing corrupt cached download: $file"
+		rm -f -- "$file"
+	fi
+}
+
+if [[ "$(uname -s)" != "Linux" || "$(uname -m)" != "x86_64" ]]; then
+	echo "QuickAdd's orb setup currently supports Linux x86_64 only." >&2
+	exit 1
+fi
+
+mkdir -p "$CACHE_DIR" "$HOME/.local/bin" "$HOME/.local/share"
+node_archive="$CACHE_DIR/node-v${NODE_VERSION}-linux-x64.tar.xz"
+obsidian_deb="$CACHE_DIR/obsidian_${OBSIDIAN_VERSION}_amd64.deb"
+remove_corrupt_cache "$node_archive" "$NODE_SHA256"
+remove_corrupt_cache "$obsidian_deb" "$OBSIDIAN_SHA256"
+
+echo "[setup] Node.js ${NODE_VERSION} and pnpm"
+if [[ ! -x "$NODE_ROOT/bin/node" || ! -x "$NODE_ROOT/bin/corepack" ]] || \
+	[[ "$($NODE_ROOT/bin/node --version 2>/dev/null || true)" != "v$NODE_VERSION" ]]; then
+	download_verified \
+		"https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+		"$node_archive" "$NODE_SHA256"
+	rm -rf "$NODE_ROOT"
+	mkdir -p "$NODE_ROOT"
+	tar -xJf "$node_archive" --strip-components=1 -C "$NODE_ROOT"
+fi
+[[ "$($NODE_ROOT/bin/node --version)" == "v$NODE_VERSION" ]] || {
+	echo "Installed Node.js version validation failed." >&2
+	exit 1
+}
+
+ln -sfn "$NODE_ROOT/bin/node" "$HOME/.local/bin/node"
+ln -sfn "$NODE_ROOT/bin/corepack" "$HOME/.local/bin/corepack"
+
+# The hash in PNPM_SPEC is npm's published SHA-512 integrity for 10.32.1.
+# Corepack verifies it before accepting either a cached or downloaded package.
+installed_pnpm=""
+if [[ -x "$HOME/.local/bin/pnpm" ]]; then
+	installed_pnpm="$(cd "$REPO_ROOT" && "$HOME/.local/bin/pnpm" --version 2>/dev/null || true)"
+fi
+if [[ "$installed_pnpm" != "$PNPM_VERSION" ]]; then
+	"$NODE_ROOT/bin/corepack" install --global "$PNPM_SPEC"
+	"$NODE_ROOT/bin/corepack" enable --install-directory "$HOME/.local/bin" pnpm
+fi
+export PATH="$HOME/.local/bin:$NODE_ROOT/bin:$PATH"
+[[ "$(cd "$REPO_ROOT" && pnpm --version)" == "$PNPM_VERSION" ]] || {
+	echo "Installed pnpm version validation failed." >&2
+	exit 1
+}
+[[ "$(node -p 'require(process.argv[1]).packageManager' "$REPO_ROOT/package.json")" == "$PNPM_SPEC" ]] || {
+	echo "package.json does not pin the verified pnpm package." >&2
+	exit 1
+}
+
+profile_marker="# QuickAdd orb toolchain"
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+	cat >> "$HOME/.bash_profile" <<'EOF'
+
+# QuickAdd orb toolchain
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+fi
+if ! grep -Fqx 'export COREPACK_HOME="$HOME/.cache/quickadd-corepack"' \
+	"$HOME/.bash_profile" 2>/dev/null; then
+	cat >> "$HOME/.bash_profile" <<'EOF'
+export COREPACK_HOME="$HOME/.cache/quickadd-corepack"
+EOF
+fi
+
+echo "[setup] Obsidian ${OBSIDIAN_VERSION} and virtual display"
+obsidian_installed="$(dpkg-query -W -f='${Version}' obsidian 2>/dev/null || true)"
+if [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
+	download_verified \
+		"https://github.com/obsidianmd/obsidian-releases/releases/download/v${OBSIDIAN_VERSION}/obsidian_${OBSIDIAN_VERSION}_amd64.deb" \
+		"$obsidian_deb" "$OBSIDIAN_SHA256"
+fi
+
+missing_system_package=false
+for package_name in xvfb xauth; do
+	if ! dpkg-query -W -f='${Status}' "$package_name" 2>/dev/null | grep -Fqx "install ok installed"; then
+		missing_system_package=true
+	fi
+done
+if [[ "$missing_system_package" == true ]]; then
+	sudo apt-get update -qq
+	if [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
+		sudo apt-get install -y -qq --allow-downgrades xvfb xauth "$obsidian_deb"
+	else
+		sudo apt-get install -y -qq xvfb xauth
+	fi
+elif [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
+	sudo apt-get install -y -qq --allow-downgrades "$obsidian_deb"
+fi
+
+[[ "$(dpkg-query -W -f='${Version}' obsidian 2>/dev/null)" == "$OBSIDIAN_VERSION" ]] || {
+	echo "Installed Obsidian version validation failed." >&2
+	exit 1
+}
+for package_name in xvfb xauth; do
+	dpkg-query -W -f='${Status}' "$package_name" 2>/dev/null | grep -Fqx "install ok installed" || {
+		echo "Required package $package_name is not installed." >&2
+		exit 1
+	}
+done
+[[ -x /opt/Obsidian/obsidian && -x /opt/Obsidian/obsidian-cli && \
+	-r /opt/Obsidian/resources/obsidian.asar ]] || {
+	echo "Obsidian package paths are incomplete." >&2
+	exit 1
+}
+obsidian_verify="$(dpkg -V obsidian 2>/dev/null || true)"
+[[ -z "$obsidian_verify" ]] || {
+	echo "Obsidian package integrity validation failed: $obsidian_verify" >&2
+	exit 1
+}
+
+# Obsidian's package registers the GUI executable as `obsidian`; E2E commands
+# need its official CLI redirector instead.
+if [[ -e "$HOME/.local/bin/obsidian" && ! -L "$HOME/.local/bin/obsidian" ]]; then
+	echo "Refusing to replace non-symlink $HOME/.local/bin/obsidian." >&2
+	exit 1
+fi
+ln -sfn /opt/Obsidian/obsidian-cli "$HOME/.local/bin/obsidian"
+[[ "$(readlink -f "$HOME/.local/bin/obsidian")" == "/opt/Obsidian/obsidian-cli" ]] || {
+	echo "Obsidian CLI bridge validation failed." >&2
+	exit 1
+}
+
+# Undo global bridges installed by the first iteration of this setup, but only
+# when they still point at the exact paths QuickAdd managed.
+managed_legacy_open=false
+if [[ "$(readlink -f /usr/bin/open 2>/dev/null || true)" == "/usr/local/lib/quickadd-obsidian-open" ]]; then
+	managed_legacy_open=true
+	sudo rm -f /usr/bin/open
+	sudo update-alternatives --auto open >/dev/null
+fi
+if [[ "$managed_legacy_open" == true ]]; then
+	sudo rm -f /usr/local/lib/quickadd-obsidian-open
+fi
+legacy_asar=/Applications/Obsidian.app/Contents/Resources/obsidian.asar
+if [[ -L "$legacy_asar" ]] && \
+	[[ "$(readlink -f "$legacy_asar")" == "/opt/Obsidian/resources/obsidian.asar" ]]; then
+	sudo rm -f "$legacy_asar"
+	sudo rmdir --ignore-fail-on-non-empty \
+		/Applications/Obsidian.app/Contents/Resources \
+		/Applications/Obsidian.app/Contents /Applications/Obsidian.app /Applications
+fi
+[[ "$(readlink -f /usr/bin/open 2>/dev/null || true)" != "/usr/local/lib/quickadd-obsidian-open" ]] || {
+	echo "Failed to restore the system open command." >&2
+	exit 1
+}
+
+echo "[setup] Project dependencies, build, and isolated vault"
+pnpm --dir "$REPO_ROOT" install --frozen-lockfile
+node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs"
+node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" --check
+pnpm --dir "$REPO_ROOT" run build
+pnpm --dir "$REPO_ROOT" run --silent provision:e2e-vault
+
+echo "[setup] QuickAdd orb setup complete"

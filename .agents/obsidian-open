@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# obsidian-e2e 0.10 launches isolated instances through macOS's `open` command.
+# Setup patches this worktree's installed runner to call this repository-local
+# compatibility shim instead. Accept only the exact argv emitted by that runner.
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+readonly PROFILE_ROOT="/tmp/quickadd-obsidian-e2e"
+
+if (($# != 9)) || [[ "$1" != "-n" || "$2" != "-g" || "$3" != "-a" || \
+	"$4" != "Obsidian" || "$5" != "--env" || "$6" != HOME=* || \
+	"$7" != "--args" || "$9" != "--password-store=basic" ]]; then
+	echo "Unsupported Obsidian launcher argument shape." >&2
+	exit 2
+fi
+
+raw_home="${6#HOME=}"
+if [[ -z "$raw_home" || ! -d "$raw_home" ]]; then
+	echo "Obsidian HOME must be an existing directory." >&2
+	exit 2
+fi
+canonical_home="$(realpath -e -- "$raw_home")"
+canonical_profile_root="$(realpath -e -- "$PROFILE_ROOT")"
+instance_dir="$(dirname -- "$canonical_home")"
+
+# Requiring the supplied spelling to equal its canonical path rejects `..`,
+# symlink aliases, and symlink escapes. The parent checks require exactly one
+# instance directory between the profile root and its `home` child.
+if [[ "$raw_home" != "$canonical_home" || "$(basename -- "$canonical_home")" != "home" || \
+	"$(dirname -- "$instance_dir")" != "$canonical_profile_root" || \
+	"$(basename -- "$instance_dir")" == "." || \
+	"$(stat -c %u -- "$instance_dir")" != "$(id -u)" || \
+	"$(stat -c %u -- "$canonical_home")" != "$(id -u)" || \
+	! -f "$instance_dir/obsidian-e2e-instance.json" || \
+	"$(stat -c %u -- "$instance_dir/obsidian-e2e-instance.json")" != "$(id -u)" ]]; then
+	echo "Refusing non-canonical or escaped QuickAdd instance HOME: $raw_home" >&2
+	exit 2
+fi
+
+expected_user_data="--user-data-dir=$canonical_home/Library/Application Support/obsidian"
+if [[ "$8" != "$expected_user_data" ]]; then
+	echo "Unsupported Obsidian user-data directory." >&2
+	exit 2
+fi
+
+export HOME="$canonical_home"
+app_args=("$8" "$9")
+
+# Tests exercise the complete argument and path validation without launching a
+# GUI. The production runner never sets this variable.
+if [[ "${QUICKADD_OBSIDIAN_OPEN_VALIDATE_ONLY:-}" == "1" ]]; then
+	exit 0
+fi
+
+[[ -x /opt/Obsidian/obsidian ]] || {
+	echo "Missing executable Obsidian app: /opt/Obsidian/obsidian" >&2
+	exit 1
+}
+[[ -r /opt/Obsidian/resources/obsidian.asar ]] || {
+	echo "Missing readable Obsidian app archive: /opt/Obsidian/resources/obsidian.asar" >&2
+	exit 1
+}
+command -v xvfb-run >/dev/null 2>&1 || {
+	echo "xvfb-run is unavailable; rerun $REPO_ROOT/.agents/setup." >&2
+	exit 1
+}
+
+log_dir="$HOME/.cache/obsidian-e2e"
+mkdir -p "$log_dir"
+
+# Match macOS `open` semantics: return after starting the detached app. The
+# runner owns teardown and identifies this process by its --user-data-dir.
+(
+	trap '' HUP
+	exec xvfb-run -a /opt/Obsidian/obsidian --no-sandbox "${app_args[@]}" \
+		>>"$log_dir/obsidian.log" 2>&1 </dev/null
+) &

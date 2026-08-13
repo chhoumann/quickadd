@@ -15,7 +15,8 @@
 		"stop:e2e-obsidian": "obsidian-e2e stop",
 		"test": "vitest run --config vitest.config.mts --passWithNoTests",
 		"test:coverage": "vitest run --config vitest.config.mts --coverage",
-		"test:e2e": "vitest run --config vitest.e2e.config.mts"
+		"test:e2e": "vitest run --config vitest.e2e.config.mts",
+		"test:e2e:orb": ".agents/run-e2e"
 	},
 	"keywords": [],
 	"author": "Christian B. B. Houmann",
@@ -64,7 +65,7 @@
 	"engines": {
 		"node": "^20.19.0 || >=22.12.0"
 	},
-	"packageManager": "pnpm@10.32.1",
+	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"@codemirror/language",

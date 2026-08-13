@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
+readonly ORIGINAL_HOME="$HOME"
+export COREPACK_HOME="${COREPACK_HOME:-$ORIGINAL_HOME/.cache/quickadd-corepack}"
+
+cd "$REPO_ROOT"
+
+cleanup() {
+	local status=$?
+	trap - EXIT INT TERM
+	if ! HOME="$ORIGINAL_HOME" pnpm run --silent stop:e2e-obsidian; then
+		echo "Failed to stop the isolated Obsidian E2E instance." >&2
+		if ((status == 0)); then status=1; fi
+	fi
+	exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# Keep assignment and status checking separate from parsing. Command
+# substitution inside `eval` would otherwise let eval's success mask a runner
+# that printed plausible exports and then exited nonzero.
+start_output=""
+if start_output="$(pnpm run --silent start:e2e-obsidian -- --print-env)"; then
+	:
+else
+	start_status=$?
+	echo "Failed to start the isolated Obsidian E2E instance (status $start_status)." >&2
+	exit "$start_status"
+fi
+
+# Parse the runner's narrow export contract instead of evaluating shell text.
+# Values containing quotes/newlines are rejected; E2E paths and vault names do
+# not require shell syntax.
+declare -A start_env=()
+while IFS= read -r line; do
+	if [[ ! "$line" =~ ^export\ ([A-Z0-9_]+)=\'([^\']*)\'$ ]]; then
+		echo "Invalid start environment output: $line" >&2
+		exit 1
+	fi
+	name="${BASH_REMATCH[1]}"
+	value="${BASH_REMATCH[2]}"
+	case "$name" in
+		OBSIDIAN_E2E_VAULT|OBSIDIAN_E2E_VAULT_PATH|OBSIDIAN_E2E_OBSIDIAN_HOME|QUICKADD_E2E_VAULT|QUICKADD_E2E_VAULT_PATH|QUICKADD_E2E_OBSIDIAN_HOME|OBSIDIAN_BIN) ;;
+		*) echo "Unexpected start environment variable: $name" >&2; exit 1 ;;
+	esac
+	[[ ! -v "start_env[$name]" ]] || {
+		echo "Duplicate start environment variable: $name" >&2
+		exit 1
+	}
+	start_env["$name"]="$value"
+done <<< "$start_output"
+
+for name in OBSIDIAN_E2E_VAULT OBSIDIAN_E2E_VAULT_PATH OBSIDIAN_E2E_OBSIDIAN_HOME \
+	QUICKADD_E2E_VAULT QUICKADD_E2E_VAULT_PATH QUICKADD_E2E_OBSIDIAN_HOME; do
+	[[ -n "${start_env[$name]:-}" ]] || {
+		echo "Missing start environment variable: $name" >&2
+		exit 1
+	}
+done
+[[ "${start_env[OBSIDIAN_E2E_VAULT]}" == "${start_env[QUICKADD_E2E_VAULT]}" && \
+	"${start_env[OBSIDIAN_E2E_VAULT_PATH]}" == "${start_env[QUICKADD_E2E_VAULT_PATH]}" && \
+	"${start_env[OBSIDIAN_E2E_OBSIDIAN_HOME]}" == "${start_env[QUICKADD_E2E_OBSIDIAN_HOME]}" ]] || {
+	echo "Canonical and legacy start environment values disagree." >&2
+	exit 1
+}
+vault_path="${start_env[OBSIDIAN_E2E_VAULT_PATH]}"
+obsidian_home="${start_env[OBSIDIAN_E2E_OBSIDIAN_HOME]}"
+expected_vault_root="$(realpath -e -- "$REPO_ROOT/.obsidian-e2e-vaults")"
+profile_root="$(realpath -e -- /tmp/quickadd-obsidian-e2e)"
+if [[ ! -d "$vault_path" || "$(realpath -e -- "$vault_path")" != "$vault_path" || \
+	"$(dirname -- "$vault_path")" != "$expected_vault_root" || \
+	! -d "$obsidian_home" || "$(realpath -e -- "$obsidian_home")" != "$obsidian_home" || \
+	"$(basename -- "$obsidian_home")" != "home" || \
+	"$(dirname -- "$(dirname -- "$obsidian_home")")" != "$profile_root" ]]; then
+	echo "Start environment paths are not canonical isolated E2E paths." >&2
+	exit 1
+fi
+for name in "${!start_env[@]}"; do
+	printf -v "$name" '%s' "${start_env[$name]}"
+	export "$name"
+done
+
+export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
+pnpm run test:e2e -- "$@"
