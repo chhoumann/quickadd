@@ -20,6 +20,19 @@ describe("detectDateFormatFromAfter", () => {
 		);
 	});
 
+	it("strips a case transform while keeping the sortable date format", () => {
+		expect(
+			detectDateFormatFromAfter(
+				"## {{DATE:dddd, MMMM Do, YYYY.|case:lower}}",
+			),
+		).toBe("dddd, MMMM Do, YYYY.");
+		expect(
+			detectDateFormatFromAfter(
+				"{{DATE:MMMM YYYY|startof:month|case:upper}}",
+			),
+		).toBe("MMMM YYYY");
+	});
+
 	it("PRESERVES a literal pipe in the sort format (the bot-found regression)", () => {
 		expect(detectDateFormatFromAfter("{{DATE:YYYY|MM}}")).toBe("YYYY|MM");
 		expect(detectDateFormatFromAfter("{{DATE:YYYY|MM|startof:month}}")).toBe(

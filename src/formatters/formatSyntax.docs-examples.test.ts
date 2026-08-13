@@ -10,8 +10,11 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"Review on {{DATE+7}}",
 	"{{DATE:YYYY-MM-DD_HH-mm}}",
 	"{{DATE:YYYY-MM-DD+3}}",
+	"## {{DATE:dddd, MMMM Do, YYYY.|case:lower}}",
+	"{{TIME:A|case:lower}}",
 	"Due: {{VDATE:due,YYYY-MM-DD}}\nWeek: {{VDATE:due,gggg-[W]WW}}",
 	"{{VDATE:due,YYYY-MM-DD|next monday}}",
+	"{{VDATE:due,dddd, MMMM Do, YYYY|case:lower}}",
 	"- [ ] {{VALUE|label:Task}}",
 	"---\ntitle: {{VALUE:title}}\n---\n# {{VALUE:title}}",
 	"{{VALUE:project|label:Client or project name}}",
@@ -143,6 +146,7 @@ class DocsExampleFormatter extends Formatter {
 		output = await this.replaceTemplateInString(output);
 		output = await this.replaceGlobalVarInString(output);
 		output = this.replaceDateInString(output);
+		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);
 		output = await this.replaceSelectedInString(output);
 		output = await this.replaceClipboardInString(output);

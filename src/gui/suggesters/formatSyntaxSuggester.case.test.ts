@@ -38,4 +38,27 @@ describe("FormatSyntaxSuggester case style suggestions", () => {
 		const s = await suggestInserts("{{VALUE");
 		expect(s).toContain("{{VALUE:title|trim}}");
 	});
+
+	it.each(["DATE", "TIME", "VDATE"])(
+		"suggests case styles while typing inside %s",
+		async (token) => {
+			const prefix =
+				token === "VDATE"
+					? "{{VDATE:date,dddd|case:l"
+					: `{{${token}:dddd|case:l`;
+			expect(await suggestInserts(prefix)).toEqual(["lower"]);
+		},
+	);
+
+	it("offers complete date and time case examples", async () => {
+		expect(await suggestInserts("{{dat")).toContain(
+			"{{DATE:dddd, MMMM Do, YYYY|case:lower}}",
+		);
+		expect(await suggestInserts("{{vdat")).toContain(
+			"{{VDATE:date,dddd, MMMM Do, YYYY|case:lower}}",
+		);
+		expect(await suggestInserts("{{tim")).toContain(
+			"{{TIME:A|case:lower}}",
+		);
+	});
 });
