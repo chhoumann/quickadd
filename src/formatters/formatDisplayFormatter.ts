@@ -326,6 +326,7 @@ export class FormatDisplayFormatter extends Formatter {
 				optional,
 				withTime,
 				snap,
+				caseStyle,
 			} = options;
 			// Only a NAMELESS token stays literal, as the run leaves it. A token
 			// that names no FORMAT is complete and working: the run supplies
@@ -345,7 +346,7 @@ export class FormatDisplayFormatter extends Formatter {
 				snap,
 				this.dateParser,
 			);
-			if (stored) return stored.text;
+			if (stored) return this.applyCaseOption(stored.text, caseStyle, match);
 
 			// Generate a preview using current date with the specified format,
 			// snapped the way the run snaps it - matching both the ANSWERED branch
@@ -355,9 +356,13 @@ export class FormatDisplayFormatter extends Formatter {
 
 			try {
 				// Try to generate a realistic preview using the format
-				formattedExample = DateFormatPreviewGenerator.generate(
-					cleanDateFormat,
-					snappedExampleDate(snap),
+				formattedExample = this.applyCaseOption(
+					DateFormatPreviewGenerator.generate(
+						cleanDateFormat,
+						snappedExampleDate(snap),
+					),
+					caseStyle,
+					match,
 				);
 			} catch {
 				// Fallback to showing the format pattern

@@ -109,4 +109,10 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 			makeFormatter().format("{{VDATE:wk,YYYY-MM-DD|startof:month}}"),
 		).resolves.toBe("2023-06-01");
 	});
+
+	it("applies case transforms to the same VDATE preview shown in the builder", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:due,dddd, MMMM Do|case:lower}}"),
+		).resolves.toBe("thursday, june 1st");
+	});
 });

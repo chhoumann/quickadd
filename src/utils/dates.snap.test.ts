@@ -123,10 +123,33 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect(m?.[3]).toBe("startof:week");
 	});
 
+	it("parses case after the format, offset, and optional snap", () => {
+		const simple = "{{DATE:dddd, MMMM Do, yyyy.|case:lower}}".match(
+			DATE_REGEX_FORMATTED,
+		);
+		expect(simple?.[1]).toBe("dddd, MMMM Do, yyyy.");
+		expect(simple?.[4]).toBe("lower");
+
+		const composed =
+			"{{DATE:MMMM YYYY+7|startof:month|case:upper}}".match(
+				DATE_REGEX_FORMATTED,
+			);
+		expect(composed?.[1]).toBe("MMMM YYYY");
+		expect(composed?.[2]).toBe("+7");
+		expect(composed?.[3]).toBe("startof:month");
+		expect(composed?.[4]).toBe("upper");
+	});
+
 	it("keeps a literal pipe in the format byte-identical (no snap keyword)", () => {
 		const m = "{{DATE:YYYY|MM}}".match(DATE_REGEX_FORMATTED);
 		expect(m?.[1]).toBe("YYYY|MM"); // whole thing stays the format
 		expect(m?.[3]).toBeUndefined(); // no snap option captured
+	});
+
+	it("keeps a bracketed case-like literal inside the moment format", () => {
+		const m = "{{DATE:YYYY[|case:lower]}}".match(DATE_REGEX_FORMATTED);
+		expect(m?.[1]).toBe("YYYY[|case:lower]");
+		expect(m?.[4]).toBeUndefined();
 	});
 
 	it("treats a |startof: inside a [literal] (non-letter after colon) as format, not snap", () => {
@@ -159,6 +182,7 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect("{{DATE|startof:month}}".match(DATE_REGEX)?.[2]).toBe("startof:month");
 		expect("{{DATE+1|endof:week}}".match(DATE_REGEX)?.[1]).toBe("+1");
 		expect("{{DATE+1|endof:week}}".match(DATE_REGEX)?.[2]).toBe("endof:week");
+		expect("{{DATE|case:upper}}".match(DATE_REGEX)?.[3]).toBe("upper");
 	});
 
 	it("matches snap tokens in LINEAR time on long malformed input (no ReDoS)", () => {

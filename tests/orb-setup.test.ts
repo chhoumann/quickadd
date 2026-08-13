@@ -79,7 +79,7 @@ afterEach(() => {
 	}
 });
 
-describe("Amp orb E2E lifecycle", () => {
+describe.skipIf(process.platform !== "linux")("Amp orb E2E lifecycle", () => {
 	it("does not mask a nonzero start that printed valid exports", () => {
 		const bin = temporaryDirectory("quickadd-mock-bin-");
 		const log = path.join(bin, "calls.log");
@@ -173,7 +173,7 @@ exit 0
 	});
 });
 
-describe("Linux Obsidian launcher validation", () => {
+describe.skipIf(process.platform !== "linux")("Linux Obsidian launcher validation", () => {
 	function validArgs(validHome: string): string[] {
 		return [
 		"-n",
@@ -261,7 +261,7 @@ describe("Linux Obsidian launcher validation", () => {
 	});
 });
 
-describe("obsidian-e2e Linux patcher", () => {
+describe.skipIf(process.platform !== "linux")("obsidian-e2e Linux patcher", () => {
 	const originalLaunch = 'resolveExec(deps)("/usr/bin/open", [';
 	const originalAsar =
 		'return [path.join("/Applications", leaf), path.join(os.userInfo().homedir, "Applications", leaf)];';

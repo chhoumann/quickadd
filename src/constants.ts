@@ -21,22 +21,22 @@ export const CREATE_IF_NOT_FOUND_CURSOR = "cursor";
 export const CREATE_IF_NOT_FOUND_ORDERED = "ordered";
 
 // == Format Syntax == //
-// The optional trailing `(?:\|(?:startof|endof):<letters>)?` group captures a
-// date "snap" option (issue #511). It is anchored to `|startof:`/`|endof:`
-// followed by letters, so a literal `|` anywhere else in a date format is still
-// rendered verbatim ({{DATE:YYYY|MM}} -> 2023|06). The format slot's pipe arm
-// `\|(?!(?:startof|endof):[a-z])` is mutually exclusive with `[^}\n\r+|]`, so
-// the star is deterministic (no quadratic backtracking on malformed input) and a
-// `|startof:` that is NOT a real snap (e.g. inside a `[...]` literal, or followed
-// by a space/non-letter) stays part of the format instead of aborting the run.
+// DATE supports two trailing modifier families: a start/end snap (issue #511)
+// and a case transform. Both require a letter after the colon, so a literal `|`
+// anywhere else in a date format is still rendered verbatim
+// ({{DATE:YYYY|MM}} -> 2023|06). The format slot's pipe arm is mutually exclusive
+// with `[^}\n\r+|]`, keeping the star deterministic on malformed input. Put case
+// last when combining modifiers: |startof:week|case:lower.
 export const DATE_REGEX = new RegExp(
-	/{{DATE(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?}}/i,
+	/{{DATE(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:((?:[^}\n\r+|]|\|(?!(?:startof|endof):[a-z]))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?}}/i,
+	/{{DATE:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
-export const TIME_REGEX = new RegExp(/{{TIME}}/i);
-export const TIME_REGEX_FORMATTED = new RegExp(/{{TIME:([^}\n\r+]*)}}/i);
+export const TIME_REGEX = new RegExp(/{{TIME(?:\|case:([a-z-]+))?}}/i);
+export const TIME_REGEX_FORMATTED = new RegExp(
+	/{{TIME:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:case):[a-z]))*)(?:\|case:([a-z-]+))?}}/i,
+);
 export const NAME_VALUE_REGEX = new RegExp(
 	/{{(?:NAME|VALUE)(?!:)(?:\|[^\n\r}]*)?}}/i,
 );
