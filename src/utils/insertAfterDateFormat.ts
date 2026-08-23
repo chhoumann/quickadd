@@ -11,7 +11,7 @@
  */
 export function detectDateFormatFromAfter(after: string): string | undefined {
 	const date = after.match(
-		/\{\{DATE:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(?:\+-?\d+)?(?:\|(?:startof|endof):[a-z]+)?(?:\|case:[a-z-]+)?\}\}/i,
+		/\{\{DATE:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(?:\+-?\d+)?(?:\|(?:startof|endof):[a-z]+)?(?:\|case:[a-z-]+)?\}\}/i,
 	);
 	const dateFormat = date?.[1]?.trim();
 	if (dateFormat) return dateFormat;

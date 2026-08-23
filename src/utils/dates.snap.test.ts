@@ -9,7 +9,11 @@ import {
 	it,
 	vi,
 } from "vitest";
-import { DATE_REGEX, DATE_REGEX_FORMATTED } from "../constants";
+import {
+	DATE_REGEX,
+	DATE_REGEX_FORMATTED,
+	TIME_REGEX_FORMATTED,
+} from "../constants";
 import { getDate } from "./dates";
 
 // getDate reads the wall clock via window.moment(); install the real moment and
@@ -152,6 +156,13 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect(m?.[4]).toBeUndefined();
 	});
 
+	it("keeps an incomplete bracket literal usable while typing", () => {
+		const date = "{{DATE:YYYY[Week}}".match(DATE_REGEX_FORMATTED);
+		const time = "{{TIME:HH[hours}}".match(TIME_REGEX_FORMATTED);
+		expect(date?.[1]).toBe("YYYY[Week");
+		expect(time?.[1]).toBe("HH[hours");
+	});
+
 	it("treats a |startof: inside a [literal] (non-letter after colon) as format, not snap", () => {
 		// Only a trailing |startof:<letters> is the snap; an earlier |startof:
 		// with a space/non-letter after the colon stays in the format and must
@@ -192,6 +203,15 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		const evil = `{{DATE:${"|startof:".repeat(30000)}`;
 		const start = performance.now();
 		expect(DATE_REGEX_FORMATTED.test(evil)).toBe(false);
+		expect(performance.now() - start).toBeLessThan(100);
+	});
+
+	it("rejects repeated bracket literals in linear time when the token is malformed", () => {
+		const date = `{{DATE:${"[]".repeat(30000)}+X}}`;
+		const time = `{{TIME:${"[]".repeat(30000)}+X}}`;
+		const start = performance.now();
+		expect(DATE_REGEX_FORMATTED.test(date)).toBe(false);
+		expect(TIME_REGEX_FORMATTED.test(time)).toBe(false);
 		expect(performance.now() - start).toBeLessThan(100);
 	});
 });

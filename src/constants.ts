@@ -24,18 +24,19 @@ export const CREATE_IF_NOT_FOUND_ORDERED = "ordered";
 // DATE supports two trailing modifier families: a start/end snap (issue #511)
 // and a case transform. Both require a letter after the colon, so a literal `|`
 // anywhere else in a date format is still rendered verbatim
-// ({{DATE:YYYY|MM}} -> 2023|06). The format slot's pipe arm is mutually exclusive
-// with `[^}\n\r+|]`, keeping the star deterministic on malformed input. Put case
-// last when combining modifiers: |startof:week|case:lower.
+// ({{DATE:YYYY|MM}} -> 2023|06). Modifier pipes and complete/incomplete bracket
+// literals use mutually exclusive arms, keeping the star deterministic on
+// malformed input. Put case last when combining modifiers:
+// |startof:week|case:lower.
 export const DATE_REGEX = new RegExp(
 	/{{DATE(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
+	/{{DATE:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|\[]|\|(?!(?:startof|endof|case):[a-z]))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
 export const TIME_REGEX = new RegExp(/{{TIME(?:\|case:([a-z-]+))?}}/i);
 export const TIME_REGEX_FORMATTED = new RegExp(
-	/{{TIME:((?:\[[^\]\n\r]*\]|[^}\n\r+|\[]|\|(?!(?:case):[a-z]))*)(?:\|case:([a-z-]+))?}}/i,
+	/{{TIME:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|\[]|\|(?!(?:case):[a-z]))*)(?:\|case:([a-z-]+))?}}/i,
 );
 export const NAME_VALUE_REGEX = new RegExp(
 	/{{(?:NAME|VALUE)(?!:)(?:\|[^\n\r}]*)?}}/i,
