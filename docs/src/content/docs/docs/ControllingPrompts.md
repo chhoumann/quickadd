@@ -90,13 +90,11 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 
 ## Peek at the note {#peek}
 
-:::note[Available in the next release]
 Single-line and multi-line text prompts can get out of the way so you can read or select text in the open note, then come back to the same draft.
 
 - **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run.
-- A chip stays at the bottom of the vault: **Insert selection** drops the highlighted text into your draft and returns, **Return** comes back as-is, and **Cancel** aborts the run. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode.
+- A chip stays on screen: **Insert selection** drops the highlighted text into your draft and returns, **Return** comes back as-is, and **Cancel** aborts the run. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode.
 - The command **QuickAdd: Return to prompt** is available while a peek is open. On a phone the chip is a one-line bar under the note header, so the bottom nav and home indicator stay free. Prompt actions stay on one row (Peek / Cancel / Ok) so the keyboard does not cover Cancel.
-:::
 
 
 ## Autocomplete while you type {#autocomplete-inside-prompts}
