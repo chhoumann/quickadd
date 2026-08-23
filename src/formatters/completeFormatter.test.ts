@@ -968,6 +968,11 @@ describe("CompleteFormatter - {{VALUE}} prompting", () => {
 				optional: true,
 				numeric: { min: 1, max: 10, step: 1 },
 				slider: { min: 1, max: 10, step: 1 },
+				imagePaste: undefined,
+				contextLine: undefined,
+				contextLineFull: undefined,
+				draftScopeId: undefined,
+				allowPeek: true,
 			},
 		);
 	});
@@ -1059,6 +1064,11 @@ describe("CompleteFormatter - {{VALUE:variable}} prompting", () => {
 				optional: false,
 				numeric: { min: 1, max: 10, step: 1 },
 				slider: undefined,
+				imagePaste: undefined,
+				contextLine: undefined,
+				contextLineFull: undefined,
+				draftScopeId: undefined,
+				allowPeek: true,
 			},
 		);
 	});

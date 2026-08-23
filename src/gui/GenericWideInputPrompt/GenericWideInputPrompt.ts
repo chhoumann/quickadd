@@ -114,6 +114,8 @@ export default class GenericWideInputPrompt extends Modal {
 			remount: () => this.remountFromPeek(),
 			close: () => closeModalForPeek(this),
 			settleCancel: () => this.rejectPromise(promptCancelled()),
+			whenIdle: () => this.imagePasteHandle?.whenIdle() ?? Promise.resolve(),
+			isAbandoned: () => this.didSubmit || this.didClose,
 		});
 
 		this.display();
@@ -202,17 +204,25 @@ export default class GenericWideInputPrompt extends Modal {
 		return this.options?.optional === true;
 	}
 
+	private supportsPeek(): boolean {
+		return this.options?.allowPeek === true;
+	}
+
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
 		const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv({
 			cls: "qa-prompt-actions",
 		});
 
-		const secondary = buttonBarContainer.createDiv({
-			cls: "qa-prompt-actions-secondary",
-		});
-		stylePeekButton(
-			this.createButton(secondary, "Peek at note", () => this.peek.peek()),
-		);
+		if (this.supportsPeek()) {
+			const secondary = buttonBarContainer.createDiv({
+				cls: "qa-prompt-actions-secondary",
+			});
+			stylePeekButton(
+				this.createButton(secondary, "Peek at note", () => {
+					void this.peek.peek();
+				}),
+			);
+		}
 
 		const primary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-primary",
@@ -240,9 +250,9 @@ export default class GenericWideInputPrompt extends Modal {
 	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	private submitEnterCallback = (evt: KeyboardEvent) => {
-		if (isPeekPromptShortcut(evt)) {
+		if (this.supportsPeek() && isPeekPromptShortcut(evt)) {
 			evt.preventDefault();
-			this.peek.peek();
+			void this.peek.peek();
 			return;
 		}
 		// Skip is checked first: ctrl/cmd+shift+Enter leaves the field empty on

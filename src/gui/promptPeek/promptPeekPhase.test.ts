@@ -117,6 +117,8 @@ describe("peek shortcut copy", () => {
 		);
 		expect(hidePeekKeyboardHints(false, 1280)).toBe(false);
 		expect(hidePeekKeyboardHints(false, 390)).toBe(true);
+		expect(hidePeekKeyboardHints(false, 540)).toBe(true);
+		expect(hidePeekKeyboardHints(false, 541)).toBe(false);
 		expect(hidePeekKeyboardHints(true, 1280)).toBe(true);
 		expect(useCompactPeekChrome(false, 390)).toBe(true);
 		expect(useCompactPeekChrome(true, 1280)).toBe(true);

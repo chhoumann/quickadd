@@ -47,6 +47,8 @@ function makeHost(
 		settleCancel: () => {
 			state.cancelled = true;
 		},
+		whenIdle: async () => {},
+		isAbandoned: () => false,
 		closed: false,
 		cancelled: false,
 		remounts: 0,
@@ -79,7 +81,7 @@ afterEach(() => {
 });
 
 describe("InputPromptPeek", () => {
-	it("hides the prompt without settling, then resumes", () => {
+	it("hides the prompt without settling, then resumes", async () => {
 		const field = document.createElement("input");
 		field.value = "half written";
 		field.selectionStart = 4;
@@ -87,7 +89,7 @@ describe("InputPromptPeek", () => {
 		const host = makeHost({ field });
 		const peek = new InputPromptPeek(host);
 
-		peek.peek();
+		await peek.peek();
 
 		expect(host.closed).toBe(true);
 		expect(peek.shouldSettleOnClose()).toBe(false);
@@ -112,7 +114,7 @@ describe("InputPromptPeek", () => {
 		expect(document.querySelector(".qa-peek-chip")).toBeNull();
 	});
 
-	it("inserts the selection at the caret and remounts", () => {
+	it("inserts the selection at the caret and remounts", async () => {
 		const field = document.createElement("input");
 		field.value = "Note: ";
 		field.selectionStart = 6;
@@ -129,7 +131,7 @@ describe("InputPromptPeek", () => {
 			} as unknown as InputPromptPeekHost["app"],
 		});
 		const peek = new InputPromptPeek(host);
-		peek.peek();
+		await peek.peek();
 		expect(document.querySelector(".qa-peek-chip")).not.toBeNull();
 
 		PromptPeekSession.getActive()?.insertSelectionAndResume();
@@ -139,20 +141,20 @@ describe("InputPromptPeek", () => {
 		expect(PromptPeekSession.isPeeking()).toBe(false);
 	});
 
-	it("cancel from the chip settles the run", () => {
+	it("cancel from the chip settles the run", async () => {
 		const host = makeHost();
 		const peek = new InputPromptPeek(host);
-		peek.peek();
+		await peek.peek();
 		PromptPeekSession.getActive()?.cancel();
 		expect(host.cancelled).toBe(true);
 		expect(peek.shouldSettleOnClose()).toBe(true);
 		expect(PromptPeekSession.isPeeking()).toBe(false);
 	});
 
-	it("leaves Escape in the editor for Vim", () => {
+	it("leaves Escape in the editor for Vim", async () => {
 		const host = makeHost();
 		const peek = new InputPromptPeek(host);
-		peek.peek();
+		await peek.peek();
 		const chip = document.querySelector(".qa-peek-chip");
 		expect(chip?.textContent).not.toContain("Esc returns");
 
@@ -163,10 +165,10 @@ describe("InputPromptPeek", () => {
 		expect(host.remounts).toBe(0);
 	});
 
-	it("returns when Escape is pressed on the chip itself", () => {
+	it("returns when Escape is pressed on the chip itself", async () => {
 		const host = makeHost();
 		const peek = new InputPromptPeek(host);
-		peek.peek();
+		await peek.peek();
 		const chip = document.querySelector(".qa-peek-chip");
 		chip?.dispatchEvent(
 			new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
@@ -175,7 +177,7 @@ describe("InputPromptPeek", () => {
 		expect(host.remounts).toBe(1);
 	});
 
-	it("mounts a one-row compact chip on a phone-width window", () => {
+	it("mounts a one-row compact chip on a phone-width window", async () => {
 		const originalWidth = window.innerWidth;
 		Object.defineProperty(window, "innerWidth", {
 			configurable: true,
@@ -183,7 +185,7 @@ describe("InputPromptPeek", () => {
 		});
 		try {
 			const peek = new InputPromptPeek(makeHost());
-			peek.peek();
+			await peek.peek();
 			const chip = document.querySelector(".qa-peek-chip");
 			expect(chip?.classList.contains("qa-peek-chip--compact")).toBe(true);
 			expect(chip?.classList.contains("qa-peek-chip--top")).toBe(true);
@@ -204,5 +206,61 @@ describe("InputPromptPeek", () => {
 				value: originalWidth,
 			});
 		}
+	});
+
+	it("waits until image paste is idle before closing", async () => {
+		let resolveIdle: () => void = () => {};
+		const idle = new Promise<void>((resolve) => {
+			resolveIdle = resolve;
+		});
+		const host = makeHost({ whenIdle: () => idle });
+		const peek = new InputPromptPeek(host);
+		const pending = peek.peek();
+		await Promise.resolve();
+		expect(host.closed).toBe(false);
+
+		resolveIdle();
+		await pending;
+
+		expect(host.closed).toBe(true);
+		expect(PromptPeekSession.isPeeking()).toBe(true);
+	});
+
+	it("does not peek if the prompt settled while waiting", async () => {
+		let resolveIdle: () => void = () => {};
+		const idle = new Promise<void>((resolve) => {
+			resolveIdle = resolve;
+		});
+		const abandoned = { value: false };
+		const host = makeHost({
+			whenIdle: () => idle,
+			isAbandoned: () => abandoned.value,
+		});
+		const peek = new InputPromptPeek(host);
+		const pending = peek.peek();
+		abandoned.value = true;
+		resolveIdle();
+		await pending;
+
+		expect(host.closed).toBe(false);
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+	});
+
+	it("cancels the first peek when a second prompt peeks", async () => {
+		const first = makeHost({ title: "First" });
+		const second = makeHost({ title: "Second" });
+		const peekA = new InputPromptPeek(first);
+		const peekB = new InputPromptPeek(second);
+
+		await peekA.peek();
+		expect(first.cancelled).toBe(false);
+		await peekB.peek();
+
+		expect(first.cancelled).toBe(true);
+		expect(peekA.shouldSettleOnClose()).toBe(true);
+		expect(PromptPeekSession.isPeeking()).toBe(true);
+		expect(document.querySelector(".qa-peek-chip")?.textContent).toContain(
+			"Second",
+		);
 	});
 });

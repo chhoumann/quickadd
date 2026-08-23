@@ -44,7 +44,7 @@ export class PromptPeekSession {
 	}
 
 	static activate(app: App, handle: PromptPeekHandle): PromptPeekSession {
-		PromptPeekSession.active?.destroy();
+		PromptPeekSession.active?.cancel();
 		const session = new PromptPeekSession(app, handle);
 		PromptPeekSession.active = session;
 		session.mount();

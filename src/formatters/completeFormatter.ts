@@ -648,7 +648,7 @@ export class CompleteFormatter extends Formatter {
 		context: PromptContext | undefined,
 		contextLine?: string,
 		contextLineFull?: string,
-	): InputPromptOptions | undefined {
+	): InputPromptOptions {
 		// Image paste only for free-text prompts opened while formatting note
 		// CONTENT — never for number/slider (numeric sinks) and never during
 		// path passes (see contentValuePromptsAcceptImagePaste). The checkbox
@@ -668,7 +668,7 @@ export class CompleteFormatter extends Formatter {
 			!contextLine &&
 			!draftScopeId
 		) {
-			return undefined;
+			return { allowPeek: true };
 		}
 		return {
 			optional: context?.optional,
@@ -678,6 +678,7 @@ export class CompleteFormatter extends Formatter {
 			contextLine,
 			contextLineFull,
 			draftScopeId,
+			allowPeek: true,
 		};
 	}
 
@@ -1064,6 +1065,8 @@ export class CompleteFormatter extends Formatter {
 					fallbackPrompt,
 					undefined,
 					this.getLinkSourcePath() ?? undefined,
+					undefined,
+					{ allowPeek: true },
 				);
 			}
 
@@ -1117,7 +1120,10 @@ export class CompleteFormatter extends Formatter {
 							description,
 							undefined,
 							undefined,
-							parsed.optional ? { optional: true } : undefined,
+							{
+								allowPeek: true,
+								...(parsed.optional ? { optional: true } : {}),
+							},
 						);
 				if (parsed.multiSelect) {
 					return typed ? [`${FILE_CUSTOM_PREFIX}${typed}`] : [];

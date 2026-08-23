@@ -126,6 +126,8 @@ export default class GenericInputPrompt extends Modal {
 			remount: () => this.remountFromPeek(),
 			close: () => closeModalForPeek(this),
 			settleCancel: () => this.rejectPromise(promptCancelled()),
+			whenIdle: () => this.imagePasteHandle?.whenIdle() ?? Promise.resolve(),
+			isAbandoned: () => this.didSubmit || this.didClose,
 		});
 
 		this.display();
@@ -175,7 +177,7 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	protected supportsPeek(): boolean {
-		return true;
+		return this.options?.allowPeek === true;
 	}
 
 	protected createInputField(
@@ -224,7 +226,9 @@ export default class GenericInputPrompt extends Modal {
 				cls: "qa-prompt-actions-secondary",
 			});
 			stylePeekButton(
-				this.createButton(secondary, "Peek at note", () => this.peek.peek()),
+				this.createButton(secondary, "Peek at note", () => {
+					void this.peek.peek();
+				}),
 			);
 		}
 
@@ -256,7 +260,7 @@ export default class GenericInputPrompt extends Modal {
 	protected submitEnterCallback = (evt: KeyboardEvent) => {
 		if (this.supportsPeek() && isPeekPromptShortcut(evt)) {
 			evt.preventDefault();
-			this.peek.peek();
+			void this.peek.peek();
 			return;
 		}
 		// Skip is checked first so ctrl/cmd+shift+Enter leaves the field empty

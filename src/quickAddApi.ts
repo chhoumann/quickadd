@@ -884,7 +884,7 @@ export class QuickAddApi {
 				placeholder,
 				value,
 				undefined,
-				options,
+				{ ...options, allowPeek: options?.allowPeek ?? true },
 			);
 		} catch (error) {
 			rethrowPromptError(error);
@@ -935,7 +935,7 @@ export class QuickAddApi {
 				placeholder,
 				value,
 				undefined,
-				options,
+				{ ...options, allowPeek: options?.allowPeek ?? true },
 			);
 		} catch (error) {
 			rethrowPromptError(error);

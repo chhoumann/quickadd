@@ -61,7 +61,14 @@ describe("GenericInputPrompt peek", () => {
 	});
 
 	it("keeps the run alive across peek and resume, then submits the draft", async () => {
-		const waitForClose = GenericInputPrompt.Prompt(fakeApp as never, "Log");
+		const waitForClose = GenericInputPrompt.Prompt(
+			fakeApp as never,
+			"Log",
+			undefined,
+			undefined,
+			undefined,
+			{ allowPeek: true },
+		);
 		const input = document.querySelector(
 			".qaInputPrompt input",
 		) as HTMLInputElement;
@@ -73,6 +80,7 @@ describe("GenericInputPrompt peek", () => {
 		) as HTMLButtonElement;
 		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
+		await Promise.resolve();
 
 		expect(document.querySelector(".qaInputPrompt")).toBeNull();
 		expect(document.querySelector(".qa-peek-chip")).not.toBeNull();
@@ -100,12 +108,20 @@ describe("GenericInputPrompt peek", () => {
 	});
 
 	it("cancel from the peek chip rejects like Escape", async () => {
-		const waitForClose = GenericInputPrompt.Prompt(fakeApp as never, "Log");
+		const waitForClose = GenericInputPrompt.Prompt(
+			fakeApp as never,
+			"Log",
+			undefined,
+			undefined,
+			undefined,
+			{ allowPeek: true },
+		);
 		const peekButton = document.querySelector(
 			".qaInputPrompt .qa-peek-button",
 		) as HTMLButtonElement;
 		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
+		await Promise.resolve();
 
 		PromptPeekSession.getActive()?.cancel();
 
@@ -119,7 +135,14 @@ describe("GenericInputPrompt peek", () => {
 			value: 390,
 		});
 		try {
-			void GenericInputPrompt.Prompt(fakeApp as never, "Log");
+			void GenericInputPrompt.Prompt(
+				fakeApp as never,
+				"Log",
+				undefined,
+				undefined,
+				undefined,
+				{ allowPeek: true },
+			);
 			const modal = document.querySelector(".qaInputPrompt");
 			const peekButton = document.querySelector(
 				".qaInputPrompt .qa-peek-button",
@@ -135,5 +158,10 @@ describe("GenericInputPrompt peek", () => {
 			PromptPeekSession.discard();
 			for (const el of Array.from(document.body.children)) el.remove();
 		}
+	});
+
+	it("hides Peek on nested settings prompts unless allowPeek is set", () => {
+		void GenericInputPrompt.Prompt(fakeApp as never, "Rename");
+		expect(document.querySelector(".qaInputPrompt .qa-peek-button")).toBeNull();
 	});
 });
