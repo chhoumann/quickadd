@@ -1397,6 +1397,9 @@
 }
 
 .qa-date-picker__label {
+	flex: 1;
+	min-width: 0;
+	text-align: center;
 	font-weight: 600;
 }
 
