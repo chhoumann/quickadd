@@ -11,6 +11,7 @@ import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
 import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
+import { stylePeekButton } from "../promptPeek/stylePeekButton";
 
 /**
  * The keyboard gesture that skips an optional prompt: ctrl/cmd+shift+Enter.
@@ -220,18 +221,9 @@ export default class GenericInputPrompt extends Modal {
 			const secondary = buttonBarContainer.createDiv({
 				cls: "qa-prompt-actions-secondary",
 			});
-			const peekButton = this.createButton(secondary, "Peek at note", () =>
-				this.peek.peek(),
+			stylePeekButton(
+				this.createButton(secondary, "Peek at note", () => this.peek.peek()),
 			);
-			peekButton.setIcon("eye");
-			peekButton.setTooltip(
-				"Look at the note without losing this draft. Ctrl/Cmd+Shift+E",
-			);
-			peekButton.buttonEl.setAttribute(
-				"aria-label",
-				"Peek at the note. Your draft stays.",
-			);
-			peekButton.buttonEl.classList.add("qa-peek-button");
 		}
 
 		const primary = buttonBarContainer.createDiv({

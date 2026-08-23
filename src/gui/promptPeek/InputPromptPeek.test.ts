@@ -79,7 +79,16 @@ describe("InputPromptPeek", () => {
 		expect(host.closed).toBe(true);
 		expect(peek.shouldSettleOnClose()).toBe(false);
 		expect(PromptPeekSession.isPeeking()).toBe(true);
-		expect(document.querySelector(".qa-peek-chip")).not.toBeNull();
+		const chip = document.querySelector(".qa-peek-chip");
+		expect(chip?.textContent).toContain("QuickAdd is waiting");
+		expect(chip?.textContent).toContain("Capture text");
+		expect(
+			Array.from(chip?.querySelectorAll("button") ?? []).map(
+				(button) => button.textContent,
+			),
+		).toEqual(
+			expect.arrayContaining(["Insert selection", "Return", "Cancel"]),
+		);
 
 		PromptPeekSession.getActive()?.resume();
 

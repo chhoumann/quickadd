@@ -1,0 +1,17 @@
+import { describe, expect, it } from "vitest";
+import { ButtonComponent } from "obsidian";
+import { PEEK_BUTTON_LABEL, stylePeekButton } from "./stylePeekButton";
+
+describe("stylePeekButton", () => {
+	it("keeps the visible label next to the icon", () => {
+		const host = document.createElement("div");
+		const button = stylePeekButton(new ButtonComponent(host));
+
+		expect(button.buttonEl.classList.contains("qa-peek-button")).toBe(true);
+		expect(button.buttonEl.textContent).toContain(PEEK_BUTTON_LABEL);
+		expect(button.buttonEl.querySelector(".qa-peek-button-icon")).not.toBeNull();
+		expect(button.buttonEl.getAttribute("aria-label")).toBe(
+			"Peek at the note. Your draft stays.",
+		);
+	});
+});

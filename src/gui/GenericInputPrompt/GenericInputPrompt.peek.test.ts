@@ -68,9 +68,10 @@ describe("GenericInputPrompt peek", () => {
 		input.value = "started ";
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 
-		const peekButton = Array.from(
-			document.querySelectorAll(".qaInputPrompt button"),
-		).find((button) => button.textContent === "Peek at note") as HTMLButtonElement;
+		const peekButton = document.querySelector(
+			".qaInputPrompt .qa-peek-button",
+		) as HTMLButtonElement;
+		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
 
 		expect(document.querySelector(".qaInputPrompt")).toBeNull();
@@ -100,9 +101,10 @@ describe("GenericInputPrompt peek", () => {
 
 	it("cancel from the peek chip rejects like Escape", async () => {
 		const waitForClose = GenericInputPrompt.Prompt(fakeApp as never, "Log");
-		const peekButton = Array.from(
-			document.querySelectorAll(".qaInputPrompt button"),
-		).find((button) => button.textContent === "Peek at note") as HTMLButtonElement;
+		const peekButton = document.querySelector(
+			".qaInputPrompt .qa-peek-button",
+		) as HTMLButtonElement;
+		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
 
 		PromptPeekSession.getActive()?.cancel();

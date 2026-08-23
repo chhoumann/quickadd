@@ -13,6 +13,7 @@ import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
 import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
+import { stylePeekButton } from "../promptPeek/stylePeekButton";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -207,18 +208,9 @@ export default class GenericWideInputPrompt extends Modal {
 		const secondary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-secondary",
 		});
-		const peekButton = this.createButton(secondary, "Peek at note", () =>
-			this.peek.peek(),
+		stylePeekButton(
+			this.createButton(secondary, "Peek at note", () => this.peek.peek()),
 		);
-		peekButton.setIcon("eye");
-		peekButton.setTooltip(
-			"Look at the note without losing this draft. Ctrl/Cmd+Shift+E",
-		);
-		peekButton.buttonEl.setAttribute(
-			"aria-label",
-			"Peek at the note. Your draft stays.",
-		);
-		peekButton.buttonEl.classList.add("qa-peek-button");
 
 		const primary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-primary",

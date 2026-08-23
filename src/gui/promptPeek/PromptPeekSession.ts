@@ -74,33 +74,25 @@ export class PromptPeekSession {
 	private mount(): void {
 		const workspace = this.app.workspace as { containerEl?: HTMLElement };
 		const owner = workspace.containerEl ?? document.body;
-		const chip = createOwnedElement(owner, "div");
-		chip.className = "qa-peek-chip";
+		const chip = appendOwned(owner, "div", "qa-peek-chip");
 		chip.setAttribute("role", "status");
 		chip.setAttribute("aria-live", "polite");
 
-		const header = createOwnedElement(chip, "div");
-		header.className = "qa-peek-chip-header";
-		const icon = createOwnedElement(header, "span");
-		icon.className = "qa-peek-chip-icon";
+		const header = appendOwned(chip, "div", "qa-peek-chip-header");
+		const icon = appendOwned(header, "span", "qa-peek-chip-icon");
 		icon.setAttribute("aria-hidden", "true");
 		setIcon(icon, "eye");
-		const titles = createOwnedElement(header, "div");
-		titles.className = "qa-peek-chip-titles";
-		const title = createOwnedElement(titles, "div");
-		title.className = "qa-peek-chip-title";
+		const titles = appendOwned(header, "div", "qa-peek-chip-titles");
+		const title = appendOwned(titles, "div", "qa-peek-chip-title");
 		title.textContent = "QuickAdd is waiting";
-		const subtitle = createOwnedElement(titles, "div");
-		subtitle.className = "qa-peek-chip-subtitle";
+		const subtitle = appendOwned(titles, "div", "qa-peek-chip-subtitle");
 		subtitle.textContent = this.handle.title;
 
-		const hint = createOwnedElement(chip, "p");
-		hint.className = "qa-peek-chip-hint";
+		const hint = appendOwned(chip, "p", "qa-peek-chip-hint");
 		hint.textContent =
 			"Look at the note, copy or select text, then come back. Your draft is still there.";
 
-		const actions = createOwnedElement(chip, "div");
-		actions.className = "qa-peek-chip-actions";
+		const actions = appendOwned(chip, "div", "qa-peek-chip-actions");
 
 		this.insertButton = new ButtonComponent(actions)
 			.setButtonText("Insert selection")
@@ -122,11 +114,9 @@ export class PromptPeekSession {
 			.setTooltip("Discard this run")
 			.onClick(() => this.cancel());
 
-		const keys = createOwnedElement(chip, "p");
-		keys.className = "qa-peek-chip-keys";
+		const keys = appendOwned(chip, "p", "qa-peek-chip-keys");
 		keys.textContent = "Esc returns to the prompt";
 
-		owner.appendChild(chip);
 		this.chipEl = chip;
 		this.refreshInsertButton();
 		this.listenForSelection();
@@ -187,4 +177,15 @@ export class PromptPeekSession {
 
 function currentEditorSelection(app: App): string {
 	return getActiveMarkdownEditorView(app)?.editor.getSelection() ?? "";
+}
+
+function appendOwned<K extends keyof HTMLElementTagNameMap>(
+	parent: Node,
+	tagName: K,
+	className: string,
+): HTMLElementTagNameMap[K] {
+	const node = createOwnedElement(parent, tagName);
+	node.className = className;
+	parent.appendChild(node);
+	return node;
 }
