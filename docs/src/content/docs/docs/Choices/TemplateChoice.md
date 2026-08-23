@@ -174,11 +174,8 @@ file is created under [New note location](#new-note-location).
 2026/Kickoff
 ```
 
-`{{FILENAMECURRENT}}` names that folder after the note you are in:
-
-```text title="You configure"
-{{FILENAMECURRENT}}/{{VALUE}}
-```
+`{{FILENAMECURRENT}}` names a folder after the note you are in, for example
+`{{FILENAMECURRENT}}/{{VALUE}}`.
 
 :::note
 If a value used in the file name contains a line break or another control
