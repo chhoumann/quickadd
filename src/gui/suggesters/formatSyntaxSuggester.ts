@@ -15,7 +15,9 @@ import {
 
 export type { FormatSuggestContext } from "./formatTokenRegistry";
 
-const CASE_FRAGMENT_REGEX = /^\{\{(?:VALUE|NAME)[^\n\r}]*\|case:([a-z-]*)$/i;
+const CASE_FRAGMENT_REGEX =
+	/^\{\{(VALUE|NAME|DATE|TIME|VDATE)([^\n\r}]*)\|case:([a-z-]*)$/i;
+const DATE_TOKEN_TYPES = new Set(["DATE", "TIME", "VDATE"]);
 /** The `<folder>`-style fill-in-the-blank inside an example row. */
 const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 
@@ -58,10 +60,19 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			return [];
 		}
 
-		// Special-case: suggest casing styles when typing `|case:` inside VALUE/NAME tokens.
+		// Suggest casing styles inside every token family that supports |case:.
 		const caseMatch = inputSegment.match(CASE_FRAGMENT_REGEX);
 		if (caseMatch) {
-			const fragment = caseMatch[1] ?? "";
+			const tokenType = caseMatch[1]?.toUpperCase() ?? "";
+			const tokenBody = caseMatch[2] ?? "";
+			if (
+				DATE_TOKEN_TYPES.has(tokenType) &&
+				tokenBody.lastIndexOf("[") > tokenBody.lastIndexOf("]")
+			) {
+				return [];
+			}
+
+			const fragment = caseMatch[3] ?? "";
 			this.matchedQuery = fragment;
 			this.replaceFrom = cursorPosition - fragment.length;
 

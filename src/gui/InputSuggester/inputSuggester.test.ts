@@ -24,6 +24,27 @@ describe("InputSuggester", () => {
 		expect(suggestions[suggestions.length - 1]?.item).toBe("bet");
 	});
 
+	it("places labeled create suggestions before fuzzy matches", () => {
+		const suggester = new InputSuggester(
+			app,
+			["New note 01", "New note 02"],
+			["Folder/New note 01.md", "Folder/New note 02.md"],
+			{
+				customValueLabel: (value) => `Create new note: ${value}`,
+			},
+		);
+
+		suggester.inputEl.value = "New note";
+
+		const suggestions = suggester.getSuggestions("New note");
+
+		expect(suggestions.map((suggestion) => suggestion.item)).toEqual([
+			"New note",
+			"Folder/New note 01.md",
+			"Folder/New note 02.md",
+		]);
+	});
+
 	it("avoids duplicating existing items as custom input", () => {
 		const suggester = new InputSuggester(
 			app,

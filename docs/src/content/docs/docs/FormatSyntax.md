@@ -112,6 +112,26 @@ Literal text inside a date format goes in square brackets, like `[Week]` above.
 Otherwise Moment.js treats every letter as a date token.
 :::
 
+### Change date text casing: `|case:` {#date-case}
+
+Add `|case:<style>` after a `DATE`, `TIME`, or `VDATE` format to transform its
+rendered text. It uses the same styles as [`VALUE`](#value-case): `kebab`,
+`snake`, `camel`, `pascal`, `title`, `lower`, `upper`, and `slug`.
+
+```markdown
+## {{DATE:dddd, MMMM Do, yyyy.|case:lower}}
+{{TIME:A|case:lower}}
+{{VDATE:due,dddd, MMMM Do, YYYY|case:lower}}
+```
+
+On August 11, 2026 in the English locale, the first line becomes
+`## tuesday, august 11th, 2026.`. Moment formats the date in your current
+locale first, then QuickAdd applies the case transform. The transform is per
+placeholder and does not change the locale or a reused `VDATE` value.
+
+When combining a date snap and casing, put casing last:
+`{{DATE:MMMM YYYY|startof:month|case:lower}}`.
+
 ### Snap to the start or end of a week, month, or year {#date-snap}
 
 Add `|startof:<unit>` or `|endof:<unit>` to move the date to the boundary of a
@@ -153,7 +173,7 @@ Good to know:
 
 - The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` means "the start of next week".
 - `endof:` snaps to the last moment of the period (`23:59:59.999`), so `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
-- `|startof:` and `|endof:` are the only special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`.
+- `|startof:`, `|endof:`, and `|case:` are special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`. Put a literal `|case:lower` inside square brackets.
 - An unknown unit (like `|startof:fortnight`) shows an error listing the valid units.
 
 _Introduced in QuickAdd 2.14.0._
@@ -614,6 +634,10 @@ _Introduced in QuickAdd 2.14.0._
 The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
+
+In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+`{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
+the active note.
 
 ### The note's folder: `{{FOLDERCURRENT}}` {#foldercurrent}
 

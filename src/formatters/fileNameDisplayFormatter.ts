@@ -656,7 +656,7 @@ export class FileNameDisplayFormatter extends Formatter {
 			// idle) rather than being swallowed. The options still come back usable,
 			// so the TEXT does not flicker while the unit is being typed.
 			if (error) this.reportProblem(error);
-			const { withTime, snap } = options;
+			const { withTime, snap, caseStyle } = options;
 			const cleanDateFormat =
 				dateFormat?.trim() || defaultDateVariableFormat(withTime);
 
@@ -670,7 +670,7 @@ export class FileNameDisplayFormatter extends Formatter {
 				snap,
 				this.dateParser,
 			);
-			if (stored) return stored.text;
+			if (stored) return this.applyCaseOption(stored.text, caseStyle, match);
 
 			// Nothing answered: a realistic example from the current date, snapped
 			// the way the run snaps it. #1595 deliberately left snap out of this
@@ -682,9 +682,13 @@ export class FileNameDisplayFormatter extends Formatter {
 			// depending on which token you used. Inside the try, because the snap
 			// needs moment and a throw here would redden the row per keystroke.
 			try {
-				return DateFormatPreviewGenerator.generate(
-					cleanDateFormat,
-					snappedExampleDate(snap),
+				return this.applyCaseOption(
+					DateFormatPreviewGenerator.generate(
+						cleanDateFormat,
+						snappedExampleDate(snap),
+					),
+					caseStyle,
+					match,
 				);
 			} catch {
 				return `[${cleanDateFormat}]`;

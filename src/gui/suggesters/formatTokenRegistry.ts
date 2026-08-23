@@ -189,6 +189,10 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 			token("{{VDATE:date,YYYY-MM-DD|today}}", "Same, with today filled in"),
 			token("{{VDATE:dueDate,YYYY-MM-DD|next monday}}", "Same, starting at next Monday"),
 			token("{{VDATE:dueDate,YYYY-MM-DD|optional}}", "Same, but skippable"),
+			token(
+				"{{VDATE:date,dddd, MMMM Do, YYYY|case:lower}}",
+				"Lowercases the picked date after formatting",
+			),
 		],
 	},
 	{
@@ -254,6 +258,10 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 				"{{DATE:YYYY-MM-DD|startof:week}}",
 				"Snapped to the start of the week, month, quarter or year",
 			),
+			token(
+				"{{DATE:dddd, MMMM Do, YYYY|case:lower}}",
+				"Lowercases the formatted date",
+			),
 		],
 	},
 	{
@@ -268,6 +276,9 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 			"{{TIME:}}",
 			"The current time in a format you choose, like {{TIME:HH.mm}}",
 		),
+		expansions: () => [
+			token("{{TIME:A|case:lower}}", "Lowercases formatted text, such as AM to am"),
+		],
 	},
 
 	// == The note you ran QuickAdd from ==
@@ -369,7 +380,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 ];
 
 /**
- * Casing styles completed after `|case:` inside a VALUE/NAME token. These are
+ * Casing styles completed after `|case:` inside a supported token. These are
  * bare fragments, not tokens, so each one shows what it does to a title rather
  * than pretending to be insertable syntax on its own.
  */

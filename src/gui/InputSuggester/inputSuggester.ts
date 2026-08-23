@@ -29,7 +29,8 @@ type Options = {
 	allowCustomValue: boolean;
 	/**
 	 * Renders the typed-but-unmatched custom row with a label, e.g.
-	 * `(value) => \`Create new note: ${value}\``. Implies a "create" affordance.
+	 * `(value) => \`Create new note: ${value}\``. Implies a "create" affordance
+	 * that is placed first so Enter performs the labeled action.
 	 */
 	customValueLabel: (value: string) => string;
 	/**
@@ -198,13 +199,19 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			return suggestions;
 		}
 
-		suggestions.push({
+		const customSuggestion = {
 			item: customValue,
 			match: {
 				score: Number.NEGATIVE_INFINITY,
 				matches: [],
 			},
-		});
+		};
+
+		if (this.customValueLabel) {
+			suggestions.unshift(customSuggestion);
+		} else {
+			suggestions.push(customSuggestion);
+		}
 
 		return suggestions;
 	}
