@@ -1,1 +1,53 @@
-PLACEHOLDER_LOAD_FROM_DISK
+/* Mobile */
+@media screen and (max-width: 540px) {
+    .qaWideInputPrompt .modal {
+        bottom: 10vh;
+    }
+
+	.wideInputPromptInputEl {
+		width: 100%;
+        min-width: 100%;
+        max-width: 100%;
+		height: 6rem;
+		font-size: 16px;
+		direction: inherit;
+		text-align: inherit;
+	}
+}
+
+/* Everything else */
+@media screen and (min-width: 541px) {
+	.wideInputPromptInputEl {
+		width: 40rem;
+		max-width: 100%;
+		height: 20rem;
+		font-size: 16px;
+		direction: inherit;
+		text-align: inherit;
+	}
+}
+
+.captureToActiveFileContainer {
+	display: flex;
+	align-content: center;
+	justify-content: space-between;
+	margin-bottom: 10px;
+}
+
+.choiceNameHeader {
+	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.choiceNameHeader:hover {
+	cursor: pointer;
+}
+
+.choiceNameHeaderIcon {
+	display: inline-flex;
+	align-items: center;
+	opacity: 0.5;
+}
