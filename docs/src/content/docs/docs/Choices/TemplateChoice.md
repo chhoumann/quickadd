@@ -163,6 +163,10 @@ File Name Format, QuickAdd uses `{{VALUE}}` as the file name format, which keeps
 the default behavior of prompting for a file name when you run the choice (with
 the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs).
 
+A slash in the format creates a folder. To nest a note under a folder named
+after the note you are in, see
+[Nest a note under the current file](#nest-under-current-file).
+
 :::note
 If a value used in the file name contains a line break or another control
 character, QuickAdd folds it to a space in the created path and strips trailing
@@ -209,6 +213,28 @@ Projects/{{VALUE:client}}/{{DATE:YYYY}}
 
 This prompts for a client and creates the file under that client's folder for
 the current year.
+
+### Nest a note under the current file {#nest-under-current-file}
+
+Put the current file's name in **File name format**, not in the folder field.
+A slash in the file name creates a folder.
+
+1. Turn **File name format** on.
+2. Set it to `{{FILENAMECURRENT}}/{{VALUE}}`.
+   `{{FILENAMECURRENT}}` is the note you are in. `{{VALUE}}` is the name you
+   type.
+3. Set **New note location** to **Same folder as current file**.
+
+From `Projects/Project XYZ.md`, typing `Use Case 1` creates
+`Projects/Project XYZ/Use Case 1.md`.
+
+To put those notes under a fixed folder instead, keep that file name format.
+Set **New note location** to **In a specific folder**, then add `Use Cases`.
+From the same project note, that creates
+`Use Cases/Project XYZ/Use Case 1.md`.
+
+The folder field does not fill in `{{FILENAMECURRENT}}`. A trailing slash there
+also makes QuickAdd ignore the folder and use the vault root.
 
 ## Link to the new note: Link to created file {#link-to-created-file}
 
