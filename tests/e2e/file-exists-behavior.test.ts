@@ -8,6 +8,7 @@ import type { ObsidianClient, SandboxApi, PluginHandle, VaultRunLock } from "obs
 import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
+	seedVaultFile,
 } from "./e2eVault";
 
 // ---------------------------------------------------------------------------
@@ -75,15 +76,8 @@ function templateChoice(
 	};
 }
 
-/** Write a file into the sandbox and wait for Obsidian to index it. */
 async function seedFile(name: string, content = "EXISTING") {
-	await sandbox.write(name, content, { waitForContent: true, waitOptions: WAIT_OPTS });
-	const path = sandbox.path(name);
-	await obsidian.waitFor(async () => {
-		return await obsidian.dev.evalJson<boolean>(
-			`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(path)}))`,
-		);
-	}, WAIT_OPTS);
+	await seedVaultFile(obsidian, sandbox, name, content);
 }
 
 /** Run a QuickAdd choice. */

@@ -4,8 +4,9 @@ import {
 	resolveObsidianEnvOptions,
 	verifyVaultPath,
 } from "obsidian-e2e";
-import type { ObsidianClient, VaultRunLock } from "obsidian-e2e";
+import type { ObsidianClient, SandboxApi, VaultRunLock } from "obsidian-e2e";
 import { createPluginHarness } from "obsidian-e2e/vitest";
+import { seedVaultFileInApp } from "./seedVaultFileInApp";
 
 export const PLUGIN_ID = "quickadd";
 
@@ -37,6 +38,28 @@ export async function acquireQuickAddVaultRunLock(
 ): Promise<VaultRunLock> {
 	const vaultPath = await verifyE2EVault(obsidian);
 	return acquireVaultRunLock({ vaultName: E2E_VAULT, vaultPath });
+}
+
+/**
+ * Create or overwrite a sandbox file through `app.vault` so the in-memory
+ * index sees it as soon as the call returns. `sandbox.write` only hits disk;
+ * `waitForContent` then re-reads those same bytes and never waits for
+ * `getAbstractFileByPath`.
+ */
+export async function seedVaultFile(
+	obsidian: ObsidianClient,
+	sandbox: SandboxApi,
+	relativePath: string,
+	content = "",
+): Promise<string> {
+	const vaultPath = sandbox.path(relativePath);
+	const createdPath = await obsidian.dev.evalJsonAsync<string | null>(
+		`(${seedVaultFileInApp.toString()})(app, ${JSON.stringify(vaultPath)}, ${JSON.stringify(content)})`,
+	);
+	if (!createdPath) {
+		throw new Error(`Failed to seed vault file: ${vaultPath}`);
+	}
+	return createdPath;
 }
 
 /**
