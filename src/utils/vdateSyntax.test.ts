@@ -109,3 +109,27 @@ describe("parseVDateOptions withTime (issue #757)", () => {
 		});
 	});
 });
+
+describe("parseVDateOptions case transforms", () => {
+	it("extracts case without treating it as a natural-language default", () => {
+		expect(parseVDateOptions("case:lower")).toEqual({
+			optional: false,
+			withTime: false,
+			caseStyle: "lower",
+		});
+	});
+
+	it("composes with snap, default, time, and optional in any order", () => {
+		expect(
+			parseVDateOptions(
+				"optional|case:upper|next monday|startof:week|time",
+			),
+		).toEqual({
+			defaultValue: "next monday",
+			optional: true,
+			withTime: true,
+			snap: { boundary: "start", unit: "week" },
+			caseStyle: "upper",
+		});
+	});
+});

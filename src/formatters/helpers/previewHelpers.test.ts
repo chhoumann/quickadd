@@ -96,6 +96,10 @@ describe('PreviewHelpers', () => {
 		it('should format day patterns correctly', () => {
 			expect(DateFormatPreviewGenerator.generate('DD', testDate)).toBe('15');
 			expect(DateFormatPreviewGenerator.generate('D', testDate)).toBe('15');
+			expect(DateFormatPreviewGenerator.generate('Do', new Date(2024, 0, 1))).toBe('1st');
+			expect(DateFormatPreviewGenerator.generate('Do', new Date(2024, 0, 2))).toBe('2nd');
+			expect(DateFormatPreviewGenerator.generate('Do', new Date(2024, 0, 3))).toBe('3rd');
+			expect(DateFormatPreviewGenerator.generate('Do', new Date(2024, 0, 11))).toBe('11th');
 		});
 
 		it('should format time patterns correctly', () => {

@@ -312,6 +312,14 @@ describe("the file-name preview does not cry wolf", () => {
 		expect(diagnostics).toEqual([]);
 	});
 
+	it("applies case transforms to the VDATE file-name preview", async () => {
+		const { text, diagnostics } = await preview(
+			"{{VDATE:due,dddd, MMMM Do|case:lower}}",
+		);
+		expect(text).toBe("thursday, june 1st");
+		expect(diagnostics).toEqual([]);
+	});
+
 	it("does not invent an option count", async () => {
 		// The body preview says `Meeting (2 options)`; the run splices in the
 		// option that gets picked and nothing else.

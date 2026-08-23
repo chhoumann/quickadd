@@ -13,6 +13,8 @@ export type ParsedVDateOptions = {
 	withTime: boolean;
 	/** Snap the resolved date to a period boundary via |startof:/|endof: (issue #511). */
 	snap?: DateSnap;
+	/** Apply the shared per-token case transform after formatting the date. */
+	caseStyle?: string;
 };
 
 /**
@@ -50,6 +52,7 @@ export function parseVDateOptions(
 	let explicitOptional: boolean | undefined;
 	let keyedDatetime = false;
 	let snap: DateSnap | undefined;
+	let caseStyle: string | undefined;
 	const rest: string[] = [];
 
 	for (const part of remaining) {
@@ -75,6 +78,10 @@ export function parseVDateOptions(
 			}
 			continue;
 		}
+		if (keyed?.key === "case") {
+			caseStyle = keyed.value.trim() || undefined;
+			continue;
+		}
 
 		rest.push(part);
 	}
@@ -85,6 +92,7 @@ export function parseVDateOptions(
 		optional: explicitOptional ?? bareOptional,
 		withTime: bareTime || bareDatetime || keyedDatetime,
 		snap,
+		...(caseStyle ? { caseStyle } : {}),
 	};
 }
 

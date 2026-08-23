@@ -40,7 +40,11 @@ import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { settingsStore } from "../settingsStore";
 import { normalizeDateInput } from "../utils/dateAliases";
-import { transformCase } from "../utils/caseTransform";
+import {
+	isSupportedCaseStyle,
+	SUPPORTED_CASE_STYLES,
+	transformCase,
+} from "../utils/caseTransform";
 import { getYamlPlaceholder } from "../utils/yamlValues";
 import {
 	escapeValueInsideQuotedYamlScalar,
@@ -438,6 +442,21 @@ export abstract class Formatter {
 		});
 	}
 
+	protected applyCaseOption(
+		value: string,
+		style: string | undefined,
+		tokenDisplay: string,
+	): string {
+		if (!style) return value;
+		if (!isSupportedCaseStyle(style)) {
+			this.warn(
+				`QuickAdd: Unsupported |case style "${style}" in token "${tokenDisplay}". Supported styles: ${SUPPORTED_CASE_STYLES.join(", ")}.`,
+			);
+			return value;
+		}
+		return transformCase(value, style);
+	}
+
 	protected replaceDateInString(input: string) {
 		let output: string = input;
 
@@ -455,7 +474,12 @@ export abstract class Formatter {
 			const snap = dateMatch?.[2]
 				? parseDateSnapSegment(dateMatch[2]) ?? undefined
 				: undefined;
-			output = this.replacer(output, DATE_REGEX, getDate({ offset, snap }));
+			const rendered = getDate({ offset, snap });
+			output = this.replacer(
+				output,
+				DATE_REGEX,
+				this.applyCaseOption(rendered, dateMatch?.[3], dateMatch?.[0] ?? "{{DATE}}"),
+			);
 		}
 
 		while (DATE_REGEX_FORMATTED.test(output)) {
@@ -475,10 +499,11 @@ export abstract class Formatter {
 				? parseDateSnapSegment(dateMatch[3]) ?? undefined
 				: undefined;
 
+			const rendered = getDate({ format, offset, snap });
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
-				getDate({ format, offset, snap }),
+				this.applyCaseOption(rendered, dateMatch[4], dateMatch[0]),
 			);
 		}
 
@@ -492,7 +517,12 @@ export abstract class Formatter {
 			const timeMatch = TIME_REGEX.exec(output);
 			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
 
-			output = this.replacer(output, TIME_REGEX, getDate({ format: "HH:mm" }));
+			const rendered = getDate({ format: "HH:mm" });
+			output = this.replacer(
+				output,
+				TIME_REGEX,
+				this.applyCaseOption(rendered, timeMatch[1], timeMatch[0]),
+			);
 		}
 
 		while (TIME_REGEX_FORMATTED.test(output)) {
@@ -501,7 +531,12 @@ export abstract class Formatter {
 
 			const format = timeMatch[1];
 
-			output = this.replacer(output, TIME_REGEX_FORMATTED, getDate({ format }));
+			const rendered = getDate({ format });
+			output = this.replacer(
+				output,
+				TIME_REGEX_FORMATTED,
+				this.applyCaseOption(rendered, timeMatch[2], timeMatch[0]),
+			);
 		}
 
 		return output;
@@ -1707,7 +1742,8 @@ export abstract class Formatter {
 				continue;
 			}
 
-			const { defaultValue, optional, withTime, snap } = parseVDateOptions(match[3]);
+			const { defaultValue, optional, withTime, snap, caseStyle } =
+				parseVDateOptions(match[3]);
 			// A |time/|datetime token with no explicit format gets a datetime
 			// default so the rendered value carries the picked time.
 			const dateFormat =
@@ -1773,7 +1809,11 @@ export abstract class Formatter {
 				this.variables.set(variableName, rendered.normalized);
 			}
 
-			output += rendered?.text ?? "";
+			output += this.applyCaseOption(
+				rendered?.text ?? "",
+				caseStyle,
+				match[0],
+			);
 		}
 
 		return output + input.slice(lastIndex);

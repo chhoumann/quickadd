@@ -9,7 +9,11 @@ import {
 	it,
 	vi,
 } from "vitest";
-import { DATE_REGEX, DATE_REGEX_FORMATTED } from "../constants";
+import {
+	DATE_REGEX,
+	DATE_REGEX_FORMATTED,
+	TIME_REGEX_FORMATTED,
+} from "../constants";
 import { getDate } from "./dates";
 
 // getDate reads the wall clock via window.moment(); install the real moment and
@@ -123,10 +127,49 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect(m?.[3]).toBe("startof:week");
 	});
 
+	it("parses case after the format, offset, and optional snap", () => {
+		const simple = "{{DATE:dddd, MMMM Do, yyyy.|case:lower}}".match(
+			DATE_REGEX_FORMATTED,
+		);
+		expect(simple?.[1]).toBe("dddd, MMMM Do, yyyy.");
+		expect(simple?.[4]).toBe("lower");
+
+		const composed =
+			"{{DATE:MMMM YYYY+7|startof:month|case:upper}}".match(
+				DATE_REGEX_FORMATTED,
+			);
+		expect(composed?.[1]).toBe("MMMM YYYY");
+		expect(composed?.[2]).toBe("+7");
+		expect(composed?.[3]).toBe("startof:month");
+		expect(composed?.[4]).toBe("upper");
+	});
+
 	it("keeps a literal pipe in the format byte-identical (no snap keyword)", () => {
 		const m = "{{DATE:YYYY|MM}}".match(DATE_REGEX_FORMATTED);
 		expect(m?.[1]).toBe("YYYY|MM"); // whole thing stays the format
 		expect(m?.[3]).toBeUndefined(); // no snap option captured
+	});
+
+	it("keeps a bracketed case-like literal inside the moment format", () => {
+		const m = "{{DATE:YYYY[|case:lower]}}".match(DATE_REGEX_FORMATTED);
+		expect(m?.[1]).toBe("YYYY[|case:lower]");
+		expect(m?.[4]).toBeUndefined();
+	});
+
+	it("keeps non-trailing case-like text inside date and time formats", () => {
+		const date = "{{DATE:YYYY|case:lower|MM}}".match(DATE_REGEX_FORMATTED);
+		const time = "{{TIME:HH|case:lower|mm}}".match(TIME_REGEX_FORMATTED);
+		expect(date?.[1]).toBe("YYYY|case:lower|MM");
+		expect(date?.[4]).toBeUndefined();
+		expect(time?.[1]).toBe("HH|case:lower|mm");
+		expect(time?.[2]).toBeUndefined();
+	});
+
+	it("keeps an incomplete bracket literal usable while typing", () => {
+		const date = "{{DATE:YYYY[Week}}".match(DATE_REGEX_FORMATTED);
+		const time = "{{TIME:HH[hours}}".match(TIME_REGEX_FORMATTED);
+		expect(date?.[1]).toBe("YYYY[Week");
+		expect(time?.[1]).toBe("HH[hours");
 	});
 
 	it("treats a |startof: inside a [literal] (non-letter after colon) as format, not snap", () => {
@@ -159,6 +202,7 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect("{{DATE|startof:month}}".match(DATE_REGEX)?.[2]).toBe("startof:month");
 		expect("{{DATE+1|endof:week}}".match(DATE_REGEX)?.[1]).toBe("+1");
 		expect("{{DATE+1|endof:week}}".match(DATE_REGEX)?.[2]).toBe("endof:week");
+		expect("{{DATE|case:upper}}".match(DATE_REGEX)?.[3]).toBe("upper");
 	});
 
 	it("matches snap tokens in LINEAR time on long malformed input (no ReDoS)", () => {
@@ -168,6 +212,15 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		const evil = `{{DATE:${"|startof:".repeat(30000)}`;
 		const start = performance.now();
 		expect(DATE_REGEX_FORMATTED.test(evil)).toBe(false);
+		expect(performance.now() - start).toBeLessThan(100);
+	});
+
+	it("rejects repeated bracket literals in linear time when the token is malformed", () => {
+		const date = `{{DATE:${"[]".repeat(30000)}+X}}`;
+		const time = `{{TIME:${"[]".repeat(30000)}+X}}`;
+		const start = performance.now();
+		expect(DATE_REGEX_FORMATTED.test(date)).toBe(false);
+		expect(TIME_REGEX_FORMATTED.test(time)).toBe(false);
 		expect(performance.now() - start).toBeLessThan(100);
 	});
 });

@@ -189,6 +189,7 @@ export class DateFormatPreviewGenerator {
 	static generate(format: string, date: Date = new Date()): string {
 		const year = date.getFullYear();
 		const week = this.getWeekNumber(date);
+		const dayOfMonth = date.getDate();
 
 		// Token -> replacement value, ordered longest-first WITHIN each leading
 		// character so a single left-to-right scan always consumes the longest
@@ -207,8 +208,9 @@ export class DateFormatPreviewGenerator {
 			['M', (date.getMonth() + 1).toString()],
 			['dddd', this.DAY_NAMES[date.getDay()]],
 			['ddd', this.DAY_NAMES_SHORT[date.getDay()]],
+			['Do', `${dayOfMonth}${this.ordinalSuffix(dayOfMonth)}`],
 			['DD', date.getDate().toString().padStart(2, '0')],
-			['D', date.getDate().toString()],
+			['D', dayOfMonth.toString()],
 			['HH', date.getHours().toString().padStart(2, '0')],
 			['H', date.getHours().toString()],
 			['mm', date.getMinutes().toString().padStart(2, '0')],
@@ -237,6 +239,17 @@ export class DateFormatPreviewGenerator {
 			}
 		}
 		return result;
+	}
+
+	private static ordinalSuffix(day: number): string {
+		const remainder100 = day % 100;
+		if (remainder100 >= 11 && remainder100 <= 13) return 'th';
+		switch (day % 10) {
+			case 1: return 'st';
+			case 2: return 'nd';
+			case 3: return 'rd';
+			default: return 'th';
+		}
 	}
 
 	private static getWeekNumber(date: Date): number {
