@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
-import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
 import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
@@ -117,15 +117,37 @@ function persist() {
 	saveCommands(snapshot(commands));
 }
 
+// Pre-drag order, captured at DRAG_STARTED. stripShadow removes the library's
+// placeholder, whose id stays SHADOW_PLACEHOLDER_ITEM_ID until a later consider
+// re-adds the shadow under the real id — so a drop inside that window (mobile
+// long-press with little or no movement) would commit the list without the
+// dragged command (#1692, same window as ChoiceList's). handleSort falls back
+// to this snapshot then: no reorder was registered, so it is the correct commit.
+let preDragCommands: ICommand[] | null = null;
+
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+	if (e.detail.info.trigger === TRIGGERS.DRAG_STARTED) {
+		preDragCommands = renderable; // still the pre-drag list at this point
+	}
 	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
 	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
 	commands = stripShadow(e.detail.items as ICommand[]);
 }
 
 function handleSort(e: CustomEvent<DndEvent>) {
-	commands = stripShadow(e.detail.items as ICommand[]);
+	let next = stripShadow(e.detail.items as ICommand[]);
+	const draggedId = e.detail.info.id;
+	if (
+		preDragCommands?.some((c) => c.id === draggedId) &&
+		!next.some((c) => c.id === draggedId)
+	) {
+		// Dropped inside the placeholder window (see preDragCommands): committing
+		// `next` would delete the dragged command. Restore the pre-drag order.
+		next = preDragCommands;
+	}
+	preDragCommands = null;
+	commands = next;
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
 	// Mobile: dragDisabled ignores `armed`, so this is a no-op.

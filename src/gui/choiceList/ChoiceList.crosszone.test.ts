@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
-import { TRIGGERS } from "svelte-dnd-action";
+import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
 
 // ChoiceListItem -> renderChoiceName/contextMenu reach src/main -> obsidian-dataview.
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
@@ -55,6 +55,21 @@ function fireFinalize(
 	return fireEvent(
 		zone,
 		new CustomEvent("finalize", {
+			detail: { items, info: { trigger, id, source: "pointer" } },
+		}),
+	);
+}
+
+/** Dispatch the dndzone `consider` CustomEvent the library emits mid-drag. */
+function fireConsider(
+	zone: Element,
+	items: IChoice[],
+	trigger: string,
+	id: string,
+): Promise<unknown> {
+	return fireEvent(
+		zone,
+		new CustomEvent("consider", {
 			detail: { items, info: { trigger, id, source: "pointer" } },
 		}),
 	);
@@ -125,5 +140,97 @@ describe("ChoiceList cross-zone de-dup (handleSort)", () => {
 		);
 
 		expect(committedIds(actions.onReorderChoices)).toEqual(["A", "C"]);
+	});
+});
+
+/**
+ * #1692: the placeholder-window drop. handleConsider strips the library's shadow
+ * placeholder, whose id is still SHADOW_PLACEHOLDER_ITEM_ID at DRAG_STARTED (and on
+ * the first synchronous DRAGGED_ENTERED) — so until a later consider re-adds the
+ * shadow under the real id, the list is missing the dragged choice entirely. Mobile
+ * long-press drags start stationary and routinely drop inside that window (hold-and-
+ * release, a small nudge, or a touchend before the next ~20ms observation tick), and
+ * the finalize then reports items WITHOUT the dragged choice. Committing that verbatim
+ * deleted the choice on Android. handleSort must fall back to the pre-drag order.
+ * Event payloads mirror a real drag, verified against svelte-dnd-action 0.9.78 in the
+ * E2E Obsidian instance under mobile emulation.
+ */
+describe("ChoiceList placeholder-window drop (#1692)", () => {
+	const shadowOf = (choice: IChoice): IChoice =>
+		({ ...choice, id: SHADOW_PLACEHOLDER_ITEM_ID }) as IChoice;
+
+	it("restores the pre-drag order when the finalize is missing the dragged choice", async () => {
+		const actions = actionsSpy();
+		const choices = [normal("A"), normal("B"), normal("C")];
+		const { container } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+		const zone = container.querySelector(".choiceList") as Element;
+
+		// Long-press drag start: the library replaces A with its placeholder shadow.
+		await fireConsider(
+			zone,
+			[shadowOf(normal("A")), normal("B"), normal("C")],
+			TRIGGERS.DRAG_STARTED,
+			"A",
+		);
+		// Drop before any index-change consider: A is gone from the reported items.
+		await fireFinalize(
+			zone,
+			[normal("B"), normal("C")],
+			TRIGGERS.DROPPED_INTO_ZONE,
+			"A",
+		);
+
+		expect(committedIds(actions.onReorderChoices)).toEqual(["A", "B", "C"]);
+	});
+
+	it("commits a genuine reorder untouched after the same drag start", async () => {
+		const actions = actionsSpy();
+		const choices = [normal("A"), normal("B"), normal("C")];
+		const { container } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+		const zone = container.querySelector(".choiceList") as Element;
+
+		await fireConsider(
+			zone,
+			[shadowOf(normal("A")), normal("B"), normal("C")],
+			TRIGGERS.DRAG_STARTED,
+			"A",
+		);
+		await fireFinalize(
+			zone,
+			[normal("B"), normal("A"), normal("C")],
+			TRIGGERS.DROPPED_INTO_ZONE,
+			"A",
+		);
+
+		expect(committedIds(actions.onReorderChoices)).toEqual(["B", "A", "C"]);
+	});
+
+	it("still strips the dragged choice on DROPPED_INTO_ANOTHER after a drag start", async () => {
+		const actions = actionsSpy();
+		const choices = [normal("A"), normal("B"), normal("C")];
+		const { container } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+		const zone = container.querySelector(".choiceList") as Element;
+
+		await fireConsider(
+			zone,
+			[shadowOf(normal("A")), normal("B"), normal("C")],
+			TRIGGERS.DRAG_STARTED,
+			"A",
+		);
+		// The drop landed in another zone; the snapshot must NOT resurrect A here.
+		await fireFinalize(
+			zone,
+			[normal("A"), normal("B"), normal("C")],
+			TRIGGERS.DROPPED_INTO_ANOTHER,
+			"A",
+		);
+
+		expect(committedIds(actions.onReorderChoices)).toEqual(["B", "C"]);
 	});
 });

@@ -94,9 +94,25 @@
     const drag = createDragArming();
     const dragDisabled = $derived(forceDragDisabled || (!isMobile && !drag.armed));
 
+    // Pre-drag order, captured at DRAG_STARTED. The stripShadow below removes the
+    // library's placeholder, whose id is still SHADOW_PLACEHOLDER_ITEM_ID both at
+    // drag start and on the first DRAGGED_ENTERED (dispatched synchronously before
+    // the library swaps in the real id) — so until a later consider re-adds the
+    // shadow under the REAL id, `choices` is missing the dragged item entirely. A
+    // drop inside that window commits — and persists — the list without the dragged
+    // choice (#1692). Mouse drags always move enough to close the window; mobile
+    // long-press drags start stationary and routinely drop inside it (a hold-and-
+    // release, a small nudge, or a touchend before the next ~20ms observation
+    // tick). handleSort falls back to this snapshot then: the library registered
+    // no reorder in that window, so the pre-drag order is the correct commit.
+    let preDragChoices: IChoice[] | null = null;
+
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
         drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+        if (e.detail.info.trigger === TRIGGERS.DRAG_STARTED) {
+            preDragChoices = renderable; // still the pre-drag list at this point
+        }
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
@@ -107,6 +123,7 @@
         if (forceDragDisabled) return;
         collapseId = "";
         let next = stripShadow(e.detail.items as IChoice[]);
+        const draggedId = e.detail.info.id;
         // Cross-zone de-dupe: on DROPPED_INTO_ANOTHER the dragged item landed in a
         // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
         // committing this list verbatim would persist a copy in BOTH the source and the
@@ -114,8 +131,16 @@
         // CO-DEPENDENT with setFolderChildrenById's by-id commit (choiceService) — the
         // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
-            next = next.filter((c) => c.id !== e.detail.info.id);
+            next = next.filter((c) => c.id !== draggedId);
+        } else if (
+            preDragChoices?.some((c) => c.id === draggedId) &&
+            !next.some((c) => c.id === draggedId)
+        ) {
+            // Dropped inside the placeholder window (see preDragChoices): committing
+            // `next` would delete the dragged choice. Restore the pre-drag order.
+            next = preDragChoices;
         }
+        preDragChoices = null;
         choices = next;
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
         // grabbed again). Mobile: dragDisabled ignores `armed`, so this is a no-op.
