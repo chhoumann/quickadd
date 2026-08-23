@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isSkipPromptShortcut } from "./GenericInputPrompt";
+import { isSkipPromptShortcut } from "../promptShortcuts";
 
 /**
  * Optional text/number/slider/wide-input prompts gained a keyboard skip

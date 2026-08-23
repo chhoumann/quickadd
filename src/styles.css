@@ -562,7 +562,14 @@
 	gap: 0.5rem;
 }
 
+/* Primary actions are first in the DOM (keyboard reaches Ok before Peek);
+   `order` puts them back on the right, after the peek button. */
+.quickAddModal .qa-prompt-actions-secondary {
+	order: 1;
+}
+
 .quickAddModal .qa-prompt-actions-primary {
+	order: 2;
 	flex-direction: row-reverse;
 	margin-left: auto;
 }
@@ -661,7 +668,7 @@
 
 /* Phones: sit under the note header so the home indicator and
    .mobile-navbar stay free. `env(safe-area-inset-bottom)` alone is not
-   enough — Obsidian's tab bar is --navbar-height (80px) plus that inset. */
+   enough - Obsidian's tab bar is --navbar-height (80px) plus that inset. */
 .qa-peek-chip--top {
 	top: calc(
 		var(--safe-area-inset-top, 0px) + var(--header-height, 40px) + 0.35rem
@@ -691,12 +698,6 @@
 	text-overflow: ellipsis;
 	white-space: nowrap;
 	font-size: var(--font-ui-small, 0.875rem);
-}
-
-.qa-peek-chip--compact .qa-peek-chip-subtitle,
-.qa-peek-chip--compact .qa-peek-chip-hint,
-.qa-peek-chip--compact .qa-peek-chip-keys {
-	display: none;
 }
 
 .qa-peek-chip--compact .qa-peek-chip-actions {
@@ -733,11 +734,10 @@
 	height: 1em;
 }
 
-.modal-container.qa-prompt-peek-instant,
-.modal-container.qa-prompt-peek-instant .modal,
-.modal-container.qa-prompt-peek-instant .modal-bg {
-	animation: none !important;
-	transition: none !important;
+/* A peeked prompt is hidden, not closed: the modal keeps its DOM, field
+   selection, suggesters, and paste handler for the return. */
+.modal-container.qa-prompt-peek-hidden {
+	display: none;
 }
 
 .quickAddModal.qa-prompt-compact .qa-prompt-actions,
@@ -795,14 +795,11 @@
 		);
 	}
 
+	/* Too little room for the shortcut hint; the JS never creates it on
+	   mobile at all, so this only affects narrow desktop windows. */
 	.qa-peek-chip-keys {
 		display: none;
 	}
-}
-
-.is-phone .qa-peek-chip-keys,
-.is-mobile .qa-peek-chip-keys {
-	display: none;
 }
 
 .qa-setting-full-width {

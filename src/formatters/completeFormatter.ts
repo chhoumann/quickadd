@@ -660,16 +660,6 @@ export class CompleteFormatter extends Formatter {
 				? { sourcePath: this.getLinkSourcePath() ?? "" }
 				: undefined;
 		const draftScopeId = this.promptRunContext?.draftScopeId;
-		if (
-			!context?.optional &&
-			!context?.numericConfig &&
-			!context?.sliderConfig &&
-			!imagePaste &&
-			!contextLine &&
-			!draftScopeId
-		) {
-			return { allowPeek: true };
-		}
 		return {
 			optional: context?.optional,
 			numeric: context?.numericConfig,
@@ -678,6 +668,8 @@ export class CompleteFormatter extends Formatter {
 			contextLine,
 			contextLineFull,
 			draftScopeId,
+			// Choice-run prompts open over the note being worked on, exactly
+			// the context peek exists for. Number/slider prompts ignore it.
 			allowPeek: true,
 		};
 	}
@@ -1120,10 +1112,7 @@ export class CompleteFormatter extends Formatter {
 							description,
 							undefined,
 							undefined,
-							{
-								allowPeek: true,
-								...(parsed.optional ? { optional: true } : {}),
-							},
+							{ optional: parsed.optional || undefined, allowPeek: true },
 						);
 				if (parsed.multiSelect) {
 					return typed ? [`${FILE_CUSTOM_PREFIX}${typed}`] : [];

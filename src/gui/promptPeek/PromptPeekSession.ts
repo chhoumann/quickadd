@@ -1,13 +1,20 @@
-import { ButtonComponent, Platform, Scope, setIcon } from "obsidian";
+import {
+	ButtonComponent,
+	Notice,
+	Platform,
+	Scope,
+	debounce,
+	setIcon,
+} from "obsidian";
 import type { App } from "obsidian";
-import { getActiveMarkdownEditorView } from "../../utils/activeMarkdownEditor";
+import { getActiveEditorSelection } from "../../utils/activeMarkdownEditor";
 import { createOwnedElement } from "../../utils/activeWindow";
 import {
-	hidePeekKeyboardHints,
+	PEEK_SHORTCUT_KEY,
 	peekReturnHint,
-	previewSelection,
-	useCompactPeekChrome,
-} from "./promptPeekPhase";
+} from "../promptShortcuts";
+import { previewSelection } from "./peekText";
+import { hasVisiblePrompt } from "./visiblePrompts";
 
 export type PromptPeekHandle = {
 	title: string;
@@ -16,8 +23,10 @@ export type PromptPeekHandle = {
 	insertSelectionAndResume: (selection: string) => void;
 };
 
+type SelectionListener = (() => void) & { cancel?: () => void };
+
 /**
- * One live peek. Closing the prompt without settling parks the run here until
+ * One live peek. Hiding the prompt without settling parks the run here until
  * the user returns, inserts a selection, or cancels.
  */
 export class PromptPeekSession {
@@ -27,8 +36,11 @@ export class PromptPeekSession {
 	private insertButton: ButtonComponent | null = null;
 	private compactChrome = false;
 	private returnScope: Scope | null = null;
-	private selectionListener: (() => void) | null = null;
+	private selectionDocuments: Document[] = [];
+	private selectionListener: SelectionListener | null = null;
 	private chipKeyListener: ((evt: KeyboardEvent) => void) | null = null;
+	private hasSelection: boolean | null = null;
+	private selectionPreview = "";
 
 	private constructor(
 		private readonly app: App,
@@ -44,7 +56,15 @@ export class PromptPeekSession {
 	}
 
 	static activate(app: App, handle: PromptPeekHandle): PromptPeekSession {
-		PromptPeekSession.active?.cancel();
+		const displaced = PromptPeekSession.active;
+		if (displaced) {
+			// Only one run can be parked. Cancelling the old one settles its
+			// promise; silently discarding it would leave that run awaiting
+			// its prompt forever.
+			const title = displaced.handle.title;
+			displaced.cancel();
+			new Notice(`QuickAdd: cancelled the peeked prompt "${title}".`);
+		}
 		const session = new PromptPeekSession(app, handle);
 		PromptPeekSession.active = session;
 		session.mount();
@@ -55,7 +75,13 @@ export class PromptPeekSession {
 		PromptPeekSession.active?.destroy();
 	}
 
+	/** Tear down the chip without settling; for hosts that already settled. */
+	discard(): void {
+		this.destroy();
+	}
+
 	resume(): void {
+		if (!this.canReturnNow()) return;
 		const handle = this.handle;
 		this.destroy();
 		handle.resume();
@@ -68,7 +94,8 @@ export class PromptPeekSession {
 	}
 
 	insertSelectionAndResume(): void {
-		const selection = currentEditorSelection(this.app);
+		if (!this.canReturnNow()) return;
+		const selection = getActiveEditorSelection(this.app);
 		if (!selection) {
 			this.resume();
 			return;
@@ -78,45 +105,53 @@ export class PromptPeekSession {
 		handle.insertSelectionAndResume(selection);
 	}
 
+	/** Another visible prompt would end up stacked under the resumed one. */
+	private canReturnNow(): boolean {
+		if (!hasVisiblePrompt()) return true;
+		new Notice(
+			"QuickAdd: close the open prompt before returning to the peeked one.",
+		);
+		return false;
+	}
+
 	private mount(): void {
 		const workspace = this.app.workspace as { containerEl?: HTMLElement };
 		const ownerDocument = workspace.containerEl?.ownerDocument ?? document;
 		// Body, not the workspace leaf: `position: fixed` inside a transformed
 		// modal ancestor parks the chip at the top of the pane.
 		const owner = ownerDocument.body;
-		const ownerWindow = ownerDocument.defaultView;
-		this.compactChrome = useCompactPeekChrome(
-			Platform.isPhone,
-			ownerWindow?.innerWidth ?? Number.POSITIVE_INFINITY,
-		);
+		this.compactChrome = Platform.isPhone;
 
-		const chip = appendOwned(owner, "div", "qa-peek-chip");
+		const chip = owner.createDiv({ cls: "qa-peek-chip" });
 		chip.setAttribute("role", "status");
 		chip.setAttribute("aria-live", "polite");
 		if (this.compactChrome) {
 			// Top, not bottom: the iOS home indicator and Obsidian's
 			// .mobile-navbar share the bottom inset.
-			chip.classList.add("qa-peek-chip--compact", "qa-peek-chip--top");
+			chip.addClass("qa-peek-chip--compact", "qa-peek-chip--top");
 		}
 
-		const header = appendOwned(chip, "div", "qa-peek-chip-header");
-		const icon = appendOwned(header, "span", "qa-peek-chip-icon");
+		const header = chip.createDiv({ cls: "qa-peek-chip-header" });
+		const icon = header.createEl("span", { cls: "qa-peek-chip-icon" });
 		icon.setAttribute("aria-hidden", "true");
 		setIcon(icon, "eye");
-		const titles = appendOwned(header, "div", "qa-peek-chip-titles");
-		const title = appendOwned(titles, "div", "qa-peek-chip-title");
-		title.textContent = this.compactChrome
-			? this.handle.title
-			: "QuickAdd is waiting";
+		const titles = header.createDiv({ cls: "qa-peek-chip-titles" });
+		titles.createDiv({
+			cls: "qa-peek-chip-title",
+			text: this.compactChrome ? this.handle.title : "QuickAdd is waiting",
+		});
 		if (!this.compactChrome) {
-			const subtitle = appendOwned(titles, "div", "qa-peek-chip-subtitle");
-			subtitle.textContent = this.handle.title;
-			const hint = appendOwned(chip, "p", "qa-peek-chip-hint");
-			hint.textContent =
-				"Look at the note, copy or select text, then come back. Your draft is still there.";
+			titles.createDiv({
+				cls: "qa-peek-chip-subtitle",
+				text: this.handle.title,
+			});
+			chip.createEl("p", {
+				cls: "qa-peek-chip-hint",
+				text: "Look at the note, copy or select text, then come back. Your draft is still there.",
+			});
 		}
 
-		const actions = appendOwned(chip, "div", "qa-peek-chip-actions");
+		const actions = chip.createDiv({ cls: "qa-peek-chip-actions" });
 
 		this.insertButton = new ButtonComponent(actions)
 			.setButtonText(this.compactChrome ? "Insert" : "Insert selection")
@@ -136,10 +171,10 @@ export class PromptPeekSession {
 		const cancel = new ButtonComponent(actions)
 			.setTooltip("Discard this run")
 			.onClick(() => this.cancel());
-		cancel.buttonEl.classList.add("qa-peek-chip-cancel");
+		cancel.buttonEl.addClass("qa-peek-chip-cancel");
 		cancel.buttonEl.setAttribute("aria-label", "Cancel this run");
 		if (this.compactChrome) {
-			const cancelIcon = cancel.buttonEl.ownerDocument.createElement("span");
+			const cancelIcon = createOwnedElement(cancel.buttonEl, "span");
 			cancelIcon.className = "qa-peek-chip-cancel-icon";
 			cancelIcon.setAttribute("aria-hidden", "true");
 			setIcon(cancelIcon, "x");
@@ -148,14 +183,13 @@ export class PromptPeekSession {
 			cancel.setButtonText("Cancel");
 		}
 
-		const hideKeys = hidePeekKeyboardHints(
-			Platform.isPhone,
-			ownerWindow?.innerWidth ?? Number.POSITIVE_INFINITY,
-		);
-		const hintText = hideKeys ? null : peekReturnHint(false);
-		if (hintText) {
-			const keys = appendOwned(chip, "p", "qa-peek-chip-keys");
-			keys.textContent = hintText;
+		if (!Platform.isMobile) {
+			// Windows narrower than 540px hide this line in CSS, so a live
+			// resize needs no JS involvement.
+			chip.createEl("p", {
+				cls: "qa-peek-chip-keys",
+				text: peekReturnHint(),
+			});
 		}
 
 		this.chipEl = chip;
@@ -166,33 +200,50 @@ export class PromptPeekSession {
 	}
 
 	private listenForSelection(): void {
-		const ownerDocument = this.chipEl?.ownerDocument ?? document;
-		this.selectionListener = () => this.refreshInsertButton();
-		ownerDocument.addEventListener("selectionchange", this.selectionListener);
+		const listener = debounce(
+			() => this.refreshInsertButton(),
+			100,
+			true,
+		) as unknown as SelectionListener;
+		this.selectionListener = listener;
+		// Popout windows are separate documents, and selectionchange fires
+		// only on the document that owns the selection.
+		this.selectionDocuments = collectWorkspaceDocuments(
+			this.app,
+			this.chipEl?.ownerDocument ?? document,
+		);
+		for (const doc of this.selectionDocuments) {
+			doc.addEventListener("selectionchange", listener);
+		}
 	}
 
 	private refreshInsertButton(): void {
-		const selection = currentEditorSelection(this.app);
 		const button = this.insertButton;
 		if (!button) return;
+		const selection = getActiveEditorSelection(this.app);
 		const hasSelection = selection.length > 0;
+		const preview =
+			hasSelection && !this.compactChrome ? previewSelection(selection) : "";
+		if (
+			hasSelection === this.hasSelection &&
+			preview === this.selectionPreview
+		) {
+			return;
+		}
+		this.hasSelection = hasSelection;
+		this.selectionPreview = preview;
 		button.setDisabled(!hasSelection);
 		button.buttonEl.classList.toggle("qa-peek-insert-ready", hasSelection);
-		if (this.compactChrome) {
-			button.setButtonText("Insert");
-		} else {
+		if (!this.compactChrome) {
 			button.setButtonText(
-				hasSelection
-					? `Insert “${previewSelection(selection)}”`
-					: "Insert selection",
+				hasSelection ? `Insert “${preview}”` : "Insert selection",
 			);
 		}
-		button.buttonEl.hidden = false;
 	}
 
 	/**
 	 * Escape on the chip itself is fine (focus is not in the editor). A
-	 * workspace-wide Escape scope is not — Vim uses that key to leave insert.
+	 * workspace-wide Escape scope is not - Vim uses that key to leave insert.
 	 */
 	private listenForChipEscape(): void {
 		const chip = this.chipEl;
@@ -208,8 +259,11 @@ export class PromptPeekSession {
 	}
 
 	private pushReturnShortcut(): void {
-		this.returnScope = new Scope();
-		this.returnScope.register(["Mod", "Shift"], "E", () => {
+		// Parented to the app scope so every global hotkey keeps working
+		// while the user navigates; a parentless pushed scope would swallow
+		// them all for the whole peek.
+		this.returnScope = new Scope(this.app.scope);
+		this.returnScope.register(["Mod", "Shift"], PEEK_SHORTCUT_KEY, () => {
 			this.resume();
 			return false;
 		});
@@ -229,31 +283,29 @@ export class PromptPeekSession {
 			this.chipKeyListener = null;
 		}
 		if (this.selectionListener) {
-			const ownerDocument = this.chipEl?.ownerDocument ?? document;
-			ownerDocument.removeEventListener(
-				"selectionchange",
-				this.selectionListener,
-			);
+			for (const doc of this.selectionDocuments) {
+				doc.removeEventListener("selectionchange", this.selectionListener);
+			}
+			this.selectionListener.cancel?.();
 			this.selectionListener = null;
 		}
+		this.selectionDocuments = [];
 		this.chipEl?.remove();
 		this.chipEl = null;
 		this.insertButton = null;
-		this.compactChrome = false;
 	}
 }
 
-function currentEditorSelection(app: App): string {
-	return getActiveMarkdownEditorView(app)?.editor.getSelection() ?? "";
-}
-
-function appendOwned<K extends keyof HTMLElementTagNameMap>(
-	parent: Node,
-	tagName: K,
-	className: string,
-): HTMLElementTagNameMap[K] {
-	const node = createOwnedElement(parent, tagName);
-	node.className = className;
-	parent.appendChild(node);
-	return node;
+function collectWorkspaceDocuments(app: App, fallback: Document): Document[] {
+	const documents = new Set<Document>([fallback]);
+	const workspace = app.workspace as {
+		iterateAllLeaves?: (
+			callback: (leaf: { view?: { containerEl?: HTMLElement } }) => void,
+		) => void;
+	};
+	workspace.iterateAllLeaves?.((leaf) => {
+		const doc = leaf.view?.containerEl?.ownerDocument;
+		if (doc) documents.add(doc);
+	});
+	return [...documents];
 }

@@ -1,5 +1,8 @@
 import type { App } from "obsidian";
-import { getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
+import {
+	getActiveEditorSelection,
+	getActiveMarkdownEditorView,
+} from "./utils/activeMarkdownEditor";
 import {
 	ChunkedPrompt,
 	clearAIRequestLogEntries,
@@ -743,15 +746,7 @@ export class QuickAddApi {
 				setClipboard: async (text: string) => {
 					return await navigator.clipboard.writeText(text);
 				},
-				getSelection: () => {
-					const activeView = getActiveMarkdownEditorView(app);
-
-					if (!activeView) {
-						return "";
-					}
-
-					return activeView.editor.getSelection() ?? "";
-				},
+				getSelection: () => getActiveEditorSelection(app),
 				getSelectedText: () => {
 					const activeView = getActiveMarkdownEditorView(app);
 
@@ -884,7 +879,9 @@ export class QuickAddApi {
 				placeholder,
 				value,
 				undefined,
-				{ ...options, allowPeek: options?.allowPeek ?? true },
+				// API prompts open over the editor, so peek is on by default;
+				// a caller can still pass allowPeek: false.
+				{ allowPeek: true, ...options },
 			);
 		} catch (error) {
 			rethrowPromptError(error);
@@ -935,7 +932,7 @@ export class QuickAddApi {
 				placeholder,
 				value,
 				undefined,
-				{ ...options, allowPeek: options?.allowPeek ?? true },
+				{ allowPeek: true, ...options },
 			);
 		} catch (error) {
 			rethrowPromptError(error);

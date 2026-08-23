@@ -7,14 +7,15 @@ import type { InputPromptOptions } from "../../types/inputPrompt";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { renderPromptContextLine } from "../promptContextLine";
 import { attachTextareaIndent } from "../components/textareaIndent";
-import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
-import { closeModalForPeek, remountModalFromPeek } from "../promptPeek/peekModal";
-import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
-import { stylePeekButton, applyCompactPromptChrome } from "../promptPeek/stylePeekButton";
+import { isPeekPromptShortcut, isSkipPromptShortcut } from "../promptShortcuts";
+import {
+	applyCompactPromptChrome,
+	stylePeekButton,
+} from "../promptPeek/stylePeekButton";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -104,6 +105,8 @@ export default class GenericWideInputPrompt extends Modal {
 		this.peek = new InputPromptPeek({
 			app,
 			title: this.header,
+			containerEl: this.containerEl,
+			scope: this.scope,
 			getField: () => this.inputComponent?.inputEl,
 			getValue: () => this.input,
 			setValue: (value) => {
@@ -111,11 +114,7 @@ export default class GenericWideInputPrompt extends Modal {
 			},
 			markDraftChanged: () => this.draftHandler.markChanged(),
 			persistDraft: () => this.persistDraft(),
-			remount: () => this.remountFromPeek(),
-			close: () => closeModalForPeek(this),
-			settleCancel: () => this.rejectPromise(promptCancelled()),
-			whenIdle: () => this.imagePasteHandle?.whenIdle() ?? Promise.resolve(),
-			isAbandoned: () => this.didSubmit || this.didClose,
+			close: () => this.close(),
 		});
 
 		this.display();
@@ -204,6 +203,7 @@ export default class GenericWideInputPrompt extends Modal {
 		return this.options?.optional === true;
 	}
 
+	/** Same opt-in gate as {@link GenericInputPrompt.supportsPeek}. */
 	private supportsPeek(): boolean {
 		return this.options?.allowPeek === true;
 	}
@@ -213,17 +213,8 @@ export default class GenericWideInputPrompt extends Modal {
 			cls: "qa-prompt-actions",
 		});
 
-		if (this.supportsPeek()) {
-			const secondary = buttonBarContainer.createDiv({
-				cls: "qa-prompt-actions-secondary",
-			});
-			stylePeekButton(
-				this.createButton(secondary, "Peek at note", () => {
-					void this.peek.peek();
-				}),
-			);
-		}
-
+		// Primary actions come first in the DOM so Tab from the input still
+		// reaches Ok before Peek; CSS `order` keeps Peek visually left.
 		const primary = buttonBarContainer.createDiv({
 			cls: "qa-prompt-actions-primary",
 		});
@@ -243,6 +234,15 @@ export default class GenericWideInputPrompt extends Modal {
 				"Skip and leave empty",
 			);
 		}
+
+		if (this.supportsPeek()) {
+			const secondary = buttonBarContainer.createDiv({
+				cls: "qa-prompt-actions-secondary",
+			});
+			stylePeekButton(
+				this.createButton(secondary, "Peek at note", () => this.peek.peek()),
+			);
+		}
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
@@ -252,7 +252,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private submitEnterCallback = (evt: KeyboardEvent) => {
 		if (this.supportsPeek() && isPeekPromptShortcut(evt)) {
 			evt.preventDefault();
-			void this.peek.peek();
+			this.peek.peek();
 			return;
 		}
 		// Skip is checked first: ctrl/cmd+shift+Enter leaves the field empty on
@@ -335,14 +335,6 @@ export default class GenericWideInputPrompt extends Modal {
 		this.tagSuggester = new TagSuggester(this.app, this.inputComponent.inputEl);
 	}
 
-	private remountFromPeek() {
-		remountModalFromPeek(this, () => {
-			this.didClose = false;
-			this.display();
-			this.attachSuggesters();
-		});
-	}
-
 	private removeInputListener() {
 		this.inputComponent.inputEl.removeEventListener(
 			"keydown",
@@ -355,6 +347,7 @@ export default class GenericWideInputPrompt extends Modal {
 	onOpen() {
 		void super.onOpen();
 
+		this.peek.onHostOpened();
 		positionInputPromptCursor(this.inputComponent.inputEl, this.options);
 	}
 
@@ -364,13 +357,7 @@ export default class GenericWideInputPrompt extends Modal {
 			this.syncInputFromEl();
 		}
 		this.persistDraft();
-		if (!this.peek.shouldSettleOnClose()) {
-			this.removeInputListener();
-			this.fileSuggester?.destroy();
-			this.tagSuggester?.destroy();
-			super.onClose();
-			return;
-		}
+		this.peek.onHostClosed();
 		this.resolveInput();
 		this.removeInputListener();
 		// Tear down the suggesters deterministically. close() intentionally keeps

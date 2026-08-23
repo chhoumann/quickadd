@@ -189,9 +189,7 @@ describe("image paste sink-context gating", () => {
 
 		await f.formatFileName("{{VALUE}}");
 
-		expect(lastPromptOptions(mocks.inputPromptPrompt)).toEqual({
-			allowPeek: true,
-		});
+		expect(lastPromptOptions(mocks.inputPromptPrompt)?.imagePaste).toBeUndefined();
 	});
 
 	it("never offers image paste in folder path prompts", async () => {
@@ -199,9 +197,7 @@ describe("image paste sink-context gating", () => {
 
 		await f.formatFolderPath("{{VALUE:folder}}");
 
-		expect(lastPromptOptions(mocks.inputPromptPrompt)).toEqual({
-			allowPeek: true,
-		});
+		expect(lastPromptOptions(mocks.inputPromptPrompt)?.imagePaste).toBeUndefined();
 	});
 
 	it("never offers image paste in template path prompts", async () => {
@@ -209,9 +205,7 @@ describe("image paste sink-context gating", () => {
 
 		await f.formatTemplateFilePath("Templates/{{VALUE:kind}}.md");
 
-		expect(lastPromptOptions(mocks.inputPromptPrompt)).toEqual({
-			allowPeek: true,
-		});
+		expect(lastPromptOptions(mocks.inputPromptPrompt)?.imagePaste).toBeUndefined();
 	});
 
 	it("restores the path-context default after content formatting", async () => {
@@ -220,9 +214,7 @@ describe("image paste sink-context gating", () => {
 		await f.formatFileContent("{{VALUE:first}}");
 		await f.formatFolderPath("{{VALUE:second}}");
 
-		expect(lastPromptOptions(mocks.inputPromptPrompt)).toEqual({
-			allowPeek: true,
-		});
+		expect(lastPromptOptions(mocks.inputPromptPrompt)?.imagePaste).toBeUndefined();
 	});
 
 	it("keeps number/slider prompts free of image paste even in content", async () => {

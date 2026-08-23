@@ -3,7 +3,9 @@ import { Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import GenericInputPrompt from "./GenericInputPrompt";
+import { PEEK_HIDDEN_CLASS } from "../promptPeek/InputPromptPeek";
 import { PromptPeekSession } from "../promptPeek/PromptPeekSession";
+import { clearVisiblePrompts } from "../promptPeek/visiblePrompts";
 import { UserCancelError } from "../../errors/UserCancelError";
 
 const modalProto = Modal.prototype as unknown as {
@@ -57,6 +59,7 @@ describe("GenericInputPrompt peek", () => {
 
 	afterEach(() => {
 		PromptPeekSession.discard();
+		clearVisiblePrompts();
 		for (const el of Array.from(document.body.children)) el.remove();
 	});
 
@@ -80,9 +83,10 @@ describe("GenericInputPrompt peek", () => {
 		) as HTMLButtonElement;
 		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
-		await Promise.resolve();
 
-		expect(document.querySelector(".qaInputPrompt")).toBeNull();
+		// Hidden, not closed: the same input survives the peek.
+		const container = document.querySelector(".qaInputPrompt") as HTMLElement;
+		expect(container.classList.contains(PEEK_HIDDEN_CLASS)).toBe(true);
 		expect(document.querySelector(".qa-peek-chip")).not.toBeNull();
 
 		const settled = waitForClose.then(
@@ -96,15 +100,50 @@ describe("GenericInputPrompt peek", () => {
 
 		PromptPeekSession.getActive()?.resume();
 
+		expect(container.classList.contains(PEEK_HIDDEN_CLASS)).toBe(false);
 		const restored = document.querySelector(
 			".qaInputPrompt input",
 		) as HTMLInputElement;
+		expect(restored).toBe(input);
 		expect(restored.value).toBe("started ");
 		restored.value = "started again";
 		restored.dispatchEvent(new Event("input", { bubbles: true }));
 		restored.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
 		await expect(waitForClose).resolves.toBe("started again");
+	});
+
+	it("keeps edits made while hidden, like a late image-paste insertion", async () => {
+		const waitForClose = GenericInputPrompt.Prompt(
+			fakeApp as never,
+			"Log",
+			undefined,
+			undefined,
+			undefined,
+			{ allowPeek: true },
+		);
+		const input = document.querySelector(
+			".qaInputPrompt input",
+		) as HTMLInputElement;
+		input.value = "shot: ";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		(
+			document.querySelector(
+				".qaInputPrompt .qa-peek-button",
+			) as HTMLButtonElement
+		).click();
+
+		// The field is alive while hidden, so a paste save that finishes now
+		// still lands its embed link in the draft (the old close-and-remount
+		// approach dropped it).
+		input.value = "shot: ![[image.png]]";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+
+		PromptPeekSession.getActive()?.resume();
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+		await expect(waitForClose).resolves.toBe("shot: ![[image.png]]");
 	});
 
 	it("cancel from the peek chip rejects like Escape", async () => {
@@ -119,23 +158,66 @@ describe("GenericInputPrompt peek", () => {
 		const peekButton = document.querySelector(
 			".qaInputPrompt .qa-peek-button",
 		) as HTMLButtonElement;
-		expect(peekButton.textContent).toContain("Peek at note");
 		peekButton.click();
-		await Promise.resolve();
 
 		PromptPeekSession.getActive()?.cancel();
 
 		await expect(waitForClose).rejects.toBeInstanceOf(UserCancelError);
 	});
 
-	it("keeps prompt actions on one compact row on a phone-width window", () => {
+	it("offers no peek button unless the caller opts in", async () => {
+		const waitForClose = GenericInputPrompt.Prompt(fakeApp as never, "Rename");
+		expect(document.querySelector(".qa-peek-button")).toBeNull();
+
+		const input = document.querySelector(
+			".qaInputPrompt input",
+		) as HTMLInputElement;
+		input.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "E",
+				shiftKey: true,
+				ctrlKey: true,
+			}),
+		);
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+
+		input.value = "done";
+		input.dispatchEvent(new Event("input", { bubbles: true }));
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await expect(waitForClose).resolves.toBe("done");
+	});
+
+	it("keeps Ok ahead of Peek in the tab order", async () => {
+		const waitForClose = GenericInputPrompt.Prompt(
+			fakeApp as never,
+			"Log",
+			undefined,
+			undefined,
+			undefined,
+			{ allowPeek: true },
+		);
+		const buttons = Array.from(
+			document.querySelectorAll(".qaInputPrompt .qa-prompt-actions button"),
+		).map((button) => button.textContent);
+		expect(buttons.indexOf("Ok")).toBeLessThan(
+			buttons.findIndex((text) => text?.includes("Peek at note")),
+		);
+
+		const input = document.querySelector(
+			".qaInputPrompt input",
+		) as HTMLInputElement;
+		input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		await expect(waitForClose).resolves.toBe("");
+	});
+
+	it("keeps prompt actions on one compact row on a phone-width window", async () => {
 		const originalWidth = window.innerWidth;
 		Object.defineProperty(window, "innerWidth", {
 			configurable: true,
 			value: 390,
 		});
 		try {
-			void GenericInputPrompt.Prompt(
+			const waitForClose = GenericInputPrompt.Prompt(
 				fakeApp as never,
 				"Log",
 				undefined,
@@ -150,18 +232,17 @@ describe("GenericInputPrompt peek", () => {
 			expect(modal?.classList.contains("qa-prompt-compact")).toBe(true);
 			expect(peekButton.textContent).toContain("Peek");
 			expect(peekButton.textContent).not.toContain("Peek at note");
+
+			const input = document.querySelector(
+				".qaInputPrompt input",
+			) as HTMLInputElement;
+			input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+			await expect(waitForClose).resolves.toBe("");
 		} finally {
 			Object.defineProperty(window, "innerWidth", {
 				configurable: true,
 				value: originalWidth,
 			});
-			PromptPeekSession.discard();
-			for (const el of Array.from(document.body.children)) el.remove();
 		}
-	});
-
-	it("hides Peek on nested settings prompts unless allowPeek is set", () => {
-		void GenericInputPrompt.Prompt(fakeApp as never, "Rename");
-		expect(document.querySelector(".qaInputPrompt .qa-peek-button")).toBeNull();
 	});
 });

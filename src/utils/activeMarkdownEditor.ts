@@ -13,3 +13,8 @@ export function getActiveMarkdownEditorView(app: App): MarkdownView | null {
 	const view = app.workspace.getActiveViewOfType(MarkdownView);
 	return view?.editor ? view : null;
 }
+
+/** The active markdown editor's selection, or "" when there is none. */
+export function getActiveEditorSelection(app: App): string {
+	return getActiveMarkdownEditorView(app)?.editor.getSelection() ?? "";
+}
