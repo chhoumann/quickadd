@@ -14,7 +14,7 @@ import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
 import { closeModalForPeek, remountModalFromPeek } from "../promptPeek/peekModal";
 import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
-import { stylePeekButton } from "../promptPeek/stylePeekButton";
+import { stylePeekButton, applyCompactPromptChrome } from "../promptPeek/stylePeekButton";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -123,6 +123,7 @@ export default class GenericWideInputPrompt extends Modal {
 
 	private display() {
 		this.containerEl.addClass("quickAddModal", "qaWideInputPrompt");
+		applyCompactPromptChrome(this.containerEl);
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
 
@@ -276,8 +277,8 @@ export default class GenericWideInputPrompt extends Modal {
 		// substitution and skips token spans), and the only un-doubler
 		// replaceLinebreakInString has no production callers, so any transform here
 		// would corrupt the value with no downstream reversal (issue: a typed
-		// "C:\temp" must reach the note and quickAddApi.wideInputPrompt() as
-		// "C:\temp", not "C:\\temp").
+		// "C:\\temp" must reach the note and quickAddApi.wideInputPrompt() as
+		// "C:\\temp", not "C:\\\\temp").
 		this.input = this.inputComponent?.inputEl?.value ?? this.input;
 		this.didSubmit = true;
 

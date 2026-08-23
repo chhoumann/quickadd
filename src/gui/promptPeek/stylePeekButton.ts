@@ -1,8 +1,23 @@
 import { Platform, setIcon } from "obsidian";
 import type { ButtonComponent } from "obsidian";
-import { peekShortcutTooltip } from "./promptPeekPhase";
+import { peekShortcutTooltip, useCompactPeekChrome } from "./promptPeekPhase";
 
 export const PEEK_BUTTON_LABEL = "Peek at note";
+export const PEEK_BUTTON_LABEL_COMPACT = "Peek";
+
+export function peekButtonLabel(compact: boolean): string {
+	return compact ? PEEK_BUTTON_LABEL_COMPACT : PEEK_BUTTON_LABEL;
+}
+
+export function applyCompactPromptChrome(containerEl: HTMLElement): boolean {
+	const compact = useCompactPeekChrome(
+		Platform.isPhone,
+		containerEl.ownerDocument.defaultView?.innerWidth ??
+			Number.POSITIVE_INFINITY,
+	);
+	containerEl.classList.toggle("qa-prompt-compact", compact);
+	return compact;
+}
 
 /**
  * Obsidian's `ButtonComponent.setIcon()` replaces the button's children, so an
@@ -13,7 +28,8 @@ export function stylePeekButton(button: ButtonComponent): ButtonComponent {
 	const viewportWidth =
 		button.buttonEl.ownerDocument.defaultView?.innerWidth ??
 		Number.POSITIVE_INFINITY;
-	button.setButtonText(PEEK_BUTTON_LABEL);
+	const compact = useCompactPeekChrome(Platform.isPhone, viewportWidth);
+	button.setButtonText(peekButtonLabel(compact));
 	button.setTooltip(peekShortcutTooltip(Platform.isPhone, viewportWidth));
 	button.buttonEl.setAttribute(
 		"aria-label",

@@ -111,4 +111,29 @@ describe("GenericInputPrompt peek", () => {
 
 		await expect(waitForClose).rejects.toBeInstanceOf(UserCancelError);
 	});
+
+	it("keeps prompt actions on one compact row on a phone-width window", () => {
+		const originalWidth = window.innerWidth;
+		Object.defineProperty(window, "innerWidth", {
+			configurable: true,
+			value: 390,
+		});
+		try {
+			void GenericInputPrompt.Prompt(fakeApp as never, "Log");
+			const modal = document.querySelector(".qaInputPrompt");
+			const peekButton = document.querySelector(
+				".qaInputPrompt .qa-peek-button",
+			) as HTMLButtonElement;
+			expect(modal?.classList.contains("qa-prompt-compact")).toBe(true);
+			expect(peekButton.textContent).toContain("Peek");
+			expect(peekButton.textContent).not.toContain("Peek at note");
+		} finally {
+			Object.defineProperty(window, "innerWidth", {
+				configurable: true,
+				value: originalWidth,
+			});
+			PromptPeekSession.discard();
+			for (const el of Array.from(document.body.children)) el.remove();
+		}
+	});
 });

@@ -12,7 +12,7 @@ import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
 import { closeModalForPeek, remountModalFromPeek } from "../promptPeek/peekModal";
 import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
-import { stylePeekButton } from "../promptPeek/stylePeekButton";
+import { stylePeekButton, applyCompactPromptChrome } from "../promptPeek/stylePeekButton";
 
 /**
  * The keyboard gesture that skips an optional prompt: ctrl/cmd+shift+Enter.
@@ -135,6 +135,7 @@ export default class GenericInputPrompt extends Modal {
 
 	private display() {
 		this.containerEl.addClass("quickAddModal", "qaInputPrompt");
+		applyCompactPromptChrome(this.containerEl);
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
 
