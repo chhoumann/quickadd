@@ -22,15 +22,6 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 10. Leave **Link to captured file** disabled.
 11. Enable **Capture format** and use one of the recipes below.
 
-If the day and month in your heading are lowercase, apply the case transform in
-the target instead of changing how QuickAdd matches lines:
-
-```text
-## {{DATE:dddd, MMMM Do, yyyy.|case:lower}}
-```
-
-_Available in the next release._
-
 ## Recipes
 
 Each recipe shows what to change from the base setup.

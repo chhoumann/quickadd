@@ -114,7 +114,6 @@ Otherwise Moment.js treats every letter as a date token.
 
 ### Change date text casing: `|case:` {#date-case}
 
-:::note[Available in the next release]
 Add `|case:<style>` after a `DATE`, `TIME`, or `VDATE` format to transform its
 rendered text. It uses the same styles as [`VALUE`](#value-case): `kebab`,
 `snake`, `camel`, `pascal`, `title`, `lower`, `upper`, and `slug`.
@@ -132,7 +131,6 @@ placeholder and does not change the locale or a reused `VDATE` value.
 
 When combining a date snap and casing, put casing last:
 `{{DATE:MMMM YYYY|startof:month|case:lower}}`.
-:::
 
 ### Snap to the start or end of a week, month, or year {#date-snap}
 
