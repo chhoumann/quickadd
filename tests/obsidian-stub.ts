@@ -428,6 +428,7 @@ export class App {
     },
   };
   workspace: any = {
+    containerEl: typeof document !== "undefined" ? document.body : undefined,
     getActiveViewOfType: () => undefined,
     getActiveFile: () => null,
     getLeaf: () => ({}),
@@ -435,6 +436,10 @@ export class App {
     setActiveLeaf: () => {},
     iterateRootLeaves: () => {},
     getLastOpenFiles: () => [],
+  };
+  keymap: any = {
+    pushScope: () => {},
+    popScope: () => {},
   };
   vault: any = {
     configDir: ".obsidian",
@@ -623,6 +628,7 @@ export const Modal = class {
 	modalEl: HTMLElement;
 	contentEl: HTMLElement;
 	titleEl: HTMLElement;
+	scope: { register: (...args: any[]) => void };
 
 	constructor(app: any) {
 		this.app = app;
@@ -630,6 +636,7 @@ export const Modal = class {
 		this.modalEl = document.createElement("div");
 		this.titleEl = document.createElement("div");
 		this.contentEl = document.createElement("div");
+		this.scope = new Scope();
 		this.modalEl.appendChild(this.titleEl);
 		this.modalEl.appendChild(this.contentEl);
 		this.containerEl.appendChild(this.modalEl);
@@ -637,6 +644,9 @@ export const Modal = class {
 	}
 
 	open() {
+		if (!this.containerEl.parentNode) {
+			document.body.appendChild(this.containerEl);
+		}
 		(this as any).onOpen?.();
 	}
 

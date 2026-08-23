@@ -9,21 +9,12 @@ import { renderPromptContextLine } from "../promptContextLine";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
-
-/**
- * The keyboard gesture that skips an optional prompt: ctrl/cmd+shift+Enter.
- * Mirrors the optional suggesters' `Mod+Shift+Enter` skip binding so all
- * optional prompt surfaces share one shortcut. Checking shift here is what keeps
- * it from colliding with the wide prompt's ctrl/cmd+Enter submit (issue #1259).
- */
-export function isSkipPromptShortcut(evt: KeyboardEvent): boolean {
-	return (
-		!evt.isComposing &&
-		evt.key === "Enter" &&
-		evt.shiftKey &&
-		(evt.ctrlKey || evt.metaKey)
-	);
-}
+import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
+import { isPeekPromptShortcut, isSkipPromptShortcut } from "../promptShortcuts";
+import {
+	applyCompactPromptChrome,
+	stylePeekButton,
+} from "../promptPeek/stylePeekButton";
 
 export default class GenericInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -40,6 +31,7 @@ export default class GenericInputPrompt extends Modal {
 	private fileSuggester: FileSuggester;
 	private tagSuggester: TagSuggester;
 	private imagePasteHandle?: ImagePasteHandle;
+	private readonly peek: InputPromptPeek;
 
 	public static Prompt(
 		app: App,
@@ -108,22 +100,29 @@ export default class GenericInputPrompt extends Modal {
 			this.rejectPromise = reject;
 		});
 
+		this.peek = new InputPromptPeek({
+			app,
+			title: this.header,
+			containerEl: this.containerEl,
+			scope: this.scope,
+			getField: () => this.inputComponent?.inputEl,
+			getValue: () => this.input,
+			setValue: (value) => {
+				this.input = value;
+			},
+			markDraftChanged: () => this.draftHandler.markChanged(),
+			persistDraft: () => this.persistDraft(),
+			close: () => this.close(),
+		});
+
 		this.display();
 		this.open();
-
-		this.fileSuggester = new FileSuggester(
-			app,
-			this.inputComponent.inputEl,
-			{ sourcePath: this.linkSourcePath }
-		);
-		this.tagSuggester = new TagSuggester(
-			app,
-			this.inputComponent.inputEl
-		);
+		this.attachSuggesters();
 	}
 
 	private display() {
 		this.containerEl.addClass("quickAddModal", "qaInputPrompt");
+		applyCompactPromptChrome(this.containerEl);
 		this.contentEl.empty();
 		this.titleEl.textContent = this.header;
 
@@ -160,6 +159,15 @@ export default class GenericInputPrompt extends Modal {
 
 	protected get isOptionalPrompt(): boolean {
 		return this.options?.optional === true;
+	}
+
+	/**
+	 * Peek is opt-in: only prompts opened over the editor during a run set
+	 * `allowPeek`. Settings and builder prompts sit on top of another modal,
+	 * where hiding the prompt would "peek" at the settings UI.
+	 */
+	protected supportsPeek(): boolean {
+		return this.options?.allowPeek === true;
 	}
 
 	protected createInputField(
@@ -199,39 +207,40 @@ export default class GenericInputPrompt extends Modal {
 	}
 
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
-		const buttonBarContainer: HTMLDivElement =
-			mainContentContainer.createDiv();
-		this.createButton(
-			buttonBarContainer,
-			"Ok",
-			this.submitClickCallback
-		).setCta().buttonEl.setCssStyles({ marginRight: "0" });
-		this.createButton(
-			buttonBarContainer,
-			"Cancel",
-			this.cancelClickCallback
-		);
+		const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv({
+			cls: "qa-prompt-actions",
+		});
+
+		// Primary actions come first in the DOM so Tab from the input still
+		// reaches Ok before Peek; CSS `order` keeps Peek visually left.
+		const primary = buttonBarContainer.createDiv({
+			cls: "qa-prompt-actions-primary",
+		});
+		this.createButton(primary, "Ok", this.submitClickCallback)
+			.setCta()
+			.buttonEl.setCssStyles({ marginRight: "0" });
+		this.createButton(primary, "Cancel", this.cancelClickCallback);
 		if (this.isOptionalPrompt) {
-			// Created last so the row-reverse layout renders it leftmost.
 			const skipButton = this.createButton(
-				buttonBarContainer,
+				primary,
 				"Skip",
-				this.skipClickCallback
+				this.skipClickCallback,
 			);
 			skipButton.setTooltip("Leave this field empty");
 			skipButton.buttonEl.setAttribute(
 				"aria-label",
-				"Skip and leave empty"
+				"Skip and leave empty",
 			);
 		}
 
-		buttonBarContainer.setCssStyles({
-			display: "flex",
-			flexDirection: "row-reverse",
-			justifyContent: "flex-start",
-			marginTop: "1rem",
-			gap: "0.5rem",
-		});
+		if (this.supportsPeek()) {
+			const secondary = buttonBarContainer.createDiv({
+				cls: "qa-prompt-actions-secondary",
+			});
+			stylePeekButton(
+				this.createButton(secondary, "Peek at note", () => this.peek.peek()),
+			);
+		}
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
@@ -239,6 +248,11 @@ export default class GenericInputPrompt extends Modal {
 	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	protected submitEnterCallback = (evt: KeyboardEvent) => {
+		if (this.supportsPeek() && isPeekPromptShortcut(evt)) {
+			evt.preventDefault();
+			this.peek.peek();
+			return;
+		}
 		// Skip is checked first so ctrl/cmd+shift+Enter leaves the field empty
 		// instead of submitting (only on optional prompts).
 		if (this.isOptionalPrompt && isSkipPromptShortcut(evt)) {
@@ -310,6 +324,13 @@ export default class GenericInputPrompt extends Modal {
 		this.draftHandler.persist(this.input, this.didSubmit);
 	}
 
+	private attachSuggesters() {
+		this.fileSuggester = new FileSuggester(this.app, this.inputComponent.inputEl, {
+			sourcePath: this.linkSourcePath,
+		});
+		this.tagSuggester = new TagSuggester(this.app, this.inputComponent.inputEl);
+	}
+
 	private removeInputListener() {
 		this.inputComponent.inputEl.removeEventListener(
 			"keydown",
@@ -321,6 +342,7 @@ export default class GenericInputPrompt extends Modal {
 	onOpen() {
 		void super.onOpen();
 
+		this.peek.onHostOpened();
 		positionInputPromptCursor(this.inputComponent.inputEl, this.options);
 	}
 
@@ -330,6 +352,7 @@ export default class GenericInputPrompt extends Modal {
 			this.syncInputFromEl();
 		}
 		this.persistDraft();
+		this.peek.onHostClosed();
 		this.resolveInput();
 		this.removeInputListener();
 		// Tear down the suggesters deterministically. close() intentionally keeps

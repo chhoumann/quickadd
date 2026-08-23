@@ -1,5 +1,12 @@
 export interface InputPromptOptions {
 	cursorAtEnd?: boolean;
+	/**
+	 * Offer Peek so the user can read or select from the open note and come
+	 * back to the same draft. Opt in only for prompts that sit on the vault
+	 * (choice runs, `quickAddApi.inputPrompt`). Nested settings/builder
+	 * prompts keep the parent modal up, so Peek cannot reach the note.
+	 */
+	allowPeek?: boolean;
 	/** Token carries |optional: show a Skip button and accept empty submissions as the answer. */
 	optional?: boolean;
 	/**

@@ -229,7 +229,7 @@ describe("static prompt wrappers", () => {
 				"ph",
 				"val",
 				undefined,
-				undefined,
+				{ allowPeek: true },
 			);
 		});
 
@@ -245,7 +245,7 @@ describe("static prompt wrappers", () => {
 				"ph",
 				"val",
 				undefined,
-				{ cursorAtEnd: true },
+				{ allowPeek: true, cursorAtEnd: true },
 			);
 		});
 
@@ -283,7 +283,7 @@ describe("static prompt wrappers", () => {
 				"p",
 				"v",
 				undefined,
-				undefined,
+				{ allowPeek: true },
 			);
 		});
 
@@ -299,7 +299,7 @@ describe("static prompt wrappers", () => {
 				"p",
 				"v",
 				undefined,
-				{ cursorAtEnd: true },
+				{ allowPeek: true, cursorAtEnd: true },
 			);
 		});
 
@@ -560,7 +560,7 @@ describe("GetApi prompt wrappers", () => {
 			"p",
 			"val",
 			undefined,
-			undefined,
+			{ allowPeek: true },
 		);
 	});
 
@@ -574,7 +574,7 @@ describe("GetApi prompt wrappers", () => {
 			"p",
 			"val",
 			undefined,
-			{ cursorAtEnd: true },
+			{ allowPeek: true, cursorAtEnd: true },
 		);
 	});
 
@@ -590,7 +590,7 @@ describe("GetApi prompt wrappers", () => {
 			"p",
 			"val",
 			undefined,
-			{ cursorAtEnd: true },
+			{ allowPeek: true, cursorAtEnd: true },
 		);
 	});
 

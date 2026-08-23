@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
-import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
+import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
@@ -333,11 +333,6 @@ async function collectForTemplateChoice(
 	return collector;
 }
 
-function getEditorSelection(app: App): string {
-	const activeView = getActiveMarkdownEditorView(app);
-	if (!activeView) return "";
-	return activeView.editor.getSelection();
-}
 
 async function collectForCaptureChoice(
 	app: App,
@@ -490,7 +485,7 @@ async function collectForCaptureChoice(
 		if (useSelectionAsCaptureValue) {
 			const existingValue = choiceExecutor.variables.get("value");
 			if (existingValue === undefined || existingValue === null) {
-				const selectedText = getEditorSelection(app);
+				const selectedText = getActiveEditorSelection(app);
 				if (selectedText.trim().length > 0) {
 					choiceExecutor.variables.set("value", selectedText);
 				}

@@ -8,7 +8,8 @@ describe("QuickAdd command labels", () => {
 			runTemplateFromFolder: "New note from template",
 			applyTemplate: "Apply template to active note",
 			reloadDev: "Reload (dev)",
-			openSettings: "Open settings"
+			openSettings: "Open settings",
+			resumePrompt: "Return to prompt",
 		});
 
 		for (const label of Object.values(QUICK_ADD_COMMAND_LABELS)) {

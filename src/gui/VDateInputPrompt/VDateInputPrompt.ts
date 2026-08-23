@@ -11,6 +11,9 @@ import {
 } from "../../utils/dateAliases";
 
 export default class VDateInputPrompt extends GenericInputPrompt {
+	protected supportsPeek(): boolean {
+		return false;
+	}
 	private previewEl: HTMLElement;
 	private dateFormat: string;
 	private updatePreviewDebounced: Debouncer<[], void>;

@@ -18,6 +18,9 @@ import { normalizeNumericValue } from "../../utils/valueSyntax";
  * `GenericInputPrompt.Prompt` hardcodes `new GenericInputPrompt`.
  */
 export default class NumberInputPrompt extends GenericInputPrompt {
+	protected supportsPeek(): boolean {
+		return false;
+	}
 	public static Prompt(
 		app: App,
 		header: string,
