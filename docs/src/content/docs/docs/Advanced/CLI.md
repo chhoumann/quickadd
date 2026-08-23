@@ -67,8 +67,6 @@ obsidian vault=dev quickadd:run-template \
 - The picker (interactive command) only lists templates inside your configured template folder(s); `path=` here is explicit, so any vault file resolves.
 - Like `quickadd:run`, name collisions on the target note still prompt (the file-exists choice is not a pre-collected input). Under `quickadd:interactive` that prompt is forwarded to you like any other.
 
-_Introduced in QuickAdd 2.14.0._
-
 ## Pass variables to a choice {#passing-variables}
 
 QuickAdd's CLI accepts variables three ways:
@@ -156,11 +154,6 @@ carries `error` instead and no `effect`, because there is no outcome to describe
 The `obsidian://quickadd` [x-callback](/docs/Advanced/TriggerQuickAddFromOutsideObsidian/)
 success callback carries the same `effect` value.
 
-:::note[Introduced in QuickAdd 2.20.0]
-`capabilities` in the `quickadd:interactive` handshake contains
-`outcome-effect` on a build that has `effect`.
-:::
-
 ## Answer run-time prompts from outside: `quickadd:interactive` {#interactive-runs-quickaddinteractive}
 
 Some choices prompt at *run time* for inputs that can't be gathered up front -
@@ -188,10 +181,7 @@ picker - are forwarded like any other. (The AI assistant's tool-confirmation dia
 the one that is not: run such a choice at the desktop, or set tool confirmation to
 "never".)
 
-:::note[Introduced in QuickAdd 2.20.0]
-Before 2.20.0, a Template or Capture run opened its own pickers in Obsidian and
-`/abort` could not reach them.
-::: They arrive as `suggester` prompts, and because the engine controls the
+They arrive as `suggester` prompts, and because the engine controls the
 list, a reply that is not one of the offered `value` tokens is refused rather than
 acted on (unless the prompt sets `allowCustomInput`, as the folder and discovery
 pickers do so you can create something new).
@@ -229,20 +219,7 @@ the run may still finish and commit its side effects. Keep polling for the termi
 event either way.
 :::
 
-:::note[Introduced in QuickAdd 2.20.0]
-`"capabilities":["abort"]` in the handshake tells you a build has `POST /abort`
-and the `info` behaviour above. Before them, cancelling an `info` prompt
-ended the run, and there was no explicit way to end one other than to stop polling
-and wait out the ~75s disconnect watchdog.
-:::
-
 ### When a reply is rejected
-
-:::note[Changed in QuickAdd 2.20.0]
-Before 2.20.0, a `cancelled` flag that was not the
-literal `true` was consumed as a cancellation, and a `confirm` prompt with no value was read as
-"No".
-:::
 
 `/reply` answers `400` and leaves the prompt **pending** when it cannot honour
 what you sent, so you can correct the reply and POST again. Two cases:
@@ -266,4 +243,3 @@ Good to know:
 - **Concurrency.** Each run gets its own `sessionId` + `token`; many can run at once without interfering.
 - If no client attaches within ~30s the run is aborted so a prompt can't hang forever.
 
-_Introduced in QuickAdd 2.16.0._

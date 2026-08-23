@@ -176,8 +176,6 @@ Good to know:
 - `|startof:`, `|endof:`, and `|case:` are special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`. Put a literal `|case:lower` inside square brackets.
 - An unknown unit (like `|startof:fortnight`) shows an error listing the valid units.
 
-_Introduced in QuickAdd 2.14.0._
-
 ### The current time: `{{TIME}}` {#time}
 
 `{{TIME}}` becomes the current time in `HH:mm` format. `{{TIME:<format>}}`
@@ -254,8 +252,6 @@ start: {{VDATE:start,YYYY-MM-DDTHH:mm|time}}
 Combines with a default and `optional` in any order:
 `{{VDATE:meeting,YYYY-MM-DD HH:mm|tomorrow at 3pm|time|optional}}`. Without
 `|time`, the picker stays date-only.
-
-_Introduced in QuickAdd 2.14.0._
 
 ## Ask for input
 
@@ -387,7 +383,6 @@ Variants and combinations:
 - `|multi|custom` adds a text box to the picker for values not in the list.
 - Combines with `|name:`, `|label:`, `|text:`, `|optional`, and `|trim`. `|case:` is ignored (a list isn't case-transformed).
 
-:::note[Introduced in QuickAdd 2.22.0]
 Add `|format:` when the output shape should be intentional instead of inferred
 from where the placeholder appears:
 
@@ -407,15 +402,12 @@ Formatting is separate from the selected item representation, so it composes
 with `|multi:linklist`, `|text:`, `|custom`, and the other multi-select options.
 For example, `|multi:linklist|format:yaml` writes a native YAML list of
 wikilinks.
-:::
 
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
 - In a **Capture**, multi-select becomes a list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
-
-_Introduced in QuickAdd 2.14.0._
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
 
@@ -441,8 +433,6 @@ Good to know:
 - `value` and `title` are reserved and can't be used as names.
 - Names match case-insensitively: `{{VALUE:Category}}` reuses a pick named `category`.
 - **First definition wins.** If the same `|name` appears twice with different options in one run, the first definition's pick is reused and the second is never shown (a warning is logged to the developer console). Use distinct names for separate prompts.
-
-_Introduced in QuickAdd 2.14.0._
 
 ### Fine-tune any prompt
 
@@ -521,8 +511,6 @@ Good to know:
 - Dates like `2025-12-25` are always kept as text by Obsidian, so they never need `|type:text`.
 - `|min:`, `|max:`, and `|step:` are only treated as numeric options together with `|type:number` or `|type:slider`. Without those, they keep their old meaning as ordinary text.
 
-_Introduced in QuickAdd 2.14.0._
-
 #### Change the casing: `|case:` {#value-case}
 
 Transforms the answer's casing. Styles: `kebab`, `snake`, `camel`, `pascal`,
@@ -552,8 +540,6 @@ answer can be used raw in one place and trimmed in another. It composes with
 other options (`{{VALUE:title|trim|case:slug}}`). For `|multi` values, each
 entry is trimmed while the value stays a list. The keyed form `|trim:false`
 turns trimming off when a shared snippet adds it.
-
-_Introduced in QuickAdd 2.14.0._
 
 ### Make a prompt skippable: `|optional` {#optional-fields}
 
@@ -627,8 +613,6 @@ disambiguating ancestor path (`[[Note#Parent#Heading]]`); if even that isn't
 unique, it falls back to a whole-file link rather than linking to the wrong
 section. Honors the same required/optional behavior as `{{LINKCURRENT}}`.
 
-_Introduced in QuickAdd 2.14.0._
-
 ### The note's file name: `{{FILENAMECURRENT}}` {#filenamecurrent}
 
 The active note's file name, without the extension: `Notes from
@@ -666,8 +650,6 @@ missing active note always stops the run with a clear error - it never falls
 back to the vault root. In note bodies it honors the same required/optional
 behavior as `{{LINKCURRENT}}`.
 
-_Introduced in QuickAdd 2.18.0._
-
 <a id="foldercurrentname---just-the-folder-name"></a>
 
 #### Just the folder's name: `{{FOLDERCURRENT|name}}` {#foldercurrent-name}
@@ -699,8 +681,6 @@ Where it has a value:
 Where it stays empty: the capture **Capture to** field (that field is what
 *chooses* the folder, so there is nothing to reference yet), the `format`
 JavaScript API, and macro file-path commands.
-
-_Introduced in QuickAdd 2.14.0._
 
 <a id="foldername--just-the-folder-name"></a>
 
@@ -763,12 +743,10 @@ positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
-:::note[Introduced in QuickAdd 2.22.0]
 FIELD multi-selects support the same explicit output formats as VALUE:
 `|format:yaml`, `|format:markdown`, `|format:inline`, and `|format:auto`.
 For example, `topics: {{FIELD:topic|multi|format:yaml}}` always writes a native
 YAML list, including in template-backed captures.
-:::
 
 :::note
 The one-page input form doesn't inline FIELD multi-selects yet: vault values
@@ -777,8 +755,6 @@ When a format contains `{{FIELD:...|multi}}`, QuickAdd collects the other
 one-page inputs first, then opens the regular multi-select for the FIELD
 value.
 :::
-
-_Introduced in QuickAdd 2.14.0._
 
 #### Default to the active note's value: `|default-from:active` {#field-default-from-active}
 
@@ -818,8 +794,6 @@ Combine with `|multi` to inherit a list property:
 ```md
 topics: {{FIELD:topics|multi|default-from:active}}
 ```
-
-_Introduced in QuickAdd 2.14.0._
 
 #### Filter where suggestions come from {#field-filters}
 
@@ -907,14 +881,10 @@ Good to know:
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
-:::note[Introduced in QuickAdd 2.22.0]
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
 of links without relying on the capture context.
-:::
-
-_Introduced in QuickAdd 2.14.0._
 
 ## Insert other content
 

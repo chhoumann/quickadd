@@ -146,8 +146,6 @@ reliably on iOS is a platform behaviour shared with Obsidian core - verify on
 your device.
 :::
 
-_Introduced in QuickAdd 2.14.0._
-
 ## Watch out for sync services {#important-sync-service-limitations}
 
 :::caution
