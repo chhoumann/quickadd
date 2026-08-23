@@ -10,6 +10,7 @@ const runE2E = path.join(repoRoot, ".agents", "run-e2e");
 const openShim = path.join(repoRoot, ".agents", "obsidian-open");
 const patcher = path.join(repoRoot, ".agents", "patch-obsidian-e2e-linux.mjs");
 const profileRoot = "/tmp/quickadd-obsidian-e2e";
+const runningOnLinux = process.platform === "linux";
 const temporaryPaths: string[] = [];
 
 interface ProfileRootState {
@@ -79,7 +80,7 @@ afterEach(() => {
 	}
 });
 
-describe("Amp orb E2E lifecycle", () => {
+describe.skipIf(!runningOnLinux)("Amp orb E2E lifecycle", () => {
 	it("does not mask a nonzero start that printed valid exports", () => {
 		const bin = temporaryDirectory("quickadd-mock-bin-");
 		const log = path.join(bin, "calls.log");
@@ -173,7 +174,7 @@ exit 0
 	});
 });
 
-describe("Linux Obsidian launcher validation", () => {
+describe.skipIf(!runningOnLinux)("Linux Obsidian launcher validation", () => {
 	function validArgs(validHome: string): string[] {
 		return [
 		"-n",
@@ -283,8 +284,9 @@ describe("obsidian-e2e Linux patcher", () => {
 		fs.writeFileSync(bundle, `${originalLaunch}\n${originalAsar}\n`);
 		execFileSync(process.execPath, [patcher, "--dist-dir", dist]);
 		execFileSync(process.execPath, [patcher, "--check", "--dist-dir", dist]);
-		expect(fs.readFileSync(bundle, "utf8")).toContain(".agents/obsidian-open");
-		expect(fs.readFileSync(bundle, "utf8")).toContain("/opt/Obsidian/resources/obsidian.asar");
+		const patchedBundle = fs.readFileSync(bundle, "utf8");
+		expect(patchedBundle).toMatch(/\.agents[\\/]+obsidian-open/);
+		expect(patchedBundle).toContain("/opt/Obsidian/resources/obsidian.asar");
 		expect(fs.readdirSync(dist)).toEqual(["runner.mjs"]);
 	});
 });
