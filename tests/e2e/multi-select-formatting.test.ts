@@ -13,6 +13,7 @@ import type {
 import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
+	seedVaultFile,
 } from "./e2eVault";
 
 const PLUGIN_ID = "quickadd";
@@ -95,10 +96,12 @@ beforeAll(async () => {
 	});
 
 	const templatePath = sandbox.path("template.md");
-	await sandbox.write("template.md", "---\nkind: capture\n---\n# Template body\n", {
-		waitForContent: true,
-		waitOptions: WAIT_OPTS,
-	});
+	await seedVaultFile(
+		obsidian,
+		sandbox,
+		"template.md",
+		"---\nkind: capture\n---\n# Template body\n",
+	);
 
 	await qa.data<QuickAddData>().patch((data) => {
 		data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);

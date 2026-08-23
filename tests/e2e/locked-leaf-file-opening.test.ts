@@ -13,6 +13,7 @@ import type {
 import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
+	seedVaultFile,
 } from "./e2eVault";
 
 const PLUGIN_ID = "quickadd";
@@ -90,22 +91,7 @@ function clearTestChoices(data: QuickAddData) {
 }
 
 async function seedFile(path: string, content: string) {
-	await sandbox.write(path, content, {
-		waitForContent: true,
-		waitOptions: WAIT_OPTS,
-	});
-
-	const vaultPath = sandbox.path(path);
-	await obsidian.waitFor(
-		() =>
-			obsidian.dev.evalJson<boolean>(
-				`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(vaultPath)}))`,
-			),
-		{
-			...WAIT_OPTS,
-			message: `Obsidian to index "${vaultPath}"`,
-		},
-	);
+	await seedVaultFile(obsidian, sandbox, path, content);
 }
 
 function pinnedOriginLayoutCode({
