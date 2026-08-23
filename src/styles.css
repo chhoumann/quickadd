@@ -33,3 +33,66 @@
 	justify-content: space-between;
 	margin-bottom: 10px;
 }
+
+.choiceNameHeader {
+	text-align: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.choiceNameHeader:hover {
+	cursor: pointer;
+}
+
+.choiceNameHeaderIcon {
+	display: inline-flex;
+	align-items: center;
+	opacity: 0.5;
+}
+
+.quickAddModal.qa-prompt-compact .qa-prompt-actions,
+.is-phone .quickAddModal .qa-prompt-actions {
+	--button-radius: 6px;
+	--button-corner-shape: square;
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.4rem;
+}
+
+.quickAddModal.qa-prompt-compact .qa-prompt-actions-secondary,
+.quickAddModal.qa-prompt-compact .qa-prompt-actions-primary,
+.is-phone .quickAddModal .qa-prompt-actions-secondary,
+.is-phone .quickAddModal .qa-prompt-actions-primary {
+	width: auto;
+	margin-left: 0;
+	flex-direction: row;
+	flex-wrap: nowrap;
+}
+
+.quickAddModal.qa-prompt-compact .qa-prompt-actions-primary,
+.is-phone .quickAddModal .qa-prompt-actions-primary {
+	margin-left: auto;
+	flex-direction: row-reverse;
+}
+
+.quickAddModal.qa-prompt-compact .qa-peek-button,
+.quickAddModal.qa-prompt-compact .qa-prompt-actions-primary button,
+.is-phone .quickAddModal .qa-peek-button,
+.is-phone .quickAddModal .qa-prompt-actions-primary button {
+	min-height: 2.25rem;
+	height: 2.25rem;
+	width: auto;
+	padding: 0 0.75rem;
+	justify-content: center;
+	border-radius: var(--button-radius);
+	corner-shape: var(--button-corner-shape);
+}
+
+.qa-image-paste-busy {
+	opacity: 0.7;
+	cursor: progress;
+}
