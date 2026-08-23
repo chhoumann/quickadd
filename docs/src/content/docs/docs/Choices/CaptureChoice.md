@@ -128,8 +128,6 @@ Capture still writes to **one** destination per run. To select several related
 notes for metadata, use the [`{{FILE:<folder>|multi}}`](/docs/FormatSyntax/#file)
 placeholder in the capture format instead.
 
-_Introduced in QuickAdd 2.14.0._
-
 ### Capture to notes with a matching property {#capturing-to-a-property}
 
 Type `property:<field>=<value>` to limit the picker to notes whose frontmatter
@@ -155,8 +153,6 @@ Good to know:
 - Only the `folder:` / `tag:` / `exclude-folder:` / `exclude-tag:` / `exclude-file:` pipe filters are applied here.
 - Because `|` starts a filter, a property value cannot itself contain `|`.
 - Typing a new note name (with **Create file if it doesn't exist**) creates the note, but does not automatically give it the property.
-
-_Introduced in QuickAdd 2.14.0._
 
 ### Send one entry to several notes {#capturing-the-same-entry-to-multiple-files}
 
@@ -520,8 +516,6 @@ first`.
 - Ordered placement positions the **new** section only; it doesn't re-sort existing ones.
 - **Ordered** is for headings and can't be combined with **Inline insertion**.
 
-_Introduced in QuickAdd 2.14.0._
-
 ### Choose the heading when capturing {#choose-heading-when-capturing}
 
 Instead of typing the target line when you build the choice, enable **Choose
@@ -540,8 +534,6 @@ Good to know:
 - You can type a heading that doesn't exist yet; enable `Create line if not found` to have QuickAdd create it (type it with its `#` markers, e.g. `## Tasks`).
 - The dropdown lists ATX headings (lines starting with `#`). For a brand-new note created from a template, the picker can't list the template's headings (the note doesn't exist at pick time) - type the heading and use `Create line if not found`.
 - With the one-page input form, the heading dropdown still appears as a separate step after the form.
-
-_Introduced in QuickAdd 2.14.0._
 
 ### Consider subsections {#consider-subsections--option}
 

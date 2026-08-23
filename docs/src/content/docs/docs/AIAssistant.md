@@ -163,8 +163,6 @@ If the provider a command is pinned to is later deleted, QuickAdd falls back to
 the first provider that serves a model with that name and warns you about the
 switch. Re-select the model in the command to pin it again.
 
-_Introduced in QuickAdd 2.19.0._
-
 ### Where QuickAdd gets the model list: Model source {#model-source}
 
 Each provider has a **Model source** setting:

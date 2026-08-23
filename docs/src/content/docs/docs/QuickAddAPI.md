@@ -53,7 +53,6 @@ tR += result;
 %>
 ```
 
-
 ## User Input Methods
 
 ### `requestInputs(inputs: Array<{ id: string; label?: string; type: "text" | "number" | "textarea" | "dropdown" | "date" | "field-suggest" | "suggester" | "slider"; placeholder?: string; defaultValue?: string; numericConfig?: { min?: number; max?: number; step?: number }; sliderConfig?: { min: number; max: number; step?: number }; options?: string[]; dateFormat?: string; description?: string; optional?: boolean; suggesterConfig?: { allowCustomInput?: boolean; caseSensitive?: boolean; multiSelect?: boolean; } }>): Promise<Record<string, string>>`
@@ -651,8 +650,6 @@ are capped automatically.
 
 ### Give the model tools to call: `ai.agent(config)` {#tool--function-calling--aiagentconfig}
 
-_Introduced in QuickAdd 2.14.0._
-
 Build an **agent**: give the model a prompt and a set of *tools* (JS functions), and it
 will call them in a bounded multi-step loop until it has an answer. Works across your
 configured OpenAI-compatible, Anthropic, and Gemini providers.
@@ -807,8 +804,6 @@ Gets the maximum token limit for a model.
 
 ### `estimateTokens(text: string): number`
 
-_Introduced in QuickAdd 2.14.0._
-
 Estimates the token count for text using QuickAdd's provider-agnostic estimator.
 This is useful for rough prompt sizing, but the configured AI provider remains
 the source of truth for exact context limits and usage.
@@ -948,11 +943,6 @@ module.exports = async (params) => {
 ```
 
 ## Error Handling Best Practices
-
-:::note[Changed in QuickAdd 2.20.0]
-Before 2.20.0, a prompt that failed for a reason other than the user cancelling resolved
-`undefined` instead of rejecting, so a script could not tell a failure from an empty answer.
-:::
 
 A prompt has exactly two non-happy outcomes, and they are different things:
 
