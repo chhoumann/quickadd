@@ -93,6 +93,7 @@ describe("InputPromptPeek", () => {
 		expect(peek.shouldSettleOnClose()).toBe(false);
 		expect(PromptPeekSession.isPeeking()).toBe(true);
 		const chip = document.querySelector(".qa-peek-chip");
+		expect(chip?.classList.contains("qa-peek-chip--top")).toBe(false);
 		expect(chip?.textContent).toContain("QuickAdd is waiting");
 		expect(chip?.textContent).toContain("Capture text");
 		expect(
@@ -185,6 +186,7 @@ describe("InputPromptPeek", () => {
 			peek.peek();
 			const chip = document.querySelector(".qa-peek-chip");
 			expect(chip?.classList.contains("qa-peek-chip--compact")).toBe(true);
+			expect(chip?.classList.contains("qa-peek-chip--top")).toBe(true);
 			expect(chip?.querySelector(".qa-peek-chip-hint")).toBeNull();
 			expect(chip?.querySelector(".qa-peek-chip-subtitle")).toBeNull();
 			expect(chip?.textContent).toContain("Capture text");
