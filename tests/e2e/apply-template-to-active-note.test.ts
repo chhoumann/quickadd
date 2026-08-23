@@ -39,12 +39,7 @@ async function applyTemplate(
 
 	return obsidian.dev.evalJsonAsync<ApplyResult>(`(async () => {
 		try {
-			// The vault index can lag behind sandbox writes; poll for the note.
-			let file = null;
-			for (let attempt = 0; attempt < 50 && !file; attempt++) {
-				file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath)});
-				if (!file) await new Promise((resolve) => setTimeout(resolve, 100));
-			}
+			const file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath)});
 			if (!file) throw new Error("note not found: " + ${JSON.stringify(notePath)});
 			const leaf = app.workspace.getLeaf(false);
 			await leaf.openFile(file);
