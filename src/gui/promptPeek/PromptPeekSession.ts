@@ -1,8 +1,8 @@
-import { ButtonComponent, Scope, setIcon } from "obsidian";
+import { ButtonComponent, Platform, Scope, setIcon } from "obsidian";
 import type { App } from "obsidian";
 import { getActiveMarkdownEditorView } from "../../utils/activeMarkdownEditor";
 import { createOwnedElement } from "../../utils/activeWindow";
-import { previewSelection } from "./promptPeekPhase";
+import { peekReturnHint, previewSelection } from "./promptPeekPhase";
 
 export type PromptPeekHandle = {
 	title: string;
@@ -20,8 +20,9 @@ export class PromptPeekSession {
 
 	private chipEl: HTMLElement | null = null;
 	private insertButton: ButtonComponent | null = null;
-	private escapeScope: Scope | null = null;
+	private returnScope: Scope | null = null;
 	private selectionListener: (() => void) | null = null;
+	private chipKeyListener: ((evt: KeyboardEvent) => void) | null = null;
 
 	private constructor(
 		private readonly app: App,
@@ -114,13 +115,17 @@ export class PromptPeekSession {
 			.setTooltip("Discard this run")
 			.onClick(() => this.cancel());
 
-		const keys = appendOwned(chip, "p", "qa-peek-chip-keys");
-		keys.textContent = "Esc returns to the prompt";
+		const hintText = peekReturnHint(Platform.isPhone);
+		if (hintText) {
+			const keys = appendOwned(chip, "p", "qa-peek-chip-keys");
+			keys.textContent = hintText;
+		}
 
 		this.chipEl = chip;
 		this.refreshInsertButton();
 		this.listenForSelection();
-		this.pushEscapeScope();
+		this.listenForChipEscape();
+		this.pushReturnShortcut();
 	}
 
 	private listenForSelection(): void {
@@ -144,22 +149,43 @@ export class PromptPeekSession {
 		button.buttonEl.hidden = false;
 	}
 
-	private pushEscapeScope(): void {
-		this.escapeScope = new Scope();
-		this.escapeScope.register([], "Escape", () => {
+	/**
+	 * Escape on the chip itself is fine (focus is not in the editor). A
+	 * workspace-wide Escape scope is not — Vim uses that key to leave insert.
+	 */
+	private listenForChipEscape(): void {
+		const chip = this.chipEl;
+		if (!chip) return;
+		this.chipKeyListener = (evt: KeyboardEvent) => {
+			if (evt.isComposing || evt.key !== "Escape") return;
+			const target = evt.target;
+			if (!(target instanceof Node) || !chip.contains(target)) return;
+			evt.preventDefault();
+			this.resume();
+		};
+		chip.addEventListener("keydown", this.chipKeyListener);
+	}
+
+	private pushReturnShortcut(): void {
+		this.returnScope = new Scope();
+		this.returnScope.register(["Mod", "Shift"], "E", () => {
 			this.resume();
 			return false;
 		});
-		this.app.keymap.pushScope(this.escapeScope);
+		this.app.keymap.pushScope(this.returnScope);
 	}
 
 	private destroy(): void {
 		if (PromptPeekSession.active === this) {
 			PromptPeekSession.active = null;
 		}
-		if (this.escapeScope) {
-			this.app.keymap.popScope(this.escapeScope);
-			this.escapeScope = null;
+		if (this.returnScope) {
+			this.app.keymap.popScope(this.returnScope);
+			this.returnScope = null;
+		}
+		if (this.chipKeyListener && this.chipEl) {
+			this.chipEl.removeEventListener("keydown", this.chipKeyListener);
+			this.chipKeyListener = null;
 		}
 		if (this.selectionListener) {
 			const ownerDocument = this.chipEl?.ownerDocument ?? document;

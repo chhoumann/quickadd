@@ -61,6 +61,17 @@ export function isPeekPromptShortcut(evt: KeyboardEvent): boolean {
 	);
 }
 
+/** Peeking leaves the editor to the user. Escape must stay with Vim. */
+export function peekShortcutTooltip(isPhone: boolean): string {
+	return isPhone
+		? "Look at the note without losing this draft."
+		: "Look at the note without losing this draft. Ctrl/Cmd+Shift+E";
+}
+
+export function peekReturnHint(isPhone: boolean): string | null {
+	return isPhone ? null : "Ctrl/Cmd+Shift+E returns to the prompt";
+}
+
 export function previewSelection(selection: string, maxLength = 42): string {
 	const collapsed = selection.replace(/\s+/g, " ").trim();
 	if (collapsed.length <= maxLength) return collapsed;

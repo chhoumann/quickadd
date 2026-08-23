@@ -134,4 +134,30 @@ describe("InputPromptPeek", () => {
 		expect(peek.shouldSettleOnClose()).toBe(true);
 		expect(PromptPeekSession.isPeeking()).toBe(false);
 	});
+
+	it("leaves Escape in the editor for Vim", () => {
+		const host = makeHost();
+		const peek = new InputPromptPeek(host);
+		peek.peek();
+		const chip = document.querySelector(".qa-peek-chip");
+		expect(chip?.textContent).not.toContain("Esc returns");
+
+		document.body.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+		);
+		expect(PromptPeekSession.isPeeking()).toBe(true);
+		expect(host.remounts).toBe(0);
+	});
+
+	it("returns when Escape is pressed on the chip itself", () => {
+		const host = makeHost();
+		const peek = new InputPromptPeek(host);
+		peek.peek();
+		const chip = document.querySelector(".qa-peek-chip");
+		chip?.dispatchEvent(
+			new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+		);
+		expect(PromptPeekSession.isPeeking()).toBe(false);
+		expect(host.remounts).toBe(1);
+	});
 });

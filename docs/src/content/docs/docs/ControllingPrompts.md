@@ -93,9 +93,9 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 :::note[Available in the next release]
 Single-line and multi-line text prompts can get out of the way so you can read or select text in the open note, then come back to the same draft.
 
-- **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E`, hides the prompt without cancelling the run.
-- A chip stays at the bottom of the vault: **Insert selection** drops the highlighted text into your draft and returns, **Return** comes back as-is, and **Cancel** aborts the run. `Esc` returns to the prompt.
-- The command **QuickAdd: Return to prompt** is available while a peek is open.
+- **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run.
+- A chip stays at the bottom of the vault: **Insert selection** drops the highlighted text into your draft and returns, **Return** comes back as-is, and **Cancel** aborts the run. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode.
+- The command **QuickAdd: Return to prompt** is available while a peek is open. On a phone the chip stacks full-width so the buttons stay tappable above the home indicator.
 :::
 
 

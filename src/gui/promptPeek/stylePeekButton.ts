@@ -1,5 +1,6 @@
-import { setIcon } from "obsidian";
+import { Platform, setIcon } from "obsidian";
 import type { ButtonComponent } from "obsidian";
+import { peekShortcutTooltip } from "./promptPeekPhase";
 
 export const PEEK_BUTTON_LABEL = "Peek at note";
 
@@ -10,9 +11,7 @@ export const PEEK_BUTTON_LABEL = "Peek at note";
  */
 export function stylePeekButton(button: ButtonComponent): ButtonComponent {
 	button.setButtonText(PEEK_BUTTON_LABEL);
-	button.setTooltip(
-		"Look at the note without losing this draft. Ctrl/Cmd+Shift+E",
-	);
+	button.setTooltip(peekShortcutTooltip(Platform.isPhone));
 	button.buttonEl.setAttribute(
 		"aria-label",
 		"Peek at the note. Your draft stays.",

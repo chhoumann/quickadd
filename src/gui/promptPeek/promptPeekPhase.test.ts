@@ -4,6 +4,8 @@ import {
 	canPeek,
 	insertAtCursor,
 	isPeekPromptShortcut,
+	peekReturnHint,
+	peekShortcutTooltip,
 	previewSelection,
 	resumePeek,
 	settlePeek,
@@ -99,6 +101,18 @@ describe("isPeekPromptShortcut", () => {
 				keyEvent({ shiftKey: true, ctrlKey: true, isComposing: true }),
 			),
 		).toBe(false);
+	});
+});
+
+describe("peek shortcut copy", () => {
+	it("keeps keyboard hints off the phone", () => {
+		expect(peekReturnHint(true)).toBeNull();
+		expect(peekShortcutTooltip(true)).toBe(
+			"Look at the note without losing this draft.",
+		);
+		expect(peekReturnHint(false)).toBe(
+			"Ctrl/Cmd+Shift+E returns to the prompt",
+		);
 	});
 });
 
