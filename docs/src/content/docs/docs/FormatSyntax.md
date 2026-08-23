@@ -615,6 +615,10 @@ The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
+In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+`{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
+the active note.
+
 ### The note's folder: `{{FOLDERCURRENT}}` {#foldercurrent}
 
 The active note's folder, as a vault-relative path with no trailing slash

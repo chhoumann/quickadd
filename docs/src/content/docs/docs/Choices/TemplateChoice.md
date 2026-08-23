@@ -163,6 +163,20 @@ File Name Format, QuickAdd uses `{{VALUE}}` as the file name format, which keeps
 the default behavior of prompting for a file name when you run the choice (with
 the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs).
 
+A slash in the format creates a folder, so the name can include a path. The
+file is created under [New note location](#new-note-location).
+
+```text title="You configure"
+{{DATE:YYYY}}/{{VALUE}}
+```
+
+```text title="You get (typing Kickoff)"
+2026/Kickoff
+```
+
+`{{FILENAMECURRENT}}` names a folder after the note you are in, for example
+`{{FILENAMECURRENT}}/{{VALUE}}`.
+
 :::note
 If a value used in the file name contains a line break or another control
 character, QuickAdd folds it to a space in the created path and strips trailing
