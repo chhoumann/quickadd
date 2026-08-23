@@ -50,6 +50,18 @@ describe("FormatSyntaxSuggester case style suggestions", () => {
 		},
 	);
 
+	it.each([
+		"{{DATE:[|case:l",
+		"{{TIME:[literal |case:l",
+		"{{VDATE:date,[literal |case:l",
+	])("does not suggest case styles inside an open Moment literal: %s", async (prefix) => {
+		expect(await suggestInserts(prefix)).not.toContain("lower");
+	});
+
+	it("resumes case suggestions after a Moment literal is closed", async () => {
+		expect(await suggestInserts("{{DATE:[literal]|case:l")).toEqual(["lower"]);
+	});
+
 	it("offers complete date and time case examples", async () => {
 		expect(await suggestInserts("{{dat")).toContain(
 			"{{DATE:dddd, MMMM Do, YYYY|case:lower}}",

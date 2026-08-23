@@ -18,7 +18,13 @@ import {
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "__qa-1667-date-case";
+const COMMAND_ID = `quickadd:choice:${CHOICE_ID}`;
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
+const DAILY_NOTE = "Daily/2026-08-11.md";
+const INITIAL_CONTENT =
+	"# Daily note\n\n## tuesday, august 11th, 2026.\n\nExisting entry\n";
+const CAPTURED_CONTENT =
+	"# Daily note\n\n## tuesday, august 11th, 2026.\n\n- captured through issue 1667\nExisting entry\n";
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
@@ -34,7 +40,7 @@ function captureChoice(targetPath: string) {
 		id: CHOICE_ID,
 		name: CHOICE_ID,
 		type: "Capture",
-		command: false,
+		command: true,
 		captureTo: targetPath,
 		captureToActiveFile: false,
 		activeFileWritePosition: "cursor",
@@ -91,8 +97,8 @@ beforeAll(async () => {
 	const targetPath = await seedVaultFile(
 		obsidian,
 		sandbox,
-		"Daily/2026-08-11.md",
-		"# Daily note\n\n## tuesday, august 11th, 2026.\n\nExisting entry\n",
+		DAILY_NOTE,
+		INITIAL_CONTENT,
 	);
 
 	await qa.data<QuickAddData>().patch((data) => {
@@ -129,7 +135,7 @@ afterAll(async () => {
 }, 15_000);
 
 describe("issue 1667: date case transform in Insert after", () => {
-	it("captures under the exact lowercase daily-note heading", async (ctx) => {
+	it("captures under the exact lowercase heading from the CLI and a hotkey", async (ctx) => {
 		ctx.onTestFailed(async () => {
 			await captureFailureArtifacts(
 				{ id: ctx.task.id, name: ctx.task.name },
@@ -144,7 +150,7 @@ describe("issue 1667: date case transform in Insert after", () => {
 			effect?: string;
 		}>("quickadd:run", { choice: CHOICE_ID, verify: true });
 		const content = await sandbox.waitForContent(
-			"Daily/2026-08-11.md",
+			DAILY_NOTE,
 			(text) => text.includes("- captured through issue 1667"),
 			WAIT_OPTS,
 		);
@@ -154,8 +160,57 @@ describe("issue 1667: date case transform in Insert after", () => {
 			verified: true,
 			effect: "changed",
 		});
-		expect(content).toBe(
-			"# Daily note\n\n## tuesday, august 11th, 2026.\n\n- captured through issue 1667\nExisting entry\n",
+		expect(content).toBe(CAPTURED_CONTENT);
+
+		await seedVaultFile(obsidian, sandbox, DAILY_NOTE, INITIAL_CONTENT);
+		await sandbox.waitForContent(
+			DAILY_NOTE,
+			(text) => text === INITIAL_CONTENT,
+			WAIT_OPTS,
 		);
+
+		const hotkeyResult = await obsidian.dev.evalJson<{
+			commandRegistered: boolean;
+			defaultPrevented: boolean;
+		}>(`(() => {
+			const commandId = ${JSON.stringify(COMMAND_ID)};
+			const previous = app.hotkeyManager.getHotkeys(commandId) ?? [];
+			const hotkey = { modifiers: ["Mod", "Shift", "Alt"], key: "J" };
+			app.hotkeyManager.setHotkeys(commandId, [hotkey]);
+			try {
+				const event = new KeyboardEvent("keydown", {
+					key: "j",
+					code: "KeyJ",
+					metaKey: /Mac|iPhone|iPad|iPod/.test(navigator.platform),
+					ctrlKey: !/Mac|iPhone|iPad|iPod/.test(navigator.platform),
+					shiftKey: true,
+					altKey: true,
+					bubbles: true,
+					cancelable: true,
+				});
+				document.body.dispatchEvent(event);
+				return {
+					commandRegistered: Boolean(app.commands.commands[commandId]),
+					defaultPrevented: event.defaultPrevented,
+				};
+			} finally {
+				if (previous.length > 0) {
+					app.hotkeyManager.setHotkeys(commandId, previous);
+				} else {
+					app.hotkeyManager.removeHotkeys(commandId);
+				}
+			}
+		})()`);
+		const hotkeyContent = await sandbox.waitForContent(
+			DAILY_NOTE,
+			(text) => text.includes("- captured through issue 1667"),
+			WAIT_OPTS,
+		);
+
+		expect(hotkeyResult).toEqual({
+			commandRegistered: true,
+			defaultPrevented: true,
+		});
+		expect(hotkeyContent).toBe(CAPTURED_CONTENT);
 	});
 });
