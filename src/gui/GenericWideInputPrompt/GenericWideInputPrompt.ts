@@ -277,8 +277,8 @@ export default class GenericWideInputPrompt extends Modal {
 		// substitution and skips token spans), and the only un-doubler
 		// replaceLinebreakInString has no production callers, so any transform here
 		// would corrupt the value with no downstream reversal (issue: a typed
-		// "C:\\temp" must reach the note and quickAddApi.wideInputPrompt() as
-		// "C:\\temp", not "C:\\\\temp").
+		// "C:\temp" must reach the note and quickAddApi.wideInputPrompt() as
+		// "C:\temp", not "C:\\temp").
 		this.input = this.inputComponent?.inputEl?.value ?? this.input;
 		this.didSubmit = true;
 
