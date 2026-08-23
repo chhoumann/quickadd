@@ -156,6 +156,15 @@ describe("DATE regex grammar (backward-compat + snap option)", () => {
 		expect(m?.[4]).toBeUndefined();
 	});
 
+	it("keeps non-trailing case-like text inside date and time formats", () => {
+		const date = "{{DATE:YYYY|case:lower|MM}}".match(DATE_REGEX_FORMATTED);
+		const time = "{{TIME:HH|case:lower|mm}}".match(TIME_REGEX_FORMATTED);
+		expect(date?.[1]).toBe("YYYY|case:lower|MM");
+		expect(date?.[4]).toBeUndefined();
+		expect(time?.[1]).toBe("HH|case:lower|mm");
+		expect(time?.[2]).toBeUndefined();
+	});
+
 	it("keeps an incomplete bracket literal usable while typing", () => {
 		const date = "{{DATE:YYYY[Week}}".match(DATE_REGEX_FORMATTED);
 		const time = "{{TIME:HH[hours}}".match(TIME_REGEX_FORMATTED);

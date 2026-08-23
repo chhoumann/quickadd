@@ -40,6 +40,12 @@ describe("detectDateFormatFromAfter", () => {
 		);
 	});
 
+	it("preserves a non-trailing case-like segment in the sort format", () => {
+		expect(
+			detectDateFormatFromAfter("{{DATE:YYYY|case:lower|MM}}"),
+		).toBe("YYYY|case:lower|MM");
+	});
+
 	it("detects plain DATE and VDATE formats (legacy behaviour)", () => {
 		expect(detectDateFormatFromAfter("## {{DATE:YYYY-MM-DD}} log")).toBe(
 			"YYYY-MM-DD",
