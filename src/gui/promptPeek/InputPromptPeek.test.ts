@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { InputPromptPeek } from "./InputPromptPeek";
 import type { InputPromptPeekHost } from "./InputPromptPeek";
 import { PromptPeekSession } from "./PromptPeekSession";
@@ -60,9 +60,22 @@ function makeHost(
 	return host;
 }
 
+const originalInnerWidth = window.innerWidth;
+
+beforeEach(() => {
+	Object.defineProperty(window, "innerWidth", {
+		configurable: true,
+		value: 1280,
+	});
+});
+
 afterEach(() => {
 	PromptPeekSession.discard();
 	document.querySelector(".qa-peek-chip")?.remove();
+	Object.defineProperty(window, "innerWidth", {
+		configurable: true,
+		value: originalInnerWidth,
+	});
 });
 
 describe("InputPromptPeek", () => {
@@ -159,5 +172,35 @@ describe("InputPromptPeek", () => {
 		);
 		expect(PromptPeekSession.isPeeking()).toBe(false);
 		expect(host.remounts).toBe(1);
+	});
+
+	it("mounts a one-row compact chip on a phone-width window", () => {
+		const originalWidth = window.innerWidth;
+		Object.defineProperty(window, "innerWidth", {
+			configurable: true,
+			value: 390,
+		});
+		try {
+			const peek = new InputPromptPeek(makeHost());
+			peek.peek();
+			const chip = document.querySelector(".qa-peek-chip");
+			expect(chip?.classList.contains("qa-peek-chip--compact")).toBe(true);
+			expect(chip?.querySelector(".qa-peek-chip-hint")).toBeNull();
+			expect(chip?.querySelector(".qa-peek-chip-subtitle")).toBeNull();
+			expect(chip?.textContent).toContain("Capture text");
+			expect(chip?.textContent).not.toContain("QuickAdd is waiting");
+			expect(chip?.textContent).not.toContain("Ctrl/Cmd");
+			expect(
+				Array.from(chip?.querySelectorAll("button") ?? []).map(
+					(button) => button.textContent,
+				),
+			).toEqual(expect.arrayContaining(["Insert", "Return"]));
+			expect(chip?.querySelector(".qa-peek-chip-cancel [data-icon='x']")).not.toBeNull();
+		} finally {
+			Object.defineProperty(window, "innerWidth", {
+				configurable: true,
+				value: originalWidth,
+			});
+		}
 	});
 });

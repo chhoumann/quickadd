@@ -9,6 +9,7 @@ import {
 	peekShortcutTooltip,
 	previewSelection,
 	resumePeek,
+	useCompactPeekChrome,
 	settlePeek,
 	shouldSettleOnClose,
 } from "./promptPeekPhase";
@@ -117,6 +118,12 @@ describe("peek shortcut copy", () => {
 		expect(hidePeekKeyboardHints(false, 1280)).toBe(false);
 		expect(hidePeekKeyboardHints(false, 390)).toBe(true);
 		expect(hidePeekKeyboardHints(true, 1280)).toBe(true);
+		expect(useCompactPeekChrome(false, 390)).toBe(true);
+		expect(useCompactPeekChrome(true, 1280)).toBe(true);
+		expect(useCompactPeekChrome(false, 1280)).toBe(false);
+		expect(peekShortcutTooltip(false, 390)).toBe(
+			"Look at the note without losing this draft.",
+		);
 	});
 });
 

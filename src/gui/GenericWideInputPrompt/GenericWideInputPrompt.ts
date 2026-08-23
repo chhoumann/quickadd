@@ -12,6 +12,7 @@ import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
+import { closeModalForPeek, remountModalFromPeek } from "../promptPeek/peekModal";
 import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
 import { stylePeekButton } from "../promptPeek/stylePeekButton";
 
@@ -111,7 +112,7 @@ export default class GenericWideInputPrompt extends Modal {
 			markDraftChanged: () => this.draftHandler.markChanged(),
 			persistDraft: () => this.persistDraft(),
 			remount: () => this.remountFromPeek(),
-			close: () => this.close(),
+			close: () => closeModalForPeek(this),
 			settleCancel: () => this.rejectPromise(promptCancelled()),
 		});
 
@@ -324,10 +325,11 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	private remountFromPeek() {
-		this.didClose = false;
-		this.display();
-		this.attachSuggesters();
-		this.open();
+		remountModalFromPeek(this, () => {
+			this.didClose = false;
+			this.display();
+			this.attachSuggesters();
+		});
 	}
 
 	private removeInputListener() {

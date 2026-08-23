@@ -6,6 +6,7 @@ import {
 	hidePeekKeyboardHints,
 	peekReturnHint,
 	previewSelection,
+	useCompactPeekChrome,
 } from "./promptPeekPhase";
 
 export type PromptPeekHandle = {
@@ -24,6 +25,7 @@ export class PromptPeekSession {
 
 	private chipEl: HTMLElement | null = null;
 	private insertButton: ButtonComponent | null = null;
+	private compactChrome = false;
 	private returnScope: Scope | null = null;
 	private selectionListener: (() => void) | null = null;
 	private chipKeyListener: ((evt: KeyboardEvent) => void) | null = null;
@@ -78,10 +80,22 @@ export class PromptPeekSession {
 
 	private mount(): void {
 		const workspace = this.app.workspace as { containerEl?: HTMLElement };
-		const owner = workspace.containerEl ?? document.body;
+		const ownerDocument = workspace.containerEl?.ownerDocument ?? document;
+		// Body, not the workspace leaf: `position: fixed` inside a transformed
+		// modal ancestor parks the chip at the top of the pane.
+		const owner = ownerDocument.body;
+		const ownerWindow = ownerDocument.defaultView;
+		this.compactChrome = useCompactPeekChrome(
+			Platform.isPhone,
+			ownerWindow?.innerWidth ?? Number.POSITIVE_INFINITY,
+		);
+
 		const chip = appendOwned(owner, "div", "qa-peek-chip");
 		chip.setAttribute("role", "status");
 		chip.setAttribute("aria-live", "polite");
+		if (this.compactChrome) {
+			chip.classList.add("qa-peek-chip--compact");
+		}
 
 		const header = appendOwned(chip, "div", "qa-peek-chip-header");
 		const icon = appendOwned(header, "span", "qa-peek-chip-icon");
@@ -89,18 +103,21 @@ export class PromptPeekSession {
 		setIcon(icon, "eye");
 		const titles = appendOwned(header, "div", "qa-peek-chip-titles");
 		const title = appendOwned(titles, "div", "qa-peek-chip-title");
-		title.textContent = "QuickAdd is waiting";
-		const subtitle = appendOwned(titles, "div", "qa-peek-chip-subtitle");
-		subtitle.textContent = this.handle.title;
-
-		const hint = appendOwned(chip, "p", "qa-peek-chip-hint");
-		hint.textContent =
-			"Look at the note, copy or select text, then come back. Your draft is still there.";
+		title.textContent = this.compactChrome
+			? this.handle.title
+			: "QuickAdd is waiting";
+		if (!this.compactChrome) {
+			const subtitle = appendOwned(titles, "div", "qa-peek-chip-subtitle");
+			subtitle.textContent = this.handle.title;
+			const hint = appendOwned(chip, "p", "qa-peek-chip-hint");
+			hint.textContent =
+				"Look at the note, copy or select text, then come back. Your draft is still there.";
+		}
 
 		const actions = appendOwned(chip, "div", "qa-peek-chip-actions");
 
 		this.insertButton = new ButtonComponent(actions)
-			.setButtonText("Insert selection")
+			.setButtonText(this.compactChrome ? "Insert" : "Insert selection")
 			.setCta()
 			.setTooltip("Drop the selected text into your draft and return")
 			.onClick(() => this.insertSelectionAndResume());
@@ -114,12 +131,21 @@ export class PromptPeekSession {
 			.setTooltip("Go back to the prompt without inserting")
 			.onClick(() => this.resume());
 
-		new ButtonComponent(actions)
-			.setButtonText("Cancel")
+		const cancel = new ButtonComponent(actions)
 			.setTooltip("Discard this run")
 			.onClick(() => this.cancel());
+		cancel.buttonEl.classList.add("qa-peek-chip-cancel");
+		cancel.buttonEl.setAttribute("aria-label", "Cancel this run");
+		if (this.compactChrome) {
+			const cancelIcon = cancel.buttonEl.ownerDocument.createElement("span");
+			cancelIcon.className = "qa-peek-chip-cancel-icon";
+			cancelIcon.setAttribute("aria-hidden", "true");
+			setIcon(cancelIcon, "x");
+			cancel.buttonEl.replaceChildren(cancelIcon);
+		} else {
+			cancel.setButtonText("Cancel");
+		}
 
-		const ownerWindow = chip.ownerDocument.defaultView;
 		const hideKeys = hidePeekKeyboardHints(
 			Platform.isPhone,
 			ownerWindow?.innerWidth ?? Number.POSITIVE_INFINITY,
@@ -150,11 +176,15 @@ export class PromptPeekSession {
 		const hasSelection = selection.length > 0;
 		button.setDisabled(!hasSelection);
 		button.buttonEl.classList.toggle("qa-peek-insert-ready", hasSelection);
-		button.setButtonText(
-			hasSelection
-				? `Insert “${previewSelection(selection)}”`
-				: "Insert selection",
-		);
+		if (this.compactChrome) {
+			button.setButtonText("Insert");
+		} else {
+			button.setButtonText(
+				hasSelection
+					? `Insert “${previewSelection(selection)}”`
+					: "Insert selection",
+			);
+		}
 		button.buttonEl.hidden = false;
 	}
 
@@ -207,6 +237,7 @@ export class PromptPeekSession {
 		this.chipEl?.remove();
 		this.chipEl = null;
 		this.insertButton = null;
+		this.compactChrome = false;
 	}
 }
 

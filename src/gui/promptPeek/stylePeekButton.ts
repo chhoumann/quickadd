@@ -10,8 +10,11 @@ export const PEEK_BUTTON_LABEL = "Peek at note";
  * and keep the visible label.
  */
 export function stylePeekButton(button: ButtonComponent): ButtonComponent {
+	const viewportWidth =
+		button.buttonEl.ownerDocument.defaultView?.innerWidth ??
+		Number.POSITIVE_INFINITY;
 	button.setButtonText(PEEK_BUTTON_LABEL);
-	button.setTooltip(peekShortcutTooltip(Platform.isPhone));
+	button.setTooltip(peekShortcutTooltip(Platform.isPhone, viewportWidth));
 	button.buttonEl.setAttribute(
 		"aria-label",
 		"Peek at the note. Your draft stays.",

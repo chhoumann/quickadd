@@ -643,6 +643,87 @@
 	box-shadow: 0 0 0 1px var(--interactive-accent);
 }
 
+.qa-peek-chip--compact {
+	flex-direction: row;
+	align-items: center;
+	gap: 0.4rem;
+	left: 0.75rem;
+	right: 0.75rem;
+	transform: none;
+	width: auto;
+	min-width: 0;
+	max-width: none;
+	bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+	padding: 0.3rem 0.4rem 0.3rem 0.5rem;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-header {
+	flex: 1 1 auto;
+	min-width: 0;
+	align-items: center;
+	gap: 0.4rem;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-icon {
+	width: 1.15rem;
+	height: 1.15rem;
+	flex: 0 0 auto;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-titles {
+	min-width: 0;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small, 0.875rem);
+}
+
+.qa-peek-chip--compact .qa-peek-chip-subtitle,
+.qa-peek-chip--compact .qa-peek-chip-hint,
+.qa-peek-chip--compact .qa-peek-chip-keys {
+	display: none;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-actions {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: nowrap;
+	align-items: center;
+	gap: 0.3rem;
+	flex: 0 0 auto;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-actions button {
+	min-height: 2rem;
+	width: auto;
+	padding: 0 0.55rem;
+	justify-content: center;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-cancel {
+	width: 2rem;
+	min-width: 2rem;
+	padding: 0;
+}
+
+.qa-peek-chip--compact .qa-peek-chip-cancel-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1em;
+	height: 1em;
+}
+
+.modal-container.qa-prompt-peek-instant,
+.modal-container.qa-prompt-peek-instant .modal,
+.modal-container.qa-prompt-peek-instant .modal-bg {
+	animation: none !important;
+	transition: none !important;
+}
+
 @media screen and (max-width: 540px) {
 	.quickAddModal .qa-prompt-actions {
 		flex-direction: column;
@@ -663,27 +744,14 @@
 		justify-content: center;
 	}
 
-	.qa-peek-chip {
+	.qa-peek-chip:not(.qa-peek-chip--compact) {
 		left: 0.75rem;
 		right: 0.75rem;
 		transform: none;
 		width: auto;
 		min-width: 0;
 		max-width: none;
-		bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
-		padding: 0.85rem 0.9rem;
-	}
-
-	.qa-peek-chip-actions {
-		display: grid;
-		grid-template-columns: 1fr;
-		gap: 0.5rem;
-	}
-
-	.qa-peek-chip-actions button {
-		min-height: 2.75rem;
-		width: 100%;
-		justify-content: center;
+		bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
 	}
 
 	.qa-peek-chip-keys {

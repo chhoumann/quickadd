@@ -62,8 +62,11 @@ export function isPeekPromptShortcut(evt: KeyboardEvent): boolean {
 }
 
 /** Peeking leaves the editor to the user. Escape must stay with Vim. */
-export function peekShortcutTooltip(isPhone: boolean): string {
-	return isPhone
+export function peekShortcutTooltip(
+	isPhone: boolean,
+	viewportWidth = isPhone ? 0 : Number.POSITIVE_INFINITY,
+): string {
+	return hidePeekKeyboardHints(isPhone, viewportWidth)
 		? "Look at the note without losing this draft."
 		: "Look at the note without losing this draft. Ctrl/Cmd+Shift+E";
 }
@@ -72,11 +75,18 @@ export function peekReturnHint(isPhone: boolean): string | null {
 	return isPhone ? null : "Ctrl/Cmd+Shift+E returns to the prompt";
 }
 
-export function hidePeekKeyboardHints(
+export function useCompactPeekChrome(
 	isPhone: boolean,
 	viewportWidth: number,
 ): boolean {
 	return isPhone || viewportWidth <= 540;
+}
+
+export function hidePeekKeyboardHints(
+	isPhone: boolean,
+	viewportWidth: number,
+): boolean {
+	return useCompactPeekChrome(isPhone, viewportWidth);
 }
 
 export function previewSelection(selection: string, maxLength = 42): string {
