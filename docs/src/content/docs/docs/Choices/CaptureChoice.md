@@ -87,10 +87,12 @@ bottom but stay selectable.
 
 You can also **type a new name** into the picker: with **Create file if it
 doesn't exist** enabled, a **Create new note: &lt;name&gt;** row appears and
-QuickAdd creates the note for you. The row hides when the typed name matches
-an existing note in scope, so typing an existing name selects it instead of
-offering a duplicate. The picker still opens for an empty folder, tag,
-property, or filtered scope so you can create the first note there.
+QuickAdd creates the note for you. The create row is selected first, so press
+Enter to create the exact name you typed even when existing notes are fuzzy
+matches. The row hides when the typed name matches an existing note in scope,
+so typing an existing name selects it instead of offering a duplicate. The
+picker still opens for an empty folder, tag, property, or filtered scope so you
+can create the first note there.
 
 ### Capture to a folder {#capturing-to-folders}
 
