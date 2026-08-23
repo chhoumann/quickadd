@@ -9,6 +9,9 @@ import {
 const FALLBACK_SLIDER = { min: 0, max: 100, step: 1 };
 
 export default class SliderInputPrompt extends GenericInputPrompt {
+	protected supportsPeek(): boolean {
+		return false;
+	}
 	private sliderEl?: HTMLInputElement;
 	private numberEl?: HTMLInputElement;
 

@@ -11,6 +11,8 @@ import { isSkipPromptShortcut } from "../GenericInputPrompt/GenericInputPrompt";
 import type { ImagePasteHandle } from "../imagePasteHandler";
 import { attachImagePasteHandler } from "../imagePasteHandler";
 import { promptCancelled } from "../../errors/UserCancelError";
+import { InputPromptPeek } from "../promptPeek/InputPromptPeek";
+import { isPeekPromptShortcut } from "../promptPeek/promptPeekPhase";
 
 export default class GenericWideInputPrompt extends Modal {
 	public waitForClose: Promise<string>;
@@ -28,6 +30,7 @@ export default class GenericWideInputPrompt extends Modal {
 	private tagSuggester: TagSuggester;
 	private disposeIndent?: () => void;
 	private imagePasteHandle?: ImagePasteHandle;
+	private readonly peek: InputPromptPeek;
 
 	public static Prompt(
 		app: App,
@@ -96,15 +99,24 @@ export default class GenericWideInputPrompt extends Modal {
 			this.rejectPromise = reject;
 		});
 
+		this.peek = new InputPromptPeek({
+			app,
+			title: this.header,
+			getField: () => this.inputComponent?.inputEl,
+			getValue: () => this.input,
+			setValue: (value) => {
+				this.input = value;
+			},
+			markDraftChanged: () => this.draftHandler.markChanged(),
+			persistDraft: () => this.persistDraft(),
+			remount: () => this.remountFromPeek(),
+			close: () => this.close(),
+			settleCancel: () => this.rejectPromise(promptCancelled()),
+		});
+
 		this.display();
 		this.open();
-
-		this.fileSuggester = new FileSuggester(
-			app,
-			this.inputComponent.inputEl,
-			{ sourcePath: this.linkSourcePath }
-		);
-		this.tagSuggester = new TagSuggester(app, this.inputComponent.inputEl);
+		this.attachSuggesters();
 	}
 
 	private display() {
@@ -188,22 +200,36 @@ export default class GenericWideInputPrompt extends Modal {
 	}
 
 	private createButtonBar(mainContentContainer: HTMLDivElement) {
-		const buttonBarContainer: HTMLDivElement =
-			mainContentContainer.createDiv();
-		this.createButton(
-			buttonBarContainer,
-			"Ok",
-			this.submitClickCallback,
-		).setCta().buttonEl.setCssStyles({ marginRight: "0" });
-		this.createButton(
-			buttonBarContainer,
-			"Cancel",
-			this.cancelClickCallback,
+		const buttonBarContainer: HTMLDivElement = mainContentContainer.createDiv({
+			cls: "qa-prompt-actions",
+		});
+
+		const secondary = buttonBarContainer.createDiv({
+			cls: "qa-prompt-actions-secondary",
+		});
+		const peekButton = this.createButton(secondary, "Peek at note", () =>
+			this.peek.peek(),
 		);
+		peekButton.setIcon("eye");
+		peekButton.setTooltip(
+			"Look at the note without losing this draft. Ctrl/Cmd+Shift+E",
+		);
+		peekButton.buttonEl.setAttribute(
+			"aria-label",
+			"Peek at the note. Your draft stays.",
+		);
+		peekButton.buttonEl.classList.add("qa-peek-button");
+
+		const primary = buttonBarContainer.createDiv({
+			cls: "qa-prompt-actions-primary",
+		});
+		this.createButton(primary, "Ok", this.submitClickCallback)
+			.setCta()
+			.buttonEl.setCssStyles({ marginRight: "0" });
+		this.createButton(primary, "Cancel", this.cancelClickCallback);
 		if (this.isOptionalPrompt) {
-			// Created last so the row-reverse layout renders it leftmost.
 			const skipButton = this.createButton(
-				buttonBarContainer,
+				primary,
 				"Skip",
 				this.skipClickCallback,
 			);
@@ -213,14 +239,6 @@ export default class GenericWideInputPrompt extends Modal {
 				"Skip and leave empty",
 			);
 		}
-
-		buttonBarContainer.setCssStyles({
-			display: "flex",
-			flexDirection: "row-reverse",
-			justifyContent: "flex-start",
-			marginTop: "1rem",
-			gap: "0.5rem",
-		});
 	}
 
 	private submitClickCallback = (evt: MouseEvent) => this.submit();
@@ -228,6 +246,11 @@ export default class GenericWideInputPrompt extends Modal {
 	private skipClickCallback = (evt: MouseEvent) => this.skip();
 
 	private submitEnterCallback = (evt: KeyboardEvent) => {
+		if (isPeekPromptShortcut(evt)) {
+			evt.preventDefault();
+			this.peek.peek();
+			return;
+		}
 		// Skip is checked first: ctrl/cmd+shift+Enter leaves the field empty on
 		// optional prompts. Without this guard it would fall through to the
 		// ctrl/cmd+Enter submit below, the collision noted in issue #1259.
@@ -301,6 +324,20 @@ export default class GenericWideInputPrompt extends Modal {
 		this.draftHandler.persist(this.input, this.didSubmit);
 	}
 
+	private attachSuggesters() {
+		this.fileSuggester = new FileSuggester(this.app, this.inputComponent.inputEl, {
+			sourcePath: this.linkSourcePath,
+		});
+		this.tagSuggester = new TagSuggester(this.app, this.inputComponent.inputEl);
+	}
+
+	private remountFromPeek() {
+		this.didClose = false;
+		this.display();
+		this.attachSuggesters();
+		this.open();
+	}
+
 	private removeInputListener() {
 		this.inputComponent.inputEl.removeEventListener(
 			"keydown",
@@ -322,6 +359,13 @@ export default class GenericWideInputPrompt extends Modal {
 			this.syncInputFromEl();
 		}
 		this.persistDraft();
+		if (!this.peek.shouldSettleOnClose()) {
+			this.removeInputListener();
+			this.fileSuggester?.destroy();
+			this.tagSuggester?.destroy();
+			super.onClose();
+			return;
+		}
 		this.resolveInput();
 		this.removeInputListener();
 		// Tear down the suggesters deterministically. close() intentionally keeps

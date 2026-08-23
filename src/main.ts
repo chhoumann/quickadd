@@ -43,6 +43,7 @@ import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
+import { PromptPeekSession } from "./gui/promptPeek/PromptPeekSession";
 import { setQuickAddInstance } from "./quickAddInstance";
 import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -125,6 +126,16 @@ export default class QuickAdd extends Plugin {
 			name: QUICK_ADD_COMMAND_LABELS.run,
 			callback: () => {
 				openChoiceLauncher(this);
+			},
+		});
+
+		this.addCommand({
+			id: "resumePrompt",
+			name: QUICK_ADD_COMMAND_LABELS.resumePrompt,
+			checkCallback: (checking) => {
+				if (!PromptPeekSession.isPeeking()) return false;
+				if (!checking) PromptPeekSession.getActive()?.resume();
+				return true;
 			},
 		});
 
@@ -492,6 +503,7 @@ export default class QuickAdd extends Plugin {
 		// Stop the interactive-prompt bridge (closes the localhost server and drops
 		// any in-flight sessions) so nothing keeps listening after unload.
 		interactivePromptServer.stop();
+		PromptPeekSession.getActive()?.cancel();
 	}
 
 	async loadSettings() {
