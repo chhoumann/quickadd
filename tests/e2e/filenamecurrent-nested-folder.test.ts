@@ -139,9 +139,10 @@ describe("issue 1674: nest a new note under a folder named after the active file
 		const active = await openNote(sandbox.path("Projects/Project XYZ.md"));
 		expect(active).toBe(sandbox.path("Projects/Project XYZ.md"));
 
-		const result = await obsidian.exec<{
+		const result = await obsidian.execJson<{
 			ok: boolean;
-			path?: string;
+			file?: string;
+			error?: string;
 			effect?: string;
 		}>("quickadd:run", {
 			choice: "__qa-1674-case1",
@@ -149,8 +150,8 @@ describe("issue 1674: nest a new note under a folder named after the active file
 			verify: true,
 		});
 
-		expect(result.ok).toBe(true);
-		expect(result.path).toBe(sandbox.path("Projects/Project XYZ/Use Case 1.md"));
+		expect(result.ok, result.error).toBe(true);
+		expect(result.file).toBe(sandbox.path("Projects/Project XYZ/Use Case 1.md"));
 		const content = await sandbox.waitForContent(
 			"Projects/Project XYZ/Use Case 1.md",
 			(body) => body.includes(TPL_CONTENT),
@@ -163,17 +164,18 @@ describe("issue 1674: nest a new note under a folder named after the active file
 		const active = await openNote(sandbox.path("Projects/Project XYZ.md"));
 		expect(active).toBe(sandbox.path("Projects/Project XYZ.md"));
 
-		const result = await obsidian.exec<{
+		const result = await obsidian.execJson<{
 			ok: boolean;
-			path?: string;
+			file?: string;
+			error?: string;
 		}>("quickadd:run", {
 			choice: "__qa-1674-case2",
 			vars: JSON.stringify({ value: "Use Case 1" }),
 			verify: true,
 		});
 
-		expect(result.ok).toBe(true);
-		expect(result.path).toBe(sandbox.path("Use Cases/Project XYZ/Use Case 1.md"));
+		expect(result.ok, result.error).toBe(true);
+		expect(result.file).toBe(sandbox.path("Use Cases/Project XYZ/Use Case 1.md"));
 		const content = await sandbox.waitForContent(
 			"Use Cases/Project XYZ/Use Case 1.md",
 			(body) => body.includes(TPL_CONTENT),
