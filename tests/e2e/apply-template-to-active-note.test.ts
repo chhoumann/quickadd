@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import type { ObsidianClient, SandboxApi } from "obsidian-e2e";
-import { createQuickAddE2EHarness, PLUGIN_ID } from "./e2eVault";
+import { createQuickAddE2EHarness, PLUGIN_ID, seedVaultFile } from "./e2eVault";
 
 // ---------------------------------------------------------------------------
 // Constants & types
@@ -19,12 +19,9 @@ const getContext = createQuickAddE2EHarness("apply-template");
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Write a file into the sandbox and wait for Obsidian to index it. */
 async function seedFile(sandbox: SandboxApi, name: string, content: string) {
-	await sandbox.write(name, content, {
-		waitForContent: true,
-		waitOptions: WAIT_OPTS,
-	});
+	const { obsidian } = getContext();
+	await seedVaultFile(obsidian, sandbox, name, content);
 }
 
 /**
@@ -42,12 +39,7 @@ async function applyTemplate(
 
 	return obsidian.dev.evalJsonAsync<ApplyResult>(`(async () => {
 		try {
-			// The vault index can lag behind sandbox writes; poll for the note.
-			let file = null;
-			for (let attempt = 0; attempt < 50 && !file; attempt++) {
-				file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath)});
-				if (!file) await new Promise((resolve) => setTimeout(resolve, 100));
-			}
+			const file = app.vault.getAbstractFileByPath(${JSON.stringify(notePath)});
 			if (!file) throw new Error("note not found: " + ${JSON.stringify(notePath)});
 			const leaf = app.workspace.getLeaf(false);
 			await leaf.openFile(file);

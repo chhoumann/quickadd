@@ -13,6 +13,7 @@ import type {
 import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
+	seedVaultFile,
 } from "./e2eVault";
 
 const PLUGIN_ID = "quickadd";
@@ -197,10 +198,12 @@ describe("scorecard final acceptance composed flows", () => {
 		const multiId = `${TEST_PREFIX}multi`;
 		const multiCaptureId = `${TEST_PREFIX}multi-capture`;
 
-		await sandbox.write("scorecard-template.md", "scorecard template body", {
-			waitForContent: true,
-			waitOptions: WAIT_OPTS,
-		});
+		await seedVaultFile(
+			obsidian,
+			sandbox,
+			"scorecard-template.md",
+			"scorecard template body",
+		);
 		await sandbox.delete("scorecard-template-output.md");
 		await sandbox.delete("scorecard-capture-target.md");
 

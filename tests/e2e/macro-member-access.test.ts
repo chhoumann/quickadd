@@ -13,6 +13,7 @@ import type {
 import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
+	seedVaultFile,
 } from "./e2eVault";
 
 const PLUGIN_ID = "quickadd";
@@ -87,10 +88,7 @@ function clearTestChoices(data: QuickAddData) {
 }
 
 async function seedFile(path: string, content: string) {
-	await sandbox.write(path, content, {
-		waitForContent: true,
-		waitOptions: WAIT_OPTS,
-	});
+	await seedVaultFile(obsidian, sandbox, path, content);
 }
 
 async function runChoice(name: string) {
