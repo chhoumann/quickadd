@@ -94,7 +94,9 @@ export class PromptPeekSession {
 		chip.setAttribute("role", "status");
 		chip.setAttribute("aria-live", "polite");
 		if (this.compactChrome) {
-			chip.classList.add("qa-peek-chip--compact");
+			// Top, not bottom: the iOS home indicator and Obsidian's
+			// .mobile-navbar share the bottom inset.
+			chip.classList.add("qa-peek-chip--compact", "qa-peek-chip--top");
 		}
 
 		const header = appendOwned(chip, "div", "qa-peek-chip-header");
