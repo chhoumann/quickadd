@@ -52,6 +52,123 @@
 	opacity: 0.5;
 }
 
+/* Keyboard-operable rename affordance inside a modal <h2> title (#1250). Resets
+   the native <button> chrome so it reads as the heading text it replaced. Doubled
+   selector (0,2,0) so theme `.modal button` rules can't re-skin the title. */
+.qa-rename-title-button.qa-rename-title-button {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+	padding: 0;
+	margin: 0;
+}
+
+.choiceNameHeaderButton {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.folderInputContainer {
+	display: flex;
+	align-content: center;
+	justify-content: space-between;
+	margin-bottom: 8px;
+	gap: 4px;
+}
+
+.quickAddModal .modal {
+	min-width: 35%;
+	overflow-y: auto;
+	max-height: 70%;
+}
+
+.quickAddModal .qa-prompt-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+	margin-top: 1rem;
+	flex-wrap: wrap;
+}
+
+.quickAddModal .qa-prompt-actions-secondary,
+.quickAddModal .qa-prompt-actions-primary {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.quickAddModal .qa-prompt-actions-primary {
+	flex-direction: row-reverse;
+	margin-left: auto;
+}
+
+.quickAddModal .qa-peek-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.35rem;
+}
+
+.quickAddModal .qa-peek-button-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1em;
+	height: 1em;
+}
+
+.qa-peek-chip {
+	position: fixed;
+	left: 50%;
+	bottom: 1.75rem;
+	transform: translateX(-50%);
+	z-index: var(--layer-notice, 80);
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	min-width: min(28rem, calc(100vw - 2rem));
+	max-width: calc(100vw - 2rem);
+	padding: 0.9rem 1.05rem;
+	border-radius: var(--radius-l, 12px);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: var(--shadow-l);
+}
+
+.qa-peek-chip--compact {
+	--button-radius: 6px;
+	--button-corner-shape: square;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.35rem;
+	left: 0.5rem;
+	right: 0.5rem;
+	transform: none;
+	width: auto;
+	min-width: 0;
+	max-width: none;
+	padding: 0.28rem 0.4rem;
+	border-radius: var(--radius-m, 8px);
+}
+
+.qa-peek-chip--top {
+	top: calc(
+		var(--safe-area-inset-top, 0px) + var(--header-height, 40px) + 0.35rem
+	);
+	bottom: auto;
+}
+
+.modal-container.qa-prompt-peek-instant,
+.modal-container.qa-prompt-peek-instant .modal,
+.modal-container.qa-prompt-peek-instant .modal-bg {
+	animation: none !important;
+	transition: none !important;
+}
+
 .quickAddModal.qa-prompt-compact .qa-prompt-actions,
 .is-phone .quickAddModal .qa-prompt-actions {
 	--button-radius: 6px;
