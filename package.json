@@ -56,7 +56,7 @@
 		"svelte-dnd-action": "0.9.78",
 		"three-way-merge": "^0.1.0",
 		"uuid": "14",
-		"zustand": "^5.0.14"
+		"zustand": "^5.0.15"
 	},
 	"repository": {
 		"type": "git",
