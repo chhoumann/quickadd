@@ -615,8 +615,9 @@ The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
-A slash in a Template **File name format** creates a folder. See
-[Nest a note under the current file](/docs/Choices/TemplateChoice/#nest-under-current-file).
+In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+`{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
+the active note.
 
 ### The note's folder: `{{FOLDERCURRENT}}` {#foldercurrent}
 
@@ -639,8 +640,6 @@ running the capture from any note inside `Projects/Alpha` targets
 
 Works in capture targets, file name formats, note bodies and capture formats,
 and Template choice folder paths (like `{{FOLDERCURRENT}}/Subnotes`).
-Template folder paths do not replace `{{FILENAMECURRENT}}`. Put that token in
-**File name format** instead.
 
 **No active note:** in paths (capture targets, file names, folder paths) a
 missing active note always stops the run with a clear error - it never falls
