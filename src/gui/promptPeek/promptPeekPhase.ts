@@ -72,6 +72,13 @@ export function peekReturnHint(isPhone: boolean): string | null {
 	return isPhone ? null : "Ctrl/Cmd+Shift+E returns to the prompt";
 }
 
+export function hidePeekKeyboardHints(
+	isPhone: boolean,
+	viewportWidth: number,
+): boolean {
+	return isPhone || viewportWidth <= 540;
+}
+
 export function previewSelection(selection: string, maxLength = 42): string {
 	const collapsed = selection.replace(/\s+/g, " ").trim();
 	if (collapsed.length <= maxLength) return collapsed;

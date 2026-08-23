@@ -4,6 +4,7 @@ import {
 	canPeek,
 	insertAtCursor,
 	isPeekPromptShortcut,
+	hidePeekKeyboardHints,
 	peekReturnHint,
 	peekShortcutTooltip,
 	previewSelection,
@@ -113,6 +114,9 @@ describe("peek shortcut copy", () => {
 		expect(peekReturnHint(false)).toBe(
 			"Ctrl/Cmd+Shift+E returns to the prompt",
 		);
+		expect(hidePeekKeyboardHints(false, 1280)).toBe(false);
+		expect(hidePeekKeyboardHints(false, 390)).toBe(true);
+		expect(hidePeekKeyboardHints(true, 1280)).toBe(true);
 	});
 });
 

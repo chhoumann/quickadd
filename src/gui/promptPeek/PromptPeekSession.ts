@@ -2,7 +2,11 @@ import { ButtonComponent, Platform, Scope, setIcon } from "obsidian";
 import type { App } from "obsidian";
 import { getActiveMarkdownEditorView } from "../../utils/activeMarkdownEditor";
 import { createOwnedElement } from "../../utils/activeWindow";
-import { peekReturnHint, previewSelection } from "./promptPeekPhase";
+import {
+	hidePeekKeyboardHints,
+	peekReturnHint,
+	previewSelection,
+} from "./promptPeekPhase";
 
 export type PromptPeekHandle = {
 	title: string;
@@ -115,7 +119,12 @@ export class PromptPeekSession {
 			.setTooltip("Discard this run")
 			.onClick(() => this.cancel());
 
-		const hintText = peekReturnHint(Platform.isPhone);
+		const ownerWindow = chip.ownerDocument.defaultView;
+		const hideKeys = hidePeekKeyboardHints(
+			Platform.isPhone,
+			ownerWindow?.innerWidth ?? Number.POSITIVE_INFINITY,
+		);
+		const hintText = hideKeys ? null : peekReturnHint(false);
 		if (hintText) {
 			const keys = appendOwned(chip, "p", "qa-peek-chip-keys");
 			keys.textContent = hintText;
