@@ -21,6 +21,8 @@ export type InputPromptPeekHost = {
 	remount(): void;
 	close(): void;
 	settleCancel(): void;
+	whenIdle(): Promise<void>;
+	isAbandoned(): boolean;
 };
 
 /**
@@ -30,28 +32,36 @@ export type InputPromptPeekHost = {
 export class InputPromptPeek {
 	private phase: PromptPeekPhase = { kind: "open" };
 	private resumeCursor = 0;
+	private peekQueued = false;
 
 	constructor(private readonly host: InputPromptPeekHost) {}
 
-	peek(): void {
-		if (!canPeek(this.phase)) return;
-		const field = this.host.getField();
-		if (field) {
-			this.host.setValue(field.value);
-			this.resumeCursor = field.selectionStart ?? field.value.length;
-		} else {
-			this.resumeCursor = this.host.getValue().length;
+	async peek(): Promise<void> {
+		if (!canPeek(this.phase) || this.peekQueued) return;
+		this.peekQueued = true;
+		try {
+			await this.host.whenIdle();
+			if (!canPeek(this.phase) || this.host.isAbandoned()) return;
+			const field = this.host.getField();
+			if (field) {
+				this.host.setValue(field.value);
+				this.resumeCursor = field.selectionStart ?? field.value.length;
+			} else {
+				this.resumeCursor = this.host.getValue().length;
+			}
+			this.host.persistDraft();
+			this.phase = beginPeek(this.phase);
+			PromptPeekSession.activate(this.host.app, {
+				title: this.host.title,
+				resume: () => this.resume(),
+				cancel: () => this.cancel(),
+				insertSelectionAndResume: (selection) =>
+					this.insertSelectionAndResume(selection),
+			});
+			this.host.close();
+		} finally {
+			this.peekQueued = false;
 		}
-		this.host.persistDraft();
-		this.phase = beginPeek(this.phase);
-		PromptPeekSession.activate(this.host.app, {
-			title: this.host.title,
-			resume: () => this.resume(),
-			cancel: () => this.cancel(),
-			insertSelectionAndResume: (selection) =>
-				this.insertSelectionAndResume(selection),
-		});
-		this.host.close();
 	}
 
 	shouldSettleOnClose(): boolean {
