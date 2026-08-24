@@ -3,7 +3,7 @@
     import type IMultiChoice from "../../types/choices/IMultiChoice";
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
-    import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
+    import { alertToScreenReader, type DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
     import { baseDndOptions, stripShadow } from "../shared/dndReorder";
     import { createDragArming } from "../shared/dragArming.svelte";
@@ -103,20 +103,26 @@
     // choice (#1692). Mouse drags always move enough to close the window; mobile
     // long-press drags start stationary and routinely drop inside it (a hold-and-
     // release, a small nudge, or a touchend before the next ~20ms observation
-    // tick). handleSort falls back to this snapshot then: the library registered
-    // no reorder in that window, so the pre-drag order is the correct commit.
+    // tick). handleSort re-inserts the dragged choice then — at the index the
+    // stripped placeholder last occupied, because the first DRAGGED_ENTERED can
+    // already carry the user's intended position (a fast move during the swap
+    // window), and restoring the pre-drag order there would silently cancel it.
     let preDragChoices: IChoice[] | null = null;
+    let placeholderIndex = 0;
 
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
         drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+        const items = e.detail.items as IChoice[];
         if (e.detail.info.trigger === TRIGGERS.DRAG_STARTED) {
             preDragChoices = renderable; // still the pre-drag list at this point
         }
+        const shadowIdx = items.findIndex((it) => it.id === SHADOW_PLACEHOLDER_ITEM_ID);
+        if (shadowIdx !== -1) placeholderIndex = shadowIdx;
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
-        choices = stripShadow(e.detail.items as IChoice[]);
+        choices = stripShadow(items);
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
@@ -132,13 +138,15 @@
         // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
             next = next.filter((c) => c.id !== draggedId);
-        } else if (
-            preDragChoices?.some((c) => c.id === draggedId) &&
-            !next.some((c) => c.id === draggedId)
-        ) {
-            // Dropped inside the placeholder window (see preDragChoices): committing
-            // `next` would delete the dragged choice. Restore the pre-drag order.
-            next = preDragChoices;
+        } else if (!next.some((c) => c.id === draggedId)) {
+            const dragged = preDragChoices?.find((c) => c.id === draggedId);
+            if (dragged) {
+                // Dropped inside the placeholder window (see preDragChoices):
+                // committing `next` would delete the dragged choice. Re-insert it
+                // where the stripped placeholder last stood.
+                next = [...next];
+                next.splice(Math.min(placeholderIndex, next.length), 0, dragged);
+            }
         }
         preDragChoices = null;
         choices = next;

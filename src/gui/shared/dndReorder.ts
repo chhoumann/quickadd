@@ -70,6 +70,13 @@ export function baseDndOptions<T extends DragItem>(opts: {
 			transformDragPill(el, data ? resolveLabel(data) : "", data?.type === "Multi"),
 		dropTargetStyle: {},
 		dropTargetClasses: opts.dropTargetClasses ?? [],
+		// With flipDurationMs 0 the drop "animation" was already invisible; disabling
+		// it entirely also removes the library's finalize-time animation-target lookup
+		// (`children[originIndex]`), which THROWS when the LAST row is dropped during
+		// the placeholder window (stripShadow left the zone one child short) — the
+		// finalize then never fires, the drag never cleans up, and the list renders
+		// without the row until the settings tab is rebuilt (#1692, second wave).
+		dropAnimationDisabled: true,
 		autoAriaDisabled: true,
 		zoneItemTabIndex: -1,
 		delayTouchStart: 200,

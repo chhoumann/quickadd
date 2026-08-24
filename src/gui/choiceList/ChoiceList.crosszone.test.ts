@@ -185,6 +185,39 @@ describe("ChoiceList placeholder-window drop (#1692)", () => {
 		expect(committedIds(actions.onReorderChoices)).toEqual(["A", "B", "C"]);
 	});
 
+	it("re-inserts at the index the stripped placeholder last held (fast move into the window)", async () => {
+		const actions = actionsSpy();
+		const choices = [normal("A"), normal("B"), normal("C")];
+		const { container } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+		const zone = container.querySelector(".choiceList") as Element;
+
+		await fireConsider(
+			zone,
+			[shadowOf(normal("A")), normal("B"), normal("C")],
+			TRIGGERS.DRAG_STARTED,
+			"A",
+		);
+		// The first DRAGGED_ENTERED (still placeholder-id: it fires before the
+		// library swaps in the real id) already reports the user's new position.
+		await fireConsider(
+			zone,
+			[normal("B"), normal("C"), shadowOf(normal("A"))],
+			TRIGGERS.DRAGGED_ENTERED,
+			"A",
+		);
+		await fireFinalize(
+			zone,
+			[normal("B"), normal("C")],
+			TRIGGERS.DROPPED_INTO_ZONE,
+			"A",
+		);
+
+		// The reorder the user made inside the window is preserved, not reverted.
+		expect(committedIds(actions.onReorderChoices)).toEqual(["B", "C", "A"]);
+	});
+
 	it("commits a genuine reorder untouched after the same drag start", async () => {
 		const actions = actionsSpy();
 		const choices = [normal("A"), normal("B"), normal("C")];
