@@ -1,8 +1,8 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
-import { alertToScreenReader, type DndEvent, dndzone, SHADOW_PLACEHOLDER_ITEM_ID, SOURCES, TRIGGERS } from "svelte-dnd-action";
-import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
+import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { baseDndOptions, capturePlaceholderRecovery, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
@@ -117,25 +117,20 @@ function persist() {
 	saveCommands(snapshot(commands));
 }
 
-// Pre-drag order, captured at DRAG_STARTED. stripShadow removes the library's
-// placeholder, whose id stays SHADOW_PLACEHOLDER_ITEM_ID until a later consider
-// re-adds the shadow under the real id — so a drop inside that window (mobile
-// long-press with little or no movement) would commit the list without the
-// dragged command (#1692, same window as ChoiceList's). handleSort re-inserts
-// the dragged command then — at the index the stripped placeholder last
-// occupied, because the first DRAGGED_ENTERED can already carry the user's
-// intended position, and restoring the pre-drag order would silently cancel it.
-let preDragCommands: ICommand[] | null = null;
-let placeholderIndex = 0;
+// The dragged command, reconstructed from the last placeholder-id shadow that
+// stripShadow discarded (see capturePlaceholderRecovery). A drop inside that
+// window (mobile long-press with little or no movement) would otherwise commit
+// the list without the dragged command (#1692, same window as ChoiceList's).
+// handleSort re-inserts the payload then, at the index the placeholder last
+// occupied — the first DRAGGED_ENTERED can already carry the user's intended
+// position, and a pre-drag-order restore would silently cancel it.
+let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
 
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
 	const items = e.detail.items as ICommand[];
-	if (e.detail.info.trigger === TRIGGERS.DRAG_STARTED) {
-		preDragCommands = renderable; // still the pre-drag list at this point
-	}
-	const shadowIdx = items.findIndex((it) => it.id === SHADOW_PLACEHOLDER_ITEM_ID);
-	if (shadowIdx !== -1) placeholderIndex = shadowIdx;
+	placeholderRecovery =
+		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
 	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
 	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
 	commands = stripShadow(items);
@@ -144,17 +139,14 @@ function handleConsider(e: CustomEvent<DndEvent>) {
 function handleSort(e: CustomEvent<DndEvent>) {
 	let next = stripShadow(e.detail.items as ICommand[]);
 	const draggedId = e.detail.info.id;
-	if (!next.some((c) => c.id === draggedId)) {
-		const dragged = preDragCommands?.find((c) => c.id === draggedId);
-		if (dragged) {
-			// Dropped inside the placeholder window (see preDragCommands): committing
-			// `next` would delete the dragged command. Re-insert it where the
-			// stripped placeholder last stood.
-			next = [...next];
-			next.splice(Math.min(placeholderIndex, next.length), 0, dragged);
-		}
+	if (placeholderRecovery?.item.id === draggedId && !next.some((c) => c.id === draggedId)) {
+		// Dropped inside the placeholder window (see placeholderRecovery):
+		// committing `next` would delete the dragged command. Re-insert it
+		// where the stripped placeholder last stood.
+		next = [...next];
+		next.splice(Math.min(placeholderRecovery.index, next.length), 0, placeholderRecovery.item);
 	}
-	preDragCommands = null;
+	placeholderRecovery = null;
 	commands = next;
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.

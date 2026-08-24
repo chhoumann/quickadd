@@ -157,7 +157,11 @@ describe("ChoiceList cross-zone de-dup (handleSort)", () => {
  */
 describe("ChoiceList placeholder-window drop (#1692)", () => {
 	const shadowOf = (choice: IChoice): IChoice =>
-		({ ...choice, id: SHADOW_PLACEHOLDER_ITEM_ID }) as IChoice;
+		({
+			...choice,
+			id: SHADOW_PLACEHOLDER_ITEM_ID,
+			isDndShadowItem: true,
+		}) as IChoice;
 
 	it("restores the pre-drag order when the finalize is missing the dragged choice", async () => {
 		const actions = actionsSpy();
@@ -216,6 +220,32 @@ describe("ChoiceList placeholder-window drop (#1692)", () => {
 
 		// The reorder the user made inside the window is preserved, not reverted.
 		expect(committedIds(actions.onReorderChoices)).toEqual(["B", "C", "A"]);
+	});
+
+	it("recovers in the DESTINATION zone of a cross-zone drop, sans the library marker", async () => {
+		const actions = actionsSpy();
+		// This zone never saw DRAG_STARTED: the drag began in another zone.
+		const choices = [normal("X"), normal("Y")];
+		const { container } = render(ChoiceList, {
+			props: { app: new App() as never, roots: choices, choices, actions },
+		});
+		const zone = container.querySelector(".choiceList") as Element;
+
+		// The dragged item enters while its shadow still has the placeholder id.
+		await fireConsider(
+			zone,
+			[normal("X"), shadowOf(normal("A")), normal("Y")],
+			TRIGGERS.DRAGGED_ENTERED,
+			"A",
+		);
+		await fireFinalize(zone, [normal("X"), normal("Y")], TRIGGERS.DROPPED_INTO_ZONE, "A");
+
+		expect(committedIds(actions.onReorderChoices)).toEqual(["X", "A", "Y"]);
+		const committed = (actions.onReorderChoices as ReturnType<typeof vi.fn>).mock
+			.calls[0][0] as Record<string, unknown>[];
+		// The recovered item is rebuilt from the shadow payload; the library's
+		// marker must not leak into state (it would persist into data.json).
+		expect(committed[1]).not.toHaveProperty("isDndShadowItem");
 	});
 
 	it("commits a genuine reorder untouched after the same drag start", async () => {

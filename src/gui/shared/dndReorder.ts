@@ -1,4 +1,4 @@
-import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
+import { SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
 import { transformDragPill } from "./dragPill";
 
 /** Anything svelte-dnd-action can reorder in QuickAdd: it has a stable string id. */
@@ -18,6 +18,34 @@ type DragItem = Reorderable & { name?: string; type?: string };
  */
 export function stripShadow<T extends Reorderable>(items: readonly T[]): T[] {
 	return items.filter((item) => item.id !== SHADOW_PLACEHOLDER_ITEM_ID);
+}
+
+/** What a drop needs to undo an over-eager placeholder strip: the item and where it stood. */
+export interface PlaceholderRecovery<T> {
+	item: T;
+	index: number;
+}
+
+/**
+ * Capture a recovery payload from the shadow placeholder BEFORE stripShadow
+ * discards it. The placeholder still carries SHADOW_PLACEHOLDER_ITEM_ID at
+ * DRAG_STARTED and on the first DRAGGED_ENTERED (dispatched before the library
+ * swaps in the real id), so stripping it leaves the zone with no trace of the
+ * dragged item — a drop inside that window would commit, and persist, the list
+ * without it (#1692). The shadow is a spread-copy of the dragged item, so
+ * restoring the real id (the event's `info.id`) and dropping the library's
+ * marker yields a faithful stand-in — in ANY zone, including the destination of
+ * a cross-zone drag, which has no pre-drag snapshot of its own to recover from.
+ */
+export function capturePlaceholderRecovery<T extends Reorderable>(
+	items: readonly T[],
+	draggedId: string,
+): PlaceholderRecovery<T> | null {
+	const index = items.findIndex((item) => item.id === SHADOW_PLACEHOLDER_ITEM_ID);
+	if (index === -1) return null;
+	const shadow = { ...(items[index] as T & Record<string, unknown>) };
+	delete shadow[SHADOW_ITEM_MARKER_PROPERTY_NAME];
+	return { item: { ...shadow, id: draggedId } as T, index };
 }
 
 /**
