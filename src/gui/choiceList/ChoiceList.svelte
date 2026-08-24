@@ -5,7 +5,7 @@
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
-    import { baseDndOptions, stripShadow } from "../shared/dndReorder";
+    import { baseDndOptions, capturePlaceholderRecovery, type PlaceholderRecovery, stripShadow } from "../shared/dndReorder";
     import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
     import { isChoiceLike, rootChoicesOf } from "../../utils/choiceUtils";
@@ -94,19 +94,36 @@
     const drag = createDragArming();
     const dragDisabled = $derived(forceDragDisabled || (!isMobile && !drag.armed));
 
+    // The dragged choice, reconstructed from the last placeholder-id shadow that
+    // stripShadow discarded (see capturePlaceholderRecovery: stripping it leaves
+    // the zone with no trace of the dragged item until a later consider re-adds
+    // the shadow under the REAL id). A drop inside that window commits — and
+    // persists — the list without the dragged choice (#1692). Mouse drags always
+    // move enough to close the window; mobile long-press drags start stationary
+    // and routinely drop inside it (a hold-and-release, a small nudge, or a
+    // touchend before the next ~20ms observation tick). handleSort re-inserts
+    // the payload then, at the index the placeholder last occupied — the first
+    // DRAGGED_ENTERED can already carry the user's intended position, and a
+    // pre-drag-order restore would silently cancel it.
+    let placeholderRecovery: PlaceholderRecovery<IChoice> | null = null;
+
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
         drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+        const items = e.detail.items as IChoice[];
+        placeholderRecovery =
+            capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
         collapseId = e.detail.info.id;
         // Strip the dnd shadow placeholder so it can't linger and cause ghost gaps
         // (bugs #1244/#883) — see [[svelte-dnd-action-shadow-placeholder]].
-        choices = stripShadow(e.detail.items as IChoice[]);
+        choices = stripShadow(items);
     }
 
     function handleSort(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return;
         collapseId = "";
         let next = stripShadow(e.detail.items as IChoice[]);
+        const draggedId = e.detail.info.id;
         // Cross-zone de-dupe: on DROPPED_INTO_ANOTHER the dragged item landed in a
         // DIFFERENT zone, yet svelte-dnd can still report it in THIS (source) list — so
         // committing this list verbatim would persist a copy in BOTH the source and the
@@ -114,8 +131,22 @@
         // CO-DEPENDENT with setFolderChildrenById's by-id commit (choiceService) — the
         // strip alone is insufficient at depth >= 2; both are load-bearing.
         if (e.detail.info.trigger === TRIGGERS.DROPPED_INTO_ANOTHER) {
-            next = next.filter((c) => c.id !== e.detail.info.id);
+            next = next.filter((c) => c.id !== draggedId);
+        } else if (
+            placeholderRecovery?.item.id === draggedId &&
+            !next.some((c) => c.id === draggedId)
+        ) {
+            // Dropped inside the placeholder window (see placeholderRecovery):
+            // committing `next` would delete the dragged choice. Re-insert it
+            // where the stripped placeholder last stood.
+            next = [...next];
+            next.splice(
+                Math.min(placeholderRecovery.index, next.length),
+                0,
+                placeholderRecovery.item,
+            );
         }
+        placeholderRecovery = null;
         choices = next;
         // Desktop: disarm so a subsequent row interaction doesn't drag (handle must be
         // grabbed again). Mobile: dragDisabled ignores `armed`, so this is a no-op.

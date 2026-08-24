@@ -2,7 +2,7 @@
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
-import { baseDndOptions, replaceById, stripShadow } from "../shared/dndReorder";
+import { baseDndOptions, capturePlaceholderRecovery, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
@@ -117,15 +117,37 @@ function persist() {
 	saveCommands(snapshot(commands));
 }
 
+// The dragged command, reconstructed from the last placeholder-id shadow that
+// stripShadow discarded (see capturePlaceholderRecovery). A drop inside that
+// window (mobile long-press with little or no movement) would otherwise commit
+// the list without the dragged command (#1692, same window as ChoiceList's).
+// handleSort re-inserts the payload then, at the index the placeholder last
+// occupied — the first DRAGGED_ENTERED can already carry the user's intended
+// position, and a pre-drag-order restore would silently cancel it.
+let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
+
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+	const items = e.detail.items as ICommand[];
+	placeholderRecovery =
+		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
 	// Strip svelte-dnd-action's shadow placeholder so a command can't linger in
 	// state and vanish on reorder (ghost gap) — see [[svelte-dnd-action-shadow-placeholder]].
-	commands = stripShadow(e.detail.items as ICommand[]);
+	commands = stripShadow(items);
 }
 
 function handleSort(e: CustomEvent<DndEvent>) {
-	commands = stripShadow(e.detail.items as ICommand[]);
+	let next = stripShadow(e.detail.items as ICommand[]);
+	const draggedId = e.detail.info.id;
+	if (placeholderRecovery?.item.id === draggedId && !next.some((c) => c.id === draggedId)) {
+		// Dropped inside the placeholder window (see placeholderRecovery):
+		// committing `next` would delete the dragged command. Re-insert it
+		// where the stripped placeholder last stood.
+		next = [...next];
+		next.splice(Math.min(placeholderRecovery.index, next.length), 0, placeholderRecovery.item);
+	}
+	placeholderRecovery = null;
+	commands = next;
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
 	// Mobile: dragDisabled ignores `armed`, so this is a no-op.
