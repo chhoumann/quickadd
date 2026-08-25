@@ -17,10 +17,10 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	CREATE_IF_NOT_FOUND_ORDERED,
 	MARKDOWN_FILE_EXTENSION_REGEX,
-	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
+import { readPreselectedCaptureTarget } from "../preflight/captureTargetKey";
 import { getMarkdownHeadings } from "../formatters/helpers/getEndOfSection";
 import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
@@ -1069,20 +1069,18 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * The capture-target file path supplied out-of-band for this run, read from the
-	 * reserved internal variable: set by trusted preflight plumbing (the one-page
-	 * input modal) or by a non-interactive CLI `value-__qa.captureTargetFilePath`.
-	 * Returns `undefined` when absent or blank. The caller honours it only for a
-	 * runtime-picker scope and confines it to that scope, so a reserved key injected
-	 * across a trust boundary cannot hijack a definite-file capture target.
+	 * The capture-target file path supplied out-of-band for this run. Prefers the
+	 * choice-scoped reserved key, then the legacy unscoped
+	 * `value-__qa.captureTargetFilePath` alias. Returns `undefined` when absent or
+	 * blank. The caller honours it only for a runtime-picker scope and confines it
+	 * to that scope, so a reserved key injected across a trust boundary cannot
+	 * hijack a definite-file capture target.
 	 */
 	private getPreselectedCaptureTargetPath(): string | undefined {
-		const preselected = this.choiceExecutor?.variables?.get(
-			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		return readPreselectedCaptureTarget(
+			this.choiceExecutor?.variables,
+			this.choice.id,
 		);
-		return typeof preselected === "string" && preselected.length > 0
-			? preselected
-			: undefined;
 	}
 
 	/**

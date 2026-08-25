@@ -5,12 +5,19 @@ import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
+import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
+import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
+import type { IConditionalCommand } from "src/types/macros/Conditional/IConditionalCommand";
+import type { INestedChoiceCommand } from "src/types/macros/QuickCommands/INestedChoiceCommand";
+import type IChoice from "src/types/choices/IChoice";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
+	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
+import { captureTargetKeyFor } from "./captureTargetKey";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -51,7 +58,7 @@ vi.mock("src/logger/logManager", () => ({
 	},
 }));
 
-function createMacroChoice(script: IUserScript): IMacroChoice {
+function createMacroChoice(...commands: ICommand[]): IMacroChoice {
 	return {
 		id: "macro-choice",
 		name: "Macro Choice",
@@ -61,8 +68,46 @@ function createMacroChoice(script: IUserScript): IMacroChoice {
 		macro: {
 			id: "macro-choice",
 			name: "Macro Choice",
-			commands: [script],
+			commands,
 		},
+	};
+}
+
+function nestedChoice(choice: IChoice): INestedChoiceCommand {
+	return {
+		id: `nested-${choice.id}`,
+		name: choice.name,
+		type: CommandType.NestedChoice,
+		choice,
+	};
+}
+
+function choiceCommand(id: string, name: string, choiceId: string): IChoiceCommand {
+	return {
+		id,
+		name,
+		type: CommandType.Choice,
+		choiceId,
+	};
+}
+
+function conditionalCommand(
+	id: string,
+	name: string,
+	thenCommands: ICommand[],
+): IConditionalCommand {
+	return {
+		id,
+		name,
+		type: CommandType.Conditional,
+		condition: {
+			mode: "variable",
+			variableName: "x",
+			operator: "isTruthy",
+			valueType: "boolean",
+		},
+		thenCommands,
+		elseCommands: [],
 	};
 }
 
@@ -1015,7 +1060,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1044,7 +1089,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1071,7 +1116,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(true);
 	});
@@ -1094,7 +1139,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(true);
 	});
@@ -1113,7 +1158,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1137,7 +1182,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(true);
 	});
@@ -1197,7 +1242,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		);
 		const target = requirements.find(
 			(requirement) =>
-				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				requirement.id === captureTargetKeyFor("capture-choice"),
 		);
 		expect(target?.options).toEqual([
 			"Goals/Alpha.md",
@@ -1221,7 +1266,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 
 		const target = requirements.find(
 			(requirement) =>
-				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				requirement.id === captureTargetKeyFor("capture-choice"),
 		);
 		expect(target).toMatchObject({
 			type: "file-picker",
@@ -1241,13 +1286,17 @@ describe("collectChoiceRequirements - capture targets", () => {
 				createCaptureChoice("folder:Goals|tag:active"),
 			),
 		);
+		const scopedId = captureTargetKeyFor("capture-choice");
+		expect(requirements).toContainEqual(
+			expect.objectContaining({ id: scopedId }),
+		);
 		const variables = new Map<string, unknown>([
 			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Goals/New target.md"],
 		]);
 
 		expect(getUnresolvedRequirements(requirements, variables)).not.toContainEqual(
 			expect.objectContaining({
-				id: QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				id: scopedId,
 			}),
 		);
 	});
@@ -1262,7 +1311,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 
 		const target = requirements.find(
 			(requirement) =>
-				requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+				requirement.id === captureTargetKeyFor("capture-choice"),
 		);
 		expect(target).toMatchObject({
 			type: "dropdown",
@@ -1287,7 +1336,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1304,7 +1353,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1321,7 +1370,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(
 			requirements.some(
 				(requirement) =>
-					requirement.id === QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+					requirement.id === captureTargetKeyFor("capture-choice"),
 			),
 		).toBe(false);
 	});
@@ -1686,5 +1735,314 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 
 		const mvalue = requirements.find((req) => req.id === "mvalue");
 		expect(mvalue?.pathContext).toBeUndefined();
+	});
+});
+
+describe("collectChoiceRequirements - macro form roster", () => {
+	const app = {
+		vault: { getAbstractFileByPath: vi.fn(() => null) },
+		metadataCache: { getFileCache: vi.fn(() => null) },
+	} as unknown as App;
+	const choiceExecutor: IChoiceExecutor = {
+		execute: vi.fn(),
+		variables: new Map<string, unknown>(),
+	};
+
+	function pluginWithChoices(
+		choices: Record<string, IChoice> = {},
+	): { settings: Record<string, unknown>; getChoiceById: (id: string) => IChoice } {
+		return {
+			settings: {
+				inputPrompt: "single-line",
+				globalVariables: {},
+				useSelectionAsCaptureValue: true,
+			},
+			getChoiceById: (id: string) => {
+				const found = choices[id];
+				if (!found) throw new Error(`Choice ${id} not found`);
+				return found;
+			},
+		};
+	}
+
+	beforeEach(() => {
+		getMarkdownFilesInFolderMock.mockReset();
+		getMarkdownFilesWithTagMock.mockReset();
+		getUserScriptMock.mockReset();
+		isFolderMock.mockReset();
+		logWarningMock.mockReset();
+		getMarkdownFilesInFolderMock.mockReturnValue([]);
+		getMarkdownFilesWithTagMock.mockReturnValue([]);
+		isFolderMock.mockReturnValue(true);
+		getUserScriptMock.mockResolvedValue({});
+	});
+
+	it("emits two scoped capture-target ids for two NestedChoice folder captures", async () => {
+		const first = { ...createCaptureChoice("Projects"), id: "cap-a", name: "Projects dump" };
+		const second = { ...createCaptureChoice("Inbox"), id: "cap-b", name: "Inbox dump" };
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(first), nestedChoice(second)),
+		);
+
+		const ids = requirements
+			.filter((requirement) => requirement.id.startsWith("__qa.captureTargetFilePath."))
+			.map((requirement) => requirement.id);
+		expect(ids).toEqual([
+			captureTargetKeyFor("cap-a"),
+			captureTargetKeyFor("cap-b"),
+		]);
+		expect(ids).not.toContain(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH);
+
+		const variables = new Map<string, unknown>([
+			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Projects/Shared.md"],
+		]);
+		expect(
+			getUnresolvedRequirements(requirements, variables).map(
+				(requirement) => requirement.id,
+			),
+		).toEqual([
+			captureTargetKeyFor("cap-a"),
+			captureTargetKeyFor("cap-b"),
+		]);
+	});
+
+	it("merges a shared {{VALUE:project}} into one field", async () => {
+		isFolderMock.mockReturnValue(false);
+		const first = {
+			...createCaptureChoice("Inbox.md"),
+			id: "cap-a",
+			name: "First",
+			format: { enabled: true, format: "A {{VALUE:project}}" },
+		};
+		const second = {
+			...createCaptureChoice("Inbox.md"),
+			id: "cap-b",
+			name: "Second",
+			format: { enabled: true, format: "B {{VALUE:project}}" },
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(first), nestedChoice(second)),
+		);
+
+		expect(requirements.filter((requirement) => requirement.id === "project")).toHaveLength(1);
+		expect(requirements.find((requirement) => requirement.id === "project")?.group).toEqual({
+			id: "cap-a",
+			label: "First",
+		});
+	});
+
+	it("does not flatten captures inside a nested Macro", async () => {
+		const buried = {
+			...createCaptureChoice("Projects"),
+			id: "buried-cap",
+			name: "Buried",
+		};
+		const nestedMacro: IMacroChoice = {
+			id: "inner-macro",
+			name: "Inner macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "inner-macro",
+				name: "Inner macro",
+				commands: [nestedChoice(buried)],
+			},
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(nestedMacro)),
+		);
+		const deferred = listDeferredMacroSteps(
+			pluginWithChoices() as any,
+			createMacroChoice(nestedChoice(nestedMacro)),
+		);
+
+		expect(requirements.some((requirement) => requirement.id === captureTargetKeyFor("buried-cap"))).toBe(
+			false,
+		);
+		expect(deferred).toEqual([
+			{ label: "Inner macro", reason: "nestedMacroGroup" },
+		]);
+	});
+
+	it("does not collect Conditional then-branch captures", async () => {
+		const thenCapture = {
+			...createCaptureChoice("Projects"),
+			id: "then-cap",
+			name: "Then capture",
+		};
+		const macro = createMacroChoice(
+			conditionalCommand("cond", "If project", [nestedChoice(thenCapture)]),
+		);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			macro,
+		);
+
+		expect(requirements).toEqual([]);
+		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
+			{ label: "If project", reason: "conditionalBranch" },
+		]);
+	});
+
+	it("excludes a nested Capture with onePageInput never", async () => {
+		const optedOut = {
+			...createCaptureChoice("Projects"),
+			id: "never-cap",
+			onePageInput: "never" as const,
+			name: "Private capture",
+		};
+		const kept = {
+			...createCaptureChoice("Inbox"),
+			id: "kept-cap",
+			name: "Public capture",
+		};
+		const macro = createMacroChoice(nestedChoice(optedOut), nestedChoice(kept));
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			macro,
+		);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			captureTargetKeyFor("kept-cap"),
+		]);
+		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
+			{ label: "Private capture", reason: "choiceOptedOut" },
+		]);
+	});
+
+	it("collects the first capture plus script inputs and defers a later capture after UserScript", async () => {
+		getUserScriptMock.mockResolvedValue({
+			quickadd: {
+				inputs: [{ id: "scriptField", type: "text", label: "Script" }],
+			},
+		});
+		const first = {
+			...createCaptureChoice("Projects"),
+			id: "cap-1",
+			name: "First capture",
+		};
+		const second = {
+			...createCaptureChoice("Inbox"),
+			id: "cap-2",
+			name: "Second capture",
+		};
+		const script: IUserScript = {
+			id: "script-1",
+			name: "Script 1",
+			type: CommandType.UserScript,
+			path: "script.js",
+			settings: {},
+		};
+		const macro = createMacroChoice(
+			nestedChoice(first),
+			script,
+			nestedChoice(second),
+		);
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			macro,
+		);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			captureTargetKeyFor("cap-1"),
+			"scriptField",
+		]);
+		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
+			{ label: "Second capture", reason: "afterOpaqueStep" },
+		]);
+	});
+
+	it("hoists inputs from two UserScripts even when the first is opaque", async () => {
+		getUserScriptMock.mockImplementation(async (command: IUserScript) => {
+			if (command.path === "a.js") {
+				return {
+					quickadd: { inputs: [{ id: "fromA", type: "text", label: "A" }] },
+				};
+			}
+			return {
+				quickadd: { inputs: [{ id: "fromB", type: "text", label: "B" }] },
+			};
+		});
+		const first: IUserScript = {
+			id: "s1",
+			name: "Script A",
+			type: CommandType.UserScript,
+			path: "a.js",
+			settings: {},
+		};
+		const second: IUserScript = {
+			id: "s2",
+			name: "Script B",
+			type: CommandType.UserScript,
+			path: "b.js",
+			settings: {},
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(first, second),
+		);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			"fromA",
+			"fromB",
+		]);
+	});
+
+	it("collects a Choice command Capture when getChoiceById resolves it", async () => {
+		const capture = {
+			...createCaptureChoice("Projects"),
+			id: "cap-ref",
+			name: "Referenced capture",
+		};
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices({ [capture.id]: capture }) as any,
+			choiceExecutor,
+			createMacroChoice(choiceCommand("choice-cmd", "Run capture", capture.id)),
+		);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			captureTargetKeyFor("cap-ref"),
+		]);
+	});
+
+	it("defers a dangling Choice command without throwing", async () => {
+		const plugin = pluginWithChoices();
+		const macro = createMacroChoice(
+			choiceCommand("choice-cmd", "Missing capture", "missing-id"),
+		);
+
+		await expect(
+			collectChoiceRequirements(app, plugin as any, choiceExecutor, macro),
+		).resolves.toEqual([]);
+		expect(listDeferredMacroSteps(plugin as any, macro)).toEqual([
+			{ label: "Missing capture", reason: "unresolvableChoice" },
+		]);
 	});
 });

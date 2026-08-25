@@ -932,6 +932,62 @@ describe("OnePageInputModal", () => {
 	});
 });
 
+describe("OnePageInputModal section headings", () => {
+	beforeEach(() => {
+		ensureObsidianDomPolyfills();
+	});
+
+	function textField(
+		id: string,
+		group?: { id: string; label: string },
+	): FieldRequirement {
+		return { id, label: id, type: "text", group };
+	}
+
+	it("does not render section headings when fields have no group", () => {
+		const modal = new OnePageInputModal(
+			{} as App,
+			[textField("a"), textField("b")],
+		);
+		expect(
+			(modal as any).contentEl.querySelectorAll("h3.qa-onepage-section"),
+		).toHaveLength(0);
+		modal.close();
+	});
+
+	it("does not render section headings when every field shares one group", () => {
+		const group = { id: "cap-1", label: "Capture one" };
+		const modal = new OnePageInputModal(
+			{} as App,
+			[textField("a", group), textField("b", group)],
+		);
+		expect(
+			(modal as any).contentEl.querySelectorAll("h3.qa-onepage-section"),
+		).toHaveLength(0);
+		modal.close();
+	});
+
+	it("renders a heading before each consecutive group when two groups are present", () => {
+		const first = { id: "cap-1", label: "Capture one" };
+		const second = { id: "cap-2", label: "Capture two" };
+		const modal = new OnePageInputModal({} as App, [
+			textField("a", first),
+			textField("b", first),
+			textField("c", second),
+		]);
+		const headings = Array.from(
+			(modal as any).contentEl.querySelectorAll(
+				"h3.qa-onepage-section",
+			) as NodeListOf<HTMLHeadingElement>,
+		);
+		expect(headings.map((heading) => heading.textContent)).toEqual([
+			"Capture one",
+			"Capture two",
+		]);
+		modal.close();
+	});
+});
+
 describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();

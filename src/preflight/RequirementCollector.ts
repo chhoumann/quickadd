@@ -81,6 +81,13 @@ export interface FieldRequirement {
 		caseSensitive?: boolean;
 		multiSelect?: boolean;
 	};
+	/** Macro one-page section this field belongs to. Absent on single-choice forms. */
+	group?: FieldGroup;
+}
+
+export interface FieldGroup {
+	id: string;
+	label: string;
 }
 
 /**

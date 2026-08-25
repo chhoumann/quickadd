@@ -17,9 +17,15 @@ For a task-oriented overview of prompts in general, see
 
 Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
-It works with Template, Capture, and Macro choices. For Macros, only the inputs
-a script declares are collected (see [User scripts](#user-scripts-declare-inputs-optional)
-below).
+It works with Template, Capture, and Macro choices.
+
+For a Macro, this-level NestedChoice and Choice members that resolve to Template
+or Capture appear on the macro's form. A nested Macro is a separate page.
+Conditional branches are not collected up front. A UserScript or AI command
+defers later Template and Capture members on this page (script-declared
+`quickadd.inputs` still hoist; see
+[User scripts](#user-scripts-declare-inputs-optional)). Set a member's
+**One-page input override** to **Never** to keep it off this page.
 
 ## Turn it on or off for one choice {#per-choice-override}
 
@@ -97,9 +103,12 @@ fields left blank stay empty.
 ### Reserved internal variables {#internals-and-reserved-variables}
 
 QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring
-during preflight and runtime. For example, `__qa.captureTargetFilePath` stores
-the capture target chosen in the form so the capture engine can skip its own
-file picker.
+during preflight and runtime. Capture-target flags are scoped by choice id
+(`__qa.captureTargetFilePath.<choiceId>`) so two captures in one macro get two
+distinct fields. The unscoped `value-__qa.captureTargetFilePath=…` flag still
+satisfies a collection that has exactly one capture-target field (a lone Capture,
+or a macro with one folder/tag capture). It does not satisfy two capture-target
+fields at once.
 
 These internal keys will not collide with your own variables. Avoid using the
 `__qa.` prefix in your scripts.
