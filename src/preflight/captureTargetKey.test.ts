@@ -63,6 +63,30 @@ describe("readPreselectedCaptureTarget", () => {
 		);
 	});
 
+	it("does not share the unscoped alias across two scoped capture targets", () => {
+		const variables = new Map<string, unknown>([
+			[captureTargetKeyFor("cap-1"), null],
+			[captureTargetKeyFor("cap-2"), null],
+			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Inbox/Shared.md"],
+		]);
+
+		expect(readPreselectedCaptureTarget(variables, "cap-1")).toBeUndefined();
+		expect(readPreselectedCaptureTarget(variables, "cap-2")).toBeUndefined();
+	});
+
+	it("still honours a filled scoped key when a sibling capture target exists", () => {
+		const variables = new Map<string, unknown>([
+			[captureTargetKeyFor("cap-1"), "Projects/A.md"],
+			[captureTargetKeyFor("cap-2"), null],
+			[QA_INTERNAL_CAPTURE_TARGET_FILE_PATH, "Inbox/Shared.md"],
+		]);
+
+		expect(readPreselectedCaptureTarget(variables, "cap-1")).toBe(
+			"Projects/A.md",
+		);
+		expect(readPreselectedCaptureTarget(variables, "cap-2")).toBeUndefined();
+	});
+
 	it("ignores blank and non-string values", () => {
 		const blankScoped = new Map<string, unknown>([
 			[captureTargetKeyFor("cap-1"), ""],

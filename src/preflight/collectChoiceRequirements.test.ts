@@ -17,7 +17,7 @@ import {
 	getUnresolvedRequirements,
 	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
-import { captureTargetKeyFor } from "./captureTargetKey";
+import { captureTargetKeyFor, readPreselectedCaptureTarget } from "./captureTargetKey";
 
 const {
 	getMarkdownFilesInFolderMock,
@@ -1775,6 +1775,7 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		getMarkdownFilesWithTagMock.mockReturnValue([]);
 		isFolderMock.mockReturnValue(true);
 		getUserScriptMock.mockResolvedValue({});
+		choiceExecutor.variables.clear();
 	});
 
 	it("emits two scoped capture-target ids for two NestedChoice folder captures", async () => {
@@ -1810,6 +1811,31 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		]);
 	});
 
+	it("stamps scoped keys so direct execution cannot reuse the unscoped alias", async () => {
+		const first = { ...createCaptureChoice("Projects"), id: "cap-a", name: "Projects dump" };
+		const second = { ...createCaptureChoice("Inbox"), id: "cap-b", name: "Inbox dump" };
+		choiceExecutor.variables.set(
+			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+			"Projects/Shared.md",
+		);
+
+		await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(first), nestedChoice(second)),
+		);
+
+		expect(choiceExecutor.variables.get(captureTargetKeyFor("cap-a"))).toBeNull();
+		expect(choiceExecutor.variables.get(captureTargetKeyFor("cap-b"))).toBeNull();
+		expect(
+			readPreselectedCaptureTarget(choiceExecutor.variables, "cap-a"),
+		).toBeUndefined();
+		expect(
+			readPreselectedCaptureTarget(choiceExecutor.variables, "cap-b"),
+		).toBeUndefined();
+	});
+
 	it("merges a shared {{VALUE:project}} into one field", async () => {
 		isFolderMock.mockReturnValue(false);
 		const first = {
@@ -1837,6 +1863,45 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			id: "cap-a",
 			label: "First",
 		});
+	});
+
+	it("ANDs optionality when the same VALUE is optional in one member and required in another", async () => {
+		isFolderMock.mockReturnValue(false);
+		const optionalFirst = {
+			...createCaptureChoice("Inbox.md"),
+			id: "cap-a",
+			name: "First",
+			format: { enabled: true, format: "{{VALUE:project|optional}}" },
+		};
+		const requiredSecond = {
+			...createCaptureChoice("Inbox.md"),
+			id: "cap-b",
+			name: "Second",
+			format: { enabled: true, format: "{{VALUE:project}}" },
+		};
+
+		const optionalThenRequired = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(optionalFirst), nestedChoice(requiredSecond)),
+		);
+		expect(
+			optionalThenRequired.find((requirement) => requirement.id === "project")
+				?.optional,
+		).toBe(false);
+
+		choiceExecutor.variables.clear();
+		const requiredThenOptional = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(requiredSecond), nestedChoice(optionalFirst)),
+		);
+		expect(
+			requiredThenOptional.find((requirement) => requirement.id === "project")
+				?.optional,
+		).toBe(false);
 	});
 
 	it("does not flatten captures inside a nested Macro", async () => {

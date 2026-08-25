@@ -616,12 +616,35 @@ async function collectForMacroChoice(
 						);
 
 		for (const requirement of collected) {
-			if (merged.has(requirement.id)) continue;
+			const existing = merged.get(requirement.id);
+			if (existing) {
+				existing.optional =
+					(existing.optional ?? false) && (requirement.optional ?? false);
+				if (requirement.pathContext) existing.pathContext = true;
+				continue;
+			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });
 		}
 	}
 
+	registerSiblingCaptureTargets(choiceExecutor.variables, merged);
+
 	return Array.from(merged.values());
+}
+
+function registerSiblingCaptureTargets(
+	variables: Map<string, unknown>,
+	merged: Map<string, FieldRequirement>,
+): void {
+	const scopedIds: string[] = [];
+	for (const requirement of merged.values()) {
+		if (isScopedCaptureTargetKey(requirement.id)) scopedIds.push(requirement.id);
+	}
+	if (scopedIds.length < 2) return;
+
+	for (const id of scopedIds) {
+		if (!variables.has(id)) variables.set(id, null);
+	}
 }
 
 export async function collectChoiceRequirements(

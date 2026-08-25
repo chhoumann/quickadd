@@ -28,6 +28,16 @@ function nonNullVariableKey(
 	return variables.get(key) == null ? null : key;
 }
 
+function countScopedCaptureTargetKeys(
+	variables: Map<string, unknown>,
+): number {
+	let count = 0;
+	for (const key of variables.keys()) {
+		if (isScopedCaptureTargetKey(key)) count++;
+	}
+	return count;
+}
+
 export function readPreselectedCaptureTarget(
 	variables: Map<string, unknown> | undefined,
 	choiceId: string,
@@ -36,6 +46,10 @@ export function readPreselectedCaptureTarget(
 
 	const scoped = variables.get(captureTargetKeyFor(choiceId));
 	if (typeof scoped === "string" && scoped.length > 0) return scoped;
+
+	// Unscoped is a one-target alias. Two folder captures sharing one variables
+	// map must not both write to it.
+	if (countScopedCaptureTargetKeys(variables) > 1) return undefined;
 
 	const unscoped = variables.get(QA_INTERNAL_CAPTURE_TARGET_FILE_PATH);
 	if (typeof unscoped === "string" && unscoped.length > 0) return unscoped;
