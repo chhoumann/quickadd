@@ -46,7 +46,7 @@ import {
 	isCaptureTargetKey,
 	isScopedCaptureTargetKey,
 	resolveCaptureTargetVariableKey,
-	unscopedAliasSatisfiesCaptureTarget,
+	unscopedAliasSatisfiesSoleCaptureTarget,
 } from "./captureTargetKey";
 import { isTemplateChoice } from "./macroCommandRole";
 import {
@@ -685,7 +685,7 @@ export function getUnresolvedRequirements(
 			if (resolveCaptureTargetVariableKey(variables, requirement.id) !== null) {
 				return false;
 			}
-			return !unscopedAliasSatisfiesCaptureTarget(
+			return !unscopedAliasSatisfiesSoleCaptureTarget(
 				variables,
 				requirement.id,
 				scopedCaptureTargetCount,

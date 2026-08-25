@@ -7,7 +7,7 @@ import {
 	isScopedCaptureTargetKey,
 	readPreselectedCaptureTarget,
 	resolveCaptureTargetVariableKey,
-	unscopedAliasSatisfiesCaptureTarget,
+	unscopedAliasSatisfiesSoleCaptureTarget,
 } from "./captureTargetKey";
 
 describe("captureTargetKeyFor", () => {
@@ -95,10 +95,10 @@ describe("resolveCaptureTargetVariableKey", () => {
 
 		expect(resolveCaptureTargetVariableKey(variables, requirementId)).toBeNull();
 		expect(
-			unscopedAliasSatisfiesCaptureTarget(variables, requirementId, 1),
+			unscopedAliasSatisfiesSoleCaptureTarget(variables, requirementId, 1),
 		).toBe(true);
 		expect(
-			unscopedAliasSatisfiesCaptureTarget(variables, requirementId, 2),
+			unscopedAliasSatisfiesSoleCaptureTarget(variables, requirementId, 2),
 		).toBe(false);
 		expect(isScopedCaptureTargetKey(requirementId)).toBe(true);
 	});

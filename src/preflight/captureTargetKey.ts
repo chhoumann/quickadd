@@ -51,13 +51,7 @@ export function resolveCaptureTargetVariableKey(
 	return nonNullVariableKey(variables, requirementId);
 }
 
-/**
- * The documented CLI flag `value-__qa.captureTargetFilePath` may satisfy a
- * scoped capture-target requirement only when this collection pass has exactly
- * one such field. Applying it to every scoped id would send two captures to
- * the same file.
- */
-export function unscopedAliasSatisfiesCaptureTarget(
+export function unscopedAliasSatisfiesSoleCaptureTarget(
 	variables: Map<string, unknown>,
 	requirementId: string,
 	scopedCaptureTargetCount: number,

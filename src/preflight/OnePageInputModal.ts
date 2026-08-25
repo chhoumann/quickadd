@@ -163,7 +163,6 @@ export class OnePageInputModal extends Modal {
 			this.previewContainerEl.addClass("qa-onepage-preview", "qa-hidden");
 		}
 
-		// Render fields
 		if (hasMultipleGroups(this.requirements)) {
 			for (const run of groupRequirements(this.requirements)) {
 				if (run.group) {

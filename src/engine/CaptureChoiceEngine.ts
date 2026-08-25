@@ -1069,12 +1069,12 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * The capture-target file path supplied out-of-band for this run. Prefers the
-	 * choice-scoped reserved key, then the legacy unscoped
-	 * `value-__qa.captureTargetFilePath` alias. Returns `undefined` when absent or
-	 * blank. The caller honours it only for a runtime-picker scope and confines it
-	 * to that scope, so a reserved key injected across a trust boundary cannot
-	 * hijack a definite-file capture target.
+	 * The capture-target file path supplied out-of-band for this run, read from the
+	 * reserved internal variable: set by trusted preflight plumbing (the one-page
+	 * input modal) or by a non-interactive CLI `value-__qa.captureTargetFilePath`.
+	 * Returns `undefined` when absent or blank. The caller honours it only for a
+	 * runtime-picker scope and confines it to that scope, so a reserved key injected
+	 * across a trust boundary cannot hijack a definite-file capture target.
 	 */
 	private getPreselectedCaptureTargetPath(): string | undefined {
 		return readPreselectedCaptureTarget(
