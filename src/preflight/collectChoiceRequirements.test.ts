@@ -1904,6 +1904,64 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		).toBe(false);
 	});
 
+	it("ORs runtimeOnly when a discovery Template shares VALUE with a Capture", async () => {
+		isFolderMock.mockReturnValue(false);
+		const capture = {
+			...createCaptureChoice("Inbox.md"),
+			id: "cap-a",
+			name: "Capture",
+			format: { enabled: true, format: "{{VALUE}}" },
+		};
+		const template = {
+			id: "tmpl-a",
+			name: "Discover note",
+			type: "Template",
+			command: false,
+			templatePath: "Templates/Note.md",
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+			discoverExistingNotesBeforeCreate: true,
+			folder: {
+				enabled: false,
+				folders: [],
+				chooseWhenCreatingNote: false,
+				createInSameFolderAsActiveFile: false,
+				chooseFromSubfolders: false,
+			},
+			appendLink: false,
+			openFile: false,
+			fileOpening: {
+				location: "tab",
+				direction: "vertical",
+				mode: "default",
+				focus: true,
+			},
+			fileExistsBehavior: { kind: "prompt" },
+		} as ITemplateChoice;
+
+		const captureThenTemplate = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(capture), nestedChoice(template)),
+		);
+		expect(
+			captureThenTemplate.find((requirement) => requirement.id === "value")
+				?.runtimeOnly,
+		).toBe(true);
+
+		choiceExecutor.variables.clear();
+		const templateThenCapture = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(template), nestedChoice(capture)),
+		);
+		expect(
+			templateThenCapture.find((requirement) => requirement.id === "value")
+				?.runtimeOnly,
+		).toBe(true);
+	});
+
 	it("does not flatten captures inside a nested Macro", async () => {
 		const buried = {
 			...createCaptureChoice("Projects"),

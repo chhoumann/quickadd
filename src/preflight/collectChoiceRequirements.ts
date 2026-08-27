@@ -621,6 +621,7 @@ async function collectForMacroChoice(
 				existing.optional =
 					(existing.optional ?? false) && (requirement.optional ?? false);
 				if (requirement.pathContext) existing.pathContext = true;
+				if (requirement.runtimeOnly) existing.runtimeOnly = true;
 				continue;
 			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });
