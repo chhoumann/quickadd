@@ -297,6 +297,17 @@ describe("Format Syntax documentation examples", () => {
 		}
 	});
 
+	it("applies documented DATE +N day offsets instead of concatenating them", async () => {
+		const formatter = new DocsExampleFormatter();
+
+		await expect(formatter.render("Review on {{DATE+7}}")).resolves.toBe(
+			"Review on 2026-05-14",
+		);
+		await expect(formatter.render("{{DATE:YYYY-MM-DD+3}}")).resolves.toBe(
+			"2026-05-10",
+		);
+	});
+
 	it("collects requirements from the current and 2.12.0 examples", async () => {
 		for (const example of CURRENT_AND_2120_EXAMPLES) {
 			const collector = new RequirementCollector(makeApp(), makePlugin());
