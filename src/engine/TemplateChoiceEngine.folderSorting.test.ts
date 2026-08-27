@@ -198,4 +198,40 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			"A/B2",
 		]);
 	});
+
+	it("does not prompt for a single specified folder when Include subfolders is off (#1705)", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["LiteratureNotes/1_Articles"],
+				chooseFromSubfolders: false,
+			}),
+			[
+				"LiteratureNotes/1_Articles",
+				"LiteratureNotes/1_Articles/2026",
+				"LiteratureNotes/1_Articles/2026/08-August",
+			],
+			createActiveFile("LiteratureNotes/1_Articles/2026/08-August"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+	});
+
+	it("still skips the chooser when a single specified folder has subfolders but no active file", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["LiteratureNotes/1_Articles"],
+				chooseFromSubfolders: false,
+			}),
+			[
+				"LiteratureNotes/1_Articles",
+				"LiteratureNotes/1_Articles/2026",
+			],
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+	});
 });
