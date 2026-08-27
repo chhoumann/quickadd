@@ -218,6 +218,34 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		expect(inputSuggestMock).not.toHaveBeenCalled();
 	});
 
+	it("still offers the current-folder shortcut when several specified folders already require a chooser", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["LiteratureNotes/1_Articles", "LiteratureNotes/2_Books"],
+				chooseFromSubfolders: false,
+			}),
+			[
+				"LiteratureNotes/1_Articles",
+				"LiteratureNotes/2_Books",
+			],
+			createActiveFile("LiteratureNotes/1_Articles/2026"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+		expect(inputSuggestMock.mock.calls[0][1]).toEqual([
+			"<current folder>",
+			"LiteratureNotes/1_Articles",
+			"LiteratureNotes/2_Books",
+		]);
+		expect(getSuggestedItems()).toEqual([
+			"LiteratureNotes/1_Articles/2026",
+			"LiteratureNotes/1_Articles",
+			"LiteratureNotes/2_Books",
+		]);
+	});
+
 	it("still skips the chooser when a single specified folder has subfolders but no active file", async () => {
 		const engine = createEngine(
 			createChoice({
