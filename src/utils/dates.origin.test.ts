@@ -23,9 +23,9 @@ function freeze(isoLocal: string) {
 }
 
 describe("getDate origin — calendar day plus wall-clock time", () => {
-	beforeEach(() => freeze("2026-08-26T15:30:00")); // Wednesday
+	beforeEach(() => freeze("2026-08-26T15:30:00"));
 
-	const lastFriday = new Date(2026, 7, 21); // local calendar day, no clock
+	const lastFriday = new Date(2026, 7, 21);
 
 	it("formats the origin day when only a date is requested", () => {
 		expect(getDate({ format: "YYYY-MM-DD", origin: lastFriday })).toBe(

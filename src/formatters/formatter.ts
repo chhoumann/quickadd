@@ -323,7 +323,6 @@ export abstract class Formatter {
 	protected promptScopeSoleValue = false;
 	/** Which choice is asking and, once known, where the answer lands. */
 	protected promptRunContext?: PromptRunContext;
-	/** Frozen run clocks. DATE uses `date` + `now` time-of-day. TIME uses `now`. */
 	protected clocks?: { now: Date; date?: Date };
 
 	protected runClocks(): { now?: Date; date?: Date } | undefined {

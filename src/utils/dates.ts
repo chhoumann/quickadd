@@ -6,7 +6,6 @@ export interface GetDateInput {
 	snap?: DateSnap;
 	/** Calendar-day origin. Time-of-day comes from `now` unless a snap moves it. */
 	origin?: Date;
-	/** Wall clock. Defaults to the live instant. TIME tokens pass this and omit origin. */
 	now?: Date;
 }
 
