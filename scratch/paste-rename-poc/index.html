@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Paste rename POC · issue 1703</title>
+		<link rel="stylesheet" href="./poc.css" />
+	</head>
+	<body>
+		<header class="app-header">
+			<div>
+				<p class="eyebrow">Throwaway · issue 1703</p>
+				<h1>How should QuickAdd name a pasted image?</h1>
+			</div>
+			<p class="lede">
+				Paste-image-rename watches the vault after Obsidian already wrote
+				<code>Pasted image …</code>. QuickAdd already owns the write, and the
+				paste often happens in a prompt before the note exists. Switch variants
+				and paste. Keys 1–4 also switch.
+			</p>
+		</header>
+
+		<nav class="variants" role="tablist" aria-label="Rename variants">
+			<button type="button" role="tab" data-variant="today" aria-selected="true">
+				<span class="key">1</span> Today
+			</button>
+			<button type="button" role="tab" data-variant="silent" aria-selected="false">
+				<span class="key">2</span> Silent title
+			</button>
+			<button type="button" role="tab" data-variant="confirm" aria-selected="false">
+				<span class="key">3</span> Confirm modal
+			</button>
+			<button type="button" role="tab" data-variant="pattern" aria-selected="false">
+				<span class="key">4</span> Pattern
+			</button>
+		</nav>
+
+		<p class="variant-blurb" id="variant-blurb"></p>
+
+		<section class="context" aria-label="Capture context">
+			<label>
+				Destination note
+				<input id="file-name" value="Meeting notes" />
+			</label>
+			<label>
+				Folder
+				<input id="dir-name" value="Meetings" />
+			</label>
+			<label>
+				VALUE
+				<input id="value" value="standup" />
+			</label>
+			<label>
+				imageNameKey
+				<input id="image-name-key" value="" placeholder="frontmatter" />
+			</label>
+			<label id="pattern-field" hidden>
+				Pattern
+				<input id="pattern" value="{{fileName}}" />
+			</label>
+			<label class="check">
+				<input type="checkbox" id="dup-always" />
+				Always add -N
+			</label>
+		</section>
+
+		<div class="stage">
+			<section class="modal-window" aria-label="QuickAdd capture prompt">
+				<header>
+					<h2>Capture to <span id="dest-label">Meetings/Meeting notes.md</span></h2>
+					<p>Paste an image into the field, or press the button.</p>
+				</header>
+				<textarea
+					id="capture-field"
+					placeholder="Capture content. Paste an image here."
+				></textarea>
+				<div class="modal-actions">
+					<button type="button" class="ghost" id="paste-sample">Paste a screenshot</button>
+					<button type="button" class="ghost" id="reset">Reset vault</button>
+					<button type="button" class="cta" disabled>Capture</button>
+				</div>
+			</section>
+
+			<aside class="vault" aria-label="Vault attachments">
+				<h2>attachments/</h2>
+				<ul id="file-list"></ul>
+				<p class="catch" id="plugin-catch"></p>
+			</aside>
+		</div>
+
+		<section class="how" id="how">
+			<h2>How paste-image-rename actually works</h2>
+			<ol class="flow">
+				<li>
+					<strong>Obsidian writes first.</strong>
+					A native paste in a markdown note creates
+					<code>Pasted image YYYYMMDDHHMMSS.png</code> via the attachment
+					folder setting. QuickAdd never uses that prefix. It writes
+					<code>Clipboard image YYYY-MM-DD HH.MM.SS.png</code> itself.
+				</li>
+				<li>
+					<strong>A <code>vault.on('create')</code> listener fires.</strong>
+					If the file is older than 1 second it is ignored (startup flood).
+					Markdown is ignored. Anything whose name starts with
+					<code>Pasted image </code> is in. Anything else is in only when
+					Handle all attachments is on.
+				</li>
+				<li>
+					<strong>The active markdown view supplies the name.</strong>
+					<code>generateNewName</code> reads that file's basename, folder,
+					first H1, and <code>imageNameKey</code> frontmatter, then renders
+					the Image name pattern. There is no capture destination. The
+					active file is the only source.
+				</li>
+				<li>
+					<strong>Auto rename is off by default.</strong>
+					If the stem is empty, or auto rename is off, a modal opens with
+					a preview and a New name field. Enter confirms. IME composition is
+					locked so Enter during pinyin does not submit.
+				</li>
+				<li>
+					<strong>Rename is a second filesystem op.</strong>
+					<code>fileManager.renameFile</code> then the plugin rewrites the
+					current editor line, because rename does not always update the
+					just-inserted link in time. Dedup lists the attachment folder and
+					adds <code>-N</code> (or a prefix) from the largest existing number.
+				</li>
+			</ol>
+			<p>
+				Windows paste-from-Explorer keeps the original filename, so the
+				<code>Pasted image </code> prefix never appears. That is why Handle
+				all attachments exists. QuickAdd hits the same kind of miss today.
+				paste-image-rename will not see a QuickAdd paste unless Handle all
+				attachments is on, and even then it will rename against the
+				<em>active</code> note, not the capture target.
+			</p>
+		</section>
+
+		<div id="rename-modal" class="overlay" hidden>
+			<div class="rename-dialog" role="dialog" aria-labelledby="rename-title">
+				<h3 id="rename-title">Rename image</h3>
+				<div class="preview"><img id="preview-img" alt="Pasted screenshot preview" /></div>
+				<dl>
+					<dt>Origin path</dt>
+					<dd id="origin-path"></dd>
+					<dt>New path</dt>
+					<dd id="new-path"></dd>
+				</dl>
+				<label>
+					New name
+					<input id="rename-stem" />
+				</label>
+				<p class="warn" id="rename-error" hidden>New name could not be empty</p>
+				<div class="modal-actions">
+					<button type="button" class="cta" id="confirm-rename">Rename</button>
+					<button type="button" class="ghost" id="cancel-rename">Cancel</button>
+				</div>
+			</div>
+		</div>
+
+		<script type="module" src="./app.js"></script>
+	</body>
+</html>
