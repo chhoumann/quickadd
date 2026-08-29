@@ -1,6 +1,23 @@
 <script lang="ts">
-import type { DateOrigin, DateOriginUnit } from "../../../types/dateOrigin";
-import { DATE_ORIGIN_UNITS } from "../../../types/dateOrigin";
+import type { DateOrigin } from "../../../types/dateOrigin";
+import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../../types/dateOrigin";
+import {
+	ASK_DEFAULT_SETTING_DESC,
+	ASK_DEFAULT_SETTING_NAME,
+	CUSTOM_OFFSET_SETTING_DESC,
+	CUSTOM_OFFSET_SETTING_NAME,
+	DATE_ORIGIN_PRESET_OPTIONS,
+	DATE_ORIGIN_SETTING_DESC,
+	DATE_ORIGIN_SETTING_NAME,
+	VARIABLE_SETTING_DESC,
+	VARIABLE_SETTING_NAME,
+	askDefaultFromPresetId,
+	askDefaultOptions,
+	askDefaultToPresetId,
+	dateOriginFromPreset,
+	dateOriginToPreset,
+	isDateOriginPreset,
+} from "../../../types/dateOriginPresets";
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
 
@@ -10,47 +27,38 @@ let {
 	dateOrigin: DateOrigin | undefined;
 } = $props();
 
-const kindOptions = [
-	{ value: "", label: "Today" },
-	{ value: "ask", label: "Ask" },
-	{ value: "relative", label: "Relative" },
-	{ value: "variable", label: "From variable" },
-];
-
 const unitOptions = DATE_ORIGIN_UNITS.map((unit) => ({
 	value: unit,
 	label: unit,
 }));
 
-const selectedKind = $derived(dateOrigin?.kind === "now" ? "" : (dateOrigin?.kind ?? ""));
+const selectedPreset = $derived(dateOriginToPreset(dateOrigin));
 const askOrigin = $derived(dateOrigin?.kind === "ask" ? dateOrigin : undefined);
-const relativeOrigin = $derived(
-	dateOrigin?.kind === "relative" ? dateOrigin : undefined,
+const customOrigin = $derived(
+	selectedPreset === "custom" && dateOrigin?.kind === "relative"
+		? dateOrigin
+		: undefined,
 );
 const variableOrigin = $derived(
 	dateOrigin?.kind === "variable" ? dateOrigin : undefined,
 );
+const askDefaultId = $derived(askDefaultToPresetId(askOrigin?.defaultValue));
+const askDefaultChoices = $derived(askDefaultOptions(askOrigin?.defaultValue));
 
-function onKindChange(value: string) {
-	if (value === "ask") {
-		dateOrigin = { kind: "ask" };
-		return;
-	}
-	if (value === "relative") {
-		dateOrigin = { kind: "relative", offset: -1, unit: "weeks" };
-		return;
-	}
-	if (value === "variable") {
-		dateOrigin = { kind: "variable", name: "" };
-		return;
-	}
-	dateOrigin = undefined;
+function onPresetChange(value: string) {
+	if (!isDateOriginPreset(value)) return;
+	dateOrigin = dateOriginFromPreset({
+		preset: value,
+		previous: dateOrigin,
+	});
 }
 
-function onDefaultChange(value: string) {
+function onAskDefaultChange(value: string) {
 	if (dateOrigin?.kind !== "ask") return;
-	const trimmed = value.trim();
-	dateOrigin = trimmed ? { kind: "ask", defaultValue: trimmed } : { kind: "ask" };
+	const defaultValue = askDefaultFromPresetId(value, dateOrigin.defaultValue);
+	dateOrigin = defaultValue
+		? { kind: "ask", defaultValue }
+		: { kind: "ask" };
 }
 
 function onOffsetChange(value: string) {
@@ -62,8 +70,8 @@ function onOffsetChange(value: string) {
 
 function onUnitChange(value: string) {
 	if (dateOrigin?.kind !== "relative") return;
-	if (!(DATE_ORIGIN_UNITS as readonly string[]).includes(value)) return;
-	dateOrigin = { ...dateOrigin, unit: value as DateOriginUnit };
+	if (!isDateOriginUnit(value)) return;
+	dateOrigin = { ...dateOrigin, unit: value };
 }
 
 function onVariableChange(value: string) {
@@ -72,51 +80,48 @@ function onVariableChange(value: string) {
 }
 </script>
 
-<SettingItem
-	name="Date origin"
-	desc={"Which day {{DATE}} formats and offsets from. Time tokens stay the current clock. Today is the default. Ask uses the date picker (lw, last week, a calendar click). Relative is for a last-week or next-year hotkey. From variable reads a VDATE or script value."}
->
+<SettingItem name={DATE_ORIGIN_SETTING_NAME} desc={DATE_ORIGIN_SETTING_DESC}>
 	{#snippet control()}
-		<Dropdown value={selectedKind} options={kindOptions} onchange={onKindChange} />
+		<Dropdown
+			value={selectedPreset}
+			options={DATE_ORIGIN_PRESET_OPTIONS}
+			onchange={onPresetChange}
+		/>
 	{/snippet}
 </SettingItem>
 
 {#if askOrigin}
-	<SettingItem
-		name="Date origin default"
-		desc="Natural language shown in the picker, such as today or last week. Leave empty for today."
-	>
+	<SettingItem name={ASK_DEFAULT_SETTING_NAME} desc={ASK_DEFAULT_SETTING_DESC}>
 		{#snippet control()}
-			<input
-				type="text"
-				class="qa-validated-input-full-width"
-				value={askOrigin.defaultValue ?? ""}
-				placeholder="today"
-				aria-label="Date origin default"
-				oninput={(event) =>
-					onDefaultChange((event.currentTarget as HTMLInputElement).value)}
+			<Dropdown
+				value={askDefaultId}
+				options={askDefaultChoices}
+				onchange={onAskDefaultChange}
 			/>
 		{/snippet}
 	</SettingItem>
 {/if}
 
-{#if relativeOrigin}
+{#if customOrigin}
 	<SettingItem
-		name="Date origin offset"
-		desc="Move the origin from today. −1 week is last week."
+		name={CUSTOM_OFFSET_SETTING_NAME}
+		desc={CUSTOM_OFFSET_SETTING_DESC}
 	>
 		{#snippet control()}
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
-				value={String(relativeOrigin.offset)}
-				placeholder="-1"
-				aria-label="Date origin offset"
-				oninput={(event) =>
-					onOffsetChange((event.currentTarget as HTMLInputElement).value)}
+				value={String(customOrigin.offset)}
+				placeholder="-2"
+				aria-label={CUSTOM_OFFSET_SETTING_NAME}
+				oninput={(event) => {
+					const target = event.currentTarget;
+					if (!(target instanceof HTMLInputElement)) return;
+					onOffsetChange(target.value);
+				}}
 			/>
 			<Dropdown
-				value={relativeOrigin.unit}
+				value={customOrigin.unit}
 				options={unitOptions}
 				onchange={onUnitChange}
 			/>
@@ -125,19 +130,19 @@ function onVariableChange(value: string) {
 {/if}
 
 {#if variableOrigin}
-	<SettingItem
-		name="Date origin variable"
-		desc="Name of a VDATE or script variable that already holds the day."
-	>
+	<SettingItem name={VARIABLE_SETTING_NAME} desc={VARIABLE_SETTING_DESC}>
 		{#snippet control()}
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
 				value={variableOrigin.name}
 				placeholder="day"
-				aria-label="Date origin variable"
-				oninput={(event) =>
-					onVariableChange((event.currentTarget as HTMLInputElement).value)}
+				aria-label={VARIABLE_SETTING_NAME}
+				oninput={(event) => {
+					const target = event.currentTarget;
+					if (!(target instanceof HTMLInputElement)) return;
+					onVariableChange(target.value);
+				}}
 			/>
 		{/snippet}
 	</SettingItem>

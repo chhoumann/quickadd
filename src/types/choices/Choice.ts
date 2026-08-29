@@ -1,12 +1,14 @@
 import type { ChoiceType } from "./choiceType";
 import { v4 as uuidv4 } from "uuid";
 import type IChoice from "./IChoice";
+import type { DateOrigin } from "../dateOrigin";
 
 export abstract class Choice implements IChoice {
 	id: string;
 	name: string;
 	type: ChoiceType;
 	command: boolean;
+	dateOrigin?: DateOrigin;
 	onePageInput?: "always" | "never" | undefined;
 	icon?: string;
 

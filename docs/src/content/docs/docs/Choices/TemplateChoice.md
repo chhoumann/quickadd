@@ -194,27 +194,26 @@ Selecting an existing note opens it unchanged and does **not** apply the
 template, append template content, insert links, or copy links. Selecting the
 explicit **Create new note** row continues with normal Template creation.
 
-## Pick the day `{{DATE}}` is about: Date origin {#date-origin}
+## Which day `{{DATE}}` is about {#date-origin}
 
-**Date origin** tells a run which calendar day `{{DATE}}` formats, offsets, and
-snaps from. The template does not change. `{{TIME}}` and `{{DATE:HH:mm}}` stay
-the current clock.
+**Which day** is the calendar day `{{DATE}}` uses. The clock (`{{TIME}}`) stays
+now. The template file does not change.
 
 - **Today** (default). Same as before this setting existed.
-- **Ask**. Opens the date picker. Type `lw`, `last friday`, or click a day.
-  Existing aliases (`yd`, `nw`, `ly`, …) work. An optional default such as
-  `today` or `last week` fills the picker.
-- **Relative**. Move from today by a number of days, weeks, months, or years.
-  Use this for a "last week's review" hotkey.
-- **From variable**. Read a `{{VDATE}}` or script variable that already holds
-  the day.
+- **Ask each time**. Opens a date picker so you can file the note for another
+  day. **Picker starts on** sets the first day in that picker.
+- **Yesterday**, **Last week**, **Next week**, **Last month**. For a catch-up
+  daily, last week's review, or next week's plan.
+- **Custom…**. Any other number of days, weeks, months, or years from today.
+- **A variable…**. A `{{VDATE}}` or script value that already has the day.
 
-Two choices can share one template file. One stays Today. One is Ask. A weekly
-note that uses `|startof:week` still files the picked day under the right week.
+Two choices can share one template file. One stays Today. One asks each time. A
+weekly note that uses `|startof:week` still files the picked day under the
+right week.
 
-Scripts and the CLI can set the same origin without the picker:
-`executeChoice("Weekly review", {}, { date: "lw" })` and
-`quickadd:run choice="Weekly review" date=lw`.
+Scripts and the CLI can set the day without the picker:
+`executeChoice("Weekly review", {}, { date: "last week" })` and
+`quickadd:run choice="Weekly review" date="last week"`.
 
 ## Decide where the note is created: New note location {#new-note-location}
 

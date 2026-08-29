@@ -33,9 +33,9 @@ obsidian vault=dev quickadd:run id="choice-id"
 obsidian vault=dev quickadd:run choice="Weekly review" date=lw
 ```
 
-`date=` sets the run's calendar origin for `{{DATE}}`. It accepts `YYYY-MM-DD`,
-natural language (`last friday`), or aliases (`lw`, `ly`, `nw`). The choice's
-**Date origin** setting is skipped when `date=` is present.
+`date=` sets the day `{{DATE}}` uses. It accepts `YYYY-MM-DD`, natural language
+(`last friday`), or aliases (`lw`, `ly`, `nw`). The choice's **Which day**
+setting is skipped when `date=` is present.
 
 ### List your choices: `quickadd:list` {#quickaddlist}
 

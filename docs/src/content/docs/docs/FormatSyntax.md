@@ -82,12 +82,11 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 
 `{{DATE}}` becomes today's date in `YYYY-MM-DD` format.
 
-A Template, Capture, or Macro can set a **date origin** so the same tokens
-follow another day. Offsets and snaps still apply. `{{TIME}}` and
-`{{DATE:HH:mm}}` stay the current clock. See
-[Date origin](/docs/Choices/TemplateChoice/#date-origin).
+A Template, Capture, or Macro can pick another day for these tokens. Offsets
+and snaps still apply. `{{TIME}}` and `{{DATE:HH:mm}}` stay the current clock.
+See [Which day](/docs/Choices/TemplateChoice/#date-origin).
 
-Add `+N` to move the date: `{{DATE+3}}` is three days from the origin,
+Add `+N` to move the date: `{{DATE+3}}` is three days from that day,
 `{{DATE+-3}}` is three days before it.
 
 ```markdown title="You write"

@@ -297,7 +297,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 		if (this.interactive === false && !this.promptProvider) {
 			throw new ChoiceAbortError(
-				`"${choice.name}" asks for a date origin. Re-run with date= or the ui flag.`,
+				`"${choice.name}" needs a date. Re-run with date= or the ui flag.`,
 			);
 		}
 

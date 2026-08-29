@@ -33,11 +33,44 @@ describe("MacroBuilder", () => {
 		);
 		const children = Array.from(modal.contentEl.children);
 
+		expect(modal.contentEl.textContent).toContain("Which day");
+		expect(modal.contentEl.textContent).toContain("Ask each time");
 		expect(children.at(-2)?.textContent).toContain("Run on startup");
 		expect(children.at(-1)?.textContent).toContain("Icon");
 		expect(children.at(-1)?.textContent).toContain(
 			"Lucide/Obsidian icon id",
 		);
+	});
+
+	it("shows the ask picker default and keeps icon last", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.dateOrigin = { kind: "ask", defaultValue: "last week" };
+		const modal = new MacroBuilder(
+			new App(),
+			{ settings: { choices: [] } } as unknown as QuickAdd,
+			choice,
+			[],
+		);
+		const children = Array.from(modal.contentEl.children);
+
+		expect(modal.contentEl.textContent).toContain("Picker starts on");
+		expect(modal.contentEl.textContent).toContain("Last week");
+		expect(children.at(-2)?.textContent).toContain("Run on startup");
+		expect(children.at(-1)?.textContent).toContain("Icon");
+	});
+
+	it("shows a custom offset only for unmatched relatives", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.dateOrigin = { kind: "relative", offset: -3, unit: "days" };
+		const modal = new MacroBuilder(
+			new App(),
+			{ settings: { choices: [] } } as unknown as QuickAdd,
+			choice,
+			[],
+		);
+
+		expect(modal.contentEl.textContent).toContain("How far from today");
+		expect(modal.contentEl.textContent).toContain("Custom…");
 	});
 
 	// #1545: the builder autosaves on close but never said so, and had no

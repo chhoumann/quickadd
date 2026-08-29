@@ -86,7 +86,7 @@ const RUN_FLAGS: CliFlags = {
 	date: {
 		value: "<when>",
 		description:
-			"Calendar origin for {{DATE}} (YYYY-MM-DD, last friday, lw, @date:ISO)",
+			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, @date:ISO)",
 	},
 };
 
@@ -115,7 +115,7 @@ const RUN_TEMPLATE_FLAGS: CliFlags = {
 	date: {
 		value: "<when>",
 		description:
-			"Calendar origin for {{DATE}} (YYYY-MM-DD, last friday, lw, @date:ISO)",
+			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, @date:ISO)",
 	},
 };
 

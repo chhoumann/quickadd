@@ -7,8 +7,7 @@ export default interface IChoice {
 	type: ChoiceType;
 	command: boolean;
 	/**
-	 * How this choice picks the run's calendar origin for `{{DATE}}`.
-	 * Undefined means inherit the run (or today).
+	 * Which day `{{DATE}}` uses. Undefined means today (or a parent run).
 	 */
 	dateOrigin?: DateOrigin;
 	/** Per-choice override for one-page flow. undefined = follow global setting */
