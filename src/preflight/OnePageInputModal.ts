@@ -26,7 +26,7 @@ type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
 };
 
-import type { FieldRequirement } from "./RequirementCollector";
+import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
 import type { ImagePasteHandle } from "src/gui/imagePasteHandler";
 import { attachImagePasteHandler } from "src/gui/imagePasteHandler";
 import {
@@ -55,6 +55,32 @@ export type PreviewRow = {
 	text: string;
 	diagnostics: readonly PreviewDiagnostic[];
 };
+
+type RequirementRun = {
+	group: FieldGroup | undefined;
+	fields: FieldRequirement[];
+};
+
+function groupRequirements(requirements: FieldRequirement[]): RequirementRun[] {
+	const runs: RequirementRun[] = [];
+	for (const field of requirements) {
+		const last = runs.at(-1);
+		if (last && last.group?.id === field.group?.id) {
+			last.fields.push(field);
+		} else {
+			runs.push({ group: field.group, fields: [field] });
+		}
+	}
+	return runs;
+}
+
+function hasMultipleGroups(requirements: FieldRequirement[]): boolean {
+	const ids = new Set<string>();
+	for (const field of requirements) {
+		if (field.group) ids.add(field.group.id);
+	}
+	return ids.size >= 2;
+}
 
 type PreviewComputer = (
 	values: Record<string, unknown>,
@@ -137,8 +163,19 @@ export class OnePageInputModal extends Modal {
 			this.previewContainerEl.addClass("qa-onepage-preview", "qa-hidden");
 		}
 
-		// Render fields
-		this.requirements.forEach((req) => this.renderField(req));
+		if (hasMultipleGroups(this.requirements)) {
+			for (const run of groupRequirements(this.requirements)) {
+				if (run.group) {
+					this.contentEl.createEl("h3", {
+						text: run.group.label,
+						cls: "qa-onepage-section",
+					});
+				}
+				for (const req of run.fields) this.renderField(req);
+			}
+		} else {
+			this.requirements.forEach((req) => this.renderField(req));
+		}
 
 		// AFTER the fields: `this.result` is populated inside renderField, so the
 		// first pass used to run against an empty map and flash a stand-in

@@ -4,7 +4,6 @@ import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatte
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { VALUE_SYNTAX } from "src/constants";
 import { MacroAbortError } from "src/errors/MacroAbortError";
 import { log } from "src/logger/logManager";
 import { OnePageInputModal, type PreviewRow } from "./OnePageInputModal";
@@ -18,7 +17,6 @@ import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
 } from "./collectChoiceRequirements";
-import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import type { FormAnswer } from "src/interactive/promptProvider";
 
 /**
@@ -88,19 +86,6 @@ export function orderOnePageFilePicks(
 	];
 }
 
-function shouldPromptAtRuntimeForDiscovery(
-	choice: IChoice,
-	requirementId: string,
-): boolean {
-	if (choice.type !== "Template" || requirementId !== "value") return false;
-
-	const templateChoice = choice as ITemplateChoice;
-	const format = templateChoice.fileNameFormat?.enabled
-		? templateChoice.fileNameFormat.format
-		: VALUE_SYNTAX;
-	return shouldLeaveTemplateTitleForDiscovery(templateChoice, format);
-}
-
 export async function runOnePagePreflight(
 	app: App,
 	plugin: QuickAdd,
@@ -132,9 +117,7 @@ export async function runOnePagePreflight(
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
 		const modalRequirements = unresolved.filter(
-			(requirement) =>
-				!requirement.runtimeOnly &&
-				!shouldPromptAtRuntimeForDiscovery(choice, requirement.id),
+			(requirement) => !requirement.runtimeOnly,
 		);
 		if (modalRequirements.length === 0) return false;
 
