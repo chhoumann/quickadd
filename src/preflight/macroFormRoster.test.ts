@@ -249,7 +249,7 @@ describe("buildFormRoster", () => {
 		]);
 	});
 
-	it("does not treat a nested Macro as opaque for later siblings", () => {
+	it("defers a later capture after a nested Macro", () => {
 		const later = captureChoice("later-cap", { name: "Later capture" });
 		const nestedMacro: IChoice = {
 			id: "inner-macro",
@@ -262,10 +262,47 @@ describe("buildFormRoster", () => {
 			macroChoice(nestedChoice(nestedMacro), nestedChoice(later)),
 		);
 
-		expect(
-			roster.members
-				.filter((entry) => entry.kind === "choice")
-				.map((entry) => entry.choice.id),
-		).toEqual(["later-cap"]);
+		expect(roster.members).toEqual([]);
+		expect(roster.deferred).toEqual([
+			{ label: "Inner macro", reason: "nestedMacroGroup" },
+			{ label: "Later capture", reason: "afterOpaqueStep" },
+		]);
+	});
+
+	it("defers a later capture after a Multi", () => {
+		const later = captureChoice("later-cap", { name: "Later capture" });
+		const nestedMulti: IChoice = {
+			id: "inner-multi",
+			name: "Inner multi",
+			type: "Multi",
+			command: false,
+		};
+		const roster = buildFormRoster(
+			noChoices(),
+			macroChoice(nestedChoice(nestedMulti), nestedChoice(later)),
+		);
+
+		expect(roster.members).toEqual([]);
+		expect(roster.deferred).toEqual([
+			{ label: "Inner multi", reason: "interactivePicker" },
+			{ label: "Later capture", reason: "afterOpaqueStep" },
+		]);
+	});
+
+	it("defers a later capture after a Conditional", () => {
+		const later = captureChoice("later-cap", { name: "Later capture" });
+		const roster = buildFormRoster(
+			noChoices(),
+			macroChoice(
+				conditionalCommand("cond", "If project", []),
+				nestedChoice(later),
+			),
+		);
+
+		expect(roster.members).toEqual([]);
+		expect(roster.deferred).toEqual([
+			{ label: "If project", reason: "conditionalBranch" },
+			{ label: "Later capture", reason: "afterOpaqueStep" },
+		]);
 	});
 });

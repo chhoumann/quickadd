@@ -2136,6 +2136,40 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		]);
 	});
 
+	it("defers a later capture after a nested Macro", async () => {
+		const later = {
+			...createCaptureChoice("Inbox"),
+			id: "later-cap",
+			name: "Later capture",
+		};
+		const nestedMacro: IMacroChoice = {
+			id: "inner-macro",
+			name: "Inner macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "inner-macro",
+				name: "Inner macro",
+				commands: [],
+			},
+		};
+		const macro = createMacroChoice(nestedChoice(nestedMacro), nestedChoice(later));
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			macro,
+		);
+
+		expect(requirements).toEqual([]);
+		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
+			{ label: "Inner macro", reason: "nestedMacroGroup" },
+			{ label: "Later capture", reason: "afterOpaqueStep" },
+		]);
+	});
+
 	it("collects a Choice command Capture when getChoiceById resolves it", async () => {
 		const capture = {
 			...createCaptureChoice("Projects"),

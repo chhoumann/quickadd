@@ -20,10 +20,11 @@ Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 It works with Template, Capture, and Macro choices.
 
 For a Macro, this-level NestedChoice and Choice members that resolve to Template
-or Capture appear on the macro's form. A nested Macro is a separate page.
-Conditional branches are not collected up front. A UserScript or AI command
-defers later Template and Capture members on this page (script-declared
-`quickadd.inputs` still hoist; see
+or Capture appear on the macro's form until the first step that can change later
+inputs. A nested Macro, Multi, Conditional, UserScript, or AI command ends this
+page. Later Template and Capture members wait. A nested Macro is its own page.
+Conditional branches are not entered. Script-declared `quickadd.inputs` still
+hoist after an opaque script (see
 [User scripts](#user-scripts-declare-inputs-optional)). Set a member's
 **One-page input override** to **Never** to keep it off this page.
 

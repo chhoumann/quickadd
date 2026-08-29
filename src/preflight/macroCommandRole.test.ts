@@ -51,7 +51,7 @@ const TABLE: Array<{
 		resolve: resolveMap({ "macro-1": choiceStub("Macro", "macro-1") }),
 		expected: {
 			collectKind: "none",
-			opaque: null,
+			opaque: "nestedMacroGroup",
 			deferred: "nestedMacroGroup",
 		},
 	},
@@ -82,7 +82,7 @@ const TABLE: Array<{
 		}),
 		expected: {
 			collectKind: "none",
-			opaque: null,
+			opaque: "nestedMacroGroup",
 			deferred: "nestedMacroGroup",
 		},
 	},
@@ -94,7 +94,7 @@ const TABLE: Array<{
 		}),
 		expected: {
 			collectKind: "none",
-			opaque: null,
+			opaque: "interactivePicker",
 			deferred: "interactivePicker",
 		},
 	},
@@ -130,7 +130,7 @@ const TABLE: Array<{
 		}),
 		expected: {
 			collectKind: "none",
-			opaque: null,
+			opaque: "conditionalBranch",
 			deferred: "conditionalBranch",
 		},
 	},
@@ -188,6 +188,6 @@ describe("classifyStep", () => {
 		);
 		expect(role.collect.kind).toBe("none");
 		expect(role.deferred).toBe("conditionalBranch");
-		expect(role.opaque).toBeNull();
+		expect(role.opaque).toBe("conditionalBranch");
 	});
 });

@@ -31,6 +31,10 @@ function noneRole(deferred: DeferralReason | null = null): StepRole {
 	return { collect: { kind: "none" }, opaque: null, deferred };
 }
 
+function cutRole(reason: DeferralReason): StepRole {
+	return { collect: { kind: "none" }, opaque: reason, deferred: reason };
+}
+
 export function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
 	return choice.type === "Template";
 }
@@ -54,9 +58,9 @@ function roleForResolvedChoice(choice: IChoice | null): StepRole {
 			}
 			return noneRole("unresolvableChoice");
 		case "Macro":
-			return noneRole("nestedMacroGroup");
+			return cutRole("nestedMacroGroup");
 		case "Multi":
-			return noneRole("interactivePicker");
+			return cutRole("interactivePicker");
 		default: {
 			const _exhaustive: never = choice.type;
 			return _exhaustive;
@@ -90,7 +94,7 @@ export function classifyStep(
 				deferred: null,
 			};
 		case CommandType.Conditional:
-			return noneRole("conditionalBranch");
+			return cutRole("conditionalBranch");
 		case CommandType.Obsidian:
 		case CommandType.EditorCommand:
 		case CommandType.Wait:
