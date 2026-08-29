@@ -111,6 +111,23 @@ describe("{{DATE}} snap through replaceDateInString", () => {
 		expect(f.renderDate("{{DATE:YYYY-MM-DD+7|startof:week}}")).toBe("2023-06-04");
 	});
 
+	it("renders the documented +N day offsets from issue #1704", () => {
+		expect(f.renderDate("{{DATE}}")).toBe("2023-06-01");
+		expect(f.renderDate("{{DATE:YYYY-MM-DD}}")).toBe("2023-06-01");
+		expect(f.renderDate("{{DATE+3}}")).toBe("2023-06-04");
+		expect(f.renderDate("{{DATE:YYYY-MM-DD+3}}")).toBe("2023-06-04");
+		expect(f.renderDate("{{DATE+-3}}")).toBe("2023-05-29");
+		// DATE_REGEX is case-insensitive; lowercase must not fall through to
+		// Moment as a format suffix (the 2026-08-26+3 concatenation symptom).
+		expect(f.renderDate("{{date+3}}")).toBe("2023-06-04");
+		expect(f.renderDate("{{date:YYYY-MM-DD+3}}")).toBe("2023-06-04");
+		expect(
+			f.renderDate(
+				"# works\n{{DATE:YYYY-MM-DD}}\n\n{{DATE}}\n\n# buggy\n{{DATE:YYYY-MM-DD+3}}\n\n{{DATE+3}}\n",
+			),
+		).toBe("# works\n2023-06-01\n\n2023-06-01\n\n# buggy\n2023-06-04\n\n2023-06-04\n");
+	});
+
 	it("keeps a literal pipe byte-identical and a [literal |startof: x] intact", () => {
 		expect(f.renderDate("{{DATE:YYYY|MM}}")).toBe("2023|06");
 		expect(
