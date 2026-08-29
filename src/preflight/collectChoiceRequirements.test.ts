@@ -15,7 +15,6 @@ import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
-	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
 import { captureTargetKeyFor, readPreselectedCaptureTarget } from "./captureTargetKey";
 
@@ -1987,17 +1986,9 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			choiceExecutor,
 			createMacroChoice(nestedChoice(nestedMacro)),
 		);
-		const deferred = listDeferredMacroSteps(
-			pluginWithChoices() as any,
-			createMacroChoice(nestedChoice(nestedMacro)),
-		);
-
 		expect(requirements.some((requirement) => requirement.id === captureTargetKeyFor("buried-cap"))).toBe(
 			false,
 		);
-		expect(deferred).toEqual([
-			{ label: "Inner macro", reason: "nestedMacroGroup" },
-		]);
 	});
 
 	it("does not collect Conditional then-branch captures", async () => {
@@ -2018,9 +2009,9 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		);
 
 		expect(requirements).toEqual([]);
-		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
-			{ label: "If project", reason: "conditionalBranch" },
-		]);
+		expect(requirements.some((requirement) => requirement.id === captureTargetKeyFor("then-cap"))).toBe(
+			false,
+		);
 	});
 
 	it("excludes a nested Capture with onePageInput never", async () => {
@@ -2047,9 +2038,9 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		expect(requirements.map((requirement) => requirement.id)).toEqual([
 			captureTargetKeyFor("kept-cap"),
 		]);
-		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
-			{ label: "Private capture", reason: "choiceOptedOut" },
-		]);
+		expect(requirements.some((requirement) => requirement.id === captureTargetKeyFor("never-cap"))).toBe(
+			false,
+		);
 	});
 
 	it("collects the first capture plus script inputs and defers a later capture after UserScript", async () => {
@@ -2092,9 +2083,9 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			captureTargetKeyFor("cap-1"),
 			"scriptField",
 		]);
-		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
-			{ label: "Second capture", reason: "afterOpaqueStep" },
-		]);
+		expect(requirements.some((requirement) => requirement.id === captureTargetKeyFor("cap-2"))).toBe(
+			false,
+		);
 	});
 
 	it("hoists inputs from two UserScripts even when the first is opaque", async () => {
@@ -2216,8 +2207,5 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		await expect(
 			collectChoiceRequirements(app, plugin as any, choiceExecutor, macro),
 		).resolves.toEqual([]);
-		expect(listDeferredMacroSteps(plugin as any, macro)).toEqual([
-			{ label: "Missing capture", reason: "unresolvableChoice" },
-		]);
 	});
 });

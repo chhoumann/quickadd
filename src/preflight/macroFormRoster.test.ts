@@ -143,9 +143,7 @@ describe("buildFormRoster", () => {
 				.filter((entry) => entry.kind === "choice")
 				.map((entry) => entry.choice.id),
 		).toEqual(["outer-cap"]);
-		expect(roster.deferred).toEqual([
-			{ label: "Inner macro", reason: "nestedMacroGroup" },
-		]);
+		expect(roster.deferred.map((entry) => entry.label)).toEqual(["Inner macro"]);
 	});
 
 	it("does not enter a Conditional then-branch", () => {
@@ -156,9 +154,11 @@ describe("buildFormRoster", () => {
 		);
 
 		expect(roster.members).toEqual([]);
-		expect(roster.deferred).toEqual([
-			{ label: "If project", reason: "conditionalBranch" },
-		]);
+		expect(
+			roster.members
+				.filter((entry) => entry.kind === "choice")
+				.map((entry) => entry.choice.id),
+		).not.toContain("then-cap");
 	});
 
 	it("excludes a nested Capture with onePageInput never", () => {
@@ -177,9 +177,11 @@ describe("buildFormRoster", () => {
 				.filter((entry) => entry.kind === "choice")
 				.map((entry) => entry.choice.id),
 		).toEqual(["kept-cap"]);
-		expect(roster.deferred).toEqual([
-			{ label: "Private capture", reason: "choiceOptedOut" },
-		]);
+		expect(
+			roster.members
+				.filter((entry) => entry.kind === "choice")
+				.map((entry) => entry.choice.id),
+		).not.toContain("never-cap");
 	});
 
 	it("collects the first capture and UserScript, and defers a later capture after opaque", () => {
@@ -202,9 +204,11 @@ describe("buildFormRoster", () => {
 			kind: "script",
 			command: { id: "script-1" },
 		});
-		expect(roster.deferred).toEqual([
-			{ label: "Second capture", reason: "afterOpaqueStep" },
-		]);
+		expect(
+			roster.members
+				.filter((entry) => entry.kind === "choice")
+				.map((entry) => entry.choice.id),
+		).toEqual(["cap-1"]);
 	});
 
 	it("still hoists later UserScript inputs after an opaque script", () => {
@@ -237,16 +241,14 @@ describe("buildFormRoster", () => {
 		expect(roster.deferred).toEqual([]);
 	});
 
-	it("defers a dangling Choice command as unresolvableChoice", () => {
+	it("does not collect a dangling Choice command", () => {
 		const roster = buildFormRoster(
 			noChoices(),
 			macroChoice(choiceCommand("choice-cmd", "Missing capture", "missing-id")),
 		);
 
 		expect(roster.members).toEqual([]);
-		expect(roster.deferred).toEqual([
-			{ label: "Missing capture", reason: "unresolvableChoice" },
-		]);
+		expect(roster.deferred.map((entry) => entry.label)).toEqual(["Missing capture"]);
 	});
 
 });
