@@ -10,12 +10,12 @@ export interface InputPromptOptions {
 	/** Token carries |optional: show a Skip button and accept empty submissions as the answer. */
 	optional?: boolean;
 	/**
-	 * Accept clipboard IMAGE paste: the image is saved as a vault attachment
-	 * (via Obsidian's attachment-folder settings) and an embed link is
-	 * inserted at the caret. Clipboard text always wins over an image. Set
-	 * ONLY for prompts whose value flows into note content as free text -
-	 * never for file-name/folder/path prompts, where an embed link would
-	 * corrupt the path.
+	 * Accept clipboard image paste and dropped image files. Each image is
+	 * saved as a vault attachment and an embed link is inserted at the caret.
+	 * Clipboard text wins on paste. Image files win on drop because file
+	 * managers include the filesystem path as text. Set ONLY for prompts whose
+	 * value flows into note content as free text, never for file-name, folder,
+	 * or path prompts.
 	 */
 	imagePaste?: {
 		/** Note path the link will live in when known; "" (default) emits vault-root links that resolve from anywhere. */
