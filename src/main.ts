@@ -44,6 +44,7 @@ import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import {
 	anotherDayCommandId,
 	anotherDayCommandName,
+	choiceCommandId,
 	shouldRegisterAnotherDayCommand,
 } from "./types/dateOriginPresets";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
@@ -593,7 +594,7 @@ export default class QuickAdd extends Plugin {
 			const choiceId = choice.id;
 
 			this.addCommand({
-				id: `choice:${choiceId}`,
+				id: choiceCommandId(choiceId),
 				name: choice.name,
 				icon: resolveChoiceIcon(choice),
 				callback: () => this.runRegisteredChoice(choiceId, choice.name),
@@ -730,7 +731,7 @@ export default class QuickAdd extends Plugin {
 			}
 		}
 
-		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
+		deleteObsidianCommand(this.app, `quickadd:${choiceCommandId(choice.id)}`);
 		deleteObsidianCommand(
 			this.app,
 			`quickadd:${anotherDayCommandId(choice.id)}`,

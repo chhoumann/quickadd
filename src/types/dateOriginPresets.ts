@@ -207,8 +207,12 @@ export function shouldRegisterAnotherDayCommand(
 	return dateOriginToPreset(origin) !== "ask";
 }
 
+export function choiceCommandId(choiceId: string): string {
+	return `choice:${choiceId}`;
+}
+
 export function anotherDayCommandId(choiceId: string): string {
-	return `choice:${choiceId}:another-day`;
+	return `${choiceCommandId(choiceId)}:another-day`;
 }
 
 export function anotherDayCommandName(choiceName: string): string {

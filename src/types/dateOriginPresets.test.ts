@@ -5,6 +5,8 @@ import {
 	askDefaultFromPresetId,
 	askDefaultOptions,
 	askDefaultToPresetId,
+	anotherDayCommandId,
+	choiceCommandId,
 	dateOriginForPick,
 	dateOriginFromPreset,
 	dateOriginToPreset,
@@ -186,5 +188,14 @@ describe("another-day command", () => {
 		expect(isPickDateToken("ask")).toBe(true);
 		expect(isPickDateToken("ASK")).toBe(true);
 		expect(isPickDateToken("last week")).toBe(false);
+	});
+
+	it("keeps the existing choice command id so hotkeys stay bound", () => {
+		const id = "weekly-review-ask";
+		expect(choiceCommandId(id)).toBe("choice:weekly-review-ask");
+		expect(anotherDayCommandId(id)).toBe(
+			"choice:weekly-review-ask:another-day",
+		);
+		expect(anotherDayCommandId(id)).not.toBe(choiceCommandId(id));
 	});
 });

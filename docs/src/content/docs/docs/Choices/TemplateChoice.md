@@ -209,7 +209,9 @@ now. The template file does not change.
 
 Leave Which day on Today for a daily you usually open today. The same choice
 also gets **Name (another day)** in the command palette. Hold Shift in the
-QuickAdd menu for the same pick. You do not need a second choice.
+QuickAdd menu for the same pick. You do not need a second choice. The original
+command id stays `quickadd:choice:<id>`, so an existing hotkey keeps working.
+**Name (another day)** is a new command you can bind separately.
 
 Two choices can still share one template file if you want one that always asks
 and one that never does. A weekly note that uses `|startof:week` files the

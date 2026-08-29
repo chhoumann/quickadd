@@ -285,6 +285,7 @@ want the note's day.
 For a daily you usually open today, leave Which day on Today. Use
 **Daily log (another day)** in the command palette, or hold Shift in the
 QuickAdd menu, when you want a different day. You do not need a second choice.
+The original command id is unchanged, so an existing hotkey still runs today.
 
 ### Use your selection as the answer {#use-editor-selection}
 
