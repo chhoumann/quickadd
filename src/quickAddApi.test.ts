@@ -1005,9 +1005,12 @@ describe("executeChoice", () => {
 	it("rejects an invalid Date origin and does not execute", async () => {
 		const executor = makeChoiceExecutor();
 		const { api } = getApi(makeApp(), makePlugin(), executor);
-		await api.executeChoice("C", undefined, { date: new Date("bad") });
+		executor.variables.set("keep", "caller");
+		await api.executeChoice("C", { leak: "nope" }, { date: new Date("bad") });
 		expect(executor.execute).not.toHaveBeenCalled();
 		expect(mocks.reportError).toHaveBeenCalled();
+		expect(executor.variables.get("keep")).toBe("caller");
+		expect(executor.variables.has("leak")).toBe(false);
 	});
 });
 

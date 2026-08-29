@@ -414,12 +414,6 @@ export class QuickAddApi {
 					return;
 				}
 
-				if (variables) {
-					Object.keys(variables).forEach((key) => {
-						choiceExecutor.variables.set(key, variables[key]);
-					});
-				}
-
 				if (options?.date !== undefined) {
 					const date = dateFromStoredValue(options.date);
 					if (!date) {
@@ -433,6 +427,12 @@ export class QuickAddApi {
 						now: choiceExecutor.clocks?.now ?? new Date(),
 						date,
 					};
+				}
+
+				if (variables) {
+					Object.keys(variables).forEach((key) => {
+						choiceExecutor.variables.set(key, variables[key]);
+					});
 				}
 
 				// The clear stays on the non-throw path only, deliberately: this
