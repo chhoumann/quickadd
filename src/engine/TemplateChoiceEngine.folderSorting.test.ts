@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { inputSuggestMock } = vi.hoisted(() => ({
+const { inputSuggestMock, setTargetFolderPath } = vi.hoisted(() => ({
 	inputSuggestMock: vi.fn(),
+	setTargetFolderPath: vi.fn(),
 }));
 
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({
@@ -20,6 +21,9 @@ vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class {
 		setLinkToCurrentFileBehavior() {}
 		setPromptRunContext() {}
+		setTargetFolderPath(path: string | null) {
+			setTargetFolderPath(path);
+		}
 		async formatTemplateFilePath(input: string): Promise<string> {
 			return input;
 		}
@@ -133,6 +137,7 @@ function getSuggestedItems(): string[] {
 describe("TemplateChoiceEngine folder suggestions", () => {
 	beforeEach(() => {
 		inputSuggestMock.mockReset();
+		setTargetFolderPath.mockReset();
 		inputSuggestMock.mockImplementation(
 			async (
 				_app: App,
@@ -197,5 +202,71 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			"A/B1",
 			"A/B2",
 		]);
+	});
+
+	it("creates in the specified folder when Include subfolders is off (#1705)", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["LiteratureNotes/1_Articles"],
+				chooseFromSubfolders: false,
+			}),
+			[
+				"LiteratureNotes/1_Articles",
+				"LiteratureNotes/1_Articles/2026",
+				"LiteratureNotes/1_Articles/2026/08-August",
+			],
+			createActiveFile("LiteratureNotes/1_Articles/2026/08-August"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+		expect(setTargetFolderPath).toHaveBeenCalledWith(
+			"LiteratureNotes/1_Articles",
+		);
+	});
+
+	it("still offers the current-folder shortcut when several specified folders already require a chooser", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["LiteratureNotes/1_Articles", "LiteratureNotes/2_Books"],
+				chooseFromSubfolders: false,
+			}),
+			[
+				"LiteratureNotes/1_Articles",
+				"LiteratureNotes/2_Books",
+			],
+			createActiveFile("LiteratureNotes/1_Articles/2026"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+		expect(inputSuggestMock.mock.calls[0][1]).toEqual([
+			"<current folder>",
+			"LiteratureNotes/1_Articles",
+			"LiteratureNotes/2_Books",
+		]);
+		expect(getSuggestedItems()).toEqual([
+			"LiteratureNotes/1_Articles/2026",
+			"LiteratureNotes/1_Articles",
+			"LiteratureNotes/2_Books",
+		]);
+	});
+
+	it("uses the active file's folder when specified mode has no configured folders", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: [],
+				chooseFromSubfolders: false,
+			}),
+			["Current"],
+			createActiveFile("Current"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+		expect(setTargetFolderPath).toHaveBeenCalledWith("Current");
 	});
 });

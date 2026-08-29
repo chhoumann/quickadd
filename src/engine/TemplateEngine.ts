@@ -146,12 +146,21 @@ export abstract class TemplateEngine extends QuickAddEngine {
 		folders: string[],
 		options: FolderChoiceOptions,
 	): Promise<string> {
-		const context = this.buildFolderSelectionContext(folders, options);
+		// Decide from configured destinations only when any exist. `topItems` is
+		// a shortcut on an already-open chooser, so counting it turned one
+		// specified folder into a prompt whenever the active file lived in a
+		// descendant (#1705). With no destinations, that same row is the
+		// documented active-file fallback and must stay in the decision.
+		const destinations = this.buildFolderSelectionContext(folders, {
+			...options,
+			topItems: folders.length > 0 ? [] : (options.topItems ?? []),
+		});
 
-		if (!this.shouldPromptForFolder(context)) {
-			return await this.handleSingleSelection(context);
+		if (!this.shouldPromptForFolder(destinations)) {
+			return await this.handleSingleSelection(destinations);
 		}
 
+		const context = this.buildFolderSelectionContext(folders, options);
 		const selection = await this.promptUntilAllowed(context, options.executor);
 		return selection.isEmpty ? "" : selection.resolved;
 	}

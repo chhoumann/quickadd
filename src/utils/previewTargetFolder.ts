@@ -27,12 +27,10 @@ import type { TemplateFolderConfig } from "../types/choices/ITemplateChoice";
  *    that: `undefined` falls back to the caller's neutral placeholder, which is
  *    what the builder has always shown here.
  *
- * KNOWN RESIDUAL, not fixed here: even for a single configured folder the run
- * can still prompt, because `TemplateChoiceEngine` adds a `<current folder>`
- * row to the suggester, so answering it can produce a different folder than the
- * one previewed. That is a run-side defect with its own issue; the previewed
- * folder is nonetheless strictly closer to the truth than the placeholder it
- * replaces.
+ * A single configured folder does not open the run-time chooser, including when
+ * the active file lives in a descendant (`<current folder>` is only a shortcut
+ * on a chooser that was already going to open). The previewed folder is the
+ * folder the run will use.
  */
 export function likelyTargetFolderPath(
 	folder: TemplateFolderConfig | undefined,
