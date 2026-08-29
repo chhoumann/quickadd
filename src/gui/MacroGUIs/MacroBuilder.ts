@@ -87,6 +87,7 @@ export class MacroBuilder extends Modal {
 		this.contentEl.empty();
 		this.addCenteredHeader(this.choice.name);
 		this.addCommandEditor();
+		this.addDateOriginSetting();
 		this.addRunOnStartupSetting();
 		this.addIconSetting();
 	}
@@ -125,6 +126,38 @@ export class MacroBuilder extends Modal {
 				}
 			})();
 		});
+	}
+
+	private addDateOriginSetting(): void {
+		const current = this.choice.dateOrigin;
+		new Setting(this.contentEl)
+			.setName("Date origin")
+			.setDesc(
+				"Which day {{DATE}} in this macro and its child choices formats from. Today is the default.",
+			)
+			.addDropdown((dropdown) => {
+				dropdown.addOption("", "Today");
+				dropdown.addOption("ask", "Ask");
+				dropdown.addOption("relative", "Relative (−1 week)");
+				dropdown.setValue(
+					current?.kind === "ask" || current?.kind === "relative"
+						? current.kind
+						: "",
+				);
+				dropdown.onChange((value) => {
+					if (value === "ask") {
+						this.choice.dateOrigin = { kind: "ask" };
+					} else if (value === "relative") {
+						this.choice.dateOrigin = {
+							kind: "relative",
+							offset: -1,
+							unit: "weeks",
+						};
+					} else {
+						this.choice.dateOrigin = undefined;
+					}
+				});
+			});
 	}
 
 	private addRunOnStartupSetting(): void {

@@ -17,6 +17,7 @@ import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
+import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CaptureTargetSetting from "./components/CaptureTargetSetting.svelte";
 import WritePositionSetting from "./components/WritePositionSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
@@ -208,6 +209,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		/>
 	{/snippet}
 </SettingItem>
+
+<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 

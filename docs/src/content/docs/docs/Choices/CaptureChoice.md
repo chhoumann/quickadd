@@ -273,6 +273,13 @@ setting.
 
 _Task_ formats your captured text as a task (`- [ ] ...`).
 
+### Date origin {#date-origin}
+
+**Date origin** is the same setting as on a [Template](/docs/Choices/TemplateChoice/#date-origin).
+Use it to capture into yesterday or last Friday while the capture line's clock
+stays now. `Daily/{{DATE}}.md` follows the origin. `- {{DATE:HH:mm}} {{VALUE}}`
+stamps the current time.
+
 ### Use your selection as the answer {#use-editor-selection}
 
 _Use editor selection as default value_ controls whether selected text in the

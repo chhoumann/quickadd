@@ -39,6 +39,7 @@ import AppendLinkSetting from "./components/AppendLinkSetting.svelte";
 import OpenFileSetting from "./components/OpenFileSetting.svelte";
 import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
+import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
@@ -356,6 +357,8 @@ function onModeChange(value: string) {
 {#if choice.openFile}
 	<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 {/if}
+
+<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 

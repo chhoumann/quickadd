@@ -1,3 +1,4 @@
+import type { DateOrigin } from "../dateOrigin";
 import type { ChoiceType } from "./choiceType";
 
 export default interface IChoice {
@@ -5,6 +6,11 @@ export default interface IChoice {
 	id: string;
 	type: ChoiceType;
 	command: boolean;
+	/**
+	 * How this choice picks the run's calendar origin for `{{DATE}}`.
+	 * Undefined means inherit the run (or today).
+	 */
+	dateOrigin?: DateOrigin;
 	/** Per-choice override for one-page flow. undefined = follow global setting */
 	onePageInput?: "always" | "never" | undefined;
 	/**

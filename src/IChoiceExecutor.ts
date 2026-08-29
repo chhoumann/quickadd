@@ -4,6 +4,7 @@ import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type { MacroAbortError } from "./errors/MacroAbortError";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks";
+import type { RunClocks } from "./types/dateOrigin";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 import type { PromptProvider } from "./interactive/promptProvider";
 
@@ -36,6 +37,11 @@ export interface IChoiceExecutor {
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome>;
 	variables: Map<string, unknown>;
+	/**
+	 * Frozen wall clock and optional calendar origin for this outermost run.
+	 * `{{DATE}}` reads `date` (or `now`'s day). `{{TIME}}` reads `now`.
+	 */
+	clocks?: RunClocks;
 	/**
 	 * Whether this execution may open blocking interactive UI (suggesters/modals)
 	 * for inputs the requirement collector cannot pre-satisfy — e.g. the

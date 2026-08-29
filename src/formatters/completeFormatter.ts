@@ -79,6 +79,10 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
+	protected runClocks(): { now?: Date; date?: Date } | undefined {
+		return this.choiceExecutor?.clocks ?? this.clocks;
+	}
+
 	protected async format(input: string): Promise<string> {
 		let output: string = input;
 

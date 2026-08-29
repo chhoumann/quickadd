@@ -5,8 +5,10 @@ import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
 	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+	QA_INTERNAL_DATE_ORIGIN,
 	TEMPLATE_REGEX,
 } from "src/constants";
+import { normalizeDateOrigin } from "src/types/dateOrigin";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -587,6 +589,17 @@ export async function collectChoiceRequirements(
 	}
 
 	const mergedMap = new Map<string, FieldRequirement>();
+	const dateOrigin = normalizeDateOrigin(choice.dateOrigin);
+	if (dateOrigin?.kind === "ask" && !choiceExecutor.clocks?.date) {
+		mergedMap.set(QA_INTERNAL_DATE_ORIGIN, {
+			id: QA_INTERNAL_DATE_ORIGIN,
+			label: `Date for ${choice.name}`,
+			type: "date",
+			dateFormat: "YYYY-MM-DD",
+			defaultValue: dateOrigin.defaultValue,
+			source: "collected",
+		});
+	}
 	for (const requirement of collector
 		? Array.from(collector.requirements.values())
 		: []) {

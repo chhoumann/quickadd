@@ -82,8 +82,13 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 
 `{{DATE}}` becomes today's date in `YYYY-MM-DD` format.
 
-Add `+N` to move the date: `{{DATE+3}}` is three days from now, `{{DATE+-3}}`
-is three days ago.
+A Template, Capture, or Macro can set a **date origin** so the same tokens
+follow another day. Offsets and snaps still apply. `{{TIME}}` and
+`{{DATE:HH:mm}}` stay the current clock. See
+[Date origin](/docs/Choices/TemplateChoice/#date-origin).
+
+Add `+N` to move the date: `{{DATE+3}}` is three days from the origin,
+`{{DATE+-3}}` is three days before it.
 
 ```markdown title="You write"
 Daily/{{DATE}}.md

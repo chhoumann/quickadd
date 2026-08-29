@@ -40,6 +40,7 @@ import {
 	rootChoicesOf,
 } from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
+import { dateFromStoredValue } from "./utils/resolveDateOrigin";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -64,6 +65,7 @@ type CaptureValueParameters = { [key in `value-${string}`]?: string };
 
 interface DefinedUriParameters {
 	choice?: string; // Name
+	date?: string;
 }
 
 // x-callback-url parameters (Apple Shortcuts, etc.). The hyphenated keys arrive
@@ -435,6 +437,12 @@ export default class QuickAdd extends Plugin {
 					choiceExecutor.variables.set(variableName, value);
 				}
 			});
+		if (typeof parameters.date === "string" && parameters.date.trim()) {
+			const date = dateFromStoredValue(parameters.date);
+			if (date) {
+				choiceExecutor.clocks = { now: new Date(), date };
+			}
+		}
 	}
 
 	/**
