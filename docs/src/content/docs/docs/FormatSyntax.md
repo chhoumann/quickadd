@@ -101,6 +101,18 @@ Put a [Moment.js format](https://momentjs.com/docs/#/displaying/format/) after
 the colon to control how the date looks. The `+N` day offset works here too:
 `{{DATE:YYYY-MM-DD+3}}`.
 
+<a id="date-quickadd-only"></a>
+
+:::note[If `+3` is left on the date]
+Day offsets and `|startof:` / `|endof:` only fill in when QuickAdd runs the
+note. **Open daily note** is a different command - even if you also have a
+QuickAdd daily-note choice. Daily notes still fills `{{DATE}}` and
+`{{DATE:YYYY-MM-DD}}` itself, so `{{DATE+3}}` can stay put and
+`{{DATE:YYYY-MM-DD+3}}` can become `2026-07-08+3`. Turning the Templates
+plugin off does not turn Daily notes off. Run the same file from a QuickAdd
+Template or Capture choice instead.
+:::
+
 | You write | You get |
 | --- | --- |
 | `{{DATE:MMMM Do, YYYY}}` | `July 8th, 2026` |
@@ -171,6 +183,7 @@ order.
 
 Good to know:
 
+- Like the `+N` offset, these pipes only fill in when QuickAdd runs the note. If **Open daily note** left them as-is, see [If `+3` is left on the date](#date-quickadd-only).
 - The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` means "the start of next week".
 - `endof:` snaps to the last moment of the period (`23:59:59.999`), so `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
 - `|startof:`, `|endof:`, and `|case:` are special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`. Put a literal `|case:lower` inside square brackets.
