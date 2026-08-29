@@ -1,10 +1,31 @@
 import { applyDateSnap, type DateSnap } from "./dateModifiers";
 
-export function getDate(input?: {
+export interface GetDateInput {
 	format?: string;
 	offset?: number;
 	snap?: DateSnap;
-}) {
+	/** Calendar-day origin. Time-of-day comes from `now` unless a snap moves it. */
+	origin?: Date;
+	now?: Date;
+}
+
+function wallClock(now?: Date) {
+	return now === undefined ? window.moment() : window.moment(now);
+}
+
+function instantForDate(input?: GetDateInput) {
+	const wall = wallClock(input?.now);
+	if (!input?.origin) return wall;
+
+	return window
+		.moment(input.origin)
+		.hour(wall.hour())
+		.minute(wall.minute())
+		.second(wall.second())
+		.millisecond(wall.millisecond());
+}
+
+export function getDate(input?: GetDateInput) {
 	let duration;
 
 	if (
@@ -15,8 +36,7 @@ export function getDate(input?: {
 		duration = window.moment.duration(input.offset, "days");
 	}
 
-	// Order: base instant -> +N days offset -> snap to period boundary -> format.
-	const moment = applyDateSnap(window.moment().add(duration), input?.snap);
+	const moment = applyDateSnap(instantForDate(input).add(duration), input?.snap);
 
 	return moment.format(input?.format ?? "YYYY-MM-DD");
 }

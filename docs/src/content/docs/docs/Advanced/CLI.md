@@ -30,7 +30,12 @@ Run a QuickAdd choice from the CLI, by name or by id:
 ```bash
 obsidian vault=dev quickadd choice="Daily log"
 obsidian vault=dev quickadd:run id="choice-id"
+obsidian vault=dev quickadd:run choice="Weekly review" date=lw
 ```
+
+`date=` is the day for `{{DATE}}`. Pass a real day (`2026-08-21`,
+`last friday`, `lw`) and the choice's Which day setting is skipped. Pass
+`ask` to open the date picker instead.
 
 ### List your choices: `quickadd:list` {#quickaddlist}
 
@@ -93,8 +98,8 @@ that format string, for example `{{VALUE:project|trim}}`.
 ### Names the CLI reserves {#reserved-flag-names}
 
 The bare `key=value` form (pattern 2) ignores names that a command already uses
-as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify` (on `quickadd` /
-`quickadd:run`), `fields` (on `quickadd:check`), and `path` (on
+as flags or selectors: `choice`, `id`, `vars`, `ui`, `verify`, `date` (on
+`quickadd` / `quickadd:run`), `fields` (on `quickadd:check`), and `path` (on
 `quickadd:run-template`). If a choice has a variable named after one of these
 (for example `{{VALUE:verify}}`), pass it with the `value-` prefix or via
 `vars` instead - neither is ever treated as a flag:

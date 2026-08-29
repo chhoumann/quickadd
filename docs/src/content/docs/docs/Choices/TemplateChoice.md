@@ -194,6 +194,35 @@ Selecting an existing note opens it unchanged and does **not** apply the
 template, append template content, insert links, or copy links. Selecting the
 explicit **Create new note** row continues with normal Template creation.
 
+## Which day `{{DATE}}` is about {#date-origin}
+
+Most of the time you want today. That's the default, and you can leave it
+alone.
+
+Sometimes you don't. Last week's review, yesterday's daily, the Friday you
+forgot to write. **Which day** is the calendar day `{{DATE}}` uses. The
+template file stays the same. `{{TIME}}` is still the time you ran the
+choice, so a "written at" stamp stays honest.
+
+- **Today** is the default.
+- **Ask each time** opens a date picker. **Picker starts on** is only the
+  first value in that picker. You can still click another day.
+- **Yesterday**, **Last week**, **Next week**, and **Last month** cover the
+  usual jobs. A weekly note with `|startof:week` still lands in the right
+  week.
+- **Custom…** is any other jump from today, like three days back or last
+  year.
+- **A variable…** is for a `{{VDATE}}` or a script that already has the day.
+
+If the choice has a command, QuickAdd also adds **Name (another day)** next
+to it. Same choice. Your existing hotkey still opens today. Use the extra
+command, or hold Shift in the QuickAdd menu, when it isn't today. You don't
+need a second Daily Note choice.
+
+Scripts and the CLI can pass a day too:
+`executeChoice("Weekly review", {}, { date: "last week" })`, or `date=ask`
+if you want the picker.
+
 ## Decide where the note is created: New note location {#new-note-location}
 
 **New note location** is a dropdown that controls where the note is created.

@@ -1026,6 +1026,16 @@ describe("ChoiceSuggester", () => {
 			expect(completion).toHaveBeenCalledWith();
 		});
 
+		it("holds Shift to pick a day on a Today choice", () => {
+			const suggester = makeSuggester(rootChoices);
+			suggester.onChooseItem(
+				topNote,
+				new MouseEvent("click", { shiftKey: true }),
+			);
+			expect(executor.pickDate).toBe(true);
+			expect(executed).toEqual([topNote]);
+		});
+
 		it("rejects with the leaf's own error instance", async () => {
 			const leafError = new Error("leaf blew up");
 			executor.execute = () => Promise.reject(leafError);

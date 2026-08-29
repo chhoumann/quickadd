@@ -282,6 +282,12 @@ commands share the same name, rename one before using the selector form.
 
 ![The Macro builder, including the Run on startup toggle](../Images/choices/macro-builder.png)
 
+### Which day {#date-origin}
+
+Same [Which day](/docs/Choices/TemplateChoice/#date-origin) setting as a
+Template. Child choices in the macro inherit that day, so a weekly pack can
+ask once and then write every template for last week.
+
 ### Run on startup {#run-on-startup}
 
 Enable this to run a macro automatically when Obsidian starts. Handy for:

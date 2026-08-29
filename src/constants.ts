@@ -229,6 +229,7 @@ export const TIME_FORMAT_SYNTAX_SUGGEST_REGEX = new RegExp(
 // boundary (obsidian:// URI, CLI, AI tool output). See isReservedVariableKey.
 export const RESERVED_VARIABLE_PREFIX = "__qa.";
 export const QA_INTERNAL_CAPTURE_TARGET_FILE_PATH = `${RESERVED_VARIABLE_PREFIX}captureTargetFilePath`;
+export const QA_INTERNAL_DATE_ORIGIN = `${RESERVED_VARIABLE_PREFIX}dateOrigin`;
 
 // == MISC == //
 export const WIKI_LINK_REGEX = new RegExp(/\[\[([^\]]*)\]\]/);

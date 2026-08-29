@@ -3,7 +3,13 @@ import { TFile } from "obsidian";
 import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
 import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
-import { TEMPLATE_REGEX, VALUE_SYNTAX } from "src/constants";
+import {
+	QA_INTERNAL_DATE_ORIGIN,
+	TEMPLATE_REGEX,
+	VALUE_SYNTAX,
+} from "src/constants";
+import { normalizeDateOrigin } from "src/types/dateOrigin";
+import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -648,6 +654,42 @@ function registerSiblingCaptureTargets(
 	}
 }
 
+function dateOriginRequirement(
+	choice: IChoice,
+	choiceExecutor: IChoiceExecutor,
+): FieldRequirement | undefined {
+	const dateOrigin = choiceExecutor.pickDate
+		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
+		: normalizeDateOrigin(choice.dateOrigin);
+	if (dateOrigin?.kind !== "ask" || choiceExecutor.clocks?.date) {
+		return undefined;
+	}
+
+	return {
+		id: QA_INTERNAL_DATE_ORIGIN,
+		label: `Date for ${choice.name}`,
+		type: "date",
+		dateFormat: "YYYY-MM-DD",
+		defaultValue: dateOrigin.defaultValue,
+		source: "collected",
+	};
+}
+
+function withDateOriginRequirement(
+	choice: IChoice,
+	choiceExecutor: IChoiceExecutor,
+	requirements: FieldRequirement[],
+): FieldRequirement[] {
+	const dateRequirement = dateOriginRequirement(choice, choiceExecutor);
+	if (!dateRequirement) return requirements;
+	return [
+		dateRequirement,
+		...requirements.filter(
+			(requirement) => requirement.id !== QA_INTERNAL_DATE_ORIGIN,
+		),
+	];
+}
+
 export async function collectChoiceRequirements(
 	app: App,
 	plugin: QuickAdd,
@@ -662,7 +704,11 @@ export async function collectChoiceRequirements(
 			choiceExecutor,
 			choice as ITemplateChoice,
 		);
-		return Array.from(collector.requirements.values());
+		return withDateOriginRequirement(
+			choice,
+			choiceExecutor,
+			Array.from(collector.requirements.values()),
+		);
 	}
 
 	if (choice.type === "Capture") {
@@ -673,16 +719,24 @@ export async function collectChoiceRequirements(
 			choice as ICaptureChoice,
 			options?.seedCaptureSelectionAsValue ?? false,
 		);
-		return Array.from(collector.requirements.values());
+		return withDateOriginRequirement(
+			choice,
+			choiceExecutor,
+			Array.from(collector.requirements.values()),
+		);
 	}
 
 	if (isMacroChoice(choice)) {
-		return collectForMacroChoice(
-			app,
-			plugin,
-			choiceExecutor,
+		return withDateOriginRequirement(
 			choice,
-			options,
+			choiceExecutor,
+			await collectForMacroChoice(
+				app,
+				plugin,
+				choiceExecutor,
+				choice,
+				options,
+			),
 		);
 	}
 

@@ -27,7 +27,14 @@ import {
 	type FrontmatterPropertyTarget,
 } from "./utils/frontmatterPropertyLinks";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
+import type { RunClocks } from "./types/dateOrigin";
+import { normalizeDateOrigin } from "./types/dateOrigin";
+import { dateOriginForPick } from "./types/dateOriginPresets";
 import { childChoicesOf } from "./utils/choiceUtils";
+import { QA_INTERNAL_DATE_ORIGIN } from "./constants";
+import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
+import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
+import { log } from "./logger/logManager";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
@@ -46,6 +53,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public readonly preloadedUserScripts = new Map<string, unknown>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
+	public clocks?: RunClocks;
+	public pickDate = false;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
@@ -92,6 +101,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				this.triggerContextOverride !== undefined
 					? this.triggerContextOverride
 					: { activeFile: this.app.workspace.getActiveFile() };
+			this.clocks = {
+				now: this.clocks?.now ?? new Date(),
+				date: this.clocks?.date,
+			};
 		}
 		this.executionDepth++;
 	}
@@ -101,6 +114,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		if (this.executionDepth === 0) {
 			this.focusedProperty = null;
 			this.triggerContext = null;
+			this.clocks = undefined;
+			this.pickDate = false;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
@@ -124,6 +139,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
+			await this.applyDateOrigin(choice);
 
 			switch (choice.type) {
 				case "Template": {
@@ -208,6 +224,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
+			await this.applyDateOrigin(choice);
 
 			if (choice.type === "Template") {
 				await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf);
@@ -250,6 +267,72 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			};
 		} finally {
 			this.endExecutionContext();
+		}
+	}
+
+	private async applyDateOrigin(choice: IChoice): Promise<void> {
+		const setting = this.pickDate
+			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
+			: normalizeDateOrigin(choice.dateOrigin);
+		const reservedSeed =
+			setting?.kind === "ask"
+				? this.variables.get(QA_INTERNAL_DATE_ORIGIN)
+				: undefined;
+		const plan = planDateOrigin({
+			setting,
+			clocks: this.clocks,
+			variables: this.variables,
+			reservedSeed,
+		});
+
+		if (plan.status === "inherit") return;
+
+		if (plan.status === "error") {
+			log.logError(plan.message);
+			throw new ChoiceAbortError(plan.message);
+		}
+
+		if (plan.status === "set") {
+			this.clocks = {
+				now: this.clocks?.now ?? new Date(),
+				date: plan.date,
+			};
+			return;
+		}
+
+		if (this.interactive === false && !this.promptProvider) {
+			throw new ChoiceAbortError(
+				`"${choice.name}" needs a date. Re-run with date= or the ui flag.`,
+			);
+		}
+
+		const header = `Date for ${choice.name}`;
+		try {
+			const raw = this.promptProvider
+				? await this.promptProvider.datePrompt(header, {
+						defaultValue: plan.defaultValue,
+						dateFormat: "YYYY-MM-DD",
+					})
+				: await VDateInputPrompt.Prompt(
+						this.app,
+						header,
+						undefined,
+						plan.defaultValue,
+						"YYYY-MM-DD",
+					);
+			const date = dateFromStoredValue(raw);
+			if (!date) {
+				throw new ChoiceAbortError("Could not parse the date origin.");
+			}
+			this.clocks = {
+				now: this.clocks?.now ?? new Date(),
+				date,
+			};
+		} catch (error) {
+			if (isCancellationError(error)) {
+				throw new UserCancelError("Date origin cancelled by user");
+			}
+			throw error;
 		}
 	}
 

@@ -82,8 +82,16 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 
 `{{DATE}}` becomes today's date in `YYYY-MM-DD` format.
 
-Add `+N` to move the date: `{{DATE+3}}` is three days from now, `{{DATE+-3}}`
-is three days ago.
+A choice can aim that token at another day, so the same
+`Daily/{{DATE}}.md` template opens yesterday when you ask it to. `{{DATE+3}}`
+is still three days later. `{{TIME}}` is always the time you ran the choice.
+See [Which day](/docs/Choices/TemplateChoice/#date-origin).
+
+`{{DATE:HH:mm}}` only prints the clock, so it looks like `{{TIME}}`. The day
+is still the chosen one. Write `{{DATE:YYYY-MM-DD HH:mm}}` if you want both.
+
+Add `+N` to move the date: `{{DATE+3}}` is three days from that day,
+`{{DATE+-3}}` is three days before it.
 
 ```markdown title="You write"
 Daily/{{DATE}}.md

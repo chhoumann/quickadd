@@ -1,6 +1,7 @@
 import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Formatter, type PromptContext } from "./formatter";
+import type { RunClocks } from "../types/dateOrigin";
 
 // Integration test for the issue #511 snap wiring THROUGH the formatter passes
 // (not just the regex/unit helpers). Uses real moment + a frozen clock so the
@@ -33,6 +34,9 @@ class TestFormatter extends Formatter {
 	}
 	public seed(name: string, value: unknown) {
 		this.variables.set(name, value);
+	}
+	public seedClocks(clocks: RunClocks) {
+		this.clocks = clocks;
 	}
 	public renderDate(input: string) {
 		return this.replaceDateInString(input);
@@ -207,5 +211,21 @@ describe("date and time case transforms", () => {
 		expect(f.warnings).toEqual([
 			'QuickAdd: Unsupported |case style "lowre" in token "{{DATE:MMMM|case:lowre}}". Supported styles: kebab, snake, camel, pascal, title, lower, upper, slug.',
 		]);
+	});
+});
+
+describe("{{DATE}} run origin through replaceDateInString", () => {
+	it("formats and offsets from the origin day and keeps TIME on now", () => {
+		const f = new TestFormatter();
+		f.seedClocks({
+			now: new Date("2023-06-01T12:00:00"),
+			date: new Date(2023, 4, 26),
+		});
+		expect(f.renderDate("{{DATE:YYYY-MM-DD}}")).toBe("2023-05-26");
+		expect(f.renderDate("{{DATE+1}}")).toBe("2023-05-27");
+		expect(f.renderDate("{{DATE:YYYY-MM-DD|startof:week}}")).toBe("2023-05-21");
+		expect(f.renderDate("{{DATE:YYYY-MM-DD HH:mm}}")).toBe("2023-05-26 12:00");
+		expect(f.renderTime("{{TIME}}")).toBe("12:00");
+		expect(f.renderDate("{{DATE:HH:mm}}")).toBe("12:00");
 	});
 });

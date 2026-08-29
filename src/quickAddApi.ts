@@ -50,6 +50,7 @@ import { settingsStore } from "./settingsStore";
 import { log } from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
 import { getDate } from "./utilityObsidian";
+import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import { isCancellationError, reportError } from "./utils/errorUtils";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
@@ -391,6 +392,7 @@ export class QuickAddApi {
 			executeChoice: async (
 				choiceName: string,
 				variables?: Record<string, unknown>,
+				options?: { date?: string | Date },
 			) => {
 				// getChoiceByName THROWS when the name doesn't match a choice, so
 				// look it up defensively: report + return (don't abort the macro)
@@ -407,6 +409,14 @@ export class QuickAddApi {
 				if (!choice) {
 					reportError(
 						new Error(`Choice named '${choiceName}' not found`),
+						"API executeChoice error",
+					);
+					return;
+				}
+
+				if (!applyInvocationDate(choiceExecutor, options?.date)) {
+					reportError(
+						new Error(`Could not parse date origin '${String(options?.date)}'`),
 						"API executeChoice error",
 					);
 					return;

@@ -1,3 +1,4 @@
+import type { DateOrigin } from "../dateOrigin";
 import type { ChoiceType } from "./choiceType";
 
 export default interface IChoice {
@@ -5,6 +6,10 @@ export default interface IChoice {
 	id: string;
 	type: ChoiceType;
 	command: boolean;
+	/**
+	 * Which day `{{DATE}}` uses. Undefined means today (or a parent run).
+	 */
+	dateOrigin?: DateOrigin;
 	/** Per-choice override for one-page flow. undefined = follow global setting */
 	onePageInput?: "always" | "never" | undefined;
 	/**

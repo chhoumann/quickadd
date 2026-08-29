@@ -35,6 +35,7 @@ import {
 	type PromptScopeKind,
 } from "./promptScope";
 import { getDate } from "../utilityObsidian";
+import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
@@ -323,6 +324,11 @@ export abstract class Formatter {
 	protected promptScopeSoleValue = false;
 	/** Which choice is asking and, once known, where the answer lands. */
 	protected promptRunContext?: PromptRunContext;
+	protected clocks?: RunClocks;
+
+	protected runClocks(): RunClocks | undefined {
+		return this.clocks;
+	}
 
 	// Tracks variables collected for YAML property post-processing
 	private readonly propertyCollector: TemplatePropertyCollector;
@@ -474,7 +480,13 @@ export abstract class Formatter {
 			const snap = dateMatch?.[2]
 				? parseDateSnapSegment(dateMatch[2]) ?? undefined
 				: undefined;
-			const rendered = getDate({ offset, snap });
+			const clocks = this.runClocks();
+			const rendered = getDate({
+				offset,
+				snap,
+				origin: clocks?.date,
+				now: clocks?.now,
+			});
 			output = this.replacer(
 				output,
 				DATE_REGEX,
@@ -499,7 +511,14 @@ export abstract class Formatter {
 				? parseDateSnapSegment(dateMatch[3]) ?? undefined
 				: undefined;
 
-			const rendered = getDate({ format, offset, snap });
+			const clocks = this.runClocks();
+			const rendered = getDate({
+				format,
+				offset,
+				snap,
+				origin: clocks?.date,
+				now: clocks?.now,
+			});
 			output = this.replacer(
 				output,
 				DATE_REGEX_FORMATTED,
@@ -517,7 +536,10 @@ export abstract class Formatter {
 			const timeMatch = TIME_REGEX.exec(output);
 			if (!timeMatch) throw new Error(`Unable to parse time format. Invalid syntax in: "${output.substring(Math.max(0, output.search(TIME_REGEX) - 10), Math.min(output.length, output.search(TIME_REGEX) + 30))}..."`);
 
-			const rendered = getDate({ format: "HH:mm" });
+			const rendered = getDate({
+				format: "HH:mm",
+				now: this.runClocks()?.now,
+			});
 			output = this.replacer(
 				output,
 				TIME_REGEX,
@@ -531,7 +553,10 @@ export abstract class Formatter {
 
 			const format = timeMatch[1];
 
-			const rendered = getDate({ format });
+			const rendered = getDate({
+				format,
+				now: this.runClocks()?.now,
+			});
 			output = this.replacer(
 				output,
 				TIME_REGEX_FORMATTED,
