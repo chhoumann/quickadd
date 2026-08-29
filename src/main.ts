@@ -284,7 +284,13 @@ export default class QuickAdd extends Plugin {
 			}
 
 			const choiceExecutor = new ChoiceExecutor(this.app, this);
-			this.applyUriValueParameters(choiceExecutor, parameters);
+			if (!this.applyUriValueParameters(choiceExecutor, parameters)) {
+				log.logWarning(
+					`QuickAdd URI: could not parse date origin '${parameters.date}'.`,
+				);
+				this.fireUriError(targets, "execution-failed");
+				return;
+			}
 
 			const outcome = await choiceExecutor.executeWithOutcome(
 				choice as ITemplateChoice | ICaptureChoice,
@@ -406,7 +412,13 @@ export default class QuickAdd extends Plugin {
 		// wrong choice is at least diagnosable.
 		this.warnIfChoiceNameAmbiguous(parameters.choice);
 		const choiceExecutor = new ChoiceExecutor(this.app, this);
-		this.applyUriValueParameters(choiceExecutor, parameters);
+		if (!this.applyUriValueParameters(choiceExecutor, parameters)) {
+			reportError(
+				new Error(`Could not parse date origin '${parameters.date}'`),
+				"URI handler error",
+			);
+			return;
+		}
 		try {
 			await choiceExecutor.execute(choice);
 		} catch (err) {
@@ -419,7 +431,7 @@ export default class QuickAdd extends Plugin {
 	private applyUriValueParameters(
 		choiceExecutor: ChoiceExecutor,
 		parameters: UriParameters,
-	): void {
+	): boolean {
 		Object.entries(parameters)
 			.filter(([key]) => key.startsWith("value-"))
 			.forEach(([key, value]) => {
@@ -439,10 +451,10 @@ export default class QuickAdd extends Plugin {
 			});
 		if (typeof parameters.date === "string" && parameters.date.trim()) {
 			const date = dateFromStoredValue(parameters.date);
-			if (date) {
-				choiceExecutor.clocks = { now: new Date(), date };
-			}
+			if (!date) return false;
+			choiceExecutor.clocks = { now: new Date(), date };
 		}
+		return true;
 	}
 
 	/**

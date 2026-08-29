@@ -1001,6 +1001,14 @@ describe("executeChoice", () => {
 		await api.executeChoice("C");
 		expect(executor.execute).toHaveBeenCalled();
 	});
+
+	it("rejects an invalid Date origin and does not execute", async () => {
+		const executor = makeChoiceExecutor();
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+		await api.executeChoice("C", undefined, { date: new Date("bad") });
+		expect(executor.execute).not.toHaveBeenCalled();
+		expect(mocks.reportError).toHaveBeenCalled();
+	});
 });
 
 // ===========================================================================

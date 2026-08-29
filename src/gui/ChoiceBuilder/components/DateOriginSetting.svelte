@@ -23,6 +23,13 @@ const unitOptions = DATE_ORIGIN_UNITS.map((unit) => ({
 }));
 
 const selectedKind = $derived(dateOrigin?.kind === "now" ? "" : (dateOrigin?.kind ?? ""));
+const askOrigin = $derived(dateOrigin?.kind === "ask" ? dateOrigin : undefined);
+const relativeOrigin = $derived(
+	dateOrigin?.kind === "relative" ? dateOrigin : undefined,
+);
+const variableOrigin = $derived(
+	dateOrigin?.kind === "variable" ? dateOrigin : undefined,
+);
 
 function onKindChange(value: string) {
 	if (value === "ask") {
@@ -48,9 +55,9 @@ function onDefaultChange(value: string) {
 
 function onOffsetChange(value: string) {
 	if (dateOrigin?.kind !== "relative") return;
-	const offset = Number.parseInt(value, 10);
-	if (!Number.isInteger(offset)) return;
-	dateOrigin = { ...dateOrigin, offset };
+	const trimmed = value.trim();
+	if (!/^[+-]?\d+$/.test(trimmed)) return;
+	dateOrigin = { ...dateOrigin, offset: Number(trimmed) };
 }
 
 function onUnitChange(value: string) {
@@ -74,7 +81,7 @@ function onVariableChange(value: string) {
 	{/snippet}
 </SettingItem>
 
-{#if dateOrigin?.kind === "ask"}
+{#if askOrigin}
 	<SettingItem
 		name="Date origin default"
 		desc="Natural language shown in the picker, such as today or last week. Leave empty for today."
@@ -83,7 +90,7 @@ function onVariableChange(value: string) {
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
-				value={dateOrigin.defaultValue ?? ""}
+				value={askOrigin.defaultValue ?? ""}
 				placeholder="today"
 				aria-label="Date origin default"
 				oninput={(event) =>
@@ -93,7 +100,7 @@ function onVariableChange(value: string) {
 	</SettingItem>
 {/if}
 
-{#if dateOrigin?.kind === "relative"}
+{#if relativeOrigin}
 	<SettingItem
 		name="Date origin offset"
 		desc="Move the origin from today. −1 week is last week."
@@ -102,14 +109,14 @@ function onVariableChange(value: string) {
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
-				value={String(dateOrigin.offset)}
+				value={String(relativeOrigin.offset)}
 				placeholder="-1"
 				aria-label="Date origin offset"
 				oninput={(event) =>
 					onOffsetChange((event.currentTarget as HTMLInputElement).value)}
 			/>
 			<Dropdown
-				value={dateOrigin.unit}
+				value={relativeOrigin.unit}
 				options={unitOptions}
 				onchange={onUnitChange}
 			/>
@@ -117,7 +124,7 @@ function onVariableChange(value: string) {
 	</SettingItem>
 {/if}
 
-{#if dateOrigin?.kind === "variable"}
+{#if variableOrigin}
 	<SettingItem
 		name="Date origin variable"
 		desc="Name of a VDATE or script variable that already holds the day."
@@ -126,7 +133,7 @@ function onVariableChange(value: string) {
 			<input
 				type="text"
 				class="qa-validated-input-full-width"
-				value={dateOrigin.name}
+				value={variableOrigin.name}
 				placeholder="day"
 				aria-label="Date origin variable"
 				oninput={(event) =>

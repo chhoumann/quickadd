@@ -421,10 +421,7 @@ export class QuickAddApi {
 				}
 
 				if (options?.date !== undefined) {
-					const date =
-						options.date instanceof Date
-							? options.date
-							: dateFromStoredValue(options.date);
+					const date = dateFromStoredValue(options.date);
 					if (!date) {
 						reportError(
 							new Error(`Could not parse date origin '${String(options.date)}'`),

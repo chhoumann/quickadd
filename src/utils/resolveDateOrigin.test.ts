@@ -39,6 +39,11 @@ describe("dateFromStoredValue", () => {
 		expect(dateFromStoredValue("lw")).toBeInstanceOf(Date);
 		expect(dateFromStoredValue("")).toBeUndefined();
 	});
+
+	it("rejects an invalid Date and unparseable text", () => {
+		expect(dateFromStoredValue(new Date("bad"))).toBeUndefined();
+		expect(dateFromStoredValue("not-a-date-xyz")).toBeUndefined();
+	});
 });
 
 describe("planDateOrigin", () => {
