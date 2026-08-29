@@ -19,14 +19,22 @@ Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
 It works with Template, Capture, and Macro choices.
 
-For a Macro, this-level NestedChoice and Choice members that resolve to Template
-or Capture appear on the macro's form until the first step that can change later
-inputs. A nested Macro, Multi, Conditional, UserScript, or AI command ends this
-page. Later Template and Capture members wait. A nested Macro is its own page.
-Conditional branches are not entered. Script-declared `quickadd.inputs` still
-hoist after an opaque script (see
-[User scripts](#user-scripts-declare-inputs-optional)). Set a member's
-**One-page input override** to **Never** to keep it off this page.
+When you run a Macro, the Templates and Captures you added to it share one
+form.
+
+The form stops at the first step that might fill in or skip later answers:
+another Macro, a Multi, a Conditional, a user script, or an AI command.
+Anything after that step is asked later. Another Macro gets its own form.
+QuickAdd does not guess which side of a Conditional will run.
+
+Two Captures in a row share one form. A Capture, then a user script, then
+another Capture do not share a form. You fill the first Capture now, and
+the second Capture later. If the user script lists its own inputs, those still appear
+on this form. See
+[User scripts](#user-scripts-declare-inputs-optional).
+
+To keep one Template or Capture off the form, set its **One-page input override**
+to **Never**.
 
 ## Turn it on or off for one choice {#per-choice-override}
 
