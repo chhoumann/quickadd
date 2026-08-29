@@ -1,6 +1,7 @@
 import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Formatter, type PromptContext } from "./formatter";
+import type { RunClocks } from "../types/dateOrigin";
 
 // Integration test for the issue #511 snap wiring THROUGH the formatter passes
 // (not just the regex/unit helpers). Uses real moment + a frozen clock so the
@@ -34,7 +35,7 @@ class TestFormatter extends Formatter {
 	public seed(name: string, value: unknown) {
 		this.variables.set(name, value);
 	}
-	public seedClocks(clocks: { now: Date; date?: Date }) {
+	public seedClocks(clocks: RunClocks) {
 		this.clocks = clocks;
 	}
 	public renderDate(input: string) {

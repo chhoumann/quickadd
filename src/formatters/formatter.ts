@@ -35,6 +35,7 @@ import {
 	type PromptScopeKind,
 } from "./promptScope";
 import { getDate } from "../utilityObsidian";
+import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
@@ -323,9 +324,9 @@ export abstract class Formatter {
 	protected promptScopeSoleValue = false;
 	/** Which choice is asking and, once known, where the answer lands. */
 	protected promptRunContext?: PromptRunContext;
-	protected clocks?: { now: Date; date?: Date };
+	protected clocks?: RunClocks;
 
-	protected runClocks(): { now?: Date; date?: Date } | undefined {
+	protected runClocks(): RunClocks | undefined {
 		return this.clocks;
 	}
 

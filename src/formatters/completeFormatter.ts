@@ -5,6 +5,7 @@ import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import MultiSuggester from "src/gui/MultiSuggester/multiSuggester";
 import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { RunClocks } from "../types/dateOrigin";
 import {
 	GLOBAL_VAR_REGEX,
 	INLINE_JAVASCRIPT_REGEX,
@@ -79,7 +80,7 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
-	protected runClocks(): { now?: Date; date?: Date } | undefined {
+	protected runClocks(): RunClocks | undefined {
 		return this.choiceExecutor?.clocks ?? this.clocks;
 	}
 
