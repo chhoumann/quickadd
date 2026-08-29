@@ -94,7 +94,8 @@ function insertEmbed(path) {
 	const embed = `![[${path}]]`;
 	const start = els.field.selectionStart ?? els.field.value.length;
 	const end = els.field.selectionEnd ?? start;
-	els.field.setRangeText(embed, start, end, "end");
+	const prefix = start > 0 && els.field.value[start - 1] !== "\n" ? "\n" : "";
+	els.field.setRangeText(prefix + embed, start, end, "end");
 	els.field.dispatchEvent(new Event("input"));
 }
 
