@@ -247,9 +247,12 @@ button.cta:disabled {
 	position: fixed;
 	inset: 0;
 	background: rgb(0 0 0 / 0.55);
-	display: grid;
 	place-items: center;
 	z-index: 20;
+}
+
+.overlay:not([hidden]) {
+	display: grid;
 }
 
 .rename-dialog {

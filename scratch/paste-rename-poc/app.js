@@ -143,6 +143,12 @@ function makePreview() {
 	return canvas.toDataURL("image/png");
 }
 
+function hideOverlay() {
+	els.overlay.hidden = true;
+	els.overlay.style.removeProperty("display");
+	state.pending = null;
+}
+
 function applyPlan(plan, previewUrl) {
 	if (plan.needsModal) {
 		state.pending = { plan, previewUrl };
@@ -152,6 +158,7 @@ function applyPlan(plan, previewUrl) {
 		els.previewImg.src = previewUrl;
 		els.renameError.hidden = true;
 		els.overlay.hidden = false;
+		els.overlay.style.removeProperty("display");
 		els.renameStem.focus();
 		els.renameStem.select();
 		state.files.push({ name: plan.originName });
@@ -195,8 +202,7 @@ function confirmRename() {
 		`attachments/${name}`,
 	);
 	renderFiles(name);
-	els.overlay.hidden = true;
-	state.pending = null;
+	hideOverlay();
 }
 
 els.tabs.forEach((tab) => {
@@ -229,6 +235,10 @@ els.renameStem.addEventListener("keydown", (e) => {
 		e.preventDefault();
 		confirmRename();
 	}
+	if (e.key === "Escape") {
+		e.preventDefault();
+		hideOverlay();
+	}
 });
 
 els.pasteSample.addEventListener("click", pasteOnce);
@@ -236,14 +246,12 @@ els.reset.addEventListener("click", () => {
 	state.files = [];
 	els.field.value = "";
 	els.pluginCatch.textContent = "";
-	els.overlay.hidden = true;
-	state.pending = null;
+	hideOverlay();
 	renderFiles();
 });
 els.confirmRename.addEventListener("click", confirmRename);
 els.cancelRename.addEventListener("click", () => {
-	els.overlay.hidden = true;
-	state.pending = null;
+	hideOverlay();
 });
 
 els.field.addEventListener("paste", (event) => {
