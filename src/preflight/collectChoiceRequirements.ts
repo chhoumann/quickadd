@@ -9,6 +9,7 @@ import {
 	TEMPLATE_REGEX,
 } from "src/constants";
 import { normalizeDateOrigin } from "src/types/dateOrigin";
+import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
@@ -589,7 +590,9 @@ export async function collectChoiceRequirements(
 	}
 
 	const mergedMap = new Map<string, FieldRequirement>();
-	const dateOrigin = normalizeDateOrigin(choice.dateOrigin);
+	const dateOrigin = choiceExecutor.pickDate
+		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
+		: normalizeDateOrigin(choice.dateOrigin);
 	if (dateOrigin?.kind === "ask" && !choiceExecutor.clocks?.date) {
 		mergedMap.set(QA_INTERNAL_DATE_ORIGIN, {
 			id: QA_INTERNAL_DATE_ORIGIN,

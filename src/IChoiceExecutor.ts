@@ -43,6 +43,11 @@ export interface IChoiceExecutor {
 	 */
 	clocks?: RunClocks;
 	/**
+	 * When true, this run asks for a day even if the choice is set to Today
+	 * (or another fixed day). Used by `{name} (another day)` and `date=ask`.
+	 */
+	pickDate?: boolean;
+	/**
 	 * Whether this execution may open blocking interactive UI (suggesters/modals)
 	 * for inputs the requirement collector cannot pre-satisfy — e.g. the
 	 * "file already exists" prompt, the folder chooser, or the heading picker.

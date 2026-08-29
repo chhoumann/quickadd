@@ -525,6 +525,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// leaf inherits the executor's still-live context, which holds the same
 			// values this level was handed. Falls back to execute() only for stub
 			// executors without the method.
+			if ("shiftKey" in evt && evt.shiftKey) {
+				this.choiceExecutor.pickDate = true;
+			}
 			const execute = this.choiceExecutor.executeWithFocusedProperty
 				? this.choiceExecutor.executeWithFocusedProperty(
 						item,

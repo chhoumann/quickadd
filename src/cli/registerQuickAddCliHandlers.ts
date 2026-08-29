@@ -21,7 +21,7 @@ import {
 } from "../utils/choiceUtils";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { dateFromStoredValue } from "../utils/resolveDateOrigin";
+import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import {
 	analysePackagePreview,
 	readQuickAddPackage,
@@ -86,7 +86,7 @@ const RUN_FLAGS: CliFlags = {
 	date: {
 		value: "<when>",
 		description:
-			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, @date:ISO)",
+			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, ask, @date:ISO)",
 	},
 };
 
@@ -115,7 +115,7 @@ const RUN_TEMPLATE_FLAGS: CliFlags = {
 	date: {
 		value: "<when>",
 		description:
-			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, @date:ISO)",
+			"Day for {{DATE}} (YYYY-MM-DD, last week, last friday, ask, @date:ISO)",
 	},
 };
 
@@ -396,17 +396,13 @@ async function runResolvedChoice(
 			plugin,
 		) as IChoiceExecutor;
 		setExecutorVariables(choiceExecutor, variables);
-		if (typeof params.date === "string" && params.date.trim()) {
-			const date = dateFromStoredValue(params.date);
-			if (!date) {
-				return serialize({
-					ok: false,
-					command,
-					error: `Could not parse date origin '${params.date}'.`,
-					choice: describeChoice(choice),
-				});
-			}
-			choiceExecutor.clocks = { now: new Date(), date };
+		if (!applyInvocationDate(choiceExecutor, params.date)) {
+			return serialize({
+				ok: false,
+				command,
+				error: `Could not parse date origin '${params.date}'.`,
+				choice: describeChoice(choice),
+			});
 		}
 
 		const interactiveMode = isTruthy(params.ui);

@@ -224,6 +224,7 @@ describe("{{DATE}} run origin through replaceDateInString", () => {
 		expect(f.renderDate("{{DATE:YYYY-MM-DD}}")).toBe("2023-05-26");
 		expect(f.renderDate("{{DATE+1}}")).toBe("2023-05-27");
 		expect(f.renderDate("{{DATE:YYYY-MM-DD|startof:week}}")).toBe("2023-05-21");
+		expect(f.renderDate("{{DATE:YYYY-MM-DD HH:mm}}")).toBe("2023-05-26 12:00");
 		expect(f.renderTime("{{TIME}}")).toBe("12:00");
 		expect(f.renderDate("{{DATE:HH:mm}}")).toBe("12:00");
 	});

@@ -6,7 +6,10 @@ import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IUserScript } from "src/types/macros/IUserScript";
-import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
+import {
+	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+	QA_INTERNAL_DATE_ORIGIN,
+} from "src/constants";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
@@ -1686,5 +1689,52 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 
 		const mvalue = requirements.find((req) => req.id === "mvalue");
 		expect(mvalue?.pathContext).toBeUndefined();
+	});
+});
+
+describe("collectChoiceRequirements - pickDate", () => {
+	const app = {
+		vault: { cachedRead: vi.fn(async () => "") },
+		metadataCache: { getFileCache: vi.fn(() => null) },
+	} as unknown as App;
+	const plugin = {
+		settings: {
+			inputPrompt: "single-line",
+			globalVariables: {},
+			useSelectionAsCaptureValue: true,
+		},
+	} as never;
+
+	it("collects a date field when pickDate is set on a Today choice", async () => {
+		const choice = createCaptureChoice("Inbox.md");
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			{
+				execute: vi.fn(),
+				variables: new Map<string, unknown>(),
+				pickDate: true,
+			},
+			choice,
+		);
+		expect(
+			requirements.some((requirement) => requirement.id === QA_INTERNAL_DATE_ORIGIN),
+		).toBe(true);
+	});
+
+	it("does not collect a date field for a Today choice without pickDate", async () => {
+		const choice = createCaptureChoice("Inbox.md");
+		const requirements = await collectChoiceRequirements(
+			app,
+			plugin,
+			{
+				execute: vi.fn(),
+				variables: new Map<string, unknown>(),
+			},
+			choice,
+		);
+		expect(
+			requirements.some((requirement) => requirement.id === QA_INTERNAL_DATE_ORIGIN),
+		).toBe(false);
 	});
 });

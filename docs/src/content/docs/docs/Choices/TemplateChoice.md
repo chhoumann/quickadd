@@ -207,13 +207,18 @@ now. The template file does not change.
 - **Custom…**. Any other number of days, weeks, months, or years from today.
 - **A variable…**. A `{{VDATE}}` or script value that already has the day.
 
-Two choices can share one template file. One stays Today. One asks each time. A
-weekly note that uses `|startof:week` still files the picked day under the
-right week.
+Leave Which day on Today for a daily you usually open today. The same choice
+also gets **Name (another day)** in the command palette. Hold Shift in the
+QuickAdd menu for the same pick. You do not need a second choice.
+
+Two choices can still share one template file if you want one that always asks
+and one that never does. A weekly note that uses `|startof:week` files the
+picked day under the right week.
 
 Scripts and the CLI can set the day without the picker:
 `executeChoice("Weekly review", {}, { date: "last week" })` and
 `quickadd:run choice="Weekly review" date="last week"`.
+`date=ask` or `{ date: "ask" }` opens the picker on a Today choice.
 
 ## Decide where the note is created: New note location {#new-note-location}
 

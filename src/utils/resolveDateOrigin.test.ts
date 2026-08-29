@@ -2,6 +2,7 @@ import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	addCalendarOffset,
+	applyInvocationDate,
 	dateFromStoredValue,
 	planDateOrigin,
 } from "./resolveDateOrigin";
@@ -110,5 +111,27 @@ describe("planDateOrigin", () => {
 				variables: new Map(),
 			}).status,
 		).toBe("error");
+	});
+});
+
+describe("applyInvocationDate", () => {
+	it("treats ask as pickDate and leaves clocks unset", () => {
+		const executor: { clocks?: { now: Date; date?: Date }; pickDate?: boolean } =
+			{};
+		expect(applyInvocationDate(executor, "ask")).toBe(true);
+		expect(executor.pickDate).toBe(true);
+		expect(executor.clocks).toBeUndefined();
+	});
+
+	it("parses a concrete day onto clocks", () => {
+		const executor: { clocks?: { now: Date; date?: Date }; pickDate?: boolean } =
+			{};
+		expect(applyInvocationDate(executor, "2026-08-21")).toBe(true);
+		expect(executor.pickDate).toBeUndefined();
+		expect(executor.clocks?.date).toBeInstanceOf(Date);
+	});
+
+	it("rejects an unreadable value", () => {
+		expect(applyInvocationDate({}, "not-a-day")).toBe(false);
 	});
 });

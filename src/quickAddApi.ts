@@ -50,7 +50,7 @@ import { settingsStore } from "./settingsStore";
 import { log } from "./logger/logManager";
 import type IChoice from "./types/choices/IChoice";
 import { getDate } from "./utilityObsidian";
-import { dateFromStoredValue } from "./utils/resolveDateOrigin";
+import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import { isCancellationError, reportError } from "./utils/errorUtils";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { FieldSuggestionFileFilter } from "./utils/FieldSuggestionFileFilter";
@@ -414,19 +414,12 @@ export class QuickAddApi {
 					return;
 				}
 
-				if (options?.date !== undefined) {
-					const date = dateFromStoredValue(options.date);
-					if (!date) {
-						reportError(
-							new Error(`Could not parse date origin '${String(options.date)}'`),
-							"API executeChoice error",
-						);
-						return;
-					}
-					choiceExecutor.clocks = {
-						now: choiceExecutor.clocks?.now ?? new Date(),
-						date,
-					};
+				if (!applyInvocationDate(choiceExecutor, options?.date)) {
+					reportError(
+						new Error(`Could not parse date origin '${String(options?.date)}'`),
+						"API executeChoice error",
+					);
+					return;
 				}
 
 				if (variables) {

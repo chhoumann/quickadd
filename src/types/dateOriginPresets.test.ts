@@ -5,8 +5,11 @@ import {
 	askDefaultFromPresetId,
 	askDefaultOptions,
 	askDefaultToPresetId,
+	dateOriginForPick,
 	dateOriginFromPreset,
 	dateOriginToPreset,
+	isPickDateToken,
+	shouldRegisterAnotherDayCommand,
 } from "./dateOriginPresets";
 
 describe("dateOrigin presets", () => {
@@ -152,5 +155,36 @@ describe("ask picker defaults", () => {
 			"next-week",
 			"last-month",
 		]);
+	});
+});
+
+describe("another-day command", () => {
+	it("registers for every job except Ask each time", () => {
+		expect(shouldRegisterAnotherDayCommand(undefined)).toBe(true);
+		expect(shouldRegisterAnotherDayCommand({ kind: "now" })).toBe(true);
+		expect(
+			shouldRegisterAnotherDayCommand({
+				kind: "relative",
+				offset: -1,
+				unit: "days",
+			}),
+		).toBe(true);
+		expect(shouldRegisterAnotherDayCommand({ kind: "ask" })).toBe(false);
+	});
+
+	it("seeds the picker from the named day you are overriding", () => {
+		expect(
+			dateOriginForPick({ kind: "relative", offset: -1, unit: "weeks" }),
+		).toEqual({ kind: "ask", defaultValue: "last week" });
+		expect(dateOriginForPick(undefined)).toEqual({ kind: "ask" });
+		expect(
+			dateOriginForPick({ kind: "ask", defaultValue: "last friday" }),
+		).toEqual({ kind: "ask", defaultValue: "last friday" });
+	});
+
+	it("treats ask as a pick-date token", () => {
+		expect(isPickDateToken("ask")).toBe(true);
+		expect(isPickDateToken("ASK")).toBe(true);
+		expect(isPickDateToken("last week")).toBe(false);
 	});
 });

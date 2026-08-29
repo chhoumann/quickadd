@@ -34,8 +34,8 @@ obsidian vault=dev quickadd:run choice="Weekly review" date=lw
 ```
 
 `date=` sets the day `{{DATE}}` uses. It accepts `YYYY-MM-DD`, natural language
-(`last friday`), or aliases (`lw`, `ly`, `nw`). The choice's **Which day**
-setting is skipped when `date=` is present.
+(`last friday`), aliases (`lw`, `ly`, `nw`), or `ask` to open the date picker.
+The choice's **Which day** setting is skipped when `date=` is a concrete day.
 
 ### List your choices: `quickadd:list` {#quickaddlist}
 

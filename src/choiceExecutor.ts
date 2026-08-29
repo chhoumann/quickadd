@@ -29,6 +29,7 @@ import {
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 import type { RunClocks } from "./types/dateOrigin";
 import { normalizeDateOrigin } from "./types/dateOrigin";
+import { dateOriginForPick } from "./types/dateOriginPresets";
 import { childChoicesOf } from "./utils/choiceUtils";
 import { QA_INTERNAL_DATE_ORIGIN } from "./constants";
 import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
@@ -53,6 +54,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;
+	public pickDate = false;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
@@ -113,6 +115,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.focusedProperty = null;
 			this.triggerContext = null;
 			this.clocks = undefined;
+			this.pickDate = false;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
@@ -268,7 +271,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
-		const setting = normalizeDateOrigin(choice.dateOrigin);
+		const setting = this.pickDate
+			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
+			: normalizeDateOrigin(choice.dateOrigin);
 		const reservedSeed =
 			setting?.kind === "ask"
 				? this.variables.get(QA_INTERNAL_DATE_ORIGIN)

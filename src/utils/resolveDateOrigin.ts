@@ -1,5 +1,6 @@
 import { NLDParser } from "../parsers/NLDParser";
 import type { DateOrigin, DateOriginUnit, RunClocks } from "../types/dateOrigin";
+import { isPickDateToken } from "../types/dateOriginPresets";
 import { parseNaturalLanguageDate } from "./dateParser";
 import { resolveExistingVariableKey } from "./valueSyntax";
 
@@ -99,4 +100,23 @@ export function planDateOrigin(input: {
 
 export function parseDateOriginInput(input: string): Date | undefined {
 	return dateFromStoredValue(input);
+}
+
+export function applyInvocationDate(
+	executor: { clocks?: RunClocks; pickDate?: boolean },
+	raw: unknown,
+): boolean {
+	if (raw === undefined || raw === null) return true;
+	if (typeof raw === "string" && !raw.trim()) return true;
+	if (isPickDateToken(raw)) {
+		executor.pickDate = true;
+		return true;
+	}
+	const date = dateFromStoredValue(raw);
+	if (!date) return false;
+	executor.clocks = {
+		now: executor.clocks?.now ?? new Date(),
+		date,
+	};
+	return true;
 }

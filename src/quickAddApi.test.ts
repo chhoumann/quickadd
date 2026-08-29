@@ -182,6 +182,8 @@ function makeChoiceExecutor() {
 		consumeAbortSignal: vi.fn(
 			(): InstanceType<typeof MacroAbortError> | null => null,
 		),
+		pickDate: false as boolean | undefined,
+		clocks: undefined as { now: Date; date?: Date } | undefined,
 	};
 }
 
@@ -1000,6 +1002,15 @@ describe("executeChoice", () => {
 		const { api } = getApi(makeApp(), makePlugin(), executor);
 		await api.executeChoice("C");
 		expect(executor.execute).toHaveBeenCalled();
+	});
+
+	it("treats date ask as pickDate and still executes", async () => {
+		const executor = makeChoiceExecutor();
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+		await api.executeChoice("C", {}, { date: "ask" });
+		expect(executor.execute).toHaveBeenCalled();
+		expect(executor.pickDate).toBe(true);
+		expect(executor.clocks).toBeUndefined();
 	});
 
 	it("rejects an invalid Date origin and does not execute", async () => {

@@ -15,7 +15,7 @@ export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 export const DATE_ORIGIN_SETTING_NAME = "Which day";
 export const DATE_ORIGIN_SETTING_DESC =
-	"{{DATE}} uses this day. The clock stays now.";
+	"{{DATE}} uses this day. {{TIME}} is when you run it. A command also gets (another day) so you can pick without a second choice.";
 
 export const ASK_DEFAULT_SETTING_NAME = "Picker starts on";
 export const ASK_DEFAULT_SETTING_DESC =
@@ -195,4 +195,29 @@ export function askDefaultFromPresetId(
 		if (item.id === id) return item.defaultValue;
 	}
 	return undefined;
+}
+
+export function isPickDateToken(value: unknown): boolean {
+	return typeof value === "string" && value.trim().toLowerCase() === "ask";
+}
+
+export function shouldRegisterAnotherDayCommand(
+	origin: DateOrigin | undefined,
+): boolean {
+	return dateOriginToPreset(origin) !== "ask";
+}
+
+export function anotherDayCommandId(choiceId: string): string {
+	return `choice:${choiceId}:another-day`;
+}
+
+export function anotherDayCommandName(choiceName: string): string {
+	return `${choiceName} (another day)`;
+}
+
+export function dateOriginForPick(
+	origin: DateOrigin | undefined,
+): DateOrigin {
+	if (origin?.kind === "ask") return origin;
+	return askOriginFromNamedDay(dateOriginToPreset(origin));
 }

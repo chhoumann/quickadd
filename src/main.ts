@@ -40,7 +40,12 @@ import {
 	rootChoicesOf,
 } from "./utils/choiceUtils";
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
-import { dateFromStoredValue } from "./utils/resolveDateOrigin";
+import { applyInvocationDate } from "./utils/resolveDateOrigin";
+import {
+	anotherDayCommandId,
+	anotherDayCommandName,
+	shouldRegisterAnotherDayCommand,
+} from "./types/dateOriginPresets";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -449,10 +454,8 @@ export default class QuickAdd extends Plugin {
 					choiceExecutor.variables.set(variableName, value);
 				}
 			});
-		if (typeof parameters.date === "string" && parameters.date.trim()) {
-			const date = dateFromStoredValue(parameters.date);
-			if (!date) return false;
-			choiceExecutor.clocks = { now: new Date(), date };
+		if (!applyInvocationDate(choiceExecutor, parameters.date)) {
+			return false;
 		}
 		return true;
 	}
@@ -593,26 +596,44 @@ export default class QuickAdd extends Plugin {
 				id: `choice:${choiceId}`,
 				name: choice.name,
 				icon: resolveChoiceIcon(choice),
-				callback: async () => {
-					// Resolved outside the try so the failure can name the choice the user
-					// actually ran; a bare UUID tells them nothing. Falls back to the name
-					// captured at registration when the lookup itself is what failed.
-					let current: IChoice | undefined;
-					try {
-						current = this.getChoiceById(choiceId);
-						await new ChoiceExecutor(this.app, this).execute(current);
-					} catch (err) {
-						// The outermost handler: the last chance to say which choice failed.
-						// It reports only what nothing below it already reported (#1601), and
-						// stays silent when the user simply dismissed a prompt - Escape on the
-						// one-page input modal used to raise a 15-second ERROR notice here.
-						reportUnlessCancelled(
-							err,
-							`Could not run "${current?.name ?? choice.name}"`,
-						);
-					}
-				},
+				callback: () => this.runRegisteredChoice(choiceId, choice.name),
 			});
+
+			if (shouldRegisterAnotherDayCommand(choice.dateOrigin)) {
+				this.addCommand({
+					id: anotherDayCommandId(choiceId),
+					name: anotherDayCommandName(choice.name),
+					icon: resolveChoiceIcon(choice),
+					callback: () =>
+						this.runRegisteredChoice(choiceId, choice.name, true),
+				});
+			}
+		}
+	}
+
+	private async runRegisteredChoice(
+		choiceId: string,
+		fallbackName: string,
+		pickDate = false,
+	): Promise<void> {
+		// Resolved outside the try so the failure can name the choice the user
+		// actually ran; a bare UUID tells them nothing. Falls back to the name
+		// captured at registration when the lookup itself is what failed.
+		let current: IChoice | undefined;
+		try {
+			current = this.getChoiceById(choiceId);
+			const executor = new ChoiceExecutor(this.app, this);
+			executor.pickDate = pickDate;
+			await executor.execute(current);
+		} catch (err) {
+			// The outermost handler: the last chance to say which choice failed.
+			// It reports only what nothing below it already reported (#1601), and
+			// stays silent when the user simply dismissed a prompt - Escape on the
+			// one-page input modal used to raise a 15-second ERROR notice here.
+			reportUnlessCancelled(
+				err,
+				`Could not run "${current?.name ?? fallbackName}"`,
+			);
 		}
 	}
 
@@ -710,6 +731,10 @@ export default class QuickAdd extends Plugin {
 		}
 
 		deleteObsidianCommand(this.app, `quickadd:choice:${choice.id}`);
+		deleteObsidianCommand(
+			this.app,
+			`quickadd:${anotherDayCommandId(choice.id)}`,
+		);
 	}
 
 	public getTemplateFiles(): TFile[] {
