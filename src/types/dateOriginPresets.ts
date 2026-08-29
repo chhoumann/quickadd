@@ -113,7 +113,8 @@ export function dateOriginFromPreset(input: {
 	if (preset === "today") return undefined;
 
 	if (preset === "ask") {
-		return previous?.kind === "ask" ? previous : { kind: "ask" };
+		if (previous?.kind === "ask") return previous;
+		return askOriginFromNamedDay(dateOriginToPreset(previous));
 	}
 
 	if (preset === "variable") {
@@ -143,6 +144,15 @@ export function dateOriginFromPreset(input: {
 	}
 
 	return undefined;
+}
+
+function askOriginFromNamedDay(preset: DateOriginPreset): DateOrigin {
+	for (const item of ASK_DEFAULT_PRESETS) {
+		if (item.id === preset && item.defaultValue) {
+			return { kind: "ask", defaultValue: item.defaultValue };
+		}
+	}
+	return { kind: "ask" };
 }
 
 export function askDefaultToPresetId(defaultValue?: string): string {

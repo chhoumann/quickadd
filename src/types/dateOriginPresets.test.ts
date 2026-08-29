@@ -74,6 +74,22 @@ describe("dateOrigin presets", () => {
 		});
 	});
 
+	it("seeds Ask from the named day you just left", () => {
+		expect(
+			dateOriginFromPreset({
+				preset: "ask",
+				previous: { kind: "relative", offset: -1, unit: "weeks" },
+			}),
+		).toEqual({ kind: "ask", defaultValue: "last week" });
+		expect(
+			dateOriginFromPreset({
+				preset: "ask",
+				previous: { kind: "relative", offset: -1, unit: "days" },
+			}),
+		).toEqual({ kind: "ask", defaultValue: "yesterday" });
+		expect(dateOriginFromPreset({ preset: "ask" })).toEqual({ kind: "ask" });
+	});
+
 	it("keeps Ask and variable extras when the preset does not change", () => {
 		expect(
 			dateOriginFromPreset({
