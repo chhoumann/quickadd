@@ -12,7 +12,7 @@ import {
 } from "../utils/clipboardImageAttachments";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
-export type PromptImage =
+type PromptImage =
 	| {
 			origin: "bytes";
 			file: File;
@@ -23,11 +23,11 @@ export type PromptImage =
 	  }
 	| { origin: "vault"; file: TFile };
 
-export type TransferDecision =
+type TransferDecision =
 	| { kind: "stand-down" }
 	| { kind: "take"; images: PromptImage[] };
 
-export type ImageIntakeChannel = "paste" | "drop";
+type ImageIntakeChannel = "paste" | "drop";
 
 export interface ImagePasteOptions {
 	/**
@@ -113,6 +113,7 @@ export function attachImagePasteHandler(
 		const data = event.dataTransfer;
 		if (!data || !transferMayCarryFiles(data)) return;
 		event.preventDefault();
+		data.dropEffect = "copy";
 		inputEl.classList.add("qa-image-drop-target");
 	};
 
@@ -167,9 +168,9 @@ export function attachImagePasteHandler(
 			}
 		} catch (error) {
 			log.logError(
-				`Failed to save pasted image: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to save image: ${error instanceof Error ? error.message : String(error)}`,
 			);
-			new Notice("QuickAdd: failed to save pasted image.");
+			new Notice("QuickAdd: failed to save image.");
 		} finally {
 			inputEl.readOnly = wasReadOnly;
 			inputEl.removeAttribute("aria-busy");
@@ -184,10 +185,10 @@ export function attachImagePasteHandler(
 			);
 		} catch (error) {
 			log.logError(
-				`Failed to insert pasted image link: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to insert image link: ${error instanceof Error ? error.message : String(error)}`,
 			);
 			new Notice(
-				"QuickAdd: saved the pasted image but could not insert its link.",
+				"QuickAdd: saved the image but could not insert its link.",
 			);
 		}
 	}
@@ -222,7 +223,7 @@ interface TransferredImageFile {
 	mimeType: string;
 }
 
-export function decideTransfer(
+function decideTransfer(
 	channel: ImageIntakeChannel,
 	data: DataTransfer,
 	app: App,

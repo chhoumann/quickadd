@@ -151,6 +151,12 @@ describe("image attachment naming", () => {
 			"portrait.png",
 		);
 	});
+
+	it("rejects unsupported MIME types", () => {
+		expect(() =>
+			droppedImageFilename("portrait.png", "application/pdf", now),
+		).toThrow(/Unsupported image type/);
+	});
 });
 
 describe("saveImageBytesToVault", () => {

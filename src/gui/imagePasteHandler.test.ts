@@ -279,7 +279,7 @@ describe("attachImagePasteHandler", () => {
 
 		expect(input.value.match(/!\[\[/g)).toHaveLength(1);
 		expect(Notice).toHaveBeenCalledWith(
-			expect.stringContaining("failed to save pasted image"),
+			expect.stringContaining("failed to save image"),
 		);
 		expect(input.readOnly).toBe(false);
 	});

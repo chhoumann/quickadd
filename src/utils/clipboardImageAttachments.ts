@@ -56,7 +56,7 @@ export function droppedImageFilename(
 	now: Date,
 ): string {
 	if (!isSupportedImageMime(mimeType)) {
-		return clipboardImageFilename(mimeType, now);
+		throw new Error(`Unsupported image type: ${mimeType}`);
 	}
 
 	const basename = originalName.split(/[\\/]/u).at(-1) ?? "";
