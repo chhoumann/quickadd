@@ -144,7 +144,7 @@ Opens a prompt that asks for text input.
 - `placeholder`: (Optional) Placeholder text in the input field
 - `value`: (Optional) Default value
 - `options.cursorAtEnd`: (Optional) When `true`, places the caret after the default value instead of selecting it
-- `options.imagePaste`: (Optional) Accept clipboard-image paste: the image is saved as a vault attachment (per Obsidian's attachment settings) and an embed link is inserted at the caret. Clipboard text always wins over an image. Only enable this when the value flows into note content - an embed link in a file name or path would corrupt it. `sourcePath` is the note path the link will live in when known; omit it to get vault-root links that resolve from anywhere.
+- `options.imagePaste`: (Optional) Accept pasted or dropped images. QuickAdd saves each image as a vault attachment and inserts an embed link at the caret. Clipboard text wins on paste. Image files win on drop because file managers also provide the filesystem path as text, and dropped images keep their original file name. Only enable this when the value flows into note content. File name and path prompts never accept images because an embed link would corrupt the path. `sourcePath` is the note path the link will live in when known. Omit it to get vault-root links that resolve from anywhere.
 
 **Returns:** Promise resolving to the entered string.
 
