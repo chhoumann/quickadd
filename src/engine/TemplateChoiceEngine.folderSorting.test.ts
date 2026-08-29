@@ -262,4 +262,33 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 
 		expect(inputSuggestMock).not.toHaveBeenCalled();
 	});
+
+	it("uses the active file's folder when specified mode has no configured folders", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: [],
+				chooseFromSubfolders: false,
+			}),
+			["Current"],
+			createActiveFile("Current"),
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).not.toHaveBeenCalled();
+	});
+
+	it("prompts when specified mode has no folders and no active file", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: [],
+				chooseFromSubfolders: false,
+			}),
+			[],
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+	});
 });
