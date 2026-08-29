@@ -415,9 +415,8 @@ For the Macro data-flow implications, see [`executeChoice` is a trigger](/docs/V
 **Parameters:**
 - `choiceName`: Name of the choice to execute
 - `variables`: (Optional) Variables to pass to the choice
-- `options.date`: (Optional) The day `{{DATE}}` should use. A `Date`, an
-  `@date:` ISO string, natural language (`last week`, `last friday`), or
-  `"ask"` to open the date picker.
+- `options.date`: (Optional) The day `{{DATE}}` should use. Pass a `Date`,
+  `last week`, or `"ask"` if you want the picker.
 
 **Example:**
 ```javascript

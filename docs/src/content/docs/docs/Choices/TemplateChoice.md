@@ -196,31 +196,32 @@ explicit **Create new note** row continues with normal Template creation.
 
 ## Which day `{{DATE}}` is about {#date-origin}
 
-**Which day** is the calendar day `{{DATE}}` uses. The clock (`{{TIME}}`) stays
-now. The template file does not change.
+Most of the time you want today. That's the default, and you can leave it
+alone.
 
-- **Today** (default). Same as before this setting existed.
-- **Ask each time**. Opens a date picker so you can file the note for another
-  day. **Picker starts on** sets the first day in that picker.
-- **Yesterday**, **Last week**, **Next week**, **Last month**. For a catch-up
-  daily, last week's review, or next week's plan.
-- **Custom…**. Any other number of days, weeks, months, or years from today.
-- **A variable…**. A `{{VDATE}}` or script value that already has the day.
+Sometimes you don't. Last week's review, yesterday's daily, the Friday you
+forgot to write. **Which day** is the calendar day `{{DATE}}` uses. The
+template file stays the same. `{{TIME}}` is still the time you ran the
+choice, so a "written at" stamp stays honest.
 
-Leave Which day on Today for a daily you usually open today. The same choice
-also gets **Name (another day)** in the command palette. Hold Shift in the
-QuickAdd menu for the same pick. You do not need a second choice. The original
-command id stays `quickadd:choice:<id>`, so an existing hotkey keeps working.
-**Name (another day)** is a new command you can bind separately.
+- **Today** is the default.
+- **Ask each time** opens a date picker. **Picker starts on** is only the
+  first value in that picker. You can still click another day.
+- **Yesterday**, **Last week**, **Next week**, and **Last month** cover the
+  usual jobs. A weekly note with `|startof:week` still lands in the right
+  week.
+- **Custom…** is any other jump from today, like three days back or last
+  year.
+- **A variable…** is for a `{{VDATE}}` or a script that already has the day.
 
-Two choices can still share one template file if you want one that always asks
-and one that never does. A weekly note that uses `|startof:week` files the
-picked day under the right week.
+If the choice has a command, QuickAdd also adds **Name (another day)** next
+to it. Same choice. Your existing hotkey still opens today. Use the extra
+command, or hold Shift in the QuickAdd menu, when it isn't today. You don't
+need a second Daily Note choice.
 
-Scripts and the CLI can set the day without the picker:
-`executeChoice("Weekly review", {}, { date: "last week" })` and
-`quickadd:run choice="Weekly review" date="last week"`.
-`date=ask` or `{ date: "ask" }` opens the picker on a Today choice.
+Scripts and the CLI can pass a day too:
+`executeChoice("Weekly review", {}, { date: "last week" })`, or `date=ask`
+if you want the picker.
 
 ## Decide where the note is created: New note location {#new-note-location}
 

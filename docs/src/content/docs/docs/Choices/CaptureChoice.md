@@ -275,17 +275,20 @@ _Task_ formats your captured text as a task (`- [ ] ...`).
 
 ### Which day {#date-origin}
 
-**Which day** is the same setting as on a [Template](/docs/Choices/TemplateChoice/#date-origin).
+Same [Which day](/docs/Choices/TemplateChoice/#date-origin) setting as a
+Template.
 
-`Daily/{{DATE}}.md` is which note. A line like `- {{TIME}} bought milk` is when
-you wrote it, even if that note is yesterday. `{{DATE:HH:mm}}` also shows the
-clock because that format has no day in it. Put `{{DATE}}` on the line if you
-want the note's day.
+Imagine you capture into `Daily/{{DATE}}.md` at 3pm. The path picks the note.
+The line `- {{TIME}} bought milk` is 3pm, even if that note is yesterday.
+That's the useful split: the note is the day, the stamp is when you wrote it.
 
-For a daily you usually open today, leave Which day on Today. Use
-**Daily log (another day)** in the command palette, or hold Shift in the
-QuickAdd menu, when you want a different day. You do not need a second choice.
-The original command id is unchanged, so an existing hotkey still runs today.
+`{{DATE:HH:mm}}` looks like it should print yesterday, but `HH:mm` only
+prints the clock, so you still get `15:00`. Put `{{DATE}}` on the line if
+you want the note's day next to the text.
+
+Most people leave this on Today and use **Daily log (another day)**, or hold
+Shift in the QuickAdd menu, for the days that aren't today. Your existing
+hotkey still captures to today.
 
 ### Use your selection as the answer {#use-editor-selection}
 

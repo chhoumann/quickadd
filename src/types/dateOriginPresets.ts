@@ -15,15 +15,15 @@ export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 export const DATE_ORIGIN_SETTING_NAME = "Which day";
 export const DATE_ORIGIN_SETTING_DESC =
-	"{{DATE}} uses this day. {{TIME}} is when you run it. A command also gets (another day) so you can pick without a second choice.";
+	"The day {{DATE}} writes. The clock stays now. A command also adds (another day) so you can pick without making a copy of this choice.";
 
 export const ASK_DEFAULT_SETTING_NAME = "Picker starts on";
 export const ASK_DEFAULT_SETTING_DESC =
-	"What the date picker shows first. You can still pick another day.";
+	"The date the picker suggests first. You can still pick a different day.";
 
 export const CUSTOM_OFFSET_SETTING_NAME = "How far from today";
 export const CUSTOM_OFFSET_SETTING_DESC =
-	"Negative is in the past. −1 week is last week.";
+	"How many days, weeks, months, or years from today. Negative is the past.";
 
 export const VARIABLE_SETTING_NAME = "Variable name";
 export const VARIABLE_SETTING_DESC =
