@@ -17,9 +17,24 @@ For a task-oriented overview of prompts in general, see
 
 Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
-It works with Template, Capture, and Macro choices. For Macros, only the inputs
-a script declares are collected (see [User scripts](#user-scripts-declare-inputs-optional)
-below).
+It works with Template, Capture, and Macro choices.
+
+When you run a Macro, the Templates and Captures you added to it share one
+form.
+
+The form stops at the first step that might fill in or skip later answers:
+another Macro, a Multi, a Conditional, a user script, or an AI command.
+Anything after that step is asked later. Another Macro gets its own form.
+QuickAdd does not guess which side of a Conditional will run.
+
+Two Captures in a row share one form. A Capture, then a user script, then
+another Capture do not share a form. You fill the first Capture now, and
+the second Capture later. If the user script lists its own inputs, those still appear
+on this form. See
+[User scripts](#user-scripts-declare-inputs-optional).
+
+To keep one Template or Capture off the form, set its **One-page input override**
+to **Never**.
 
 ## Turn it on or off for one choice {#per-choice-override}
 
@@ -97,9 +112,12 @@ fields left blank stay empty.
 ### Reserved internal variables {#internals-and-reserved-variables}
 
 QuickAdd uses reserved variable ids prefixed with `__qa.` for internal wiring
-during preflight and runtime. For example, `__qa.captureTargetFilePath` stores
-the capture target chosen in the form so the capture engine can skip its own
-file picker.
+during preflight and runtime. Capture-target flags are scoped by choice id
+(`__qa.captureTargetFilePath.<choiceId>`) so two captures in one macro get two
+distinct fields. The unscoped `value-__qa.captureTargetFilePath=…` flag still
+satisfies a collection that has exactly one capture-target field (a lone Capture,
+or a macro with one folder/tag capture). It does not satisfy two capture-target
+fields at once.
 
 These internal keys will not collide with your own variables. Avoid using the
 `__qa.` prefix in your scripts.

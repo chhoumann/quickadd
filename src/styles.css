@@ -293,6 +293,13 @@
 	text-align: center;
 }
 
+.quickAddModal .qa-onepage-section {
+	margin: 0.85rem 0 0.35rem;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+}
+
 .quickAddModal .qa-onepage-preview,
 .quickAddModal .vdate-preview-container {
 	padding: 0.5rem;

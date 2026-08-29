@@ -81,6 +81,12 @@ export interface FieldRequirement {
 		caseSensitive?: boolean;
 		multiSelect?: boolean;
 	};
+	group?: FieldGroup;
+}
+
+export interface FieldGroup {
+	id: string;
+	label: string;
 }
 
 /**

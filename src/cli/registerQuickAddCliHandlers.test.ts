@@ -11,11 +11,13 @@ const {
 	ChoiceExecutorMock,
 	collectChoiceRequirementsMock,
 	getUnresolvedRequirementsMock,
+	listDeferredMacroStepsMock,
 	interactiveServerMock,
 } = vi.hoisted(() => ({
 	ChoiceExecutorMock: vi.fn(),
 	collectChoiceRequirementsMock: vi.fn(),
 	getUnresolvedRequirementsMock: vi.fn(),
+	listDeferredMacroStepsMock: vi.fn((): Array<{ label: string; reason: string }> => []),
 	// Stubbed so driving quickadd:interactive does not really bind a loopback port
 	// (and leave watchdog timers behind) just to read the terminal event.
 	interactiveServerMock: {
@@ -36,6 +38,7 @@ vi.mock("../choiceExecutor", () => ({
 vi.mock("../preflight/collectChoiceRequirements", () => ({
 	collectChoiceRequirements: collectChoiceRequirementsMock,
 	getUnresolvedRequirements: getUnresolvedRequirementsMock,
+	listDeferredMacroSteps: listDeferredMacroStepsMock,
 }));
 
 interface RegisteredCliHandler {
@@ -145,6 +148,8 @@ describe("registerQuickAddCliHandlers", () => {
 		ChoiceExecutorMock.mockReset();
 		collectChoiceRequirementsMock.mockReset();
 		getUnresolvedRequirementsMock.mockReset();
+		listDeferredMacroStepsMock.mockReset();
+		listDeferredMacroStepsMock.mockReturnValue([]);
 
 		ChoiceExecutorMock.mockImplementation(function ChoiceExecutorMock() {
 			const executor: IChoiceExecutor = {
@@ -777,6 +782,35 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.requiredInputCount).toBe(1);
 		expect(payload.missingInputCount).toBe(1);
 		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("includes deferred macro steps in quickadd:check", async () => {
+		const { plugin, handlers } = createPlugin([macroChoice]);
+		registerQuickAddCliHandlers(plugin);
+		const check = handlers.find((handler) => handler.command === "quickadd:check");
+		collectChoiceRequirementsMock.mockResolvedValue([]);
+		getUnresolvedRequirementsMock.mockReturnValue([]);
+		listDeferredMacroStepsMock.mockReturnValue([
+			{ label: "Inner macro", reason: "nestedMacroGroup" },
+		]);
+
+		const payload = JSON.parse(
+			String(
+				await Promise.resolve(
+					check!.handler({
+						choice: macroChoice.name,
+					}),
+				),
+			),
+		);
+
+		expect(payload.deferred).toEqual([
+			{ label: "Inner macro", reason: "nestedMacroGroup" },
+		]);
+		expect(listDeferredMacroStepsMock).toHaveBeenCalledWith(
+			plugin,
+			macroChoice,
+		);
 	});
 
 	it("includes full field metadata in quickadd:check when the fields flag is set", async () => {

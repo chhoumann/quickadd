@@ -8,6 +8,7 @@ import type QuickAdd from "../main";
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
+	listDeferredMacroSteps,
 } from "../preflight/collectChoiceRequirements";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import { interactivePromptServer } from "../interactive/interactivePromptServer";
@@ -21,6 +22,7 @@ import {
 } from "../utils/choiceUtils";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import type IMacroChoice from "../types/choices/IMacroChoice";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import {
 	analysePackagePreview,
@@ -356,6 +358,10 @@ function describeChoice(choice: IChoice) {
 		name: choice.name,
 		type: choice.type,
 	};
+}
+
+function isMacroChoice(choice: IChoice): choice is IMacroChoice {
+	return choice.type === "Macro";
 }
 
 /**
@@ -740,6 +746,9 @@ async function checkChoiceHandler(
 			missingFlags: unresolved.map(
 				(requirement) => `value-${requirement.id}=<value>`,
 			),
+			...(isMacroChoice(choice)
+				? { deferred: listDeferredMacroSteps(plugin, choice) }
+				: {}),
 		});
 	} catch (error) {
 		return serialize({

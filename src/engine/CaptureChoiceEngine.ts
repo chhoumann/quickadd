@@ -17,10 +17,10 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	CREATE_IF_NOT_FOUND_ORDERED,
 	MARKDOWN_FILE_EXTENSION_REGEX,
-	QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
+import { readPreselectedCaptureTarget } from "../preflight/captureTargetKey";
 import { getMarkdownHeadings } from "../formatters/helpers/getEndOfSection";
 import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
@@ -1077,12 +1077,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 	 * across a trust boundary cannot hijack a definite-file capture target.
 	 */
 	private getPreselectedCaptureTargetPath(): string | undefined {
-		const preselected = this.choiceExecutor?.variables?.get(
-			QA_INTERNAL_CAPTURE_TARGET_FILE_PATH,
+		return readPreselectedCaptureTarget(
+			this.choiceExecutor?.variables,
+			this.choice.id,
 		);
-		return typeof preselected === "string" && preselected.length > 0
-			? preselected
-			: undefined;
 	}
 
 	/**
