@@ -3,8 +3,13 @@ import type { App, TFile } from "obsidian";
 import {
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
 	buildImageEmbedLink,
+	clipboardImageFilename,
+	droppedImageFilename,
 	formatClipboardAttachmentTimestamp,
+	isSupportedImageExtension,
+	isSupportedImageMime,
 	saveClipboardImageToVault,
+	saveImageBytesToVault,
 } from "./clipboardImageAttachments";
 
 function makeApp(overrides?: {
@@ -93,6 +98,76 @@ describe("saveClipboardImageToVault", () => {
 	it("uses the extension from the MIME map", () => {
 		expect(IMAGE_CLIPBOARD_MIME_EXTENSIONS["image/webp"]).toBe("webp");
 		expect(IMAGE_CLIPBOARD_MIME_EXTENSIONS["image/svg+xml"]).toBe("svg");
+	});
+});
+
+describe("image attachment naming", () => {
+	const now = new Date(2026, 6, 6, 9, 5, 3);
+
+	it("recognizes MIME types without inherited object properties", () => {
+		expect(isSupportedImageMime("image/png")).toBe(true);
+		expect(isSupportedImageMime("constructor")).toBe(false);
+	});
+
+	it("derives supported extensions from the MIME map and accepts jpeg", () => {
+		expect(isSupportedImageExtension("png")).toBe(true);
+		expect(isSupportedImageExtension("jpeg")).toBe(true);
+		expect(isSupportedImageExtension("pdf")).toBe(false);
+	});
+
+	it("builds the shipped clipboard timestamp filename", () => {
+		expect(clipboardImageFilename("image/png", now)).toBe(
+			"Clipboard image 2026-07-06 09.05.03.png",
+		);
+		expect(() => clipboardImageFilename("application/pdf", now)).toThrow(
+			/Unsupported clipboard image type/,
+		);
+	});
+
+	it("keeps a usable dropped basename and normalizes its extension", () => {
+		expect(droppedImageFilename("holiday.jpeg", "image/jpeg", now)).toBe(
+			"holiday.jpg",
+		);
+	});
+
+	it.each([
+		["photos/summer.png", "summer.png"],
+		["C:\\Users\\me\\winter.png", "winter.png"],
+	])("strips path segments from %s", (originalName, expected) => {
+		expect(droppedImageFilename(originalName, "image/png", now)).toBe(expected);
+	});
+
+	it.each(["", ".", "..", "CON.png", "bad:name.png"])(
+		"falls back to clipboard naming for %s",
+		(originalName) => {
+			expect(droppedImageFilename(originalName, "image/png", now)).toBe(
+				"Clipboard image 2026-07-06 09.05.03.png",
+			);
+		},
+	);
+
+	it("uses the MIME extension instead of the dropped extension", () => {
+		expect(droppedImageFilename("portrait.jpeg", "image/png", now)).toBe(
+			"portrait.png",
+		);
+	});
+});
+
+describe("saveImageBytesToVault", () => {
+	it("rejects inherited object-property MIME names at the write sink", async () => {
+		const { app, createBinary, getAvailablePathForAttachment } = makeApp();
+
+		await expect(
+			saveImageBytesToVault(
+				app,
+				data,
+				"constructor",
+				"",
+				"portrait.png",
+			),
+		).rejects.toThrow(/Unsupported image type/);
+		expect(getAvailablePathForAttachment).not.toHaveBeenCalled();
+		expect(createBinary).not.toHaveBeenCalled();
 	});
 });
 

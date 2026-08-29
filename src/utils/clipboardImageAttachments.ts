@@ -1,4 +1,8 @@
 import type { App, TFile } from "obsidian";
+import {
+	INVALID_FOLDER_CHARS_REGEX,
+	isReservedWindowsDeviceName,
+} from "./pathValidation";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
 
 /**
@@ -19,6 +23,18 @@ export const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> =
 		"image/svg+xml": "svg",
 	});
 
+export function isSupportedImageMime(type: string): boolean {
+	return Object.hasOwn(IMAGE_CLIPBOARD_MIME_EXTENSIONS, type);
+}
+
+export function isSupportedImageExtension(extension: string): boolean {
+	const normalizedExtension = extension.toLowerCase();
+	return (
+		normalizedExtension === "jpeg" ||
+		Object.values(IMAGE_CLIPBOARD_MIME_EXTENSIONS).includes(normalizedExtension)
+	);
+}
+
 export function formatClipboardAttachmentTimestamp(date: Date): string {
 	const pad = (value: number) => String(value).padStart(2, "0");
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
@@ -28,12 +44,43 @@ export function formatClipboardAttachmentTimestamp(date: Date): string {
 	)}`;
 }
 
+export function clipboardImageFilename(mimeType: string, now: Date): string {
+	if (!isSupportedImageMime(mimeType)) {
+		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
+	}
+
+	return `Clipboard image ${formatClipboardAttachmentTimestamp(now)}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
+}
+
+export function droppedImageFilename(
+	originalName: string,
+	mimeType: string,
+	now: Date,
+): string {
+	if (!isSupportedImageMime(mimeType)) {
+		return clipboardImageFilename(mimeType, now);
+	}
+
+	const basename = originalName.split(/[\\/]/u).at(-1) ?? "";
+	const extensionIndex = basename.lastIndexOf(".");
+	const stem =
+		extensionIndex >= 0 ? basename.slice(0, extensionIndex) : basename;
+	const hasUsableStem =
+		stem.length > 0 &&
+		stem !== "." &&
+		stem !== ".." &&
+		!isReservedWindowsDeviceName(stem) &&
+		!INVALID_FOLDER_CHARS_REGEX.test(stem);
+
+	if (!hasUsableStem) {
+		return clipboardImageFilename(mimeType, now);
+	}
+
+	return `${stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
+}
+
 /**
- * Saves clipboard image bytes as a vault attachment and returns the created
- * file. Link generation is a separate step ({@link buildImageEmbedLink}) so a
- * caller can record the created file for rollback/tracking BEFORE anything
- * that might still fail - a file created but untracked is an orphan no
- * cleanup can find.
+ * Saves image bytes as a vault attachment and returns the created file.
  *
  * Placement is delegated to `fileManager.getAvailablePathForAttachment`, which
  * honors the user's attachment-folder setting and dedupes name collisions
@@ -42,20 +89,17 @@ export function formatClipboardAttachmentTimestamp(date: Date): string {
  * `createBinary` has landed, so two same-second saves with in-flight writes
  * would resolve the same path and the second would throw.
  */
-export async function saveClipboardImageToVault(
+export async function saveImageBytesToVault(
 	app: App,
 	data: ArrayBuffer,
 	mimeType: string,
 	sourcePath: string,
+	filename: string,
 ): Promise<TFile> {
-	const extension = IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType];
-	if (!extension) {
-		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
+	if (!isSupportedImageMime(mimeType)) {
+		throw new Error(`Unsupported image type: ${mimeType}`);
 	}
 
-	const filename = `Clipboard image ${formatClipboardAttachmentTimestamp(
-		new Date(),
-	)}.${extension}`;
 	const attachmentPath = await app.fileManager.getAvailablePathForAttachment(
 		filename,
 		sourcePath || undefined,
@@ -65,10 +109,25 @@ export async function saveClipboardImageToVault(
 	// write sink, mirroring the repo's other vault-boundary guards).
 	if (escapesVaultBoundary(attachmentPath)) {
 		throw new Error(
-			`Refusing to save clipboard image outside the vault: '${attachmentPath}'`,
+			`Refusing to save image outside the vault: '${attachmentPath}'`,
 		);
 	}
 	return app.vault.createBinary(attachmentPath, data);
+}
+
+export async function saveClipboardImageToVault(
+	app: App,
+	data: ArrayBuffer,
+	mimeType: string,
+	sourcePath: string,
+): Promise<TFile> {
+	return saveImageBytesToVault(
+		app,
+		data,
+		mimeType,
+		sourcePath,
+		clipboardImageFilename(mimeType, new Date()),
+	);
 }
 
 /**
