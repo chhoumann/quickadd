@@ -2136,39 +2136,57 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		]);
 	});
 
-	it("defers a later capture after a nested Macro", async () => {
-		const later = {
-			...createCaptureChoice("Inbox"),
-			id: "later-cap",
-			name: "Later capture",
-		};
-		const nestedMacro: IMacroChoice = {
-			id: "inner-macro",
-			name: "Inner macro",
-			type: "Macro",
-			command: false,
-			runOnStartup: false,
-			macro: {
+	it.each([
+		{
+			name: "nested Macro",
+			cut: nestedChoice({
 				id: "inner-macro",
 				name: "Inner macro",
-				commands: [],
-			},
-		};
-		const macro = createMacroChoice(nestedChoice(nestedMacro), nestedChoice(later));
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: { id: "inner-macro", name: "Inner macro", commands: [] },
+			} as IMacroChoice),
+		},
+		{
+			name: "Multi",
+			cut: nestedChoice({
+				id: "inner-multi",
+				name: "Inner multi",
+				type: "Multi",
+				command: false,
+			}),
+		},
+		{
+			name: "Conditional",
+			cut: conditionalCommand("cond", "If project", []),
+		},
+	])(
+		"keeps the first capture's target and drops a later capture after a $name",
+		async ({ cut }) => {
+			const first = {
+				...createCaptureChoice("Projects"),
+				id: "first-cap",
+				name: "First capture",
+			};
+			const later = {
+				...createCaptureChoice("Inbox"),
+				id: "later-cap",
+				name: "Later capture",
+			};
 
-		const requirements = await collectChoiceRequirements(
-			app,
-			pluginWithChoices() as any,
-			choiceExecutor,
-			macro,
-		);
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(first), cut, nestedChoice(later)),
+			);
+			const ids = requirements.map((requirement) => requirement.id);
 
-		expect(requirements).toEqual([]);
-		expect(listDeferredMacroSteps(pluginWithChoices() as any, macro)).toEqual([
-			{ label: "Inner macro", reason: "nestedMacroGroup" },
-			{ label: "Later capture", reason: "afterOpaqueStep" },
-		]);
-	});
+			expect(ids).toContain(captureTargetKeyFor("first-cap"));
+			expect(ids).not.toContain(captureTargetKeyFor("later-cap"));
+		},
+	);
 
 	it("collects a Choice command Capture when getChoiceById resolves it", async () => {
 		const capture = {

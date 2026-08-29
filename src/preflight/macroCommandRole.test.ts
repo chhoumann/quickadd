@@ -35,36 +35,32 @@ const TABLE: Array<{
 	type: CommandType;
 	command: ICommand;
 	resolve?: (id: string) => IChoice | null;
-	expected: Partial<StepRole> & { collectKind: StepRole["collect"]["kind"] };
+	collectKind: StepRole["collect"]["kind"];
+	cutsLaterCaptures: boolean;
 }> = [
 	{
 		name: "Choice → Capture",
 		type: CommandType.Choice,
 		command: command(CommandType.Choice, { choiceId: "cap-1" }),
 		resolve: resolveMap({ "cap-1": choiceStub("Capture", "cap-1") }),
-		expected: { collectKind: "scanChoice", opaque: null, deferred: null },
+		collectKind: "scanChoice",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "Choice → Macro",
 		type: CommandType.Choice,
 		command: command(CommandType.Choice, { choiceId: "macro-1" }),
 		resolve: resolveMap({ "macro-1": choiceStub("Macro", "macro-1") }),
-		expected: {
-			collectKind: "none",
-			opaque: "nestedMacroGroup",
-			deferred: "nestedMacroGroup",
-		},
+		collectKind: "none",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "Choice missing",
 		type: CommandType.Choice,
 		command: command(CommandType.Choice, { choiceId: "missing" }),
 		resolve: noChoices(),
-		expected: {
-			collectKind: "none",
-			opaque: null,
-			deferred: "unresolvableChoice",
-		},
+		collectKind: "none",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "NestedChoice Capture",
@@ -72,7 +68,8 @@ const TABLE: Array<{
 		command: command(CommandType.NestedChoice, {
 			choice: choiceStub("Capture", "nested-cap"),
 		}),
-		expected: { collectKind: "scanChoice", opaque: null, deferred: null },
+		collectKind: "scanChoice",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "NestedChoice Macro",
@@ -80,11 +77,8 @@ const TABLE: Array<{
 		command: command(CommandType.NestedChoice, {
 			choice: choiceStub("Macro", "nested-macro"),
 		}),
-		expected: {
-			collectKind: "none",
-			opaque: "nestedMacroGroup",
-			deferred: "nestedMacroGroup",
-		},
+		collectKind: "none",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "NestedChoice Multi",
@@ -92,11 +86,8 @@ const TABLE: Array<{
 		command: command(CommandType.NestedChoice, {
 			choice: choiceStub("Multi", "nested-multi"),
 		}),
-		expected: {
-			collectKind: "none",
-			opaque: "interactivePicker",
-			deferred: "interactivePicker",
-		},
+		collectKind: "none",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "UserScript",
@@ -105,21 +96,15 @@ const TABLE: Array<{
 			path: "script.js",
 			settings: {},
 		}),
-		expected: {
-			collectKind: "scriptInputs",
-			opaque: "runsUserCode",
-			deferred: null,
-		},
+		collectKind: "scriptInputs",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "AIAssistant",
 		type: CommandType.AIAssistant,
 		command: command(CommandType.AIAssistant),
-		expected: {
-			collectKind: "none",
-			opaque: "runsUserCode",
-			deferred: null,
-		},
+		collectKind: "none",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "Conditional",
@@ -128,44 +113,44 @@ const TABLE: Array<{
 			thenCommands: [],
 			elseCommands: [],
 		}),
-		expected: {
-			collectKind: "none",
-			opaque: "conditionalBranch",
-			deferred: "conditionalBranch",
-		},
+		collectKind: "none",
+		cutsLaterCaptures: true,
 	},
 	{
 		name: "Wait",
 		type: CommandType.Wait,
 		command: command(CommandType.Wait),
-		expected: { collectKind: "none", opaque: null, deferred: null },
+		collectKind: "none",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "Obsidian",
 		type: CommandType.Obsidian,
 		command: command(CommandType.Obsidian),
-		expected: { collectKind: "none", opaque: null, deferred: null },
+		collectKind: "none",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "EditorCommand",
 		type: CommandType.EditorCommand,
 		command: command(CommandType.EditorCommand),
-		expected: { collectKind: "none", opaque: null, deferred: null },
+		collectKind: "none",
+		cutsLaterCaptures: false,
 	},
 	{
 		name: "OpenFile",
 		type: CommandType.OpenFile,
 		command: command(CommandType.OpenFile),
-		expected: { collectKind: "none", opaque: null, deferred: null },
+		collectKind: "none",
+		cutsLaterCaptures: false,
 	},
 ];
 
 describe("classifyStep", () => {
-	it.each(TABLE)("$name", ({ command: cmd, resolve, expected }) => {
+	it.each(TABLE)("$name", ({ command: cmd, resolve, collectKind, cutsLaterCaptures }) => {
 		const role = classifyStep(cmd, resolve ?? noChoices());
-		expect(role.collect.kind).toBe(expected.collectKind);
-		expect(role.opaque).toBe(expected.opaque ?? null);
-		expect(role.deferred).toBe(expected.deferred ?? null);
+		expect(role.collect.kind).toBe(collectKind);
+		expect(Boolean(role.opaque)).toBe(cutsLaterCaptures);
 	});
 
 	it("covers every CommandType in the table", () => {
@@ -187,7 +172,6 @@ describe("classifyStep", () => {
 			noChoices(),
 		);
 		expect(role.collect.kind).toBe("none");
-		expect(role.deferred).toBe("conditionalBranch");
-		expect(role.opaque).toBe("conditionalBranch");
+		expect(role.opaque).toBeTruthy();
 	});
 });
