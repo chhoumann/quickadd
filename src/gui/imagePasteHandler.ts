@@ -34,8 +34,7 @@ export interface ImagePasteOptions {
 	 * Note path the inserted link will live in when known (capture
 	 * destination). "" (default) resolves attachment placement against the
 	 * vault root and makes the link a vault-root path that resolves from any
-	 * note - never guess (e.g. the active file): a wrong guess generates
-	 * relative links that break from the real destination.
+	 * note.
 	 */
 	sourcePath?: string;
 }

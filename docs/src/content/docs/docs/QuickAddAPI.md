@@ -144,7 +144,7 @@ Opens a prompt that asks for text input.
 - `placeholder`: (Optional) Placeholder text in the input field
 - `value`: (Optional) Default value
 - `options.cursorAtEnd`: (Optional) When `true`, places the caret after the default value instead of selecting it
-- `options.imagePaste`: (Optional) Accept pasted or dropped images. QuickAdd saves each image as a vault attachment and inserts an embed link at the caret. Clipboard text wins on paste. Image files win on drop because file managers also provide the filesystem path as text, and dropped images keep their original file name. Only enable this when the value flows into note content. File name and path prompts never accept images because an embed link would corrupt the path. `sourcePath` is the note path the link will live in when known. Omit it to get vault-root links that resolve from anywhere.
+- `options.imagePaste`: (Optional) Accept pasted or dropped images. QuickAdd saves each image as a vault attachment and inserts an embed link at the caret. Clipboard text wins on paste. Image files win on drop because file managers also provide the filesystem path as text. Dropped images keep their original file name. Only enable this when the value flows into note content. File name and path prompts never accept images because an embed link would corrupt the path. `sourcePath` is the note path the link will live in when known. Omit it to get vault-root links that resolve from anywhere.
 
 **Returns:** Promise resolving to the entered string.
 

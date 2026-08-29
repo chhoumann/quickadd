@@ -905,7 +905,7 @@ if clipboard access fails due to permissions or security restrictions.
 In Capture content, if the clipboard has no text but holds a supported image,
 QuickAdd saves the image using Obsidian's attachment settings and inserts an
 embedded link. Text wins when both are present. You can also paste an image
-straight into a [value prompt](#value) while typing - no placeholder needed.
+straight into a [value prompt](#value) while typing. No placeholder needed.
 
 ### A template file: `{{TEMPLATE:<path>}}` {#template}
 

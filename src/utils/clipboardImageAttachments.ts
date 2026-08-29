@@ -11,8 +11,6 @@ import { escapesVaultBoundary } from "./vaultPathBoundary";
  * (PR #1393) and direct image paste into prompt inputs (issue #1484) so both
  * surfaces accept exactly the same formats.
  */
-// Null prototype so a hostile MIME like "constructor" can never hit an
-// inherited Object.prototype member in the index lookups below.
 export const IMAGE_CLIPBOARD_MIME_EXTENSIONS: Record<string, string> =
 	Object.assign(Object.create(null) as Record<string, string>, {
 		"image/png": "png",
@@ -104,9 +102,6 @@ export async function saveImageBytesToVault(
 		filename,
 		sourcePath || undefined,
 	);
-	// The attachment path comes from user-configurable settings; refuse any
-	// resolution that would write outside the vault (defense in depth at the
-	// write sink, mirroring the repo's other vault-boundary guards).
 	if (escapesVaultBoundary(attachmentPath)) {
 		throw new Error(
 			`Refusing to save image outside the vault: '${attachmentPath}'`,
@@ -135,10 +130,8 @@ export async function saveClipboardImageToVault(
  * honoring the user's wikilink/markdown preference.
  *
  * `sourcePath` is the note the link will live in when known (capture
- * destination), or "" when the destination is not yet resolved - "" makes
- * `generateMarkdownLink` emit a vault-root path that resolves from anywhere,
- * which is safer than guessing (e.g. the active file) and generating a
- * relative link that breaks from the real destination.
+ * destination), or "" when the destination is not yet resolved. "" makes
+ * `generateMarkdownLink` emit a vault-root path that resolves from anywhere.
  */
 export function buildImageEmbedLink(
 	app: App,
