@@ -25,6 +25,11 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import {
+	SAVE_CLIPBOARD_IMAGE_COMMAND,
+	SAVE_CLIPBOARD_IMAGE_FLAGS,
+	saveClipboardImageHandler,
+} from "./saveClipboardImageCli";
+import {
 	analysePackagePreview,
 	readQuickAddPackage,
 } from "../services/packageImportService";
@@ -196,6 +201,7 @@ const CLI_COMMANDS = {
 	check: "quickadd:check",
 	preview: "quickadd:package-preview",
 	interactive: "quickadd:interactive",
+	saveClipboardImage: SAVE_CLIPBOARD_IMAGE_COMMAND,
 } as const;
 
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
@@ -1004,6 +1010,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Run a choice interactively: forwards its runtime prompts to the caller over a local server (returns host/port/sessionId/token to attach)",
 		INTERACTIVE_FLAGS,
 		(params: CliData) => interactiveHandler(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.saveClipboardImage,
+		"Save a 1x1 PNG as a vault attachment using QuickAdd clipboard-image naming",
+		SAVE_CLIPBOARD_IMAGE_FLAGS,
+		(params: CliData) => saveClipboardImageHandler(plugin, params),
 	);
 
 	log.logMessage("Registered QuickAdd CLI handlers.");
