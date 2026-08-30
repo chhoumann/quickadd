@@ -24,9 +24,9 @@ Type one of these triggers anywhere in a prompt:
 
 :::note[Where the triggers work]
 The `#` and `[[` triggers work in QuickAdd's single-line and multi-line input
-prompts. The [one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts)'s
-text fields don't offer them; its field and pick-list inputs have their own
-inline suggestions instead.
+prompts, and in text and textarea fields on the
+[one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts).
+Field and pick-list widgets keep their own inline suggestions.
 :::
 
 ### Search your tags: `#` {#tag-search}

@@ -56,6 +56,11 @@ QuickAdd scans the choice for placeholders and turns each one into a field:
 - The capture target file, when you are capturing to a folder or a tag.
 - Inputs declared by a user script inside a macro, if the script provides them.
 
+Text and textarea fields support `[[` file links and `#` tags. **Peek at note**
+hides the whole form while you read or select text in the open note. **Insert
+selection** returns text to the last text field you focused, or the first text
+field if you have not focused one.
+
 ### How dates behave in the form {#date-ux}
 
 - Date fields accept natural language, like `today` or `next friday`.

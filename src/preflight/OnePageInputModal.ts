@@ -1,4 +1,5 @@
 import {
+	ButtonComponent,
 	DropdownComponent,
 	Modal,
 	Notice,
@@ -10,22 +11,26 @@ import {
 } from "obsidian";
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
 import { createDatePicker } from "src/gui/date-picker/datePicker";
+import { InputPromptPeek } from "src/gui/promptPeek/InputPromptPeek";
+import {
+	applyCompactPromptChrome,
+	stylePeekButton,
+} from "src/gui/promptPeek/stylePeekButton";
+import { PEEK_SHORTCUT_KEY } from "src/gui/promptShortcuts";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import {
 	FilePickerInputSuggest,
 	type FilePickerOption,
 } from "src/gui/suggesters/FilePickerInputSuggest";
+import { FileSuggester } from "src/gui/suggesters/fileSuggester";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
+import { TagSuggester } from "src/gui/suggesters/tagSuggester";
 import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import {
 	formatDateAliasInline,
 	getOrderedDateAliases,
 } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
-type CompletionInputEvent = Event & {
-	fromCompletion?: boolean;
-};
-
 import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
 import type { ImagePasteHandle } from "src/gui/imagePasteHandler";
 import { attachImagePasteHandler } from "src/gui/imagePasteHandler";
@@ -40,6 +45,17 @@ import {
 import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
 import { decodeFileValue } from "src/utils/fileSyntax";
+
+type CompletionInputEvent = Event & {
+	fromCompletion?: boolean;
+};
+
+type OnePageFreeTextField = {
+	id: string;
+	el: HTMLInputElement | HTMLTextAreaElement;
+	fileSuggester: FileSuggester;
+	tagSuggester: TagSuggester;
+};
 
 /**
  * One row of the live preview block, with the problems that pass ran into.
@@ -109,7 +125,10 @@ export class OnePageInputModal extends Modal {
 	private updatePreviewDebounced: () => void;
 	private settled = false;
 	private readonly imagePasteHandles: ImagePasteHandle[] = [];
+	private readonly freeTextFields: OnePageFreeTextField[] = [];
+	private lastFocusedFreeText: OnePageFreeTextField | undefined;
 	private readonly filePickerSuggesters: FilePickerInputSuggest[] = [];
+	private readonly peek: InputPromptPeek;
 
 	public waitForClose: Promise<Record<string, string>>;
 	private resolvePromise!: (values: Record<string, string>) => void;
@@ -134,6 +153,28 @@ export class OnePageInputModal extends Modal {
 			150,
 			true,
 		);
+		this.peek = new InputPromptPeek({
+			app,
+			title: "Provide inputs",
+			containerEl: this.containerEl,
+			scope: this.scope,
+			getField: () => this.insertTarget()?.el,
+			getValue: () => this.insertTarget()?.el.value ?? "",
+			setValue: (value) => {
+				const target = this.insertTarget();
+				if (!target) return;
+				this.result.set(target.id, value);
+				this.updatePreviewDebounced();
+			},
+			persistDraft: () => {},
+			markDraftChanged: () => {
+				const target = this.insertTarget();
+				if (!target) return;
+				this.result.set(target.id, target.el.value);
+				this.updatePreviewDebounced();
+			},
+			close: () => this.close(),
+		});
 
 		this.waitForClose = new Promise<Record<string, string>>(
 			(resolve, reject) => {
@@ -148,6 +189,7 @@ export class OnePageInputModal extends Modal {
 
 	private display() {
 		this.containerEl.addClass("quickAddModal", "onePageInputModal");
+		applyCompactPromptChrome(this.containerEl);
 		this.contentEl.empty();
 
 		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
@@ -182,21 +224,31 @@ export class OnePageInputModal extends Modal {
 		// ("Example Title") over prefilled answers for 150ms.
 		if (this.computePreview) void this.updatePreviews();
 
-		// Action bar
-		const btnRow = this.contentEl.createDiv();
-		new Setting(btnRow)
-			.addButton((btn) =>
-				btn
-					.setButtonText("Submit")
-					.setCta()
-					.onClick(() => this.submit()),
-			)
-			.addButton((btn) =>
-				btn.setButtonText("Cancel").onClick(() => this.cancel()),
-			);
+		const buttonBar = this.contentEl.createDiv({
+			cls: "qa-prompt-actions",
+		});
+		const primary = buttonBar.createDiv({
+			cls: "qa-prompt-actions-primary",
+		});
+		new ButtonComponent(primary)
+			.setButtonText("Submit")
+			.setCta()
+			.onClick(() => this.submit());
+		new ButtonComponent(primary)
+			.setButtonText("Cancel")
+			.onClick(() => this.cancel());
+		const secondary = buttonBar.createDiv({
+			cls: "qa-prompt-actions-secondary",
+		});
+		stylePeekButton(
+			new ButtonComponent(secondary)
+				.setButtonText("Peek at note")
+				.onClick(() => this.peek.peek()),
+		);
 	}
 
 	onOpen() {
+		this.peek.onHostOpened();
 		// Auto-focus the first field so keyboard-first users can start typing
 		// immediately, matching the single-field prompts.
 		const firstField = this.contentEl.querySelector<HTMLElement>(
@@ -222,6 +274,10 @@ export class OnePageInputModal extends Modal {
 				this.submit();
 				return false;
 			});
+			scope.register(["Mod", "Shift"], PEEK_SHORTCUT_KEY, () => {
+				this.peek.peek();
+				return false;
+			});
 		}
 	}
 
@@ -245,6 +301,7 @@ export class OnePageInputModal extends Modal {
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addClass("qa-onepage-textarea");
 				this.enableImagePaste(req, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl);
 				break;
 			}
 			case "text": {
@@ -258,6 +315,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl);
 				break;
 			}
 			case "number": {
@@ -640,6 +698,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl);
 			}
 		}
 
@@ -804,6 +863,26 @@ export class OnePageInputModal extends Modal {
 		sync();
 	}
 
+	private attachFreeTextBehaviors(
+		id: string,
+		el: HTMLInputElement | HTMLTextAreaElement,
+	): void {
+		const field: OnePageFreeTextField = {
+			id,
+			el,
+			fileSuggester: new FileSuggester(this.app, el),
+			tagSuggester: new TagSuggester(this.app, el),
+		};
+		this.freeTextFields.push(field);
+		el.addEventListener("focus", () => {
+			this.lastFocusedFreeText = field;
+		});
+	}
+
+	private insertTarget(): OnePageFreeTextField | undefined {
+		return this.lastFocusedFreeText ?? this.freeTextFields[0];
+	}
+
 	/**
 	 * Free-text fields accept clipboard-image paste UNLESS any scanned
 	 * occurrence of the variable was path context (file name, folder, capture
@@ -935,8 +1014,15 @@ export class OnePageInputModal extends Modal {
 	}
 
 	onClose() {
+		this.peek.onHostClosed();
 		for (const handle of this.imagePasteHandles) handle.detach();
 		this.imagePasteHandles.length = 0;
+		for (const field of this.freeTextFields) {
+			field.fileSuggester.destroy();
+			field.tagSuggester.destroy();
+		}
+		this.freeTextFields.length = 0;
+		this.lastFocusedFreeText = undefined;
 		for (const suggester of this.filePickerSuggesters) suggester.destroy();
 		this.filePickerSuggesters.length = 0;
 		// Esc (or any close that isn't submit/cancel) must settle the promise,
