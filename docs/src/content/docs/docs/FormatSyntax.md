@@ -401,8 +401,9 @@ from where the placeholder appears:
 - `|format:markdown` writes a vertical Markdown bullet list. Put the placeholder
   on its own line: `{{VALUE:Alpha,Beta|multi|format:markdown}}` becomes `- Alpha`
   followed by `- Beta`.
-- `|format:inline` always writes the existing comma-separated text form:
-  `Alpha,Beta`.
+- `|format:inline` writes comma-separated text. VALUE mimics the option-list
+  comma spacing. Space after every comma, or none. Mixed lists stay compact.
+  FIELD and FILE have no option list and stay `Alpha,Beta`.
 - `|format:auto` is the default and preserves the context-sensitive behavior
   described below.
 

@@ -1830,6 +1830,17 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		).resolves.toBe(expected);
 	});
 
+	it("renders VALUE inline with a space after each option-list comma", async () => {
+		const suggesterMulti = vi.fn(
+			async (_display: string[], _actual: string[]) => ["a", "b"],
+		);
+		const f = providerFormatter({ suggesterMulti });
+
+		await expect(
+			f.formatFileContent("{{VALUE:a, b|multi|format:inline}}"),
+		).resolves.toBe("a, b");
+	});
+
 	it("routes anonymous {{VALUE|type:checkbox}} to the provider's suggester, not the Obsidian modal", async () => {
 		mocks.genericSuggesterSuggest.mockResolvedValue("false"); // modal answer (should be unused)
 		const suggester = vi.fn(async () => "true");

@@ -118,7 +118,7 @@ describe("FieldSuggestionParser", () => {
 				"topics|multi|format:markdown",
 			);
 			expect(result.multiSelect).toBe(true);
-			expect(result.multiFormat).toBe("markdown");
+			expect(result.multiFormat).toEqual({ format: "markdown" });
 		});
 
 		it("warns on |format: without |multi, even |format:auto", () => {

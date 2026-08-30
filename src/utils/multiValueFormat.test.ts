@@ -26,20 +26,31 @@ describe("multi-select output formatting", () => {
 				input: "{{VALUE:a,b|multi}}",
 				matchStart: 0,
 				values: ["a", "b"],
-				format: "auto",
+				format: { format: "auto" },
 			}),
 		).toBeUndefined();
 	});
 
-	it("renders inline output with the legacy comma separator", () => {
+	it("renders compact inline output", () => {
 		expect(
 			renderExplicitMultiValue({
 				input: "value",
 				matchStart: 0,
 				values: ["Alpha", "Beta"],
-				format: "inline",
+				format: { format: "inline", separator: "," },
 			}),
 		).toBe("Alpha,Beta");
+	});
+
+	it("renders spaced inline output", () => {
+		expect(
+			renderExplicitMultiValue({
+				input: "value",
+				matchStart: 0,
+				values: ["Alpha", "Beta"],
+				format: { format: "inline", separator: ", " },
+			}),
+		).toBe("Alpha, Beta");
 	});
 
 	it("renders a quoted YAML flow sequence that preserves string values", () => {
@@ -48,7 +59,7 @@ describe("multi-select output formatting", () => {
 				input: "topics: token",
 				matchStart: 8,
 				values: ["0042", "a: b", 'quoted "value"'],
-				format: "yaml",
+				format: { format: "yaml" },
 			}),
 		).toBe('["0042", "a: b", "quoted \\"value\\""]');
 	});
@@ -59,7 +70,7 @@ describe("multi-select output formatting", () => {
 				input: "topics: token",
 				matchStart: 8,
 				values: [],
-				format: "yaml",
+				format: { format: "yaml" },
 			}),
 		).toBe("[]");
 	});
@@ -70,7 +81,7 @@ describe("multi-select output formatting", () => {
 				input: "  token",
 				matchStart: 2,
 				values: ["Alpha", "Beta\ncontinued"],
-				format: "markdown",
+				format: { format: "markdown" },
 			}),
 		).toBe("- Alpha\n  - Beta\n  continued");
 	});

@@ -8,7 +8,10 @@ import {
 	parsePipeKeyValue,
 	splitPipeParts,
 } from "./pipeSyntax";
-import type { MultiValueFormat } from "./multiValueFormat";
+import {
+	resolveMultiValueFormat,
+	type ResolvedMultiValueFormat,
+} from "./multiValueFormat";
 import type { WarnSink } from "./warnSink";
 
 // Namespaces FILE variable values in the variables map, separate from plain
@@ -41,7 +44,7 @@ export type ParsedFileToken = {
 	/** Pick several files and store/render them as a list. */
 	multiSelect: boolean;
 	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
-	multiFormat: MultiValueFormat;
+	multiFormat: ResolvedMultiValueFormat;
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
 	variableKey: string;
 };
@@ -184,7 +187,8 @@ export function parseFileToken(
 		warn: options?.warn,
 	});
 	const multiSelect = bareMultiSelect || (fieldParsed.multiSelect ?? false);
-	const multiFormat = fieldParsed.multiFormat ?? "auto";
+	const multiFormat =
+		fieldParsed.multiFormat ?? resolveMultiValueFormat("auto");
 	const filter: FieldFilter = {
 		folder: folderPath,
 		tags: fieldParsed.filters.tags,

@@ -3,12 +3,35 @@ import type { WarnSink } from "./warnSink";
 
 export type MultiValueFormat = "auto" | "inline" | "yaml" | "markdown";
 
+export type InlineSeparator = "," | ", ";
+
+export type ResolvedMultiValueFormat =
+	| { format: "auto" | "yaml" | "markdown" }
+	| { format: "inline"; separator: InlineSeparator };
+
 const MULTI_VALUE_FORMATS = new Set<MultiValueFormat>([
 	"auto",
 	"inline",
 	"yaml",
 	"markdown",
 ]);
+
+export function resolveMultiValueFormat(
+	format: "inline",
+	separator: InlineSeparator,
+): ResolvedMultiValueFormat;
+export function resolveMultiValueFormat(
+	format: MultiValueFormat,
+): ResolvedMultiValueFormat;
+export function resolveMultiValueFormat(
+	format: MultiValueFormat,
+	separator?: InlineSeparator,
+): ResolvedMultiValueFormat {
+	if (format === "inline") {
+		return { format: "inline", separator: separator ?? "," };
+	}
+	return { format };
+}
 
 export function parseMultiValueFormat(
 	raw: string,
@@ -43,18 +66,25 @@ export function renderExplicitMultiValue(args: {
 	input: string;
 	matchStart: number;
 	values: readonly unknown[];
-	format: MultiValueFormat;
+	format: ResolvedMultiValueFormat;
 }): string | undefined {
 	const { input, matchStart, values, format } = args;
-	if (format === "auto") return undefined;
-
-	const strings = values.map((value) => String(value));
-	if (format === "inline") return strings.join(",");
-	if (format === "yaml") {
-		return `[${strings.map(quoteYamlDouble).join(", ")}]`;
+	switch (format.format) {
+		case "auto":
+			return undefined;
+		case "inline":
+			return values.map((value) => String(value)).join(format.separator);
+		case "yaml":
+			return `[${values.map((value) => quoteYamlDouble(String(value))).join(", ")}]`;
+		case "markdown": {
+			const strings = values.map((value) => String(value));
+			if (strings.length === 0) return "";
+			const indent = currentLineIndent(input, matchStart);
+			return strings.map(renderMarkdownItem).join(`\n${indent}`);
+		}
+		default: {
+			const _exhaustive: never = format;
+			return _exhaustive;
+		}
 	}
-
-	if (strings.length === 0) return "";
-	const indent = currentLineIndent(input, matchStart);
-	return strings.map(renderMarkdownItem).join(`\n${indent}`);
 }
