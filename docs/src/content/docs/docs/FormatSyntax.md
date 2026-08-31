@@ -282,16 +282,22 @@ selection-as-value off, globally or per capture.
 
 :::note[Paste images straight into the prompt]
 Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
-screenshot or copied image: QuickAdd saves it using Obsidian's attachment
-settings and inserts an embedded link at the cursor. You can mix typed text
-and images, and paste more than one. Clipboard text wins over an image when
-both are present (copying a file in a file manager usually pastes its path as
-text). Turn on **Name pasted images after the note title** in QuickAdd
-settings to name the file after the destination note when that path is known
-(otherwise the file stays `Clipboard image YYYY-MM-DD HH.MM.SS`). Prompts for file names, folders, capture targets, and
-insert-after/before targets never accept image paste, since an embed link
-would break the path. Pasted attachments are ordinary vault files; cancelling
-the prompt afterwards does not delete them.
+Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
+screenshot or copied image, or drag an image from a file manager. QuickAdd
+saves it using Obsidian's attachment settings and inserts an embedded link at
+the cursor. You can mix typed text and images, and paste more than one.
+Dropped images keep a sanitized original file name. If the drop is already a
+vault image, QuickAdd embeds that file instead of copying it.
+
+Clipboard text wins over an image on paste. Image files win on drop because
+file managers also provide the filesystem path as text. Turn on **Name pasted
+images after the note title** in QuickAdd settings to name a pasted file after
+the destination note when that path is known (otherwise the file stays
+`Clipboard image YYYY-MM-DD HH.MM.SS`). Dropped files keep their sanitized
+original name even when that setting is on. Prompts for file names, folders,
+capture targets, and insert-after/before targets never accept images because
+an embed link would break the path. Saved attachments are ordinary vault
+files. Cancelling the prompt does not delete them.
 :::
 
 Good to know:
@@ -905,9 +911,9 @@ if clipboard access fails due to permissions or security restrictions.
 
 In Capture content, if the clipboard has no text but holds a supported image,
 QuickAdd saves the image using Obsidian's attachment settings and inserts an
-embedded link. Text wins when both are present. You can also paste an image
-straight into a [value prompt](#value) while typing - no placeholder needed.
-The **Name pasted images after the note title** setting names those files
+embedded link. Text wins when both are present. You can also paste or drop an image
+straight into a [value prompt](#value) while typing. No placeholder needed.
+The **Name pasted images after the note title** setting names pasted files
 after the destination note when QuickAdd already knows that path.
 
 ### A template file: `{{TEMPLATE:<path>}}` {#template}

@@ -1,19 +1,43 @@
-import type { App } from "obsidian";
+import type { App, TAbstractFile, TFile } from "obsidian";
 import { Notice } from "obsidian";
 import { log } from "../logger/logManager";
 import {
-	buildImageEmbedLink,
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
-	saveClipboardImageToVault,
+	buildImageEmbedLink,
+	clipboardImageAttachmentFileName,
+	clipboardImageFilename,
+	droppedImageStem,
+	isSupportedImageExtension,
+	isSupportedImageMime,
+	saveImageBytesToVault,
 } from "../utils/clipboardImageAttachments";
+import { settingsStore } from "../settingsStore";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+
+type PromptImage =
+	| {
+			origin: "bytes";
+			file: File;
+			mimeType: string;
+			naming:
+				| { kind: "clipboard-stamp" }
+				| { kind: "paste-name" }
+				| { kind: "original-stem"; stem: string };
+	  }
+	| { origin: "vault"; file: TFile };
+
+type TransferDecision =
+	| { kind: "stand-down" }
+	| { kind: "take"; images: PromptImage[] };
+
+type ImageIntakeChannel = "paste" | "drop";
 
 export interface ImagePasteOptions {
 	/**
 	 * Note path the inserted link will live in when known (capture
 	 * destination). "" (default) resolves attachment placement against the
 	 * vault root and makes the link a vault-root path that resolves from any
-	 * note - never guess (e.g. the active file): a wrong guess generates
-	 * relative links that break from the real destination.
+	 * note.
 	 */
 	sourcePath?: string;
 }
@@ -23,19 +47,39 @@ export interface ImagePasteHandle {
 	isBusy(): boolean;
 	/** Resolves once no image save is in flight (immediately when idle). */
 	whenIdle(): Promise<void>;
+	/** Saves files as dropped images and inserts embed links; returns the inserted text. */
+	ingestFiles(files: File[]): Promise<string>;
 	/** Removes all listeners; a still-running save keeps its file but skips the text insertion. */
 	detach(): void;
 }
 
+export type ImageIngestResult =
+	| { ok: true; inserted: string }
+	| { ok: false; reason: "no-active-prompt" | "no-images" | "busy" };
+
+type AttachedPrompt = {
+	handle: ImagePasteHandle;
+	inputEl: HTMLInputElement | HTMLTextAreaElement;
+};
+
+const attachedPrompts: AttachedPrompt[] = [];
+
+function pickAttachedPrompt(): AttachedPrompt | null {
+	const live = attachedPrompts.filter((entry) => entry.inputEl.isConnected);
+	const focused = live.find(
+		(entry) =>
+			document.activeElement !== null &&
+			entry.inputEl.contains(document.activeElement),
+	);
+	return focused ?? live.at(-1) ?? null;
+}
+
 /**
- * Lets an input/textarea accept clipboard IMAGE paste: the image is saved as a
- * vault attachment (via Obsidian's attachment-folder logic) and an embed link
- * is inserted at the caret. Clipboard TEXT always wins - when text/plain is
- * non-empty the event is left to the default paste, byte-parity with the
- * shipped `{{CLIPBOARD}}` image fallback's precedence.
+ * Lets an input/textarea accept pasted or dropped images. Paste leaves
+ * non-empty clipboard text to the browser. Drop prefers image files because
+ * file-manager drags include the filesystem path as text.
  *
- * Attach only to inputs whose value flows into note content as free text;
- * a pasted embed link in a file-name or path prompt would corrupt the path.
+ * Attach only to inputs whose value flows into note content as free text.
  */
 export function attachImagePasteHandler(
 	app: App,
@@ -54,37 +98,70 @@ export function attachImagePasteHandler(
 		composing = false;
 	};
 
+	const acceptDecision = (
+		channel: ImageIntakeChannel,
+		event: ClipboardEvent | DragEvent,
+		decision: TransferDecision,
+		now: Date,
+	): void => {
+		switch (decision.kind) {
+			case "stand-down":
+				return;
+			case "take":
+				event.preventDefault();
+				if (pendingSave) {
+					new Notice(
+						channel === "paste"
+							? "QuickAdd: an image is still being saved — paste again in a moment."
+							: "QuickAdd: an image is still being saved — drop again in a moment.",
+					);
+					return;
+				}
+				pendingSave = beginIntake(decision.images, now)
+					.then(() => undefined)
+					.finally(() => {
+						pendingSave = null;
+					});
+				return;
+			default:
+				return assertNever(decision);
+		}
+	};
+
 	const onPaste = (event: ClipboardEvent) => {
 		const data = event.clipboardData;
 		if (!data) return;
-		// Mid-IME-composition value mutation desyncs the composition buffer.
 		if (composing) return;
-		// Text wins: leave the event to the default paste. Untrimmed check, so
-		// whitespace-only text still wins (parity with the capture fallback).
-		if (data.getData("text/plain").length > 0) return;
-
-		// Extract the Files SYNCHRONOUSLY: Chromium neuters the DataTransfer
-		// once this handler yields (items empty, getAsFile() null after await).
-		const images = collectImageFiles(data);
-		if (images.length === 0) return;
-
-		event.preventDefault();
-		if (pendingSave) {
-			new Notice(
-				"QuickAdd: an image is still being saved — paste again in a moment.",
-			);
-			return;
-		}
-		// saveAndInsert never rejects (both phases catch), so pendingSave and
-		// the whenIdle()-deferred submits can never be dropped by a rejection.
-		pendingSave = saveAndInsert(images).finally(() => {
-			pendingSave = null;
-		});
+		const now = new Date();
+		acceptDecision("paste", event, decideTransfer("paste", data, app), now);
 	};
 
-	async function saveAndInsert(images: PastedImage[]): Promise<void> {
-		// Freeze the input during the save so the caret cannot go stale from
-		// typing; the embed is inserted at the LIVE selection afterwards.
+	const onDragEnterOrOver = (event: DragEvent) => {
+		if (composing) return;
+		const data = event.dataTransfer;
+		if (!data || !transferMayCarryFiles(data)) return;
+		event.preventDefault();
+		data.dropEffect = "copy";
+		inputEl.classList.add("qa-image-drop-target");
+	};
+
+	const clearDropTarget = () => {
+		inputEl.classList.remove("qa-image-drop-target");
+	};
+
+	const onDrop = (event: DragEvent) => {
+		clearDropTarget();
+		if (composing) return;
+		const data = event.dataTransfer;
+		if (!data || !transferMayCarryFiles(data)) return;
+		const now = new Date();
+		acceptDecision("drop", event, decideTransfer("drop", data, app), now);
+	};
+
+	async function beginIntake(
+		images: PromptImage[],
+		now: Date,
+	): Promise<string> {
 		const wasReadOnly = inputEl.readOnly;
 		inputEl.readOnly = true;
 		inputEl.setAttribute("aria-busy", "true");
@@ -92,106 +169,321 @@ export function attachImagePasteHandler(
 
 		const links: string[] = [];
 		try {
-			// Strictly sequential AND globally queued: the attachment-path
-			// dedupe only sees files whose createBinary landed, so concurrent
-			// same-second saves (multi-image paste, or pastes into two fields
-			// of the one-page form) would resolve the same path and collide.
 			for (const image of images) {
-				const data = await image.file.arrayBuffer();
-				const file = await enqueueVaultSave(() =>
-					saveClipboardImageToVault(app, data, image.mimeType, sourcePath),
-				);
+				let file: TFile;
+				switch (image.origin) {
+					case "vault":
+						file = image.file;
+						break;
+					case "bytes": {
+						const data = await image.file.arrayBuffer();
+						const filename = promptImageFilename(image, now, sourcePath);
+						file = await enqueueVaultSave(() =>
+							saveImageBytesToVault(
+								app,
+								data,
+								image.mimeType,
+								sourcePath,
+								filename,
+							),
+						);
+						break;
+					}
+					default:
+						return assertNever(image);
+				}
 				links.push(buildImageEmbedLink(app, file, sourcePath));
 			}
 		} catch (error) {
-			// Images saved before the failure keep their links (they are real
-			// vault files by now); only the failing one is reported.
 			log.logError(
-				`Failed to save pasted image: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to save image: ${error instanceof Error ? error.message : String(error)}`,
 			);
-			new Notice("QuickAdd: failed to save pasted image.");
+			new Notice("QuickAdd: failed to save image.");
 		} finally {
 			inputEl.readOnly = wasReadOnly;
 			inputEl.removeAttribute("aria-busy");
 			inputEl.classList.remove("qa-image-paste-busy");
 		}
 
-		if (links.length === 0 || detached) return;
+		if (links.length === 0 || detached) return "";
+		const inserted =
+			links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " ");
 		try {
-			insertAtSelection(
-				inputEl,
-				links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " "),
-			);
+			insertAtSelection(inputEl, inserted);
+			return inserted;
 		} catch (error) {
-			// The files exist and are usable; only the text insertion failed.
 			log.logError(
-				`Failed to insert pasted image link: ${error instanceof Error ? error.message : String(error)}`,
+				`Failed to insert image link: ${error instanceof Error ? error.message : String(error)}`,
 			);
 			new Notice(
-				"QuickAdd: saved the pasted image but could not insert its link.",
+				"QuickAdd: saved the image but could not insert its link.",
 			);
+			return "";
 		}
 	}
 
+	async function ingestFiles(files: File[]): Promise<string> {
+		const now = new Date();
+		const images = promptImagesFromFiles(files);
+		if (images.length === 0) {
+			log.logMessage("QuickAdd: image ingest skipped (no-images).");
+			return "";
+		}
+		if (pendingSave) {
+			new Notice(
+				"QuickAdd: an image is still being saved — drop again in a moment.",
+			);
+			log.logMessage("QuickAdd: image ingest skipped (busy).");
+			return "";
+		}
+		let inserted = "";
+		pendingSave = (async () => {
+			inserted = await beginIntake(images, now);
+		})().finally(() => {
+			pendingSave = null;
+		});
+		await pendingSave;
+		if (inserted.length > 0) {
+			log.logMessage(
+				`QuickAdd: ingested ${images.length} image(s) into the active prompt.`,
+			);
+		}
+		return inserted;
+	}
+
 	inputEl.addEventListener("paste", onPaste);
+	inputEl.addEventListener("dragenter", onDragEnterOrOver);
+	inputEl.addEventListener("dragover", onDragEnterOrOver);
+	inputEl.addEventListener("dragleave", clearDropTarget);
+	inputEl.addEventListener("drop", onDrop);
 	inputEl.addEventListener("compositionstart", onCompositionStart);
 	inputEl.addEventListener("compositionend", onCompositionEnd);
 
-	return {
+	const handle: ImagePasteHandle = {
 		isBusy: () => pendingSave !== null,
 		whenIdle: () => pendingSave ?? Promise.resolve(),
+		ingestFiles,
 		detach: () => {
 			detached = true;
+			clearDropTarget();
 			inputEl.removeEventListener("paste", onPaste);
+			inputEl.removeEventListener("dragenter", onDragEnterOrOver);
+			inputEl.removeEventListener("dragover", onDragEnterOrOver);
+			inputEl.removeEventListener("dragleave", clearDropTarget);
+			inputEl.removeEventListener("drop", onDrop);
 			inputEl.removeEventListener("compositionstart", onCompositionStart);
 			inputEl.removeEventListener("compositionend", onCompositionEnd);
+			const index = attachedPrompts.findIndex(
+				(entry) => entry.handle === handle,
+			);
+			if (index >= 0) attachedPrompts.splice(index, 1);
 		},
 	};
+	attachedPrompts.push({ handle, inputEl });
+	return handle;
 }
 
-interface PastedImage {
+export async function ingestImagesIntoActivePrompt(
+	files: File[],
+): Promise<ImageIngestResult> {
+	const attached = pickAttachedPrompt();
+	if (!attached) {
+		log.logMessage("QuickAdd: image ingest skipped (no-active-prompt).");
+		return { ok: false, reason: "no-active-prompt" };
+	}
+	if (attached.handle.isBusy()) {
+		log.logMessage("QuickAdd: image ingest skipped (busy).");
+		return { ok: false, reason: "busy" };
+	}
+	const inserted = await attached.handle.ingestFiles(files);
+	if (inserted.length === 0) {
+		return { ok: false, reason: "no-images" };
+	}
+	return { ok: true, inserted };
+}
+
+interface TransferredImageFile {
 	file: File;
-	/**
-	 * MIME from the DataTransferItem (or File) that matched the supported
-	 * map - carried separately because getAsFile() can return a File whose
-	 * .type is empty or differs from the item's.
-	 */
 	mimeType: string;
 }
 
+function decideTransfer(
+	channel: ImageIntakeChannel,
+	data: DataTransfer,
+	app: App,
+): TransferDecision {
+	switch (channel) {
+		case "paste": {
+			if (data.getData("text/plain").length > 0) {
+				return { kind: "stand-down" };
+			}
+			const images = collectImageFiles(data).map<PromptImage>((image) => ({
+				origin: "bytes",
+				...image,
+				naming: { kind: "paste-name" },
+			}));
+			return images.length > 0
+				? { kind: "take", images }
+				: { kind: "stand-down" };
+		}
+		case "drop": {
+			const vaultImages = collectVaultImages(data, app);
+			if (vaultImages.length > 0) {
+				return { kind: "take", images: vaultImages };
+			}
+			const images = collectImageFiles(data).map<PromptImage>((image) => ({
+				origin: "bytes",
+				...image,
+				naming: droppedImageNaming(image),
+			}));
+			return images.length > 0
+				? { kind: "take", images }
+				: { kind: "stand-down" };
+		}
+		default:
+			return assertNever(channel);
+	}
+}
+
+function collectVaultImages(data: DataTransfer, app: App): PromptImage[] {
+	const images: PromptImage[] = [];
+	for (const line of data.getData("text/plain").split(/\r?\n/u)) {
+		const path = line.trim();
+		if (
+			path.length === 0 ||
+			path.toLowerCase().startsWith("file://") ||
+			escapesVaultBoundary(path)
+		) {
+			continue;
+		}
+		const file = app.vault.getAbstractFileByPath(path);
+		if (isSupportedVaultImage(file)) {
+			images.push({ origin: "vault", file });
+		}
+	}
+	return images;
+}
+
+function isSupportedVaultImage(
+	file: TAbstractFile | null,
+): file is TFile {
+	return (
+		file !== null &&
+		"extension" in file &&
+		typeof file.extension === "string" &&
+		isSupportedImageExtension(file.extension)
+	);
+}
+
+function collectImageFiles(data: DataTransfer): TransferredImageFile[] {
+	// Prefer items when every file-kind entry produced an image so FileList
+	// clones from getAsFile() are not saved twice. Fall back to FileList when
+	// item MIME is empty, and merge only the remainder.
+	const fromItems: TransferredImageFile[] = [];
+	let fileItemCount = 0;
+
+	for (const item of Array.from(data.items ?? [])) {
+		if (item.kind !== "file") continue;
+		fileItemCount++;
+		if (!isSupportedImageMime(item.type)) continue;
+		const file = item.getAsFile();
+		if (file) fromItems.push({ file, mimeType: item.type });
+	}
+
+	if (fileItemCount > 0 && fromItems.length === fileItemCount) {
+		return fromItems;
+	}
+
+	if (fromItems.length === 0) {
+		const fromFiles: TransferredImageFile[] = [];
+		for (const file of Array.from(data.files ?? [])) {
+			if (isSupportedImageMime(file.type)) {
+				fromFiles.push({ file, mimeType: file.type });
+			}
+		}
+		return fromFiles;
+	}
+
+	const images = [...fromItems];
+	const seen = new Set(
+		fromItems.map(({ file, mimeType }) =>
+			`${file.name}\0${file.size}\0${mimeType}\0${file.lastModified}`,
+		),
+	);
+	for (const file of Array.from(data.files ?? [])) {
+		if (!isSupportedImageMime(file.type)) continue;
+		const key = `${file.name}\0${file.size}\0${file.type}\0${file.lastModified}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		images.push({ file, mimeType: file.type });
+	}
+	return images;
+}
+
+function promptImagesFromFiles(files: File[]): PromptImage[] {
+	return files.flatMap((file) => {
+		if (!isSupportedImageMime(file.type)) return [];
+		const image: TransferredImageFile = { file, mimeType: file.type };
+		return [
+			{
+				origin: "bytes" as const,
+				...image,
+				naming: droppedImageNaming(image),
+			},
+		];
+	});
+}
+
+function droppedImageNaming(
+	image: TransferredImageFile,
+): Extract<PromptImage, { origin: "bytes" }>["naming"] {
+	const stem = droppedImageStem(image.file.name);
+	if (stem === null) return { kind: "clipboard-stamp" };
+	return { kind: "original-stem", stem };
+}
+
+function promptImageFilename(
+	image: Extract<PromptImage, { origin: "bytes" }>,
+	now: Date,
+	sourcePath: string,
+): string {
+	switch (image.naming.kind) {
+		case "clipboard-stamp":
+			return clipboardImageFilename(image.mimeType, now);
+		case "paste-name":
+			return clipboardImageAttachmentFileName({
+				extension: IMAGE_CLIPBOARD_MIME_EXTENSIONS[image.mimeType],
+				sourcePath,
+				now,
+				nameAfterNoteTitle:
+					settingsStore.getState().namePastedImagesAfterNoteTitle,
+			});
+		case "original-stem":
+			return `${image.naming.stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[image.mimeType]}`;
+		default:
+			return assertNever(image.naming);
+	}
+}
+
+function transferMayCarryFiles(data: DataTransfer): boolean {
+	return Array.from(data.types ?? []).some(
+		(type) => type === "Files" || isSupportedImageMime(type),
+	);
+}
+
+function assertNever(value: never): never {
+	throw new Error(`Unexpected image intake value: ${String(value)}`);
+}
+
 /**
- * Serializes all clipboard-image vault writes in this window: the attachment
- * path dedupe only sees landed files, so two same-second saves racing (e.g.
- * pastes into two one-page fields) would resolve the same path.
+ * Serializes all image vault writes in this window because attachment-path
+ * deduplication only sees files after `createBinary` completes.
  */
 let vaultSaveQueue: Promise<unknown> = Promise.resolve();
 function enqueueVaultSave<T>(work: () => Promise<T>): Promise<T> {
 	const result = vaultSaveQueue.then(work, work);
 	vaultSaveQueue = result.catch(() => undefined);
 	return result;
-}
-
-function isSupportedImageMime(type: string): boolean {
-	return Object.hasOwn(IMAGE_CLIPBOARD_MIME_EXTENSIONS, type);
-}
-
-function collectImageFiles(data: DataTransfer): PastedImage[] {
-	const images: PastedImage[] = [];
-	for (const item of Array.from(data.items ?? [])) {
-		if (item.kind !== "file") continue;
-		if (!isSupportedImageMime(item.type)) continue;
-		const file = item.getAsFile();
-		if (file) images.push({ file, mimeType: item.type });
-	}
-	if (images.length > 0) return images;
-
-	// Some webviews only populate .files.
-	for (const file of Array.from(data.files ?? [])) {
-		if (isSupportedImageMime(file.type)) {
-			images.push({ file, mimeType: file.type });
-		}
-	}
-	return images;
 }
 
 function insertAtSelection(

@@ -37,3 +37,14 @@ export const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
 export function isReservedWindowsDeviceName(name: string): boolean {
 	return RESERVED_WINDOWS_DEVICE_NAMES.has(name.toUpperCase());
 }
+
+export function isPortablePathSegment(segment: string): boolean {
+	if (segment.length === 0) return false;
+	if (segment === "." || segment === "..") return false;
+	if (segment.startsWith(".")) return false;
+	if (INVALID_FOLDER_CONTROL_CHARS_REGEX.test(segment)) return false;
+	if (INVALID_FOLDER_CHARS_REGEX.test(segment)) return false;
+	if (INVALID_FOLDER_TRAILING_CHARS_REGEX.test(segment)) return false;
+	const deviceBase = segment.split(".")[0] ?? "";
+	return deviceBase.length === 0 || !isReservedWindowsDeviceName(deviceBase);
+}
