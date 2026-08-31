@@ -11,9 +11,15 @@ export interface QuickAddSettings {
 	inputPrompt: "multi-line" | "single-line";
 	persistInputPromptDrafts: boolean;
 	/**
-		* When enabled, Capture uses the current editor selection as the default {{VALUE}}.
-		*/
+		 * When enabled, Capture uses the current editor selection as the default {{VALUE}}.
+		 */
 	useSelectionAsCaptureValue: boolean;
+	/**
+		 * Name clipboard images (prompt paste and {{CLIPBOARD}} image fallback)
+		 * after the destination note when that path is known. Unknown destination
+		 * keeps the timestamp name. Collisions use Obsidian's attachment-folder API.
+		 */
+	namePastedImagesAfterNoteTitle: boolean;
 	/**
 		* When enabled, typing in the choice picker also searches choices nested
 		* inside Multi choices and shows matches with their folder path.
@@ -111,6 +117,7 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 	inputPrompt: "single-line",
 	persistInputPromptDrafts: true,
 	useSelectionAsCaptureValue: true,
+	namePastedImagesAfterNoteTitle: false,
 	searchNestedChoices: true,
 	templateFolderLauncherRow: "bottom",
 	devMode: false,

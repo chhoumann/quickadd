@@ -1,4 +1,6 @@
 import type { App, TFile } from "obsidian";
+import { settingsStore } from "../settingsStore";
+import { fileBasenameFromPath } from "./fileSyntax";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
 
 /**
@@ -28,6 +30,49 @@ export function formatClipboardAttachmentTimestamp(date: Date): string {
 	)}`;
 }
 
+const CLIPBOARD_IMAGE_STEM_FORBIDDEN = /[/\\:*?"<>|#^[\]]/g;
+
+export function sanitizeClipboardImageStem(stem: string): string {
+	return stem
+		.replace(CLIPBOARD_IMAGE_STEM_FORBIDDEN, "")
+		.replace(/\s+/g, " ")
+		.replace(/[. ]+$/g, "")
+		.trim();
+}
+
+export interface ClipboardImageFileNameInput {
+	extension: string;
+	sourcePath: string;
+	now: Date;
+	nameAfterNoteTitle: boolean;
+}
+
+/**
+ * Basename (with extension) passed to `getAvailablePathForAttachment`.
+ * Destination-title naming only applies when the note path is known and the
+ * sanitized stem is non-empty; otherwise this keeps the timestamp name.
+ */
+export function clipboardImageAttachmentFileName(
+	input: ClipboardImageFileNameInput,
+): string {
+	if (input.nameAfterNoteTitle) {
+		const stem = sanitizeClipboardImageStem(
+			fileBasenameFromPath(input.sourcePath),
+		);
+		if (stem.length > 0) {
+			return `${stem}.${input.extension}`;
+		}
+	}
+	return `Clipboard image ${formatClipboardAttachmentTimestamp(input.now)}.${
+		input.extension
+	}`;
+}
+
+export interface SaveClipboardImageOptions {
+	nameAfterNoteTitle?: boolean;
+	now?: Date;
+}
+
 /**
  * Saves clipboard image bytes as a vault attachment and returns the created
  * file. Link generation is a separate step ({@link buildImageEmbedLink}) so a
@@ -47,15 +92,22 @@ export async function saveClipboardImageToVault(
 	data: ArrayBuffer,
 	mimeType: string,
 	sourcePath: string,
+	options?: SaveClipboardImageOptions,
 ): Promise<TFile> {
 	const extension = IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType];
 	if (!extension) {
 		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
 	}
 
-	const filename = `Clipboard image ${formatClipboardAttachmentTimestamp(
-		new Date(),
-	)}.${extension}`;
+	const nameAfterNoteTitle =
+		options?.nameAfterNoteTitle ??
+		settingsStore.getState().namePastedImagesAfterNoteTitle;
+	const filename = clipboardImageAttachmentFileName({
+		extension,
+		sourcePath,
+		now: options?.now ?? new Date(),
+		nameAfterNoteTitle,
+	});
 	const attachmentPath = await app.fileManager.getAvailablePathForAttachment(
 		filename,
 		sourcePath || undefined,
