@@ -404,7 +404,7 @@ from where the placeholder appears:
 - `|format:inline` always writes the compact comma-separated text form:
   `Alpha,Beta`.
 - `|format:spaced` writes the same text with a space after each comma:
-  `Alpha, Beta`.
+  `{{VALUE:option a, option b|multi|format:spaced}}` becomes `option a, option b`.
 - `|format:auto` is the default and preserves the context-sensitive behavior
   described below.
 
