@@ -24,7 +24,10 @@ const CHOICE_ID = "qa-pkg-capture-inbox-gps";
 const CHOICE_NAME = "Capture to Inbox with GPS";
 const PACKAGE_VAULT_PATH = "packages/capture-inbox-gps.quickadd.json";
 const WAIT_OPTS = { timeoutMs: 15_000, intervalMs: 200 };
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repoRoot = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"../..",
+);
 const packageJson = readFileSync(
 	path.join(repoRoot, "docs/public/packages/capture-inbox-gps.quickadd.json"),
 	"utf8",
@@ -58,11 +61,16 @@ type PackagePreviewResponse = {
 	};
 };
 
-async function runTeardownStep(label: string, fn: () => Promise<void>) {
+async function runTeardownStep(
+	label: string,
+	step: () => Promise<unknown> | unknown,
+	errors: unknown[],
+) {
 	try {
-		await fn();
+		await step();
 	} catch (error) {
-		console.error(`teardown failed (${label})`, error);
+		errors.push(error);
+		console.warn(`capture-inbox-gps teardown failed during ${label}`, error);
 	}
 }
 
@@ -119,8 +127,12 @@ describe("Capture to Inbox with GPS package", () => {
 		obsidian = createQuickAddObsidianClient();
 		lock = await acquireQuickAddVaultRunLock(obsidian);
 		await lock.publishMarker(obsidian);
-		sandbox = createSandboxApi(obsidian);
 		qa = obsidian.plugin(PLUGIN_ID);
+		sandbox = await createSandboxApi({
+			obsidian,
+			sandboxRoot: "__obsidian_e2e__",
+			testName: "capture-inbox-gps-package",
+		});
 		inboxPath = sandbox.path("gps-inbox.md");
 
 		await seedVaultFile(obsidian, sandbox, PACKAGE_VAULT_PATH, packageJson);
@@ -153,7 +165,10 @@ describe("Capture to Inbox with GPS package", () => {
 			}
 		})()`);
 
-		expect(imported).toMatchObject({ ok: true, scriptPath: "scripts/captureInboxGps.js" });
+		expect(imported).toMatchObject({
+			ok: true,
+			scriptPath: "scripts/captureInboxGps.js",
+		});
 
 		const parsed = JSON.parse(packageJson) as {
 			choices: Array<{ choice: QuickAddData["choices"][number] }>;
@@ -175,12 +190,8 @@ describe("Capture to Inbox with GPS package", () => {
 		await qa.reload({ waitUntilReady: true });
 	}, 30_000);
 
-	beforeEach(async ({ task }) => {
-		await qa.diagnostics.reset();
-		if (await sandbox.exists(inboxPath)) {
-			await seedVaultFile(obsidian, sandbox, inboxPath, "");
-		}
-		task.meta.onTestFailed(async (ctx) => {
+	beforeEach((ctx) => {
+		ctx.onTestFailed(async () => {
 			await captureFailureArtifacts(
 				{ id: ctx.task.id, name: ctx.task.name },
 				obsidian,
@@ -190,17 +201,20 @@ describe("Capture to Inbox with GPS package", () => {
 	});
 
 	afterAll(async () => {
-		await runTeardownStep("restore choices", async () => {
-			await qa.data<QuickAddData>().patch((data) => {
-				data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
-			});
-			await qa.reload({ waitUntilReady: true });
-		});
-		await runTeardownStep("clear lock marker", async () => {
-			if (lock) await clearVaultRunLockMarker(obsidian, lock);
-		});
-		lock?.release();
-	});
+		const errors: unknown[] = [];
+		await runTeardownStep("restoreData", () => qa?.restoreData?.(), errors);
+		await runTeardownStep("reload", () => qa?.reload?.(), errors);
+		await runTeardownStep("sandbox cleanup", () => sandbox?.cleanup?.(), errors);
+		await runTeardownStep(
+			"clear vault run lock marker",
+			() => (obsidian ? clearVaultRunLockMarker(obsidian) : undefined),
+			errors,
+		);
+		await runTeardownStep("release vault lock", () => lock?.release(), errors);
+		if (errors.length > 0) {
+			throw errors[0];
+		}
+	}, 15_000);
 
 	it("previews the packaged script as executable", async () => {
 		const preview = await obsidian.execJson<PackagePreviewResponse>(

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
+import type IMacroChoice from "../src/types/choices/IMacroChoice";
 import { decodeFromBase64 } from "../src/utils/base64";
 import { buildPackagePreview } from "../src/services/packagePreview";
 import {
@@ -16,6 +17,10 @@ const packagePath = path.join(
 	"docs/public/packages/capture-inbox-gps.quickadd.json",
 );
 const scriptPath = path.join(root, "docs/public/scripts/captureInboxGps.js");
+
+function lf(value: string): string {
+	return value.replace(/\r\n/g, "\n");
+}
 
 function createMockApp(initialFiles: Record<string, string> = {}): {
 	app: App;
@@ -47,7 +52,7 @@ function createMockApp(initialFiles: Record<string, string> = {}): {
 
 describe("Capture to Inbox with GPS package", () => {
 	const raw = readFileSync(packagePath, "utf8");
-	const script = readFileSync(scriptPath, "utf8");
+	const script = lf(readFileSync(scriptPath, "utf8"));
 	const pkg = parseQuickAddPackage(raw);
 
 	it("bundles the published script and a command-palette Macro", () => {
@@ -55,19 +60,16 @@ describe("Capture to Inbox with GPS package", () => {
 		expect(pkg.rootChoiceIds).toEqual(["qa-pkg-capture-inbox-gps"]);
 		expect(pkg.assets).toHaveLength(1);
 		expect(pkg.assets[0]?.originalPath).toBe("scripts/captureInboxGps.js");
-		expect(decodeFromBase64(pkg.assets[0]?.content ?? "")).toBe(script);
+		expect(lf(decodeFromBase64(pkg.assets[0]?.content ?? ""))).toBe(script);
 
-		const choice = pkg.choices[0]?.choice as {
-			name: string;
-			command: boolean;
-			runOnStartup: boolean;
-			macro: { commands: Array<{ type: string; path: string }> };
-		};
+		const choice = pkg.choices[0]?.choice as IMacroChoice;
 		expect(choice.name).toBe("Capture to Inbox with GPS");
 		expect(choice.command).toBe(true);
 		expect(choice.runOnStartup).toBe(false);
 		expect(choice.macro.commands[0]?.type).toBe("UserScript");
-		expect(choice.macro.commands[0]?.path).toBe("scripts/captureInboxGps.js");
+		expect(
+			(choice.macro.commands[0] as { path?: string }).path,
+		).toBe("scripts/captureInboxGps.js");
 	});
 
 	it("previews as an executable script that registers a command", () => {
@@ -104,7 +106,7 @@ describe("Capture to Inbox with GPS package", () => {
 
 		expect(result.addedChoiceIds).toEqual(["qa-pkg-capture-inbox-gps"]);
 		expect(result.writtenAssets).toEqual(["scripts/captureInboxGps.js"]);
-		expect(files.get("scripts/captureInboxGps.js")).toBe(script);
+		expect(lf(files.get("scripts/captureInboxGps.js") ?? "")).toBe(script);
 		expect(result.updatedChoices[0]?.name).toBe("Capture to Inbox with GPS");
 	});
 });
