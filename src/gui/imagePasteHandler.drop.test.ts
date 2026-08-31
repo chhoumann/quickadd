@@ -216,6 +216,70 @@ describe("attachImagePasteHandler image drop", () => {
 		expect(input.value).toBe("![[attachments/photo.png]]");
 	});
 
+	it("does not save the same drop twice when items and FileList yield distinct File objects", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+		const itemFile = makeFile("sunset.png", "image/png");
+		const listFile = new File([new Uint8Array([1, 2, 3])], itemFile.name, {
+			type: itemFile.type,
+			lastModified: itemFile.lastModified,
+		});
+		expect(listFile).not.toBe(itemFile);
+
+		dispatchDrag(input, "drop", {
+			getData: () => "",
+			items: [
+				{
+					kind: "file",
+					type: "image/png",
+					getAsFile: () => itemFile,
+				},
+			],
+			files: [listFile],
+			types: ["Files"],
+		} as unknown as DataTransfer);
+		await flushSaves(handle);
+
+		expect(createBinary).toHaveBeenCalledTimes(1);
+		expect(input.value).toBe("![[attachments/sunset.png]]");
+		handle.detach();
+	});
+
+	it("does not double-save a FileList clone when merging a partial item list", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+		const itemFile = makeFile("sunset.png", "image/png");
+		const listFile = new File([new Uint8Array([1, 2, 3])], itemFile.name, {
+			type: itemFile.type,
+			lastModified: itemFile.lastModified,
+		});
+
+		dispatchDrag(input, "drop", {
+			getData: () => "",
+			items: [
+				{
+					kind: "file",
+					type: "image/png",
+					getAsFile: () => itemFile,
+				},
+				{
+					kind: "file",
+					type: "",
+					getAsFile: () => itemFile,
+				},
+			],
+			files: [listFile],
+			types: ["Files"],
+		} as unknown as DataTransfer);
+		await flushSaves(handle);
+
+		expect(createBinary).toHaveBeenCalledTimes(1);
+		expect(input.value).toBe("![[attachments/sunset.png]]");
+		handle.detach();
+	});
+
 	it("saves two distinct files that share name, size, and type", async () => {
 		const { app, createBinary, created } = makeApp();
 		const input = makeInput();

@@ -376,26 +376,46 @@ function isSupportedVaultImage(
 }
 
 function collectImageFiles(data: DataTransfer): TransferredImageFile[] {
-	const images: TransferredImageFile[] = [];
-	const seen = new Set<File>();
-
-	const push = (file: File, mimeType: string) => {
-		if (seen.has(file)) return;
-		seen.add(file);
-		images.push({ file, mimeType });
-	};
+	// Prefer items when every file-kind entry produced an image so FileList
+	// clones from getAsFile() are not saved twice. Fall back to FileList when
+	// item MIME is empty, and merge only the remainder.
+	const fromItems: TransferredImageFile[] = [];
+	let fileItemCount = 0;
 
 	for (const item of Array.from(data.items ?? [])) {
 		if (item.kind !== "file") continue;
+		fileItemCount++;
 		if (!isSupportedImageMime(item.type)) continue;
 		const file = item.getAsFile();
-		if (file) push(file, item.type);
+		if (file) fromItems.push({ file, mimeType: item.type });
 	}
 
-	for (const file of Array.from(data.files ?? [])) {
-		if (isSupportedImageMime(file.type)) {
-			push(file, file.type);
+	if (fileItemCount > 0 && fromItems.length === fileItemCount) {
+		return fromItems;
+	}
+
+	if (fromItems.length === 0) {
+		const fromFiles: TransferredImageFile[] = [];
+		for (const file of Array.from(data.files ?? [])) {
+			if (isSupportedImageMime(file.type)) {
+				fromFiles.push({ file, mimeType: file.type });
+			}
 		}
+		return fromFiles;
+	}
+
+	const images = [...fromItems];
+	const seen = new Set(
+		fromItems.map(({ file, mimeType }) =>
+			`${file.name}\0${file.size}\0${mimeType}\0${file.lastModified}`,
+		),
+	);
+	for (const file of Array.from(data.files ?? [])) {
+		if (!isSupportedImageMime(file.type)) continue;
+		const key = `${file.name}\0${file.size}\0${file.type}\0${file.lastModified}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		images.push({ file, mimeType: file.type });
 	}
 	return images;
 }
