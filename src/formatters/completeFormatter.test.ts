@@ -1819,6 +1819,7 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		["yaml", '["a", "c"]'],
 		["markdown", "- a\n- c"],
 		["inline", "a,c"],
+		["spaced", "a, c"],
 	] as const)("renders VALUE multi-selects with |format:%s", async (format, expected) => {
 		const suggesterMulti = vi.fn(
 			async (_display: string[], _actual: string[]) => ["a", "c"],
@@ -1830,7 +1831,7 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		).resolves.toBe(expected);
 	});
 
-	it("renders VALUE inline with a space after each option-list comma", async () => {
+	it("keeps format:inline compact when the option list has spaces", async () => {
 		const suggesterMulti = vi.fn(
 			async (_display: string[], _actual: string[]) => ["a", "b"],
 		);
@@ -1838,23 +1839,23 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 
 		await expect(
 			f.formatFileContent("{{VALUE:a, b|multi|format:inline}}"),
-		).resolves.toBe("a, b");
+		).resolves.toBe("a,b");
 	});
 
-	it("ignores a trailing empty option when inferring inline spacing", async () => {
+	it("joins format:spaced with a comma and a space, including spaced option names", async () => {
 		const suggesterMulti = vi.fn(
 			async (_display: string[], _actual: string[]) => [
-				"Empty A",
-				"Empty B",
+				"option a",
+				"option b",
 			],
 		);
 		const f = providerFormatter({ suggesterMulti });
 
 		await expect(
 			f.formatFileContent(
-				"{{VALUE:Empty A, Empty B,|multi|format:inline}}",
+				"{{VALUE:option a, option b|multi|format:spaced}}",
 			),
-		).resolves.toBe("Empty A, Empty B");
+		).resolves.toBe("option a, option b");
 	});
 
 	it("routes anonymous {{VALUE|type:checkbox}} to the provider's suggester, not the Obsidian modal", async () => {

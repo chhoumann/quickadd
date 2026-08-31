@@ -1,37 +1,15 @@
 import { quoteYamlDouble } from "./yamlScalarQuoting";
 import type { WarnSink } from "./warnSink";
 
-export type MultiValueFormat = "auto" | "inline" | "yaml" | "markdown";
-
-export type InlineSeparator = "," | ", ";
-
-export type ResolvedMultiValueFormat =
-	| { format: "auto" | "yaml" | "markdown" }
-	| { format: "inline"; separator: InlineSeparator };
+export type MultiValueFormat = "auto" | "inline" | "spaced" | "yaml" | "markdown";
 
 const MULTI_VALUE_FORMATS = new Set<MultiValueFormat>([
 	"auto",
 	"inline",
+	"spaced",
 	"yaml",
 	"markdown",
 ]);
-
-export function resolveMultiValueFormat(
-	format: "inline",
-	separator: InlineSeparator,
-): ResolvedMultiValueFormat;
-export function resolveMultiValueFormat(
-	format: MultiValueFormat,
-): ResolvedMultiValueFormat;
-export function resolveMultiValueFormat(
-	format: MultiValueFormat,
-	separator?: InlineSeparator,
-): ResolvedMultiValueFormat {
-	if (format === "inline") {
-		return { format: "inline", separator: separator ?? "," };
-	}
-	return { format };
-}
 
 export function parseMultiValueFormat(
 	raw: string,
@@ -44,7 +22,7 @@ export function parseMultiValueFormat(
 	}
 
 	warn?.(
-		`QuickAdd: Unsupported multi-select format "${raw}" in "${tokenDisplay}". Supported formats: auto, inline, yaml, markdown.`,
+		`QuickAdd: Unsupported multi-select format "${raw}" in "${tokenDisplay}". Supported formats: auto, inline, spaced, yaml, markdown.`,
 	);
 	return undefined;
 }
@@ -66,18 +44,21 @@ export function renderExplicitMultiValue(args: {
 	input: string;
 	matchStart: number;
 	values: readonly unknown[];
-	format: ResolvedMultiValueFormat;
+	format: MultiValueFormat;
 }): string | undefined {
 	const { input, matchStart, values, format } = args;
-	switch (format.format) {
+	const strings = values.map((value) => String(value));
+
+	switch (format) {
 		case "auto":
 			return undefined;
 		case "inline":
-			return values.map((value) => String(value)).join(format.separator);
+			return strings.join(",");
+		case "spaced":
+			return strings.join(", ");
 		case "yaml":
-			return `[${values.map((value) => quoteYamlDouble(String(value))).join(", ")}]`;
+			return `[${strings.map(quoteYamlDouble).join(", ")}]`;
 		case "markdown": {
-			const strings = values.map((value) => String(value));
 			if (strings.length === 0) return "";
 			const indent = currentLineIndent(input, matchStart);
 			return strings.map(renderMarkdownItem).join(`\n${indent}`);

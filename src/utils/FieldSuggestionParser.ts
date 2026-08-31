@@ -7,9 +7,7 @@ import {
 import { suggestSimilarKeys } from "./suggestSimilarKeys";
 import {
 	parseMultiValueFormat,
-	resolveMultiValueFormat,
 	type MultiValueFormat,
-	type ResolvedMultiValueFormat,
 } from "./multiValueFormat";
 
 /**
@@ -169,7 +167,7 @@ export class FieldSuggestionParser {
 		fieldName: string;
 		filters: FieldFilter;
 		multiSelect?: boolean;
-		multiFormat?: ResolvedMultiValueFormat;
+		multiFormat?: MultiValueFormat;
 	} {
 		const parts = splitPipeParts(input).map((p) => p.trim());
 		const fieldName = parts[0];
@@ -324,12 +322,11 @@ export class FieldSuggestionParser {
 			multiFormat = "auto";
 		}
 
-		const resolved = resolveMultiValueFormat(multiFormat);
 		return {
 			fieldName,
 			filters,
 			...(multiSelect ? { multiSelect } : {}),
-			...(resolved.format !== "auto" ? { multiFormat: resolved } : {}),
+			...(multiFormat !== "auto" ? { multiFormat } : {}),
 		};
 	}
 }

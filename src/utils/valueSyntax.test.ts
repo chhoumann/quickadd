@@ -249,7 +249,7 @@ describe("parseValueToken", () => {
 		expect(parsed?.multiEmit).toBe("linklist");
 	});
 
-	it.each(["yaml", "markdown", "inline"] as const)(
+	it.each(["yaml", "markdown", "inline", "spaced"] as const)(
 		"parses |format:%s separately from |multi item emission",
 		(format) => {
 			const parsed = parseValueToken(
@@ -257,52 +257,21 @@ describe("parseValueToken", () => {
 			);
 			expect(parsed?.multiSelect).toBe(true);
 			expect(parsed?.multiEmit).toBe("linklist");
-			expect(parsed?.multiFormat).toEqual(
-				format === "inline"
-					? { format: "inline", separator: "," }
-					: { format },
-			);
+			expect(parsed?.multiFormat).toBe(format);
 		},
 	);
 
 	it("warns and ignores an explicit format without |multi", () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
-		expect(parseValueToken("Only|format:yaml")?.multiFormat).toEqual({
-			format: "auto",
-		});
+		expect(parseValueToken("Only|format:yaml")?.multiFormat).toBe("auto");
 		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("needs |multi"));
 	});
 
 	it("warns on an explicit |format:auto without |multi (a silent no-op otherwise)", () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
-		expect(parseValueToken("Only|format:auto")?.multiFormat).toEqual({
-			format: "auto",
-		});
+		expect(parseValueToken("Only|format:auto")?.multiFormat).toBe("auto");
 		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("needs |multi"));
 	});
-
-	it.each([
-		["option a,option b|multi|format:inline", ","],
-		["option a, option b|multi|format:inline", ", "],
-		["a, b,c|multi|format:inline", ","],
-		["a,b, c|multi|format:inline", ","],
-		['"a, b",c|multi|format:inline', ","],
-		['"a, b", c|multi|format:inline', ", "],
-		["a ,b|multi|format:inline", ","],
-		["a,b|multi|format:inline|text:option a, option b", ","],
-		["Empty A, Empty B,|multi|format:inline", ", "],
-		["a, b,|multi|format:inline", ", "],
-		["a,,b|multi|format:inline", ","],
-		[",a, b|multi|format:inline", ", "],
-	] as const)(
-		"infers the inline separator from %s",
-		(token, separator) => {
-			expect(parseValueToken(token)?.multiFormat).toEqual({
-				format: "inline",
-				separator,
-			});
-		},
-	);
 
 	it("warns and ignores |multi without an option list", () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});

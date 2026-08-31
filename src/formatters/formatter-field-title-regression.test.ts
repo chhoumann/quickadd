@@ -231,6 +231,20 @@ describe("Formatter FIELD and TITLE namespace handling", () => {
 		expect(formatter.getAndClearTemplatePropertyVars().size).toBe(0);
 	});
 
+	it("writes format:spaced as comma-space text inside a collection scope", async () => {
+		formatter.setMockFieldResponse("topic|multi|format:spaced", [
+			"Alpha",
+			"Beta",
+		]);
+
+		await expect(
+			formatter.runFormatWithPropertyCollection(
+				"---\ntopics: {{FIELD:topic|multi|format:spaced}}\n---\n",
+			),
+		).resolves.toBe("---\ntopics: Alpha, Beta\n---\n");
+		expect(formatter.getAndClearTemplatePropertyVars().size).toBe(0);
+	});
+
 	it("collects FIELD multi arrays from YAML list item token positions", async () => {
 		formatter.setMockFieldResponse("topic|multi", ["Alpha", "Beta"]);
 

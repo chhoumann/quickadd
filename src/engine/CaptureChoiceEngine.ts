@@ -113,7 +113,7 @@ function isCaptureContentEmpty(content: string): boolean {
 const MULTI_SELECT_TOKEN_REGEX =
 	/\{\{(?:VALUE|FILE|FIELD):[^}]*\|\s*multi\s*(?=[:}|]|$)[^}]*\}\}/gi;
 const EXPLICIT_MULTI_FORMAT_REGEX =
-	/\|\s*format\s*:\s*(?:inline|yaml|markdown)\s*(?=\||}})/i;
+	/\|\s*format\s*:\s*(?:inline|spaced|yaml|markdown)\s*(?=\||}})/i;
 
 function hasContextualMultiSelectToken(input: string): boolean {
 	return Array.from(input.matchAll(MULTI_SELECT_TOKEN_REGEX)).some(
@@ -509,7 +509,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
 			) {
 				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown or |format:inline to choose the output explicitly.",
+					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
 				);
 			}
 

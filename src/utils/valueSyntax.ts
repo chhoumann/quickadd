@@ -8,10 +8,7 @@ import {
 import { isSupportedCaseStyle, SUPPORTED_CASE_STYLES } from "./caseTransform";
 import {
 	parseMultiValueFormat,
-	resolveMultiValueFormat,
-	type InlineSeparator,
 	type MultiValueFormat,
-	type ResolvedMultiValueFormat,
 } from "./multiValueFormat";
 import { NOTICE_WARN, SILENT_WARN, type WarnSink } from "./warnSink";
 
@@ -96,7 +93,7 @@ export type ParsedValueToken = {
 	/** |multi:linklist wraps each pick as [[name]]; defaults to plain text. */
 	multiEmit: MultiEmit;
 	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
-	multiFormat: ResolvedMultiValueFormat;
+	multiFormat: MultiValueFormat;
 };
 
 export function buildValueVariableKey(
@@ -606,31 +603,28 @@ function isDoubleQuote(ch: string | undefined): boolean {
 // excludes them), but excluding them here keeps the helper safe if reused.
 const HORIZONTAL_WS = /[^\S\r\n]/;
 
-type CommaListScan = {
-	fields: string[];
-	delimiterSpaced: boolean[];
-};
-
-function delimiterSpacedFromPlainSplit(input: string): boolean[] {
-	const spaced: boolean[] = [];
-	for (let i = 0; i < input.length; i++) {
-		if (input[i] !== ",") continue;
-		const next = input[i + 1];
-		spaced.push(next !== undefined && HORIZONTAL_WS.test(next));
-	}
-	return spaced;
-}
-
-function scanQuotedCommaList(input: string): CommaListScan {
+/**
+ * Split a comma-separated VALUE option list while honoring double-quoted fields,
+ * so a comma inside `"..."` stays literal (#239). CSV-style rules:
+ *   - A field is quoted only when it STARTS with a double-quote (after optional
+ *     leading whitespace); a quote anywhere else is literal.
+ *   - Inside a quoted field, `""` is one literal quote and a comma is literal.
+ *   - A closing quote is only honored when the next non-space char is a comma or
+ *     end-of-input (STRICT close).
+ *
+ * Any input that is not cleanly quote-balanced — an unterminated quote, or a
+ * quote "closed" by other text (e.g. `"a"b`) — falls back to a plain comma
+ * split. That guarantees every token WITHOUT a balanced double-quoted field
+ * parses byte-identically to the pre-#239 behavior.
+ *
+ * Returns raw fields with the surrounding quotes stripped; callers apply the
+ * usual `.map(trim).filter(Boolean)`. Whitespace inside quotes is therefore not
+ * preserved — quoting protects commas, which survive the trim.
+ */
+export function splitQuotedCommaList(input: string): string[] {
 	const fields: string[] = [];
-	const delimiterSpaced: boolean[] = [];
 	let buf = "";
 	let inQuotes = false;
-
-	const fallback = (): CommaListScan => ({
-		fields: input.split(","),
-		delimiterSpaced: delimiterSpacedFromPlainSplit(input),
-	});
 
 	for (let i = 0; i < input.length; i++) {
 		const ch = input[i];
@@ -652,7 +646,7 @@ function scanQuotedCommaList(input: string): CommaListScan {
 					continue;
 				}
 				// Quote closed by other text -> not real quoting; keep legacy.
-				return fallback();
+				return input.split(",");
 			}
 			buf += ch; // commas (and everything else) are literal inside quotes
 			continue;
@@ -660,8 +654,6 @@ function scanQuotedCommaList(input: string): CommaListScan {
 
 		if (ch === ",") {
 			fields.push(buf);
-			const next = input[i + 1];
-			delimiterSpaced.push(next !== undefined && HORIZONTAL_WS.test(next));
 			buf = "";
 			continue;
 		}
@@ -674,52 +666,9 @@ function scanQuotedCommaList(input: string): CommaListScan {
 		buf += ch;
 	}
 
-	if (inQuotes) return fallback(); // unterminated quote -> legacy
+	if (inQuotes) return input.split(","); // unterminated quote -> legacy
 	fields.push(buf);
-	return { fields, delimiterSpaced };
-}
-
-/**
- * Split a comma-separated VALUE option list while honoring double-quoted fields,
- * so a comma inside `"..."` stays literal (#239). CSV-style rules:
- *   - A field is quoted only when it STARTS with a double-quote (after optional
- *     leading whitespace); a quote anywhere else is literal.
- *   - Inside a quoted field, `""` is one literal quote and a comma is literal.
- *   - A closing quote is only honored when the next non-space char is a comma or
- *     end-of-input (STRICT close).
- *
- * Any input that is not cleanly quote-balanced — an unterminated quote, or a
- * quote "closed" by other text (e.g. `"a"b`) — falls back to a plain comma
- * split. That guarantees every token WITHOUT a balanced double-quoted field
- * parses byte-identically to the pre-#239 behavior.
- *
- * Returns raw fields with the surrounding quotes stripped; callers apply the
- * usual `.map(trim).filter(Boolean)`. Whitespace inside quotes is therefore not
- * preserved — quoting protects commas, which survive the trim.
- */
-export function splitQuotedCommaList(input: string): string[] {
-	return scanQuotedCommaList(input).fields;
-}
-
-function fieldSurvives(field: string | undefined): boolean {
-	return Boolean(field?.trim());
-}
-
-function inferInlineSeparator(rawOptionList: string): InlineSeparator {
-	const { fields, delimiterSpaced } = scanQuotedCommaList(rawOptionList);
-	const betweenSurvivors: boolean[] = [];
-	for (let i = 0; i < delimiterSpaced.length; i++) {
-		if (fieldSurvives(fields[i]) && fieldSurvives(fields[i + 1])) {
-			betweenSurvivors.push(delimiterSpaced[i]);
-		}
-	}
-	if (
-		betweenSurvivors.length > 0 &&
-		betweenSurvivors.every((spaced) => spaced)
-	) {
-		return ", ";
-	}
-	return ",";
+	return fields;
 }
 
 /**
@@ -881,14 +830,6 @@ export function parseValueToken(
 		multiFormat = "auto";
 	}
 
-	const resolvedMultiFormat: ResolvedMultiValueFormat =
-		multiFormat === "inline"
-			? resolveMultiValueFormat(
-					"inline",
-					inferInlineSeparator(variablePart),
-				)
-			: resolveMultiValueFormat(multiFormat);
-
 	// A bare `|custom` only enables free-text-with-autocomplete on an option-list
 	// token (2+ values). On a single value it falls through to being parsed as the
 	// literal default text "custom", silently pre-filling the prompt with that
@@ -928,7 +869,7 @@ export function parseValueToken(
 		trim,
 		multiSelect,
 		multiEmit,
-		multiFormat: resolvedMultiFormat,
+		multiFormat,
 	};
 }
 

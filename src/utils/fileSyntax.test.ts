@@ -42,14 +42,20 @@ describe("parseFileToken", () => {
 	it("parses multi-select as FILE behavior", () => {
 		const parsed = parseFileToken("People|multi");
 		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiFormat).toEqual({ format: "auto" });
+		expect(parsed?.multiFormat).toBe("auto");
 		expect(parsed?.variableKey).toContain("|multi");
 	});
 
 	it("parses an explicit multi-select format", () => {
 		const parsed = parseFileToken("People|multi|format:yaml");
 		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiFormat).toEqual({ format: "yaml" });
+		expect(parsed?.multiFormat).toBe("yaml");
+	});
+
+	it("parses |format:spaced", () => {
+		const parsed = parseFileToken("People|multi|format:spaced");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiFormat).toBe("spaced");
 	});
 
 	it("warns on |format: without |multi, even |format:auto", () => {
@@ -57,7 +63,7 @@ describe("parseFileToken", () => {
 		const parsed = parseFileToken("People|format:auto", {
 			warn: (msg) => warnings.push(msg),
 		});
-		expect(parsed?.multiFormat).toEqual({ format: "auto" });
+		expect(parsed?.multiFormat).toBe("auto");
 		expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
 	});
 

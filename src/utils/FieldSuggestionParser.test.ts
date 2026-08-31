@@ -118,7 +118,15 @@ describe("FieldSuggestionParser", () => {
 				"topics|multi|format:markdown",
 			);
 			expect(result.multiSelect).toBe(true);
-			expect(result.multiFormat).toEqual({ format: "markdown" });
+			expect(result.multiFormat).toBe("markdown");
+		});
+
+		it("parses |format:spaced", () => {
+			const result = FieldSuggestionParser.parse(
+				"topics|multi|format:spaced",
+			);
+			expect(result.multiSelect).toBe(true);
+			expect(result.multiFormat).toBe("spaced");
 		});
 
 		it("warns on |format: without |multi, even |format:auto", () => {

@@ -5,7 +5,7 @@ import {
 } from "./multiValueFormat";
 
 describe("multi-select output formatting", () => {
-	it.each(["auto", "inline", "yaml", "markdown"] as const)(
+	it.each(["auto", "inline", "spaced", "yaml", "markdown"] as const)(
 		"parses %s",
 		(format) => {
 			expect(parseMultiValueFormat(format, "token")).toBe(format);
@@ -16,7 +16,7 @@ describe("multi-select output formatting", () => {
 		const warn = vi.fn();
 		expect(parseMultiValueFormat("table", "token", warn)).toBeUndefined();
 		expect(warn).toHaveBeenCalledWith(
-			expect.stringContaining("auto, inline, yaml, markdown"),
+			expect.stringContaining("auto, inline, spaced, yaml, markdown"),
 		);
 	});
 
@@ -26,29 +26,29 @@ describe("multi-select output formatting", () => {
 				input: "{{VALUE:a,b|multi}}",
 				matchStart: 0,
 				values: ["a", "b"],
-				format: { format: "auto" },
+				format: "auto",
 			}),
 		).toBeUndefined();
 	});
 
-	it("renders compact inline output", () => {
+	it("renders inline output with the compact comma separator", () => {
 		expect(
 			renderExplicitMultiValue({
 				input: "value",
 				matchStart: 0,
 				values: ["Alpha", "Beta"],
-				format: { format: "inline", separator: "," },
+				format: "inline",
 			}),
 		).toBe("Alpha,Beta");
 	});
 
-	it("renders spaced inline output", () => {
+	it("renders spaced output with a comma and a space", () => {
 		expect(
 			renderExplicitMultiValue({
 				input: "value",
 				matchStart: 0,
 				values: ["Alpha", "Beta"],
-				format: { format: "inline", separator: ", " },
+				format: "spaced",
 			}),
 		).toBe("Alpha, Beta");
 	});
@@ -59,7 +59,7 @@ describe("multi-select output formatting", () => {
 				input: "topics: token",
 				matchStart: 8,
 				values: ["0042", "a: b", 'quoted "value"'],
-				format: { format: "yaml" },
+				format: "yaml",
 			}),
 		).toBe('["0042", "a: b", "quoted \\"value\\""]');
 	});
@@ -70,7 +70,7 @@ describe("multi-select output formatting", () => {
 				input: "topics: token",
 				matchStart: 8,
 				values: [],
-				format: { format: "yaml" },
+				format: "yaml",
 			}),
 		).toBe("[]");
 	});
@@ -81,7 +81,7 @@ describe("multi-select output formatting", () => {
 				input: "  token",
 				matchStart: 2,
 				values: ["Alpha", "Beta\ncontinued"],
-				format: { format: "markdown" },
+				format: "markdown",
 			}),
 		).toBe("- Alpha\n  - Beta\n  continued");
 	});

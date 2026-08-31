@@ -55,8 +55,7 @@ import {
 } from "../utils/yamlScalarQuoting";
 import {
 	renderExplicitMultiValue,
-	resolveMultiValueFormat,
-	type ResolvedMultiValueFormat,
+	type MultiValueFormat,
 } from "../utils/multiValueFormat";
 
 // |type: overrides whose value is a typed YAML scalar (Number, Boolean): an
@@ -1069,7 +1068,7 @@ export abstract class Formatter {
 		rawValue: unknown;
 		fallbackKey: string;
 		heuristicEnabled: boolean;
-		multiFormat?: ResolvedMultiValueFormat;
+		multiFormat?: MultiValueFormat;
 	}): string | undefined {
 		if (Array.isArray(args.rawValue) && args.multiFormat) {
 			const explicit = renderExplicitMultiValue({
@@ -1495,9 +1494,7 @@ export abstract class Formatter {
 						rawValue,
 						fallbackKey: parsed.fieldName,
 						heuristicEnabled: false,
-						multiFormat:
-							parsed.multiFormat ??
-							resolveMultiValueFormat("auto"),
+						multiFormat: parsed.multiFormat ?? "auto",
 						}) ?? rawValue.join(",");
 				} else {
 					replacement = escapeValueInsideQuotedYamlScalar(
