@@ -377,12 +377,11 @@ function isSupportedVaultImage(
 
 function collectImageFiles(data: DataTransfer): TransferredImageFile[] {
 	const images: TransferredImageFile[] = [];
-	const seen = new Set<string>();
+	const seen = new Set<File>();
 
 	const push = (file: File, mimeType: string) => {
-		const key = `${file.name}\0${file.size}\0${file.type}`;
-		if (seen.has(key)) return;
-		seen.add(key);
+		if (seen.has(file)) return;
+		seen.add(file);
 		images.push({ file, mimeType });
 	};
 

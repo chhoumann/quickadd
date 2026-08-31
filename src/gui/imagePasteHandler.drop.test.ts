@@ -216,6 +216,32 @@ describe("attachImagePasteHandler image drop", () => {
 		expect(input.value).toBe("![[attachments/photo.png]]");
 	});
 
+	it("saves two distinct files that share name, size, and type", async () => {
+		const { app, createBinary, created } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		dispatchDrag(
+			input,
+			"drop",
+			makeDropData([
+				makeFile("sunset.png", "image/png"),
+				makeFile("sunset.png", "image/png"),
+			]),
+		);
+		await flushSaves(handle);
+
+		expect(createBinary).toHaveBeenCalledTimes(2);
+		expect(created).toEqual([
+			"attachments/sunset.png",
+			"attachments/sunset 1.png",
+		]);
+		expect(input.value).toBe(
+			"![[attachments/sunset.png]] ![[attachments/sunset 1.png]]",
+		);
+		handle.detach();
+	});
+
 	it("saves multiple drops sequentially and joins links for each field type", async () => {
 		const { app, created } = makeApp();
 		let inFlight = 0;
