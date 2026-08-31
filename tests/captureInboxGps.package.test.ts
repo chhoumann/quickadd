@@ -3,14 +3,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
-import { decodeFromBase64 } from "../../src/utils/base64";
-import { buildPackagePreview } from "../../src/services/packagePreview";
+import { decodeFromBase64 } from "../src/utils/base64";
+import { buildPackagePreview } from "../src/services/packagePreview";
 import {
 	applyPackageImport,
 	parseQuickAddPackage,
-} from "../../src/services/packageImportService";
+} from "../src/services/packageImportService";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packagePath = path.join(
 	root,
 	"docs/public/packages/capture-inbox-gps.quickadd.json",
