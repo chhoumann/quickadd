@@ -701,11 +701,21 @@ export function splitQuotedCommaList(input: string): string[] {
 	return scanQuotedCommaList(input).fields;
 }
 
+function fieldSurvives(field: string | undefined): boolean {
+	return Boolean(field?.trim());
+}
+
 function inferInlineSeparator(rawOptionList: string): InlineSeparator {
-	const { delimiterSpaced } = scanQuotedCommaList(rawOptionList);
+	const { fields, delimiterSpaced } = scanQuotedCommaList(rawOptionList);
+	const betweenSurvivors: boolean[] = [];
+	for (let i = 0; i < delimiterSpaced.length; i++) {
+		if (fieldSurvives(fields[i]) && fieldSurvives(fields[i + 1])) {
+			betweenSurvivors.push(delimiterSpaced[i]);
+		}
+	}
 	if (
-		delimiterSpaced.length > 0 &&
-		delimiterSpaced.every((spaced) => spaced)
+		betweenSurvivors.length > 0 &&
+		betweenSurvivors.every((spaced) => spaced)
 	) {
 		return ", ";
 	}
