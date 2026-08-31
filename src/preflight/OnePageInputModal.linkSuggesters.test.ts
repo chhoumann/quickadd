@@ -13,6 +13,7 @@ const { fileSuggesters, tagSuggesters } = vi.hoisted(() => ({
 	}>,
 	tagSuggesters: [] as Array<{
 		inputEl: HTMLInputElement | HTMLTextAreaElement;
+		options: unknown;
 		destroy: ReturnType<typeof vi.fn>;
 	}>,
 }));
@@ -38,8 +39,9 @@ vi.mock("src/gui/suggesters/tagSuggester", () => ({
 		constructor(
 			_app: App,
 			inputEl: HTMLInputElement | HTMLTextAreaElement,
+			options?: unknown,
 		) {
-			tagSuggesters.push({ inputEl, destroy: this.destroy });
+			tagSuggesters.push({ inputEl, options, destroy: this.destroy });
 		}
 	},
 }));
@@ -172,6 +174,35 @@ describe("OnePageInputModal link suggesters", () => {
 			undefined,
 			undefined,
 		]);
+		expect(tagSuggesters.map(({ options }) => options)).toEqual([
+			{ refreshIndex: true },
+			{ refreshIndex: false },
+		]);
+
+		modal.close();
+	});
+
+	it("names each free-text control from its field label", () => {
+		const modal = new OnePageInputModal(fakeApp as never, [
+			{ id: "title", label: "Title", type: "text" },
+			{ id: "body", label: "Body", type: "textarea" },
+		]);
+		modal.waitForClose.catch(() => undefined);
+
+		const text = Array.from(
+			modal.contentEl.querySelectorAll<HTMLInputElement>("input"),
+		).find((input) => input.type === "text");
+		const textarea =
+			modal.contentEl.querySelector<HTMLTextAreaElement>("textarea");
+		const titleLabel = modal.contentEl.querySelector("#qa-onepage-label-title");
+		const bodyLabel = modal.contentEl.querySelector("#qa-onepage-label-body");
+
+		expect(titleLabel?.textContent).toBe("Title");
+		expect(bodyLabel?.textContent).toBe("Body");
+		expect(text?.getAttribute("aria-labelledby")).toBe("qa-onepage-label-title");
+		expect(textarea?.getAttribute("aria-labelledby")).toBe(
+			"qa-onepage-label-body",
+		);
 
 		modal.close();
 	});

@@ -98,6 +98,59 @@ describe("TextInputSuggest", () => {
 
 		expect(input.value).toBe("Adventure");
 	});
+
+	it("exposes the input as a combobox wired to the listbox and active option", async () => {
+		const input = document.createElement("input");
+		input.trigger = (eventName: string) => {
+			input.dispatchEvent(new Event(eventName, { bubbles: true }));
+		};
+		document.body.appendChild(input);
+
+		const suggest = new GenericTextSuggester(createApp(), input, [
+			"alpha",
+			"alpine",
+			"beta",
+		]);
+
+		expect(input.getAttribute("role")).toBe("combobox");
+		expect(input.getAttribute("aria-autocomplete")).toBe("list");
+		expect(input.getAttribute("aria-expanded")).toBe("false");
+		expect(input.getAttribute("aria-haspopup")).toBe("listbox");
+
+		const listboxId = input.getAttribute("aria-controls");
+		expect(listboxId).toMatch(/^qa-suggest-listbox-\d+$/);
+
+		input.focus();
+		input.value = "al";
+		await suggest.onInputChanged();
+
+		expect(input.getAttribute("aria-expanded")).toBe("true");
+		expect(input.getAttribute("aria-controls")).toBe(listboxId);
+
+		const listbox = document.getElementById(listboxId ?? "");
+		expect(listbox?.getAttribute("role")).toBe("listbox");
+		const options = [
+			...listbox?.querySelectorAll<HTMLElement>('[role="option"]') ?? [],
+		];
+		expect(options.map((option) => option.textContent)).toEqual([
+			"alpha",
+			"alpine",
+		]);
+		expect(input.getAttribute("aria-activedescendant")).toBe(options[0]?.id);
+
+		for (const option of options) {
+			option.scrollIntoView = () => undefined;
+		}
+		const scope = (
+			suggest as unknown as { scope: { trigger: (key: string) => void } }
+		).scope;
+		scope.trigger("ArrowDown");
+		expect(input.getAttribute("aria-activedescendant")).toBe(options[1]?.id);
+
+		suggest.close();
+		expect(input.getAttribute("aria-expanded")).toBe("false");
+		expect(input.hasAttribute("aria-activedescendant")).toBe(false);
+	});
 });
 
 describe("TextInputSuggest resource lifecycle", () => {

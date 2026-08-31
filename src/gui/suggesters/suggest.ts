@@ -10,6 +10,8 @@ const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
 };
 
+let textInputSuggestSeq = 0;
+
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
 	keepOpen?: boolean;
@@ -24,10 +26,20 @@ class Suggest<T> {
 	private isOpen = false;
 	private clickListener: (event: MouseEvent) => void;
 	private mousemoveListener: (event: MouseEvent) => void;
+	private optionIdPrefix: string;
+	private onActiveOptionChange: (optionId: string | null) => void;
 
-	constructor(owner: ISuggestOwner<T>, containerEl: HTMLElement, scope: Scope) {
+	constructor(
+		owner: ISuggestOwner<T>,
+		containerEl: HTMLElement,
+		scope: Scope,
+		optionIdPrefix: string,
+		onActiveOptionChange: (optionId: string | null) => void,
+	) {
 		this.owner = owner;
 		this.containerEl = containerEl;
+		this.optionIdPrefix = optionIdPrefix;
+		this.onActiveOptionChange = onActiveOptionChange;
 
 		this.clickListener = (event: MouseEvent) => {
 			const item = this.findSuggestionItem(event.target);
@@ -111,10 +123,9 @@ class Suggest<T> {
 			const suggestionEl = this.containerEl.ownerDocument.createElement("div");
 			suggestionEl.classList.add("suggestion-item");
 			this.containerEl.appendChild(suggestionEl);
-			// Add accessibility attributes
 			suggestionEl.setAttribute("role", "option");
 			suggestionEl.setAttribute("aria-selected", "false");
-			suggestionEl.setAttribute("id", `suggestion-${index}`);
+			suggestionEl.setAttribute("id", `${this.optionIdPrefix}-option-${index}`);
 
 			this.owner.renderSuggestion(value, suggestionEl);
 			suggestionEls.push(suggestionEl);
@@ -122,8 +133,13 @@ class Suggest<T> {
 
 		this.values = values;
 		this.suggestions = suggestionEls;
+		if (values.length === 0) {
+			this.isOpen = false;
+			this.onActiveOptionChange(null);
+			return;
+		}
 		this.setSelectedItem(0, false);
-		this.isOpen = values.length > 0;
+		this.isOpen = true;
 	}
 
 	useSelectedItem(event: MouseEvent | KeyboardEvent) {
@@ -144,9 +160,9 @@ class Suggest<T> {
 		prevSelectedSuggestion?.classList.remove("is-selected");
 		selectedSuggestion?.classList.add("is-selected");
 
-		// Update accessibility attributes
 		prevSelectedSuggestion?.setAttribute("aria-selected", "false");
 		selectedSuggestion?.setAttribute("aria-selected", "true");
+		this.onActiveOptionChange(selectedSuggestion?.id ?? null);
 
 		this.selectedItem = normalizedIndex;
 
@@ -157,6 +173,7 @@ class Suggest<T> {
 
 	close() {
 		this.isOpen = false;
+		this.onActiveOptionChange(null);
 	}
 
 	getIsOpen(): boolean {
@@ -192,6 +209,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private scope: Scope;
 	private suggestEl: HTMLElement;
 	private suggest: Suggest<T>;
+	private listboxId: string;
 	private currentRequestId = 0;
 	private isOpen = false;
 	private destroyed = false;
@@ -247,11 +265,18 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		suggestion.classList.add("suggestion");
 		this.suggestEl.appendChild(suggestion);
 
-		// Add accessibility attributes to the suggestion container
+		this.listboxId = `qa-suggest-listbox-${++textInputSuggestSeq}`;
+		suggestion.id = this.listboxId;
 		suggestion.setAttribute("role", "listbox");
 		suggestion.setAttribute("aria-label", "Suggestions");
 
-		this.suggest = new Suggest(this, suggestion, this.scope);
+		this.suggest = new Suggest(
+			this,
+			suggestion,
+			this.scope,
+			this.listboxId,
+			(optionId) => this.setActiveDescendant(optionId),
+		);
 
 		this.scope.register([], "Escape", this.close.bind(this));
 
@@ -267,9 +292,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl.addEventListener("focus", this.focusEventListener);
 		this.inputEl.addEventListener("blur", this.inputBlurListener);
 
-		// Set up accessibility relationship
+		this.inputEl.setAttribute("role", "combobox");
 		this.inputEl.setAttribute("aria-autocomplete", "list");
 		this.inputEl.setAttribute("aria-expanded", "false");
+		this.inputEl.setAttribute("aria-controls", this.listboxId);
+		this.inputEl.setAttribute("aria-haspopup", "listbox");
 
 		this.suggestEl.addEventListener("mousedown", (event: MouseEvent) => {
 			event.preventDefault();
@@ -385,9 +412,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			this.app.keymap.pushScope(this.scope);
 		}
 		this.isOpen = true;
-
-		// Update accessibility attributes
 		this.inputEl.setAttribute("aria-expanded", "true");
+		this.inputEl.setAttribute("aria-controls", this.listboxId);
 
 		const inputDocument = getOwnerDocument(inputEl);
 		const containerDocument = getOwnerDocument(container);
@@ -454,9 +480,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.app.keymap.popScope(this.scope);
 		this.isOpen = false;
-
-		// Update accessibility attributes
 		this.inputEl.setAttribute("aria-expanded", "false");
+		this.setActiveDescendant(null);
 
 		this.suggest.close();
 		this.suggest.setSuggestions([]);
@@ -511,6 +536,14 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 				instanceMap.delete(this.inputEl);
 			}
 		}
+	}
+
+	private setActiveDescendant(optionId: string | null): void {
+		if (optionId) {
+			this.inputEl.setAttribute("aria-activedescendant", optionId);
+			return;
+		}
+		this.inputEl.removeAttribute("aria-activedescendant");
 	}
 
 	// Helper method to get current query for highlighting

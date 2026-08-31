@@ -301,7 +301,7 @@ export class OnePageInputModal extends Modal {
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addClass("qa-onepage-textarea");
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
 				break;
 			}
 			case "text": {
@@ -315,7 +315,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
 				break;
 			}
 			case "number": {
@@ -698,7 +698,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl);
+				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
 			}
 		}
 
@@ -866,12 +866,20 @@ export class OnePageInputModal extends Modal {
 	private attachFreeTextBehaviors(
 		id: string,
 		el: HTMLInputElement | HTMLTextAreaElement,
+		setting: Setting,
 	): void {
+		if (!setting.nameEl.id) {
+			setting.nameEl.id = `qa-onepage-label-${id}`;
+		}
+		el.setAttribute("aria-labelledby", setting.nameEl.id);
+
 		const field: OnePageFreeTextField = {
 			id,
 			el,
 			fileSuggester: new FileSuggester(this.app, el),
-			tagSuggester: new TagSuggester(this.app, el),
+			tagSuggester: new TagSuggester(this.app, el, {
+				refreshIndex: this.freeTextFields.length === 0,
+			}),
 		};
 		this.freeTextFields.push(field);
 		el.addEventListener("focus", () => {
