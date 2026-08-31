@@ -24,7 +24,9 @@ class Notice {
 
 function loadScript() {
 	const source = readFileSync(scriptPath, "utf8");
-	const module = { exports: {} as { entry: Function; settings: unknown } };
+	const module = {
+		exports: {} as { entry: (params: unknown) => Promise<void>; settings: unknown },
+	};
 	const fn = new Function("require", "module", "exports", source);
 	fn(() => undefined, module, module.exports);
 	return module.exports;
