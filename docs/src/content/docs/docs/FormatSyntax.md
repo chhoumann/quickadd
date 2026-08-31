@@ -409,8 +409,10 @@ from where the placeholder appears:
 - `|format:markdown` writes a vertical Markdown bullet list. Put the placeholder
   on its own line: `{{VALUE:Alpha,Beta|multi|format:markdown}}` becomes `- Alpha`
   followed by `- Beta`.
-- `|format:inline` always writes the existing comma-separated text form:
+- `|format:inline` always writes the compact comma-separated text form:
   `Alpha,Beta`.
+- `|format:spaced` writes the same text with a space after each comma:
+  `{{VALUE:option a, option b|multi|format:spaced}}` becomes `option a, option b`.
 - `|format:auto` is the default and preserves the context-sensitive behavior
   described below.
 
@@ -760,7 +762,8 @@ defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
 FIELD multi-selects support the same explicit output formats as VALUE:
-`|format:yaml`, `|format:markdown`, `|format:inline`, and `|format:auto`.
+`|format:yaml`, `|format:markdown`, `|format:inline`, `|format:spaced`,
+and `|format:auto`.
 For example, `topics: {{FIELD:topic|multi|format:yaml}}` always writes a native
 YAML list, including in template-backed captures.
 
@@ -898,7 +901,7 @@ Good to know:
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
-`|format:inline`, and `|format:auto`. The format composes with `|link` and
+`|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
 of links without relying on the capture context.
 

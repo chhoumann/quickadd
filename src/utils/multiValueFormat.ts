@@ -1,11 +1,12 @@
 import { quoteYamlDouble } from "./yamlScalarQuoting";
 import type { WarnSink } from "./warnSink";
 
-export type MultiValueFormat = "auto" | "inline" | "yaml" | "markdown";
+export type MultiValueFormat = "auto" | "inline" | "spaced" | "yaml" | "markdown";
 
 const MULTI_VALUE_FORMATS = new Set<MultiValueFormat>([
 	"auto",
 	"inline",
+	"spaced",
 	"yaml",
 	"markdown",
 ]);
@@ -21,7 +22,7 @@ export function parseMultiValueFormat(
 	}
 
 	warn?.(
-		`QuickAdd: Unsupported multi-select format "${raw}" in "${tokenDisplay}". Supported formats: auto, inline, yaml, markdown.`,
+		`QuickAdd: Unsupported multi-select format "${raw}" in "${tokenDisplay}". Supported formats: auto, inline, spaced, yaml, markdown.`,
 	);
 	return undefined;
 }
@@ -46,15 +47,25 @@ export function renderExplicitMultiValue(args: {
 	format: MultiValueFormat;
 }): string | undefined {
 	const { input, matchStart, values, format } = args;
-	if (format === "auto") return undefined;
-
 	const strings = values.map((value) => String(value));
-	if (format === "inline") return strings.join(",");
-	if (format === "yaml") {
-		return `[${strings.map(quoteYamlDouble).join(", ")}]`;
-	}
 
-	if (strings.length === 0) return "";
-	const indent = currentLineIndent(input, matchStart);
-	return strings.map(renderMarkdownItem).join(`\n${indent}`);
+	switch (format) {
+		case "auto":
+			return undefined;
+		case "inline":
+			return strings.join(",");
+		case "spaced":
+			return strings.join(", ");
+		case "yaml":
+			return `[${strings.map(quoteYamlDouble).join(", ")}]`;
+		case "markdown": {
+			if (strings.length === 0) return "";
+			const indent = currentLineIndent(input, matchStart);
+			return strings.map(renderMarkdownItem).join(`\n${indent}`);
+		}
+		default: {
+			const _exhaustive: never = format;
+			return _exhaustive;
+		}
+	}
 }

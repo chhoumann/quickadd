@@ -5,7 +5,7 @@ import {
 } from "./multiValueFormat";
 
 describe("multi-select output formatting", () => {
-	it.each(["auto", "inline", "yaml", "markdown"] as const)(
+	it.each(["auto", "inline", "spaced", "yaml", "markdown"] as const)(
 		"parses %s",
 		(format) => {
 			expect(parseMultiValueFormat(format, "token")).toBe(format);
@@ -16,7 +16,7 @@ describe("multi-select output formatting", () => {
 		const warn = vi.fn();
 		expect(parseMultiValueFormat("table", "token", warn)).toBeUndefined();
 		expect(warn).toHaveBeenCalledWith(
-			expect.stringContaining("auto, inline, yaml, markdown"),
+			expect.stringContaining("auto, inline, spaced, yaml, markdown"),
 		);
 	});
 
@@ -31,7 +31,7 @@ describe("multi-select output formatting", () => {
 		).toBeUndefined();
 	});
 
-	it("renders inline output with the legacy comma separator", () => {
+	it("renders inline output with the compact comma separator", () => {
 		expect(
 			renderExplicitMultiValue({
 				input: "value",
@@ -40,6 +40,17 @@ describe("multi-select output formatting", () => {
 				format: "inline",
 			}),
 		).toBe("Alpha,Beta");
+	});
+
+	it("renders spaced output with a comma and a space", () => {
+		expect(
+			renderExplicitMultiValue({
+				input: "value",
+				matchStart: 0,
+				values: ["Alpha", "Beta"],
+				format: "spaced",
+			}),
+		).toBe("Alpha, Beta");
 	});
 
 	it("renders a quoted YAML flow sequence that preserves string values", () => {
