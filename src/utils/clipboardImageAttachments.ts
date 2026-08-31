@@ -61,7 +61,8 @@ export interface ClipboardImageFileNameInput {
 /**
  * Basename (with extension) passed to `getAvailablePathForAttachment`.
  * Destination-title naming only applies when the note path is known and the
- * sanitized stem is non-empty; otherwise this keeps the timestamp name.
+ * sanitized stem is a portable path segment; otherwise this keeps the timestamp
+ * name.
  */
 export function clipboardImageAttachmentFileName(
 	input: ClipboardImageFileNameInput,
@@ -70,7 +71,7 @@ export function clipboardImageAttachmentFileName(
 		const stem = sanitizeClipboardImageStem(
 			fileBasenameFromPath(input.sourcePath),
 		);
-		if (stem.length > 0) {
+		if (stem.length > 0 && isPortablePathSegment(stem)) {
 			return `${stem}.${input.extension}`;
 		}
 	}

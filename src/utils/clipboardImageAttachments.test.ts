@@ -287,6 +287,20 @@ describe("clipboardImageAttachmentFileName", () => {
 			}),
 		).toBe("Clipboard image 2026-08-29 21.40.00.png");
 	});
+
+	it.each(["Journal/CON.md", "Journal/.hidden.md"])(
+		"falls back to the timestamp when the destination title is not portable (%s)",
+		(sourcePath) => {
+			expect(
+				clipboardImageAttachmentFileName({
+					extension: "png",
+					sourcePath,
+					now,
+					nameAfterNoteTitle: true,
+				}),
+			).toBe("Clipboard image 2026-08-29 21.40.00.png");
+		},
+	);
 });
 
 describe("sanitizeClipboardImageStem", () => {
