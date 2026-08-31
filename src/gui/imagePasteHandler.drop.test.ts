@@ -15,6 +15,7 @@ vi.mock("../logger/logManager", () => ({
 
 import { log } from "../logger/logManager";
 import { Notice } from "obsidian";
+import { settingsStore } from "../settingsStore";
 
 function makeApp(vaultFiles: TFile[] = []) {
 	const created: string[] = [];
@@ -130,6 +131,33 @@ describe("attachImagePasteHandler image drop", () => {
 		expect(createBinary).toHaveBeenCalledTimes(1);
 		expect(input.value).toBe("![[attachments/sunset.png]]");
 		expect(input.value).not.toContain("Clipboard image");
+	});
+
+	it("keeps the dropped filename when destination-title naming is on", async () => {
+		settingsStore.setState({ namePastedImagesAfterNoteTitle: true });
+		try {
+			const { app, getAvailablePathForAttachment } = makeApp();
+			const input = makeInput();
+			const handle = attachImagePasteHandler(app, input, {
+				sourcePath: "Meetings/Meeting notes.md",
+			});
+
+			dispatchDrag(
+				input,
+				"drop",
+				makeDropData([makeFile("sunset.png", "image/png")]),
+			);
+			await flushSaves(handle);
+
+			expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+				"sunset.png",
+				"Meetings/Meeting notes.md",
+			);
+			expect(input.value).toBe("![[attachments/sunset.png]]");
+			handle.detach();
+		} finally {
+			settingsStore.setState({ namePastedImagesAfterNoteTitle: false });
+		}
 	});
 
 	it("saves a file-manager image when text/plain contains its filesystem path", async () => {

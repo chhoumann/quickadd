@@ -4,12 +4,14 @@ import { log } from "../logger/logManager";
 import {
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
 	buildImageEmbedLink,
+	clipboardImageAttachmentFileName,
 	clipboardImageFilename,
 	droppedImageStem,
 	isSupportedImageExtension,
 	isSupportedImageMime,
 	saveImageBytesToVault,
 } from "../utils/clipboardImageAttachments";
+import { settingsStore } from "../settingsStore";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
 type PromptImage =
@@ -19,6 +21,7 @@ type PromptImage =
 			mimeType: string;
 			naming:
 				| { kind: "clipboard-stamp" }
+				| { kind: "paste-name" }
 				| { kind: "original-stem"; stem: string };
 	  }
 	| { origin: "vault"; file: TFile };
@@ -174,7 +177,7 @@ export function attachImagePasteHandler(
 						break;
 					case "bytes": {
 						const data = await image.file.arrayBuffer();
-						const filename = promptImageFilename(image, now);
+						const filename = promptImageFilename(image, now, sourcePath);
 						file = await enqueueVaultSave(() =>
 							saveImageBytesToVault(
 								app,
@@ -317,7 +320,7 @@ function decideTransfer(
 			const images = collectImageFiles(data).map<PromptImage>((image) => ({
 				origin: "bytes",
 				...image,
-				naming: { kind: "clipboard-stamp" },
+				naming: { kind: "paste-name" },
 			}));
 			return images.length > 0
 				? { kind: "take", images }
@@ -423,10 +426,19 @@ function droppedImageNaming(
 function promptImageFilename(
 	image: Extract<PromptImage, { origin: "bytes" }>,
 	now: Date,
+	sourcePath: string,
 ): string {
 	switch (image.naming.kind) {
 		case "clipboard-stamp":
 			return clipboardImageFilename(image.mimeType, now);
+		case "paste-name":
+			return clipboardImageAttachmentFileName({
+				extension: IMAGE_CLIPBOARD_MIME_EXTENSIONS[image.mimeType],
+				sourcePath,
+				now,
+				nameAfterNoteTitle:
+					settingsStore.getState().namePastedImagesAfterNoteTitle,
+			});
 		case "original-stem":
 			return `${image.naming.stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[image.mimeType]}`;
 		default:

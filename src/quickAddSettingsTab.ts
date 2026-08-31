@@ -236,6 +236,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					control: { type: "toggle", key: "useSelectionAsCaptureValue" },
 				},
 				{
+					name: "Name pasted images after the note title",
+					desc: "When on, clipboard images saved by QuickAdd (pasting into a prompt, or {{CLIPBOARD}} with an image and no text) are named after the destination note. When the destination is not yet known, QuickAdd keeps the timestamp name. Duplicate names are handled by Obsidian's attachment folder setting.",
+					control: { type: "toggle", key: "namePastedImagesAfterNoteTitle" },
+				},
+				{
 					name: "One-page input for choices",
 					// The trailing sentence used to read "See One-page Inputs in the
 					// docs." as plain, unlinked prose (issue #1541).

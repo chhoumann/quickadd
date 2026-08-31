@@ -72,6 +72,19 @@ obsidian vault=dev quickadd:run-template \
 - The picker (interactive command) only lists templates inside your configured template folder(s); `path=` here is explicit, so any vault file resolves.
 - Like `quickadd:run`, name collisions on the target note still prompt (the file-exists choice is not a pre-collected input). Under `quickadd:interactive` that prompt is forwarded to you like any other.
 
+### Save a clipboard image: `quickadd:save-clipboard-image` {#quickaddsave-clipboard-image}
+
+Save a 1x1 PNG through the same path QuickAdd uses when you paste an image into a prompt or when `{{CLIPBOARD}}` falls back to an image. Useful for checking attachment naming without driving a modal.
+
+```bash
+obsidian vault=dev quickadd:save-clipboard-image \
+  sourcePath="Meetings/Meeting notes.md" \
+  nameAfterNoteTitle=true
+```
+
+- `sourcePath=` is the note the attachment belongs to (the capture destination). Empty uses vault-root attachment placement and the timestamp name even when title-naming is on.
+- `nameAfterNoteTitle=` overrides the **Name pasted images after the note title** setting for this save. Omit it to use the setting.
+
 ## Pass variables to a choice {#passing-variables}
 
 QuickAdd's CLI accepts variables three ways:

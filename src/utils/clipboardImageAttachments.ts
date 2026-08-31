@@ -1,4 +1,6 @@
 import type { App, TFile } from "obsidian";
+import { settingsStore } from "../settingsStore";
+import { fileBasenameFromPath } from "./fileSyntax";
 import { isPortablePathSegment } from "./pathValidation";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
 
@@ -39,12 +41,55 @@ export function formatClipboardAttachmentTimestamp(date: Date): string {
 	)}`;
 }
 
+const CLIPBOARD_IMAGE_STEM_FORBIDDEN = /[/\\:*?"<>|#^[\]]/g;
+
+export function sanitizeClipboardImageStem(stem: string): string {
+	return stem
+		.replace(CLIPBOARD_IMAGE_STEM_FORBIDDEN, "")
+		.replace(/\s+/g, " ")
+		.replace(/[. ]+$/g, "")
+		.trim();
+}
+
+export interface ClipboardImageFileNameInput {
+	extension: string;
+	sourcePath: string;
+	now: Date;
+	nameAfterNoteTitle: boolean;
+}
+
+/**
+ * Basename (with extension) passed to `getAvailablePathForAttachment`.
+ * Destination-title naming only applies when the note path is known and the
+ * sanitized stem is non-empty; otherwise this keeps the timestamp name.
+ */
+export function clipboardImageAttachmentFileName(
+	input: ClipboardImageFileNameInput,
+): string {
+	if (input.nameAfterNoteTitle) {
+		const stem = sanitizeClipboardImageStem(
+			fileBasenameFromPath(input.sourcePath),
+		);
+		if (stem.length > 0) {
+			return `${stem}.${input.extension}`;
+		}
+	}
+	return `Clipboard image ${formatClipboardAttachmentTimestamp(input.now)}.${
+		input.extension
+	}`;
+}
+
 export function clipboardImageFilename(mimeType: string, now: Date): string {
 	if (!isSupportedImageMime(mimeType)) {
 		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
 	}
 
-	return `Clipboard image ${formatClipboardAttachmentTimestamp(now)}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
+	return clipboardImageAttachmentFileName({
+		extension: IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType],
+		sourcePath: "",
+		now,
+		nameAfterNoteTitle: false,
+	});
 }
 
 export function droppedImageStem(originalName: string): string | null {
@@ -70,6 +115,11 @@ export function droppedImageFilename(
 	}
 
 	return `${stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
+}
+
+export interface SaveClipboardImageOptions {
+	nameAfterNoteTitle?: boolean;
+	now?: Date;
 }
 
 /**
@@ -110,13 +160,26 @@ export async function saveClipboardImageToVault(
 	data: ArrayBuffer,
 	mimeType: string,
 	sourcePath: string,
+	options?: SaveClipboardImageOptions,
 ): Promise<TFile> {
+	if (!isSupportedImageMime(mimeType)) {
+		throw new Error(`Unsupported clipboard image type: ${mimeType}`);
+	}
+
+	const nameAfterNoteTitle =
+		options?.nameAfterNoteTitle ??
+		settingsStore.getState().namePastedImagesAfterNoteTitle;
 	return saveImageBytesToVault(
 		app,
 		data,
 		mimeType,
 		sourcePath,
-		clipboardImageFilename(mimeType, new Date()),
+		clipboardImageAttachmentFileName({
+			extension: IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType],
+			sourcePath,
+			now: options?.now ?? new Date(),
+			nameAfterNoteTitle,
+		}),
 	);
 }
 

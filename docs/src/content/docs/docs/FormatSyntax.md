@@ -282,16 +282,22 @@ selection-as-value off, globally or per capture.
 
 :::note[Paste images straight into the prompt]
 Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
+Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
 screenshot or copied image, or drag an image from a file manager. QuickAdd
 saves it using Obsidian's attachment settings and inserts an embedded link at
-the cursor. Dropped images keep a sanitized original file name. If the drop is
-already a vault image, QuickAdd embeds that file instead of copying it.
+the cursor. You can mix typed text and images, and paste more than one.
+Dropped images keep a sanitized original file name. If the drop is already a
+vault image, QuickAdd embeds that file instead of copying it.
 
 Clipboard text wins over an image on paste. Image files win on drop because
-file managers also provide the filesystem path as text. Prompts for file
-names, folders, capture targets, and insert-after/before targets never accept
-images because an embed link would break the path. Saved attachments are
-ordinary vault files. Cancelling the prompt does not delete them.
+file managers also provide the filesystem path as text. Turn on **Name pasted
+images after the note title** in QuickAdd settings to name a pasted file after
+the destination note when that path is known (otherwise the file stays
+`Clipboard image YYYY-MM-DD HH.MM.SS`). Dropped files keep their sanitized
+original name even when that setting is on. Prompts for file names, folders,
+capture targets, and insert-after/before targets never accept images because
+an embed link would break the path. Saved attachments are ordinary vault
+files. Cancelling the prompt does not delete them.
 :::
 
 Good to know:
@@ -907,6 +913,8 @@ In Capture content, if the clipboard has no text but holds a supported image,
 QuickAdd saves the image using Obsidian's attachment settings and inserts an
 embedded link. Text wins when both are present. You can also paste or drop an image
 straight into a [value prompt](#value) while typing. No placeholder needed.
+The **Name pasted images after the note title** setting names pasted files
+after the destination note when QuickAdd already knows that path.
 
 ### A template file: `{{TEMPLATE:<path>}}` {#template}
 

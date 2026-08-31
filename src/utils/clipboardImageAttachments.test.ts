@@ -3,12 +3,14 @@ import type { App, TFile } from "obsidian";
 import {
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
 	buildImageEmbedLink,
+	clipboardImageAttachmentFileName,
 	clipboardImageFilename,
 	droppedImageFilename,
 	droppedImageStem,
 	formatClipboardAttachmentTimestamp,
 	isSupportedImageExtension,
 	isSupportedImageMime,
+	sanitizeClipboardImageStem,
 	saveClipboardImageToVault,
 	saveImageBytesToVault,
 } from "./clipboardImageAttachments";
@@ -60,6 +62,37 @@ describe("saveClipboardImageToVault", () => {
 			data,
 		);
 		expect(file.path).toMatch(/^attachments\/Clipboard image .*\.png$/);
+	});
+
+	it("names the file after the destination note when asked", async () => {
+		const { app, getAvailablePathForAttachment } = makeApp();
+
+		await saveClipboardImageToVault(
+			app,
+			data,
+			"image/png",
+			"Meetings/Meeting notes.md",
+			{ nameAfterNoteTitle: true },
+		);
+
+		expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+			"Meeting notes.png",
+			"Meetings/Meeting notes.md",
+		);
+	});
+
+	it("keeps the timestamp name when destination-title naming is on but the path is empty", async () => {
+		const { app, getAvailablePathForAttachment } = makeApp();
+
+		await saveClipboardImageToVault(app, data, "image/png", "", {
+			nameAfterNoteTitle: true,
+			now: new Date(2026, 7, 29, 21, 40, 0),
+		});
+
+		expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+			"Clipboard image 2026-08-29 21.40.00.png",
+			undefined,
+		);
 	});
 
 	it("passes undefined source context when the destination is unknown", async () => {
@@ -216,5 +249,48 @@ describe("formatClipboardAttachmentTimestamp", () => {
 			new Date(2026, 6, 6, 9, 5, 3),
 		);
 		expect(stamp).toBe("2026-07-06 09.05.03");
+	});
+});
+
+describe("clipboardImageAttachmentFileName", () => {
+	const now = new Date(2026, 7, 29, 21, 40, 0);
+
+	it("uses the timestamp name when destination-title naming is off", () => {
+		expect(
+			clipboardImageAttachmentFileName({
+				extension: "png",
+				sourcePath: "Meetings/Meeting notes.md",
+				now,
+				nameAfterNoteTitle: false,
+			}),
+		).toBe("Clipboard image 2026-08-29 21.40.00.png");
+	});
+
+	it("uses the destination basename when destination-title naming is on", () => {
+		expect(
+			clipboardImageAttachmentFileName({
+				extension: "png",
+				sourcePath: "Meetings/Meeting notes.md",
+				now,
+				nameAfterNoteTitle: true,
+			}),
+		).toBe("Meeting notes.png");
+	});
+
+	it("falls back to the timestamp when the stem sanitizes to empty", () => {
+		expect(
+			clipboardImageAttachmentFileName({
+				extension: "png",
+				sourcePath: "???.md",
+				now,
+				nameAfterNoteTitle: true,
+			}),
+		).toBe("Clipboard image 2026-08-29 21.40.00.png");
+	});
+});
+
+describe("sanitizeClipboardImageStem", () => {
+	it("strips path separators and Windows-illegal characters", () => {
+		expect(sanitizeClipboardImageStem('a/b:c*d?e"f<g>h|i')).toBe("abcdefghi");
 	});
 });
