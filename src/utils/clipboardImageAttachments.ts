@@ -1,8 +1,5 @@
 import type { App, TFile } from "obsidian";
-import {
-	INVALID_FOLDER_CHARS_REGEX,
-	isReservedWindowsDeviceName,
-} from "./pathValidation";
+import { isPortablePathSegment } from "./pathValidation";
 import { escapesVaultBoundary } from "./vaultPathBoundary";
 
 /**
@@ -50,6 +47,14 @@ export function clipboardImageFilename(mimeType: string, now: Date): string {
 	return `Clipboard image ${formatClipboardAttachmentTimestamp(now)}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
 }
 
+export function droppedImageStem(originalName: string): string | null {
+	const basename = originalName.split(/[\\/]/u).at(-1) ?? "";
+	const extensionIndex = basename.lastIndexOf(".");
+	const stem =
+		extensionIndex >= 0 ? basename.slice(0, extensionIndex) : basename;
+	return isPortablePathSegment(stem) ? stem : null;
+}
+
 export function droppedImageFilename(
 	originalName: string,
 	mimeType: string,
@@ -59,18 +64,8 @@ export function droppedImageFilename(
 		throw new Error(`Unsupported image type: ${mimeType}`);
 	}
 
-	const basename = originalName.split(/[\\/]/u).at(-1) ?? "";
-	const extensionIndex = basename.lastIndexOf(".");
-	const stem =
-		extensionIndex >= 0 ? basename.slice(0, extensionIndex) : basename;
-	const hasUsableStem =
-		stem.length > 0 &&
-		stem !== "." &&
-		stem !== ".." &&
-		!isReservedWindowsDeviceName(stem) &&
-		!INVALID_FOLDER_CHARS_REGEX.test(stem);
-
-	if (!hasUsableStem) {
+	const stem = droppedImageStem(originalName);
+	if (stem === null) {
 		return clipboardImageFilename(mimeType, now);
 	}
 

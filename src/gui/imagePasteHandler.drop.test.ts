@@ -1,6 +1,9 @@
 import type { App, TFile } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { attachImagePasteHandler } from "./imagePasteHandler";
+import {
+	attachImagePasteHandler,
+	ingestImagesIntoActivePrompt,
+} from "./imagePasteHandler";
 
 vi.mock("obsidian", () => ({
 	Notice: vi.fn(),
@@ -10,6 +13,7 @@ vi.mock("../logger/logManager", () => ({
 	log: { logError: vi.fn(), logWarning: vi.fn(), logMessage: vi.fn() },
 }));
 
+import { log } from "../logger/logManager";
 import { Notice } from "obsidian";
 
 function makeApp(vaultFiles: TFile[] = []) {
@@ -102,6 +106,7 @@ function makeTextarea(): HTMLTextAreaElement {
 beforeEach(() => {
 	document.body.innerHTML = "";
 	vi.mocked(Notice).mockClear();
+	vi.mocked(log.logMessage).mockClear();
 });
 
 describe("attachImagePasteHandler image drop", () => {
@@ -364,5 +369,120 @@ describe("attachImagePasteHandler image drop", () => {
 		expect(getAbstractFileByPath).not.toHaveBeenCalled();
 		expect(createBinary).toHaveBeenCalledTimes(1);
 		expect(input.value).toBe("![[attachments/photo.png]]");
+	});
+
+	it("does not embed a text-only drop of a vault-relative image path", async () => {
+		const vaultImage = {
+			path: "Assets/photo.jpeg",
+			extension: "jpeg",
+			basename: "photo",
+		} as TFile;
+		const { app, createBinary } = makeApp([vaultImage]);
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		const event = dispatchDrag(input, "drop", {
+			getData: (format: string) =>
+				format === "text/plain" ? "Assets/photo.jpeg" : "",
+			items: [],
+			files: [],
+			types: ["text/plain"],
+		} as unknown as DataTransfer);
+		await flushSaves(handle);
+
+		expect(event.defaultPrevented).toBe(false);
+		expect(createBinary).not.toHaveBeenCalled();
+		expect(input.value).toBe("");
+		handle.detach();
+	});
+
+	it("saves an image whose item MIME is empty when File.type is supported", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+		const file = makeFile("sunset.png", "image/png");
+
+		dispatchDrag(input, "drop", {
+			getData: () => "",
+			items: [{ kind: "file", type: "", getAsFile: () => file }],
+			files: [file],
+			types: ["Files"],
+		} as unknown as DataTransfer);
+		await flushSaves(handle);
+
+		expect(createBinary).toHaveBeenCalledTimes(1);
+		expect(input.value).toBe("![[attachments/sunset.png]]");
+		handle.detach();
+	});
+});
+
+describe("ingestImagesIntoActivePrompt", () => {
+	it("saves via ingestFiles and inserts an embed without a DragEvent", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		input.focus();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		const inserted = await handle.ingestFiles([
+			makeFile("sunset.png", "image/png"),
+		]);
+
+		expect(inserted).toBe("![[attachments/sunset.png]]");
+		expect(createBinary).toHaveBeenCalledTimes(1);
+		expect(input.value).toBe("![[attachments/sunset.png]]");
+		expect(log.logMessage).toHaveBeenCalledWith(
+			"QuickAdd: ingested 1 image(s) into the active prompt.",
+		);
+		handle.detach();
+	});
+
+	it("returns no-active-prompt when nothing is attached", async () => {
+		const result = await ingestImagesIntoActivePrompt([
+			makeFile("sunset.png", "image/png"),
+		]);
+
+		expect(result).toEqual({ ok: false, reason: "no-active-prompt" });
+		expect(log.logMessage).toHaveBeenCalledWith(
+			"QuickAdd: image ingest skipped (no-active-prompt).",
+		);
+	});
+
+	it("ingests into the focused attached prompt", async () => {
+		const { app } = makeApp();
+		const first = makeInput();
+		const second = makeInput();
+		const firstHandle = attachImagePasteHandler(app, first, {});
+		const secondHandle = attachImagePasteHandler(app, second, {});
+		first.focus();
+
+		const result = await ingestImagesIntoActivePrompt([
+			makeFile("sunset.png", "image/png"),
+		]);
+
+		expect(result).toEqual({
+			ok: true,
+			inserted: "![[attachments/sunset.png]]",
+		});
+		expect(first.value).toBe("![[attachments/sunset.png]]");
+		expect(second.value).toBe("");
+		firstHandle.detach();
+		secondHandle.detach();
+	});
+
+	it("returns no-images for an unsupported file", async () => {
+		const { app, createBinary } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		const result = await ingestImagesIntoActivePrompt([
+			makeFile("guide.pdf", "application/pdf"),
+		]);
+
+		expect(result).toEqual({ ok: false, reason: "no-images" });
+		expect(createBinary).not.toHaveBeenCalled();
+		expect(log.logMessage).toHaveBeenCalledWith(
+			"QuickAdd: image ingest skipped (no-images).",
+		);
+		handle.detach();
 	});
 });

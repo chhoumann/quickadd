@@ -5,7 +5,7 @@ import {
 	IMAGE_CLIPBOARD_MIME_EXTENSIONS,
 	buildImageEmbedLink,
 	clipboardImageFilename,
-	droppedImageFilename,
+	droppedImageStem,
 	isSupportedImageExtension,
 	isSupportedImageMime,
 	saveImageBytesToVault,
@@ -44,8 +44,31 @@ export interface ImagePasteHandle {
 	isBusy(): boolean;
 	/** Resolves once no image save is in flight (immediately when idle). */
 	whenIdle(): Promise<void>;
+	/** Saves files as dropped images and inserts embed links; returns the inserted text. */
+	ingestFiles(files: File[]): Promise<string>;
 	/** Removes all listeners; a still-running save keeps its file but skips the text insertion. */
 	detach(): void;
+}
+
+export type ImageIngestResult =
+	| { ok: true; inserted: string }
+	| { ok: false; reason: "no-active-prompt" | "no-images" | "busy" };
+
+type AttachedPrompt = {
+	handle: ImagePasteHandle;
+	inputEl: HTMLInputElement | HTMLTextAreaElement;
+};
+
+const attachedPrompts: AttachedPrompt[] = [];
+
+function pickAttachedPrompt(): AttachedPrompt | null {
+	const live = attachedPrompts.filter((entry) => entry.inputEl.isConnected);
+	const focused = live.find(
+		(entry) =>
+			document.activeElement !== null &&
+			entry.inputEl.contains(document.activeElement),
+	);
+	return focused ?? live.at(-1) ?? null;
 }
 
 /**
@@ -91,9 +114,11 @@ export function attachImagePasteHandler(
 					);
 					return;
 				}
-				pendingSave = beginIntake(decision.images, now).finally(() => {
-					pendingSave = null;
-				});
+				pendingSave = beginIntake(decision.images, now)
+					.then(() => undefined)
+					.finally(() => {
+						pendingSave = null;
+					});
 				return;
 			default:
 				return assertNever(decision);
@@ -105,7 +130,7 @@ export function attachImagePasteHandler(
 		if (!data) return;
 		if (composing) return;
 		const now = new Date();
-		acceptDecision("paste", event, decideTransfer("paste", data, app, now), now);
+		acceptDecision("paste", event, decideTransfer("paste", data, app), now);
 	};
 
 	const onDragEnterOrOver = (event: DragEvent) => {
@@ -125,15 +150,15 @@ export function attachImagePasteHandler(
 		clearDropTarget();
 		if (composing) return;
 		const data = event.dataTransfer;
-		if (!data) return;
+		if (!data || !transferMayCarryFiles(data)) return;
 		const now = new Date();
-		acceptDecision("drop", event, decideTransfer("drop", data, app, now), now);
+		acceptDecision("drop", event, decideTransfer("drop", data, app), now);
 	};
 
 	async function beginIntake(
 		images: PromptImage[],
 		now: Date,
-	): Promise<void> {
+	): Promise<string> {
 		const wasReadOnly = inputEl.readOnly;
 		inputEl.readOnly = true;
 		inputEl.setAttribute("aria-busy", "true");
@@ -177,12 +202,12 @@ export function attachImagePasteHandler(
 			inputEl.classList.remove("qa-image-paste-busy");
 		}
 
-		if (links.length === 0 || detached) return;
+		if (links.length === 0 || detached) return "";
+		const inserted =
+			links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " ");
 		try {
-			insertAtSelection(
-				inputEl,
-				links.join(inputEl.tagName === "TEXTAREA" ? "\n" : " "),
-			);
+			insertAtSelection(inputEl, inserted);
+			return inserted;
 		} catch (error) {
 			log.logError(
 				`Failed to insert image link: ${error instanceof Error ? error.message : String(error)}`,
@@ -190,7 +215,37 @@ export function attachImagePasteHandler(
 			new Notice(
 				"QuickAdd: saved the image but could not insert its link.",
 			);
+			return "";
 		}
+	}
+
+	async function ingestFiles(files: File[]): Promise<string> {
+		const now = new Date();
+		const images = promptImagesFromFiles(files);
+		if (images.length === 0) {
+			log.logMessage("QuickAdd: image ingest skipped (no-images).");
+			return "";
+		}
+		if (pendingSave) {
+			new Notice(
+				"QuickAdd: an image is still being saved — drop again in a moment.",
+			);
+			log.logMessage("QuickAdd: image ingest skipped (busy).");
+			return "";
+		}
+		let inserted = "";
+		pendingSave = (async () => {
+			inserted = await beginIntake(images, now);
+		})().finally(() => {
+			pendingSave = null;
+		});
+		await pendingSave;
+		if (inserted.length > 0) {
+			log.logMessage(
+				`QuickAdd: ingested ${images.length} image(s) into the active prompt.`,
+			);
+		}
+		return inserted;
 	}
 
 	inputEl.addEventListener("paste", onPaste);
@@ -201,9 +256,10 @@ export function attachImagePasteHandler(
 	inputEl.addEventListener("compositionstart", onCompositionStart);
 	inputEl.addEventListener("compositionend", onCompositionEnd);
 
-	return {
+	const handle: ImagePasteHandle = {
 		isBusy: () => pendingSave !== null,
 		whenIdle: () => pendingSave ?? Promise.resolve(),
+		ingestFiles,
 		detach: () => {
 			detached = true;
 			clearDropTarget();
@@ -214,8 +270,33 @@ export function attachImagePasteHandler(
 			inputEl.removeEventListener("drop", onDrop);
 			inputEl.removeEventListener("compositionstart", onCompositionStart);
 			inputEl.removeEventListener("compositionend", onCompositionEnd);
+			const index = attachedPrompts.findIndex(
+				(entry) => entry.handle === handle,
+			);
+			if (index >= 0) attachedPrompts.splice(index, 1);
 		},
 	};
+	attachedPrompts.push({ handle, inputEl });
+	return handle;
+}
+
+export async function ingestImagesIntoActivePrompt(
+	files: File[],
+): Promise<ImageIngestResult> {
+	const attached = pickAttachedPrompt();
+	if (!attached) {
+		log.logMessage("QuickAdd: image ingest skipped (no-active-prompt).");
+		return { ok: false, reason: "no-active-prompt" };
+	}
+	if (attached.handle.isBusy()) {
+		log.logMessage("QuickAdd: image ingest skipped (busy).");
+		return { ok: false, reason: "busy" };
+	}
+	const inserted = await attached.handle.ingestFiles(files);
+	if (inserted.length === 0) {
+		return { ok: false, reason: "no-images" };
+	}
+	return { ok: true, inserted };
 }
 
 interface TransferredImageFile {
@@ -227,7 +308,6 @@ function decideTransfer(
 	channel: ImageIntakeChannel,
 	data: DataTransfer,
 	app: App,
-	now: Date,
 ): TransferDecision {
 	switch (channel) {
 		case "paste": {
@@ -251,7 +331,7 @@ function decideTransfer(
 			const images = collectImageFiles(data).map<PromptImage>((image) => ({
 				origin: "bytes",
 				...image,
-				naming: droppedImageNaming(image, now),
+				naming: droppedImageNaming(image),
 			}));
 			return images.length > 0
 				? { kind: "take", images }
@@ -294,42 +374,50 @@ function isSupportedVaultImage(
 
 function collectImageFiles(data: DataTransfer): TransferredImageFile[] {
 	const images: TransferredImageFile[] = [];
-	let hasFileItems = false;
+	const seen = new Set<string>();
+
+	const push = (file: File, mimeType: string) => {
+		const key = `${file.name}\0${file.size}\0${file.type}`;
+		if (seen.has(key)) return;
+		seen.add(key);
+		images.push({ file, mimeType });
+	};
+
 	for (const item of Array.from(data.items ?? [])) {
 		if (item.kind !== "file") continue;
-		hasFileItems = true;
 		if (!isSupportedImageMime(item.type)) continue;
 		const file = item.getAsFile();
-		if (file) images.push({ file, mimeType: item.type });
+		if (file) push(file, item.type);
 	}
-	if (hasFileItems) return images;
 
 	for (const file of Array.from(data.files ?? [])) {
 		if (isSupportedImageMime(file.type)) {
-			images.push({ file, mimeType: file.type });
+			push(file, file.type);
 		}
 	}
 	return images;
 }
 
+function promptImagesFromFiles(files: File[]): PromptImage[] {
+	return files.flatMap((file) => {
+		if (!isSupportedImageMime(file.type)) return [];
+		const image: TransferredImageFile = { file, mimeType: file.type };
+		return [
+			{
+				origin: "bytes" as const,
+				...image,
+				naming: droppedImageNaming(image),
+			},
+		];
+	});
+}
+
 function droppedImageNaming(
 	image: TransferredImageFile,
-	now: Date,
 ): Extract<PromptImage, { origin: "bytes" }>["naming"] {
-	const droppedFilename = droppedImageFilename(
-		image.file.name,
-		image.mimeType,
-		now,
-	);
-	if (droppedFilename === clipboardImageFilename(image.mimeType, now)) {
-		return { kind: "clipboard-stamp" };
-	}
-
-	const extension = IMAGE_CLIPBOARD_MIME_EXTENSIONS[image.mimeType];
-	return {
-		kind: "original-stem",
-		stem: droppedFilename.slice(0, -(extension.length + 1)),
-	};
+	const stem = droppedImageStem(image.file.name);
+	if (stem === null) return { kind: "clipboard-stamp" };
+	return { kind: "original-stem", stem };
 }
 
 function promptImageFilename(

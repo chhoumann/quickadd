@@ -10,12 +10,13 @@ export interface InputPromptOptions {
 	/** Token carries |optional: show a Skip button and accept empty submissions as the answer. */
 	optional?: boolean;
 	/**
-	 * Accept clipboard image paste and dropped image files. Each image is
-	 * saved as a vault attachment and an embed link is inserted at the caret.
-	 * Clipboard text wins on paste. Image files win on drop because file
-	 * managers include the filesystem path as text. Set ONLY for prompts whose
-	 * value flows into note content as free text, never for file-name, folder,
-	 * or path prompts.
+	 * Accept clipboard image paste and dropped image files. Vault images
+	 * dropped with a file transfer are embedded in place (no copy). Other
+	 * images are saved as a new attachment and an embed link is inserted at
+	 * the caret. Clipboard text wins on paste. Image files win on drop because
+	 * file managers include the filesystem path as text. Dropped files keep a
+	 * sanitized original name. Set ONLY for prompts whose value flows into
+	 * note content as free text, never for file-name, folder, or path prompts.
 	 */
 	imagePaste?: {
 		/** Note path the link will live in when known; "" (default) emits vault-root links that resolve from anywhere. */
