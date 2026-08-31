@@ -10,6 +10,7 @@ from a blank choice.
 | Workflow | Choice type | Setup | Prerequisites | What it creates |
 | --- | --- | --- | --- | --- |
 | [Capture to Your Daily Note](/docs/Examples/Capture_ToDailyNote/) | Capture | Beginner | Daily note path | Timestamped entries, tasks, quotes, callouts, and table rows |
+| [Capture to Inbox with GPS](/docs/Examples/Macro_CaptureInboxGps/) | Macro | Intermediate | Obsidian mobile 1.11+ for GPS | A timestamped inbox line with coordinates |
 | [Add a Task to a Kanban Board](/docs/Examples/Capture_AddTaskToKanbanBoard/) | Capture | Beginner | Obsidian Kanban plugin | A task in a board section |
 | [Fetch Tasks from Todoist](/docs/Examples/Capture_FetchTasksFromTodoist/) | Capture and Macro | Intermediate | Todoist API token | Imported Todoist tasks |
 | [Canvas Capture](/docs/Examples/Capture_CanvasCapture/) | Capture | Intermediate | An Obsidian Canvas file | Text added to a selected or targeted card |
@@ -27,8 +28,10 @@ from a blank choice.
 ### Capture information faster
 
 Start with [Capture to Your Daily Note](/docs/Examples/Capture_ToDailyNote/) for daily-note
-captures. Move to [Canvas Capture](/docs/Examples/Capture_CanvasCapture/) when your target is
-a Canvas card instead of a Markdown note.
+captures. Use [Capture to Inbox with GPS](/docs/Examples/Macro_CaptureInboxGps/) when the
+line should also store device coordinates. Move to
+[Canvas Capture](/docs/Examples/Capture_CanvasCapture/) when your target is a Canvas card
+instead of a Markdown note.
 
 ### Create structured notes
 
