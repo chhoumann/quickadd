@@ -1841,6 +1841,22 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		).resolves.toBe("a, b");
 	});
 
+	it("ignores a trailing empty option when inferring inline spacing", async () => {
+		const suggesterMulti = vi.fn(
+			async (_display: string[], _actual: string[]) => [
+				"Empty A",
+				"Empty B",
+			],
+		);
+		const f = providerFormatter({ suggesterMulti });
+
+		await expect(
+			f.formatFileContent(
+				"{{VALUE:Empty A, Empty B,|multi|format:inline}}",
+			),
+		).resolves.toBe("Empty A, Empty B");
+	});
+
 	it("routes anonymous {{VALUE|type:checkbox}} to the provider's suggester, not the Obsidian modal", async () => {
 		mocks.genericSuggesterSuggest.mockResolvedValue("false"); // modal answer (should be unused)
 		const suggester = vi.fn(async () => "true");

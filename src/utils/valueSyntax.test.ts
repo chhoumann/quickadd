@@ -290,6 +290,10 @@ describe("parseValueToken", () => {
 		['"a, b", c|multi|format:inline', ", "],
 		["a ,b|multi|format:inline", ","],
 		["a,b|multi|format:inline|text:option a, option b", ","],
+		["Empty A, Empty B,|multi|format:inline", ", "],
+		["a, b,|multi|format:inline", ", "],
+		["a,,b|multi|format:inline", ","],
+		[",a, b|multi|format:inline", ", "],
 	] as const)(
 		"infers the inline separator from %s",
 		(token, separator) => {
