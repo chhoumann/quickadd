@@ -605,7 +605,12 @@ export default class QuickAdd extends Plugin {
 				callback: () => this.runRegisteredChoice(choiceId, choice.name),
 			});
 
-			if (shouldRegisterAnotherDayCommand(choice.dateOrigin)) {
+			if (
+				shouldRegisterAnotherDayCommand({
+					origin: choice.dateOrigin,
+					enabled: choice.anotherDayCommand,
+				})
+			) {
 				this.addCommand({
 					id: anotherDayCommandId(choiceId),
 					name: anotherDayCommandName(choice.name),

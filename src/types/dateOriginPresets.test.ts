@@ -161,17 +161,34 @@ describe("ask picker defaults", () => {
 });
 
 describe("another-day command", () => {
-	it("registers for every job except Ask each time", () => {
-		expect(shouldRegisterAnotherDayCommand(undefined)).toBe(true);
-		expect(shouldRegisterAnotherDayCommand({ kind: "now" })).toBe(true);
+	it("is off by default and only registers when opted in", () => {
+		expect(
+			shouldRegisterAnotherDayCommand({ origin: undefined }),
+		).toBe(false);
 		expect(
 			shouldRegisterAnotherDayCommand({
-				kind: "relative",
-				offset: -1,
-				unit: "days",
+				origin: { kind: "now" },
+				enabled: false,
+			}),
+		).toBe(false);
+		expect(
+			shouldRegisterAnotherDayCommand({
+				origin: undefined,
+				enabled: true,
 			}),
 		).toBe(true);
-		expect(shouldRegisterAnotherDayCommand({ kind: "ask" })).toBe(false);
+		expect(
+			shouldRegisterAnotherDayCommand({
+				origin: { kind: "relative", offset: -1, unit: "days" },
+				enabled: true,
+			}),
+		).toBe(true);
+		expect(
+			shouldRegisterAnotherDayCommand({
+				origin: { kind: "ask" },
+				enabled: true,
+			}),
+		).toBe(false);
 	});
 
 	it("seeds the picker from the named day you are overriding", () => {

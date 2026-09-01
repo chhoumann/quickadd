@@ -9,6 +9,7 @@ export abstract class Choice implements IChoice {
 	type: ChoiceType;
 	command: boolean;
 	dateOrigin?: DateOrigin;
+	anotherDayCommand?: boolean;
 	onePageInput?: "always" | "never" | undefined;
 	icon?: string;
 

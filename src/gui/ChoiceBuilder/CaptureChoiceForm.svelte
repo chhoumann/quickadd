@@ -210,7 +210,10 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
+<DateOriginSetting
+	bind:dateOrigin={choice.dateOrigin}
+	bind:anotherDayCommand={choice.anotherDayCommand}
+/>
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 

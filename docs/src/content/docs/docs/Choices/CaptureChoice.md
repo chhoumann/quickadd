@@ -286,9 +286,10 @@ That's the useful split: the note is the day, the stamp is when you wrote it.
 prints the clock, so you still get `15:00`. Put `{{DATE}}` on the line if
 you want the note's day next to the text.
 
-Most people leave this on Today and use **Daily log (another day)**, or hold
-Shift in the QuickAdd menu, for the days that aren't today. Your existing
-hotkey still captures to today.
+Most people leave this on Today. Turn on **Also add (another day)** if you
+want a **Daily log (another day)** palette command, or hold Shift in the
+QuickAdd menu for the days that aren't today. Your existing hotkey still
+captures to today.
 
 ### Use your selection as the answer {#use-editor-selection}
 

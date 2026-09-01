@@ -2,6 +2,8 @@
 import type { DateOrigin } from "../../../types/dateOrigin";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../../types/dateOrigin";
 import {
+	ANOTHER_DAY_COMMAND_SETTING_DESC,
+	ANOTHER_DAY_COMMAND_SETTING_NAME,
 	ASK_DEFAULT_SETTING_DESC,
 	ASK_DEFAULT_SETTING_NAME,
 	CUSTOM_OFFSET_SETTING_DESC,
@@ -20,11 +22,14 @@ import {
 } from "../../../types/dateOriginPresets";
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
+import Toggle from "../../components/Toggle.svelte";
 
 let {
 	dateOrigin = $bindable(),
+	anotherDayCommand = $bindable(),
 }: {
 	dateOrigin: DateOrigin | undefined;
+	anotherDayCommand?: boolean;
 } = $props();
 
 const unitOptions = DATE_ORIGIN_UNITS.map((unit) => ({
@@ -44,6 +49,7 @@ const variableOrigin = $derived(
 );
 const askDefaultId = $derived(askDefaultToPresetId(askOrigin?.defaultValue));
 const askDefaultChoices = $derived(askDefaultOptions(askOrigin?.defaultValue));
+const showAnotherDayToggle = $derived(selectedPreset !== "ask");
 
 function onPresetChange(value: string) {
 	if (!isDateOriginPreset(value)) return;
@@ -143,6 +149,20 @@ function onVariableChange(value: string) {
 					if (!(target instanceof HTMLInputElement)) return;
 					onVariableChange(target.value);
 				}}
+			/>
+		{/snippet}
+	</SettingItem>
+{/if}
+
+{#if showAnotherDayToggle}
+	<SettingItem
+		name={ANOTHER_DAY_COMMAND_SETTING_NAME}
+		desc={ANOTHER_DAY_COMMAND_SETTING_DESC}
+	>
+		{#snippet control()}
+			<Toggle
+				bind:checked={anotherDayCommand}
+				ariaLabel={ANOTHER_DAY_COMMAND_SETTING_NAME}
 			/>
 		{/snippet}
 	</SettingItem>

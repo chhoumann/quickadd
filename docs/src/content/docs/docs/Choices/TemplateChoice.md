@@ -214,10 +214,12 @@ choice, so a "written at" stamp stays honest.
   year.
 - **A variable…** is for a `{{VDATE}}` or a script that already has the day.
 
-If the choice has a command, QuickAdd also adds **Name (another day)** next
-to it. Same choice. Your existing hotkey still opens today. Use the extra
-command, or hold Shift in the QuickAdd menu, when it isn't today. You don't
-need a second Daily Note choice.
+**Also add (another day)** is off by default. Turn it on when the choice is
+a command and you want a second palette entry, **Name (another day)**. Same
+choice; your existing hotkey still opens today. Hold Shift in the QuickAdd
+menu always opens the picker, with or without that extra command. You don't
+need a second Daily Note choice. The toggle is hidden for **Ask each time**
+because the main command already opens the picker.
 
 Scripts and the CLI can pass a day too:
 `executeChoice("Weekly review", {}, { date: "last week" })`, or `date=ask`

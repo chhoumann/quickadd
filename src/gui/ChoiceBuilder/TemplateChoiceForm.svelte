@@ -358,7 +358,10 @@ function onModeChange(value: string) {
 	<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 {/if}
 
-<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
+<DateOriginSetting
+	bind:dateOrigin={choice.dateOrigin}
+	bind:anotherDayCommand={choice.anotherDayCommand}
+/>
 
 <OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 

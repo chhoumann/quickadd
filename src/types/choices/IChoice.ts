@@ -10,6 +10,12 @@ export default interface IChoice {
 	 * Which day `{{DATE}}` uses. Undefined means today (or a parent run).
 	 */
 	dateOrigin?: DateOrigin;
+	/**
+	 * When true and `command` is on, also register `Name (another day)` in the
+	 * command palette. Undefined/false = off. Ask-each-time choices never get
+	 * the extra command (the main one already opens the picker).
+	 */
+	anotherDayCommand?: boolean;
 	/** Per-choice override for one-page flow. undefined = follow global setting */
 	onePageInput?: "always" | "never" | undefined;
 	/**

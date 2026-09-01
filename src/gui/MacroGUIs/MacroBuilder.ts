@@ -27,6 +27,8 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { v4 as uuidv4 } from "uuid";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
 import {
+	ANOTHER_DAY_COMMAND_SETTING_DESC,
+	ANOTHER_DAY_COMMAND_SETTING_NAME,
 	ASK_DEFAULT_SETTING_DESC,
 	ASK_DEFAULT_SETTING_NAME,
 	CUSTOM_OFFSET_SETTING_DESC,
@@ -231,6 +233,19 @@ export class MacroBuilder extends Modal {
 					text.onChange((value) => {
 						this.choice.dateOrigin = { kind: "variable", name: value };
 					});
+				});
+		}
+
+		if (preset !== "ask") {
+			new Setting(this.contentEl)
+				.setName(ANOTHER_DAY_COMMAND_SETTING_NAME)
+				.setDesc(ANOTHER_DAY_COMMAND_SETTING_DESC)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(this.choice.anotherDayCommand ?? false)
+						.onChange((value) => {
+							this.choice.anotherDayCommand = value || undefined;
+						});
 				});
 		}
 	}

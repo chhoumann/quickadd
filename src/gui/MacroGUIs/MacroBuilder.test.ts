@@ -35,6 +35,7 @@ describe("MacroBuilder", () => {
 
 		expect(modal.contentEl.textContent).toContain("Which day");
 		expect(modal.contentEl.textContent).toContain("Ask each time");
+		expect(modal.contentEl.textContent).toContain("Also add (another day)");
 		expect(children.at(-2)?.textContent).toContain("Run on startup");
 		expect(children.at(-1)?.textContent).toContain("Icon");
 		expect(children.at(-1)?.textContent).toContain(
@@ -55,6 +56,9 @@ describe("MacroBuilder", () => {
 
 		expect(modal.contentEl.textContent).toContain("Picker starts on");
 		expect(modal.contentEl.textContent).toContain("Last week");
+		expect(modal.contentEl.textContent).not.toContain(
+			"Also add (another day)",
+		);
 		expect(children.at(-2)?.textContent).toContain("Run on startup");
 		expect(children.at(-1)?.textContent).toContain("Icon");
 	});

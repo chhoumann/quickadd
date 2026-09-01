@@ -15,7 +15,11 @@ export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 export const DATE_ORIGIN_SETTING_NAME = "Which day";
 export const DATE_ORIGIN_SETTING_DESC =
-	"The day {{DATE}} writes. The clock stays now. A command also adds (another day) so you can pick without making a copy of this choice.";
+	"The day {{DATE}} writes. The clock stays now.";
+
+export const ANOTHER_DAY_COMMAND_SETTING_NAME = "Also add (another day)";
+export const ANOTHER_DAY_COMMAND_SETTING_DESC =
+	"Registers Name (another day) in the command palette when this choice is a command. Hold Shift in the QuickAdd menu always opens the picker, with or without this.";
 
 export const ASK_DEFAULT_SETTING_NAME = "Picker starts on";
 export const ASK_DEFAULT_SETTING_DESC =
@@ -201,10 +205,12 @@ export function isPickDateToken(value: unknown): boolean {
 	return typeof value === "string" && value.trim().toLowerCase() === "ask";
 }
 
-export function shouldRegisterAnotherDayCommand(
-	origin: DateOrigin | undefined,
-): boolean {
-	return dateOriginToPreset(origin) !== "ask";
+export function shouldRegisterAnotherDayCommand(input: {
+	origin?: DateOrigin;
+	enabled?: boolean;
+}): boolean {
+	if (!input.enabled) return false;
+	return dateOriginToPreset(input.origin) !== "ask";
 }
 
 export function choiceCommandId(choiceId: string): string {
