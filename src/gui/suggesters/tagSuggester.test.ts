@@ -139,4 +139,47 @@ describe("TagSuggester getSuggestions (behavior-preserving over the shared index
 
 		expect(suggester.getSuggestions(value)).toEqual([]);
 	});
+
+	it("still rejects a heading hash inside an unclosed wiki-link after a closed one", () => {
+		const suggester = suggesterFor({ "#tag": 1 });
+		const input = (suggester as unknown as { inputEl: HTMLInputElement })
+			.inputEl;
+		const value = "See [[Done]] then [[Open#ta";
+		input.value = value;
+		input.setSelectionRange(value.length, value.length);
+
+		expect(suggester.getSuggestions(value)).toEqual([]);
+	});
+
+	it("still suggests tags after a completed wiki-link", () => {
+		const suggester = suggesterFor({
+			"#priority/high": 1,
+			"#project": 1,
+			"#other": 1,
+		});
+		const input = (suggester as unknown as { inputEl: HTMLInputElement })
+			.inputEl;
+		const value = "See [[Target Note]] then #pro";
+		input.value = value;
+		input.setSelectionRange(value.length, value.length);
+
+		const out = suggester.getSuggestions(value);
+		expect(out).toContain("#priority/high");
+		expect(out).toContain("#project");
+		expect(out).not.toContain("#other");
+	});
+
+	it("does not rebuild the tag index when refreshIndex is false", () => {
+		const app = makeApp({ "#a": 1 }, []);
+		new TagSuggester(app, document.createElement("input"));
+		const getTags = (
+			app.metadataCache as unknown as { getTags: ReturnType<typeof vi.fn> }
+		).getTags;
+		getTags.mockClear();
+
+		new TagSuggester(app, document.createElement("input"), {
+			refreshIndex: false,
+		});
+		expect(getTags).not.toHaveBeenCalled();
+	});
 });

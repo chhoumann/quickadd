@@ -172,6 +172,7 @@ vi.mock("obsidian", () => {
 	}
 
 	return {
+		ButtonComponent,
 		DropdownComponent,
 		Modal,
 		Notice,
@@ -182,6 +183,27 @@ vi.mock("obsidian", () => {
 		debounce: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
 	};
 });
+
+vi.mock("src/gui/suggesters/fileSuggester", () => ({
+	FileSuggester: class {
+		destroy = vi.fn();
+	},
+}));
+
+vi.mock("src/gui/suggesters/tagSuggester", () => ({
+	TagSuggester: class {
+		destroy = vi.fn();
+	},
+}));
+
+vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
+	applyCompactPromptChrome: vi.fn(),
+	stylePeekButton: <T extends { buttonEl: HTMLButtonElement }>(button: T): T => {
+		button.buttonEl.textContent = "Peek at note";
+		button.buttonEl.classList.add("qa-peek-button");
+		return button;
+	},
+}));
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
 	createDatePicker: () => ({ setSelectedIso: vi.fn() }),

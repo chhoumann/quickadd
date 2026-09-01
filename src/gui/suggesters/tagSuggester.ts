@@ -5,6 +5,18 @@ import { replaceRange } from "./utils";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { TagIndex } from "./TagIndex";
 
+function isTagInsideUnclosedWikilink(
+	inputBeforeCursor: string,
+	tagMatchIndex: number,
+): boolean {
+	const beforeTag = inputBeforeCursor.slice(0, tagMatchIndex);
+	const lastOpen = beforeTag.lastIndexOf("[[");
+	if (lastOpen === -1) {
+		return false;
+	}
+	return beforeTag.lastIndexOf("]]") < lastOpen;
+}
+
 export class TagSuggester extends TextInputSuggest<string> {
 	private lastInput = "";
 	private lastInputStart = 0;
@@ -13,7 +25,8 @@ export class TagSuggester extends TextInputSuggest<string> {
 
 	constructor(
 		public app: App,
-		public inputEl: HTMLInputElement | HTMLTextAreaElement
+		public inputEl: HTMLInputElement | HTMLTextAreaElement,
+		options?: { refreshIndex?: boolean },
 	) {
 		super(app, inputEl);
 
@@ -25,7 +38,9 @@ export class TagSuggester extends TextInputSuggest<string> {
 		// Refresh on open so this prompt sees the current tags even if no
 		// 'resolved' event has fired since the vault's tags last changed -
 		// preserving the old per-prompt freshness, now with one shared listener.
-		this.tagIndex.refresh();
+		if (options?.refreshIndex !== false) {
+			this.tagIndex.refresh();
+		}
 	}
 
 	getSuggestions(inputStr: string): string[] {
@@ -41,12 +56,10 @@ export class TagSuggester extends TextInputSuggest<string> {
 			return [];
 		}
 
-		// Reject if we are inside a wikilink ([[ … # … ]])
-		const lastWiki = inputBeforeCursor.lastIndexOf('[[');
 		if (tagMatch.index === undefined) {
 			return [];
 		}
-		if (lastWiki !== -1 && lastWiki < tagMatch.index) {
+		if (isTagInsideUnclosedWikilink(inputBeforeCursor, tagMatch.index)) {
 			return [];
 		}
 

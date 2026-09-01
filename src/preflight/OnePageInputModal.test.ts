@@ -30,6 +30,27 @@ vi.mock("src/gui/imagePasteHandler", () => ({
 	attachImagePasteHandler: attachImagePasteHandlerMock,
 }));
 
+vi.mock("src/gui/suggesters/fileSuggester", () => ({
+	FileSuggester: class {
+		destroy = vi.fn();
+	},
+}));
+
+vi.mock("src/gui/suggesters/tagSuggester", () => ({
+	TagSuggester: class {
+		destroy = vi.fn();
+	},
+}));
+
+vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
+	applyCompactPromptChrome: vi.fn(),
+	stylePeekButton: <T extends { buttonEl: HTMLButtonElement }>(button: T): T => {
+		button.buttonEl.textContent = "Peek at note";
+		button.buttonEl.classList.add("qa-peek-button");
+		return button;
+	},
+}));
+
 vi.mock("obsidian", () => {
 	class Modal {
 		containerEl: HTMLElement;
@@ -194,6 +215,7 @@ vi.mock("obsidian", () => {
 	}
 
 	return {
+		ButtonComponent,
 		DropdownComponent,
 		Modal,
 		Setting,

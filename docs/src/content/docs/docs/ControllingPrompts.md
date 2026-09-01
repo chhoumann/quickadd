@@ -90,19 +90,19 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 
 ## Peek at the note {#peek}
 
-Single-line and multi-line text prompts can get out of the way so you can read or select text in the open note, then come back to the same draft.
+Single-line and multi-line text prompts, plus the one-page input form, can get out of the way so you can read or select text in the open note, then come back to the same draft.
 
-- **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run. Everything in the prompt survives the peek: the draft, its undo history, a paste still saving, even the text you had selected in the field.
-- A chip stays on screen: **Insert selection** replaces the field's selection (or drops in at the caret) and returns, **Return** comes back as-is, and **Cancel** aborts the run. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode, and your other Obsidian hotkeys keep working while the chip is up.
+- **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run. On the one-page form, it hides the whole form. Everything in the prompt survives the peek: the draft, its undo history, a paste still saving, even the text you had selected in the field.
+- A chip stays on screen: **Insert selection** replaces the field's selection (or drops in at the caret) and returns, **Return** comes back as-is, and **Cancel** aborts the run. On the one-page form, **Insert selection** uses the last text field you focused, or the first text field if you have not focused one. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode, and your other Obsidian hotkeys keep working while the chip is up.
 - The command **QuickAdd: Return to prompt** is available while a peek is open. On a phone the chip is a one-line bar under the note header, so the bottom nav and home indicator stay free, and prompt actions stay on one row (Peek / Cancel / Ok) so the keyboard does not cover Cancel.
-- Peek appears on text prompts opened during a choice run or from the [API](/docs/QuickAddAPI/), not on QuickAdd's own settings and builder prompts. Only one run can be parked: peeking a second prompt cancels the first, and returning waits until any other open prompt is closed.
+- Peek appears on text prompts opened during a choice run or from the [API](/docs/QuickAddAPI/), and on the one-page input form. It does not appear on QuickAdd's own settings and builder prompts. Only one run can be parked: peeking a second prompt cancels the first, and returning waits until any other open prompt is closed.
 
 
 ## Autocomplete while you type {#autocomplete-inside-prompts}
 
 Inside a prompt, `#` searches your vault's tags and `[[` searches your files (headings, blocks, and relative paths work too). See [Suggester System](/docs/SuggesterSystem/) for all triggers and keys.
 
-These triggers work in the single-line and multi-line prompts. The one-page form's plain text fields do not offer them, though its field and pick-list inputs have their own inline suggestions.
+These triggers work in single-line and multi-line prompts, and in text and textarea fields on the one-page form. Field and pick-list widgets keep their own inline suggestions.
 
 ## One form instead of many prompts {#one-form-instead-of-many-prompts}
 
