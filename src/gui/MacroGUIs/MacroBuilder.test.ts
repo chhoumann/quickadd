@@ -35,12 +35,29 @@ describe("MacroBuilder", () => {
 
 		expect(modal.contentEl.textContent).toContain("Which day");
 		expect(modal.contentEl.textContent).toContain("Ask each time");
-		expect(modal.contentEl.textContent).toContain("Also add (another day)");
-		expect(children.at(-2)?.textContent).toContain("Run on startup");
+		expect(children.at(-3)?.textContent).toContain("Run on startup");
+		expect(children.at(-2)?.textContent).toContain("Add to command palette");
 		expect(children.at(-1)?.textContent).toContain("Icon");
 		expect(children.at(-1)?.textContent).toContain(
 			"Lucide/Obsidian icon id",
 		);
+	});
+
+	it("offers the pick-a-day command only once the macro is a command", () => {
+		const choice = new MacroChoice("Macro under test");
+		const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
+		const off = new MacroBuilder(new App(), plugin, choice, []);
+		expect(off.contentEl.textContent).not.toContain("(pick a day)");
+
+		choice.command = true;
+		const on = new MacroBuilder(new App(), plugin, choice, []);
+		expect(on.contentEl.textContent).toContain(
+			'Also add "Macro under test (pick a day)"',
+		);
+
+		choice.dateOrigin = { kind: "ask" };
+		const ask = new MacroBuilder(new App(), plugin, choice, []);
+		expect(ask.contentEl.textContent).not.toContain("(pick a day)");
 	});
 
 	it("shows the ask picker default and keeps icon last", () => {
@@ -56,10 +73,7 @@ describe("MacroBuilder", () => {
 
 		expect(modal.contentEl.textContent).toContain("Picker starts on");
 		expect(modal.contentEl.textContent).toContain("Last week");
-		expect(modal.contentEl.textContent).not.toContain(
-			"Also add (another day)",
-		);
-		expect(children.at(-2)?.textContent).toContain("Run on startup");
+		expect(children.at(-2)?.textContent).toContain("Add to command palette");
 		expect(children.at(-1)?.textContent).toContain("Icon");
 	});
 

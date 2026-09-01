@@ -44,7 +44,7 @@ export interface IChoiceExecutor {
 	clocks?: RunClocks;
 	/**
 	 * When true, this run asks for a day even if the choice is set to Today
-	 * (or another fixed day). Used by `{name} (another day)` and `date=ask`.
+	 * (or another fixed day). Used by `{name} (pick a day)` and `date=ask`.
 	 */
 	pickDate?: boolean;
 	/**

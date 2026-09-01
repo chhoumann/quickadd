@@ -214,12 +214,10 @@ choice, so a "written at" stamp stays honest.
   year.
 - **A variable…** is for a `{{VDATE}}` or a script that already has the day.
 
-**Also add (another day)** is off by default. Turn it on when the choice is
-a command and you want a second palette entry, **Name (another day)**. Same
-choice; your existing hotkey still opens today. Hold Shift in the QuickAdd
-menu always opens the picker, with or without that extra command. You don't
-need a second Daily Note choice. The toggle is hidden for **Ask each time**
-because the main command already opens the picker.
+When it isn't today, hold Shift in the QuickAdd menu and the same choice asks
+for the day. If you want a hotkey for that, see
+[Command palette](#command-palette) below. You don't need a second Daily
+Note choice.
 
 Scripts and the CLI can pass a day too:
 `executeChoice("Weekly review", {}, { date: "last week" })`, or `date=ask`
@@ -359,6 +357,18 @@ appear (these are shared with the Capture choice):
   **Live Preview**, or **Default**.
 - **Focus new pane** - shown for every location except **Reuse current tab**.
   Focus the opened tab immediately after opening.
+
+## Run it from a hotkey: Command palette {#command-palette}
+
+**Add to command palette** registers the choice as an Obsidian command, so
+you can bind a hotkey to it. It is the same switch as the lightning bolt in
+the choice list.
+
+Once it is on, and [Which day](#date-origin) isn't **Ask each time**, a
+second toggle appears: **Also add "Name (pick a day)"**. That registers one
+more command that asks which day before it runs, so you can have one hotkey
+for today's note and another for any other day, from the same choice. Your
+main hotkey keeps using Which day.
 
 ## When the note already exists {#file-already-exists-behavior}
 

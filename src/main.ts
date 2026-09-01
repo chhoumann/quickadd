@@ -42,11 +42,11 @@ import {
 import { isReservedVariableKey } from "./utils/reservedVariableKeys";
 import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import {
-	anotherDayCommandId,
-	anotherDayCommandName,
 	choiceCommandId,
-	shouldRegisterAnotherDayCommand,
-} from "./types/dateOriginPresets";
+	pickDayCommandId,
+	pickDayCommandName,
+	shouldRegisterPickDayCommand,
+} from "./types/choiceCommands";
 import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
@@ -606,14 +606,14 @@ export default class QuickAdd extends Plugin {
 			});
 
 			if (
-				shouldRegisterAnotherDayCommand({
+				shouldRegisterPickDayCommand({
 					origin: choice.dateOrigin,
-					enabled: choice.anotherDayCommand,
+					enabled: choice.pickDayCommand,
 				})
 			) {
 				this.addCommand({
-					id: anotherDayCommandId(choiceId),
-					name: anotherDayCommandName(choice.name),
+					id: pickDayCommandId(choiceId),
+					name: pickDayCommandName(choice.name),
 					icon: resolveChoiceIcon(choice),
 					callback: () =>
 						this.runRegisteredChoice(choiceId, choice.name, true),
@@ -744,7 +744,7 @@ export default class QuickAdd extends Plugin {
 		deleteObsidianCommand(this.app, `quickadd:${choiceCommandId(choice.id)}`);
 		deleteObsidianCommand(
 			this.app,
-			`quickadd:${anotherDayCommandId(choice.id)}`,
+			`quickadd:${pickDayCommandId(choice.id)}`,
 		);
 	}
 

@@ -286,10 +286,10 @@ That's the useful split: the note is the day, the stamp is when you wrote it.
 prints the clock, so you still get `15:00`. Put `{{DATE}}` on the line if
 you want the note's day next to the text.
 
-Most people leave this on Today. Turn on **Also add (another day)** if you
-want a **Daily log (another day)** palette command, or hold Shift in the
-QuickAdd menu for the days that aren't today. Your existing hotkey still
-captures to today.
+Most people leave this on Today and hold Shift in the QuickAdd menu for the
+days that aren't today. If you'd rather have a hotkey for that, see
+[Command palette](#command-palette). Your existing hotkey still captures to
+today.
 
 ### Use your selection as the answer {#use-editor-selection}
 
@@ -393,6 +393,15 @@ When QuickAdd opens and focuses a Markdown target in an editable mode, it
 places the cursor at the end of the inserted capture so you can keep typing.
 This is skipped for preview/unfocused opens and when Templater cursor markers
 take over.
+
+### Run it from a hotkey: Command palette {#command-palette}
+
+**Add to command palette** registers the capture as an Obsidian command, the
+same switch as the lightning bolt in the choice list. Once it is on, and
+[Which day](#date-origin) isn't **Ask each time**, **Also add "Name (pick a
+day)"** registers a second command that asks which day first. One hotkey
+captures to today, the other to whichever day you pick, from the same
+choice.
 
 ### Run Templater on the whole file afterwards {#run-templater-on-entire-destination-file-after-capture}
 
