@@ -11,6 +11,7 @@ vi.mock("../logger/logManager", () => ({
 }));
 
 import { Notice } from "obsidian";
+import { settingsStore } from "../settingsStore";
 
 function makeApp() {
 	const created: string[] = [];
@@ -110,6 +111,28 @@ describe("attachImagePasteHandler", () => {
 		expect(input.value).toMatch(
 			/^before !\[\[attachments\/Clipboard image .*\.png\]\]after$/,
 		);
+	});
+
+	it("names a pasted image after the destination note when the setting is on", async () => {
+		settingsStore.setState({ namePastedImagesAfterNoteTitle: true });
+		try {
+			const { app, createBinary } = makeApp();
+			const input = makeInput();
+			const handle = attachImagePasteHandler(app, input, {
+				sourcePath: "Meetings/Meeting notes.md",
+			});
+
+			dispatchPaste(input, makeClipboardData([makeImageFile()]));
+			await flushSaves(handle);
+
+			expect(createBinary).toHaveBeenCalledWith(
+				"attachments/Meeting notes.png",
+				expect.any(ArrayBuffer),
+			);
+			expect(input.value).toBe("![[attachments/Meeting notes.png]]");
+		} finally {
+			settingsStore.setState({ namePastedImagesAfterNoteTitle: false });
+		}
 	});
 
 	it("fires an input event so component onChange observers update", async () => {
@@ -279,7 +302,7 @@ describe("attachImagePasteHandler", () => {
 
 		expect(input.value.match(/!\[\[/g)).toHaveLength(1);
 		expect(Notice).toHaveBeenCalledWith(
-			expect.stringContaining("failed to save pasted image"),
+			expect.stringContaining("failed to save image"),
 		);
 		expect(input.readOnly).toBe(false);
 	});

@@ -263,6 +263,7 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 				"inputPrompt",
 				"persistInputPromptDrafts",
 				"useSelectionAsCaptureValue",
+				"namePastedImagesAfterNoteTitle",
 				"onePageInputEnabled",
 				"enableTemplatePropertyTypes",
 				"announceUpdates",

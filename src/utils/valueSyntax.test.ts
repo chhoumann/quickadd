@@ -249,7 +249,7 @@ describe("parseValueToken", () => {
 		expect(parsed?.multiEmit).toBe("linklist");
 	});
 
-	it.each(["yaml", "markdown", "inline"] as const)(
+	it.each(["yaml", "markdown", "inline", "spaced"] as const)(
 		"parses |format:%s separately from |multi item emission",
 		(format) => {
 			const parsed = parseValueToken(

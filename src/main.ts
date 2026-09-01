@@ -51,6 +51,7 @@ import { registerQuickAddCliHandlers } from "./cli/registerQuickAddCliHandlers";
 import { autoSyncEnabledProviders } from "./ai/modelSyncService";
 import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { PromptPeekSession } from "./gui/promptPeek/PromptPeekSession";
+import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imagePasteHandler";
 import { setQuickAddInstance } from "./quickAddInstance";
 import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -116,6 +117,10 @@ export default class QuickAdd extends Plugin {
 			this,
 			new ChoiceExecutor(this.app, this),
 		);
+	}
+
+	ingestImagesIntoActivePrompt(files: File[]) {
+		return ingestPromptImages(files);
 	}
 
 	async onload() {

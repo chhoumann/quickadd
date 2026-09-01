@@ -9,6 +9,7 @@ const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
 	attachImagePasteHandlerMock: vi.fn(() => ({
 		isBusy: (): boolean => false,
 		whenIdle: () => Promise.resolve(),
+		ingestFiles: async () => "",
 		detach: vi.fn(),
 	})),
 }));
@@ -1059,6 +1060,7 @@ describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 		attachImagePasteHandlerMock.mockReturnValueOnce({
 			isBusy: () => false,
 			whenIdle: () => Promise.resolve(),
+			ingestFiles: async () => "",
 			detach,
 		});
 		const requirements: FieldRequirement[] = [
@@ -1081,6 +1083,7 @@ describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 		attachImagePasteHandlerMock.mockReturnValueOnce({
 			isBusy: () => busy,
 			whenIdle: () => idle,
+			ingestFiles: async () => "",
 			detach: vi.fn(),
 		});
 		const requirements: FieldRequirement[] = [

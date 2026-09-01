@@ -52,6 +52,12 @@ describe("parseFileToken", () => {
 		expect(parsed?.multiFormat).toBe("yaml");
 	});
 
+	it("parses |format:spaced", () => {
+		const parsed = parseFileToken("People|multi|format:spaced");
+		expect(parsed?.multiSelect).toBe(true);
+		expect(parsed?.multiFormat).toBe("spaced");
+	});
+
 	it("warns on |format: without |multi, even |format:auto", () => {
 		const warnings: string[] = [];
 		const parsed = parseFileToken("People|format:auto", {

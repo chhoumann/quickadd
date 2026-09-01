@@ -103,6 +103,7 @@ vi.mock("../logger/logManager", () => ({
 }));
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { settingsStore } from "../settingsStore";
 
 function createTFile(path: string): TFile {
 	const name = path.split("/").pop() ?? path;
@@ -238,6 +239,26 @@ describe("CaptureChoiceFormatter clipboard image support", () => {
 			expect.objectContaining({ path: "Assets/clip.png" }),
 			"Notes/Clip.md",
 		);
+	});
+
+	it("asks for a destination-title attachment name when the setting is on", async () => {
+		settingsStore.setState({ namePastedImagesAfterNoteTitle: true });
+		try {
+			const { app, getAvailablePathForAttachment } = createMockApp();
+			const item = createClipboardItem("image/png", [1, 2, 3]);
+			setClipboard({ items: [item] });
+			const formatter = createFormatter(app);
+			formatter.setDestinationSourcePath("Notes/Clip.md");
+
+			await formatter.formatContentOnly("{{clipboard}}");
+
+			expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+				"Clip.png",
+				"Notes/Clip.md",
+			);
+		} finally {
+			settingsStore.setState({ namePastedImagesAfterNoteTitle: false });
+		}
 	});
 
 	it("inserts clipboard text literally when it contains the clipboard token", async () => {

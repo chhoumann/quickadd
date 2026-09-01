@@ -197,6 +197,7 @@ describe("registerQuickAddCliHandlers", () => {
 			"quickadd:check",
 			"quickadd:package-preview",
 			"quickadd:interactive",
+			"quickadd:save-clipboard-image",
 		]);
 	});
 

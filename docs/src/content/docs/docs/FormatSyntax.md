@@ -282,14 +282,22 @@ selection-as-value off, globally or per capture.
 
 :::note[Paste images straight into the prompt]
 Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
-screenshot or copied image: QuickAdd saves it using Obsidian's attachment
-settings and inserts an embedded link at the cursor. You can mix typed text
-and images, and paste more than one. Clipboard text wins over an image when
-both are present (copying a file in a file manager usually pastes its path as
-text). Prompts for file names, folders, capture targets, and
-insert-after/before targets never accept image paste, since an embed link
-would break the path. Pasted attachments are ordinary vault files; cancelling
-the prompt afterwards does not delete them.
+Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
+screenshot or copied image, or drag an image from a file manager. QuickAdd
+saves it using Obsidian's attachment settings and inserts an embedded link at
+the cursor. You can mix typed text and images, and paste more than one.
+Dropped images keep a sanitized original file name. If the drop is already a
+vault image, QuickAdd embeds that file instead of copying it.
+
+Clipboard text wins over an image on paste. Image files win on drop because
+file managers also provide the filesystem path as text. Turn on **Name pasted
+images after the note title** in QuickAdd settings to name a pasted file after
+the destination note when that path is known (otherwise the file stays
+`Clipboard image YYYY-MM-DD HH.MM.SS`). Dropped files keep their sanitized
+original name even when that setting is on. Prompts for file names, folders,
+capture targets, and insert-after/before targets never accept images because
+an embed link would break the path. Saved attachments are ordinary vault
+files. Cancelling the prompt does not delete them.
 :::
 
 Good to know:
@@ -401,8 +409,10 @@ from where the placeholder appears:
 - `|format:markdown` writes a vertical Markdown bullet list. Put the placeholder
   on its own line: `{{VALUE:Alpha,Beta|multi|format:markdown}}` becomes `- Alpha`
   followed by `- Beta`.
-- `|format:inline` always writes the existing comma-separated text form:
+- `|format:inline` always writes the compact comma-separated text form:
   `Alpha,Beta`.
+- `|format:spaced` writes the same text with a space after each comma:
+  `{{VALUE:option a, option b|multi|format:spaced}}` becomes `option a, option b`.
 - `|format:auto` is the default and preserves the context-sensitive behavior
   described below.
 
@@ -752,7 +762,8 @@ defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
 
 FIELD multi-selects support the same explicit output formats as VALUE:
-`|format:yaml`, `|format:markdown`, `|format:inline`, and `|format:auto`.
+`|format:yaml`, `|format:markdown`, `|format:inline`, `|format:spaced`,
+and `|format:auto`.
 For example, `topics: {{FIELD:topic|multi|format:yaml}}` always writes a native
 YAML list, including in template-backed captures.
 
@@ -890,7 +901,7 @@ Good to know:
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
-`|format:inline`, and `|format:auto`. The format composes with `|link` and
+`|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
 of links without relying on the capture context.
 
@@ -903,8 +914,10 @@ if clipboard access fails due to permissions or security restrictions.
 
 In Capture content, if the clipboard has no text but holds a supported image,
 QuickAdd saves the image using Obsidian's attachment settings and inserts an
-embedded link. Text wins when both are present. You can also paste an image
-straight into a [value prompt](#value) while typing - no placeholder needed.
+embedded link. Text wins when both are present. You can also paste or drop an image
+straight into a [value prompt](#value) while typing. No placeholder needed.
+The **Name pasted images after the note title** setting names pasted files
+after the destination note when QuickAdd already knows that path.
 
 ### A template file: `{{TEMPLATE:<path>}}` {#template}
 
