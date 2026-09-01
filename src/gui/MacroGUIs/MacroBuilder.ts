@@ -27,6 +27,13 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { v4 as uuidv4 } from "uuid";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
 import {
+	COMMAND_SETTING_DESC,
+	COMMAND_SETTING_NAME,
+	PICK_DAY_SETTING_DESC,
+	canOfferPickDayCommand,
+	pickDaySettingName,
+} from "../../types/choiceCommands";
+import {
 	ASK_DEFAULT_SETTING_DESC,
 	ASK_DEFAULT_SETTING_NAME,
 	CUSTOM_OFFSET_SETTING_DESC,
@@ -107,6 +114,7 @@ export class MacroBuilder extends Modal {
 		this.addCommandEditor();
 		this.addDateOriginSetting();
 		this.addRunOnStartupSetting();
+		this.addCommandPaletteSettings();
 		this.addIconSetting();
 	}
 
@@ -231,6 +239,34 @@ export class MacroBuilder extends Modal {
 					text.onChange((value) => {
 						this.choice.dateOrigin = { kind: "variable", name: value };
 					});
+				});
+		}
+	}
+
+	private addCommandPaletteSettings(): void {
+		new Setting(this.contentEl)
+			.setName(COMMAND_SETTING_NAME)
+			.setDesc(COMMAND_SETTING_DESC)
+			.addToggle((toggle) => {
+				toggle.setValue(this.choice.command).onChange((value) => {
+					this.choice.command = value;
+					this.reload();
+				});
+			});
+
+		if (
+			this.choice.command &&
+			canOfferPickDayCommand(this.choice.dateOrigin)
+		) {
+			new Setting(this.contentEl)
+				.setName(pickDaySettingName(this.choice.name))
+				.setDesc(PICK_DAY_SETTING_DESC)
+				.addToggle((toggle) => {
+					toggle
+						.setValue(this.choice.pickDayCommand ?? false)
+						.onChange((value) => {
+							this.choice.pickDayCommand = value;
+						});
 				});
 		}
 	}

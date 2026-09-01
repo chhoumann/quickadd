@@ -5,13 +5,10 @@ import {
 	askDefaultFromPresetId,
 	askDefaultOptions,
 	askDefaultToPresetId,
-	anotherDayCommandId,
-	choiceCommandId,
 	dateOriginForPick,
 	dateOriginFromPreset,
 	dateOriginToPreset,
 	isPickDateToken,
-	shouldRegisterAnotherDayCommand,
 } from "./dateOriginPresets";
 
 describe("dateOrigin presets", () => {
@@ -160,20 +157,7 @@ describe("ask picker defaults", () => {
 	});
 });
 
-describe("another-day command", () => {
-	it("registers for every job except Ask each time", () => {
-		expect(shouldRegisterAnotherDayCommand(undefined)).toBe(true);
-		expect(shouldRegisterAnotherDayCommand({ kind: "now" })).toBe(true);
-		expect(
-			shouldRegisterAnotherDayCommand({
-				kind: "relative",
-				offset: -1,
-				unit: "days",
-			}),
-		).toBe(true);
-		expect(shouldRegisterAnotherDayCommand({ kind: "ask" })).toBe(false);
-	});
-
+describe("pick a day", () => {
 	it("seeds the picker from the named day you are overriding", () => {
 		expect(
 			dateOriginForPick({ kind: "relative", offset: -1, unit: "weeks" }),
@@ -188,14 +172,5 @@ describe("another-day command", () => {
 		expect(isPickDateToken("ask")).toBe(true);
 		expect(isPickDateToken("ASK")).toBe(true);
 		expect(isPickDateToken("last week")).toBe(false);
-	});
-
-	it("keeps the existing choice command id so hotkeys stay bound", () => {
-		const id = "weekly-review-ask";
-		expect(choiceCommandId(id)).toBe("choice:weekly-review-ask");
-		expect(anotherDayCommandId(id)).toBe(
-			"choice:weekly-review-ask:another-day",
-		);
-		expect(anotherDayCommandId(id)).not.toBe(choiceCommandId(id));
 	});
 });
