@@ -17,6 +17,7 @@ import { TFile, TFolder } from "obsidian";
 import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
+import type { RunClocks } from "../types/dateOrigin";
 import {
 	getVariableExample,
 	getMacroPreview,
@@ -116,6 +117,14 @@ export class FileNameDisplayFormatter extends Formatter {
 	 * previous one's complaints.
 	 */
 	public diagnostics = new PreviewDiagnostics();
+
+	/**
+	 * The run's calendar origin. Without it a `Daily/{{DATE}}` preview shows
+	 * today while the run, aimed at yesterday by Which day, writes another file.
+	 */
+	public setRunClocks(clocks: RunClocks | undefined): void {
+		this.clocks = clocks;
+	}
 
 	protected warn(message: string): void {
 		this.diagnostics.add("warning", message);

@@ -18,6 +18,38 @@ import {
 	getUnresolvedRequirements,
 } from "./collectChoiceRequirements";
 import type { FormAnswer } from "src/interactive/promptProvider";
+import { QA_INTERNAL_DATE_ORIGIN } from "src/constants";
+import { normalizeDateOrigin, type RunClocks } from "src/types/dateOrigin";
+import { dateOriginForPick } from "src/types/dateOriginPresets";
+import { planDateOrigin } from "src/utils/resolveDateOrigin";
+
+/**
+ * The clocks the run will format `{{DATE}}` with, resolved from the choice's
+ * Which day setting and the form's own date field, so the file-name preview
+ * shows the day about to be written rather than today (mirrors
+ * `ChoiceExecutor.applyDateOrigin`).
+ */
+function previewRunClocks(
+	choice: IChoice,
+	choiceExecutor: IChoiceExecutor,
+	values: Record<string, unknown>,
+): RunClocks | undefined {
+	const setting = choiceExecutor.pickDate
+		? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
+		: normalizeDateOrigin(choice.dateOrigin);
+	const plan = planDateOrigin({
+		setting,
+		clocks: choiceExecutor.clocks,
+		variables: new Map<string, unknown>([
+			...choiceExecutor.variables,
+			...Object.entries(values),
+		]),
+		reservedSeed:
+			setting?.kind === "ask" ? values[QA_INTERNAL_DATE_ORIGIN] : undefined,
+	});
+	if (plan.status !== "set") return choiceExecutor.clocks;
+	return { now: choiceExecutor.clocks?.now ?? new Date(), date: plan.date };
+}
 
 /**
  * Reconstruct the picked labels from the ", "-joined suggester string.
@@ -142,6 +174,9 @@ export async function runOnePagePreflight(
 				// formatter has no inert stand-in for: inline `js quickadd` fences and
 				// macros, which the run really does execute inside an included body.
 				const formatter = new FileNameDisplayFormatter(app, plugin);
+				formatter.setRunClocks(
+					previewRunClocks(choice, choiceExecutor, values),
+				);
 				const out: PreviewRow[] = [];
 				// File name preview for Template
 				if (choice.type === "Template") {

@@ -282,7 +282,6 @@ selection-as-value off, globally or per capture.
 
 :::note[Paste images straight into the prompt]
 Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
-Prompts whose answer lands in note content accept images. Paste (Ctrl/Cmd+V) a
 screenshot or copied image, or drag an image from a file manager. QuickAdd
 saves it using Obsidian's attachment settings and inserts an embedded link at
 the cursor. You can mix typed text and images, and paste more than one.
