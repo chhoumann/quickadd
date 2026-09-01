@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import realMoment from "moment";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import { runOnePagePreflight } from "./runOnePagePreflight";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
 
 vi.mock("src/logger/logManager", () => ({
 	log: { logWarning: vi.fn(), logError: vi.fn(), logMessage: vi.fn() },
@@ -44,14 +46,15 @@ vi.mock("obsidian-dataview", () => ({
 }));
 vi.mock("src/utilityObsidian", async () => {
 	const { TFile: TFileCls } = await import("obsidian");
+	const { getDate } = await import("src/utils/dates");
 	return {
 		getMarkdownFilesInFolder: vi.fn(() => []),
 		getMarkdownFilesWithTag: vi.fn(() => []),
 		getUserScript: vi.fn(),
 		isFolder: vi.fn(() => false),
 		// A configured folder can hold {{DATE:}}, which the requirement scan
-		// resolves through this helper.
-		getDate: ({ format }: { format: string }) => format,
+		// resolves through this helper; the preview renders {{DATE}} with it too.
+		getDate,
 		getTemplateFile: vi.fn((app: App, path: string) => {
 			const f = app.vault.getAbstractFileByPath(path);
 			return f instanceof TFileCls ? f : null;
@@ -268,5 +271,83 @@ describe("the one-page preview carries its problems and its target folder (#1590
 		const out = await computePreview!({ title: "My Note" });
 		expect(out[0].text).toBe("Folder/Name/My Note");
 		expect(out[0].diagnostics).toEqual([]);
+	});
+});
+
+describe("the one-page preview follows the choice's Which day", () => {
+	// The stub's moment cannot format a real date; the preview's whole point
+	// here is which day it prints, so use the real one on a frozen clock.
+	const originalMoment = (window as unknown as { moment?: unknown }).moment;
+	beforeAll(() => {
+		realMoment.locale("en");
+		(window as unknown as { moment: unknown }).moment = realMoment;
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-09-01T15:30:00"));
+	});
+	afterAll(() => {
+		(window as unknown as { moment?: unknown }).moment = originalMoment;
+		vi.useRealTimers();
+	});
+
+	// A form only opens when something is asked, so the name also takes a value.
+	const withDateOrigin = (dateOrigin: ITemplateChoice["dateOrigin"]) =>
+		Object.assign(createChoice("Daily/{{DATE}} {{VALUE:title}}"), {
+			dateOrigin,
+		});
+
+	it("previews the relative day the run will write, not today", async () => {
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			withDateOrigin({ kind: "relative", offset: -1, unit: "days" }),
+		);
+
+		const out = await computePreview!({ title: "Standup" });
+		expect(out[0].text).toBe("Daily/2026-08-31 Standup");
+	});
+
+	it("previews the day typed into the form's own date field", async () => {
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			withDateOrigin({ kind: "ask" }),
+		);
+
+		const out = await computePreview!({
+			title: "Standup",
+			[QA_INTERNAL_DATE_ORIGIN]: "2026-08-27",
+		});
+		expect(out[0].text).toBe("Daily/2026-08-27 Standup");
+	});
+
+	it("falls back to today while the date field is still empty", async () => {
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			withDateOrigin({ kind: "ask" }),
+		);
+
+		const out = await computePreview!({
+			title: "Standup",
+			[QA_INTERNAL_DATE_ORIGIN]: "",
+		});
+		expect(out[0].text).toBe("Daily/2026-09-01 Standup");
+	});
+
+	it("keeps a day the executor already resolved (nested in a macro)", async () => {
+		const executor = createExecutor();
+		executor.clocks = { now: new Date(), date: new Date(2026, 7, 21) };
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			executor,
+			withDateOrigin({ kind: "now" }),
+		);
+
+		const out = await computePreview!({ title: "Standup" });
+		expect(out[0].text).toBe("Daily/2026-08-21 Standup");
 	});
 });
