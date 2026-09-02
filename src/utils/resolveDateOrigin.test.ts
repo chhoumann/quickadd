@@ -21,13 +21,42 @@ beforeEach(() => {
 	vi.setSystemTime(new Date("2026-08-26T15:30:00"));
 });
 
+// Local Y-M-D H:m. startOf("day") is local midnight, so toISOString() is the
+// previous UTC day east of UTC.
+const localDay = (d: Date) => [
+	d.getFullYear(),
+	d.getMonth() + 1,
+	d.getDate(),
+	d.getHours(),
+	d.getMinutes(),
+];
+
 describe("addCalendarOffset", () => {
-	it("moves by week and month from the frozen now", () => {
-		const now = new Date("2026-08-26T15:30:00");
-		expect(addCalendarOffset(now, -1, "weeks").toISOString().startsWith("2026-08-19")).toBe(
-			true,
-		);
-		expect(addCalendarOffset(now, 1, "years").getFullYear()).toBe(2027);
+	it("moves by week and year to local midnight", () => {
+		const now = new Date(2026, 7, 26, 15, 30);
+		expect(localDay(addCalendarOffset(now, -1, "weeks"))).toEqual([
+			2026, 8, 19, 0, 0,
+		]);
+		expect(localDay(addCalendarOffset(now, 1, "years"))).toEqual([
+			2027, 8, 26, 0, 0,
+		]);
+	});
+
+	it("lands on local midnight across a DST change", () => {
+		// EU 2026-03-29 / 2026-10-25; US 2026-03-08 / 2026-11-01;
+		// Australia/Sydney 2026-04-05 / 2026-10-04.
+		expect(localDay(addCalendarOffset(new Date(2026, 2, 31, 15, 30), -1, "weeks"))).toEqual([
+			2026, 3, 24, 0, 0,
+		]);
+		expect(localDay(addCalendarOffset(new Date(2026, 10, 3, 15, 30), -1, "weeks"))).toEqual([
+			2026, 10, 27, 0, 0,
+		]);
+		expect(localDay(addCalendarOffset(new Date(2026, 9, 6, 15, 30), -1, "weeks"))).toEqual([
+			2026, 9, 29, 0, 0,
+		]);
+		expect(localDay(addCalendarOffset(new Date(2026, 3, 7, 15, 30), -1, "weeks"))).toEqual([
+			2026, 3, 31, 0, 0,
+		]);
 	});
 });
 
