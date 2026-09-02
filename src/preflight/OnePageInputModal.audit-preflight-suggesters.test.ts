@@ -140,19 +140,20 @@ vi.mock("obsidian", () => {
 	}
 
 	class Setting {
+		settingEl: HTMLElement;
 		controlEl: HTMLElement;
 		private readonly infoEl: HTMLElement;
 		private readonly nameEl: HTMLElement;
 		private readonly descEl: HTMLElement;
 		constructor(containerEl: HTMLElement) {
-			const settingEl = document.createElement("div");
+			this.settingEl = document.createElement("div");
 			this.infoEl = document.createElement("div");
 			this.nameEl = document.createElement("div");
 			this.descEl = document.createElement("div");
 			this.controlEl = document.createElement("div");
-			settingEl.appendChild(this.infoEl);
-			settingEl.appendChild(this.controlEl);
-			containerEl.appendChild(settingEl);
+			this.settingEl.appendChild(this.infoEl);
+			this.settingEl.appendChild(this.controlEl);
+			containerEl.appendChild(this.settingEl);
 		}
 		setName(name: string | DocumentFragment): this {
 			if (typeof name === "string") this.nameEl.textContent = name;
