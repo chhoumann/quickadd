@@ -41,6 +41,9 @@ describe("NLDParser", () => {
 			{ input: "friday last week", expected: "2026-08-28" },
 			{ input: "friday of last week", expected: "2026-08-28" },
 			{ input: "last weekend", expected: "2026-08-30" },
+			// A past-qualified month-day stays in the reference year.
+			{ input: "past march 5", expected: "2026-03-05" },
+			{ input: "last march 5", expected: "2026-03-05" },
 		])("$input -> $expected", ({ input, expected }) => {
 			expect(localDay(NLDParser.getParsedDate(input, TUESDAY))).toBe(expected);
 		});
@@ -111,6 +114,7 @@ describe("NLDParser", () => {
 			"friday last week",
 			"the past week",
 			"past few days",
+			"past March 5",
 		])(
 			"drops the forward preference for %j",
 			(input) => {

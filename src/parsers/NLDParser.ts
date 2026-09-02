@@ -12,7 +12,7 @@ import type { IDateParser, ParsedMoment } from "./IDateParser";
  * it qualifies a day or period, so "friday at half past 3" stays forward.
  */
 const EXPLICIT_PAST_PATTERN =
-	/\b(?:last|previous)\b|\bpast\s+(?:few\s+)?(?:\w*day|weekend|week|month|year)s?\b/i;
+	/\b(?:last|previous)\b|\bpast\s+(?:few\s+)?(?:\w*day|weekend|week|month|year|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/i;
 
 /** chrono's English grammar understands "last"/"past" but not "previous". */
 const PREVIOUS_PATTERN = /\bprevious\b/gi;
