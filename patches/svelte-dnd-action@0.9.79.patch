@@ -1,0 +1,181 @@
+diff --git a/dist/index.js b/dist/index.js
+index 77979aed2cb7da18dd282156faecc2d209fa673c..445f9981ddba0534159133237eb44edc8761b6da 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -513,8 +513,14 @@
+    * @returns {boolean} - true if the element in its entirety is off-screen including the scrollable area (the normal dom events look at the mouse rather than the element)
+    */
+   function isElementOffDocument(el) {
+-    var rect = getAbsoluteRect(el);
+-    return rect.right < 0 || rect.left > document.documentElement.scrollWidth || rect.bottom < 0 || rect.top > document.documentElement.scrollHeight;
++    // Measure against the element's own document: in a multi-window host (e.g. an Electron
++    // popout) the module-global `document` is a different, possibly smaller, window.
++    var doc = el.ownerDocument;
++    var win = doc.defaultView || window;
++    var rect = el.getBoundingClientRect();
++    var top = rect.top + win.scrollY;
++    var left = rect.left + win.scrollX;
++    return rect.right + win.scrollX < 0 || left > doc.documentElement.scrollWidth || rect.bottom + win.scrollY < 0 || top > doc.documentElement.scrollHeight;
+   }
+ 
+   /**
+@@ -912,7 +918,10 @@
+         stepPx = _scrollingInfo.stepPx;
+       if (directionObj) {
+         containerEl.scrollBy(directionObj.x * stepPx, directionObj.y * stepPx);
+-        window.requestAnimationFrame(function () {
++        // Use the container's own window: the module-global window may be hidden/occluded
++        // (frames paused) while the container lives in a popout window.
++        var win = containerEl.ownerDocument.defaultView || window;
++        win.requestAnimationFrame(function () {
+           return scrollContainer(containerEl);
+         });
+       }
+@@ -2015,6 +2024,9 @@
+       // creating the draggable element
+       draggedEl = createDraggedElementFrom(originalDragTarget, centreDraggedOnCursor && currentMousePosition);
+       originDropZoneRoot.appendChild(draggedEl);
++      // The zone may live in another window (e.g. an Electron popout); its own window's
++      // animation frames keep running while the main window is hidden or occluded.
++      var originWindow = originalDragTarget.ownerDocument.defaultView || window;
+       // We will keep the original dom node in the dom because touch events keep firing on it, we want to re-add it after the framework removes it
+       function keepOriginalElementInDom() {
+         // Once the drop starts finalizing, handleDrop has stopped observation and this loop
+@@ -2032,10 +2044,10 @@
+           // to prevent the outline from disappearing
+           draggedEl.focus();
+         } else {
+-          window.requestAnimationFrame(keepOriginalElementInDom);
++          originWindow.requestAnimationFrame(keepOriginalElementInDom);
+         }
+       }
+-      window.requestAnimationFrame(keepOriginalElementInDom);
++      originWindow.requestAnimationFrame(keepOriginalElementInDom);
+       styleActiveDropZones(Array.from(typeToDropZones$1.get(config.type)).filter(function (dz) {
+         return dz === originDropZone || !dzToConfig$1.get(dz).dropFromOthersDisabled;
+       }), function (dz) {
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 98eb194a6f49bd432ccf1d517fa19cb77e3ca0ba..2c4f1520844ba203349fc8fd9ca08173c86640da 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -507,8 +507,14 @@ function calcDistanceFromPointToCenter(point, el) {
+  * @returns {boolean} - true if the element in its entirety is off-screen including the scrollable area (the normal dom events look at the mouse rather than the element)
+  */
+ function isElementOffDocument(el) {
+-  var rect = getAbsoluteRect(el);
+-  return rect.right < 0 || rect.left > document.documentElement.scrollWidth || rect.bottom < 0 || rect.top > document.documentElement.scrollHeight;
++  // Measure against the element's own document: in a multi-window host (e.g. an Electron
++  // popout) the module-global `document` is a different, possibly smaller, window.
++  var doc = el.ownerDocument;
++  var win = doc.defaultView || window;
++  var rect = el.getBoundingClientRect();
++  var top = rect.top + win.scrollY;
++  var left = rect.left + win.scrollX;
++  return rect.right + win.scrollX < 0 || left > doc.documentElement.scrollWidth || rect.bottom + win.scrollY < 0 || top > doc.documentElement.scrollHeight;
+ }
+ 
+ /**
+@@ -906,7 +912,10 @@ function makeScroller() {
+       stepPx = _scrollingInfo.stepPx;
+     if (directionObj) {
+       containerEl.scrollBy(directionObj.x * stepPx, directionObj.y * stepPx);
+-      window.requestAnimationFrame(function () {
++      // Use the container's own window: the module-global window may be hidden/occluded
++      // (frames paused) while the container lives in a popout window.
++      var win = containerEl.ownerDocument.defaultView || window;
++      win.requestAnimationFrame(function () {
+         return scrollContainer(containerEl);
+       });
+     }
+@@ -2009,6 +2018,9 @@ function dndzone$2(node, options) {
+     // creating the draggable element
+     draggedEl = createDraggedElementFrom(originalDragTarget, centreDraggedOnCursor && currentMousePosition);
+     originDropZoneRoot.appendChild(draggedEl);
++    // The zone may live in another window (e.g. an Electron popout); its own window's
++    // animation frames keep running while the main window is hidden or occluded.
++    var originWindow = originalDragTarget.ownerDocument.defaultView || window;
+     // We will keep the original dom node in the dom because touch events keep firing on it, we want to re-add it after the framework removes it
+     function keepOriginalElementInDom() {
+       // Once the drop starts finalizing, handleDrop has stopped observation and this loop
+@@ -2026,10 +2038,10 @@ function dndzone$2(node, options) {
+         // to prevent the outline from disappearing
+         draggedEl.focus();
+       } else {
+-        window.requestAnimationFrame(keepOriginalElementInDom);
++        originWindow.requestAnimationFrame(keepOriginalElementInDom);
+       }
+     }
+-    window.requestAnimationFrame(keepOriginalElementInDom);
++    originWindow.requestAnimationFrame(keepOriginalElementInDom);
+     styleActiveDropZones(Array.from(typeToDropZones$1.get(config.type)).filter(function (dz) {
+       return dz === originDropZone || !dzToConfig$1.get(dz).dropFromOthersDisabled;
+     }), function (dz) {
+diff --git a/src/helpers/intersection.js b/src/helpers/intersection.js
+index 40c992ef019c59bc6959e5ff8bf7d41b7f3feae4..53feef88f437cf0cc3b558698a41d9e5148c5524 100644
+--- a/src/helpers/intersection.js
++++ b/src/helpers/intersection.js
+@@ -143,8 +143,19 @@ export function calcDistanceFromPointToCenter(point, el) {
+  * @returns {boolean} - true if the element in its entirety is off-screen including the scrollable area (the normal dom events look at the mouse rather than the element)
+  */
+ export function isElementOffDocument(el) {
+-    const rect = getAbsoluteRect(el);
+-    return rect.right < 0 || rect.left > document.documentElement.scrollWidth || rect.bottom < 0 || rect.top > document.documentElement.scrollHeight;
++    // Measure against the element's own document: in a multi-window host (e.g. an Electron
++    // popout) the module-global `document` is a different, possibly smaller, window.
++    const doc = el.ownerDocument;
++    const win = doc.defaultView || window;
++    const rect = el.getBoundingClientRect();
++    const top = rect.top + win.scrollY;
++    const left = rect.left + win.scrollX;
++    return (
++        rect.right + win.scrollX < 0 ||
++        left > doc.documentElement.scrollWidth ||
++        rect.bottom + win.scrollY < 0 ||
++        top > doc.documentElement.scrollHeight
++    );
+ }
+ 
+ /**
+diff --git a/src/helpers/scroller.js b/src/helpers/scroller.js
+index d3d9e726a3ab1a277d535f1b3e95799011cd0eac..44eacbc829fd7e45479c07bfc2ee1088cf1076d8 100644
+--- a/src/helpers/scroller.js
++++ b/src/helpers/scroller.js
+@@ -16,7 +16,10 @@ export function makeScroller() {
+         const {directionObj, stepPx} = scrollingInfo;
+         if (directionObj) {
+             containerEl.scrollBy(directionObj.x * stepPx, directionObj.y * stepPx);
+-            window.requestAnimationFrame(() => scrollContainer(containerEl));
++            // Use the container's own window: the module-global window may be hidden/occluded
++            // (frames paused) while the container lives in a popout window.
++            const win = containerEl.ownerDocument.defaultView || window;
++            win.requestAnimationFrame(() => scrollContainer(containerEl));
+         }
+     }
+     function calcScrollStepPx(distancePx) {
+diff --git a/src/pointerAction.js b/src/pointerAction.js
+index 61408baedb77a6eb60ee772a5b161bed9b269013..e693cabe1c7d040ae8839137131a81f7648d4f8f 100644
+--- a/src/pointerAction.js
++++ b/src/pointerAction.js
+@@ -535,6 +535,9 @@ export function dndzone(node, options) {
+         // creating the draggable element
+         draggedEl = createDraggedElementFrom(originalDragTarget, centreDraggedOnCursor && currentMousePosition);
+         originDropZoneRoot.appendChild(draggedEl);
++        // The zone may live in another window (e.g. an Electron popout); its own window's
++        // animation frames keep running while the main window is hidden or occluded.
++        const originWindow = originalDragTarget.ownerDocument.defaultView || window;
+         // We will keep the original dom node in the dom because touch events keep firing on it, we want to re-add it after the framework removes it
+         function keepOriginalElementInDom() {
+             // Once the drop starts finalizing, handleDrop has stopped observation and this loop
+@@ -552,10 +555,10 @@ export function dndzone(node, options) {
+                 // to prevent the outline from disappearing
+                 draggedEl.focus();
+             } else {
+-                window.requestAnimationFrame(keepOriginalElementInDom);
++                originWindow.requestAnimationFrame(keepOriginalElementInDom);
+             }
+         }
+-        window.requestAnimationFrame(keepOriginalElementInDom);
++        originWindow.requestAnimationFrame(keepOriginalElementInDom);
+ 
+         styleActiveDropZones(
+             Array.from(typeToDropZones.get(config.type)).filter(dz => dz === originDropZone || !dzToConfig.get(dz).dropFromOthersDisabled),
