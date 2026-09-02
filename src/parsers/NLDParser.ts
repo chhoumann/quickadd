@@ -8,9 +8,11 @@ import type { IDateParser, ParsedMoment } from "./IDateParser";
  * forward, which turns "last thursday" into the *upcoming* Thursday. Phrases
  * that name the past explicitly are parsed without the forward preference;
  * everything else keeps it so bare weekdays ("friday") and bare month-days
- * ("march 5") still resolve to the next occurrence.
+ * ("march 5") still resolve to the next occurrence. "past" only counts when
+ * it qualifies a day or period, so "friday at half past 3" stays forward.
  */
-const EXPLICIT_PAST_PATTERN = /\b(?:last|past|previous)\b/i;
+const EXPLICIT_PAST_PATTERN =
+	/\b(?:last|previous)\b|\bpast\s+(?:few\s+)?(?:\w*day|weekend|week|month|year)s?\b/i;
 
 /** chrono's English grammar understands "last"/"past" but not "previous". */
 const PREVIOUS_PATTERN = /\bprevious\b/gi;

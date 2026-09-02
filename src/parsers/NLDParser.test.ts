@@ -66,6 +66,10 @@ describe("NLDParser", () => {
 			{ input: "march 5", expected: "2027-03-05" },
 			// Bare durations are only accepted with the forward preference.
 			{ input: "3 days", expected: "2026-09-04" },
+			// "past" as a clock word does not pin the day to the past.
+			{ input: "friday at half past 3", expected: "2026-09-04" },
+			{ input: "monday at quarter past 9", expected: "2026-09-07" },
+			{ input: "march 5 at half past 3", expected: "2027-03-05" },
 		])("$input -> $expected", ({ input, expected }) => {
 			expect(localDay(NLDParser.getParsedDate(input, TUESDAY))).toBe(expected);
 		});
@@ -86,14 +90,28 @@ describe("NLDParser", () => {
 	});
 
 	describe("prefersForwardDate", () => {
-		it.each(["friday", "next friday", "march 5", "tomorrow", "lastly friday", "3 days"])(
-			"keeps the forward preference for %j",
-			(input) => {
-				expect(prefersForwardDate(input)).toBe(true);
-			},
-		);
+		it.each([
+			"friday",
+			"next friday",
+			"march 5",
+			"tomorrow",
+			"lastly friday",
+			"3 days",
+			"friday at half past 3",
+			"quarter past 9 on monday",
+			"past 3pm",
+		])("keeps the forward preference for %j", (input) => {
+			expect(prefersForwardDate(input)).toBe(true);
+		});
 
-		it.each(["last friday", "Past Monday", "previous thursday", "friday last week"])(
+		it.each([
+			"last friday",
+			"Past Monday",
+			"previous thursday",
+			"friday last week",
+			"the past week",
+			"past few days",
+		])(
 			"drops the forward preference for %j",
 			(input) => {
 				expect(prefersForwardDate(input)).toBe(false);
