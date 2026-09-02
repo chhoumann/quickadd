@@ -9,6 +9,11 @@ overrides:
   obsidian-calendar-ui>svelte: ^5.56.3
   postcss: 8.5.25
 
+patchedDependencies:
+  svelte-dnd-action@0.9.79:
+    hash: bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f
+    path: patches/svelte-dnd-action@0.9.79.patch
+
 importers:
 
   .:
@@ -27,7 +32,7 @@ importers:
         version: 0.5.68(@typescript-eslint/types@8.68.0)
       svelte-dnd-action:
         specifier: 0.9.79
-        version: 0.9.79(svelte@5.56.10(@typescript-eslint/types@8.68.0))
+        version: 0.9.79(patch_hash=bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f)(svelte@5.56.10(@typescript-eslint/types@8.68.0))
       three-way-merge:
         specifier: ^0.1.0
         version: 0.1.0
@@ -3851,7 +3856,7 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-dnd-action@0.9.79(svelte@5.56.10(@typescript-eslint/types@8.68.0)):
+  svelte-dnd-action@0.9.79(patch_hash=bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f)(svelte@5.56.10(@typescript-eslint/types@8.68.0)):
     dependencies:
       svelte: 5.56.10(@typescript-eslint/types@8.68.0)
 
