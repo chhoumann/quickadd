@@ -464,6 +464,31 @@
 	}
 }
 
+.quickAddModal .qa-onepage-date-setting {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.5rem;
+}
+
+.quickAddModal .qa-onepage-date-setting .setting-item-info,
+.quickAddModal .qa-onepage-date-setting .setting-item-control {
+	width: 100%;
+	margin-inline-end: 0;
+}
+
+.quickAddModal .qa-onepage-date-setting .qa-date-input {
+	width: 100%;
+}
+
+.quickAddModal .qa-onepage-date-setting .qa-date-input input[type="text"] {
+	width: 100%;
+}
+
+.quickAddModal .qa-onepage-date-setting .qa-date-preview-text {
+	margin-top: 0;
+	text-align: start;
+}
+
 .quickAddModal .qa-onepage-optional-badge {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);

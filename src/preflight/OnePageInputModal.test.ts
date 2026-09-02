@@ -867,6 +867,34 @@ describe("OnePageInputModal", () => {
 			await expect(modal.waitForClose).resolves.toEqual({ due: "" });
 		});
 
+		it("stacks the date row and keeps the parsed preview next to the input", () => {
+			const requirements: FieldRequirement[] = [
+				{
+					id: "due",
+					label: "due",
+					type: "date",
+					dateFormat: "YYYY-MM-DD",
+				},
+			];
+			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			const contentEl = (modal as any).contentEl as HTMLElement;
+			const row = contentEl.querySelector(".qa-onepage-date-setting");
+			expect(row).not.toBeNull();
+
+			const container = row?.querySelector(".qa-date-input");
+			const children = Array.from(container?.children ?? []);
+			const inputIndex = children.findIndex((el) => el.tagName === "INPUT");
+			const previewIndex = children.findIndex((el) =>
+				el.classList.contains("qa-date-preview-text"),
+			);
+			const pickerIndex = children.findIndex((el) =>
+				el.classList.contains("qa-date-picker-container"),
+			);
+			expect(inputIndex).toBeGreaterThanOrEqual(0);
+			expect(previewIndex).toBe(inputIndex + 1);
+			expect(pickerIndex).toBeGreaterThan(previewIndex);
+		});
+
 		it("omits a required blank date so the sequential prompt still fires", async () => {
 			const requirements: FieldRequirement[] = [
 				{

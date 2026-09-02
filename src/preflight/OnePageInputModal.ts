@@ -435,6 +435,9 @@ export class OnePageInputModal extends Modal {
 				const setting = new Setting(this.contentEl).setName(
 					this.decorateLabel(req),
 				);
+				// The input, calendar, and parsed preview do not fit beside the
+				// label the way a lone text box does, so this row stacks.
+				setting.settingEl.addClass("qa-onepage-date-setting");
 				if (req.description) setting.setDesc(req.description);
 				const container = setting.controlEl.createDiv({
 					cls: "qa-date-input",
@@ -457,6 +460,9 @@ export class OnePageInputModal extends Modal {
 
 				input.setPlaceholder(placeholder).setValue(displayValue ?? "");
 
+				const preview = container.createDiv();
+				preview.addClass("qa-date-preview-text");
+
 				const pickerContainer = container.createDiv({
 					cls: "qa-date-picker-container",
 				});
@@ -469,9 +475,6 @@ export class OnePageInputModal extends Modal {
 						else clearPickerSelection();
 					},
 				});
-
-				const preview = container.createDiv();
-				preview.addClass("qa-date-preview-text");
 
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,
