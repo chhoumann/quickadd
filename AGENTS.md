@@ -32,7 +32,7 @@ Vitest (configured in `vitest.config.mts`) runs under jsdom and cannot load real
 Follow Conventional Commits (`feat:`, `fix:`, `test:`, ...) so the shared release pipeline can determine versions from history. Keep generated files in the same commit as the changes that produced them. Pull requests must include a concise summary, reproduction steps or screenshots for UI changes, linked issues when relevant, and explicit notes on release or migration impact. Request review from maintainers closest to the touched area.
 
 ## Documentation
-Docs live in `docs/` (Astro Starlight) and are single-version: pages in `docs/src/content/docs/docs/` serve at `/docs/` on quickadd.obsidian.guide, and edits go live when they land on `master` (deployed by Cloudflare Pages). Every page pins its URL with a `slug:` frontmatter field; keep slugs stable, and add a 301 in `docs/public/_redirects` if one must change.
+Docs live in `docs/` (Astro Starlight) and are single-version: pages in `docs/src/content/docs/docs/` serve at `/docs/` on quickadd.obsidian.guide, and edits go live when they land on `master` (deployed by Cloudflare Pages; only pushes touching `docs/` trigger a build, and the Cloudflare check is informational, not required for merge). Every page pins its URL with a `slug:` frontmatter field; keep slugs stable, and add a 301 in `docs/public/_redirects` if one must change.
 
 ## Agent Playbook
 Automation or scripted work should surface disruptive operations in the PR description and rerun `pnpm run build-with-lint` to keep `main.js`, `manifest.json`, and `versions.json` synchronized. Treat unexpected diffs in those artifacts as blockers until a maintainer approves.

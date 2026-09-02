@@ -45,8 +45,17 @@ Built artifacts for AI tooling, all served from the same deployment:
 
 ## Deployment
 
-Cloudflare Pages (GitHub integration) builds this directory on every push and
-publishes `build/`. Pull requests get preview deployments automatically.
+Cloudflare Pages (GitHub integration) builds this directory and publishes
+`build/`. Build watch paths are set to `docs/*`, so only pushes that touch
+`docs/` trigger a build; `src`-only commits, release PRs, and dependency bumps
+produce no Cloudflare check at all. Pull requests that change docs get preview
+deployments, except on `dependabot/*` and `release-run/*` branches.
+
+The "Cloudflare Pages" check is informational and not required for merge. The
+account runs one build at a time, so a build can sit at "Build in progress"
+while an earlier one runs or is queued; a normal build takes about two
+minutes. Cloudflare does not update its PR comment after the PR is closed, so a
+comment still reading "Build in progress" on a merged PR is expected.
 
 Docs are single-version: pages go live when they land on `master`. When
 documenting a feature that has not shipped in a plugin release yet, add an
