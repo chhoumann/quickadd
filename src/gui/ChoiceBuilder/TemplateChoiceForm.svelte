@@ -155,10 +155,6 @@ function addFolder() {
 	folderInputValue = "";
 }
 
-function deleteFolder(folder: string) {
-	choice.folder.folders = choice.folder.folders.filter((f) => f !== folder);
-}
-
 function onFolderInputKeypress(event: KeyboardEvent) {
 	if (event.key === "Enter") addFolder();
 }
@@ -253,7 +249,10 @@ function onModeChange(value: string) {
 {#if folderMode === "specified"}
 	<div class="folderSelectionContainer">
 		<div class="folderList">
-			<FolderList folders={choice.folder.folders} {deleteFolder} />
+			<FolderList
+				folders={choice.folder.folders}
+				onChange={(next) => (choice.folder.folders = next)}
+			/>
 		</div>
 		<div class="folderInputContainer">
 			<input
