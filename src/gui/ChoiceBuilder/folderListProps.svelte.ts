@@ -1,15 +1,9 @@
 /**
- * Props for FolderList, shared with its imperative host (templateChoiceBuilder).
- * The host owns a $state-backed instance and mutates `folders` to push add/remove
- * updates into the mounted component — replacing FolderList's old exported
- * `updateFolders()` bridge (which reassigned a prop, illegal under runes).
+ * Props for the template-choice folder path list.
+ * `folders` is committed membership + order; `onChange` fires once per completed
+ * edit (trash, drop finalize, ArrowUp/Down) and never from consider.
  */
 export interface FolderListProps {
-	folders: string[];
-	deleteFolder: (folder: string) => void;
-}
-
-export function createFolderListProps(initial: FolderListProps): FolderListProps {
-	const props = $state(initial);
-	return props;
+	folders: readonly string[];
+	onChange: (next: string[]) => void;
 }

@@ -231,8 +231,11 @@ Pick one of four modes:
 - **Obsidian default** - use Obsidian's "Default location for new notes" setting.
 - **In a specific folder** - create the note in the folder(s) you configure
   below. One folder creates the note there; several folders open a suggester
-  asking which to use. An **Include subfolders** toggle (shown only in this
-  mode) lets the suggester offer the selected folders *and* their subfolders.
+  asking which to use. With **Include subfolders** off, drag a folder's handle,
+  or focus the handle and press ArrowUp / ArrowDown, to change the suggester
+  order. An **Include subfolders** toggle (shown only in this mode) lets the
+  suggester offer the selected folders *and* their subfolders in vault tree
+  order; configured-list order does not apply in that mode.
 - **Same folder as current file** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each
