@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { CachedMetadata, TFile } from "obsidian";
-import { EnhancedFieldSuggestionFileFilter } from "./EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
 // Mock TFile
@@ -31,7 +31,7 @@ const createMockMetadata = (tags?: string[], frontmatterTags?: unknown): CachedM
 	return metadata as CachedMetadata;
 };
 
-describe("EnhancedFieldSuggestionFileFilter", () => {
+describe("FieldSuggestionFileFilter", () => {
 	describe("filterFiles", () => {
 		const mockFiles = [
 			createMockFile("folder1/file1.md"),
@@ -56,7 +56,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should return all files when no filters are provided", () => {
 			const filters: FieldFilter = {};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -66,7 +66,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should filter by folder inclusion", () => {
 			const filters: FieldFilter = { folder: "folder1" };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -83,7 +83,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				folder: "folder1",
 				folders: ["folder1", "folder2"],
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -98,7 +98,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should filter by tag inclusion", () => {
 			const filters: FieldFilter = { tags: ["todo"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -111,7 +111,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should require all inclusion tags", () => {
 			const filters: FieldFilter = { tags: ["project", "todo"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -121,7 +121,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should exclude folders", () => {
 			const filters: FieldFilter = { excludeFolders: ["archive"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -132,7 +132,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should exclude multiple folders", () => {
 			const filters: FieldFilter = { excludeFolders: ["archive", "folder2"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -147,7 +147,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should exclude by tags", () => {
 			const filters: FieldFilter = { excludeTags: ["deprecated"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -158,7 +158,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should exclude by multiple tags (OR logic)", () => {
 			const filters: FieldFilter = { excludeTags: ["deprecated", "archive"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -171,7 +171,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should exclude specific files", () => {
 			const filters: FieldFilter = { excludeFiles: ["folder1/file1.md", "root-file.md"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -186,7 +186,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				folder: "folder1",
 				excludeTags: ["todo"],
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -201,7 +201,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				excludeFolders: ["archive"],
 				excludeTags: ["deprecated"],
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -218,7 +218,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			};
 
 			const filters: FieldFilter = { tags: ["todo"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				customMetadataCache,
@@ -231,7 +231,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			// Note: The parser should normalize tags by removing the # prefix
 			// So "#todo" in the filter becomes "todo" internally
 			const filters: FieldFilter = { tags: ["todo"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -247,7 +247,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				folder: "/folder1/",
 				excludeFolders: ["/archive/"],
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -259,7 +259,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should handle frontmatter tags for inclusion", () => {
 			const filters: FieldFilter = { tags: ["important"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -270,7 +270,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should normalize leading # in frontmatter tags", () => {
 			const files = [createMockFile("note.md")];
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				files,
 				{ tags: ["topic"] },
 				() => createMockMetadata(undefined, ["#topic"]),
@@ -280,7 +280,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should split comma-separated scalar frontmatter tags", () => {
 			const files = [createMockFile("note.md")];
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				files,
 				{ tags: ["work", "project"] },
 				() => createMockMetadata(undefined, "work, project"),
@@ -290,7 +290,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should split whitespace-separated scalar frontmatter tags", () => {
 			const files = [createMockFile("note.md")];
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				files,
 				{ tags: ["work", "project"] },
 				() => createMockMetadata(undefined, "work project"),
@@ -300,7 +300,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should split scalar singular frontmatter tag values", () => {
 			const files = [createMockFile("note.md")];
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				files,
 				{ tags: ["work", "project"] },
 				() => ({
@@ -312,7 +312,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 
 		it("should handle frontmatter tags for exclusion", () => {
 			const filters: FieldFilter = { excludeTags: ["archive"] };
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -326,7 +326,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 			const filters: FieldFilter = {
 				folder: "nonexistent",
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,
@@ -340,7 +340,7 @@ describe("EnhancedFieldSuggestionFileFilter", () => {
 				excludeTags: [],
 				excludeFiles: [],
 			};
-			const result = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const result = FieldSuggestionFileFilter.filterFiles(
 				mockFiles,
 				filters,
 				mockMetadataCache,

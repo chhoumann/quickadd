@@ -29,7 +29,7 @@ import {
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import { snappedExampleDate } from "./helpers/snappedExampleDate";
-import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
 export class FormatDisplayFormatter extends Formatter {
@@ -300,7 +300,7 @@ export class FormatDisplayFormatter extends Formatter {
 	protected suggestForFile(parsed: ParsedFileToken): string {
 		// Preview: show a representative real file, else a placeholder. Never prompt.
 		const files = this.app
-			? EnhancedFieldSuggestionFileFilter.filterFiles(
+			? FieldSuggestionFileFilter.filterFiles(
 					this.app.vault.getMarkdownFiles(),
 					parsed.filter,
 					(file) => this.app!.metadataCache.getFileCache(file),

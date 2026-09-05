@@ -1,5 +1,5 @@
 import { FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
-import { FieldValueDeduplicator, type DeduplicationOptions } from "./FieldValueDeduplicator";
+import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
 export interface ProcessedValues {
@@ -27,14 +27,10 @@ export class FieldValueProcessor {
 			(value) => !this.isUnresolvedFieldToken(value),
 		);
 
-		// Apply deduplication
-		const deduplicationOptions: DeduplicationOptions = {
-			strategy: filters.caseSensitive ? 'case-sensitive' : 'case-insensitive',
-			preserveFirstOccurrence: true,
-			sortResult: true
-		};
-
-		const deduplicationResult = FieldValueDeduplicator.deduplicate(values, deduplicationOptions);
+		const deduplicationResult = FieldValueDeduplicator.deduplicate(
+			values,
+			filters.caseSensitive,
+		);
 		values = deduplicationResult.values;
 
 		// Handle default values
@@ -214,65 +210,4 @@ export class FieldValueProcessor {
 		return [];
 	}
 
-	/**
-	 * Validate default value against existing patterns
-	 */
-	static validateDefaultValue(
-		defaultValue: string,
-		existingValues: string[],
-		fieldName: string
-	): {
-		isValid: boolean;
-		suggestions: string[];
-		warnings: string[];
-	} {
-		const warnings: string[] = [];
-		const suggestions: string[] = [];
-		const isValid = true;
-
-		// Check if default value follows existing patterns
-		if (existingValues.length > 0) {
-			const caseAnalysis = FieldValueDeduplicator.analyzeVariations(existingValues);
-			
-			// Check case consistency
-			const defaultNormalized = defaultValue.toLowerCase();
-			for (const [normalized, variants] of caseAnalysis.caseVariations) {
-				if (normalized === defaultNormalized) {
-					if (!variants.includes(defaultValue)) {
-						suggestions.push(...variants.slice(0, 3));
-						warnings.push(`Consider using existing case: ${variants[0]}`);
-					}
-					break;
-				}
-			}
-
-			// Check for similar values that might be typos
-			const similarValues = FieldValueDeduplicator.getSuggestions(
-				defaultValue,
-				existingValues,
-				0.8
-			);
-
-			if (similarValues.length > 0) {
-				suggestions.push(...similarValues);
-				warnings.push(`Similar existing values found: ${similarValues.slice(0, 3).join(", ")}`);
-			}
-		}
-
-		// Get smart defaults for comparison
-		const smartDefaults = this.getSmartDefaults(fieldName, existingValues);
-		if (smartDefaults.length > 0 && !smartDefaults.includes(defaultValue)) {
-			const normalizedDefaults = smartDefaults.map(d => d.toLowerCase());
-			if (!normalizedDefaults.includes(defaultValue.toLowerCase())) {
-				suggestions.push(...smartDefaults.slice(0, 3));
-				warnings.push(`Consider common values for ${fieldName}: ${smartDefaults.slice(0, 3).join(", ")}`);
-			}
-		}
-
-		return {
-			isValid,
-			suggestions: [...new Set(suggestions)], // Remove duplicates
-			warnings
-		};
-	}
 }

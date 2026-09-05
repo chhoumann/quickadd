@@ -1,6 +1,6 @@
 import type { App, TFile } from "obsidian";
 import { DataviewIntegration } from "./DataviewIntegration";
-import { EnhancedFieldSuggestionFileFilter } from "./EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import type { FieldFilter } from "./FieldSuggestionParser";
 import { FieldValueProcessor } from "./FieldValueProcessor";
@@ -154,7 +154,7 @@ async function collectTagValuesFromFiles(
 	const rawValues = new Set<string>();
 
 	let files = app.vault.getMarkdownFiles();
-	files = EnhancedFieldSuggestionFileFilter.filterFiles(
+	files = FieldSuggestionFileFilter.filterFiles(
 		files,
 		filters,
 		(file: TFile) => app.metadataCache.getFileCache(file),
@@ -226,7 +226,7 @@ async function collectFieldValuesManually(
 
 	// Get all markdown files and apply enhanced filtering
 	let files = app.vault.getMarkdownFiles();
-	files = EnhancedFieldSuggestionFileFilter.filterFiles(
+	files = FieldSuggestionFileFilter.filterFiles(
 		files,
 		filters,
 		(file: TFile) => app.metadataCache.getFileCache(file),
