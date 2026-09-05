@@ -1,4 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { App } from "obsidian";
+import type QuickAdd from "./main";
+import { MacroChoice } from "./types/choices/MacroChoice";
+import { TemplateChoice } from "./types/choices/TemplateChoice";
+import { NestedChoiceCommand } from "./types/macros/QuickCommands/NestedChoiceCommand";
+import type IChoice from "./types/choices/IChoice";
 
 // Mock the heavy leaves of the executor's import graph (mirrors
 // choiceExecutor.preload.test.ts).
@@ -12,6 +18,7 @@ vi.mock("./quickAddSettingsTab", () => ({
 }));
 
 let onePageInputEnabled = false;
+const runTemplate = vi.fn<(choice: IChoice) => Promise<void>>(async () => {});
 vi.mock("./settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({ onePageInputEnabled, ai: {}, disableOnlineFeatures: true }),
@@ -19,6 +26,12 @@ vi.mock("./settingsStore", () => ({
 }));
 vi.mock("./engine/runTemplateFromFolder", () => ({
 	runTemplateFromFolder: vi.fn(),
+}));
+vi.mock("./engine/TemplateChoiceEngine", () => ({
+	TemplateChoiceEngine: class {
+		constructor(_app: unknown, _plugin: unknown, private choice: IChoice) {}
+		async run() { await runTemplate(this.choice); }
+	},
 }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
@@ -159,5 +172,119 @@ describe("ChoiceExecutor one-page preflight gate", () => {
 		await expect(
 			makeExecutor().runOnePagePreflightIfEnabled(choice("Template")),
 		).rejects.toBe(boom);
+	});
+});
+
+describe("macro one-page override scope", () => {
+	beforeEach(() => {
+		onePageInputEnabled = false;
+		runOnePagePreflight.mockReset();
+		runOnePagePreflight.mockResolvedValue(true);
+		runTemplate.mockReset();
+		runTemplate.mockResolvedValue(undefined);
+	});
+
+	function macro(name: string, override: IChoice["onePageInput"], children: IChoice[]) {
+		const result = new MacroChoice(name);
+		result.onePageInput = override;
+		result.macro.commands = children.map((child) => new NestedChoiceCommand(child));
+		return result;
+	}
+
+	function executor() {
+		return new ChoiceExecutor(new App(), {} as QuickAdd);
+	}
+
+	it("collects the remaining commands together after opted-out discovery finishes", async () => {
+		const discovery = new TemplateChoice("Discover");
+		discovery.onePageInput = "never";
+		discovery.discoverExistingNotesBeforeCreate = true;
+		const first = new TemplateChoice("First");
+		const second = new TemplateChoice("Second");
+		const parent = macro("Parent", "always", [discovery, first, second]);
+		const runner = executor();
+		const prepare = vi.spyOn(runner, "prepareMacroInputs");
+		await runner.execute(parent);
+		expect(prepare).toHaveBeenCalledExactlyOnceWith(parent, parent.macro.commands.slice(1));
+		expect(prepare.mock.invocationCallOrder[0]).toBeGreaterThan(runTemplate.mock.invocationCallOrder[0]);
+		expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(runTemplate.mock.invocationCallOrder[1]);
+		expect(runOnePagePreflight).toHaveBeenNthCalledWith(2, expect.anything(), expect.anything(), runner, {
+			...parent,
+			macro: { ...parent.macro, commands: parent.macro.commands.slice(1) },
+		});
+		expect(parent.macro.commands).toHaveLength(3);
+	});
+
+	it.each(["API title", ""])("does not split an explicitly seeded discovery run (%j)", async (seed) => {
+		const discovery = new TemplateChoice("Discover");
+		discovery.onePageInput = "never";
+		discovery.discoverExistingNotesBeforeCreate = true;
+		const runner = executor();
+		runner.variables.set("value", seed);
+		const prepare = vi.spyOn(runner, "prepareMacroInputs");
+		await runner.execute(macro("Parent", "always", [discovery, new TemplateChoice("Next")]));
+		expect(prepare).not.toHaveBeenCalled();
+		expect(runner.variables.get("value")).toBe(seed);
+	});
+
+	it("does not open the remaining form after discovery is cancelled", async () => {
+		const discovery = new TemplateChoice("Discover");
+		discovery.onePageInput = "never";
+		discovery.discoverExistingNotesBeforeCreate = true;
+		runTemplate.mockRejectedValueOnce(new UserCancelError("Cancelled"));
+		const runner = executor();
+		const prepare = vi.spyOn(runner, "prepareMacroInputs");
+		await runner.execute(macro("Parent", "always", [discovery, new TemplateChoice("Next")]));
+		expect(prepare).not.toHaveBeenCalled();
+		expect(runTemplate).toHaveBeenCalledTimes(1);
+	});
+
+	it("inherits Always at deferred steps but preserves a step's Never", async () => {
+		const included = new TemplateChoice("Included");
+		const excluded = new TemplateChoice("Excluded");
+		excluded.onePageInput = "never";
+		const parent = macro("Parent", "always", [included, excluded]);
+		await executor().execute(parent);
+		expect(runOnePagePreflight.mock.calls.map((call) => call[3])).toEqual([
+			parent,
+			included,
+		]);
+	});
+
+	it("inherits Never but preserves a step's Always", async () => {
+		onePageInputEnabled = true;
+		const included = new TemplateChoice("Included");
+		included.onePageInput = "always";
+		const excluded = new TemplateChoice("Excluded");
+		await executor().execute(macro("Parent", "never", [included, excluded]));
+		expect(runOnePagePreflight.mock.calls.map((call) => call[3])).toEqual([included]);
+	});
+
+	it("restores the enclosing override after a nested macro and global behavior after the run", async () => {
+		const inheritedStep = new TemplateChoice("Inherited");
+		const inherited = macro("Inherited macro", undefined, [inheritedStep]);
+		const disabled = macro("Disabled macro", "never", [new TemplateChoice("Disabled")]);
+		const following = new TemplateChoice("Following");
+		const parent = macro("Parent", "always", [inherited, disabled, following]);
+		const runner = executor();
+		await runner.execute(parent);
+		await runner.execute(new TemplateChoice("Outside"));
+		expect(runOnePagePreflight.mock.calls.map((call) => call[3])).toEqual([
+			parent,
+			inherited,
+			inheritedStep,
+			following,
+		]);
+	});
+
+	it("restores global behavior after a nested macro fails", async () => {
+		const failure = new Error("Cannot collect inputs");
+		runOnePagePreflight.mockResolvedValueOnce(true).mockRejectedValueOnce(failure);
+		const nested = macro("Nested", "always", [new TemplateChoice("Unused")]);
+		const runner = executor();
+		await expect(runner.execute(macro("Parent", "never", [nested]))).rejects.toBe(failure);
+		runOnePagePreflight.mockClear();
+		await runner.execute(new TemplateChoice("Outside"));
+		expect(runOnePagePreflight).not.toHaveBeenCalled();
 	});
 });

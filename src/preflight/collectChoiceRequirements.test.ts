@@ -4,6 +4,7 @@ import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { TemplateChoice } from "src/types/choices/TemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
 import type { ICommand } from "src/types/macros/ICommand";
@@ -1807,9 +1808,13 @@ describe("collectChoiceRequirements - pickDate", () => {
 });
 
 describe("collectChoiceRequirements - macro form roster", () => {
+	const getSelection = vi.fn(() => "");
 	const app = {
 		vault: { getAbstractFileByPath: vi.fn(() => null) },
 		metadataCache: { getFileCache: vi.fn(() => null) },
+		workspace: {
+			getActiveViewOfType: () => ({ editor: { getSelection } }),
+		},
 	} as unknown as App;
 	const choiceExecutor: IChoiceExecutor = {
 		execute: vi.fn(),
@@ -1844,6 +1849,8 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		isFolderMock.mockReturnValue(true);
 		getUserScriptMock.mockResolvedValue({});
 		choiceExecutor.variables.clear();
+		getSelection.mockReset();
+		getSelection.mockReturnValue("");
 	});
 
 	it("emits two scoped capture-target ids for two NestedChoice folder captures", async () => {
@@ -1970,6 +1977,131 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			requiredThenOptional.find((requirement) => requirement.id === "project")
 				?.optional,
 		).toBe(false);
+	});
+
+	describe("discovery before anonymous macro inputs", () => {
+		function discoveryTemplate(): TemplateChoice {
+			const template = new TemplateChoice("Discover note");
+			template.templatePath = "Templates/Note.md";
+			template.discoverExistingNotesBeforeCreate = true;
+			template.onePageInput = "never";
+			template.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+			return template;
+		}
+
+		function captureChoice(): ICaptureChoice {
+			return {
+				...createCaptureChoice("Inbox.md"),
+				format: { enabled: true, format: "{{VALUE}} {{VALUE:details}}" },
+			};
+		}
+
+		it.each(["nested", "referenced"])(
+			"defers the remaining form after an opted-out %s discovery Template",
+			async (commandKind) => {
+				isFolderMock.mockReturnValue(false);
+				const template = discoveryTemplate();
+				const templateCommand = commandKind === "nested"
+					? nestedChoice(template)
+					: choiceCommand("template-command", template.name, template.id);
+				const requirements = await collectChoiceRequirements(
+					app,
+					pluginWithChoices({ [template.id]: template }) as any,
+					choiceExecutor,
+					createMacroChoice(templateCommand, nestedChoice(captureChoice())),
+				);
+
+				expect(requirements).toEqual([]);
+			},
+		);
+
+		it.each([
+			{ label: "disabled filename format", enabled: false, format: "Custom {{VALUE}}", discover: true, deferred: true },
+			{ label: "NAME filename format", enabled: true, format: "{{NAME}}", discover: true, deferred: true },
+			{ label: "custom filename format", enabled: true, format: "Custom {{VALUE}}", discover: true, deferred: false },
+			{ label: "discovery disabled", enabled: true, format: "{{VALUE}}", discover: false, deferred: false },
+		])("handles $label without changing unrelated macro input collection", async ({ enabled, format, discover, deferred }) => {
+			isFolderMock.mockReturnValue(false);
+			const template = discoveryTemplate();
+			template.fileNameFormat = { enabled, format };
+			template.discoverExistingNotesBeforeCreate = discover;
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(template), nestedChoice(captureChoice())),
+			);
+
+			expect(requirements.filter((requirement) => !requirement.runtimeOnly)
+				.map((requirement) => requirement.id).sort()).toEqual(deferred ? [] : ["details", "value"]);
+		});
+
+		it("leaves selected text for the Capture's own preflight after discovery", async () => {
+			isFolderMock.mockReturnValue(false);
+			getSelection.mockReturnValue("Selected capture text");
+			const capture = captureChoice();
+			await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), nestedChoice(capture)),
+				{ seedCaptureSelectionAsValue: true },
+			);
+			expect(choiceExecutor.variables.has("value")).toBe(false);
+
+			await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				capture,
+				{ seedCaptureSelectionAsValue: true },
+			);
+			expect(choiceExecutor.variables.get("value")).toBe("Selected capture text");
+		});
+
+		it("preserves an explicitly seeded value", async () => {
+			isFolderMock.mockReturnValue(false);
+			choiceExecutor.variables.set("value", "Explicit note title");
+			getSelection.mockReturnValue("Selected capture text");
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), nestedChoice(captureChoice())),
+				{ seedCaptureSelectionAsValue: true },
+			);
+
+			expect(choiceExecutor.variables.get("value")).toBe("Explicit note title");
+			expect(getUnresolvedRequirements(requirements, choiceExecutor.variables)
+				.map((requirement) => requirement.id)).toEqual(["details"]);
+		});
+
+		it("does not load a later script before the discovery picker", async () => {
+			getUserScriptMock.mockResolvedValue({
+				quickadd: {
+					inputs: [
+						{ id: "value", type: "text", label: "Value" },
+						{ id: "details", type: "text", label: "Details" },
+					],
+				},
+			});
+			const script: IUserScript = {
+				id: "script-1",
+				name: "Script 1",
+				type: CommandType.UserScript,
+				path: "script.js",
+				settings: {},
+			};
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), script),
+			);
+
+			expect(requirements).toEqual([]);
+			expect(getUserScriptMock).not.toHaveBeenCalled();
+		});
 	});
 
 	it("ORs runtimeOnly when a discovery Template shares VALUE with a Capture", async () => {

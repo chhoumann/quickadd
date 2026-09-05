@@ -19,6 +19,8 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import {
 
 	promptForTemplateNoteDiscovery,
+	resolveTemplateNoteSelection,
+	selectionForDiscoveryCandidate,
 	shouldRunTemplateNoteDiscovery,
 	testExports,
 } from "./templateNoteDiscovery";
@@ -102,6 +104,23 @@ function app(files: TFile[] = []): App {
 describe("template note discovery", () => {
 	beforeEach(() => {
 		inputSuggestMock.mockReset();
+	});
+
+	it("revalidates an inline existing-note selection when the step executes", () => {
+		const existing = file("Existing/Alice.md");
+		const files = [existing];
+		const obsidianApp = app(files);
+		const selection = selectionForDiscoveryCandidate(obsidianApp, "@quickadd-existing-note:Existing/Alice.md");
+		expect(resolveTemplateNoteSelection(obsidianApp, selection)).toEqual({ kind: "openExisting", file: existing });
+		files.length = 0;
+		expect(() => resolveTemplateNoteSelection(obsidianApp, selection)).toThrow("Selected note no longer exists");
+	});
+
+	it("keeps inline unresolved paths vault-relative and rejects traversal", () => {
+		expect(selectionForDiscoveryCandidate(app(), "@quickadd-unresolved-note:Projects/Roadmap"))
+			.toEqual({ kind: "create", title: "Projects/Roadmap", vaultRelativePath: "Projects/Roadmap" });
+		expect(() => resolveTemplateNoteSelection(app(), { kind: "create", title: "../outside" }))
+			.toThrow();
 	});
 
 	it("only runs for opted-in default title prompts with no seeded value", () => {

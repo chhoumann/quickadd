@@ -45,6 +45,9 @@ import {
 import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
 import { decodeFileValue } from "src/utils/fileSyntax";
+import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInputSuggest";
+import type { TemplateNoteSelection } from "src/engine/templateNoteDiscovery";
+import type { DiscoveryFormConfig, DiscoveryNoteField } from "./discoveryFormPlan";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -116,6 +119,10 @@ export class OnePageInputModal extends Modal {
 	// requestInputs result remains string-based. runOnePagePreflight consumes this
 	// map before the formatter renders name/link/path output.
 	public readonly fileSelections = new Map<string, string[]>();
+	public readonly discoverySelections = new Map<string, TemplateNoteSelection>();
+	private readonly discoverySuggesters: NoteDiscoveryInputSuggest[] = [];
+	private readonly fieldElements = new Map<string, HTMLElement[]>();
+	private readonly discoveryInputs = new Map<string, HTMLInputElement>();
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
@@ -139,6 +146,7 @@ export class OnePageInputModal extends Modal {
 		requirements: FieldRequirement[],
 		initial?: Map<string, unknown>,
 		computePreview?: PreviewComputer,
+		private readonly discoveryForm?: DiscoveryFormConfig,
 	) {
 		super(app);
 		this.requirements = requirements;
@@ -190,6 +198,7 @@ export class OnePageInputModal extends Modal {
 	private display() {
 		this.containerEl.addClass("quickAddModal", "onePageInputModal");
 		applyCompactPromptChrome(this.containerEl);
+		if (this.discoveryForm) this.containerEl.addClass("qa-discovery-form");
 		this.contentEl.empty();
 
 		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
@@ -207,7 +216,7 @@ export class OnePageInputModal extends Modal {
 
 		if (hasMultipleGroups(this.requirements)) {
 			for (const run of groupRequirements(this.requirements)) {
-				if (run.group) {
+				if (run.group && !(run.fields.length === 1 && run.fields[0].label === run.group.label)) {
 					this.contentEl.createEl("h3", {
 						text: run.group.label,
 						cls: "qa-onepage-section",
@@ -218,6 +227,7 @@ export class OnePageInputModal extends Modal {
 		} else {
 			this.requirements.forEach((req) => this.renderField(req));
 		}
+		this.updateFieldVisibility(false);
 
 		// AFTER the fields: `this.result` is populated inside renderField, so the
 		// first pass used to run against an empty map and flash a stand-in
@@ -251,9 +261,9 @@ export class OnePageInputModal extends Modal {
 		this.peek.onHostOpened();
 		// Auto-focus the first field so keyboard-first users can start typing
 		// immediately, matching the single-field prompts.
-		const firstField = this.contentEl.querySelector<HTMLElement>(
+		const firstField = Array.from(this.contentEl.querySelectorAll<HTMLElement>(
 			"input, textarea, select",
-		);
+		)).find((element) => !element.closest('[style*="display: none"]'));
 		firstField?.focus();
 
 		// Mod+Enter submits without reaching for the mouse. Guarded because the
@@ -282,6 +292,60 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private renderField(req: FieldRequirement) {
+		const before = new Set(this.contentEl.children);
+		const note = this.discoveryForm?.notes.find((field) => field.id === req.id);
+		if (note) this.renderNoteField(note);
+		else this.renderFieldControl(req);
+		this.fieldElements.set(req.id, Array.from(this.contentEl.children)
+			.filter((element): element is HTMLElement => element instanceof HTMLElement && !before.has(element)));
+	}
+
+	private isFieldVisible(id: string): boolean {
+		const conditions = this.discoveryForm?.visibleWhenCreating.get(id);
+		return !conditions || conditions.some((noteId) => this.discoverySelections.get(noteId)?.kind === "create");
+	}
+
+	private updateFieldVisibility(updatePreview = true): void {
+		for (const [id, elements] of this.fieldElements) {
+			for (const element of elements) element.style.display = this.isFieldVisible(id) ? "" : "none";
+		}
+		if (updatePreview) this.updatePreviewDebounced();
+	}
+
+	private renderNoteField(note: DiscoveryNoteField): void {
+		const setting = new Setting(this.contentEl).setName("Note");
+		setting.settingEl.addClass("qa-onepage-file-picker-setting");
+		const container = setting.controlEl.createDiv({ cls: "qa-onepage-file-picker" });
+		const selected = container.createDiv({ cls: "qa-onepage-file-picker__selection" });
+		selected.setAttribute("aria-live", "polite");
+		const input = new TextComponent(container).setPlaceholder("Search notes or create new note");
+		input.inputEl.addClass("qa-onepage-file-picker__input");
+		input.inputEl.setAttribute("aria-label", `Note for ${note.choice.name}`);
+		this.discoveryInputs.set(note.id, input.inputEl);
+		const showSelection = (selection: TemplateNoteSelection) => {
+			this.discoverySelections.set(note.id, selection);
+			selected.empty();
+			const label = selection.kind === "existing" ? selection.path.replace(/\.md$/i, "") : `Create: ${selection.title}`;
+			const chip = selected.createDiv({ cls: "qa-onepage-file-picker__chip" });
+			chip.createSpan({ cls: "qa-onepage-file-picker__chip-label", text: label });
+			const change = chip.createEl("button", { cls: "qa-onepage-file-picker__remove", text: "×" });
+			change.type = "button";
+			change.setAttribute("aria-label", "Change note");
+			change.addEventListener("click", () => {
+				this.discoverySelections.delete(note.id);
+				selected.empty();
+				input.inputEl.style.display = "";
+				this.updateFieldVisibility();
+				input.inputEl.focus();
+			});
+			input.inputEl.style.display = "none";
+			this.updateFieldVisibility();
+			change.focus();
+		};
+		this.discoverySuggesters.push(new NoteDiscoveryInputSuggest(this.app, input.inputEl, note.choice, showSelection));
+	}
+
+	private renderFieldControl(req: FieldRequirement) {
 		const setValue = (id: string, value: string) => {
 			this.result.set(id, value);
 			this.updatePreviewDebounced();
@@ -891,7 +955,8 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private insertTarget(): OnePageFreeTextField | undefined {
-		return this.lastFocusedFreeText ?? this.freeTextFields[0];
+		if (this.lastFocusedFreeText && this.isFieldVisible(this.lastFocusedFreeText.id)) return this.lastFocusedFreeText;
+		return this.freeTextFields.find((field) => this.isFieldVisible(field.id));
 	}
 
 	/**
@@ -926,6 +991,12 @@ export class OnePageInputModal extends Modal {
 
 	private submit() {
 		if (this.settled) return;
+		const missingNote = this.discoveryForm?.notes.find((note) => !this.discoverySelections.has(note.id));
+		if (missingNote) {
+			new Notice("Choose an existing note or select Create new note.");
+			this.discoveryInputs.get(missingNote.id)?.focus();
+			return;
+		}
 		// A pasted image may still be saving in one of the fields; defer so
 		// paste-then-Mod+Enter submits WITH the embed link.
 		const busyHandle = this.imagePasteHandles.find((handle) =>
@@ -943,6 +1014,7 @@ export class OnePageInputModal extends Modal {
 		// point the user at the offending field instead.
 		const erroredDate = this.requirements.find(
 			(req) =>
+				this.isFieldVisible(req.id) &&
 				req.type === "date" &&
 				!req.optional &&
 				this.dateParseErrors.has(req.id),
@@ -988,6 +1060,7 @@ export class OnePageInputModal extends Modal {
 		);
 		const out: Record<string, string> = {};
 		this.result.forEach((v, k) => {
+			if (!this.isFieldVisible(k)) return;
 			const requirement = requirementsById.get(k);
 			if (requirement?.type === "date" && v === "") {
 				const hasParseError = this.dateParseErrors.has(k);
@@ -1011,6 +1084,7 @@ export class OnePageInputModal extends Modal {
 			this.requirements.map((req) => [req.id, req] as const),
 		);
 		for (const [id, picks] of this.fileSelections) {
+			if (!this.isFieldVisible(id)) continue;
 			out[id] = requirementsById.get(id)?.suggesterConfig?.multiSelect
 				? [...picks]
 				: (picks[0] ?? "");
@@ -1036,6 +1110,8 @@ export class OnePageInputModal extends Modal {
 		this.lastFocusedFreeText = undefined;
 		for (const suggester of this.filePickerSuggesters) suggester.destroy();
 		this.filePickerSuggesters.length = 0;
+		for (const suggester of this.discoverySuggesters) suggester.destroy();
+		this.discoverySuggesters.length = 0;
 		// Esc (or any close that isn't submit/cancel) must settle the promise,
 		// otherwise the choice execution hangs forever on waitForClose.
 		if (!this.settled) {

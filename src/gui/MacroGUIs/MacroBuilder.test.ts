@@ -60,6 +60,28 @@ describe("MacroBuilder", () => {
 		expect(ask.contentEl.textContent).not.toContain("(pick a day)");
 	});
 
+	it("edits and restores the macro one-page input override", () => {
+		const choice = new MacroChoice("Macro under test");
+		const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
+		const modal = new MacroBuilder(new App(), plugin, choice, []);
+		const select = modal.contentEl.querySelector<HTMLSelectElement>("select");
+		if (!select) throw new Error("Missing one-page input dropdown");
+		expect(Array.from(select.options, (option) => option.text)).toEqual([
+			"Follow global setting",
+			"Always",
+			"Never",
+		]);
+		expect(select.value).toBe("");
+
+		for (const value of ["always", "never", ""]) {
+			select.value = value;
+			select.dispatchEvent(new Event("change"));
+			expect(choice.onePageInput).toBe(value || undefined);
+			const reopened = new MacroBuilder(new App(), plugin, choice, []);
+			expect(reopened.contentEl.querySelector("select")?.value).toBe(value);
+		}
+	});
+
 	it("shows the ask picker default and keeps icon last", () => {
 		const choice = new MacroChoice("Macro under test");
 		choice.dateOrigin = { kind: "ask", defaultValue: "last week" };

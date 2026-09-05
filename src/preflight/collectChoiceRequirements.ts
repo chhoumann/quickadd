@@ -585,10 +585,12 @@ async function collectForMacroChoice(
 	choice: IMacroChoice,
 	options?: CollectChoiceRequirementsOptions,
 ): Promise<FieldRequirement[]> {
-	const roster = buildFormRoster(resolveChoiceFromPlugin(plugin), choice);
+	const roster = buildFormRoster(
+		resolveChoiceFromPlugin(plugin), choice, choiceExecutor.variables.get("value"),
+	);
 	const merged = new Map<string, FieldRequirement>();
 	const seedCaptureSelectionAsValue =
-		options?.seedCaptureSelectionAsValue ?? false;
+		(options?.seedCaptureSelectionAsValue ?? false);
 
 	for (const entry of roster.members) {
 		const collected =

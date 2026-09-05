@@ -38,12 +38,25 @@ to **Never**.
 
 ## Turn it on or off for one choice {#per-choice-override}
 
-Template and Capture choice builders have a **One-page input override**
+Template, Capture, and Macro choice builders have a **One-page input override**
 dropdown that overrides the global setting for that one choice:
 
-- **Follow global setting** - use whatever the global toggle is set to (default).
+- **Follow global setting** - inherit the enclosing Macro's override, or use the global toggle (default).
 - **Always** - force the one-page form for this choice even when it is off globally.
 - **Never** - use step-by-step prompts for this choice even when it is on globally.
+
+A Macro's override also applies to its steps, including steps that ask for inputs
+later. A step's explicit **Always** or **Never** takes precedence over its Macro.
+Nested Macros inherit the enclosing Macro's override unless they have their own.
+When a Template searches existing notes before creating, the one-page form includes
+its note picker alongside the Macro's Capture fields. Choose an existing note or
+create a new one. Template fields appear only when creating; switching between
+notes keeps your drafts. Each Capture's anonymous `{{VALUE}}` has its own answer,
+separate from the note title. Named inputs such as `{{VALUE:details}}` remain shared.
+
+If that Template's override is **Never**, QuickAdd shows its note picker first.
+After the Template finishes, remaining eligible Capture inputs appear together
+in one form. Scripts and conditional steps retain their execution boundaries.
 
 ## What ends up in the form {#what-gets-collected}
 

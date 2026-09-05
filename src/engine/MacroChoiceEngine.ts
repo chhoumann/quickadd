@@ -67,6 +67,10 @@ import {
 	isUnreadableCommandList,
 } from "../utils/macroUtils";
 
+import { classifyStep } from "../preflight/macroCommandRole";
+import { isDiscoveryInputBoundary } from "../preflight/macroFormRoster";
+import { withPreparedChoiceInputs } from "../preflight/preparedChoiceInputs";
+
 type ConditionalScriptRunner = () => Promise<unknown>;
 type UserScriptFunction = (
 	params: MacroChoiceEngine["params"],
@@ -304,7 +308,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	protected async executeCommands(commands: ICommand[]) {
 		try {
-			for (const command of commands) {
+			for (const [index, command] of commands.entries()) {
 				// A null/undefined entry is corruption, not a command, and the old
 				// `isRecord` inside every type guard was the only thing keeping it
 				// from throwing here. It stays SILENT: the same shape package import
@@ -319,47 +323,63 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				// CommandType without a handler a tsc error, so the hole cannot come
 				// back. `type` is all the old guards ever checked, so the casts are
 				// exactly as strict as what they replaced.
-				switch (command.type) {
-					case CommandType.Obsidian:
-						this.executeObsidianCommand(command as IObsidianCommand);
-						break;
-					case CommandType.UserScript:
-						await this.executeUserScript(command as IUserScript);
-						break;
-					case CommandType.Choice:
-						await this.executeChoice(command as IChoiceCommand);
-						break;
-					case CommandType.Wait:
-						await waitFor((command as IWaitCommand).time);
-						break;
-					case CommandType.NestedChoice:
-						await this.executeNestedChoice(command as INestedChoiceCommand);
-						break;
-					case CommandType.EditorCommand:
-						await this.executeEditorCommand(command as IEditorCommand);
-						break;
-					case CommandType.AIAssistant:
-						await this.executeAIAssistant(command as IAIAssistantCommand);
-						break;
-					case CommandType.OpenFile:
-						await this.executeOpenFile(command as IOpenFileCommand);
-						break;
-					case CommandType.Conditional:
-						await this.executeConditional(command as IConditionalCommand);
-						break;
-					default: {
-						// Compile-time exhaustiveness (the idiom executeEditorCommand
-						// already uses) AND a runtime shout: `type` is only typed at the
-						// edges, so a newer QuickAdd's data.json read by an older one -
-						// which our own downgrade recipe produces - really does arrive
-						// here with a string TypeScript says is impossible.
-						const exhaustiveCheck: never = command.type;
-						this.reportUnrunnableCommand(
-							command,
-							describeUnknownType(exhaustiveCheck),
-						);
-						break;
+				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
+					? classifyStep(command, (id) => {
+						try {
+							return this.plugin.getChoiceById(id);
+						} catch {
+							return null;
+						}
+					})
+					: null;
+				const resumeInputs = role?.collect.kind === "scanChoice" &&
+					isDiscoveryInputBoundary(role.collect.choice, this.choiceExecutor.variables.get("value"));
+				await withPreparedChoiceInputs(this.choiceExecutor, command.id, async () => {
+					switch (command.type) {
+						case CommandType.Obsidian:
+							this.executeObsidianCommand(command as IObsidianCommand);
+							break;
+						case CommandType.UserScript:
+							await this.executeUserScript(command as IUserScript);
+							break;
+						case CommandType.Choice:
+							await this.executeChoice(command as IChoiceCommand);
+							break;
+						case CommandType.Wait:
+							await waitFor((command as IWaitCommand).time);
+							break;
+						case CommandType.NestedChoice:
+							await this.executeNestedChoice(command as INestedChoiceCommand);
+							break;
+						case CommandType.EditorCommand:
+							await this.executeEditorCommand(command as IEditorCommand);
+							break;
+						case CommandType.AIAssistant:
+							await this.executeAIAssistant(command as IAIAssistantCommand);
+							break;
+						case CommandType.OpenFile:
+							await this.executeOpenFile(command as IOpenFileCommand);
+							break;
+						case CommandType.Conditional:
+							await this.executeConditional(command as IConditionalCommand);
+							break;
+						default: {
+							// Compile-time exhaustiveness (the idiom executeEditorCommand
+							// already uses) AND a runtime shout: `type` is only typed at the
+							// edges, so a newer QuickAdd's data.json read by an older one -
+							// which our own downgrade recipe produces - really does arrive
+							// here with a string TypeScript says is impossible.
+							const exhaustiveCheck: never = command.type;
+							this.reportUnrunnableCommand(
+								command,
+								describeUnknownType(exhaustiveCheck),
+							);
+							break;
+						}
 					}
+				});
+				if (resumeInputs) {
+					await this.choiceExecutor.prepareMacroInputs?.(this.choice, commands.slice(index + 1));
 				}
 			}
 		} catch (error) {
