@@ -26,7 +26,7 @@ import {
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
-import { EnhancedFieldSuggestionFileFilter } from "src/utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "src/utils/FieldSuggestionFileFilter";
 import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import { resolveActiveNoteFieldDefault } from "src/utils/activeNoteFieldDefault";
 import {
@@ -681,7 +681,7 @@ export class RequirementCollector extends Formatter {
 		// Options are the folder's files encoded as `@file:<path>` (display =
 		// basenames) so the chosen value round-trips to the runtime formatter,
 		// which decodes it back to the file.
-		const files = EnhancedFieldSuggestionFileFilter.filterFiles(
+		const files = FieldSuggestionFileFilter.filterFiles(
 			this.app.vault.getMarkdownFiles(),
 			parsed.filter,
 			(file) => this.app.metadataCache.getFileCache(file),

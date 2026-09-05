@@ -48,7 +48,7 @@ export type ParsedFileToken = {
 
 const MODE_FLAGS = new Set<FileMode>(["name", "link", "path"]);
 
-/** Strip leading/trailing slashes, matching EnhancedFieldSuggestionFileFilter. */
+/** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
 function normalizeFolder(path: string): string {
 	return path.replace(/^\/+|\/+$/g, "");
 }

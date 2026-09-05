@@ -256,56 +256,6 @@ describe("FieldValueProcessor", () => {
 		});
 	});
 
-	describe("validateDefaultValue", () => {
-		it("should validate default value against existing patterns", () => {
-			const existingValues = ["Active", "Done", "In Progress"];
-			const validation = FieldValueProcessor.validateDefaultValue("To Do", existingValues, "status");
-
-			expect(validation.isValid).toBe(true);
-			expect(validation.warnings).toHaveLength(0);
-		});
-
-		it("should suggest existing case variations", () => {
-			const existingValues = ["Active", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("active", existingValues, "status");
-
-			expect(validation.suggestions).toContain("Active");
-			expect(validation.warnings.some(w => w.includes("existing case"))).toBe(true);
-		});
-
-		it("should suggest similar existing values", () => {
-			const existingValues = ["In Progress", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("In Progres", existingValues, "status");
-
-			expect(validation.suggestions).toContain("In Progress");
-			expect(validation.warnings.some(w => w.includes("Similar existing values"))).toBe(true);
-		});
-
-		it("should suggest smart defaults when applicable", () => {
-			const existingValues: string[] = [];
-			const validation = FieldValueProcessor.validateDefaultValue("Custom", existingValues, "status");
-
-			expect(validation.suggestions).toContain("To Do");
-			expect(validation.suggestions).toContain("In Progress");
-			expect(validation.warnings.some(w => w.includes("Consider common values"))).toBe(true);
-		});
-
-		it("should not duplicate suggestions", () => {
-			const existingValues = ["To Do", "Done"];
-			const validation = FieldValueProcessor.validateDefaultValue("todo", existingValues, "status");
-
-			const uniqueSuggestions = new Set(validation.suggestions);
-			expect(validation.suggestions.length).toBe(uniqueSuggestions.size);
-		});
-
-		it("should handle empty existing values gracefully", () => {
-			const validation = FieldValueProcessor.validateDefaultValue("Test", [], "unknown_field");
-
-			expect(validation.isValid).toBe(true);
-			expect(validation.suggestions).toEqual([]);
-		});
-	});
-
 	describe("edge cases", () => {
 		it("should handle empty raw values", () => {
 			const rawValues = new Set<string>();

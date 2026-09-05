@@ -7,33 +7,65 @@ import {
 
 export class FieldSuggestionFileFilter {
 	/**
-	 * Filters files based on the provided filter criteria
+	 * Enhanced file filtering with inclusion and exclusion support
 	 */
 	static filterFiles(
 		files: TFile[],
 		filters: FieldFilter,
 		metadataCache: (file: TFile) => CachedMetadata | null,
 	): TFile[] {
-		if (Object.keys(filters).length === 0) {
-			return files; // No filters, return all files
+		const includedFiles = this.applyInclusionFilters(files, filters, metadataCache);
+		return this.applyExclusionFilters(includedFiles, filters, metadataCache);
+	}
+
+	private static applyInclusionFilters(
+		files: TFile[],
+		filters: FieldFilter,
+		metadataCache: (file: TFile) => CachedMetadata | null,
+	): TFile[] {
+		let includedFiles = files;
+
+		const folders = this.getIncludeFolders(filters);
+		if (folders.length > 0) {
+			includedFiles = includedFiles.filter(file =>
+				folders.some(folder => this.matchesFolder(file, folder))
+			);
 		}
 
-		return files.filter((file) => {
-			const folders = this.getIncludeFolders(filters);
-			if (
-				folders.length > 0 &&
-				!folders.some((folder) => this.matchesFolder(file, folder))
-			) {
-				return false;
+		if (filters.tags && filters.tags.length > 0) {
+			includedFiles = includedFiles.filter(file =>
+				this.matchesTags(file, filters.tags ?? [], metadataCache, "all")
+			);
+		}
+
+		return includedFiles;
+	}
+
+	private static applyExclusionFilters(
+		files: TFile[],
+		filters: FieldFilter,
+		metadataCache: (file: TFile) => CachedMetadata | null,
+	): TFile[] {
+		return files.filter(file => {
+			// Exclude by folder
+			if (filters.excludeFolders && filters.excludeFolders.length > 0) {
+				if (filters.excludeFolders.some(folder => this.matchesFolder(file, folder))) {
+					return false;
+				}
 			}
 
-			// Check tag filters
-			if (
-				filters.tags &&
-				filters.tags.length > 0 &&
-				!this.matchesTags(file, filters.tags, metadataCache)
-			) {
-				return false;
+			// Exclude by tag
+			if (filters.excludeTags && filters.excludeTags.length > 0) {
+				if (this.matchesTags(file, filters.excludeTags, metadataCache, "any")) {
+					return false;
+				}
+			}
+
+			// Exclude by specific file
+			if (filters.excludeFiles && filters.excludeFiles.length > 0) {
+				if (filters.excludeFiles.some(excludeFile => this.matchesFile(file, excludeFile))) {
+					return false;
+				}
 			}
 
 			return true;
@@ -46,12 +78,13 @@ export class FieldSuggestionFileFilter {
 			: filters.folder
 				? [filters.folder]
 				: [];
-		return [...new Set(folders.map((folder) => this.normalizePath(folder)).filter(Boolean))];
+
+		return [...new Set(folders.map(folder => this.normalizePath(folder)).filter(Boolean))];
 	}
 
-	private static matchesFolder(file: TFile, folderPath: string): boolean {
+	private static matchesFolder(file: TFile, folder: string): boolean {
 		// Normalize paths for comparison
-		const normalizedFolder = this.normalizePath(folderPath);
+		const normalizedFolder = this.normalizePath(folder);
 		const normalizedFilePath = this.normalizePath(file.path);
 
 		// Check if file is in the specified folder or its subfolders
@@ -68,6 +101,7 @@ export class FieldSuggestionFileFilter {
 		file: TFile,
 		requiredTags: string[],
 		metadataCache: (file: TFile) => CachedMetadata | null,
+		mode: "all" | "any",
 	): boolean {
 		const metadata = metadataCache(file);
 		if (!metadata) {
@@ -76,21 +110,29 @@ export class FieldSuggestionFileFilter {
 
 		// Get all tags from the file (both frontmatter and inline)
 		const fileTags = this.getAllTags(metadata);
+		const normalizedRequiredTags = requiredTags
+			.map(normalizeTag)
+			.filter(Boolean);
 
-		// Normalize required tags (remove leading # and trim)
-		const normalizedRequiredTags = requiredTags.map(normalizeTag).filter(Boolean);
+		const matchesRequiredTag = (requiredTag: string) =>
+			fileTags.some(fileTag =>
+				fileTag === requiredTag || fileTag.startsWith(requiredTag + "/")
+			);
 
-		// Check if file has all required tags (AND logic)
-		return normalizedRequiredTags.every((requiredTag) =>
-			fileTags.some((fileTag) =>
-				fileTag === requiredTag || fileTag.startsWith(requiredTag + "/"),
-			),
-		);
+		return mode === "all"
+			? normalizedRequiredTags.every(matchesRequiredTag)
+			: normalizedRequiredTags.some(matchesRequiredTag);
+	}
+
+	private static matchesFile(file: TFile, targetFile: string): boolean {
+		// Match by exact name or path
+		return file.name === targetFile || file.path === targetFile;
 	}
 
 	private static getAllTags(metadata: CachedMetadata): string[] {
 		const tags: string[] = [];
 
+		// Get tags from frontmatter
 		if (metadata.frontmatter?.tags) {
 			tags.push(...normalizeFrontmatterTagValues(metadata.frontmatter.tags));
 		}

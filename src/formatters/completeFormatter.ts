@@ -25,7 +25,7 @@ import {
 	FieldSuggestionParser,
 	type FieldFilter,
 } from "../utils/FieldSuggestionParser";
-import { EnhancedFieldSuggestionFileFilter } from "../utils/EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
 import {
 	buildFileDisplayLabels,
 	FILE_CUSTOM_PREFIX,
@@ -1095,7 +1095,7 @@ export class CompleteFormatter extends Formatter {
 		// is driving; the vault-side file filtering below still runs unchanged.
 		const provider = this.choiceExecutor?.promptProvider;
 		try {
-			const files = EnhancedFieldSuggestionFileFilter.filterFiles(
+			const files = FieldSuggestionFileFilter.filterFiles(
 				this.app.vault.getMarkdownFiles(),
 				parsed.filter,
 				(file) => this.app.metadataCache.getFileCache(file),

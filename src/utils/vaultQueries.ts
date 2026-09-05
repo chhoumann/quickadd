@@ -1,6 +1,6 @@
 import type { App, CachedMetadata, TFile } from "obsidian";
 import { TFolder } from "obsidian";
-import { EnhancedFieldSuggestionFileFilter } from "./EnhancedFieldSuggestionFileFilter";
+import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
 import {
 	normalizeFrontmatterTagValues,
@@ -92,7 +92,7 @@ export function getMarkdownFilesMatchingFilter(
 	app: App,
 	filter: FieldFilter,
 ): TFile[] {
-	return EnhancedFieldSuggestionFileFilter.filterFiles(
+	return FieldSuggestionFileFilter.filterFiles(
 		app.vault.getMarkdownFiles(),
 		filter,
 		(file) => app.metadataCache.getFileCache(file),
@@ -139,7 +139,7 @@ export function frontmatterValueMatches(raw: unknown, target: string): boolean {
  * The field name is matched case-insensitively (Obsidian's metadata cache
  * preserves the author's key case, e.g. `Type`, so a case-sensitive lookup would
  * miss it). An optional {@link FieldFilter} (folder / tag / exclude-*) is applied
- * via the same {@link EnhancedFieldSuggestionFileFilter} used by `{{FILE:}}`, so
+ * via the same {@link FieldSuggestionFileFilter} used by `{{FILE:}}`, so
  * the pipe-filter grammar behaves identically across features.
  */
 export function getMarkdownFilesWithProperty(
@@ -172,7 +172,7 @@ export function getMarkdownFilesWithProperty(
 			!!filter.excludeTags?.length ||
 			!!filter.excludeFiles?.length);
 	if (hasFilter) {
-		files = EnhancedFieldSuggestionFileFilter.filterFiles(
+		files = FieldSuggestionFileFilter.filterFiles(
 			files,
 			filter,
 			(file) => app.metadataCache.getFileCache(file),
