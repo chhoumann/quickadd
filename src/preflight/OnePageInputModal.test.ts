@@ -4,6 +4,8 @@ import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
 import { UserCancelError } from "../errors/UserCancelError";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
+import { TemplateChoice } from "src/types/choices/TemplateChoice";
+import type { TemplateNoteSelection } from "src/engine/templateNoteDiscovery";
 
 const { attachImagePasteHandlerMock } = vi.hoisted(() => ({
 	attachImagePasteHandlerMock: vi.fn(() => ({
@@ -24,6 +26,19 @@ const { filePickerSuggesters } = vi.hoisted(() => ({
 		}) => void;
 		destroy: ReturnType<typeof vi.fn>;
 	}>,
+}));
+
+const { noteSelections } = vi.hoisted(() => ({
+	noteSelections: [] as Array<(selection: TemplateNoteSelection) => void>,
+}));
+
+vi.mock("src/gui/suggesters/NoteDiscoveryInputSuggest", () => ({
+	NoteDiscoveryInputSuggest: class {
+		constructor(_app: App, _input: HTMLInputElement, _choice: unknown, onSelect: (selection: TemplateNoteSelection) => void) {
+			noteSelections.push(onSelect);
+		}
+		destroy() {}
+	},
 }));
 
 vi.mock("src/gui/imagePasteHandler", () => ({
@@ -183,6 +198,7 @@ vi.mock("obsidian", () => {
 		constructor(containerEl: HTMLElement) {
 			const settingEl = document.createElement("div");
 			this.settingEl = settingEl;
+			settingEl.classList.add("setting-item");
 			this.infoEl = document.createElement("div");
 			this.nameEl = document.createElement("div");
 			this.descEl = document.createElement("div");
@@ -326,6 +342,57 @@ describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
 		filePickerSuggesters.length = 0;
+		noteSelections.length = 0;
+	});
+
+	it("retains create-only drafts while changing notes and omits them when opening an existing note", async () => {
+		const requirements: FieldRequirement[] = [
+			{ id: "note", label: "Note", type: "text" },
+			{ id: "owner", label: "Owner", type: "text" },
+			{ id: "update", label: "Update", type: "textarea" },
+		];
+		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
+			visibleWhenCreating: new Map([["owner", ["note"]]]),
+		});
+		const owner = modal.contentEl.querySelectorAll<HTMLInputElement>("input")[1];
+		const ownerRow = owner.closest<HTMLElement>(".setting-item")!;
+		expect(ownerRow.style.display).toBe("none");
+		noteSelections[0]({ kind: "create", title: "New project" });
+		expect(ownerRow.style.display).toBe("");
+		owner.value = "Ada";
+		owner.dispatchEvent(new Event("input"));
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		expect(ownerRow.style.display).toBe("none");
+		noteSelections[0]({ kind: "create", title: "New project" });
+		expect(owner.value).toBe("Ada");
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		const update = modal.contentEl.querySelector("textarea")!;
+		update.value = "Ship Friday";
+		update.dispatchEvent(new Event("input"));
+		Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!.click();
+		await expect(modal.waitForClose).resolves.toEqual({ update: "Ship Friday" });
+		expect(modal.discoverySelections.get("note")).toEqual({ kind: "existing", path: "Atlas.md" });
+	});
+
+	it("keeps a shared field visible when any create-note consumer needs it", () => {
+		const requirements: FieldRequirement[] = [
+			{ id: "first", label: "First", type: "text" },
+			{ id: "second", label: "Second", type: "text" },
+			{ id: "owner", label: "Owner", type: "text" },
+		];
+		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+			notes: ["first", "second"].map((id) => ({ id, choice: new TemplateChoice(id), group: { id, label: id } })),
+			visibleWhenCreating: new Map([["owner", ["first", "second"]]]),
+		});
+		void modal.waitForClose.catch(() => {});
+		const ownerRow = modal.contentEl.querySelectorAll("input")[2].closest<HTMLElement>(".setting-item")!;
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		noteSelections[1]({ kind: "create", title: "New project" });
+		expect(ownerRow.style.display).toBe("");
+		noteSelections[1]({ kind: "existing", path: "Other.md" });
+		expect(ownerRow.style.display).toBe("none");
+		modal.onClose();
 	});
 
 	it("submits the first raw mapped dropdown option when untouched", async () => {

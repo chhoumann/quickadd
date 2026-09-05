@@ -2521,3 +2521,27 @@ textarea.is-valid {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+.quickAddModal.qa-discovery-form .setting-item {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 0.5rem;
+}
+
+.quickAddModal.qa-discovery-form .setting-item-info,
+.quickAddModal.qa-discovery-form .setting-item-control {
+	width: 100%;
+	min-width: 0;
+	margin: 0;
+}
+
+.quickAddModal.qa-discovery-form .setting-item-control {
+	justify-content: flex-start;
+}
+
+.quickAddModal.qa-discovery-form .setting-item-control > input,
+.quickAddModal.qa-discovery-form .setting-item-control > textarea,
+.quickAddModal.qa-discovery-form .qa-onepage-file-picker {
+	width: 100%;
+	min-width: 0;
+}

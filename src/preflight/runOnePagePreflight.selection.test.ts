@@ -9,6 +9,8 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { parseFileToken } from "src/utils/fileSyntax";
+import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import { getPreparedTemplateNoteSelection, withPreparedChoiceInputs } from "./preparedChoiceInputs";
 
 const { modalOpenMock } = vi.hoisted(() => ({
 	modalOpenMock: vi.fn(),
@@ -16,12 +18,14 @@ const { modalOpenMock } = vi.hoisted(() => ({
 
 let modalResult: Record<string, string> = {};
 let modalFileSelections = new Map<string, string[]>();
+let modalDiscoverySelections = new Map<string, TemplateNoteSelection>();
 
 vi.mock("./OnePageInputModal", () => ({
 	OnePageInputModal: class {
 		waitForClose = Promise.resolve(modalResult);
 		fileSelections = modalFileSelections;
 		multiSelections = new Map<string, string[]>();
+		discoverySelections = modalDiscoverySelections;
 		constructor(...args: unknown[]) {
 			modalOpenMock(...args);
 		}
@@ -298,6 +302,7 @@ describe("runOnePagePreflight template extension handling", () => {
 		modalOpenMock.mockClear();
 		modalResult = {};
 		modalFileSelections = new Map();
+		modalDiscoverySelections = new Map();
 	});
 
 	it("reads .base template files without forcing .md", async () => {
@@ -461,7 +466,7 @@ describe("runOnePagePreflight template extension handling", () => {
 		]);
 	});
 
-	it("leaves the default Template note title for discovery instead of the one-page modal", async () => {
+	it("collects the default Template note selection inline without seeding public value", async () => {
 		const templateFile = new TFile();
 		templateFile.path = "Templates/Daily.md";
 		templateFile.name = "Daily.md";
@@ -491,17 +496,22 @@ describe("runOnePagePreflight template extension handling", () => {
 		const choice = createTemplateChoice("Templates/Daily.md");
 		choice.discoverExistingNotesBeforeCreate = true;
 		choice.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+		modalDiscoverySelections.set(`__qa.note.${choice.id}`, { kind: "create", title: "New note" });
 
 		const executor = createExecutor();
 
 		const result = await runOnePagePreflight(app, plugin, executor, choice);
 
-		expect(result).toBe(false);
-		expect(modalOpenMock).not.toHaveBeenCalled();
+		expect(result).toBe(true);
+		expect(modalOpenMock).toHaveBeenCalledTimes(1);
 		expect(executor.variables.has("value")).toBe(false);
+		await withPreparedChoiceInputs(executor, choice.id, async () => {
+			expect(getPreparedTemplateNoteSelection(executor, choice.id))
+				.toEqual({ kind: "create", title: "New note" });
+		});
 	});
 
-	it("still collects other Template prompts while leaving the note title for discovery", async () => {
+	it("collects Template creation inputs with inline discovery and applies them at execution", async () => {
 		const templateFile = new TFile();
 		templateFile.path = "Templates/Project.md";
 		templateFile.name = "Project.md";
@@ -534,15 +544,20 @@ describe("runOnePagePreflight template extension handling", () => {
 
 		const executor = createExecutor();
 		modalResult = { project: "Atlas" };
+		modalDiscoverySelections.set(`__qa.note.${choice.id}`, { kind: "create", title: "New note" });
 
 		const result = await runOnePagePreflight(app, plugin, executor, choice);
 
 		expect(result).toBe(true);
 		expect(executor.variables.has("value")).toBe(false);
-		expect(executor.variables.get("project")).toBe("Atlas");
+		expect(executor.variables.has("project")).toBe(false);
+		await withPreparedChoiceInputs(executor, choice.id, async () => {
+			expect(executor.variables.get("project")).toBe("Atlas");
+		});
 		expect(modalOpenMock).toHaveBeenCalledTimes(1);
 		const requirements = modalOpenMock.mock.calls[0][1] as Array<{ id: string }>;
 		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			`__qa.note.${choice.id}`,
 			"project",
 		]);
 	});

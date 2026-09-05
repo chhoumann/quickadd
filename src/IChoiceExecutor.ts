@@ -7,9 +7,12 @@ import type { FrontmatterPropertyTarget } from "./utils/frontmatterPropertyLinks
 import type { RunClocks } from "./types/dateOrigin";
 import type { QuickAddTriggerContext } from "./types/QuickAddTriggerContext";
 import type { PromptProvider } from "./interactive/promptProvider";
+import type IMacroChoice from "./types/choices/IMacroChoice";
+import type { ICommand } from "./types/macros/ICommand";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
+	prepareMacroInputs?(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	/**
 	 * Executes a choice while reusing context captured before an intermediate UI
 	 * layer, such as a Multi-choice suggester, ran: the frontmatter property target
