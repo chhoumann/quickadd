@@ -18,6 +18,7 @@ export type TemplateNoteSelection =
 
 export type DiscoveryCandidate = {
 	item: string;
+	exactKeys: string[];
 	/**
 	 * The fuzzy-SEARCH text, not a label: basename + path + aliases, joined. The
 	 * in-app picker feeds this to the matcher and draws the visible row from
@@ -162,9 +163,11 @@ export function buildDiscoveryCandidates(app: App, choice: ITemplateChoice): {
 		}
 		addPathKeys(existingKeys, file.path, file.basename);
 		const aliases = readAliases(app, file);
+		for (const alias of aliases) existingKeys.add(normalizedKey(alias));
 		const searchable = [file.basename, file.path, ...aliases].join(" ");
 		candidates.push({
 			item: encodeExisting(file.path),
+			exactKeys: [file.basename, file.path, ...aliases].map(normalizedKey),
 			display: searchable,
 			title: aliases[0] ? `${file.basename} (${file.path})` : file.path,
 			renderPath: file.path,
@@ -177,6 +180,7 @@ export function buildDiscoveryCandidates(app: App, choice: ITemplateChoice): {
 		if (existingKeys.has(key)) continue;
 		candidates.push({
 			item: encodeUnresolved(target),
+			exactKeys: [normalizedKey(target)],
 			display: target,
 			title: `${target} (unresolved link)`,
 			unresolvedTitle: target,

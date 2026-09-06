@@ -158,11 +158,24 @@ async function seedCombinedWorkflow(name: string, options: {
 	templateOverride?: "never";
 	twoCaptures?: boolean;
 	templateBody?: string;
+	aliases?: string[];
 } = {}) {
 	const { obsidian, plugin, sandbox } = getContext();
 	const noteName = `Existing ${name}`;
 	const relativePath = `${name}/${noteName}.md`;
-	await seedVaultFile(obsidian, sandbox, relativePath, "# Existing note\n");
+	const aliases = options.aliases ?? [];
+	const initialContent = aliases.length > 0
+		? `---\naliases: ${JSON.stringify(aliases)}\n---\n# Existing note\n`
+		: "# Existing note\n";
+	const targetPath = await seedVaultFile(obsidian, sandbox, relativePath, initialContent);
+	if (aliases.length > 0) {
+		await seedVaultFile(obsidian, sandbox, `${name}/${aliases[aliases.length - 1]} overview.md`, "Distractor must stay unchanged\n");
+		await obsidian.metadata.waitForFrontmatter<{ aliases: string[] }>(
+			targetPath,
+			(frontmatter) => Array.isArray(frontmatter.aliases) && aliases.every((alias) => frontmatter.aliases.includes(alias)),
+			WAIT_OPTS,
+		);
+	}
 	const template = new TemplateChoice(`Discover ${name}`);
 	template.templatePath = await seedVaultFile(obsidian, sandbox, `${name}/template.md`, options.templateBody ?? "Owner: {{VALUE:owner}}\n");
 	template.onePageInput = options.templateOverride;
@@ -187,7 +200,7 @@ async function seedCombinedWorkflow(name: string, options: {
 	});
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${macro.id}` });
-	return { obsidian, sandbox, template, macro, noteName, relativePath };
+	return { obsidian, sandbox, template, macro, noteName, relativePath, initialContent };
 }
 
 function formField(id: string): string {
@@ -404,6 +417,44 @@ describe("discovery keyboard submission", () => {
 		await pressEnter(workflow.obsidian, true);
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
 		expect(content.trimEnd()).toBe("# Existing note\n\nKeyboard capture Keyboard details");
+		await expectNoPrompt(workflow.obsidian);
+	});
+});
+
+describe("discovery alias keyboard selection", () => {
+	it.each([false, true])("uses an exact second alias with modified Enter = %s", async (modified) => {
+		const name = modified ? "alias-mod-enter" : "alias-enter";
+		const alias = `${name} launch plan`;
+		const workflow = await seedCombinedWorkflow(name, { aliases: [`${name} atlas plan`, alias] });
+		await waitForElement(workflow.obsidian, ".onePageInputModal");
+		await fillKeyboardCapture(workflow);
+		await typeInto(workflow.obsidian, `[aria-label=${JSON.stringify(`Note for ${workflow.template.name}`)}]`, alias);
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string[]>(
+			'Array.from(document.querySelectorAll(".qa-onepage-file-suggestion__path"), (item) => item.textContent)',
+		), { timeout: 10_000, interval: 200 }).toEqual(expect.arrayContaining([
+			workflow.sandbox.path(workflow.relativePath),
+			workflow.sandbox.path(`${name}/${alias} overview.md`),
+		]));
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string>(
+			'document.querySelector(".qa-onepage-file-suggestion__path")?.textContent ?? ""',
+		), { timeout: 10_000, interval: 200 }).toBe(workflow.sandbox.path(workflow.relativePath));
+		expect(await workflow.obsidian.dev.evalJson<string[]>(
+			'Array.from(document.querySelectorAll(".qa-onepage-file-suggestion__label"), (item) => item.textContent)',
+		)).not.toContain(`Create new note: ${alias}`);
+		await pressEnter(workflow.obsidian, modified);
+		if (!modified) {
+			await expectOwnerVisible(workflow.obsidian, false);
+			expect(await workflow.obsidian.dev.evalJson<string>(
+				'document.querySelector(".qa-onepage-file-picker__chip-label")?.textContent ?? ""',
+			)).toBe(workflow.sandbox.path(workflow.relativePath).replace(/\.md$/, ""));
+			await pressEnter(workflow.obsidian, true);
+		}
+		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Keyboard capture Keyboard details"), WAIT_OPTS);
+		expect(content.trimEnd()).toBe(`${workflow.initialContent}\nKeyboard capture Keyboard details`);
+		expect(await workflow.sandbox.read(`${name}/${alias} overview.md`)).toBe("Distractor must stay unchanged\n");
+		expect(await workflow.obsidian.dev.evalJson<boolean>(
+			`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(workflow.sandbox.path(`${name}/${alias}.md`))}))`,
+		)).toBe(false);
 		await expectNoPrompt(workflow.obsidian);
 	});
 });

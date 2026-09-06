@@ -159,6 +159,9 @@ describe("template note discovery", () => {
 		const alice = file("Existing/Alice.md");
 		const built = testExports.buildDiscoveryCandidates(app([alice]), choice());
 
+		expect(built.existingKeys.has("a. example")).toBe(true);
+		expect(built.candidates[0].exactKeys).toContain("a. example");
+
 		expect(built.candidates.map((candidate) => candidate.display)).toContain(
 			"Alice Existing/Alice.md A. Example",
 		);

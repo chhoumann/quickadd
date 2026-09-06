@@ -15,14 +15,15 @@ function createSuggest() {
 	const file = Object.assign(new TFile(), {
 		path: "Projects/Project Atlas.md", basename: "Project Atlas", extension: "md",
 	});
+	const other = Object.assign(new TFile(), { path: "Launch plan overview.md", basename: "Launch plan overview", extension: "md" });
 	const app = {
 		dom: { appContainerEl: document.body },
 		keymap: { pushScope: vi.fn(), popScope: vi.fn() },
 		vault: {
-			getMarkdownFiles: () => [file],
+			getMarkdownFiles: () => [other, file],
 			getAbstractFileByPath: (path: string) => path === file.path ? file : null,
 		},
-		metadataCache: { getFileCache: () => null, unresolvedLinks: { "Source.md": { "Not Yet Created": 1 } } },
+		metadataCache: { getFileCache: (entry: TFile) => entry === file ? ({ frontmatter: { aliases: ["Atlas plan", "Launch plan"] } }) : null, unresolvedLinks: { "Source.md": { "Not Yet Created": 1 } } },
 		workspace: { getLastOpenFiles: () => [] },
 	} as unknown as App;
 	const input = document.createElement("input");
@@ -48,6 +49,15 @@ describe("NoteDiscoveryInputSuggest", () => {
 		expect(suggestions).toHaveLength(1);
 		suggester.selectSuggestion(suggestions[0]);
 		expect(selected).toHaveBeenCalledWith({ kind: "existing", path: "Projects/Project Atlas.md" });
+	});
+
+	it.each(["Atlas plan", "Launch plan", "LAUNCH PLAN"])("resolves exact alias %s to the existing note", (alias) => {
+		const { suggester, selected } = createSuggest();
+		const suggestions = suggester.getSuggestions(alias);
+		expect(suggestions.some((suggestion) => suggestion.label.startsWith("Create new note:"))).toBe(false);
+		suggester.selectSuggestion(suggestions[0]);
+		expect(selected).toHaveBeenCalledWith({ kind: "existing", path: "Projects/Project Atlas.md" });
+		expect(suggester.resolveInput(alias)).toEqual({ kind: "existing", path: "Projects/Project Atlas.md" });
 	});
 
 	it("resolves unselected text as a new title while preserving exact existing paths", () => {

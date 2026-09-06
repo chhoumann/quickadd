@@ -10,6 +10,7 @@ import { TextInputSuggest } from "./suggest";
 
 type NoteOption = {
 	item: string;
+	exactKeys: string[];
 	label: string;
 	detail: string;
 	search: string;
@@ -31,6 +32,7 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 		this.existingKeys = existingKeys;
 		this.options = candidates.map((candidate) => ({
 			item: candidate.item,
+			exactKeys: candidate.exactKeys,
 			label: candidate.renderPath?.split("/").at(-1)?.replace(/\.md$/i, "") ?? candidate.unresolvedTitle ?? candidate.title,
 			detail: candidate.renderPath ?? "Unresolved link",
 			search: candidate.display,
@@ -40,26 +42,24 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 	getSuggestions(query: string): NoteOption[] {
 		const text = query.trim();
 		if (!text) return this.options.slice(0, 100);
+		const key = normalizedKey(text);
 		const match = prepareFuzzySearch(text);
 		const matches = this.options
 			.map((option) => ({ option, match: match(option.search) }))
 			.filter((entry) => entry.match !== null)
-			.sort((a, b) => (b.match?.score ?? 0) - (a.match?.score ?? 0))
+			.sort((a, b) => Number(b.option.exactKeys.includes(key)) - Number(a.option.exactKeys.includes(key)) ||
+				(b.match?.score ?? 0) - (a.match?.score ?? 0))
 			.slice(0, 99)
 			.map(({ option }) => option);
-		const key = text.replace(/\.md$/i, "").toLowerCase();
-		if (!this.existingKeys.has(key) && !this.options.some((option) => option.search.toLowerCase() === key)) {
-			matches.unshift({ item: text, label: `Create new note: ${text}`, detail: "", search: text });
+		if (!this.existingKeys.has(key) && !this.options.some((option) => option.exactKeys.includes(key))) {
+			matches.unshift({ item: text, exactKeys: [key], label: `Create new note: ${text}`, detail: "", search: text });
 		}
 		return matches;
 	}
 
 	resolveInput(text: string): TemplateNoteSelection {
 		const key = normalizedKey(text);
-		const exact = this.options.find((option) =>
-			normalizedKey(option.label) === key ||
-			(this.existingKeys.has(key) && normalizedKey(option.detail) === key),
-		);
+		const exact = this.options.find((option) => option.exactKeys.includes(key));
 		return selectionForDiscoveryCandidate(this.obsidianApp, exact?.item ?? text);
 	}
 
