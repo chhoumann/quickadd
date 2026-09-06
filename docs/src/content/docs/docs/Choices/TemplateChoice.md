@@ -233,9 +233,8 @@ Pick one of four modes:
   below. One folder creates the note there; several folders open a suggester
   asking which to use. Drag a folder's handle, or focus the handle and press
   ArrowUp / ArrowDown, to change the suggester order. An **Include subfolders**
-  toggle (shown only in this mode) also offers each selected folder's
-  subfolders (vault tree order within that folder); selected folders themselves
-  still follow the list order above.
+  toggle (shown only in this mode) lets the suggester offer the selected folders
+  *and* their subfolders.
 - **Same folder as current file** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each

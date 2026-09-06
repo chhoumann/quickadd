@@ -277,7 +277,7 @@ function onModeChange(value: string) {
 
 	<SettingItem
 		name="Include subfolders"
-		desc="Prompt for the selected folders and their subfolders. Each selected folder's subtree stays in vault tree order; the selected folders themselves keep the list order above."
+		desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
 	>
 		{#snippet control()}
 			<Toggle bind:checked={choice.folder.chooseFromSubfolders} />

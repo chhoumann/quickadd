@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-	filterFolderPathsWithinRoots,
 	isFolderPathWithinRoot,
 	orderFolderPathsByConfiguredRoots,
 	sortFolderPathsByTree,
@@ -75,18 +74,6 @@ describe("isFolderPathWithinRoot", () => {
 		expect(isFolderPathWithinRoot("/A2/B1/", "A/")).toBe(false);
 	});
 });
-
-describe("filterFolderPathsWithinRoots", () => {
-	it("keeps only roots and descendants without leaking sibling prefixes", () => {
-		expect(
-			filterFolderPathsWithinRoots(
-				["A", "A/B1", "A/B1/C1", "A2", "A2/B1", "B/B1"],
-				["A"],
-			),
-		).toEqual(["A", "A/B1", "A/B1/C1"]);
-	});
-});
-
 
 describe("orderFolderPathsByConfiguredRoots", () => {
 	it("emits each root's subtree in configured-root order", () => {

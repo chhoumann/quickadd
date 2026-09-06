@@ -54,15 +54,6 @@ export function isFolderPathWithinRoot(path: string, root: string): boolean {
 	);
 }
 
-export function filterFolderPathsWithinRoots(
-	paths: string[],
-	roots: string[],
-): string[] {
-	return paths.filter((path) =>
-		roots.some((root) => isFolderPathWithinRoot(path, root)),
-	);
-}
-
 /**
  * Keep each root's subtree in vault tree order, but emit those blocks in
  * configured-root order. Overlapping roots skip paths already emitted.

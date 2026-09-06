@@ -12,7 +12,7 @@ export async function refocusDragHandle(
 	await tick();
 	if (!root) return;
 	const handle = root.querySelector(
-		`button[aria-label=${JSON.stringify(label)}]`,
+		`button[aria-label="${CSS.escape(label)}"]`,
 	) as HTMLButtonElement | null;
 	handle?.focus();
 }
