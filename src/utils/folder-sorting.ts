@@ -62,3 +62,24 @@ export function filterFolderPathsWithinRoots(
 		roots.some((root) => isFolderPathWithinRoot(path, root)),
 	);
 }
+
+/**
+ * Keep each root's subtree in vault tree order, but emit those blocks in
+ * configured-root order. Overlapping roots skip paths already emitted.
+ */
+export function orderFolderPathsByConfiguredRoots(
+	treeSortedPaths: readonly string[],
+	roots: readonly string[],
+): string[] {
+	const result: string[] = [];
+	const seen = new Set<string>();
+	for (const root of roots) {
+		for (const path of treeSortedPaths) {
+			if (seen.has(path)) continue;
+			if (!isFolderPathWithinRoot(path, root)) continue;
+			result.push(path);
+			seen.add(path);
+		}
+	}
+	return result;
+}

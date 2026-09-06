@@ -61,41 +61,6 @@ export function replaceById<T extends Reorderable>(
 }
 
 /**
- * Treat `reported` as a ranking request over `current`. Skip unknown ids
- * (including the library shadow). Take each current id at most once. Any
- * current item omitted from reported is restored at its prior index, not
- * appended, so a placeholder-window drop cannot drop membership.
- * POSTCONDITION: the result is the same multiset as `current`.
- */
-export function applyOrder<T extends Reorderable>(
-	current: readonly T[],
-	reported: readonly T[],
-): T[] {
-	const firstById = new Map<string, T>();
-	for (const item of current) {
-		if (!firstById.has(item.id)) firstById.set(item.id, item);
-	}
-
-	const usedIds = new Set<string>();
-	const ranked: T[] = [];
-	for (const item of reported) {
-		if (usedIds.has(item.id)) continue;
-		const match = firstById.get(item.id);
-		if (!match) continue;
-		ranked.push(match);
-		usedIds.add(item.id);
-	}
-
-	const usedItems = new Set(ranked);
-	const result = [...ranked];
-	current.forEach((item, priorIndex) => {
-		if (usedItems.has(item)) return;
-		result.splice(Math.min(priorIndex, result.length), 0, item);
-	});
-	return result;
-}
-
-/**
  * Move the item with `id` by `delta` positions. Returns null when the id is
  * unknown or the move would leave the list.
  */

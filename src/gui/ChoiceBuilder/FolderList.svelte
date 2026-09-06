@@ -2,7 +2,6 @@
 	import { Platform } from "obsidian";
 	import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
 	import {
-		applyOrder,
 		baseDndOptions,
 		capturePlaceholderRecovery,
 		moveById,
@@ -11,9 +10,15 @@
 		stripShadow,
 	} from "../shared/dndReorder";
 	import { createDragArming } from "../shared/dragArming.svelte";
+	import { refocusDragHandle } from "../shared/refocusDragHandle";
 	import DragHandle from "../components/DragHandle.svelte";
 	import IconButton from "../components/IconButton.svelte";
-	import type { FolderListProps } from "./folderListProps.svelte";
+
+	/** Committed membership + order; `onChange` fires once per completed edit. */
+	interface FolderListProps {
+		folders: readonly string[];
+		onChange: (next: string[]) => void;
+	}
 
 	interface FolderDragItem extends Reorderable {
 		id: string;
@@ -26,6 +31,8 @@
 	const isMobile = Platform.isMobile;
 	const drag = createDragArming();
 	const dragDisabled = $derived(!isMobile && !drag.armed);
+
+	let listEl: HTMLOListElement | undefined = $state();
 
 	function toItems(paths: readonly string[]): FolderDragItem[] {
 		return paths.map((id) => ({ id }));
@@ -47,6 +54,9 @@
 	function handleFinalize(e: CustomEvent<DndEvent<FolderDragItem>>) {
 		let next = stripShadow(e.detail.items);
 		const draggedId = e.detail.info.id;
+		// Mirror CommandList / ChoiceList: recover the dragged row if finalize
+		// omitted it during the placeholder window. Do not also re-rank against
+		// the pre-drag list — that can silently cancel an intended move.
 		if (
 			placeholderRecovery?.item.id === draggedId &&
 			!next.some((item) => item.id === draggedId)
@@ -58,7 +68,7 @@
 				placeholderRecovery.item,
 			);
 		}
-		onChange(applyOrder(toItems(folders), next).map((item) => item.id));
+		onChange(next.map((item) => item.id));
 		preview = null;
 		placeholderRecovery = null;
 		if (e.detail.info.source === SOURCES.POINTER) {
@@ -67,11 +77,13 @@
 	}
 
 	function moveFolder(id: string, delta: -1 | 1) {
+		const label = document.activeElement?.getAttribute("aria-label");
 		const next = moveById(toItems(folders), id, delta);
 		if (!next) return;
 		onChange(next.map((item) => item.id));
 		const target = next.findIndex((item) => item.id === id);
 		alertToScreenReader(`Moved ${id} to position ${target + 1} of ${next.length}`);
+		if (label) void refocusDragHandle(listEl, label);
 	}
 
 	function removeFolder(path: string) {
@@ -84,6 +96,7 @@
 </script>
 
 <ol
+	bind:this={listEl}
 	class="qa-folder-list"
 	use:dndzone={baseDndOptions({
 		items,

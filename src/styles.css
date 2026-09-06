@@ -563,8 +563,10 @@
 .quickAddModal .qa-folder-mode-warning {
 	color: var(--text-warning);
 	font-size: var(--font-ui-smaller);
-	margin: 0 auto 12px;
-	max-width: 50%;
+	margin: 0 0 12px;
+	max-width: none;
+	width: 100%;
+	text-align: left;
 }
 
 .quickAddModal .qa-template-format-input {

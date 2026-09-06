@@ -2,7 +2,8 @@
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
-import { baseDndOptions, capturePlaceholderRecovery, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
+import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
+import { refocusDragHandle } from "../shared/refocusDragHandle";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
 import { snapshot } from "../svelte/persist.svelte";
@@ -102,6 +103,8 @@ const isMobile = Platform.isMobile;
 const drag = createDragArming();
 const dragDisabled = $derived(!isMobile && !drag.armed);
 
+let listEl: HTMLOListElement | undefined = $state();
+
 // Narrowing helpers: the {#each} discriminates on command.type, so each child
 // receives the matching subtype. Passed one-way — children report edits via the
 // onUpdateCommand / onConfigure* callbacks, not via two-way binding.
@@ -170,21 +173,20 @@ let startDrag = () => {
 function moveCommand(id: string, direction: -1 | 1) {
 	// `renderable`, not `commands`: stripShadow reads `item.id`, so the raw list
 	// would throw on the very hole the render filter exists to hide.
+	const label = document.activeElement?.getAttribute("aria-label");
 	const list = stripShadow(renderable);
-	const index = list.findIndex((c) => c.id === id);
-	if (index === -1) return;
-	const target = index + direction;
-	if (target < 0 || target >= list.length) return; // clamp at the ends
-	const next = [...list];
-	const [moved] = next.splice(index, 1);
-	next.splice(target, 0, moved);
+	const next = moveById(list, id, direction);
+	if (!next) return;
+	const target = next.findIndex((c) => c.id === id);
+	const moved = next[target];
 	commands = next;
 	persist();
 	// autoAriaDisabled silences the library's own move alerts, so announce the
 	// keyboard reorder ourselves.
 	alertToScreenReader(
-		`Moved ${getCommandDisplayName(moved)} to position ${target + 1} of ${list.length}`,
+		`Moved ${getCommandDisplayName(moved)} to position ${target + 1} of ${next.length}`,
 	);
+	if (label) void refocusDragHandle(listEl, label);
 }
 
 function updateCommand(command: ICommand) {
@@ -274,6 +276,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 </script>
 
 <ol
+	bind:this={listEl}
 	class="quickAddCommandList"
 	use:dndzone={baseDndOptions({
 		items: renderable,
