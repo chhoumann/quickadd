@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -251,6 +252,7 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	function makeExecutor(): IChoiceExecutor {
 		return {
+			...createChoiceExecutor(),
 			execute: async () => {},
 			variables: new Map<string, unknown>(),
 		};
@@ -520,6 +522,7 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 		getTemplateFiles: () => [],
 	} as unknown as QuickAdd;
 	const executor = (): IChoiceExecutor => ({
+		...createChoiceExecutor(),
 		execute: async () => {},
 		variables: new Map<string, unknown>(),
 	});

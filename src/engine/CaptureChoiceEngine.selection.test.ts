@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Notice, TFile, TFolder, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
@@ -217,6 +218,7 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
 });
 
 const createExecutor = (): IChoiceExecutor => ({
+	...createChoiceExecutor(),
 	execute: vi.fn(),
 	variables: new Map<string, unknown>(),
 });

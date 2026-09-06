@@ -1,9 +1,11 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, TFolder, type App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { TemplateChoice } from "src/types/choices/TemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
 import type { ICommand } from "src/types/macros/ICommand";
@@ -18,6 +20,7 @@ import {
 import {
 	collectChoiceRequirements,
 	getUnresolvedRequirements,
+	listDeferredMacroSteps,
 } from "./collectChoiceRequirements";
 import { captureTargetKeyFor, readPreselectedCaptureTarget } from "./captureTargetKey";
 
@@ -226,6 +229,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"Included value: {{VALUE:includedValue}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -260,6 +264,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"{{VALUE:fromGlobalTemplate}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -297,6 +302,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 
 	it("still collects ordinary requirements introduced by global variables", async () => {
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -335,6 +341,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"Inbox/{{VALUE:captureTargetName}}.md",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -359,6 +366,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"## {{VALUE:insertAfterHeading}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -391,6 +399,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"## {{VALUE:insertBeforeHeading}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -425,6 +434,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"{{VALUE:templateFileName}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -460,6 +470,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"Inner {{VALUE:nestedIncludedValue}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -498,6 +509,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 		templateBodies.set("Templates/T10.md", "{{VALUE:tooDeep}}");
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -544,6 +556,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		templateBodies.set("Templates/Shared.md", "{{TEMPLATE:Templates/Nested.md}}");
 		templateBodies.set("Templates/Nested.md", "{{VALUE:sharedNestedValue}}");
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -578,6 +591,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"Created with {{VALUE:createBodyValue}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -611,6 +625,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 		templateBodies.set("Templates/Inner.md", "Inner {{VALUE:templateValue}}");
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -653,6 +668,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		}
 		templateBodies.set("Templates/Root.md", refsTo(0));
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -690,6 +706,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 			"{{TEMPLATE:Templates/T1.md}} {{TEMPLATE:Templates/T10.md}}",
 		);
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -713,6 +730,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 	const app = {} as App;
 	const plugin = {} as any;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
@@ -1011,6 +1029,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		},
 	} as any;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
@@ -1417,6 +1436,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 
 	it("collects a token in the template PATH itself and skips reading the (non-existent) body", async () => {
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -1440,6 +1460,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 
 	it("still walks the body for a literal (token-free) path", async () => {
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -1456,6 +1477,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 
 	it("collects a token in a Capture create-with-template path", async () => {
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -1511,7 +1533,7 @@ describe("collectChoiceRequirements - image-paste path-context provenance (issue
 	});
 
 	function executor(): IChoiceExecutor {
-		return { execute: vi.fn(), variables: new Map<string, unknown>() };
+		return { ...createChoiceExecutor(), execute: vi.fn(), variables: new Map<string, unknown>() };
 	}
 
 	async function collect(choice: ICaptureChoice | ITemplateChoice) {
@@ -1697,7 +1719,7 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 		const requirements = await collectChoiceRequirements(
 			app,
 			plugin,
-			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			{ ...createChoiceExecutor(), execute: vi.fn(), variables: new Map<string, unknown>() },
 			choice,
 		);
 
@@ -1714,7 +1736,7 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 		const requirements = await collectChoiceRequirements(
 			app,
 			plugin,
-			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			{ ...createChoiceExecutor(), execute: vi.fn(), variables: new Map<string, unknown>() },
 			choice,
 		);
 
@@ -1731,7 +1753,7 @@ describe("collectChoiceRequirements - path-context memo (issue #1484 review fix)
 		const requirements = await collectChoiceRequirements(
 			app,
 			plugin,
-			{ execute: vi.fn(), variables: new Map<string, unknown>() },
+			{ ...createChoiceExecutor(), execute: vi.fn(), variables: new Map<string, unknown>() },
 			choice,
 		);
 
@@ -1759,6 +1781,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 			app,
 			plugin,
 			{
+				...createChoiceExecutor(),
 				execute: vi.fn(),
 				variables: new Map<string, unknown>(),
 				pickDate: true,
@@ -1776,6 +1799,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 			app,
 			plugin,
 			{
+				...createChoiceExecutor(),
 				execute: vi.fn(),
 				variables: new Map<string, unknown>(),
 			},
@@ -1795,6 +1819,7 @@ describe("collectChoiceRequirements - pickDate", () => {
 			app,
 			plugin,
 			{
+				...createChoiceExecutor(),
 				execute: vi.fn(),
 				variables: new Map<string, unknown>(),
 			},
@@ -1807,11 +1832,16 @@ describe("collectChoiceRequirements - pickDate", () => {
 });
 
 describe("collectChoiceRequirements - macro form roster", () => {
+	const getSelection = vi.fn(() => "");
 	const app = {
 		vault: { getAbstractFileByPath: vi.fn(() => null) },
 		metadataCache: { getFileCache: vi.fn(() => null) },
+		workspace: {
+			getActiveViewOfType: () => ({ editor: { getSelection } }),
+		},
 	} as unknown as App;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
@@ -1844,6 +1874,8 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		isFolderMock.mockReturnValue(true);
 		getUserScriptMock.mockResolvedValue({});
 		choiceExecutor.variables.clear();
+		getSelection.mockReset();
+		getSelection.mockReturnValue("");
 	});
 
 	it("emits two scoped capture-target ids for two NestedChoice folder captures", async () => {
@@ -1970,6 +2002,143 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			requiredThenOptional.find((requirement) => requirement.id === "project")
 				?.optional,
 		).toBe(false);
+	});
+
+	describe("discovery before anonymous macro inputs", () => {
+		it("reports only truly deferred steps when the discovery title is seeded", () => {
+			const template = discoveryTemplate();
+			const capture = captureChoice();
+			const macro = createMacroChoice(nestedChoice(template), nestedChoice(capture));
+			const plugin = pluginWithChoices();
+			expect(listDeferredMacroSteps(plugin, macro, undefined).map((step) => step.label))
+				.toEqual([template.name, capture.name]);
+			for (const value of ["Seeded title", ""]) {
+				expect(listDeferredMacroSteps(plugin, macro, value).map((step) => step.label))
+					.toEqual([template.name]);
+			}
+		});
+		function discoveryTemplate(): TemplateChoice {
+			const template = new TemplateChoice("Discover note");
+			template.templatePath = "Templates/Note.md";
+			template.discoverExistingNotesBeforeCreate = true;
+			template.onePageInput = "never";
+			template.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+			return template;
+		}
+
+		function captureChoice(): ICaptureChoice {
+			return {
+				...createCaptureChoice("Inbox.md"),
+				format: { enabled: true, format: "{{VALUE}} {{VALUE:details}}" },
+			};
+		}
+
+		it.each(["nested", "referenced"])(
+			"defers the remaining form after an opted-out %s discovery Template",
+			async (commandKind) => {
+				isFolderMock.mockReturnValue(false);
+				const template = discoveryTemplate();
+				const templateCommand = commandKind === "nested"
+					? nestedChoice(template)
+					: choiceCommand("template-command", template.name, template.id);
+				const requirements = await collectChoiceRequirements(
+					app,
+					pluginWithChoices({ [template.id]: template }) as any,
+					choiceExecutor,
+					createMacroChoice(templateCommand, nestedChoice(captureChoice())),
+				);
+
+				expect(requirements).toEqual([]);
+			},
+		);
+
+		it.each([
+			{ label: "disabled filename format", enabled: false, format: "Custom {{VALUE}}", discover: true, deferred: true },
+			{ label: "NAME filename format", enabled: true, format: "{{NAME}}", discover: true, deferred: true },
+			{ label: "custom filename format", enabled: true, format: "Custom {{VALUE}}", discover: true, deferred: false },
+			{ label: "discovery disabled", enabled: true, format: "{{VALUE}}", discover: false, deferred: false },
+		])("handles $label without changing unrelated macro input collection", async ({ enabled, format, discover, deferred }) => {
+			isFolderMock.mockReturnValue(false);
+			const template = discoveryTemplate();
+			template.fileNameFormat = { enabled, format };
+			template.discoverExistingNotesBeforeCreate = discover;
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(template), nestedChoice(captureChoice())),
+			);
+
+			expect(requirements.filter((requirement) => !requirement.runtimeOnly)
+				.map((requirement) => requirement.id).sort()).toEqual(deferred ? [] : ["details", "value"]);
+		});
+
+		it("leaves selected text for the Capture's own preflight after discovery", async () => {
+			isFolderMock.mockReturnValue(false);
+			getSelection.mockReturnValue("Selected capture text");
+			const capture = captureChoice();
+			await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), nestedChoice(capture)),
+				{ seedCaptureSelectionAsValue: true },
+			);
+			expect(choiceExecutor.variables.has("value")).toBe(false);
+
+			await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				capture,
+				{ seedCaptureSelectionAsValue: true },
+			);
+			expect(choiceExecutor.variables.get("value")).toBe("Selected capture text");
+		});
+
+		it("preserves an explicitly seeded value", async () => {
+			isFolderMock.mockReturnValue(false);
+			choiceExecutor.variables.set("value", "Explicit note title");
+			getSelection.mockReturnValue("Selected capture text");
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), nestedChoice(captureChoice())),
+				{ seedCaptureSelectionAsValue: true },
+			);
+
+			expect(choiceExecutor.variables.get("value")).toBe("Explicit note title");
+			expect(getUnresolvedRequirements(requirements, choiceExecutor.variables)
+				.map((requirement) => requirement.id)).toEqual(["details"]);
+		});
+
+		it("does not load a later script before the discovery picker", async () => {
+			getUserScriptMock.mockResolvedValue({
+				quickadd: {
+					inputs: [
+						{ id: "value", type: "text", label: "Value" },
+						{ id: "details", type: "text", label: "Details" },
+					],
+				},
+			});
+			const script: IUserScript = {
+				id: "script-1",
+				name: "Script 1",
+				type: CommandType.UserScript,
+				path: "script.js",
+				settings: {},
+			};
+			const requirements = await collectChoiceRequirements(
+				app,
+				pluginWithChoices() as any,
+				choiceExecutor,
+				createMacroChoice(nestedChoice(discoveryTemplate()), script),
+			);
+
+			expect(requirements).toEqual([]);
+			expect(getUserScriptMock).not.toHaveBeenCalled();
+		});
 	});
 
 	it("ORs runtimeOnly when a discovery Template shares VALUE with a Capture", async () => {

@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
@@ -200,6 +201,7 @@ const createEngine = ({
 
 	const plugin = { settings: { showCaptureNotification: true } } as any;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};

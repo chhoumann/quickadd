@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 vi.mock("../quickAddApi", () => ({
 	QuickAddApi: {
@@ -95,6 +96,7 @@ const createEngine = (
 	};
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};

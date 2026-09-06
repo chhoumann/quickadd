@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -44,8 +45,8 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-vi.mock("./templateNoteDiscovery", async () => {
-	const actual = await vi.importActual("./templateNoteDiscovery");
+vi.mock("./promptForTemplateNoteDiscovery", async () => {
+	const actual = await vi.importActual("./promptForTemplateNoteDiscovery");
 	return {
 		...(actual as Record<string, unknown>),
 		promptForTemplateNoteDiscovery: promptForTemplateNoteDiscoveryMock,
@@ -149,6 +150,7 @@ function buildEngine(
 		},
 	} as unknown as App;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables,
 		recordExecutionResult: vi.fn(),

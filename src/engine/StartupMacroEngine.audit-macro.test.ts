@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const runMock = vi.fn();
@@ -65,6 +66,7 @@ describe("StartupMacroEngine error isolation", () => {
 		];
 
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};

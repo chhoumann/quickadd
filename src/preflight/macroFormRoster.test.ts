@@ -9,6 +9,7 @@ import type { IUserScript } from "src/types/macros/IUserScript";
 import type { IConditionalCommand } from "src/types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "src/types/macros/QuickCommands/INestedChoiceCommand";
 import { buildFormRoster } from "./macroFormRoster";
+import { TemplateChoice } from "src/types/choices/TemplateChoice";
 
 function captureChoice(
 	id: string,
@@ -118,6 +119,25 @@ function noChoices(): (id: string) => IChoice | null {
 }
 
 describe("buildFormRoster", () => {
+	it("stops at opted-out discovery and keeps later script inputs for the next form", () => {
+		const template = new TemplateChoice("Discover");
+		template.onePageInput = "never";
+		template.discoverExistingNotesBeforeCreate = true;
+		const capture = captureChoice("capture");
+		const macro = macroChoice(nestedChoice(template), nestedChoice(capture), userScript("script"));
+		expect(buildFormRoster(noChoices(), macro).members).toEqual([]);
+		expect(buildFormRoster(noChoices(), macro, "API seed").members.map((entry) => entry.occurrenceId))
+			.toEqual(["nested-capture", "script"]);
+	});
+
+	it("keeps repeated choice occurrences separate", () => {
+		const capture = captureChoice("capture");
+		const roster = buildFormRoster(
+			() => capture,
+			macroChoice(choiceCommand("first", "First", capture.id), choiceCommand("second", "Second", capture.id)),
+		);
+		expect(roster.members.map((entry) => entry.occurrenceId)).toEqual(["first", "second"]);
+	});
 	it("collects this-level NestedChoice captures and does not flatten a nested Macro", () => {
 		const outer = captureChoice("outer-cap", { name: "Outer capture" });
 		const buried = captureChoice("buried-cap", { name: "Buried capture" });

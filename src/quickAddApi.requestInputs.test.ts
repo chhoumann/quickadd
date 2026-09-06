@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
@@ -44,6 +45,7 @@ describe("QuickAddApi.requestInputs", () => {
 
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 		} as unknown as IChoiceExecutor;

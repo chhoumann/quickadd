@@ -232,7 +232,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected renderMatch: (el: HTMLElement, text: string, query: string) => void =
 		renderExactHighlight;
 
-	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement) {
+	constructor(app: App, inputEl: HTMLInputElement | HTMLTextAreaElement, parentScope?: Scope) {
 		// Manage per-input map of suggesters keyed by their class name
 		const classKey = this.constructor.name;
 		let byClass = instanceMap.get(inputEl);
@@ -257,7 +257,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 
 		this.app = app;
 		this.inputEl = inputEl;
-		this.scope = new Scope();
+		this.scope = new Scope(parentScope);
 
 		this.suggestEl = this.inputEl.ownerDocument.createElement("div");
 		this.suggestEl.classList.add("suggestion-container");
@@ -330,7 +330,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	async onInputChanged(event?: Event): Promise<void> {
 		// A pending debounced call can fire after destroy() removed the input
 		// listeners; bail so a destroyed instance never re-opens.
-		if (this.destroyed) return;
+		if (this.destroyed || this.inputEl.closest("[hidden]")) return;
 		const completionEvent = event as CompletionInputEvent | undefined;
 		// Handle multi-select mode: keep suggestions open after selection
 		if (completionEvent?.fromCompletion && completionEvent.keepOpen) {
@@ -406,7 +406,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	open(container: HTMLElement, inputEl: HTMLElement): void {
 		// An async getSuggestions() may resolve after destroy() and reach open();
 		// refuse to re-open a destroyed instance (would spawn an orphaned popup).
-		if (this.destroyed) return;
+		if (this.destroyed || inputEl.closest("[hidden]")) return;
 		// Always add listeners; if already open just update popper position
 		if (!this.isOpen) {
 			this.app.keymap.pushScope(this.scope);

@@ -12,10 +12,10 @@ import {
 	resolveCreateNewCollisionFilePath,
 	type FileExistsModeId,
 } from "../template/fileExistsPolicy";
-import {
-	promptForTemplateNoteDiscovery,
-	shouldRunTemplateNoteDiscovery,
-} from "./templateNoteDiscovery";
+import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
+import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import { routePrompt } from "../interactive/routePrompt";
@@ -112,11 +112,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					this.choiceExecutor.variables.get("value"),
 				)
 			) {
-				const discovery = await promptForTemplateNoteDiscovery(
-					this.app,
-					this.choice,
-					this.choiceExecutor,
-				);
+				const prepared = getPreparedTemplateNoteSelection(this.choiceExecutor, this.choice.id);
+				const discovery = prepared
+					? resolveTemplateNoteSelection(this.app, prepared)
+					: await promptForTemplateNoteDiscovery(
+						this.app,
+						this.choice,
+						this.choiceExecutor,
+					);
 				if (discovery.kind === "openExisting") {
 					await this.openDiscoveredExistingNote(discovery.file);
 					// Opening a note is not writing one: this path exists precisely to

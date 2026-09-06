@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -50,6 +51,7 @@ describe("QuickAddApi.fieldSuggestions.getFieldValues", () => {
 	beforeEach(() => {
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 		} as unknown as IChoiceExecutor;

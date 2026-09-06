@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TFile } from 'obsidian';
 
@@ -281,6 +282,7 @@ const createMockFile = (path: string, extension = 'md'): TFile => {
 };
 
 const createMockChoiceExecutor = () => ({
+	...createChoiceExecutor(),
 	variables: new Map(),
 	execute: vi.fn()
 });

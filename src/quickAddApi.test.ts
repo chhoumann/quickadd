@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
@@ -177,6 +178,7 @@ function makeApp(overrides: Record<string, unknown> = {}) {
 
 function makeChoiceExecutor() {
 	return {
+		...createChoiceExecutor(),
 		variables: new Map<string, unknown>(),
 		execute: vi.fn(async () => {}),
 		consumeAbortSignal: vi.fn(

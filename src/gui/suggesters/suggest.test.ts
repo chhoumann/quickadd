@@ -237,6 +237,30 @@ describe("TextInputSuggest resource lifecycle", () => {
 		expect(createPopperMock).not.toHaveBeenCalled();
 	});
 
+	it("does not reopen a note field hidden while its lookup was pending", async () => {
+		const suggest = new DeferredSuggest(app, input);
+		input.value = "a";
+		const inFlight = suggest.onInputChanged();
+		input.hidden = true;
+		suggest.resolvePending?.(["a", "ab"]);
+		await inFlight;
+		expect(app.keymap.pushScope).not.toHaveBeenCalled();
+		expect(createPopperMock).not.toHaveBeenCalled();
+		suggest.destroy();
+	});
+
+	it("ignores delayed input updates inside a hidden form field", async () => {
+		const field = document.createElement("div");
+		field.hidden = true;
+		field.appendChild(input);
+		document.body.appendChild(field);
+		const suggest = new DeferredSuggest(app, input);
+		await suggest.onInputChanged();
+		expect(suggest.resolvePending).toBeNull();
+		expect(app.keymap.pushScope).not.toHaveBeenCalled();
+		suggest.destroy();
+	});
+
 	it("ignores onInputChanged fired after destroy() (pending debounce)", async () => {
 		const suggest = new GenericTextSuggester(app, input, ["abcde"]);
 

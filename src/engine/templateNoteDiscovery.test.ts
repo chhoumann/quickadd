@@ -16,12 +16,9 @@ vi.mock("obsidian-dataview", () => ({
 
 import { TFile, type App } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import {
-
-	promptForTemplateNoteDiscovery,
-	shouldRunTemplateNoteDiscovery,
-	testExports,
-} from "./templateNoteDiscovery";
+import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
+import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+import { resolveTemplateNoteSelection, selectionForDiscoveryCandidate, testExports } from "src/utils/templateNoteDiscovery";
 // An ordinary in-app run: no interactive client attached and not headless, so the
 // picker opens the Obsidian modal - exactly the path these tests exercise.
 const IN_APP_RUN = {} as never;
@@ -104,6 +101,23 @@ describe("template note discovery", () => {
 		inputSuggestMock.mockReset();
 	});
 
+	it("revalidates an inline existing-note selection when the step executes", () => {
+		const existing = file("Existing/Alice.md");
+		const files = [existing];
+		const obsidianApp = app(files);
+		const selection = selectionForDiscoveryCandidate(obsidianApp, "@quickadd-existing-note:Existing/Alice.md");
+		expect(resolveTemplateNoteSelection(obsidianApp, selection)).toEqual({ kind: "openExisting", file: existing });
+		files.length = 0;
+		expect(() => resolveTemplateNoteSelection(obsidianApp, selection)).toThrow("Selected note no longer exists");
+	});
+
+	it("keeps inline unresolved paths vault-relative and rejects traversal", () => {
+		expect(selectionForDiscoveryCandidate(app(), "@quickadd-unresolved-note:Projects/Roadmap"))
+			.toEqual({ kind: "create", title: "Projects/Roadmap", vaultRelativePath: "Projects/Roadmap" });
+		expect(() => resolveTemplateNoteSelection(app(), { kind: "create", title: "../outside" }))
+			.toThrow();
+	});
+
 	it("only runs for opted-in default title prompts with no seeded value", () => {
 		expect(
 			shouldRunTemplateNoteDiscovery(choice(), "{{VALUE}}", undefined),
@@ -144,6 +158,9 @@ describe("template note discovery", () => {
 	it("builds existing-note and unresolved-link candidates for the picker", () => {
 		const alice = file("Existing/Alice.md");
 		const built = testExports.buildDiscoveryCandidates(app([alice]), choice());
+
+		expect(built.existingKeys.has("a. example")).toBe(true);
+		expect(built.candidates[0].exactKeys).toContain("a. example");
 
 		expect(built.candidates.map((candidate) => candidate.display)).toContain(
 			"Alice Existing/Alice.md A. Example",

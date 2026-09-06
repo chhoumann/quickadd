@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 const { runAIAssistantMock, setPromptRunContextMock } = vi.hoisted(() => ({
@@ -109,6 +110,7 @@ function createEngine() {
 	};
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};

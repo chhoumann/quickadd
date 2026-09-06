@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import type QuickAdd from "../main";
@@ -37,6 +38,7 @@ function tfile(path: string): TFile {
 
 function createExecutor(): IChoiceExecutor {
 	return {
+		...createChoiceExecutor(),
 		execute: vi.fn().mockResolvedValue(undefined),
 		variables: new Map<string, unknown>(),
 		consumeAbortSignal: vi.fn().mockReturnValue(null),

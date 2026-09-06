@@ -112,6 +112,7 @@ export class MacroBuilder extends Modal {
 		this.contentEl.empty();
 		this.addCenteredHeader(this.choice.name);
 		this.addCommandEditor();
+		this.addOnePageInputSetting();
 		this.addDateOriginSetting();
 		this.addRunOnStartupSetting();
 		this.addCommandPaletteSettings();
@@ -152,6 +153,22 @@ export class MacroBuilder extends Modal {
 				}
 			})();
 		});
+	}
+
+	private addOnePageInputSetting(): void {
+		new Setting(this.contentEl)
+			.setName("One-page input override")
+			.addDropdown((dropdown) => {
+				dropdown
+					.addOption("", "Follow global setting")
+					.addOption("always", "Always")
+					.addOption("never", "Never")
+					.setValue(this.choice.onePageInput ?? "")
+					.onChange((value) => {
+						this.choice.onePageInput =
+							value === "always" || value === "never" ? value : undefined;
+					});
+			});
 	}
 
 	private addDateOriginSetting(): void {

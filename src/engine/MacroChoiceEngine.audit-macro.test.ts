@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 
 vi.mock("../quickAddApi", () => ({
@@ -66,6 +67,7 @@ function createChoiceExecutorStub(
 ): IChoiceExecutor {
 	let pendingAbort: MacroAbortError | null = null;
 	const executor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		variables: new Map<string, unknown>(),
 		execute: vi.fn(async () => {
 			await executeImpl(executor);

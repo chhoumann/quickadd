@@ -753,7 +753,7 @@ async function checkChoiceHandler(
 				(requirement) => `value-${requirement.id}=<value>`,
 			),
 			...(isMacroChoice(choice)
-				? { deferred: listDeferredMacroSteps(plugin, choice) }
+				? { deferred: listDeferredMacroSteps(plugin, choice, choiceExecutor.variables.get("value")) }
 				: {}),
 		});
 	} catch (error) {

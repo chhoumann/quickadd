@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
@@ -61,7 +62,7 @@ const createFormatter = (
 	} as any;
 
 	const choiceExecutor = variables
-		? ({ execute: vi.fn(), variables } as any)
+		? ({ ...createChoiceExecutor(), execute: vi.fn(), variables } as any)
 		: undefined;
 
 	return new CaptureChoiceFormatter(app, plugin, choiceExecutor);
