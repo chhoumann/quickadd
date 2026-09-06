@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -149,6 +150,7 @@ function harness({ exists, existing }: { exists: boolean; existing: string }) {
 	} as unknown as App;
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		recordExecutionResult: vi.fn(),
 		variables: new Map<string, unknown>(),

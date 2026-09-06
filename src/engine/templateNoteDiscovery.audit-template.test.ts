@@ -16,7 +16,7 @@ vi.mock("obsidian-dataview", () => ({
 
 import { type App, type TFile } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
-import { promptForTemplateNoteDiscovery } from "./templateNoteDiscovery";
+import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
 
 // An ordinary in-app run: no interactive client attached and not headless, so the
 // picker opens the Obsidian modal - exactly the path these tests exercise.

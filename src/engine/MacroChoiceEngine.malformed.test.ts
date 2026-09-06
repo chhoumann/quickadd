@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../formatters/completeFormatter", () => ({
@@ -24,6 +25,7 @@ function runMacro(macro: unknown) {
 		macro,
 	} as unknown as IMacroChoice;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};

@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../quickAddSettingsTab", () => {
@@ -120,6 +121,7 @@ const createTestEngine = (abortMessage: string) => {
 		runOnStartup: false,
 	};
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
@@ -225,6 +227,7 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 			return error;
 		});
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			variables: new Map<string, unknown>(),
 			execute: vi.fn(async (choiceToRun) => {
 				if (choiceToRun.id === nestedChoice.id) {

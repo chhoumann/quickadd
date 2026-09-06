@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 
 const { formatFileNameMock, openFileMock, setPromptRunContextMock } =
@@ -111,6 +112,7 @@ function createEngine(filePath: string, existingPaths: Record<string, TFile>) {
 	};
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};

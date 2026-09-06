@@ -1,3 +1,4 @@
+import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
@@ -57,10 +58,7 @@ export async function buildDiscoveryFormPlan(
 	executor: IChoiceExecutor,
 	choice: IChoice,
 ): Promise<DiscoveryFormPlan | null> {
-	const resolveChoice = (id: string): IChoice | null => {
-		try { return plugin.getChoiceById(id); }
-		catch { return null; }
-	};
+	const resolveChoice = (id: string) => resolveChoiceFromPlugin(plugin, id);
 	let entries: FormRosterEntry[];
 	if (isMacroChoice(choice)) {
 		for (const command of commandListOf(choice.macro?.commands)) {

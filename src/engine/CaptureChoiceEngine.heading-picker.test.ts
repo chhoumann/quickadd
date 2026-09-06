@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
@@ -117,6 +118,7 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
 });
 
 const createExecutor = (): IChoiceExecutor => ({
+	...createChoiceExecutor(),
 	execute: vi.fn(),
 	variables: new Map<string, unknown>(),
 });
@@ -220,6 +222,7 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		(InputSuggester as any).Suggest = suggestSpy;
 		// Non-interactive (CLI without `ui`): the heading picker has no one to answer.
 		const executor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 			interactive: false,

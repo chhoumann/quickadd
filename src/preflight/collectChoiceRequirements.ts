@@ -1,3 +1,4 @@
+import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
@@ -564,16 +565,6 @@ async function collectUserScriptRequirements(
 	return requirements;
 }
 
-function resolveChoiceFromPlugin(plugin: QuickAdd): (id: string) => IChoice | null {
-	return (id: string) => {
-		try {
-			return plugin.getChoiceById(id);
-		} catch {
-			return null;
-		}
-	};
-}
-
 function isMacroChoice(choice: IChoice): choice is IMacroChoice {
 	return choice.type === "Macro";
 }
@@ -586,11 +577,11 @@ async function collectForMacroChoice(
 	options?: CollectChoiceRequirementsOptions,
 ): Promise<FieldRequirement[]> {
 	const roster = buildFormRoster(
-		resolveChoiceFromPlugin(plugin), choice, choiceExecutor.variables.get("value"),
+		(id) => resolveChoiceFromPlugin(plugin, id), choice, choiceExecutor.variables.get("value"),
 	);
 	const merged = new Map<string, FieldRequirement>();
 	const seedCaptureSelectionAsValue =
-		(options?.seedCaptureSelectionAsValue ?? false);
+		options?.seedCaptureSelectionAsValue ?? false;
 
 	for (const entry of roster.members) {
 		const collected =
@@ -746,10 +737,11 @@ export async function collectChoiceRequirements(
 }
 
 export function listDeferredMacroSteps(
-	plugin: QuickAdd,
+	plugin: Pick<QuickAdd, "getChoiceById">,
 	choice: IMacroChoice,
+	seededValue: unknown,
 ): DeferredStep[] {
-	return buildFormRoster(resolveChoiceFromPlugin(plugin), choice).deferred;
+	return buildFormRoster((id) => resolveChoiceFromPlugin(plugin, id), choice, seededValue).deferred;
 }
 
 export function getUnresolvedRequirements(

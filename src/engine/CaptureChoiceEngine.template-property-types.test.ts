@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, TFolder } from "obsidian";
 import { TFile as ObsidianTFile, TFolder as ObsidianTFolder } from "obsidian";
@@ -261,6 +262,7 @@ describe("CaptureChoiceEngine template property types", () => {
 		};
 
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>([
 				["tags", ["foo", "bar"]],
@@ -363,6 +365,7 @@ describe("CaptureChoiceEngine template property types", () => {
 		};
 
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -446,6 +449,7 @@ describe("CaptureChoiceEngine template property types", () => {
 		} as unknown as ICaptureChoice;
 
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};
@@ -522,6 +526,7 @@ describe("CaptureChoiceEngine template property types", () => {
 		} as unknown as ICaptureChoice;
 
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>([["cast", ["[[A]]", "[[B]]"]]]),
 		};

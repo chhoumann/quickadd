@@ -11,19 +11,6 @@ import { isCancellationError } from "src/utils/errorUtils";
 import { UserCancelError } from "src/errors/UserCancelError";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 
-export {
-	shouldRunTemplateNoteDiscovery,
-	usesDefaultTemplateTitlePrompt,
-} from "src/utils/templateNoteDiscoveryEligibility";
-
-export {
-	buildDiscoveryCandidates,
-	decodeTemplateNoteSelection,
-	selectionForDiscoveryCandidate,
-	resolveTemplateNoteSelection,
-	testExports,
-} from "src/utils/templateNoteDiscovery";
-export type { DiscoveryCandidate, TemplateNoteDiscoveryResult, TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import {
 	buildDiscoveryCandidates,
 	decodeTemplateNoteSelection,
@@ -66,10 +53,6 @@ export async function promptForTemplateNoteDiscovery(
 	try {
 		const selected = String(
 			await routePrompt(executor, {
-				// This picker is the one the one-page preflight deliberately does NOT
-				// pre-collect (it filters the `value` requirement out for discovery), so
-				// before this an interactive run collected nothing and walked straight
-				// into a desktop list of every note in the vault (#1614).
 				remote: (provider) =>
 					promptEngineChoice(provider, {
 						items: candidates.map((candidate) => ({

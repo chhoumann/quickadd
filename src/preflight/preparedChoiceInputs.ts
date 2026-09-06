@@ -7,29 +7,22 @@ export interface PreparedChoiceInputs {
 	discovery: TemplateNoteSelection | null;
 }
 
-interface PreparedInputState {
+export interface PreparedChoiceInputState {
 	pending: Map<string, PreparedChoiceInputs>;
 	active: PreparedChoiceInputs | null;
 	discoveryMacros: Set<string>;
 }
 
-const states = new WeakMap<IChoiceExecutor, PreparedInputState>();
-
-function stateFor(executor: IChoiceExecutor): PreparedInputState {
-	let state = states.get(executor);
-	if (!state) {
-		state = { pending: new Map(), active: null, discoveryMacros: new Set() };
-		states.set(executor, state);
-	}
-	return state;
+export function createPreparedChoiceInputState(): PreparedChoiceInputState {
+	return { pending: new Map(), active: null, discoveryMacros: new Set() };
 }
 
 export function markDiscoveryMacro(executor: IChoiceExecutor, macroId: string): void {
-	stateFor(executor).discoveryMacros.add(macroId);
+	executor.preparedInputs.discoveryMacros.add(macroId);
 }
 
 export function isDiscoveryMacro(executor: IChoiceExecutor, macroId: string): boolean {
-	return states.get(executor)?.discoveryMacros.has(macroId) ?? false;
+	return executor.preparedInputs.discoveryMacros.has(macroId);
 }
 
 export function setPreparedChoiceInputs(
@@ -37,27 +30,28 @@ export function setPreparedChoiceInputs(
 	occurrenceId: string,
 	inputs: PreparedChoiceInputs,
 ): void {
-	const state = stateFor(executor);
-	state.pending.set(occurrenceId, inputs);
+	executor.preparedInputs.pending.set(occurrenceId, inputs);
 }
 
 export function hasActivePreparedChoiceInputs(
 	executor: IChoiceExecutor,
 	choiceId: string,
 ): boolean {
-	return states.get(executor)?.active?.choiceId === choiceId;
+	return executor.preparedInputs.active?.choiceId === choiceId;
 }
 
 export function getPreparedTemplateNoteSelection(
 	executor: IChoiceExecutor,
 	choiceId: string,
 ): TemplateNoteSelection | null {
-	const active = states.get(executor)?.active;
+	const active = executor.preparedInputs.active;
 	return active?.choiceId === choiceId ? active.discovery : null;
 }
 
 export function clearPreparedChoiceInputs(executor: IChoiceExecutor): void {
-	states.delete(executor);
+	executor.preparedInputs.pending.clear();
+	executor.preparedInputs.discoveryMacros.clear();
+	executor.preparedInputs.active = null;
 }
 
 export async function withPreparedChoiceInputs<T>(
@@ -65,9 +59,9 @@ export async function withPreparedChoiceInputs<T>(
 	occurrenceId: string,
 	callback: () => Promise<T>,
 ): Promise<T> {
-	const state = states.get(executor);
-	const inputs = state?.pending.get(occurrenceId);
-	if (!state || !inputs) return callback();
+	const state = executor.preparedInputs;
+	const inputs = state.pending.get(occurrenceId);
+	if (!inputs) return callback();
 	state.pending.delete(occurrenceId);
 	const previousActive = state.active;
 	state.active = inputs;

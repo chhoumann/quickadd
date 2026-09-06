@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import type QuickAdd from "../main";
@@ -141,6 +142,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		variables = new Map<string, unknown>();
 
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 		};
@@ -418,6 +420,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		logs = [];
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 		};
@@ -706,6 +709,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 		} as unknown as QuickAdd & { getChoiceById: ReturnType<typeof vi.fn> };
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 			signalAbort: vi.fn(),
@@ -817,6 +821,7 @@ describe("MacroChoiceEngine malformed saved command entries", () => {
 		executeCommandById.mockReset();
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables,
 		};

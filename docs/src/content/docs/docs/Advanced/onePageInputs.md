@@ -45,9 +45,14 @@ dropdown that overrides the global setting for that one choice:
 - **Always** - force the one-page form for this choice even when it is off globally.
 - **Never** - use step-by-step prompts for this choice even when it is on globally.
 
+### Macro overrides
+
 A Macro's override also applies to its steps, including steps that ask for inputs
 later. A step's explicit **Always** or **Never** takes precedence over its Macro.
 Nested Macros inherit the enclosing Macro's override unless they have their own.
+
+### Choose or create a note
+
 When a Template searches existing notes before creating, the one-page form includes
 its note picker alongside the Macro's Capture fields. Choose an existing note or
 create a new one. Template fields appear only when creating; switching between

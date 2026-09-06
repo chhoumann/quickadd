@@ -1,3 +1,4 @@
+import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
 import * as obsidian from "obsidian";
@@ -324,13 +325,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				// back. `type` is all the old guards ever checked, so the casts are
 				// exactly as strict as what they replaced.
 				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
-					? classifyStep(command, (id) => {
-						try {
-							return this.plugin.getChoiceById(id);
-						} catch {
-							return null;
-						}
-					})
+					? classifyStep(command, (id) => resolveChoiceFromPlugin(this.plugin, id))
 					: null;
 				const resumeInputs = role?.collect.kind === "scanChoice" &&
 					isDiscoveryInputBoundary(role.collect.choice, this.choiceExecutor.variables.get("value"));
@@ -379,7 +374,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 					}
 				});
 				if (resumeInputs) {
-					await this.choiceExecutor.prepareMacroInputs?.(this.choice, commands.slice(index + 1));
+					await this.choiceExecutor.prepareMacroInputs(this.choice, commands.slice(index + 1));
 				}
 			}
 		} catch (error) {

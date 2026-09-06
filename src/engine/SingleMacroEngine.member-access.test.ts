@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type { App } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -130,6 +131,7 @@ describe("SingleMacroEngine member access", () => {
 		mockInitializeUserScriptSettings.mockReset();
 
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>([["existing", "value"]]),
 		};

@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Notice } from "obsidian";
 
@@ -111,6 +112,7 @@ describe("ChoiceSuggester", () => {
 		plugin = { app } as unknown as QuickAdd;
 		executed = [];
 		executor = {
+			...createChoiceExecutor(),
 			execute: (c: IChoice) => {
 				executed.push(c);
 				return Promise.resolve();

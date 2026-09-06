@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CliData, CliFlags } from "obsidian";
 import { TFile } from "obsidian";
@@ -91,6 +92,7 @@ describe("registerQuickAddCliHandlers (cli-uri audit: cli-run-choice honesty)", 
 
 		ChoiceExecutorMock.mockImplementation(function ChoiceExecutorMock() {
 			const executor: IChoiceExecutor = {
+				...createChoiceExecutor(),
 				execute: vi.fn().mockResolvedValue(undefined),
 				executeWithOutcome: vi.fn().mockResolvedValue({
 					status: "success",

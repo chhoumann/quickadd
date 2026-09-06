@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import {
@@ -119,6 +120,7 @@ const createChoice = (): ICaptureChoice => ({
 });
 
 const createExecutor = (): IChoiceExecutor => ({
+	...createChoiceExecutor(),
 	execute: vi.fn(),
 	variables: new Map<string, unknown>(),
 });

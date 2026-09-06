@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { QuickAddApi } from "./quickAddApi";
@@ -34,6 +35,7 @@ describe("QuickAddApi.executeChoice", () => {
 	beforeEach(() => {
 		variables = new Map<string, unknown>();
 		choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn().mockResolvedValue(undefined),
 			variables,
 			consumeAbortSignal: vi.fn().mockReturnValue(null),

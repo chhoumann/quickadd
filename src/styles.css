@@ -2545,3 +2545,7 @@ textarea.is-valid {
 	width: 100%;
 	min-width: 0;
 }
+
+.quickAddModal [hidden] {
+	display: none !important;
+}

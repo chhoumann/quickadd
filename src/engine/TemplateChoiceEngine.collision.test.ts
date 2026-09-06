@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../quickAddSettingsTab", () => {
@@ -226,6 +227,7 @@ const createEngine = () => {
 	} as unknown as App;
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 		signalAbort: vi.fn(),

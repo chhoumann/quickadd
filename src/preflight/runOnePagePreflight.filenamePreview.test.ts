@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
@@ -116,6 +117,7 @@ const createChoice = (
 	}) as unknown as ITemplateChoice;
 
 const createExecutor = (): IChoiceExecutor => ({
+	...createChoiceExecutor(),
 	execute: vi.fn(),
 	variables: new Map<string, unknown>(),
 });

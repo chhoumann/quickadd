@@ -1,7 +1,8 @@
-import { Notice, prepareFuzzySearch, type App } from "obsidian";
+import { Notice, prepareFuzzySearch, type App, type Scope } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import {
 	buildDiscoveryCandidates,
+	normalizedKey,
 	selectionForDiscoveryCandidate,
 	type TemplateNoteSelection,
 } from "src/utils/templateNoteDiscovery";
@@ -23,9 +24,10 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 		input: HTMLInputElement,
 		choice: ITemplateChoice,
 		private readonly onSelect: (selection: TemplateNoteSelection) => void,
+		parentScope?: Scope,
 	) {
-		super(obsidianApp, input);
 		const { candidates, existingKeys } = buildDiscoveryCandidates(obsidianApp, choice);
+		super(obsidianApp, input, parentScope);
 		this.existingKeys = existingKeys;
 		this.options = candidates.map((candidate) => ({
 			item: candidate.item,
@@ -47,9 +49,18 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 			.map(({ option }) => option);
 		const key = text.replace(/\.md$/i, "").toLowerCase();
 		if (!this.existingKeys.has(key) && !this.options.some((option) => option.search.toLowerCase() === key)) {
-			matches.push({ item: text, label: `Create new note: ${text}`, detail: "", search: text });
+			matches.unshift({ item: text, label: `Create new note: ${text}`, detail: "", search: text });
 		}
 		return matches;
+	}
+
+	resolveInput(text: string): TemplateNoteSelection {
+		const key = normalizedKey(text);
+		const exact = this.options.find((option) =>
+			normalizedKey(option.label) === key ||
+			(this.existingKeys.has(key) && normalizedKey(option.detail) === key),
+		);
+		return selectionForDiscoveryCandidate(this.obsidianApp, exact?.item ?? text);
 	}
 
 	renderSuggestion(option: NoteOption, el: HTMLElement): void {

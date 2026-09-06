@@ -38,7 +38,7 @@ export function isDiscoveryInputBoundary(choice: IChoice, seededValue: unknown):
 	return choice.onePageInput === "never" && isTemplateChoice(choice) &&
 		shouldRunTemplateNoteDiscovery(
 			choice,
-			choice.fileNameFormat?.enabled ? choice.fileNameFormat.format : VALUE_SYNTAX,
+			choice.fileNameFormat.enabled ? choice.fileNameFormat.format : VALUE_SYNTAX,
 			seededValue,
 		);
 }

@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import type { IChoiceExecutor } from "src/IChoiceExecutor";
+import { createChoiceExecutor as executor } from "../../tests/helpers/createChoiceExecutor";
+import { describe, expect, it } from "vitest";
 import {
 	clearPreparedChoiceInputs,
 	getPreparedTemplateNoteSelection,
@@ -10,11 +10,26 @@ import {
 	withPreparedChoiceInputs,
 } from "./preparedChoiceInputs";
 
-function executor(): IChoiceExecutor {
-	return { variables: new Map(), execute: vi.fn() };
-}
-
 describe("prepared choice inputs", () => {
+	it("isolates inputs for identical occurrence IDs on separate executors", async () => {
+		const first = executor();
+		const second = executor();
+		for (const [run, title] of [[first, "First note"], [second, "Second note"]] as const) {
+			setPreparedChoiceInputs(run, "step", {
+				choiceId: "template",
+				values: new Map(),
+				discovery: { kind: "create", title },
+			});
+		}
+		await withPreparedChoiceInputs(first, "step", async () => {
+			await withPreparedChoiceInputs(second, "step", async () => {
+				expect(getPreparedTemplateNoteSelection(second, "template"))
+					.toEqual({ kind: "create", title: "Second note" });
+			});
+			expect(getPreparedTemplateNoteSelection(first, "template"))
+				.toEqual({ kind: "create", title: "First note" });
+		});
+	});
 	it("keeps repeated Capture answers separate and applies them only during their step", async () => {
 		const run = executor();
 		for (const [id, value] of [["first", "First capture"], ["second", "Second capture"]]) {

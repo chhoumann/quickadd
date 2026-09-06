@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../quickAddSettingsTab", () => {
@@ -208,6 +209,7 @@ const createEngine = (abortError: Error) => {
 
 	const plugin = { settings: settingsStore.getState() } as any;
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		execute: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
@@ -322,6 +324,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 
 		const plugin = { settings: settingsStore.getState() } as any;
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
 		};
@@ -384,6 +387,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 			},
 		} as any;
 		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn(),
 			recordExecutionResult: vi.fn(),
 			variables: new Map<string, unknown>(),

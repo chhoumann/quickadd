@@ -31,15 +31,18 @@ import type { RunClocks } from "./types/dateOrigin";
 import { normalizeDateOrigin } from "./types/dateOrigin";
 import { dateOriginForPick } from "./types/dateOriginPresets";
 import { childChoicesOf } from "./utils/choiceUtils";
-import { QA_INTERNAL_DATE_ORIGIN } from "./constants";
+import { QA_INTERNAL_DATE_ORIGIN, VALUE_SYNTAX } from "./constants";
 import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
 import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
 import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
-import { withPreparedChoiceInputs, clearPreparedChoiceInputs, getPreparedTemplateNoteSelection } from "./preflight/preparedChoiceInputs";
+import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState, getPreparedTemplateNoteSelection } from "./preflight/preparedChoiceInputs";
+import { isTemplateChoice } from "./preflight/macroCommandRole";
+import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, unknown>();
+	public readonly preparedInputs = createPreparedChoiceInputState();
 	// Default to interactive so every GUI entry point (command palette, ribbon,
 	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
 	// without `ui`) flip this to false so engine prompts abort instead of hanging.
@@ -144,7 +147,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
-				if (getPreparedTemplateNoteSelection(this, choice.id)?.kind !== "existing") await this.applyDateOrigin(choice);
+				await this.applyDateOrigin(choice);
 
 				switch (choice.type) {
 					case "Template": {
@@ -231,7 +234,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
-				if (getPreparedTemplateNoteSelection(this, choice.id)?.kind !== "existing") await this.applyDateOrigin(choice);
+				await this.applyDateOrigin(choice);
 
 				if (choice.type === "Template") {
 					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf);
@@ -279,6 +282,18 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	}
 
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
+		if (
+			isTemplateChoice(choice) &&
+			getPreparedTemplateNoteSelection(this, choice.id)?.kind === "existing" &&
+			shouldRunTemplateNoteDiscovery(
+				choice,
+				choice.fileNameFormat.enabled ? choice.fileNameFormat.format : VALUE_SYNTAX,
+				this.variables.get("value"),
+			)
+		) {
+			// Opening an existing note must not prompt for hidden creation inputs.
+			return;
+		}
 		const setting = this.pickDate
 			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
 			: normalizeDateOrigin(choice.dateOrigin);

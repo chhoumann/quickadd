@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
@@ -55,7 +56,7 @@ describe("discovery form planning", () => {
 		capture = new CaptureChoice("Capture");
 		capture.captureTo = "Inbox.md";
 		capture.format = { enabled: true, format: "{{VALUE}} {{VALUE:shared}}" };
-		executor = { execute: vi.fn(), variables: new Map() };
+		executor = { ...createChoiceExecutor(), execute: vi.fn(), variables: new Map() };
 		selectedText = "";
 	});
 

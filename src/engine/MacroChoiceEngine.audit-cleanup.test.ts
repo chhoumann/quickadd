@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // Finding: ai-assistant-disable-online-features — the AI Assistant guard in
@@ -75,6 +76,7 @@ function createEngine(commands: ICommand[]) {
 	} as unknown as never;
 
 	const choiceExecutor: IChoiceExecutor = {
+		...createChoiceExecutor(),
 		variables: new Map<string, unknown>(),
 		execute: vi.fn(),
 		signalAbort: vi.fn(),

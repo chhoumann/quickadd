@@ -46,7 +46,7 @@ import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
 import { decodeFileValue } from "src/utils/fileSyntax";
 import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInputSuggest";
-import type { TemplateNoteSelection } from "src/engine/templateNoteDiscovery";
+import { selectionForDiscoveryCandidate, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import type { DiscoveryFormConfig, DiscoveryNoteField } from "./discoveryFormPlan";
 
 type CompletionInputEvent = Event & {
@@ -122,7 +122,11 @@ export class OnePageInputModal extends Modal {
 	public readonly discoverySelections = new Map<string, TemplateNoteSelection>();
 	private readonly discoverySuggesters: NoteDiscoveryInputSuggest[] = [];
 	private readonly fieldElements = new Map<string, HTMLElement[]>();
-	private readonly discoveryInputs = new Map<string, HTMLInputElement>();
+	private readonly discoveryInputs = new Map<string, {
+		input: HTMLInputElement;
+		select: (selection: TemplateNoteSelection) => void;
+		resolve: () => TemplateNoteSelection;
+	}>();
 	// Date fields whose current (non-blank) text failed to parse.
 	private readonly dateParseErrors = new Set<string>();
 	private readonly computePreview?: PreviewComputer;
@@ -216,7 +220,7 @@ export class OnePageInputModal extends Modal {
 
 		if (hasMultipleGroups(this.requirements)) {
 			for (const run of groupRequirements(this.requirements)) {
-				if (run.group && !(run.fields.length === 1 && run.fields[0].label === run.group.label)) {
+				if (run.group && !(this.discoveryForm && run.fields.length === 1 && run.fields[0].label === run.group.label)) {
 					this.contentEl.createEl("h3", {
 						text: run.group.label,
 						cls: "qa-onepage-section",
@@ -263,7 +267,7 @@ export class OnePageInputModal extends Modal {
 		// immediately, matching the single-field prompts.
 		const firstField = Array.from(this.contentEl.querySelectorAll<HTMLElement>(
 			"input, textarea, select",
-		)).find((element) => !element.closest('[style*="display: none"]'));
+		)).find((element) => !element.closest("[hidden]"));
 		firstField?.focus();
 
 		// Mod+Enter submits without reaching for the mouse. Guarded because the
@@ -307,7 +311,7 @@ export class OnePageInputModal extends Modal {
 
 	private updateFieldVisibility(updatePreview = true): void {
 		for (const [id, elements] of this.fieldElements) {
-			for (const element of elements) element.style.display = this.isFieldVisible(id) ? "" : "none";
+			for (const element of elements) element.hidden = !this.isFieldVisible(id);
 		}
 		if (updatePreview) this.updatePreviewDebounced();
 	}
@@ -321,8 +325,9 @@ export class OnePageInputModal extends Modal {
 		const input = new TextComponent(container).setPlaceholder("Search notes or create new note");
 		input.inputEl.addClass("qa-onepage-file-picker__input");
 		input.inputEl.setAttribute("aria-label", `Note for ${note.choice.name}`);
-		this.discoveryInputs.set(note.id, input.inputEl);
+		let suggester: NoteDiscoveryInputSuggest | undefined;
 		const showSelection = (selection: TemplateNoteSelection) => {
+			suggester?.close();
 			this.discoverySelections.set(note.id, selection);
 			selected.empty();
 			const label = selection.kind === "existing" ? selection.path.replace(/\.md$/i, "") : `Create: ${selection.title}`;
@@ -334,15 +339,27 @@ export class OnePageInputModal extends Modal {
 			change.addEventListener("click", () => {
 				this.discoverySelections.delete(note.id);
 				selected.empty();
-				input.inputEl.style.display = "";
+				input.inputEl.hidden = false;
 				this.updateFieldVisibility();
 				input.inputEl.focus();
 			});
-			input.inputEl.style.display = "none";
+			input.inputEl.hidden = true;
 			this.updateFieldVisibility();
 			change.focus();
 		};
-		this.discoverySuggesters.push(new NoteDiscoveryInputSuggest(this.app, input.inputEl, note.choice, showSelection));
+		try {
+			suggester = new NoteDiscoveryInputSuggest(this.app, input.inputEl, note.choice, showSelection, this.scope);
+			this.discoverySuggesters.push(suggester);
+		} catch {
+			new Notice("Note search is unavailable. Type a new note title.");
+		}
+		this.discoveryInputs.set(note.id, {
+			input: input.inputEl,
+			select: showSelection,
+			resolve: () => suggester
+				? suggester.resolveInput(input.inputEl.value)
+				: selectionForDiscoveryCandidate(this.app, input.inputEl.value),
+		});
 	}
 
 	private renderFieldControl(req: FieldRequirement) {
@@ -991,10 +1008,28 @@ export class OnePageInputModal extends Modal {
 
 	private submit() {
 		if (this.settled) return;
-		const missingNote = this.discoveryForm?.notes.find((note) => !this.discoverySelections.has(note.id));
-		if (missingNote) {
-			new Notice("Choose an existing note or select Create new note.");
-			this.discoveryInputs.get(missingNote.id)?.focus();
+		const previouslyHidden = this.requirements.filter((req) => !this.isFieldVisible(req.id));
+		for (const note of this.discoveryForm?.notes ?? []) {
+			if (this.discoverySelections.has(note.id)) continue;
+			const field = this.discoveryInputs.get(note.id);
+			if (!field) continue;
+			if (!field.input.value.trim()) {
+				new Notice("Enter a note title or choose an existing note.");
+				field.input.focus();
+				return;
+			}
+			try {
+				field.select(field.resolve());
+			} catch (error) {
+				new Notice(error instanceof Error ? error.message : "Could not select this note.");
+				field.input.focus();
+				return;
+			}
+		}
+		const revealed = previouslyHidden.find((req) => this.isFieldVisible(req.id) &&
+			!req.optional && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
+		if (revealed) {
+			this.fieldElements.get(revealed.id)?.[0]?.querySelector<HTMLElement>("input, textarea, select")?.focus();
 			return;
 		}
 		// A pasted image may still be saving in one of the fields; defer so

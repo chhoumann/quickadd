@@ -12,11 +12,9 @@ import {
 	resolveCreateNewCollisionFilePath,
 	type FileExistsModeId,
 } from "../template/fileExistsPolicy";
-import {
-	promptForTemplateNoteDiscovery,
-	resolveTemplateNoteSelection,
-	shouldRunTemplateNoteDiscovery,
-} from "./templateNoteDiscovery";
+import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
+import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";

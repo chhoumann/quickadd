@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateInclusionState } from "./formatter";
 import type { FieldValueProcessor as FieldValueProcessorType } from "../utils/FieldValueProcessor";
@@ -997,6 +998,7 @@ describe("CompleteFormatter - non-interactive guard (CLI without ui)", () => {
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
 		const plugin = makePlugin({});
 		return new CompleteFormatter(app as any, plugin as any, {
+			...createChoiceExecutor(),
 			variables: new Map<string, unknown>(),
 			interactive: false,
 			execute: vi.fn(),
@@ -1025,6 +1027,7 @@ describe("CompleteFormatter - non-interactive guard (CLI without ui)", () => {
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
 		const plugin = makePlugin({});
 		const f = new CompleteFormatter(app as any, plugin as any, {
+			...createChoiceExecutor(),
 			variables: new Map<string, unknown>([["value", "Given"]]),
 			interactive: false,
 			execute: vi.fn(),
@@ -1761,6 +1764,7 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
 		const plugin = makePlugin({});
 		return new CompleteFormatter(app as any, plugin as any, {
+			...createChoiceExecutor(),
 			variables,
 			interactive: true,
 			promptProvider: provider,

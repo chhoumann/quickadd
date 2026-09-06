@@ -1,3 +1,4 @@
+import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import {
@@ -29,6 +30,7 @@ describe("QuickAddApi.ai request logs", () => {
 		clearAIRequestLogEntries();
 
 		const choiceExecutor = {
+			...createChoiceExecutor(),
 			execute: vi.fn().mockResolvedValue(undefined),
 			variables: new Map<string, unknown>(),
 		} as unknown as IChoiceExecutor;
