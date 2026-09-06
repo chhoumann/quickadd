@@ -5,7 +5,8 @@
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
     import { flip } from "svelte/animate";
-    import { baseDndOptions, capturePlaceholderRecovery, type PlaceholderRecovery, stripShadow } from "../shared/dndReorder";
+    import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, stripShadow } from "../shared/dndReorder";
+    import { refocusDragHandle } from "../shared/refocusDragHandle";
     import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
     import { isChoiceLike, rootChoicesOf } from "../../utils/choiceUtils";
@@ -93,6 +94,7 @@
     // filtering.
     const drag = createDragArming();
     const dragDisabled = $derived(forceDragDisabled || (!isMobile && !drag.armed));
+    let listEl: HTMLDivElement | undefined = $state();
 
     // The dragged choice, reconstructed from the last placeholder-id shadow that
     // stripShadow discarded (see capturePlaceholderRecovery: stripping it leaves
@@ -170,25 +172,24 @@
         if (forceDragDisabled) return; // never persist a filtered/derived list
         // `renderable`, not `choices`: stripShadow reads `item.id`, so the raw
         // list would throw on the very hole the render filter exists to hide.
+        const label = document.activeElement?.getAttribute("aria-label");
         const list = stripShadow(renderable);
-        const index = list.findIndex((c) => c.id === choice.id);
-        if (index === -1) return;
-        const target = index + direction;
-        if (target < 0 || target >= list.length) return; // clamp at the ends
-        const next = [...list];
-        const [moved] = next.splice(index, 1);
-        next.splice(target, 0, moved);
+        const next = moveById(list, choice.id, direction);
+        if (!next) return;
+        const target = next.findIndex((c) => c.id === choice.id);
         choices = next;
         actions.onReorderChoices(choices);
         // autoAriaDisabled silences the library's own move alerts, so announce the
         // keyboard reorder ourselves (cross-zone moves stay mouse-only).
         alertToScreenReader(
-            `Moved ${choice.name} to position ${target + 1} of ${list.length}`,
+            `Moved ${choice.name} to position ${target + 1} of ${next.length}`,
         );
+        if (label) void refocusDragHandle(listEl, label);
     }
 </script>
 
 <div
+        bind:this={listEl}
         use:dndzone={baseDndOptions({items: renderable, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
         onconsider={handleConsider}
         onfinalize={handleSort}

@@ -61,6 +61,25 @@ export function replaceById<T extends Reorderable>(
 }
 
 /**
+ * Move the item with `id` by `delta` positions. Returns null when the id is
+ * unknown or the move would leave the list.
+ */
+export function moveById<T extends Reorderable>(
+	items: readonly T[],
+	id: string,
+	delta: number,
+): T[] | null {
+	const index = items.findIndex((item) => item.id === id);
+	if (index === -1) return null;
+	const target = index + delta;
+	if (target < 0 || target >= items.length || target === index) return null;
+	const next = [...items];
+	const [moved] = next.splice(index, 1);
+	next.splice(target, 0, moved);
+	return next;
+}
+
+/**
  * Shared svelte-dnd-action options for QuickAdd's two drag zones (choices view + macro
  * builder). These options are COUPLED and must move together (see dragPill.ts):
  *  - morphDisabled:true  <-> the custom pill (else the lib re-inflates the clone to

@@ -37,7 +37,7 @@ import {
 	failureReason,
 } from "./choiceOutcomeRecorder";
 import {
-	filterFolderPathsWithinRoots,
+	orderFolderPathsByConfiguredRoots,
 	sortFolderPathsByTree,
 } from "../utils/folder-sorting";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
@@ -724,7 +724,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				getAllFolderPathsInVault(this.app),
 			);
 
-			const subfolders = filterFolderPathsWithinRoots(
+			// Walk configured roots in list order; tree-sort only within each root
+			// so FolderList reorder still ranks which root's subtree appears first.
+			const subfolders = orderFolderPathsByConfiguredRoots(
 				allFoldersInVault,
 				folders,
 			);

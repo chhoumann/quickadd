@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-import { baseDndOptions, replaceById, stripShadow } from "./dndReorder";
+import { baseDndOptions, moveById, replaceById, stripShadow } from "./dndReorder";
 
 const item = (id: string, extra: Record<string, unknown> = {}) => ({ id, ...extra });
 
@@ -56,6 +56,39 @@ describe("replaceById", () => {
 		const input = [item("a"), item("b")];
 		const out = replaceById(input, item("z", { v: 1 }));
 		expect(out.map((i) => i.id)).toEqual(["a", "b"]);
+	});
+});
+
+describe("moveById", () => {
+	it("moves the item one step down", () => {
+		const a = item("a");
+		const b = item("b");
+		const c = item("c");
+		expect(moveById([a, b, c], "a", 1)?.map((i) => i.id)).toEqual(["b", "a", "c"]);
+	});
+
+	it("moves the item one step up", () => {
+		const a = item("a");
+		const b = item("b");
+		const c = item("c");
+		expect(moveById([a, b, c], "c", -1)?.map((i) => i.id)).toEqual(["a", "c", "b"]);
+	});
+
+	it("returns null when the move would leave the list", () => {
+		const input = [item("a"), item("b")];
+		expect(moveById(input, "a", -1)).toBeNull();
+		expect(moveById(input, "b", 1)).toBeNull();
+	});
+
+	it("returns null for an unknown id", () => {
+		expect(moveById([item("a"), item("b")], "z", 1)).toBeNull();
+	});
+
+	it("returns a NEW array without mutating the input", () => {
+		const input = [item("a"), item("b")];
+		const out = moveById(input, "a", 1);
+		expect(out).not.toBe(input);
+		expect(input.map((i) => i.id)).toEqual(["a", "b"]);
 	});
 });
 

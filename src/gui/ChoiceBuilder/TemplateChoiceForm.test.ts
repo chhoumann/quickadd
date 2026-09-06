@@ -226,6 +226,21 @@ describe("TemplateChoiceForm", () => {
 		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
 	});
 
+	it("writes FolderList onChange onto the choice.folder.folders proxy", async () => {
+		const { getByLabelText, props } = mountForm();
+		props.choice.folder.enabled = true;
+		props.choice.folder.folders = ["Notes", "Daily"];
+		flushSync();
+
+		await fireEvent.keyDown(getByLabelText("Reorder Notes"), { key: "ArrowDown" });
+		flushSync();
+		expect(props.choice.folder.folders).toEqual(["Daily", "Notes"]);
+
+		await fireEvent.click(getByLabelText("Remove folder Daily"));
+		flushSync();
+		expect(props.choice.folder.folders).toEqual(["Notes"]);
+	});
+
 	it("warns when 'specific folder' mode has no folders configured", () => {
 		const { container, props } = mountForm();
 		props.choice.folder.enabled = true; // -> specified mode, empty list

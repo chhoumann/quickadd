@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-	filterFolderPathsWithinRoots,
 	isFolderPathWithinRoot,
+	orderFolderPathsByConfiguredRoots,
 	sortFolderPathsByTree,
 } from "./folder-sorting";
 
@@ -75,13 +75,31 @@ describe("isFolderPathWithinRoot", () => {
 	});
 });
 
-describe("filterFolderPathsWithinRoots", () => {
-	it("keeps only roots and descendants without leaking sibling prefixes", () => {
+describe("orderFolderPathsByConfiguredRoots", () => {
+	it("emits each root's subtree in configured-root order", () => {
+		const treeSorted = [
+			"A",
+			"A/B1",
+			"A/B2",
+			"B",
+			"B/C1",
+			"B/C2",
+			"C",
+		];
+		expect(orderFolderPathsByConfiguredRoots(treeSorted, ["B", "A"])).toEqual([
+			"B",
+			"B/C1",
+			"B/C2",
+			"A",
+			"A/B1",
+			"A/B2",
+		]);
+	});
+
+	it("skips paths already emitted when roots overlap", () => {
+		const treeSorted = ["A", "A/B1", "A/B1/C1", "A/B2"];
 		expect(
-			filterFolderPathsWithinRoots(
-				["A", "A/B1", "A/B1/C1", "A2", "A2/B1", "B/B1"],
-				["A"],
-			),
-		).toEqual(["A", "A/B1", "A/B1/C1"]);
+			orderFolderPathsByConfiguredRoots(treeSorted, ["A/B1", "A"]),
+		).toEqual(["A/B1", "A/B1/C1", "A", "A/B2"]);
 	});
 });

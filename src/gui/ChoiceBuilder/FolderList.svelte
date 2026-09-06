@@ -1,40 +1,140 @@
 <script lang="ts">
-    import IconButton from "../components/IconButton.svelte";
-    import type { FolderListProps } from "./folderListProps.svelte";
+	import { Platform } from "obsidian";
+	import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+	import {
+		baseDndOptions,
+		capturePlaceholderRecovery,
+		moveById,
+		type PlaceholderRecovery,
+		type Reorderable,
+		stripShadow,
+	} from "../shared/dndReorder";
+	import { createDragArming } from "../shared/dragArming.svelte";
+	import { refocusDragHandle } from "../shared/refocusDragHandle";
+	import DragHandle from "../components/DragHandle.svelte";
+	import IconButton from "../components/IconButton.svelte";
 
-    let { folders, deleteFolder }: FolderListProps = $props();
+	/** Committed membership + order; `onChange` fires once per completed edit. */
+	interface FolderListProps {
+		folders: readonly string[];
+		onChange: (next: string[]) => void;
+	}
+
+	interface FolderDragItem extends Reorderable {
+		id: string;
+	}
+
+	let { folders, onChange }: FolderListProps = $props();
+
+	const zoneId = $props.id();
+	const zoneType = `folder:${zoneId}`;
+	const isMobile = Platform.isMobile;
+	const drag = createDragArming();
+	const dragDisabled = $derived(!isMobile && !drag.armed);
+
+	let listEl: HTMLOListElement | undefined = $state();
+
+	function toItems(paths: readonly string[]): FolderDragItem[] {
+		return paths.map((id) => ({ id }));
+	}
+
+	let preview = $state<FolderDragItem[] | null>(null);
+	const items = $derived(preview ?? toItems(folders));
+
+	let placeholderRecovery: PlaceholderRecovery<FolderDragItem> | null = null;
+
+	function handleConsider(e: CustomEvent<DndEvent<FolderDragItem>>) {
+		drag.markStarted();
+		const reported = e.detail.items;
+		placeholderRecovery =
+			capturePlaceholderRecovery(reported, e.detail.info.id) ?? placeholderRecovery;
+		preview = stripShadow(reported);
+	}
+
+	function handleFinalize(e: CustomEvent<DndEvent<FolderDragItem>>) {
+		let next = stripShadow(e.detail.items);
+		const draggedId = e.detail.info.id;
+		// Mirror CommandList / ChoiceList: recover the dragged row if finalize
+		// omitted it during the placeholder window. Do not also re-rank against
+		// the pre-drag list — that can silently cancel an intended move.
+		if (
+			placeholderRecovery?.item.id === draggedId &&
+			!next.some((item) => item.id === draggedId)
+		) {
+			next = [...next];
+			next.splice(
+				Math.min(placeholderRecovery.index, next.length),
+				0,
+				placeholderRecovery.item,
+			);
+		}
+		onChange(next.map((item) => item.id));
+		preview = null;
+		placeholderRecovery = null;
+		if (e.detail.info.source === SOURCES.POINTER) {
+			drag.reset();
+		}
+	}
+
+	function moveFolder(id: string, delta: -1 | 1) {
+		const label = document.activeElement?.getAttribute("aria-label");
+		const next = moveById(toItems(folders), id, delta);
+		if (!next) return;
+		onChange(next.map((item) => item.id));
+		const target = next.findIndex((item) => item.id === id);
+		alertToScreenReader(`Moved ${id} to position ${target + 1} of ${next.length}`);
+		if (label) void refocusDragHandle(listEl, label);
+	}
+
+	function removeFolder(path: string) {
+		onChange(folders.filter((folder) => folder !== path));
+	}
+
+	let startDrag = () => {
+		drag.startDrag();
+	};
 </script>
 
-<div class="quickAddFolderListGrid quickAddCommandList">
-    {#each folders as folder (folder)}
-        <div class="quickAddCommandListItem">
-            <span>{folder}</span>
-            <IconButton
-                iconId="trash-2"
-                label={`Remove folder ${folder}`}
-                onclick={() => deleteFolder(folder)}
-            />
-        </div>
-    {/each}
-</div>
+<ol
+	bind:this={listEl}
+	class="qa-folder-list"
+	use:dndzone={baseDndOptions({
+		items,
+		dragDisabled,
+		type: zoneType,
+		resolveLabel: (item) => item.id,
+	})}
+	onconsider={handleConsider}
+	onfinalize={handleFinalize}
+>
+	{#each stripShadow(items) as folder (folder.id)}
+		<li class="quickAddCommandListItem">
+			<span class="quickAddCommandLabel">{folder.id}</span>
+			<div class="quickAddCommandControls">
+				<IconButton
+					iconId="trash-2"
+					label={`Remove folder ${folder.id}`}
+					onclick={() => removeFolder(folder.id)}
+				/>
+				<DragHandle
+					label={`Reorder ${folder.id}`}
+					{dragDisabled}
+					onDragStart={startDrag}
+					onMoveUp={() => moveFolder(folder.id, -1)}
+					onMoveDown={() => moveFolder(folder.id, 1)}
+				/>
+			</div>
+		</li>
+	{/each}
+</ol>
 
 <style>
-.quickAddCommandListItem {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-@media (min-width: 768px) {
-     .quickAddFolderListGrid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        column-gap: 20px;
-    }
-}
-
-.quickAddCommandList {
-    max-width: 50%;
-    margin: 12px auto;
-}
+	.qa-folder-list {
+		display: grid;
+		grid-template-columns: auto;
+		width: auto;
+		margin: 12px 0;
+		padding: 0;
+		list-style: none;
+	}
 </style>

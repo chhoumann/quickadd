@@ -186,6 +186,36 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		]);
 	});
 
+	it("walks included subfolders in configured-root order", async () => {
+		const engine = createEngine(
+			createChoice({
+				folders: ["B", "A"],
+				chooseFromSubfolders: true,
+			}),
+			[
+				"A/B2",
+				"A",
+				"A/B1",
+				"B/C2",
+				"B",
+				"B/C1",
+				"C",
+			],
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+		expect(getSuggestedItems()).toEqual([
+			"B",
+			"B/C1",
+			"B/C2",
+			"A",
+			"A/B1",
+			"A/B2",
+		]);
+	});
+
 	it("keeps the current-folder suggestion before sorted vault folders", async () => {
 		const engine = createEngine(
 			createChoice({
