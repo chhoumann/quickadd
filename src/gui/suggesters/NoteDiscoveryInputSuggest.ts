@@ -1,7 +1,9 @@
 import { Notice, prepareFuzzySearch, type App, type Scope } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
 import {
 	buildDiscoveryCandidates,
+	createTemplateNoteSelection,
 	normalizedKey,
 	selectionForDiscoveryCandidate,
 	type TemplateNoteSelection,
@@ -30,10 +32,13 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 		const { candidates, existingKeys } = buildDiscoveryCandidates(obsidianApp, choice);
 		super(obsidianApp, input, parentScope);
 		this.existingKeys = existingKeys;
+		const action = existingNoteActionVerb(choice.existingNoteAction);
 		this.options = candidates.map((candidate) => ({
 			item: candidate.item,
 			exactKeys: candidate.exactKeys,
-			label: candidate.renderPath?.split("/").at(-1)?.replace(/\.md$/i, "") ?? candidate.unresolvedTitle ?? candidate.title,
+			label: candidate.renderPath
+				? `${action === "Open" ? "" : `${action}: `}${candidate.renderPath.split("/").at(-1)?.replace(/\.md$/i, "")}`
+				: candidate.unresolvedTitle ?? candidate.title,
 			detail: candidate.renderPath ?? "Unresolved link",
 			search: candidate.display,
 		}));
@@ -60,7 +65,7 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 	resolveInput(text: string): TemplateNoteSelection {
 		const key = normalizedKey(text);
 		const exact = this.options.find((option) => option.exactKeys.includes(key));
-		return selectionForDiscoveryCandidate(this.obsidianApp, exact?.item ?? text);
+		return exact ? selectionForDiscoveryCandidate(this.obsidianApp, exact.item) : createTemplateNoteSelection(text);
 	}
 
 	renderSuggestion(option: NoteOption, el: HTMLElement): void {
@@ -72,7 +77,9 @@ export class NoteDiscoveryInputSuggest extends TextInputSuggest<NoteOption> {
 
 	selectSuggestion(option: NoteOption): void {
 		try {
-			const selection = selectionForDiscoveryCandidate(this.obsidianApp, option.item);
+			const selection = this.options.includes(option)
+				? selectionForDiscoveryCandidate(this.obsidianApp, option.item)
+				: createTemplateNoteSelection(option.item);
 			this.inputEl.value = "";
 			this.close();
 			this.onSelect(selection);

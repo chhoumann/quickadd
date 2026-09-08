@@ -4,12 +4,13 @@ import { Choice } from "./Choice";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
-import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
+import type { TemplateExistingNoteAction, TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
 export class TemplateChoice extends Choice implements ITemplateChoice {
 	appendLink: boolean | AppendLinkOptions;
 	copyLinkToClipboard: boolean;
 	discoverExistingNotesBeforeCreate: boolean;
+	existingNoteAction?: TemplateExistingNoteAction;
 	fileNameFormat: { enabled: boolean; format: string };
 	folder: TemplateFolderConfig;
 	openFile: boolean;

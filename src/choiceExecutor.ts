@@ -284,6 +284,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
 		if (
 			isTemplateChoice(choice) &&
+			(choice.existingNoteAction ?? "open") === "open" &&
 			getPreparedTemplateNoteSelection(this, choice.id)?.kind === "existing" &&
 			shouldRunTemplateNoteDiscovery(
 				choice,

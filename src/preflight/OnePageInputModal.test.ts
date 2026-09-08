@@ -205,6 +205,7 @@ vi.mock("obsidian", () => {
 			settingEl.classList.add("setting-item");
 			this.infoEl = document.createElement("div");
 			this.nameEl = document.createElement("div");
+			this.nameEl.classList.add("setting-item-name");
 			this.descEl = document.createElement("div");
 			this.controlEl = document.createElement("div");
 			settingEl.appendChild(this.infoEl);
@@ -349,6 +350,7 @@ describe("OnePageInputModal", () => {
 		filePickerSuggesters.length = 0;
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
+		attachImagePasteHandlerMock.mockClear();
 	});
 
 	it("retains create-only drafts while changing notes and omits them when opening an existing note", async () => {
@@ -359,7 +361,8 @@ describe("OnePageInputModal", () => {
 		];
 		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
-			visibleWhenCreating: new Map([["owner", ["note"]]]),
+			fieldUsages: new Map(),
+			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
 		});
 		const owner = modal.contentEl.querySelectorAll<HTMLInputElement>("input")[1];
 		const ownerRow = owner.closest<HTMLElement>(".setting-item")!;
@@ -381,6 +384,61 @@ describe("OnePageInputModal", () => {
 		expect(modal.discoverySelections.get("note")).toEqual({ kind: "existing", path: "Atlas.md" });
 	});
 
+	it("updates optional input and image-paste behavior when choosing an existing note", async () => {
+		const choice = new TemplateChoice("Project");
+		choice.existingNoteAction = "appendBottom";
+		const requirements: FieldRequirement[] = [
+			{ id: "note", label: "Note", type: "text" },
+			{ id: "detail", label: "Detail", type: "text", pathContext: true },
+			{ id: "folder", label: "Folder", type: "text", pathContext: true },
+		];
+		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
+			notes: [{ id: "note", choice, group: { id: "project", label: "Project" } }],
+			visibleForNotes: new Map([
+				["detail", [{ noteId: "note", includeExisting: true }]],
+				["folder", [{ noteId: "note", includeExisting: false }]],
+			]),
+			fieldUsages: new Map([["detail", [{
+				kind: "note", noteId: "note",
+				create: { optional: false, pathContext: true },
+				existing: { optional: true, pathContext: false },
+			}]]]),
+		});
+		const [, detail, folder] = modal.contentEl.querySelectorAll("input");
+		const detailRow = detail.closest<HTMLElement>(".setting-item")!;
+		const folderRow = folder.closest<HTMLElement>(".setting-item")!;
+		noteSelections[0]({ kind: "create", title: "New project" });
+		expect(detailRow.hidden).toBe(false);
+		expect(folderRow.hidden).toBe(false);
+		expect(detailRow.querySelector(".qa-onepage-optional-badge")).toBeNull();
+		expect(attachImagePasteHandlerMock).not.toHaveBeenCalled();
+		detail.value = "Draft description";
+		detail.dispatchEvent(new Event("input"));
+		folder.value = "Archive";
+		folder.dispatchEvent(new Event("input"));
+
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		expect(detailRow.hidden).toBe(false);
+		expect(folderRow.hidden).toBe(true);
+		expect(detailRow.querySelector(".qa-onepage-optional-badge")).not.toBeNull();
+		expect(detailRow.querySelector("input")).toBe(detail);
+		expect(detail.value).toBe("Draft description");
+		expect(modal.contentEl.textContent).toContain("Append to: Atlas");
+		expect(attachImagePasteHandlerMock).toHaveBeenCalledTimes(1);
+		const pasteHandle = attachImagePasteHandlerMock.mock.results[0].value;
+
+		noteSelections[0]({ kind: "create", title: "New project" });
+		expect(pasteHandle.detach).toHaveBeenCalledTimes(1);
+		expect(detailRow.querySelector(".qa-onepage-optional-badge")).toBeNull();
+		expect(folder.value).toBe("Archive");
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		detail.value = "";
+		detail.dispatchEvent(new Event("input"));
+		Array.from(modal.contentEl.querySelectorAll("button"))
+			.find((button) => button.textContent === "Submit")!.click();
+		await expect(modal.waitForClose).resolves.toEqual({ detail: "" });
+	});
+
 	it("keeps a shared field visible when any create-note consumer needs it", () => {
 		const requirements: FieldRequirement[] = [
 			{ id: "first", label: "First", type: "text" },
@@ -389,7 +447,8 @@ describe("OnePageInputModal", () => {
 		];
 		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined, {
 			notes: ["first", "second"].map((id) => ({ id, choice: new TemplateChoice(id), group: { id, label: id } })),
-			visibleWhenCreating: new Map([["owner", ["first", "second"]]]),
+			fieldUsages: new Map(),
+			visibleForNotes: new Map([["owner", ["first", "second"].map((noteId) => ({ noteId, includeExisting: false }))]]),
 		});
 		void modal.waitForClose.catch(() => {});
 		const ownerRow = modal.contentEl.querySelectorAll("input")[2].closest<HTMLElement>(".setting-item")!;
@@ -404,7 +463,8 @@ describe("OnePageInputModal", () => {
 	it("accepts a pending new title on submit", async () => {
 		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
-			visibleWhenCreating: new Map(),
+			fieldUsages: new Map(),
+			visibleForNotes: new Map(),
 		});
 		modal.contentEl.querySelector("input")!.value = "Project At";
 		Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!.click();
@@ -418,7 +478,8 @@ describe("OnePageInputModal", () => {
 			{ id: "owner", label: "Owner", type: "text" },
 		], undefined, undefined, {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
-			visibleWhenCreating: new Map([["owner", ["note"]]]),
+			fieldUsages: new Map(),
+			visibleForNotes: new Map([["owner", [{ noteId: "note", includeExisting: false }]]]),
 		});
 		document.body.appendChild(modal.containerEl);
 		const [note, owner] = modal.contentEl.querySelectorAll("input");
@@ -442,7 +503,8 @@ describe("OnePageInputModal", () => {
 		noteSuggesterSetup.mockImplementation(() => { throw new Error("Metadata unavailable"); });
 		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
 			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
-			visibleWhenCreating: new Map(),
+			fieldUsages: new Map(),
+			visibleForNotes: new Map(),
 		});
 		const input = modal.contentEl.querySelector("input")!;
 		const submit = Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!;
@@ -461,7 +523,7 @@ describe("OnePageInputModal", () => {
 			{ id: "meeting", label: "Next meeting", type: "text", group: { id: "meeting", label: "Next meeting" } },
 		];
 		const modal = new OnePageInputModal({} as App, requirements, undefined, undefined,
-			discovery ? { notes: [], visibleWhenCreating: new Map() } : undefined);
+			discovery ? { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() } : undefined);
 		void modal.waitForClose.catch(() => {});
 		expect(modal.contentEl.querySelectorAll(".qa-onepage-section")).toHaveLength(discovery ? 0 : 2);
 		modal.onClose();

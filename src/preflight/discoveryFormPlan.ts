@@ -8,6 +8,7 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "src/constants";
 import type { TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+import { getExistingNoteAction } from "src/template/fileExistsPolicy";
 import { commandListOf, isCommandLike } from "src/utils/macroUtils";
 import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
 import { classifyStep, isCaptureChoice, isTemplateChoice } from "./macroCommandRole";
@@ -24,14 +25,59 @@ export interface DiscoveryNoteField {
 
 export interface DiscoveryFormConfig {
 	notes: DiscoveryNoteField[];
-	visibleWhenCreating: Map<string, string[]>;
+	visibleForNotes: Map<string, DiscoveryInputCondition[]>;
+	fieldUsages: Map<string, DiscoveryFieldUsage[]>;
+}
+
+type DiscoveryFieldMetadata = Pick<FieldRequirement, "optional" | "pathContext">;
+
+export type DiscoveryFieldUsage =
+	| { kind: "always"; metadata: DiscoveryFieldMetadata }
+	| {
+		kind: "note";
+		noteId: string;
+		create: DiscoveryFieldMetadata;
+		existing: DiscoveryFieldMetadata | null;
+	};
+
+export function resolveDiscoveryFieldMetadata(
+	usages: readonly DiscoveryFieldUsage[],
+	selections: ReadonlyMap<string, TemplateNoteSelection>,
+): Required<DiscoveryFieldMetadata> {
+	const active = usages.flatMap((usage) => {
+		if (usage.kind === "always") return [usage.metadata];
+		const selection = selections.get(usage.noteId);
+		if (selection?.kind === "create") return [usage.create];
+		return selection?.kind === "existing" && usage.existing ? [usage.existing] : [];
+	});
+	return {
+		optional: active.length > 0 && active.every((metadata) => metadata.optional),
+		pathContext: active.some((metadata) => metadata.pathContext),
+	};
+}
+
+function fieldMetadata(requirement: FieldRequirement): DiscoveryFieldMetadata {
+	return { optional: requirement.optional, pathContext: requirement.pathContext };
+}
+
+export interface DiscoveryInputCondition {
+	noteId: string;
+	includeExisting: boolean;
+}
+
+export function acceptsDiscoverySelection(
+	condition: DiscoveryInputCondition,
+	selections: ReadonlyMap<string, TemplateNoteSelection>,
+): boolean {
+	const selection = selections.get(condition.noteId);
+	return selection?.kind === "create" || (condition.includeExisting && selection?.kind === "existing");
 }
 
 interface DiscoveryFormStep {
 	occurrenceId: string;
 	choiceId: string;
 	noteId: string | null;
-	bindings: Map<string, string>;
+	bindings: Map<string, { variable: string; condition: DiscoveryInputCondition | null }>;
 }
 
 export interface DiscoveryFormPlan {
@@ -77,8 +123,8 @@ export async function buildDiscoveryFormPlan(
 	}
 
 	const requirements = new Map<string, FieldRequirement>();
-	const consumers = new Map<string, Array<string | null>>();
-	const config: DiscoveryFormConfig = { notes: [], visibleWhenCreating: new Map() };
+	const consumers = new Map<string, Array<DiscoveryInputCondition | null>>();
+	const config: DiscoveryFormConfig = { notes: [], visibleForNotes: new Map(), fieldUsages: new Map() };
 	const steps: DiscoveryFormStep[] = [];
 	if (isMacroChoice(choice)) {
 		const macroWithoutCommands: IMacroChoice = { ...choice, macro: { ...choice.macro, commands: [] } };
@@ -86,11 +132,12 @@ export async function buildDiscoveryFormPlan(
 			app, plugin, executor, macroWithoutCommands,
 		), executor.variables);
 		if (macroRequirements.length > 0) {
-			const bindings = new Map<string, string>();
+			const bindings: DiscoveryFormStep["bindings"] = new Map();
 			for (const requirement of macroRequirements) {
 				requirements.set(requirement.id, requirement);
-				bindings.set(requirement.id, requirement.id);
+				bindings.set(requirement.id, { variable: requirement.id, condition: null });
 				consumers.set(requirement.id, [null]);
+				config.fieldUsages.set(requirement.id, [{ kind: "always", metadata: fieldMetadata(requirement) }]);
 			}
 			steps.push({ occurrenceId: choice.id, choiceId: choice.id, noteId: null, bindings });
 		}
@@ -119,6 +166,17 @@ export async function buildDiscoveryFormPlan(
 			app, plugin, executor, collectable,
 			{ preloadedUserScripts: executor.preloadedUserScripts },
 		), executor.variables);
+		const existingNoteInputs = new Map<string, FieldRequirement>();
+		if (discovery && getExistingNoteAction(discovery.existingNoteAction) !== "open") {
+			const existingTarget: ITemplateChoice = {
+				...discovery,
+				fileNameFormat: { enabled: false, format: "" },
+				folder: { ...discovery.folder, enabled: false },
+			};
+			for (const requirement of await collectChoiceRequirements(app, plugin, executor, existingTarget)) {
+				existingNoteInputs.set(requirement.id, requirement);
+			}
+		}
 		const captureSelection = child && isCaptureChoice(child) &&
 			(child.useSelectionAsCaptureValue ?? plugin.settings.useSelectionAsCaptureValue ?? true)
 			? getActiveEditorSelection(app)
@@ -126,7 +184,15 @@ export async function buildDiscoveryFormPlan(
 		for (const requirement of collected) {
 			if (discovery && requirement.id === "value") continue;
 			const id = requirement.id === "value" ? `__qa.value.${entry.occurrenceId}` : requirement.id;
-			step.bindings.set(id, requirement.id);
+			const condition = noteId ? { noteId, includeExisting: existingNoteInputs.has(requirement.id) } : null;
+			step.bindings.set(id, { variable: requirement.id, condition });
+			const usages = config.fieldUsages.get(id) ?? [];
+			const existingNoteRequirement = existingNoteInputs.get(requirement.id);
+			usages.push(noteId ? {
+				kind: "note", noteId, create: fieldMetadata(requirement),
+				existing: existingNoteRequirement ? fieldMetadata(existingNoteRequirement) : null,
+			} : { kind: "always", metadata: fieldMetadata(requirement) });
+			config.fieldUsages.set(id, usages);
 			const existing = requirements.get(id);
 			if (existing) {
 				existing.optional = Boolean(existing.optional && requirement.optional);
@@ -141,13 +207,13 @@ export async function buildDiscoveryFormPlan(
 				});
 			}
 			const owners = consumers.get(id) ?? [];
-			owners.push(noteId);
+			owners.push(condition);
 			consumers.set(id, owners);
 		}
 	}
 	for (const [id, owners] of consumers) {
 		if (!owners.includes(null)) {
-			config.visibleWhenCreating.set(id, owners.filter((owner): owner is string => owner !== null));
+			config.visibleForNotes.set(id, owners.filter((owner): owner is DiscoveryInputCondition => owner !== null));
 		}
 	}
 	return { requirements: [...requirements.values()], config, steps };
@@ -162,9 +228,9 @@ export function storeDiscoveryFormAnswers(
 	for (const step of plan.steps) {
 		const discovery = step.noteId ? selections.get(step.noteId) ?? null : null;
 		const values = new Map<string, unknown>();
-		if (discovery?.kind !== "existing") {
-			for (const [fieldId, variable] of step.bindings) {
-				if (answers.has(fieldId)) values.set(variable, answers.get(fieldId));
+		for (const [fieldId, { variable, condition }] of step.bindings) {
+			if ((!condition || acceptsDiscoverySelection(condition, selections)) && answers.has(fieldId)) {
+				values.set(variable, answers.get(fieldId));
 			}
 		}
 		setPreparedChoiceInputs(executor, step.occurrenceId, { choiceId: step.choiceId, values, discovery });

@@ -10,7 +10,7 @@ const UNRESOLVED_PREFIX = "@quickadd-unresolved-note:";
 
 export type TemplateNoteDiscoveryResult =
 	| { kind: "create"; title: string; vaultRelativePath?: string }
-	| { kind: "openExisting"; file: TFile };
+	| { kind: "existing"; file: TFile };
 
 export type TemplateNoteSelection =
 	| { kind: "existing"; path: string }
@@ -194,10 +194,11 @@ export function decodeTemplateNoteSelection(selected: string): TemplateNoteSelec
 	if (isExistingItem(selected)) {
 		return { kind: "existing", path: decodeExistingPath(selected) };
 	}
-	const title = normalizeGeneratedFilePath(
-		isUnresolvedItem(selected) ? decodeUnresolvedTitle(selected) : selected,
-		"Note title",
-	);
+	return createTemplateNoteSelection(isUnresolvedItem(selected) ? decodeUnresolvedTitle(selected) : selected);
+}
+
+export function createTemplateNoteSelection(input: string): TemplateNoteSelection {
+	const title = normalizeGeneratedFilePath(input, "Note title");
 	return {
 		kind: "create",
 		title,
@@ -223,7 +224,10 @@ export function resolveTemplateNoteSelection(
 		if (!(file instanceof TFile)) {
 			throw new Error("Selected note no longer exists. Please run QuickAdd again.");
 		}
-		return { kind: "openExisting", file };
+		if (file.extension.toLowerCase() !== "md") {
+			throw new Error("Select a Markdown note to use with this Template choice.");
+		}
+		return { kind: "existing", file };
 	}
 	const title = normalizeGeneratedFilePath(selection.title, "Note title");
 	return { kind: "create", title, ...(title.includes("/") ? { vaultRelativePath: title } : {}) };

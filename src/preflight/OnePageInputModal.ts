@@ -46,8 +46,9 @@ import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
 import { decodeFileValue } from "src/utils/fileSyntax";
 import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInputSuggest";
-import { selectionForDiscoveryCandidate, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
-import type { DiscoveryFormConfig, DiscoveryNoteField } from "./discoveryFormPlan";
+import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import { acceptsDiscoverySelection, resolveDiscoveryFieldMetadata, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
+import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -135,7 +136,8 @@ export class OnePageInputModal extends Modal {
 	private previewToken = 0;
 	private updatePreviewDebounced: () => void;
 	private settled = false;
-	private readonly imagePasteHandles: ImagePasteHandle[] = [];
+	private readonly imagePasteHandles = new Map<string, ImagePasteHandle>();
+	private readonly imagePasteInputs = new Map<string, HTMLInputElement | HTMLTextAreaElement>();
 	private readonly freeTextFields: OnePageFreeTextField[] = [];
 	private lastFocusedFreeText: OnePageFreeTextField | undefined;
 	private readonly filePickerSuggesters: FilePickerInputSuggest[] = [];
@@ -153,7 +155,8 @@ export class OnePageInputModal extends Modal {
 		private readonly discoveryForm?: DiscoveryFormConfig,
 	) {
 		super(app);
-		this.requirements = requirements;
+		this.requirements = requirements.map((requirement) => ({ ...requirement }));
+		this.updateFieldMetadata();
 		this.initialValues = new Map<string, string>();
 		this.computePreview = computePreview;
 		initial?.forEach((v, k) => {
@@ -305,15 +308,44 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private isFieldVisible(id: string): boolean {
-		const conditions = this.discoveryForm?.visibleWhenCreating.get(id);
-		return !conditions || conditions.some((noteId) => this.discoverySelections.get(noteId)?.kind === "create");
+		const conditions = this.discoveryForm?.visibleForNotes.get(id);
+		return !conditions || conditions.some((condition) => acceptsDiscoverySelection(condition, this.discoverySelections));
 	}
 
 	private updateFieldVisibility(updatePreview = true): void {
+		this.updateFieldMetadata();
 		for (const [id, elements] of this.fieldElements) {
 			for (const element of elements) element.hidden = !this.isFieldVisible(id);
 		}
+		for (const requirement of this.requirements) {
+			const input = this.imagePasteInputs.get(requirement.id);
+			if (input) this.syncImagePaste(requirement, input);
+		}
 		if (updatePreview) this.updatePreviewDebounced();
+	}
+
+	private updateFieldMetadata(): void {
+		for (const req of this.requirements) {
+			const usages = this.discoveryForm?.fieldUsages.get(req.id);
+			if (!usages) continue;
+			Object.assign(req, resolveDiscoveryFieldMetadata(usages, this.discoverySelections));
+			for (const element of this.fieldElements.get(req.id) ?? []) {
+				element.querySelector(".setting-item-name")?.replaceChildren(this.decorateLabel(req));
+				if (req.type !== "dropdown") continue;
+				const select = element.querySelector("select");
+				if (!select || req.options?.includes("")) continue;
+				const skip = Array.from(select.options).find((option) => option.value === "");
+				if (req.optional && !skip) {
+					const option = select.ownerDocument.createElement("option");
+					option.value = "";
+					option.textContent = "Skip (leave empty)";
+					select.prepend(option);
+				} else if (!req.optional && skip) {
+					skip.remove();
+					this.result.set(req.id, select.value);
+				}
+			}
+		}
 	}
 
 	private renderNoteField(note: DiscoveryNoteField): void {
@@ -330,7 +362,10 @@ export class OnePageInputModal extends Modal {
 			suggester?.close();
 			this.discoverySelections.set(note.id, selection);
 			selected.empty();
-			const label = selection.kind === "existing" ? selection.path.replace(/\.md$/i, "") : `Create: ${selection.title}`;
+			const action = existingNoteActionVerb(note.choice.existingNoteAction);
+			const label = selection.kind === "existing"
+				? `${action === "Open" ? "" : `${action}: `}${selection.path.replace(/\.md$/i, "")}`
+				: `Create: ${selection.title}`;
 			const chip = selected.createDiv({ cls: "qa-onepage-file-picker__chip" });
 			chip.createSpan({ cls: "qa-onepage-file-picker__chip-label", text: label });
 			const change = chip.createEl("button", { cls: "qa-onepage-file-picker__remove", text: "×" });
@@ -358,7 +393,7 @@ export class OnePageInputModal extends Modal {
 			select: showSelection,
 			resolve: () => suggester
 				? suggester.resolveInput(input.inputEl.value)
-				: selectionForDiscoveryCandidate(this.app, input.inputEl.value),
+				: createTemplateNoteSelection(input.inputEl.value),
 		});
 	}
 
@@ -988,8 +1023,21 @@ export class OnePageInputModal extends Modal {
 		req: FieldRequirement,
 		inputEl: HTMLInputElement | HTMLTextAreaElement,
 	): void {
-		if (req.pathContext) return;
-		this.imagePasteHandles.push(attachImagePasteHandler(this.app, inputEl, {}));
+		this.imagePasteInputs.set(req.id, inputEl);
+		this.syncImagePaste(req, inputEl);
+	}
+
+	private syncImagePaste(
+		req: FieldRequirement,
+		inputEl: HTMLInputElement | HTMLTextAreaElement,
+	): void {
+		const handle = this.imagePasteHandles.get(req.id);
+		if (req.pathContext || !this.isFieldVisible(req.id)) {
+			handle?.detach();
+			this.imagePasteHandles.delete(req.id);
+		} else if (!handle) {
+			this.imagePasteHandles.set(req.id, attachImagePasteHandler(this.app, inputEl, {}));
+		}
 	}
 
 	private decorateLabel(req: FieldRequirement): string | DocumentFragment {
@@ -1034,7 +1082,7 @@ export class OnePageInputModal extends Modal {
 		}
 		// A pasted image may still be saving in one of the fields; defer so
 		// paste-then-Mod+Enter submits WITH the embed link.
-		const busyHandle = this.imagePasteHandles.find((handle) =>
+		const busyHandle = Array.from(this.imagePasteHandles.values()).find((handle) =>
 			handle.isBusy(),
 		);
 		if (busyHandle) {
@@ -1135,8 +1183,9 @@ export class OnePageInputModal extends Modal {
 
 	onClose() {
 		this.peek.onHostClosed();
-		for (const handle of this.imagePasteHandles) handle.detach();
-		this.imagePasteHandles.length = 0;
+		for (const handle of this.imagePasteHandles.values()) handle.detach();
+		this.imagePasteHandles.clear();
+		this.imagePasteInputs.clear();
 		for (const field of this.freeTextFields) {
 			field.fileSuggester.destroy();
 			field.tagSuggester.destroy();

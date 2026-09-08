@@ -10,9 +10,11 @@ import { renderNotePathSuggestion } from "src/gui/InputSuggester/renderNotePathS
 import { isCancellationError } from "src/utils/errorUtils";
 import { UserCancelError } from "src/errors/UserCancelError";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
 
 import {
 	buildDiscoveryCandidates,
+	createTemplateNoteSelection,
 	decodeTemplateNoteSelection,
 	resolveTemplateNoteSelection,
 	normalizedKey,
@@ -49,21 +51,23 @@ export async function promptForTemplateNoteDiscovery(
 	);
 
 	const placeholder = `Search notes or create ${choice.name}`;
+	const action = existingNoteActionVerb(choice.existingNoteAction);
 
 	try {
-		const selected = String(
-			await routePrompt(executor, {
-				remote: (provider) =>
-					promptEngineChoice(provider, {
+		const selected = await routePrompt(executor, {
+				remote: async (provider) => {
+					const result = await promptEngineChoice(provider, {
 						items: candidates.map((candidate) => ({
-							value: candidate.item,
-							title: candidate.title,
+							value: decodeTemplateNoteSelection(candidate.item),
+							title: candidate.renderPath && action !== "Open" ? `${action}: ${candidate.title}` : candidate.title,
 						})),
 						placeholder,
 						// "Create new note" - the whole point of the picker.
 						allowCustomInput: true,
 						what: "the note-discovery picker",
-					}),
+					});
+					return typeof result === "string" ? createTemplateNoteSelection(result) : result;
+				},
 				// A headless run never reaches here: `shouldRunTemplateNoteDiscovery`
 				// needs an unresolved `value`, which the CLI refuses up front as a
 				// missing input. Guarded anyway, so the branch cannot become a hang.
@@ -73,8 +77,8 @@ export async function promptForTemplateNoteDiscovery(
 							`Pass the note name (e.g. value-value=<name>), or re-run with the ui flag.`,
 					);
 				},
-				app: () =>
-					InputSuggester.Suggest(
+				app: async () => {
+					const result = await InputSuggester.Suggest(
 			app,
 			candidates.map((candidate) => candidate.display),
 			candidates.map((candidate) => candidate.item),
@@ -102,6 +106,7 @@ export async function promptForTemplateNoteDiscovery(
 							candidate.renderPath,
 							candidate.renderAlias,
 						);
+						if (action !== "Open") el.querySelector(".suggestion-title")?.prepend(`${action}: `);
 						return;
 					}
 					if (candidate.unresolvedTitle) {
@@ -109,11 +114,12 @@ export async function promptForTemplateNoteDiscovery(
 					}
 				},
 			},
-					),
-			}),
-		);
+					);
+					return candidateByItem.has(result) ? decodeTemplateNoteSelection(result) : createTemplateNoteSelection(result);
+				},
+			});
 
-		return resolveTemplateNoteSelection(app, decodeTemplateNoteSelection(selected));
+		return resolveTemplateNoteSelection(app, selected);
 	} catch (error) {
 		if (isCancellationError(error)) {
 			throw new UserCancelError("Input cancelled by user");

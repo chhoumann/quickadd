@@ -80,6 +80,32 @@ export type TemplateFileExistsBehavior =
 	| { kind: "prompt" }
 	| { kind: "apply"; mode: FileExistsModeId };
 
+export type TemplateExistingNoteAction = "open" | Extract<
+	FileExistsModeDefinition,
+	{ resolutionKind: "modifyExisting" }
+>["id"];
+
+export const existingNoteActions = [
+	{ id: "open", label: "Open note", verb: "Open" },
+	{ id: "appendBottom", label: "Append template to bottom", verb: "Append to" },
+	{ id: "appendTop", label: "Insert template at top", verb: "Insert into" },
+	{ id: "overwrite", label: "Replace entire note", verb: "Replace" },
+] satisfies Array<{ id: TemplateExistingNoteAction; label: string; verb: string }>;
+
+function existingNoteActionDefinition(value: unknown) {
+	const action = existingNoteActions.find((action) => action.id === (value === undefined ? "open" : value));
+	if (!action) throw new Error(`Unknown existing-note action: ${String(value)}`);
+	return action;
+}
+
+export function getExistingNoteAction(value: unknown): TemplateExistingNoteAction {
+	return existingNoteActionDefinition(value).id;
+}
+
+export function existingNoteActionVerb(value: TemplateExistingNoteAction | undefined): string {
+	return existingNoteActionDefinition(value).verb;
+}
+
 type ExistsFn = (path: string) => Promise<boolean>;
 type CreateNewModeId = Extract<
 	FileExistsModeDefinition,

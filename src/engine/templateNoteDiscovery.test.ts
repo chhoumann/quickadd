@@ -19,6 +19,7 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { resolveTemplateNoteSelection, selectionForDiscoveryCandidate, testExports } from "src/utils/templateNoteDiscovery";
+import type { PromptProvider } from "src/interactive/promptProvider";
 // An ordinary in-app run: no interactive client attached and not headless, so the
 // picker opens the Obsidian modal - exactly the path these tests exercise.
 const IN_APP_RUN = {} as never;
@@ -106,7 +107,7 @@ describe("template note discovery", () => {
 		const files = [existing];
 		const obsidianApp = app(files);
 		const selection = selectionForDiscoveryCandidate(obsidianApp, "@quickadd-existing-note:Existing/Alice.md");
-		expect(resolveTemplateNoteSelection(obsidianApp, selection)).toEqual({ kind: "openExisting", file: existing });
+		expect(resolveTemplateNoteSelection(obsidianApp, selection)).toEqual({ kind: "existing", file: existing });
 		files.length = 0;
 		expect(() => resolveTemplateNoteSelection(obsidianApp, selection)).toThrow("Selected note no longer exists");
 	});
@@ -116,6 +117,32 @@ describe("template note discovery", () => {
 			.toEqual({ kind: "create", title: "Projects/Roadmap", vaultRelativePath: "Projects/Roadmap" });
 		expect(() => resolveTemplateNoteSelection(app(), { kind: "create", title: "../outside" }))
 			.toThrow();
+	});
+
+	it.each(["canvas", "base", "png"])("rejects a selected %s target", (extension) => {
+		const target = file(`Target.${extension}`);
+		target.extension = extension;
+		expect(() => resolveTemplateNoteSelection(app([target]), { kind: "existing", path: target.path }))
+			.toThrow("Select a Markdown note");
+	});
+
+	it("does not interpret a custom title as an unoffered existing-note handle", async () => {
+		inputSuggestMock.mockResolvedValue("@quickadd-existing-note:Templates/Project.md");
+		await expect(promptForTemplateNoteDiscovery(app([file("Templates/Project.md")]), choice(), IN_APP_RUN))
+			.resolves.toMatchObject({ kind: "create", title: "@quickadd-existing-note:Templates/Project.md" });
+	});
+
+	it("distinguishes a remote selected note from custom text matching its internal value", async () => {
+		const target = file("Existing/Alice.md");
+		const suggester = vi.fn<PromptProvider["suggester"]>();
+		const executor = { promptProvider: { suggester } as unknown as PromptProvider };
+		suggester.mockImplementation(async (_labels, items) => items[0]);
+		await expect(promptForTemplateNoteDiscovery(app([target]), choice({ existingNoteAction: "overwrite" }), executor))
+			.resolves.toEqual({ kind: "existing", file: target });
+		expect(suggester.mock.calls[0][0]).toEqual(expect.arrayContaining(["Replace: Alice (Existing/Alice.md)"]));
+		suggester.mockResolvedValue("@quickadd-existing-note:Existing/Alice.md");
+		await expect(promptForTemplateNoteDiscovery(app([target]), choice(), executor))
+			.resolves.toMatchObject({ kind: "create", title: "@quickadd-existing-note:Existing/Alice.md" });
 	});
 
 	it("only runs for opted-in default title prompts with no seeded value", () => {
@@ -212,7 +239,7 @@ describe("template note discovery", () => {
 
 		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
-		expect(result).toEqual({ kind: "openExisting", file: alice });
+		expect(result).toEqual({ kind: "existing", file: alice });
 	});
 
 	it("returns a create result for unresolved-link rows", async () => {
