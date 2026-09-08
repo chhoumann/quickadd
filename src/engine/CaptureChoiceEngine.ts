@@ -815,8 +815,6 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			});
 		}
 		args.onCommit();
-		const persistedContent = await this.app.vault.read(file);
-		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
 		if (!fileAlreadyExists && (createWithTemplate || isTemplaterTriggerOnCreateEnabled(this.app))) {
 			if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
 			else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
@@ -824,6 +822,8 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				current[resolveCapturePropertyKey(current, key)] = plan(current);
 			});
 		}
+		const persistedContent = await this.app.vault.read(file);
+		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
 		if (this.plugin.settings.showCaptureNotification) {
 			new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
 		}

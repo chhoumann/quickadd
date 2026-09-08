@@ -221,6 +221,27 @@ describe("Capture property writes", () => {
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "done" });
 		expect(test.read()).toMatch(/---\nTemplater body\n$/);
 		expect(test.create).toHaveBeenCalledTimes(1);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "created" });
+	});
+
+	it("reports failure when Templater makes the final property update invalid", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist.enabled = true;
+		test.choice.propertyCapture!.action = "addToList";
+		mocks.templaterEnabled = true;
+		mocks.afterCreate.mockImplementation(async () => {
+			expect(test.executor.recordExecutionResult).not.toHaveBeenCalled();
+			test.overwrite("---\nstatus: [{nested: value}]\n---\nTemplater body\n");
+		});
+		test.processFrontMatter.mockImplementationOnce(async (_file, update) => {
+			update({ status: [{ nested: "value" }] });
+		});
+		await test.run();
+		expect(test.processFrontMatter).toHaveBeenCalledTimes(1);
+		expect(test.read()).toBe("---\nstatus: [{nested: value}]\n---\nTemplater body\n");
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
+			status: "error", reason: expect.stringContaining("lists of text only"),
+		});
 	});
 
 	it("aborts a headless runtime property picker before target creation", async () => {
