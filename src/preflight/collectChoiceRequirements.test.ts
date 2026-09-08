@@ -2447,3 +2447,42 @@ describe("collectChoiceRequirements - macro form roster", () => {
 		).resolves.toEqual([]);
 	});
 });
+
+describe("property capture requirements", () => {
+	it.each(["number", "checkbox"])("uses a known property's %s widget in the one-page form", async (type) => {
+		const choice = createCaptureChoice("Inbox.md");
+		choice.propertyCapture = { property: { kind: "named", format: "rating" }, action: "set", createIfMissing: true };
+		choice.format = { enabled: true, format: "{{VALUE:ratingInput}}" };
+		const requirements = await collectChoiceRequirements({
+			vault: { getAbstractFileByPath: () => null },
+			metadataTypeManager: { getAllProperties: () => ({ rating: {} }), getTypeInfo: () => ({ expected: { type } }) },
+		} as unknown as App, { settings: { inputPrompt: "single-line", globalVariables: {}, useSelectionAsCaptureValue: false } } as any, createChoiceExecutor(), choice);
+		expect(requirements).toEqual([expect.objectContaining({ id: "ratingInput", type: type === "checkbox" ? "dropdown" : type })]);
+		expect(requirements[0].runtimeOnly).not.toBe(true);
+	});
+
+	it("defers only the value whose native property type depends on the runtime selection", async () => {
+		const choice = createCaptureChoice("Inbox.md");
+		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:propertyName}}" }, action: "set", createIfMissing: true };
+		choice.format = { enabled: true, format: "{{VALUE:propertyInput}}" };
+		const requirements = await collectChoiceRequirements({ vault: { getAbstractFileByPath: () => null } } as unknown as App,
+			{ settings: { inputPrompt: "single-line", globalVariables: {}, useSelectionAsCaptureValue: false } } as any, createChoiceExecutor(), choice);
+		expect(requirements.find((requirement) => requirement.id === "propertyInput")?.runtimeOnly).toBe(true);
+		expect(requirements.find((requirement) => requirement.id === "propertyName")?.runtimeOnly).not.toBe(true);
+	});
+
+	it("collects property-name and value formats while ignoring dormant body-position fields", async () => {
+		const choice = createCaptureChoice("Inbox.md");
+		choice.propertyCapture = { property: { kind: "named", format: "{{VALUE:property}}" }, action: "set", createIfMissing: true };
+		choice.format = { enabled: true, format: "{{VALUE:amount|type:number}}" };
+		choice.insertAfter.enabled = true;
+		choice.insertAfter.after = "{{VALUE:dormantAfter}}";
+		choice.insertBefore = { enabled: true, before: "{{VALUE:dormantBefore}}", createIfNotFound: false, createIfNotFoundLocation: "top" };
+		const requirements = await collectChoiceRequirements({ vault: { getAbstractFileByPath: () => null }, workspace: { getActiveViewOfType: () => null } } as unknown as App,
+			{ settings: { inputPrompt: "single-line", globalVariables: {}, useSelectionAsCaptureValue: false } } as any,
+			createChoiceExecutor(), choice);
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["property", "amount"]);
+		expect(requirements.find((requirement) => requirement.id === "amount")?.type).toBe("number");
+		expect(requirements.every((requirement) => requirement.pathContext)).toBe(true);
+	});
+});

@@ -154,7 +154,20 @@ export function getTemplaterPlugin(app: App): TemplaterPluginLike | null {
 }
 
 export function isTemplaterTriggerOnCreateEnabled(app: App): boolean {
-	return !!getTemplaterPlugin(app)?.settings?.trigger_on_file_creation;
+	const plugin = getTemplaterPlugin(app);
+	if (!plugin) return false;
+
+	const legacySetting = plugin.settings?.trigger_on_file_creation;
+	if (typeof legacySetting === "boolean") return legacySetting;
+
+	const localSettings: unknown = app.loadLocalStorage?.("templater-local-settings");
+	return (
+		typeof localSettings === "object" &&
+		localSettings !== null &&
+		!Array.isArray(localSettings) &&
+		"trigger_on_file_creation" in localSettings &&
+		localSettings.trigger_on_file_creation === true
+	);
 }
 
 function sleep(ms: number): Promise<void> {

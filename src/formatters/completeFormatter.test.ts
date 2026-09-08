@@ -1,4 +1,5 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
+import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TemplateInclusionState } from "./formatter";
 import type { FieldValueProcessor as FieldValueProcessorType } from "../utils/FieldValueProcessor";
@@ -1876,5 +1877,83 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 			false,
 		);
 		expect(mocks.genericSuggesterSuggest).not.toHaveBeenCalled();
+	});
+});
+
+describe("property value formatting", () => {
+	function formatterWithValue(value: unknown) {
+		const executor = createChoiceExecutor();
+		executor.variables.set("input", value);
+		executor.variables.set("value", value);
+		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+	}
+
+	it.each([0, false, ["a,b", "c"], [], { nested: true }])("retains whole-token native values for validation: %j", async (value) => {
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(value);
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE}}")).toEqual(value);
+	});
+
+	it.each(["001", "false", "[a,b]", "a,b", ""]) ("leaves ordinary token text %j unchanged", async (value) => {
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toBe(value);
+	});
+
+	it.each([false, 0, ["one", "two"], []])("preserves anonymous native values with label and optional options: %j", async (value) => {
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE|label:Property value|optional}}")).toEqual(value);
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input|label:Property value|optional}}")).toEqual(value);
+	});
+
+	it("trims anonymous typed list items without flattening the list", async () => {
+		expect(await formatterWithValue([" one ", " two "]).formatPropertyValue("{{VALUE|trim}}")).toEqual(["one", "two"]);
+	});
+
+	it.each([
+		["{{VALUE:input|type:number}}", "0", 0],
+		["{{VALUE:input|type:checkbox}}", "false", false],
+		["{{VALUE|type:number}}", "0", 0],
+		["{{VALUE|type:checkbox}}", "false", false],
+		["{{VALUE:input|type:text}}", false, "false"],
+	])("uses explicit native input types: %s", async (format, input, expected) => {
+		expect(await formatterWithValue(input).formatPropertyValue(String(format))).toBe(expected);
+	});
+
+	it("keeps a mixed format and explicit list formatting as text", async () => {
+		expect(await formatterWithValue(["one", "two"]).formatPropertyValue("Sources: {{VALUE:input}}")).toBe("Sources: one,two");
+		expect(await formatterWithValue(["one", "two"]).formatPropertyValue("{{VALUE:one,two|name:input|multi|format:spaced}}")).toBe("one, two");
+		expect(await formatterWithValue(false).formatPropertyValue("{{VALUE:input}} literal")).toBe("false literal");
+	});
+
+	it("does not leak typed values into later body formatting or plain-text properties", async () => {
+		const formatter = formatterWithValue(["one", "two"]);
+		expect(await formatter.formatPropertyValue("{{VALUE:input}}")).toEqual(["one", "two"]);
+		expect(await formatter.formatFileContent("{{VALUE:input}}")).toBe("one,two");
+		expect(await formatter.formatPropertyValue("literal")).toBe("literal");
+	});
+
+	it("uses inherited native widgets for prefilled number and checkbox strings", async () => {
+		expect(await formatterWithValue("42").formatPropertyValue(inheritPropertyValueType("{{VALUE:input}}", "number"))).toBe(42);
+		expect(await formatterWithValue("false").formatPropertyValue(inheritPropertyValueType("{{VALUE}}", "checkbox"))).toBe(false);
+	});
+
+	it.each(["auto", "yaml"])("preserves FIELD lists only without an explicit %s rendering format", async (multiFormat) => {
+		mocks.fieldParse.mockReturnValue({ fieldName: "topics", filters: {}, multiSelect: true, multiFormat });
+		mocks.collectProcessedDetailed.mockResolvedValue({ values: ["Alpha", "Beta"], hasDefaultValue: false });
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Alpha", "Beta"]);
+		const value = await defaultFormatter().formatPropertyValue(`{{FIELD:topics|multi|format:${multiFormat}}}`);
+		expect(value).toEqual(multiFormat === "auto" ? ["Alpha", "Beta"] : '["Alpha", "Beta"]');
+	});
+
+	it("validates typed inputs supplied by scripts as strictly as prompt inputs", async () => {
+		await expect(formatterWithValue("false-ish").formatPropertyValue("{{VALUE:input|type:checkbox}}")).rejects.toThrow("true or false");
+		await expect(formatterWithValue("0x12").formatPropertyValue("{{VALUE:input|type:number}}")).rejects.toThrow("finite number");
+	});
+
+	it.each([false, ["1"], Number.NaN, Infinity])("rejects a non-number %j for an explicitly numeric token", async (value) => {
+		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE:input|type:number}}")).rejects.toThrow("finite number");
+		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE|type:number}}")).rejects.toThrow("finite number");
+	});
+
+	it.each([7, ["false"]])("rejects a non-boolean %j for an explicitly checkbox token", async (value) => {
+		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE:input|type:checkbox}}")).rejects.toThrow("true or false");
+		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE|type:checkbox}}")).rejects.toThrow("true or false");
 	});
 });

@@ -17,6 +17,8 @@ export type PromptScopeKind =
 	| "noteTitle"
 	| "captureTarget"
 	| "captureText"
+	| "propertyName"
+	| "propertyValue"
 	| "noteBody"
 	| "folder"
 	| "templatePath"
@@ -93,6 +95,16 @@ const SCOPE_COPY: Record<Exclude<PromptScopeKind, "generic">, ScopeCopy> = {
 		ask: "Text to capture",
 		hint: "Text to add to the note",
 		partOf: "Part of the text added to the note",
+	},
+	propertyName: {
+		ask: "Property",
+		hint: "Property name",
+		partOf: "Part of the property name",
+	},
+	propertyValue: {
+		ask: "Property value",
+		hint: "Value to capture",
+		partOf: "Part of the property value",
 	},
 	noteBody: {
 		ask: "Note content",
@@ -179,6 +191,8 @@ export function isPathScope(scope: PromptScopeKind): boolean {
 	return (
 		scope === "noteTitle" ||
 		scope === "captureTarget" ||
+		scope === "propertyName" ||
+		scope === "propertyValue" ||
 		scope === "folder" ||
 		scope === "templatePath" ||
 		scope === "lineTarget" ||

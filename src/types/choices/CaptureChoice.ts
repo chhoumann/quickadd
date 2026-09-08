@@ -8,8 +8,10 @@ import { CREATE_IF_NOT_FOUND_ORDERED } from "../../constants";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 import type { AppendLinkOptions } from "../linkPlacement";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
+import { parsePropertyCapture } from "./ICaptureChoice";
 
 export class CaptureChoice extends Choice implements ICaptureChoice {
+	propertyCapture?: ICaptureChoice["propertyCapture"];
 	appendLink: boolean | AppendLinkOptions;
 	copyLinkToClipboard: boolean;
 	captureTo: string;
@@ -107,6 +109,9 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 
 	public static Load(choice: ICaptureChoice): CaptureChoice {
 		const loaded = choice as CaptureChoice;
+		if (loaded.propertyCapture !== undefined) {
+			loaded.propertyCapture = parsePropertyCapture(loaded.propertyCapture);
+		}
 		// Ensure backward compatibility: default to "cursor" if not set
 		if (
 			loaded.activeFileWritePosition !== "cursor" &&

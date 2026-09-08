@@ -1,6 +1,51 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { App, TFile } from "obsidian";
-import { jumpToNextTemplaterCursorIfPossible, templaterParseTemplate } from "./utilityObsidian";
+import { isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible, templaterParseTemplate } from "./utilityObsidian";
+
+describe("isTemplaterTriggerOnCreateEnabled", () => {
+	it.each([true, false])("reads the current local setting: %s", (enabled) => {
+		const app = new App();
+		Object.assign(app.plugins.plugins, {
+			"templater-obsidian": {
+				settings: { data_version: 2, trigger_on_file_creation_mode: "folder" },
+			},
+		});
+		app.loadLocalStorage = vi.fn(() => ({ trigger_on_file_creation: enabled }));
+
+		expect(isTemplaterTriggerOnCreateEnabled(app)).toBe(enabled);
+		expect(app.loadLocalStorage).toHaveBeenCalledWith("templater-local-settings");
+	});
+
+	it.each([true, false])("preserves the legacy setting over local storage: %s", (enabled) => {
+		const app = new App();
+		Object.assign(app.plugins.plugins, {
+			"templater-obsidian": { settings: { trigger_on_file_creation: enabled } },
+		});
+		app.loadLocalStorage = vi.fn(() => ({ trigger_on_file_creation: !enabled }));
+
+		expect(isTemplaterTriggerOnCreateEnabled(app)).toBe(enabled);
+		expect(app.loadLocalStorage).not.toHaveBeenCalled();
+	});
+
+	it.each([undefined, null, {}, [], "true", { trigger_on_file_creation: "true" }])(
+		"ignores absent or malformed local settings: %j",
+		(localSettings) => {
+			const app = new App();
+			Object.assign(app.plugins.plugins, { "templater-obsidian": { settings: {} } });
+			app.loadLocalStorage = () => localSettings;
+
+			expect(isTemplaterTriggerOnCreateEnabled(app)).toBe(false);
+		},
+	);
+
+	it("requires the Templater plugin to be loaded", () => {
+		const app = new App();
+		app.loadLocalStorage = vi.fn(() => ({ trigger_on_file_creation: true }));
+
+		expect(isTemplaterTriggerOnCreateEnabled(app)).toBe(false);
+		expect(app.loadLocalStorage).not.toHaveBeenCalled();
+	});
+});
 
 describe("templaterParseTemplate", () => {
 	it("calls parse_template with the correct `this` context", async () => {

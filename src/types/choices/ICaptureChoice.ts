@@ -4,6 +4,12 @@ import type { OpenLocation, FileViewMode2 } from "../fileOpening";
 
 export type BlankLineAfterMatchMode = "auto" | "skip" | "none";
 
+export interface PropertyCapture {
+	property: { kind: "named"; format: string } | { kind: "prompt" };
+	action: "set" | "addToList";
+	createIfMissing: boolean;
+}
+
 /** How to derive a sort key from a section heading's text (issue #481). */
 export type SectionOrderBy =
 	| "insertion"
@@ -28,6 +34,7 @@ export interface SectionOrdering {
 }
 
 export default interface ICaptureChoice extends IChoice {
+	propertyCapture?: PropertyCapture;
 	captureTo: string;
 	captureToActiveFile: boolean;
 	captureToCanvasNodeId?: string;
@@ -99,4 +106,24 @@ export default interface ICaptureChoice extends IChoice {
 	templater?: {
 		afterCapture?: "none" | "wholeFile";
 	};
+}
+
+export function parsePropertyCapture(input: unknown): PropertyCapture {
+	if (
+		!input || typeof input !== "object" ||
+		!("property" in input) || !input.property ||
+		typeof input.property !== "object" || !("kind" in input.property) ||
+		!("action" in input) || (input.action !== "set" && input.action !== "addToList") ||
+		!("createIfMissing" in input) || typeof input.createIfMissing !== "boolean"
+	) {
+		throw new Error("Invalid property capture settings. Choose a property and action in the Capture settings.");
+	}
+	const property = input.property;
+	if (property.kind === "prompt") {
+		return { property: { kind: "prompt" }, action: input.action, createIfMissing: input.createIfMissing };
+	}
+	if (property.kind === "named" && "format" in property && typeof property.format === "string") {
+		return { property: { kind: "named", format: property.format }, action: input.action, createIfMissing: input.createIfMissing };
+	}
+	throw new Error("Invalid property capture selector.");
 }

@@ -26,6 +26,18 @@ import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
+import {
+	planPropertyUpdate,
+	readCaptureFrontmatter,
+	resolveCapturePropertyKey,
+	serializeCaptureFrontmatter,
+	validatePropertyName,
+} from "./captureProperty";
+import { resolveObsidianPropertyType } from "../utils/obsidianPropertyTypes";
+import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
+import { coerceYamlValue } from "../utils/yamlValues";
+import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -84,6 +96,7 @@ import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import {
 	postProcessFrontMatter,
 	shouldPostProcessFrontMatter,
+	assignFrontmatterValue,
 } from "./helpers/frontmatterPostProcessor";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
@@ -390,7 +403,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 					: globalSelectionAsValue;
 			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
-			const action = getCaptureAction(this.choice);
+			const propertyCapture = this.choice.propertyCapture === undefined
+				? undefined
+				: parsePropertyCapture(this.choice.propertyCapture);
+			const action = propertyCapture ? "append" : getCaptureAction(this.choice);
 			const isEditorInsertionAction =
 				action === "currentLine" ||
 				action === "newLineAbove" ||
@@ -403,6 +419,9 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
 
 			if (canvasTarget?.kind === "text") {
+				if (propertyCapture) {
+					throw new ChoiceAbortError("Property capture requires a Markdown note. Canvas text cards do not have note properties.");
+				}
 				await this.handleCanvasTextCapture(
 					canvasTarget,
 					action,
@@ -415,7 +434,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			}
 
 			if (
-				canvasTarget?.kind === "file" &&
+				!propertyCapture && canvasTarget?.kind === "file" &&
 				((action === "insertAfter" &&
 					this.choice.insertAfter?.createIfNotFound &&
 					this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
@@ -465,6 +484,14 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			// heading for a note that cannot be created.
 			if (!fileAlreadyExists && this.choice?.createFileIfItDoesntExist?.enabled) {
 				assertCreatableFilePath(filePath);
+			}
+			if (propertyCapture) {
+				await this.captureToProperty({
+					filePath, fileAlreadyExists, config: propertyCapture, linkOptions,
+					isCanvasTriggered: !!canvasTarget,
+					onCommit: () => { contentCommitted = true; },
+				});
+				return;
 			}
 
 			// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
@@ -710,6 +737,125 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 				this.formatter.consumeCreatedClipboardAttachmentPaths();
 			}
 		}
+	}
+
+	private async captureToProperty(args: {
+		filePath: string;
+		fileAlreadyExists: boolean;
+		config: PropertyCapture;
+		linkOptions: NormalizedAppendLinkOptions;
+		isCanvasTriggered: boolean;
+		onCommit: () => void;
+	}): Promise<void> {
+		const { filePath, fileAlreadyExists, config, linkOptions } = args;
+		if (!MARKDOWN_FILE_EXTENSION_REGEX.test(filePath)) {
+			throw new ChoiceAbortError("Property capture requires a Markdown note.");
+		}
+		if (!fileAlreadyExists && !this.choice.createFileIfItDoesntExist.enabled) {
+			throw new ChoiceAbortError(`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`);
+		}
+		let file = fileAlreadyExists ? this.getFileByPath(filePath) : undefined;
+		this.formatter.setTitle(basenameWithoutMdOrCanvas(filePath));
+		this.formatter.setTargetFolderPath(parentFolderPath(filePath));
+		this.formatter.setDestinationSourcePath(filePath);
+		if (file) this.formatter.setDestinationFile(file);
+		this.formatter.setPromptRunContext({
+			draftScopeId: this.choice.id, choiceName: this.choice.name,
+			destination: filePath, destinationKind: "file",
+		});
+
+		let initialContent = file ? await this.app.vault.read(file) : "";
+		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
+		let templateVars = new Map<string, unknown>();
+		if (createWithTemplate) {
+			const template = new SingleTemplateEngine(this.app, this.plugin,
+				this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
+			template.setDestinationPath(filePath);
+			template.setPromptRunContext({
+				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
+				choiceName: this.choice.name, destination: filePath, destinationKind: "file",
+			});
+			if (linkOptions.enabled && !linkOptions.requireActiveFile) template.setLinkToCurrentFileBehavior("optional");
+			initialContent = await template.run();
+			templateVars = template.getAndClearTemplatePropertyVars();
+		}
+		const frontmatter = readCaptureFrontmatter(initialContent);
+		for (const [key, value] of templateVars) {
+			assignFrontmatterValue(frontmatter, key.split(TemplatePropertyCollector.PATH_SEPARATOR), coerceYamlValue(value));
+		}
+		const key = resolveCapturePropertyKey(frontmatter, validatePropertyName(config.property.kind === "named"
+			? await this.formatter.formatPropertyName(config.property.format)
+			: await this.promptForCaptureProperty(frontmatter, config.createIfMissing)));
+		const registeredType = resolveObsidianPropertyType(this.app, key, { registeredOnly: true });
+		const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
+		const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
+		const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
+			this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX, inputType,
+		));
+		const plan = (current: Record<string, unknown>) => planPropertyUpdate({
+			frontmatter: current, key, value, config,
+			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
+		});
+		const prepared = plan(frontmatter);
+		if (config.action === "addToList" && (value === "" || (Array.isArray(value) && value.length === 0))) {
+			this.outcome.success(file, "unchanged");
+			return;
+		}
+
+		let priorContent = "";
+		if (file) {
+			priorContent = await this.app.vault.read(file);
+			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
+				current[resolveCapturePropertyKey(current, key)] = plan(current);
+			});
+		} else {
+			frontmatter[key] = prepared;
+			file = await this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
+				suppressTemplaterOnCreate: createWithTemplate,
+			});
+		}
+		args.onCommit();
+		const persistedContent = await this.app.vault.read(file);
+		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
+		if (!fileAlreadyExists && (createWithTemplate || isTemplaterTriggerOnCreateEnabled(this.app))) {
+			if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
+			else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
+				current[resolveCapturePropertyKey(current, key)] = plan(current);
+			});
+		}
+		if (this.plugin.settings.showCaptureNotification) {
+			new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
+		}
+		await this.copyCapturedFileLinkToClipboard(file);
+		await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
+		if (this.choice.openFile) {
+			const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+			if (!openExistingFileTab(this.app, file, fileOpening.focus ?? true)) {
+				await openFile(this.app, file, { ...fileOpening, originLeaf: this.originLeaf });
+			}
+		}
+	}
+
+	private async promptForCaptureProperty(frontmatter: Record<string, unknown>, allowCreate: boolean): Promise<string> {
+		const keys = Object.keys(frontmatter).filter((key) => key !== "__proto__").sort((a, b) => a.localeCompare(b));
+		if (!allowCreate && keys.length === 0) {
+			throw new ChoiceAbortError("The capture target has no properties. Enable 'Create property if missing' to add one.");
+		}
+		return await routePrompt(this.choiceExecutor, {
+			remote: (provider) => promptEngineChoice(provider, {
+				items: keys.map((key) => ({ value: key, title: key })),
+				placeholder: "Property", allowCustomInput: allowCreate, what: "the property picker",
+			}),
+			headless: async () => {
+				throw new ChoiceAbortError("Property capture needs a property selection. Configure a named property or run with the ui flag.");
+			},
+			app: () => InputSuggester.Suggest(this.app, keys, keys, {
+				placeholder: "Property", allowCustomValue: allowCreate,
+				customValueLabel: (key) => `Create property: ${key}`,
+				valueExists: (key) => keys.some((existing) => existing.trim().toLowerCase() === key.trim().toLowerCase()),
+			}),
+		});
 	}
 
 	/**

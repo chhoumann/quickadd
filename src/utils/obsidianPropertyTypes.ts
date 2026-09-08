@@ -7,6 +7,7 @@ type MetadataTypeInfo = {
 
 type MetadataTypeManager = {
 	getTypeInfo?: (key: string) => unknown;
+	getAllProperties?: () => unknown;
 };
 
 const SET_LIKE_PROPERTY_TYPES = new Set([
@@ -31,6 +32,7 @@ const SET_LIKE_RESERVED_KEYS = new Set([
 export function resolveObsidianPropertyType(
 	app: App | undefined,
 	propertyKey: string | undefined,
+	options: { registeredOnly?: boolean } = {},
 ): string | null {
 	if (!app || !propertyKey) return null;
 
@@ -48,6 +50,13 @@ export function resolveObsidianPropertyType(
 
 	if (!manager || typeof manager.getTypeInfo !== "function") {
 		return null;
+	}
+	if (options.registeredOnly) {
+		const properties = manager.getAllProperties?.();
+		if (!properties || typeof properties !== "object" ||
+			!Object.keys(properties).some((key) => key.toLowerCase() === propertyKey.toLowerCase())) {
+			return null;
+		}
 	}
 
 	const info = manager.getTypeInfo(propertyKey) as MetadataTypeInfo | undefined;

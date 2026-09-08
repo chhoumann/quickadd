@@ -423,7 +423,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, multi-select becomes a list only when capturing into a brand-new note's front matter (Create file if it doesn't exist, without a template). Other capture shapes write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
@@ -755,7 +755,10 @@ topics:
 ```
 
 Inside front matter, `|multi` writes a real YAML list when the placeholder is
-the property's whole value. In note bodies, file names, and other text
+the property's whole value. With the default `|format:auto`, it also stays a
+list when the entire Capture format is the token and
+[**Write position → Property**](/docs/Choices/CaptureChoice/#property) is selected.
+In note bodies, file names, and other text
 positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:
 `{{FIELD:topic|multi|folder:Projects|tag:active|default:Inbox}}`.
@@ -885,7 +888,7 @@ Options:
 
 - `|optional` - allow skipping the pick (becomes nothing).
 - `|custom` - also allow typing a value that isn't in the folder.
-- `|multi` - pick several files. In frontmatter/property positions QuickAdd writes a YAML list; in note bodies, file names, existing-note captures, and other text positions it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every pick.
+- `|multi` - pick several files. In frontmatter property positions, including a whole-token [property capture](/docs/Choices/CaptureChoice/#property), QuickAdd writes a YAML list. In note bodies, file names, and other text positions it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every pick.
 - `|label:Pick a person` - set the picker's placeholder text.
 - `|name:<id>` - share one pick between placeholders. FILE placeholders are cached by their full definition: placeholders that differ (folder, filters, mode, or `|label:`) prompt independently, while identical ones reuse one pick. To pick **two different** people, give the placeholders different labels (`{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}`). To reuse **the same** pick - say, a name in one place and a link in another - give them the same `|name:`. Placeholders sharing an id should target the same folder and filters; the shared pick is required if *any* occurrence omits `|optional`.
 - Filters reuse the FIELD syntax: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).

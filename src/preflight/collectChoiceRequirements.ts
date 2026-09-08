@@ -41,6 +41,8 @@ import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildFileDisplayLabels } from "src/utils/fileSyntax";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
+import { inheritPropertyValueType, untypedPropertyValueVariable } from "src/utils/propertyCaptureFormat";
+import { resolveObsidianPropertyType } from "src/utils/obsidianPropertyTypes";
 import {
 	RequirementCollector,
 	type FieldRequirement,
@@ -373,19 +375,35 @@ async function collectForCaptureChoice(
 		// Scanned BEFORE content so a dual-use {{VALUE}} is marked as path context.
 		"captureTarget",
 	);
-
-	if (choice.format?.enabled) {
+	if (choice.propertyCapture?.property.kind === "named") {
 		await scanContentWithTemplateIncludes(
-			app,
-			collector,
-			choice.format.format,
-			undefined,
-			0,
-			"captureText",
+			app, collector, choice.propertyCapture.property.format, undefined, 0, "propertyName",
 		);
 	}
 
-	if (choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
+	const captureFormat = choice.format?.enabled ? choice.format.format : VALUE_SYNTAX;
+	const propertyName = choice.propertyCapture?.property.kind === "named"
+		? choice.propertyCapture.property.format.trim() : null;
+	const knownPropertyType = propertyName && !hasTemplatePathSyntax(propertyName)
+		? resolveObsidianPropertyType(app, propertyName, { registeredOnly: true }) : null;
+	if (choice.format?.enabled || choice.propertyCapture) {
+		await scanContentWithTemplateIncludes(
+			app,
+			collector,
+			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
+			undefined,
+			0,
+			choice.propertyCapture ? "propertyValue" : "captureText",
+		);
+	}
+
+	if (choice.propertyCapture && knownPropertyType === null) {
+		const key = untypedPropertyValueVariable(captureFormat);
+		const requirement = key === null ? undefined : collector.requirements.get(key);
+		if (requirement) requirement.runtimeOnly = true;
+	}
+
+	if (!choice.propertyCapture && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,
@@ -397,7 +415,7 @@ async function collectForCaptureChoice(
 		);
 	}
 
-	if (choice.insertBefore?.enabled) {
+	if (!choice.propertyCapture && choice.insertBefore?.enabled) {
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,

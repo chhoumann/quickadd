@@ -167,6 +167,24 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
+	async formatPropertyName(input: string): Promise<string> {
+		return await this.withPromptScope("propertyName", input, async () =>
+			this.replaceCurrentFileTokensInString(await this.format(input), {
+				links: true, fileName: true, folder: true, activeFolder: "content", title: true,
+			}),
+		);
+	}
+
+	async formatPropertyValue(input: string): Promise<unknown> {
+		return await this.preserveSingleTokenValue(input, () =>
+			this.withPromptScope("propertyValue", input, async () =>
+				this.replaceCurrentFileTokensInString(await this.format(input), {
+					links: true, fileName: true, folder: true, activeFolder: "content", title: true,
+				}),
+			),
+		);
+	}
+
 	async formatFileContent(input: string): Promise<string> {
 		let output: string = input;
 

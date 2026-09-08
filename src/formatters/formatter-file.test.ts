@@ -64,6 +64,10 @@ class FileTestFormatter extends Formatter {
 		return this.replaceFileInString(input);
 	}
 
+	public runPropertyValue(input: string): Promise<unknown> {
+		return this.preserveSingleTokenValue(input, () => this.replaceFileInString(input));
+	}
+
 	public runWithPropertyCollection(input: string): Promise<string> {
 		return this.withTemplatePropertyCollection(() =>
 			this.replaceFileInString(input),
@@ -303,5 +307,14 @@ describe("Formatter {{FILE:...}} token", () => {
 
 		expect(output).toBe("---\npeople: []\n---\n");
 		expect(vars.get("people")).toEqual(["[[Tom@]]", "[[Jack@]]"]);
+	});
+});
+
+describe("FILE tokens as property values", () => {
+	it("keeps selected file paths as a native list unless rendering was explicitly requested", async () => {
+		const formatter = new FileTestFormatter(makeApp([]), () => ["@file:Projects/Alpha.md", "@file:Projects/Beta.md"]);
+		expect(await formatter.runPropertyValue("{{FILE:Projects|path|multi}}")).toEqual(["Projects/Alpha.md", "Projects/Beta.md"]);
+		expect(await formatter.runPropertyValue("{{FILE:Projects|path|multi|format:yaml}}")).toBe('["Projects/Alpha.md", "Projects/Beta.md"]');
+		expect(await formatter.runPropertyValue("Files: {{FILE:Projects|path|multi}}" )).toBe("Files: Projects/Alpha.md,Projects/Beta.md");
 	});
 });
