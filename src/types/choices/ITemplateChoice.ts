@@ -1,7 +1,7 @@
 import type IChoice from "./IChoice";
 import type { AppendLinkOptions } from "../linkPlacement";
 import type { OpenLocation, FileViewMode2 } from "../fileOpening";
-import type { TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
+import type { TemplateExistingNoteAction, TemplateFileExistsBehavior } from "../../template/fileExistsPolicy";
 
 /**
  * Destination configuration for a Template choice. These four booleans encode a
@@ -26,6 +26,7 @@ export default interface ITemplateChoice extends IChoice {
 	 * before committing to creating a new one.
 	 */
 	discoverExistingNotesBeforeCreate?: boolean;
+	existingNoteAction?: TemplateExistingNoteAction;
 	/** 
 	 * Configure link appending behavior. 
 	 * - boolean: Legacy format for backward compatibility (true = enabled with default placement)

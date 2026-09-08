@@ -4,12 +4,26 @@ import {
 	getBehaviorCategory,
 	getDefaultBehaviorForCategory,
 	getFileExistsMode,
+	getExistingNoteAction,
 	getModesForCategory,
 	getPromptModes,
 	mapLegacyFileExistsModeToId,
 	resolveDuplicateSuffixCollisionPath,
 	resolveIncrementedCollisionPath,
 } from "./fileExistsPolicy";
+
+describe("existing-note action parsing", () => {
+	it("keeps saved choices without an action on the released open-only behavior", () => {
+		expect(getExistingNoteAction(undefined)).toBe("open");
+	});
+
+	it.each(["duplicateSuffix", "increment", "doNothing", "constructor", null, false])(
+		"rejects %s instead of silently changing a selected note's action",
+		(value) => {
+			expect(() => getExistingNoteAction(value)).toThrow("Unknown existing-note action");
+		},
+	);
+});
 
 describe("fileExistsPolicy registry", () => {
 	it("exposes stable behavior categories", () => {

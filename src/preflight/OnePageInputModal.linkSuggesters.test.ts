@@ -47,11 +47,11 @@ vi.mock("src/gui/suggesters/tagSuggester", () => ({
 }));
 
 vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
-	FieldValueInputSuggest: class {},
+	FieldValueInputSuggest: class { destroy = vi.fn(); },
 }));
 
 vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
-	SuggesterInputSuggest: class {},
+	SuggesterInputSuggest: class { destroy = vi.fn(); },
 }));
 
 vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({

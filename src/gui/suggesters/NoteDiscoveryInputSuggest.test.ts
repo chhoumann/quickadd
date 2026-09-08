@@ -67,4 +67,15 @@ describe("NoteDiscoveryInputSuggest", () => {
 		expect(() => suggester.resolveInput("../outside")).toThrow();
 		expect(suggester.resolveInput("Unresolved link")).toEqual({ kind: "create", title: "Unresolved link" });
 	});
+
+	it("never interprets a custom create row as an encoded existing-note selection", () => {
+		const { suggester, selected } = createSuggest();
+		const text = "@quickadd-existing-note:Projects/Project Atlas.md";
+		const custom = suggester.getSuggestions(text).find((option) => option.label.startsWith("Create new note:"));
+		expect(custom).toBeDefined();
+		if (!custom) throw new Error("Expected a custom title row");
+		suggester.selectSuggestion(custom);
+		expect(selected).toHaveBeenCalledWith({ kind: "create", title: text, vaultRelativePath: text });
+		expect(suggester.resolveInput(text)).toEqual({ kind: "create", title: text, vaultRelativePath: text });
+	});
 });

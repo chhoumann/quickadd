@@ -9,6 +9,8 @@ const {
 	openFileMock,
 	insertFileLinkMock,
 	copyFileLinkMock,
+	setTitleMock,
+	setTargetFolderPathMock,
 } = vi.hoisted(() => ({
 	formatFileNameMock: vi.fn<(format: string, prompt: string) => Promise<string>>(),
 	formatFileContentMock: vi.fn<() => Promise<string>>(),
@@ -17,14 +19,20 @@ const {
 	openFileMock: vi.fn(),
 	insertFileLinkMock: vi.fn(),
 	copyFileLinkMock: vi.fn(),
+	setTitleMock: vi.fn(),
+	setTargetFolderPathMock: vi.fn(),
 }));
 
 vi.mock("../formatters/completeFormatter", () => {
 	class CompleteFormatterMock {
 		setLinkToCurrentFileBehavior() {}
-		setTitle() {}
+		setTitle(title: string) { setTitleMock(title); }
 		setPromptRunContext() {}
-		setTargetFolderPath() {}
+		setTargetFolderPath(path: string) { setTargetFolderPathMock(path); }
+		getAnonymousValue() { return undefined; }
+		async withPromptScope<T>(_scope: string, _input: string, work: () => Promise<T>) {
+			return await work();
+		}
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}
@@ -57,6 +65,9 @@ vi.mock("../utilityObsidian", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
 	getAllFolderPathsInVault: vi.fn(() => []),
+	getTemplateFile: (app: App, path: string) => app.vault.getAbstractFileByPath(path),
+	templaterParseTemplate: async (_app: App, content: string) => content,
+	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	insertFileLinkToActiveView: insertFileLinkMock,
 	openExistingFileTab: openExistingFileTabMock,
 	openFile: openFileMock,
@@ -64,6 +75,7 @@ vi.mock("../utilityObsidian", () => ({
 
 vi.mock("../utils/fileLinks", () => ({
 	copyFileLinkToClipboard: copyFileLinkMock,
+	getAppendLinkDestinationFile: () => null,
 }));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
@@ -84,6 +96,7 @@ import { TFile, type App } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import { promptCancelled } from "../errors/UserCancelError";
 
 function file(path: string): TFile {
 	const tfile = new TFile();
@@ -130,6 +143,9 @@ function buildEngine(
 	variables = new Map<string, unknown>(),
 ) {
 	const created = file("Created.md");
+	const template = file(templateChoice.templatePath);
+	const files = new Map([[template.path, template]]);
+	const contents = new Map([[template.path, "Template source"]]);
 	const app = {
 		workspace: {
 			getActiveFile: vi.fn(() => null),
@@ -142,11 +158,17 @@ function buildEngine(
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
-			getAbstractFileByPath: vi.fn(() => null),
-			getFiles: vi.fn(() => []),
+			getAbstractFileByPath: vi.fn((path: string) => files.get(path) ?? null),
+			getFiles: vi.fn(() => [...files.values()]),
+			cachedRead: vi.fn(async (target: TFile) => contents.get(target.path) ?? ""),
 			createFolder: vi.fn(),
 			create: vi.fn(async () => created),
-			modify: vi.fn(),
+			modify: vi.fn(async (target: TFile, content: string) => { contents.set(target.path, content); }),
+			process: vi.fn(async (target: TFile, update: (content: string) => string) => {
+				const content = update(contents.get(target.path) ?? "");
+				contents.set(target.path, content);
+				return content;
+			}),
 		},
 	} as unknown as App;
 	const choiceExecutor: IChoiceExecutor = {
@@ -164,7 +186,7 @@ function buildEngine(
 		templateChoice,
 		choiceExecutor,
 	);
-	return { engine, app, choiceExecutor, created };
+	return { engine, app, choiceExecutor, created, files, contents };
 }
 
 describe("TemplateChoiceEngine note discovery", () => {
@@ -179,12 +201,49 @@ describe("TemplateChoiceEngine note discovery", () => {
 		openFileMock.mockReset();
 		insertFileLinkMock.mockReset();
 		copyFileLinkMock.mockReset();
+		setTitleMock.mockReset();
+		setTargetFolderPathMock.mockReset();
+	});
+
+	it.each(["open", "appendBottom"] as const)("validates a missing append-link target only when the selected action needs it: %s", async (action) => {
+		const context = buildEngine(choice({
+			existingNoteAction: action,
+			appendLink: { enabled: true, placement: "newLine", requireActiveFile: false, destination: { type: "specifiedFile", path: "Missing.md" } },
+		}));
+		const selected = file("Existing.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: selected });
+		await context.engine.run();
+		if (action === "open") {
+			expect(openFileMock).toHaveBeenCalledWith(context.app, selected, expect.anything());
+			expect(context.choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: selected, effect: "unchanged" });
+		} else {
+			expect(openFileMock).not.toHaveBeenCalled();
+			expect(context.choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({ status: "error", reason: expect.stringContaining("Append link target") }));
+		}
+		expect(formatFileContentMock).not.toHaveBeenCalled();
+		expect(context.app.vault.modify).not.toHaveBeenCalled();
+	});
+
+	it.each(["Templates/Project.md", "/Templates/Project", "  /Templates/Project.md  "])
+	("rejects the selected template source using the engine's path resolution: %s", async (templatePath) => {
+		const context = buildEngine(choice({ templatePath, existingNoteAction: "overwrite" }));
+		const source = file("Templates/Project.md");
+		context.files.set(source.path, source);
+		context.contents.set(source.path, "Reusable {{VALUE:owner}}");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: source });
+		await context.engine.run();
+		expect(context.choiceExecutor.signalAbort).toHaveBeenCalledWith(expect.objectContaining({
+			message: expect.stringContaining("own template source"),
+		}));
+		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(formatFileContentMock).not.toHaveBeenCalled();
+		expect(context.contents.get(source.path)).toBe("Reusable {{VALUE:owner}}");
 	});
 
 	it("opens an existing discovery result unchanged and skips template side effects", async () => {
 		const existing = file("People/Alice.md");
 		promptForTemplateNoteDiscoveryMock.mockResolvedValue({
-			kind: "openExisting",
+			kind: "existing",
 			file: existing,
 		});
 		const { engine, app, choiceExecutor } = buildEngine(
@@ -218,6 +277,96 @@ describe("TemplateChoiceEngine note discovery", () => {
 			file: existing,
 			effect: "unchanged",
 		});
+	});
+
+	it.each([
+		["appendBottom", "---\nstatus: active\n---\nOriginal body\nUpdate"],
+		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],
+		["overwrite", "Update"],
+	] as const)("applies %s to the selected file without creating or rerouting a note", async (action, expected) => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: existing });
+		const { engine, app, choiceExecutor, files, contents } = buildEngine(choice({
+			existingNoteAction: action,
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+			folder: { ...choice().folder, enabled: true, folders: ["Wrong/{{VALUE:folderOnly}}"] },
+			fileExistsBehavior: { kind: "apply", mode: "duplicateSuffix" },
+			appendLink: true,
+			copyLinkToClipboard: true,
+			openFile: true,
+		}));
+		files.set(existing.path, existing);
+		contents.set(existing.path, "---\nstatus: active\n---\nOriginal body");
+		formatFileContentMock.mockImplementation(async () => {
+			expect(choiceExecutor.variables.get("value")).toBe("Alice");
+			return "Update";
+		});
+
+		await engine.run();
+
+		expect(contents.get(existing.path)).toBe(expected);
+		expect(formatFileContentMock).toHaveBeenCalledTimes(1);
+		expect(formatFileNameMock).not.toHaveBeenCalled();
+		expect(app.vault.createFolder).not.toHaveBeenCalled();
+		expect(app.vault.create).not.toHaveBeenCalled();
+		expect(app.vault.adapter.exists).not.toHaveBeenCalled();
+		expect(setTitleMock).toHaveBeenCalledWith("Alice");
+		expect(setTargetFolderPathMock).toHaveBeenCalledWith("People");
+		expect(choiceExecutor.variables.has("value")).toBe(false);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
+			status: "success", file: existing, effect: "changed",
+		});
+		expect(insertFileLinkMock).toHaveBeenCalledTimes(1);
+		expect(copyFileLinkMock).toHaveBeenCalledExactlyOnceWith(existing);
+		expect(openFileMock).toHaveBeenCalledWith(app, existing, expect.anything());
+	});
+
+	it.each(["appendBottom", "appendTop", "overwrite"] as const)("cancels %s before writing or running post-commit actions", async (action) => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: existing });
+		const { engine, app, choiceExecutor, files, contents } = buildEngine(choice({
+			existingNoteAction: action, appendLink: true, copyLinkToClipboard: true, openFile: true,
+		}));
+		files.set(existing.path, existing);
+		contents.set(existing.path, "Keep this body");
+		const cancellation = promptCancelled();
+		formatFileContentMock.mockRejectedValue(cancellation);
+
+		await engine.run();
+
+		expect(contents.get(existing.path)).toBe("Keep this body");
+		expect(app.vault.modify).not.toHaveBeenCalled();
+		expect(app.vault.process).not.toHaveBeenCalled();
+		expect(app.vault.create).not.toHaveBeenCalled();
+		expect(choiceExecutor.signalAbort).toHaveBeenCalledExactlyOnceWith(cancellation);
+		expect(choiceExecutor.recordExecutionResult).not.toHaveBeenCalled();
+		expect(choiceExecutor.variables.has("value")).toBe(false);
+		expect(insertFileLinkMock).not.toHaveBeenCalled();
+		expect(copyFileLinkMock).not.toHaveBeenCalled();
+		expect(openFileMock).not.toHaveBeenCalled();
+	});
+
+	it.each(["appendBottom", "overwrite"] as const)("records a failed %s without post-commit actions", async (action) => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: existing });
+		const { engine, app, choiceExecutor, contents } = buildEngine(choice({
+			existingNoteAction: action, appendLink: true, copyLinkToClipboard: true, openFile: true,
+		}));
+		contents.set(existing.path, "Keep this body");
+		formatFileContentMock.mockResolvedValue("Update");
+		vi.mocked(app.vault.modify).mockRejectedValue(new Error("Disk is read-only"));
+		vi.mocked(app.vault.process).mockRejectedValue(new Error("Disk is read-only"));
+
+		await engine.run();
+
+		expect(contents.get(existing.path)).toBe("Keep this body");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
+			status: "error", reason: expect.stringContaining("Disk is read-only"),
+		});
+		expect(choiceExecutor.variables.has("value")).toBe(false);
+		expect(insertFileLinkMock).not.toHaveBeenCalled();
+		expect(copyFileLinkMock).not.toHaveBeenCalled();
+		expect(openFileMock).not.toHaveBeenCalled();
 	});
 
 	it("seeds VALUE and continues through normal template creation for create rows", async () => {

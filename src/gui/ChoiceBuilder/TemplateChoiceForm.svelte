@@ -12,6 +12,7 @@ import {
 	getDefaultBehaviorForCategory,
 	getFileExistsMode,
 	getModesForCategory,
+	existingNoteActions,
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
 import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
@@ -100,7 +101,7 @@ const discoverySupported = $derived(
 );
 const discoveryDescription = $derived(
 	discoverySupported
-		? "For the default note-title prompt, show matching notes first. Choosing one opens it unchanged; choosing the create row continues with this template."
+		? "Show matching notes and unresolved links in the note-title prompt."
 		: "Only available when the file name prompt is the default note title: no custom format, {{VALUE}}, or {{NAME}}.",
 );
 
@@ -319,8 +320,25 @@ function onModeChange(value: string) {
 	{/snippet}
 </SettingItem>
 
+{#if discoverySupported && choice.discoverExistingNotesBeforeCreate}
+	<SettingItem name="When selecting an existing note">
+		{#snippet control()}
+			<Dropdown
+				value={choice.existingNoteAction ?? "open"}
+				options={existingNoteActions.map((action) => ({ value: action.id, label: action.label }))}
+				onchange={(value) => {
+					const action = existingNoteActions.find((action) => action.id === value);
+					if (action) choice.existingNoteAction = action.id;
+				}}
+			/>
+		{/snippet}
+	</SettingItem>
+{/if}
+
 <SettingItem
-	name="If the target file already exists"
+	name={discoverySupported && choice.discoverExistingNotesBeforeCreate
+		? "If a new note's path already exists"
+		: "If the target file already exists"}
 	desc="Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file."
 >
 	{#snippet control()}

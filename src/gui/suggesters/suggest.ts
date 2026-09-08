@@ -476,6 +476,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	}
 
 	close(): void {
+		this.currentRequestId++;
 		if (!this.isOpen) return;
 
 		this.app.keymap.popScope(this.scope);

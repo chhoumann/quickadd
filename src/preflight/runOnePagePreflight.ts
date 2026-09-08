@@ -155,7 +155,7 @@ export async function runOnePagePreflight(
 		if (unresolved.length === 0) return false; // Everything prefilled, skip modal
 
 		const modalRequirements = unresolved.filter(
-			(requirement) => !requirement.runtimeOnly,
+			(requirement) => !requirement.runtimeOnly || discoveryPlan?.config.fieldUsages.has(requirement.id),
 		);
 		if (modalRequirements.length === 0) return false;
 
@@ -262,7 +262,7 @@ export async function runOnePagePreflight(
 				displayToValue: Map<string, string>;
 			}
 		>();
-		for (const req of modalRequirements) {
+		for (const req of modal?.activeRequirements ?? modalRequirements) {
 			if (req.id.startsWith(FILE_VARIABLE_PREFIX)) {
 				const options = req.options ?? [];
 				const displayOptions = req.displayOptions ?? options;

@@ -4,9 +4,9 @@ const { inputSuggestMock } = vi.hoisted(() => ({
 	inputSuggestMock: vi.fn(),
 }));
 
-vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
-	default: {
-		Suggest: inputSuggestMock,
+vi.mock("src/gui/TemplateNoteDiscoveryModal", () => ({
+	TemplateNoteDiscoveryModal: class {
+		promise = inputSuggestMock();
 	},
 }));
 
@@ -70,7 +70,7 @@ function app(files: TFile[] = []): App {
 	} as unknown as App;
 }
 
-describe("template note discovery — typed name vault-relative parity (audit)", () => {
+describe("template note discovery - typed name vault-relative parity (audit)", () => {
 	beforeEach(() => {
 		inputSuggestMock.mockReset();
 	});
@@ -80,7 +80,7 @@ describe("template note discovery — typed name vault-relative parity (audit)",
 		// existing note or unresolved link, so it flows through the typed
 		// custom-value branch. It must resolve like the unresolved-link branch
 		// (vault-relative), not anchor under the configured/default folder.
-		inputSuggestMock.mockResolvedValue("Projects/My New Note");
+		inputSuggestMock.mockResolvedValue({ kind: "create", title: "Projects/My New Note" });
 
 		const result = await promptForTemplateNoteDiscovery(app([]), choice(), IN_APP_RUN);
 
@@ -92,7 +92,7 @@ describe("template note discovery — typed name vault-relative parity (audit)",
 	});
 
 	it("leaves a plain typed name without a vault-relative path", async () => {
-		inputSuggestMock.mockResolvedValue("My New Note");
+		inputSuggestMock.mockResolvedValue({ kind: "create", title: "My New Note" });
 
 		const result = await promptForTemplateNoteDiscovery(app([]), choice(), IN_APP_RUN);
 

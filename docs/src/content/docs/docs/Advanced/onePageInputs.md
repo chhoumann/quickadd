@@ -55,8 +55,11 @@ Nested Macros inherit the enclosing Macro's override unless they have their own.
 
 When a Template searches existing notes before creating, the one-page form includes
 its note picker alongside the Macro's Capture fields. Choose an existing note or
-create a new one. Template fields appear only when creating; switching between
-notes keeps your drafts. Each Capture's anonymous `{{VALUE}}` has its own answer,
+create a new one. With **Open note**, Template fields appear only when creating.
+With an [existing-note update action](/docs/Choices/TemplateChoice/#search-existing),
+inputs needed by the template remain visible for the selected note. Inputs used
+only in the new note's name or folder stay hidden. Switching between notes keeps
+your drafts. Each Capture's anonymous `{{VALUE}}` has its own answer,
 separate from the note title. Named inputs such as `{{VALUE:details}}` remain shared.
 
 If that Template's override is **Never**, QuickAdd shows its note picker first.

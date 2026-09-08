@@ -46,8 +46,9 @@ import { promptCancelled } from "../errors/UserCancelError";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
 import { decodeFileValue } from "src/utils/fileSyntax";
 import { NoteDiscoveryInputSuggest } from "src/gui/suggesters/NoteDiscoveryInputSuggest";
-import { selectionForDiscoveryCandidate, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
-import type { DiscoveryFormConfig, DiscoveryNoteField } from "./discoveryFormPlan";
+import { createTemplateNoteSelection, type TemplateNoteSelection } from "src/utils/templateNoteDiscovery";
+import { acceptsDiscoverySelection, resolveDiscoveryFieldRequirement, type DiscoveryFormConfig, type DiscoveryNoteField } from "./discoveryFormPlan";
+import { existingNoteActionVerb } from "src/template/fileExistsPolicy";
 
 type CompletionInputEvent = Event & {
 	fromCompletion?: boolean;
@@ -105,6 +106,23 @@ type PreviewComputer = (
 	values: Record<string, unknown>,
 ) => Promise<PreviewRow[]> | PreviewRow[];
 
+interface FieldControl {
+	requirement: FieldRequirement;
+	elements: HTMLElement[];
+	value: string;
+	multiSelections?: string[];
+	fileSelections?: string[];
+	dateParseError: boolean;
+	suggesters: Array<{ close(): void; destroy(): void }>;
+	dispose: Array<() => void>;
+}
+
+function controlDefinition(requirement: FieldRequirement): string {
+	return JSON.stringify(Object.entries(requirement)
+		.filter(([key, value]) => value !== undefined && !["id", "group", "optional", "pathContext", "runtimeOnly"].includes(key))
+		.sort(([a], [b]) => a.localeCompare(b)));
+}
+
 export class OnePageInputModal extends Modal {
 	private readonly requirements: FieldRequirement[];
 	private readonly initialValues: Map<string, string>;
@@ -122,6 +140,8 @@ export class OnePageInputModal extends Modal {
 	public readonly discoverySelections = new Map<string, TemplateNoteSelection>();
 	private readonly discoverySuggesters: NoteDiscoveryInputSuggest[] = [];
 	private readonly fieldElements = new Map<string, HTMLElement[]>();
+	private readonly fieldAnchors = new Map<string, Comment>();
+	private readonly fieldControls = new Map<FieldRequirement, FieldControl>();
 	private readonly discoveryInputs = new Map<string, {
 		input: HTMLInputElement;
 		select: (selection: TemplateNoteSelection) => void;
@@ -135,10 +155,10 @@ export class OnePageInputModal extends Modal {
 	private previewToken = 0;
 	private updatePreviewDebounced: () => void;
 	private settled = false;
-	private readonly imagePasteHandles: ImagePasteHandle[] = [];
+	private readonly imagePasteHandles = new Map<FieldRequirement, ImagePasteHandle>();
+	private readonly imagePasteInputs = new Map<FieldRequirement, HTMLInputElement | HTMLTextAreaElement>();
 	private readonly freeTextFields: OnePageFreeTextField[] = [];
 	private lastFocusedFreeText: OnePageFreeTextField | undefined;
-	private readonly filePickerSuggesters: FilePickerInputSuggest[] = [];
 	private readonly peek: InputPromptPeek;
 
 	public waitForClose: Promise<Record<string, string>>;
@@ -153,7 +173,8 @@ export class OnePageInputModal extends Modal {
 		private readonly discoveryForm?: DiscoveryFormConfig,
 	) {
 		super(app);
-		this.requirements = requirements;
+		this.requirements = requirements.map((requirement) => ({ ...requirement }));
+		this.updateFieldMetadata();
 		this.initialValues = new Map<string, string>();
 		this.computePreview = computePreview;
 		initial?.forEach((v, k) => {
@@ -300,20 +321,121 @@ export class OnePageInputModal extends Modal {
 		const note = this.discoveryForm?.notes.find((field) => field.id === req.id);
 		if (note) this.renderNoteField(note);
 		else this.renderFieldControl(req);
-		this.fieldElements.set(req.id, Array.from(this.contentEl.children)
-			.filter((element): element is HTMLElement => element instanceof HTMLElement && !before.has(element)));
+		const elements = Array.from(this.contentEl.children)
+			.filter((element): element is HTMLElement => element instanceof HTMLElement && !before.has(element));
+		this.fieldElements.set(req.id, elements);
+		if (!note) {
+			this.controlFor(req).elements = elements;
+			let anchor = this.fieldAnchors.get(req.id);
+			if (!anchor) {
+				anchor = this.contentEl.ownerDocument.createComment(req.id);
+				this.contentEl.append(anchor);
+				this.fieldAnchors.set(req.id, anchor);
+			}
+			for (const element of elements) this.contentEl.insertBefore(element, anchor);
+		}
+	}
+
+	private controlFor(requirement: FieldRequirement): FieldControl {
+		let control = this.fieldControls.get(requirement);
+		if (!control) {
+			control = { requirement, elements: [], value: "", dateParseError: false, suggesters: [], dispose: [] };
+			this.fieldControls.set(requirement, control);
+		}
+		return control;
+	}
+
+	private publishControl(control: FieldControl): void {
+		const req = control.requirement;
+		if (this.settled || !this.requirements.includes(req)) return;
+		this.result.set(req.id, control.value);
+		if (control.multiSelections) this.multiSelections.set(req.id, control.multiSelections);
+		else this.multiSelections.delete(req.id);
+		if (control.fileSelections) this.fileSelections.set(req.id, control.fileSelections);
+		else this.fileSelections.delete(req.id);
+		if (control.dateParseError) this.dateParseErrors.add(req.id);
+		else this.dateParseErrors.delete(req.id);
+	}
+
+	public get activeRequirements(): readonly FieldRequirement[] {
+		return this.requirements.filter((req) => this.isFieldVisible(req.id));
 	}
 
 	private isFieldVisible(id: string): boolean {
-		const conditions = this.discoveryForm?.visibleWhenCreating.get(id);
-		return !conditions || conditions.some((noteId) => this.discoverySelections.get(noteId)?.kind === "create");
+		if (this.requirements.find((req) => req.id === id)?.runtimeOnly) return false;
+		const conditions = this.discoveryForm?.visibleForNotes.get(id);
+		return !conditions || conditions.some((condition) => acceptsDiscoverySelection(condition, this.discoverySelections));
 	}
 
 	private updateFieldVisibility(updatePreview = true): void {
+		this.updateFieldMetadata();
 		for (const [id, elements] of this.fieldElements) {
 			for (const element of elements) element.hidden = !this.isFieldVisible(id);
 		}
+		for (const control of this.fieldControls.values()) {
+			if (this.requirements.includes(control.requirement) && this.isFieldVisible(control.requirement.id)) continue;
+			for (const suggester of control.suggesters) suggester.close();
+		}
+		for (const [requirement, input] of this.imagePasteInputs) {
+			this.syncImagePaste(requirement, input);
+		}
 		if (updatePreview) this.updatePreviewDebounced();
+	}
+
+	private updateFieldMetadata(): void {
+		for (let index = 0; index < this.requirements.length; index++) {
+			let req = this.requirements[index];
+			const usages = this.discoveryForm?.fieldUsages.get(req.id);
+			if (!usages) continue;
+			const resolved = resolveDiscoveryFieldRequirement(usages, this.discoverySelections);
+			if (!resolved) continue;
+			const next = { ...resolved, id: req.id, group: req.group };
+			if (!this.fieldElements.has(req.id)) {
+				this.requirements[index] = next;
+				continue;
+			}
+			if (controlDefinition(req) !== controlDefinition(next)) {
+				const previous = this.controlFor(req);
+				previous.value = this.result.get(req.id) ?? previous.value;
+				for (const suggester of previous.suggesters) suggester.close();
+				for (const element of previous.elements) {
+					element.hidden = true;
+					element.remove();
+				}
+				const cached = Array.from(this.fieldControls.values()).find((control) =>
+					control.requirement.id === req.id && controlDefinition(control.requirement) === controlDefinition(next));
+				req = cached?.requirement ?? next;
+				this.requirements[index] = req;
+				if (cached) {
+					for (const element of cached.elements) {
+						this.contentEl.insertBefore(element, this.fieldAnchors.get(req.id) ?? null);
+					}
+					this.fieldElements.set(req.id, cached.elements);
+					this.publishControl(cached);
+				} else {
+					this.renderField(req);
+				}
+			}
+			Object.assign(req, { optional: next.optional, pathContext: next.pathContext, runtimeOnly: next.runtimeOnly });
+			for (const element of this.fieldElements.get(req.id) ?? []) {
+				element.querySelector(".setting-item-name")?.replaceChildren(this.decorateLabel(req));
+				if (req.type !== "dropdown") continue;
+				const select = element.querySelector("select");
+				if (!select || req.options?.includes("")) continue;
+				const skip = Array.from(select.options).find((option) => option.value === "");
+				if (req.optional && !skip) {
+					const option = select.ownerDocument.createElement("option");
+					option.value = "";
+					option.textContent = "Skip (leave empty)";
+					select.prepend(option);
+				} else if (!req.optional && skip) {
+					skip.remove();
+					const control = this.controlFor(req);
+					control.value = select.value;
+					this.publishControl(control);
+				}
+			}
+		}
 	}
 
 	private renderNoteField(note: DiscoveryNoteField): void {
@@ -330,7 +452,10 @@ export class OnePageInputModal extends Modal {
 			suggester?.close();
 			this.discoverySelections.set(note.id, selection);
 			selected.empty();
-			const label = selection.kind === "existing" ? selection.path.replace(/\.md$/i, "") : `Create: ${selection.title}`;
+			const action = existingNoteActionVerb(note.choice.existingNoteAction);
+			const label = selection.kind === "existing"
+				? `${action === "Open" ? "" : `${action}: `}${selection.path.replace(/\.md$/i, "")}`
+				: `Create: ${selection.title}`;
 			const chip = selected.createDiv({ cls: "qa-onepage-file-picker__chip" });
 			chip.createSpan({ cls: "qa-onepage-file-picker__chip-label", text: label });
 			const change = chip.createEl("button", { cls: "qa-onepage-file-picker__remove", text: "×" });
@@ -358,16 +483,19 @@ export class OnePageInputModal extends Modal {
 			select: showSelection,
 			resolve: () => suggester
 				? suggester.resolveInput(input.inputEl.value)
-				: selectionForDiscoveryCandidate(this.app, input.inputEl.value),
+				: createTemplateNoteSelection(input.inputEl.value),
 		});
 	}
 
 	private renderFieldControl(req: FieldRequirement) {
-		const setValue = (id: string, value: string) => {
-			this.result.set(id, value);
+		const control = this.controlFor(req);
+		const setValue = (_id: string, value: string) => {
+			control.value = value;
+			this.publishControl(control);
 			this.updatePreviewDebounced();
 		};
 		const starting = this.initialValues.get(req.id) ?? req.defaultValue ?? "";
+		control.value = starting;
 
 		switch (req.type) {
 			case "textarea": {
@@ -382,7 +510,7 @@ export class OnePageInputModal extends Modal {
 					.onChange((v) => setValue(req.id, v));
 				input.inputEl.addClass("qa-onepage-textarea");
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
+				this.attachFreeTextBehaviors(req, input.inputEl, setting);
 				break;
 			}
 			case "text": {
@@ -396,7 +524,7 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
+				this.attachFreeTextBehaviors(req, input.inputEl, setting);
 				break;
 			}
 			case "number": {
@@ -557,6 +685,8 @@ export class OnePageInputModal extends Modal {
 					},
 				});
 
+				control.dispose.push(() => datePicker.destroy());
+
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,
 				);
@@ -595,7 +725,7 @@ export class OnePageInputModal extends Modal {
 
 				const applyPickerSelection = (iso: string) => {
 					selectedIso = iso;
-					this.dateParseErrors.delete(req.id);
+					control.dateParseError = false;
 					const display = formatIsoForDisplay(iso);
 					input.inputEl.value = display;
 					setValue(req.id, `@date:${iso}`);
@@ -619,7 +749,7 @@ export class OnePageInputModal extends Modal {
 						);
 						if (parsed.isValid && parsed.isoString) {
 							selectedIso = parsed.isoString;
-							this.dateParseErrors.delete(req.id);
+							control.dateParseError = false;
 							setValue(req.id, `@date:${parsed.isoString}`);
 							syncSelection(parsed.isoString);
 							const formatted =
@@ -629,14 +759,14 @@ export class OnePageInputModal extends Modal {
 							return;
 						}
 						renderPreview(parsed.error || "Unable to parse date", true);
-						this.dateParseErrors.add(req.id);
+						control.dateParseError = true;
 						setValue(req.id, "");
 						syncSelection();
 						return;
 					}
 					if (!inputVal) {
 						selectedIso = undefined;
-						this.dateParseErrors.delete(req.id);
+						control.dateParseError = false;
 						setValue(req.id, "");
 						syncSelection();
 						renderPreview(
@@ -651,7 +781,7 @@ export class OnePageInputModal extends Modal {
 					if (inputVal.startsWith("@date:")) {
 						const iso = inputVal.slice(6).trim();
 						if (iso) {
-							this.dateParseErrors.delete(req.id);
+							control.dateParseError = false;
 							applyPickerSelection(iso);
 							return;
 						}
@@ -660,7 +790,7 @@ export class OnePageInputModal extends Modal {
 					const parsed = parseNaturalLanguageDate(inputVal, req.dateFormat);
 					if (parsed.isValid && parsed.isoString) {
 						selectedIso = parsed.isoString;
-						this.dateParseErrors.delete(req.id);
+						control.dateParseError = false;
 						setValue(req.id, `@date:${parsed.isoString}`);
 						syncSelection(parsed.isoString);
 						const formatted =
@@ -668,7 +798,7 @@ export class OnePageInputModal extends Modal {
 						renderPreview(formatted, false);
 					} else {
 						selectedIso = undefined;
-						this.dateParseErrors.add(req.id);
+						control.dateParseError = true;
 						setValue(req.id, "");
 						syncSelection();
 						renderPreview(parsed.error || "Unable to parse date", true);
@@ -701,7 +831,7 @@ export class OnePageInputModal extends Modal {
 					? req.id.slice(FIELD_VARIABLE_PREFIX.length)
 					: req.id;
 				try {
-					new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier);
+					control.suggesters.push(new FieldValueInputSuggest(this.app, input.inputEl, fieldSpecifier));
 				} catch {
 					// Non-fatal; leave as plain input if suggester fails
 				}
@@ -748,7 +878,7 @@ export class OnePageInputModal extends Modal {
 					try {
 						const caseSensitive = req.suggesterConfig?.caseSensitive ?? false;
 						const multiSelect = req.suggesterConfig?.multiSelect ?? false;
-						new SuggesterInputSuggest(
+						control.suggesters.push(new SuggesterInputSuggest(
 							this.app,
 							input.inputEl,
 							displayOptions,
@@ -756,12 +886,13 @@ export class OnePageInputModal extends Modal {
 							multiSelect,
 							multiSelect
 								? (item) => {
-										const arr = this.multiSelections.get(req.id) ?? [];
+										const arr = control.multiSelections ?? [];
 										arr.push(item);
-										this.multiSelections.set(req.id, arr);
+										control.multiSelections = arr;
+										this.publishControl(control);
 									}
 								: undefined,
-						);
+						));
 					} catch {
 						// Non-fatal; falls back to plain text input
 					}
@@ -782,12 +913,12 @@ export class OnePageInputModal extends Modal {
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
 				this.enableImagePaste(req, input.inputEl);
-				this.attachFreeTextBehaviors(req.id, input.inputEl, setting);
+				this.attachFreeTextBehaviors(req, input.inputEl, setting);
 			}
 		}
 
 		// Initialize stored value for empty inputs to ensure presence
-		if (!this.result.has(req.id)) this.result.set(req.id, starting);
+		this.publishControl(control);
 	}
 
 	private renderFilePickerField(
@@ -874,7 +1005,7 @@ export class OnePageInputModal extends Modal {
 		const sync = () => {
 			const picked = orderedSelections();
 			const pickedValues = picked.map((option) => option.value);
-			this.fileSelections.set(req.id, pickedValues);
+			this.controlFor(req).fileSelections = pickedValues;
 			setValue(
 				req.id,
 				multiSelect ? pickedValues.join(", ") : (pickedValues[0] ?? ""),
@@ -938,7 +1069,7 @@ export class OnePageInputModal extends Modal {
 				multiSelect,
 				allowCustomInput,
 			);
-			this.filePickerSuggesters.push(suggester);
+			this.controlFor(req).suggesters.push(suggester);
 		} catch {
 			// A failed suggester should not break the rest of the one-page form.
 			input.setDisabled(true);
@@ -948,10 +1079,11 @@ export class OnePageInputModal extends Modal {
 	}
 
 	private attachFreeTextBehaviors(
-		id: string,
+		req: FieldRequirement,
 		el: HTMLInputElement | HTMLTextAreaElement,
 		setting: Setting,
 	): void {
+		const id = req.id;
 		if (!setting.nameEl.id) {
 			setting.nameEl.id = `qa-onepage-label-${id}`;
 		}
@@ -966,14 +1098,15 @@ export class OnePageInputModal extends Modal {
 			}),
 		};
 		this.freeTextFields.push(field);
+		this.controlFor(req).suggesters.push(field.fileSuggester, field.tagSuggester);
 		el.addEventListener("focus", () => {
 			this.lastFocusedFreeText = field;
 		});
 	}
 
 	private insertTarget(): OnePageFreeTextField | undefined {
-		if (this.lastFocusedFreeText && this.isFieldVisible(this.lastFocusedFreeText.id)) return this.lastFocusedFreeText;
-		return this.freeTextFields.find((field) => this.isFieldVisible(field.id));
+		if (this.lastFocusedFreeText && this.contentEl.contains(this.lastFocusedFreeText.el) && this.isFieldVisible(this.lastFocusedFreeText.id)) return this.lastFocusedFreeText;
+		return this.freeTextFields.find((field) => this.contentEl.contains(field.el) && this.isFieldVisible(field.id));
 	}
 
 	/**
@@ -988,8 +1121,25 @@ export class OnePageInputModal extends Modal {
 		req: FieldRequirement,
 		inputEl: HTMLInputElement | HTMLTextAreaElement,
 	): void {
-		if (req.pathContext) return;
-		this.imagePasteHandles.push(attachImagePasteHandler(this.app, inputEl, {}));
+		this.imagePasteInputs.set(req, inputEl);
+		this.syncImagePaste(req, inputEl);
+	}
+
+	private syncImagePaste(
+		req: FieldRequirement,
+		inputEl: HTMLInputElement | HTMLTextAreaElement,
+	): void {
+		const handle = this.imagePasteHandles.get(req);
+		if (this.settled || req.pathContext || !this.requirements.includes(req) || !this.isFieldVisible(req.id)) {
+			if (!this.settled && !req.pathContext && handle?.isBusy()) {
+				void handle.whenIdle().then(() => this.syncImagePaste(req, inputEl));
+				return;
+			}
+			handle?.detach();
+			this.imagePasteHandles.delete(req);
+		} else if (!handle) {
+			this.imagePasteHandles.set(req, attachImagePasteHandler(this.app, inputEl, {}));
+		}
 	}
 
 	private decorateLabel(req: FieldRequirement): string | DocumentFragment {
@@ -1008,7 +1158,8 @@ export class OnePageInputModal extends Modal {
 
 	private submit() {
 		if (this.settled) return;
-		const previouslyHidden = this.requirements.filter((req) => !this.isFieldVisible(req.id));
+		const previouslyHidden = new Set(this.requirements
+			.filter((req) => !this.isFieldVisible(req.id)).map((req) => req.id));
 		for (const note of this.discoveryForm?.notes ?? []) {
 			if (this.discoverySelections.has(note.id)) continue;
 			const field = this.discoveryInputs.get(note.id);
@@ -1026,7 +1177,7 @@ export class OnePageInputModal extends Modal {
 				return;
 			}
 		}
-		const revealed = previouslyHidden.find((req) => this.isFieldVisible(req.id) &&
+		const revealed = this.requirements.find((req) => previouslyHidden.has(req.id) && this.isFieldVisible(req.id) &&
 			!req.optional && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
 		if (revealed) {
 			this.fieldElements.get(revealed.id)?.[0]?.querySelector<HTMLElement>("input, textarea, select")?.focus();
@@ -1034,7 +1185,7 @@ export class OnePageInputModal extends Modal {
 		}
 		// A pasted image may still be saving in one of the fields; defer so
 		// paste-then-Mod+Enter submits WITH the embed link.
-		const busyHandle = this.imagePasteHandles.find((handle) =>
+		const busyHandle = Array.from(this.imagePasteHandles.values()).find((handle) =>
 			handle.isBusy(),
 		);
 		if (busyHandle) {
@@ -1135,16 +1286,15 @@ export class OnePageInputModal extends Modal {
 
 	onClose() {
 		this.peek.onHostClosed();
-		for (const handle of this.imagePasteHandles) handle.detach();
-		this.imagePasteHandles.length = 0;
-		for (const field of this.freeTextFields) {
-			field.fileSuggester.destroy();
-			field.tagSuggester.destroy();
+		for (const handle of this.imagePasteHandles.values()) handle.detach();
+		this.imagePasteHandles.clear();
+		this.imagePasteInputs.clear();
+		for (const control of this.fieldControls.values()) {
+			for (const suggester of control.suggesters) suggester.destroy();
+			for (const dispose of control.dispose) dispose();
 		}
 		this.freeTextFields.length = 0;
 		this.lastFocusedFreeText = undefined;
-		for (const suggester of this.filePickerSuggesters) suggester.destroy();
-		this.filePickerSuggesters.length = 0;
 		for (const suggester of this.discoverySuggesters) suggester.destroy();
 		this.discoverySuggesters.length = 0;
 		// Esc (or any close that isn't submit/cancel) must settle the promise,

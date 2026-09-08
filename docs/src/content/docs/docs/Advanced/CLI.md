@@ -108,6 +108,11 @@ Values are passed through exactly as provided. If a choice should ignore an
 accidental leading or trailing space for a specific placeholder, use `|trim` in
 that format string, for example `{{VALUE:project|trim}}`.
 
+For Template choices, passing `value` supplies the new note's name. It does not
+select an existing note from the discovery picker. The generated path follows
+the choice's file-exists behavior. To use **When selecting an existing note**,
+run interactively and select the offered note in the discovery prompt.
+
 ### Names the CLI reserves {#reserved-flag-names}
 
 The bare `key=value` form (pattern 2) ignores names that a command already uses

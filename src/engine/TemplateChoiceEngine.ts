@@ -1,13 +1,15 @@
 import type { App, WorkspaceLeaf } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import invariant from "src/utils/invariant";
-import { VALUE_SYNTAX } from "../constants";
+import { VALUE_SYNTAX, BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import {
 	getFileExistsMode,
+	getExistingNoteAction,
+	type TemplateExistingNoteAction,
 	getPromptModes,
 	resolveCreateNewCollisionFilePath,
 	type FileExistsModeId,
@@ -55,6 +57,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -84,6 +87,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	public async run(): Promise<void> {
 		let restoreDiscoveryValue: (() => void) | null = null;
 		let discoveryVaultRelativePath: string | null = null;
+		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
 
 		try {
 			invariant(this.choice.templatePath, () => {
@@ -99,7 +103,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					? "optional"
 					: "required",
 			);
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
@@ -120,78 +123,34 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						this.choice,
 						this.choiceExecutor,
 					);
-				if (discovery.kind === "openExisting") {
-					await this.openDiscoveredExistingNote(discovery.file);
-					// Opening a note is not writing one: this path exists precisely to
-					// AVOID creating a duplicate, so it leaves the vault byte-identical
-					// (#1615).
-					this.outcome.success(discovery.file, "unchanged");
-					return;
+				if (discovery.kind === "existing") {
+					const action = getExistingNoteAction(this.choice.existingNoteAction);
+					if (action === "open") {
+						await this.openDiscoveredExistingNote(discovery.file);
+						this.outcome.success(discovery.file, "unchanged");
+						return;
+					}
+					selectedUpdate = { file: discovery.file, mode: action };
+					restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.file.basename);
+				} else {
+					restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
+					discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 				}
-
-				restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
-				discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 			}
 
-			// Resolve format tokens in the template path ONCE, after discovery has
-			// either selected "create" or been skipped. Existing-note discovery exits
-			// before any template-path prompt, folder creation, or template side effect.
+			if (!this.validateAppendLinkDestination(linkOptions)) return;
+
+			// Open-only discovery returns before evaluating the template source.
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
-
-			let folderPath = "";
-
-			if (discoveryVaultRelativePath) {
-				folderPath = parentFolderPath(discoveryVaultRelativePath);
-			} else if (this.choice.folder.enabled) {
-				folderPath = await this.getFolderPath();
-			} else {
-				// Respect Obsidian's "Default location for new notes" setting
-				const parent = this.app.fileManager.getNewFileParent(
-					this.app.workspace.getActiveFile()?.path ?? "",
-				);
-				folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+			if (selectedUpdate && getTemplateFile(this.app, templatePath)?.path === selectedUpdate.file.path) {
+				throw new ChoiceAbortError("Cannot apply a template to its own template source.");
 			}
 
-			// Make the resolved folder available to {{FOLDER}} in the file name.
-			this.formatter.setTargetFolderPath(folderPath);
-			// The title prompt below can say where the note will be created only
-			// when a folder is actually configured. With folder settings off the
-			// formatted name can reroute the note from the vault root
-			// (shouldTreatFormattedNameAsVaultRelativePath returns false as soon
-			// as folderEnabled), and the answer that reroutes it is the very one
-			// being typed - so Obsidian's default location is not something this
-			// prompt can promise.
-			if (this.choice.folder.enabled) {
-				this.formatter.setPromptRunContext({
-					destination: folderPath,
-					destinationKind: "folder",
-				});
-			}
-
-			const formattedName = discoveryVaultRelativePath
-				? discoveryVaultRelativePath
-				: await this.formatter.formatFileName(format, "noteTitle");
-			const routedName = normalizeGeneratedFilePath(formattedName, "File name");
-			const { fileName, strippedPrefix } = discoveryVaultRelativePath
-				? { fileName: routedName, strippedPrefix: false }
-				: this.stripDuplicateFolderPrefix(
-					routedName,
-					folderPath,
-				);
-			const treatAsVaultRelativePath =
-				this.shouldTreatFormattedNameAsVaultRelativePath(
-					routedName,
-					strippedPrefix,
-					this.choice.folder.enabled,
-				);
-
-			const targetFilePath = this.normalizeTemplateFilePath(
-				discoveryVaultRelativePath || treatAsVaultRelativePath ? "" : folderPath,
-				fileName,
-				templatePath,
-			);
+			const targetFilePath = selectedUpdate?.file.path ?? await this.resolveNewNotePath({
+				templatePath, format, discoveryVaultRelativePath,
+			});
 
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
@@ -204,7 +163,19 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// inferred: it always writes, so `changed` can in principle over-report a
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
-			if (await this.app.vault.adapter.exists(targetFilePath)) {
+			if (selectedUpdate) {
+				if (BASE_FILE_EXTENSION_REGEX.test(templatePath) || CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
+					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
+				}
+				createdFile = await this.applyExistingFileUpdate(
+					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
+				);
+				if (!createdFile) {
+					this.failRun(this.lastTemplateFileFailure ?? `Could not apply template to '${targetFilePath}'.`, "none");
+					return;
+				}
+				effect = "changed";
+			} else if (await this.app.vault.adapter.exists(targetFilePath)) {
 				const modeId = await this.getSelectedFileExistsMode();
 				const mode = getFileExistsMode(modeId);
 				effect =
@@ -395,6 +366,65 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		if (level === "warning") log.logWarning(message);
 		else if (level === "error") log.logError(message);
 		this.outcome.failure(message);
+	}
+
+	private async resolveNewNotePath({ templatePath, format, discoveryVaultRelativePath }: {
+		templatePath: string;
+		format: string;
+		discoveryVaultRelativePath: string | null;
+	}): Promise<string> {
+		let folderPath = "";
+
+		if (discoveryVaultRelativePath) {
+			folderPath = parentFolderPath(discoveryVaultRelativePath);
+		} else if (this.choice.folder.enabled) {
+			folderPath = await this.getFolderPath();
+		} else {
+			// Respect Obsidian's "Default location for new notes" setting
+			const parent = this.app.fileManager.getNewFileParent(
+				this.app.workspace.getActiveFile()?.path ?? "",
+			);
+			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
+		}
+
+		// Make the resolved folder available to {{FOLDER}} in the file name.
+		this.formatter.setTargetFolderPath(folderPath);
+		// The title prompt below can say where the note will be created only
+		// when a folder is actually configured. With folder settings off the
+		// formatted name can reroute the note from the vault root
+		// (shouldTreatFormattedNameAsVaultRelativePath returns false as soon
+		// as folderEnabled), and the answer that reroutes it is the very one
+		// being typed - so Obsidian's default location is not something this
+		// prompt can promise.
+		if (this.choice.folder.enabled) {
+			this.formatter.setPromptRunContext({
+				destination: folderPath,
+				destinationKind: "folder",
+			});
+		}
+
+		const formattedName = discoveryVaultRelativePath
+			? discoveryVaultRelativePath
+			: await this.formatter.formatFileName(format, "noteTitle");
+		const routedName = normalizeGeneratedFilePath(formattedName, "File name");
+		const { fileName, strippedPrefix } = discoveryVaultRelativePath
+			? { fileName: routedName, strippedPrefix: false }
+			: this.stripDuplicateFolderPrefix(
+				routedName,
+				folderPath,
+			);
+		const treatAsVaultRelativePath =
+			this.shouldTreatFormattedNameAsVaultRelativePath(
+				routedName,
+				strippedPrefix,
+				this.choice.folder.enabled,
+			);
+
+		return this.normalizeTemplateFilePath(
+			discoveryVaultRelativePath || treatAsVaultRelativePath ? "" : folderPath,
+			fileName,
+			templatePath,
+		);
 	}
 
 	private setTemporaryValueVariable(value: string): () => void {
