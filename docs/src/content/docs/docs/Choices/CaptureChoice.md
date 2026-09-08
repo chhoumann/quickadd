@@ -1,11 +1,11 @@
 ---
 title: Capture
-description: "Add text to any note without opening it: append to your journal, log entries under headings, save links, and capture to Canvas cards"
+description: "Capture to a note without opening it: add journal entries, update properties, save links, and capture to Canvas cards"
 slug: docs/Choices/CaptureChoice
 ---
 
-A Capture choice adds text to a note **without opening it**. Press a hotkey,
-type your entry, and QuickAdd files it exactly where it belongs - while you
+A Capture choice adds text or updates a property **without opening the note**.
+Press a hotkey, type your entry, and QuickAdd files it exactly where it belongs - while you
 stay right where you are. Use it to:
 
 - Add timestamped entries to your daily note
@@ -74,7 +74,7 @@ value decides what happens:
 | `Projects/` (trailing slash) | Opens a picker confined to that folder |
 | `Projects` (existing folder, no extension) | Same picker, unless `Projects.md` exists - then the file wins |
 | `#people` | Picker with notes carrying that tag |
-| `property:type=draft` | Picker with notes whose frontmatter matches - see [capturing to a property](#capturing-to-a-property) |
+| `property:type=draft` | Picker with notes whose frontmatter matches - see [filtering by a property](#capturing-to-a-property) |
 
 Paths are vault-relative; a leading `/` is ignored (except a lone `/`, which
 opens the whole-vault picker).
@@ -133,6 +133,9 @@ placeholder in the capture format instead.
 Type `property:<field>=<value>` to limit the picker to notes whose frontmatter
 matches. If your notes have a `type` field, `property:type=draft` opens a
 picker containing only the notes whose `type` is `draft`.
+
+This selects the destination note. [**Write position → Property**](#property)
+controls whether the capture updates one of that note's properties.
 
 - `property:type=draft` - notes whose `type` equals `draft`.
 - `property:type` - notes that **have** a `type` field, whatever the value.
@@ -237,8 +240,8 @@ edit, version, and reuse a complete capture format as a normal note. The
 referenced template files too, so their prompts appear up front.
 
 :::note
-A capture inserts included content as-is. If the referenced template starts
-with its own `---` frontmatter block and the target note already has one, you
+A capture into the note body inserts included content as-is. If the referenced
+template starts with its own `---` frontmatter block and the target note already has one, you
 get a literal second block - use
 [Apply Template to Note](/docs/ApplyTemplateToNote/) when frontmatter should
 merge.
@@ -309,6 +312,92 @@ depend on whether **Capture to active file** is enabled:
 - **After line…** - insert after a target line you specify, or pick a heading at run time. The workhorse for structured notes - see [Insert after](#insert-after).
 - **Before line…** - see [Insert before](#insert-before)
 - **Bottom of file**
+- **Property** - set a frontmatter value or add items to a list.
+
+### Capture into a property {#property}
+
+**Write position → Property** writes the Capture format to one frontmatter
+property in a Markdown note. The note's body and unrelated property values stay
+intact. QuickAdd uses Obsidian's frontmatter writer, so YAML formatting can change.
+
+**Property** selects the key:
+
+- **Named property** uses a fixed name such as `status`, or a formatted name such
+  as `{{VALUE:property}}`.
+- **Choose when capturing** opens a picker with the target note's properties.
+  With **Create property if missing** enabled, you can also enter a new name.
+
+Property names match case-insensitively and keep the note's existing spelling.
+An exact match wins. If several keys differ only in case and none matches exactly,
+QuickAdd stops the capture instead of choosing one.
+
+**Action** controls the update:
+
+- **Set value** replaces the property's value. For a List property, text becomes
+  one item, and a typed list replaces the whole list. An empty text value clears
+  the list. Commas and line breaks inside text do not split it into several items.
+- **Add to list** adds one text value or a list of text values. Existing items
+  keep their order, and exact duplicates are skipped. An existing text, number,
+  or checkbox value causes an error.
+
+Neither action converts an existing text, number, or checkbox property into a
+list. An empty text value or empty list with **Add to list** leaves the note
+unchanged. It does not create a missing note, write properties, insert links,
+or copy links.
+
+**Create property if missing** permits a new key. When disabled, a missing key
+stops the capture. **Create file if it doesn't exist** separately controls
+whether QuickAdd can create the destination note.
+
+The Capture format supplies the value. A format made entirely of one `VALUE`,
+`FIELD`, or `FILE` token preserves a typed number, checkbox, or list. Combining
+a token with other text produces text. An explicit multi-select output format,
+such as `|format:spaced`, also produces the requested text representation.
+
+For a Number or Checkbox property, a plain `{{VALUE}}` or `{{VALUE:rating}}`
+automatically uses the matching input widget and value type. This also applies
+to a missing property whose type is already set in Obsidian. An explicit
+`|type:` option takes precedence.
+
+| Property | Action | Capture format | Result |
+| --- | --- | --- | --- |
+| `status` | **Set value** | `{{VALUE:status}}` | The entered text. |
+| `rating` | **Set value** | `{{VALUE:rating\|type:number}}` | A Number property. |
+| `done` | **Set value** | `{{VALUE:done\|type:checkbox}}` | A Checkbox property. |
+| `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
+| `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |
+
+The value must match the property's Obsidian type, or its existing value when
+no type is known. A Number property can receive a script value of `42` or the
+text `"42"` through a plain `VALUE` token. Literal formats and composite text
+are not parsed as YAML: `true` and `[work, personal]` remain text. Text properties
+also preserve values such as `001`. Commas in text remain part of one value.
+Objects and lists containing non-text values are rejected. **Set value** removes
+exact duplicate list items while preserving their order.
+
+For a new property without a known type, the captured value determines the type.
+Date properties accept `YYYY-MM-DD`, and date-time properties accept ISO date-time
+text such as `2026-09-07T14:30`. An intentional empty text value or empty list
+clears a matching property with **Set value**. Use `|optional` to allow an empty
+prompt answer. Cancelling a prompt stops the capture.
+
+QuickAdd collects and validates the property inputs before writing or creating
+the note. **Task** and **Run Templater on entire destination file after capture**
+are hidden and do not apply to property captures.
+
+Scripts can supply native values through `executeChoice`. With **Add to list**,
+property `tags`, and format `{{VALUE:tags}}`, this adds two complete items.
+The comma inside the first item stays part of that item:
+
+```js
+await quickAddApi.executeChoice("Add project tags", {
+	tags: ["Research, writing", "work"],
+});
+```
+
+For a non-interactive CLI run, use **Named property**, optionally with a variable
+in its name, and pass typed values through [`vars`](/docs/Advanced/CLI/#passing-variables).
+**Choose when capturing** requires an interactive run.
 
 ### Link back to the captured note {#link-to-captured-file}
 
@@ -389,8 +478,8 @@ _Open_ toggle. Enabling it reveals:
 - _View mode_ - **Source**, **Preview**, **Live Preview**, or **Default**
 - _Focus new pane_ - focus the opened tab immediately (shown for every location except **Reuse current tab**)
 
-When QuickAdd opens and focuses a Markdown target in an editable mode, it
-places the cursor at the end of the inserted capture so you can keep typing.
+When QuickAdd opens and focuses a Markdown target in an editable mode after a
+body capture, it places the cursor at the end of the inserted text so you can keep typing.
 This is skipped for preview/unfocused opens and when Templater cursor markers
 take over.
 
@@ -412,7 +501,7 @@ whole-file pass.
 
 ### Templater and newly created notes {#templater-and-newly-created-files}
 
-Capture has two Templater paths when it creates a missing Markdown file:
+Body captures have two Templater paths when they create a missing Markdown file:
 
 - **Create file if it doesn't exist** without a QuickAdd template: QuickAdd creates a blank file first. If Templater's new-file trigger applies to that location, QuickAdd waits for Templater to finish before inserting the capture.
 - **Create with template**: QuickAdd owns the initial content. It renders the selected QuickAdd template, suppresses Templater's new-file/directory trigger for that creation, then runs Templater once on the content QuickAdd wrote.
@@ -420,6 +509,10 @@ Capture has two Templater paths when it creates a missing Markdown file:
 So a blank Capture-created file can receive Templater's directory template
 first, while a template-created file runs Templater on QuickAdd's template
 content instead.
+
+Property captures prepare the property value before creating the file. After a
+new-file Templater pass, QuickAdd applies the property update to the resulting
+frontmatter so the template does not discard the capture.
 
 ## Insert after {#insert-after}
 

@@ -127,6 +127,38 @@ function previewRows(container: HTMLElement): HTMLElement[] {
 }
 
 describe("CaptureChoiceForm", () => {
+	it("persists property settings and hides dormant body controls until switching back", async () => {
+		const { container, props, getByLabelText } = mountForm();
+		props.choice.insertAfter.enabled = true;
+		props.choice.task = true;
+		flushSync();
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		flushSync();
+		expect(settingNames(container)).not.toContain("Insert after");
+		expect(settingNames(container)).not.toContain("Task");
+		expect(settingNames(container)).toContain("Create property if missing");
+		await fireEvent.input(getByLabelText("Property"), { target: { value: "{{VALUE:property}}" } });
+		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
+		flushSync();
+		expect(props.choice.propertyCapture).toEqual({ property: { kind: "named", format: "{{VALUE:property}}" }, action: "addToList", createIfMissing: true });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
+		flushSync();
+		expect(props.choice.propertyCapture?.property).toEqual({ kind: "prompt" });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
+		flushSync();
+		expect(getByLabelText("Property")).toHaveValue("{{VALUE:property}}");
+		expect(props.choice.propertyCapture?.property).toEqual({ kind: "named", format: "{{VALUE:property}}" });
+		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
+		flushSync();
+		expect(getByLabelText("Property")).toHaveValue("status");
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
+		flushSync();
+		expect(props.choice.propertyCapture).toBeUndefined();
+		expect(settingNames(container)).toContain("Task");
+	});
+
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
 		const headerBefore = container.querySelector(".choiceNameHeaderButton");

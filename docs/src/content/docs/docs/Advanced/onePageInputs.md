@@ -70,12 +70,18 @@ in one form. Scripts and conditional steps retain their execution boundaries.
 
 QuickAdd scans the choice for placeholders and turns each one into a field:
 
-- Placeholders in file names, templates, and capture content: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`, and `{{FILE:folder|...}}`.
+- Placeholders in file names, templates, capture content, and capture property names: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name, YYYY-MM-DD}}`, `{{FIELD:name|...}}`, and `{{FILE:folder|...}}`.
 - Nested `{{TEMPLATE:path}}` includes are scanned recursively, so their prompts show up too.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` become textareas.
 - `{{VALUE:name|type:number|min:1|max:10}}` becomes a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` becomes a slider plus numeric input.
 - The capture target file, when you are capturing to a folder or a tag.
 - Inputs declared by a user script inside a macro, if the script provides them.
+
+For [property captures](/docs/Choices/CaptureChoice/#property), a plain `VALUE`
+input uses the property's Number or Checkbox widget when its type is known.
+If the property or its type is not known yet, QuickAdd asks for that value after
+resolving the target note and property. **Choose when capturing** also opens its
+property picker at runtime.
 
 Text and textarea fields support `[[` file links and `#` tags. **Peek at note**
 hides the whole form while you read or select text in the open note. **Insert

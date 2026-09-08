@@ -149,11 +149,13 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 </SettingItem>
 
 <SettingItem name="Content" heading />
+{#if !choice.propertyCapture}
 <SettingItem name="Task" desc="Formats the value as a task.">
 	{#snippet control()}
 		<Toggle bind:checked={choice.task} />
 	{/snippet}
 </SettingItem>
+{/if}
 
 <LabeledField
 	name="Capture format"
@@ -199,6 +201,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
+{#if !choice.propertyCapture}
 <SettingItem
 	name="Run Templater on entire destination file after capture"
 	desc="Advanced / legacy: this executes any <% %> anywhere in the destination file (including inside code blocks)."
@@ -210,6 +213,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		/>
 	{/snippet}
 </SettingItem>
+{/if}
 
 <DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 

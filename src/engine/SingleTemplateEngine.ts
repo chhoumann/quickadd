@@ -5,6 +5,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type { TemplateInclusionState } from "../formatters/formatter";
 import type { PromptScopeKind } from "../formatters/promptScope";
+import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 
 export class SingleTemplateEngine extends TemplateEngine {
 	/**
@@ -26,6 +27,10 @@ export class SingleTemplateEngine extends TemplateEngine {
 
 	public setPromptScope(scope: PromptScopeKind): void {
 		this.promptScope = scope;
+	}
+	public setDestinationPath(path: string): void {
+		this.formatter.setTitle(basenameWithoutMdOrCanvas(path));
+		this.formatter.setTargetFolderPath(parentFolderPath(path));
 	}
 	public async run(): Promise<string> {
 		// Resolve format tokens in the template path (issue #620) before reading.

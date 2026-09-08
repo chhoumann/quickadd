@@ -108,6 +108,17 @@ Values are passed through exactly as provided. If a choice should ignore an
 accidental leading or trailing space for a specific placeholder, use `|trim` in
 that format string, for example `{{VALUE:project|trim}}`.
 
+For [property captures](/docs/Choices/CaptureChoice/#property), `vars` preserves
+native numbers, checkboxes, and lists when the Capture format is one whole token:
+
+```bash
+obsidian vault=dev quickadd choice="Add project tags" \
+  vars='{"tags":["Research, writing","work"]}' verify=true
+```
+
+`verify=true` includes the engine's [confirmed outcome](#verified-and-effect),
+so automation can distinguish a changed property from an unchanged capture.
+
 For Template choices, passing `value` supplies the new note's name. It does not
 select an existing note from the discovery picker. The generated path follows
 the choice's file-exists behavior. To use **When selecting an existing note**,
@@ -265,4 +276,3 @@ Good to know:
 - **Desktop only.** The bridge binds to `127.0.0.1`, is gated by the per-session `token`, rejects browser (`Origin`/`Referer`) and non-loopback `Host` requests, and the server is ephemeral - it starts on the first session and stops when the last one ends.
 - **Concurrency.** Each run gets its own `sessionId` + `token`; many can run at once without interfering.
 - If no client attaches within ~30s the run is aborted so a prompt can't hang forever.
-
