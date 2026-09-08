@@ -135,6 +135,21 @@ async function notePaths(workflow: Awaited<ReturnType<typeof seedTemplate>>) {
 }
 
 describe("Template actions for discovered existing notes", () => {
+	it("opens a selected note when an unused append-link destination is missing", async () => {
+		const workflow = await seedTemplate("open-with-missing-link", { action: "open" });
+		workflow.template.appendLink = {
+			enabled: true,
+			placement: "newLine",
+			requireActiveFile: false,
+			destination: { type: "specifiedFile", path: workflow.sandbox.path("Missing link destination.md") },
+		};
+		await runChoice(workflow.template, false);
+		await chooseExisting(workflow, false);
+		await expectNoPrompt(workflow.obsidian);
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string>("app.workspace.getActiveFile()?.path ?? ''"), POLL_OPTS).toBe(workflow.targetPath);
+		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
+	});
+
 	it("rejects a dynamic template source that resolves to the selected note", async () => {
 		const workflow = await seedTemplate("dynamic-source", { action: "appendBottom" });
 		workflow.template.templatePath = "{{VALUE:source}}";

@@ -103,7 +103,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					? "optional"
 					: "required",
 			);
-			if (!this.validateAppendLinkDestination(linkOptions)) return;
 
 			const format = this.choice.fileNameFormat.enabled
 				? this.choice.fileNameFormat.format
@@ -138,6 +137,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 				}
 			}
+
+			if (!this.validateAppendLinkDestination(linkOptions)) return;
 
 			// Open-only discovery returns before evaluating the template source.
 			const templatePath = await this.resolveTemplateSourcePath(

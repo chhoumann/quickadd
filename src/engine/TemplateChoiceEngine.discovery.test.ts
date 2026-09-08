@@ -75,6 +75,7 @@ vi.mock("../utilityObsidian", () => ({
 
 vi.mock("../utils/fileLinks", () => ({
 	copyFileLinkToClipboard: copyFileLinkMock,
+	getAppendLinkDestinationFile: () => null,
 }));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
@@ -202,6 +203,25 @@ describe("TemplateChoiceEngine note discovery", () => {
 		copyFileLinkMock.mockReset();
 		setTitleMock.mockReset();
 		setTargetFolderPathMock.mockReset();
+	});
+
+	it.each(["open", "appendBottom"] as const)("validates a missing append-link target only when the selected action needs it: %s", async (action) => {
+		const context = buildEngine(choice({
+			existingNoteAction: action,
+			appendLink: { enabled: true, placement: "newLine", requireActiveFile: false, destination: { type: "specifiedFile", path: "Missing.md" } },
+		}));
+		const selected = file("Existing.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: selected });
+		await context.engine.run();
+		if (action === "open") {
+			expect(openFileMock).toHaveBeenCalledWith(context.app, selected, expect.anything());
+			expect(context.choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: selected, effect: "unchanged" });
+		} else {
+			expect(openFileMock).not.toHaveBeenCalled();
+			expect(context.choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({ status: "error", reason: expect.stringContaining("Append link target") }));
+		}
+		expect(formatFileContentMock).not.toHaveBeenCalled();
+		expect(context.app.vault.modify).not.toHaveBeenCalled();
 	});
 
 	it.each(["Templates/Project.md", "/Templates/Project", "  /Templates/Project.md  "])
