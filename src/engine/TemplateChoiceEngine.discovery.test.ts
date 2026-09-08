@@ -204,6 +204,22 @@ describe("TemplateChoiceEngine note discovery", () => {
 		setTargetFolderPathMock.mockReset();
 	});
 
+	it.each(["Templates/Project.md", "/Templates/Project", "  /Templates/Project.md  "])
+	("rejects the selected template source using the engine's path resolution: %s", async (templatePath) => {
+		const context = buildEngine(choice({ templatePath, existingNoteAction: "overwrite" }));
+		const source = file("Templates/Project.md");
+		context.files.set(source.path, source);
+		context.contents.set(source.path, "Reusable {{VALUE:owner}}");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: source });
+		await context.engine.run();
+		expect(context.choiceExecutor.signalAbort).toHaveBeenCalledWith(expect.objectContaining({
+			message: expect.stringContaining("own template source"),
+		}));
+		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(formatFileContentMock).not.toHaveBeenCalled();
+		expect(context.contents.get(source.path)).toBe("Reusable {{VALUE:owner}}");
+	});
+
 	it("opens an existing discovery result unchanged and skips template side effects", async () => {
 		const existing = file("People/Alice.md");
 		promptForTemplateNoteDiscoveryMock.mockResolvedValue({

@@ -57,6 +57,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -142,6 +143,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
+			if (selectedUpdate && getTemplateFile(this.app, templatePath)?.path === selectedUpdate.file.path) {
+				throw new ChoiceAbortError("Cannot apply a template to its own template source.");
+			}
 
 			const targetFilePath = selectedUpdate?.file.path ?? await this.resolveNewNotePath({
 				templatePath, format, discoveryVaultRelativePath,

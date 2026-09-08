@@ -249,6 +249,20 @@ describe("TextInputSuggest resource lifecycle", () => {
 		suggest.destroy();
 	});
 
+	it("discards a lookup after its field is closed and shown again", async () => {
+		const suggest = new DeferredSuggest(app, input);
+		input.value = "a";
+		const inFlight = suggest.onInputChanged();
+		input.hidden = true;
+		suggest.close();
+		input.hidden = false;
+		suggest.resolvePending?.(["a", "ab"]);
+		await inFlight;
+		expect(app.keymap.pushScope).not.toHaveBeenCalled();
+		expect(createPopperMock).not.toHaveBeenCalled();
+		suggest.destroy();
+	});
+
 	it("ignores delayed input updates inside a hidden form field", async () => {
 		const field = document.createElement("div");
 		field.hidden = true;

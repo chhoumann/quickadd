@@ -11,7 +11,7 @@ import type { ICommand } from "src/types/macros/ICommand";
 import type { INestedChoiceCommand } from "src/types/macros/QuickCommands/INestedChoiceCommand";
 import { CommandType } from "src/types/macros/CommandType";
 import { QA_INTERNAL_DATE_ORIGIN } from "src/constants";
-import { buildDiscoveryFormPlan, resolveDiscoveryFieldMetadata, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
+import { buildDiscoveryFormPlan, resolveDiscoveryFieldRequirement, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { getPreparedTemplateNoteSelection, withPreparedChoiceInputs } from "./preparedChoiceInputs";
 
 vi.mock("src/utilityObsidian", () => ({
@@ -149,12 +149,12 @@ describe("discovery form planning", () => {
 		const noteId = plan.config.notes[0].id;
 		const usages = plan.config.fieldUsages.get("detail");
 		if (!usages) throw new Error("Expected shared field usages");
-		expect(resolveDiscoveryFieldMetadata(usages, new Map([
+		expect(resolveDiscoveryFieldRequirement(usages, new Map([
 			[noteId, { kind: "existing", path: "Projects/Atlas.md" }],
-		]))).toEqual({ optional: true, pathContext: false });
-		expect(resolveDiscoveryFieldMetadata(usages, new Map([
+		]))).toMatchObject({ optional: true, pathContext: false });
+		expect(resolveDiscoveryFieldRequirement(usages, new Map([
 			[noteId, { kind: "create", title: "Borealis" }],
-		]))).toEqual({ optional: false, pathContext: true });
+		]))).toMatchObject({ optional: false, pathContext: true });
 	});
 
 	it("does not let a skipped open-only Template restrict a shared Capture field", async () => {
@@ -167,12 +167,12 @@ describe("discovery form planning", () => {
 		expect(plan.config.visibleForNotes.has("detail")).toBe(false);
 		const usages = plan.config.fieldUsages.get("detail");
 		if (!usages) throw new Error("Expected shared field usages");
-		expect(resolveDiscoveryFieldMetadata(usages, new Map([
+		expect(resolveDiscoveryFieldRequirement(usages, new Map([
 			["__qa.note.note", { kind: "existing", path: "Projects/Atlas.md" }],
-		]))).toEqual({ optional: true, pathContext: false });
-		expect(resolveDiscoveryFieldMetadata(usages, new Map([
+		]))).toMatchObject({ optional: true, pathContext: false });
+		expect(resolveDiscoveryFieldRequirement(usages, new Map([
 			["__qa.note.note", { kind: "create", title: "Borealis" }],
-		]))).toEqual({ optional: false, pathContext: true });
+		]))).toMatchObject({ optional: false, pathContext: true });
 	});
 
 	it("prepares creation-only answers per occurrence when the same Template creates and updates", async () => {

@@ -29,7 +29,7 @@ export interface DiscoveryFormConfig {
 	fieldUsages: Map<string, DiscoveryFieldUsage[]>;
 }
 
-type DiscoveryFieldMetadata = Pick<FieldRequirement, "optional" | "pathContext">;
+type DiscoveryFieldMetadata = FieldRequirement;
 
 export type DiscoveryFieldUsage =
 	| { kind: "always"; metadata: DiscoveryFieldMetadata }
@@ -40,24 +40,27 @@ export type DiscoveryFieldUsage =
 		existing: DiscoveryFieldMetadata | null;
 	};
 
-export function resolveDiscoveryFieldMetadata(
+export function resolveDiscoveryFieldRequirement(
 	usages: readonly DiscoveryFieldUsage[],
 	selections: ReadonlyMap<string, TemplateNoteSelection>,
-): Required<DiscoveryFieldMetadata> {
+): FieldRequirement | null {
 	const active = usages.flatMap((usage) => {
 		if (usage.kind === "always") return [usage.metadata];
 		const selection = selections.get(usage.noteId);
 		if (selection?.kind === "create") return [usage.create];
 		return selection?.kind === "existing" && usage.existing ? [usage.existing] : [];
 	});
+	if (active.length === 0) return null;
 	return {
+		...active[0],
 		optional: active.length > 0 && active.every((metadata) => metadata.optional),
 		pathContext: active.some((metadata) => metadata.pathContext),
+		runtimeOnly: active.some((metadata) => metadata.runtimeOnly),
 	};
 }
 
 function fieldMetadata(requirement: FieldRequirement): DiscoveryFieldMetadata {
-	return { optional: requirement.optional, pathContext: requirement.pathContext };
+	return { ...requirement };
 }
 
 export interface DiscoveryInputCondition {
@@ -188,10 +191,15 @@ export async function buildDiscoveryFormPlan(
 			step.bindings.set(id, { variable: requirement.id, condition });
 			const usages = config.fieldUsages.get(id) ?? [];
 			const existingNoteRequirement = existingNoteInputs.get(requirement.id);
+			const field: FieldRequirement = {
+				...requirement, id, group,
+				...(requirement.id === "value" && captureSelection.trim()
+					? { defaultValue: captureSelection } : {}),
+			};
 			usages.push(noteId ? {
-				kind: "note", noteId, create: fieldMetadata(requirement),
+				kind: "note", noteId, create: fieldMetadata(field),
 				existing: existingNoteRequirement ? fieldMetadata(existingNoteRequirement) : null,
-			} : { kind: "always", metadata: fieldMetadata(requirement) });
+			} : { kind: "always", metadata: fieldMetadata(field) });
 			config.fieldUsages.set(id, usages);
 			const existing = requirements.get(id);
 			if (existing) {
@@ -199,12 +207,7 @@ export async function buildDiscoveryFormPlan(
 				if (requirement.pathContext) existing.pathContext = true;
 				if (requirement.runtimeOnly) existing.runtimeOnly = true;
 			} else {
-				requirements.set(id, {
-					...requirement, id, group,
-					...(requirement.id === "value" && captureSelection.trim()
-						? { defaultValue: captureSelection }
-						: {}),
-				});
+				requirements.set(id, field);
 			}
 			const owners = consumers.get(id) ?? [];
 			owners.push(condition);

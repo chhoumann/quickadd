@@ -135,6 +135,56 @@ async function notePaths(workflow: Awaited<ReturnType<typeof seedTemplate>>) {
 }
 
 describe("Template actions for discovered existing notes", () => {
+	it("rejects a dynamic template source that resolves to the selected note", async () => {
+		const workflow = await seedTemplate("dynamic-source", { action: "appendBottom" });
+		workflow.template.templatePath = "{{VALUE:source}}";
+		const { plugin } = getContext();
+		await plugin.data<QuickAddData>().patch((data) => {
+			data.onePageInputEnabled = false;
+			data.choices.push(workflow.template);
+		});
+		await plugin.reload({ waitUntilReady: true });
+		const completed = workflow.obsidian.execJson("quickadd:run", {
+			id: workflow.template.id, ui: true, verify: true,
+			vars: JSON.stringify({ source: workflow.targetPath }),
+		});
+		await chooseExisting(workflow, false, "Append to");
+		const outcome = await completed;
+		expect(outcome).toMatchObject({ ok: false, error: expect.stringContaining("template source") });
+		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
+	});
+
+	it("switches a creation dropdown to the existing note's free-text body field", async () => {
+		const workflow = await seedTemplate("shared-control", {
+			action: "appendBottom", body: "Description: {{VALUE:detail}}\n",
+			folder: "{{VALUE:a,b|name:detail}}",
+		});
+		await runChoice(workflow.template, true);
+		await chooseExisting(workflow, true);
+		await waitForElement(workflow.obsidian, formField("detail"));
+		await typeInto(workflow.obsidian, formField("detail"), "An unrestricted description");
+		await workflow.obsidian.dev.evalJson(`document.querySelector('[aria-label="Change note"]').click()`);
+		const noteInput = `[aria-label=${JSON.stringify(`Note for ${workflow.template.name}`)}]`;
+		await typeInto(workflow.obsidian, noteInput, "New control draft");
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string>(
+			'document.querySelector(".qa-onepage-file-suggestion__label")?.textContent ?? ""',
+		), POLL_OPTS).toBe("Create new note: New control draft");
+		await pressKey(workflow.obsidian, "Enter");
+		expect(await workflow.obsidian.dev.evalJson<string[]>(
+			'Array.from(document.querySelector(".onePageInputModal select").options, option => option.value)',
+		)).toEqual(["a", "b"]);
+		await workflow.obsidian.dev.evalJson(`document.querySelector('[aria-label="Change note"]').click()`);
+		await chooseExisting(workflow, true);
+		expect(await workflow.obsidian.dev.evalJson<string>(
+			`document.querySelector(${JSON.stringify(formField("detail"))}).value`,
+		)).toBe("An unrestricted description");
+		await pressKey(workflow.obsidian, "Enter", true);
+		const content = await workflow.sandbox.waitForContent(workflow.relativePath,
+			(text) => text.includes("Description: An unrestricted description"), WAIT_OPTS);
+		expect(content).toBe(`${INITIAL_CONTENT}\nDescription: An unrestricted description\n`);
+		await expectNoPrompt(workflow.obsidian);
+	});
+
 	it.each([
 		{ action: "appendBottom", verb: "Append to", expected: `${INITIAL_CONTENT}\nOwner: Ada\n` },
 		{ action: "appendTop", verb: "Insert into", expected: "---\nstatus: active\n---\nOwner: Ada\n\n# Existing note\n" },
@@ -155,7 +205,7 @@ describe("Template actions for discovered existing notes", () => {
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Owner: Ada"), WAIT_OPTS);
 		expect(content).toBe(scenario.expected);
 		await expectNoPrompt(workflow.obsidian);
-		expect(await workflow.obsidian.dev.evalJson<string | null>("app.workspace.getActiveFile()?.path ?? null"))
+		await expect.poll(() => workflow.obsidian.dev.evalJson<string | null>("app.workspace.getActiveFile()?.path ?? null"), POLL_OPTS)
 			.toBe(workflow.targetPath);
 		expect(await notePaths(workflow)).toEqual(pathsBefore);
 	});

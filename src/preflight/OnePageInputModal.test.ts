@@ -51,12 +51,14 @@ vi.mock("src/gui/imagePasteHandler", () => ({
 
 vi.mock("src/gui/suggesters/fileSuggester", () => ({
 	FileSuggester: class {
+		close = vi.fn();
 		destroy = vi.fn();
 	},
 }));
 
 vi.mock("src/gui/suggesters/tagSuggester", () => ({
 	TagSuggester: class {
+		close = vi.fn();
 		destroy = vi.fn();
 	},
 }));
@@ -248,7 +250,7 @@ vi.mock("obsidian", () => {
 });
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
-	createDatePicker: () => ({ setSelectedIso: vi.fn() }),
+	createDatePicker: () => ({ setSelectedIso: vi.fn(), destroy: vi.fn() }),
 }));
 
 const { fieldSuggestConstructorArgs } = vi.hoisted(() => ({
@@ -257,6 +259,8 @@ const { fieldSuggestConstructorArgs } = vi.hoisted(() => ({
 
 vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
 	FieldValueInputSuggest: class {
+		close = vi.fn();
+		destroy = vi.fn();
 		constructor(...args: unknown[]) {
 			fieldSuggestConstructorArgs.push(args);
 		}
@@ -264,11 +268,12 @@ vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({
 }));
 
 vi.mock("src/gui/suggesters/SuggesterInputSuggest", () => ({
-	SuggesterInputSuggest: class {},
+	SuggesterInputSuggest: class { close = vi.fn(); destroy = vi.fn(); },
 }));
 
 vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({
 	FilePickerInputSuggest: class {
+		close = vi.fn();
 		destroy = vi.fn();
 
 		constructor(
@@ -344,6 +349,16 @@ function ensureObsidianDomPolyfills(): void {
 	};
 }
 
+function discoveryModal(create: FieldRequirement, existing: FieldRequirement) {
+	return new OnePageInputModal({} as App, [
+		{ id: "note", label: "Note", type: "text" }, create,
+	], undefined, undefined, {
+		notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
+		visibleForNotes: new Map([[create.id, [{ noteId: "note", includeExisting: true }]]]),
+		fieldUsages: new Map([[create.id, [{ kind: "note", noteId: "note", create, existing }]]]),
+	});
+}
+
 describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
@@ -351,6 +366,97 @@ describe("OnePageInputModal", () => {
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
 		attachImagePasteHandlerMock.mockClear();
+	});
+
+	it("keeps each control's default and draft when switching between dropdown and text", async () => {
+		const modal = discoveryModal(
+			{ id: "detail", label: "Folder", type: "dropdown", options: ["a", "b"], defaultValue: "b" },
+			{ id: "detail", label: "Description", type: "text", defaultValue: "Body default", placeholder: "Describe it" },
+		);
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		const input = modal.contentEl.querySelector<HTMLInputElement>('input[placeholder="Describe it"]')!;
+		expect(input.value).toBe("Body default");
+		input.value = "Free text draft";
+		input.dispatchEvent(new Event("input"));
+		noteSelections[0]({ kind: "create", title: "New project" });
+		const dropdown = modal.contentEl.querySelector("select")!;
+		expect(dropdown.value).toBe("b");
+		dropdown.value = "a";
+		dropdown.dispatchEvent(new Event("change"));
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		expect(modal.contentEl.querySelector('input[placeholder="Describe it"]')).toBe(input);
+		expect(input.value).toBe("Free text draft");
+		noteSelections[0]({ kind: "create", title: "New project" });
+		expect(modal.contentEl.querySelector("select")).toBe(dropdown);
+		expect(dropdown.value).toBe("a");
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		await expect(modal.waitForClose).resolves.toEqual({ detail: "Free text draft" });
+	});
+
+	it("changes same-type options and retains an explicitly blank optional dropdown", () => {
+		const modal = discoveryModal(
+			{ id: "detail", label: "Detail", type: "dropdown", options: ["a", "b"], optional: true },
+			{ id: "detail", label: "Detail", type: "dropdown", options: ["x", "y"], displayOptions: ["X label", "Y label"], defaultValue: "y" },
+		);
+		noteSelections[0]({ kind: "create", title: "New" });
+		const create = modal.contentEl.querySelector("select")!;
+		create.value = "";
+		create.dispatchEvent(new Event("change"));
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		const existing = modal.contentEl.querySelector("select")!;
+		expect(existing.value).toBe("y");
+		expect(Array.from(existing.options, option => option.textContent)).toEqual(["X label", "Y label"]);
+		noteSelections[0]({ kind: "create", title: "New" });
+		expect(modal.contentEl.querySelector("select")!.value).toBe("");
+	});
+
+	it("retains invalid date text without blocking a different active text control", async () => {
+		const modal = discoveryModal(
+			{ id: "detail", label: "Date", type: "date" },
+			{ id: "detail", label: "Description", type: "text", placeholder: "Body" },
+		);
+		noteSelections[0]({ kind: "create", title: "New" });
+		const date = modal.contentEl.querySelector<HTMLInputElement>(".qa-date-input input")!;
+		date.value = "not-a-valid-date";
+		date.dispatchEvent(new Event("input"));
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		const text = modal.contentEl.querySelector<HTMLInputElement>('input[placeholder="Body"]')!;
+		text.value = "No date needed";
+		text.dispatchEvent(new Event("input"));
+		noteSelections[0]({ kind: "create", title: "New" });
+		expect(modal.contentEl.querySelector(".qa-date-input input")).toBe(date);
+		expect(date.value).toBe("not-a-valid-date");
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		await expect(modal.waitForClose).resolves.toEqual({ detail: "No date needed" });
+	});
+
+	it("keeps structured file picks with commas in their names in their own control", () => {
+		const modal = discoveryModal(
+			{ id: "detail", label: "People", type: "file-picker", options: ["@file:People/Doe, Jane.md"], displayOptions: ["Doe, Jane"], suggesterConfig: { multiSelect: true, allowCustomInput: true } },
+			{ id: "detail", label: "Description", type: "text" },
+		);
+		noteSelections[0]({ kind: "create", title: "New" });
+		filePickerSuggesters[0].onSelect({ value: "@file:People/Doe, Jane.md", label: "Doe, Jane", path: "People/Doe, Jane.md" });
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		expect(modal.fileSelections.has("detail")).toBe(false);
+		noteSelections[0]({ kind: "create", title: "New" });
+		expect(modal.fileSelections.get("detail")).toEqual(["@file:People/Doe, Jane.md"]);
+		expect(Array.from(modal.contentEl.querySelectorAll(".qa-onepage-file-picker__chip-label"), el => el.textContent)).toContain("Doe, Jane");
+	});
+
+	it("reveals a renderable control after an inactive runtime-only definition", async () => {
+		const modal = discoveryModal(
+			{ id: "detail", label: "Detail", type: "text", runtimeOnly: true },
+			{ id: "detail", label: "Detail", type: "text", defaultValue: "Existing body" },
+		);
+		noteSelections[0]({ kind: "create", title: "New" });
+		expect(modal.activeRequirements.some(req => req.id === "detail")).toBe(false);
+		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
+		expect(modal.activeRequirements.find(req => req.id === "detail")?.defaultValue).toBe("Existing body");
+		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		await expect(modal.waitForClose).resolves.toEqual({ detail: "Existing body" });
 	});
 
 	it("retains create-only drafts while changing notes and omits them when opening an existing note", async () => {
@@ -400,8 +506,8 @@ describe("OnePageInputModal", () => {
 			]),
 			fieldUsages: new Map([["detail", [{
 				kind: "note", noteId: "note",
-				create: { optional: false, pathContext: true },
-				existing: { optional: true, pathContext: false },
+				create: { id: "detail", label: "Detail", type: "text", optional: false, pathContext: true },
+				existing: { id: "detail", label: "Detail", type: "text", optional: true, pathContext: false },
 			}]]]),
 		});
 		const [, detail, folder] = modal.contentEl.querySelectorAll("input");
@@ -470,6 +576,32 @@ describe("OnePageInputModal", () => {
 		Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!.click();
 		await expect(modal.waitForClose).resolves.toEqual({});
 		expect(modal.discoverySelections.get("note")).toEqual({ kind: "create", title: "Project At" });
+	});
+
+	it("uses the newly revealed definition when submitting a pending title", async () => {
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "note", label: "Note", type: "text" },
+			{ id: "detail", label: "Detail", type: "text", optional: true },
+		], undefined, undefined, {
+			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
+			visibleForNotes: new Map([["detail", [{ noteId: "note", includeExisting: false }]]]),
+			fieldUsages: new Map([["detail", [{ kind: "note", noteId: "note", create: { id: "detail", label: "Description", type: "textarea" }, existing: null }]]]),
+		});
+		document.body.appendChild(modal.containerEl);
+		modal.contentEl.querySelector("input")!.value = "New project";
+		const submitted = vi.fn();
+		void modal.waitForClose.then(submitted);
+		const submit = Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!;
+		submit.click();
+		await Promise.resolve();
+		expect(submitted).not.toHaveBeenCalled();
+		const detail = modal.contentEl.querySelector("textarea")!;
+		expect(document.activeElement).toBe(detail);
+		detail.value = "Required description";
+		detail.dispatchEvent(new Event("input"));
+		submit.click();
+		await expect(modal.waitForClose).resolves.toEqual({ detail: "Required description" });
+		modal.containerEl.remove();
 	});
 
 	it("reveals required creation fields before saving a pending new title", async () => {
