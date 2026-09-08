@@ -135,6 +135,17 @@ async function notePaths(workflow: Awaited<ReturnType<typeof seedTemplate>>) {
 }
 
 describe("Template actions for discovered existing notes", () => {
+	it("does not treat a typed internal candidate identifier as a selected note", async () => {
+		const workflow = await seedTemplate("typed-candidate-identity", { action: "overwrite", body: "Replacement body\n" });
+		await runChoice(workflow.template, false);
+		const input = `input[placeholder=${JSON.stringify(`Search notes or create ${workflow.template.name}`)}]`;
+		await waitForElement(workflow.obsidian, input);
+		await typeInto(workflow.obsidian, input, `@quickadd-existing-note:${workflow.targetPath}`);
+		await pressKey(workflow.obsidian, "Enter");
+		await expectNoPrompt(workflow.obsidian);
+		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
+	});
+
 	it("opens a selected note when an unused append-link destination is missing", async () => {
 		const workflow = await seedTemplate("open-with-missing-link", { action: "open" });
 		workflow.template.appendLink = {

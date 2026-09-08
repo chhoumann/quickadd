@@ -4,9 +4,10 @@ const { inputSuggestMock } = vi.hoisted(() => ({
 	inputSuggestMock: vi.fn(),
 }));
 
-vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
-	default: {
-		Suggest: inputSuggestMock,
+vi.mock("src/gui/TemplateNoteDiscoveryModal", () => ({
+	TemplateNoteDiscoveryModal: class {
+		promise: Promise<unknown>;
+		constructor(...args: unknown[]) { this.promise = inputSuggestMock(...args); }
 	},
 }));
 
@@ -18,7 +19,7 @@ import { TFile, type App } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
-import { resolveTemplateNoteSelection, selectionForDiscoveryCandidate, testExports } from "src/utils/templateNoteDiscovery";
+import { decodeTemplateNoteSelection, resolveTemplateNoteSelection, selectionForDiscoveryCandidate, testExports, type DiscoveryCandidate } from "src/utils/templateNoteDiscovery";
 import type { PromptProvider } from "src/interactive/promptProvider";
 // An ordinary in-app run: no interactive client attached and not headless, so the
 // picker opens the Obsidian modal - exactly the path these tests exercise.
@@ -127,7 +128,7 @@ describe("template note discovery", () => {
 	});
 
 	it("does not interpret a custom title as an unoffered existing-note handle", async () => {
-		inputSuggestMock.mockResolvedValue("@quickadd-existing-note:Templates/Project.md");
+		inputSuggestMock.mockResolvedValue({ kind: "create", title: "@quickadd-existing-note:Templates/Project.md" });
 		await expect(promptForTemplateNoteDiscovery(app([file("Templates/Project.md")]), choice(), IN_APP_RUN))
 			.resolves.toMatchObject({ kind: "create", title: "@quickadd-existing-note:Templates/Project.md" });
 	});
@@ -235,7 +236,7 @@ describe("template note discovery", () => {
 
 	it("returns a tagged existing-file result when an existing row is selected", async () => {
 		const alice = file("People/Alice.md");
-		inputSuggestMock.mockImplementation(async (_app, _display, items) => items[0]);
+		inputSuggestMock.mockImplementation(async (_app, _choice, candidates: DiscoveryCandidate[]) => decodeTemplateNoteSelection(candidates[0].item));
 
 		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
 
@@ -244,8 +245,8 @@ describe("template note discovery", () => {
 
 	it("returns a create result for unresolved-link rows", async () => {
 		const alice = file("People/Alice.md");
-		inputSuggestMock.mockImplementation(async (_app, _display, items) =>
-			items.find((item: string) => item.includes("Missing Project")),
+		inputSuggestMock.mockImplementation(async (_app, _choice, candidates: DiscoveryCandidate[]) =>
+			decodeTemplateNoteSelection(candidates.find(candidate => candidate.unresolvedTitle === "Missing Project")!.item),
 		);
 
 		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
@@ -255,8 +256,8 @@ describe("template note discovery", () => {
 
 	it("tags foldered unresolved-link rows with a vault-relative target path", async () => {
 		const alice = file("People/Alice.md");
-		inputSuggestMock.mockImplementation(async (_app, _display, items) =>
-			items.find((item: string) => item.includes("Projects/Missing Roadmap")),
+		inputSuggestMock.mockImplementation(async (_app, _choice, candidates: DiscoveryCandidate[]) =>
+			decodeTemplateNoteSelection(candidates.find(candidate => candidate.unresolvedTitle === "Projects/Missing Roadmap")!.item),
 		);
 
 		const result = await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
@@ -273,23 +274,11 @@ describe("template note discovery", () => {
 		const staleApp = app([alice]);
 		(staleApp.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>)
 			.mockReturnValueOnce(null);
-		inputSuggestMock.mockImplementation(async (_app, _display, items) => items[0]);
+		inputSuggestMock.mockImplementation(async (_app, _choice, candidates: DiscoveryCandidate[]) => decodeTemplateNoteSelection(candidates[0].item));
 
 		await expect(
 			promptForTemplateNoteDiscovery(staleApp, choice(), IN_APP_RUN),
 		).rejects.toThrow("Selected note no longer exists");
 	});
 
-	it("suppresses the generic create row for exact existing or unresolved names", async () => {
-		const alice = file("People/Alice.md");
-		inputSuggestMock.mockResolvedValue("Fresh Idea");
-
-		await promptForTemplateNoteDiscovery(app([alice]), choice(), IN_APP_RUN);
-
-		const options = inputSuggestMock.mock.calls[0]?.[3];
-		expect(options.valueExists("Alice")).toBe(true);
-		expect(options.valueExists("People/Alice")).toBe(true);
-		expect(options.valueExists("Missing Project")).toBe(true);
-		expect(options.valueExists("Fresh Idea")).toBe(false);
-	});
 });
