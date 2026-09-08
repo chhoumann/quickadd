@@ -144,6 +144,15 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
 		flushSync();
 		expect(props.choice.propertyCapture?.property).toEqual({ kind: "prompt" });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
+		flushSync();
+		expect(getByLabelText("Property")).toHaveValue("{{VALUE:property}}");
+		expect(props.choice.propertyCapture?.property).toEqual({ kind: "named", format: "{{VALUE:property}}" });
+		await fireEvent.input(getByLabelText("Property"), { target: { value: "status" } });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "prompt" } });
+		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
+		flushSync();
+		expect(getByLabelText("Property")).toHaveValue("status");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();

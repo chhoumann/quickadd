@@ -16,13 +16,17 @@ let { config = $bindable(), app, plugin }: {
 } = $props();
 
 const suggesters = [(el: HTMLInputElement | HTMLTextAreaElement) => new FormatSyntaxSuggester(app, el, plugin)];
+let lastNamedFormat = "";
 </script>
 
 <LabeledField name="Property" bodyVisible={config.property.kind === "named"}>
 	{#snippet control()}
 		<Dropdown value={config.property.kind}
 			options={[{ value: "named", label: "Named property" }, { value: "prompt", label: "Choose when capturing" }]}
-			onchange={(value) => { config.property = value === "prompt" ? { kind: "prompt" } : { kind: "named", format: "" }; }} />
+			onchange={(value) => {
+				if (config.property.kind === "named") lastNamedFormat = config.property.format;
+				config.property = value === "prompt" ? { kind: "prompt" } : { kind: "named", format: lastNamedFormat };
+			}} />
 	{/snippet}
 	{#snippet children(id)}
 		{#if config.property.kind === "named"}
