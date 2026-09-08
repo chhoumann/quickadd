@@ -32,7 +32,9 @@ const suggesters = [(el: HTMLInputElement | HTMLTextAreaElement) => new FormatSy
 	{/snippet}
 </LabeledField>
 
-<SettingItem name="Action">
+<SettingItem name="Action" desc={config.action === "addToList"
+	? "Add captured values to the property's list, keeping existing items and skipping duplicates."
+	: "Replace the property's value with the captured value."}>
 	{#snippet control()}
 		<Dropdown value={config.action}
 			options={[{ value: "set", label: "Set value" }, { value: "addToList", label: "Add to list" }]}
