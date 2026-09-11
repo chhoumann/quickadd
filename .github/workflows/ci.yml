@@ -18,6 +18,9 @@ permissions:
     contents: read
 
 jobs:
+    # Named "Test" — required on master. Keep this ubuntu job on every PR so the
+    # required-check name stays stable; platform-test below is mac/win only and
+    # is gated to master pushes to save runner minutes on PRs.
     test:
         name: Test
         runs-on: ubuntu-latest
@@ -31,20 +34,23 @@ jobs:
               with:
                   persist-credentials: false
             - name: Setup pnpm
-              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
             - name: Use Node.js 24
               uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
                   node-version: 24
-                  check-latest: true
                   cache: pnpm
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
             - name: Run tests
               run: pnpm run test
 
+    # macOS + Windows Vitest. Same suite as ubuntu Test; wall-clock critical path
+    # on master (~5m) but redundant cost on every PR. Re-run via workflow_dispatch
+    # or by pushing to master when a platform-specific failure is suspected.
     platform-test:
         name: Platform Test (${{ matrix.os }})
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         runs-on: ${{ matrix.os }}
         env:
             # Exercise date parsing in a zone with a DST gap. The chrono-node
@@ -64,12 +70,11 @@ jobs:
               with:
                   persist-credentials: false
             - name: Setup pnpm
-              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
             - name: Use Node.js 24
               uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
                   node-version: 24
-                  check-latest: true
                   cache: pnpm
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
@@ -89,12 +94,11 @@ jobs:
               with:
                   persist-credentials: false
             - name: Setup pnpm
-              uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+              uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
             - name: Use Node.js 24
               uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
               with:
                   node-version: 24
-                  check-latest: true
                   cache: pnpm
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
