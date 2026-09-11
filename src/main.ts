@@ -30,6 +30,13 @@ import migrate from "./migrations/migrate";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
+import { deepClone } from "./utils/deepClone";
+import {
+	reconcileSettingsPersistPlan,
+	settingsValuesEqual,
+	shouldApplyPersistedWriteToStore,
+	threeWayMergeSettings,
+} from "./utils/settingsPersistMerge";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
 import {
@@ -96,6 +103,20 @@ const SETTINGS_SAVE_DEBOUNCE_MS = 1000;
 export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
+	/**
+	 * Snapshot of settings as of the last successful load/save. Used as the
+	 * 3-way-merge base so a whole-file write cannot clobber newer on-disk fields
+	 * that this instance never edited (see #1749 / background model sync).
+	 */
+	private lastPersistedSettings: QuickAddSettings | null = null;
+	/**
+	 * When true, the settingsStore subscriber updates `this.settings` but does
+	 * not schedule a disk write. Set while applying a conflict-merge result back
+	 * into the store after that result has already been (or is about to be) saved.
+	 */
+	private suppressSettingsSave = false;
+	/** Serialize persist calls so overlapping debounced/immediate saves cannot race. */
+	private persistChain: Promise<void> = Promise.resolve();
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
 	// (migrations await it) and cancels this; onunload flushes it.
 	//
@@ -107,7 +128,7 @@ export default class QuickAdd extends Plugin {
 	// silently did not persist. Awaiting inside a QuickAdd frame puts us on the stack.
 	private requestSave: Debouncer<[], void> = debounce(() => {
 		void (async () => {
-			await this.saveData(this.settings);
+			await this.persistSettings();
 		})();
 	}, SETTINGS_SAVE_DEBOUNCE_MS);
 
@@ -131,7 +152,9 @@ export default class QuickAdd extends Plugin {
 		settingsStore.replaceState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
-			this.requestSave();
+			if (!this.suppressSettingsSave) {
+				this.requestSave();
+			}
 		});
 
 		this.addCommand({
@@ -535,12 +558,16 @@ export default class QuickAdd extends Plugin {
 		PromptPeekSession.getActive()?.cancel();
 	}
 
-	async loadSettings() {
-		const loadedData = await this.loadData();
+	/**
+	 * Normalize raw `data.json` into the in-memory settings shape. Shared by the
+	 * initial load and by conflict-aware saves so the 3-way-merge base/disk legs
+	 * use the same defaults / coerce / id-heal rules.
+	 */
+	private normalizeLoadedSettings(loadedData: unknown): QuickAddSettings {
 		const settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			loadedData,
+			loadedData ?? {},
 		) as QuickAddSettings & {
 			announceUpdates: QuickAddSettings["announceUpdates"] | boolean;
 		};
@@ -561,14 +588,140 @@ export default class QuickAdd extends Plugin {
 			settings.choices = dedupeChoicesById(settings.choices);
 		}
 
+		return settings as QuickAddSettings;
+	}
+
+	async loadSettings() {
+		const loadedData = await this.loadData();
+		const settings = this.normalizeLoadedSettings(loadedData);
 		this.settings = settings;
+		// Deep-clone so later in-place store edits cannot mutate the merge base.
+		this.lastPersistedSettings = deepClone(settings);
 	}
 
 	async saveSettings() {
 		// Immediate, awaitable write (migrations rely on this). Supersede any pending
 		// debounced write so the same settings aren't redundantly rewritten after.
 		this.requestSave.cancel();
-		await this.saveData(this.settings);
+		await this.persistSettings();
+	}
+
+	/**
+	 * Whole-file settings write with a disk-aware merge. If `data.json` changed
+	 * since `lastPersistedSettings` (another device/sync, hand edit, …), local
+	 * mutations are three-way-merged onto the on-disk value instead of replacing
+	 * the file with a stale in-memory snapshot (#1749).
+	 *
+	 * Obsidian's `loadData` / `saveData` expose no compare-and-swap, file lock, or
+	 * version token, so a TOCTOU window remains between the final re-read below
+	 * and `saveData`. We narrow that window with a last-look revalidation; we
+	 * cannot close it with the public Plugin API alone.
+	 */
+	private persistSettings(): Promise<void> {
+		const run = async () => {
+			const base = this.lastPersistedSettings;
+
+			const readDisk = async (): Promise<QuickAddSettings | null> => {
+				if (!base) return null;
+				return this.normalizeLoadedSettings(await this.loadData());
+			};
+
+			let disk = await readDisk();
+
+			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
+				// Capture local AFTER the disk read so updates that landed while
+				// loadData() was in flight are included, then fold any further
+				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
+				const local = deepClone(this.settings);
+				return reconcileSettingsPersistPlan({
+					base,
+					disk: diskSnapshot,
+					local,
+					currentStore: this.settings,
+				});
+			};
+
+			const applyStoreReplace = (
+				plan: ReturnType<typeof reconcileSettingsPersistPlan<QuickAddSettings>>,
+			) => {
+				if (
+					plan.shouldReplaceStore &&
+					settingsValuesEqual(this.settings, plan.local)
+				) {
+					this.suppressSettingsSave = true;
+					try {
+						settingsStore.replaceState(plan.toWrite);
+						this.settings = plan.toWrite;
+					} finally {
+						this.suppressSettingsSave = false;
+					}
+				}
+			};
+
+			let plan = buildPlan(disk);
+
+			if (plan.didMerge) {
+				log.logMessage(
+					"[Settings] data.json changed on disk since the last QuickAdd write; merged in-memory changes with on-disk settings before saving.",
+				);
+			}
+
+			applyStoreReplace(plan);
+
+			// Last-look disk revalidation before saveData. Still racy without CAS
+			// (see method doc); this only shrinks the window after the first merge.
+			if (base) {
+				const freshDisk = await readDisk();
+				if (
+					freshDisk &&
+					(!disk || !settingsValuesEqual(freshDisk, disk))
+				) {
+					log.logMessage(
+						"[Settings] data.json changed again before save; re-merging with the fresher on-disk snapshot.",
+					);
+					disk = freshDisk;
+					plan = buildPlan(disk);
+					applyStoreReplace(plan);
+				}
+			}
+
+			// Fold any last-moment store drift onto the planned write, using the
+			// plan's local snapshot as the 3-way base so disk-only fields survive.
+			const storeAtFinalMerge = deepClone(this.settings);
+			let toWrite = plan.toWrite;
+			if (!settingsValuesEqual(storeAtFinalMerge, plan.local)) {
+				toWrite = threeWayMergeSettings(
+					plan.local,
+					storeAtFinalMerge,
+					plan.toWrite,
+				);
+			}
+
+			// Keep the live store aligned with what we persist. Otherwise disk-only
+			// fields preserved in toWrite stay missing from this.settings, and the
+			// next save treats that gap as a local deletion (CodeRabbit on #1750).
+			if (
+				shouldApplyPersistedWriteToStore(
+					toWrite,
+					this.settings,
+					storeAtFinalMerge,
+				)
+			) {
+				this.suppressSettingsSave = true;
+				try {
+					settingsStore.replaceState(toWrite);
+					this.settings = toWrite;
+				} finally {
+					this.suppressSettingsSave = false;
+				}
+			}
+
+			await this.saveData(toWrite);
+			this.lastPersistedSettings = deepClone(toWrite);
+		};
+
+		this.persistChain = this.persistChain.then(run, run);
+		return this.persistChain;
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {
