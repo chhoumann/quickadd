@@ -34,6 +34,7 @@ import { deepClone } from "./utils/deepClone";
 import {
 	reconcileSettingsPersistPlan,
 	settingsValuesEqual,
+	shouldApplyPersistedWriteToStore,
 	threeWayMergeSettings,
 } from "./utils/settingsPersistMerge";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
@@ -686,13 +687,33 @@ export default class QuickAdd extends Plugin {
 
 			// Fold any last-moment store drift onto the planned write, using the
 			// plan's local snapshot as the 3-way base so disk-only fields survive.
+			const storeAtFinalMerge = deepClone(this.settings);
 			let toWrite = plan.toWrite;
-			if (!settingsValuesEqual(this.settings, plan.local)) {
+			if (!settingsValuesEqual(storeAtFinalMerge, plan.local)) {
 				toWrite = threeWayMergeSettings(
 					plan.local,
-					this.settings,
+					storeAtFinalMerge,
 					plan.toWrite,
 				);
+			}
+
+			// Keep the live store aligned with what we persist. Otherwise disk-only
+			// fields preserved in toWrite stay missing from this.settings, and the
+			// next save treats that gap as a local deletion (CodeRabbit on #1750).
+			if (
+				shouldApplyPersistedWriteToStore(
+					toWrite,
+					this.settings,
+					storeAtFinalMerge,
+				)
+			) {
+				this.suppressSettingsSave = true;
+				try {
+					settingsStore.replaceState(toWrite);
+					this.settings = toWrite;
+				} finally {
+					this.suppressSettingsSave = false;
+				}
 			}
 
 			await this.saveData(toWrite);

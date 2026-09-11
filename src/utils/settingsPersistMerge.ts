@@ -318,3 +318,21 @@ export function reconcileSettingsPersistPlan<T>(options: {
 
 	return { toWrite, didMerge, local, shouldReplaceStore };
 }
+
+/**
+ * Whether the live settings store should be replaced with the value about to be
+ * written to disk. True when `toWrite` differs from the store (e.g. it still
+ * carries disk-only fields from a merge) and the store has not moved past the
+ * snapshot used to compute that write. Skipping the replace would leave the
+ * store stale so the next save treats those disk-only fields as local deletions.
+ */
+export function shouldApplyPersistedWriteToStore<T>(
+	toWrite: T,
+	currentStore: T,
+	storeSnapshotUsedForMerge: T,
+): boolean {
+	return (
+		!settingsValuesEqual(toWrite, currentStore) &&
+		settingsValuesEqual(currentStore, storeSnapshotUsedForMerge)
+	);
+}

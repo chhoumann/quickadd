@@ -5,6 +5,7 @@ import {
 	reconcileSettingsPersistPlan,
 	resolveSettingsToPersist,
 	settingsValuesEqual,
+	shouldApplyPersistedWriteToStore,
 	threeWayMergeSettings,
 } from "./settingsPersistMerge";
 
@@ -378,7 +379,7 @@ describe("reconcileSettingsPersistPlan", () => {
 		const currentStore = { version: "3", note: "even-newer" };
 
 		// Force the "no re-merge from currentStore" path by passing currentStore
-		// that differs — reconcile will re-merge, so shouldReplace becomes true
+		// that differs; reconcile will re-merge, so shouldReplace becomes true
 		// against the refreshed local. To assert the guard itself, call with
 		// local === currentStore for the merge, then imagine a later drift:
 		const plan = reconcileSettingsPersistPlan({
@@ -411,5 +412,47 @@ describe("reconcileSettingsPersistPlan", () => {
 		expect(plan.didMerge).toBe(false);
 		expect(plan.shouldReplaceStore).toBe(false);
 		expect(plan.toWrite).toEqual(local);
+	});
+});
+
+describe("shouldApplyPersistedWriteToStore", () => {
+	it("applies when toWrite kept disk-only fields the live store lacks", () => {
+		const storeSnapshot = {
+			globalVariables: { syncMarker: "stale" },
+			ai: { lastModelAutoSyncAt: 99 },
+		};
+		const toWrite = {
+			globalVariables: { syncMarker: "from-disk" },
+			ai: { lastModelAutoSyncAt: 99 },
+		};
+
+		expect(
+			shouldApplyPersistedWriteToStore(
+				toWrite,
+				storeSnapshot,
+				storeSnapshot,
+			),
+		).toBe(true);
+	});
+
+	it("skips when the store already matches toWrite", () => {
+		const value = { globalVariables: { syncMarker: "from-disk" } };
+		expect(shouldApplyPersistedWriteToStore(value, value, value)).toBe(
+			false,
+		);
+	});
+
+	it("skips when the store moved after the final-merge snapshot", () => {
+		const storeSnapshot = { note: "merged-from" };
+		const currentStore = { note: "even-newer" };
+		const toWrite = { note: "from-disk", extra: true };
+
+		expect(
+			shouldApplyPersistedWriteToStore(
+				toWrite,
+				currentStore,
+				storeSnapshot,
+			),
+		).toBe(false);
 	});
 });
