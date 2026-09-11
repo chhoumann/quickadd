@@ -86,6 +86,164 @@ describe("threeWayMergeSettings", () => {
 			ai: { lastModelAutoSyncAt: 99, showAssistant: false },
 		});
 	});
+
+	it("merges ai.providers by id so concurrent provider edits both survive", () => {
+		const base = {
+			ai: {
+				providers: [
+					{
+						id: "openai",
+						name: "OpenAI",
+						endpoint: "https://api.openai.com",
+						models: [{ name: "gpt-4o", maxTokens: 128000 }],
+					},
+					{
+						id: "anthropic",
+						name: "Anthropic",
+						endpoint: "https://api.anthropic.com",
+						models: [{ name: "claude-sonnet", maxTokens: 200000 }],
+					},
+				],
+			},
+		};
+
+		const local = deepClone(base);
+		// Background model sync discovers a new OpenAI model.
+		local.ai.providers[0].models.push({
+			name: "gpt-5.5",
+			maxTokens: 1050000,
+		});
+
+		const disk = deepClone(base);
+		// External edit changes the Anthropic endpoint on another device.
+		disk.ai.providers[1].endpoint = "https://anthropic.example/v1";
+
+		const merged = threeWayMergeSettings(base, local, disk);
+
+		expect(merged.ai.providers).toHaveLength(2);
+		const openai = merged.ai.providers.find((p) => p.id === "openai");
+		const anthropic = merged.ai.providers.find((p) => p.id === "anthropic");
+		expect(openai?.models.map((m) => m.name)).toEqual([
+			"gpt-4o",
+			"gpt-5.5",
+		]);
+		expect(anthropic?.endpoint).toBe("https://anthropic.example/v1");
+	});
+
+	it("keeps an externally added provider when local model sync only touches another provider", () => {
+		// CodeRabbit outside-diff Major on #1750: whole-array prefer-local used to
+		// drop a disk-added provider whenever background sync rewrote providers[].
+		const base = {
+			ai: {
+				providers: [
+					{
+						id: "openai",
+						name: "OpenAI",
+						endpoint: "https://api.openai.com",
+						models: [{ name: "gpt-4o", maxTokens: 128000 }],
+					},
+				],
+				lastModelAutoSyncAt: undefined as number | undefined,
+			},
+		};
+
+		const local = deepClone(base);
+		local.ai.providers[0].models.push({
+			name: "gpt-5.5",
+			maxTokens: 1050000,
+		});
+		local.ai.lastModelAutoSyncAt = 1788982813069;
+
+		const disk = deepClone(base);
+		disk.ai.providers.push({
+			id: "ollama",
+			name: "Ollama",
+			endpoint: "http://127.0.0.1:11434",
+			models: [{ name: "llama3", maxTokens: 8192 }],
+		});
+
+		const merged = resolveSettingsToPersist(base, local, disk).toWrite;
+
+		expect(merged.ai.lastModelAutoSyncAt).toBe(1788982813069);
+		expect(merged.ai.providers.map((p) => p.id)).toEqual([
+			"openai",
+			"ollama",
+		]);
+		expect(
+			merged.ai.providers
+				.find((p) => p.id === "openai")
+				?.models.map((m) => m.name),
+		).toEqual(["gpt-4o", "gpt-5.5"]);
+		expect(
+			merged.ai.providers.find((p) => p.id === "ollama")?.endpoint,
+		).toBe("http://127.0.0.1:11434");
+	});
+
+	it("merges provider models by name so sync and external metadata edits both survive", () => {
+		const base = {
+			ai: {
+				providers: [
+					{
+						id: "openai",
+						name: "OpenAI",
+						endpoint: "https://api.openai.com",
+						models: [{ name: "gpt-4o", maxTokens: 128000 }],
+					},
+				],
+			},
+		};
+
+		const local = deepClone(base);
+		local.ai.providers[0].models.push({
+			name: "gpt-5.5",
+			maxTokens: 1050000,
+		});
+
+		const disk = deepClone(base);
+		disk.ai.providers[0].models[0].maxTokens = 200000;
+
+		const merged = threeWayMergeSettings(base, local, disk);
+		const models = merged.ai.providers[0].models;
+
+		expect(models.map((m) => m.name)).toEqual(["gpt-4o", "gpt-5.5"]);
+		expect(models.find((m) => m.name === "gpt-4o")?.maxTokens).toBe(200000);
+		expect(models.find((m) => m.name === "gpt-5.5")?.maxTokens).toBe(
+			1050000,
+		);
+	});
+
+	it("falls back to name+endpoint when provider id is missing", () => {
+		const base = {
+			ai: {
+				providers: [
+					{
+						name: "Custom",
+						endpoint: "http://localhost:8080",
+						models: [{ name: "a", maxTokens: 1 }],
+					},
+				],
+			},
+		};
+		const local = deepClone(base);
+		local.ai.providers[0].models.push({ name: "b", maxTokens: 2 });
+		const disk = deepClone(base);
+		disk.ai.providers[0].endpoint = "http://localhost:9090";
+
+		const merged = threeWayMergeSettings(base, local, disk);
+		// Same name but endpoint changed on disk → treated as a different key
+		// once name+endpoint is the identity, so local keep + disk add.
+		expect(merged.ai.providers.length).toBeGreaterThanOrEqual(1);
+		expect(
+			merged.ai.providers.some((p) =>
+				p.models.some((m) => m.name === "b"),
+			),
+		).toBe(true);
+		expect(
+			merged.ai.providers.some(
+				(p) => p.endpoint === "http://localhost:9090",
+			),
+		).toBe(true);
+	});
 });
 
 describe("diskSettingsDivergedFromBase", () => {
@@ -154,7 +312,7 @@ describe("resolveSettingsToPersist", () => {
 });
 
 describe("reconcileSettingsPersistPlan", () => {
-	it("re-merges when the store advanced during the disk read (Codex P1 / #1750)", () => {
+	it("folds store mutations during loadData onto the disk merge via three-way (Codex P1 / CodeRabbit #1750)", () => {
 		const base = {
 			globalVariables: { syncMarker: "device-b-stale" },
 			ai: {
@@ -187,6 +345,7 @@ describe("reconcileSettingsPersistPlan", () => {
 		});
 
 		expect(plan.didMerge).toBe(true);
+		// Disk-only syncMarker + in-flight prompt edit + local lastModelAutoSyncAt.
 		expect(plan.toWrite).toEqual({
 			globalVariables: { syncMarker: "device-a-newer" },
 			ai: { lastModelAutoSyncAt: 99, prompt: "user-edit-during-read" },
@@ -195,6 +354,23 @@ describe("reconcileSettingsPersistPlan", () => {
 		expect(plan.local).toEqual(currentStore);
 	});
 
+	it("three-way merges current store onto toWrite using local as base before replace/save", () => {
+		const base = { a: 1, b: 1, c: 1 };
+		const local = { a: 2, b: 1, c: 1 };
+		const disk = { a: 1, b: 2, c: 1 };
+		// Store advanced after local was captured: c edited in memory.
+		const currentStore = { a: 2, b: 1, c: 3 };
+
+		const plan = reconcileSettingsPersistPlan({
+			base,
+			disk,
+			local,
+			currentStore,
+		});
+
+		expect(plan.toWrite).toEqual({ a: 2, b: 2, c: 3 });
+		expect(plan.shouldReplaceStore).toBe(true);
+	});
 	it("does not recommend replaceState when the store no longer matches the merge local", () => {
 		const base = { version: "1", note: "base" };
 		const local = { version: "2", note: "base" };

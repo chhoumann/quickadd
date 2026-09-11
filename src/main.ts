@@ -34,6 +34,7 @@ import { deepClone } from "./utils/deepClone";
 import {
 	reconcileSettingsPersistPlan,
 	settingsValuesEqual,
+	threeWayMergeSettings,
 } from "./utils/settingsPersistMerge";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
@@ -609,27 +610,54 @@ export default class QuickAdd extends Plugin {
 	 * since `lastPersistedSettings` (another device/sync, hand edit, …), local
 	 * mutations are three-way-merged onto the on-disk value instead of replacing
 	 * the file with a stale in-memory snapshot (#1749).
+	 *
+	 * Obsidian's `loadData` / `saveData` expose no compare-and-swap, file lock, or
+	 * version token, so a TOCTOU window remains between the final re-read below
+	 * and `saveData`. We narrow that window with a last-look revalidation; we
+	 * cannot close it with the public Plugin API alone.
 	 */
 	private persistSettings(): Promise<void> {
 		const run = async () => {
 			const base = this.lastPersistedSettings;
-			let disk: QuickAddSettings | null = null;
 
-			if (base) {
-				const loadedData = await this.loadData();
-				disk = this.normalizeLoadedSettings(loadedData);
-			}
+			const readDisk = async (): Promise<QuickAddSettings | null> => {
+				if (!base) return null;
+				return this.normalizeLoadedSettings(await this.loadData());
+			};
 
-			// Capture the local merge leg AFTER the disk read so updates that landed
-			// while loadData() was in flight are included. Then reconcile again
-			// against the live store before any replaceState (Codex P1 on #1750).
-			const local = deepClone(this.settings);
-			const plan = reconcileSettingsPersistPlan({
-				base,
-				disk,
-				local,
-				currentStore: this.settings,
-			});
+			let disk = await readDisk();
+
+			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
+				// Capture local AFTER the disk read so updates that landed while
+				// loadData() was in flight are included, then fold any further
+				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
+				const local = deepClone(this.settings);
+				return reconcileSettingsPersistPlan({
+					base,
+					disk: diskSnapshot,
+					local,
+					currentStore: this.settings,
+				});
+			};
+
+			const applyStoreReplace = (
+				plan: ReturnType<typeof reconcileSettingsPersistPlan<QuickAddSettings>>,
+			) => {
+				if (
+					plan.shouldReplaceStore &&
+					settingsValuesEqual(this.settings, plan.local)
+				) {
+					this.suppressSettingsSave = true;
+					try {
+						settingsStore.replaceState(plan.toWrite);
+						this.settings = plan.toWrite;
+					} finally {
+						this.suppressSettingsSave = false;
+					}
+				}
+			};
+
+			let plan = buildPlan(disk);
 
 			if (plan.didMerge) {
 				log.logMessage(
@@ -637,29 +665,35 @@ export default class QuickAdd extends Plugin {
 				);
 			}
 
-			if (
-				plan.shouldReplaceStore &&
-				settingsValuesEqual(this.settings, plan.local)
-			) {
-				this.suppressSettingsSave = true;
-				try {
-					settingsStore.replaceState(plan.toWrite);
-					this.settings = plan.toWrite;
-				} finally {
-					this.suppressSettingsSave = false;
+			applyStoreReplace(plan);
+
+			// Last-look disk revalidation before saveData. Still racy without CAS
+			// (see method doc); this only shrinks the window after the first merge.
+			if (base) {
+				const freshDisk = await readDisk();
+				if (
+					freshDisk &&
+					(!disk || !settingsValuesEqual(freshDisk, disk))
+				) {
+					log.logMessage(
+						"[Settings] data.json changed again before save; re-merging with the fresher on-disk snapshot.",
+					);
+					disk = freshDisk;
+					plan = buildPlan(disk);
+					applyStoreReplace(plan);
 				}
 			}
 
-			// If the store advanced after the plan was built, write a fresh merge
-			// so the file includes those edits instead of the stale toWrite.
-			const toWrite = settingsValuesEqual(this.settings, plan.local)
-				? plan.toWrite
-				: reconcileSettingsPersistPlan({
-						base,
-						disk,
-						local: deepClone(this.settings),
-						currentStore: this.settings,
-					}).toWrite;
+			// Fold any last-moment store drift onto the planned write, using the
+			// plan's local snapshot as the 3-way base so disk-only fields survive.
+			let toWrite = plan.toWrite;
+			if (!settingsValuesEqual(this.settings, plan.local)) {
+				toWrite = threeWayMergeSettings(
+					plan.local,
+					this.settings,
+					plan.toWrite,
+				);
+			}
 
 			await this.saveData(toWrite);
 			this.lastPersistedSettings = deepClone(toWrite);

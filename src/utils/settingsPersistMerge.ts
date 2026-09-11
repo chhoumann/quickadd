@@ -40,13 +40,146 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	);
 }
 
+/** Provider-shaped entries carry a `models` list (see `AIProvider`). */
+function isProviderLike(value: unknown): value is Record<string, unknown> {
+	return (
+		isPlainObject(value) &&
+		typeof value.name === "string" &&
+		Array.isArray(value.models)
+	);
+}
+
+/**
+ * Model-shaped entries have a string `name` and are not providers. Prefer
+ * `maxTokens` when present (the `Model` interface), but accept name-only stubs
+ * used in tests and partial settings.
+ */
+function isModelLike(value: unknown): value is Record<string, unknown> {
+	return (
+		isPlainObject(value) &&
+		typeof value.name === "string" &&
+		!Array.isArray(value.models)
+	);
+}
+
+function providerMergeKey(provider: Record<string, unknown>): string {
+	if (typeof provider.id === "string" && provider.id.trim().length > 0) {
+		return `id:${provider.id.trim().toLowerCase()}`;
+	}
+	const name = String(provider.name ?? "")
+		.trim()
+		.toLowerCase();
+	const endpoint = String(provider.endpoint ?? "")
+		.trim()
+		.toLowerCase()
+		.replace(/\/+$/, "");
+	return `name:${name}\u0000${endpoint}`;
+}
+
+function modelMergeKey(model: Record<string, unknown>): string {
+	return String(model.name ?? "")
+		.trim()
+		.toLowerCase();
+}
+
+function indexByKey(
+	items: unknown[],
+	keyOf: (item: Record<string, unknown>) => string,
+): Map<string, Record<string, unknown>> {
+	const map = new Map<string, Record<string, unknown>>();
+	for (const item of items) {
+		if (!isPlainObject(item)) continue;
+		const key = keyOf(item);
+		if (!key || key === "id:" || key === "name:\u0000") continue;
+		if (!map.has(key)) map.set(key, item);
+	}
+	return map;
+}
+
+/**
+ * Three-way merge of object arrays keyed by identity. Local order is preserved;
+ * disk-only additions are appended. Local deletions win over disk-only edits of
+ * the same key (same prefer-local conflict policy as leaf merges).
+ */
+function threeWayMergeKeyedArray(
+	base: unknown[] | undefined,
+	local: unknown[],
+	disk: unknown[],
+	keyOf: (item: Record<string, unknown>) => string,
+): unknown[] {
+	const baseMap = indexByKey(base ?? [], keyOf);
+	const localMap = indexByKey(local, keyOf);
+	const diskMap = indexByKey(disk, keyOf);
+	const result: unknown[] = [];
+	const seen = new Set<string>();
+
+	for (const item of local) {
+		if (!isPlainObject(item)) {
+			result.push(deepClone(item));
+			continue;
+		}
+		const key = keyOf(item);
+		if (seen.has(key)) continue;
+		seen.add(key);
+
+		const baseItem = baseMap.get(key);
+		const diskItem = diskMap.get(key);
+
+		if (!diskMap.has(key)) {
+			if (!baseMap.has(key)) {
+				// Local addition.
+				result.push(deepClone(item));
+			} else if (!settingsValuesEqual(item, baseItem)) {
+				// Local edit vs disk deletion — prefer keeping the local edit.
+				result.push(deepClone(item));
+			}
+			// else: unchanged locally and deleted on disk → drop.
+			continue;
+		}
+
+		result.push(
+			threeWayMergeSettings(
+				baseItem as Record<string, unknown> | undefined,
+				item,
+				diskItem,
+			),
+		);
+	}
+
+	for (const item of disk) {
+		if (!isPlainObject(item)) continue;
+		const key = keyOf(item);
+		if (seen.has(key)) continue;
+		seen.add(key);
+
+		if (!localMap.has(key)) {
+			if (!baseMap.has(key)) {
+				// Disk-only addition.
+				result.push(deepClone(item));
+			}
+			// else: present in base, absent locally → local deletion wins.
+		}
+	}
+
+	return result;
+}
+
+function everyItem<T>(
+	items: unknown[],
+	predicate: (value: unknown) => value is T,
+): items is T[] {
+	return items.length > 0 && items.every(predicate);
+}
+
 /**
  * Three-way merge for QuickAdd settings (and nested JSON-like values).
  *
  * - If local is unchanged from base, take disk (preserves external edits).
  * - If disk is unchanged from base, take local (preserves in-memory edits).
  * - If both changed the same plain object, recurse per key.
- * - On irreducible conflict (both sides diverged on a leaf/array), prefer local.
+ * - `ai.providers` arrays merge by `AIProvider.id` (fallback: name+endpoint);
+ *   each provider's `models` merge by `Model.name`.
+ * - Other irreducible array/leaf conflicts prefer local.
  *
  * This is the data-integrity seam for #1749: a background model-sync write must
  * not clobber newer on-disk fields it never touched.
@@ -73,7 +206,31 @@ export function threeWayMergeSettings<T>(base: T, local: T, disk: T): T {
 		return merged as T;
 	}
 
-	// Arrays and primitives: both sides diverged — keep the in-memory edit.
+	const baseArr = Array.isArray(base) ? base : undefined;
+	const localArr = Array.isArray(local) ? local : undefined;
+	const diskArr = Array.isArray(disk) ? disk : undefined;
+
+	if (localArr && diskArr) {
+		const sample = [...localArr, ...diskArr, ...(baseArr ?? [])];
+		if (everyItem(sample, isProviderLike)) {
+			return threeWayMergeKeyedArray(
+				baseArr,
+				localArr,
+				diskArr,
+				providerMergeKey,
+			) as T;
+		}
+		if (everyItem(sample, isModelLike)) {
+			return threeWayMergeKeyedArray(
+				baseArr,
+				localArr,
+				diskArr,
+				modelMergeKey,
+			) as T;
+		}
+	}
+
+	// Other arrays and primitives: both sides diverged — keep the in-memory edit.
 	return deepClone(local);
 }
 
@@ -116,10 +273,11 @@ export function resolveSettingsToPersist<T>(
 /**
  * Finalize a persist plan after an async disk read.
  *
- * `local` is the in-memory snapshot used for the merge. If `currentStore` has
- * moved on since that snapshot (another edit while `loadData()` was in flight),
- * re-merge against the newer store value so we neither write nor
- * `replaceState` a stale plan that would discard those edits (Codex P1 on #1750).
+ * `local` is the in-memory snapshot the disk-aware merge used. If `currentStore`
+ * has moved on since that snapshot (another edit while `loadData()` was in
+ * flight), fold those edits onto `toWrite` with a three-way merge that treats
+ * `local` as the base — so disk-only fields in `toWrite` survive while newer
+ * store fields win (Codex P1 / CodeRabbit on #1750).
  *
  * `shouldReplaceStore` is true only when publishing `toWrite` back into the
  * store would not clobber a concurrent update still equal to `local`.
@@ -132,7 +290,7 @@ export function reconcileSettingsPersistPlan<T>(options: {
 }): {
 	toWrite: T;
 	didMerge: boolean;
-	/** Local leg actually used for `toWrite` (may be `currentStore` after refresh). */
+	/** Local leg actually used for `toWrite` (may be `currentStore` after fold). */
 	local: T;
 	shouldReplaceStore: boolean;
 } {
@@ -144,12 +302,13 @@ export function reconcileSettingsPersistPlan<T>(options: {
 	);
 
 	if (!settingsValuesEqual(options.currentStore, local)) {
-		local = options.currentStore;
-		({ toWrite, didMerge } = resolveSettingsToPersist(
-			options.base,
+		toWrite = threeWayMergeSettings(
 			local,
-			options.disk,
-		));
+			options.currentStore,
+			toWrite,
+		);
+		local = options.currentStore;
+		didMerge = true;
 	}
 
 	const shouldReplaceStore =
