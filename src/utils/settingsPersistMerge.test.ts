@@ -245,6 +245,67 @@ describe("threeWayMergeSettings", () => {
 			),
 		).toBe(true);
 	});
+
+	it("does not name-merge choices arrays (duplicate display names must survive)", () => {
+		// Regression: isModelLike used to match any `{ name }` object, so choices
+		// were keyed by display name and a second "Journal" was dropped.
+		const base = {
+			choices: [
+				{ id: "1", name: "Journal", type: "Capture", command: false },
+				{ id: "2", name: "Journal", type: "Template", command: false },
+			],
+		};
+		const local = deepClone(base);
+		local.choices[0] = { ...local.choices[0], command: true };
+		const disk = deepClone(base);
+		disk.choices.push({
+			id: "3",
+			name: "Other",
+			type: "Macro",
+			command: false,
+		});
+
+		const merged = threeWayMergeSettings(base, local, disk);
+		// Irreducible choices[] conflict prefers local (documented policy).
+		expect(merged.choices).toEqual(local.choices);
+		expect(merged.choices).toHaveLength(2);
+		expect(merged.choices.map((c) => c.id)).toEqual(["1", "2"]);
+	});
+
+	it("still preserves disk choices when local only changed ai (the #1749 shape)", () => {
+		const base = {
+			choices: [
+				{ id: "1", name: "Journal", type: "Capture" },
+				{ id: "2", name: "Journal", type: "Template" },
+			],
+			ai: {
+				lastModelAutoSyncAt: undefined as number | undefined,
+				providers: [
+					{
+						id: "openai",
+						name: "OpenAI",
+						endpoint: "https://api.openai.com",
+						models: [{ name: "gpt-4o", maxTokens: 128000 }],
+					},
+				],
+			},
+		};
+		const local = deepClone(base);
+		local.ai.providers[0].models.push({
+			name: "gpt-5.5",
+			maxTokens: 1050000,
+		});
+		local.ai.lastModelAutoSyncAt = 99;
+		const disk = deepClone(base);
+		disk.choices.push({ id: "3", name: "Other", type: "Macro" });
+
+		const merged = resolveSettingsToPersist(base, local, disk).toWrite;
+		expect(merged.choices.map((c) => c.id)).toEqual(["1", "2", "3"]);
+		expect(merged.ai.lastModelAutoSyncAt).toBe(99);
+		expect(
+			merged.ai.providers[0].models.map((m) => m.name),
+		).toEqual(["gpt-4o", "gpt-5.5"]);
+	});
 });
 
 describe("diskSettingsDivergedFromBase", () => {

@@ -50,14 +50,15 @@ function isProviderLike(value: unknown): value is Record<string, unknown> {
 }
 
 /**
- * Model-shaped entries have a string `name` and are not providers. Prefer
- * `maxTokens` when present (the `Model` interface), but accept name-only stubs
- * used in tests and partial settings.
+ * Model-shaped entries look like `Model` (name + maxTokens). Do not treat bare
+ * `{ name }` objects as models: choices also have `name` and would otherwise be
+ * incorrectly merged by display name during conflict saves.
  */
 function isModelLike(value: unknown): value is Record<string, unknown> {
 	return (
 		isPlainObject(value) &&
 		typeof value.name === "string" &&
+		typeof value.maxTokens === "number" &&
 		!Array.isArray(value.models)
 	);
 }
@@ -106,6 +107,7 @@ function threeWayMergeKeyedArray(
 	local: unknown[],
 	disk: unknown[],
 	keyOf: (item: Record<string, unknown>) => string,
+	path: readonly string[],
 ): unknown[] {
 	const baseMap = indexByKey(base ?? [], keyOf);
 	const localMap = indexByKey(local, keyOf);
@@ -142,6 +144,7 @@ function threeWayMergeKeyedArray(
 				baseItem as Record<string, unknown> | undefined,
 				item,
 				diskItem,
+				path,
 			),
 		);
 	}
@@ -177,14 +180,21 @@ function everyItem<T>(
  * - If local is unchanged from base, take disk (preserves external edits).
  * - If disk is unchanged from base, take local (preserves in-memory edits).
  * - If both changed the same plain object, recurse per key.
- * - `ai.providers` arrays merge by `AIProvider.id` (fallback: name+endpoint);
- *   each provider's `models` merge by `Model.name`.
+ * - Arrays under an `providers` path merge by `AIProvider.id` (fallback:
+ *   name+endpoint); arrays under a `models` path merge by `Model.name`.
+ *   Path context matters: choice objects also have `name` and must not use
+ *   model-name identity.
  * - Other irreducible array/leaf conflicts prefer local.
  *
  * This is the data-integrity seam for #1749: a background model-sync write must
  * not clobber newer on-disk fields it never touched.
  */
-export function threeWayMergeSettings<T>(base: T, local: T, disk: T): T {
+export function threeWayMergeSettings<T>(
+	base: T,
+	local: T,
+	disk: T,
+	path: readonly string[] = [],
+): T {
 	if (settingsValuesEqual(local, disk)) return deepClone(local);
 	if (settingsValuesEqual(local, base)) return deepClone(disk);
 	if (settingsValuesEqual(disk, base)) return deepClone(local);
@@ -201,6 +211,7 @@ export function threeWayMergeSettings<T>(base: T, local: T, disk: T): T {
 				base[key],
 				local[key],
 				disk[key],
+				[...path, key],
 			);
 		}
 		return merged as T;
@@ -211,21 +222,32 @@ export function threeWayMergeSettings<T>(base: T, local: T, disk: T): T {
 	const diskArr = Array.isArray(disk) ? disk : undefined;
 
 	if (localArr && diskArr) {
+		const leaf = path[path.length - 1];
 		const sample = [...localArr, ...diskArr, ...(baseArr ?? [])];
-		if (everyItem(sample, isProviderLike)) {
+		// Keyed merges are path-gated. Shape checks alone are not enough:
+		// choices also have `name` and must fall through to prefer-local.
+		if (
+			leaf === "providers" &&
+			(sample.length === 0 || everyItem(sample, isProviderLike))
+		) {
 			return threeWayMergeKeyedArray(
 				baseArr,
 				localArr,
 				diskArr,
 				providerMergeKey,
+				path,
 			) as T;
 		}
-		if (everyItem(sample, isModelLike)) {
+		if (
+			leaf === "models" &&
+			(sample.length === 0 || everyItem(sample, isModelLike))
+		) {
 			return threeWayMergeKeyedArray(
 				baseArr,
 				localArr,
 				diskArr,
 				modelMergeKey,
+				path,
 			) as T;
 		}
 	}
