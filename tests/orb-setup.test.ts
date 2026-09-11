@@ -223,15 +223,19 @@ describe.skipIf(!runningOnLinux)("Linux Obsidian launcher validation", () => {
 	});
 
 	it("accepts only the runner's exact canonical argv", () => {
-		const instanceName = `orb-script-test-${process.pid}-${Date.now()}`;
 		const initialRoot = prepareProfileRoot();
-		const validHome = path.join(profileRoot, instanceName, "home");
+		const instanceDir = fs.mkdtempSync(path.join(profileRoot, "orb-script-test-"));
+		const instanceName = path.basename(instanceDir);
+		const validHome = path.join(instanceDir, "home");
 		const args = validArgs(validHome);
 		const escapedHome = temporaryDirectory("quickadd-obsidian-escaped-home-");
 		const linkName = `orb-script-link-${process.pid}-${Date.now()}`;
 		const linkPath = path.join(profileRoot, linkName);
-		fs.mkdirSync(validHome, { recursive: true });
-		fs.writeFileSync(path.join(validHome, "..", "obsidian-e2e-instance.json"), "{}");
+		fs.mkdirSync(validHome, { recursive: true, mode: 0o700 });
+		fs.writeFileSync(path.join(instanceDir, "obsidian-e2e-instance.json"), "{}", {
+			mode: 0o600,
+			flag: "wx",
+		});
 		try {
 			expect(validate(args).status).toBe(0);
 			const adversarial = [

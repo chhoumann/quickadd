@@ -40,7 +40,7 @@ jobs:
         permissions:
             contents: write
             pull-requests: write
-        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-prepare.yml@v4
+        uses: chhoumann/obsidian-plugin-workflows/.github/workflows/release-prepare.yml@ebcf84b80dc48ba15e0eec1f3575d41519a78ed5 # v4
         with:
             plugin-name: quickadd
             package-manager: pnpm
