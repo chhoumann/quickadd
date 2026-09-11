@@ -112,3 +112,50 @@ export function resolveSettingsToPersist<T>(
 		didMerge: true,
 	};
 }
+
+/**
+ * Finalize a persist plan after an async disk read.
+ *
+ * `local` is the in-memory snapshot used for the merge. If `currentStore` has
+ * moved on since that snapshot (another edit while `loadData()` was in flight),
+ * re-merge against the newer store value so we neither write nor
+ * `replaceState` a stale plan that would discard those edits (Codex P1 on #1750).
+ *
+ * `shouldReplaceStore` is true only when publishing `toWrite` back into the
+ * store would not clobber a concurrent update still equal to `local`.
+ */
+export function reconcileSettingsPersistPlan<T>(options: {
+	base: T | null | undefined;
+	disk: T | null | undefined;
+	local: T;
+	currentStore: T;
+}): {
+	toWrite: T;
+	didMerge: boolean;
+	/** Local leg actually used for `toWrite` (may be `currentStore` after refresh). */
+	local: T;
+	shouldReplaceStore: boolean;
+} {
+	let local = options.local;
+	let { toWrite, didMerge } = resolveSettingsToPersist(
+		options.base,
+		local,
+		options.disk,
+	);
+
+	if (!settingsValuesEqual(options.currentStore, local)) {
+		local = options.currentStore;
+		({ toWrite, didMerge } = resolveSettingsToPersist(
+			options.base,
+			local,
+			options.disk,
+		));
+	}
+
+	const shouldReplaceStore =
+		didMerge &&
+		settingsValuesEqual(options.currentStore, local) &&
+		!settingsValuesEqual(toWrite, options.currentStore);
+
+	return { toWrite, didMerge, local, shouldReplaceStore };
+}

@@ -32,7 +32,7 @@ import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
 import { deepClone } from "./utils/deepClone";
 import {
-	resolveSettingsToPersist,
+	reconcileSettingsPersistPlan,
 	settingsValuesEqual,
 } from "./utils/settingsPersistMerge";
 import { interactivePromptServer } from "./interactive/interactivePromptServer";
@@ -612,7 +612,6 @@ export default class QuickAdd extends Plugin {
 	 */
 	private persistSettings(): Promise<void> {
 		const run = async () => {
-			const local = deepClone(this.settings);
 			const base = this.lastPersistedSettings;
 			let disk: QuickAddSettings | null = null;
 
@@ -621,26 +620,46 @@ export default class QuickAdd extends Plugin {
 				disk = this.normalizeLoadedSettings(loadedData);
 			}
 
-			const { toWrite, didMerge } = resolveSettingsToPersist(
+			// Capture the local merge leg AFTER the disk read so updates that landed
+			// while loadData() was in flight are included. Then reconcile again
+			// against the live store before any replaceState (Codex P1 on #1750).
+			const local = deepClone(this.settings);
+			const plan = reconcileSettingsPersistPlan({
 				base,
-				local,
 				disk,
-			);
+				local,
+				currentStore: this.settings,
+			});
 
-			if (didMerge) {
+			if (plan.didMerge) {
 				log.logMessage(
 					"[Settings] data.json changed on disk since the last QuickAdd write; merged in-memory changes with on-disk settings before saving.",
 				);
-				if (!settingsValuesEqual(toWrite, this.settings)) {
-					this.suppressSettingsSave = true;
-					try {
-						settingsStore.replaceState(toWrite);
-						this.settings = toWrite;
-					} finally {
-						this.suppressSettingsSave = false;
-					}
+			}
+
+			if (
+				plan.shouldReplaceStore &&
+				settingsValuesEqual(this.settings, plan.local)
+			) {
+				this.suppressSettingsSave = true;
+				try {
+					settingsStore.replaceState(plan.toWrite);
+					this.settings = plan.toWrite;
+				} finally {
+					this.suppressSettingsSave = false;
 				}
 			}
+
+			// If the store advanced after the plan was built, write a fresh merge
+			// so the file includes those edits instead of the stale toWrite.
+			const toWrite = settingsValuesEqual(this.settings, plan.local)
+				? plan.toWrite
+				: reconcileSettingsPersistPlan({
+						base,
+						disk,
+						local: deepClone(this.settings),
+						currentStore: this.settings,
+					}).toWrite;
 
 			await this.saveData(toWrite);
 			this.lastPersistedSettings = deepClone(toWrite);
