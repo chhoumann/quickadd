@@ -124,3 +124,5 @@ because GUI processes do not survive orb pause/resume.
 ## Support
 
 If you have any questions or encounter any problems while using QuickAdd, you can use the [community discussions](https://github.com/chhoumann/quickadd/discussions) for support.
+
+<!-- verify-codeql-gate-clean: throwaway no-op for Protect master Code scanning gate verification; do not merge -->
