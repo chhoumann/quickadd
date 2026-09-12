@@ -1,0 +1,10 @@
+# THROWWAWAY — CodeQL gate verification only. DO NOT MERGE.
+# Deliberate actions/unpinned-tag (medium) for Protect master Code scanning gate.
+name: Throwaway CodeQL Gate Verify
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
