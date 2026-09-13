@@ -112,11 +112,11 @@ export function planPropertyUpdate(args: {
 	if (type === "list" && current !== null && !Array.isArray(current)) {
 		throw new Error(`Property '${key}' contains ${inferType(current)}. Set a list only after correcting the existing property to a list.`);
 	}
-	// Without a type, a string is text, and writing several lines as text would
-	// register the key as Text vault-wide and block every later Add to list.
-	// Line count is not a type signal, so stop and name the fix instead.
+	// Several lines into a typeless key usually mean a list, and line count is not
+	// a type signal, so guessing text here is both likely wrong and expensive: it
+	// registers the key as Text vault-wide and blocks every later Add to list.
 	if (type === null && lines !== null && lines.length > 1) {
-		throw new Error(`Property '${key}' has no type yet, so ${lines.length} lines could be one text value or a list. Use 'Add to list' to write them as list items, or create the property in Obsidian with the type you want first.`);
+		throw new Error(`Property '${key}' has no type yet, so ${lines.length} lines could be one text value or a list. Use 'Add to list' to write them as list items, or set the property's type in Obsidian first - Text keeps the lines as one value.`);
 	}
 	const next = type === "list" ? lines ?? captured : captured;
 	if (type !== null) validateType(next, type, key);
