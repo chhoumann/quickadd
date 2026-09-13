@@ -170,7 +170,28 @@ describe("Capture property writes", () => {
 		expect(test.executor.signalAbort).toHaveBeenCalledWith(expect.any(UserCancelError));
 	});
 
-	it.each(["", []])("does not write or create a note for an empty list addition %j", async (value) => {
+	it("adds one list item per line of the captured value", async () => {
+		const test = fixture("---\nstatus: [old]\n---\nBody\n");
+		test.choice.propertyCapture!.action = "addToList";
+		mocks.value.mockResolvedValue("work\n personal \n\nold\n");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: ["old", "work", "personal"] });
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
+	});
+
+	it("stops a multi-line Set into a property without a type before creating the note", async () => {
+		const test = fixture();
+		test.choice.createFileIfItDoesntExist.enabled = true;
+		mocks.value.mockResolvedValue("work\npersonal");
+		await test.run();
+		expect(test.create).not.toHaveBeenCalled();
+		expect(test.createFolder).not.toHaveBeenCalled();
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
+			status: "error", reason: expect.stringContaining("Add to list"),
+		});
+	});
+
+	it.each(["", " \n\n", []])("does not write or create a note for an empty list addition %j", async (value) => {
 		for (const content of [undefined, "---\nstatus: [old]\n---\nBody\n"]) {
 			const test = fixture(content);
 			test.choice.createFileIfItDoesntExist.enabled = true;

@@ -59,6 +59,42 @@ describe("property capture in native Obsidian", () => {
 		expect(outcome).toMatchObject({ ok: true, effect: "unchanged" });
 	});
 
+	it("adds one item per line of a literal format plus the typed value, keeping commas inside a line", async () => {
+		const { obsidian, sandbox } = getContext();
+		const path = await seedVaultFile(obsidian, sandbox, "lines.md", `---\ntags: [old]\n---\n${BODY}`);
+		const choice = choiceFor(path);
+		choice.format = { enabled: true, format: "{{VALUE:input}}\nwork\n\nSmith, John\nold\n" };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		await saveChoice(choice);
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ input: "personal" }) });
+		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
+		await expect.poll(() => readNote(path), { timeout: 10000, interval: 100 })
+			.toEqual({ properties: { tags: ["old", "personal", "work", "Smith, John"] }, body: BODY });
+	});
+
+	it("sets each line as an item on a property Obsidian already knows as a list", async () => {
+		const { obsidian, sandbox } = getContext();
+		const path = await seedVaultFile(obsidian, sandbox, "set-lines.md", `---\ntags: [old]\n---\n${BODY}`);
+		const choice = choiceFor(path);
+		await saveChoice(choice);
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ property: "tags", input: "work\r\npersonal\r\n" }) });
+		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
+		await expect.poll(() => readNote(path), { timeout: 10000, interval: 100 })
+			.toEqual({ properties: { tags: ["work", "personal"] }, body: BODY });
+	});
+
+	it("refuses to set several lines into a property the vault has never seen, without creating the note", async () => {
+		const { obsidian, sandbox } = getContext();
+		const path = sandbox.path("guardrail/absent.md");
+		const choice = choiceFor(path);
+		choice.createFileIfItDoesntExist.enabled = true;
+		await saveChoice(choice);
+		const property = `qa_capture_untyped_lines_${choice.id.slice(0, 8)}`;
+		const outcome = await obsidian.execJson<{ ok: boolean; error?: string }>("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ property, input: "work\npersonal" }) });
+		expect(outcome).toMatchObject({ ok: false, error: expect.stringContaining("Add to list") });
+		expect(await obsidian.dev.evalJson<boolean>(`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(sandbox.path("guardrail"))}))`)).toBe(false);
+	});
+
 	it("creates a new typed property and preserves a prepared template", async () => {
 		const { obsidian, sandbox } = getContext();
 		const template = await seedVaultFile(obsidian, sandbox, "template.md", `---\nkeep: template\n---\n${BODY}`);

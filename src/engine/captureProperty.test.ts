@@ -1,9 +1,80 @@
 import { describe, expect, it } from "vitest";
-import { planPropertyUpdate, resolveCapturePropertyKey, validatePropertyName } from "./captureProperty";
+import {
+	captureListItems, isEmptyCaptureListValue, planPropertyUpdate, resolveCapturePropertyKey, validatePropertyName,
+} from "./captureProperty";
 import { parsePropertyCapture } from "../types/choices/ICaptureChoice";
 
 const set = { action: "set", createIfMissing: true } as const;
 const add = { action: "addToList", createIfMissing: true } as const;
+
+describe("capture list items", () => {
+	it.each([
+		["work", ["work"]],
+		["Smith, John", ["Smith, John"]],
+		["[a, b]", ["[a, b]"]],
+		["  work  ", ["work"]],
+		["", []],
+		[" \n \r\n", []],
+		["work\npersonal", ["work", "personal"]],
+		["Smith, John\nDoe, Jane", ["Smith, John", "Doe, Jane"]],
+		["work\r\n\r\n personal \r\n", ["work", "personal"]],
+		["\nwork\npersonal", ["work", "personal"]],
+		["- work\n- personal", ["- work", "- personal"]],
+		["[[Smith, John|John]]\n[[Doe]]", ["[[Smith, John|John]]", "[[Doe]]"]],
+	])("turns %j into the items %j", (value, items) => {
+		expect(captureListItems(value)).toEqual(items);
+	});
+	it.each([
+		["", true], [" \n\n", true], [[], true],
+		["work", false], ["\nwork", false], [["a"], false], [[""], false], [0, false], [false, false],
+	])("treats %j as an empty list addition: %j", (value, empty) => {
+		expect(isEmptyCaptureListValue(value)).toBe(empty);
+	});
+});
+
+describe("lines are list items", () => {
+	it("adds each non-blank line as its own item while commas stay inside a line", () => {
+		const frontmatter = { tags: ["old"] };
+		expect(planPropertyUpdate({ frontmatter, key: "tags", value: "work\nSmith, John\n\nold\n", config: add, registeredType: null }))
+			.toEqual(["old", "work", "Smith, John"]);
+		expect(planPropertyUpdate({ frontmatter, key: "tags", value: "{{VALUE}} answer\r\nwork\r\n", config: add, registeredType: null }))
+			.toEqual(["old", "{{VALUE}} answer", "work"]);
+		expect(frontmatter).toEqual({ tags: ["old"] });
+	});
+	it("sets each line as an item when the property is known to be a list", () => {
+		expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: "work\npersonal", config: set, registeredType: "multitext" })).toEqual(["work", "personal"]);
+		expect(planPropertyUpdate({ frontmatter: { topics: null }, key: "topics", value: "work\npersonal", config: set, registeredType: "list" })).toEqual(["work", "personal"]);
+		expect(planPropertyUpdate({ frontmatter: { topics: ["old"] }, key: "topics", value: "work\npersonal", config: set, registeredType: null })).toEqual(["work", "personal"]);
+		expect(planPropertyUpdate({ frontmatter: {}, key: "tags", value: "work\nwork\n", config: set, registeredType: null })).toEqual(["work"]);
+		expect(planPropertyUpdate({ frontmatter: {}, key: "aliases", value: " \n", config: set, registeredType: null })).toEqual([]);
+	});
+	it("passes arrays through untouched even when an item contains a line break", () => {
+		for (const config of [add, set]) {
+			expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: ["a\nb", "c"], config, registeredType: null })).toEqual(["a\nb", "c"]);
+			expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: ["a,b", " c "], config, registeredType: "multitext" })).toEqual(["a,b", " c "]);
+		}
+	});
+	it("keeps a whitespace-only addition from changing the list", () => {
+		expect(planPropertyUpdate({ frontmatter: { items: ["old"] }, key: "items", value: " \n\n", config: add, registeredType: null })).toEqual(["old"]);
+		expect(planPropertyUpdate({ frontmatter: {}, key: "items", value: "\n", config: add, registeredType: null })).toEqual([]);
+	});
+	it("refuses to guess whether several lines are text or a list for a property without a type", () => {
+		for (const frontmatter of [{}, { topics: null }]) {
+			expect(() => planPropertyUpdate({ frontmatter, key: "topics", value: "work\npersonal", config: set, registeredType: null }))
+				.toThrow(/Property 'topics' has no type yet.*2 lines.*'Add to list'/s);
+		}
+		expect(() => planPropertyUpdate({ frontmatter: {}, key: "topics", value: "a\n\nb\r\nc", config: set, registeredType: null })).toThrow("3 lines");
+	});
+	it("still sets a single line, a typed text property, or an array without a known type", () => {
+		expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: "work", config: set, registeredType: null })).toBe("work");
+		expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: "Smith, John", config: set, registeredType: null })).toBe("Smith, John");
+		expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: "work\n", config: set, registeredType: null })).toBe("work\n");
+		expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: ["work", "personal"], config: set, registeredType: null })).toEqual(["work", "personal"]);
+		expect(planPropertyUpdate({ frontmatter: {}, key: "notes", value: "a\nb", config: set, registeredType: "text" })).toBe("a\nb");
+		expect(planPropertyUpdate({ frontmatter: { notes: "old" }, key: "notes", value: "a\nb", config: set, registeredType: null })).toBe("a\nb");
+		expect(() => planPropertyUpdate({ frontmatter: {}, key: "count", value: "1\n2", config: set, registeredType: "number" })).toThrow("requires number");
+	});
+});
 
 describe("property capture values", () => {
 	it.each(["001", "false", "2026-09-07", "[a, b]", "a,b", "", "a\nb"])("keeps plain text %j as text", (value) => {
@@ -12,10 +83,10 @@ describe("property capture values", () => {
 	it.each([0, false, [], ["one", "two"]])("preserves a new typed value %j", (value) => {
 		expect(planPropertyUpdate({ frontmatter: {}, key: "property", value, config: set, registeredType: null })).toEqual(value);
 	});
-	it("adds distinct items in order without splitting text or changing existing data", () => {
+	it("adds distinct items in order without splitting commas or changing existing data", () => {
 		const frontmatter = { sources: ["a,b", "old"], status: "active" };
 		expect(planPropertyUpdate({ frontmatter, key: "sources", value: ["old", "new", "new"], config: add, registeredType: "multitext" })).toEqual(["a,b", "old", "new"]);
-		expect(planPropertyUpdate({ frontmatter, key: "sources", value: "one,two\nthree", config: add, registeredType: null })).toEqual(["a,b", "old", "one,two\nthree"]);
+		expect(planPropertyUpdate({ frontmatter, key: "sources", value: "one,two\nthree", config: add, registeredType: null })).toEqual(["a,b", "old", "one,two", "three"]);
 		expect(frontmatter).toEqual({ sources: ["a,b", "old"], status: "active" });
 	});
 	it("can replace and explicitly clear a list", () => {

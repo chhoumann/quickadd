@@ -18,6 +18,21 @@ export function resolveCapturePropertyKey(frontmatter: Record<string, unknown>, 
 	return matches[0] ?? requested;
 }
 
+/**
+ * Turns captured text into list items: one per non-blank line, trimmed. A single
+ * line is one item, so commas stay inside it. Newline is the boundary because it
+ * is what Enter means in Obsidian's own List property editor.
+ */
+export function captureListItems(value: string): string[] {
+	return value.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "");
+}
+
+/** Whether an Add to list value contributes no items, so the capture should leave the note alone. */
+export function isEmptyCaptureListValue(value: unknown): boolean {
+	if (typeof value === "string") return captureListItems(value).length === 0;
+	return Array.isArray(value) && value.length === 0;
+}
+
 function propertyValue(value: unknown, key: string): CapturePropertyValue {
 	if (typeof value === "string" || typeof value === "boolean") return value;
 	if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -88,7 +103,7 @@ export function planPropertyUpdate(args: {
 		if (type !== null && type !== "list") {
 			throw new Error(`Property '${key}' is ${type}. 'Add to list' requires a list.`);
 		}
-		const items = typeof captured === "string" ? captured === "" ? [] : [captured] : captured;
+		const items = typeof captured === "string" ? captureListItems(captured) : captured;
 		if (!Array.isArray(items)) throw new Error(`Property '${key}' requires text or a list of text to add.`);
 		if (items.length === 0) return current ?? [];
 		return [...new Set([...(current ?? []), ...items])];
@@ -96,9 +111,16 @@ export function planPropertyUpdate(args: {
 	if (type === "list" && current !== null && !Array.isArray(current)) {
 		throw new Error(`Property '${key}' contains ${inferType(current)}. Set a list only after correcting the existing property to a list.`);
 	}
-	const next = type === "list" && typeof captured === "string"
-		? captured === "" ? [] : [captured]
-		: captured;
+	if (type === null && typeof captured === "string") {
+		// Without a type, a string is text, and writing several lines as text would
+		// register the key as Text vault-wide and block every later Add to list.
+		// Line count is not a type signal, so stop and name the fix instead.
+		const lines = captureListItems(captured).length;
+		if (lines > 1) {
+			throw new Error(`Property '${key}' has no type yet, so QuickAdd cannot tell whether these ${lines} lines are one text value or a list. Use 'Add to list' to write them as list items, or set the property's type in Obsidian first.`);
+		}
+	}
+	const next = type === "list" && typeof captured === "string" ? captureListItems(captured) : captured;
 	if (type !== null) validateType(next, type, key);
 	return Array.isArray(next) ? [...new Set(next)] : next;
 }
