@@ -96,6 +96,7 @@ export function planPropertyUpdate(args: {
 	const captured = propertyValue(args.value, key);
 	const current = existing == null ? null : propertyValue(existing, key);
 	const type = propertyType(args.registeredType, key) ?? (current === null ? null : inferType(current));
+	const lines = typeof captured === "string" ? captureListItems(captured) : null;
 	if (config.action === "addToList") {
 		if (current !== null && !Array.isArray(current)) {
 			throw new Error(`Property '${key}' is ${inferType(current)}. 'Add to list' requires a list.`);
@@ -103,7 +104,7 @@ export function planPropertyUpdate(args: {
 		if (type !== null && type !== "list") {
 			throw new Error(`Property '${key}' is ${type}. 'Add to list' requires a list.`);
 		}
-		const items = typeof captured === "string" ? captureListItems(captured) : captured;
+		const items = lines ?? captured;
 		if (!Array.isArray(items)) throw new Error(`Property '${key}' requires text or a list of text to add.`);
 		if (items.length === 0) return current ?? [];
 		return [...new Set([...(current ?? []), ...items])];
@@ -111,16 +112,13 @@ export function planPropertyUpdate(args: {
 	if (type === "list" && current !== null && !Array.isArray(current)) {
 		throw new Error(`Property '${key}' contains ${inferType(current)}. Set a list only after correcting the existing property to a list.`);
 	}
-	if (type === null && typeof captured === "string") {
-		// Without a type, a string is text, and writing several lines as text would
-		// register the key as Text vault-wide and block every later Add to list.
-		// Line count is not a type signal, so stop and name the fix instead.
-		const lines = captureListItems(captured).length;
-		if (lines > 1) {
-			throw new Error(`Property '${key}' has no type yet, so QuickAdd cannot tell whether these ${lines} lines are one text value or a list. Use 'Add to list' to write them as list items, or set the property's type in Obsidian first.`);
-		}
+	// Without a type, a string is text, and writing several lines as text would
+	// register the key as Text vault-wide and block every later Add to list.
+	// Line count is not a type signal, so stop and name the fix instead.
+	if (type === null && lines !== null && lines.length > 1) {
+		throw new Error(`Property '${key}' has no type yet, so ${lines.length} lines could be one text value or a list. Use 'Add to list' to write them as list items, or create the property in Obsidian with the type you want first.`);
 	}
-	const next = type === "list" && typeof captured === "string" ? captureListItems(captured) : captured;
+	const next = type === "list" ? lines ?? captured : captured;
 	if (type !== null) validateType(next, type, key);
 	return Array.isArray(next) ? [...new Set(next)] : next;
 }

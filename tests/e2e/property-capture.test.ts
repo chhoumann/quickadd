@@ -89,6 +89,7 @@ describe("property capture in native Obsidian", () => {
 		const choice = choiceFor(path);
 		choice.createFileIfItDoesntExist.enabled = true;
 		await saveChoice(choice);
+		// A key no note has ever held, so Obsidian's vault-wide type registry has no type for it.
 		const property = `qa_capture_untyped_lines_${choice.id.slice(0, 8)}`;
 		const outcome = await obsidian.execJson<{ ok: boolean; error?: string }>("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ property, input: "work\npersonal" }) });
 		expect(outcome).toMatchObject({ ok: false, error: expect.stringContaining("Add to list") });

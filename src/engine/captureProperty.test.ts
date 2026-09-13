@@ -54,10 +54,6 @@ describe("lines are list items", () => {
 			expect(planPropertyUpdate({ frontmatter: {}, key: "topics", value: ["a,b", " c "], config, registeredType: "multitext" })).toEqual(["a,b", " c "]);
 		}
 	});
-	it("keeps a whitespace-only addition from changing the list", () => {
-		expect(planPropertyUpdate({ frontmatter: { items: ["old"] }, key: "items", value: " \n\n", config: add, registeredType: null })).toEqual(["old"]);
-		expect(planPropertyUpdate({ frontmatter: {}, key: "items", value: "\n", config: add, registeredType: null })).toEqual([]);
-	});
 	it("refuses to guess whether several lines are text or a list for a property without a type", () => {
 		for (const frontmatter of [{}, { topics: null }]) {
 			expect(() => planPropertyUpdate({ frontmatter, key: "topics", value: "work\npersonal", config: set, registeredType: null }))
@@ -92,8 +88,9 @@ describe("property capture values", () => {
 	it("can replace and explicitly clear a list", () => {
 		expect(planPropertyUpdate({ frontmatter: { tags: ["old"] }, key: "tags", value: [], config: set, registeredType: "tags" })).toEqual([]);
 	});
-	it.each(["", []])("keeps an empty addition %j from changing the list", (value) => {
+	it.each(["", " \n\n", []])("keeps an empty addition %j from changing the list", (value) => {
 		expect(planPropertyUpdate({ frontmatter: { items: ["old", "old"] }, key: "items", value, config: add, registeredType: null })).toEqual(["old", "old"]);
+		expect(planPropertyUpdate({ frontmatter: {}, key: "items", value, config: add, registeredType: null })).toEqual([]);
 	});
 	it("uses registered types even for missing and null properties", () => {
 		for (const frontmatter of [{}, { done: null }]) {
