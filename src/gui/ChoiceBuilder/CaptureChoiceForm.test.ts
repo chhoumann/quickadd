@@ -159,6 +159,37 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).toContain("Task");
 	});
 
+	// #1748: for a list destination each line of the Capture format is one item.
+	// There is no control for it, so the form copy has to say it where the author
+	// is already looking: the Action description and the format field.
+	it("tells the author that lines are list items once the capture writes to a property", async () => {
+		const { container, props } = mountForm();
+		props.choice.format.enabled = true;
+		flushSync();
+		const actionDesc = () => settingItem(container, "Action").querySelector(".setting-item-description")?.textContent ?? "";
+		const formatField = () => settingItem(container, "Capture format");
+		const formatDesc = () => formatField().querySelector(".setting-item-description")?.textContent ?? "";
+		const textarea = () => formatField().closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(formatDesc()).not.toContain("own line");
+		expect(textarea().placeholder).toBe("Format");
+
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		flushSync();
+		expect(actionDesc()).toContain("For a List property, each line is one item");
+		expect(formatDesc()).toContain("For a list, put each item on its own line");
+		expect(textarea().placeholder).toBe("Format");
+
+		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
+		flushSync();
+		expect(actionDesc()).toContain("Each line is one item");
+		expect(textarea().placeholder).toBe("One item per line");
+
+		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
+		flushSync();
+		expect(formatDesc()).not.toContain("own line");
+		expect(textarea().placeholder).toBe("Format");
+	});
+
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
 		const headerBefore = container.querySelector(".choiceNameHeaderButton");
