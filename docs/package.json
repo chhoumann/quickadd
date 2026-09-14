@@ -12,10 +12,10 @@
   },
   "dependencies": {
     "@astrojs/starlight": "^0.42.0",
-    "astro": "^7.3.1",
+    "astro": "^7.3.2",
     "sharp": "^0.35.4",
     "starlight-llms-txt": "^0.11.0",
     "unist-util-visit": "^5.1.0",
-    "zod": "4.5.4"
+    "zod": "4.6.2"
   }
 }
