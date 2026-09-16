@@ -1,3 +1,4 @@
+import { packageAsset } from "../../../tests/helpers/packages/fixtures";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import CapabilityBanner from "./CapabilityBanner.svelte";
@@ -31,12 +32,7 @@ function criticalPackage(): QuickAddPackage {
 		rootChoiceIds: ["m1"],
 		choices: [{ choice: macro, pathHint: ["Daily Sync"], parentChoiceId: null }],
 		assets: [
-			{
-				kind: "user-script",
-				originalPath: "scripts/fetch.js",
-				contentEncoding: "base64",
-				content: encodeToBase64("console.log(1)"),
-			},
+			packageAsset("user-script", "scripts/fetch.js", encodeToBase64("console.log(1)")),
 		],
 	};
 }

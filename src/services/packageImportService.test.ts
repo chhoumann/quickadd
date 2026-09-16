@@ -1,3 +1,4 @@
+import { importPackage, packageAsset } from "../../tests/helpers/packages/fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type IChoice from "../types/choices/IChoice";
@@ -30,8 +31,8 @@ vi.mock("uuid", () => ({
 // all-or-nothing pre-pass before any write). The guard's real containment logic
 // is covered by src/utils/vaultWriteGuards.test.ts with an actual symlink.
 vi.mock("../utils/vaultWriteGuards", () => ({
-	assertWriteStaysInVault: vi.fn(async () => {}),
-	VaultWriteEscapeError: class VaultWriteEscapeError extends Error {},
+	assertWriteStaysInVault: vi.fn(async () => { }),
+	VaultWriteEscapeError: class VaultWriteEscapeError extends Error { },
 }));
 
 import {
@@ -39,7 +40,6 @@ import {
 	readQuickAddPackage,
 	analysePackage,
 	analysePackagePreview,
-	applyPackageImport,
 } from "./packageImportService";
 import { buildPackage } from "./packageExportService";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
@@ -170,7 +170,7 @@ beforeEach(() => {
 	// Default the write guard back to a no-op so a per-test override (the
 	// pre-pass wiring test) never leaks into other cases.
 	vi.mocked(assertWriteStaysInVault).mockReset();
-	vi.mocked(assertWriteStaysInVault).mockImplementation(async () => {});
+	vi.mocked(assertWriteStaysInVault).mockImplementation(async () => { });
 });
 
 // --- parseQuickAddPackage ---------------------------------------------------
@@ -221,12 +221,7 @@ describe("parseQuickAddPackage", () => {
 	it("rejects a package with an invalid asset kind", () => {
 		const bad = makePackage({
 			assets: [
-				{
-					kind: "not-a-kind",
-					originalPath: "scripts/x.js",
-					contentEncoding: "base64",
-					content: "",
-				},
+				{ ...packageAsset("template", "scripts/x.js", ""), kind: "not-a-kind" },
 			],
 		} as unknown as Partial<QuickAddPackage>);
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
@@ -241,18 +236,12 @@ describe("parseQuickAddPackage", () => {
 		// untrusted-input boundary so reviewed bytes always equal written bytes.
 		const bad = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/x.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => 'benign';"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts/x.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => exfiltrate();"),
-				},
+				packageAsset("user-script", "scripts/x.js", encodeToBase64("module.exports = () => 'benign';")),
+				packageAsset(
+					"user-script",
+					"scripts/x.js",
+					encodeToBase64("module.exports = () => exfiltrate();"),
+				),
 			],
 		});
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
@@ -266,18 +255,12 @@ describe("parseQuickAddPackage", () => {
 		// the normalized path the writer uses, not the raw string.
 		const bad = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/x.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => 'benign';"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts//x.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => exfiltrate();"),
-				},
+				packageAsset("user-script", "scripts/x.js", encodeToBase64("module.exports = () => 'benign';")),
+				packageAsset(
+					"user-script",
+					"scripts//x.js",
+					encodeToBase64("module.exports = () => exfiltrate();"),
+				),
 			],
 		});
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
@@ -290,18 +273,8 @@ describe("parseQuickAddPackage", () => {
 		// slip the duplicate gate via a truthiness check on the returned path.
 		const bad = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "",
-					contentEncoding: "base64",
-					content: encodeToBase64("benign"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "",
-					contentEncoding: "base64",
-					content: encodeToBase64("evil"),
-				},
+				packageAsset("user-script", "", encodeToBase64("benign")),
+				packageAsset("user-script", "", encodeToBase64("evil")),
 			],
 		});
 		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
@@ -623,18 +596,8 @@ describe("analysePackage", () => {
 		const { app } = createFakeApp(["scripts/exists.js"]);
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/exists.js",
-					contentEncoding: "base64",
-					content: "",
-				},
-				{
-					kind: "template",
-					originalPath: "templates/new.md",
-					contentEncoding: "base64",
-					content: "",
-				},
+				packageAsset("user-script", "scripts/exists.js", ""),
+				packageAsset("template", "templates/new.md", ""),
 			],
 		});
 
@@ -741,12 +704,9 @@ describe("asset write containment (security)", () => {
 			});
 
 			await expect(
-				applyPackageImport({
+				importPackage({
 					app,
-					existingChoices: [],
 					pkg,
-					choiceDecisions: [],
-					assetDecisions: [],
 				}),
 			).rejects.toThrow(/config directory/);
 			expect(state.writes.size).toBe(0);
@@ -768,28 +728,15 @@ describe("asset write containment (security)", () => {
 
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/safe.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("safe"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts/escapes.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("evil"),
-				},
+				packageAsset("user-script", "scripts/safe.js", encodeToBase64("safe")),
+				packageAsset("user-script", "scripts/escapes.js", encodeToBase64("evil")),
 			],
 		});
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
-				assetDecisions: [],
 			}),
 		).rejects.toThrow(/outside the vault/);
 
@@ -813,27 +760,15 @@ describe("asset write containment (security)", () => {
 		const { app, state } = createFakeApp();
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "template",
-					originalPath: "A/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => 'benign';"),
-				},
-				{
-					kind: "template",
-					originalPath: "B/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => exfiltrate();"),
-				},
+				packageAsset("template", "A/payload.js", encodeToBase64("module.exports = () => 'benign';")),
+				packageAsset("template", "B/payload.js", encodeToBase64("module.exports = () => exfiltrate();")),
 			],
 		});
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
 				// Mirrors defaultAssetDestination: both basenames land in one folder.
 				assetDecisions: [
 					{
@@ -862,28 +797,23 @@ describe("asset write containment (security)", () => {
 		const { app, state } = createFakeApp([".OBSIDIAN"]);
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "Scripts/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => 'benign';"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("module.exports = () => exfiltrate();"),
-				},
+				packageAsset(
+					"user-script",
+					"Scripts/payload.js",
+					encodeToBase64("module.exports = () => 'benign';"),
+				),
+				packageAsset(
+					"user-script",
+					"scripts/payload.js",
+					encodeToBase64("module.exports = () => exfiltrate();"),
+				),
 			],
 		});
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
-				assetDecisions: [],
 			}),
 		).rejects.toThrow(/resolve to the same destination/);
 		expect(state.writes.size).toBe(0);
@@ -896,27 +826,14 @@ describe("asset write containment (security)", () => {
 		const { app, state } = createFakeApp();
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "Scripts/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("benign"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("other"),
-				},
+				packageAsset("user-script", "Scripts/payload.js", encodeToBase64("benign")),
+				packageAsset("user-script", "scripts/payload.js", encodeToBase64("other")),
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result.writtenAssets).toContain("Scripts/payload.js");
@@ -930,26 +847,14 @@ describe("asset write containment (security)", () => {
 		const { app, state } = createFakeApp();
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "template",
-					originalPath: "A/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("benign"),
-				},
-				{
-					kind: "template",
-					originalPath: "B/payload.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("evil"),
-				},
+				packageAsset("template", "A/payload.js", encodeToBase64("benign")),
+				packageAsset("template", "B/payload.js", encodeToBase64("evil")),
 			],
 		});
 
-		await applyPackageImport({
+		await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
 			assetDecisions: [
 				{
 					originalPath: "A/payload.js",
@@ -986,27 +891,15 @@ describe("asset write containment (security)", () => {
 
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/safe.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("safe"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "linked/evil.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("evil"),
-				},
+				packageAsset("user-script", "scripts/safe.js", encodeToBase64("safe")),
+				packageAsset("user-script", "linked/evil.js", encodeToBase64("evil")),
 			],
 		});
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
 				assetDecisions: [
 					{
 						originalPath: "linked/evil.js",
@@ -1026,21 +919,14 @@ describe("asset write containment (security)", () => {
 		const { app, state } = createFakeApp();
 		const pkg = makePackage({
 			assets: [
-				{
-					kind: "template",
-					originalPath: "../evil.md",
-					contentEncoding: "base64",
-					content: encodeToBase64("evil"),
-				},
+				packageAsset("template", "../evil.md", encodeToBase64("evil")),
 			],
 		});
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
 				assetDecisions: [
 					{
 						originalPath: "../evil.md",
@@ -1065,12 +951,10 @@ describe("applyPackageImport - root insertion", () => {
 			choices: [makePackageChoice(choice)],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([["new", "import"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.addedChoiceIds).toEqual(["new"]);
@@ -1086,12 +970,11 @@ describe("applyPackageImport - root insertion", () => {
 			choices: [makePackageChoice(makeChoice("dup", "New Name", "Template"))],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
 			existingChoices: existing,
 			pkg,
 			choiceDecisions: decisions([["dup", "overwrite"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.overwrittenChoiceIds).toEqual(["dup"]);
@@ -1107,12 +990,11 @@ describe("applyPackageImport - root insertion", () => {
 			choices: [makePackageChoice(makeChoice("dup", "New Name", "Template"))],
 		});
 
-		await applyPackageImport({
+		await importPackage({
 			app,
 			existingChoices: existing,
 			pkg,
 			choiceDecisions: decisions([["dup", "overwrite"]]),
-			assetDecisions: [],
 		});
 
 		// Original input untouched (deepClone is used internally).
@@ -1129,15 +1011,13 @@ describe("applyPackageImport - root insertion", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([
 				["keep", "import"],
 				["drop", "skip"],
 			]),
-			assetDecisions: [],
 		});
 
 		expect(result.skippedChoiceIds).toEqual(["drop"]);
@@ -1160,15 +1040,13 @@ describe("applyPackageImport - parent/child trees", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([
 				["parent", "import"],
 				["child", "import"],
 			]),
-			assetDecisions: [],
 		});
 
 		// Parent added once at root; child handled inside the parent's tree.
@@ -1187,12 +1065,11 @@ describe("applyPackageImport - parent/child trees", () => {
 			choices: [makePackageChoice(child, "parent", ["Parent"])],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
 			existingChoices: existing,
 			pkg,
 			choiceDecisions: decisions([["child", "import"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.addedChoiceIds).toEqual(["child"]);
@@ -1214,12 +1091,11 @@ describe("applyPackageImport - parent/child trees", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
 			existingChoices: existing,
 			pkg,
 			choiceDecisions: decisions([["child", "import"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.addedChoiceIds).toEqual(["child"]);
@@ -1238,12 +1114,10 @@ describe("applyPackageImport - parent/child trees", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([["child", "import"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.addedChoiceIds).toEqual(["child"]);
@@ -1262,7 +1136,7 @@ describe("applyPackageImport - parent/child trees", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
 			existingChoices: existing,
 			pkg,
@@ -1270,7 +1144,6 @@ describe("applyPackageImport - parent/child trees", () => {
 				["parent", "skip"],
 				["child", "import"],
 			]),
-			assetDecisions: [],
 		});
 
 		// Parent skipped, child should still be importable and land under the
@@ -1293,12 +1166,10 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 			choices: [makePackageChoice(makeChoice("orig", "Orig", "Template"))],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([["orig", "duplicate"]]),
-			assetDecisions: [],
 		});
 
 		expect(result.addedChoiceIds).toEqual(["uuid-1"]);
@@ -1332,38 +1203,31 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 		const pkg = makePackage({
 			choices: [makePackageChoice(macro)],
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "Scripts/script.md",
-					contentEncoding: "base64",
-					content: encodeToBase64(
-						[
-							"# Script note",
-							"",
-							"```js",
-							"module.exports = {",
-							"  settings: {",
-							"    options: {",
-							"      \"API Key\": { \"type\": \"secret\" },",
-							"      Token: { type: \"text\", secret: true },",
-							"      Model: { type: \"text\" },",
-							"    },",
-							"  },",
-							"  entry: () => {},",
-							"};",
-							"```",
-						].join("\n"),
-					),
-				},
+				packageAsset("user-script", "Scripts/script.md", encodeToBase64(
+					[
+						"# Script note",
+						"",
+						"```js",
+						"module.exports = {",
+						"  settings: {",
+						"    options: {",
+						"      \"API Key\": { \"type\": \"secret\" },",
+						"      Token: { type: \"text\", secret: true },",
+						"      Model: { type: \"text\" },",
+						"    },",
+						"  },",
+						"  entry: () => {},",
+						"};",
+						"```",
+					].join("\n"),
+				)),
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([["macro", "import"]]),
-			assetDecisions: [],
 		});
 
 		const inserted = result.updatedChoices[0] as IMacroChoice;
@@ -1401,16 +1265,14 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			// Only the parent is marked duplicate; the child should inherit it.
 			choiceDecisions: decisions([
 				["parent", "duplicate"],
 				["macroChild", "import"],
 			]),
-			assetDecisions: [],
 		});
 
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
@@ -1449,15 +1311,13 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 			choices: [makePackageChoice(macro), makePackageChoice(target)],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([
 				["macro", "import"],
 				["target", "import"],
 			]),
-			assetDecisions: [],
 		});
 
 		const insertedMacro = result.updatedChoices.find(
@@ -1481,16 +1341,14 @@ describe("applyPackageImport - duplicate mode and id remapping", () => {
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([
 				["parent", "import"],
 				["keep", "import"],
 				["drop", "skip"],
 			]),
-			assetDecisions: [],
 		});
 
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
@@ -1506,20 +1364,16 @@ describe("applyPackageImport - assets", () => {
 	it("writes a new asset, ensures parent folders, and decodes base64 content", async () => {
 		const { app, state } = createFakeApp();
 		const content = "console.log('hi');";
-		const asset: QuickAddPackageAsset = {
-			kind: "user-script",
-			originalPath: "scripts/sub/run.js",
-			contentEncoding: "base64",
-			content: encodeToBase64(content),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"user-script",
+			"scripts/sub/run.js",
+			encodeToBase64(content),
+		);
 		const pkg = makePackage({ assets: [asset] });
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result.writtenAssets).toEqual(["scripts/sub/run.js"]);
@@ -1530,12 +1384,11 @@ describe("applyPackageImport - assets", () => {
 
 	it("respects an explicit skip decision for an asset", async () => {
 		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "templates/t.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"template",
+			"templates/t.md",
+			encodeToBase64("body"),
+		);
 		const pkg = makePackage({ assets: [asset] });
 		const assetDecisions: AssetImportDecision[] = [
 			{
@@ -1545,11 +1398,9 @@ describe("applyPackageImport - assets", () => {
 			},
 		];
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
 			assetDecisions,
 		});
 
@@ -1560,12 +1411,11 @@ describe("applyPackageImport - assets", () => {
 
 	it("writes to a custom (normalized) destination path", async () => {
 		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "templates/t.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"template",
+			"templates/t.md",
+			encodeToBase64("body"),
+		);
 		const pkg = makePackage({ assets: [asset] });
 		const assetDecisions: AssetImportDecision[] = [
 			{
@@ -1575,11 +1425,9 @@ describe("applyPackageImport - assets", () => {
 			},
 		];
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
 			assetDecisions,
 		});
 
@@ -1587,162 +1435,63 @@ describe("applyPackageImport - assets", () => {
 		expect(state.writes.get("renamed/dest.md")).toBe("body");
 	});
 
-	it("rejects traversal in an asset's original path", async () => {
+	it.each([
+		["rejects traversal in an asset's original path", "../escape.md", null, /traversal|\.\./],
+		[
+			"rejects traversal in an asset destination override",
+			"templates/t.md",
+			"../../evil.md",
+			/traversal|\.\./,
+		],
+		[
+			"rejects an absolute asset destination override",
+			"templates/t.md",
+			"/abs/path.md",
+			/absolute path/,
+		],
+		[
+			"rejects a Windows-style absolute asset destination override",
+			"templates/t.md",
+			"C:\\evil\\path.md",
+			/absolute path/,
+		],
+		[
+			"rejects assets targeting dotfile config directories",
+			".obsidian/plugins/x/main.js",
+			null,
+			/config directory/,
+		],
+	] as const)("%s", async (_name, originalPath, destinationPath, error) => {
 		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "../escape.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
-		const pkg = makePackage({ assets: [asset] });
-
-		await expect(
-			applyPackageImport({
-				app,
-				existingChoices: [],
-				pkg,
-				choiceDecisions: [],
-				assetDecisions: [],
-			}),
-		).rejects.toThrow(/traversal|\.\./);
-
-		expect(state.writes.size).toBe(0);
-	});
-
-	it("rejects traversal in an asset destination override", async () => {
-		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "templates/t.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
-		const pkg = makePackage({ assets: [asset] });
-
-		await expect(
-			applyPackageImport({
-				app,
-				existingChoices: [],
-				pkg,
-				choiceDecisions: [],
-				assetDecisions: [
-					{
-						originalPath: "templates/t.md",
-						destinationPath: "../../evil.md",
-						mode: "write",
-					},
-				],
-			}),
-		).rejects.toThrow(/traversal|\.\./);
-
-		expect(state.writes.size).toBe(0);
-	});
-
-	it("rejects an absolute asset destination override", async () => {
-		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "templates/t.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
-		const pkg = makePackage({ assets: [asset] });
-
-		await expect(
-			applyPackageImport({
-				app,
-				existingChoices: [],
-				pkg,
-				choiceDecisions: [],
-				assetDecisions: [
-					{
-						originalPath: "templates/t.md",
-						destinationPath: "/abs/path.md",
-						mode: "write",
-					},
-				],
-			}),
-		).rejects.toThrow(/absolute path/);
-
-		expect(state.writes.size).toBe(0);
-	});
-
-	it("rejects a Windows-style absolute asset destination override", async () => {
-		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "templates/t.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
-		const pkg = makePackage({ assets: [asset] });
-
-		await expect(
-			applyPackageImport({
-				app,
-				existingChoices: [],
-				pkg,
-				choiceDecisions: [],
-				assetDecisions: [
-					{
-						originalPath: "templates/t.md",
-						destinationPath: "C:\\evil\\path.md",
-						mode: "write",
-					},
-				],
-			}),
-		).rejects.toThrow(/absolute path/);
-
-		expect(state.writes.size).toBe(0);
-	});
-
-	it("rejects assets targeting dotfile config directories", async () => {
-		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: ".obsidian/plugins/x/main.js",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
-		const pkg = makePackage({ assets: [asset] });
-
-		await expect(
-			applyPackageImport({
-				app,
-				existingChoices: [],
-				pkg,
-				choiceDecisions: [],
-				assetDecisions: [],
-			}),
-		).rejects.toThrow(/config directory/);
-
+		const pkg = makePackage({
+			assets: [packageAsset("template", originalPath, encodeToBase64("body"))],
+		});
+		await expect(importPackage({
+			app,
+			pkg,
+			assetDecisions: destinationPath === null ? [] : [{ originalPath, destinationPath, mode: "write" }],
+		})).rejects.toThrow(error);
 		expect(state.writes.size).toBe(0);
 	});
 
 	it("rejects unsafe asset destinations before writing any asset", async () => {
 		const { app, state } = createFakeApp();
-		const safeAsset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "Templates/safe.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("safe"),
-		};
-		const unsafeAsset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: ".obsidian/plugins/x/main.js",
-			contentEncoding: "base64",
-			content: encodeToBase64("unsafe"),
-		};
+		const safeAsset: QuickAddPackageAsset = packageAsset(
+			"template",
+			"Templates/safe.md",
+			encodeToBase64("safe"),
+		);
+		const unsafeAsset: QuickAddPackageAsset = packageAsset(
+			"template",
+			".obsidian/plugins/x/main.js",
+			encodeToBase64("unsafe"),
+		);
 		const pkg = makePackage({ assets: [safeAsset, unsafeAsset] });
 
 		await expect(
-			applyPackageImport({
+			importPackage({
 				app,
-				existingChoices: [],
 				pkg,
-				choiceDecisions: [],
-				assetDecisions: [],
 			}),
 		).rejects.toThrow(/config directory/);
 
@@ -1752,20 +1501,16 @@ describe("applyPackageImport - assets", () => {
 
 	it("allows url-encoded traversal text as a literal filename", async () => {
 		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "..%2fevil.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"template",
+			"..%2fevil.md",
+			encodeToBase64("body"),
+		);
 		const pkg = makePackage({ assets: [asset] });
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result.writtenAssets).toEqual(["..%2fevil.md"]);
@@ -1774,20 +1519,16 @@ describe("applyPackageImport - assets", () => {
 
 	it("allows a legitimate asset path", async () => {
 		const { app, state } = createFakeApp();
-		const asset: QuickAddPackageAsset = {
-			kind: "template",
-			originalPath: "Templates/foo.md",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"template",
+			"Templates/foo.md",
+			encodeToBase64("body"),
+		);
 		const pkg = makePackage({ assets: [asset] });
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result.writtenAssets).toEqual(["Templates/foo.md"]);
@@ -1857,18 +1598,8 @@ describe("applyPackageImport - assets", () => {
 				makePackageChoice(macroChoice),
 			],
 			assets: [
-				{
-					kind: "template",
-					originalPath: "templates/orig.md",
-					contentEncoding: "base64",
-					content: encodeToBase64("tmpl body"),
-				},
-				{
-					kind: "user-script",
-					originalPath: "scripts/orig.js",
-					contentEncoding: "base64",
-					content: encodeToBase64("script body"),
-				},
+				packageAsset("template", "templates/orig.md", encodeToBase64("tmpl body")),
+				packageAsset("user-script", "scripts/orig.js", encodeToBase64("script body")),
 			],
 		});
 
@@ -1885,9 +1616,8 @@ describe("applyPackageImport - assets", () => {
 			},
 		];
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([
 				["tmpl", "import"],
@@ -1948,18 +1678,16 @@ describe("applyPackageImport - assets", () => {
 		const pkg = makePackage({
 			choices: [makePackageChoice(macroChoice)],
 			assets: [
-				{
-					kind: "user-script",
-					originalPath: "scripts/orig.md",
-					contentEncoding: "base64",
-					content: encodeToBase64("```js\nmodule.exports={run:()=>1}\n```"),
-				},
+				packageAsset(
+					"user-script",
+					"scripts/orig.md",
+					encodeToBase64("```js\nmodule.exports={run:()=>1}\n```"),
+				),
 			],
 		});
 
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
 			choiceDecisions: decisions([["macro", "import"]]),
 			assetDecisions: [
@@ -1983,21 +1711,17 @@ describe("applyPackageImport - assets", () => {
 	it("does not throw when adapter.exists rejects while checking an asset", async () => {
 		const { app, state } = createFakeApp();
 		state.existThrowsFor = new Set(["scripts/run.js"]);
-		const asset: QuickAddPackageAsset = {
-			kind: "user-script",
-			originalPath: "scripts/run.js",
-			contentEncoding: "base64",
-			content: encodeToBase64("body"),
-		};
+		const asset: QuickAddPackageAsset = packageAsset(
+			"user-script",
+			"scripts/run.js",
+			encodeToBase64("body"),
+		);
 		const pkg = makePackage({ assets: [asset] });
 
 		// exists() throws -> assetExists swallows -> treated as not existing -> write.
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg,
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result.writtenAssets).toEqual(["scripts/run.js"]);
@@ -2005,12 +1729,9 @@ describe("applyPackageImport - assets", () => {
 
 	it("returns empty result arrays for an empty package", async () => {
 		const { app } = createFakeApp();
-		const result = await applyPackageImport({
+		const result = await importPackage({
 			app,
-			existingChoices: [],
 			pkg: makePackage(),
-			choiceDecisions: [],
-			assetDecisions: [],
 		});
 
 		expect(result).toEqual({

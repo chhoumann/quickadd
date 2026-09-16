@@ -1,3 +1,4 @@
+import { packageAsset } from "../../../tests/helpers/packages/fixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, waitFor } from "@testing-library/svelte";
 import type { App } from "obsidian";
@@ -65,12 +66,7 @@ const PACKAGE = JSON.stringify({
 		},
 	],
 	assets: [
-		{
-			kind: "user-script",
-			originalPath: "scripts/fetch.js",
-			contentEncoding: "base64",
-			content: encodeToBase64("console.log('hi')"),
-		},
+		packageAsset("user-script", "scripts/fetch.js", encodeToBase64("console.log('hi')")),
 	],
 });
 
