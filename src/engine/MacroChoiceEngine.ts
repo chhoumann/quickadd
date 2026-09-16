@@ -1,3 +1,4 @@
+import { executeMacroAI, pickMacroModel } from "./macroAI";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
@@ -5,15 +6,12 @@ import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
-import { reportError, isCancellationError } from "../utils/errorUtils";
+import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
-import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
+import { UserScriptEngine, type ScriptParameters } from "./UserScriptEngine";
 import type { IMacro } from "../types/macros/IMacro";
-import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import { routePrompt } from "../interactive/routePrompt";
-import { promptEngineChoice } from "../interactive/engineChoice";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import { getQuickAddInstance } from "../quickAddInstance";
@@ -36,26 +34,12 @@ import { MoveCursorToLineStartCommand } from "../types/macros/EditorCommands/Mov
 import { MoveCursorToLineEndCommand } from "../types/macros/EditorCommands/MoveCursorToLineEndCommand";
 import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import { runAIAssistant } from "src/ai/AIAssistant";
-import { resolveProviderApiKey } from "src/ai/providerSecrets";
-import { settingsStore } from "src/settingsStore";
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
-import { resolveModel } from "src/ai/aiHelpers";
-import { activeModelRef } from "src/ai/Provider";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utilityObsidian";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { UserCancelError } from "../errors/UserCancelError";
-import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { initializeUserScriptSettings } from "../utils/userScriptSettings";
-import { getUserScriptPreloadKey } from "../utils/userScript";
-import {
-	migrateUserScriptSecretSettings,
-	resolveUserScriptSettings,
-	type UserScriptSettingsDefinition,
-} from "../utils/userScriptSecrets";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
@@ -73,37 +57,6 @@ import { isDiscoveryInputBoundary } from "../preflight/macroFormRoster";
 import { withPreparedChoiceInputs } from "../preflight/preparedChoiceInputs";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
-type UserScriptFunction = (
-	params: MacroChoiceEngine["params"],
-	settings: Record<string, unknown>
-) => Promise<unknown>;
-
-type UserScriptObjectExport = Record<string, unknown> & {
-	entry?: UserScriptFunction;
-	settings?: Record<string, unknown>;
-};
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return value !== null && typeof value === "object";
-}
-
-function isUserScriptFunction(value: unknown): value is UserScriptFunction {
-	return typeof value === "function";
-}
-
-function isUserScriptObjectExport(
-	value: unknown
-): value is UserScriptObjectExport {
-	return isRecord(value);
-}
-
-function getUserScriptSettings(
-	value: unknown
-): Record<string, unknown> | undefined {
-	if (!isUserScriptObjectExport(value)) return undefined;
-	const { settings } = value;
-	return isRecord(settings) ? settings : undefined;
-}
-
 /**
  * Command types QuickAdd used to declare and no longer does. Without this, the
  * generic message would tell a user whose data.json holds one of these that it
@@ -149,32 +102,16 @@ function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
 }
 
-export class MacroChoiceEngine extends QuickAddChoiceEngine {
+export class MacroChoiceEngine extends UserScriptEngine {
 	public choice: IMacroChoice;
-	public params: {
-		app: App;
-		quickAddApi: QuickAddApi;
-		variables: Record<string, unknown>;
-		obsidian: typeof obsidian;
-		/**
-		 * Aborts the macro execution immediately.
-		 * @param message Optional message explaining why the macro was aborted
-		 * @example
-		 * if (!isValidProject(project)) {
-		 *   params.abort("Invalid project name");
-		 * }
-		 */
-		abort: (message?: string) => never;
-	};
+	public params: ScriptParameters;
 	protected output: unknown;
 	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
-	private userScriptCommand: IUserScript | null;
-	private userScriptSettingsDefinition: UserScriptSettingsDefinition | undefined;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
-	private readonly preloadedUserScripts: Map<string, unknown>;
-	private readonly promptLabel?: string;
+	protected readonly preloadedUserScripts: Map<string, unknown>;
+	protected readonly promptLabel?: string;
 	private buildParams(
 		app: App,
 		plugin: QuickAdd,
@@ -421,228 +358,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		);
 	}
 
-	// Slightly modified from Templater's user script engine:
-	// https://github.com/SilentVoid13/Templater/blob/master/src/UserTemplates/UserTemplateParser.ts
-	protected async executeUserScript(command: IUserScript) {
-		// Member-aware key: preloaded values are DRILLED exports, so a command
-		// drilling a different `::` member of the same file must never consume
-		// another command's entry (see getUserScriptPreloadKey).
-		const cacheKey = getUserScriptPreloadKey(command);
-		let userScript: unknown;
-		if (cacheKey !== undefined) {
-			const cached = this.preloadedUserScripts.get(cacheKey);
-			if (cached !== undefined) {
-				userScript = cached;
-				this.preloadedUserScripts.delete(cacheKey);
-			}
-		}
-
-		if (userScript === undefined) {
-			userScript = await getUserScript(command, this.app);
-		}
-
-		if (!userScript) {
-			log.logError(`failed to load user script ${command.path}.`);
-			return;
-		}
-
-		if (!command.settings) {
-			command.settings = {};
-		}
-
-		const userScriptSettings = getUserScriptSettings(userScript);
-		if (userScriptSettings) {
-			// Initialize default values for settings before executing the script
-			initializeUserScriptSettings(command.settings, userScriptSettings);
-		}
-		this.userScriptCommand = command;
-		this.userScriptSettingsDefinition = userScriptSettings;
-
-		try {
-			await this.userScriptDelegator(userScript);
-		} catch (err) {
-			if (err instanceof MacroAbortError) {
-				throw err;
-			}
-			// Report and re-throw script errors so users can debug them. This report is
-			// the one the user sees - `reportError` reports a failure once (#1601), and
-			// the layers above catch the same instance - so it names the CHOICE as well
-			// as the script. Without that, a run-on-startup macro failing has no user
-			// action to correlate it with and nothing on screen says which macro broke.
-			reportError(
-				err,
-				`Failed to run user script ${command.name} in "${this.choice.name}"`,
-			);
-			throw err;
-		} finally {
-			this.userScriptCommand = null;
-			this.userScriptSettingsDefinition = undefined;
-		}
-	}
-
-	private async getResolvedUserScriptSettings(command: IUserScript) {
-		if (
-			await migrateUserScriptSecretSettings(
-				this.app,
-				command,
-				this.userScriptSettingsDefinition,
-			)
-		) {
-			await this.plugin.saveSettings?.();
-		}
-
-		return resolveUserScriptSettings(
-			this.app,
-			command,
-			this.userScriptSettingsDefinition,
-		);
-	}
-
-	private async runScriptWithSettings(
-		userScript:
-			| ((
-					params: typeof this.params,
-					settings: Record<string, unknown>
-			  ) => Promise<unknown>)
-			| {
-					entry: (
-						params: typeof this.params,
-						settings: Record<string, unknown>
-					) => Promise<unknown>;
-			  },
-		command: IUserScript
-	) {
-		if (
-			typeof userScript !== "function" &&
-			userScript.entry &&
-			typeof userScript.entry === "function"
-		) {
-			return await this.onExportIsFunction(
-				userScript.entry,
-				await this.getResolvedUserScriptSettings(command),
-			);
-		}
-
-		if (typeof userScript === "function") {
-			return await this.onExportIsFunction(
-				userScript,
-				await this.getResolvedUserScriptSettings(command),
-			);
-		}
-	}
-
-	 
-	protected async userScriptDelegator(userScript: unknown) {
-		switch (typeof userScript) {
-			case "function":
-				if (!isUserScriptFunction(userScript)) {
-					break;
-				}
-				if (this.userScriptCommand) {
-					await this.runScriptWithSettings(
-						userScript,
-						this.userScriptCommand
-					);
-				} else {
-					await this.onExportIsFunction(userScript);
-				}
-				break;
-			case "object":
-				if (isUserScriptObjectExport(userScript)) {
-					await this.onExportIsObject(userScript);
-				}
-				break;
-			case "bigint":
-			case "boolean":
-			case "number":
-			case "string":
-				this.output = userScript.toString();
-				break;
-			default:
-				log.logError(
-					`user script in macro for '${this.choice.name}' is invalid`
-				);
-		}
-	}
-
-	private async onExportIsFunction(
-		userScript: (
-			params: typeof this.params,
-			settings: Record<string, unknown>
-		) => Promise<unknown>,
-		settings?: { [key: string]: unknown }
-	) {
-		this.output = await userScript(this.params, settings || {});
-	}
-
-	protected async onExportIsObject(obj: Record<string, unknown>) {
-		if (Object.keys(obj).length === 0) {
-			throw new Error(
-				`user script in macro for '${this.choice.name}' is an empty object`
-			);
-		}
-
-		if (this.userScriptCommand && typeof obj.entry === "function") {
-			await this.runScriptWithSettings(
-				obj as {
-					entry: (
-						params: typeof this.params,
-						settings: Record<string, unknown>
-					) => Promise<void>;
-				},
-				this.userScriptCommand
-			);
-			return;
-		}
-
-		const keys = Object.keys(obj);
-
-		try {
-			const selected = String(
-				await routePrompt(this.choiceExecutor, {
-					// Routed like the run's other prompts, instead of opening on a desktop
-					// nobody is watching during an interactive run (#1614).
-					remote: (provider) =>
-						promptEngineChoice(provider, {
-							items: keys.map((key) => ({ value: key, title: key })),
-							placeholder: this.promptLabel,
-							what: "the user-script member picker",
-						}),
-					// A single-member export is unambiguous, so a headless run just runs
-					// it. This is why the seam takes a closure per destination rather than
-					// imposing one headless behaviour: most sites abort here, and this one
-					// legitimately answers itself.
-					headless: () => {
-						if (keys.length === 1) return Promise.resolve(keys[0]);
-						throw new ChoiceAbortError(
-							"This macro's user script exports multiple members and needs to ask which one to run, but this run is non-interactive. " +
-								"Reference a single member (e.g. myScript::start), or re-run with the ui flag.",
-						);
-					},
-					app: () =>
-						GenericSuggester.Suggest(this.app, keys, keys, this.promptLabel),
-				}),
-			);
-
-			// `Object.hasOwn`, not `obj[selected]`: the reply now travels over the wire,
-			// and a member name like "constructor" would otherwise resolve to something
-			// that is not an exported script at all.
-			if (!Object.hasOwn(obj, selected)) {
-				throw new Error(
-					`This macro's user script does not export a member named "${selected}".`,
-				);
-			}
-			await this.userScriptDelegator(obj[selected]);
-		} catch (err) {
-			if (err instanceof MacroAbortError) {
-				throw err;
-			}
-			if (isCancellationError(err)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw err;
-		}
-	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
 		// @ts-ignore
@@ -749,137 +464,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
-		if (settingsStore.getState().disableOnlineFeatures) {
-			throw new Error(
-				"Blocking request: Online features are disabled in settings."
-			);
-		}
-
-		const aiSettings = settingsStore.getState().ai;
-
-		let resolved: ResolvedModel | undefined;
-		if (command.model === "Ask me") {
-			resolved = await this.pickModelInteractively();
-		} else {
-			// Prefer the pinned provider-scoped ref — but only while it matches
-			// the legacy string (a stale ref from a downgrade edit must not
-			// override the visible selection). Bare names resolve first-match,
-			// as they always have.
-			resolved = resolveModel(
-				activeModelRef(command.model, command.modelRef) ?? command.model,
-			);
-			if (!resolved) {
-				throw new Error(
-					`Model ${command.model} not found with any provider.`,
-				);
-			}
-		}
-
-		const { model, provider: modelProvider } = resolved;
-
-		const formatter = new CompleteFormatter(
-			this.app,
-			getQuickAddInstance(),
-			this.choiceExecutor
-		);
-		// Same run context every other prompt surface gets (issue #1546): a
-		// {{VALUE}} inside the AI prompt template names the choice that is asking
-		// instead of prompting generically. Scoped per command id, like
-		// executeOpenFile below: a macro can hold several AI commands, and their
-		// prompts must not share one draft.
-		formatter.setPromptRunContext({
-			choiceName: this.choice?.name,
-			draftScopeId: `${this.choice?.id ?? "macro"}#aiAssistant:${command.id}`,
-		});
-
-		const apiKey = await resolveProviderApiKey(this.app, modelProvider);
-
-		const aiOutputVariables = await runAIAssistant(
-			this.app,
-			{
-				apiKey,
-				model,
-				provider: modelProvider,
-				outputVariableName: command.outputVariableName,
-				promptTemplate: command.promptTemplate,
-				promptTemplateFolder: aiSettings.promptTemplatesFolderPath,
-				systemPrompt: command.systemPrompt,
-				showAssistantMessages: aiSettings.showAssistant,
-				modelOptions: command.modelParameters,
-				interactive: this.choiceExecutor.interactive,
-				promptProvider: this.choiceExecutor.promptProvider,
-			},
-			async (input: string) => {
-				return formatter.formatFileContent(input);
-			}
-		);
-
-		for (const key in aiOutputVariables) {
-				this.choiceExecutor.variables.set(key, aiOutputVariables[key]);
-		}
+		return executeMacroAI(this.app, this.choice, this.choiceExecutor, command,
+			() => this.pickModelInteractively());
 	}
 
-	/**
-	 * The "Ask me" model picker. Entries are provider-scoped so two providers
-	 * serving the same model name are distinguishable — picking from a flat
-	 * name list would silently first-match, defeating the point of asking.
-	 */
 	private async pickModelInteractively(): Promise<ResolvedModel> {
-		const providers = settingsStore.getState().ai.providers;
-		const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
-			providers.flatMap((provider) =>
-				provider.models.map((model) => ({
-					label: `${model.name} (${provider.name})`,
-					qualified: `${provider.id ?? provider.name}/${model.name}`,
-					resolved: { provider, model },
-				})),
-			);
-
-		if (entries.length === 0) {
-			throw new Error(
-				"No AI models are configured. Add a provider with models in the AI Assistant settings.",
-			);
-		}
-
-		// Route to a remote interactive session (Raycast) when one is driving.
-		const promptProvider = this.choiceExecutor.promptProvider;
-		if (promptProvider) {
-			const picked = String(
-				await promptProvider.suggester(
-					entries.map((entry) => entry.label),
-					entries.map((entry) => entry.qualified),
-					"Select a model",
-				),
-			);
-			const entry = entries.find((e) => e.qualified === picked);
-			if (!entry) {
-				throw new Error(`Model ${picked} not found with any provider.`);
-			}
-			return entry.resolved;
-		}
-
-		if (this.choiceExecutor.interactive === false) {
-			// Non-interactive run (CLI without `ui`): the "Ask me" model picker has
-			// no one to answer it. Abort with an actionable error instead of hanging.
-			throw new ChoiceAbortError(
-				"This AI command is set to \"Ask me\" for the model, but this run is non-interactive. " +
-					"Pick a specific model in the command, or re-run with the ui flag.",
-			);
-		}
-
-		try {
-			return await GenericSuggester.Suggest(
-				this.app,
-				entries.map((entry) => entry.label),
-				entries.map((entry) => entry.resolved),
-				"Select a model",
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		return pickMacroModel(this.app, this.choiceExecutor);
 	}
 
 	private async executeConditional(command: IConditionalCommand) {

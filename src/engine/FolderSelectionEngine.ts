@@ -2,8 +2,10 @@ import { Notice } from "obsidian";
 import { QuickAddEngine } from "./QuickAddEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
-import { INVALID_FOLDER_CHARS_REGEX, INVALID_FOLDER_CONTROL_CHARS_REGEX,
-	INVALID_FOLDER_TRAILING_CHARS_REGEX, isReservedWindowsDeviceName } from "../utils/pathValidation";
+import {
+	INVALID_FOLDER_CHARS_REGEX, INVALID_FOLDER_CONTROL_CHARS_REGEX,
+	INVALID_FOLDER_TRAILING_CHARS_REGEX, isReservedWindowsDeviceName
+} from "../utils/pathValidation";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { routePrompt, type PromptRoutingContext } from "../interactive/routePrompt";
@@ -44,13 +46,14 @@ type FolderChoiceOptions = {
 	executor: PromptRoutingContext;
 };
 
-type FolderSelectionContext = {
+type FolderSuggestions = {
 	items: string[];
 	displayItems: string[];
-	normalizedItems: string[];
 	canonicalByNormalized: Map<string, string>;
 	displayByNormalized: Map<string, string>;
-	existingSet: Set<string>;
+};
+
+type FolderSelectionContext = FolderSuggestions & {
 	allowCreate: boolean;
 	allowedRoots: string[];
 	placeholder?: string;
@@ -104,25 +107,13 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const allowedRoots =
 			options.allowedRoots?.map((root) => this.normalizeFolderPath(root)) ?? [];
 
-		const {
-			items,
-			displayItems,
-			normalizedItems,
-			canonicalByNormalized,
-			displayByNormalized,
-		} = this.buildFolderSuggestions(
-			folders,
-			options.topItems ?? [],
+		const suggestions = this.buildFolderSuggestions(
+			folders, options.topItems ?? [],
 			allowedRoots.length > 0 ? allowedRoots : undefined,
 		);
 
 		return {
-			items,
-			displayItems,
-			normalizedItems,
-			canonicalByNormalized,
-			displayByNormalized,
-			existingSet: new Set(normalizedItems),
+			...suggestions,
 			allowCreate,
 			allowedRoots,
 			placeholder: options.placeholder,
@@ -165,33 +156,33 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 				headless: () => {
 					throw new ChoiceAbortError(
 						"This choice needs to ask which folder to create the note in, but this run is non-interactive. " +
-							"Configure a single target folder, or re-run with the ui flag.",
+						"Configure a single target folder, or re-run with the ui flag.",
 					);
 				},
 				app: () =>
 					context.allowCreate
 						? InputSuggester.Suggest(
-								this.app,
-								context.displayItems,
-								context.items,
-								{
-									placeholder,
-									renderItem: (item, el) => {
-										this.renderFolderSuggestion(
-											item,
-											el,
-											context.existingSet,
-											context.displayByNormalized,
-										);
-									},
+							this.app,
+							context.displayItems,
+							context.items,
+							{
+								placeholder,
+								renderItem: (item, el) => {
+									this.renderFolderSuggestion(
+										item,
+										el,
+										context.canonicalByNormalized,
+										context.displayByNormalized,
+									);
 								},
-							)
+							},
+						)
 						: GenericSuggester.Suggest(
-								this.app,
-								context.displayItems,
-								context.items,
-								context.placeholder,
-							),
+							this.app,
+							context.displayItems,
+							context.items,
+							context.placeholder,
+						),
 			}),
 		);
 	}
@@ -208,7 +199,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const exists = isEmpty
 			? false
 			: canonical !== undefined ||
-				(await this.app.vault.adapter.exists(resolved));
+			(await this.app.vault.adapter.exists(resolved));
 
 		const isAllowed =
 			context.allowedRoots.length === 0
@@ -250,20 +241,12 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			const raw = await this.promptForFolder(context, executor);
 			const selection = await this.resolveSelection(raw, context);
 
-			if (selection.isEmpty) {
-				if (!selection.isAllowed) {
-					lastRejection = folderNotAllowedMessage(context.allowedRoots);
-					this.showFolderNotAllowedNotice(context.allowedRoots);
-					continue;
-				}
-				return selection;
-			}
-
 			if (!selection.isAllowed) {
 				lastRejection = folderNotAllowedMessage(context.allowedRoots);
 				this.showFolderNotAllowedNotice(context.allowedRoots);
 				continue;
 			}
+			if (selection.isEmpty) return selection;
 
 			try {
 				this.validateFolderPath(selection.resolved);
@@ -387,23 +370,15 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		folders: string[],
 		topItems: Array<{ path: string; label: string }>,
 		allowedRoots?: string[],
-	): {
-		items: string[];
-		displayItems: string[];
-		normalizedItems: string[];
-		canonicalByNormalized: Map<string, string>;
-		displayByNormalized: Map<string, string>;
-	} {
+	): FolderSuggestions {
 		const items: string[] = [];
 		const displayItems: string[] = [];
-		const normalizedItems: string[] = [];
 		const canonicalByNormalized = new Map<string, string>();
 		const displayByNormalized = new Map<string, string>();
-		const seen = new Set<string>();
 
 		const addItem = (path: string, label?: string) => {
 			const normalized = this.normalizeFolderPath(path);
-			if (seen.has(normalized)) return;
+			if (canonicalByNormalized.has(normalized)) return;
 			if (
 				allowedRoots &&
 				allowedRoots.length > 0 &&
@@ -411,10 +386,8 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			) {
 				return;
 			}
-			seen.add(normalized);
 			items.push(path);
 			displayItems.push(label ?? path);
-			normalizedItems.push(normalized);
 			canonicalByNormalized.set(normalized, path);
 			if (label) displayByNormalized.set(normalized, label);
 		};
@@ -425,7 +398,6 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		return {
 			items,
 			displayItems,
-			normalizedItems,
 			canonicalByNormalized,
 			displayByNormalized,
 		};
@@ -434,7 +406,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	private renderFolderSuggestion(
 		item: string,
 		el: HTMLElement,
-		existingSet: Set<string>,
+		existing: ReadonlyMap<string, string>,
 		displayByNormalized: Map<string, string>,
 	): void {
 		el.empty();
@@ -442,7 +414,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const normalized = this.normalizeFolderPath(item);
 		const display = displayByNormalized.get(normalized);
 		const displayPath = item || "/";
-		const isExisting = existingSet.has(normalized);
+		const isExisting = existing.has(normalized);
 		let indicator = "";
 
 		if (display === "<current folder>") {
