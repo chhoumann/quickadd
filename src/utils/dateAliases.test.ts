@@ -8,19 +8,13 @@ import {
 } from "./dateAliases";
 
 describe("dateAliases", () => {
-	it("normalizes direct aliases", () => {
-		const result = normalizeDateInput("tm", { tm: "tomorrow" });
-		expect(result).toBe("tomorrow");
-	});
-
-	it("normalizes aliases in the first token", () => {
-		const result = normalizeDateInput("tm 5pm", { tm: "tomorrow" });
-		expect(result).toBe("tomorrow 5pm");
-	});
-
-	it("leaves non-alias input untouched", () => {
-		const result = normalizeDateInput("next friday", { tm: "tomorrow" });
-		expect(result).toBe("next friday");
+	it.each([
+		["normalizes direct aliases", "tm", "tomorrow"],
+		["normalizes aliases in the first token", "tm 5pm", "tomorrow 5pm"],
+		["leaves non-alias input untouched", "next friday", "next friday"],
+	] as const)("%s", (_name, input, expected) => {
+		const result = normalizeDateInput(input, { tm: "tomorrow" });
+		expect(result).toBe(expected);
 	});
 
 	it("does not resolve Object.prototype members as aliases", () => {

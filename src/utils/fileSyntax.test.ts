@@ -33,10 +33,30 @@ describe("parseFileToken", () => {
 		expect(parseFileToken("People|link|path")?.mode).toBe("path");
 	});
 
-	it("parses optional and custom bare flags", () => {
-		const parsed = parseFileToken("People|optional|custom");
-		expect(parsed?.optional).toBe(true);
-		expect(parsed?.allowCustomInput).toBe(true);
+	it.each([
+		{
+			name: "parses optional and custom bare flags",
+			input: "People|optional|custom",
+			expected: { optional: true, allowCustomInput: true },
+		},
+		{
+			name: "parses an explicit multi-select format",
+			input: "People|multi|format:yaml",
+			expected: { multiSelect: true, multiFormat: "yaml" },
+		},
+		{
+			name: "parses |format:spaced",
+			input: "People|multi|format:spaced",
+			expected: { multiSelect: true, multiFormat: "spaced" },
+		},
+		{
+			name: "parses label and the |name: alias",
+			input: "People|link|label:Pick a person|name:reviewer",
+			expected: { label: "Pick a person", aliasName: "reviewer", variableKey:
+			`${FILE_VARIABLE_PREFIX}name=reviewer|folder=People` },
+		},
+	])("$name", ({ input, expected }) => {
+		expect(parseFileToken(input)).toEqual(expect.objectContaining(expected));
 	});
 
 	it("parses multi-select as FILE behavior", () => {
@@ -46,18 +66,6 @@ describe("parseFileToken", () => {
 		expect(parsed?.variableKey).toContain("|multi");
 	});
 
-	it("parses an explicit multi-select format", () => {
-		const parsed = parseFileToken("People|multi|format:yaml");
-		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiFormat).toBe("yaml");
-	});
-
-	it("parses |format:spaced", () => {
-		const parsed = parseFileToken("People|multi|format:spaced");
-		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiFormat).toBe("spaced");
-	});
-
 	it("warns on |format: without |multi, even |format:auto", () => {
 		const warnings: string[] = [];
 		const parsed = parseFileToken("People|format:auto", {
@@ -65,16 +73,6 @@ describe("parseFileToken", () => {
 		});
 		expect(parsed?.multiFormat).toBe("auto");
 		expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
-	});
-
-	it("parses label and the |name: alias", () => {
-		const parsed = parseFileToken("People|link|label:Pick a person|name:reviewer");
-		expect(parsed?.label).toBe("Pick a person");
-		expect(parsed?.aliasName).toBe("reviewer");
-		// The alias drives the variable key (shared identity), scoped to the folder.
-		expect(parsed?.variableKey).toBe(
-			`${FILE_VARIABLE_PREFIX}name=reviewer|folder=People`,
-		);
 	});
 
 	it("reuses the FIELD filter grammar (folder/tag/exclude-*)", () => {

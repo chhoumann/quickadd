@@ -15,16 +15,79 @@ describe("parseValueToken", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("ignores empty label values", () => {
-		const parsed = parseValueToken("title|label:");
-		expect(parsed).not.toBeNull();
-		expect(parsed?.label).toBeUndefined();
-		expect(parsed?.variableKey).toBe("title");
-	});
-
-	it("uses the last label when multiple are provided", () => {
-		const parsed = parseValueToken("title|label:First|label:Second");
-		expect(parsed?.label).toBe("Second");
+	it.each([
+		{
+			name: "ignores empty label values",
+			input: "title|label:",
+			expected: { label: undefined, variableKey: "title" },
+		},
+		{
+			name: "uses the last label when multiple are provided",
+			input: "title|label:First|label:Second",
+			expected: { label: "Second" },
+		},
+		{
+			name: "treats bare label option as legacy default",
+			input: "title|label",
+			expected: { label: undefined, defaultValue: "label" },
+		},
+		{
+			name: "parses case style without treating it as legacy default",
+			input: "title|case:kebab",
+			expected: { caseStyle: "kebab", defaultValue: "" },
+		},
+		{
+			name: "parses trim without treating it as a legacy default",
+			input: "title|trim",
+			expected: { trim: true, defaultValue: "", variableKey: "title" },
+		},
+		{
+			name: "parses title case style",
+			input: "title|case:title",
+			expected: { caseStyle: "title" },
+		},
+		{
+			name: "parses text mappings for option lists",
+			input: "a,b|text:Alpha,Beta",
+			expected: { suggestedValues: ["a", "b"], displayValues: ["Alpha", "Beta"] },
+		},
+		{
+			name: "allows custom plus explicit default",
+			input: "a,b|custom|default:High",
+			expected: { allowCustomInput: true, defaultValue: "High" },
+		},
+		{
+			name: "parses multiline type with label and default",
+			input: "Body|type:multiline|label:Notes|default:Hello",
+			expected: { variableName: "Body", inputTypeOverride: "multiline", label: "Notes", defaultValue: "Hello" },
+		},
+		{
+			name: "ignores shorthand default when type is present",
+			input: "Body|Hello|type:multiline",
+			expected: { defaultValue: "", inputTypeOverride: "multiline" },
+		},
+		{
+			name: "parses numeric constraints for number inputs",
+			input: "Rating|type:number|min:1|max:10|step:0.5",
+			expected: { inputTypeOverride: "number", numericConfig: { min: 1, max: 10, step: 0.5 } },
+		},
+		{
+			name: "defaults slider step to one when omitted",
+			input: "Rating|type:slider|min:-5|max:5",
+			expected: { sliderConfig: { min: -5, max: 5, step: 1 } },
+		},
+		{
+			name: "parses |multi on an option list",
+			input: "work,home,urgent|multi",
+			expected: { multiSelect: true, multiEmit: "text" },
+		},
+		{
+			name: "parses |multi:linklist",
+			input: "Alice,Bob|multi:linklist",
+			expected: { multiSelect: true, multiEmit: "linklist" },
+		},
+	])("$name", ({ input, expected }) => {
+		expect(parseValueToken(input)).toEqual(expect.objectContaining(expected));
 	});
 
 	it("scopes list variables by label", () => {
@@ -34,52 +97,16 @@ describe("parseValueToken", () => {
 		expect(parsed?.variableKey).toBe(expectedKey);
 	});
 
-	it("treats bare label option as legacy default", () => {
-		const parsed = parseValueToken("title|label");
-		expect(parsed?.label).toBeUndefined();
-		expect(parsed?.defaultValue).toBe("label");
-	});
-
-	it("parses case style without treating it as legacy default", () => {
-		const parsed = parseValueToken("title|case:kebab");
-		expect(parsed?.caseStyle).toBe("kebab");
-		expect(parsed?.defaultValue).toBe("");
-	});
-
-	it("parses trim without treating it as a legacy default", () => {
-		const parsed = parseValueToken("title|trim");
-		expect(parsed?.trim).toBe(true);
-		expect(parsed?.defaultValue).toBe("");
-		expect(parsed?.variableKey).toBe("title");
-	});
-
 	it("supports keyed trim flags", () => {
 		expect(parseValueToken("title|trim:true")?.trim).toBe(true);
 		expect(parseValueToken("title|trim:false")?.trim).toBe(false);
 		expect(parseValueToken("title|trim|trim:false")?.trim).toBe(false);
 	});
 
-	it("parses title case style", () => {
-		const parsed = parseValueToken("title|case:title");
-		expect(parsed?.caseStyle).toBe("title");
-	});
-
 	it("parses custom boolean values", () => {
 		expect(parseValueToken("a,b|custom:")?.allowCustomInput).toBe(true);
 		expect(parseValueToken("a,b|custom:false")?.allowCustomInput).toBe(false);
 		expect(parseValueToken("a,b|custom:0")?.allowCustomInput).toBe(false);
-	});
-
-	it("parses text mappings for option lists", () => {
-		const parsed = parseValueToken("a,b|text:Alpha,Beta");
-		expect(parsed?.suggestedValues).toEqual(["a", "b"]);
-		expect(parsed?.displayValues).toEqual(["Alpha", "Beta"]);
-	});
-
-	it("allows custom plus explicit default", () => {
-		const parsed = parseValueToken("a,b|custom|default:High");
-		expect(parsed?.allowCustomInput).toBe(true);
-		expect(parsed?.defaultValue).toBe("High");
 	});
 
 	it("throws when text mappings are used on single-value tokens", () => {
@@ -98,22 +125,6 @@ describe("parseValueToken", () => {
 		expect(() => parseValueToken("a,b|text:Alpha,Alpha")).toThrow(
 			/duplicate text entries/i,
 		);
-	});
-
-	it("parses multiline type with label and default", () => {
-		const parsed = parseValueToken(
-			"Body|type:multiline|label:Notes|default:Hello",
-		);
-		expect(parsed?.variableName).toBe("Body");
-		expect(parsed?.inputTypeOverride).toBe("multiline");
-		expect(parsed?.label).toBe("Notes");
-		expect(parsed?.defaultValue).toBe("Hello");
-	});
-
-	it("ignores shorthand default when type is present", () => {
-		const parsed = parseValueToken("Body|Hello|type:multiline");
-		expect(parsed?.defaultValue).toBe("");
-		expect(parsed?.inputTypeOverride).toBe("multiline");
 	});
 
 	it("warns and ignores unknown type values", () => {
@@ -142,12 +153,6 @@ describe("parseValueToken", () => {
 			"text",
 		);
 		expect(warnSpy).not.toHaveBeenCalled();
-	});
-
-	it("parses numeric constraints for number inputs", () => {
-		const parsed = parseValueToken("Rating|type:number|min:1|max:10|step:0.5");
-		expect(parsed?.inputTypeOverride).toBe("number");
-		expect(parsed?.numericConfig).toEqual({ min: 1, max: 10, step: 0.5 });
 	});
 
 	it("keeps min/max/step as shorthand defaults unless a numeric type is present", () => {
@@ -190,11 +195,6 @@ describe("parseValueToken", () => {
 		expect(warnSpy).toHaveBeenCalledTimes(2);
 	});
 
-	it("defaults slider step to one when omitted", () => {
-		const parsed = parseValueToken("Rating|type:slider|min:-5|max:5");
-		expect(parsed?.sliderConfig).toEqual({ min: -5, max: 5, step: 1 });
-	});
-
 	it("normalizes numeric values to bounds and step", () => {
 		expect(normalizeNumericValue("999", { min: 1, max: 10 })).toBe("10");
 		expect(normalizeNumericValue("-5", { min: 1, max: 10 })).toBe("1");
@@ -235,18 +235,6 @@ describe("parseValueToken", () => {
 			parseValueToken("Red,Green|type:number")?.inputTypeOverride,
 		).toBeUndefined();
 		expect(warnSpy).toHaveBeenCalled();
-	});
-
-	it("parses |multi on an option list", () => {
-		const parsed = parseValueToken("work,home,urgent|multi");
-		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiEmit).toBe("text");
-	});
-
-	it("parses |multi:linklist", () => {
-		const parsed = parseValueToken("Alice,Bob|multi:linklist");
-		expect(parsed?.multiSelect).toBe(true);
-		expect(parsed?.multiEmit).toBe("linklist");
 	});
 
 	it.each(["yaml", "markdown", "inline", "spaced"] as const)(
@@ -369,28 +357,24 @@ describe("named variables (|name:, issue #148)", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("keys an option list on the explicit name and exposes aliasName", () => {
-		const parsed = parseValueToken("work,home,errand|name:category");
-		expect(parsed?.hasOptions).toBe(true);
-		expect(parsed?.aliasName).toBe("category");
-		expect(parsed?.variableKey).toBe("category");
-		expect(parsed?.suggestedValues).toEqual(["work", "home", "errand"]);
-	});
-
-	it("bypasses label scoping when a name is given", () => {
-		const parsed = parseValueToken("a,b|name:category|label:Pick");
-		expect(parsed?.variableKey).toBe("category");
-		expect(parsed?.label).toBe("Pick");
-	});
-
-	it("coexists with text and custom options", () => {
-		const parsed = parseValueToken(
-			"a,b|name:category|text:Alpha,Beta|custom",
-		);
-		expect(parsed?.aliasName).toBe("category");
-		expect(parsed?.variableKey).toBe("category");
-		expect(parsed?.displayValues).toEqual(["Alpha", "Beta"]);
-		expect(parsed?.allowCustomInput).toBe(true);
+	it.each([
+		{
+			name: "keys an option list on the explicit name and exposes aliasName",
+			input: "work,home,errand|name:category",
+			expected: { hasOptions: true, aliasName: "category", variableKey: "category", suggestedValues: ["work", "home", "errand"] },
+		},
+		{
+			name: "bypasses label scoping when a name is given",
+			input: "a,b|name:category|label:Pick",
+			expected: { variableKey: "category", label: "Pick" },
+		},
+		{
+			name: "coexists with text and custom options",
+			input: "a,b|name:category|text:Alpha,Beta|custom",
+			expected: { aliasName: "category", variableKey: "category", displayValues: ["Alpha", "Beta"], allowCustomInput: true },
+		},
+	])("$name", ({ input, expected }) => {
+		expect(parseValueToken(input)).toEqual(expect.objectContaining(expected));
 	});
 
 	it("warns and ignores reserved names", () => {
@@ -476,29 +460,39 @@ describe("resolveExistingVariableKey", () => {
 });
 
 describe("optional flag (issue #1259)", () => {
-	it("recognizes a bare optional flag on a single-variable token", () => {
-		const parsed = parseValueToken("reminder|optional");
-		expect(parsed?.optional).toBe(true);
-		expect(parsed?.defaultValue).toBe("");
-		expect(parsed?.variableKey).toBe("reminder");
+	it.each([
+		{
+			name: "recognizes a bare optional flag on a single-variable token",
+			input: "reminder|optional",
+			expected: { optional: true, defaultValue: "", variableKey: "reminder" },
+		},
+		{
+			name: "preserves a shorthand default sitting next to the flag",
+			input: "reminder|call mom|optional",
+			expected: { optional: true, defaultValue: "call mom" },
+		},
+		{
+			name: "joins remaining shorthand parts when the flag sits between them",
+			input: "x|a|optional|b",
+			expected: { optional: true, defaultValue: "a|b" },
+		},
+		{
+			name: "keeps a literal default of 'optional' reachable via default:",
+			input: "x|default:optional",
+			expected: { optional: false, defaultValue: "optional" },
+		},
+		{
+			name: "combines with keyed options without dropping them",
+			input: "x|label:Why|optional",
+			expected: { optional: true, label: "Why" },
+		},
+	])("$name", ({ input, expected }) => {
+		expect(parseValueToken(input)).toEqual(expect.objectContaining(expected));
 	});
 
 	it("is case-insensitive and trims whitespace", () => {
 		expect(parseValueToken("reminder| Optional ")?.optional).toBe(true);
 		expect(parseValueToken("reminder|OPTIONAL")?.optional).toBe(true);
-	});
-
-	it("preserves a shorthand default sitting next to the flag", () => {
-		const parsed = parseValueToken("reminder|call mom|optional");
-		expect(parsed?.optional).toBe(true);
-		expect(parsed?.defaultValue).toBe("call mom");
-	});
-
-	it("joins remaining shorthand parts when the flag sits between them", () => {
-		// Documented compat note: 'a|optional|b' loses the literal 'optional' part.
-		const parsed = parseValueToken("x|a|optional|b");
-		expect(parsed?.optional).toBe(true);
-		expect(parsed?.defaultValue).toBe("a|b");
 	});
 
 	it("supports the keyed optional:<bool> form", () => {
@@ -512,18 +506,6 @@ describe("optional flag (issue #1259)", () => {
 		expect(parseValueToken("x|optional|optional:false")?.optional).toBe(
 			false,
 		);
-	});
-
-	it("keeps a literal default of 'optional' reachable via default:", () => {
-		const parsed = parseValueToken("x|default:optional");
-		expect(parsed?.optional).toBe(false);
-		expect(parsed?.defaultValue).toBe("optional");
-	});
-
-	it("combines with keyed options without dropping them", () => {
-		const parsed = parseValueToken("x|label:Why|optional");
-		expect(parsed?.optional).toBe(true);
-		expect(parsed?.label).toBe("Why");
 	});
 
 	it("works on option-list tokens, including with custom", () => {

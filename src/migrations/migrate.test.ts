@@ -2,6 +2,21 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "src/settings";
 import { settingsStore } from "src/settingsStore";
 import migrate from "./migrate";
+import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
+import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
+import removeMacroIndirection from "./removeMacroIndirection";
+
+
+function allOtherMigrationsComplete(
+	except: keyof typeof DEFAULT_SETTINGS.migrations,
+) {
+	const flags = Object.fromEntries(
+		Object.keys(DEFAULT_SETTINGS.migrations).map((key) => [key, true]),
+	) as typeof DEFAULT_SETTINGS.migrations;
+	flags[except] = false;
+	return flags;
+}
+
 
 // Mock the logger to avoid test output noise
 vi.mock("src/logger/logManager", () => ({
@@ -41,118 +56,67 @@ describe("Migration Re-entrance Safety", () => {
 	});
 
 	describe("Migration safety patterns", () => {
-		it("should verify migrations are tracked correctly", async () => {
-			// Create a simple mock migration function
-			const mockMigration = {
-				description: "Test migration",
-				migrate: vi.fn().mockResolvedValue(undefined)
-			};
-
-			// Simulate the migration tracking pattern from migrate.ts
-			const migrationName = "testMigration";
-			
-			// Initially not run
-			expect(mockPlugin.settings.migrations[migrationName]).toBeUndefined();
-			
-			// Run migration
-			await mockMigration.migrate(mockPlugin);
-			mockPlugin.settings.migrations[migrationName] = true;
-			
-			// Should be marked as completed
-			expect(mockPlugin.settings.migrations[migrationName]).toBe(true);
-			expect(mockMigration.migrate).toHaveBeenCalledWith(mockPlugin);
+		beforeEach(() => {
+			mockPlugin.settings = structuredClone(DEFAULT_SETTINGS);
+			mockPlugin.settings.migrations = allOtherMigrationsComplete("useQuickAddTemplateFolder");
 		});
 
-		it("should not run completed migrations", () => {
-			// Mock a completed migration
-			mockSettings.migrations.testMigration = true;
-			
-			// The key insight: migrations should check this flag before running
-			const shouldRun = !mockPlugin.settings.migrations.testMigration;
-			
-			expect(shouldRun).toBe(false);
+		afterEach(() => vi.restoreAllMocks());
+
+		it("should verify migrations are tracked correctly", async () => {
+			const run = vi.spyOn(useQuickAddTemplateFolder, "migrate").mockResolvedValue();
+			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(false);
+			await migrate(mockPlugin);
+			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(true);
+			expect(run).toHaveBeenCalledWith(mockPlugin);
+			expect(mockPlugin.saveSettings).toHaveBeenCalledOnce();
+		});
+
+		it("should not run completed migrations", async () => {
+			const run = vi.spyOn(useQuickAddTemplateFolder, "migrate");
+			mockPlugin.settings.migrations.useQuickAddTemplateFolder = true;
+			await migrate(mockPlugin);
+			expect(run).not.toHaveBeenCalled();
+			expect(mockPlugin.saveSettings).not.toHaveBeenCalled();
 		});
 
 		it("should handle migration errors safely with backup", async () => {
-			const originalSettings = { ...mockSettings };
-			
-			// Mock a failing migration
-			const failingMigration = {
-				description: "Failing migration",
-				migrate: vi.fn().mockRejectedValue(new Error("Migration failed"))
-			};
-
-			try {
-				await failingMigration.migrate(mockPlugin);
-			} catch {
-				// Restore backup on failure (pattern from migrate.ts)
-				mockPlugin.settings = originalSettings;
-			}
-
-			// Settings should be restored
+			const originalSettings = structuredClone(mockPlugin.settings);
+			vi.spyOn(useQuickAddTemplateFolder, "migrate").mockImplementation(async (plugin) => {
+				plugin.settings.templateFolderPaths.push("partial mutation");
+				throw new Error("Migration failed");
+			});
+			await migrate(mockPlugin);
 			expect(mockPlugin.settings).toEqual(originalSettings);
+			expect(settingsStore.getState()).toEqual(originalSettings);
+			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(false);
 		});
 
 		it("should demonstrate safe migration sequence pattern", async () => {
-			// This test demonstrates the key pattern we need to verify:
-			// Multiple migrations can run in sequence without conflicts
-			
-			const migration1 = {
-				description: "First migration",
-				migrate: vi.fn(async (plugin) => {
-					// Migration 1 adds a property
-					plugin.settings.newProperty1 = "value1";
-				})
-			};
-			
-			const migration2 = {
-				description: "Second migration", 
-				migrate: vi.fn(async (plugin) => {
-					// Migration 2 can safely access what migration 1 added
-					if (plugin.settings.newProperty1) {
-						plugin.settings.newProperty2 = "value2";
-					}
-				})
-			};
-
-			// Run migrations in sequence
-			await migration1.migrate(mockPlugin);
-			mockPlugin.settings.migrations.migration1 = true;
-			
-			await migration2.migrate(mockPlugin);
-			mockPlugin.settings.migrations.migration2 = true;
-
-			// Both should have completed successfully
-			expect(mockPlugin.settings.newProperty1).toBe("value1");
-			expect(mockPlugin.settings.newProperty2).toBe("value2");
-			expect(mockPlugin.settings.migrations.migration1).toBe(true);
-			expect(mockPlugin.settings.migrations.migration2).toBe(true);
+			mockPlugin.settings.migrations.incrementFileNameSettingMoveToDefaultBehavior = false;
+			vi.spyOn(useQuickAddTemplateFolder, "migrate").mockImplementation(async (plugin) => {
+				plugin.settings.templateFolderPaths.push("first");
+			});
+			vi.spyOn(incrementFileNameSettingMoveToDefaultBehavior, "migrate").mockImplementation(async (plugin) => {
+				expect(plugin.settings.templateFolderPaths).toEqual(["first"]);
+				plugin.settings.templateFolderPaths.push("second");
+			});
+			await migrate(mockPlugin);
+			expect(mockPlugin.settings.templateFolderPaths).toEqual(["first", "second"]);
+			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(true);
+			expect(mockPlugin.settings.migrations.incrementFileNameSettingMoveToDefaultBehavior).toBe(true);
 		});
 
 		it("should demonstrate idempotent migration pattern", async () => {
-			// This tests the key safety pattern: migrations should be safe to run multiple times
-			
-			const idempotentMigration = {
-				description: "Idempotent migration",
-				migrate: vi.fn(async (plugin) => {
-					// Only modify if not already migrated
-					if (!plugin.settings.alreadyMigrated) {
-						plugin.settings.migratedData = "migrated";
-						plugin.settings.alreadyMigrated = true;
-					}
-				})
-			};
-
-			// Run migration twice
-			await idempotentMigration.migrate(mockPlugin);
-			const afterFirstRun = { ...mockPlugin.settings };
-			
-			await idempotentMigration.migrate(mockPlugin);
-			const afterSecondRun = { ...mockPlugin.settings };
-
-			// State should be identical after both runs
-			expect(afterFirstRun).toEqual(afterSecondRun);
-			expect(mockPlugin.settings.migratedData).toBe("migrated");
+			const run = vi.spyOn(useQuickAddTemplateFolder, "migrate").mockImplementation(async (plugin) => {
+				plugin.settings.templateFolderPaths.push("migrated");
+			});
+			await migrate(mockPlugin);
+			const afterFirstRun = structuredClone(mockPlugin.settings);
+			await migrate(mockPlugin);
+			expect(mockPlugin.settings).toEqual(afterFirstRun);
+			expect(mockPlugin.settings.templateFolderPaths).toEqual(["migrated"]);
+			expect(run).toHaveBeenCalledOnce();
 		});
 	});
 
@@ -305,36 +269,8 @@ describe("Migration Re-entrance Safety", () => {
 			};
 			mockPlugin.settings = mockSettings;
 
-			// First migration: convert macroId references to embedded macros
-			const migration1 = {
-				migrate: async (plugin: any) => {
-					// Find choices with macroId and embed the macro
-					for (const choice of plugin.settings.choices) {
-						if (choice.type === "Macro" && choice.macroId) {
-							const macro = plugin.settings.macros?.find((m: any) => m.id === choice.macroId);
-							if (macro) {
-								choice.macro = { ...macro };
-								delete choice.macroId;
-							}
-						}
-					}
-				}
-			};
-
-			// Second migration: remove old macros array
-			const migration2 = {
-				migrate: async (plugin: any) => {
-					// Remove old macros array
-					delete plugin.settings.macros;
-				}
-			};
-
-			// Run both migrations
-			await migration1.migrate(mockPlugin);
-			mockPlugin.settings.migrations.migration1 = true;
-			
-			await migration2.migrate(mockPlugin);
-			mockPlugin.settings.migrations.migration2 = true;
+			mockPlugin.settings.migrations = allOtherMigrationsComplete("removeMacroIndirection");
+			await migrate(mockPlugin);
 
 			// Verify final state is correct
 			expect(mockPlugin.settings.macros).toBeUndefined();
@@ -380,8 +316,6 @@ describe("Migration Re-entrance Safety", () => {
 			};
 			mockPlugin.settings = mockSettings;
 
-			// Import and run the actual removeMacroIndirection migration
-			const removeMacroIndirection = (await import("./removeMacroIndirection")).default;
 			await removeMacroIndirection.migrate(mockPlugin);
 
 			// Verify all choices now have the embedded macro
@@ -424,8 +358,6 @@ describe("Migration Re-entrance Safety", () => {
 			};
 			mockPlugin.settings = mockSettings;
 
-			// Import and run the actual removeMacroIndirection migration
-			const removeMacroIndirection = (await import("./removeMacroIndirection")).default;
 			await removeMacroIndirection.migrate(mockPlugin);
 
 			// Verify orphaned macro was converted to a new choice
@@ -466,8 +398,6 @@ describe("Migration Re-entrance Safety", () => {
 			const { log } = await import("src/logger/logManager");
 			const logSpy = vi.spyOn(log, 'logMessage').mockImplementation(() => {});
 
-			// Import and run the actual removeMacroIndirection migration
-			const removeMacroIndirection = (await import("./removeMacroIndirection")).default;
 			await removeMacroIndirection.migrate(mockPlugin);
 
 			// Verify orphaned macroId was removed
@@ -514,8 +444,6 @@ describe("Migration Re-entrance Safety", () => {
 			};
 			mockPlugin.settings = mockSettings;
 
-			// Import and run the actual removeMacroIndirection migration
-			const removeMacroIndirection = (await import("./removeMacroIndirection")).default;
 			await removeMacroIndirection.migrate(mockPlugin);
 
 			// Verify no duplicate choices were created
@@ -564,8 +492,6 @@ describe("Migration Re-entrance Safety", () => {
 			};
 			mockPlugin.settings = mockSettings;
 
-			// Import and run the actual removeMacroIndirection migration
-			const removeMacroIndirection = (await import("./removeMacroIndirection")).default;
 			await removeMacroIndirection.migrate(mockPlugin);
 
 			// Verify the user's custom runOnStartup value is preserved
@@ -587,15 +513,6 @@ describe("Migration Re-entrance Safety", () => {
  * in data.json forever and never retried once SecretStorage becomes available.
  */
 describe("Migration completeness signal (retry on incomplete)", () => {
-	function allOtherMigrationsComplete(
-		except: keyof typeof DEFAULT_SETTINGS.migrations,
-	) {
-		const flags = Object.fromEntries(
-			Object.keys(DEFAULT_SETTINGS.migrations).map((key) => [key, true]),
-		) as typeof DEFAULT_SETTINGS.migrations;
-		flags[except] = false;
-		return flags;
-	}
 
 	function mapBackedSecretStorage() {
 		const store = new Map<string, string>();

@@ -22,21 +22,8 @@ const backfillFileOpeningDefaults: Migration = {
 	migrate: async (plugin: QuickAdd): Promise<MigrationResult | void> => {
 		log.logMessage("Starting file opening defaults backfill...");
 
-		// Both halves of this migration MOVE data: they translate the legacy
-		// `openFileInNewTab` / `openFileInMode` keys into `fileOpening`, and nothing
-		// at runtime reads the legacy keys. A choice hidden behind a container this
-		// walk could not read would therefore lose its "open in new tab" preference
-		// permanently once the migration is flagged complete, even after the user
-		// repairs data.json. Stay pending instead (#1610).
-		//
-		// A MISSING `fileOpening`, by contrast, needs no guard at all: the engines
-		// call `normalizeFileOpening(this.choice.fileOpening)` on every run, so the
-		// defaults half is fully compensated at runtime.
-		//
-		// This migration does NOT call saveSettings() itself: migrate.ts re-syncs the
-		// store and saves once after the whole run. A per-migration write would be a
-		// full data.json rewrite, and once this can stay PENDING that is one on every
-		// launch, straight into Obsidian Sync's whole-file last-write-wins.
+		// Legacy fields are not read at runtime, so skipped subtrees must retry.
+		// The migration runner saves once after the complete batch.
 		const unreadable = settingsTreeHasUnreadableData(plugin.settings);
 
 		let migratedCount = 0;

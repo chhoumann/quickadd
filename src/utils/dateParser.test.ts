@@ -3,16 +3,15 @@ import { parseNaturalLanguageDate, formatISODate } from "./dateParser";
 
 describe("dateParser", () => {
 	describe("parseNaturalLanguageDate", () => {
-		it("should return error when input is empty", () => {
-			const result = parseNaturalLanguageDate("");
+		it.each([
+			["should return error when input is empty", "", "Empty input"],
+			["should return error when input is only whitespace", "   ", "Empty input"],
+			["should return error when date parsing fails", "invalid date", "Unable to parse date"],
+			["should handle unparseable input gracefully", "not a valid date at all", "Unable to parse date"],
+		] as const)("%s", (_name, input, expected) => {
+			const result = parseNaturalLanguageDate(input);
 			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Empty input");
-		});
-
-		it("should return error when input is only whitespace", () => {
-			const result = parseNaturalLanguageDate("   ");
-			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Empty input");
+			expect(result.error).toBe(expected);
 		});
 
 		it("should use built-in chrono parser", () => {
@@ -68,20 +67,6 @@ describe("dateParser", () => {
 			});
 
 			expect(mockDateParser.parseDate).toHaveBeenCalledWith("tomorrow 5pm");
-		});
-
-		it("should return error when date parsing fails", () => {
-			const result = parseNaturalLanguageDate("invalid date");
-
-			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Unable to parse date");
-		});
-
-		it("should handle unparseable input gracefully", () => {
-			const result = parseNaturalLanguageDate("not a valid date at all");
-
-			expect(result.isValid).toBe(false);
-			expect(result.error).toBe("Unable to parse date");
 		});
 	});
 

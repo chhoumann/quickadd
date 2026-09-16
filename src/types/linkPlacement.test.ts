@@ -10,14 +10,14 @@ import {
 	placementSupportsSelectionAlias,
 } from "./linkPlacement";
 
+function linkOptions(overrides: Partial<AppendLinkOptions> = {}): AppendLinkOptions {
+	return { enabled: true, placement: "replaceSelection", requireActiveFile: true, ...overrides };
+}
+
 describe("LinkPlacement", () => {
 	describe("isAppendLinkOptions", () => {
 		it("should return true for AppendLinkOptions object", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "newLine",
-				requireActiveFile: true,
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "newLine" });
 			expect(isAppendLinkOptions(options)).toBe(true);
 		});
 
@@ -34,11 +34,7 @@ describe("LinkPlacement", () => {
 
 	describe("normalizeAppendLinkOptions", () => {
 		it("should normalize AppendLinkOptions and preserve values", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "afterSelection",
-				requireActiveFile: false,
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "afterSelection", requireActiveFile: false });
 
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
@@ -73,13 +69,7 @@ describe("LinkPlacement", () => {
 		});
 
 		it("should keep embed linkType when placement supports embeds", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "replaceSelection",
-				requireActiveFile: true,
-				linkType: "embed",
-				destination: { type: "activeFile" },
-			};
+			const options: AppendLinkOptions = linkOptions({ linkType: "embed", destination: { type: "activeFile" } });
 
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
@@ -109,34 +99,19 @@ describe("LinkPlacement", () => {
 		});
 
 		it("sanitizes embed linkType for frontmatter placement", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "inFrontmatter",
-				requireActiveFile: true,
-				linkType: "embed",
-				frontmatterProperty: "related",
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "inFrontmatter", linkType: "embed", frontmatterProperty: "related" });
 
 			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
 		});
 
 		it("should default linkType to link when omitted", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "newLine",
-				requireActiveFile: true,
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "newLine" });
 
 			expect(normalizeAppendLinkOptions(options).linkType).toBe("link");
 		});
 
 		it("preserves and trims a specified file destination", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "newLine",
-				requireActiveFile: false,
-				destination: { type: "specifiedFile", path: "  Indexes/MOC.md  " },
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "newLine", requireActiveFile: false, destination: { type: "specifiedFile", path: "  Indexes/MOC.md  " } });
 
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
@@ -147,13 +122,7 @@ describe("LinkPlacement", () => {
 		});
 
 		it("sanitizes embeds for specified file destinations", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "replaceSelection",
-				requireActiveFile: true,
-				linkType: "embed",
-				destination: { type: "specifiedFile", path: "Index.md" },
-			};
+			const options: AppendLinkOptions = linkOptions({ linkType: "embed", destination: { type: "specifiedFile", path: "Index.md" } });
 
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
@@ -164,14 +133,7 @@ describe("LinkPlacement", () => {
 		});
 
 		it("should preserve frontmatter placement options", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "inFrontmatter",
-				requireActiveFile: true,
-				linkType: "embed",
-				frontmatterProperty: "related",
-				frontmatterHandling: "alwaysAppend",
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "inFrontmatter", linkType: "embed", frontmatterProperty: "related", frontmatterHandling: "alwaysAppend" });
 
 			expect(normalizeAppendLinkOptions(options)).toEqual({
 				...options,
@@ -182,12 +144,7 @@ describe("LinkPlacement", () => {
 		});
 
 		it("should default frontmatter handling to create or convert", () => {
-			const options: AppendLinkOptions = {
-				enabled: true,
-				placement: "inFrontmatter",
-				requireActiveFile: true,
-				frontmatterProperty: "related",
-			};
+			const options: AppendLinkOptions = linkOptions({ placement: "inFrontmatter", frontmatterProperty: "related" });
 
 			expect(normalizeAppendLinkOptions(options).frontmatterHandling).toBe(
 				"alwaysAppend",
@@ -197,16 +154,8 @@ describe("LinkPlacement", () => {
 
 	describe("isAppendLinkEnabled", () => {
 		it("should return enabled value from AppendLinkOptions", () => {
-			const enabledOptions: AppendLinkOptions = {
-				enabled: true,
-				placement: "endOfLine",
-				requireActiveFile: true,
-			};
-			const disabledOptions: AppendLinkOptions = {
-				enabled: false,
-				placement: "replaceSelection",
-				requireActiveFile: true,
-			};
+			const enabledOptions: AppendLinkOptions = linkOptions({ placement: "endOfLine" });
+			const disabledOptions: AppendLinkOptions = linkOptions({ enabled: false });
 
 			expect(isAppendLinkEnabled(enabledOptions)).toBe(true);
 			expect(isAppendLinkEnabled(disabledOptions)).toBe(false);
@@ -273,11 +222,7 @@ describe("LinkPlacement", () => {
 	});
 
 	describe("displayText normalization", () => {
-		const base: AppendLinkOptions = {
-			enabled: true,
-			placement: "replaceSelection",
-			requireActiveFile: true,
-		};
+		const base: AppendLinkOptions = linkOptions();
 
 		it("keeps 'selection' for selection placements with a plain link into the active file", () => {
 			for (const placement of ["replaceSelection", "afterSelection"] as LinkPlacement[]) {
