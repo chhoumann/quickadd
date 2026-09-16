@@ -1,6 +1,6 @@
 const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
-
+/** Linear fence scan matching INLINE_JAVASCRIPT_REGEX without backtracking on backtick floods. */
 export function findInlineScriptSpans(
 	input: string,
 ): Array<{ start: number; end: number }> {
@@ -47,7 +47,7 @@ export function findInlineScriptSpans(
 	return spans;
 }
 
-
+/** Ignore complete fences, then check whether the remaining text opened one without closing it. */
 export function hasUnterminatedInlineScriptFence(input: string): boolean {
 	const spans = findInlineScriptSpans(input);
 	const n = input.length;

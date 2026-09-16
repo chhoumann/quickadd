@@ -1,10 +1,8 @@
+import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
-import InputSuggester from "src/gui/InputSuggester/inputSuggester";
-import MultiSuggester from "src/gui/MultiSuggester/multiSuggester";
-import VDateInputPrompt from "src/gui/VDateInputPrompt/VDateInputPrompt";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { RunClocks } from "../types/dateOrigin";
 import { INLINE_JAVASCRIPT_REGEX, TITLE_REGEX } from "../constants";
@@ -118,22 +116,13 @@ export class CompleteFormatter extends Formatter {
 		let output = await this.withPromptScope(scope, input, () =>
 			this.format(input),
 		);
-		// A {{title}} produced AFTER the raw-input check — by an expanded global
-		// snippet ({{GLOBAL_VAR:x}} -> {{title}}) or a {{VALUE}} that resolved to
-		// the literal text "{{title}}" — would otherwise survive into the file name
-		// (the token pass below omits `title`, leaving it verbatim). Re-check post
-		// format() so it throws the same circular-dependency error, mirroring
-		// formatTemplateFilePath's post-global-expansion guard.
+		// Expanded values can introduce {{title}}, so repeat the circular-title check after formatting.
 		if (TITLE_REGEX.test(output)) {
 			throw new Error(
 				"{{title}} cannot be used in file names as it would create a circular dependency. The title is derived from the filename itself.",
 			);
 		}
-		// {{filenamecurrent}} + {{folder}} + {{foldercurrent}} in one pass (links
-		// stay literal in a file name; {{title}} threw above). One pass so no token
-		// re-scans another's output (#1358). activeFolder is "path": this entry
-		// point produces file paths (file names AND capture targets), where a
-		// missing active file must abort rather than strip to a root-level path.
+		// Resolve contextual tokens in one pass; missing active-folder paths must abort rather than retarget writes.
 		output = this.replaceCurrentFileTokensInString(output, {
 			fileName: true,
 			folder: true,
@@ -181,13 +170,7 @@ export class CompleteFormatter extends Formatter {
 	async formatFileContent(input: string): Promise<string> {
 		let output: string = input;
 
-		// formatFileContent is the ONLY content pass: every path pass
-		// (formatFileName/formatFolderPath/formatTemplateFilePath/
-		// formatLocationString) calls format() directly. Image paste in value
-		// prompts is therefore enabled exactly here — a pasted embed link is
-		// note-body material and must never reach a file-name/path prompt
-		// (issue #1484). Restored in finally so a nested/failed pass can't
-		// leak the flag into a later path pass on the same formatter.
+		// Enable image paste only during content formatting, restoring the flag across nested or failed passes.
 		const previousImagePaste = this.contentValuePromptsAcceptImagePaste;
 		// ...unless the declared scope says this content is destined for a PATH,
 		// which happens when a {{TEMPLATE:}} include is spliced into a file name
@@ -198,13 +181,7 @@ export class CompleteFormatter extends Formatter {
 		} finally {
 			this.contentValuePromptsAcceptImagePaste = previousImagePaste;
 		}
-		// Resolve ALL note-derived tokens ({{linkcurrent}}, {{linksection}},
-		// {{filenamecurrent}}, {{folder}}, {{foldercurrent}}, {{title}}) in ONE
-		// pass so no token re-scans another's generated output — fixing both the
-		// cross-pass corruption and the infinite loop a token-named file/title
-		// caused (#1358). activeFolder is "content": in a note body an unresolved
-		// token cannot misplace data, so it follows the same required/optional
-		// contract as the link/file-name tokens.
+		// A single contextual pass preserves token-looking replacement text. Content may strip optional missing tokens.
 		output = this.replaceCurrentFileTokensInString(output, {
 			links: true,
 			fileName: true,
@@ -227,34 +204,19 @@ export class CompleteFormatter extends Formatter {
 		const formatted = await this.withPromptScope("folder", folderName, () =>
 			this.format(folderName),
 		);
-		// As in formatFileName: a {{title}} injected by a global snippet or a
-		// {{VALUE}} resolving to "{{title}}" slips past the raw-input check above,
-		// then the folder-only token pass would leave it literal in the path.
-		// Re-check post format() so it throws the circular-dependency error.
+		// Repeat the circular-title guard after expanding globals and user values.
 		if (TITLE_REGEX.test(formatted)) {
 			throw new Error(
 				"{{title}} cannot be used in folder paths as it would create a circular dependency. The title is derived from the filename itself.",
 			);
 		}
 
-		// {{FOLDER}} in a folder definition is self-referential: the target
-		// folder isn't known while folders are being resolved, so it collapses
-		// to an empty string rather than leaking the literal token into a path.
-		// {{FOLDERCURRENT}} is NOT self-referential (the active file's folder is
-		// known here) and must resolve: left verbatim it would be threaded into
-		// getOrCreateFolder and CREATE a vault folder literally named
-		// "{{foldercurrent}}". "path" mode: no active file aborts with a clear
-		// error instead of silently collapsing the folder to the vault root.
+		// The target folder is still unknown here and resolves empty; the active folder resolves or aborts in path mode.
 		const resolved = this.replaceCurrentFileTokensInString(formatted, {
 			folder: true,
 			activeFolder: "path",
 		});
-		// A token that legitimately resolves to "" at the START of the path (a
-		// root-level active file in "{{FOLDERCURRENT}}/Subnotes", or the {{FOLDER}}
-		// collapse above) leaves a leading "/", which validateFolderPath would
-		// reject as an empty first segment — falling back to the vault root
-		// instead of using "Subnotes". Strip leading slashes so the folder path is
-		// root-relative, matching what the capture/file-name paths do downstream.
+		// Empty folder tokens can leave leading slashes; remove them to keep the remaining path vault-relative.
 		return resolved.replace(/^\/+/, "");
 	}
 
@@ -271,22 +233,14 @@ export class CompleteFormatter extends Formatter {
 		// Expand globals first so an injected snippet's path-safe tokens resolve.
 		output = await this.replaceGlobalVarInString(output);
 
-		// A global variable can itself expand to "{{title}}", slipping past the
-		// up-front guard. Re-check here — after global expansion but BEFORE
-		// user-input substitution — so a global-injected {{title}} throws the
-		// clear circular-title error, without false-positiving on a user value
-		// that merely contains the literal text "{{title}}".
+		// Check global-injected title tokens before user substitution, allowing literal title text in user answers.
 		if (TITLE_REGEX.test(output)) {
 			throw new Error(
 				"{{title}} cannot be used in a template path — the title is derived from the created file, not the source template.",
 			);
 		}
 
-		// Path-safe replacers, mirroring the tail of format() (completeFormatter
-		// .format) MINUS macros, inline JS, and {{TEMPLATE:}} inclusion. Keep this
-		// list in sync with format() when adding a path-safe token.
-		// Scoped on the ORIGINAL input: prompts opened here are filling in the
-		// template's source path, not the note being created.
+		// Use the shared scalar pass with the original input declaring the source-path prompt scope.
 		output = await this.withPromptScope("templatePath", input, () =>
 			this.formatScalarTokens(output),
 		);
@@ -307,12 +261,7 @@ export class CompleteFormatter extends Formatter {
 		let output = await this.withPromptScope("lineTarget", input, () =>
 			this.format(input),
 		);
-		// Links + {{filenamecurrent}} + {{title}} in one pass so no token re-scans
-		// another's output (#1358). {{FOLDER}} and {{FOLDERCURRENT}} are
-		// deliberately left literal in location selectors (insert-after/before
-		// targets) — both can legitimately resolve to an empty string ("" target
-		// folder / root-level active file), and an empty selector would match the
-		// first line. Tokens that are nonempty-or-throw (links, file name) stay.
+		// Keep folder tokens literal in location selectors: an empty folder would match the first line.
 		output = this.replaceCurrentFileTokensInString(output, {
 			links: true,
 			fileName: true,
@@ -496,10 +445,7 @@ export class CompleteFormatter extends Formatter {
 				}
 			}
 			const prompt = this.describeAnonymousValuePrompt();
-			// Route to a remote interactive session (Raycast) when one is driving.
-			// PromptProvider has no context-line channel, so it is folded into the
-			// header - otherwise a remote run would come out of this change with
-			// LESS context than before (the header used to be the choice name).
+			// Remote prompts lack a context-line channel, so include context in their header.
 			const valueProvider = this.choiceExecutor?.promptProvider;
 			if (valueProvider) {
 				this.value = await valueProvider.inputPrompt(
@@ -561,11 +507,7 @@ export class CompleteFormatter extends Formatter {
 	): string | undefined {
 		const context = this.valuePromptContext;
 
-		// |type:checkbox forces a true/false picker (no free text). An active editor
-		// selection must not short-circuit that contract: only accept the selection
-		// when it is itself a boolean ("true"/"false", case/space-insensitive),
-		// otherwise return undefined so promptForValue falls through to the forced
-		// true/false picker instead of storing arbitrary selected text.
+		// Checkbox selections must be boolean text; other selections fall through to the true/false picker.
 		if (context?.inputTypeOverride === "checkbox") {
 			const boolText = selectedText.trim().toLowerCase();
 			return boolText === "true" || boolText === "false"
@@ -590,10 +532,7 @@ export class CompleteFormatter extends Formatter {
 		contextLine?: string,
 		contextLineFull?: string,
 	): InputPromptOptions {
-		// Image paste only for free-text prompts opened while formatting note
-		// CONTENT — never for number/slider (numeric sinks) and never during
-		// path passes (see contentValuePromptsAcceptImagePaste). The checkbox
-		// picker never reaches the input-prompt factory.
+		// Only free-text content prompts accept images; numeric and path prompts never do.
 		const imagePaste =
 			this.contentValuePromptsAcceptImagePaste &&
 			context?.inputTypeOverride !== "number" &&
@@ -614,117 +553,20 @@ export class CompleteFormatter extends Formatter {
 			allowPeek: true,
 		};
 	}
+	private promptRuntime(): PromptRuntime {
+		return {
+			app: this.app,
+			executor: this.choiceExecutor,
+			scope: this.promptScope,
+			runContext: this.promptRunContext,
+			assertInteractivePrompt: (what) => this.assertInteractivePrompt(what),
+			buildInputPromptOptions: (context, line, full) => this.buildInputPromptOptions(context, line, full),
+		};
+	}
 
-	protected async promptForVariable(
-		header?: string,
-		context?: PromptContext,
-	): Promise<string> {
-		// Route to a remote interactive session (Raycast) when one is driving.
-		const provider = this.choiceExecutor?.promptProvider;
-		if (provider) {
-			if (context?.type === "VDATE") {
-				return await provider.datePrompt(
-					header ?? context.label ?? "Enter date",
-					{
-						defaultValue: context.defaultValue,
-						dateFormat: context.dateFormat ?? "YYYY-MM-DD",
-						// Carry |time/|datetime so the remote client renders a time
-						// picker; otherwise the picked time is silently dropped.
-						withTime: context.withTime,
-					},
-				);
-			}
-			if (context?.inputTypeOverride === "checkbox") {
-				return String(
-					await provider.suggester(
-						["true", "false"],
-						["true", "false"],
-						context.description ?? header ?? context.label ?? "Choose value",
-						false,
-					),
-				);
-			}
-			return await provider.inputPrompt(
-				header ?? context?.label ?? "Enter value",
-				context?.placeholder,
-				context?.defaultValue,
-			);
-		}
-		this.assertInteractivePrompt(
-			header ? `{{VALUE:${header}}}` : "a template variable",
-		);
-		try {
-			// Named prompts already title themselves with the variable name, so they
-			// only gain the run context: which choice is asking, and where the
-			// answer lands (issue #1546).
-			const variableTitle = header ?? context?.label ?? "Enter value";
-			const showDestination = scopeShowsDestination(this.promptScope);
-			const namedContextLine = buildPromptContextLine(
-				this.promptRunContext,
-				variableTitle,
-				{ showDestination },
-			);
-			const namedContextLineFull = buildPromptContextLine(
-				this.promptRunContext,
-				variableTitle,
-				{ elide: false, showDestination },
-			);
-
-			// Use VDateInputPrompt for VDATE variables
-			if (context?.type === "VDATE") {
-				return await VDateInputPrompt.Prompt(
-					this.app,
-					(header as string) ?? context.label ?? "Enter date",
-					context.withTime
-						? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
-						: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",
-					context.defaultValue,
-					context.dateFormat ?? "YYYY-MM-DD",
-					{
-						optional: context.optional,
-						contextLine: namedContextLine,
-						contextLineFull: namedContextLineFull,
-						draftScopeId: this.promptRunContext?.draftScopeId,
-					},
-					context.withTime,
-				);
-			}
-
-			// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
-			// free text) so the written `x: true` round-trips as a Checkbox. The
-			// |label (carried as description for single-value tokens) becomes the
-			// modal title so the user knows which property they are setting (#202).
-			if (context?.inputTypeOverride === "checkbox") {
-				return await GenericSuggester.Suggest(
-					this.app,
-					["true", "false"],
-					["true", "false"],
-					context.description ?? header ?? context.label ?? "Choose value",
-					undefined,
-					context.optional ? { skippable: true } : undefined,
-				);
-			}
-
-			// Use default prompt for other variables
-			return await new InputPrompt().factory(context?.inputTypeOverride).Prompt(
-				this.app,
-				variableTitle,
-				context?.placeholder ??
-					(context?.defaultValue ? context.defaultValue : undefined),
-				context?.defaultValue,
-				context?.description,
-				this.buildInputPromptOptions(
-					context,
-					namedContextLine,
-					namedContextLineFull,
-				),
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+	protected async promptForVariable(header?: string,
+	context?: PromptContext): Promise<string> {
+		return promptForVariable(this.promptRuntime(), header, context);
 	}
 
 	protected async promptForMathValue(): Promise<string> {
@@ -745,110 +587,25 @@ export class CompleteFormatter extends Formatter {
 			throw error;
 		}
 	}
-
-	protected async suggestForValue(
-		suggestedValues: string[],
-		allowCustomInput = false,
-		context?: {
+	protected async suggestForValue(suggestedValues: string[],
+	allowCustomInput = false,
+	context?: {
 			placeholder?: string;
 			variableKey?: string;
 			displayValues?: string[];
 			optional?: boolean;
-		},
-	) {
-		// Route to a remote interactive session (Raycast) when one is driving this
-		// run - covers `{{VALUE:a,b,c}}` option lists in a template/capture format
-		// (e.g. a rating field) that the requirement collector didn't pre-satisfy.
-		const provider = this.choiceExecutor?.promptProvider;
-		if (provider) {
-			// Formatter tokens resolve to strings; the provider hands back the
-			// selected actualItems entry (here always a string) or a custom value.
-			return String(
-				await provider.suggester(
-					context?.displayValues ?? suggestedValues,
-					suggestedValues,
-					context?.placeholder,
-					allowCustomInput,
-				),
-			);
-		}
-		this.assertInteractivePrompt(
-			context?.variableKey ? `{{VALUE:${context.variableKey}}}` : "a value choice",
-		);
-		try {
-			const displayValues = context?.displayValues ?? suggestedValues;
-			if (allowCustomInput) {
-				return await InputSuggester.Suggest(
-					this.app,
-					displayValues,
-					suggestedValues,
-					{
-						...(context?.placeholder
-							? { placeholder: context.placeholder }
-							: {}),
-						...(context?.optional ? { skippable: true } : {}),
-					},
-				);
-			}
-			return await GenericSuggester.Suggest(
-				this.app,
-				displayValues,
-				suggestedValues,
-				context?.placeholder,
-				undefined,
-				context?.optional ? { skippable: true } : undefined,
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		}): Promise<string> {
+		return suggestForValue(this.promptRuntime(), suggestedValues, allowCustomInput, context);
 	}
-
-	protected async suggestForValueMulti(
-		suggestedValues: string[],
-		allowCustomInput = false,
-		context?: {
+	protected async suggestForValueMulti(suggestedValues: string[],
+	allowCustomInput = false,
+	context?: {
 			placeholder?: string;
 			variableKey?: string;
 			displayValues?: string[];
 			optional?: boolean;
-		},
-	): Promise<string[]> {
-		const displayValues = context?.displayValues ?? suggestedValues;
-		// Route to a remote interactive session (Raycast) when one is driving.
-		const provider = this.choiceExecutor?.promptProvider;
-		if (provider) {
-			return await provider.suggesterMulti(displayValues, suggestedValues, {
-				placeholder: context?.placeholder,
-				allowCustomInput,
-			});
-		}
-		this.assertInteractivePrompt(
-			context?.variableKey
-				? `{{VALUE:${context.variableKey}}}`
-				: "a multi-select value",
-		);
-		try {
-			return await MultiSuggester.Suggest(
-				this.app,
-				displayValues,
-				suggestedValues,
-				{
-					...(context?.placeholder
-						? { placeholder: context.placeholder }
-						: {}),
-					allowCustomValue: allowCustomInput,
-					...(context?.optional ? { skippable: true } : {}),
-				},
-			);
-		} catch (error) {
-			if (isCancellationError(error)) {
-				throw new UserCancelError("Input cancelled by user");
-			}
-			throw error;
-		}
+		}): Promise<string[]> {
+		return suggestForValueMulti(this.promptRuntime(), suggestedValues, allowCustomInput, context);
 	}
 	protected async suggestForField(fieldInput: string): Promise<string | string[]> {
 		this.assertInteractivePrompt(`{{FIELD:${fieldInput}}}`);
@@ -919,11 +676,7 @@ export class CompleteFormatter extends Formatter {
 		if (this.promptScope !== "generic") {
 			childEngine.setPromptScope(this.promptScope);
 		}
-		// Included templates prompt through the child's own formatter, so the run
-		// context has to travel with them or their prompts lose the choice name.
-		// The draft scope is narrowed to this template: the child raises its OWN
-		// {{VALUE}} prompt in the same run, and sharing the parent's draft key
-		// would open it pre-filled with the parent's answer.
+		// Propagate run context but give included templates distinct draft keys to avoid reusing parent answers.
 		if (this.promptRunContext) {
 			childEngine.setPromptRunContext({
 				...this.promptRunContext,

@@ -1,4 +1,4 @@
-import { createTFile, createMockAppVariant2 as createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createTFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
 import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type ICaptureChoice from '../types/choices/ICaptureChoice';

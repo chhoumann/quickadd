@@ -114,10 +114,7 @@ export abstract class ValueFormatter {
 		return value;
 	}
 
-	// Detects the same |name being defined with conflicting option lists across
-	// one execution (filename + body share this instance). Keyed name -> option
-	// signature; conflicts warn once. Value-independent so externally-seeded or
-	// custom-typed values never produce a false positive.
+	// Warn once per conflicting named option signature across the whole run, independent of answers.
 	private readonly namedSuggesterOptionSigs = new Map<string, string>();
 	private readonly namedSuggesterConflictsWarned = new Set<string>();
 
@@ -263,10 +260,7 @@ export abstract class ValueFormatter {
 			const parsed = parseAnonymousValueOptions(rawOptions, {
 				warn: this.warnSink,
 			});
-			// Apply |default on an empty submission, mirroring the named path
-			// (ensureValueVariableResolved): the |default pre-fills the prompt, but
-			// a user who clears the box should still get the default unless the
-			// token is |optional (an optional empty is taken at face value).
+			// An empty submission takes the default unless |optional explicitly permits empty.
 			const effectiveValue =
 				this.value === "" && parsed.defaultValue && !parsed.optional
 					? parsed.defaultValue
@@ -443,10 +437,7 @@ export abstract class ValueFormatter {
 	private warnOnNamedOptionConflict(parsed: ParsedValueToken): void {
 		if (!parsed.aliasName || !parsed.hasOptions) return;
 		const nameKey = parsed.variableKey.toLowerCase();
-		// Capture everything that changes the suggester behaviour — the
-		// options, the custom-input flag, the display mapping, and the
-		// multi-select shape — so a reordered definition that differs in any of
-		// these is flagged.
+		// Include options, custom input, display mapping, and multi-select shape in conflict detection.
 		const signature = JSON.stringify([
 			parsed.suggestedValues,
 			parsed.allowCustomInput,
@@ -461,13 +452,7 @@ export abstract class ValueFormatter {
 		}
 		if (previous !== signature && !this.namedSuggesterConflictsWarned.has(nameKey)) {
 			this.namedSuggesterConflictsWarned.add(nameKey);
-			// Surface it (consistent with the other |name: warnings) — the conflict
-			// silently drops the second option list, so the user needs to see it,
-			// not only in devtools. Warn-once dedupe is kept by the guard above.
-			// The bare console.warn this used to carry "for the diagnostic trail"
-			// was redundant: ConsoleErrorLogger.logWarning already console.warns
-			// every message, and it bypassed this hook, so a preview would still
-			// have written one line per keystroke to devtools.
+			// Use the warning hook so previews collect this conflict without emitting Notices.
 			this.warn(
 				`QuickAdd: named value "${parsed.variableKey}" is defined with different option lists; the first definition's value is reused.`,
 			);
@@ -588,10 +573,7 @@ export abstract class ValueFormatter {
 			if (parsed) tokens.push({ parsed, index: match.index });
 		}
 
-		// Earliest index each (case-insensitive) key is referenced by a NON-
-		// definition token (a bare reuse). A prior definition must not count as a
-		// "use", else two conflicting definitions of the same name would hoist the
-		// later one ahead of the earlier — the first definition must win.
+		// Track bare references only: counting definitions as uses would let later definitions win.
 		const firstUseIndex = new Map<string, number>();
 		for (const { parsed, index } of tokens) {
 			if (parsed.hasOptions && parsed.aliasName) continue; // skip definitions
@@ -644,11 +626,7 @@ export abstract class ValueFormatter {
 					this.propertyTokenValue(effectiveRawValue, parsed.inputTypeOverride));
 			}
 
-			// Offer this variable to the property collector for YAML post-processing.
-			// Collecting structured values (arrays/objects/numbers/booleans) into a
-			// processFrontMatter pass is always-on inside a collection scope so that
-			// scripts returning real arrays produce valid YAML regardless of the
-			// beta toggle. Only the string -> structured *heuristic* is flag-gated.
+			// Collect containers in YAML regardless of the flag; only string coercion is opt-in.
 			const structuredReplacement = this.renderCollectedOrArrayValue({
 				input: output,
 				matchStart: match.index,
@@ -665,10 +643,7 @@ export abstract class ValueFormatter {
 				multiFormat: parsed.multiFormat,
 			});
 
-			// Keep the interim frontmatter YAML-parseable until post-processing
-			// writes the real structured value back through Obsidian. Coerce the
-			// fallback replacement to a string so non-string variable values (e.g.
-			// arrays from scripts on the non-collected path) don't desync the scanner.
+			// Keep interim YAML parseable, and replacements textual so non-string answers cannot desync scanning.
 			let replacement: string;
 			let consumeQuotes = false;
 			if (structuredReplacement !== undefined) {
@@ -701,12 +676,7 @@ export abstract class ValueFormatter {
 						match.index + match[0].length,
 					)
 				) {
-					// An explicit typed |type: wins over the author's quotes: the
-					// quotes exist to keep the raw template valid YAML (#1655), while
-					// the |type: declares the intended property type. Consume the
-					// quotes so `rating: "{{VALUE:r|type:number}}"` writes `rating: 42`
-					// and Obsidian reads a Number. |type:text and |type:multiline keep
-					// string semantics, so their quotes stay (with escaping).
+					// Typed number/boolean overrides consume surrounding quotes; text and multiline retain string semantics.
 					consumeQuotes = true;
 					replacement = stringVal;
 				} else {

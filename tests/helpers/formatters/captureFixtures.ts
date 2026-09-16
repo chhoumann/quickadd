@@ -33,21 +33,3 @@ export const createTFile = (path: string): TFile => {
   } as unknown as TFile;
 };
 
-export const createMockAppVariant2 = (): App => ({
-  workspace: {
-    getActiveFile: vi.fn().mockReturnValue(null),
-    getActiveViewOfType: vi.fn().mockReturnValue(null),
-  },
-  metadataCache: {
-    getFileCache: vi.fn().mockReturnValue(null),
-  },
-  fileManager: {
-    generateMarkdownLink: vi.fn().mockReturnValue(''),
-    processFrontMatter: vi.fn(),
-  },
-  vault: {
-    adapter: { exists: vi.fn() },
-    cachedRead: vi.fn(),
-  },
-} as unknown as App);
-

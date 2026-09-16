@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { RANDOM_REGEX } from "../constants";
 
 import { StubFormatter } from "../../tests/helpers/formatters/stubFormatter";
@@ -14,7 +14,11 @@ describe("Random Format Placeholder", () => {
 
     beforeEach(() => {
         formatter = new TestFormatter();
+        let next = 0;
+        vi.spyOn(Math, "random").mockImplementation(() => (next++ % 62) / 62);
     });
+
+    afterEach(() => vi.restoreAllMocks());
 
     describe("RANDOM_REGEX", () => {
         it("should match valid random placeholders", () => {

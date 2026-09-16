@@ -1,3 +1,5 @@
+import getEndOfSection from "./helpers/getEndOfSection";
+import { insertOrderedCapture } from "./helpers/orderedCaptureInsertion";
 import type { TFile } from "obsidian";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { getLinesInString } from "src/utility";
@@ -11,13 +13,6 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { CompleteFormatter } from "./completeFormatter";
-import getEndOfSection, { getMarkdownHeadings } from "./helpers/getEndOfSection";
-import {
-	computeOrderedSectionInsertIndex,
-	maskFencedHeadings,
-	type MomentLike,
-	type OrderedSlot,
-} from "./helpers/orderedSectionPlacement";
 import * as positioning from "./helpers/insertionPositioning";
 import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
@@ -207,10 +202,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;
 
-		// Use the capture destination as the source context so relative links work correctly
-		// e.g., if active file is Projects/Idea.md and capture target is Journal/Inbox.md,
-		// we want [[Projects/Idea]], not [[Idea]]
-		// Prefer sourcePath (set before file creation) over file.path, fallback to empty string
+		// Resolve links relative to the capture destination; sourcePath is available before file creation.
 		const sourcePath = this.sourcePath ?? this.file?.path ?? "";
 		return this.app.fileManager.generateMarkdownLink(currentFile, sourcePath);
 	}
@@ -253,10 +245,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
-		// Declared here rather than read from `this.choice`, which is still
-		// undefined on the formatContentOnly path (assigned only by
-		// formatContentWithFile/formatContent) - the very pass that opens the
-		// capture's body {{VALUE}} prompt (issue #1546).
+		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
 		let formatted = await this.withClipboardImageFallback(async () =>
 			this.withPromptScope("captureText", input, async () =>
 				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
@@ -324,10 +313,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			),
 		);
 
-		// DON'T run templater parsing here - it will be handled either by:
-		// 1. CaptureChoiceEngine.run() for the active file + no insert after + no prepend case
-		// 2. formatContentWithFile() for all other cases
-		// This avoids double processing of templater commands
+		// The engine or formatContentWithFile owns Templater execution; running it here would execute twice.
 
 		const formattedContentIsEmpty = isCaptureContentEmpty(formatted);
 		if (formattedContentIsEmpty) return this.fileContent;
@@ -350,14 +336,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async insertAfterHandler(formatted: string) {
 		const override = this.insertAfterTargetOverride;
 
-		// Inline targets are single-line by definition and use a separate
-		// indexOf-based path. Expand `\n` escapes here (like the block path below)
-		// so a multi-line target trips the single-line guard in
-		// insertAfterInlineHandler with a clear error — instead of silently
-		// searching for a literal backslash-n that never exists, or writing it
-		// verbatim into the note on create-if-not-found (issue #468).
-		// The heading-picker override always wants the block (section) path, never
-		// the same-line inline path, so the override short-circuits inline here too.
+		// Expand escapes before validating inline targets. Picked headings always use the block path.
 		if (this.choice.insertAfter?.inline && override === null) {
 			const inlineTarget: string = await this.formatLocationString(
 				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
@@ -365,11 +344,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			return await this.insertAfterInlineHandler(formatted, inlineTarget);
 		}
 
-		// Override (runtime-picked heading) is a verbatim file line: match it literally,
-		// skipping formatLocationString/escape-expansion (see insertAfterTargetOverride).
-		// Otherwise expand `\n` escapes BEFORE searching so the search target is identical
-		// to what createInsertAfterIfNotFound writes to disk. Computed once and reused for
-		// the create path so the two can never diverge (issue #742).
+		// Picked headings match verbatim; other targets expand once and are reused unchanged when created.
 		const targetString: string =
 			override ??
 			(await this.formatLocationString(
@@ -394,13 +369,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		// For ordered placement, the target search must ignore headings inside YAML
-		// frontmatter or fenced code blocks. Otherwise a sample/comment heading that
-		// happens to match (e.g. a `## 2026-06-16` in a ```markdown example) would be
-		// treated as "found" and the capture inserted there, bypassing the
-		// fence/frontmatter-aware ordered create path. Masking preserves line indices,
-		// so the found-path position math below stays valid. Non-ordered captures keep
-		// their existing (unmasked) search behaviour.
+		// Ordered searches mask YAML and fenced headings without shifting indices; other searches remain unmasked.
 		const searchLines = this.isOrderedCreate()
 			? positioning.maskNonBodyHeadingsForSearch(fileContentLines, this.fileContent)
 			: fileContentLines;
@@ -504,10 +473,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		targetString: string,
 	): Promise<string> {
 		if (positioning.hasInlineTargetLinebreak(targetString)) {
-			// Inline insertion lands mid-line after a matched substring, so a
-			// multi-line target can never match. Abort cleanly with a clear message
-			// (parity with the block path's not-found abort) instead of searching for
-			// a literal `\n` or writing it verbatim on create-if-not-found (issue #468).
+			// Inline targets must stay on one line, including after escape expansion.
 			throw new ChoiceAbortError(
 				"Inline insert-after target must be a single line — remove the line break (\\n) or turn off inline insertion.",
 			);
@@ -595,118 +561,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			anchorLine,
 		);
 	}
-
-	private createInsertAfterOrdered(
-		formatted: string,
-		targetString: string,
-	): string {
-		const orderBy = this.choice.insertAfter?.orderBy ?? {
-			by: "insertion" as const,
-			direction: "desc" as const,
-			unparseable: "bottom" as const,
-		};
-
-		const firstLine = targetString.split(/\r?\n/, 1)[0];
-		const level = getMarkdownHeadings([firstLine])[0]?.level ?? 0;
-
-		// Reused verbatim so the created block is byte-identical to next-run's search
-		// target (the #742 round-trip invariant that keeps creation idempotent).
-		const payload = `${targetString}\n${formatted}`;
-
-		// Non-heading anchor: ordered placement is meaningless → graceful TOP degrade.
-		if (level === 0) {
-			return this.insertAtNoteBodyStartTracking(payload);
-		}
-
-		// CRLF-safe line model: the helper detects headings on \r-stripped lines;
-		// the splice happens on the original lines to preserve EOL bytes.
-		const rawLines = getLinesInString(this.fileContent);
-		const lines = rawLines.map((line) => line.replace(/\r$/, ""));
-
-		// Exclude any YAML frontmatter so a `#`-prefixed YAML line is never treated
-		// as a sibling/ancestor and the new section can never be spliced into the
-		// frontmatter block (frontmatter detection mirrors insertAtNoteBodyStart).
-		const bodyStartLine = positioning.getBodyStartLine(this.fileContent);
-
-		// Idempotency guard for multi-line anchors: the block search (findInsertAfterRange)
-		// matches the WHOLE multi-line target, so a target like "## 2026-06-16\n**Tasks**"
-		// is "not found" when the note already has a bare "## 2026-06-16" without the
-		// **Tasks** line — which would otherwise create a DUPLICATE heading here. When the
-		// heading line itself already exists in the body, insert the content under it
-		// instead (top of section, or section end when insertAtEnd), never duplicating.
-		// Match against fence-masked lines so a `## …` inside a code block is not
-		// mistaken for a real heading (consistent with computeOrderedSectionInsertIndex).
-		const maskedLines = maskFencedHeadings(lines);
-		const headingNeedle = firstLine.replace(/\r$/, "").trimEnd();
-		const existingHeadingLine = maskedLines.findIndex(
-			(line, i) => i >= bodyStartLine && line.trimEnd() === headingNeedle,
-		);
-		if (existingHeadingLine !== -1) {
-			const position = this.choice.insertAfter?.insertAtEnd
-				? positioning.findInsertAfterPositionAtSectionEnd(
-						maskedLines,
-						getEndOfSection(
-							maskedLines,
-							existingHeadingLine,
-							this.considerSubsectionsForAnchor(
-								maskedLines,
-								existingHeadingLine,
-							),
-						) ?? maskedLines.length - 1,
-						this.fileContent,
-						formatted,
-					)
-				: positioning.findInsertAfterPositionWithBlankLines(
-						maskedLines,
-						existingHeadingLine,
-						this.fileContent,
-						this.choice.insertAfter?.blankLineAfterMatchMode ?? "auto",
-					);
-			return this.insertTextAfterPositionInBody(
-				formatted,
-				this.fileContent,
-				position,
-			);
-		}
-
-		const moment =
-			typeof window !== "undefined"
-				? (window.moment as unknown as MomentLike | undefined)
-				: undefined;
-		const slot = computeOrderedSectionInsertIndex(
-			lines,
-			firstLine,
-			level,
-			orderBy,
-			moment,
-			bodyStartLine,
-		);
-
-		if (slot.mode === "bodyStart") {
-			return this.insertAtNoteBodyStartTracking(payload);
-		}
-
-		return this.spliceOrderedSection(rawLines, slot, payload);
-	}
-
-	/**
-	 * Adapter: splices a created ordered section into this run's file content and
-	 * records the cursor end offset. Positioning logic lives in
-	 * {@link positioning.spliceOrderedSection}.
-	 */
-	private spliceOrderedSection(
-		rawLines: string[],
-		slot: Exclude<OrderedSlot, { mode: "bodyStart" }>,
-		payload: string,
-	): string {
-		const { content, insertedEndOffset } = positioning.spliceOrderedSection(
-			rawLines,
-			slot,
-			payload,
-			this.fileContent,
-		);
-		this.setCaptureInsertionEndOffset(insertedEndOffset);
-		return content;
+	private createInsertAfterOrdered(formatted: string, targetString: string): string {
+		const result = insertOrderedCapture({
+			formatted, targetString, fileContent: this.fileContent,
+			insertAfter: this.choice.insertAfter, task: !!this.choice.task,
+		});
+		this.setCaptureInsertionEndOffset(result.insertedEndOffset);
+		return result.content;
 	}
 	private async createInsertBeforeIfNotFound(formatted: string, insertBeforeLine: string) {
 		const settings = this.choice.insertBefore;

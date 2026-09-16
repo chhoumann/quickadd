@@ -1,4 +1,4 @@
-import { createMockAppVariant2 as createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createMockApp } from "../../tests/helpers/formatters/captureFixtures";
 import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TFile } from "obsidian";
