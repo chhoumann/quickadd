@@ -107,6 +107,9 @@ describe("settings user-authored DOM XSS safety", () => {
 		const surfaces = [
 			"gui/GlobalVariables/GlobalVariablesView.svelte",
 			"gui/PackageManager/ImportPackageModal.svelte",
+			"gui/PackageManager/ImportChoices.svelte",
+			"gui/PackageManager/ImportAcknowledgement.svelte",
+			"gui/PackageManager/PackageWarnings.svelte",
 			"gui/PackageManager/ExportPackageModal.svelte",
 			"gui/PackageManager/FilePreviewRow.svelte",
 			"gui/PackageManager/CapabilityBanner.svelte",
@@ -128,7 +131,7 @@ describe("settings user-authored DOM XSS safety", () => {
 		expect(globalVariablesSource).toContain("bind:value={it.value}");
 
 		const packageImportSource = readFileSync(
-			join(srcRoot, "gui/PackageManager/ImportPackageModal.svelte"),
+			join(srcRoot, "gui/PackageManager/ImportChoices.svelte"),
 			"utf8",
 		);
 		expect(packageImportSource).toContain("{conflict.name}");
