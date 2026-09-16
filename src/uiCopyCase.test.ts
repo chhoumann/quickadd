@@ -96,8 +96,8 @@ describe("settings tab copy", () => {
 
 		return {
 			headings: groups.flatMap((group) => group.heading ? [group.heading] : []),
-			names: groups.flatMap((group) => group.items.flatMap((item) => item.name ? [item.name] : [])),
-			descs: groups.flatMap((group) => group.items.flatMap((item) => typeof item.desc === "string" ? [item.desc] : [])),
+			names: groups.flatMap((group) => (group.items ?? []).flatMap((item) => item.name ? [item.name] : [])),
+			descs: groups.flatMap((group) => (group.items ?? []).flatMap((item) => typeof item.desc === "string" ? [item.desc] : [])),
 		};
 	}
 
