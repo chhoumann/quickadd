@@ -1,5 +1,5 @@
+import { POLL_OPTS, waitForElement, typeInto, pressKey, expectNoPrompt } from "./uiHelpers";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ObsidianClient } from "obsidian-e2e";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
@@ -9,7 +9,6 @@ import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 
 const getContext = createQuickAddE2EHarness("template-discovery-actions");
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
-const POLL_OPTS = { timeout: 10_000, interval: 200 };
 const INITIAL_CONTENT = "---\nstatus: active\n---\n# Existing note\n";
 const VALUE_INPUT = '.qaInputPrompt input[type="text"], .qaInputPrompt textarea';
 
@@ -17,44 +16,6 @@ type QuickAddData = {
 	choices: IChoice[];
 	onePageInputEnabled: boolean;
 };
-
-async function waitForElement(obsidian: ObsidianClient, selector: string) {
-	await expect.poll(() => obsidian.dev.evalJson<boolean>(
-		`Boolean(document.querySelector(${JSON.stringify(selector)})?.getClientRects().length)`,
-	), POLL_OPTS).toBe(true);
-}
-
-async function typeInto(obsidian: ObsidianClient, selector: string, text: string) {
-	expect(await obsidian.dev.evalJson<boolean>(`(() => {
-		const input = document.querySelector(${JSON.stringify(selector)});
-		if (!(input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement)) return false;
-		input.focus();
-		input.select();
-		return true;
-	})()`)).toBe(true);
-	await obsidian.exec("dev:cdp", {
-		method: "Input.insertText",
-		params: JSON.stringify({ text }),
-	});
-}
-
-async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape", modified = false) {
-	const modifiers = modified
-		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
-		: 0;
-	for (const type of ["keyDown", "keyUp"]) {
-		await obsidian.exec("dev:cdp", {
-			method: "Input.dispatchKeyEvent",
-			params: JSON.stringify({ type, key, code: key, windowsVirtualKeyCode: key === "Enter" ? 13 : 27, modifiers }),
-		});
-	}
-}
-
-async function expectNoPrompt(obsidian: ObsidianClient) {
-	await expect.poll(() => obsidian.dev.evalJson<boolean>(
-		'Boolean(document.querySelector(".modal-container, .prompt"))',
-	), POLL_OPTS).toBe(false);
-}
 
 async function closeOpenPrompts() {
 	const { obsidian } = getContext();
