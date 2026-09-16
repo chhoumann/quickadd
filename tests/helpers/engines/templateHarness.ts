@@ -13,6 +13,8 @@ class TemplateProbe extends TemplateEngine {
 	}
 	async run() { }
 	get bodyFormatter() { return this.formatter; }
+	extension = this.getTemplateExtension.bind(this);
+	normalizePath = this.normalizeTemplateFilePath.bind(this);
 	create = this.createFileWithTemplate.bind(this);
 	overwrite = this.overwriteFileWithTemplate.bind(this);
 	append = this.appendToFileWithTemplate.bind(this);
