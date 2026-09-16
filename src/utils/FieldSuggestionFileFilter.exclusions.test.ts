@@ -1,34 +1,22 @@
+import { fieldFile as createMockFile, fieldTag } from "../../tests/helpers/suggesters/fieldFiles";
 import { describe, it, expect } from "vitest";
 import type { CachedMetadata, TFile } from "obsidian";
 import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
-// Mock TFile
-const createMockFile = (path: string): TFile => {
-	return {
-		path,
-		name: path.split("/").pop() || "",
-		basename: path.split("/").pop()?.split(".")[0] || "",
-		extension: path.split(".").pop() || "",
-		stat: { ctime: 0, mtime: 0, size: 0 },
-		vault: {} as any,
-		parent: null,
-	} as TFile;
-};
-
 // Mock CachedMetadata
 const createMockMetadata = (tags?: string[], frontmatterTags?: unknown): CachedMetadata => {
-	const metadata: any = {};
+	const metadata: CachedMetadata = {};
 	
 	if (tags) {
-		metadata.tags = tags.map(tag => ({ tag, position: { start: { line: 0, col: 0, offset: 0 }, end: { line: 0, col: 0, offset: 0 } } }));
+		metadata.tags = tags.map(fieldTag);
 	}
 	
 	if (frontmatterTags) {
 		metadata.frontmatter = { tags: frontmatterTags };
 	}
 	
-	return metadata as CachedMetadata;
+	return metadata;
 };
 
 describe("FieldSuggestionFileFilter", () => {

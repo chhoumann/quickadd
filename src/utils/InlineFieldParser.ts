@@ -84,36 +84,10 @@ export class InlineFieldParser {
 	}
 
 	/**
-	 * Remove fenced code blocks from the content so inline-field-looking lines
-	 * inside code samples (e.g. ```dataview``` blocks) are not collected as real
-	 * fields. Blocks whose info-string type is allowlisted keep their body.
-	 *
-	 * Implemented as a single-pass, line-based scanner. The previous regex
-	 * (`(`{3,})([^\r\n`]*)\r?\n([\s\S]*?)(?:\r?\n[ \t]*|[ \t]*)\1`) backtracked
-	 * catastrophically: on an unclosed fence followed by a long whitespace run
-	 * its lazy body and the `[ \t]*` in the closing alternation overlapped, so
-	 * `String.replace` over full untrusted note content was O(n^2) and froze the
-	 * main thread (~10s on 64KB, growing quadratically). This scanner pushes each
-	 * line to the output (or the in-progress fence buffer) exactly once, so
-	 * stripping is linear in the note length.
-	 *
-	 * The parsed field set is preserved for well-formed notes and the existing
-	 * tests, and - unlike a look-ahead scanner - for unclosed fences too: an
-	 * opener with no matching closer is emitted verbatim, exactly as the old
-	 * regex left it (its backreference never matched, so it stripped nothing).
-	 * The differences are confined to unusual/malformed fences, where this
-	 * follows CommonMark instead of the old regex's quirks:
-	 *   - a fence must begin a line (after optional indentation); a backtick run
-	 *     mid-line is no longer mistaken for a fence,
-	 *   - a closing fence is backticks plus trailing whitespace only and may be
-	 *     longer than the opener (the old regex matched only the opener's exact
-	 *     backtick count, leaking the extra backticks into the next value).
-	 *
-	 * Only backtick fences are stripped, preserving prior behaviour; `~~~`
-	 * fences were never handled here and are left untouched. This is deliberately
-	 * a narrower, autocomplete-only subset than the file-rewriting migration
-	 * script (docs/static/scripts/migrateDataviewToFrontmatter.js), which must
-	 * also track tildes and blockquoted fences to avoid destroying note content.
+	 * Scan backtick fences once to avoid quadratic matching over untrusted notes.
+	 * Closed fences keep only allowlisted bodies; unclosed fences stay verbatim.
+	 * Closers may be longer than openers. Tilde and blockquoted fences are not
+	 * part of this autocomplete grammar.
 	 */
 	private static filterFencedCodeBlocks(
 		content: string,
@@ -135,29 +109,23 @@ export class InlineFieldParser {
 
 		// While inside a fence we buffer its lines (opener first) so an unclosed
 		// fence can be flushed verbatim at EOF instead of guessed to be code.
-		let inside = false;
-		let openLength = 0;
-		let openInfo = "";
-		let buffer: string[] = [];
+		let fence: { length: number; info: string; lines: string[] } | null = null;
 
 		for (const line of lines) {
-			if (!inside) {
+			if (!fence) {
 				const open = this.matchFenceOpen(line);
 				if (open) {
-					inside = true;
-					openLength = open.length;
-					openInfo = open.info;
-					buffer = [line];
+					fence = { ...open, lines: [line] };
 				} else {
 					out.push(line);
 				}
 				continue;
 			}
 
-			if (this.matchFenceClose(line, openLength)) {
+			if (this.matchFenceClose(line, fence.length)) {
 				// Closed block: drop it, or keep only its body (the buffered
 				// lines after the opener) if its type is allowlisted.
-				const normalizedType = openInfo
+				const normalizedType = fence.info
 					.trim()
 					.split(/\s+/)[0]
 					?.toLowerCase();
@@ -167,20 +135,19 @@ export class InlineFieldParser {
 					normalizedType.length > 0 &&
 					allowlistedTypes.has(normalizedType);
 				if (keepBody) {
-					for (let b = 1; b < buffer.length; b++) out.push(buffer[b]);
+					for (let b = 1; b < fence.lines.length; b++) out.push(fence.lines[b]);
 				}
-				inside = false;
-				buffer = [];
+				fence = null;
 			} else {
-				buffer.push(line);
+				fence.lines.push(line);
 			}
 		}
 
 		// Unclosed fence: emit the buffered lines unchanged, matching the old
 		// regex (which stripped nothing when its closing backreference never
 		// matched).
-		if (inside) {
-			for (const line of buffer) out.push(line);
+		if (fence) {
+			for (const line of fence.lines) out.push(line);
 		}
 
 		return out.join("\n");

@@ -3,118 +3,256 @@ import { FieldSuggestionParser } from "./FieldSuggestionParser";
 
 describe("FieldSuggestionParser", () => {
 	describe("parse", () => {
-		it("should parse simple field name without filters", () => {
-			const result = FieldSuggestionParser.parse("fieldname");
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {},
-			});
-		});
-
-		it("should parse field name with folder filter", () => {
-			const result = FieldSuggestionParser.parse(
+		it.each<[string, string, ReturnType<typeof FieldSuggestionParser.parse>]>([
+			[
+				"should parse simple field name without filters",
+				"fieldname",
+				{
+					fieldName: "fieldname",
+					filters: {},
+				},
+			],
+			[
+				"should parse field name with folder filter",
 				"fieldname|folder:daily",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { folder: "daily", folders: ["daily"] },
-			});
-		});
-
-		it("parses repeated folder filters as an include list", () => {
-			const result = FieldSuggestionParser.parse(
+				{
+					fieldName: "fieldname",
+					filters: { folder: "daily", folders: ["daily"] },
+				},
+			],
+			[
+				"parses repeated folder filters as an include list",
 				"fieldname|folder:daily|folder:projects",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "daily",
-					folders: ["daily", "projects"],
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "daily",
+						folders: ["daily", "projects"],
+					},
 				},
-			});
-		});
-
-		it("should parse field name with tag filter", () => {
-			const result = FieldSuggestionParser.parse("fieldname|tag:work");
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { tags: ["work"] },
-			});
-		});
-
-		it("should parse field name with multiple tag filters", () => {
-			const result = FieldSuggestionParser.parse(
+			],
+			[
+				"should parse field name with tag filter",
+				"fieldname|tag:work",
+				{
+					fieldName: "fieldname",
+					filters: { tags: ["work"] },
+				},
+			],
+			[
+				"should parse field name with multiple tag filters",
 				"fieldname|tag:work|tag:project",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { tags: ["work", "project"] },
-			});
-		});
-
-		it("should parse field name with inline filter", () => {
-			const result = FieldSuggestionParser.parse(
+				{
+					fieldName: "fieldname",
+					filters: { tags: ["work", "project"] },
+				},
+			],
+			[
+				"should parse field name with inline filter",
 				"fieldname|inline:true",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { inline: true },
-			});
-		});
-
-		it("should parse inline code block allowlist filter", () => {
-			const result = FieldSuggestionParser.parse(
+				{
+					fieldName: "fieldname",
+					filters: { inline: true },
+				},
+			],
+			[
+				"should parse inline code block allowlist filter",
 				"fieldname|inline:true|inline-code-blocks:ad-note, dataview",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					inline: true,
-					inlineCodeBlocks: ["ad-note", "dataview"],
+				{
+					fieldName: "fieldname",
+					filters: {
+						inline: true,
+						inlineCodeBlocks: ["ad-note", "dataview"],
+					},
 				},
-			});
-		});
-
-		it("should parse field name with multiple filters", () => {
-			const result = FieldSuggestionParser.parse(
+			],
+			[
+				"should parse field name with multiple filters",
 				"fieldname|folder:daily|tag:work|inline:true",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "daily",
-					folders: ["daily"],
-					tags: ["work"],
-					inline: true,
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "daily",
+						folders: ["daily"],
+						tags: ["work"],
+						inline: true,
+					},
 				},
-			});
-		});
-
-		it("should parse multi-select as FIELD behavior, not a filter", () => {
-			const result = FieldSuggestionParser.parse(
+			],
+			[
+				"should parse multi-select as FIELD behavior, not a filter",
 				"fieldname|multi|folder:daily|tag:work",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "daily",
-					folders: ["daily"],
-					tags: ["work"],
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "daily",
+						folders: ["daily"],
+						tags: ["work"],
+					},
+					multiSelect: true,
 				},
-				multiSelect: true,
-			});
+			],
+			[
+				"should allow multi-select to be explicitly disabled",
+				"fieldname|multi:false",
+				{
+					fieldName: "fieldname",
+					filters: {},
+				},
+			],
+			[
+				"should handle tags with # prefix",
+				"fieldname|tag:#work",
+				{
+					fieldName: "fieldname",
+					filters: { tags: ["work"] },
+				},
+			],
+			[
+				"should skip invalid filter format",
+				"fieldname|invalidfilter",
+				{
+					fieldName: "fieldname",
+					filters: {},
+				},
+			],
+			[
+				"should handle whitespace in input",
+				"fieldname | folder : daily | tag : work",
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "daily",
+						folders: ["daily"],
+						tags: ["work"],
+					},
+				},
+			],
+			[
+				"should handle folder paths with slashes",
+				"fieldname|folder:daily/notes/work",
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "daily/notes/work",
+						folders: ["daily/notes/work"],
+					},
+				},
+			],
+			[
+				"should parse default value filters",
+				"fieldname|default:Default Value",
+				{
+					fieldName: "fieldname",
+					filters: { defaultValue: "Default Value" },
+				},
+			],
+			[
+				"parses default-from:active into a lowercased defaultFrom (issue #1429)",
+				"project|default-from:active",
+				{
+					fieldName: "project",
+					filters: { defaultFrom: "active" },
+				},
+			],
+			[
+				"lowercases the default-from source value",
+				"project|default-from:Active",
+				{
+					fieldName: "project",
+					filters: { defaultFrom: "active" },
+				},
+			],
+			[
+				"keeps default-from alongside the literal default and other filters",
+				"project|folder:Projects|default:Inbox|default-from:active",
+				{
+					fieldName: "project",
+					filters: {
+						folder: "Projects",
+						folders: ["Projects"],
+						defaultValue: "Inbox",
+						defaultFrom: "active",
+					},
+				},
+			],
+			[
+				"should parse default-empty and default-always filters",
+				"fieldname|default:To Do|default-empty:true|default-always:false",
+				{
+					fieldName: "fieldname",
+					filters: {
+						defaultValue: "To Do",
+						defaultEmpty: true,
+						defaultAlways: false,
+					},
+				},
+			],
+			[
+				"should parse exclusion filters",
+				"fieldname|exclude-folder:archive|exclude-tag:deprecated|exclude-file:template.md",
+				{
+					fieldName: "fieldname",
+					filters: {
+						excludeFolders: ["archive"],
+						excludeTags: ["deprecated"],
+						excludeFiles: ["template.md"],
+					},
+				},
+			],
+			[
+				"should parse case-sensitive filter",
+				"fieldname|case-sensitive:true",
+				{
+					fieldName: "fieldname",
+					filters: { caseSensitive: true },
+				},
+			],
+			[
+				"should handle complex combinations with all filter types",
+				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false",
+				{
+					fieldName: "fieldname",
+					filters: {
+						folder: "active",
+						folders: ["active"],
+						tags: ["project"],
+						excludeFolders: ["archive"],
+						defaultValue: "Planning",
+						defaultEmpty: true,
+						caseSensitive: false,
+					},
+				},
+			],
+			[
+				"should handle multiple exclude filters of same type",
+				"fieldname|exclude-folder:archive|exclude-folder:old|exclude-tag:deprecated|exclude-tag:obsolete",
+				{
+					fieldName: "fieldname",
+					filters: {
+						excludeFolders: ["archive", "old"],
+						excludeTags: ["deprecated", "obsolete"],
+					},
+				},
+			],
+		])("%s", (_name, input, expected) => {
+			expect(FieldSuggestionParser.parse(input)).toEqual(expected);
 		});
 
-		it("should allow multi-select to be explicitly disabled", () => {
-			const result = FieldSuggestionParser.parse("fieldname|multi:false");
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {},
-			});
-		});
+
+
+
+
+
+
+
+
+
+
+
 
 		it("parses an explicit multi-select format", () => {
-			const result = FieldSuggestionParser.parse(
+			const result=FieldSuggestionParser.parse(
 				"topics|multi|format:markdown",
 			);
 			expect(result.multiSelect).toBe(true);
@@ -122,7 +260,7 @@ describe("FieldSuggestionParser", () => {
 		});
 
 		it("parses |format:spaced", () => {
-			const result = FieldSuggestionParser.parse(
+			const result=FieldSuggestionParser.parse(
 				"topics|multi|format:spaced",
 			);
 			expect(result.multiSelect).toBe(true);
@@ -130,171 +268,29 @@ describe("FieldSuggestionParser", () => {
 		});
 
 		it("warns on |format: without |multi, even |format:auto", () => {
-			const warnings: string[] = [];
-			const result = FieldSuggestionParser.parse("topics|format:auto", {
+			const warnings: string[]=[];
+			const result=FieldSuggestionParser.parse("topics|format:auto", {
 				warn: (msg) => warnings.push(msg),
 			});
 			expect(result.multiFormat).toBeUndefined();
 			expect(warnings.some((m) => m.includes("needs |multi"))).toBe(true);
 		});
 
-		it("should handle tags with # prefix", () => {
-			const result = FieldSuggestionParser.parse("fieldname|tag:#work");
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { tags: ["work"] },
-			});
-		});
 
-		it("should skip invalid filter format", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|invalidfilter",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {},
-			});
-		});
 
-		it("should handle whitespace in input", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname | folder : daily | tag : work",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "daily",
-					folders: ["daily"],
-					tags: ["work"],
-				},
-			});
-		});
 
-		it("should handle folder paths with slashes", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:daily/notes/work",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "daily/notes/work",
-					folders: ["daily/notes/work"],
-				},
-			});
-		});
 
-		it("should parse default value filters", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|default:Default Value",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { defaultValue: "Default Value" },
-			});
-		});
 
-		it("parses default-from:active into a lowercased defaultFrom (issue #1429)", () => {
-			const result = FieldSuggestionParser.parse(
-				"project|default-from:active",
-			);
-			expect(result).toEqual({
-				fieldName: "project",
-				filters: { defaultFrom: "active" },
-			});
-		});
 
-		it("lowercases the default-from source value", () => {
-			const result = FieldSuggestionParser.parse(
-				"project|default-from:Active",
-			);
-			expect(result).toEqual({
-				fieldName: "project",
-				filters: { defaultFrom: "active" },
-			});
-		});
 
-		it("keeps default-from alongside the literal default and other filters", () => {
-			const result = FieldSuggestionParser.parse(
-				"project|folder:Projects|default:Inbox|default-from:active",
-			);
-			expect(result).toEqual({
-				fieldName: "project",
-				filters: {
-					folder: "Projects",
-					folders: ["Projects"],
-					defaultValue: "Inbox",
-					defaultFrom: "active",
-				},
-			});
-		});
 
-		it("should parse default-empty and default-always filters", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|default:To Do|default-empty:true|default-always:false",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					defaultValue: "To Do",
-					defaultEmpty: true,
-					defaultAlways: false,
-				},
-			});
-		});
 
-		it("should parse exclusion filters", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|exclude-folder:archive|exclude-tag:deprecated|exclude-file:template.md",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					excludeFolders: ["archive"],
-					excludeTags: ["deprecated"],
-					excludeFiles: ["template.md"],
-				},
-			});
-		});
 
-		it("should parse case-sensitive filter", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|case-sensitive:true",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: { caseSensitive: true },
-			});
-		});
 
-		it("should handle complex combinations with all filter types", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|folder:active|tag:project|exclude-folder:archive|default:Planning|default-empty:true|case-sensitive:false",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					folder: "active",
-					folders: ["active"],
-					tags: ["project"],
-					excludeFolders: ["archive"],
-					defaultValue: "Planning",
-					defaultEmpty: true,
-					caseSensitive: false,
-				},
-			});
-		});
 
-		it("should handle multiple exclude filters of same type", () => {
-			const result = FieldSuggestionParser.parse(
-				"fieldname|exclude-folder:archive|exclude-folder:old|exclude-tag:deprecated|exclude-tag:obsolete",
-			);
-			expect(result).toEqual({
-				fieldName: "fieldname",
-				filters: {
-					excludeFolders: ["archive", "old"],
-					excludeTags: ["deprecated", "obsolete"],
-				},
-			});
-		});
+
+
+
+
 	});
 });

@@ -52,42 +52,23 @@ class Suggest<T> {
 		containerEl.addEventListener("click", this.clickListener);
 		containerEl.addEventListener("mousemove", this.mousemoveListener);
 
-		// Enhanced keyboard navigation
-		scope.register([], "ArrowUp", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(this.selectedItem - 1, true);
-				return false;
-			}
-		});
-
-		scope.register([], "ArrowDown", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(this.selectedItem + 1, true);
-				return false;
-			}
-		});
-
+		const navigation: Record<string, () => number> = {
+			ArrowUp: () => this.selectedItem - 1,
+			ArrowDown: () => this.selectedItem + 1,
+			PageUp: () => Math.max(0, this.selectedItem - 5),
+			PageDown: () => Math.min(this.suggestions.length - 1, this.selectedItem + 5),
+		};
+		for (const [key, nextIndex] of Object.entries(navigation)) {
+			scope.register([], key, (event) => {
+				if (!event.isComposing && this.isOpen) {
+					this.setSelectedItem(nextIndex(), true);
+					return false;
+				}
+			});
+		}
 		scope.register([], "Enter", (event) => {
 			if (!event.isComposing && this.isOpen) {
 				this.useSelectedItem(event);
-				return false;
-			}
-		});
-
-		// Additional keyboard shortcuts
-		scope.register([], "PageUp", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(Math.max(0, this.selectedItem - 5), true);
-				return false;
-			}
-		});
-
-		scope.register([], "PageDown", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.setSelectedItem(
-					Math.min(this.suggestions.length - 1, this.selectedItem + 5),
-					true,
-				);
 				return false;
 			}
 		});
@@ -213,7 +194,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private currentRequestId = 0;
 	private isOpen = false;
 	private destroyed = false;
-	private noResultsTimeout: number | null = null;
 	private currentQuery = "";
 
 	// Global listeners for close-on-anything-else
@@ -332,75 +312,27 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// listeners; bail so a destroyed instance never re-opens.
 		if (this.destroyed || this.inputEl.closest("[hidden]")) return;
 		const completionEvent = event as CompletionInputEvent | undefined;
-		// Handle multi-select mode: keep suggestions open after selection
-		if (completionEvent?.fromCompletion && completionEvent.keepOpen) {
-			const inputStr = this.inputEl.value;
-			const requestId = ++this.currentRequestId;
-			this.currentQuery = inputStr;
-
-			try {
-				const suggestions = await this.getSuggestions(inputStr);
-				if (requestId === this.currentRequestId) {
-					if (suggestions?.length) {
-						this.suggest.setSuggestions(suggestions);
-						// Already open, just update suggestions
-						if (!this.isOpen) {
-							this.open(this.app.dom.appContainerEl, this.inputEl);
-						}
-					} else {
-						// No more items available to select, close the dropdown
-						this.close();
-					}
-				}
-			} catch (error) {
-				log.logError(error as Error);
-			}
-			return;
-		}
-
-		// Ignore programmatic changes from completion selection
-		if (completionEvent?.fromCompletion) {
-			return;
-		}
+		const keepOpen = Boolean(completionEvent?.fromCompletion && completionEvent.keepOpen);
+		if (completionEvent?.fromCompletion && !keepOpen) return;
 
 		const inputStr = this.inputEl.value;
 		const requestId = ++this.currentRequestId;
-
-		// Store current query for highlighting
 		this.currentQuery = inputStr;
-
 		try {
 			const suggestions = await this.getSuggestions(inputStr);
-
-			// Check if this is still the latest request
-			if (requestId !== this.currentRequestId) {
-				return; // Stale request, ignore
-			}
-
-			if (!suggestions || suggestions.length === 0) {
-				// Show "No matches" briefly before closing
-				if (this.isOpen) {
-					this.showNoResultsAndClose();
-				}
+			if (requestId !== this.currentRequestId) return;
+			if (!suggestions?.length) {
+				if (keepOpen || this.isOpen) this.close();
 				return;
 			}
-
 			this.suggest.setSuggestions(suggestions);
-			this.open(this.app.dom.appContainerEl, this.inputEl);
+			if (!keepOpen || !this.isOpen) {
+				this.open(this.app.dom.appContainerEl, this.inputEl);
+			}
 		} catch (error) {
 			log.logError(error as Error);
-			this.close();
+			if (!keepOpen) this.close();
 		}
-	}
-
-	private showNoResultsAndClose(): void {
-		// Clear any existing timeout
-		if (this.noResultsTimeout) {
-			getOwnerWindow(this.inputEl).clearTimeout(this.noResultsTimeout);
-		}
-
-		// Close immediately for now - could add "No matches" placeholder here
-		this.close();
 	}
 
 	open(container: HTMLElement, inputEl: HTMLElement): void {
@@ -494,12 +426,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		}
 
 		this.suggestEl.remove();
-
-		// Clear no results timeout
-		if (this.noResultsTimeout) {
-			getOwnerWindow(this.inputEl).clearTimeout(this.noResultsTimeout);
-			this.noResultsTimeout = null;
-		}
 
 		// Remove global listeners
 		const activeDocument = getOwnerDocument(this.inputEl);

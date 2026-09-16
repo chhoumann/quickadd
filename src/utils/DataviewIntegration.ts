@@ -62,56 +62,7 @@ export class DataviewIntegration {
 	 * @returns Set of unique field values
 	 */
 	static async getFieldValues(app: App, fieldName: string): Promise<Set<string>> {
-		const values = new Set<string>();
-		const dv = this.getDataviewAPI(app);
-		
-		if (!dv) {
-			return values;
-		}
-
-		try {
-			// Query for all pages that have this field
-			// Properly escape field name to prevent injection
-			const escapedFieldName = escapeDataviewString(fieldName);
-			const safe = `field("${escapedFieldName}")`;
-			const query = `TABLE ${safe} WHERE ${safe}`;
-			const result = await dv.query(query);
-			
-			if (result.successful && result.value.values) {
-				// result.value.values is an array of [file, fieldValue] pairs
-				for (const row of result.value.values) {
-					const fieldValue = row[1]; // Second element is the field value
-					
-					if (Array.isArray(fieldValue)) {
-						// Handle array values
-						fieldValue.forEach(v => {
-							if (v && typeof v === 'string') {
-								values.add(v.trim());
-							} else if (isDataviewFileLike(v)) {
-								// Handle file objects from Dataview
-								values.add(v.path);
-							} else if (v && typeof v !== 'object') {
-								values.add(String(v).trim());
-							}
-						});
-					} else if (isDataviewFileLike(fieldValue)) {
-						// Handle single file object from Dataview
-						values.add(fieldValue.path);
-					} else if (fieldValue && typeof fieldValue === 'string') {
-						// Handle comma-separated values, keeping commas inside
-						// `[[wikilinks]]` attached to their link.
-						splitWikilinkAwareList(fieldValue).forEach(v => values.add(v));
-					} else if (fieldValue && typeof fieldValue !== 'object') {
-						// Handle other non-object values
-						values.add(String(fieldValue).trim());
-					}
-				}
-			}
-		} catch (error) {
-			log.logError(new Error(`Failed to query Dataview for field ${fieldName}: ${error}`));
-		}
-
-		return values;
+		return this.queryFieldValues(app, fieldName);
 	}
 
 	/**
@@ -129,6 +80,12 @@ export class DataviewIntegration {
 		fieldName: string, 
 		filters: FieldFilter = {},
 	): Promise<Set<string>> {
+		return this.queryFieldValues(app, fieldName, filters);
+	}
+
+	private static async queryFieldValues(
+		app: App, fieldName: string, filters?: FieldFilter,
+	): Promise<Set<string>> {
 		const values = new Set<string>();
 		const dv = this.getDataviewAPI(app);
 		
@@ -143,9 +100,9 @@ export class DataviewIntegration {
 			const safe = `field("${escapedFieldName}")`;
 			const conditions: string[] = [safe]; // Field must exist
 
-			const includeFolders = (filters.folders?.length
+			const includeFolders = (filters?.folders?.length
 				? filters.folders
-				: filters.folder
+				: filters?.folder
 					? [filters.folder]
 					: [])
 				.map(folder => folder.replace(/^\/+|\/+$/g, ""))
@@ -158,7 +115,7 @@ export class DataviewIntegration {
 				conditions.push(`(${folderConditions.join(" OR ")})`);
 			}
 			
-			if (filters.tags && filters.tags.length > 0) {
+			if (filters?.tags?.length) {
 				// Add tag conditions (file must have all specified tags)
 				filters.tags.forEach(tag => {
 					const tagName = tag.startsWith('#') ? tag : `#${tag}`;
@@ -167,14 +124,14 @@ export class DataviewIntegration {
 			}
 			
 			// Add exclusion conditions
-			if (filters.excludeFolders && filters.excludeFolders.length > 0) {
+			if (filters?.excludeFolders?.length) {
 				filters.excludeFolders.forEach(excludeFolder => {
 					const normalizedFolder = excludeFolder.replace(/^\/+|\/+$/g, '');
 					conditions.push(`!regexmatch("^${escapeRegexForDataviewString(normalizedFolder)}/", file.path)`);
 				});
 			}
 			
-			if (filters.excludeTags && filters.excludeTags.length > 0) {
+			if (filters?.excludeTags?.length) {
 				filters.excludeTags.forEach(excludeTag => {
 					const tagName = excludeTag.startsWith('#') ? excludeTag : `#${excludeTag}`;
 					conditions.push(`!contains(file.tags, "${escapeDataviewString(tagName)}")`);
@@ -190,7 +147,7 @@ export class DataviewIntegration {
 			// parsing (comma-splitting, link/file-object handling) instead of
 			// bypassing Dataview to the manual collector. Matches the manual
 			// filter's semantics: exact file name (with extension) OR full path.
-			const excludeFiles = filters.excludeFiles ?? [];
+			const excludeFiles = filters?.excludeFiles ?? [];
 			const isExcludedRowFile = (row: unknown[]): boolean => {
 				if (excludeFiles.length === 0) return false;
 				const fileCol = row[0] as { path?: unknown } | null;
@@ -231,7 +188,7 @@ export class DataviewIntegration {
 				}
 			}
 		} catch (error) {
-			log.logError(new Error(`Failed to query Dataview for field ${fieldName} with filters: ${error}`));
+			log.logError(new Error(`Failed to query Dataview for field ${fieldName}${filters ? " with filters" : ""}: ${error}`));
 		}
 
 		return values;

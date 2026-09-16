@@ -35,10 +35,7 @@ export async function collectFieldValuesProcessed(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<string[]> {
-	const rawValues = await collectFieldValuesCached(app, fieldName, filters);
-
-	const processed = FieldValueProcessor.processValues(rawValues, filters);
-	return processed.values;
+	return (await collectFieldValuesProcessedDetailed(app, fieldName, filters)).values;
 }
 
 export async function collectFieldValuesProcessedDetailed(
@@ -147,74 +144,55 @@ function collectAllVaultTags(app: App): Set<string> {
 	return values;
 }
 
+function addValues(values: Set<string>, source: unknown): void {
+	if (source === undefined || source === null) return;
+	for (const value of Array.isArray(source) ? source : [source]) {
+		const text = String(value).trim();
+		if (text) values.add(text);
+	}
+}
+
+async function collectFromFiles(
+	app: App,
+	filters: FieldFilter,
+	collect: (file: TFile, values: Set<string>) => Promise<void> | void,
+): Promise<Set<string>> {
+	const values = new Set<string>();
+	const files = FieldSuggestionFileFilter.filterFiles(
+		app.vault.getMarkdownFiles(), filters,
+		(file) => app.metadataCache.getFileCache(file),
+	);
+	// Bound concurrent reads and merge in vault order, regardless of completion order.
+	for (let i = 0; i < files.length; i += 50) {
+		const results = await Promise.all(files.slice(i, i + 50).map(async (file) => {
+			const collected = new Set<string>();
+			try {
+				await collect(file, collected);
+			} catch {
+				// Preserve values collected before an unreadable field or file.
+			}
+			return collected;
+		}));
+		for (const collected of results) {
+			for (const value of collected) values.add(value);
+		}
+	}
+	return values;
+}
+
 async function collectTagValuesFromFiles(
 	app: App,
 	filters: FieldFilter,
 ): Promise<Set<string>> {
-	const rawValues = new Set<string>();
-
-	let files = app.vault.getMarkdownFiles();
-	files = FieldSuggestionFileFilter.filterFiles(
-		files,
-		filters,
-		(file: TFile) => app.metadataCache.getFileCache(file),
-	);
-
-	const batchSize = 50;
-	for (let i = 0; i < files.length; i += batchSize) {
-		const batch = files.slice(i, i + batchSize);
-		const promises = batch.map(async (file) => {
-			const values = new Set<string>();
-			try {
-				const metadataCache = app.metadataCache.getFileCache(file);
-
-				// Frontmatter tags
-				const frontmatterTags: unknown = metadataCache?.frontmatter?.tags;
-				if (frontmatterTags !== undefined && frontmatterTags !== null) {
-					const tags = Array.isArray(frontmatterTags)
-						? frontmatterTags
-						: [frontmatterTags];
-
-					for (const tag of tags) {
-						const s = String(tag).trim();
-						if (s) values.add(s);
-					}
-				}
-
-				// Frontmatter tag (singular)
-				const frontmatterTag: unknown = metadataCache?.frontmatter?.tag;
-				if (frontmatterTag !== undefined && frontmatterTag !== null) {
-					const tags = Array.isArray(frontmatterTag)
-						? frontmatterTag
-						: [frontmatterTag];
-
-					for (const tag of tags) {
-						const s = String(tag).trim();
-						if (s) values.add(s);
-					}
-				}
-
-				// Inline tags
-				if (metadataCache?.tags) {
-					for (const t of metadataCache.tags) {
-						const raw = String(t.tag ?? "").trim();
-						const tag = raw.startsWith("#") ? raw.substring(1) : raw;
-						if (tag) values.add(tag);
-					}
-				}
-			} catch {
-				// Ignore unreadable metadata for this file and continue collecting.
-			}
-			return values;
-		});
-
-		const batchResults = await Promise.all(promises);
-		for (const set of batchResults) {
-			for (const v of set) rawValues.add(v);
+	return collectFromFiles(app, filters, (file, values) => {
+		const metadata = app.metadataCache.getFileCache(file);
+		addValues(values, metadata?.frontmatter?.tags);
+		addValues(values, metadata?.frontmatter?.tag);
+		for (const entry of metadata?.tags ?? []) {
+			const tag = String(entry.tag ?? "").trim().replace(/^#/, "");
+			if (tag) values.add(tag);
 		}
-	}
-
-	return rawValues;
+	});
 }
 
 async function collectFieldValuesManually(
@@ -222,68 +200,18 @@ async function collectFieldValuesManually(
 	fieldName: string,
 	filters: FieldFilter,
 ): Promise<Set<string>> {
-	const rawValues = new Set<string>();
-
-	// Get all markdown files and apply enhanced filtering
-	let files = app.vault.getMarkdownFiles();
-	files = FieldSuggestionFileFilter.filterFiles(
-		files,
-		filters,
-		(file: TFile) => app.metadataCache.getFileCache(file),
-	);
-
-	// Process files in batches
-	const batchSize = 50;
-	for (let i = 0; i < files.length; i += batchSize) {
-		const batch = files.slice(i, i + batchSize);
-		const promises = batch.map(async (file) => {
-			const values = new Set<string>();
-			try {
-				const metadataCache = app.metadataCache.getFileCache(file);
-				// YAML frontmatter
-				const v: unknown = metadataCache?.frontmatter?.[fieldName];
-				if (v !== undefined && v !== null) {
-					if (Array.isArray(v)) {
-						v.forEach((x) => {
-							const s = String(x).trim();
-							if (s) values.add(s);
-						});
-					} else if (typeof v !== "object") {
-						const s = String(v).trim();
-						if (s) values.add(s);
-					}
-				}
-
-				// Inline fields
-				if (filters.inline) {
-					try {
-						const content = await app.vault.read(file);
-						const inlineValues = InlineFieldParser.getFieldValues(
-							content,
-							fieldName,
-							{
-								includeCodeBlocks: filters.inlineCodeBlocks,
-							},
-						);
-						inlineValues.forEach((s) => {
-							const t = String(s).trim();
-							if (t) values.add(t);
-						});
-					} catch {
-						// Ignore files whose contents cannot be read for inline fields.
-					}
-				}
-			} catch {
-				// Ignore unreadable metadata for this file and continue collecting.
-			}
-			return values;
-		});
-
-		const batchResults = await Promise.all(promises);
-		for (const set of batchResults) {
-			for (const v of set) rawValues.add(v);
+	return collectFromFiles(app, filters, async (file, values) => {
+		const field: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.[fieldName];
+		if (Array.isArray(field)) {
+			field.forEach(value => addValues(values, [value]));
+		} else if (typeof field !== "object") {
+			addValues(values, field);
 		}
-	}
-
-	return rawValues;
+		if (filters.inline) {
+			const content = await app.vault.read(file);
+			addValues(values, [...InlineFieldParser.getFieldValues(content, fieldName, {
+				includeCodeBlocks: filters.inlineCodeBlocks,
+			})]);
+		}
+	});
 }

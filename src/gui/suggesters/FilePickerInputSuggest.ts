@@ -1,3 +1,4 @@
+import { dispatchCompletion } from "./utils";
 import { prepareFuzzySearch, type App } from "obsidian";
 import { TextInputSuggest } from "./suggest";
 
@@ -7,11 +8,6 @@ export interface FilePickerOption {
 	path: string;
 	isCustom?: boolean;
 }
-
-type CompletionInputEvent = Event & {
-	fromCompletion?: boolean;
-	keepOpen?: boolean;
-};
 
 const MAX_RESULTS = 200;
 
@@ -107,10 +103,7 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			return;
 		}
 
-		const event = new Event("input", { bubbles: true }) as CompletionInputEvent;
-		event.fromCompletion = true;
-		event.keepOpen = true;
-		this.inputEl.dispatchEvent(event);
+		dispatchCompletion(this.inputEl, true);
 		this.inputEl.focus();
 	}
 }
