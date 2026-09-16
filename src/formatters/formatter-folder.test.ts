@@ -1,70 +1,7 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, expect, it } from "vitest";
-import { Formatter } from "./formatter";
 
-class StubFormatter extends Formatter {
-  constructor() {
-    super();
-  }
-
-  protected async format(input: string): Promise<string> {
-    return input;
-  }
-
-  protected getCurrentFileLink(): string | null {
-    return null;
-  }
-
-  protected getCurrentFileName(): string | null {
-    return null;
-  }
-
-  protected async promptForValue(): Promise<string> {
-    return "";
-  }
-
-  protected async promptForMathValue(): Promise<string> {
-    return "";
-  }
-
-  protected getVariableValue(_variableName: string): string {
-    return "";
-  }
-
-  protected async suggestForValue(): Promise<string> {
-    return "";
-  }
-
-  protected suggestForFile(): string {
-  	return "";
-  }
-
-  protected async suggestForField(): Promise<string> {
-    return "";
-  }
-
-  protected async getMacroValue(): Promise<string> {
-    return "";
-  }
-
-  protected async promptForVariable(): Promise<string> {
-    return "";
-  }
-
-  protected async getTemplateContent(): Promise<string> {
-    return "";
-  }
-
-  protected async getSelectedText(): Promise<string> {
-    return "";
-  }
-
-  protected async getClipboardContent(): Promise<string> {
-    return "";
-  }
-
-  protected isTemplatePropertyTypesEnabled(): boolean {
-    return false;
-  }
+class StubFormatter extends FormatterStub {
 
   public process(input: string): string {
     return this.replaceTargetFolderInString(input);

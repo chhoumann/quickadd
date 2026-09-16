@@ -106,29 +106,15 @@ describe("FileNameDisplayFormatter resolves the tokens a file name can hold", ()
 		expect(text).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 	});
 
-	it("previews {{FIELD:x}} as a value of that field", async () => {
-		const { text } = await preview("{{FIELD:category}}");
-		expect(text).toBe("category_field_value");
-	});
-
-	it("previews {{SELECTED}} and {{CLIPBOARD}} without reading either", async () => {
-		const { text } = await preview("{{SELECTED}} {{CLIPBOARD}}");
-		expect(text).toBe("selected_text clipboard_content");
-	});
-
-	it("previews {{RANDOM:n}}", async () => {
-		const { text } = await preview("{{RANDOM:4}}");
-		expect(text).toBe("ABC1");
-	});
-
-	it("previews {{FOLDERCURRENT}} as the active file's folder", async () => {
-		const { text } = await preview("{{FOLDERCURRENT}}/Note");
-		expect(text).toBe("test/Note");
-	});
-
-	it("previews {{FILENAMECURRENT}} as the active file's name", async () => {
-		const { text } = await preview("Re {{FILENAMECURRENT}}");
-		expect(text).toBe("Re example");
+	it.each([
+		{ name: "previews {{FIELD:x}} as a value of that field", input: "{{FIELD:category}}", expected: "category_field_value" },
+		{ name: "previews {{SELECTED}} and {{CLIPBOARD}} without reading either", input: "{{SELECTED}} {{CLIPBOARD}}", expected: "selected_text clipboard_content" },
+		{ name: "previews {{RANDOM:n}}", input: "{{RANDOM:4}}", expected: "ABC1" },
+		{ name: "previews {{FOLDERCURRENT}} as the active file's folder", input: "{{FOLDERCURRENT}}/Note", expected: "test/Note" },
+		{ name: "previews {{FILENAMECURRENT}} as the active file's name", input: "Re {{FILENAMECURRENT}}", expected: "Re example" },
+	])("$name", async ({ input, expected }) => {
+		const { text } = await preview(input);
+		expect(text).toBe(expected);
 	});
 
 	it("previews {{TIME}}", async () => {

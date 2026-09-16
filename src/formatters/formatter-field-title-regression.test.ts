@@ -1,13 +1,9 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Formatter } from "./formatter";
 
-class FieldTitleFormatter extends Formatter {
+class FieldTitleFormatter extends FormatterStub {
 	public fieldCalls: string[] = [];
 	private fieldResponses: Map<string, string | string[]> = new Map();
-
-	constructor() {
-		super();
-	}
 
 	public setMockFieldResponse(specifier: string, value: string | string[]): void {
 		this.fieldResponses.set(specifier, value);
@@ -32,10 +28,6 @@ class FieldTitleFormatter extends Formatter {
 		return await this.withTemplatePropertyCollection(() => this.format(input));
 	}
 
-	protected suggestForFile(): string {
-		return "";
-	}
-
 	protected async suggestForField(specifier: string): Promise<string | string[]> {
 		this.fieldCalls.push(specifier);
 		const value = this.fieldResponses.get(specifier);
@@ -45,68 +37,6 @@ class FieldTitleFormatter extends Formatter {
 		}
 
 		return value;
-	}
-
-	protected promptForValue(): string {
-		return "";
-	}
-
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
-	protected suggestForValue(
-		_suggestedValues: string[],
-		_allowCustomInput?: boolean,
-		_context?: { placeholder?: string; variableKey?: string },
-	): string {
-		return "";
-	}
-
-	protected async promptForVariable(
-		_variableName: string,
-		_context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
-	): Promise<string> {
-		return "";
-	}
-
-	protected async promptForMathValue(): Promise<string> {
-		return "";
-	}
-
-	protected getMacroValue(
-		_macroName: string,
-		_context?: { label?: string },
-	): string {
-		return "";
-	}
-
-	protected async getTemplateContent(_templatePath: string): Promise<string> {
-		return "";
-	}
-
-	protected async getSelectedText(): Promise<string> {
-		return "";
-	}
-
-	protected async getClipboardContent(): Promise<string> {
-		return "";
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

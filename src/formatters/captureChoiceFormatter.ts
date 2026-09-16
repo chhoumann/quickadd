@@ -54,35 +54,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		* tp.system.prompt).
 		*/
 	private templaterProcessed = false;
-	/**
-		* When set (by the engine's "Choose heading when capturing" picker), this verbatim
-		* file line replaces the static `insertAfter.after` target for this run. It is a
-		* concrete line copied from the destination file (`lines[heading.line]`), so it is
-		* matched LITERALLY — `formatLocationString`/escape-expansion are deliberately
-		* skipped so a heading whose text contains token-like syntax (e.g. `## {{date}}`)
-		* is not resolved and desynced from the real line. The engine + its single
-		* formatter are constructed fresh per run, so this never leaks across captures.
-		*/
+	/** A picked heading is a verbatim file line: skip token and escape expansion when matching it. */
 	private insertAfterTargetOverride: string | null = null;
-	/**
-	 * The resolved first-line heading of the insert-after target for this run
-	 * (e.g. `## 2026-06-16`, leading `#`s kept), captured once the token-driven
-	 * `after` string is resolved. The engine reads it (via
-	 * getResolvedInsertAfterHeading) to show `Captured to X under '## 2026-06-16'`
-	 * instead of the raw `{{DATE:…}}` token in the success notice for ordered
-	 * captures. Null until the non-inline/non-override block path resolves a
-	 * heading target.
-	 */
+	/** Resolved insert-after heading for the success notice; null until the token-driven block path resolves. */
 	private lastResolvedInsertAfterHeading: string | null = null;
-	/**
-		* Tracks whether `\n` escapes in the capture format string have been expanded.
-		* Expansion must happen on the raw format template BEFORE token substitution,
-		* and only once per capture run: multi-stage flows pass already-substituted
-		* content back into formatFileContent, and backslash sequences inside captured
-		* content (selection, clipboard, prompt input) must survive verbatim — e.g.
-		* capturing the LaTeX selection `\nabla` must not turn into a linebreak + "abla"
-		* (issue #527).
-		*/
+	/** Expand format-template escapes once, before substitution, so captured backslashes remain literal. */
 	private linebreaksProcessed = false;
 	private captureInsertionEndOffset: number | null = null;
 
@@ -122,13 +98,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.insertAfterTargetOverride = target;
 	}
 
-	/**
-	 * The resolved insert-after heading line for this run, leading `#`s KEPT (e.g.
-	 * `## 2026-06-16`), or null if the target was not a resolved heading. Used by
-	 * the engine's success notice for ordered captures (see
-	 * lastResolvedInsertAfterHeading). The `#` form matches the notice's raw-token
-	 * fallback; do not strip it here without aligning the promptHeading path.
-	 */
+	/** Resolved heading for this run, including leading # characters; null when no heading was resolved. */
 	public getResolvedInsertAfterHeading(): string | null {
 		return this.lastResolvedInsertAfterHeading;
 	}
@@ -371,13 +341,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.expandFormatTemplateEscapes(template);
 	}
 
-	/**
-		* Expands linebreak escapes on format-template text. Global variable
-		* snippets are format-template material — the docs promise they are
-		* "processed by the usual formatter passes" — so they must be injected
-		* before linebreak expansion. The second global-var expansion inside
-		* format() is a no-op since no {{GLOBAL_VAR}} tokens remain.
-		*/
+	/** Expand globals before escapes so snippet escapes behave like format-template escapes. */
 	private async expandFormatTemplateEscapes(template: string): Promise<string> {
 		const withGlobals = await this.replaceGlobalVarInString(template);
 		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
@@ -580,104 +544,32 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.fileContent.slice(matchEnd)
 		);
 	}
-
-	private async createInsertAfterIfNotFound(
-		formatted: string,
-		insertAfterLine: string,
-	) {
-		// `insertAfterLine` is the resolved+escape-expanded target already computed
-		// by insertAfterHandler. Reusing it (rather than re-deriving) guarantees the
-		// created block is byte-identical to what the search will look for on the
-		// next run, which is the actual fix for the duplication (issues #742, #527).
-		const insertAfterLineAndFormatted = `${insertAfterLine}\n${formatted}`;
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_TOP
-		) {
-			return this.insertAtNoteBodyStartTracking(insertAfterLineAndFormatted);
-		}
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_BOTTOM
-		) {
-			this.setCaptureInsertionEndOffset(
-				this.fileContent.length + 1 + insertAfterLineAndFormatted.length,
-			);
-			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
-		}
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_CURSOR
-		) {
-			const activeView = getActiveMarkdownEditorView(this.app);
-
-			if (!activeView) {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
-				);
-			}
-
-			try {
-				const cursor = activeView.editor.getCursor();
-				let targetPosition = cursor.line;
-
-				if (this.choice.insertAfter?.insertAtEnd) {
-					if (!this.file)
-						throw new Error("Tried to get sections without file.");
-
-					const fileContentLines: string[] = getLinesInString(this.fileContent);
-
-					const endOfSectionIndex = getEndOfSection(
-						fileContentLines,
-						targetPosition,
-						this.considerSubsectionsForAnchor(fileContentLines, targetPosition),
-					);
-
-					targetPosition = positioning.findInsertAfterPositionAtSectionEnd(
-						fileContentLines,
-						endOfSectionIndex ?? fileContentLines.length - 1,
-						this.fileContent,
-						insertAfterLineAndFormatted,
-					);
-				}
-
-				const newFileContent = this.insertTextAfterPositionInBody(
-					insertAfterLineAndFormatted,
-					this.fileContent,
-					targetPosition,
-				);
-
-				return newFileContent;
-			} catch {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
-				);
-			}
-		}
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_ORDERED
-		) {
+	private async createInsertAfterIfNotFound(formatted: string, insertAfterLine: string) {
+		const settings = this.choice.insertAfter;
+		if (settings?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_ORDERED) {
 			return this.createInsertAfterOrdered(formatted, insertAfterLine);
 		}
-
-		throw new ChoiceAbortError(
-			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
-		);
+		const payload = `${insertAfterLine}\n${formatted}`;
+		return this.createMissingTarget({
+			payload,
+			location: settings?.createIfNotFoundLocation,
+			rawTarget: settings.after,
+			insertAtCursor: (line) => {
+				let position = line;
+				if (settings?.insertAtEnd) {
+					if (!this.file) throw new Error("Tried to get sections without file.");
+					const lines = getLinesInString(this.fileContent);
+					const end = getEndOfSection(lines, line, this.considerSubsectionsForAnchor(lines, line));
+					position = positioning.findInsertAfterPositionAtSectionEnd(
+						lines, end ?? lines.length - 1, this.fileContent, payload,
+					);
+				}
+				return this.insertTextAfterPositionInBody(payload, this.fileContent, position);
+			},
+		});
 	}
 
-	/**
-	 * Create a missing insert-after heading at its sorted position among same-level
-	 * siblings (the "ordered" create-if-not-found location, issue #481). The
-	 * heading level and sort key come from the FIRST line of a (possibly multi-line
-	 * #742) anchor; CRLF is stripped for the line model, then re-applied on splice.
-	 * A non-heading anchor has no sibling band, so it degrades gracefully to the
-	 * existing TOP behavior (parity with considerSubsectionsForAnchor).
-	 */
+	/** Place missing headings among same-level siblings using the first anchor line; non-headings fall back to TOP. */
 	/** True when this capture uses the ordered create-if-not-found location. */
 	private isOrderedCreate(): boolean {
 		return (
@@ -816,130 +708,60 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.setCaptureInsertionEndOffset(insertedEndOffset);
 		return content;
 	}
-
-	private async createInsertBeforeIfNotFound(
-		formatted: string,
-		insertBeforeLine: string,
-	) {
-		const insertBefore = this.choice.insertBefore;
-		if (!insertBefore) {
-			throw new ChoiceAbortError("Insert-before settings are missing.");
-		}
-
-		// `insertBeforeLine` is the resolved+escape-expanded target from
-		// insertBeforeHandler, reused so create and search stay byte-identical.
-		const formattedAndInsertBeforeLine =
-			formatted.endsWith("\n") || formatted.length === 0
-				? `${formatted}${insertBeforeLine}`
-				: `${formatted}\n${insertBeforeLine}`;
-
-		if (
-			insertBefore.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_TOP
-		) {
-			return this.insertAtNoteBodyStartTracking(
-				formattedAndInsertBeforeLine,
-				formatted.length,
-			);
-		}
-
-		if (
-			insertBefore.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_BOTTOM
-		) {
-			this.setCaptureInsertionEndOffset(
-				this.fileContent.length + 1 + formatted.length,
-			);
-			return `${this.fileContent}\n${formattedAndInsertBeforeLine}`;
-		}
-
-		if (
-			insertBefore.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_CURSOR
-		) {
-			const activeView = getActiveMarkdownEditorView(this.app);
-
-			if (!activeView) {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${insertBefore.before}' at cursor position: no active markdown editor.`,
-				);
-			}
-
-			try {
-				const cursor = activeView.editor.getCursor();
-
-				return this.insertTextBeforePositionInBody(
-					formattedAndInsertBeforeLine,
-					this.fileContent,
-					cursor.line,
-					formatted.length,
-				);
-			} catch {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${insertBefore.before}' at cursor position.`,
-				);
-			}
-		}
-
-		throw new ChoiceAbortError(
-			`Unknown createIfNotFoundLocation: ${insertBefore.createIfNotFoundLocation}`,
-		);
+	private async createInsertBeforeIfNotFound(formatted: string, insertBeforeLine: string) {
+		const settings = this.choice.insertBefore;
+		if (!settings) throw new ChoiceAbortError("Insert-before settings are missing.");
+		const payload = formatted.endsWith("\n") || formatted.length === 0
+			? `${formatted}${insertBeforeLine}`
+			: `${formatted}\n${insertBeforeLine}`;
+		return this.createMissingTarget({
+			payload,
+			location: settings.createIfNotFoundLocation,
+			rawTarget: settings.before,
+			cursorOffsetInText: formatted.length,
+			insertAtCursor: (line) => this.insertTextBeforePositionInBody(
+				payload, this.fileContent, line, formatted.length,
+			),
+		});
+	}
+	private async createInlineInsertAfterIfNotFound(formatted: string, targetString: string): Promise<string> {
+		const payload = `${targetString}${formatted}`;
+		return this.createMissingTarget({
+			payload,
+			location: this.choice.insertAfter?.createIfNotFoundLocation,
+			rawTarget: this.choice.insertAfter.after,
+			insertAtCursor: (line) => this.insertTextAfterPositionInBody(payload, this.fileContent, line),
+		});
 	}
 
-	private async createInlineInsertAfterIfNotFound(
-		formatted: string,
-		targetString: string,
-	): Promise<string> {
-		const insertAfterLineAndFormatted = `${targetString}${formatted}`;
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_TOP
-		) {
-			return this.insertAtNoteBodyStartTracking(insertAfterLineAndFormatted);
-		}
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_BOTTOM
-		) {
-			this.setCaptureInsertionEndOffset(
-				this.fileContent.length + 1 + insertAfterLineAndFormatted.length,
-			);
-			return `${this.fileContent}\n${insertAfterLineAndFormatted}`;
-		}
-
-		if (
-			this.choice.insertAfter?.createIfNotFoundLocation ===
-			CREATE_IF_NOT_FOUND_CURSOR
-		) {
-			const activeView = getActiveMarkdownEditorView(this.app);
-
-			if (!activeView) {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position: no active markdown editor.`,
+	/** All create modes share placement and errors; each keeps its cursor insertion semantics. */
+	private createMissingTarget({ payload, location, rawTarget, cursorOffsetInText = payload.length, insertAtCursor }: {
+		payload: string;
+		location: string | undefined;
+		rawTarget: string;
+		cursorOffsetInText?: number;
+		insertAtCursor: (line: number) => string;
+	}): string {
+		switch (location) {
+			case CREATE_IF_NOT_FOUND_TOP:
+				return this.insertAtNoteBodyStartTracking(payload, cursorOffsetInText);
+			case CREATE_IF_NOT_FOUND_BOTTOM:
+				this.setCaptureInsertionEndOffset(this.fileContent.length + 1 + cursorOffsetInText);
+				return `${this.fileContent}\n${payload}`;
+			case CREATE_IF_NOT_FOUND_CURSOR: {
+				const view = getActiveMarkdownEditorView(this.app);
+				if (!view) throw new ChoiceAbortError(
+					`Unable to insert line '${rawTarget}' at cursor position: no active markdown editor.`,
 				);
+				try {
+					return insertAtCursor(view.editor.getCursor().line);
+				} catch {
+					throw new ChoiceAbortError(`Unable to insert line '${rawTarget}' at cursor position.`);
+				}
 			}
-
-			try {
-				const cursor = activeView.editor.getCursor();
-				const targetPosition = cursor.line;
-
-				return this.insertTextAfterPositionInBody(
-					insertAfterLineAndFormatted,
-					this.fileContent,
-					targetPosition,
-				);
-			} catch {
-				throw new ChoiceAbortError(
-					`Unable to insert line '${this.choice.insertAfter.after}' at cursor position.`,
-				);
-			}
+			default:
+				throw new ChoiceAbortError(`Unknown createIfNotFoundLocation: ${location}`);
 		}
-
-		throw new ChoiceAbortError(
-			`Unknown createIfNotFoundLocation: ${this.choice.insertAfter?.createIfNotFoundLocation}`,
-		);
 	}
 
 	private insertAtNoteBodyStartTracking(

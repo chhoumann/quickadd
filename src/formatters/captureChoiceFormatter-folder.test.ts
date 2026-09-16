@@ -1,9 +1,7 @@
+import { createTFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
 
-vi.mock("../utilityObsidian", () => ({
-  templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
 vi.mock("../gui/InputPrompt", () => ({
   __esModule: true,
@@ -14,32 +12,18 @@ vi.mock("../gui/InputPrompt", () => ({
   },
 }));
 
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-  __esModule: true,
-  default: class {
-    constructor() {}
-  },
-}));
+vi.mock("../gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).inputSuggesterMock());
 
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-  __esModule: true,
-  default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("../gui/GenericSuggester/genericSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
 
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-  __esModule: true,
-  default: { Prompt: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).VDateInputPromptMock());
 
 vi.mock("../utils/errorUtils", () => ({
   __esModule: true,
   reportError: vi.fn(),
 }));
 
-vi.mock("../gui/MathModal", () => ({
-  __esModule: true,
-  MathModal: { Prompt: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("../gui/MathModal", async () => (await import("../../tests/helpers/formatters/mocks")).MathModalMock());
 
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
   __esModule: true,
@@ -52,60 +36,13 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
   },
 }));
 
-vi.mock("../engine/SingleMacroEngine", () => ({
-  __esModule: true,
-  SingleMacroEngine: class {
-    constructor() {}
-    async runAndGetOutput() {
-      return "";
-    }
-  },
-}));
+vi.mock("../engine/SingleMacroEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleMacroEngineMockWithConstructor());
 
-vi.mock("../engine/SingleTemplateEngine", () => ({
-  __esModule: true,
-  SingleTemplateEngine: class {
-    constructor() {}
-    async run() {
-      return "";
-    }
-    getAndClearTemplatePropertyVars() {
-      return new Map();
-    }
-    setLinkToCurrentFileBehavior() {}
-  },
-}));
+vi.mock("../engine/SingleTemplateEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMockWithConstructor());
 
-vi.mock("obsidian-dataview", () => ({
-  __esModule: true,
-  getAPI: vi.fn().mockReturnValue(null),
-}));
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
-
-const createMockApp = (): App =>
-  ({
-    workspace: {
-      getActiveFile: vi.fn().mockReturnValue(null),
-      getActiveViewOfType: vi.fn().mockReturnValue(null),
-    },
-    metadataCache: { getFileCache: vi.fn().mockReturnValue(null) },
-    fileManager: {
-      generateMarkdownLink: vi.fn().mockReturnValue(""),
-      processFrontMatter: vi.fn(),
-    },
-    vault: { adapter: { exists: vi.fn() }, cachedRead: vi.fn() },
-  }) as unknown as App;
-
-const createTFile = (path: string): TFile => {
-  const name = path.split("/").pop() ?? path;
-  return {
-    path,
-    name,
-    basename: name.replace(/\.(md|canvas)$/i, ""),
-    extension: path.endsWith(".md") ? "md" : "canvas",
-  } as unknown as TFile;
-};
 
 const createFormatter = () => {
   const app = createMockApp();

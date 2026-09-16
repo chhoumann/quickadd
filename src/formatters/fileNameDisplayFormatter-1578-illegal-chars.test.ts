@@ -282,24 +282,16 @@ describe("the file-name preview does not cry wolf", () => {
 		expect(diagnostics).toEqual([{ severity: "error", kind: "path", message: REFUSED }]);
 	});
 
-	it("does not invent a colon out of a prompt header", async () => {
+	it.each([
+		{ name: "does not invent a colon out of a prompt header", input: "{{VALUE:Cost: USD}}", expected: "user input" },
+		{ name: "does not invent a colon out of a macro name", input: "{{MACRO:my:macro}}", expected: "macro_output" },
+		{ name: "does not invent a colon out of a field name", input: "{{FIELD:a:b}}", expected: "field_value" },
+	])("$name", async ({ input, expected }) => {
 		// The run prompts with this header and splices in the ANSWER, so a colon
 		// in the header is never in the name. The stand-in degrades to the
 		// generic one rather than accusing the author.
-		const { text, diagnostics } = await preview("{{VALUE:Cost: USD}}");
-		expect(text).toBe("user input");
-		expect(diagnostics).toEqual([]);
-	});
-
-	it("does not invent a colon out of a macro name", async () => {
-		const { text, diagnostics } = await preview("{{MACRO:my:macro}}");
-		expect(text).toBe("macro_output");
-		expect(diagnostics).toEqual([]);
-	});
-
-	it("does not invent a colon out of a field name", async () => {
-		const { text, diagnostics } = await preview("{{FIELD:a:b}}");
-		expect(text).toBe("field_value");
+		const { text, diagnostics } = await preview(input);
+		expect(text).toBe(expected);
 		expect(diagnostics).toEqual([]);
 	});
 

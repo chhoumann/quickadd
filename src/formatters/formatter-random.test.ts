@@ -1,40 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { RANDOM_REGEX } from "../constants";
 
-// Test implementation that includes the replaceRandomInString method
-class TestFormatter {
-    protected replacer(str: string, reg: RegExp, replaceValue: string) {
-        return str.replace(reg, function () {
-            return replaceValue;
-        });
-    }
+import { StubFormatter } from "../../tests/helpers/formatters/stubFormatter";
 
-    protected replaceRandomInString(input: string): string {
-        let output = input;
-        
-        while (RANDOM_REGEX.test(output)) {
-            const match = RANDOM_REGEX.exec(output);
-            if (!match || !match[1]) continue;
-            
-            const length = parseInt(match[1]);
-            if (length <= 0 || length > 100) {
-                throw new Error(`Random string length must be between 1 and 100. Got: ${length}`);
-            }
-            
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-            let randomString = '';
-            
-            for (let i = 0; i < length; i++) {
-                randomString += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
-            
-            output = output.replace(match[0], randomString);
-        }
-        
-        return output;
-    }
-
-    // Expose for testing
+class TestFormatter extends StubFormatter {
     public testReplaceRandomInString(input: string): string {
         return this.replaceRandomInString(input);
     }

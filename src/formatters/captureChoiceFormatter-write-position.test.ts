@@ -1,108 +1,12 @@
+import { createMockAppVariant2 as createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-			} as any;
-		}
-	},
-}));
-
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: class {
-		constructor() {}
-	},
-}));
-
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: {
-		Suggest: vi.fn().mockResolvedValue(""),
-	},
-}));
-
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: {
-		Prompt: vi.fn().mockResolvedValue(""),
-	},
-}));
-
-vi.mock("../utils/errorUtils", () => ({
-	__esModule: true,
-	reportError: vi.fn(),
-}));
-
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: {
-		Prompt: vi.fn().mockResolvedValue(""),
-	},
-}));
-
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
-	__esModule: true,
-	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
-		constructor() {}
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-
-vi.mock("../engine/SingleMacroEngine", () => ({
-	__esModule: true,
-	SingleMacroEngine: class {
-		constructor() {}
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	__esModule: true,
-	SingleTemplateEngine: class {
-		constructor() {}
-		async run() {
-			return "";
-		}
-		getAndClearTemplatePropertyVars() {
-			return new Map();
-		}
-		setLinkToCurrentFileBehavior() {}
-	},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAdd {
-		static instance = {
-			settings: { inputPrompt: "single-line" },
-			app: {
-				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
-			},
-		};
-		settings = QuickAdd.instance.settings;
-		app = QuickAdd.instance.app;
-	},
-}));
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
@@ -146,25 +50,6 @@ const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice =
 	...overrides,
 });
 
-const createMockApp = (): App =>
-	({
-		workspace: {
-			getActiveFile: vi.fn().mockReturnValue(null),
-			getActiveViewOfType: vi.fn().mockReturnValue(null),
-		},
-		metadataCache: {
-			getFileCache: vi.fn().mockReturnValue(null),
-		},
-		fileManager: {
-			generateMarkdownLink: vi.fn().mockReturnValue(""),
-			processFrontMatter: vi.fn(),
-		},
-		vault: {
-			adapter: { exists: vi.fn() },
-			cachedRead: vi.fn(),
-		},
-	} as unknown as App);
-
 const createFile = (path = "Test.md"): TFile => {
 	const name = path.split("/").pop() ?? path;
 	return {
@@ -188,14 +73,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("writes to top for non-active targets when prepend is false", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -212,14 +90,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("tracks cursor after top insertion below frontmatter", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -238,14 +109,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("tracks cursor past the frontmatter separator line (issue #1538)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -267,14 +131,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("writes to bottom for non-active targets when prepend is true", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -291,14 +148,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -318,14 +168,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("inserts before a matched target line", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -351,14 +194,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("separates capture content from the matched line when inserting before", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -384,14 +220,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("resolves format syntax in insert-before target lines", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 		formatter.setTitle("Project Alpha");
 
@@ -418,14 +247,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("creates a missing insert-before target below the capture", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -451,14 +273,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("keeps existing body content separated when creating a missing insert-before target at top", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -482,14 +297,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("keeps frontmatter body content separated when creating a missing insert-before target at top", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -515,14 +323,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("tracks cursor after inline insert-after in the matched occurrence", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -553,14 +354,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("captures a non-breaking-space-only payload instead of dropping it as empty (issue #760)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -576,14 +370,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("returns a non-breaking-space-only payload from formatContentOnly (issue #760)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentOnly("\u00A0");
@@ -594,14 +381,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("still treats ASCII-whitespace-only payloads as empty captures", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -617,14 +397,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("keeps task captures separated when creating a missing insert-before target at top", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		const result = await formatter.formatContentWithFile(
@@ -648,14 +421,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("inserts under the runtime-picked heading override instead of the static after text (#738)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		// "Under heading…" sets a verbatim line override; the static `after` is ignored.
@@ -690,14 +456,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("matches the heading override literally, never resolving token-like heading text (#738)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		// A real heading whose text contains format-token syntax. If the override were run
@@ -735,14 +494,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("takes the block (section) path for a heading override even if a stale inline flag is set (#738 blocker)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		formatter.setInsertAfterTargetOverride("## Foo");
@@ -779,14 +531,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("creates a typed heading override via create-if-not-found, byte-symmetric with search (#738/#742)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		// User typed a heading that doesn't exist yet; "Create line if not found" creates it.
@@ -820,14 +565,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
-			{
-				settings: {
-					enableTemplatePropertyTypes: false,
-					globalVariables: {},
-					showCaptureNotification: false,
-					showInputCancellationNotification: true,
-				},
-			} as any,
+			createCaptureFormatterPlugin(),
 		);
 
 		// Two identical heading lines: the picker's items collapse to one and the search

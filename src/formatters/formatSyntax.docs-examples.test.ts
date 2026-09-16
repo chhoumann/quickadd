@@ -1,7 +1,7 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GLOBAL_VAR_REGEX } from "../constants";
 import type { PromptContext } from "./formatter";
-import { Formatter } from "./formatter";
 import { RequirementCollector } from "src/preflight/RequirementCollector";
 import { buildValueVariableKey } from "src/utils/valueSyntax";
 
@@ -114,7 +114,7 @@ function installMomentStub(): void {
 	(globalThis as any).window.moment = moment;
 }
 
-class DocsExampleFormatter extends Formatter {
+class DocsExampleFormatter extends FormatterStub {
 	public readonly suggestCalls: Array<{
 		suggestedValues: string[];
 		allowCustomInput?: boolean;
@@ -213,10 +213,6 @@ class DocsExampleFormatter extends Formatter {
 		return suggestedValues[0] ?? "";
 	}
 
-	protected suggestForFile(): string {
-		return "";
-	}
-
 	protected async suggestForField(variableName: string): Promise<string> {
 		return `[field:${variableName}]`;
 	}
@@ -260,10 +256,6 @@ class DocsExampleFormatter extends Formatter {
 
 	protected async getClipboardContent(): Promise<string> {
 		return "clipboard text";
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

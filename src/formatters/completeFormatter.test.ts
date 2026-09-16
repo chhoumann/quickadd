@@ -42,11 +42,7 @@ const mocks = vi.hoisted(() => ({
 
 // --- Module mocks --------------------------------------------------------
 
-vi.mock("obsidian", () => {
-	// MarkdownView is only referenced as a token passed to getActiveViewOfType.
-	class MarkdownView {}
-	return { MarkdownView };
-});
+vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mocks")).obsidianMock());
 
 vi.mock("../engine/SingleMacroEngine", () => ({
 	SingleMacroEngine: class {
@@ -180,13 +176,7 @@ vi.mock("../settingsStore", () => ({
 }));
 
 // Keep the logger silent/deterministic.
-vi.mock("../logger/logManager", () => ({
-	log: {
-		logError: vi.fn(),
-		logWarning: vi.fn(),
-		logMessage: vi.fn(),
-	},
-}));
+vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
 const { CompleteFormatter } = await import("./completeFormatter");
 const { MacroAbortError } = await import("../errors/MacroAbortError");

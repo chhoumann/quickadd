@@ -1,9 +1,9 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Formatter } from './formatter';
 import { DATE_VARIABLE_REGEX } from '../constants';
 
 // Mock the abstract Formatter class for testing
-class TestFormatter extends Formatter {
+class TestFormatter extends FormatterStub {
     public variables = new Map<string, unknown>();
     private mockPromptValue = "";
 
@@ -30,10 +30,6 @@ class TestFormatter extends Formatter {
     get testDateParser(): any {
         //@ts-ignore
         return this.dateParser;
-    }
-
-    protected async format(input: string): Promise<string> {
-        return input;
     }
 
     protected getMacroValue(
@@ -74,14 +70,6 @@ class TestFormatter extends Formatter {
         return suggestedValues[0] || "";
     }
 
-    protected suggestForFile(): string {
-    	return "";
-    }
-
-    protected async suggestForField(_variableName: string): Promise<string> {
-        return "";
-    }
-
     // Abstract methods that need to be implemented
     protected async promptForValue(variableName: string): Promise<string> {
         return this.mockPromptValue || `prompted-${variableName}`;
@@ -91,28 +79,12 @@ class TestFormatter extends Formatter {
         return "[[current-file]]";
     }
 
-    protected getCurrentFileName(): string | null {
-        return null;
-    }
-
     protected async promptForMathValue(): Promise<string> {
         return this.mockPromptValue || "42";
     }
 
     protected getVariableValue(variableName: string): string {
         return this.variables.get(variableName) as string || "";
-    }
-
-    protected async getSelectedText(): Promise<string> {
-        return "";
-    }
-
-    protected async getClipboardContent(): Promise<string> {
-        return "";
-    }
-
-    protected isTemplatePropertyTypesEnabled(): boolean {
-        return false; // Test formatter doesn't need structured YAML variable handling
     }
 
     // Expose the method for testing

@@ -1,11 +1,8 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Formatter } from './formatter';
 
 // Create a test implementation of the abstract Formatter class
-class TestFormatter extends Formatter {
-    constructor() {
-        super();
-    }
+class TestFormatter extends FormatterStub {
 
     protected async format(input: string): Promise<string> {
         let output = input;
@@ -17,74 +14,8 @@ class TestFormatter extends Formatter {
         return "test value";
     }
 
-    protected getCurrentFileLink(): string | null {
-        return null;
-    }
-
-    protected getCurrentFileName(): string | null {
-        return null;
-    }
-
     protected getVariableValue(variableName: string): string {
         return (this.variables.get(variableName) as string) ?? "";
-    }
-
-    protected suggestForValue(
-        _suggestedValues: string[],
-        _allowCustomInput?: boolean,
-        _context?: { placeholder?: string; variableKey?: string },
-    ): string {
-        return "";
-    }
-
-    protected suggestForFile(): string {
-    	return "";
-    }
-
-    protected suggestForField(_variableName: string): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected promptForMathValue(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getMacroValue(
-        _macroName: string,
-        _context?: { label?: string },
-    ): string {
-        return "";
-    }
-
-    protected promptForVariable(
-        _variableName: string,
-        _context?: {
-            type?: string;
-            dateFormat?: string;
-            defaultValue?: string;
-            label?: string;
-            description?: string;
-            placeholder?: string;
-            variableKey?: string;
-        },
-    ): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getTemplateContent(_templatePath: string): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getSelectedText(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getClipboardContent(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected isTemplatePropertyTypesEnabled(): boolean {
-        return false; // Test formatter doesn't need structured YAML variable handling
     }
 
     // Expose for testing
@@ -105,22 +36,14 @@ describe('Formatter - Title Handling', () => {
     });
 
     describe('replaceTitleInString', () => {
-        it('should replace {{title}} with the set title', () => {
+        it.each([
+        	{ name: 'should replace {{title}} with the set title', input: 'Note: {{title}}', expected: 'Note: My Note Title' },
+        	{ name: 'should replace {{TITLE}} (case insensitive)', input: 'Note: {{TITLE}}', expected: 'Note: My Note Title' },
+        	{ name: 'should replace multiple {{title}} occurrences', input: '{{title}} - Content - {{title}}', expected: 'My Note Title - Content - My Note Title' },
+        ])("$name", ({ input, expected }) => {
             formatter.setTitle('My Note Title');
-            const result = formatter.testReplaceTitleInString('Note: {{title}}');
-            expect(result).toBe('Note: My Note Title');
-        });
-
-        it('should replace {{TITLE}} (case insensitive)', () => {
-            formatter.setTitle('My Note Title');
-            const result = formatter.testReplaceTitleInString('Note: {{TITLE}}');
-            expect(result).toBe('Note: My Note Title');
-        });
-
-        it('should replace multiple {{title}} occurrences', () => {
-            formatter.setTitle('My Note Title');
-            const result = formatter.testReplaceTitleInString('{{title}} - Content - {{title}}');
-            expect(result).toBe('My Note Title - Content - My Note Title');
+            const result = formatter.testReplaceTitleInString(input);
+            expect(result).toBe(expected);
         });
 
         it('should return empty string when title is not set', () => {

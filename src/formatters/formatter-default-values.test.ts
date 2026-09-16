@@ -1,19 +1,13 @@
+import { StubFormatter } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from 'vitest';
 
 // Mock the abstract methods for testing
-class TestFormatter {
-    protected variables: Map<string, unknown> = new Map();
+class TestFormatter extends StubFormatter {
     private promptResponses: Map<string, string> = new Map();
     private suggesterResponses: Map<string, string> = new Map();
 
     protected getVariableValue(variableName: string): string {
         return (this.variables.get(variableName) as string) ?? "";
-    }
-
-    protected replacer(str: string, reg: RegExp, replaceValue: string) {
-        return str.replace(reg, function () {
-            return replaceValue;
-        });
     }
 
     protected async promptForVariable(variableName: string): Promise<string> {
@@ -24,57 +18,9 @@ class TestFormatter {
         const key = suggestedValues.join(",");
         return this.suggesterResponses.get(key) || "";
     }
-
-    // Expose the method we're testing
-    public async testReplaceVariableInString(input: string): Promise<string> {
-        const VARIABLE_REGEX = /{{VALUE:([^\n\r}]*)}}/i;
-        let output: string = input;
-
-        while (VARIABLE_REGEX.test(output)) {
-            const match = VARIABLE_REGEX.exec(output);
-            if (!match) throw new Error("unable to parse variable");
-
-            let variableName = match[1];
-            let defaultValue = "";
-
-            if (variableName) {
-                // Parse default value if present (syntax: {{VALUE:name|default}})
-                const pipeIndex = variableName.indexOf("|");
-                if (pipeIndex !== -1) {
-                    defaultValue = variableName.substring(pipeIndex + 1).trim();
-                    variableName = variableName.substring(0, pipeIndex).trim();
-                }
-
-                if (!this.getVariableValue(variableName)) {
-                    const suggestedValues = variableName.split(",");
-                    let variableValue = "";
-
-                    if (suggestedValues.length === 1) {
-                        variableValue = await this.promptForVariable(variableName);
-                    } else {
-                        variableValue = await this.suggestForValue(suggestedValues);
-                    }
-
-                    // Use default value if no input provided
-                    if (!variableValue && defaultValue) {
-                        variableValue = defaultValue;
-                    }
-
-                    this.variables.set(variableName, variableValue);
-                }
-
-                output = this.replacer(
-                    output,
-                    VARIABLE_REGEX,
-                    this.getVariableValue(variableName)
-                );
-            } else {
-                break;
-            }
-        }
-
-        return output;
-    }
+	public async testReplaceVariableInString(input: string): Promise<string> {
+		return this.replaceVariableInString(input);
+	}
 
     // Test helpers
     public setPromptResponse(variableName: string, response: string) {
@@ -100,70 +46,32 @@ describe('Formatter - Default Values for {{VALUE:variable}}', () => {
     });
 
     describe('Basic default value functionality', () => {
-        it('should use default value when user provides no input', async () => {
-            const input = "Hello {{VALUE:name|World}}!";
-            formatter.setPromptResponse('name', ''); // Empty response
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Hello World!");
-        });
+        it.each([
+        	{ name: 'should use default value when user provides no input', input: "Hello {{VALUE:name|World}}!", promptResponse: '', expected: "Hello World!" },
+        	{ name: 'should use user input when provided instead of default', input: "Hello {{VALUE:name|World}}!", promptResponse: 'Universe', expected: "Hello Universe!" },
+        	{ name: 'should work without default value (backwards compatibility)', input: "Hello {{VALUE:name}}!", promptResponse: 'Test', expected: "Hello Test!" },
+        	{ name: 'should handle empty default value', input: "Hello {{VALUE:name|}}!", promptResponse: '', expected: "Hello !" },
+        ])("$name", async ({ input, promptResponse, expected }) => {
 
-        it('should use user input when provided instead of default', async () => {
-            const input = "Hello {{VALUE:name|World}}!";
-            formatter.setPromptResponse('name', 'Universe');
+            formatter.setPromptResponse('name', promptResponse); // Empty response
             
             const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Hello Universe!");
-        });
-
-        it('should work without default value (backwards compatibility)', async () => {
-            const input = "Hello {{VALUE:name}}!";
-            formatter.setPromptResponse('name', 'Test');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Hello Test!");
-        });
-
-        it('should handle empty default value', async () => {
-            const input = "Hello {{VALUE:name|}}!";
-            formatter.setPromptResponse('name', '');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Hello !");
+            expect(result).toBe(expected);
         });
     });
 
     describe('Edge cases', () => {
-        it('should handle default value with spaces', async () => {
-            const input = "{{VALUE:greeting|Hello World}}";
-            formatter.setPromptResponse('greeting', '');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Hello World");
-        });
+        it.each([
+        	{ name: 'should handle default value with spaces', input: "{{VALUE:greeting|Hello World}}", promptResponse: 'greeting', expected: "Hello World" },
+        	{ name: 'should trim whitespace around default value', input: "{{VALUE:name| Default Value }}", promptResponse: 'name', expected: "Default Value" },
+        	{ name: 'should handle multiple pipes in default value', input: "{{VALUE:name|Default|With|Pipes}}", promptResponse: 'name', expected: "Default|With|Pipes" },
+        	{ name: 'should handle special characters in default value', input: "{{VALUE:code|<div>Hello</div>}}", promptResponse: 'code', expected: "<div>Hello</div>" },
+        ])("$name", async ({ input, promptResponse, expected }) => {
 
-        it('should trim whitespace around default value', async () => {
-            const input = "{{VALUE:name| Default Value }}";
-            formatter.setPromptResponse('name', '');
+            formatter.setPromptResponse(promptResponse, '');
             
             const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Default Value");
-        });
-
-        it('should handle multiple pipes in default value', async () => {
-            const input = "{{VALUE:name|Default|With|Pipes}}";
-            formatter.setPromptResponse('name', '');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("Default|With|Pipes");
-        });
-
-        it('should handle special characters in default value', async () => {
-            const input = "{{VALUE:code|<div>Hello</div>}}";
-            formatter.setPromptResponse('code', '');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("<div>Hello</div>");
+            expect(result).toBe(expected);
         });
 
         it('should handle multiple variables with defaults', async () => {
@@ -213,30 +121,16 @@ describe('Formatter - Default Values for {{VALUE:variable}}', () => {
     });
 
     describe('Complex scenarios', () => {
-        it('should handle markdown links in default value', async () => {
-            const input = "{{VALUE:link|[[DefaultPage]]}}";
-            formatter.setPromptResponse('link', '');
-            
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("[[DefaultPage]]");
-        });
+        it.each([
+        	{ name: 'should handle markdown links in default value', input: "{{VALUE:link|[[DefaultPage]]}}", promptResponse: 'link', expected: "[[DefaultPage]]" },
+        	{ name: 'should handle JSON-like default values', input: '{{VALUE:data|{"key": "value"}}}', promptResponse: 'data', expected: '{"key": "value"}' },
+        	{ name: 'should handle empty string as user input (not use default)', input: "{{VALUE:name|DefaultName}}", promptResponse: 'name', expected: "DefaultName" },
+        ])("$name", async ({ input, promptResponse, expected }) => {
 
-        it('should handle JSON-like default values', async () => {
-            const input = '{{VALUE:data|{"key": "value"}}}';
-            formatter.setPromptResponse('data', '');
+            formatter.setPromptResponse(promptResponse, '');
             
             const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe('{"key": "value"}');
-        });
-
-        it('should handle empty string as user input (not use default)', async () => {
-            const input = "{{VALUE:name|DefaultName}}";
-            formatter.setPromptResponse('name', ''); // User explicitly enters empty
-            
-            // In the current implementation, empty string triggers default
-            // This is the expected behavior based on the requirements
-            const result = await formatter.testReplaceVariableInString(input);
-            expect(result).toBe("DefaultName");
+            expect(result).toBe(expected);
         });
     });
 });

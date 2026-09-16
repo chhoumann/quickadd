@@ -1,9 +1,6 @@
-import {
-	defaultDateVariableFormat,
-	Formatter,
-	renderStoredDateVariable,
-	type PromptContext,
-} from "./formatter";
+import { PreviewFormatter } from "./previewFormatter";
+import { expandGlobalVariables } from "./helpers/globalVariables";
+import { defaultDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -11,28 +8,15 @@ import {
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import { getTemplateFile } from "../utils/templateFolderUtils";
-import { DATE_VARIABLE_REGEX, GLOBAL_VAR_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
-import {
-	getVariableExample,
-	getMacroPreview,
-	getVariablePromptExample,
-	getSuggestionPreview,
-	fieldValuePreview,
-	getCurrentFileLinkPreview,
-	getCurrentFileLinkToSectionPreview,
-	getCurrentFileNamePreview,
-	getCurrentFolderPathPreview,
-	DateFormatPreviewGenerator
-} from "./helpers/previewHelpers";
+import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, getCurrentFileLinkToSectionPreview, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
 import { getValueVariableBaseName } from "../utils/valueSyntax";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import { snappedExampleDate } from "./helpers/snappedExampleDate";
-import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
-import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
-export class FormatDisplayFormatter extends Formatter {
+export class FormatDisplayFormatter extends PreviewFormatter {
 	constructor(
 		app: App,
 		private readonly plugin: QuickAdd,
@@ -47,28 +31,6 @@ export class FormatDisplayFormatter extends Formatter {
 	) {
 		super(app);
 		this.dateParser = dateParser || NLDParser;
-	}
-
-	/**
-	 * Problems this pass ran into, for passive display beside the preview.
-	 *
-	 * A preview is a speculative evaluation of INCOMPLETE input, re-run on every
-	 * keystroke, so it must not have the run's side effects: while you type
-	 * `pascal` into `{{VALUE:title|case:}}` every prefix is a complete, invalid
-	 * token, and the inherited `log.logWarning` stacked one Obsidian Notice per
-	 * character (issue #1558). The real run still warns; this collects.
-	 *
-	 * Replaced at the start of every `format()` so a pass never inherits the
-	 * previous one's complaints.
-	 */
-	public diagnostics = new PreviewDiagnostics();
-
-	protected warn(message: string): void {
-		this.diagnostics.add("warning", message);
-	}
-
-	protected reportProblem(message: string): void {
-		this.diagnostics.add("error", message);
 	}
 
 	public async format(input: string): Promise<string> {
@@ -88,12 +50,7 @@ export class FormatDisplayFormatter extends Formatter {
 		}
 	}
 
-	/**
-	 * The preview pass list. `expandLinebreakEscapes` is false for an INCLUDED
-	 * template body: the runtime treats `\n` as format-template material and never
-	 * expands it on substituted content (issue #527), so expanding it here would
-	 * corrupt a template containing `\nabla` or `C:\Users\nadia`.
-	 */
+	/** Included template bodies use content token semantics. Their title is resolved separately without invented examples. */
 	private async formatInternal(
 		input: string,
 		{ expandLinebreakEscapes }: { expandLinebreakEscapes: boolean },
@@ -140,19 +97,7 @@ export class FormatDisplayFormatter extends Formatter {
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		let output = input;
-		let guard = 0;
-		const re = new RegExp(GLOBAL_VAR_REGEX.source, 'gi');
-		while (re.test(output)) {
-			if (++guard > 5) break;
-			output = output.replace(re, (_m, rawName) => {
-				const name = String(rawName ?? '').trim();
-				if (!name) return _m;
-				const snippet = this.plugin?.settings?.globalVariables?.[name];
-				return typeof snippet === 'string' ? snippet : '';
-			});
-		}
-		return output;
+		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 	protected promptForValue(header?: string): string {
 		return header || "user input";
@@ -165,26 +110,11 @@ export class FormatDisplayFormatter extends Formatter {
 		return getVariableExample(baseName);
 	}
 
-	protected getCurrentFileLink(): string | null {
-		if (!this.app) return null;
-		return getCurrentFileLinkPreview(this.app.workspace.getActiveFile());
-	}
-
 	protected getCurrentFileLinkToSection(): string | null {
 		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
 		return getCurrentFileLinkToSectionPreview(
 			this.app.workspace.getActiveFile(),
 		);
-	}
-
-	protected getCurrentFileName(): string | null {
-		if (!this.app) return "current_filename";
-		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
-	}
-
-	protected getCurrentFolderPath(): string | null {
-		if (!this.app) return "current_folder";
-		return getCurrentFolderPathPreview(this.app.workspace.getActiveFile());
 	}
 
 	protected suggestForValue(
@@ -206,10 +136,6 @@ export class FormatDisplayFormatter extends Formatter {
 		return getMacroPreview(macroName);
 	}
 
-	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("calculation_result");
-	}
-
 	protected promptForVariable(
 		variableName: string,
 		context?: PromptContext
@@ -217,21 +143,7 @@ export class FormatDisplayFormatter extends Formatter {
 		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
-	/**
-	 * Previews an included template's body WITHOUT the runtime engine.
-	 *
-	 * This used to build a `SingleTemplateEngine`, whose base `TemplateEngine`
-	 * constructs a real `CompleteFormatter` — so typing `{{TEMPLATE:x.md}}` into a
-	 * builder field ran the RUN-TIME formatter over that template on every
-	 * keystroke. Verified live on Obsidian 1.13.0: it opened real, blocking input
-	 * prompt modals on top of the settings window, fired the run's warning
-	 * Notices for tokens inside the template, and reached the macro engine — where
-	 * it threw, because the preview passes no choice executor, and the throw was
-	 * swallowed into a "Template (not found)" that was simply a lie (issue #1558).
-	 *
-	 * Resolving the body through THIS formatter keeps the preview inert: the same
-	 * substitutions the top level gets, no prompts, no macro engine, no inline JS.
-	 */
+	/** Resolve included bodies through this preview, never a runtime engine that could execute scripts or prompt. */
 	protected async getTemplateContent(templatePath: string): Promise<string> {
 		const app = this.app;
 		if (!app) {
@@ -281,33 +193,11 @@ export class FormatDisplayFormatter extends Formatter {
 		}
 	}
 
-	 
-	protected async getSelectedText(): Promise<string> {
-		return "selected_text";
-	}
-
-	protected async getClipboardContent(): Promise<string> {
-		return "clipboard_content";
-	}
-
 	protected async suggestForField(
 		_variableName: string,
 		parsed: { fieldName: string },
 	) {
 		return Promise.resolve(fieldValuePreview(parsed));
-	}
-
-	protected suggestForFile(parsed: ParsedFileToken): string {
-		// Preview: show a representative real file, else a placeholder. Never prompt.
-		const files = this.app
-			? FieldSuggestionFileFilter.filterFiles(
-					this.app.vault.getMarkdownFiles(),
-					parsed.filter,
-					(file) => this.app!.metadataCache.getFileCache(file),
-				)
-			: [];
-		if (files.length > 0) return `${FILE_PICK_PREFIX}${files[0].path}`;
-		return `${FILE_CUSTOM_PREFIX}${parsed.folderPath || "file"}`;
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
@@ -409,9 +299,5 @@ export class FormatDisplayFormatter extends Formatter {
 		});
 		
 		return output;
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false; // Preview formatter doesn't need structured YAML variable handling
 	}
 }

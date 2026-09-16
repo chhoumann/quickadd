@@ -1,3 +1,4 @@
+import { createSelectionFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -5,89 +6,18 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
 // Mocks mirror captureChoiceFormatter-742-multiline-insert.test.ts so the
 // formatter can run under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
-			} as any;
-		}
-	},
-}));
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: class {
-		constructor() {}
-	},
-}));
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../utils/errorUtils", () => ({
-	__esModule: true,
-	reportError: vi.fn(),
-	isCancellationError: vi.fn().mockReturnValue(false),
-}));
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
-	__esModule: true,
-	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleMacroEngine", () => ({
-	__esModule: true,
-	SingleMacroEngine: class {
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	__esModule: true,
-	SingleTemplateEngine: class {
-		async run() {
-			return "";
-		}
-		getAndClearTemplatePropertyVars() {
-			return new Map();
-		}
-		setLinkToCurrentFileBehavior() {}
-	},
-}));
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAdd {
-		static instance = {
-			settings: { inputPrompt: "single-line" },
-			app: {
-				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
-			},
-		};
-		settings = QuickAdd.instance.settings;
-		app = QuickAdd.instance.app;
-	},
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../gui/InputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).InputPromptMock());
+vi.mock("../gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).inputSuggesterMock());
+vi.mock("../gui/GenericSuggester/genericSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
+vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).VDateInputPromptMock());
+vi.mock("../utils/errorUtils", async () => (await import("../../tests/helpers/formatters/mocks")).errorUtilsMock());
+vi.mock("../gui/MathModal", async () => (await import("../../tests/helpers/formatters/mocks")).MathModalMock());
+vi.mock("../engine/SingleInlineScriptEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleInlineScriptEngineMock());
+vi.mock("../engine/SingleMacroEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleMacroEngineMock());
+vi.mock("../engine/SingleTemplateEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMock());
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
+vi.mock("../main", async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
@@ -163,14 +93,7 @@ const createFile = (path = "Target.md"): TFile =>
 	}) as unknown as TFile;
 
 const createFormatter = (activeView: unknown) =>
-	new CaptureChoiceFormatter(createMockApp(activeView), {
-		settings: {
-			inputPrompt: "single-line",
-			enableTemplatePropertyTypes: false,
-			globalVariables: {},
-			useSelectionAsCaptureValue: true,
-		},
-	} as any);
+	new CaptureChoiceFormatter(createMockApp(activeView), createSelectionFormatterPlugin());
 
 beforeEach(() => {
 	(global as any).navigator = {

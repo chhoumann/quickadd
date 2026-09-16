@@ -1,6 +1,6 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import realMoment from "moment";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Formatter, type PromptContext } from "./formatter";
 import type { RunClocks } from "../types/dateOrigin";
 
 // Integration test for the issue #511 snap wiring THROUGH the formatter passes
@@ -23,7 +23,7 @@ beforeEach(() => {
 	vi.setSystemTime(new Date("2023-06-01T12:00:00")); // Thursday
 });
 
-class TestFormatter extends Formatter {
+class TestFormatter extends FormatterStub {
 	public readonly warnings: string[] = [];
 
 	constructor() {
@@ -47,51 +47,9 @@ class TestFormatter extends Formatter {
 	public renderVDate(input: string) {
 		return this.replaceDateVariableInString(input);
 	}
-	protected async format(input: string) {
-		return input;
-	}
-	protected promptForValue(): string {
-		return "";
-	}
-	protected getCurrentFileLink() {
-		return null;
-	}
-	protected getCurrentFileName() {
-		return null;
-	}
-	protected suggestForFile() {
-		return "";
-	}
-	protected async promptForMathValue() {
-		return "";
-	}
 	protected getVariableValue(name: string): string {
 		const v = this.variables.get(name);
 		return v == null ? "" : String(v);
-	}
-	protected suggestForValue() {
-		return "";
-	}
-	protected async suggestForField() {
-		return "";
-	}
-	protected getMacroValue() {
-		return "";
-	}
-	protected async promptForVariable(_n: string, _c?: PromptContext) {
-		return "";
-	}
-	protected async getTemplateContent() {
-		return "";
-	}
-	protected async getSelectedText() {
-		return "";
-	}
-	protected async getClipboardContent() {
-		return "";
-	}
-	protected isTemplatePropertyTypesEnabled() {
-		return false;
 	}
 	protected warn(message: string): void {
 		this.warnings.push(message);
