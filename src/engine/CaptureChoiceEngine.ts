@@ -7,8 +7,6 @@ import {
 import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "src/gui/InputSuggester/renderNotePathSuggestion";
-import { orderFilesForPicker } from "src/utils/fileOrdering";
-import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import invariant from "src/utils/invariant";
 import merge from "three-way-merge";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -53,7 +51,6 @@ import {
 	getMarkdownFilesInFolder,
 	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
-	getMarkdownFilesWithTag,
 	insertFileLinkToActiveView,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
@@ -96,7 +93,7 @@ import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
-import { buildFileDisplayLabels } from "../utils/fileSyntax";
+import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import {
 	postProcessFrontMatter,
@@ -1304,21 +1301,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 	/** The notes a tag/filter/property capture scope currently matches. */
 	private resolveScopeFiles(scope: CaptureTargetScope): TFile[] {
-		switch (scope.kind) {
-			case "filter":
-				return getMarkdownFilesMatchingFilter(this.app, scope.filter);
-			case "property":
-				return getMarkdownFilesWithProperty(
-					this.app,
-					scope.field,
-					scope.value,
-					scope.filter,
-				);
-			case "tag":
-				return getMarkdownFilesWithTag(this.app, scope.tag);
-			case "folder":
-				return getMarkdownFilesInFolder(this.app, scope.folderPathSlash);
-		}
+		return captureScopeFiles(this.app, scope);
 	}
 
 	/**
@@ -1388,71 +1371,10 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		);
 
 
-		// Quick-Switcher-style ordering: recent first, excluded sunk, alphabetical tail.
-		const orderedFiles = orderFilesForPicker(
-			filesInFolder,
-			buildPickerOrderingDeps(this.app),
-		);
-		const filePaths = orderedFiles.map((f) => f.path);
-		const displayItems = buildFileDisplayLabels(
-			orderedFiles,
-			(file) => this.app.metadataCache.getFileCache(file),
-		);
-		const searchItems = filePaths.map(
-			(path, index) => `${displayItems[index] ?? path} ${path}`,
-		);
-		const existingLabels = new Set(
-			displayItems.map((label) => label.toLowerCase()),
-		);
-		const placeholder = allowCreate
-			? "Choose a note or type to create one"
-			: undefined;
-		const targetFilePath = String(
-			await routePrompt(this.choiceExecutor, {
-				// A custom reply needs no extra confinement here: every reply is
-				// re-prefixed into `folderPathSlash` below, which is exactly what
-				// `confinePreselectedToScope` does for a folder scope.
-				remote: (provider) =>
-					promptEngineChoice(provider, {
-						items: filePaths.map((path, index) => ({
-							value: path,
-							title: displayItems[index] ?? path,
-						})),
-						placeholder,
-						allowCustomInput: allowCreate,
-						what: "the capture-target picker",
-					}),
-				// Non-interactive run (CLI without `ui`): a format-syntax "Capture to"
-				// target resolves to a folder/vault scope at runtime (the requirement
-				// collector cannot pre-collect it), so this picker would hang. Abort with
-				// a clear error. Placed after the empty-folder check so a genuinely empty
-				// scope surfaces its own accurate error rather than the prompt message.
-				headless: () => {
-					this.assertInteractiveCaptureTarget();
-					throw new Error("unreachable");
-				},
-				app: () =>
-					InputSuggester.Suggest(this.app, displayItems, filePaths, {
-						placeholder,
-						emptyStateText: allowCreate
-							? "Type a note name to create it"
-							: undefined,
-						renderItem: (path, el) =>
-							renderNotePathSuggestion(el, path, this.app),
-						searchItems,
-						allowCustomValue: allowCreate,
-						customValueLabel: (value) => `Create new note: ${value}`,
-						valueExists: (value) =>
-							existingLabels.has(value.toLowerCase()) ||
-							this.captureTargetExists(folderPathSlash, value),
-					}),
-			}),
-		);
-
-		invariant(
-			!!targetFilePath && targetFilePath.length > 0,
-			"No file selected for capture.",
-		);
+		const targetFilePath = await this.chooseCaptureTarget(filesInFolder, {
+			allowCreate,
+			nameIsTaken: (value) => this.captureTargetExists(folderPathSlash, value),
+		});
 
 		// Ensure user has selected a file in target folder. InputSuggester allows user to write
 		// their own file path, so we need to make sure it's in the target folder.
@@ -1544,93 +1466,63 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 
 		invariant(allowCreate || files.length > 0, notFoundMessage);
 
-
-		// Quick-Switcher-style ordering; show note names (not raw paths).
-		const orderedFiles = orderFilesForPicker(
-			files,
-			buildPickerOrderingDeps(this.app),
-		);
-		const filePaths = orderedFiles.map((f) => f.path);
-		const displayItems = buildFileDisplayLabels(
-			orderedFiles,
-			(file) => this.app.metadataCache.getFileCache(file),
-		);
-		const searchItems = filePaths.map(
-			(path, index) => `${displayItems[index] ?? path} ${path}`,
-		);
-		// Build once (not per keystroke): existing note basenames across the vault.
 		const vaultBasenames = new Set(
-			this.app.vault
-				.getMarkdownFiles()
-				.map((f) => f.basename.toLowerCase()),
+			this.app.vault.getMarkdownFiles().map((file) => file.basename.toLowerCase()),
 		);
-		const existingLabels = new Set(
-			displayItems.map((label) => label.toLowerCase()),
-		);
-		const nameIsTaken = (value: string) =>
-			existingLabels.has(value.toLowerCase()) ||
-			this.captureTargetAlreadyExists(value, vaultBasenames);
-		const placeholder = allowCreate
-			? "Choose a note or type to create one"
-			: undefined;
-
-		const targetFilePath = String(
-			await routePrompt(this.choiceExecutor, {
-				remote: async (provider) => {
-					const reply = await promptEngineChoice(provider, {
-						items: filePaths.map((path, index) => ({
-							value: path,
-							title: displayItems[index] ?? path,
-						})),
-						placeholder,
-						allowCustomInput: allowCreate,
-						what: "the capture-target picker",
-					});
-					// Unlike the folder scope, nothing downstream re-confines this reply -
-					// it goes straight to formatFilePath. In Obsidian the picker enforces
-					// the rule structurally: `valueExists` suppresses the "Create new
-					// note" row for a name that already exists, so a typed value can only
-					// ever create a NEW note, never redirect the capture into an existing
-					// one the tag/property scope does not match. Enforce the same rule on
-					// a routed reply, mirroring `confinePreselectedToScope`.
-					if (!filePaths.includes(reply) && nameIsTaken(reply)) {
-						throw new Error(
-							`"${reply}" already exists but is not one of the notes this capture targets. ` +
-								`Pick one of the offered notes, or type a name that does not exist yet.`,
-						);
-					}
-					return reply;
-				},
-				// See selectFileInFolder: a format-syntax tag/property capture target
-				// resolves to a runtime file picker the requirement collector can't
-				// pre-collect. Placed after the no-match check so an empty result
-				// surfaces its own accurate error.
-				headless: () => {
-					this.assertInteractiveCaptureTarget();
-					throw new Error("unreachable");
-				},
-				app: () =>
-					InputSuggester.Suggest(this.app, displayItems, filePaths, {
-						placeholder,
-						emptyStateText: allowCreate
-							? "Type a note name to create it"
-							: undefined,
-						renderItem: (path, el) =>
-							renderNotePathSuggestion(el, path, this.app),
-						searchItems,
-						allowCustomValue: allowCreate,
-						customValueLabel: (value) => `Create new note: ${value}`,
-						valueExists: nameIsTaken,
-					}),
-			}),
-		);
-
-		invariant(
-			!!targetFilePath && targetFilePath.length > 0,
-			"No file selected for capture.",
-		);
+		const targetFilePath = await this.chooseCaptureTarget(files, {
+			allowCreate,
+			nameIsTaken: (value) => this.captureTargetAlreadyExists(value, vaultBasenames),
+			restrictToScope: true,
+		});
 
 		return await this.formatFilePath(targetFilePath);
+	}
+
+	private async chooseCaptureTarget(files: TFile[], options: {
+		allowCreate: boolean;
+		nameIsTaken: (value: string) => boolean;
+		restrictToScope?: boolean;
+	}): Promise<string> {
+		const { paths, labels, search } = captureCandidates(this.app, files);
+		const existingLabels = new Set(labels.map((label) => label.toLowerCase()));
+		const nameIsTaken = (value: string) =>
+			existingLabels.has(value.toLowerCase()) || options.nameIsTaken(value);
+		const placeholder = options.allowCreate
+			? "Choose a note or type to create one" : undefined;
+		const selected = String(await routePrompt(this.choiceExecutor, {
+			remote: async (provider) => {
+				const reply = await promptEngineChoice(provider, {
+					items: paths.map((path, index) => ({ value: path, title: labels[index] ?? path })),
+					placeholder,
+					allowCustomInput: options.allowCreate,
+					what: "the capture-target picker",
+				});
+				// Folder replies are confined by their caller. Other scopes must
+				// reject existing notes that were not offered by this picker.
+				if (options.restrictToScope && !paths.includes(reply) && nameIsTaken(reply)) {
+					throw new Error(
+						`"${reply}" already exists but is not one of the notes this capture targets. ` +
+							`Pick one of the offered notes, or type a name that does not exist yet.`,
+					);
+				}
+				return reply;
+			},
+			headless: () => {
+				this.assertInteractiveCaptureTarget();
+				throw new Error("unreachable");
+			},
+			app: () => InputSuggester.Suggest(this.app, labels, paths, {
+				placeholder,
+				emptyStateText: options.allowCreate ? "Type a note name to create it" : undefined,
+				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
+				searchItems: search,
+				allowCustomValue: options.allowCreate,
+				customValueLabel: (value) => `Create new note: ${value}`,
+				valueExists: nameIsTaken,
+			}),
+		}));
+		invariant(!!selected && selected.length > 0, "No file selected for capture.");
+		return selected;
 	}
 
 	private async onFileExists(
