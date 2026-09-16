@@ -1,4 +1,5 @@
 import { normalizePath } from "obsidian";
+import { commandListOf, macroCommandsValueOf } from "../utils/macroUtils";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -138,7 +139,7 @@ function findDivergentChoiceId(
 
 		if (choice.type === "Macro") {
 			const macro = choice as IMacroChoice;
-			visitNestedChoicesInCommands(macro.macro?.commands, visit);
+			visitNestedChoicesInCommands(commandListOf(macroCommandsValueOf(macro.macro)), visit);
 		}
 	};
 

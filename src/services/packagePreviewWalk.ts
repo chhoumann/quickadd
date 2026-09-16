@@ -14,7 +14,7 @@ import type {
 	QuickAddPackage
 } from "../types/packages/QuickAddPackage";
 import { isChoiceLike } from "../utils/choiceUtils";
-import { commandListOf, isCommandLike } from "../utils/macroUtils";
+import { commandListOf, isCommandLike, macroCommandsValueOf } from "../utils/macroUtils";
 
 import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewUsageSite } from "../types/packages/PackagePreview";
 const KNOWN_COMMAND_TYPES = new Set<string>(Object.values(CommandType));
@@ -143,7 +143,7 @@ function collectChoice(
 				detail: joinCrumb(crumbs),
 			});
 		}
-		collectCommands(choice.macro?.commands, walk, crumbs, entryIds, depthLevel);
+		collectCommands(macroCommandsValueOf(choice.macro), walk, crumbs, entryIds, depthLevel);
 	}
 
 	if (isTemplateChoice(choice)) {

@@ -42,6 +42,8 @@ import {
 	analysePackagePreview,
 } from "./packageImportService";
 import { buildPackage } from "./packageExportService";
+import { requiresAcknowledgement } from "./packagePreview";
+import { macroCommandsValueOf } from "../utils/macroUtils";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import type {
 	ChoiceImportDecision,
@@ -1742,5 +1744,36 @@ describe("applyPackageImport - assets", () => {
 			writtenAssets: [],
 			skippedAssets: [],
 		});
+	});
+});
+
+
+describe.each(["object", "array"] as const)("%s macro import review", (shape) => {
+	function macroChoice(commands: unknown[]) {
+		return Object.assign(makeChoice("macro-review", "Review macro", "Macro"), {
+			macro: shape === "array" ? commands : { id: "commands", commands },
+		});
+	}
+
+	it("discloses the script that import installs", async () => {
+		const script = { id: "script", name: "Local script", type: CommandType.UserScript, path: "local.js", settings: {} };
+		const pkg = parseQuickAddPackage(JSON.stringify(makePackage({
+			rootChoiceIds: ["macro-review"],
+			choices: [makePackageChoice(macroChoice([script]))],
+		})));
+		const { app } = createFakeApp();
+		const preview = await analysePackagePreview(app, [], pkg);
+		expect(preview.choices[0].flags).toContain("user-script");
+		expect(preview.choices[0].commands[0].scriptPath).toBe("local.js");
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		const imported = await importPackage({ app, pkg });
+		expect(macroCommandsValueOf((imported.updatedChoices[0] as IMacroChoice).macro)).toEqual([script]);
+	});
+
+	it("rejects a nested choice that differs from its reviewed flat entry", () => {
+		const flat = makeChoice("nested", "Benign", "Capture");
+		const nested = { id: "nested-command", name: "Nested", type: CommandType.NestedChoice, choice: { ...flat, name: "Different" } };
+		const pkg = makePackage({ choices: [makePackageChoice(flat), makePackageChoice(macroChoice([nested]))] });
+		expect(() => parseQuickAddPackage(JSON.stringify(pkg))).toThrow('conflicting definitions for choice "nested"');
 	});
 });
