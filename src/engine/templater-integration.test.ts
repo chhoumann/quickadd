@@ -37,6 +37,18 @@ describe("Production template engine Templater boundary", () => {
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["one", "two"] }, expect.stringContaining('<% tp.date.now() %>'));
 	});
 
+	it("reads properties from the file after Templater rewrites them", async () => {
+		const h = setup({ tags: ["original"] });
+		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app, file) => {
+			await h.vault.modify(file, "---\ntags: [replaced]\n---\nChanged body");
+		});
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template creation failed");
+		expect(h.frontmatter(file)).toEqual({ tags: ["replaced"] });
+		await h.vault.modify(file, "Front matter removed");
+		expect(h.frontmatter(file)).toEqual({});
+	});
+
 	it("should call Templater exactly once", async () => {
 		const h = setup({ count: 1 });
 		const file = await h.engine.create("note.md", "template.md");
@@ -61,7 +73,7 @@ describe("Production template engine Templater boundary", () => {
 	it("should not break YAML formatting when Templater processes content", async () => {
 		const h = setup({ tags: ["one", "two"], metadata: { key: "value" } });
 		await h.engine.create("note.md", "template.md");
-		expect(h.contents.get("note.md")).toBe('---\ntags: ["one","two"]\nmetadata: {"key":"value"}\n---\n2025-01-01');
+		expect(h.contents.get("note.md")).toBe('---\ntags:\n  - one\n  - two\nmetadata:\n  key: value\n---\n2025-01-01');
 	});
 
 	it("should handle empty arrays without breaking YAML", async () => {
@@ -86,7 +98,7 @@ describe("Production template engine Templater boundary", () => {
 		h.contents.set("template.md", '---\ntags: {{VALUE:tags}}\ncreated: <% tp.date.now() %>\n---\nBody');
 		await h.engine.create("note.md", "template.md");
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["tag"], created: "<% tp.date.now() %>" }, expect.any(String));
-		expect(h.contents.get("note.md")).toContain('created: "2025-01-01"');
+		expect(h.contents.get("note.md")).toContain('created: 2025-01-01');
 	});
 
 	it("keeps native containers when feature flag is disabled", async () => {

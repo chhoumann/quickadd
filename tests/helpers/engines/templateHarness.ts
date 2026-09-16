@@ -1,5 +1,6 @@
 import { vi } from "vitest";
-import { TFile, TFolder, type App, parseYaml } from "obsidian";
+import { parse, stringify } from "yaml";
+import { TFile, TFolder, type App } from "obsidian";
 import type QuickAdd from "src/main";
 import { TemplateEngine } from "src/engine/TemplateEngine";
 import { SingleTemplateEngine } from "src/engine/SingleTemplateEngine";
@@ -21,7 +22,6 @@ export function templateHarness(enabled = true) {
 	const files = new Map<string, TFile>();
 	const contents = new Map<string, string>();
 	const events: string[] = [];
-	const properties = new Map<string, Record<string, unknown>>();
 	const root = Object.assign(new TFolder(), { path: "", name: "" });
 	function file(path: string, content = "") {
 		const name = path.split("/").pop() ?? path;
@@ -52,18 +52,15 @@ export function templateHarness(enabled = true) {
 		}),
 	};
 	function frontmatter(f: TFile): Record<string, unknown> {
-		const written = properties.get(f.path);
-		if (written) return written;
 		const yaml = contents.get(f.path)?.match(/^---\n([\s\S]*?)\n---/);
-		return yaml ? parseYaml(yaml[1]) ?? {} : {};
+		return yaml ? parse(yaml[1], { schema: "yaml-1.1" }) ?? {} : {};
 	}
 	const processFrontMatter = vi.fn(async (f: TFile, update: (fm: Record<string, unknown>) => void) => {
 		events.push("properties");
 		const fm = frontmatter(f);
 		update(fm);
-		properties.set(f.path, fm);
 		const body = (contents.get(f.path) ?? "").replace(/^---\n[\s\S]*?\n---\n?/, "");
-		contents.set(f.path, `---\n${Object.entries(fm).map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join("\n")}\n---\n${body}`);
+		contents.set(f.path, `---\n${stringify(fm, { schema: "yaml-1.1" })}---\n${body}`);
 	});
 	const app = {
 		vault, fileManager: { processFrontMatter },
