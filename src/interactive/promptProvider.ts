@@ -1,28 +1,6 @@
-/**
- * Abstraction the QuickAdd API prompt methods consult before opening an Obsidian
- * modal. When a choice executor carries a provider (a remote interactive session
- * driven by an external front end), prompts are routed to it instead of the app.
- *
- * Covers the full script prompt seam: suggester / inputPrompt / wideInputPrompt /
- * datePrompt / yesNoPrompt / checkboxPrompt / infoDialog. Each method returns
- * exactly what its in-app counterpart returns, so a script cannot tell it was
- * driven remotely.
- *
- * A dismissal is part of that contract, not an exception to it: a client replies
- * `{"cancelled": true}` (see `submitReply`), the pending prompt rejects with
- * `UserCancelError`, and the run aborts exactly as it does when the Obsidian modal
- * is dismissed - same class, same message. That holds for every prompt except `info`
- * (below), and `promptProvider.test.ts` pins the half that lives here: no method
- * swallows an abort on its way to the script.
- *
- * `info` is the one prompt where a cancel does NOT abort, and that too is parity
- * rather than an exception to it: `GenericInfoDialog` resolves on every close path and
- * has no reject path at all, so the identical choice run in the app continues past the
- * panel. Escape is the only gesture an info panel affords, so a client mapping it to a
- * cancel used to kill a run the app would have finished (#1605). A client that really
- * wants out sends `POST /abort`, which ends the run whatever it is blocked on.
- */
+/** Routes script prompts to a remote session while retaining local return/cancel semantics. */
 
+import { confirmReply, describeValue } from "./promptProtocol";
 import { formatISODate } from "../utils/dateParser";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import {
@@ -37,14 +15,16 @@ import {
  */
 const SUGGESTER_INDEX_PREFIX = "\u0000qa-idx:";
 
-/** A short, safe rendering of a bad reply for a protocol error message. */
-function describeReply(answer: unknown): string {
-	if (answer === undefined) return "no value";
-	if (answer === null) return "null";
-	if (typeof answer === "string") return JSON.stringify(answer.slice(0, 40));
-	if (typeof answer === "number" || typeof answer === "boolean")
-		return String(answer);
-	return Array.isArray(answer) ? "an array" : typeof answer;
+/** Decode selected wire tokens without stringifying the original item. */
+function selectedValue(answer: unknown, actualItems: string[]): string {
+	const raw = String(answer);
+	if (raw.startsWith(SUGGESTER_INDEX_PREFIX)) {
+		const index = Number(raw.slice(SUGGESTER_INDEX_PREFIX.length));
+		if (Number.isInteger(index) && index >= 0 && index < actualItems.length) {
+			return actualItems[index];
+		}
+	}
+	return raw;
 }
 
 export interface PromptProvider {
@@ -141,15 +121,7 @@ export class RemotePromptProvider implements PromptProvider {
 			items,
 		});
 		if (answer == null) return "";
-		const raw = String(answer);
-		if (raw.startsWith(SUGGESTER_INDEX_PREFIX)) {
-			const index = Number(raw.slice(SUGGESTER_INDEX_PREFIX.length));
-			if (Number.isInteger(index) && index >= 0 && index < actualItems.length) {
-				return actualItems[index];
-			}
-		}
-		// A custom-typed value (allowCustomInput) is returned verbatim.
-		return raw;
+		return selectedValue(answer, actualItems);
 	}
 
 	async suggesterMulti(
@@ -190,21 +162,7 @@ export class RemotePromptProvider implements PromptProvider {
 			preselected,
 		});
 		if (!Array.isArray(answer)) return [];
-		return answer.map((raw) => {
-			const value = String(raw);
-			if (value.startsWith(SUGGESTER_INDEX_PREFIX)) {
-				const index = Number(value.slice(SUGGESTER_INDEX_PREFIX.length));
-				if (
-					Number.isInteger(index) &&
-					index >= 0 &&
-					index < actualItems.length
-				) {
-					return actualItems[index];
-				}
-			}
-			// A custom-typed value (allowCustomInput) is returned verbatim.
-			return value;
-		});
+		return answer.map((raw) => selectedValue(raw, actualItems));
 	}
 
 	async inputPrompt(
@@ -268,29 +226,9 @@ export class RemotePromptProvider implements PromptProvider {
 	}
 
 	/**
-	 * Yes/No is the one prompt where a malformed reply is indistinguishable from a
-	 * real answer, so it is the one prompt that validates.
-	 *
-	 * In-app, `false` can only come from clicking No: dismissing resolves a
-	 * three-state `null` that aborts the run. This used to collapse every non-`true`
-	 * reply to `false`, so a client that omitted `value`, sent `null` (the shape
-	 * #1574 proposed for a dismissal), or sent a typo silently answered "No" and the
-	 * script walked its else-branch (#1574). A dismissal already has a wire
-	 * representation - `{"cancelled": true}`, documented and rejecting with
-	 * UserCancelError - so anything that is neither a boolean nor a cancel is a
-	 * client bug, and failing beats inventing an answer the user never gave.
-	 *
-	 * A live client never sees this throw: the same rule is enforced at `/reply`
-	 * (`describeReplyProblem`), where a 400 reaches the client while it is still
-	 * holding the response and the prompt stays pending. Validating at the wire is what
-	 * makes a malformed reply RECOVERABLE - the client is still awaiting the HTTP
-	 * response and the prompt has not been settled - so it stays the primary check even
-	 * now that a thrown message survives to the client (#1603). This is the backstop for
-	 * every other caller of the provider.
-	 *
-	 * The other prompt types stay lenient on purpose: `""` and `[]` are answers a
-	 * user really can give in-app (the Skip affordances, optional fields), so
-	 * tightening them would break optional prompts on remote runs.
+	 * Malformed confirmation replies must not silently answer No. The wire validates
+	 * first so clients can retry while the prompt stays pending; this is a backstop
+	 * for direct callers. Other prompt types allow empty answers for optional fields.
 	 */
 	async yesNoPrompt(header: string, text?: string): Promise<boolean> {
 		const answer = await this.server.emitPrompt(this.sessionId, {
@@ -298,10 +236,10 @@ export class RemotePromptProvider implements PromptProvider {
 			header,
 			text,
 		});
-		if (answer === true || answer === "true") return true;
-		if (answer === false || answer === "false") return false;
+		const confirmed = confirmReply(answer);
+		if (confirmed !== undefined) return confirmed;
 		throw new Error(
-			`A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeReply(answer)}.`,
+			`A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeValue(answer)}.`,
 		);
 	}
 

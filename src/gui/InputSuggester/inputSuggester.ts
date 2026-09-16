@@ -1,15 +1,12 @@
-import { FuzzySuggestModal, setIcon } from "obsidian";
-import type { FuzzyMatch, App } from "obsidian";
-import { log } from "src/logger/logManager";
+import { setIcon } from "obsidian";
+import type { FuzzySuggestModal, FuzzyMatch, App } from "obsidian";
 import {
 	createRenderFallbackWarner,
-	installSkipAffordance,
 	normalizeDisplayItem,
 	normalizeQuery,
 } from "../suggesters/utils";
-import { promptCancelled } from "../../errors/UserCancelError";
-
-type SuggestRender<T> = (value: T, el: HTMLElement) => void;
+import { SuggesterModal } from "../GenericSuggester/SuggesterModal";
+import type { SuggestRender } from "../GenericSuggester/SuggesterModal";
 
 type Options = {
 	limit: FuzzySuggestModal<string>["limit"];
@@ -49,20 +46,8 @@ type Options = {
 /**
  * Similar to GenericSuggester, except users can write their own input, and it gets added to the list of suggestions.
  */
-export default class InputSuggester extends FuzzySuggestModal<string> {
-	private resolvePromise: (value: string) => void;
-	private rejectPromise: (reason?: unknown) => void;
-	public promise: Promise<string>;
-	private resolved: boolean;
-
-	private renderItem?: SuggestRender<string>;
-	private displayItems: string[];
+export default class InputSuggester extends SuggesterModal<string> {
 	private searchItems: string[];
-	private items: string[];
-	private warnedOnEmptyDisplay = false;
-	private warnRenderItemFailure = createRenderFallbackWarner(
-		"Custom renderItem threw an error; falling back to default rendering",
-	);
 	private warnCustomValueFailure = createRenderFallbackWarner(
 		"Custom create-row rendering threw an error; falling back to default rendering",
 	);
@@ -91,41 +76,13 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		items: string[],
 		options: Partial<Options> = {}
 	) {
-		super(app);
-
-		this.items = items;
-		this.displayItems = displayItems.map((value) => normalizeDisplayItem(value));
+		super(app, displayItems, items, options.renderItem, options);
 		this.searchItems =
 			options.searchItems?.map((value) => normalizeDisplayItem(value)) ?? [];
 
-		this.promise = new Promise<string>((resolve, reject) => {
-			this.resolvePromise = resolve;
-			this.rejectPromise = reject;
-		});
-
-		this.renderItem = options.renderItem;
 		this.allowCustomValue = options.allowCustomValue ?? true;
 		this.customValueLabel = options.customValueLabel;
 		this.valueExists = options.valueExists;
-
-		this.inputEl.addEventListener("keydown", (event: KeyboardEvent) => {
-			// chooser is undocumented & not officially a part of the Obsidian API, hence the precautions in using it.
-			if (event.code !== "Tab" || !("chooser" in this)) {
-				return;
-			}
-
-			const { values, selectedItem } = this.chooser as {
-				values: {
-					item: string;
-					match: { score: number; matches: unknown[] };
-				}[];
-				selectedItem: number;
-				[key: string]: unknown;
-			};
-
-			const { value } = this.inputEl;
-			this.inputEl.value = values[selectedItem]?.item ?? value;
-		});
 
 		if (options.placeholder) this.setPlaceholder(options.placeholder);
 		if (typeof options.limit === "number") {
@@ -134,22 +91,12 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		if (options.emptyStateText)
 			this.emptyStateText = options.emptyStateText;
 
-		if (this.displayItems.length !== this.items.length) {
-			this.displayItems = this.items.map((item, index) => {
-				const displayItem = this.displayItems[index];
-				return normalizeDisplayItem(displayItem ?? item);
-			});
-		}
 		if (this.searchItems.length !== this.items.length) {
 			this.searchItems = this.items.map((item, index) => {
 				return normalizeDisplayItem(
 					this.searchItems[index] ?? this.displayItems[index] ?? item,
 				);
 			});
-		}
-
-		if (options.skippable) {
-			installSkipAffordance(this, () => this.skip());
 		}
 
 		this.warnIfEmptyDisplay();
@@ -164,13 +111,8 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		return normalizeDisplayItem(searchItem ?? item);
 	}
 
-	getItems(): string[] {
-		return this.items;
-	}
-
 	getSuggestions(query: string): FuzzyMatch<string>[] {
-		const safeQuery = normalizeQuery(query);
-		const suggestions = super.getSuggestions(safeQuery);
+		const suggestions = super.getSuggestions(query);
 
 		if (!this.allowCustomValue) return suggestions;
 
@@ -216,14 +158,6 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		return suggestions;
 	}
 
-	selectSuggestion(
-		value: FuzzyMatch<string>,
-		evt: MouseEvent | KeyboardEvent
-	) {
-		this.resolved = true;
-		super.selectSuggestion(value, evt);
-	}
-
 	renderSuggestion(value: FuzzyMatch<string>, el: HTMLElement): void {
 		// The custom ("create") row is the only entry scored -Infinity; when a label
 		// is configured it takes precedence over any caller-provided renderItem.
@@ -235,19 +169,7 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 			return;
 		}
 
-		if (!this.renderItem) {
-			super.renderSuggestion(value, el);
-			return;
-		}
-
-		try {
-			el.empty();
-			this.renderItem(value.item, el);
-		} catch (error) {
-			this.warnRenderItemFailure(error);
-			el.empty();
-			super.renderSuggestion(value, el);
-		}
+		super.renderSuggestion(value, el);
 	}
 
 	private renderCustomValue(value: string, el: HTMLElement): void {
@@ -264,43 +186,11 @@ export default class InputSuggester extends FuzzySuggestModal<string> {
 		} catch (error) {
 			this.warnCustomValueFailure(error);
 			el.empty();
-			super.renderSuggestion(
+			this.renderDefaultSuggestion(
 				{ item: value, match: { score: 0, matches: [] } },
 				el,
 			);
 		}
 	}
 
-	onChooseItem(item: string, evt: MouseEvent | KeyboardEvent): void {
-		this.resolved = true;
-		this.resolvePromise(item);
-	}
-
-	/** Resolves "" as an intentional "leave empty" answer. */
-	public skip(): void {
-		this.resolved = true;
-		this.resolvePromise("");
-		this.close();
-	}
-
-	onClose() {
-		super.onClose();
-
-		if (!this.resolved) this.rejectPromise(promptCancelled());
-	}
-
-	private warnIfEmptyDisplay(): void {
-		if (this.warnedOnEmptyDisplay) return;
-
-		const hasEmptyDisplay = this.displayItems.some(
-			(displayItem) => displayItem.length === 0,
-		);
-
-		if (hasEmptyDisplay) {
-			this.warnedOnEmptyDisplay = true;
-			log.logWarning(
-				"QuickAdd suggester received empty display values. Check your displayItems mapping.",
-			);
-		}
-	}
 }

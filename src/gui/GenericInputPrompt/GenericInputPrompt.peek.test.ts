@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import GenericInputPrompt from "./GenericInputPrompt";
@@ -8,43 +7,8 @@ import { PromptPeekSession } from "../promptPeek/PromptPeekSession";
 import { clearVisiblePrompts } from "../promptPeek/visiblePrompts";
 import { UserCancelError } from "../../errors/UserCancelError";
 
-const modalProto = Modal.prototype as unknown as {
-	onOpen?: unknown;
-	onClose?: unknown;
-};
-if (typeof modalProto.onOpen !== "function") modalProto.onOpen = () => {};
-if (typeof modalProto.onClose !== "function") modalProto.onClose = () => {};
-
-function makeFakeApp(selection = "") {
-	return {
-		dom: { appContainerEl: document.body },
-		keymap: { pushScope: () => {}, popScope: () => {} },
-		workspace: {
-			containerEl: document.body,
-			on: () => ({}),
-			getActiveFile: () => null,
-			getActiveViewOfType: () =>
-				selection
-					? { editor: { getSelection: () => selection } }
-					: undefined,
-		},
-		metadataCache: {
-			on: () => ({}),
-			getTags: () => ({}),
-			getFileCache: () => undefined,
-			isUserIgnored: () => false,
-			unresolvedLinks: {},
-		},
-		vault: {
-			on: () => ({}),
-			getMarkdownFiles: () => [],
-			getAllLoadedFiles: () => [],
-			getFiles: () => [],
-			getAbstractFileByPath: () => null,
-		},
-		fileManager: { getNewFileParent: () => ({ path: "" }) },
-	};
-}
+import { makeFakeApp } from "../../../tests/helpers/prompts/app";
+import "../../../tests/helpers/prompts/dom";
 
 describe("GenericInputPrompt peek", () => {
 	let fakeApp: ReturnType<typeof makeFakeApp>;

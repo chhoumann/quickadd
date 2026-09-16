@@ -2,105 +2,10 @@ import type { App } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import GenericYesNoPrompt from "./GenericYesNoPrompt";
 
-// Obsidian routes Esc, the close button and a click outside through the same
-// Modal.close(), so the test hook onto the live instance is how a dismissal is
-// reproduced faithfully without a real Obsidian.
-const modals = vi.hoisted(() => ({ last: null as { close(): void } | null }));
+import { ButtonComponent, Modal } from "obsidian";
 
-vi.mock("obsidian", () => {
-	class Modal {
-		containerEl: HTMLElement;
-		contentEl: HTMLElement;
-		titleEl: HTMLElement;
-
-		constructor(_app: App) {
-			this.containerEl = document.createElement("div");
-			this.contentEl = document.createElement("div");
-			this.titleEl = document.createElement("h1");
-			this.containerEl.append(this.titleEl, this.contentEl);
-			document.body.appendChild(this.containerEl);
-			modals.last = this;
-		}
-
-		open() {}
-
-		close() {
-			this.onClose();
-		}
-
-		onClose() {}
-	}
-
-	class ButtonComponent {
-		buttonEl: HTMLButtonElement;
-
-		constructor(containerEl: HTMLElement) {
-			this.buttonEl = document.createElement("button");
-			containerEl.appendChild(this.buttonEl);
-		}
-
-		setButtonText(text: string): this {
-			this.buttonEl.textContent = text;
-			return this;
-		}
-
-		onClick(callback: () => void): this {
-			this.buttonEl.addEventListener("click", callback);
-			return this;
-		}
-
-		setWarning(): this {
-			return this;
-		}
-
-		setDestructive(): this {
-			return this;
-		}
-	}
-
-	return { ButtonComponent, Modal };
-});
-
-function installObsidianElementHelpers(): void {
-	const proto = HTMLElement.prototype as unknown as {
-		addClass?: (this: HTMLElement, ...classes: string[]) => HTMLElement;
-		createDiv?: (
-			this: HTMLElement,
-			options?: { cls?: string },
-		) => HTMLDivElement;
-		createEl?: (
-			this: HTMLElement,
-			tag: string,
-			options?: { text?: string },
-		) => HTMLElement;
-		empty?: (this: HTMLElement) => void;
-	};
-
-	proto.addClass ??= function (...classes: string[]) {
-		this.classList.add(...classes);
-		return this;
-	};
-
-	proto.createDiv ??= function (options?: { cls?: string }) {
-		const div = document.createElement("div");
-		if (options?.cls) div.className = options.cls;
-		this.appendChild(div);
-		return div;
-	};
-
-	proto.createEl ??= function (tag: string, options?: { text?: string }) {
-		const el = document.createElement(tag);
-		if (options?.text) el.textContent = options.text;
-		this.appendChild(el);
-		return el;
-	};
-
-	proto.empty ??= function () {
-		this.replaceChildren();
-	};
-}
-
-installObsidianElementHelpers();
+ButtonComponent.prototype.setDestructive ??= function () { return this; };
+const openModal = vi.spyOn(Modal.prototype, "open");
 
 function clickButton(text: string): void {
 	const button = Array.from(document.querySelectorAll("button")).find(
@@ -111,13 +16,14 @@ function clickButton(text: string): void {
 
 /** Esc / the close button / a click outside — Obsidian closes the modal. */
 function dismiss(): void {
-	modals.last?.close();
+	const modal = openModal.mock.instances.at(-1);
+	if (modal instanceof Modal) modal.close();
 }
 
 describe("GenericYesNoPrompt", () => {
 	afterEach(() => {
 		document.body.replaceChildren();
-		modals.last = null;
+		openModal.mockClear();
 	});
 
 	// The contract, in one place: walking away from the dialog is an answer, not

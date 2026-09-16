@@ -1,140 +1,105 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
+import type QuickAdd from "../../main";
+import { setQuickAddInstance } from "../../quickAddInstance";
 import { isSkipPromptShortcut } from "../promptShortcuts";
+import GenericInputPrompt from "./GenericInputPrompt";
+import GenericWideInputPrompt from "../GenericWideInputPrompt/GenericWideInputPrompt";
+import { makeFakeApp } from "../../../tests/helpers/prompts/app";
+import "../../../tests/helpers/prompts/dom";
 
-/**
- * Optional text/number/slider/wide-input prompts gained a keyboard skip
- * shortcut (ctrl/cmd+shift+Enter), mirroring the optional suggesters. This
- * locks the shortcut's exact key combo and — critically — proves it does NOT
- * collide with the wide prompt's ctrl/cmd+Enter submit (issue #1259).
- */
-
-type KeyParts = Partial<{
-	key: string;
-	shiftKey: boolean;
-	ctrlKey: boolean;
-	metaKey: boolean;
-	isComposing: boolean;
-}>;
-
-function keyEvent(parts: KeyParts): KeyboardEvent {
-	return {
-		key: "Enter",
-		shiftKey: false,
-		ctrlKey: false,
-		metaKey: false,
-		isComposing: false,
-		...parts,
-	} as KeyboardEvent;
-}
+const ctrlShift = { ctrlKey: true, shiftKey: true };
+const cmdShift = { metaKey: true, shiftKey: true };
+const keyEvent = (parts: KeyboardEventInit) =>
+	new KeyboardEvent("keydown", { key: "Enter", ...parts });
 
 describe("isSkipPromptShortcut", () => {
-	it("matches ctrl+shift+Enter", () => {
-		expect(
-			isSkipPromptShortcut(keyEvent({ ctrlKey: true, shiftKey: true })),
-		).toBe(true);
-	});
-
-	it("matches cmd+shift+Enter", () => {
-		expect(
-			isSkipPromptShortcut(keyEvent({ metaKey: true, shiftKey: true })),
-		).toBe(true);
-	});
-
-	it("does not match plain Enter (the normal submit gesture)", () => {
-		expect(isSkipPromptShortcut(keyEvent({}))).toBe(false);
-	});
-
-	it("does not match ctrl/cmd+Enter (the wide prompt submit gesture)", () => {
-		// This is the load-bearing case: without the shift requirement the
-		// shortcut would clobber the wide prompt's submit binding.
-		expect(isSkipPromptShortcut(keyEvent({ ctrlKey: true }))).toBe(false);
-		expect(isSkipPromptShortcut(keyEvent({ metaKey: true }))).toBe(false);
-	});
-
-	it("does not match shift+Enter alone (no modifier)", () => {
-		expect(isSkipPromptShortcut(keyEvent({ shiftKey: true }))).toBe(false);
-	});
-
-	it("requires the Enter key", () => {
-		expect(
-			isSkipPromptShortcut(
-				keyEvent({ key: "a", ctrlKey: true, shiftKey: true }),
-			),
-		).toBe(false);
-	});
-
-	it("ignores IME composition", () => {
-		expect(
-			isSkipPromptShortcut(
-				keyEvent({ ctrlKey: true, shiftKey: true, isComposing: true }),
-			),
-		).toBe(false);
-	});
+	const cases: { name: string; keys: KeyboardEventInit[]; matches: boolean }[] = [
+		{ name: "matches ctrl+shift+Enter", keys: [ctrlShift], matches: true },
+		{ name: "matches cmd+shift+Enter", keys: [cmdShift], matches: true },
+		{ name: "does not match plain Enter (the normal submit gesture)", keys: [{}], matches: false },
+		{
+			name: "does not match ctrl/cmd+Enter (the wide prompt submit gesture)",
+			keys: [{ ctrlKey: true }, { metaKey: true }],
+			matches: false,
+		},
+		{ name: "does not match shift+Enter alone (no modifier)", keys: [{ shiftKey: true }], matches: false },
+		{ name: "requires the Enter key", keys: [{ ...ctrlShift, key: "a" }], matches: false },
+		{ name: "ignores IME composition", keys: [{ ...ctrlShift, isComposing: true }], matches: false },
+	];
+	for (const { name, keys, matches } of cases) {
+		it(name, () => {
+			for (const key of keys) expect(isSkipPromptShortcut(keyEvent(key))).toBe(matches);
+		});
+	}
 });
 
-/**
- * Re-derive the exact branching of each prompt's `submitEnterCallback` to prove
- * routing: skip fires before submit, and only on optional prompts. Keeping the
- * predicate first is what makes ctrl/cmd+shift+Enter skip (not submit) in the
- * wide prompt despite its ctrl/cmd+Enter submit binding.
- */
-function route(
-	evt: KeyboardEvent,
-	isOptional: boolean,
-	submitMatches: (e: KeyboardEvent) => boolean,
-): "skip" | "submit" | "none" {
-	if (isOptional && isSkipPromptShortcut(evt)) return "skip";
-	if (submitMatches(evt)) return "submit";
-	return "none";
+const app = makeFakeApp();
+beforeEach(() => {
+	setQuickAddInstance({ app, registerEvent: () => {} } as unknown as QuickAdd);
+});
+
+const groups = [
+	{
+		name: "submitEnterCallback routing (generic/number/slider)",
+		Prompt: GenericInputPrompt,
+		selector: ".qaInputPrompt input",
+		cases: [
+			{
+				name: "ctrl/cmd+shift+Enter skips on optional prompts",
+				keys: [ctrlShift],
+				optional: true,
+				expected: "",
+			},
+			{
+				name: "ctrl/cmd+shift+Enter does not skip on non-optional prompts",
+				keys: [ctrlShift],
+				optional: false,
+				expected: "answer",
+			},
+			{ name: "plain Enter still submits on optional prompts", keys: [{}], optional: true, expected: "answer" },
+		],
+	},
+	{
+		name: "submitEnterCallback routing (wide prompt, issue #1259 collision)",
+		Prompt: GenericWideInputPrompt,
+		selector: ".qaWideInputPrompt textarea",
+		cases: [
+			{
+				name: "ctrl/cmd+shift+Enter skips instead of submitting on optional prompts",
+				keys: [ctrlShift, cmdShift],
+				optional: true,
+				expected: "",
+			},
+			{
+				name: "ctrl/cmd+Enter still submits (submit binding preserved)",
+				keys: [{ ctrlKey: true }, { metaKey: true }],
+				optional: true,
+				expected: "answer",
+			},
+			{
+				name: "ctrl/cmd+shift+Enter submits on non-optional wide prompts (unchanged)",
+				keys: [ctrlShift],
+				optional: false,
+				expected: "answer",
+			},
+		],
+	},
+];
+
+for (const { name, Prompt, selector, cases } of groups) {
+	describe(name, () => {
+		for (const { name, keys, optional, expected } of cases) {
+			it(name, async () => {
+				for (const key of keys) {
+					const result = Prompt.Prompt(
+						app as never, "Header", "", "answer", undefined, { optional },
+					);
+					const input = document.querySelector(selector);
+					expect(input).not.toBeNull();
+					input?.dispatchEvent(keyEvent(key));
+					await expect(result).resolves.toBe(expected);
+				}
+			});
+		}
+	});
 }
-
-// GenericInputPrompt / Number / Slider submit on plain Enter.
-const genericSubmit = (e: KeyboardEvent) => !e.isComposing && e.key === "Enter";
-// Wide prompt submits on ctrl/cmd+Enter.
-const wideSubmit = (e: KeyboardEvent) =>
-	(e.ctrlKey || e.metaKey) && e.key === "Enter";
-
-describe("submitEnterCallback routing (generic/number/slider)", () => {
-	it("ctrl/cmd+shift+Enter skips on optional prompts", () => {
-		expect(
-			route(keyEvent({ ctrlKey: true, shiftKey: true }), true, genericSubmit),
-		).toBe("skip");
-	});
-
-	it("ctrl/cmd+shift+Enter does not skip on non-optional prompts", () => {
-		// Falls through to plain-Enter submit (behavior unchanged for required).
-		expect(
-			route(keyEvent({ ctrlKey: true, shiftKey: true }), false, genericSubmit),
-		).toBe("submit");
-	});
-
-	it("plain Enter still submits on optional prompts", () => {
-		expect(route(keyEvent({}), true, genericSubmit)).toBe("submit");
-	});
-});
-
-describe("submitEnterCallback routing (wide prompt, issue #1259 collision)", () => {
-	it("ctrl/cmd+shift+Enter skips instead of submitting on optional prompts", () => {
-		expect(
-			route(keyEvent({ ctrlKey: true, shiftKey: true }), true, wideSubmit),
-		).toBe("skip");
-		expect(
-			route(keyEvent({ metaKey: true, shiftKey: true }), true, wideSubmit),
-		).toBe("skip");
-	});
-
-	it("ctrl/cmd+Enter still submits (submit binding preserved)", () => {
-		expect(route(keyEvent({ ctrlKey: true }), true, wideSubmit)).toBe(
-			"submit",
-		);
-		expect(route(keyEvent({ metaKey: true }), true, wideSubmit)).toBe(
-			"submit",
-		);
-	});
-
-	it("ctrl/cmd+shift+Enter submits on non-optional wide prompts (unchanged)", () => {
-		expect(
-			route(keyEvent({ ctrlKey: true, shiftKey: true }), false, wideSubmit),
-		).toBe("submit");
-	});
-});

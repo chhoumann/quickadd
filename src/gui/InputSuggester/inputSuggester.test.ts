@@ -193,3 +193,20 @@ describe("InputSuggester", () => {
 		expect(longDisplayItems[1]).toBe("Beta");
 	});
 });
+
+it("falls back to fuzzy rendering when a custom-value label throws", () => {
+	let customRendererCalls = 0;
+	const prompt = new InputSuggester(new App(), [], [], {
+		customValueLabel: () => {
+			throw new Error("label failed");
+		},
+		renderItem: () => {
+			customRendererCalls++;
+		},
+	});
+	prompt.inputEl.value = "new value";
+	const row = document.createElement("div");
+	prompt.renderSuggestion(prompt.getSuggestions("new value")[0], row);
+	expect(row.textContent).toBe("new value");
+	expect(customRendererCalls).toBe(0);
+});

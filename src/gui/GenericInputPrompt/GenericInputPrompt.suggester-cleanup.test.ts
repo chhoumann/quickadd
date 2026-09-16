@@ -1,68 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import GenericInputPrompt from "./GenericInputPrompt";
 import GenericWideInputPrompt from "../GenericWideInputPrompt/GenericWideInputPrompt";
 
-// The obsidian-stub Modal does not implement onOpen/onClose; the prompts call
-// super.onOpen()/super.onClose(). Provide no-ops so construction and close do
-// not throw. Guarded so a richer stub still wins.
-const modalProto = Modal.prototype as unknown as {
-	onOpen?: unknown;
-	onClose?: unknown;
-};
-if (typeof modalProto.onOpen !== "function") modalProto.onOpen = () => {};
-if (typeof modalProto.onClose !== "function") modalProto.onClose = () => {};
-
-// Defensive HTMLElement polyfills (mirrors the VDate audit-cleanup test) so
-// constructing the modal under jsdom does not throw.
-const htmlProto = HTMLElement.prototype as unknown as {
-	toggleClass?: unknown;
-	setAttr?: unknown;
-};
-if (typeof htmlProto.toggleClass !== "function") {
-	htmlProto.toggleClass = function toggleClass(
-		this: Element,
-		cls: string,
-		value: boolean,
-	) {
-		this.classList.toggle(cls, value);
-	};
-}
-if (typeof htmlProto.setAttr !== "function") {
-	htmlProto.setAttr = function setAttr(
-		this: Element,
-		name: string,
-		value: string | number | boolean | null,
-	) {
-		if (value === null || value === false) this.removeAttribute(name);
-		else this.setAttribute(name, String(value));
-	};
-}
-
-function makeFakeApp() {
-	return {
-		dom: { appContainerEl: document.body },
-		keymap: { pushScope: () => {}, popScope: () => {} },
-		workspace: { on: () => ({}), getActiveFile: () => null },
-		metadataCache: {
-			on: () => ({}),
-			getTags: () => ({}),
-			getFileCache: () => undefined,
-			isUserIgnored: () => false,
-			unresolvedLinks: {},
-		},
-		vault: {
-			on: () => ({}),
-			getMarkdownFiles: () => [],
-			getAllLoadedFiles: () => [],
-			getFiles: () => [],
-			getAbstractFileByPath: () => null,
-		},
-		fileManager: { getNewFileParent: () => ({ path: "" }) },
-	};
-}
+import { makeFakeApp } from "../../../tests/helpers/prompts/app";
+import "../../../tests/helpers/prompts/dom";
 
 interface Suggester {
 	destroy: () => void;

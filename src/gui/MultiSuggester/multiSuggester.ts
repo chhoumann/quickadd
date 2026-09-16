@@ -78,6 +78,13 @@ export default class MultiSuggester extends Modal {
 		this.picker.focusSearchOnOpen();
 	}
 
+	private selectValue(value: string): void {
+		if (!this.items.includes(value) && !this.customValues.includes(value)) {
+			this.customValues.push(value);
+		}
+		this.selected.add(value);
+	}
+
 	/**
 	 * Pre-checks the given values before the first render. Option-list values are
 	 * simply marked selected; values not in the list become pre-checked custom
@@ -89,13 +96,7 @@ export default class MultiSuggester extends Modal {
 		for (const raw of preselected) {
 			const value = raw?.trim();
 			if (!value) continue;
-			if (
-				!this.items.includes(value) &&
-				!this.customValues.includes(value)
-			) {
-				this.customValues.push(value);
-			}
-			this.selected.add(value);
+			this.selectValue(value);
 		}
 	}
 
@@ -202,13 +203,7 @@ export default class MultiSuggester extends Modal {
 			new Notice(`"${trimmed}" is already added.`);
 			return false;
 		}
-		if (
-			!this.items.includes(trimmed) &&
-			!this.customValues.includes(trimmed)
-		) {
-			this.customValues.push(trimmed);
-		}
-		this.selected.add(trimmed);
+		this.selectValue(trimmed);
 		this.draft = "";
 		this.render();
 		// render() rebuilds contentEl, dropping focus from the (now-recreated) custom
@@ -229,13 +224,7 @@ export default class MultiSuggester extends Modal {
 		// value and pressed Done (the common submit gesture) doesn't silently lose it.
 		if (this.opts.allowCustomValue && this.draft.trim()) {
 			const trimmed = this.draft.trim();
-			if (
-				!this.items.includes(trimmed) &&
-				!this.customValues.includes(trimmed)
-			) {
-				this.customValues.push(trimmed);
-			}
-			this.selected.add(trimmed);
+			this.selectValue(trimmed);
 			this.draft = "";
 		}
 		this.didSubmit = true;
@@ -244,14 +233,9 @@ export default class MultiSuggester extends Modal {
 
 	/** Selected values in option order, then custom additions in add order. */
 	private collectResult(): string[] {
-		const ordered: string[] = [];
-		for (const value of this.items) {
-			if (this.selected.has(value)) ordered.push(value);
-		}
-		for (const value of this.customValues) {
-			if (this.selected.has(value)) ordered.push(value);
-		}
-		return ordered;
+		return [...this.items, ...this.customValues].filter((value) =>
+			this.selected.has(value),
+		);
 	}
 
 	onClose() {

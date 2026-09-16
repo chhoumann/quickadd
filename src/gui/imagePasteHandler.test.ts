@@ -1,5 +1,13 @@
+import {
+	makeApp,
+	makeFile as makeImageFile,
+	makeInput,
+	makeTextarea,
+	flushSaves,
+	deferCreate,
+} from "../../tests/helpers/prompts/images";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
+import type { TFile } from "obsidian";
 import { attachImagePasteHandler } from "./imagePasteHandler";
 
 vi.mock("obsidian", () => ({
@@ -12,38 +20,6 @@ vi.mock("../logger/logManager", () => ({
 
 import { Notice } from "obsidian";
 import { settingsStore } from "../settingsStore";
-
-function makeApp() {
-	const created: string[] = [];
-	const createBinary = vi.fn(async (path: string, _data: ArrayBuffer) => {
-		created.push(path);
-		return { path } as TFile;
-	});
-	const getAvailablePathForAttachment = vi.fn(
-		async (filename: string, _sourcePath?: string) => {
-			// Mimic Obsidian's dedupe against files that already exist.
-			let candidate = `attachments/${filename}`;
-			let counter = 1;
-			while (created.includes(candidate)) {
-				candidate = `attachments/${filename.replace(/(\.\w+)$/, ` ${counter}$1`)}`;
-				counter++;
-			}
-			return candidate;
-		},
-	);
-	const generateMarkdownLink = vi.fn(
-		(file: TFile, _sourcePath: string) => `![[${file.path}]]`,
-	);
-	const app = {
-		vault: { createBinary },
-		fileManager: { getAvailablePathForAttachment, generateMarkdownLink },
-	} as unknown as App;
-	return { app, createBinary, getAvailablePathForAttachment, created };
-}
-
-function makeImageFile(name = "img.png", type = "image/png"): File {
-	return new File([new Uint8Array([1, 2, 3])], name, { type });
-}
 
 /**
  * jsdom has no DataTransfer constructor; the handler only touches
@@ -70,24 +46,6 @@ function dispatchPaste(
 	Object.defineProperty(event, "clipboardData", { value: data });
 	el.dispatchEvent(event);
 	return event as ClipboardEvent;
-}
-
-async function flushSaves(handle: { whenIdle(): Promise<void> }) {
-	await handle.whenIdle();
-	// whenIdle resolves via .finally; give the insertion microtask a beat.
-	await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function makeInput(): HTMLInputElement {
-	const input = document.createElement("input");
-	document.body.appendChild(input);
-	return input;
-}
-
-function makeTextarea(): HTMLTextAreaElement {
-	const textarea = document.createElement("textarea");
-	document.body.appendChild(textarea);
-	return textarea;
 }
 
 beforeEach(() => {
@@ -148,59 +106,26 @@ describe("attachImagePasteHandler", () => {
 		expect(onInput).toHaveBeenCalled();
 	});
 
-	it("lets text win: no save, no preventDefault when text/plain is non-empty", async () => {
-		const { app, createBinary } = makeApp();
-		const input = makeInput();
-		const handle = attachImagePasteHandler(app, input, {});
-
-		const event = dispatchPaste(
-			input,
-			makeClipboardData([makeImageFile()], "clipboard text"),
-		);
-		await flushSaves(handle);
-
-		expect(event.defaultPrevented).toBe(false);
-		expect(createBinary).not.toHaveBeenCalled();
-	});
-
-	it("whitespace-only text still wins (parity with the capture fallback)", async () => {
-		const { app, createBinary } = makeApp();
-		const input = makeInput();
-		const handle = attachImagePasteHandler(app, input, {});
-
-		const event = dispatchPaste(input, makeClipboardData([makeImageFile()], "  "));
-		await flushSaves(handle);
-
-		expect(event.defaultPrevented).toBe(false);
-		expect(createBinary).not.toHaveBeenCalled();
-	});
-
-	it("ignores pastes without image data", async () => {
-		const { app, createBinary } = makeApp();
-		const input = makeInput();
-		const handle = attachImagePasteHandler(app, input, {});
-
-		const event = dispatchPaste(input, makeClipboardData([]));
-		await flushSaves(handle);
-
-		expect(event.defaultPrevented).toBe(false);
-		expect(createBinary).not.toHaveBeenCalled();
-	});
-
-	it("ignores non-image files", async () => {
-		const { app, createBinary } = makeApp();
-		const input = makeInput();
-		const handle = attachImagePasteHandler(app, input, {});
-
-		const event = dispatchPaste(
-			input,
-			makeClipboardData([makeImageFile("doc.pdf", "application/pdf")]),
-		);
-		await flushSaves(handle);
-
-		expect(event.defaultPrevented).toBe(false);
-		expect(createBinary).not.toHaveBeenCalled();
-	});
+	const ignoredPastes = [
+		{ name: "lets text win: no save, no preventDefault when text/plain is non-empty",
+			files: () => [makeImageFile()], text: "clipboard text" },
+		{ name: "whitespace-only text still wins (parity with the capture fallback)",
+			files: () => [makeImageFile()], text: "  " },
+		{ name: "ignores pastes without image data", files: () => [], text: "" },
+		{ name: "ignores non-image files",
+			files: () => [makeImageFile("doc.pdf", "application/pdf")], text: "" },
+	];
+	for (const { name, files, text } of ignoredPastes) {
+		it(name, async () => {
+			const { app, createBinary } = makeApp();
+			const input = makeInput();
+			const handle = attachImagePasteHandler(app, input, {});
+			const event = dispatchPaste(input, makeClipboardData(files(), text));
+			await flushSaves(handle);
+			expect(event.defaultPrevented).toBe(false);
+			expect(createBinary).not.toHaveBeenCalled();
+		});
+	}
 
 	it("saves multiple images sequentially with distinct paths, space-joined in inputs", async () => {
 		const { app, created } = makeApp();
@@ -233,15 +158,8 @@ describe("attachImagePasteHandler", () => {
 	});
 
 	it("freezes the input during the save and unfreezes afterwards", async () => {
-		const { app } = makeApp();
-		let resolveCreate: () => void = () => {};
-		const createBinary = app.vault.createBinary as ReturnType<typeof vi.fn>;
-		createBinary.mockImplementationOnce(
-			(path: string) =>
-				new Promise<TFile>((resolve) => {
-					resolveCreate = () => resolve({ path } as TFile);
-				}),
-		);
+		const { app, createBinary } = makeApp();
+		const resolveCreate = deferCreate(createBinary);
 		const input = makeInput();
 		const handle = attachImagePasteHandler(app, input, {});
 
@@ -257,15 +175,8 @@ describe("attachImagePasteHandler", () => {
 	});
 
 	it("notices instead of interleaving when a second paste arrives mid-save", async () => {
-		const { app } = makeApp();
-		let resolveCreate: () => void = () => {};
-		const createBinary = app.vault.createBinary as ReturnType<typeof vi.fn>;
-		createBinary.mockImplementationOnce(
-			(path: string) =>
-				new Promise<TFile>((resolve) => {
-					resolveCreate = () => resolve({ path } as TFile);
-				}),
-		);
+		const { app, createBinary } = makeApp();
+		const resolveCreate = deferCreate(createBinary);
 		const input = makeInput();
 		const handle = attachImagePasteHandler(app, input, {});
 
@@ -321,15 +232,8 @@ describe("attachImagePasteHandler", () => {
 	});
 
 	it("skips the text insertion when detached mid-save (modal closed)", async () => {
-		const { app } = makeApp();
-		let resolveCreate: () => void = () => {};
-		const createBinary = app.vault.createBinary as ReturnType<typeof vi.fn>;
-		createBinary.mockImplementationOnce(
-			(path: string) =>
-				new Promise<TFile>((resolve) => {
-					resolveCreate = () => resolve({ path } as TFile);
-				}),
-		);
+		const { app, createBinary } = makeApp();
+		const resolveCreate = deferCreate(createBinary);
 		const input = makeInput();
 		const handle = attachImagePasteHandler(app, input, {});
 
