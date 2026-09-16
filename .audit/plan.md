@@ -8,4 +8,4 @@
 - [ ] Meet the 30% reduction target without dropping behavior or coverage.
 - [x] Review the integrated architecture and decision trail independently.
 - [x] Verify final native Obsidian behavior and all repository checks.
-- [ ] Commit, push, open PR(s), and finish CI/review follow-up.
+- [x] Commit and open PR #1759; CI and external review status are tracked on the PR.
