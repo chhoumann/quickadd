@@ -23,6 +23,7 @@ const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-pkg-capture-inbox-gps";
 const CHOICE_NAME = "Capture to Inbox with GPS";
 const PACKAGE_RELATIVE_PATH = "packages/capture-inbox-gps.quickadd.json";
+const INBOX_RELATIVE_PATH = "gps-inbox.md";
 const WAIT_OPTS = { timeoutMs: 15_000, intervalMs: 200 };
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -134,7 +135,7 @@ describe("Capture to Inbox with GPS package", () => {
 			sandboxRoot: "__obsidian_e2e__",
 			testName: "capture-inbox-gps-package",
 		});
-		inboxPath = sandbox.path("gps-inbox.md");
+		inboxPath = sandbox.path(INBOX_RELATIVE_PATH);
 
 		packagePath = await seedVaultFile(obsidian, sandbox, PACKAGE_RELATIVE_PATH, packageJson);
 
@@ -191,7 +192,8 @@ describe("Capture to Inbox with GPS package", () => {
 		await qa.reload({ waitUntilReady: true });
 	}, 30_000);
 
-	beforeEach((ctx) => {
+	beforeEach(async (ctx) => {
+		await seedVaultFile(obsidian, sandbox, INBOX_RELATIVE_PATH, "");
 		ctx.onTestFailed(async () => {
 			await captureFailureArtifacts(
 				{ id: ctx.task.id, name: ctx.task.name },
@@ -237,7 +239,7 @@ describe("Capture to Inbox with GPS package", () => {
 		expect(outcome.ok).toBe(true);
 
 		const content = await sandbox.waitForContent(
-			inboxPath,
+			INBOX_RELATIVE_PATH,
 			(text) => text.includes("Trail marker") && text.includes("55.676098"),
 			WAIT_OPTS,
 		);
@@ -252,7 +254,7 @@ describe("Capture to Inbox with GPS package", () => {
 		expect(outcome.ok).toBe(true);
 
 		const content = await sandbox.waitForContent(
-			inboxPath,
+			INBOX_RELATIVE_PATH,
 			(text) => text.includes("No fix today"),
 			WAIT_OPTS,
 		);

@@ -20,11 +20,8 @@ const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "__qa-1667-date-case";
 const COMMAND_ID = `quickadd:choice:${CHOICE_ID}`;
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
-const DAILY_NOTE = "Daily/2026-08-11.md";
-const INITIAL_CONTENT =
-	"# Daily note\n\n## tuesday, august 11th, 2026.\n\nExisting entry\n";
-const CAPTURED_CONTENT =
-	"# Daily note\n\n## tuesday, august 11th, 2026.\n\n- captured through issue 1667\nExisting entry\n";
+const DAILY_NOTE = "Daily/date-case.md";
+const CAPTURE_LINE = "- captured through issue 1667";
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
@@ -88,18 +85,7 @@ beforeAll(async () => {
 		testName: "date-case-transform",
 	});
 
-	await obsidian.dev.evalJson<boolean>(`(() => {
-		window.__qa1667OriginalMomentNow = window.moment.now;
-		window.moment.now = () => new Date(2026, 7, 11, 12, 0, 0).valueOf();
-		return true;
-	})()`);
-
-	const targetPath = await seedVaultFile(
-		obsidian,
-		sandbox,
-		DAILY_NOTE,
-		INITIAL_CONTENT,
-	);
+	const targetPath = await seedVaultFile(obsidian, sandbox, DAILY_NOTE);
 
 	await qa.data<QuickAddData>().patch((data) => {
 		data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
@@ -113,14 +99,6 @@ afterAll(async () => {
 	for (const step of [
 		() => qa?.restoreData?.(),
 		() => qa?.reload?.(),
-		() =>
-			obsidian?.dev.evalJson<boolean>(`(() => {
-				if (window.__qa1667OriginalMomentNow) {
-					window.moment.now = window.__qa1667OriginalMomentNow;
-					delete window.__qa1667OriginalMomentNow;
-				}
-				return true;
-			})()`),
 		() => sandbox?.cleanup?.(),
 		() => (obsidian ? clearVaultRunLockMarker(obsidian) : undefined),
 		() => lock?.release(),
@@ -134,6 +112,15 @@ afterAll(async () => {
 	if (errors.length > 0) throw errors[0];
 }, 15_000);
 
+async function resetDailyNote() {
+	const heading = await obsidian.dev.evalJson<string>(
+		'window.moment(new Date()).format("dddd, MMMM Do, yyyy.").toLowerCase()',
+	);
+	const prefix = `# Daily note\n\n## ${heading}\n\n`;
+	await seedVaultFile(obsidian, sandbox, DAILY_NOTE, `${prefix}Existing entry\n`);
+	return `${prefix}${CAPTURE_LINE}\nExisting entry\n`;
+}
+
 describe("issue 1667: date case transform in Insert after", () => {
 	it("captures under the exact lowercase heading from the CLI and a hotkey", async (ctx) => {
 		ctx.onTestFailed(async () => {
@@ -144,6 +131,7 @@ describe("issue 1667: date case transform in Insert after", () => {
 			);
 		});
 
+		const expectedCliContent = await resetDailyNote();
 		const outcome = await obsidian.execJson<{
 			ok: boolean;
 			verified?: boolean;
@@ -160,14 +148,9 @@ describe("issue 1667: date case transform in Insert after", () => {
 			verified: true,
 			effect: "changed",
 		});
-		expect(content).toBe(CAPTURED_CONTENT);
+		expect(content).toBe(expectedCliContent);
 
-		await seedVaultFile(obsidian, sandbox, DAILY_NOTE, INITIAL_CONTENT);
-		await sandbox.waitForContent(
-			DAILY_NOTE,
-			(text) => text === INITIAL_CONTENT,
-			WAIT_OPTS,
-		);
+		const expectedHotkeyContent = await resetDailyNote();
 
 		const hotkeyResult = await obsidian.dev.evalJson<{
 			commandRegistered: boolean;
@@ -211,6 +194,6 @@ describe("issue 1667: date case transform in Insert after", () => {
 			commandRegistered: true,
 			defaultPrevented: true,
 		});
-		expect(hotkeyContent).toBe(CAPTURED_CONTENT);
+		expect(hotkeyContent).toBe(expectedHotkeyContent);
 	});
 });
