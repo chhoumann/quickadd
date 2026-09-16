@@ -1,5 +1,6 @@
+import { addProviderSecret } from "./ai/providerSettings";
 import type { App} from "obsidian";
-import { Modal, Notice, SecretComponent, Setting } from "obsidian";
+import { Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { cloneModelSeeds, uniqueProviderId } from "src/ai/Provider";
 import { syncProviderModels } from "src/ai/modelSyncService";
@@ -59,14 +60,10 @@ export class ProviderPickerModal extends Modal {
       }
 
       let apiKeyRef = "";
-      const apiSetting = new Setting(card)
-        .setName("API key")
-        .setDesc("Select a secret from SecretStorage")
-        .addComponent((el) => new SecretComponent(this.app, el)
-          .setValue(apiKeyRef)
-          .onChange((value) => {
-            apiKeyRef = value;
-          }));
+      const apiSetting = addProviderSecret(card, this.app, {
+        value: apiKeyRef,
+        onChange: (value) => { apiKeyRef = value; },
+      });
 
       apiSetting.settingEl.addClass("qa-provider-api-setting");
 

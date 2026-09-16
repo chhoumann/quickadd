@@ -1,87 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CommonResponse } from "../OpenAIRequest";
+import { describe, it, expect, beforeEach } from "vitest";
 
 // --- Mock the Obsidian-coupled dependencies the Agent reaches for ---
-const chatRequestMock = vi.fn<(...args: unknown[]) => Promise<CommonResponse>>();
-vi.mock("../OpenAIRequest", () => ({
-	chatRequest: (...args: unknown[]) => chatRequestMock(...args),
-	anthropicMaxTokens: () => 8192,
-}));
-
-const confirmMock = vi.fn<() => Promise<string>>(async () => "allow");
-vi.mock("../../gui/AIToolConfirmModal", () => ({
-	default: { Prompt: () => confirmMock() },
-}));
-
-vi.mock("../../formatters/completeFormatter", () => ({
-	CompleteFormatter: class {
-		async formatFileContent(input: string) {
-			return input; // identity — formatting is exercised elsewhere
-		}
-	},
-}));
-
-vi.mock("../aiHelpers", () => ({
-	resolveModelInputOrThrow: (input: string | { name: string }) => ({
-		model: {
-			name: typeof input === "string" ? input : input.name,
-			maxTokens: 128000,
-		},
-		provider: { name: "OpenAI", kind: "openai", endpoint: "https://x" },
-	}),
-}));
-
-vi.mock("../providerSecrets", () => ({ resolveProviderApiKey: async () => "key" }));
-
-vi.mock("../preventCursorChange", () => ({ preventCursorChange: () => () => {} }));
-
-let mockSettings: Record<string, unknown>;
-vi.mock("../../settingsStore", () => ({
-	settingsStore: { getState: () => mockSettings },
-}));
-
-import { Agent } from "./Agent";
-import type { AgentConfig } from "./aiToolTypes";
-
-function makeAgent(config: Partial<AgentConfig> = {}, vars = new Map<string, unknown>()) {
-	const choiceExecutor = { variables: vars } as never;
-	return new Agent(
-		{} as never,
-		{} as never,
-		choiceExecutor,
-		{ model: "gpt-4o", ...config } as AgentConfig,
-	);
-}
-
-function turnResponse(p: Partial<CommonResponse>): CommonResponse {
-	return {
-		id: "r",
-		model: "gpt-4o",
-		content: p.content ?? "",
-		usage: p.usage ?? { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-		stopReason: p.stopReason ?? "",
-		stopSequence: null,
-		created: 0,
-		toolCalls: p.toolCalls,
-		normalizedStopReason: p.normalizedStopReason ?? (p.toolCalls?.length ? "tool_calls" : "stop"),
-	};
-}
-
-function tool(extra: Record<string, unknown> = {}) {
-	return {
-		__qaTool: true as const,
-		description: "create a note",
-		inputSchema: { type: "object" as const, properties: { path: { type: "string" as const } }, required: ["path"] },
-		execute: vi.fn(async () => "created"),
-		...extra,
-	};
-}
+import { chatRequestMock, confirmMock, agentState, makeAgent, turnResponse, tool } from "../../../tests/helpers/ai/agentHarness";
 
 beforeEach(() => {
 	chatRequestMock.mockReset();
 	confirmMock.mockReset();
 	confirmMock.mockResolvedValue("allow");
-	mockSettings = {
+	agentState.settings = {
 		disableOnlineFeatures: false,
 		ai: { confirmToolCalls: "never", defaultSystemPrompt: "default sys" },
 	};
@@ -109,7 +35,7 @@ describe("Agent.generate — tool loop", () => {
 
 	it("denies a tool when the confirm modal returns deny → isError result, loop continues", async () => {
 		confirmMock.mockResolvedValue("deny");
-		mockSettings.ai = { confirmToolCalls: "always", defaultSystemPrompt: "" };
+		agentState.settings.ai = { confirmToolCalls: "always", defaultSystemPrompt: "" };
 		const t = tool();
 		chatRequestMock
 			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c1", name: "create_note", args: { path: "a.md" } }] }))
@@ -124,7 +50,7 @@ describe("Agent.generate — tool loop", () => {
 
 	it("aborts the whole run when the confirm modal returns abort", async () => {
 		confirmMock.mockResolvedValue("abort");
-		mockSettings.ai = { confirmToolCalls: "always", defaultSystemPrompt: "" };
+		agentState.settings.ai = { confirmToolCalls: "always", defaultSystemPrompt: "" };
 		const t = tool();
 		chatRequestMock.mockResolvedValueOnce(
 			turnResponse({ toolCalls: [{ id: "c1", name: "create_note", args: { path: "a.md" } }] }),
@@ -134,7 +60,7 @@ describe("Agent.generate — tool loop", () => {
 	});
 
 	it("does not confirm a read-only tool under the 'destructive' setting", async () => {
-		mockSettings.ai = { confirmToolCalls: "destructive", defaultSystemPrompt: "" };
+		agentState.settings.ai = { confirmToolCalls: "destructive", defaultSystemPrompt: "" };
 		const t = tool({ readOnly: true });
 		chatRequestMock
 			.mockResolvedValueOnce(turnResponse({ toolCalls: [{ id: "c1", name: "read", args: { path: "a.md" } }] }))
@@ -148,7 +74,7 @@ describe("Agent.generate — tool loop", () => {
 	it("confirms a destructive tool when confirmToolCalls is undefined (old persisted settings default to 'destructive')", async () => {
 		// main.ts shallow-merges settings, so an existing user's pre-confirmToolCalls
 		// `ai` object leaves this undefined — it must NOT silently auto-run a writer.
-		mockSettings.ai = { defaultSystemPrompt: "" } as typeof mockSettings.ai;
+		agentState.settings.ai = { defaultSystemPrompt: "" } as typeof agentState.settings.ai;
 		confirmMock.mockResolvedValue("allow");
 		const t = tool({ readOnly: false });
 		chatRequestMock

@@ -1,6 +1,6 @@
- 
+import { addProviderSecret } from "./ai/providerSettings";
 import type { App } from "obsidian";
-import { ButtonComponent, Modal, Notice, SecretComponent, Setting } from "obsidian";
+import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { ensureProviderIds } from "src/ai/Provider";
 import { mergeModels } from "src/ai/modelsDirectory";
@@ -111,22 +111,7 @@ export class AIAssistantProvidersModal extends Modal {
 			new Setting(providersContainer)
 				.setName(provider.name)
 				.setDesc(provider.endpoint)
-				.addButton((button) => {
-					button.onClick(async () => {
-						const confirmation = await GenericYesNoPrompt.Prompt(
-							this.app,
-							`Are you sure you want to delete ${provider.name}?`
-						);
-						if (!confirmation) {
-							return;
-						}
-
-						this.providers.splice(i, 1);
-						this.reload();
-					});
-					button.setDestructive();
-					button.setIcon("trash" as IconType);
-				})
+				.addButton((button) => this.addDeleteButton(button, provider.name, () => this.providers.splice(i, 1)))
 					.addButton((button) => {
 						button.setButtonText("Edit").onClick(() => {
 							this.selectedProvider = provider;
@@ -135,6 +120,23 @@ export class AIAssistantProvidersModal extends Modal {
 							this.reload();
 						});
 					});
+		});
+	}
+
+	private addDeleteButton(
+		button: ButtonComponent,
+		name: string,
+		remove: () => void,
+	): void {
+		button.setDestructive();
+		button.setIcon("trash" as IconType);
+		button.onClick(async () => {
+			const confirmed = await GenericYesNoPrompt.Prompt(
+				this.app, `Are you sure you want to delete ${name}?`,
+			);
+			if (!confirmed) return;
+			remove();
+			this.reload();
 		});
 	}
 
@@ -184,22 +186,15 @@ export class AIAssistantProvidersModal extends Modal {
 	addApiKeySetting(container: HTMLElement) {
 		const hasLegacyKey =
 			!!this.selectedProvider?.apiKey && !this.selectedProvider?.apiKeyRef;
-		const description = hasLegacyKey
-			? "Legacy API key detected. Select a SecretStorage entry to migrate."
-			: "Select a secret from SecretStorage";
-
-		new Setting(container)
-			.setName("API key")
-			.setDesc(description)
-			.addComponent((el) =>
-				new SecretComponent(this.app, el)
-					.setValue(this.selectedProvider?.apiKeyRef ?? "")
-					.onChange((value) => {
-						if (!this.selectedProvider) return;
-						this.selectedProvider.apiKeyRef = value;
-						this.selectedProvider.apiKey = "";
-					}),
-			);
+		addProviderSecret(container, this.app, {
+			value: this.selectedProvider?.apiKeyRef ?? "",
+			hasLegacyKey,
+			onChange: (value) => {
+				if (!this.selectedProvider) return;
+				this.selectedProvider.apiKeyRef = value;
+				this.selectedProvider.apiKey = "";
+			},
+		});
 	}
 
 	addKindSetting(container: HTMLElement) {
@@ -266,22 +261,7 @@ export class AIAssistantProvidersModal extends Modal {
             new Setting(modelsContainer)
                 .setName(model.name)
                 .setDesc(metadata.join(" · "))
-                .addButton((button) => {
-                    button.onClick(async () => {
-                        const confirmation = await GenericYesNoPrompt.Prompt(
-                            this.app,
-                            `Are you sure you want to delete ${model.name}?`
-                        );
-                        if (!confirmation) {
-                            return;
-                        }
-
-                        this.selectedProvider!.models.splice(i, 1);
-                        this.reload();
-                    });
-                    button.setDestructive();
-                    button.setIcon("trash" as IconType);
-                });
+                .addButton((button) => this.addDeleteButton(button, model.name, () => this.selectedProvider!.models.splice(i, 1)));
         });
 
         new Setting(modelsContainer)

@@ -124,29 +124,15 @@ function findSelectedValue(
 ): string | undefined {
 	if (!current.model || current.model === ASK_ME) return ASK_ME;
 
-	if (current.modelRef) {
-		for (const [value, entry] of entriesByValue) {
-			if (
-				entry.providerId === current.modelRef.providerId &&
-				entry.modelName === current.modelRef.name
-			) {
-				return value;
-			}
-		}
-		return undefined;
-	}
-
-	// Legacy bare name: preselect the provider the runtime would first-match.
-	// Silent — rendering a dropdown must not consume the runtime warn-once budget.
-	const resolved = resolveModel(current.model, { silent: true });
-	if (!resolved) return undefined;
+	// Rendering must not consume the runtime warning budget for dangling refs.
+	const resolved = current.modelRef ? undefined : resolveModel(current.model, { silent: true });
+	const target = current.modelRef ?? (resolved && {
+		providerId: resolved.provider.id,
+		name: resolved.model.name,
+	});
+	if (!target) return undefined;
 	for (const [value, entry] of entriesByValue) {
-		if (
-			entry.providerId === resolved.provider.id &&
-			entry.modelName === resolved.model.name
-		) {
-			return value;
-		}
+		if (entry.providerId === target.providerId && entry.modelName === target.name) return value;
 	}
 	return undefined;
 }

@@ -1,3 +1,4 @@
+import { providerSamplingParams } from "../samplingParams";
 /**
  * Pure per-provider build/parse for tool calling + structured output (#714).
  *
@@ -277,16 +278,7 @@ function buildAnthropicBody(
 		messages,
 	};
 	if (systemParts.length > 0) body.system = systemParts.join("\n\n");
-	// Forward the user's sampling settings (previously dropped on this path).
-	// Only the params the Messages API knows; the OpenAI-specific penalty
-	// params would be rejected as unknown fields.
-	const anthropicParams = req.modelParams ?? {};
-	if (typeof anthropicParams.temperature === "number") {
-		body.temperature = anthropicParams.temperature;
-	}
-	if (typeof anthropicParams.top_p === "number") {
-		body.top_p = anthropicParams.top_p;
-	}
+	Object.assign(body, providerSamplingParams("anthropic", req.modelParams ?? {}));
 	if (req.tools && req.tools.length > 0) {
 		// NOTE: the Anthropic Messages API has no tool-level `strict` field (that is
 		// OpenAI-only) — sending one risks an unknown-field 400, so we never do.
@@ -418,10 +410,7 @@ function buildGeminiBody(modelName: string, req: NormalizedChatRequest): Body {
 		];
 		if (req.toolChoice) body.toolConfig = geminiToolConfig(req.toolChoice);
 	}
-	const generationConfig: Body = {};
-	const mp = req.modelParams ?? {};
-	if (typeof mp.temperature === "number") generationConfig.temperature = mp.temperature;
-	if (typeof mp.top_p === "number") generationConfig.topP = mp.top_p;
+	const generationConfig: Body = providerSamplingParams("gemini", req.modelParams ?? {});
 	if (req.maxOutputTokens !== undefined)
 		generationConfig.maxOutputTokens = req.maxOutputTokens;
 	if (req.responseFormat?.schema) {

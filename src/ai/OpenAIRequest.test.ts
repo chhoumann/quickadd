@@ -6,44 +6,7 @@ import {
 	isLikelyContextLimitError,
 } from "./providerErrors";
 
-const storeState = vi.hoisted(() => ({
-	disableOnlineFeatures: false,
-}));
-
-const mocks = vi.hoisted(() => ({
-	requestUrlMock: vi.fn(),
-	beginAIRequestLogEntryMock: vi.fn(),
-	finishAIRequestLogEntryMock: vi.fn(),
-	getModelProviderMock: vi.fn(),
-	logMessageMock: vi.fn(),
-	logErrorMock: vi.fn(),
-}));
-
-vi.mock("obsidian", () => ({
-	requestUrl: mocks.requestUrlMock,
-}));
-
-vi.mock("src/settingsStore", () => ({
-	settingsStore: {
-		getState: () => storeState,
-	},
-}));
-
-vi.mock("./AIAssistant", () => ({
-	beginAIRequestLogEntry: mocks.beginAIRequestLogEntryMock,
-	finishAIRequestLogEntry: mocks.finishAIRequestLogEntryMock,
-}));
-
-vi.mock("./aiHelpers", () => ({
-	getModelProvider: mocks.getModelProviderMock,
-}));
-
-vi.mock("src/logger/logManager", () => ({
-	log: {
-		logMessage: mocks.logMessageMock,
-		logError: mocks.logErrorMock,
-	},
-}));
+import { storeState, mocks, makeApp } from "../../tests/helpers/ai/requestHarness";
 
 const {
 	requestUrlMock,
@@ -58,15 +21,6 @@ const { OpenAIRequest } = await import("./OpenAIRequest");
 // OpenAIRequest now takes the caller-resolved provider explicitly (#1495);
 // these tests keep selecting it via getModelProviderMock and read it back here.
 const currentProvider = () => getModelProviderMock() as AIProvider;
-
-// A minimal app whose activeEditor is undefined so preventCursorChange becomes a no-op.
-function makeApp(): App {
-	return {
-		workspace: {
-			activeEditor: undefined,
-		},
-	} as unknown as App;
-}
 
 // An app whose editor records setCursor/setSelections calls so we can assert
 // preventCursorChange restores cursor state after dispatching the request.
@@ -128,6 +82,41 @@ function openAIResponse(overrides: Record<string, unknown> = {}) {
 			},
 		],
 		created: 1700000000,
+		...overrides,
+	};
+}
+
+function anthropicResponse(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "msg-1",
+		model: "claude-3-5-sonnet",
+		role: "assistant",
+		stop_reason: "end_turn",
+		stop_sequence: null,
+		type: "message",
+		content: [{ text: "Hi from Claude", type: "text" }],
+		usage: { input_tokens: 5, output_tokens: 8 },
+		...overrides,
+	};
+}
+
+function geminiResponse(overrides: Record<string, unknown> = {}) {
+	return {
+		candidates: [
+			{
+				content: {
+					role: "model",
+					parts: [{ text: "Gemini reply" }],
+				},
+				finishReason: "STOP",
+			},
+		],
+		modelVersion: "gemini-1.5-pro-001",
+		usageMetadata: {
+			promptTokenCount: 7,
+			candidatesTokenCount: 9,
+			totalTokenCount: 16,
+		},
 		...overrides,
 	};
 }
@@ -360,16 +349,7 @@ describe("OpenAIRequest", () => {
 
 		it("posts to /v1/messages with a top-level system prompt, model-aware max_tokens, and no stale beta header", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					id: "msg-1",
-					model: "claude-3-5-sonnet",
-					role: "assistant",
-					stop_reason: "end_turn",
-					stop_sequence: null,
-					type: "message",
-					content: [{ text: "Hi from Claude", type: "text" }],
-					usage: { input_tokens: 5, output_tokens: 8 },
-				},
+				json: anthropicResponse(),
 			});
 
 			const makeRequest = OpenAIRequest(
@@ -401,16 +381,7 @@ describe("OpenAIRequest", () => {
 
 		it("omits the system key when no system prompt is given", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					id: "msg-1b",
-					model: "claude-3-5-sonnet",
-					role: "assistant",
-					stop_reason: "end_turn",
-					stop_sequence: null,
-					type: "message",
-					content: [{ text: "ok", type: "text" }],
-					usage: { input_tokens: 1, output_tokens: 1 },
-				},
+				json: anthropicResponse({ id: "msg-1b", content: [{ text: "ok", type: "text" }], usage: { input_tokens: 1, output_tokens: 1 } }),
 			});
 
 			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "");
@@ -423,16 +394,7 @@ describe("OpenAIRequest", () => {
 
 		it("omits the system key for a whitespace-only system prompt", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					id: "msg-1c",
-					model: "claude-3-5-sonnet",
-					role: "assistant",
-					stop_reason: "end_turn",
-					stop_sequence: null,
-					type: "message",
-					content: [{ text: "ok", type: "text" }],
-					usage: { input_tokens: 1, output_tokens: 1 },
-				},
+				json: anthropicResponse({ id: "msg-1c", content: [{ text: "ok", type: "text" }], usage: { input_tokens: 1, output_tokens: 1 } }),
 			});
 
 			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "   ");
@@ -444,19 +406,12 @@ describe("OpenAIRequest", () => {
 
 		it("extracts text by scanning all content blocks (a leading tool_use block does not break it)", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					id: "msg-3",
-					model: "claude-3-5-sonnet",
-					role: "assistant",
-					stop_reason: "tool_use",
-					stop_sequence: null,
-					type: "message",
-					content: [
+				json: anthropicResponse({
+					id: "msg-3", stop_reason: "tool_use", content: [
 						{ type: "tool_use", id: "toolu_1", name: "x", input: {} },
 						{ type: "text", text: "after the tool block" },
-					],
-					usage: { input_tokens: 3, output_tokens: 2 },
-				},
+					], usage: { input_tokens: 3, output_tokens: 2 }
+				}),
 			});
 
 			const makeRequest = OpenAIRequest(makeApp(), "anthropic-key", anthropicModel, currentProvider(), "sys");
@@ -467,16 +422,7 @@ describe("OpenAIRequest", () => {
 
 		it("maps the Anthropic response, summing tokens and preserving stop_sequence", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					id: "msg-2",
-					model: "claude-3-5-sonnet",
-					role: "assistant",
-					stop_reason: "stop_sequence",
-					stop_sequence: "###",
-					type: "message",
-					content: [{ text: "Answer", type: "text" }],
-					usage: { input_tokens: 11, output_tokens: 4 },
-				},
+				json: anthropicResponse({ id: "msg-2", stop_reason: "stop_sequence", stop_sequence: "###", content: [{ text: "Answer", type: "text" }], usage: { input_tokens: 11, output_tokens: 4 } }),
 			});
 
 			const makeRequest = OpenAIRequest(
@@ -507,23 +453,7 @@ describe("OpenAIRequest", () => {
 
 		it("uses the generateContent URL with the api key as a header, never in the URL", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
-					candidates: [
-						{
-							content: {
-								role: "model",
-								parts: [{ text: "Gemini reply" }],
-							},
-							finishReason: "STOP",
-						},
-					],
-					modelVersion: "gemini-1.5-pro-001",
-					usageMetadata: {
-						promptTokenCount: 7,
-						candidatesTokenCount: 9,
-						totalTokenCount: 16,
-					},
-				},
+				json: geminiResponse(),
 			});
 
 			const makeRequest = OpenAIRequest(
@@ -624,7 +554,7 @@ describe("OpenAIRequest", () => {
 
 		it("concatenates multiple text parts and reads usage metadata", async () => {
 			requestUrlMock.mockResolvedValue({
-				json: {
+				json: geminiResponse({
 					candidates: [
 						{
 							content: {
@@ -637,14 +567,12 @@ describe("OpenAIRequest", () => {
 							},
 							finishReason: "STOP",
 						},
-					],
-					modelVersion: "gemini-x",
-					usageMetadata: {
+					], modelVersion: "gemini-x", usageMetadata: {
 						promptTokenCount: 2,
 						candidatesTokenCount: 3,
 						totalTokenCount: 5,
-					},
-				},
+					}
+				}),
 			});
 
 			const makeRequest = OpenAIRequest(makeApp(), "key", geminiModel, currentProvider(), "sys");

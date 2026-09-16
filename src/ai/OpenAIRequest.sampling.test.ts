@@ -1,47 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { AIProvider, Model } from "./Provider";
 
-const storeState = vi.hoisted(() => ({
-	disableOnlineFeatures: false,
-}));
-
-const mocks = vi.hoisted(() => ({
-	requestUrlMock: vi.fn(),
-	beginAIRequestLogEntryMock: vi.fn(),
-	finishAIRequestLogEntryMock: vi.fn(),
-	getModelProviderMock: vi.fn(),
-	logMessageMock: vi.fn(),
-	logErrorMock: vi.fn(),
-	noticeMock: vi.fn(),
-}));
-
-vi.mock("obsidian", () => ({
-	requestUrl: mocks.requestUrlMock,
-	Notice: mocks.noticeMock,
-}));
-
-vi.mock("src/settingsStore", () => ({
-	settingsStore: {
-		getState: () => storeState,
-	},
-}));
-
-vi.mock("./AIAssistant", () => ({
-	beginAIRequestLogEntry: mocks.beginAIRequestLogEntryMock,
-	finishAIRequestLogEntry: mocks.finishAIRequestLogEntryMock,
-}));
-
-vi.mock("./aiHelpers", () => ({
-	getModelProvider: mocks.getModelProviderMock,
-}));
-
-vi.mock("src/logger/logManager", () => ({
-	log: {
-		logMessage: mocks.logMessageMock,
-		logError: mocks.logErrorMock,
-	},
-}));
+import { storeState, mocks, makeApp } from "../../tests/helpers/ai/requestHarness";
 
 const { requestUrlMock, getModelProviderMock, noticeMock } = mocks;
 
@@ -51,13 +11,7 @@ const { OpenAIRequest, chatRequest } = await import("./OpenAIRequest");
 // (#1495); these tests keep selecting it via getModelProviderMock.
 const currentProvider = () => getModelProviderMock() as AIProvider;
 
-function makeApp(): App {
-	return {
-		workspace: {
-			activeEditor: undefined,
-		},
-	} as unknown as App;
-}
+
 
 const openaiProvider = {
 	name: "OpenAI",
@@ -112,14 +66,14 @@ function sentBody(callIndex: number): Record<string, unknown> {
 	return JSON.parse(requestUrlMock.mock.calls[callIndex][0].body as string);
 }
 
-describe("sampling parameter recovery (single-prompt path)", () => {
-	beforeEach(() => {
-		requestUrlMock.mockReset();
-		getModelProviderMock.mockReset();
-		noticeMock.mockReset();
-		storeState.disableOnlineFeatures = false;
-	});
+beforeEach(() => {
+	requestUrlMock.mockReset();
+	getModelProviderMock.mockReset();
+	noticeMock.mockReset();
+	storeState.disableOnlineFeatures = false;
+});
 
+describe("sampling parameter recovery (single-prompt path)", () => {
 	it("retries once without sampling params when the provider rejects them, and notifies", async () => {
 		getModelProviderMock.mockReturnValue(openaiProvider);
 		requestUrlMock
@@ -139,6 +93,36 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 		expect(sentBody(1).temperature).toBeUndefined();
 		expect(noticeMock).toHaveBeenCalledTimes(1);
 		expect(String(noticeMock.mock.calls[0][0])).toContain("Temperature");
+	});
+
+	it("keeps the original wire protocol when provider settings change during a sampling retry", async () => {
+		const provider: AIProvider = { ...openaiProvider };
+		getModelProviderMock.mockReturnValue(provider);
+		requestUrlMock
+			.mockImplementationOnce(async () => {
+				provider.kind = "anthropic";
+				return unsupportedParamFailure();
+			})
+			.mockResolvedValueOnce(openaiSuccess("recovered"));
+
+		const request = OpenAIRequest(makeApp(), "sk", { name: "o3-mini", maxTokens: 200000 }, provider, "sys", { temperature: 0.7 });
+		expect((await request("hello")).content).toBe("recovered");
+		expect(requestUrlMock).toHaveBeenCalledTimes(2);
+		for (const [request] of requestUrlMock.mock.calls) {
+			expect(request.url).toBe("https://api.openai.com/v1/chat/completions");
+		}
+	});
+
+	it("retains the OpenAI-compatible fallback for an unrecognized persisted provider kind", async () => {
+		getModelProviderMock.mockReturnValue({ ...openaiProvider, kind: "future-protocol" });
+		requestUrlMock.mockResolvedValueOnce(openaiSuccess());
+		const request = OpenAIRequest(makeApp(), "sk", { name: "m", maxTokens: 1000 }, currentProvider(), "sys");
+		expect((await request("hello")).content).toBe("ok");
+		expect(requestUrlMock.mock.calls[0][0].url).toBe("https://api.openai.com/v1/chat/completions");
+		expect(sentBody(0).messages).toEqual([
+			{ role: "system", content: "sys" },
+			{ role: "user", content: "hello" },
+		]);
 	});
 
 	it("skips sampling params proactively when the model's metadata marks them unsupported", async () => {
@@ -205,13 +189,6 @@ describe("sampling parameter recovery (single-prompt path)", () => {
 });
 
 describe("Anthropic single-prompt sampling + output cap", () => {
-	beforeEach(() => {
-		requestUrlMock.mockReset();
-		getModelProviderMock.mockReset();
-		noticeMock.mockReset();
-		storeState.disableOnlineFeatures = false;
-	});
-
 	function anthropicSuccess() {
 		return {
 			status: 200,
@@ -285,13 +262,6 @@ describe("Anthropic single-prompt sampling + output cap", () => {
 });
 
 describe("sampling parameter recovery (chat/tool path)", () => {
-	beforeEach(() => {
-		requestUrlMock.mockReset();
-		getModelProviderMock.mockReset();
-		noticeMock.mockReset();
-		storeState.disableOnlineFeatures = false;
-	});
-
 	it("retries the chat request without sampling params on rejection", async () => {
 		getModelProviderMock.mockReturnValue(openaiProvider);
 		requestUrlMock
