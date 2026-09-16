@@ -176,4 +176,3 @@ export function normalizeSliderValue(
 	const normalized = normalizeNumericValue(value, config);
 	return normalized || String(config.min);
 }
-

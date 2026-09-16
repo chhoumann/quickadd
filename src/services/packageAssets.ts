@@ -33,4 +33,3 @@ export function packageSecretOptionNames(
 
 	return secretOptionNamesByPath;
 }
-

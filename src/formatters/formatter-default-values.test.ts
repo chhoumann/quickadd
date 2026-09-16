@@ -47,10 +47,10 @@ describe('Formatter - Default Values for {{VALUE:variable}}', () => {
 
     describe('Basic default value functionality', () => {
         it.each([
-        	{ name: 'should use default value when user provides no input', input: "Hello {{VALUE:name|World}}!", promptResponse: '', expected: "Hello World!" },
-        	{ name: 'should use user input when provided instead of default', input: "Hello {{VALUE:name|World}}!", promptResponse: 'Universe', expected: "Hello Universe!" },
-        	{ name: 'should work without default value (backwards compatibility)', input: "Hello {{VALUE:name}}!", promptResponse: 'Test', expected: "Hello Test!" },
-        	{ name: 'should handle empty default value', input: "Hello {{VALUE:name|}}!", promptResponse: '', expected: "Hello !" },
+	{ name: 'should use default value when user provides no input', input: "Hello {{VALUE:name|World}}!", promptResponse: '', expected: "Hello World!" },
+	{ name: 'should use user input when provided instead of default', input: "Hello {{VALUE:name|World}}!", promptResponse: 'Universe', expected: "Hello Universe!" },
+	{ name: 'should work without default value (backwards compatibility)', input: "Hello {{VALUE:name}}!", promptResponse: 'Test', expected: "Hello Test!" },
+	{ name: 'should handle empty default value', input: "Hello {{VALUE:name|}}!", promptResponse: '', expected: "Hello !" },
         ])("$name", async ({ input, promptResponse, expected }) => {
 
             formatter.setPromptResponse('name', promptResponse); // Empty response
@@ -62,10 +62,10 @@ describe('Formatter - Default Values for {{VALUE:variable}}', () => {
 
     describe('Edge cases', () => {
         it.each([
-        	{ name: 'should handle default value with spaces', input: "{{VALUE:greeting|Hello World}}", promptResponse: 'greeting', expected: "Hello World" },
-        	{ name: 'should trim whitespace around default value', input: "{{VALUE:name| Default Value }}", promptResponse: 'name', expected: "Default Value" },
-        	{ name: 'should handle multiple pipes in default value', input: "{{VALUE:name|Default|With|Pipes}}", promptResponse: 'name', expected: "Default|With|Pipes" },
-        	{ name: 'should handle special characters in default value', input: "{{VALUE:code|<div>Hello</div>}}", promptResponse: 'code', expected: "<div>Hello</div>" },
+	{ name: 'should handle default value with spaces', input: "{{VALUE:greeting|Hello World}}", promptResponse: 'greeting', expected: "Hello World" },
+	{ name: 'should trim whitespace around default value', input: "{{VALUE:name| Default Value }}", promptResponse: 'name', expected: "Default Value" },
+	{ name: 'should handle multiple pipes in default value', input: "{{VALUE:name|Default|With|Pipes}}", promptResponse: 'name', expected: "Default|With|Pipes" },
+	{ name: 'should handle special characters in default value', input: "{{VALUE:code|<div>Hello</div>}}", promptResponse: 'code', expected: "<div>Hello</div>" },
         ])("$name", async ({ input, promptResponse, expected }) => {
 
             formatter.setPromptResponse(promptResponse, '');
@@ -122,9 +122,9 @@ describe('Formatter - Default Values for {{VALUE:variable}}', () => {
 
     describe('Complex scenarios', () => {
         it.each([
-        	{ name: 'should handle markdown links in default value', input: "{{VALUE:link|[[DefaultPage]]}}", promptResponse: 'link', expected: "[[DefaultPage]]" },
-        	{ name: 'should handle JSON-like default values', input: '{{VALUE:data|{"key": "value"}}}', promptResponse: 'data', expected: '{"key": "value"}' },
-        	{ name: 'should handle empty string as user input (not use default)', input: "{{VALUE:name|DefaultName}}", promptResponse: 'name', expected: "DefaultName" },
+	{ name: 'should handle markdown links in default value', input: "{{VALUE:link|[[DefaultPage]]}}", promptResponse: 'link', expected: "[[DefaultPage]]" },
+	{ name: 'should handle JSON-like default values', input: '{{VALUE:data|{"key": "value"}}}', promptResponse: 'data', expected: '{"key": "value"}' },
+	{ name: 'should handle empty string as user input (not use default)', input: "{{VALUE:name|DefaultName}}", promptResponse: 'name', expected: "DefaultName" },
         ])("$name", async ({ input, promptResponse, expected }) => {
 
             formatter.setPromptResponse(promptResponse, '');

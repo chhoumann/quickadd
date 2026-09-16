@@ -720,11 +720,11 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   });
 
   it.each([
-  	{ name: 'preserves CRLF frontmatter and inserts after the closing fence', input: '---\r\ntitle: A\r\n---\r\n# Body\r\n', expected: '---\r\ntitle: A\r\n---\r\nINSERTED\n# Body\r\n' },
-  	{ name: 'keeps the blank line separating frontmatter from the body (issue #1538)', input: '---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n', expected: '---\ndate: 2026-07-25\n---\n\nINSERTED\n## Log\n\n## Tasks\n' },
-  	{ name: 'keeps an existing CRLF separator line after the fence (issue #1538)', input: '---\r\ntitle: A\r\n---\r\n\r\nBody', expected: '---\r\ntitle: A\r\n---\r\n\r\nINSERTED\nBody' },
-  	{ name: 'treats a "..."-closed block as no frontmatter (Obsidian-consistent) and inserts at top', input: '---\ntitle: A\n...\n# Body', expected: 'INSERTED\n---\ntitle: A\n...\n# Body' },
-  	{ name: 'treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', input: '\n---\ntitle: A\n---\n# Body', expected: 'INSERTED\n\n---\ntitle: A\n---\n# Body' },
+	{ name: 'preserves CRLF frontmatter and inserts after the closing fence', input: '---\r\ntitle: A\r\n---\r\n# Body\r\n', expected: '---\r\ntitle: A\r\n---\r\nINSERTED\n# Body\r\n' },
+	{ name: 'keeps the blank line separating frontmatter from the body (issue #1538)', input: '---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n', expected: '---\ndate: 2026-07-25\n---\n\nINSERTED\n## Log\n\n## Tasks\n' },
+	{ name: 'keeps an existing CRLF separator line after the fence (issue #1538)', input: '---\r\ntitle: A\r\n---\r\n\r\nBody', expected: '---\r\ntitle: A\r\n---\r\n\r\nINSERTED\nBody' },
+	{ name: 'treats a "..."-closed block as no frontmatter (Obsidian-consistent) and inserts at top', input: '---\ntitle: A\n...\n# Body', expected: 'INSERTED\n---\ntitle: A\n...\n# Body' },
+	{ name: 'treats a leading-blank-line fence as no frontmatter (Obsidian-consistent) and inserts at absolute top', input: '\n---\ntitle: A\n---\n# Body', expected: 'INSERTED\n\n---\ntitle: A\n---\n# Body' },
   ])("$name", async ({ input, expected }) => {
     expect(await topInsert(input)).toBe(
       expected,

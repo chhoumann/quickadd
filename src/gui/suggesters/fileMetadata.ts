@@ -45,8 +45,8 @@ export function createIndexedFile(app: App, file: TFile, openedAt?: number): Ind
 	// Extract tags
 	const tags = fileCache?.tags?.map(t => t.tag) ?? [];
 	if (frontmatter?.tags) {
-		const frontmatterTags = Array.isArray(frontmatter.tags) 
-			? frontmatter.tags 
+		const frontmatterTags = Array.isArray(frontmatter.tags)
+			? frontmatter.tags
 			: [frontmatter.tags];
 		tags.push(...frontmatterTags.filter(t => typeof t === 'string'));
 	}
@@ -66,4 +66,3 @@ export function createIndexedFile(app: App, file: TFile, openedAt?: number): Ind
 		folder: file.parent?.path ?? ""
 	};
 }
-

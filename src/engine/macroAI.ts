@@ -150,4 +150,3 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 		throw error;
 	}
 }
-

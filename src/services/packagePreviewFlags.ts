@@ -109,4 +109,3 @@ export function flagLabel(flag: PreviewFlag): string {
 export function flagDescription(flag: PreviewFlag): string {
 	return FLAG_META[flag].description;
 }
-

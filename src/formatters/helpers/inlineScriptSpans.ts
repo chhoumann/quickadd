@@ -69,4 +69,3 @@ export function hasUnterminatedInlineScriptFence(input: string): boolean {
 	}
 	return false;
 }
-

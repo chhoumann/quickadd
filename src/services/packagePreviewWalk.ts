@@ -344,4 +344,3 @@ function collectCommands(
 		}
 	}
 }
-

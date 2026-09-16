@@ -212,4 +212,3 @@ function findUncarriedChildChoiceId(
 
 	return null;
 }
-

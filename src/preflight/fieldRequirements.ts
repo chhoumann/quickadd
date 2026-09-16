@@ -46,4 +46,3 @@ export interface FieldGroup {
 	id: string;
 	label: string;
 }
-

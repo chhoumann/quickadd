@@ -74,4 +74,3 @@ export function computeSummary(
 		captureTemplates: files.captureTemplatePaths.size,
 	};
 }
-

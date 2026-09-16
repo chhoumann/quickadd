@@ -124,4 +124,3 @@ export function describeValue(value: unknown): string {
 		return String(value);
 	return Array.isArray(value) ? "an array" : typeof value;
 }
-

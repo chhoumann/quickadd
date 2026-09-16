@@ -32,4 +32,3 @@ export const createTFile = (path: string): TFile => {
     extension: path.endsWith(".md") ? "md" : "canvas",
   } as unknown as TFile;
 };
-

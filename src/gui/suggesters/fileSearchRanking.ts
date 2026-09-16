@@ -55,7 +55,7 @@ export function calculateFileScore(
 	// Tag overlap boost
 	if (context.currentFile) {
 		if (currentFileIndexed) {
-			const commonTags = file.tags.filter(tag => 
+			const commonTags = file.tags.filter(tag =>
 				currentFileIndexed.tags.includes(tag));
 			if (commonTags.length > 0) {
 				score += weights.boosts.tagOverlap * Math.min(commonTags.length, Math.abs(weights.boosts.tagOverlapMax / weights.boosts.tagOverlap));
@@ -78,7 +78,7 @@ export function calculateFileScore(
 		const aliasPenalty = Math.min(weights.penalties.aliasMaxPenalty, weights.penalties.aliasMinPenalty + lengthPenalty);
 		score += aliasPenalty;
 	}
-	
+
 	// Additional length penalty for all matches
 	if (titleLength > weights.penalties.titleLengthThreshold) {
 		score += (titleLength - weights.penalties.titleLengthThreshold) * weights.penalties.titleLengthMultiplier;
@@ -96,4 +96,3 @@ export function calculateFileScore(
 	// Don't flatten negative scores - preserve ranking differences
 	return score;
 }
-

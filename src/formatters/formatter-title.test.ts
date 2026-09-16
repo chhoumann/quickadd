@@ -37,9 +37,9 @@ describe('Formatter - Title Handling', () => {
 
     describe('replaceTitleInString', () => {
         it.each([
-        	{ name: 'should replace {{title}} with the set title', input: 'Note: {{title}}', expected: 'Note: My Note Title' },
-        	{ name: 'should replace {{TITLE}} (case insensitive)', input: 'Note: {{TITLE}}', expected: 'Note: My Note Title' },
-        	{ name: 'should replace multiple {{title}} occurrences', input: '{{title}} - Content - {{title}}', expected: 'My Note Title - Content - My Note Title' },
+	{ name: 'should replace {{title}} with the set title', input: 'Note: {{title}}', expected: 'Note: My Note Title' },
+	{ name: 'should replace {{TITLE}} (case insensitive)', input: 'Note: {{TITLE}}', expected: 'Note: My Note Title' },
+	{ name: 'should replace multiple {{title}} occurrences', input: '{{title}} - Content - {{title}}', expected: 'My Note Title - Content - My Note Title' },
         ])("$name", ({ input, expected }) => {
             formatter.setTitle('My Note Title');
             const result = formatter.testReplaceTitleInString(input);

@@ -21,4 +21,3 @@ export function createCaptureFormatterPlugin(): QuickAdd {
       },
     } as QuickAdd;
 }
-

@@ -40,4 +40,3 @@ export async function expectNoPrompt(obsidian: ObsidianClient) {
 		'Boolean(document.querySelector(".modal-container, .prompt"))',
 	), POLL_OPTS).toBe(false);
 }
-

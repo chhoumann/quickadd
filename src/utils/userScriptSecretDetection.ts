@@ -351,4 +351,3 @@ export function detectUserScriptSecretOptions(
 
 	return { names, foundSecretOptions };
 }
-

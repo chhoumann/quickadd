@@ -117,4 +117,3 @@ export interface PackagePreview {
 	criticalScriptPaths: string[];
 	summary: PreviewSummary;
 }
-

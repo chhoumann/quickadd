@@ -42,9 +42,9 @@ describe("Formatter filename of current file behavior", () => {
   });
 
   it.each([
-  	{ name: "replaces placeholder when active file available", filename: "My Note", input: "Filename: {{FILENAMECURRENT}}", expected: "Filename: My Note" },
-  	{ name: "handles case-insensitive replacement", filename: "Current File", input: "Name: {{filenamecurrent}}", expected: "Name: Current File" },
-  	{ name: "replaces multiple occurrences", filename: "Document", input: "{{FILENAMECURRENT}} - Copy of {{FILENAMECURRENT}}", expected: "Document - Copy of Document" },
+	{ name: "replaces placeholder when active file available", filename: "My Note", input: "Filename: {{FILENAMECURRENT}}", expected: "Filename: My Note" },
+	{ name: "handles case-insensitive replacement", filename: "Current File", input: "Name: {{filenamecurrent}}", expected: "Name: Current File" },
+	{ name: "replaces multiple occurrences", filename: "Document", input: "{{FILENAMECURRENT}} - Copy of {{FILENAMECURRENT}}", expected: "Document - Copy of Document" },
   ])("$name", async ({ filename, input, expected }) => {
     const formatter = new StubFormatter();
     formatter.setBehavior("optional");

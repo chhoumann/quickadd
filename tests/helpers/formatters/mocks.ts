@@ -131,4 +131,3 @@ export const obsidianMock = () => {
 	class MarkdownView {}
 	return { MarkdownView };
 };
-
