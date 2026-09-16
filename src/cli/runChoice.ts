@@ -100,7 +100,7 @@ export async function runInteractive(plugin: QuickAdd, params: CliData) {
 		(result) => interactivePromptServer.finish(sessionId, result.ok
 			? { kind: "done", result: { ...result, choice: summary } }
 			: { kind: "error", error: result.error }),
-		(error: unknown) => interactivePromptServer.finish(sessionId, {
+	).catch((error: unknown) => interactivePromptServer.finish(sessionId, {
 			kind: "error", error: error instanceof Error ? error.message : String(error),
 		}),
 	);

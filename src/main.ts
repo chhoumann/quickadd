@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
-import type { Debouncer } from "obsidian";
-import { Plugin, TFile, debounce } from "obsidian";
+import type { Debouncer, TFile } from "obsidian";
+import { Plugin, debounce } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -11,7 +11,6 @@ import { LogManager } from "./logger/logManager";
 import {
 	reportError,
 	reportUnlessCancelled,
-	withErrorHandling,
 } from "./utils/errorUtils";
 import { registerUnhandledRejectionReporter } from "./utils/unhandledRejectionReporter";
 import { openQuickAddSettings } from "./utils/openPluginSettings";
@@ -46,8 +45,6 @@ import {
 	resolveChoiceIcon,
 	rootChoicesOf,
 } from "./utils/choiceUtils";
-import { isReservedVariableKey } from "./utils/reservedVariableKeys";
-import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import {
 	choiceCommandId,
 	pickDayCommandId,
@@ -60,40 +57,8 @@ import { QUICK_ADD_COMMAND_LABELS } from "./commandLabels";
 import { PromptPeekSession } from "./gui/promptPeek/PromptPeekSession";
 import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imagePasteHandler";
 import { setQuickAddInstance } from "./quickAddInstance";
-import { applyTemplateToNote } from "./engine/applyTemplateToActiveNote";
-import type ITemplateChoice from "./types/choices/ITemplateChoice";
-import type ICaptureChoice from "./types/choices/ICaptureChoice";
-import type { ChoiceEffect } from "./types/ChoiceOutcome";
-import {
-	buildCallbackUrl,
-	buildObsidianOpenUrl,
-	callbackUrls,
-	isCallbackUrlAllowed,
-	parseCallbackTargets,
-	type CallbackTargets,
-} from "./uri/uriCallback";
-import { runTemplateFromFolder } from "./engine/runTemplateFromFolder";
-
-// Parameters prefixed with `value-` get used as named values for the executed choice
-type CaptureValueParameters = { [key in `value-${string}`]?: string };
-
-interface DefinedUriParameters {
-	choice?: string; // Name
-	date?: string;
-}
-
-// x-callback-url parameters (Apple Shortcuts, etc.). The hyphenated keys arrive
-// verbatim from the obsidian:// query string.
-interface XCallbackParameters {
-	"x-success"?: string;
-	"x-error"?: string;
-	"x-cancel"?: string;
-	"x-callback-url"?: string;
-}
-
-type UriParameters = DefinedUriParameters &
-	CaptureValueParameters &
-	XCallbackParameters;
+import { registerQuickAddUri } from "./uri/registerQuickAddUri";
+import { registerCoreCommands } from "./plugin/registerCoreCommands";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -157,86 +122,7 @@ export default class QuickAdd extends Plugin {
 			}
 		});
 
-		this.addCommand({
-			id: "runQuickAdd",
-			name: QUICK_ADD_COMMAND_LABELS.run,
-			callback: () => {
-				openChoiceLauncher(this);
-			},
-		});
-
-		this.addCommand({
-			id: "resumePrompt",
-			name: QUICK_ADD_COMMAND_LABELS.resumePrompt,
-			checkCallback: (checking) => {
-				if (!PromptPeekSession.isPeeking()) return false;
-				if (!checking) PromptPeekSession.getActive()?.resume();
-				return true;
-			},
-		});
-
-		this.addCommand({
-			id: "runTemplateFromFolder",
-			name: QUICK_ADD_COMMAND_LABELS.runTemplateFromFolder,
-			callback: () => {
-				void runTemplateFromFolder(this.app, this, {
-					choiceExecutor: new ChoiceExecutor(this.app, this),
-				});
-			},
-		});
-
-		this.addCommand({
-			id: "applyTemplateToActiveFile",
-			name: QUICK_ADD_COMMAND_LABELS.applyTemplate,
-			checkCallback: (checking) => {
-				const file = this.app.workspace.getActiveFile();
-				const available = file?.extension === "md";
-				if (checking) return available;
-				if (!available) return;
-
-				void applyTemplateToNote(this.app, this, {
-					file,
-					choiceExecutor: new ChoiceExecutor(this.app, this),
-				});
-			},
-		});
-
-		this.registerEvent(
-			this.app.workspace.on("file-menu", (menu, abstractFile) => {
-				if (!(abstractFile instanceof TFile)) return;
-				if (abstractFile.extension !== "md") return;
-
-				menu.addItem((item) =>
-					item
-						// Aligns with the command-palette label
-						// (QUICK_ADD_COMMAND_LABELS.applyTemplate) so the same action reads
-						// consistently across both surfaces. Obsidian prefixes commands with
-						// "QuickAdd:"; the file menu is unprefixed, so add it here.
-						.setTitle(`QuickAdd: ${QUICK_ADD_COMMAND_LABELS.applyTemplate}`)
-						.setIcon("file-plus")
-						.onClick(() => {
-							void applyTemplateToNote(this.app, this, {
-								file: abstractFile,
-								choiceExecutor: new ChoiceExecutor(this.app, this),
-							});
-						}),
-				);
-			}),
-		);
-
-		this.addCommand({
-			id: "reloadQuickAdd",
-			name: QUICK_ADD_COMMAND_LABELS.reloadDev,
-			checkCallback: (checking) => {
-				if (checking) {
-					return this.settings.devMode;
-				}
-
-				const id: string = this.manifest.id;
-				const plugins = this.app.plugins;
-				void plugins.disablePlugin(id).then(() => plugins.enablePlugin(id));
-			},
-		});
+		registerCoreCommands(this);
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
@@ -255,97 +141,11 @@ export default class QuickAdd extends Plugin {
 			},
 		});
 
-		this.registerObsidianProtocolHandler("quickadd", async (e) => {
-			const parameters = e as unknown as UriParameters;
-
-			// Resolve callback targets only when the feature is enabled. With it off (or
-			// no x-* params) we run the exact legacy path — zero behavioural change.
-			const targets: CallbackTargets = this.settings.enableUriCallbacks
-				? parseCallbackTargets(parameters)
-				: { any: false };
-
-			if (!targets.any) {
-				await this.runUriChoiceLegacy(parameters);
-				return;
-			}
-
-			// Validate every provided callback URL BEFORE running anything, so a bad URL
-			// can't half-execute and make an external caller retry (and duplicate work).
-			const disallowed = callbackUrls(targets).filter(
-				(url) => !isCallbackUrlAllowed(url),
-			);
-			if (disallowed.length > 0) {
-				log.logWarning(
-					`QuickAdd URI: ignoring disallowed callback URL(s): ${disallowed.join(", ")}`,
-				);
-				// Notify via x-error only if it is itself allowed; never open a disallowed
-				// URL. Nothing was executed, so the caller can safely retry.
-				if (targets.error && isCallbackUrlAllowed(targets.error)) {
-					this.openUriCallback(targets.error, {
-						status: "error",
-						errorCode: "bad-callback-url",
-					});
-				}
-				return;
-			}
-
-			if (!parameters.choice) {
-				log.logWarning("URI was executed without a `choice` parameter.");
-				this.fireUriError(targets, "choice-not-found");
-				return;
-			}
-
-			const choice = this.getChoice("name", parameters.choice);
-			if (!choice) {
-				log.logWarning(
-					`URI could not find any choice named '${parameters.choice}'`,
-				);
-				this.fireUriError(targets, "choice-not-found");
-				return;
-			}
-
-			// Names are not unique; getChoice returns the FIRST match. Warn so an
-			// ambiguous target is diagnosable rather than silently running the wrong one.
-			this.warnIfChoiceNameAmbiguous(parameters.choice);
-
-			if (choice.type !== "Template" && choice.type !== "Capture") {
-				log.logWarning(
-					`QuickAdd URI x-callback supports Template and Capture choices only ('${choice.name}' is ${choice.type}). ` +
-						`A URI with x-* callback params cannot run a ${choice.type} choice while "Enable URI callbacks" is on; remove the x-* params to run it on the legacy path.`,
-				);
-				this.fireUriError(targets, "unsupported-choice-type");
-				return;
-			}
-
-			const choiceExecutor = new ChoiceExecutor(this.app, this);
-			if (!this.applyUriValueParameters(choiceExecutor, parameters)) {
-				log.logWarning(
-					`QuickAdd URI: could not parse date origin '${parameters.date}'.`,
-				);
-				this.fireUriError(targets, "execution-failed");
-				return;
-			}
-
-			const outcome = await choiceExecutor.executeWithOutcome(
-				choice as ITemplateChoice | ICaptureChoice,
-			);
-
-			switch (outcome.status) {
-				case "success":
-					this.fireUriSuccess(targets, outcome.file, outcome.effect);
-					break;
-				case "cancelled":
-					if (outcome.cancelKind === "user") {
-						this.fireUriCancel(targets);
-					} else {
-						this.fireUriError(targets, "execution-aborted");
-					}
-					break;
-				case "error":
-					this.fireUriError(targets, "execution-failed");
-					break;
-			}
-		});
+		registerQuickAddUri(
+			this,
+			(name) => this.getChoice("name", name),
+			(name) => this.warnIfChoiceNameAmbiguous(name),
+		);
 
 		log.register(new ConsoleErrorLogger()).register(new GuiLogger(this));
 
@@ -422,116 +222,6 @@ export default class QuickAdd extends Plugin {
 		});
 
 		this.announceUpdate();
-	}
-
-	/** Today's URI behaviour: run the choice, report errors to the log. Used when URI
-	 * callbacks are disabled or no x-* params were provided (backward-compatible). */
-	private async runUriChoiceLegacy(parameters: UriParameters): Promise<void> {
-		if (!parameters.choice) {
-			log.logWarning("URI was executed without a `choice` parameter.");
-			return;
-		}
-		const choice = this.getChoice("name", parameters.choice);
-		if (!choice) {
-			reportError(
-				new Error(
-					`URI could not find any choice named '${parameters.choice}'`,
-				),
-				"URI handler error",
-			);
-			return;
-		}
-		// Choice names are not unique; getChoice returns the FIRST match. Warn the user
-		// (via Notice) when the name is ambiguous so an automation that silently ran the
-		// wrong choice is at least diagnosable.
-		this.warnIfChoiceNameAmbiguous(parameters.choice);
-		const choiceExecutor = new ChoiceExecutor(this.app, this);
-		if (!this.applyUriValueParameters(choiceExecutor, parameters)) {
-			reportError(
-				new Error(`Could not parse date origin '${parameters.date}'`),
-				"URI handler error",
-			);
-			return;
-		}
-		try {
-			await choiceExecutor.execute(choice);
-		} catch (err) {
-			// Silent for a dismissal: a URI run that opens a prompt the user escapes is
-			// not a failure, and this legacy path has no x-cancel target to tell.
-			reportUnlessCancelled(err, `Could not run "${choice.name}"`);
-		}
-	}
-
-	private applyUriValueParameters(
-		choiceExecutor: ChoiceExecutor,
-		parameters: UriParameters,
-	): boolean {
-		Object.entries(parameters)
-			.filter(([key]) => key.startsWith("value-"))
-			.forEach(([key, value]) => {
-				const variableName = key.slice(6);
-				// Never let an incoming URI populate a reserved internal variable
-				// (e.g. the capture-target file path): obsidian:// links are reachable
-				// by any webpage/app, so honouring `value-__qa.…` would let an external
-				// caller drive internal plumbing. There is no legitimate URI use for
-				// these keys.
-				if (
-					variableName &&
-					typeof value === "string" &&
-					!isReservedVariableKey(variableName)
-				) {
-					choiceExecutor.variables.set(variableName, value);
-				}
-			});
-		if (!applyInvocationDate(choiceExecutor, parameters.date)) {
-			return false;
-		}
-		return true;
-	}
-
-	/**
-	 * `effect` rides along with the success callback, unlike `reason`, which this
-	 * handler deliberately withholds on both failure variants.
-	 *
-	 * The rule it is not breaking is "leak no vault detail to an external callback
-	 * URL": `effect` is a three-token enum (`created`/`changed`/`unchanged`) with
-	 * nothing vault-specific in it, and this same callback already carries the note's
-	 * path and the vault name. Withholding it would leave the exact automation #1615
-	 * is about — a Shortcut writing an idempotency marker on `status=success` — still
-	 * marking captures that never happened.
-	 */
-	private fireUriSuccess(
-		targets: CallbackTargets,
-		file: TFile | undefined,
-		effect: ChoiceEffect,
-	): void {
-		const params: Record<string, string> = { status: "success", effect };
-		if (file) {
-			params.path = file.path;
-			params.url = buildObsidianOpenUrl(this.app.vault.getName(), file.path);
-		}
-		if (targets.success) this.openUriCallback(targets.success, params);
-	}
-
-	private fireUriError(targets: CallbackTargets, errorCode: string): void {
-		if (targets.error) {
-			this.openUriCallback(targets.error, { status: "error", errorCode });
-		}
-	}
-
-	private fireUriCancel(targets: CallbackTargets): void {
-		if (targets.cancel) {
-			this.openUriCallback(targets.cancel, { status: "cancel" });
-		}
-	}
-
-	/** Opens a callback URL with the result params appended. No-throw, no-recursion:
-	 * a failed window.open must never break the (already-completed) choice or fire
-	 * another callback. */
-	private openUriCallback(url: string, params: Record<string, string>): void {
-		withErrorHandling(() => {
-			window.open(buildCallbackUrl(url, params));
-		}, "QuickAdd URI: failed to open callback URL");
 	}
 
 	onunload() {
