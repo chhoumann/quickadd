@@ -31,7 +31,16 @@ function restoreVariables(
 	}
 }
 
-export class QuickAddApi extends PromptApi {
+export class QuickAddApi {
+	public static inputPrompt = PromptApi.inputPrompt;
+	public static datePrompt = PromptApi.datePrompt;
+	public static wideInputPrompt = PromptApi.wideInputPrompt;
+	public static yesNoPrompt = PromptApi.yesNoPrompt;
+	public static infoDialog = PromptApi.infoDialog;
+	public static suggester = PromptApi.suggester;
+	public static checkboxPrompt = PromptApi.checkboxPrompt;
+
+
 	public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
 		const format = async (
 			input: string,
