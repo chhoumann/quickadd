@@ -1,0 +1,108 @@
+{
+  "baseline_revision": "e15ee7834a39bef8056fe4157970bdf27cea1caa",
+  "validated_code_revision": "0f66c79a218ab104e7540e98e46f793089255af6",
+  "baseline_unit": {
+    "passed": 5499,
+    "failed": 0,
+    "skipped": 37,
+    "report_sha256": "6b9f659df48fc09ad214f3b9d265e5f3f3ade1f1cc085037f17ef01977f99d9b"
+  },
+  "final_unit": {
+    "passed": 5524,
+    "failed": 0,
+    "skipped": 24,
+    "report_sha256": "8ebf5941ea00250a7d04b577c2a7dc1a39a7a0908f2677373fccf6dbc8272fda"
+  },
+  "coverage_baseline": {
+    "statements": {
+      "total": 21802,
+      "covered": 17463,
+      "skipped": 0,
+      "pct": 80.09
+    },
+    "branches": {
+      "total": 14524,
+      "covered": 10822,
+      "skipped": 0,
+      "pct": 74.51
+    },
+    "functions": {
+      "total": 3923,
+      "covered": 3168,
+      "skipped": 0,
+      "pct": 80.75
+    },
+    "lines": {
+      "total": 19913,
+      "covered": 16195,
+      "skipped": 0,
+      "pct": 81.32
+    }
+  },
+  "coverage_final": {
+    "statements": {
+      "total": 20951,
+      "covered": 17110,
+      "skipped": 0,
+      "pct": 81.66
+    },
+    "branches": {
+      "total": 13875,
+      "covered": 10552,
+      "skipped": 0,
+      "pct": 76.05
+    },
+    "functions": {
+      "total": 3946,
+      "covered": 3247,
+      "skipped": 0,
+      "pct": 82.28
+    },
+    "lines": {
+      "total": 19078,
+      "covered": 15818,
+      "skipped": 0,
+      "pct": 82.91
+    }
+  },
+  "native": {
+    "obsidian_version": "1.13.7",
+    "isolated_worktree_vault": true,
+    "baseline_built_product": {
+      "passed": 92,
+      "failed": 0,
+      "skipped": 0,
+      "report_sha256": "de605c48b79d7aeeac0d94430bebe9777b2868a93df1fc363d91a639500cf3f6"
+    },
+    "final_built_product": {
+      "passed": 92,
+      "failed": 0,
+      "skipped": 0,
+      "report_sha256": "98d71cb2949635d02cc944ae91967ae6acb469b52695a35a5ec5dd668a9b47e1"
+    }
+  },
+  "gates": [
+    {
+      "command": "pnpm run build-with-lint",
+      "result": "passed",
+      "log_sha256": "421346bf6b27f68c1871ee2425fe953e2c2732510b579a9ada2cdf464fb7c6f5"
+    },
+    {
+      "command": "pnpm run check",
+      "result": "passed",
+      "log_sha256": "0c1fd9fd30b1f5d715ab935ef10b7536f63cc78e640609e0ad1d2e4dad6baddd"
+    }
+  ],
+  "commands": {
+    "unit": "pnpm run test:coverage --maxWorkers=6",
+    "native": "pnpm run test:e2e (isolated runner environment)",
+    "whitespace": "git diff --check e15ee783 HEAD",
+    "lines": "python3 .audit/measure-lines.py e15ee783 HEAD"
+  },
+  "limits": [
+    "30 percent overall reduction is not achieved.",
+    "Live external AI providers were not exercised.",
+    "24 skipped tests are not counted as passed.",
+    "No automated pixel comparison was run."
+  ]
+}
