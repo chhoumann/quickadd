@@ -100,20 +100,11 @@ function parseSliderConfig(value: unknown): SliderConfig | undefined {
 	return { min, max, step };
 }
 
-export function getQuickAddScriptInputs(userScript: unknown): unknown[] {
-	const readInputs = (value: unknown): unknown[] => {
-		if (
-			!value ||
-			(typeof value !== "object" && typeof value !== "function")
-		) {
-			return [];
-		}
-		const quickadd = (value as { quickadd?: unknown }).quickadd;
-		if (!quickadd || typeof quickadd !== "object") return [];
-		const inputs = (quickadd as { inputs?: unknown }).inputs;
-		return Array.isArray(inputs) ? inputs : [];
-	};
 
-	return readInputs(userScript);
+export function getQuickAddScriptInputs(value: unknown): unknown[] {
+	if (!value || (typeof value !== "object" && typeof value !== "function")) return [];
+	const quickadd = (value as { quickadd?: unknown }).quickadd;
+	if (!quickadd || typeof quickadd !== "object") return [];
+	const inputs = (quickadd as { inputs?: unknown }).inputs;
+	return Array.isArray(inputs) ? inputs : [];
 }
-

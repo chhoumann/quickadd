@@ -1,9 +1,9 @@
+import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
 import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
-	GLOBAL_VAR_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
 	TEMPLATE_REGEX,
@@ -197,19 +197,7 @@ export class RequirementCollector extends Formatter {
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		let output = input;
-		let guard = 0;
-		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
-		while (re.test(output)) {
-			if (++guard > 5) break;
-			output = output.replace(re, (_m, rawName) => {
-				const name = String(rawName ?? "").trim();
-				if (!name) return _m;
-				const snippet = this.plugin?.settings?.globalVariables?.[name];
-				return typeof snippet === "string" ? snippet : "";
-			});
-		}
-		return output;
+		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
 	// Additional scanning for defaults/options in {{VALUE:...}} tokens

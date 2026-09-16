@@ -26,9 +26,8 @@ export function createTemplateChoice(templatePath: string): ITemplateChoice {
 			focus: true,
 		},
 		fileExistsBehavior: { kind: "prompt" },
-	} as ITemplateChoice;
+	};
 }
-
 
 export function createCaptureChoice(captureTo: string): ICaptureChoice {
 	return {
@@ -69,11 +68,12 @@ export function createCaptureChoice(captureTo: string): ICaptureChoice {
 	};
 }
 
-
 export function createPreflightPlugin(useSelectionAsCaptureValue = true): QuickAdd {
-	return { settings: {
-		inputPrompt: "single-line",
-		globalVariables: {},
-		useSelectionAsCaptureValue,
-	} } as unknown as QuickAdd;
+	return {
+		settings: {
+			inputPrompt: "single-line",
+			globalVariables: {},
+			useSelectionAsCaptureValue,
+		},
+	} as unknown as QuickAdd;
 }
