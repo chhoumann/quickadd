@@ -1,3 +1,4 @@
+import { createCaptureChoice } from "../../tests/helpers/preflight/choices";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
@@ -72,47 +73,14 @@ const createApp = () =>
 
 // A capture choice with one unresolved {{VALUE}} so the modal always opens.
 const createChoice = (): ICaptureChoice => ({
+	...createCaptureChoice("Inbox.md"),
 	id: "fallback-choice-id",
 	name: "Fallback Choice",
-	type: "Capture",
-	command: false,
-	captureTo: "Inbox.md",
 	captureToActiveFile: true,
-	createFileIfItDoesntExist: {
-		enabled: false,
-		createWithTemplate: false,
-		template: "",
-	},
 	format: { enabled: true, format: "{{VALUE}}" },
-	prepend: false,
-	appendLink: false,
-	task: false,
-	insertAfter: {
-		enabled: false,
-		after: "",
-		insertAtEnd: false,
-		considerSubsections: false,
-		createIfNotFound: false,
-		createIfNotFoundLocation: "",
-	},
-	newLineCapture: {
-		enabled: false,
-		direction: "below",
-	},
-	openFile: false,
-	fileOpening: {
-		location: "tab",
-		direction: "vertical",
-		mode: "default",
-		focus: true,
-	},
 });
 
-const createExecutor = (): IChoiceExecutor => ({
-	...createChoiceExecutor(),
-	execute: vi.fn(),
-	variables: new Map<string, unknown>(),
-});
+const createExecutor = (): IChoiceExecutor => (createChoiceExecutor());
 
 const createPlugin = () =>
 	({
