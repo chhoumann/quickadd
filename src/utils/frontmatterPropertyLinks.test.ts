@@ -1,5 +1,6 @@
+import { markdownFile as makeFile } from "../../tests/helpers/utilities/obsidianFixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { TFile, type App } from "obsidian";
+import type { TFile, App } from "obsidian";
 import {
 	appendConfiguredFrontmatterPropertyLinkValue,
 	appendFrontmatterPropertyLinkValue,
@@ -14,14 +15,6 @@ afterEach(() => {
 	vi.restoreAllMocks();
 });
 
-function makeFile(path: string): TFile {
-	const file = new TFile();
-	file.path = path;
-	file.name = path.split("/").pop() ?? path;
-	file.basename = file.name.replace(/\.md$/i, "");
-	file.extension = "md";
-	return file;
-}
 
 function createPropertyRow(options: {
 	key: string;

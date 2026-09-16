@@ -183,7 +183,7 @@ describe("LinkPlacement", () => {
 					placement,
 					requireActiveFile: true,
 				};
-				expect(options.placement).toBe(placement);
+				expect(normalizeAppendLinkOptions(options).placement).toBe(placement);
 			}
 		});
 	});

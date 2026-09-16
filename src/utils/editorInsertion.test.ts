@@ -1,3 +1,4 @@
+import { frontmatterManager } from "../../tests/helpers/utilities/obsidianFixtures";
 import { describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import {
@@ -101,15 +102,7 @@ describe("insertFileLinkToActiveView", () => {
 					editor,
 				})),
 			},
-			fileManager: {
-				generateMarkdownLink: vi.fn(() => "[[Created]]"),
-				processFrontMatter: vi.fn(
-					async (
-						_file: TFile,
-						update: (fm: Record<string, unknown>) => void,
-					) => update(frontmatter),
-				),
-			},
+			fileManager: frontmatterManager(frontmatter),
 		} as unknown as App;
 
 		await expect(
@@ -146,15 +139,7 @@ describe("insertFileLinkToActiveView", () => {
 					editor: {},
 				})),
 			},
-			fileManager: {
-				generateMarkdownLink: vi.fn(() => "[[Created]]"),
-				processFrontMatter: vi.fn(
-					async (
-						_file: TFile,
-						update: (fm: Record<string, unknown>) => void,
-					) => update(frontmatter),
-				),
-			},
+			fileManager: frontmatterManager(frontmatter),
 		} as unknown as App;
 
 		await expect(
@@ -227,15 +212,7 @@ describe("insertFileLinkToActiveView", () => {
 					editor: null,
 				})),
 			},
-			fileManager: {
-				generateMarkdownLink: vi.fn(() => "[[Created]]"),
-				processFrontMatter: vi.fn(
-					async (
-						_file: TFile,
-						update: (fm: Record<string, unknown>) => void,
-					) => update(frontmatter),
-				),
-			},
+			fileManager: frontmatterManager(frontmatter),
 		} as unknown as App;
 
 		await expect(
