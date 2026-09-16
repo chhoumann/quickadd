@@ -10,7 +10,8 @@ import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
-import { UserScriptEngine, type ScriptParameters } from "./UserScriptEngine";
+import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
+import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
@@ -102,7 +103,7 @@ function getConditionalScriptCacheKey(condition: ScriptCondition): string {
 	return `${condition.scriptPath}::${condition.exportName ?? "default"}`;
 }
 
-export class MacroChoiceEngine extends UserScriptEngine {
+export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
 	public params: ScriptParameters;
 	protected output: unknown;
@@ -110,8 +111,8 @@ export class MacroChoiceEngine extends UserScriptEngine {
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
-	protected readonly preloadedUserScripts: Map<string, unknown>;
-	protected readonly promptLabel?: string;
+	private readonly preloadedUserScripts: Map<string, unknown>;
+	private readonly promptLabel?: string;
 	private buildParams(
 		app: App,
 		plugin: QuickAdd,
@@ -195,7 +196,6 @@ export class MacroChoiceEngine extends UserScriptEngine {
 		this.choiceExecutor = choiceExecutor;
 		this.preloadedUserScripts = preloadedUserScripts ?? new Map();
 		this.promptLabel = promptLabel;
-		this.userScriptSettingsDefinition = undefined;
 		const sharedVariables = this.initSharedVariables(
 			choiceExecutor,
 			variables
@@ -358,6 +358,19 @@ export class MacroChoiceEngine extends UserScriptEngine {
 		);
 	}
 
+
+	protected async executeUserScript(command: IUserScript): Promise<void> {
+		const result = await executeUserScript(command, {
+			app: this.app,
+			plugin: this.plugin,
+			choiceName: this.choice.name,
+			params: this.params,
+			executor: this.choiceExecutor,
+			preloadedUserScripts: this.preloadedUserScripts,
+			promptLabel: this.promptLabel,
+		});
+		if (result) this.output = result.output;
+	}
 
 	protected executeObsidianCommand(command: IObsidianCommand) {
 		// @ts-ignore
