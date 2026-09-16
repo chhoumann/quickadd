@@ -1,14 +1,10 @@
+import { settingNames } from "../../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import CommandPaletteSetting from "./CommandPaletteSetting.svelte";
 import type { DateOrigin } from "../../../types/dateOrigin";
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
 function mount(input: {
 	command: boolean;

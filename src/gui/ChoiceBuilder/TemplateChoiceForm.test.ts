@@ -1,3 +1,5 @@
+import { templateChoice } from "../../../tests/helpers/settings/choices";
+import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it, vi } from "vitest";
 
 // FormatPreviewField -> FileNameDisplayFormatter and the suggesters reach the
@@ -8,52 +10,11 @@ import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync } from "svelte";
 import type QuickAdd from "../../main";
-import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
 import { createTemplateChoiceFormProps } from "./templateChoiceFormProps.svelte";
 
-function templateChoice(): ITemplateChoice {
-	return {
-		id: "t1",
-		name: "My Template",
-		type: "Template",
-		command: false,
-		templatePath: "",
-		folder: {
-			enabled: false,
-			folders: [],
-			chooseWhenCreatingNote: false,
-			createInSameFolderAsActiveFile: false,
-			chooseFromSubfolders: false,
-		},
-		fileNameFormat: { enabled: false, format: "" },
-		discoverExistingNotesBeforeCreate: false,
-		appendLink: false,
-		openFile: false,
-		fileOpening: {
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		},
-		fileExistsBehavior: { kind: "prompt" },
-	};
-}
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
-function settingItem(container: HTMLElement, name: string): HTMLElement {
-	const item = Array.from(container.querySelectorAll(".setting-item")).find(
-		(el) =>
-			el.querySelector(".setting-item-name")?.textContent?.trim() === name,
-	);
-	if (!item) throw new Error(`Setting item not found: ${name}`);
-	return item as HTMLElement;
-}
 
 function locationDropdown(container: HTMLElement): HTMLSelectElement {
 	const el = container.querySelector<HTMLSelectElement>(
@@ -63,13 +24,6 @@ function locationDropdown(container: HTMLElement): HTMLSelectElement {
 	return el;
 }
 
-function choiceIconInput(container: HTMLElement): HTMLInputElement {
-	const el = container.querySelector<HTMLInputElement>(
-		'input[aria-label="Choice icon"]',
-	);
-	if (!el) throw new Error("Choice icon input not found");
-	return el;
-}
 
 const plugin = {
 	getTemplateFiles: () => [],
@@ -78,7 +32,7 @@ const plugin = {
 
 function mountForm() {
 	const props = createTemplateChoiceFormProps({
-		choice: templateChoice(),
+		choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
 		app: new App(),
 		plugin,
 	});
@@ -169,7 +123,7 @@ describe("TemplateChoiceForm", () => {
 	it("opens a legacy choice on its derived mode", () => {
 		const props = createTemplateChoiceFormProps({
 			choice: {
-				...templateChoice(),
+				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {
 					enabled: true,
 					folders: [],
@@ -192,7 +146,7 @@ describe("TemplateChoiceForm", () => {
 	it("writes the canonical booleans when a mode is selected", async () => {
 		const props = createTemplateChoiceFormProps({
 			choice: {
-				...templateChoice(),
+				...templateChoice({ discoverExistingNotesBeforeCreate: false }),
 				folder: {
 					enabled: true,
 					folders: ["Notes"],

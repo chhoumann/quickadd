@@ -4,7 +4,6 @@ import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
-import { mountComponent } from "../svelte/mountComponent";
 import { isCanvasTargetPath } from "./canvasNodes";
 import CaptureChoiceForm from "./CaptureChoiceForm.svelte";
 import {
@@ -66,23 +65,15 @@ export class CaptureChoiceBuilder extends ChoiceBuilder {
 
 	protected display() {
 		this.containerEl.addClass("captureChoiceBuilder");
-		this.formProps = createCaptureChoiceFormProps({
-			choice: this.choice,
-			app: this.app,
-			plugin: this.plugin,
-		});
-		const handle = mountComponent(
-			this.contentEl,
+		this.formProps = this.mountForm(
 			CaptureChoiceForm,
-			this.formProps,
-			{ what: "this capture choice's settings" },
+			createCaptureChoiceFormProps({
+				choice: this.choice,
+				app: this.app,
+				plugin: this.plugin,
+			}),
+			"this capture choice's settings",
 		);
-		// The form never rendered, so its $state clone of the choice holds no edits
-		// — only whatever normalizeChoice() and $state.snapshot() made of it. Drop it
-		// so onClose resolves the ORIGINAL choice and a form the user never saw can't
-		// write itself back over their data (#1584).
-		if (!handle.ok) this.formProps = undefined;
-		this.svelteElements.push(handle);
 	}
 
 	protected getResultChoice(): IChoice {

@@ -1,13 +1,9 @@
+import { settingNames } from "../../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import AppendLinkSetting from "./AppendLinkSetting.svelte";
 import type { AppendLinkOptions } from "../../../types/linkPlacement";
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
 describe("AppendLinkSetting", () => {
 	it("shows only the mode row when disabled", () => {

@@ -1,3 +1,4 @@
+import { actionsSpy } from "../../../tests/helpers/settings/choiceActions";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
@@ -7,7 +8,6 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 import { App } from "obsidian";
 import ChoiceList from "./ChoiceList.svelte";
 import type IChoice from "../../types/choices/IChoice";
-import type { ChoiceListActions } from "./choiceListActions";
 
 const normal = (name: string): IChoice =>
 	({ id: name, name, type: "Template", command: false }) as unknown as IChoice;
@@ -21,20 +21,6 @@ const multi = (name: string, children: IChoice[]): IChoice =>
 		choices: children,
 	}) as unknown as IChoice;
 
-function actionsSpy(): ChoiceListActions {
-	return {
-		onDeleteChoice: vi.fn(),
-		onConfigureChoice: vi.fn(),
-		onToggleCommand: vi.fn(),
-		onDuplicateChoice: vi.fn(),
-		onRenameChoice: vi.fn(),
-		onMoveChoice: vi.fn(),
-		onReorderChoices: vi.fn(),
-		onAddChoice: vi.fn(),
-		onToggleCollapsed: vi.fn(),
-		onCommitFolder: vi.fn(),
-	};
-}
 
 const firstArg = (fn: unknown) => (fn as { mock: { calls: unknown[][] } }).mock.calls[0][0] as { id: string };
 

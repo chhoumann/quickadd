@@ -1,3 +1,4 @@
+import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({
@@ -47,19 +48,9 @@ vi.mock("src/formatters/formatDisplayFormatter", () => ({
 	},
 }));
 
-import { App } from "obsidian";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
 
-function testApp(): App {
-	const app = new App() as App & {
-		dom: { appContainerEl: HTMLElement };
-		keymap: { pushScope: () => void; popScope: () => void };
-	};
-	app.dom = { appContainerEl: document.body };
-	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
-	return app;
-}
 
 function makeCommand(model: string): IAIAssistantCommand {
 	return {

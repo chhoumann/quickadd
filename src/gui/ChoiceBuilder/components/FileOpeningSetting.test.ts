@@ -1,13 +1,9 @@
+import { settingNames } from "../../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/svelte";
 import FileOpeningSetting from "./FileOpeningSetting.svelte";
 import type { FileOpeningSettings } from "../../../utils/fileOpeningDefaults";
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
 const base = (
 	overrides: Partial<FileOpeningSettings> = {},

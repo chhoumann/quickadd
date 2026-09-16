@@ -1,3 +1,4 @@
+import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
@@ -60,11 +61,6 @@ const plugin = {
 	settings: { choices: [] },
 } as unknown as QuickAdd;
 
-function settingNames(container: HTMLElement): string[] {
-	return Array.from(container.querySelectorAll(".setting-item-name")).map(
-		(el) => el.textContent ?? "",
-	);
-}
 
 function selectUnderSetting(
 	container: HTMLElement,
@@ -76,22 +72,7 @@ function selectUnderSetting(
 	return item?.querySelector("select") as HTMLSelectElement;
 }
 
-function settingItem(container: HTMLElement, name: string): HTMLElement {
-	const item = Array.from(container.querySelectorAll(".setting-item")).find(
-		(el) =>
-			el.querySelector(".setting-item-name")?.textContent?.trim() === name,
-	);
-	if (!item) throw new Error(`Setting item not found: ${name}`);
-	return item as HTMLElement;
-}
 
-function choiceIconInput(container: HTMLElement): HTMLInputElement {
-	const el = container.querySelector<HTMLInputElement>(
-		'input[aria-label="Choice icon"]',
-	);
-	if (!el) throw new Error("Choice icon input not found");
-	return el;
-}
 
 function mountForm() {
 	const props = createCaptureChoiceFormProps({
