@@ -1,6 +1,6 @@
+import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it, vi } from "vitest";
 import { flushSync } from "svelte";
-import { App } from "obsidian";
 
 // CommandList transitively imports src/main (choice builders, macroHelpers), which
 // pulls obsidian-dataview's CJS require('obsidian'); mock it as the rest of the suite does.
@@ -8,7 +8,6 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { mountComponent } from "../svelte/mountComponent";
 import CommandList from "./CommandList.svelte";
-import { createCommandListProps } from "./commandListProps.svelte";
 import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
 import type { ICommand } from "../../types/macros/ICommand";
@@ -19,14 +18,6 @@ const makeCommands = (): ICommand[] => [
 	new ObsidianCommand("Gamma", "g"),
 ];
 
-const makeProps = (commands: ICommand[]) =>
-	createCommandListProps({
-		commands,
-		app: new App() as never,
-		plugin: {} as never,
-		deleteCommand: vi.fn(),
-		saveCommands: vi.fn(),
-	});
 
 describe("CommandList", () => {
 	it("renders every command without vanishing", () => {

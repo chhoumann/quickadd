@@ -1,3 +1,4 @@
+import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
@@ -5,23 +6,16 @@ import { fireEvent, render } from "@testing-library/svelte";
 // require('obsidian'); mock it as the rest of the suite does.
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-import { App } from "obsidian";
 import CommandList from "./CommandList.svelte";
-import { createCommandListProps } from "./commandListProps.svelte";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
 import type { ICommand } from "../../types/macros/ICommand";
 
-const makeProps = (commands: ICommand[], saveCommands = vi.fn()) =>
-	createCommandListProps({
-		commands,
-		app: new App() as never,
-		plugin: {} as never,
-		deleteCommand: vi.fn(),
-		saveCommands,
-	});
 
 describe("CommandList keyboard reorder", () => {
-	it("ArrowDown on a row's drag handle moves it down and persists the new order", async () => {
+	it.each([
+		["ArrowDown on a row's drag handle moves it down and persists the new order", "Alpha", "ArrowDown", [1, 0, 2]],
+		["ArrowUp on the last row moves it up", "Gamma", "ArrowUp", [0, 2, 1]],
+	] as const)("%s", async (_name, name, key, order) => {
 		const a = new ObsidianCommand("Alpha", "a");
 		const b = new ObsidianCommand("Beta", "b");
 		const c = new ObsidianCommand("Gamma", "c");
@@ -32,31 +26,11 @@ describe("CommandList keyboard reorder", () => {
 		});
 
 		// Handle labels include the command identity (a11y, #1250).
-		await fireEvent.keyDown(getByLabelText("Reorder Alpha"), { key: "ArrowDown" });
+		await fireEvent.keyDown(getByLabelText(`Reorder ${name}`), { key });
 
 		await vi.waitFor(() => expect(saveCommands).toHaveBeenCalledTimes(1));
 		const saved = saveCommands.mock.calls[0][0] as ICommand[];
-		expect(saved.map((cmd) => cmd.id)).toEqual([b.id, a.id, c.id]);
-	});
-
-	it("ArrowUp on the last row moves it up", async () => {
-		const a = new ObsidianCommand("Alpha", "a");
-		const b = new ObsidianCommand("Beta", "b");
-		const c = new ObsidianCommand("Gamma", "c");
-		const saveCommands = vi.fn();
-
-		const { getByLabelText } = render(CommandList, {
-			props: makeProps([a, b, c], saveCommands),
-		});
-
-		await fireEvent.keyDown(getByLabelText("Reorder Gamma"), { key: "ArrowUp" });
-
-		await vi.waitFor(() => expect(saveCommands).toHaveBeenCalledTimes(1));
-		expect((saveCommands.mock.calls[0][0] as ICommand[]).map((cmd) => cmd.id)).toEqual([
-			a.id,
-			c.id,
-			b.id,
-		]);
+		expect(saved.map((cmd) => cmd.id)).toEqual(order.map((index) => [a, b, c][index].id));
 	});
 
 	it("clamps at the ends — ArrowUp on the first row is a no-op", async () => {

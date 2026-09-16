@@ -1,3 +1,4 @@
+import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
@@ -6,20 +7,10 @@ import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
 // require('obsidian'); mock it as the rest of the suite does.
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-import { App } from "obsidian";
 import CommandList from "./CommandList.svelte";
-import { createCommandListProps } from "./commandListProps.svelte";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
 import type { ICommand } from "../../types/macros/ICommand";
 
-const makeProps = (commands: ICommand[], saveCommands = vi.fn()) =>
-	createCommandListProps({
-		commands,
-		app: new App() as never,
-		plugin: {} as never,
-		deleteCommand: vi.fn(),
-		saveCommands,
-	});
 
 const fireDnd = (
 	zone: Element,
@@ -45,7 +36,10 @@ const fireDnd = (
  * payload provenance (verified against the real library in E2E mobile emulation).
  */
 describe("CommandList placeholder-window drop (#1692)", () => {
-	it("restores the pre-drag order when the finalize is missing the dragged command", async () => {
+	it.each([
+		["restores the pre-drag order when the finalize is missing the dragged command", false],
+		["commits a genuine reorder untouched after the same drag start", true],
+	])("%s", async (_name, reordered) => {
 		const a = new ObsidianCommand("Alpha", "a");
 		const b = new ObsidianCommand("Beta", "b");
 		const c = new ObsidianCommand("Gamma", "c");
@@ -58,30 +52,11 @@ describe("CommandList placeholder-window drop (#1692)", () => {
 
 		const shadowOfA = { ...a, id: SHADOW_PLACEHOLDER_ITEM_ID } as ICommand;
 		await fireDnd(zone, "consider", [shadowOfA, b, c], TRIGGERS.DRAG_STARTED, a.id);
-		await fireDnd(zone, "finalize", [b, c], TRIGGERS.DROPPED_INTO_ZONE, a.id);
+		await fireDnd(zone, "finalize", reordered ? [b, a, c] : [b, c], TRIGGERS.DROPPED_INTO_ZONE, a.id);
 
 		expect(saveCommands).toHaveBeenCalledTimes(1);
 		const saved = saveCommands.mock.calls[0][0] as ICommand[];
-		expect(saved.map((cmd) => cmd.id)).toEqual([a.id, b.id, c.id]);
+		expect(saved.map((cmd) => cmd.id)).toEqual(reordered ? [b.id, a.id, c.id] : [a.id, b.id, c.id]);
 	});
 
-	it("commits a genuine reorder untouched after the same drag start", async () => {
-		const a = new ObsidianCommand("Alpha", "a");
-		const b = new ObsidianCommand("Beta", "b");
-		const c = new ObsidianCommand("Gamma", "c");
-		const saveCommands = vi.fn();
-
-		const { container } = render(CommandList, {
-			props: makeProps([a, b, c], saveCommands),
-		});
-		const zone = container.querySelector(".quickAddCommandList") as Element;
-
-		const shadowOfA = { ...a, id: SHADOW_PLACEHOLDER_ITEM_ID } as ICommand;
-		await fireDnd(zone, "consider", [shadowOfA, b, c], TRIGGERS.DRAG_STARTED, a.id);
-		await fireDnd(zone, "finalize", [b, a, c], TRIGGERS.DROPPED_INTO_ZONE, a.id);
-
-		expect(saveCommands).toHaveBeenCalledTimes(1);
-		const saved = saveCommands.mock.calls[0][0] as ICommand[];
-		expect(saved.map((cmd) => cmd.id)).toEqual([b.id, a.id, c.id]);
-	});
 });
