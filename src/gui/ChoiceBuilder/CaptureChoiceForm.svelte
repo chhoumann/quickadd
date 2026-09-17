@@ -170,7 +170,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 			{id}
 			inputKind="textarea"
 			bind:value={choice.format.format}
-			placeholder="Format"
+			placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
 			required
 			requiredMessage="Capture format is required when enabled"
 			makeSuggesters={formatSuggesters}

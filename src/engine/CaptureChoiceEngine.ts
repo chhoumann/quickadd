@@ -28,6 +28,7 @@ import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
+	isEmptyCaptureListValue,
 	planPropertyUpdate,
 	readCaptureFrontmatter,
 	resolveCapturePropertyKey,
@@ -797,7 +798,7 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
 		});
 		const prepared = plan(frontmatter);
-		if (config.action === "addToList" && (value === "" || (Array.isArray(value) && value.length === 0))) {
+		if (config.action === "addToList" && isEmptyCaptureListValue(value)) {
 			this.outcome.success(file, "unchanged");
 			return;
 		}
