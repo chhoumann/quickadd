@@ -333,47 +333,36 @@ QuickAdd stops the capture instead of choosing one.
 
 **Action** controls the update:
 
-- **Set value** replaces the property's value. For a list, each line becomes one
-  item (a list from a picker or script replaces the whole list). An empty value
-  clears a list.
-- **Add to list** adds new items **below** what the list already has. Exact
-  duplicates are skipped. It only works on a list (or when creating one); an
-  existing text, number, or checkbox value causes an error.
+- **Set value** replaces the property's value. An empty value clears a list.
+- **Add to list** adds new items below the existing ones. Exact duplicates are
+  skipped. An existing text, number, or checkbox value causes an error.
 
-For list properties, **each line in the Capture format is one item** — the same
-way Enter works in Obsidian's List property editor. Lines are trimmed, blank
-lines are ignored, and commas inside a line stay part of that item.
+For a list property, each line of the Capture format is one item, the same way
+Enter works in Obsidian's List property editor. Lines are trimmed, blank lines
+are ignored, and a comma inside a line stays part of that item.
 
-#### Keep what's already there with `{{PROPERTY}}`
+#### Keep the current value with `{{PROPERTY}}`
 
-In a property Capture, put [`{{PROPERTY}}`](/docs/FormatSyntax/#property) where
-the note's **current** value should appear in your format.
+In the format, [`{{PROPERTY}}`](/docs/FormatSyntax/#property) is the property's
+current value. Put it where that value should appear.
 
-**Add a tag above the ones already on the note:**
-
-```text
+```text title="New item above the existing ones"
 work
 {{PROPERTY}}
 ```
 
-**Add a tag below the existing ones** (same result as Add to list without the
-token):
-
-```text
+```text title="New item below the existing ones"
 {{PROPERTY}}
 work
 ```
 
-**Update text while keeping the old value:**
-
-```text
+```text title="Keep the current text and add to it"
 {{PROPERTY}} → Ready
 ```
 
-When `{{PROPERTY}}` is in the format, QuickAdd writes whatever that format
-builds as the new property value — move the token to change where existing list
-items sit, instead of relying on Add vs Set. If you type `{{PROPERTY}}` more
-than once, only the first one is replaced with the current value.
+When the format contains `{{PROPERTY}}`, **Add to list** and **Set value** write
+the same list. The token marks where the existing items go. QuickAdd drops
+duplicate items and keeps the first occurrence.
 
 Other useful patterns:
 
@@ -395,7 +384,7 @@ list. An empty or whitespace-only text value or empty list with **Add to list**
 leaves the note unchanged. It does not create a missing note, write properties,
 insert links, or copy links.
 
-Scripts can also read the current value — see
+Inline scripts read the current value through
 [Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 **Create property if missing** permits a new key. When disabled, a missing key

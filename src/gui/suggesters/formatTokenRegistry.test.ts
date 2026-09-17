@@ -134,7 +134,7 @@ describe("format token autocomplete rows", () => {
 		expect(index).toContain("{{PROPERTY}}");
 		const rows = await suggestRows("{{PROP", VAULT);
 		const property = rows.find((row) => row.insert === "{{PROPERTY}}");
-		expect(property?.description).toMatch(/already in this property/i);
+		expect(property?.description).toMatch(/property's current value/i);
 		expect(property?.description).toMatch(/property Captures only/i);
 		expect(property?.description).not.toMatch(/property name/i);
 	});

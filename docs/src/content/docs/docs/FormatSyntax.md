@@ -36,7 +36,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{VALUE:Red,Green,Blue}}`](#value-suggest) | Pick from a list |
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
-| [`{{PROPERTY}}`](#property) | What's already in this Capture's property |
+| [`{{PROPERTY}}`](#property) | Insert the property's current value (property Captures only) |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
 | [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
@@ -850,45 +850,37 @@ FIELD filtering is in beta and the syntax can change - leave your thoughts
 [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 :::
 
-### What's already in the property: `{{PROPERTY}}` {#property}
+### The property's current value: `{{PROPERTY}}` {#property}
 
-In a [property Capture](/docs/Choices/CaptureChoice/#property), type
-`{{PROPERTY}}` wherever the note's **current** value of that property should
-appear.
+In a [property Capture](/docs/Choices/CaptureChoice/#property), `{{PROPERTY}}`
+is the value the property already has on the target note. Put it where that
+value should appear.
 
-**Add `work` above the existing tags:**
-
-```text
+```text title="New item above the existing ones"
 work
 {{PROPERTY}}
 ```
 
-**Add `work` below them** (same result as Add to list without the token):
-
-```text
+```text title="New item below the existing ones"
 {{PROPERTY}}
 work
 ```
 
-**Keep the old text and append more:**
-
-```text
+```text title="Keep the current text and add to it"
 {{PROPERTY}} → Ready
 ```
 
-What you get:
+A list becomes one item per line. Text, numbers, and checkboxes become text. A
+missing or empty property becomes nothing.
 
-- A list becomes one item per line.
-- Text, numbers, and checkboxes become ordinary text.
-- If the property is missing or empty, `{{PROPERTY}}` becomes nothing.
+The token works only in a property Capture. Anywhere else, QuickAdd stops with
+an error.
 
-This only works in a property Capture. Elsewhere QuickAdd stops with an error.
+`{{PROPERTY}}` is not [`{{FIELD:...}}`](#field). `FIELD` suggests values from
+across your vault and may ask you to pick one. `PROPERTY` is the value already
+on this note.
 
-`{{PROPERTY}}` is not [`{{FIELD:...}}`](#field). `FIELD` suggests values used
-*anywhere in your vault* (and may ask you to pick). `PROPERTY` is the value
-already on *this* note for *this* Capture's property.
-
-Scripts can also read the current value — see
+Inline scripts read the same value through
 [Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 ### Pick a note from a folder: `{{FILE:<folder>}}` {#file}

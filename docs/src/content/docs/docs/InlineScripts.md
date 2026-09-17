@@ -80,11 +80,16 @@ format, so a later `{{VALUE}}` picks it up.
 
 ### Property Capture variables {#property-capture-variables}
 
-In a [property Capture](/docs/Choices/CaptureChoice/#property), you can read
-what's already on the note — or put [`{{PROPERTY}}`](/docs/FormatSyntax/#property)
-in the format so the current value appears as text (lists: one item per line).
+In a [property Capture](/docs/Choices/CaptureChoice/#property), QuickAdd sets
+these variables before your script runs:
 
-**Bump a number by one:**
+| Variable | What it holds |
+| --- | --- |
+| `propertyValue` | The current value: text, a number, a checkbox, a list of text, or `undefined` when the property is missing |
+| `propertyKey` | The property name being written |
+| `list` | The current list items, or `[]` when the value is not a list |
+
+This script adds one to a Number property:
 
 ````
 ```js quickadd
@@ -93,29 +98,18 @@ return n + 1;
 ```
 ````
 
-#### For scripts
-
-Before the format runs, these variables are available:
-
-| Variable | What it holds |
-| --- | --- |
-| `propertyValue` | The current value (text, number, checkbox, list of text, or missing) |
-| `propertyKey` | The property name being written |
-| `list` | The current list items, or `[]` if it isn't a list |
-
-Prefer `propertyValue` when you care about the type. Return a list from the
-script when you want to rewrite the whole list:
+Return an array to rewrite the whole list. This script drops `old` and puts
+`fresh` first:
 
 ````
 ```js quickadd
-const current = Array.isArray(this.variables.propertyValue)
-	? this.variables.propertyValue
-	: (this.variables.list ?? []);
-const next = current.filter((t) => t !== "old");
-next.unshift("fresh");
-return next;
+const kept = this.variables.list.filter((tag) => tag !== "old");
+return ["fresh", ...kept];
 ```
 ````
+
+To place the current value inside the format instead, use
+[`{{PROPERTY}}`](/docs/FormatSyntax/#property).
 
 ### Example: convert phone text to a `tel:` link {#example-convert-phone-text-to-a-tel-link}
 

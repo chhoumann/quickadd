@@ -210,7 +210,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		contexts: ["noteContent"],
 		suggestion: token(
 			"{{PROPERTY}}",
-			"What's already in this property (property Captures only)",
+			"Inserts the property's current value (property Captures only)",
 		),
 	},
 	{
