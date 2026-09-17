@@ -1,4 +1,5 @@
 import { getFrontMatterInfo, parseYaml, stringifyYaml } from "obsidian";
+import { PROPERTY_REGEX } from "../constants";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 
 export type CapturePropertyValue = string | number | boolean | string[];
@@ -9,6 +10,61 @@ export function validatePropertyName(input: string): string {
 		throw new Error("Property name must be nonempty and contain no line breaks or unsafe keys.");
 	}
 	return key;
+}
+
+/** Whether a Capture format includes `{{PROPERTY}}` (case-insensitive). */
+export function formatContainsPropertyToken(format: string): boolean {
+	return PROPERTY_REGEX.test(format);
+}
+
+/**
+ * String form of a property's current value for `{{PROPERTY}}` expansion.
+ * Lists become one item per line (so captureListItems round-trips). Items that
+ * already contain a line break abort — inventing extra items would be wrong.
+ */
+export function stringifyPropertyTokenValue(value: unknown): string {
+	if (value === undefined || value === null) return "";
+	if (Array.isArray(value)) {
+		if (!value.every((item): item is string => typeof item === "string")) {
+			throw new Error("{{PROPERTY}} only expands lists of text.");
+		}
+		if (value.some((item) => /[\r\n]/.test(item))) {
+			throw new Error(
+				"{{PROPERTY}} cannot expand a list item that contains a line break. Return a rewritten array from an inline script instead.",
+			);
+		}
+		return value.join("\n");
+	}
+	if (typeof value === "string" || typeof value === "boolean") return String(value);
+	if (typeof value === "number" && Number.isFinite(value)) return String(value);
+	throw new Error("{{PROPERTY}} only expands text, finite numbers, checkboxes, and lists of text.");
+}
+
+/**
+ * Seeds format/script variables with a frozen snapshot of the destination
+ * property before `formatPropertyValue` runs (#1748 Slice 1).
+ */
+export function seedPropertyCaptureVariables(
+	variables: Map<string, unknown>,
+	key: string,
+	existing: unknown,
+): void {
+	let propertyValue: CapturePropertyValue | undefined;
+	if (existing !== undefined && existing !== null) {
+		propertyValue = propertyValueFromExisting(existing, key);
+	}
+	variables.set("propertyKey", key);
+	variables.set("propertyValue", propertyValue);
+	variables.set("list", Array.isArray(propertyValue) ? [...propertyValue] : []);
+}
+
+function propertyValueFromExisting(value: unknown, key: string): CapturePropertyValue {
+	if (typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (Array.isArray(value) && value.every((item): item is string => typeof item === "string")) {
+		return [...value];
+	}
+	throw new Error(`Property '${key}' supports text, finite numbers, checkboxes, and lists of text only.`);
 }
 
 export function resolveCapturePropertyKey(frontmatter: Record<string, unknown>, requested: string): string {
@@ -85,6 +141,12 @@ export function planPropertyUpdate(args: {
 	value: unknown;
 	config: Pick<PropertyCapture, "action" | "createIfMissing">;
 	registeredType: string | null;
+	/**
+	 * When the Capture format contained `{{PROPERTY}}`, the formatted value is
+	 * already the full composed result. List writes always replace (first
+	 * occurrence in the composed format wins); Add's append path is skipped.
+	 */
+	compose?: boolean;
 }): CapturePropertyValue {
 	const { frontmatter, config } = args;
 	const key = resolveCapturePropertyKey(frontmatter, args.key);
@@ -107,6 +169,8 @@ export function planPropertyUpdate(args: {
 		const items = lines ?? captured;
 		if (!Array.isArray(items)) throw new Error(`Property '${key}' requires text or a list of text to add.`);
 		if (items.length === 0) return current ?? [];
+		// Token present ⇒ write the composed list as-is (first occurrence wins).
+		if (args.compose) return [...new Set(items)];
 		return [...new Set([...(current ?? []), ...items])];
 	}
 	if (type === "list" && current !== null && !Array.isArray(current)) {

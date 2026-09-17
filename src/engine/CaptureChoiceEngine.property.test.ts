@@ -179,6 +179,29 @@ describe("Capture property writes", () => {
 		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
 	});
 
+	it("seeds property variables and compose-writes when the format contains {{PROPERTY}}", async () => {
+		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
+		mocks.value.mockImplementation(async () => {
+			expect(test.executor.variables.get("propertyKey")).toBe("tags");
+			expect(test.executor.variables.get("propertyValue")).toEqual(["old", "keep"]);
+			expect(test.executor.variables.get("list")).toEqual(["old", "keep"]);
+			return "work\nold\nkeep";
+		});
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ tags: ["work", "old", "keep"] });
+	});
+
+	it("still appends when {{PROPERTY}} is absent from the format", async () => {
+		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.format = { enabled: true, format: "work" };
+		mocks.value.mockResolvedValue("work");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ tags: ["old", "keep", "work"] });
+	});
+
 	it("stops a multi-line Set into a property without a type before creating the note", async () => {
 		const test = fixture();
 		test.choice.createFileIfItDoesntExist.enabled = true;

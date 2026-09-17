@@ -1956,4 +1956,36 @@ describe("property value formatting", () => {
 		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE:input|type:checkbox}}")).rejects.toThrow("true or false");
 		await expect(formatterWithValue(value).formatPropertyValue("{{VALUE|type:checkbox}}")).rejects.toThrow("true or false");
 	});
+
+	it("expands {{PROPERTY}} from the seeded propertyValue snapshot", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old", "keep"]);
+		executor.variables.set("propertyKey", "tags");
+		executor.variables.set("list", ["old", "keep"]);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("work\n{{PROPERTY}}")).toBe("work\nold\nkeep");
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}\nwork")).toBe("old\nkeep\nwork");
+		expect(await formatter.formatPropertyValue("{{property}}")).toEqual(["old", "keep"]);
+	});
+
+	it("weaves a scalar {{PROPERTY}} into surrounding text", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", "Draft");
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{PROPERTY}} → Ready")).toBe("Draft → Ready");
+	});
+
+	it("expands a missing {{PROPERTY}} to empty and rejects the token outside property formats", async () => {
+		const executor = createChoiceExecutor();
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe("");
+		await expect(formatter.formatFileContent("{{PROPERTY}}")).rejects.toThrow(/property Capture/);
+	});
+
+	it("aborts {{PROPERTY}} when a list item contains a line break", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["a\nb", "c"]);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		await expect(formatter.formatPropertyValue("{{PROPERTY}}")).rejects.toThrow(/line break/);
+	});
 });

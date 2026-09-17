@@ -37,8 +37,8 @@ let lastNamedFormat = "";
 </LabeledField>
 
 <SettingItem name="Action" desc={config.action === "addToList"
-	? "Add captured values to the property's list, keeping existing items and skipping duplicates. Each line is one item."
-	: "Replace the property's value with the captured value. For a List property, each line is one item; for a Text property, the lines stay one text value; a property with no type yet rejects several lines (use Add to list, or set the type to Text in Obsidian first)."}>
+	? "Add items to the list (below existing), or place {{PROPERTY}} in the format to choose where existing items sit. Each line is one item."
+	: "Replace the property. For a list, each line is one item. Include {{PROPERTY}} to keep the current value in that position (lists: among the lines; other types: in the text). For a Text property, the lines stay one text value; a property with no type yet rejects several lines (use Add to list, or set the type to Text in Obsidian first)."}>
 	{#snippet control()}
 		<Dropdown value={config.action}
 			options={[{ value: "set", label: "Set value" }, { value: "addToList", label: "Add to list" }]}

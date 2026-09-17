@@ -92,6 +92,9 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceTemplateInString(output);
 		// Expand global variables early so injected snippets can be further formatted
 		output = await this.replaceGlobalVarInString(output);
+		// After scripts (which read typed propertyValue) but before other tokens,
+		// so {{PROPERTY}} placement composes with VALUE/DATE/etc. (#1748).
+		output = this.replacePropertyInString(output);
 		output = this.replaceDateInString(output);
 		output = this.replaceTimeInString(output);
 		output = await this.replaceValueInString(output);

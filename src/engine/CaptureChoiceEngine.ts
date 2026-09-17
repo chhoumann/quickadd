@@ -28,10 +28,12 @@ import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
+	formatContainsPropertyToken,
 	isEmptyCaptureListValue,
 	planPropertyUpdate,
 	readCaptureFrontmatter,
 	resolveCapturePropertyKey,
+	seedPropertyCaptureVariables,
 	serializeCaptureFrontmatter,
 	validatePropertyName,
 } from "./captureProperty";
@@ -790,12 +792,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const registeredType = resolveObsidianPropertyType(this.app, key, { registeredOnly: true });
 		const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
 		const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
+		const propertyFormat = this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX;
+		const compose = formatContainsPropertyToken(propertyFormat);
+		seedPropertyCaptureVariables(this.choiceExecutor.variables, key, existingValue);
 		const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
-			this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX, inputType,
+			propertyFormat, inputType,
 		));
 		const plan = (current: Record<string, unknown>) => planPropertyUpdate({
 			frontmatter: current, key, value, config,
 			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
+			compose,
 		});
 		const prepared = plan(frontmatter);
 		if (config.action === "addToList" && isEmptyCaptureListValue(value)) {

@@ -11,6 +11,7 @@ import {
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
 	NUMBER_REGEX,
+	PROPERTY_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 
@@ -83,6 +84,7 @@ import { parseVDateOptions } from "../utils/vdateSyntax";
 import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../utils/dateModifiers";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
+import { stringifyPropertyTokenValue } from "../engine/captureProperty";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 
@@ -337,7 +339,7 @@ export abstract class Formatter {
 
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
 		const previous = this.singleTokenValue;
-		const capture: typeof this.singleTokenValue = /^(?:\{\{(?:VALUE|NAME)(?::[^{}]+|\|[^{}]+)?\}\}|\{\{(?:FIELD|FILE):[^{}]+\}\})$/i.test(input)
+		const capture: typeof this.singleTokenValue = /^(?:\{\{(?:VALUE|NAME)(?::[^{}]+|\|[^{}]+)?\}\}|\{\{(?:FIELD|FILE):[^{}]+\}\}|\{\{PROPERTY\}\})$/i.test(input)
 			? { input }
 			: undefined;
 		this.singleTokenValue = capture;
@@ -2095,5 +2097,30 @@ export abstract class Formatter {
 		// equal to "{{title}}" can't loop (#1358). Kept for direct/legacy callers
 		// and unit tests. See {@link replaceCurrentFileTokensInString}.
 		return this.replaceCurrentFileTokensInString(input, { title: true });
+	}
+
+	/**
+	 * Expands `{{PROPERTY}}` to the seeded `propertyValue` snapshot (property
+	 * Captures only). Outside that scope the token is a hard error so it cannot
+	 * leak as literal text into a note body (#1748).
+	 */
+	protected replacePropertyInString(input: string): string {
+		if (!PROPERTY_REGEX.test(input)) return input;
+		if (this.promptScope !== "propertyValue") {
+			throw new Error(
+				"{{PROPERTY}} can only be used in a property Capture format.",
+			);
+		}
+		const raw = this.variables.get("propertyValue");
+		if (/^{{PROPERTY}}$/i.test(input.trim()) && input.trim() === input) {
+			this.retainSingleTokenValue(
+				input,
+				0,
+				input.length,
+				raw === undefined ? "" : raw,
+			);
+		}
+		const text = stringifyPropertyTokenValue(raw);
+		return input.replace(new RegExp(PROPERTY_REGEX.source, "gi"), () => text);
 	}
 }

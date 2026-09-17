@@ -336,11 +336,15 @@ QuickAdd stops the capture instead of choosing one.
 - **Set value** replaces the property's value. For a List property, each line
   of the captured text is one item, and a typed list replaces the whole list.
   An empty text value clears the list. Commas inside text do not split it into
-  several items.
+  several items. Include [`{{PROPERTY}}`](/docs/FormatSyntax/#property) in the
+  format to keep the current value in that position (lists: among the lines;
+  other types: woven into the text).
 - **Add to list** adds each line of the captured text, or each item of a typed
-  list, to the property's list. Existing items keep their order, and exact
-  duplicates are skipped. An existing text, number, or checkbox value causes
-  an error.
+  list, to the property's list (below existing items). Exact duplicates are
+  skipped. Place `{{PROPERTY}}` in the format to choose where existing items
+  sit instead — when the token is present, QuickAdd writes the composed list
+  (first occurrence wins) and ignores Add-vs-Set for the final write. An
+  existing text, number, or checkbox value causes an error.
 
 Line breaks mark list items, the same way Enter does in Obsidian's own List
 property editor:
@@ -349,6 +353,8 @@ property editor:
   item.
 - A multi-line Capture format adds several fixed items without a prompt.
   `{{VALUE}}` on its own line above them adds what you type as one more item.
+- Put `{{PROPERTY}}` on its own line among those items to insert above or
+  below what the note already has. Moving the token changes placement.
 - A `{{VALUE:notes|type:multiline}}` prompt into a list is a free-form "one
   item per line" prompt.
 - Text, number, checkbox, date, and date-time properties never split.
@@ -363,6 +369,11 @@ Neither action converts an existing text, number, or checkbox property into a
 list. An empty or whitespace-only text value or empty list with **Add to list**
 leaves the note unchanged. It does not create a missing note, write properties,
 insert links, or copy links.
+
+Before the format runs, QuickAdd seeds `propertyValue` (typed current value),
+`propertyKey`, and `list` (current items, or `[]`) into the choice variable map
+so [inline scripts](/docs/InlineScripts/) can read them. `{{PROPERTY}}` expands
+from the same snapshot.
 
 **Create property if missing** permits a new key. When disabled, a missing key
 stops the capture. **Create file if it doesn't exist** separately controls
@@ -385,6 +396,9 @@ to a missing property whose type is already set in Obsidian. An explicit
 | `done` | **Set value** | `{{VALUE:done\|type:checkbox}}` | A Checkbox property. |
 | `tags` | **Add to list** | `work` and `personal` on two lines | Adds both tags without a prompt. |
 | `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
+| `tags` | **Add to list** | `work` then `{{PROPERTY}}` on two lines | Inserts `work` above the existing tags. |
+| `tags` | **Add to list** | `{{PROPERTY}}` then `work` on two lines | Appends `work` below the existing tags. |
+| `status` | **Set value** | `{{PROPERTY}} → Ready` | Weaves the current text value into the new one. |
 | `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |
 
 The value must match the property's Obsidian type, or its existing value when

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-	captureListItems, isEmptyCaptureListValue, planPropertyUpdate, resolveCapturePropertyKey, validatePropertyName,
+	captureListItems,
+	formatContainsPropertyToken,
+	isEmptyCaptureListValue,
+	planPropertyUpdate,
+	resolveCapturePropertyKey,
+	seedPropertyCaptureVariables,
+	stringifyPropertyTokenValue,
+	validatePropertyName,
 } from "./captureProperty";
 import { parsePropertyCapture } from "../types/choices/ICaptureChoice";
 
@@ -69,6 +76,76 @@ describe("lines are list items", () => {
 		expect(planPropertyUpdate({ frontmatter: {}, key: "notes", value: "a\nb", config: set, registeredType: "text" })).toBe("a\nb");
 		expect(planPropertyUpdate({ frontmatter: { notes: "old" }, key: "notes", value: "a\nb", config: set, registeredType: null })).toBe("a\nb");
 		expect(() => planPropertyUpdate({ frontmatter: {}, key: "count", value: "1\n2", config: set, registeredType: "number" })).toThrow("requires number");
+	});
+});
+
+describe("{{PROPERTY}} compose writes", () => {
+	it("detects the token case-insensitively", () => {
+		expect(formatContainsPropertyToken("{{PROPERTY}}")).toBe(true);
+		expect(formatContainsPropertyToken("work\n{{property}}\n")).toBe(true);
+		expect(formatContainsPropertyToken("work\npersonal")).toBe(false);
+	});
+	it("stringifies lists as one item per line and scalars as text", () => {
+		expect(stringifyPropertyTokenValue(["a", "b"])).toBe("a\nb");
+		expect(stringifyPropertyTokenValue([])).toBe("");
+		expect(stringifyPropertyTokenValue(undefined)).toBe("");
+		expect(stringifyPropertyTokenValue(null)).toBe("");
+		expect(stringifyPropertyTokenValue("hello")).toBe("hello");
+		expect(stringifyPropertyTokenValue(42)).toBe("42");
+		expect(stringifyPropertyTokenValue(true)).toBe("true");
+	});
+	it("aborts when an existing list item contains a line break", () => {
+		expect(() => stringifyPropertyTokenValue(["a\nb", "c"])).toThrow(/line break/);
+	});
+	it("seeds propertyValue, propertyKey, and list before format", () => {
+		const variables = new Map<string, unknown>();
+		seedPropertyCaptureVariables(variables, "tags", ["old", "keep"]);
+		expect(variables.get("propertyKey")).toBe("tags");
+		expect(variables.get("propertyValue")).toEqual(["old", "keep"]);
+		expect(variables.get("list")).toEqual(["old", "keep"]);
+		seedPropertyCaptureVariables(variables, "status", "Draft");
+		expect(variables.get("propertyValue")).toBe("Draft");
+		expect(variables.get("list")).toEqual([]);
+		seedPropertyCaptureVariables(variables, "rating", undefined);
+		expect(variables.get("propertyValue")).toBeUndefined();
+		expect(variables.get("list")).toEqual([]);
+	});
+	it("inserts above existing items when the composed format puts new lines first", () => {
+		const frontmatter = { tags: ["old", "keep"] };
+		expect(planPropertyUpdate({
+			frontmatter, key: "tags", value: "work\npersonal\nold\nkeep", config: add, registeredType: null, compose: true,
+		})).toEqual(["work", "personal", "old", "keep"]);
+	});
+	it("inserts below existing items when the composed format puts existing lines first", () => {
+		const frontmatter = { tags: ["old", "keep"] };
+		expect(planPropertyUpdate({
+			frontmatter, key: "tags", value: "old\nkeep\nwork\npersonal", config: add, registeredType: null, compose: true,
+		})).toEqual(["old", "keep", "work", "personal"]);
+	});
+	it("keeps the first occurrence when a top insert reorders a duplicate", () => {
+		expect(planPropertyUpdate({
+			frontmatter: { tags: ["work", "old"] }, key: "tags", value: "work\nwork\nold", config: add, registeredType: null, compose: true,
+		})).toEqual(["work", "old"]);
+	});
+	it("still appends when the token is absent", () => {
+		expect(planPropertyUpdate({
+			frontmatter: { tags: ["old"] }, key: "tags", value: "work\npersonal", config: add, registeredType: null,
+		})).toEqual(["old", "work", "personal"]);
+	});
+	it("still replaces without the token under Set", () => {
+		expect(planPropertyUpdate({
+			frontmatter: { tags: ["old"] }, key: "tags", value: "work\npersonal", config: set, registeredType: null,
+		})).toEqual(["work", "personal"]);
+	});
+	it("weaves text under Set with a composed string", () => {
+		expect(planPropertyUpdate({
+			frontmatter: { status: "Draft" }, key: "status", value: "Draft → Ready", config: set, registeredType: "text",
+		})).toBe("Draft → Ready");
+	});
+	it("keeps the untyped Set multi-line guardrail with compose", () => {
+		expect(() => planPropertyUpdate({
+			frontmatter: {}, key: "topics", value: "work\npersonal", config: set, registeredType: null, compose: true,
+		})).toThrow(/no type yet/);
 	});
 });
 
