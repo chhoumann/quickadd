@@ -36,7 +36,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{VALUE:Red,Green,Blue}}`](#value-suggest) | Pick from a list |
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
-| [`{{PROPERTY}}`](#property) | Current value of the property this Capture is writing to |
+| [`{{PROPERTY}}`](#property) | What's already in this Capture's property |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
 | [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
@@ -850,40 +850,46 @@ FIELD filtering is in beta and the syntax can change - leave your thoughts
 [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 :::
 
-### Current property value: `{{PROPERTY}}` {#property}
+### What's already in the property: `{{PROPERTY}}` {#property}
 
-In a [property Capture](/docs/Choices/CaptureChoice/#property), `{{PROPERTY}}`
-expands to the **current value of the property this Capture is writing to** —
-on that destination note, for that key. It is type-agnostic: lists become one
-item per line; text, numbers, and checkboxes become their string form; a
-missing value expands to nothing.
+In a [property Capture](/docs/Choices/CaptureChoice/#property), type
+`{{PROPERTY}}` wherever the note's **current** value of that property should
+appear.
 
-Use it to place existing list items among new ones:
+**Add `work` above the existing tags:**
 
-```text title="Insert above existing tags"
+```text
 work
 {{PROPERTY}}
 ```
 
-```text title="Append below existing tags (same as Add to list without the token)"
+**Add `work` below them** (same result as Add to list without the token):
+
+```text
 {{PROPERTY}}
 work
 ```
 
-For text properties, weave the current value into the new one:
+**Keep the old text and append more:**
 
 ```text
 {{PROPERTY}} → Ready
 ```
 
-`{{PROPERTY}}` is **not** the same as [`{{FIELD:...}}`](#field). `FIELD`
-suggests values that property has *vault-wide* (and may prompt). `PROPERTY`
-is the value already on *this* capture target. Outside a property Capture the
-token is an error.
+What you get:
 
-Before the format runs, QuickAdd also seeds `propertyValue` (typed),
-`propertyKey`, and `list` into the choice variables so
-[inline scripts](/docs/InlineScripts/#property-capture-variables) can read them.
+- A list becomes one item per line.
+- Text, numbers, and checkboxes become ordinary text.
+- If the property is missing or empty, `{{PROPERTY}}` becomes nothing.
+
+This only works in a property Capture. Elsewhere QuickAdd stops with an error.
+
+`{{PROPERTY}}` is not [`{{FIELD:...}}`](#field). `FIELD` suggests values used
+*anywhere in your vault* (and may ask you to pick). `PROPERTY` is the value
+already on *this* note for *this* Capture's property.
+
+Scripts can also read the current value — see
+[Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 ### Pick a note from a folder: `{{FILE:<folder>}}` {#file}
 

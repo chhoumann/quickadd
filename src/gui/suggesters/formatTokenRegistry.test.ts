@@ -129,12 +129,13 @@ describe("format token autocomplete rows", () => {
 		);
 	});
 
-	it("offers {{PROPERTY}} for note content with the current-value blurb", async () => {
+	it("offers {{PROPERTY}} for note content with a plain-language current-value blurb", async () => {
 		const index = await suggestInserts("{{");
 		expect(index).toContain("{{PROPERTY}}");
 		const rows = await suggestRows("{{PROP", VAULT);
 		const property = rows.find((row) => row.insert === "{{PROPERTY}}");
-		expect(property?.description).toMatch(/current value/i);
+		expect(property?.description).toMatch(/already in this property/i);
+		expect(property?.description).toMatch(/property Captures only/i);
 		expect(property?.description).not.toMatch(/property name/i);
 	});
 

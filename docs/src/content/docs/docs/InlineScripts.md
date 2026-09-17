@@ -80,17 +80,11 @@ format, so a later `{{VALUE}}` picks it up.
 
 ### Property Capture variables {#property-capture-variables}
 
-When a [property Capture](/docs/Choices/CaptureChoice/#property) runs, QuickAdd
-seeds these before the format (and any inline scripts) execute:
+In a [property Capture](/docs/Choices/CaptureChoice/#property), you can read
+what's already on the note — or put [`{{PROPERTY}}`](/docs/FormatSyntax/#property)
+in the format so the current value appears as text (lists: one item per line).
 
-| Variable | Contents |
-| --- | --- |
-| `propertyValue` | The typed current value (`string`, `number`, `boolean`, `string[]`, or `undefined` if missing) |
-| `propertyKey` | The resolved property key being written |
-| `list` | Current list items when `propertyValue` is a string array; otherwise `[]` |
-
-Prefer `propertyValue` for type-correct work. [`{{PROPERTY}}`](/docs/FormatSyntax/#property)
-expands from the same snapshot as a string (lists as one item per line).
+**Bump a number by one:**
 
 ````
 ```js quickadd
@@ -98,6 +92,19 @@ const n = Number(this.variables.propertyValue ?? 0);
 return n + 1;
 ```
 ````
+
+#### For scripts
+
+Before the format runs, these variables are available:
+
+| Variable | What it holds |
+| --- | --- |
+| `propertyValue` | The current value (text, number, checkbox, list of text, or missing) |
+| `propertyKey` | The property name being written |
+| `list` | The current list items, or `[]` if it isn't a list |
+
+Prefer `propertyValue` when you care about the type. Return a list from the
+script when you want to rewrite the whole list:
 
 ````
 ```js quickadd
