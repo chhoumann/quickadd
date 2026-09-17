@@ -343,26 +343,11 @@ are ignored, and a comma inside a line stays part of that item.
 
 #### Keep the current value with `{{PROPERTY}}`
 
-In the format, [`{{PROPERTY}}`](/docs/FormatSyntax/#property) is the property's
-current value. Put it where that value should appear.
-
-```text title="New item above the existing ones"
-work
-{{PROPERTY}}
-```
-
-```text title="New item below the existing ones"
-{{PROPERTY}}
-work
-```
-
-```text title="Keep the current text and add to it"
-{{PROPERTY}} → Ready
-```
-
-When the format contains `{{PROPERTY}}`, **Add to list** and **Set value** write
-the same list. The token marks where the existing items go. QuickAdd drops
-duplicate items and keeps the first occurrence.
+In the format, `{{PROPERTY}}` is the property's current value. Put it where
+that value should appear. When the format contains it, **Add to list** and
+**Set value** write the same list. QuickAdd drops duplicate items and keeps
+the first occurrence. See [format syntax](/docs/FormatSyntax/#property) for
+examples.
 
 Other useful patterns:
 
@@ -409,7 +394,6 @@ to a missing property whose type is already set in Obsidian. An explicit
 | `tags` | **Add to list** | `work` and `personal` on two lines | Adds both tags without a prompt. |
 | `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
 | `tags` | **Add to list** | `work` then `{{PROPERTY}}` on two lines | Inserts `work` above the existing tags. |
-| `tags` | **Add to list** | `{{PROPERTY}}` then `work` on two lines | Appends `work` below the existing tags. |
 | `status` | **Set value** | `{{PROPERTY}} → Ready` | Keeps the current text and appends ` → Ready`. |
 | `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |
 
