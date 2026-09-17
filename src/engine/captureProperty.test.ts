@@ -5,7 +5,9 @@ import {
 	isEmptyCaptureListValue,
 	planPropertyUpdate,
 	resolveCapturePropertyKey,
+	restorePropertyCaptureSeeds,
 	seedPropertyCaptureVariables,
+	snapshotPropertyCaptureSeeds,
 	stringifyPropertyTokenValue,
 	validatePropertyName,
 } from "./captureProperty";
@@ -124,6 +126,30 @@ describe("{{PROPERTY}} compose writes", () => {
 		seedPropertyCaptureVariables(variables, "tags", ["old"]);
 		expect(variables.get("propertyValue")).toEqual(["old"]);
 		expect(variables.get("list")).toEqual(["old"]);
+	});
+	it("restores seed keys so a later capture can seed again", () => {
+		const variables = new Map<string, unknown>([["keep", "me"]]);
+		const snapshot = snapshotPropertyCaptureSeeds(variables);
+		seedPropertyCaptureVariables(variables, "tags", ["old"]);
+		expect(variables.get("propertyKey")).toBe("tags");
+		restorePropertyCaptureSeeds(variables, snapshot);
+		expect(variables.has("propertyKey")).toBe(false);
+		expect(variables.has("propertyValue")).toBe(false);
+		expect(variables.has("list")).toBe(false);
+		expect(variables.get("keep")).toBe("me");
+		seedPropertyCaptureVariables(variables, "status", "Draft");
+		expect(variables.get("propertyValue")).toBe("Draft");
+		restorePropertyCaptureSeeds(variables, snapshot);
+		expect(variables.has("propertyValue")).toBe(false);
+	});
+	it("restores a pre-existing undefined seed entry", () => {
+		const variables = new Map<string, unknown>([["propertyValue", undefined]]);
+		const snapshot = snapshotPropertyCaptureSeeds(variables);
+		seedPropertyCaptureVariables(variables, "tags", ["a"]);
+		restorePropertyCaptureSeeds(variables, snapshot);
+		expect(variables.has("propertyValue")).toBe(true);
+		expect(variables.get("propertyValue")).toBeUndefined();
+		expect(variables.has("list")).toBe(false);
 	});
 	it("inserts above existing items when the composed format puts new lines first", () => {
 		const frontmatter = { tags: ["old", "keep"] };

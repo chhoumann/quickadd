@@ -192,6 +192,27 @@ describe("Capture property writes", () => {
 		});
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ tags: ["work", "old", "keep"] });
+		expect(test.executor.variables.has("propertyKey")).toBe(false);
+		expect(test.executor.variables.has("propertyValue")).toBe(false);
+		expect(test.executor.variables.has("list")).toBe(false);
+	});
+
+	it("restores seeds so a second property Capture on the same executor can run", async () => {
+		const first = fixture("---\ntags: [old]\n---\nBody\n");
+		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		first.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
+		mocks.value.mockResolvedValueOnce("work\nold");
+		await first.run();
+		expect(readCaptureFrontmatter(first.read() ?? "")).toEqual({ tags: ["work", "old"] });
+		expect(first.executor.variables.has("list")).toBe(false);
+
+		first.overwrite("---\ntags: [work, old]\nstatus: Draft\n---\nBody\n");
+		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		first.choice.format = { enabled: true, format: "{{PROPERTY}} → Ready" };
+		mocks.value.mockResolvedValueOnce("Draft → Ready");
+		await first.run();
+		expect(readCaptureFrontmatter(first.read() ?? "")).toEqual({ tags: ["work", "old"], status: "Draft → Ready" });
+		expect(first.executor.variables.has("propertyKey")).toBe(false);
 	});
 
 	it("still appends when {{PROPERTY}} is absent from the format", async () => {

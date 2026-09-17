@@ -47,12 +47,42 @@ export const PROPERTY_CAPTURE_SEED_KEYS = [
 	"list",
 ] as const;
 
+export type PropertyCaptureSeedSnapshot = Array<{
+	key: (typeof PROPERTY_CAPTURE_SEED_KEYS)[number];
+	present: boolean;
+	value: unknown;
+}>;
+
+/** Snapshot the seed keys so a Capture can restore the shared executor map. */
+export function snapshotPropertyCaptureSeeds(
+	variables: Map<string, unknown>,
+): PropertyCaptureSeedSnapshot {
+	return PROPERTY_CAPTURE_SEED_KEYS.map((key) => ({
+		key,
+		present: variables.has(key),
+		value: variables.get(key),
+	}));
+}
+
+/** Restore seed keys after a property Capture (Macro-safe shared executor). */
+export function restorePropertyCaptureSeeds(
+	variables: Map<string, unknown>,
+	snapshot: PropertyCaptureSeedSnapshot,
+): void {
+	for (const entry of snapshot) {
+		if (entry.present) variables.set(entry.key, entry.value);
+		else variables.delete(entry.key);
+	}
+}
+
 /**
  * Seeds format/script variables with a frozen snapshot of the destination
  * property before `formatPropertyValue` runs (#1748 Slice 1).
  *
  * Throws when a seed key already holds a concrete value (for example from
  * `{{VALUE:list}}`), so the snapshot cannot silently replace a user answer.
+ * Callers must {@link restorePropertyCaptureSeeds} in a `finally` so a later
+ * property Capture in the same Macro can seed again.
  */
 export function seedPropertyCaptureVariables(
 	variables: Map<string, unknown>,

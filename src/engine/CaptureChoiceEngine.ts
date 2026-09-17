@@ -33,8 +33,10 @@ import {
 	planPropertyUpdate,
 	readCaptureFrontmatter,
 	resolveCapturePropertyKey,
+	restorePropertyCaptureSeeds,
 	seedPropertyCaptureVariables,
 	serializeCaptureFrontmatter,
+	snapshotPropertyCaptureSeeds,
 	validatePropertyName,
 } from "./captureProperty";
 import { resolveObsidianPropertyType } from "../utils/obsidianPropertyTypes";
@@ -793,59 +795,64 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
 		const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
 		const propertyFormat = this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX;
-		seedPropertyCaptureVariables(this.choiceExecutor.variables, key, existingValue);
-		// Consume any stale flag from an earlier format pass on this formatter.
-		this.formatter.consumePropertyTokenExpanded();
-		const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
-			propertyFormat, inputType,
-		));
-		// Raw-format detection covers the common case. The expansion flag covers
-		// {{PROPERTY}} injected by macros, templates, or global variables.
-		const compose = formatContainsPropertyToken(propertyFormat)
-			|| this.formatter.consumePropertyTokenExpanded();
-		const plan = (current: Record<string, unknown>) => planPropertyUpdate({
-			frontmatter: current, key, value, config,
-			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
-			compose,
-		});
-		const prepared = plan(frontmatter);
-		if (config.action === "addToList" && isEmptyCaptureListValue(value)) {
-			this.outcome.success(file, "unchanged");
-			return;
-		}
-
-		let priorContent = "";
-		if (file) {
-			priorContent = await this.app.vault.read(file);
-			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
-				current[resolveCapturePropertyKey(current, key)] = plan(current);
+		const seedSnapshot = snapshotPropertyCaptureSeeds(this.choiceExecutor.variables);
+		try {
+			seedPropertyCaptureVariables(this.choiceExecutor.variables, key, existingValue);
+			// Consume any stale flag from an earlier format pass on this formatter.
+			this.formatter.consumePropertyTokenExpanded();
+			const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
+				propertyFormat, inputType,
+			));
+			// Raw-format detection covers the common case. The expansion flag covers
+			// {{PROPERTY}} injected by macros, templates, or global variables.
+			const compose = formatContainsPropertyToken(propertyFormat)
+				|| this.formatter.consumePropertyTokenExpanded();
+			const plan = (current: Record<string, unknown>) => planPropertyUpdate({
+				frontmatter: current, key, value, config,
+				registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),
+				compose,
 			});
-		} else {
-			frontmatter[key] = prepared;
-			file = await this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
-				suppressTemplaterOnCreate: createWithTemplate,
-			});
-		}
-		args.onCommit();
-		if (!fileAlreadyExists && (createWithTemplate || isTemplaterTriggerOnCreateEnabled(this.app))) {
-			if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
-			else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
-			await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
-				current[resolveCapturePropertyKey(current, key)] = plan(current);
-			});
-		}
-		const persistedContent = await this.app.vault.read(file);
-		this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
-		if (this.plugin.settings.showCaptureNotification) {
-			new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
-		}
-		await this.copyCapturedFileLinkToClipboard(file);
-		await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
-		if (this.choice.openFile) {
-			const fileOpening = normalizeFileOpening(this.choice.fileOpening);
-			if (!openExistingFileTab(this.app, file, fileOpening.focus ?? true)) {
-				await openFile(this.app, file, { ...fileOpening, originLeaf: this.originLeaf });
+			const prepared = plan(frontmatter);
+			if (config.action === "addToList" && isEmptyCaptureListValue(value)) {
+				this.outcome.success(file, "unchanged");
+				return;
 			}
+
+			let priorContent = "";
+			if (file) {
+				priorContent = await this.app.vault.read(file);
+				await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
+					current[resolveCapturePropertyKey(current, key)] = plan(current);
+				});
+			} else {
+				frontmatter[key] = prepared;
+				file = await this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
+					suppressTemplaterOnCreate: createWithTemplate,
+				});
+			}
+			args.onCommit();
+			if (!fileAlreadyExists && (createWithTemplate || isTemplaterTriggerOnCreateEnabled(this.app))) {
+				if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
+				else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+				await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
+					current[resolveCapturePropertyKey(current, key)] = plan(current);
+				});
+			}
+			const persistedContent = await this.app.vault.read(file);
+			this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
+			if (this.plugin.settings.showCaptureNotification) {
+				new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
+			}
+			await this.copyCapturedFileLinkToClipboard(file);
+			await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
+			if (this.choice.openFile) {
+				const fileOpening = normalizeFileOpening(this.choice.fileOpening);
+				if (!openExistingFileTab(this.app, file, fileOpening.focus ?? true)) {
+					await openFile(this.app, file, { ...fileOpening, originLeaf: this.originLeaf });
+				}
+			}
+		} finally {
+			restorePropertyCaptureSeeds(this.choiceExecutor.variables, seedSnapshot);
 		}
 	}
 
