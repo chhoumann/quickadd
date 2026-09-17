@@ -1964,8 +1964,57 @@ describe("property value formatting", () => {
 		executor.variables.set("list", ["old", "keep"]);
 		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
 		expect(await formatter.formatPropertyValue("work\n{{PROPERTY}}")).toBe("work\nold\nkeep");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 		expect(await formatter.formatPropertyValue("{{PROPERTY}}\nwork")).toBe("old\nkeep\nwork");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 		expect(await formatter.formatPropertyValue("{{property}}")).toEqual(["old", "keep"]);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(false);
+	});
+
+	it("expands {{PROPERTY}} injected by a global variable and marks the token as used", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old"]);
+		const formatter = new CompleteFormatter(
+			makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any,
+			makePlugin({ globalVariables: { prepend: "work\n{{PROPERTY}}" } }) as any,
+			executor,
+		);
+		expect(await formatter.formatPropertyValue("{{GLOBAL_VAR:prepend}}")).toBe("work\nold");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+	});
+
+	it("does not mark the property token when the format never expands it", async () => {
+		const executor = createChoiceExecutor();
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("work")).toBe("work");
+		expect(formatter.consumePropertyTokenExpanded()).toBe(false);
+	});
+
+	it("does not re-scan tokens that appear inside the seeded property value", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", "see {{DATE}} and {{VALUE}} and {{TITLE}}");
+		executor.variables.set("item", "work");
+		const formatter = new CompleteFormatter(
+			makeApp({ activeFile: { basename: "Note" }, selection: null, generatedLink: "" }) as any,
+			makePlugin() as any,
+			executor,
+		);
+		formatter.setTitle("DocTitle");
+		expect(await formatter.formatPropertyValue("{{PROPERTY}}")).toBe(
+			"see {{DATE}} and {{VALUE}} and {{TITLE}}",
+		);
+		expect(await formatter.formatPropertyValue("{{VALUE:item}} | {{PROPERTY}}")).toBe(
+			"work | see {{DATE}} and {{VALUE}} and {{TITLE}}",
+		);
+	});
+
+	it("still expands author tokens around {{PROPERTY}} after moving property last", async () => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyValue", ["old"]);
+		executor.variables.set("item", "work");
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue("{{VALUE:item}}\n{{PROPERTY}}")).toBe("work\nold");
 	});
 
 	it("weaves a scalar {{PROPERTY}} into surrounding text", async () => {

@@ -98,17 +98,32 @@ describe("{{PROPERTY}} compose writes", () => {
 		expect(() => stringifyPropertyTokenValue(["a\nb", "c"])).toThrow(/line break/);
 	});
 	it("seeds propertyValue, propertyKey, and list before format", () => {
-		const variables = new Map<string, unknown>();
-		seedPropertyCaptureVariables(variables, "tags", ["old", "keep"]);
-		expect(variables.get("propertyKey")).toBe("tags");
-		expect(variables.get("propertyValue")).toEqual(["old", "keep"]);
-		expect(variables.get("list")).toEqual(["old", "keep"]);
-		seedPropertyCaptureVariables(variables, "status", "Draft");
-		expect(variables.get("propertyValue")).toBe("Draft");
-		expect(variables.get("list")).toEqual([]);
-		seedPropertyCaptureVariables(variables, "rating", undefined);
-		expect(variables.get("propertyValue")).toBeUndefined();
-		expect(variables.get("list")).toEqual([]);
+		const tags = new Map<string, unknown>();
+		seedPropertyCaptureVariables(tags, "tags", ["old", "keep"]);
+		expect(tags.get("propertyKey")).toBe("tags");
+		expect(tags.get("propertyValue")).toEqual(["old", "keep"]);
+		expect(tags.get("list")).toEqual(["old", "keep"]);
+		const status = new Map<string, unknown>();
+		seedPropertyCaptureVariables(status, "status", "Draft");
+		expect(status.get("propertyValue")).toBe("Draft");
+		expect(status.get("list")).toEqual([]);
+		const missing = new Map<string, unknown>();
+		seedPropertyCaptureVariables(missing, "rating", undefined);
+		expect(missing.get("propertyValue")).toBeUndefined();
+		expect(missing.get("list")).toEqual([]);
+	});
+	it("refuses to overwrite a concrete VALUE answer that shares a seed key", () => {
+		const variables = new Map<string, unknown>([["list", "user answer"]]);
+		expect(() => seedPropertyCaptureVariables(variables, "tags", ["old"]))
+			.toThrow(/cannot seed 'list'.*\{\{VALUE:list\}\}/);
+		expect(variables.get("list")).toBe("user answer");
+		expect(variables.has("propertyKey")).toBe(false);
+	});
+	it("still seeds when a prior key was present but undefined", () => {
+		const variables = new Map<string, unknown>([["propertyValue", undefined]]);
+		seedPropertyCaptureVariables(variables, "tags", ["old"]);
+		expect(variables.get("propertyValue")).toEqual(["old"]);
+		expect(variables.get("list")).toEqual(["old"]);
 	});
 	it("inserts above existing items when the composed format puts new lines first", () => {
 		const frontmatter = { tags: ["old", "keep"] };

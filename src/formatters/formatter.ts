@@ -2100,6 +2100,21 @@ export abstract class Formatter {
 	}
 
 	/**
+	 * True when `replacePropertyInString` expanded `{{PROPERTY}}` during the
+	 * latest format pass. Cleared by {@link consumePropertyTokenExpanded}.
+	 * Used so compose mode still applies when macros, templates, or global
+	 * variables inject the token after the raw Capture format is read.
+	 */
+	private propertyTokenExpanded = false;
+
+	/** Whether `{{PROPERTY}}` expanded since the last consume. Clears the flag. */
+	public consumePropertyTokenExpanded(): boolean {
+		const expanded = this.propertyTokenExpanded;
+		this.propertyTokenExpanded = false;
+		return expanded;
+	}
+
+	/**
 	 * Expands `{{PROPERTY}}` to the seeded `propertyValue` snapshot (property
 	 * Captures only). Outside that scope the token is a hard error so it cannot
 	 * leak as literal text into a note body (#1748).
@@ -2111,6 +2126,7 @@ export abstract class Formatter {
 				"{{PROPERTY}} can only be used in a property Capture format.",
 			);
 		}
+		this.propertyTokenExpanded = true;
 		const raw = this.variables.get("propertyValue");
 		if (/^{{PROPERTY}}$/i.test(input.trim()) && input.trim() === input) {
 			this.retainSingleTokenValue(

@@ -346,8 +346,8 @@ are ignored, and a comma inside a line stays part of that item.
 In the format, `{{PROPERTY}}` is the property's current value. Put it where
 that value should appear. When the format contains it, **Add to list** and
 **Set value** write the same list. QuickAdd drops duplicate items and keeps
-the first occurrence. See [format syntax](/docs/FormatSyntax/#property) for
-examples.
+the first occurrence. An existing list item that contains a line break stops
+the capture. See [format syntax](/docs/FormatSyntax/#property) for examples.
 
 Other useful patterns:
 

@@ -34,6 +34,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		setTargetFolderPath() {}
 		setTitle() {}
 		consumeCreatedClipboardAttachmentPaths() { return []; }
+		consumePropertyTokenExpanded() { return false; }
 		async formatFileName(value: string) { return value; }
 		async formatPropertyName(value: string) { return value; }
 		formatPropertyValue() { return mocks.value(); }

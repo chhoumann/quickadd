@@ -871,7 +871,9 @@ work
 ```
 
 A list becomes one item per line. Text, numbers, and checkboxes become text. A
-missing or empty property becomes nothing.
+missing or empty property becomes nothing. If an existing list item already
+contains a line break, QuickAdd stops with an error. Rewrite that list from an
+inline script instead.
 
 The token works only in a property Capture. Anywhere else, QuickAdd stops with
 an error.

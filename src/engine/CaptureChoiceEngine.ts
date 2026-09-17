@@ -793,11 +793,16 @@ export class CaptureChoiceEngine extends QuickAddChoiceEngine {
 		const existingValue = Object.prototype.hasOwnProperty.call(frontmatter, key) ? frontmatter[key] : undefined;
 		const inputType = registeredType ?? (typeof existingValue === "number" ? "number" : typeof existingValue === "boolean" ? "checkbox" : null);
 		const propertyFormat = this.choice.format.enabled ? this.choice.format.format : VALUE_SYNTAX;
-		const compose = formatContainsPropertyToken(propertyFormat);
 		seedPropertyCaptureVariables(this.choiceExecutor.variables, key, existingValue);
+		// Consume any stale flag from an earlier format pass on this formatter.
+		this.formatter.consumePropertyTokenExpanded();
 		const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
 			propertyFormat, inputType,
 		));
+		// Raw-format detection covers the common case. The expansion flag covers
+		// {{PROPERTY}} injected by macros, templates, or global variables.
+		const compose = formatContainsPropertyToken(propertyFormat)
+			|| this.formatter.consumePropertyTokenExpanded();
 		const plan = (current: Record<string, unknown>) => planPropertyUpdate({
 			frontmatter: current, key, value, config,
 			registeredType: resolveObsidianPropertyType(this.app, key, { registeredOnly: true }),

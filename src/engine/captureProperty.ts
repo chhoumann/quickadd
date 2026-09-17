@@ -40,15 +40,31 @@ export function stringifyPropertyTokenValue(value: unknown): string {
 	throw new Error("{{PROPERTY}} only expands text, finite numbers, checkboxes, and lists of text.");
 }
 
+/** Variable keys seeded for property Captures. Reserved while that Capture runs. */
+export const PROPERTY_CAPTURE_SEED_KEYS = [
+	"propertyKey",
+	"propertyValue",
+	"list",
+] as const;
+
 /**
  * Seeds format/script variables with a frozen snapshot of the destination
  * property before `formatPropertyValue` runs (#1748 Slice 1).
+ *
+ * Throws when a seed key already holds a concrete value (for example from
+ * `{{VALUE:list}}`), so the snapshot cannot silently replace a user answer.
  */
 export function seedPropertyCaptureVariables(
 	variables: Map<string, unknown>,
 	key: string,
 	existing: unknown,
 ): void {
+	for (const seedKey of PROPERTY_CAPTURE_SEED_KEYS) {
+		if (!variables.has(seedKey) || variables.get(seedKey) === undefined) continue;
+		throw new Error(
+			`Property Capture cannot seed '${seedKey}' because that variable is already set. Rename your {{VALUE:${seedKey}}} prompt (or other writer of this key) so it does not collide with the property snapshot.`,
+		);
+	}
 	let propertyValue: CapturePropertyValue | undefined;
 	if (existing !== undefined && existing !== null) {
 		propertyValue = propertyValueFromExisting(existing, key);

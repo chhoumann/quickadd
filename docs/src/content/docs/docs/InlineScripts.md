@@ -81,7 +81,9 @@ format, so a later `{{VALUE}}` picks it up.
 ### Property Capture variables {#property-capture-variables}
 
 In a [property Capture](/docs/Choices/CaptureChoice/#property), QuickAdd sets
-these variables before your script runs:
+these variables before your script runs. They are reserved for that run. Do not
+also use `{{VALUE:propertyValue}}`, `{{VALUE:propertyKey}}`, or `{{VALUE:list}}`
+in the same Capture.
 
 | Variable | What it holds |
 | --- | --- |
