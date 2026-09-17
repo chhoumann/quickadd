@@ -333,25 +333,30 @@ QuickAdd stops the capture instead of choosing one.
 
 **Action** controls the update:
 
-- **Set value** replaces the property's value. For a List property, each line
-  of the captured text is one item, and a typed list replaces the whole list.
-  An empty text value clears the list. Commas inside text do not split it into
-  several items.
-- **Add to list** adds each line of the captured text, or each item of a typed
-  list, to the property's list. Existing items keep their order, and exact
-  duplicates are skipped. An existing text, number, or checkbox value causes
-  an error.
+- **Set value** replaces the property's value. An empty value clears a list.
+- **Add to list** adds new items below the existing ones. Exact duplicates are
+  skipped. An existing text, number, or checkbox value causes an error.
 
-Line breaks mark list items, the same way Enter does in Obsidian's own List
-property editor:
+For a list property, each line of the Capture format is one item, the same way
+Enter works in Obsidian's List property editor. Lines are trimmed, blank lines
+are ignored, and a comma inside a line stays part of that item.
 
-- Lines are trimmed and blank lines are ignored, so a single line stays one
-  item.
-- A multi-line Capture format adds several fixed items without a prompt.
-  `{{VALUE}}` on its own line above them adds what you type as one more item.
-- A `{{VALUE:notes|type:multiline}}` prompt into a list is a free-form "one
-  item per line" prompt.
-- Text, number, checkbox, date, and date-time properties never split.
+#### Keep the current value with `{{PROPERTY}}`
+
+In the format, `{{PROPERTY}}` is the property's current value. Put it where
+that value should appear. When the format contains it, **Add to list** and
+**Set value** write the same list. QuickAdd drops duplicate items and keeps
+the first occurrence. An existing list item that contains a line break stops
+the capture. See [format syntax](/docs/FormatSyntax/#property) for examples.
+
+Other useful patterns:
+
+- Several fixed lines add several items in one run, with no prompt.
+- `{{VALUE}}` on its own line adds whatever you type as one more item.
+- A `{{VALUE:notes|type:multiline}}` prompt is a free-form "one item per line"
+  box.
+- Text, number, checkbox, date, and date-time properties never split on line
+  breaks.
 - Arrays from `|multi` pickers and scripts are written as they are, even if an
   item contains a line break. A `|multi` picker combined with other lines
   produces text, so its picks land in one comma-joined item; keep `|multi`
@@ -363,6 +368,9 @@ Neither action converts an existing text, number, or checkbox property into a
 list. An empty or whitespace-only text value or empty list with **Add to list**
 leaves the note unchanged. It does not create a missing note, write properties,
 insert links, or copy links.
+
+Inline scripts read the current value through
+[Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 **Create property if missing** permits a new key. When disabled, a missing key
 stops the capture. **Create file if it doesn't exist** separately controls
@@ -385,6 +393,8 @@ to a missing property whose type is already set in Obsidian. An explicit
 | `done` | **Set value** | `{{VALUE:done\|type:checkbox}}` | A Checkbox property. |
 | `tags` | **Add to list** | `work` and `personal` on two lines | Adds both tags without a prompt. |
 | `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
+| `tags` | **Add to list** | `work` then `{{PROPERTY}}` on two lines | Inserts `work` above the existing tags. |
+| `status` | **Set value** | `{{PROPERTY}} → Ready` | Keeps the current text and appends ` → Ready`. |
 | `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |
 
 The value must match the property's Obsidian type, or its existing value when

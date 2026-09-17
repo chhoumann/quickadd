@@ -36,6 +36,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{VALUE:Red,Green,Blue}}`](#value-suggest) | Pick from a list |
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
+| [`{{PROPERTY}}`](#property) | Insert the property's current value (property Captures only) |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
 | [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
@@ -848,6 +849,41 @@ Defaults work here too:
 FIELD filtering is in beta and the syntax can change - leave your thoughts
 [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 :::
+
+### The property's current value: `{{PROPERTY}}` {#property}
+
+In a [property Capture](/docs/Choices/CaptureChoice/#property), `{{PROPERTY}}`
+is the value the property already has on the target note. Put it where that
+value should appear.
+
+```text title="New item above the existing ones"
+work
+{{PROPERTY}}
+```
+
+```text title="New item below the existing ones"
+{{PROPERTY}}
+work
+```
+
+```text title="Keep the current text and add to it"
+{{PROPERTY}} → Ready
+```
+
+A list becomes one item per line. Text, numbers, and checkboxes become text. A
+missing or empty property becomes nothing. If an existing list item already
+contains a line break, QuickAdd stops with an error. Rewrite that list from an
+inline script instead.
+
+The token works only in a property Capture. Anywhere else, QuickAdd stops with
+an error.
+
+`{{PROPERTY}}` is not [`{{FIELD:...}}`](#field). `FIELD` suggests values from
+across your vault and may ask you to pick one. `PROPERTY` is the value already
+on this note.
+
+Inline scripts read the same value through
+[Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 ### Pick a note from a folder: `{{FILE:<folder>}}` {#file}
 

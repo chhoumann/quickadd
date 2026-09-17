@@ -103,6 +103,11 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceFileInString(output);
 		output = await this.replaceMathValueInString(output);
 		output = this.replaceRandomInString(output);
+		// PROPERTY last so seeded property text is never re-scanned as format
+		// tokens (#1748). Scripts/macros/globals above can still inject the token.
+		if (!this.skipPropertyExpansion) {
+			output = this.replacePropertyInString(output);
+		}
 
 		return output;
 	}
@@ -167,6 +172,13 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
+	/**
+	 * When true, {@link format} leaves `{{PROPERTY}}` for the caller to expand
+	 * after later passes (used by {@link formatPropertyValue} so seeded text is
+	 * not re-scanned by current-file tokens).
+	 */
+	private skipPropertyExpansion = false;
+
 	async formatPropertyName(input: string): Promise<string> {
 		return await this.withPromptScope("propertyName", input, async () =>
 			this.replaceCurrentFileTokensInString(await this.format(input), {
@@ -177,11 +189,22 @@ export class CompleteFormatter extends Formatter {
 
 	async formatPropertyValue(input: string): Promise<unknown> {
 		return await this.preserveSingleTokenValue(input, () =>
-			this.withPromptScope("propertyValue", input, async () =>
-				this.replaceCurrentFileTokensInString(await this.format(input), {
+			this.withPromptScope("propertyValue", input, async () => {
+				// Author tokens (VALUE/DATE/…) and current-file tokens run first.
+				// PROPERTY expands last so the seeded snapshot is inserted as
+				// literal text and cannot be re-scanned (#1748 CodeRabbit).
+				this.skipPropertyExpansion = true;
+				let output: string;
+				try {
+					output = await this.format(input);
+				} finally {
+					this.skipPropertyExpansion = false;
+				}
+				output = this.replaceCurrentFileTokensInString(output, {
 					links: true, fileName: true, folder: true, activeFolder: "content", title: true,
-				}),
-			),
+				});
+				return this.replacePropertyInString(output);
+			}),
 		);
 	}
 

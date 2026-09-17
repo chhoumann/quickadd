@@ -172,13 +172,15 @@ describe("CaptureChoiceForm", () => {
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
-		expect(actionDesc()).toContain("For a List property, each line is one item");
+		expect(actionDesc()).toContain("For a list, each line is one item");
+		expect(actionDesc()).toContain("{{PROPERTY}}");
 		expect(actionDesc()).toContain("rejects several lines");
 		expect(textarea().placeholder).toBe("Format");
 
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
 		flushSync();
 		expect(actionDesc()).toContain("Each line is one item");
+		expect(actionDesc()).toContain("{{PROPERTY}}");
 		expect(textarea().placeholder).toBe("One item per line");
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });

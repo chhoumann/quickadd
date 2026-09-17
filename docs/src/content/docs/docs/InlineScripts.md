@@ -78,6 +78,41 @@ return transformed;
 Assigning `this.variables.value` hands the result back to the surrounding
 format, so a later `{{VALUE}}` picks it up.
 
+### Property Capture variables {#property-capture-variables}
+
+In a [property Capture](/docs/Choices/CaptureChoice/#property), QuickAdd sets
+these variables before your script runs. They are reserved for that run. Do not
+also use `{{VALUE:propertyValue}}`, `{{VALUE:propertyKey}}`, or `{{VALUE:list}}`
+in the same Capture.
+
+| Variable | What it holds |
+| --- | --- |
+| `propertyValue` | The current value: text, a number, a checkbox, a list of text, or `undefined` when the property is missing |
+| `propertyKey` | The property name being written |
+| `list` | The current list items, or `[]` when the value is not a list |
+
+This script adds one to a Number property:
+
+````
+```js quickadd
+const n = Number(this.variables.propertyValue ?? 0);
+return n + 1;
+```
+````
+
+Return an array to rewrite the whole list. This script drops `old` and puts
+`fresh` first:
+
+````
+```js quickadd
+const kept = this.variables.list.filter((tag) => tag !== "old");
+return ["fresh", ...kept];
+```
+````
+
+To place the current value inside the format instead, use
+[`{{PROPERTY}}`](/docs/FormatSyntax/#property).
+
 ### Example: convert phone text to a `tel:` link {#example-convert-phone-text-to-a-tel-link}
 
 This script asks for a phone number, strips out spaces and punctuation, turns

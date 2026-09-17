@@ -129,6 +129,10 @@ export const INLINE_JAVASCRIPT_REGEX = new RegExp(
 );
 export const MATH_VALUE_REGEX = new RegExp(/{{MVALUE}}/i);
 export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
+// {{PROPERTY}} expands to the current value of the property this Capture is
+// writing to (property Captures only). Flat token, no argument — distinct from
+// {{FIELD:...}} (vault-wide suggestions) and from the property *name* field.
+export const PROPERTY_REGEX = new RegExp(/{{PROPERTY}}/i);
 
 export const SELECTED_REGEX = new RegExp(/{{SELECTED}}/i);
 export const CLIPBOARD_REGEX = new RegExp(/{{CLIPBOARD}}/i);
@@ -203,6 +207,9 @@ export const MATH_VALUE_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[T]?[I]?[T]?[L]?[E]?[}]?[}]?/i,
+);
+export const PROPERTY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[P]?[R]?[O]?[P]?[E]?[R]?[T]?[Y]?[}]?[}]?$/i,
 );
 export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i,

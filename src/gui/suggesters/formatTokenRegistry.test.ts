@@ -129,11 +129,21 @@ describe("format token autocomplete rows", () => {
 		);
 	});
 
-	it("offers the tokens that had no matcher at all before (#1542)", async () => {
+	it("offers {{PROPERTY}} for note content with a plain-language current-value blurb", async () => {
 		const index = await suggestInserts("{{");
-		expect(index).toContain("{{FIELD:}}");
-		expect(index).toContain("{{TIME:}}");
-		expect(index).toContain("{{FILE:}}");
+		expect(index).toContain("{{PROPERTY}}");
+		const rows = await suggestRows("{{PROP", VAULT);
+		const property = rows.find((row) => row.insert === "{{PROPERTY}}");
+		expect(property?.description).toMatch(/property's current value/i);
+		expect(property?.description).toMatch(/property Captures only/i);
+		expect(property?.description).not.toMatch(/property name/i);
+	});
+
+	it("does not offer {{PROPERTY}} in path or line-target fields", async () => {
+		for (const context of ["captureTarget", "fileName", "lineTarget"] as const) {
+			expect(await suggestInserts("{{", { ...VAULT, context })).not.toContain("{{PROPERTY}}");
+			expect(await suggestInserts("{{PROP", { ...VAULT, context })).not.toContain("{{PROPERTY}}");
+		}
 	});
 });
 

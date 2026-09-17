@@ -34,6 +34,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		setTargetFolderPath() {}
 		setTitle() {}
 		consumeCreatedClipboardAttachmentPaths() { return []; }
+		consumePropertyTokenExpanded() { return false; }
 		async formatFileName(value: string) { return value; }
 		async formatPropertyName(value: string) { return value; }
 		formatPropertyValue() { return mocks.value(); }
@@ -177,6 +178,50 @@ describe("Capture property writes", () => {
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: ["old", "work", "personal"] });
 		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
+	});
+
+	it("seeds property variables and compose-writes when the format contains {{PROPERTY}}", async () => {
+		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
+		mocks.value.mockImplementation(async () => {
+			expect(test.executor.variables.get("propertyKey")).toBe("tags");
+			expect(test.executor.variables.get("propertyValue")).toEqual(["old", "keep"]);
+			expect(test.executor.variables.get("list")).toEqual(["old", "keep"]);
+			return "work\nold\nkeep";
+		});
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ tags: ["work", "old", "keep"] });
+		expect(test.executor.variables.has("propertyKey")).toBe(false);
+		expect(test.executor.variables.has("propertyValue")).toBe(false);
+		expect(test.executor.variables.has("list")).toBe(false);
+	});
+
+	it("restores seeds so a second property Capture on the same executor can run", async () => {
+		const first = fixture("---\ntags: [old]\n---\nBody\n");
+		first.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		first.choice.format = { enabled: true, format: "work\n{{PROPERTY}}" };
+		mocks.value.mockResolvedValueOnce("work\nold");
+		await first.run();
+		expect(readCaptureFrontmatter(first.read() ?? "")).toEqual({ tags: ["work", "old"] });
+		expect(first.executor.variables.has("list")).toBe(false);
+
+		first.overwrite("---\ntags: [work, old]\nstatus: Draft\n---\nBody\n");
+		first.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		first.choice.format = { enabled: true, format: "{{PROPERTY}} → Ready" };
+		mocks.value.mockResolvedValueOnce("Draft → Ready");
+		await first.run();
+		expect(readCaptureFrontmatter(first.read() ?? "")).toEqual({ tags: ["work", "old"], status: "Draft → Ready" });
+		expect(first.executor.variables.has("propertyKey")).toBe(false);
+	});
+
+	it("still appends when {{PROPERTY}} is absent from the format", async () => {
+		const test = fixture("---\ntags: [old, keep]\n---\nBody\n");
+		test.choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		test.choice.format = { enabled: true, format: "work" };
+		mocks.value.mockResolvedValue("work");
+		await test.run();
+		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ tags: ["old", "keep", "work"] });
 	});
 
 	it("stops a multi-line Set into a property without a type before creating the note", async () => {

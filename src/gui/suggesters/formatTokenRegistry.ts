@@ -13,6 +13,7 @@ import {
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
 	NAME_SYNTAX_SUGGEST_REGEX,
+	PROPERTY_SYNTAX_SUGGEST_REGEX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX_SUGGEST_REGEX,
 	TEMPLATE_SYNTAX_SUGGEST_REGEX,
@@ -201,6 +202,15 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		suggestion: token(
 			"{{FIELD:}}",
 			"Suggests values a property already has in your vault, like {{FIELD:project}}",
+		),
+	},
+	{
+		regex: PROPERTY_SYNTAX_SUGGEST_REGEX,
+		// Resolves only in property Capture formats (hard error elsewhere).
+		contexts: ["noteContent"],
+		suggestion: token(
+			"{{PROPERTY}}",
+			"Inserts the property's current value (property Captures only)",
 		),
 	},
 	{
