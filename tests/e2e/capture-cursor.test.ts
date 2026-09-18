@@ -217,6 +217,29 @@ describe("Capture cursor markers in native Obsidian", () => {
 		})()`)).toEqual({ links: 2, markers: ["AB", "AB"] });
 	});
 
+	it("places one marker at the end of a replaced selection after inserting multiple links", async () => {
+		const { choice, path } = await setup("ab tail");
+		const { obsidian } = getContext();
+		choice.insertAfter.after = "ab";
+		choice.insertAfter.inline = true;
+		choice.format.format = "{{CURSOR}}X";
+		choice.useSelectionAsCaptureValue = false;
+		choice.appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: true };
+		await saveAndOpen(choice, path);
+		await obsidian.dev.evalJson(`(() => {
+			app.workspace.activeLeaf.view.editor.setSelections([
+				{anchor:{line:0,ch:0},head:{line:0,ch:2}},
+				{anchor:{line:0,ch:3},head:{line:0,ch:7}}
+			]); return true;
+		})()`);
+		await run(choice);
+		await expect.poll(async () => (await state(path)).content, AUTOSAVE_POLL).toContain("]]X [[");
+		expect(await obsidian.dev.evalJson(`(() => {
+			const editor = app.workspace.activeLeaf.view.editor;
+			return editor.listSelections().map(selection => editor.getValue().slice(editor.posToOffset(selection.head), editor.posToOffset(selection.head) + 1));
+		})()`)).toEqual(["X"]);
+	});
+
 	it("strips markers in a background target without focusing it", async () => {
 		const { choice, path } = await setup();
 		const { obsidian, sandbox } = getContext();
@@ -332,13 +355,16 @@ describe("Capture cursor markers in native Obsidian", () => {
 	it("does not create a missing target for a marker-only capture", async () => {
 		const { choice, path } = await setup();
 		const { obsidian, sandbox } = getContext();
+		await enableCaptureNotices();
 		choice.captureTo = sandbox.path("absent.md");
 		choice.captureToActiveFile = false;
 		choice.createFileIfItDoesntExist.enabled = true;
 		choice.insertAfter.enabled = false;
 		choice.format.format = "{{CURSOR}}";
 		await saveAndOpen(choice, path);
+		await clearNotices();
 		await run(choice);
+		await expectOneNothingToCaptureNotice();
 		expect(await obsidian.dev.evalJson(`Boolean(app.vault.getAbstractFileByPath(${JSON.stringify(choice.captureTo)}))`)).toBe(false);
 	});
 

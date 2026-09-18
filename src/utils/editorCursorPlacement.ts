@@ -31,8 +31,11 @@ export function mapEditorCursorPlacement(
 	for (const offset of cursor.offsets) {
 		let delta = 0;
 		for (const edit of edits) {
-			if (edit.from !== edit.to && edit.from <= offset && offset <= edit.to) return null;
-			if (edit.to < offset) delta += edit.text.length - (edit.to - edit.from);
+			const replacesText = edit.from !== edit.to;
+			if (replacesText && edit.from <= offset && offset < edit.to) return null;
+			if (edit.to < offset || (replacesText && edit.to === offset)) {
+				delta += edit.text.length - (edit.to - edit.from);
+			}
 		}
 		offsets.push(offset + delta);
 	}

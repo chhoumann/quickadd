@@ -37,6 +37,13 @@ describe("cursor placement through editor link insertion", () => {
 		})).toBeNull();
 	});
 
+	it("keeps a single marker at a replacement's end across multiple links", () => {
+		expect(mapEditorCursorPlacement({ content: "abX tail", offsets: [2] }, {
+			filePath: "Note.md", before: "abX tail", after: "[[Note]]X [[Note]]",
+			edits: [{ from: 0, to: 2, text: "[[Note]]" }, { from: 4, to: 8, text: "[[Note]]" }],
+		})).toEqual({ content: "[[Note]]X [[Note]]", offsets: [8] });
+	});
+
 	it.each([
 		{ before: "Other", after: "Other[[Note]]", edits: [{ from: 5, to: 5, text: "[[Note]]" }] },
 		{ before: "AB", after: "AB[[Note]]unexpected", edits: [{ from: 2, to: 2, text: "[[Note]]" }] },

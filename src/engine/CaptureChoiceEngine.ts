@@ -486,6 +486,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				? await this.onFileExists(filePath, content, action === "currentLine" || action === "newLineAbove" || action === "newLineBelow")
 				: await this.onCreateFileIfItDoesntExist(filePath, content, linkOptions);
 			if (write === null) {
+				if (this.plugin.settings.showCaptureNotification) {
+					new Notice("Nothing to capture (no content)", DEFAULT_NOTICE_DURATION);
+				}
 				this.outcome.success(undefined, "unchanged");
 				return;
 			}
