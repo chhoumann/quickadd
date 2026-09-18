@@ -6,6 +6,7 @@ import { insertFileLinkToActiveView, openExistingFileTab, openFile } from "../ut
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { appendFileLinkToDestinationFile, copyFileLinkToClipboard, getAppendLinkDestinationFile } from "../utils/fileLinks";
 import { appendLinkToFrontmatterProperty } from "../utils/frontmatterPropertyLinks";
+import type { EditorTextMutationObserver } from "../utils/editorCursorPlacement";
 
 type LinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -18,6 +19,7 @@ export function appendLinkDestinationError(app: App, options: LinkOptions): stri
 export async function insertChoiceFileLink(
 	app: App, file: TFile, options: AppendLinkOptions,
 	focusedProperty: IChoiceExecutor["focusedProperty"],
+	onEditorTextMutation?: EditorTextMutationObserver,
 ): Promise<void> {
 	if (!options.enabled) return;
 	if (options.destination?.type === "specifiedFile") {
@@ -25,7 +27,8 @@ export async function insertChoiceFileLink(
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {
-		await insertFileLinkToActiveView(app, file, options);
+		if (onEditorTextMutation) await insertFileLinkToActiveView(app, file, options, onEditorTextMutation);
+		else await insertFileLinkToActiveView(app, file, options);
 	}
 }
 

@@ -1,6 +1,8 @@
 import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
-import { insertCaptureInEditor } from "../utils/editorInsertion";
+import { insertCaptureInEditor, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
+import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
+import { getAppendLinkDestinationFile } from "../utils/fileLinks";
 import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
 import {
 	Notice,
@@ -286,7 +288,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	private async insertCaptureLink(
 		file: TFile,
 		linkOptions: AppendLinkOptions,
-		{ isCanvasTriggered }: { isCanvasTriggered: boolean },
+		{ isCanvasTriggered, onEditorTextMutation }: { isCanvasTriggered: boolean; onEditorTextMutation?: EditorTextMutationObserver },
 	): Promise<void> {
 		if (!linkOptions.enabled) {
 			return;
@@ -306,7 +308,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return;
 		}
 
-		await insertChoiceFileLink(this.app, file, linkOptions, this.choiceExecutor.focusedProperty);
+		await insertChoiceFileLink(this.app, file, linkOptions, this.choiceExecutor.focusedProperty, onEditorTextMutation);
 	}
 
 	private async copyCapturedFileLinkToClipboard(file: TFile): Promise<void> {
@@ -489,6 +491,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			}
 			if (write.markerOnly) {
 				contentCommitted = !fileAlreadyExists;
+				if (this.plugin.settings.showCaptureNotification) {
+					this.showNothingToCaptureNotice(write.file, { wasNewFile: !fileAlreadyExists });
+				}
 				this.outcome.success(write.file, fileAlreadyExists ? "unchanged" : "created");
 				return;
 			}
@@ -499,7 +504,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			});
 			if (!committed) return;
 			const { file } = write;
-			const { captureIsNoOp, cursor } = committed;
+			const { captureIsNoOp, marked } = committed;
+			let cursor = committed.cursor;
 			// Commit success before links/navigation so later failures cannot invite duplicate writes.
 			this.outcome.success(file, committed.effect);
 
@@ -519,8 +525,19 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 			await this.copyCapturedFileLinkToClipboard(file);
 
+			if (cursor && linkOptions.enabled) {
+				const rewriteTarget = linkOptions.destination.type === "specifiedFile"
+					? getAppendLinkDestinationFile(this.app, linkOptions.destination)
+					: placementSupportsFrontmatter(linkOptions.placement)
+						? this.app.workspace.getActiveFile()
+						: this.choiceExecutor.focusedProperty?.file;
+				if (rewriteTarget?.path === file.path) cursor = null;
+			}
 			await this.insertCaptureLink(file, linkOptions, {
 				isCanvasTriggered: !!canvasTarget,
+				onEditorTextMutation: marked && cursor && !placementSupportsFrontmatter(linkOptions.placement) ? mutation => {
+					if (marked && cursor && mutation.filePath === file.path) cursor = mapEditorCursorPlacement(cursor, mutation);
+				} : undefined,
 			});
 
 			let focus = normalizeFileOpening(this.choice.fileOpening).focus ?? true;
@@ -529,12 +546,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 					app: this.app, file, opening: this.choice.fileOpening, originLeaf: this.originLeaf,
 				});
 			}
-			const marked = write.cursor.kind === "offset" && write.cursor.source === "marker";
 			const activeDestination = getActiveMarkdownEditorView(this.app)?.file?.path === file.path;
-			if (!committed.cursorHandledInEditor && (this.choice.openFile || (marked && activeDestination))) {
+			if (this.choice.openFile || (marked && activeDestination)) {
 				const templaterHandled = await jumpToNextTemplaterCursorIfPossible(this.app, file);
 				if (!templaterHandled && cursor && (focus || (marked && activeDestination))) {
-					setMarkdownCursorAtOffset(this.app, file, cursor.offset, cursor.content);
+					if (cursor.offsets.length === 1) setMarkdownCursorAtOffset(this.app, file, cursor.offsets[0], cursor.content);
+					else setMarkdownCursorsAtOffsets(this.app, file, cursor.offsets, cursor.content);
 				}
 			}
 		} catch (err) {
@@ -573,8 +590,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}): Promise<{
 		effect: ChoiceEffect;
 		captureIsNoOp: boolean;
-		cursor: { offset: number; content: string } | null;
-		cursorHandledInEditor: boolean;
+		cursor: EditorCursorPlacement | null;
+		marked: boolean;
 	} | null> {
 		const { file, captureContent, newFileContent, priorContent,
 			cursor: placement, cursorPlacementSafe = true } = write;
@@ -584,15 +601,19 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
 			const payload = prepareCapture(parsed);
 			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
+				if (this.plugin.settings.showCaptureNotification) {
+					this.showNothingToCaptureNotice(file, { wasNewFile: !options.fileAlreadyExists });
+				}
 				this.outcome.success(file, "unchanged");
 				return null;
 			}
 			captureIsNoOp = isCaptureContentEmpty(payload.content);
 			const marked = payload.cursor.kind === "offset" && payload.cursor.source === "marker";
+			let cursor: EditorCursorPlacement | null = null;
 			if (!captureIsNoOp) {
 				const insert = action === "currentLine" ? appendToCurrentLine
 					: action === "newLineAbove" ? insertOnNewLineAbove : insertOnNewLineBelow;
-				const inserted = marked ? await insertCaptureInEditor(payload, this.app, file, action)
+				const inserted = marked ? (cursor = insertCaptureInEditor(payload, this.app, file, action)) !== null
 					: insert(payload.content, this.app);
 				if (!inserted) {
 					await this.cleanupCreatedClipboardAttachments();
@@ -601,7 +622,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				}
 			}
 			options.onCommit();
-			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor: null, cursorHandledInEditor: marked };
+			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor, marked };
 		}
 
 		await this.app.vault.modify(file, newFileContent);
@@ -613,8 +634,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const effect: ChoiceEffect = !options.fileAlreadyExists ? "created"
 			: newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
 		const cursor = cursorPlacementSafe && !rewritten && placement.kind === "offset"
-			? { offset: placement.value, content: newFileContent } : null;
-		return { effect, captureIsNoOp, cursor, cursorHandledInEditor: false };
+			? { offsets: [placement.value], content: newFileContent } : null;
+		return { effect, captureIsNoOp, cursor, marked: placement.kind === "offset" && placement.source === "marker" };
 	}
 
 	private async captureToProperty(args: {
@@ -827,6 +848,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 
 		if (markerOnly) {
+			if (this.plugin.settings.showCaptureNotification) {
+				this.showNothingToCaptureNotice(file, { wasNewFile: false });
+			}
 			this.outcome.success(file, "unchanged");
 			return;
 		}

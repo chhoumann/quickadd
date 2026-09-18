@@ -366,6 +366,47 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 
+	it.each(["specifiedFile", "frontmatter", "focusedProperty"] as const)(
+		"invalidates a cursor before a same-file %s link rewrite can leave the editor stale",
+		async kind => {
+			for (const sameFile of [true, false]) {
+				vi.mocked(setMarkdownCursorAtOffset).mockClear();
+				const app = createApp();
+				const file = Object.assign(new TFile(), { path: "Test.md", basename: "Test", extension: "md" });
+				const destination = sameFile ? file : Object.assign(new TFile(), { path: "Other.md", extension: "md" });
+				vi.mocked(app.vault.getAbstractFileByPath).mockReturnValue(destination);
+				vi.mocked(app.workspace.getActiveFile).mockReturnValue(destination);
+				const executor = createExecutor();
+				if (kind === "focusedProperty") executor.focusedProperty = { file: destination, key: "related" };
+				const choice = createChoice({
+					openFile: true,
+					appendLink: {
+						enabled: true,
+						requireActiveFile: true,
+						placement: kind === "frontmatter" ? "inFrontmatter" : "replaceSelection",
+						destination: kind === "specifiedFile" ? { type: "specifiedFile", path: destination.path } : { type: "activeFile" },
+					},
+				});
+				const engine = createCaptureEngine({ app, choice, executor });
+				const insertLink = vi.fn(async () => {});
+				Object.assign(engine, {
+					getFormattedPathToCaptureTo: vi.fn(async () => file.path),
+					fileExists: vi.fn(async () => true),
+					onFileExists: vi.fn(async () => ({
+						file, newFileContent: "AB", captureContent: "AB", priorContent: "",
+						cursor: { kind: "offset", source: "marker", value: 1 },
+					})),
+					insertCaptureLink: insertLink,
+				});
+
+				await engine.run();
+
+				expect(insertLink).toHaveBeenCalledOnce();
+				expect(setMarkdownCursorAtOffset).toHaveBeenCalledTimes(sameFile ? 0 : 1);
+			}
+		},
+	);
+
 	it("does not override Templater cursor jumps", async () => {
 		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValue(true);
 		const choice = createChoice({

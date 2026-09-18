@@ -870,8 +870,10 @@ is case-insensitive. A format containing only markers and whitespace does nothin
 If Templater needs a new target note before it produces an empty Capture,
 QuickAdd keeps that created note and skips insertion and cursor placement.
 
-Templater's cursor jump takes precedence. QuickAdd skips placement if a concurrent
-edit, whole-file Templater run, or property update makes the position unreliable.
+Templater's cursor jump takes precedence. Links inserted into the active note's
+body keep the marker position. QuickAdd skips placement if a concurrent edit,
+whole-file Templater run, property update, or link written through a specified
+destination file makes the position unreliable.
 The marker is still removed. Without a marker, cursor behavior stays unchanged.
 
 This token places the cursor only in Capture bodies. In Template choices,

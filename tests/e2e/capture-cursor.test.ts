@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { POLL_OPTS, pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("capture-cursor");
+const AUTOSAVE_POLL = { ...POLL_OPTS, timeout: 5_000 };
 
 async function setup(content = "# Daily\n\n## Log\n\nExisting\n") {
 	const { obsidian, sandbox } = getContext();
@@ -35,12 +37,89 @@ async function saveAndOpen(choice: CaptureChoice, path: string, mode = "source")
 
 async function state(path: string) {
 	return getContext().obsidian.dev.evalJsonAsync<{
-		content: string; active: string; cursor: { line: number; ch: number }; offset: number;
+		content: string; editorContent: string; active: string; cursor: { line: number; ch: number }; offset: number;
 	}>(`(async () => {
-		const editor = app.workspace.activeLeaf.view.editor;
-		return { content: await app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(path)})),
-			active: app.workspace.getActiveFile()?.path, cursor: editor.getCursor(), offset: editor.posToOffset(editor.getCursor()) };
+		const file = app.vault.getAbstractFileByPath(${JSON.stringify(path)});
+		const view = app.workspace.activeLeaf?.view;
+		const editor = view?.editor;
+		const active = app.workspace.getActiveFile()?.path;
+		const cursor = editor?.getCursor() ?? { line: -1, ch: -1 };
+		return {
+			content: await app.vault.read(file),
+			editorContent: editor && view?.file?.path === ${JSON.stringify(path)} ? editor.getValue() : "",
+			active,
+			cursor,
+			offset: editor ? editor.posToOffset(cursor) : -1,
+		};
 	})()`);
+}
+
+async function closeCaptureBuilders() {
+	await getContext().obsidian.dev.evalJson(`(() => {
+		for (const builder of [...document.querySelectorAll(".captureChoiceBuilder")]) {
+			const done = [...builder.querySelectorAll("button.mod-cta")]
+				.find(button => button.textContent?.trim() === "Done");
+			done?.click();
+		}
+		app.setting?.close?.();
+		return true;
+	})()`);
+	await expect.poll(() => getContext().obsidian.dev.evalJson(`(() =>
+		[...document.querySelectorAll(".captureChoiceBuilder")]
+			.filter(builder => builder.getClientRects().length > 0).length
+	)()`), AUTOSAVE_POLL).toBe(0);
+}
+
+async function withLatestCaptureBuilder<T>(expression: string): Promise<T> {
+	return getContext().obsidian.dev.evalJson<T>(`(() => {
+		const builders = [...document.querySelectorAll(".captureChoiceBuilder")]
+			.filter(builder => builder.getClientRects().length > 0);
+		const builder = builders.at(-1);
+		if (!builder) throw new Error("Capture builder not open");
+		return (${expression});
+	})()`);
+}
+
+async function typeIntoLatestCaptureFormat(text: string) {
+	const focused = await withLatestCaptureBuilder<boolean>(`(() => {
+		const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+		if (!(input instanceof HTMLTextAreaElement)) return false;
+		input.focus();
+		input.select();
+		return true;
+	})()`);
+	expect(focused).toBe(true);
+	await getContext().obsidian.exec("dev:cdp", {
+		method: "Input.insertText",
+		params: JSON.stringify({ text }),
+	});
+}
+
+async function enableCaptureNotices() {
+	await getContext().plugin.data<{ showCaptureNotification: boolean }>().patch(data => {
+		data.showCaptureNotification = true;
+	});
+	await getContext().plugin.reload({ waitUntilReady: true });
+}
+
+async function clearNotices() {
+	await getContext().obsidian.dev.evalJson(`(() => {
+		for (const notice of document.querySelectorAll(".notice")) notice.remove();
+		return true;
+	})()`);
+}
+
+async function visibleNotices() {
+	return getContext().obsidian.dev.evalJson<string[]>(`(() =>
+		[...document.querySelectorAll(".notice")]
+			.filter(notice => notice.getClientRects().length > 0)
+			.map(notice => notice.textContent?.trim() ?? "")
+	)()`);
+}
+
+async function expectOneNothingToCaptureNotice() {
+	await expect.poll(() => visibleNotices(), AUTOSAVE_POLL).toHaveLength(1);
+	expect(await visibleNotices()).toEqual([expect.stringMatching(/nothing to capture/i)]);
 }
 
 async function run(choice: CaptureChoice) {
@@ -57,19 +136,18 @@ describe("Capture cursor markers in native Obsidian", () => {
 		if (method === "cli") await run(choice);
 		else if (method === "command") await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 		else {
+			const modifier = await obsidian.dev.evalJson<string>("process.platform") === "darwin" ? "Mod" : "Ctrl";
 			await obsidian.dev.evalJson(`(() => {
-				app.hotkeyManager.setHotkeys(${JSON.stringify(`quickadd:choice:${choice.id}`)}, [{ modifiers: ["Ctrl", "Shift"], key: "9" }]);
+				app.hotkeyManager.setHotkeys(${JSON.stringify(`quickadd:choice:${choice.id}`)}, [{ modifiers: [${JSON.stringify(modifier)}, "Shift"], key: "F8" }]);
 				return true;
 			})()`);
 			try {
-				for (const type of ["keyDown", "keyUp"]) await obsidian.exec("dev:cdp", {
-					method: "Input.dispatchKeyEvent", params: JSON.stringify({ type, key: "9", code: "Digit9", windowsVirtualKeyCode: 57, modifiers: 10 }),
-				});
+				await pressKey(obsidian, "F8", true);
 			} finally {
 				await obsidian.dev.evalJson(`(() => { app.hotkeyManager.removeHotkeys(${JSON.stringify(`quickadd:choice:${choice.id}`)}); return true; })()`);
 			}
 		}
-		await expect.poll(() => state(path)).toMatchObject({ cursor: { line: 5, ch: 2 } });
+		await expect.poll(() => state(path), AUTOSAVE_POLL).toMatchObject({ cursor: { line: 5, ch: 2 } });
 		const result = await state(path);
 		expect(result.content).not.toMatch(/{{CURSOR}}/i);
 		expect(result.content.slice(result.offset)).toBe("after\nExisting\n");
@@ -83,6 +161,60 @@ describe("Capture cursor markers in native Obsidian", () => {
 		await saveAndOpen(choice, path);
 		await run(choice);
 		expect(await state(path)).toMatchObject({ cursor: { line: 0, ch: 0 } });
+	});
+
+	it.each(["cursor", "top", "bottom", "above", "below"] as const)("places the marker after linking from a %s capture in the same note", async position => {
+		const { choice, path } = await setup("Original\n");
+		choice.insertAfter.enabled = false;
+		choice.format.format = "A{{CURSOR}}B";
+		choice.appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: true };
+		if (position === "above" || position === "below") choice.newLineCapture = { enabled: true, direction: position };
+		else choice.activeFileWritePosition = position;
+		await saveAndOpen(choice, path);
+		await run(choice);
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { linked: result.content.includes("[["), savedMarker: result.content.includes("AB") };
+		}, AUTOSAVE_POLL).toEqual({ linked: true, savedMarker: true });
+		const result = await state(path);
+		expect(result.editorContent.slice(result.offset - 1, result.offset + 1)).toBe("AB");
+	});
+
+	it.each(["afterSelection", "endOfLine", "newLine"] as const)("keeps the marker across %s link placement", async placement => {
+		const { choice, path } = await setup("Original\n");
+		choice.insertAfter.enabled = false;
+		choice.format.format = "A{{CURSOR}}B";
+		choice.appendLink = { enabled: true, placement, requireActiveFile: true };
+		await saveAndOpen(choice, path);
+		await run(choice);
+		await expect.poll(async () => (await state(path)).content, AUTOSAVE_POLL).toContain("[[");
+		const result = await state(path);
+		expect(result.content).toContain("AB");
+		expect(result.editorContent.slice(result.offset - 1, result.offset + 1)).toBe("AB");
+	});
+
+	it("maps every marker after appending links at multiple selections", async () => {
+		const { choice, path } = await setup("one gap two");
+		const { obsidian } = getContext();
+		choice.insertAfter.enabled = false;
+		choice.format.format = "A{{CURSOR}}B";
+		choice.appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: true };
+		await saveAndOpen(choice, path);
+		await obsidian.dev.evalJson(`(() => {
+			app.workspace.activeLeaf.view.editor.setSelections([
+				{anchor:{line:0,ch:0},head:{line:0,ch:3}},
+				{anchor:{line:0,ch:8},head:{line:0,ch:11}}
+			]); return true;
+		})()`);
+		await run(choice);
+		expect(await obsidian.dev.evalJson(`(() => {
+			const editor = app.workspace.activeLeaf.view.editor;
+			const content = editor.getValue();
+			return { links: content.split("[[").length - 1, markers: editor.listSelections().map(selection => {
+				const offset = editor.posToOffset(selection.head);
+				return content.slice(offset - 1, offset + 1);
+			}) };
+		})()`)).toEqual({ links: 2, markers: ["AB", "AB"] });
 	});
 
 	it("strips markers in a background target without focusing it", async () => {
@@ -106,10 +238,10 @@ describe("Capture cursor markers in native Obsidian", () => {
 		await saveAndOpen(choice, path);
 		await getContext().obsidian.dev.evalJson("(() => { app.workspace.activeLeaf.view.editor.setCursor({line:0,ch:5}); return true; })()");
 		await run(choice);
-		await expect.poll(async () => (await state(path)).content, { timeout: 5000 }).toContain("tail");
+		await expect.poll(async () => (await state(path)).content, AUTOSAVE_POLL).toContain("tail");
 		const result = await state(path);
 		expect(result.content).not.toMatch(/{{CURSOR}}/i);
-		expect(result.content.slice(result.offset)).toMatch(/^tail/);
+		expect(result.editorContent.slice(result.offset)).toMatch(/^tail/);
 		expect(result.cursor).toEqual(position === "cursor" ? { line: 0, ch: 7 } : { line: position === "above" ? 0 : 1, ch: 2 });
 	});
 
@@ -137,7 +269,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 			]); return true;
 		})()`);
 		await run(choice);
-		await expect.poll(async () => (await state(path)).content, { timeout: 5000 }).toBe("Atail gap Atail");
+		await expect.poll(async () => (await state(path)).content, AUTOSAVE_POLL).toBe("Atail gap Atail");
 		expect(await obsidian.dev.evalJson(`app.workspace.activeLeaf.view.editor.listSelections().map(s => s.head.ch)`)).toEqual([1, 11]);
 	});
 
@@ -149,7 +281,8 @@ describe("Capture cursor markers in native Obsidian", () => {
 		await saveAndOpen(choice, path);
 		await run(choice);
 		const result = await state(path);
-		expect(result.content.slice(result.offset)).toMatch(/^tail/);
+		expect(result.content).toContain("tail");
+		expect(result.editorContent.slice(result.offset)).toMatch(/^tail/);
 	});
 
 	it("opens and focuses a configured target before placing its marker", async () => {
@@ -224,6 +357,36 @@ describe("Capture cursor markers in native Obsidian", () => {
 		expect(await obsidian.dev.evalJson(`app.vault.getAbstractFileByPath(${JSON.stringify(path)}).stat.mtime`)).toBe(before);
 	});
 
+	it.each(["note", "editor", "canvas"] as const)("shows a nothing-to-capture notice for marker-only %s captures", async mode => {
+		const { choice, path } = await setup("Original");
+		const { obsidian, sandbox } = getContext();
+		await enableCaptureNotices();
+		choice.insertAfter.enabled = false;
+		choice.format.format = "{{CURSOR}}";
+		let targetPath = path;
+		if (mode === "editor") {
+			choice.activeFileWritePosition = "cursor";
+		} else if (mode === "canvas") {
+			targetPath = await seedVaultFile(obsidian, sandbox, "marker-only.canvas", JSON.stringify({
+				nodes: [{ id: "card", type: "text", text: "Original", x: 0, y: 0, width: 300, height: 200 }],
+				edges: [],
+			}));
+			choice.captureTo = targetPath;
+			choice.captureToActiveFile = false;
+			choice.captureToCanvasNodeId = "card";
+		} else {
+			choice.activeFileWritePosition = "bottom";
+		}
+		await saveAndOpen(choice, path);
+		const before = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
+		await clearNotices();
+		expect(await run(choice)).toMatchObject({ file: targetPath, effect: "unchanged" });
+		await expectOneNothingToCaptureNotice();
+		const after = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
+		expect(after).toBe(before);
+		expect(after).not.toMatch(/{{CURSOR}}/i);
+	});
+
 	it("keeps markers from an included template in Capture scope", async () => {
 		const { choice, path } = await setup();
 		const { obsidian, sandbox } = getContext();
@@ -232,7 +395,57 @@ describe("Capture cursor markers in native Obsidian", () => {
 		await saveAndOpen(choice, path);
 		await run(choice);
 		const result = await state(path);
-		expect(result.content.slice(result.offset)).toBe("after\nExisting\n");
+		expect(result.content).toContain("after\nExisting\n");
+		expect(result.editorContent.slice(result.offset)).toBe("after\nExisting\n");
 		expect(result.content).not.toContain("{{CURSOR}}");
+	});
+
+	it("refreshes cursor autocomplete when switching between body and property capture", async () => {
+		const { choice, path } = await setup();
+		const { obsidian } = getContext();
+		choice.format.format = "{{CUR";
+		await saveAndOpen(choice, path);
+		await closeCaptureBuilders();
+		await obsidian.dev.evalJson(`(() => {
+			app.setting.open(); app.setting.openTabById("quickadd"); return true;
+		})()`);
+		try {
+			const configure = `[aria-label="Configure ${choice.name}"]`;
+			await expect.poll(() => obsidian.dev.evalJson(`(() =>
+				[...document.querySelectorAll(${JSON.stringify(configure)})]
+					.some(button => button.getClientRects().length > 0)
+			)()`), AUTOSAVE_POLL).toBe(true);
+			expect(await obsidian.dev.evalJson(`(() => {
+				const button = [...document.querySelectorAll(${JSON.stringify(configure)})]
+					.find(button => button.getClientRects().length > 0);
+				button?.click();
+				return Boolean(button);
+			})()`)).toBe(true);
+			await expect.poll(() => obsidian.dev.evalJson(`(() =>
+				[...document.querySelectorAll(".captureChoiceBuilder")]
+					.filter(builder => builder.getClientRects().length > 0).length
+			)()`), AUTOSAVE_POLL).toBe(1);
+			for (const position of ["after", "property", "top"]) {
+				expect(await withLatestCaptureBuilder<boolean>(`(() => {
+					const row = [...builder.querySelectorAll(".setting-item")].find(el => el.querySelector(".setting-item-name")?.textContent === "Write position");
+					const select = row?.querySelector("select");
+					if (!(select instanceof HTMLSelectElement)) return false;
+					select.value = ${JSON.stringify(position)};
+					select.dispatchEvent(new Event("change", { bubbles: true }));
+					return true;
+				})()`)).toBe(true);
+				await expect.poll(() => withLatestCaptureBuilder<string | null>(`(() => {
+					const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+					return input instanceof HTMLTextAreaElement ? input.value : null;
+				})()`), AUTOSAVE_POLL).toBe("{{CUR");
+				await typeIntoLatestCaptureFormat("{{CUR");
+				await expect.poll(() => obsidian.dev.evalJson(`(() =>
+					[...document.querySelectorAll(".suggestion-item")]
+						.filter(el => el.getClientRects().length && el.textContent?.startsWith("{{CURSOR}}")).length
+				)()`), AUTOSAVE_POLL).toBe(position === "property" ? 0 : 1);
+			}
+		} finally {
+			await closeCaptureBuilders();
+		}
 	});
 });

@@ -170,15 +170,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
 	{#snippet children(id)}
-		<ValidatedInput
-			{id}
-			inputKind="textarea"
-			bind:value={choice.format.format}
-			placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
-			required
-			requiredMessage="Capture format is required when enabled"
-			makeSuggesters={formatSuggesters}
-		/>
+		{#key formatSuggestContext}
+			<ValidatedInput
+				{id}
+				inputKind="textarea"
+				bind:value={choice.format.format}
+				placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
+				required
+				requiredMessage="Capture format is required when enabled"
+				makeSuggesters={formatSuggesters}
+			/>
+		{/key}
 		<FormatTokenHint value={choice.format.format} />
 		<FormatPreviewField value={choice.format.format} {app} {plugin} />
 	{/snippet}
