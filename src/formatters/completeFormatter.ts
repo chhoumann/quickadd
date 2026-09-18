@@ -1,3 +1,4 @@
+import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
@@ -90,7 +91,7 @@ export class CompleteFormatter extends Formatter {
 			output = this.replacePropertyInString(output);
 		}
 
-		return output;
+		return this.promptScope === "captureText" ? output : stripCursorMarkers(output);
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
@@ -147,7 +148,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	async formatPropertyValue(input: string): Promise<unknown> {
-		return await this.preserveSingleTokenValue(input, () =>
+		const value = await this.preserveSingleTokenValue(input, () =>
 			this.withPromptScope("propertyValue", input, async () => {
 				// Author tokens (VALUE/DATE/…) and current-file tokens run first.
 				// PROPERTY expands last so the seeded snapshot is inserted as
@@ -165,6 +166,11 @@ export class CompleteFormatter extends Formatter {
 				return this.replacePropertyInString(output);
 			}),
 		);
+		if (typeof value === "string") return stripCursorMarkers(value);
+		if (Array.isArray(value)) {
+			return value.map((item: unknown) => typeof item === "string" ? stripCursorMarkers(item) : item);
+		}
+		return value;
 	}
 
 	async formatFileContent(input: string): Promise<string> {

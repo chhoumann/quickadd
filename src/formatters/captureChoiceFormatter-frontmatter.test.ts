@@ -89,7 +89,7 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
     const file = createTFile('New Note.md');
     const templateContent = ['---', 'tags: ["a"]', '---', '# Template Body'].join('\n');
 
-    const result = await formatter.formatContentWithFile('Captured line\n', choice, templateContent, file);
+    const { content: result } = await formatter.formatContentWithFile('Captured line\n', choice, templateContent, file);
 
     expect(result).toBe(['---', 'tags: ["a"]', '---', 'Captured line', '# Template Body'].join('\n'));
   });
@@ -135,7 +135,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -150,7 +150,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -165,7 +165,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', '   \t', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -180,7 +180,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = ['# H', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -195,7 +195,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -210,7 +210,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H');
     const fileContent = '# H\r\n\r\nA';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -225,7 +225,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('- Item 1');
     const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -240,7 +240,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('- Item 1', 'skip');
     const fileContent = ['- Item 1', '', '- Item 2'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -255,7 +255,7 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
     const choice = createInsertAfterChoice('# H', 'none');
     const fileContent = ['# H', '', 'A'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X\n',
       choice,
       fileContent,
@@ -309,14 +309,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal');
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       '18:11\nTest\n\n',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       '18:12\nTest2\n\n',
       choice,
       first,
@@ -333,14 +333,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal');
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       '\n18:11\nTest3',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       '\n18:12\nTest4',
       choice,
       first,
@@ -357,14 +357,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('Target');
     const initial = ['Target', 'Existing', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       'One\n\n',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       'Two\n\n',
       choice,
       first,
@@ -379,14 +379,14 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# H');
     const initial = ['# H', 'A', '', ''].join('\n');
 
-    const first = await formatter.formatContentWithFile(
+    const { content: first } = await formatter.formatContentWithFile(
       'X',
       choice,
       initial,
       file,
     );
 
-    const second = await formatter.formatContentWithFile(
+    const { content: second } = await formatter.formatContentWithFile(
       'Y',
       choice,
       first,
@@ -401,7 +401,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     const choice = createInsertAfterChoice('# Journal', { insertAtEnd: false });
     const initial = ['# Journal', '', '10:00', 'Some data', ''].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '18:13\nTest5\n\n',
       choice,
       initial,
@@ -427,7 +427,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     });
     const initial = ['# Journal', '', '10:00', 'Some data', '', ''].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '18:14\nTest6\n\n',
       choice,
       initial,
@@ -452,7 +452,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
         choice,
         initial,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Insert-after target not found: '# Missing'.",
     );
@@ -474,7 +474,7 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
         choice,
         initial,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Unable to insert line '# Missing' at cursor position: no active markdown editor.",
     );
@@ -524,7 +524,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Status:', { replaceExisting: false });
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       ' done',
       choice,
       fileContent,
@@ -539,7 +539,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Status: ', { replaceExisting: true });
     const fileContent = ['Status: pending', 'Next'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -554,7 +554,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('pending', { replaceExisting: true });
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '!',
       choice,
       fileContent,
@@ -572,7 +572,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     });
     const fileContent = '# Header';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -593,7 +593,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
         choice,
         fileContent,
         file,
-      ),
+      ).then(({ content }) => content),
     ).rejects.toThrow(
       "Inline insert-after target not found: 'Missing: '.",
     );
@@ -604,7 +604,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const choice = createInlineChoice('Tag: ', { replaceExisting: true });
     const fileContent = ['Tag: a', 'Tag: b'].join('\n');
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'X',
       choice,
       fileContent,
@@ -620,7 +620,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     choice.captureToActiveFile = true;
     const fileContent = 'Status: pending';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       'done',
       choice,
       fileContent,
@@ -636,7 +636,7 @@ describe('CaptureChoiceFormatter insert after inline', () => {
     const fileContent = 'Status:\npending';
 
     await expect(
-      formatter.formatContentWithFile('done', choice, fileContent, file),
+      formatter.formatContentWithFile('done', choice, fileContent, file).then(({ content }) => content),
     ).rejects.toThrow(/single line/i);
   });
 });
@@ -660,7 +660,7 @@ describe('CaptureChoiceFormatter append task newline regression (issue #124)', (
     const file = createTFile('Test.md');
     const fileContent = '- [ ] Old task';
 
-    const result = await formatter.formatContentWithFile(
+    const { content: result } = await formatter.formatContentWithFile(
       '- [ ] New task\n',
       choice,
       fileContent,
@@ -695,7 +695,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
       createChoice({ captureToActiveFile: false }),
       content,
       createTFile('Note.md'),
-    );
+    ).then(({ content }) => content);
 
   it('inserts BELOW empty frontmatter instead of above it (the literal #647 bug)', async () => {
     expect(await topInsert('---\n---\n# Body')).toBe('---\n---\nINSERTED\n# Body');
@@ -732,7 +732,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   });
 
   it('does not add a double newline when the capture already ends with one (task payload) into frontmatter-only note', async () => {
-    const result = await makeFormatter().formatContentWithFile(
+    const { content: result } = await makeFormatter().formatContentWithFile(
       '- [ ] TASK\n',
       createChoice({ captureToActiveFile: false, task: true }),
       '---\n---',
@@ -742,7 +742,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   });
 
   it('separates a task create-if-not-found-at-top from the body (previously glued)', async () => {
-    const result = await makeFormatter().formatContentWithFile(
+    const { content: result } = await makeFormatter().formatContentWithFile(
       '- [ ] CAP',
       createChoice({
         task: true,
@@ -783,7 +783,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('creates a missing insert-after section below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         '- entry',
         createChoice({
           captureToActiveFile: false,
@@ -798,7 +798,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('creates a missing INLINE insert-after target below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         'Status: done',
         createChoice({
           captureToActiveFile: false,
@@ -813,7 +813,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
     });
 
     it('degrades an ordered create with a non-heading anchor to below the separator line', async () => {
-      const result = await makeFormatter().formatContentWithFile(
+      const { content: result } = await makeFormatter().formatContentWithFile(
         '- entry\n',
         createChoice({
           captureToActiveFile: false,
@@ -832,7 +832,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
 
     it('creates a missing insert-before target below the separator line and tracks the cursor', async () => {
       const formatter = makeFormatter();
-      const result = await formatter.formatContentWithFile(
+      const { content: result, cursor } = await formatter.formatContentWithFile(
         '- entry',
         createChoice({
           captureToActiveFile: false,
@@ -851,7 +851,7 @@ describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
       );
       // This is the only caller passing a non-default cursorOffsetInText: the cursor
       // must land at the end of the capture, not at the end of the created anchor.
-      expect(formatter.getCaptureInsertionEndOffset()).toBe(
+      expect(cursor.kind === "offset" ? cursor.value : null).toBe(
         '---\ndate: 2026-07-25\n---\n\n- entry'.length,
       );
     });

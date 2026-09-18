@@ -79,7 +79,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\nold one\n");
 		expect(result).not.toMatch(/- \[ \] buy milk\n\n/);
@@ -91,7 +91,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\n");
 	});
@@ -102,7 +102,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\n- [ ] buy milk\nold one\n");
 	});
@@ -115,7 +115,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 				createChoice(),
 				body,
 				createFile(),
-			);
+			).then(({ content }) => content);
 		}
 
 		expect(body).toBe("===== Task ======\n- [ ] C\n- [ ] B\n- [ ] A\n");
@@ -128,7 +128,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice({ insertAfter: insertAfter("## Task", true) }),
 			"## Task\n- old\n\n## Other\nx\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("## Task\n- old\n- [ ] new task\n## Other\nx\n");
 		expect(result).not.toMatch(/- \[ \] new task\n\n/);
@@ -140,7 +140,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n   \nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).not.toMatch(/- \[ \] buy milk\n[ \t]*\n/);
 	});
@@ -151,7 +151,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\r\n\r\nold one\r\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// No blank line after the task, and the CRLF following content is preserved.
 		expect(result).toBe("===== Task ======\r\n- [ ] buy milk\r\nold one\r\n");
@@ -165,7 +165,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n   ",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).not.toMatch(/- \[ \] buy milk\n[ \t]*\n/);
 		expect(result.startsWith("===== Task ======\n- [ ] buy milk")).toBe(true);
@@ -177,7 +177,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice(),
 			"===== Task ======\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// Target is the last real line with only the trailing-newline artifact below:
 		// the task keeps its own terminating newline, no content is glued or dropped.
@@ -193,7 +193,7 @@ describe("issue #312 — no blank line after a task-formatted capture (insert af
 			createChoice({ task: false }),
 			"===== Task ======\n\nold one\n",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("===== Task ======\nbuy milk\n\nold one\n");
 	});

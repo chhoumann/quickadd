@@ -212,3 +212,10 @@ describe("#1558 previewing {{TEMPLATE:...}} is inert", () => {
 		expect(await f.format("[{{TEMPLATE:Outer.md}}]")).toBe("[outer inner]");
 	});
 });
+
+
+it("strips cursor markers from content previews including template snippets", async () => {
+	templates["Snippet.md"] = "before{{CURSOR}}after";
+	const formatter = new FormatDisplayFormatter(makeApp(), plugin);
+	expect(await formatter.format("{{TEMPLATE:Snippet.md}}{{cursor}}")).toBe("beforeafter");
+});

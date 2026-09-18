@@ -25,11 +25,12 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(
-			content: string,
-			...args: unknown[]
-		): Promise<string> {
-			return await formatContentWithFileMock(content, ...args);
+		async formatContentWithFile(content: string, ...args: unknown[]) {
+			const value = getCaptureInsertionEndOffsetMock();
+			return {
+				content: await formatContentWithFileMock(content, ...args), captureContent: content,
+				cursor: typeof value === "number" ? { kind: "offset", source: "defaultEnd", value } : { kind: "none" },
+			};
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -39,9 +40,6 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];
-		}
-		getCaptureInsertionEndOffset() {
-			return getCaptureInsertionEndOffsetMock();
 		}
 	},
 }));
@@ -233,6 +231,6 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 
 		expect(result.newFileContent).toBe(formattedFileContent);
 		expect(result.cursorPlacementSafe).toBe(true);
-		expect(result.cursorEndOffset).toBe(formattedFileContent.length);
+		expect(result.cursor).toEqual({ kind: "offset", source: "defaultEnd", value: formattedFileContent.length });
 	});
 });

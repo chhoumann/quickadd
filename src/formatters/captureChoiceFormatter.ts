@@ -12,6 +12,7 @@ import {
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
 import * as positioning from "./helpers/insertionPositioning";
 import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
@@ -55,7 +56,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private lastResolvedInsertAfterHeading: string | null = null;
 	/** Expand format-template escapes once, before substitution, so captured backslashes remain literal. */
 	private linebreaksProcessed = false;
-	private captureInsertionEndOffset: number | null = null;
 
 	public setDestinationFile(file: TFile): void {
 		this.file = file;
@@ -102,17 +102,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const paths = this.createdClipboardAttachmentPaths;
 		this.createdClipboardAttachmentPaths = [];
 		return paths;
-	}
-
-	public getCaptureInsertionEndOffset(): number | null {
-		return this.captureInsertionEndOffset;
-	}
-
-	private setCaptureInsertionEndOffset(offset: number | null): void {
-		this.captureInsertionEndOffset =
-			typeof offset === "number" && Number.isFinite(offset) && offset >= 0
-				? offset
-				: null;
 	}
 
 	protected shouldUseSelectionForValue(): boolean {
@@ -212,12 +201,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		choice: ICaptureChoice,
 		fileContent: string,
 		file: TFile,
-	): Promise<string> {
-		this.setCaptureInsertionEndOffset(null);
+	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
-		if (!choice || !file || fileContent === null) return input;
+		if (!choice || !file || fileContent === null) return { content: input, captureContent: input, cursor: { kind: "none" } };
 		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 
@@ -230,7 +218,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			!choice.captureToActiveFile ||
 			choice.activeFileWritePosition === "top" ||
 			choice.activeFileWritePosition === "bottom";
-		const formatted = await this.formatFileContent(input, shouldRunTemplater);
+		const formatted = await this.formatCapture(input, shouldRunTemplater);
 		return formatted;
 	}
 
@@ -245,6 +233,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	async formatFileContent(input: string, runTemplater = true): Promise<string> {
+		return (await this.formatCapture(input, runTemplater)).content;
+	}
+
+	private async formatCapture(input: string, runTemplater: boolean): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
 		let formatted = await this.withClipboardImageFallback(async () =>
 			this.withPromptScope("captureText", input, async () =>
@@ -265,43 +257,26 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.templaterProcessed = true;
 		}
 
-		const formattedContentIsEmpty = isCaptureContentEmpty(formatted);
-		if (formattedContentIsEmpty) return this.fileContent;
+		const payload = prepareCapture(formatted);
+		const placement = payload.cursor.kind === "none"
+			? { content: this.fileContent, cursor: payload.cursor }
+			: await this.insertCapture(payload);
+		return { ...placement, captureContent: payload.content, markerOnly: payload.cursor.kind === "none" && /{{CURSOR}}/i.test(formatted) };
+	}
 
-		// Historical note: `prepend` is a legacy flag name that means
-		// append-to-bottom behavior.
-		const shouldAppendToBottom =
-			this.choice.prepend ||
-			(this.choice.captureToActiveFile &&
-				this.choice.activeFileWritePosition === "bottom");
-
+	private async insertCapture(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
+		const formatted = payload.content;
+		const shouldAppendToBottom = this.choice.prepend ||
+			(this.choice.captureToActiveFile && this.choice.activeFileWritePosition === "bottom");
 		if (shouldAppendToBottom) {
-			// When appending to the end of a file, ensure the capture starts on a new line.
-			// Notes are not guaranteed to end with a trailing newline (see issue #124).
-			const shouldInsertLinebreak = !this.choice.task;
-			const needsLeadingNewline =
-				this.fileContent.length > 0 &&
-				!this.fileContent.endsWith("\n") &&
-				!formatted.startsWith("\n");
-			const separator = shouldInsertLinebreak || needsLeadingNewline ? "\n" : "";
-
-			this.setCaptureInsertionEndOffset(
-				this.fileContent.length + separator.length + formatted.length,
-			);
-			return `${this.fileContent}${separator}${formatted}`;
+			const needsLeadingNewline = this.fileContent.length > 0 &&
+				!this.fileContent.endsWith("\n") && !formatted.startsWith("\n");
+			const separator = !this.choice.task || needsLeadingNewline ? "\n" : "";
+			return surroundCapture(payload, this.fileContent + separator);
 		}
-
-		if (this.choice.insertAfter.enabled) {
-			return await this.insertAfterHandler(formatted);
-		}
-
-		if (this.choice.insertBefore?.enabled) {
-			return await this.insertBeforeHandler(formatted);
-		}
-
-		// Default "write to top" path: insert after any frontmatter so the YAML block
-		// is never broken, and never glue the capture onto the first body line (#647).
-		return this.insertAtNoteBodyStartTracking(formatted);
+		if (this.choice.insertAfter.enabled) return this.insertAfterHandler(payload);
+		if (this.choice.insertBefore?.enabled) return this.insertBeforeHandler(payload);
+		return this.insertAtNoteBodyStartTracking(payload);
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
@@ -333,7 +308,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return this.expandLinebreakEscapesOutsideTokens(withGlobals);
 	}
 
-	private async insertAfterHandler(formatted: string) {
+	private async insertAfterHandler(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
+		const formatted = payload.content;
 		const override = this.insertAfterTargetOverride;
 
 		// Expand escapes before validating inline targets. Picked headings always use the block path.
@@ -341,7 +317,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			const inlineTarget: string = await this.formatLocationString(
 				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 			);
-			return await this.insertAfterInlineHandler(formatted, inlineTarget);
+			return await this.insertAfterInlineHandler(payload, inlineTarget);
 		}
 
 		// Picked headings match verbatim; other targets expand once and are reused unchanged when created.
@@ -377,7 +353,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (this.choice.insertAfter?.createIfNotFound) {
-				return await this.createInsertAfterIfNotFound(formatted, targetString);
+				return await this.createInsertAfterIfNotFound(payload, targetString);
 			}
 
 			throw new ChoiceAbortError(
@@ -421,13 +397,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		return this.insertTextAfterPositionInBody(
-			formatted,
+			payload,
 			this.fileContent,
 			targetPosition,
 		);
 	}
 
-	private async insertBeforeHandler(formatted: string) {
+	private async insertBeforeHandler(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
 		const insertBefore = this.choice.insertBefore;
 		if (!insertBefore) {
 			throw new ChoiceAbortError("Insert-before settings are missing.");
@@ -453,7 +429,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const targetNotFound = start === -1;
 		if (targetNotFound) {
 			if (insertBefore.createIfNotFound) {
-				return await this.createInsertBeforeIfNotFound(formatted, targetString);
+				return await this.createInsertBeforeIfNotFound(payload, targetString);
 			}
 
 			throw new ChoiceAbortError(
@@ -462,16 +438,16 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		return this.insertTextBeforePositionInBody(
-			formatted,
+			payload,
 			this.fileContent,
 			start,
 		);
 	}
 
 	private async insertAfterInlineHandler(
-		formatted: string,
+		payload: CapturePlacementResult,
 		targetString: string,
-	): Promise<string> {
+	): Promise<CapturePlacementResult> {
 		if (positioning.hasInlineTargetLinebreak(targetString)) {
 			// Inline targets must stay on one line, including after escape expansion.
 			throw new ChoiceAbortError(
@@ -483,7 +459,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (matchIndex === -1) {
 			if (this.choice.insertAfter?.createIfNotFound) {
 				return await this.createInlineInsertAfterIfNotFound(
-					formatted,
+					payload,
 					targetString,
 				);
 			}
@@ -494,28 +470,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const matchEnd = matchIndex + targetString.length;
-		this.setCaptureInsertionEndOffset(matchEnd + formatted.length);
-		if (this.choice.insertAfter?.replaceExisting) {
-			const endOfLine = positioning.getInlineEndOfLine(this.fileContent, matchEnd);
-			return (
-				this.fileContent.slice(0, matchEnd) +
-				formatted +
-				this.fileContent.slice(endOfLine)
-			);
-		}
-
-		return (
-			this.fileContent.slice(0, matchEnd) +
-			formatted +
-			this.fileContent.slice(matchEnd)
-		);
+		const end = this.choice.insertAfter?.replaceExisting
+			? positioning.getInlineEndOfLine(this.fileContent, matchEnd)
+			: matchEnd;
+		return surroundCapture(payload, this.fileContent.slice(0, matchEnd), this.fileContent.slice(end));
 	}
-	private async createInsertAfterIfNotFound(formatted: string, insertAfterLine: string) {
+	private async createInsertAfterIfNotFound(formatted: CapturePlacementResult, insertAfterLine: string) {
 		const settings = this.choice.insertAfter;
 		if (settings?.createIfNotFoundLocation === CREATE_IF_NOT_FOUND_ORDERED) {
 			return this.createInsertAfterOrdered(formatted, insertAfterLine);
 		}
-		const payload = `${insertAfterLine}\n${formatted}`;
+		const payload = surroundCapture(formatted, `${insertAfterLine}\n`);
 		return this.createMissingTarget({
 			payload,
 			location: settings?.createIfNotFoundLocation,
@@ -527,7 +492,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 					const lines = getLinesInString(this.fileContent);
 					const end = getEndOfSection(lines, line, this.considerSubsectionsForAnchor(lines, line));
 					position = positioning.findInsertAfterPositionAtSectionEnd(
-						lines, end ?? lines.length - 1, this.fileContent, payload,
+						lines, end ?? lines.length - 1, this.fileContent, payload.content,
 					);
 				}
 				return this.insertTextAfterPositionInBody(payload, this.fileContent, position);
@@ -535,7 +500,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		});
 	}
 
-	/** Place missing headings among same-level siblings using the first anchor line; non-headings fall back to TOP. */
 	/** True when this capture uses the ordered create-if-not-found location. */
 	private isOrderedCreate(): boolean {
 		return (
@@ -561,32 +525,27 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			anchorLine,
 		);
 	}
-	private createInsertAfterOrdered(formatted: string, targetString: string): string {
-		const result = insertOrderedCapture({
-			formatted, targetString, fileContent: this.fileContent,
+	private createInsertAfterOrdered(payload: CapturePlacementResult, targetString: string): CapturePlacementResult {
+		return insertOrderedCapture({
+			capture: payload, targetString, fileContent: this.fileContent,
 			insertAfter: this.choice.insertAfter, task: !!this.choice.task,
 		});
-		this.setCaptureInsertionEndOffset(result.insertedEndOffset);
-		return result.content;
 	}
-	private async createInsertBeforeIfNotFound(formatted: string, insertBeforeLine: string) {
+	private async createInsertBeforeIfNotFound(formatted: CapturePlacementResult, insertBeforeLine: string) {
 		const settings = this.choice.insertBefore;
 		if (!settings) throw new ChoiceAbortError("Insert-before settings are missing.");
-		const payload = formatted.endsWith("\n") || formatted.length === 0
-			? `${formatted}${insertBeforeLine}`
-			: `${formatted}\n${insertBeforeLine}`;
+		const payload = surroundCapture(formatted, "", `${formatted.content.endsWith("\n") || formatted.content.length === 0 ? "" : "\n"}${insertBeforeLine}`);
 		return this.createMissingTarget({
 			payload,
 			location: settings.createIfNotFoundLocation,
 			rawTarget: settings.before,
-			cursorOffsetInText: formatted.length,
 			insertAtCursor: (line) => this.insertTextBeforePositionInBody(
-				payload, this.fileContent, line, formatted.length,
+				payload, this.fileContent, line,
 			),
 		});
 	}
-	private async createInlineInsertAfterIfNotFound(formatted: string, targetString: string): Promise<string> {
-		const payload = `${targetString}${formatted}`;
+	private async createInlineInsertAfterIfNotFound(formatted: CapturePlacementResult, targetString: string): Promise<CapturePlacementResult> {
+		const payload = surroundCapture(formatted, targetString);
 		return this.createMissingTarget({
 			payload,
 			location: this.choice.insertAfter?.createIfNotFoundLocation,
@@ -596,19 +555,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	/** All create modes share placement and errors; each keeps its cursor insertion semantics. */
-	private createMissingTarget({ payload, location, rawTarget, cursorOffsetInText = payload.length, insertAtCursor }: {
-		payload: string;
+	private createMissingTarget({ payload, location, rawTarget, insertAtCursor }: {
+		payload: CapturePlacementResult;
 		location: string | undefined;
 		rawTarget: string;
-		cursorOffsetInText?: number;
-		insertAtCursor: (line: number) => string;
-	}): string {
+		insertAtCursor: (line: number) => CapturePlacementResult;
+	}): CapturePlacementResult {
 		switch (location) {
 			case CREATE_IF_NOT_FOUND_TOP:
-				return this.insertAtNoteBodyStartTracking(payload, cursorOffsetInText);
+				return this.insertAtNoteBodyStartTracking(payload);
 			case CREATE_IF_NOT_FOUND_BOTTOM:
-				this.setCaptureInsertionEndOffset(this.fileContent.length + 1 + cursorOffsetInText);
-				return `${this.fileContent}\n${payload}`;
+				return surroundCapture(payload, `${this.fileContent}\n`);
 			case CREATE_IF_NOT_FOUND_CURSOR: {
 				const view = getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
@@ -625,58 +582,26 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private insertAtNoteBodyStartTracking(
-		text: string,
-		cursorOffsetInText = text.length,
-	): string {
-		const result = insertAtNoteBodyStartWithResult(this.fileContent, text);
-		if (result.insertedStartOffset === null) {
-			this.setCaptureInsertionEndOffset(null);
-			return result.content;
-		}
-
-		const clampedOffset = Math.max(
-			0,
-			Math.min(cursorOffsetInText, text.length),
-		);
-		this.setCaptureInsertionEndOffset(
-			result.insertedStartOffset + clampedOffset,
-		);
-		return result.content;
+	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult): CapturePlacementResult {
+		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content);
+		return placeCapture(payload, result.content,
+			result.insertedStartOffset === null || payload.cursor.kind === "none"
+				? null : result.insertedStartOffset + payload.cursor.value);
 	}
 
-	/** Adapter: binds this run's task flag, records the cursor end offset. */
-	private insertTextAfterPositionInBody(
-		rawText: string,
-		body: string,
-		pos: number,
-	): string {
-		const { content, insertedEndOffset } =
-			positioning.insertTextAfterPositionInBody(
-				rawText,
-				body,
-				pos,
-				!!this.choice.task,
-			);
-		this.setCaptureInsertionEndOffset(insertedEndOffset);
-		return content;
+	private insertTextAfterPositionInBody(payload: CapturePlacementResult, body: string, pos: number): CapturePlacementResult {
+		const result = positioning.insertTextAfterPositionInBody(
+			payload.content, body, pos, !!this.choice.task,
+			payload.cursor.kind === "offset" ? payload.cursor.value : undefined,
+		);
+		return placeCapture(payload, result.content, result.insertedEndOffset);
 	}
 
-	/** Adapter: records the cursor end offset around the pure helper. */
-	private insertTextBeforePositionInBody(
-		text: string,
-		body: string,
-		pos: number,
-		cursorOffsetInText = text.length,
-	): string {
-		const { content, insertedEndOffset } =
-			positioning.insertTextBeforePositionInBody(
-				text,
-				body,
-				pos,
-				cursorOffsetInText,
-			);
-		this.setCaptureInsertionEndOffset(insertedEndOffset);
-		return content;
+	private insertTextBeforePositionInBody(payload: CapturePlacementResult, body: string, pos: number): CapturePlacementResult {
+		const result = positioning.insertTextBeforePositionInBody(
+			payload.content, body, pos,
+			payload.cursor.kind === "offset" ? payload.cursor.value : undefined,
+		);
+		return placeCapture(payload, result.content, result.insertedEndOffset);
 	}
 }

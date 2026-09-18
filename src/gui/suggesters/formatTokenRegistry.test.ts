@@ -259,3 +259,13 @@ describe("format token insertion", () => {
 		expect(value.slice(selection[0], selection[1])).toBe("<folder>");
 	});
 });
+
+
+describe("Capture cursor autocomplete", () => {
+	it.each(["{{", "{{c", "{{cu", "{{CURSOR"])("offers the marker at %s only in note content", async prefix => {
+		expect(await suggestInserts(prefix, { context: "noteContent" })).toContain("{{CURSOR}}");
+		for (const context of ["propertyValue", "captureTarget", "fileName", "lineTarget"] as const) {
+			expect(await suggestInserts(prefix, { context })).not.toContain("{{CURSOR}}");
+		}
+	});
+});

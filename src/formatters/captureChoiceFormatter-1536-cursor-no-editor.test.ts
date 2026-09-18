@@ -107,7 +107,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 	it("aborts with the missing-editor diagnostic when no markdown view is active", async () => {
 		const formatter = createFormatter(null);
 		await expect(
-			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()),
+			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
 		).rejects.toThrow(
 			new ChoiceAbortError(
 				"Unable to insert line '## Log' at cursor position: no active markdown editor.",
@@ -119,7 +119,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 		// Thino patches getActiveViewOfType to return such a view.
 		const formatter = createFormatter({ editor: null });
 		await expect(
-			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()),
+			formatter.formatContentWithFile("- task\n", createChoice(), SEED, createFile()).then(({ content }) => content),
 		).rejects.toThrow("no active markdown editor");
 	});
 
@@ -132,7 +132,7 @@ describe("#1536 — create-if-not-found at cursor without an active editor", () 
 			createChoice(),
 			SEED,
 			createFile(),
-		);
+		).then(({ content }) => content);
 		expect(result).toContain("## Log");
 		expect(result).toContain("- task");
 	});

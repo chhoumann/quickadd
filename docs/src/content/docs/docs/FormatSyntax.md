@@ -37,6 +37,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
 | [`{{PROPERTY}}`](#property) | Insert the property's current value (property Captures only) |
+| [`{{CURSOR}}`](#cursor) | Place the cursor inside a Capture |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
 | [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
@@ -849,6 +850,35 @@ Defaults work here too:
 FIELD filtering is in beta and the syntax can change - leave your thoughts
 [on issue #1429](https://github.com/chhoumann/quickadd/issues/1429).
 :::
+
+### Cursor position: `{{CURSOR}}` {#cursor}
+
+In a Capture body, `{{CURSOR}}` marks where you want to continue typing.
+
+```md
+### {{DATE:DD-MMM-YYYY}}
+- {{CURSOR}}
+```
+
+QuickAdd removes the marker and places the cursor there when the target note
+is already focused in an editing mode, or when **Open** opens and focuses it.
+The marker never opens a note by itself. It also works with **At cursor** and
+**New line above/below cursor**, and inside an included `{{TEMPLATE:...}}`.
+
+The first marker sets the position. Additional markers are removed. Spelling
+is case-insensitive. A format containing only markers and whitespace does nothing.
+If Templater needs a new target note before it produces an empty Capture,
+QuickAdd keeps that created note and skips insertion and cursor placement.
+
+Templater's cursor jump takes precedence. Links inserted into the active note's
+body keep the marker position. QuickAdd skips placement if a concurrent edit,
+whole-file Templater run, property update, or link written through a specified
+destination file makes the position unreliable.
+The marker is still removed. Without a marker, cursor behavior stays unchanged.
+
+This token places the cursor only in Capture bodies. In Template choices,
+property Captures, Canvas cards, file names, and line targets, it is removed
+without moving the cursor.
 
 ### The property's current value: `{{PROPERTY}}` {#property}
 

@@ -105,7 +105,7 @@ async function runOnce(
 	capture: string,
 ): Promise<string> {
 	const formatter = createFormatter();
-	return formatter.formatContentWithFile(capture, choice, content, createFile());
+	return formatter.formatContentWithFile(capture, choice, content, createFile()).then(({ content }) => content);
 }
 
 /** Feed each run's output back as the next run's content (real repeat-capture). */

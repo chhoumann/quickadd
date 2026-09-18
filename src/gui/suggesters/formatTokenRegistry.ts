@@ -1,5 +1,6 @@
 import {
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
+	CURSOR_SYNTAX_SUGGEST_REGEX,
 	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 	DATE_SYNTAX_SUGGEST_REGEX,
 	FIELD_SYNTAX_SUGGEST_REGEX,
@@ -36,6 +37,8 @@ import {
 export type FormatSuggestContext =
 	/** Note bodies: capture format, template content, AI prompts, script inputs. `formatFileContent`. */
 	| "noteContent"
+	/** Capture property value. `formatPropertyValue`. */
+	| "propertyValue"
 	/** Capture "Capture to". `formatFileName`, but the note is not created *into* a target folder. */
 	| "captureTarget"
 	/** Template "File name format". `formatFileName` with a configured target folder. */
@@ -45,6 +48,7 @@ export type FormatSuggestContext =
 
 export const ALL_FORMAT_SUGGEST_CONTEXTS: readonly FormatSuggestContext[] = [
 	"noteContent",
+	"propertyValue",
 	"captureTarget",
 	"fileName",
 	"lineTarget",
@@ -207,11 +211,16 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		regex: PROPERTY_SYNTAX_SUGGEST_REGEX,
 		// Resolves only in property Capture formats (hard error elsewhere).
-		contexts: ["noteContent"],
+		contexts: ["noteContent", "propertyValue"],
 		suggestion: token(
 			"{{PROPERTY}}",
 			"Inserts the property's current value (property Captures only)",
 		),
+	},
+	{
+		regex: CURSOR_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent"],
+		suggestion: token("{{CURSOR}}", "Places the cursor here (Capture bodies only)"),
 	},
 	{
 		regex: FILE_SYNTAX_SUGGEST_REGEX,
@@ -296,24 +305,24 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		regex: LINKCURRENT_SYNTAX_SUGGEST_REGEX,
 		// Left literal by formatFileName, so a capture target would be named
 		// "[[...]]", so it is offered only where a link is content.
-		contexts: ["noteContent", "lineTarget"],
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
 		suggestion: token("{{LINKCURRENT}}", "A link to that note: [[That note]]"),
 	},
 	{
 		regex: LINKSECTION_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "lineTarget"],
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
 		suggestion: token("{{LINKSECTION}}", "A link to the section your cursor is in"),
 	},
 	{
 		regex: FILENAMECURRENT_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "captureTarget", "fileName", "lineTarget"],
+		contexts: ["noteContent", "propertyValue", "captureTarget", "fileName", "lineTarget"],
 		suggestion: token("{{FILENAMECURRENT}}", "That note's file name"),
 	},
 	{
 		// formatLocationString deliberately leaves this literal, and an empty
 		// selector would match the first line, so it is withheld there.
 		regex: FOLDERCURRENT_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "captureTarget"],
+		contexts: ["noteContent", "propertyValue", "captureTarget"],
 		suggestion: token("{{FOLDERCURRENT}}", "That note's folder"),
 	},
 	{
@@ -334,7 +343,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		// Throws in every path context: the title is derived from the path.
 		regex: TITLE_SYNTAX_SUGGEST_REGEX,
-		contexts: ["noteContent", "lineTarget"],
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
 		suggestion: token("{{TITLE}}", "The new note's file name"),
 	},
 	{

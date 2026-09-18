@@ -89,7 +89,7 @@ async function runCaptures(
 			choice,
 			content,
 			createFile(),
-		);
+		).then(({ content }) => content);
 	}
 	return content;
 }
@@ -219,7 +219,7 @@ describe("#742 — multi-line insert-after target + createIfNotFound must not du
 		});
 		const formatter = createFormatter();
 		await expect(
-			formatter.formatContentWithFile("- task\n", choice, SEED, createFile()),
+			formatter.formatContentWithFile("- task\n", choice, SEED, createFile()).then(({ content }) => content),
 		).rejects.toThrow();
 	});
 });

@@ -211,6 +211,7 @@ export const TITLE_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const PROPERTY_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[P]?[R]?[O]?[P]?[E]?[R]?[T]?[Y]?[}]?[}]?$/i,
 );
+export const CURSOR_SYNTAX_SUGGEST_REGEX = /{{(?:C(?:U(?:R(?:S(?:O(?:R)?)?)?)?)?)?[}]?[}]?$/i;
 export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[S]?[E]?[L]?[E]?[C]?[T]?[E]?[D]?[}]?[}]?/i,
 );

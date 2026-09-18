@@ -320,6 +320,7 @@ export function insertTextAfterPositionInBody(
 	body: string,
 	pos: number,
 	isTask: boolean,
+	cursorOffsetInText = rawText.length,
 ): SpliceResult {
 	// Line-matched insertAfter callers always pass a real line index (>= 0); the
 	// frontmatter-aware "top" insertion lives in insertAtNoteBodyStart instead.
@@ -371,7 +372,7 @@ export function insertTextAfterPositionInBody(
 
 	return {
 		content: `${pre}\n${text}${separator}${post}`,
-		insertedEndOffset: pre.length + 1 + text.length,
+		insertedEndOffset: pre.length + 1 + Math.min(cursorOffsetInText, text.length),
 	};
 }
 
@@ -421,6 +422,7 @@ export function spliceOrderedSection(
 	slot: Exclude<OrderedSlot, { mode: "bodyStart" }>,
 	payload: string,
 	fileContent: string,
+	cursorOffsetInPayload?: number,
 ): SpliceResult {
 	const content = fileContent;
 	const eol = content.includes("\r\n") ? "\r\n" : "\n";
@@ -465,6 +467,11 @@ export function spliceOrderedSection(
 	const insertedStartOffset = before.length + lead.length;
 	return {
 		content: `${before}${lead}${blockText}${trail}${after}`,
-		insertedEndOffset: insertedStartOffset + blockText.length,
+		insertedEndOffset: insertedStartOffset + (cursorOffsetInPayload === undefined
+			? blockText.length
+			: (insertIdx > 0 && prev.trim() !== "" ? eol.length : 0) + Math.min(
+				payload.slice(0, cursorOffsetInPayload).split("\n").map(line => line.replace(/\r$/, "")).join(eol).length,
+				payloadLines.join(eol).length,
+			)),
 	};
 }

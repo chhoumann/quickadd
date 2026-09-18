@@ -1974,6 +1974,26 @@ describe("property value formatting", () => {
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 	});
 
+	it.each([
+		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "beforeafter" },
+		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["beforeafter", "{{VALUE}}"] },
+		{ format: "Added\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbeforeafter\n{{DATE}}" },
+	])("strips cursor markers after expanding $format from $value", async ({ format, value, expected }) => {
+		const executor = createChoiceExecutor();
+		const originalValue = structuredClone(value);
+		executor.variables.set("propertyValue", value);
+		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		expect(await formatter.formatPropertyValue(format)).toEqual(expected);
+		expect(executor.variables.get("propertyValue")).toEqual(originalValue);
+		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
+	});
+
+	it("strips cursor markers from retained VALUE lists without changing native types", async () => {
+		const value = ["before{{CURSOR}}after", false, 0];
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["beforeafter", false, 0]);
+		expect(value).toEqual(["before{{CURSOR}}after", false, 0]);
+	});
+
 	it("does not mark the property token when the format never expands it", async () => {
 		const executor = createChoiceExecutor();
 		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
@@ -2026,5 +2046,21 @@ describe("property value formatting", () => {
 		executor.variables.set("propertyValue", ["a\nb", "c"]);
 		const formatter = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
 		await expect(formatter.formatPropertyValue("{{PROPERTY}}")).rejects.toThrow(/line break/);
+	});
+});
+
+
+describe("Capture cursor token scope", () => {
+	it("strips the token from non-Capture bodies, paths and property values", async () => {
+		const formatter = defaultFormatter();
+		expect(await formatter.formatFileContent("before{{CURSOR}}after")).toBe("beforeafter");
+		expect(await formatter.formatFileName("{{cursor}}Note")).toBe("Note");
+		expect(await formatter.formatFolderPath("Folder{{CURSOR}}")).toBe("Folder");
+		expect(await formatter.formatPropertyValue("before{{CURSOR}}after")).toBe("beforeafter");
+	});
+	it("preserves the token for Capture's placement compiler", async () => {
+		const formatter = defaultFormatter();
+		const input = "before{{cursor}}after";
+		expect(await formatter.withPromptScope("captureText", input, () => formatter.formatFileContent(input))).toBe("before{{cursor}}after");
 	});
 });

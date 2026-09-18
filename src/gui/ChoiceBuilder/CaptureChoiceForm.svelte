@@ -42,10 +42,14 @@ let {
 const templateFilePaths = $derived(
 	plugin.getTemplateFiles().map((f) => f.path),
 );
-const formatSuggesters = [
+const formatSuggestContext = $derived(choice.propertyCapture ? "propertyValue" : "noteContent");
+const formatSuggesters = $derived.by(() => {
+	const context = formatSuggestContext;
+	return [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin),
-];
+		new FormatSyntaxSuggester(app, el, plugin, context),
+	];
+});
 
 function validateTemplate(
 	raw: string,
@@ -166,15 +170,17 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.format.enabled} />
 	{/snippet}
 	{#snippet children(id)}
-		<ValidatedInput
-			{id}
-			inputKind="textarea"
-			bind:value={choice.format.format}
-			placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
-			required
-			requiredMessage="Capture format is required when enabled"
-			makeSuggesters={formatSuggesters}
-		/>
+		{#key formatSuggestContext}
+			<ValidatedInput
+				{id}
+				inputKind="textarea"
+				bind:value={choice.format.format}
+				placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
+				required
+				requiredMessage="Capture format is required when enabled"
+				makeSuggesters={formatSuggesters}
+			/>
+		{/key}
 		<FormatTokenHint value={choice.format.format} />
 		<FormatPreviewField value={choice.format.format} {app} {plugin} />
 	{/snippet}
