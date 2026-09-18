@@ -1,5 +1,5 @@
 import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecutor";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Notice } from "obsidian";
 
 vi.mock("obsidian-dataview", () => ({
@@ -88,24 +88,6 @@ describe("ChoiceSuggester", () => {
 	let footnotes: IChoice;
 	let rootChoices: IChoice[];
 
-	beforeAll(() => {
-		// Obsidian's DOM extensions, used by renderSuggestion, are absent in jsdom.
-		const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
-		proto.empty ??= function (this: HTMLElement) {
-			this.replaceChildren();
-		};
-		proto.createDiv ??= function (
-			this: HTMLElement,
-			opts?: string | { cls?: string; text?: string }
-		) {
-			const div = document.createElement("div");
-			if (typeof opts === "string") div.className = opts;
-			else if (opts?.cls) div.className = opts.cls;
-			if (typeof opts === "object" && opts?.text) div.textContent = opts.text;
-			this.appendChild(div);
-			return div;
-		};
-	});
 
 	beforeEach(() => {
 		app = new App();

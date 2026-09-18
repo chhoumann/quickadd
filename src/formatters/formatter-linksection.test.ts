@@ -1,79 +1,17 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, expect, it } from "vitest";
-import { Formatter } from "./formatter";
+import type { Formatter } from "./formatter";
 
 type Behavior = Parameters<Formatter["setLinkToCurrentFileBehavior"]>[0];
 
 // Mirrors formatter-linkcurrent.test.ts: exercises the base replacer's
 // required/optional behavior for {{linksection}} via a settable resolver.
-class StubFormatter extends Formatter {
-	constructor() {
-		super();
-	}
+class StubFormatter extends FormatterStub {
 
 	private link: string | null = null;
 
-	protected async format(input: string): Promise<string> {
-		return input;
-	}
-
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
 	protected getCurrentFileLinkToSection(): string | null {
 		return this.link;
-	}
-
-	protected async promptForValue(): Promise<string> {
-		return "";
-	}
-
-	protected async promptForMathValue(): Promise<string> {
-		return "";
-	}
-
-	protected getVariableValue(_variableName: string): string {
-		return "";
-	}
-
-	protected async suggestForValue(): Promise<string> {
-		return "";
-	}
-
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected async suggestForField(): Promise<string> {
-		return "";
-	}
-
-	protected async getMacroValue(): Promise<string> {
-		return "";
-	}
-
-	protected async promptForVariable(): Promise<string> {
-		return "";
-	}
-
-	protected async getTemplateContent(): Promise<string> {
-		return "";
-	}
-
-	protected async getSelectedText(): Promise<string> {
-		return "";
-	}
-
-	protected async getClipboardContent(): Promise<string> {
-		return "";
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 
 	public setLink(link: string | null) {

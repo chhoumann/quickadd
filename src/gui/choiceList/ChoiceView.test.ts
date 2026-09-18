@@ -1,3 +1,7 @@
+import { App } from "obsidian";
+import type QuickAdd from "../../main";
+import ChoiceView from "./ChoiceView.svelte";
+import { renderChoiceView } from "../../../tests/helpers/settings/choiceView";
 import { describe, expect, it, vi } from "vitest";
 
 // CommandList/ChoiceListItem transitively reach the formatter/engine graph, which
@@ -12,11 +16,8 @@ vi.mock("../choiceRename", () => ({
 	promptRenameChoice: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
-import ChoiceView from "./ChoiceView.svelte";
 import { promptRenameChoice } from "../choiceRename";
-import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
 
@@ -60,20 +61,6 @@ const findConditional = (choices: Plain<IChoice[]>) => {
 	return macro?.macro.commands.find((c) => c.id === "cond-1");
 };
 
-const renderChoiceView = (
-	choices: IChoice[],
-	saveChoices: (next: Plain<IChoice[]>) => void = vi.fn(),
-) =>
-	render(ChoiceView, {
-		props: {
-			app: new App() as never,
-			// CommandRegistry only touches the plugin lazily (on command toggle),
-			// which this test never triggers, so an empty stub is enough.
-			plugin: {} as unknown as QuickAdd,
-			choices,
-			saveChoices,
-		},
-	});
 
 describe("ChoiceView", () => {
 	// The headline goal of #1249: ChoiceView's import graph no longer has the

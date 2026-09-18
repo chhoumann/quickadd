@@ -1,18 +1,9 @@
-import { beforeAll, describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
+import { testApp } from "../../../tests/helpers/settings/modalApp";
+import { beforeAll, describe, expect, it } from "vitest";
 import { fireEvent } from "@testing-library/svelte";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import { OpenFileCommandSettingsModal } from "./OpenFileCommandSettingsModal";
 
-function testApp(): App {
-	const app = new App() as App & {
-		dom: { appContainerEl: HTMLElement };
-		keymap: { pushScope: () => void; popScope: () => void };
-	};
-	app.dom = { appContainerEl: document.body };
-	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
-	return app;
-}
 
 function getButton(
 	modal: OpenFileCommandSettingsModal,

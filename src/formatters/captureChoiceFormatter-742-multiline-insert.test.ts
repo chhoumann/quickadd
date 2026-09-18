@@ -1,106 +1,14 @@
+import { createFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createSelectionFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
 // Mocks mirror captureChoiceFormatter-linebreak.test.ts so the formatter can run
 // under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
-			} as any;
-		}
-	},
-}));
-vi.mock("../gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: class {
-		constructor() {}
-	},
-}));
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../utils/errorUtils", () => ({
-	__esModule: true,
-	reportError: vi.fn(),
-	isCancellationError: vi.fn().mockReturnValue(false),
-}));
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: { Prompt: vi.fn().mockResolvedValue("") },
-}));
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
-	__esModule: true,
-	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleMacroEngine", () => ({
-	__esModule: true,
-	SingleMacroEngine: class {
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	__esModule: true,
-	SingleTemplateEngine: class {
-		async run() {
-			return "";
-		}
-		getAndClearTemplatePropertyVars() {
-			return new Map();
-		}
-		setLinkToCurrentFileBehavior() {}
-	},
-}));
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-vi.mock("../main", () => ({
-	__esModule: true,
-	default: class QuickAdd {
-		static instance = {
-			settings: { inputPrompt: "single-line" },
-			app: {
-				workspace: { getActiveViewOfType: vi.fn().mockReturnValue(null) },
-			},
-		};
-		settings = QuickAdd.instance.settings;
-		app = QuickAdd.instance.app;
-	},
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
-
-const baseInsertAfter = {
-	enabled: true,
-	after: "",
-	insertAtEnd: true,
-	considerSubsections: false,
-	createIfNotFound: true,
-	createIfNotFoundLocation: "bottom",
-	inline: false,
-	replaceExisting: false,
-	blankLineAfterMatchMode: "auto" as const,
-};
 
 const createChoice = (
 	overrides: Partial<ICaptureChoice> = {},
@@ -141,37 +49,20 @@ const createChoice = (
 		...overrides,
 	}) as ICaptureChoice;
 
-const createMockApp = (): App =>
-	({
-		workspace: {
-			getActiveFile: vi.fn().mockReturnValue(null),
-			getActiveViewOfType: vi.fn().mockReturnValue(null),
-		},
-		metadataCache: { getFileCache: vi.fn().mockReturnValue(null) },
-		fileManager: {
-			generateMarkdownLink: vi.fn().mockReturnValue(""),
-			processFrontMatter: vi.fn(),
-		},
-		vault: { adapter: { exists: vi.fn() }, cachedRead: vi.fn() },
-	}) as unknown as App;
-
-const createFile = (path = "Target.md"): TFile =>
-	({
-		path,
-		name: path.split("/").pop() ?? path,
-		basename: (path.split("/").pop() ?? path).replace(/\.(md|canvas)$/i, ""),
-		extension: "md",
-	}) as unknown as TFile;
+const baseInsertAfter = {
+	enabled: true,
+	after: "",
+	insertAtEnd: true,
+	considerSubsections: false,
+	createIfNotFound: true,
+	createIfNotFoundLocation: "bottom",
+	inline: false,
+	replaceExisting: false,
+	blankLineAfterMatchMode: "auto" as const,
+};
 
 const createFormatter = () =>
-	new CaptureChoiceFormatter(createMockApp(), {
-		settings: {
-			inputPrompt: "single-line",
-			enableTemplatePropertyTypes: false,
-			globalVariables: {},
-			useSelectionAsCaptureValue: true,
-		},
-	} as any);
+	new CaptureChoiceFormatter(createMockApp(), createSelectionFormatterPlugin());
 
 beforeEach(() => {
 	(global as any).navigator = {
@@ -219,27 +110,13 @@ describe("#742 — multi-line insert-after target + createIfNotFound must not du
 		expect(count(result, "- task")).toBe(3);
 	});
 
-	it("does NOT duplicate a double-newline block across runs", async () => {
+	it.each([
+		{ name: "does NOT duplicate a double-newline block across runs", input: "**Today**\\n\\n" },
+		{ name: "preserves single-trailing-newline behavior (control): 1 block", input: "**Today**\\n" },
+		{ name: "preserves single-line behavior (control): 1 block", input: "**Today**" },
+	])("$name", async ({ input }) => {
 		const choice = createChoice({
-			insertAfter: { ...baseInsertAfter, after: "**Today**\\n\\n" },
-		});
-		const result = await runCaptures(choice, SEED, 3);
-		expect(count(result, "**Today**")).toBe(1);
-		expect(count(result, "- task")).toBe(3);
-	});
-
-	it("preserves single-trailing-newline behavior (control): 1 block", async () => {
-		const choice = createChoice({
-			insertAfter: { ...baseInsertAfter, after: "**Today**\\n" },
-		});
-		const result = await runCaptures(choice, SEED, 3);
-		expect(count(result, "**Today**")).toBe(1);
-		expect(count(result, "- task")).toBe(3);
-	});
-
-	it("preserves single-line behavior (control): 1 block", async () => {
-		const choice = createChoice({
-			insertAfter: { ...baseInsertAfter, after: "**Today**" },
+			insertAfter: { ...baseInsertAfter, after: input },
 		});
 		const result = await runCaptures(choice, SEED, 3);
 		expect(count(result, "**Today**")).toBe(1);

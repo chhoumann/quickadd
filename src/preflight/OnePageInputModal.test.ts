@@ -1,3 +1,4 @@
+import { ensureObsidianDomPolyfills, modalButton } from "../../tests/helpers/preflight/modal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
@@ -72,181 +73,9 @@ vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
 	},
 }));
 
-vi.mock("obsidian", () => {
-	class Modal {
-		containerEl: HTMLElement;
-		contentEl: HTMLElement;
-
-		constructor(_app: App) {
-			this.containerEl = document.createElement("div");
-			this.contentEl = document.createElement("div");
-			this.containerEl.appendChild(this.contentEl);
-		}
-
-		open() {}
-		close() {}
-	}
-
-	class DropdownComponent {
-		selectEl: HTMLSelectElement;
-
-		constructor(containerEl: HTMLElement) {
-			this.selectEl = document.createElement("select");
-			containerEl.appendChild(this.selectEl);
-		}
-
-		addOption(value: string, text: string): this {
-			const option = document.createElement("option");
-			option.value = value;
-			option.textContent = text;
-			this.selectEl.appendChild(option);
-			return this;
-		}
-
-		setValue(value: string): this {
-			this.selectEl.value = value;
-			return this;
-		}
-
-		setDisabled(_disabled: boolean): this {
-			return this;
-		}
-
-		onChange(cb: (value: string) => void): this {
-			this.selectEl.addEventListener("change", () => cb(this.selectEl.value));
-			return this;
-		}
-	}
-
-	class TextComponent {
-		inputEl: HTMLInputElement;
-
-		constructor(containerEl: HTMLElement) {
-			this.inputEl = document.createElement("input");
-			containerEl.appendChild(this.inputEl);
-		}
-
-		setPlaceholder(value: string): this {
-			this.inputEl.placeholder = value;
-			return this;
-		}
-
-		setValue(value: string): this {
-			this.inputEl.value = value;
-			return this;
-		}
-
-		onChange(cb: (value: string) => void): this {
-			this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
-			return this;
-		}
-
-		setDisabled(disabled: boolean): this {
-			this.inputEl.disabled = disabled;
-			return this;
-		}
-	}
-
-	class TextAreaComponent {
-		inputEl: HTMLTextAreaElement;
-
-		constructor(containerEl: HTMLElement) {
-			this.inputEl = document.createElement("textarea");
-			containerEl.appendChild(this.inputEl);
-		}
-
-		setPlaceholder(value: string): this {
-			this.inputEl.placeholder = value;
-			return this;
-		}
-
-		setValue(value: string): this {
-			this.inputEl.value = value;
-			return this;
-		}
-
-		onChange(cb: (value: string) => void): this {
-			this.inputEl.addEventListener("input", () => cb(this.inputEl.value));
-			return this;
-		}
-	}
-
-	class ButtonComponent {
-		buttonEl: HTMLButtonElement;
-
-		constructor(containerEl: HTMLElement) {
-			this.buttonEl = document.createElement("button");
-			containerEl.appendChild(this.buttonEl);
-		}
-
-		setButtonText(text: string): this {
-			this.buttonEl.textContent = text;
-			return this;
-		}
-
-		setCta(): this {
-			return this;
-		}
-
-		onClick(cb: () => void): this {
-			this.buttonEl.addEventListener("click", cb);
-			return this;
-		}
-	}
-
-	class Setting {
-		settingEl: HTMLElement;
-		controlEl: HTMLElement;
-		private readonly infoEl: HTMLElement;
-		private readonly nameEl: HTMLElement;
-		private readonly descEl: HTMLElement;
-
-		constructor(containerEl: HTMLElement) {
-			const settingEl = document.createElement("div");
-			this.settingEl = settingEl;
-			settingEl.classList.add("setting-item");
-			this.infoEl = document.createElement("div");
-			this.nameEl = document.createElement("div");
-			this.nameEl.classList.add("setting-item-name");
-			this.descEl = document.createElement("div");
-			this.controlEl = document.createElement("div");
-			settingEl.appendChild(this.infoEl);
-			settingEl.appendChild(this.controlEl);
-			containerEl.appendChild(settingEl);
-		}
-
-		setName(name: string | DocumentFragment): this {
-			if (typeof name === "string") {
-				this.nameEl.textContent = name;
-			} else {
-				this.nameEl.replaceChildren(name);
-			}
-			this.infoEl.appendChild(this.nameEl);
-			return this;
-		}
-
-		setDesc(desc: string): this {
-			this.descEl.textContent = desc;
-			this.infoEl.appendChild(this.descEl);
-			return this;
-		}
-
-		addButton(cb: (component: ButtonComponent) => void): this {
-			cb(new ButtonComponent(this.controlEl));
-			return this;
-		}
-	}
-
-	return {
-		ButtonComponent,
-		DropdownComponent,
-		Modal,
-		Notice: class { constructor(_message: string) {} },
-		Setting,
-		TextAreaComponent,
-		TextComponent,
-		debounce: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
-	};
+vi.mock("obsidian", async () => {
+	const { modalObsidianStub } = await import("../../tests/helpers/preflight/modal");
+	return modalObsidianStub();
 });
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
@@ -297,58 +126,6 @@ vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => ({ dateAliases: {} }) },
 }));
 
-function ensureObsidianDomPolyfills(): void {
-	const proto = HTMLElement.prototype as any;
-
-	proto.empty ??= function () {
-		this.replaceChildren();
-		return this;
-	};
-
-	proto.addClass ??= function (...classes: string[]) {
-		this.classList.add(...classes);
-		return this;
-	};
-
-	proto.createEl ??= function (
-		tag: string,
-		options?: { text?: string; cls?: string },
-	) {
-		const el = document.createElement(tag);
-		if (options?.text !== undefined) el.textContent = options.text;
-		if (options?.cls) el.className = options.cls;
-		this.appendChild(el);
-		return el;
-	};
-
-	proto.createSpan ??= function (options?: { text?: string; cls?: string }) {
-		return this.createEl("span", options);
-	};
-
-	proto.appendText ??= function (text: string) {
-		this.appendChild(document.createTextNode(text));
-		return this;
-	};
-
-	proto.createDiv ??= function (options?: { cls?: string; text?: string }) {
-		const div = document.createElement("div");
-		if (options?.cls) div.className = options.cls;
-		if (options?.text !== undefined) div.textContent = options.text;
-		this.appendChild(div);
-		return div;
-	};
-
-	proto.setText ??= function (text: string) {
-		this.textContent = text;
-		return this;
-	};
-
-	proto.toggleClass ??= function (cls: string, on: boolean) {
-		this.classList.toggle(cls, on);
-		return this;
-	};
-}
-
 function discoveryModal(create: FieldRequirement, existing: FieldRequirement) {
 	return new OnePageInputModal({} as App, [
 		{ id: "note", label: "Note", type: "text" }, create,
@@ -390,7 +167,7 @@ describe("OnePageInputModal", () => {
 		expect(modal.contentEl.querySelector("select")).toBe(dropdown);
 		expect(dropdown.value).toBe("a");
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
-		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({ detail: "Free text draft" });
 	});
 
@@ -428,7 +205,7 @@ describe("OnePageInputModal", () => {
 		expect(modal.contentEl.querySelector(".qa-date-input input")).toBe(date);
 		expect(date.value).toBe("not-a-valid-date");
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
-		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({ detail: "No date needed" });
 	});
 
@@ -455,7 +232,7 @@ describe("OnePageInputModal", () => {
 		expect(modal.activeRequirements.some(req => req.id === "detail")).toBe(false);
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
 		expect(modal.activeRequirements.find(req => req.id === "detail")?.defaultValue).toBe("Existing body");
-		Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({ detail: "Existing body" });
 	});
 
@@ -485,7 +262,7 @@ describe("OnePageInputModal", () => {
 		const update = modal.contentEl.querySelector("textarea")!;
 		update.value = "Ship Friday";
 		update.dispatchEvent(new Event("input"));
-		Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({ update: "Ship Friday" });
 		expect(modal.discoverySelections.get("note")).toEqual({ kind: "existing", path: "Atlas.md" });
 	});
@@ -540,8 +317,7 @@ describe("OnePageInputModal", () => {
 		noteSelections[0]({ kind: "existing", path: "Atlas.md" });
 		detail.value = "";
 		detail.dispatchEvent(new Event("input"));
-		Array.from(modal.contentEl.querySelectorAll("button"))
-			.find((button) => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({ detail: "" });
 	});
 
@@ -573,7 +349,7 @@ describe("OnePageInputModal", () => {
 			visibleForNotes: new Map(),
 		});
 		modal.contentEl.querySelector("input")!.value = "Project At";
-		Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!.click();
+		modalButton(modal).click();
 		await expect(modal.waitForClose).resolves.toEqual({});
 		expect(modal.discoverySelections.get("note")).toEqual({ kind: "create", title: "Project At" });
 	});
@@ -591,7 +367,7 @@ describe("OnePageInputModal", () => {
 		modal.contentEl.querySelector("input")!.value = "New project";
 		const submitted = vi.fn();
 		void modal.waitForClose.then(submitted);
-		const submit = Array.from(modal.contentEl.querySelectorAll("button")).find(button => button.textContent === "Submit")!;
+		const submit = modalButton(modal);
 		submit.click();
 		await Promise.resolve();
 		expect(submitted).not.toHaveBeenCalled();
@@ -618,7 +394,7 @@ describe("OnePageInputModal", () => {
 		note.value = "Project At";
 		const submitted = vi.fn();
 		void modal.waitForClose.then(submitted);
-		const submit = Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!;
+		const submit = modalButton(modal);
 		submit.click();
 		await Promise.resolve();
 		expect(submitted).not.toHaveBeenCalled();
@@ -639,7 +415,7 @@ describe("OnePageInputModal", () => {
 			visibleForNotes: new Map(),
 		});
 		const input = modal.contentEl.querySelector("input")!;
-		const submit = Array.from(modal.contentEl.querySelectorAll("button")).find((button) => button.textContent === "Submit")!;
+		const submit = modalButton(modal);
 		input.value = "../outside";
 		submit.click();
 		expect(modal.discoverySelections.size).toBe(0);
@@ -661,30 +437,18 @@ describe("OnePageInputModal", () => {
 		modal.onClose();
 	});
 
-	it("submits the first raw mapped dropdown option when untouched", async () => {
+	it.each([
+		{ name: "submits the first raw mapped dropdown option when untouched", initial: undefined },
+		{ name: "normalizes stale initial dropdown values to the first raw option", initial: "stale" },
+	])("$name", async ({ initial }) => {
 		const id = "#BF616A,#8CC570,#42A5F5";
-		const requirements: FieldRequirement[] = [
-			{
-				id,
-				label: "Color",
-				type: "dropdown",
-				options: ["#BF616A", "#8CC570", "#42A5F5"],
-				displayOptions: ["red", "green", "blue"],
-			},
-		];
-
-		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
-
-		submitButton.click();
-
-		await expect(modal.waitForClose).resolves.toEqual({
-			[id]: "#BF616A",
-		});
+		const modal = new OnePageInputModal({} as App, [{
+			id, label: "Color", type: "dropdown",
+			options: ["#BF616A", "#8CC570", "#42A5F5"],
+			displayOptions: ["red", "green", "blue"],
+		}], initial === undefined ? new Map() : new Map([[id, initial]]));
+		modalButton(modal).click();
+		await expect(modal.waitForClose).resolves.toEqual({ [id]: "#BF616A" });
 	});
 
 	it("shows and submits the first FILE option by default", async () => {
@@ -701,7 +465,7 @@ describe("OnePageInputModal", () => {
 		];
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const contentEl = (modal as any).contentEl as HTMLElement;
+		const contentEl = modal.contentEl;
 		expect(
 			contentEl.querySelector(".qa-onepage-file-picker__chip-label")
 				?.textContent,
@@ -713,9 +477,7 @@ describe("OnePageInputModal", () => {
 			),
 		).toBe("Choose file for Related person");
 
-		const submitButton = Array.from(
-			contentEl.querySelectorAll("button"),
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({
@@ -757,7 +519,7 @@ describe("OnePageInputModal", () => {
 		]);
 		expect(
 				Array.from(
-					(modal as any).contentEl.querySelectorAll(
+					modal.contentEl.querySelectorAll(
 						".qa-onepage-file-picker__chip-label",
 					) as NodeListOf<HTMLElement>,
 				).map((element) => element.textContent),
@@ -783,7 +545,7 @@ describe("OnePageInputModal", () => {
 			label: "Ada",
 			path: "People/Ada.md",
 		});
-		const search = (modal as any).contentEl.querySelector(
+		const search = modal.contentEl.querySelector(
 			".qa-onepage-file-picker__input",
 		) as HTMLInputElement;
 		search.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
@@ -801,52 +563,18 @@ describe("OnePageInputModal", () => {
 		const typed = 'C:\\temp\nlet s = "a\\nb";';
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const textarea = (modal as any).contentEl.querySelector(
+		const textarea = modal.contentEl.querySelector(
 			"textarea",
 		) as HTMLTextAreaElement;
 		textarea.value = typed;
 		textarea.dispatchEvent(new Event("input", { bubbles: true }));
 
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({ body: typed });
 	});
 
-	it("normalizes stale initial dropdown values to the first raw option", async () => {
-		const id = "#BF616A,#8CC570,#42A5F5";
-		const requirements: FieldRequirement[] = [
-			{
-				id,
-				label: "Color",
-				type: "dropdown",
-				options: ["#BF616A", "#8CC570", "#42A5F5"],
-				displayOptions: ["red", "green", "blue"],
-			},
-		];
-
-		const initialValues = new Map<string, unknown>([[id, "stale"]]);
-		const modal = new OnePageInputModal(
-			{} as App,
-			requirements,
-			initialValues,
-		);
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
-
-		submitButton.click();
-
-		await expect(modal.waitForClose).resolves.toEqual({
-			[id]: "#BF616A",
-		});
-	});
 
 	it("renders bounded number fields and submits the normalized value", async () => {
 		const requirements: FieldRequirement[] = [
@@ -860,7 +588,7 @@ describe("OnePageInputModal", () => {
 		];
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const number = (modal as any).contentEl.querySelector(
+		const number = modal.contentEl.querySelector(
 			'input[type="number"]',
 		) as HTMLInputElement;
 		expect(number.min).toBe("1");
@@ -871,11 +599,7 @@ describe("OnePageInputModal", () => {
 		number.value = "-5";
 		number.dispatchEvent(new Event("input", { bubbles: true }));
 
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({ rating: "1" });
@@ -893,10 +617,10 @@ describe("OnePageInputModal", () => {
 		];
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const range = (modal as any).contentEl.querySelector(
+		const range = modal.contentEl.querySelector(
 			'input[type="range"]',
 		) as HTMLInputElement;
-		const number = (modal as any).contentEl.querySelector(
+		const number = modal.contentEl.querySelector(
 			'input[type="number"]',
 		) as HTMLInputElement;
 		expect(range.min).toBe("1");
@@ -912,11 +636,7 @@ describe("OnePageInputModal", () => {
 		range.value = "7";
 		range.dispatchEvent(new Event("input", { bubbles: true }));
 
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({ rating: "7" });
@@ -934,10 +654,10 @@ describe("OnePageInputModal", () => {
 		];
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const range = (modal as any).contentEl.querySelector(
+		const range = modal.contentEl.querySelector(
 			'input[type="range"]',
 		) as HTMLInputElement;
-		const number = (modal as any).contentEl.querySelector(
+		const number = modal.contentEl.querySelector(
 			'input[type="number"]',
 		) as HTMLInputElement;
 
@@ -951,11 +671,7 @@ describe("OnePageInputModal", () => {
 		expect(range.value).toBe("-4");
 		expect(number.value).toBe("-4");
 
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({ score: "-4" });
@@ -973,16 +689,12 @@ describe("OnePageInputModal", () => {
 		];
 
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const number = (modal as any).contentEl.querySelector(
+		const number = modal.contentEl.querySelector(
 			'input[type="number"]',
 		) as HTMLInputElement;
 		expect(number.value).toBe("");
 
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 		submitButton.click();
 
 		await expect(modal.waitForClose).resolves.toEqual({ rating: "" });
@@ -992,76 +704,19 @@ describe("OnePageInputModal", () => {
 	// selections for labeled tokens like {{VALUE:option-a,option-b|label:Pick one}},
 	// resulting in an empty captured value instead of the first option.
 	describe("labeled VALUE dropdown (issue #1180)", () => {
-		it("submits the first option when the labeled dropdown is untouched", async () => {
-			const id = buildValueVariableKey(
-				"option-a,option-b",
-				"Pick one",
-				true,
-			);
-			const requirements: FieldRequirement[] = [
-				{
-					id,
-					label: "Pick one",
-					type: "dropdown",
-					options: ["option-a", "option-b"],
-				},
-			];
-
-			const modal = new OnePageInputModal(
-				{} as App,
-				requirements,
-				new Map(),
-			);
-			const submitButton = Array.from(
-				(modal as any).contentEl.querySelectorAll(
-					"button",
-				) as NodeListOf<HTMLButtonElement>,
-			).find(
-				(button) => button.textContent === "Submit",
-			) as HTMLButtonElement;
-
-			submitButton.click();
-
-			await expect(modal.waitForClose).resolves.toEqual({
-				[id]: "option-a",
-			});
+		it.each([
+			{ name: "submits the first option when the labeled dropdown is untouched", initial: undefined },
+			{ name: "normalizes a stale empty initial value to the first option", initial: "" },
+		])("$name", async ({ initial }) => {
+			const id = buildValueVariableKey("option-a,option-b", "Pick one", true);
+			const modal = new OnePageInputModal({} as App, [{
+				id, label: "Pick one", type: "dropdown", options: ["option-a", "option-b"],
+			}], initial === undefined ? new Map() : new Map([[id, initial]]));
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "option-a" });
 		});
 
-		it("normalizes a stale empty initial value to the first option", async () => {
-			const id = buildValueVariableKey(
-				"option-a,option-b",
-				"Pick one",
-				true,
-			);
-			const requirements: FieldRequirement[] = [
-				{
-					id,
-					label: "Pick one",
-					type: "dropdown",
-					options: ["option-a", "option-b"],
-				},
-			];
 
-			const initialValues = new Map<string, unknown>([[id, ""]]);
-			const modal = new OnePageInputModal(
-				{} as App,
-				requirements,
-				initialValues,
-			);
-			const submitButton = Array.from(
-				(modal as any).contentEl.querySelectorAll(
-					"button",
-				) as NodeListOf<HTMLButtonElement>,
-			).find(
-				(button) => button.textContent === "Submit",
-			) as HTMLButtonElement;
-
-			submitButton.click();
-
-			await expect(modal.waitForClose).resolves.toEqual({
-				[id]: "option-a",
-			});
-		});
 	});
 
 	// Regression: issue #1184 — field-suggest requirements are keyed with the
@@ -1079,20 +734,14 @@ describe("OnePageInputModal", () => {
 			];
 
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const contentEl = (modal as any).contentEl as HTMLElement;
+			const contentEl = modal.contentEl;
 			const fieldInput = contentEl.querySelector(
 				"input",
 			) as HTMLInputElement;
 			fieldInput.value = "Alice";
 			fieldInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-			const submitButton = Array.from(
-				contentEl.querySelectorAll(
-					"button",
-				) as NodeListOf<HTMLButtonElement>,
-			).find(
-				(button) => button.textContent === "Submit",
-			) as HTMLButtonElement;
+			const submitButton = modalButton(modal);
 			submitButton.click();
 
 			await expect(modal.waitForClose).resolves.toEqual({
@@ -1105,13 +754,7 @@ describe("OnePageInputModal", () => {
 
 	describe("optional fields (issue #1259)", () => {
 		const clickSubmit = (modal: OnePageInputModal) => {
-			const submitButton = Array.from(
-				(modal as any).contentEl.querySelectorAll(
-					"button",
-				) as NodeListOf<HTMLButtonElement>,
-			).find(
-				(button) => button.textContent === "Submit",
-			) as HTMLButtonElement;
+			const submitButton = modalButton(modal);
 			submitButton.click();
 		};
 
@@ -1121,7 +764,7 @@ describe("OnePageInputModal", () => {
 				{ id: "title", label: "title", type: "text" },
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const badges = (modal as any).contentEl.querySelectorAll(
+			const badges = modal.contentEl.querySelectorAll(
 				".qa-onepage-optional-badge",
 			);
 			expect(badges).toHaveLength(1);
@@ -1148,7 +791,7 @@ describe("OnePageInputModal", () => {
 				},
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const select = (modal as any).contentEl.querySelector(
+			const select = modal.contentEl.querySelector(
 				"select",
 			) as HTMLSelectElement;
 
@@ -1173,7 +816,7 @@ describe("OnePageInputModal", () => {
 				},
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const select = (modal as any).contentEl.querySelector(
+			const select = modal.contentEl.querySelector(
 				"select",
 			) as HTMLSelectElement;
 			select.value = "";
@@ -1185,19 +828,31 @@ describe("OnePageInputModal", () => {
 			});
 		});
 
-		it("submits '' for an optional date left blank", async () => {
-			const requirements: FieldRequirement[] = [
-				{
-					id: "due",
-					label: "due",
-					type: "date",
-					dateFormat: "YYYY-MM-DD",
-					optional: true,
-				},
-			];
+		it.each<{
+			name: string;
+			optional?: boolean;
+			defaultValue?: string;
+			input?: string;
+			withNote?: boolean;
+			expected: Record<string, string>;
+		}>([
+			{ name: "submits '' for an optional date left blank", optional: true, expected: { due: "" } },
+			{ name: "omits a required blank date so the sequential prompt still fires", withNote: true, expected: { note: "" } },
+			{ name: "omits an optional date whose text failed to parse (typo protection)", optional: true, input: "tomorow", expected: {} },
+			{ name: "does not resurrect the default when an optional date is cleared", optional: true, defaultValue: "tomorrow", input: "", expected: { due: "" } },
+		])("$name", async ({ optional, defaultValue, input, withNote, expected }) => {
+			const requirements: FieldRequirement[] = [{
+				id: "due", label: "due", type: "date", dateFormat: "YYYY-MM-DD", optional, defaultValue,
+			}];
+			if (withNote) requirements.push({ id: "note", label: "note", type: "text" });
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
+			if (input !== undefined) {
+				const dateInput = modal.contentEl.querySelector("input")!;
+				dateInput.value = input;
+				dateInput.dispatchEvent(new Event("input", { bubbles: true }));
+			}
 			clickSubmit(modal);
-			await expect(modal.waitForClose).resolves.toEqual({ due: "" });
+			await expect(modal.waitForClose).resolves.toEqual(expected);
 		});
 
 		it("stacks the date row and keeps the parsed preview next to the input", () => {
@@ -1210,7 +865,7 @@ describe("OnePageInputModal", () => {
 				},
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const contentEl = (modal as any).contentEl as HTMLElement;
+			const contentEl = modal.contentEl;
 			const row = contentEl.querySelector(".qa-onepage-date-setting");
 			expect(row).not.toBeNull();
 
@@ -1228,63 +883,9 @@ describe("OnePageInputModal", () => {
 			expect(pickerIndex).toBeGreaterThan(previewIndex);
 		});
 
-		it("omits a required blank date so the sequential prompt still fires", async () => {
-			const requirements: FieldRequirement[] = [
-				{
-					id: "due",
-					label: "due",
-					type: "date",
-					dateFormat: "YYYY-MM-DD",
-				},
-				{ id: "note", label: "note", type: "text" },
-			];
-			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			clickSubmit(modal);
-			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
-		});
 
-		it("omits an optional date whose text failed to parse (typo protection)", async () => {
-			const requirements: FieldRequirement[] = [
-				{
-					id: "due",
-					label: "due",
-					type: "date",
-					dateFormat: "YYYY-MM-DD",
-					optional: true,
-				},
-			];
-			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const dateInput = (modal as any).contentEl.querySelector(
-				"input",
-			) as HTMLInputElement;
-			dateInput.value = "tomorow";
-			dateInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-			clickSubmit(modal);
-			await expect(modal.waitForClose).resolves.toEqual({});
-		});
 
-		it("does not resurrect the default when an optional date is cleared", async () => {
-			const requirements: FieldRequirement[] = [
-				{
-					id: "due",
-					label: "due",
-					type: "date",
-					dateFormat: "YYYY-MM-DD",
-					defaultValue: "tomorrow",
-					optional: true,
-				},
-			];
-			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const dateInput = (modal as any).contentEl.querySelector(
-				"input",
-			) as HTMLInputElement;
-			dateInput.value = "";
-			dateInput.dispatchEvent(new Event("input", { bubbles: true }));
-
-			clickSubmit(modal);
-			await expect(modal.waitForClose).resolves.toEqual({ due: "" });
-		});
 	});
 
 	describe("Esc settles the modal promise (issue #1259 rider)", () => {
@@ -1302,13 +903,7 @@ describe("OnePageInputModal", () => {
 				{ id: "note", label: "note", type: "text" },
 			];
 			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			const submitButton = Array.from(
-				(modal as any).contentEl.querySelectorAll(
-					"button",
-				) as NodeListOf<HTMLButtonElement>,
-			).find(
-				(button) => button.textContent === "Submit",
-			) as HTMLButtonElement;
+			const submitButton = modalButton(modal);
 			submitButton.click();
 			modal.onClose();
 			await expect(modal.waitForClose).resolves.toEqual({ note: "" });
@@ -1334,7 +929,7 @@ describe("OnePageInputModal section headings", () => {
 			[textField("a"), textField("b")],
 		);
 		expect(
-			(modal as any).contentEl.querySelectorAll("h3.qa-onepage-section"),
+			modal.contentEl.querySelectorAll("h3.qa-onepage-section"),
 		).toHaveLength(0);
 		modal.close();
 	});
@@ -1346,7 +941,7 @@ describe("OnePageInputModal section headings", () => {
 			[textField("a", group), textField("b", group)],
 		);
 		expect(
-			(modal as any).contentEl.querySelectorAll("h3.qa-onepage-section"),
+			modal.contentEl.querySelectorAll("h3.qa-onepage-section"),
 		).toHaveLength(0);
 		modal.close();
 	});
@@ -1360,7 +955,7 @@ describe("OnePageInputModal section headings", () => {
 			textField("c", second),
 		]);
 		const headings = Array.from(
-			(modal as any).contentEl.querySelectorAll(
+			modal.contentEl.querySelectorAll(
 				"h3.qa-onepage-section",
 			) as NodeListOf<HTMLHeadingElement>,
 		);
@@ -1451,11 +1046,7 @@ describe("OnePageInputModal - image paste wiring (issue #1484)", () => {
 			{ id: "body", label: "Body", type: "text" },
 		];
 		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const submitButton = Array.from(
-			(modal as any).contentEl.querySelectorAll(
-				"button",
-			) as NodeListOf<HTMLButtonElement>,
-		).find((button) => button.textContent === "Submit") as HTMLButtonElement;
+		const submitButton = modalButton(modal);
 
 		submitButton.click();
 		// Not settled yet: the submit deferred on the busy handle.
@@ -1490,7 +1081,7 @@ describe("OnePageInputModal preview block (#1590)", () => {
 	const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 	const previewEl = (modal: OnePageInputModal) =>
-		(modal as any).contentEl.querySelector(
+		modal.contentEl.querySelector(
 			".qa-onepage-preview",
 		) as HTMLElement;
 

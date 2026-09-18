@@ -1,8 +1,8 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import type { App } from 'obsidian';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Formatter } from './formatter';
 
-class TemplatePropertyTypesTestFormatter extends Formatter {
+class TemplatePropertyTypesTestFormatter extends FormatterStub {
 	public propertyTypesEnabled = true;
 
 	constructor(app?: App) {
@@ -17,14 +17,6 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 		return '';
 	}
 
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? '';
 	}
@@ -35,10 +27,6 @@ class TemplatePropertyTypesTestFormatter extends Formatter {
 		_context?: { placeholder?: string; variableKey?: string },
 	): string {
 		return '';
-	}
-
-	protected suggestForFile(): string {
-		return "";
 	}
 
 	protected suggestForField(_variableName: string): Promise<string> {
@@ -226,33 +214,17 @@ describe('Formatter template property type inference', () => {
 			expect(vars.get('cast')).toEqual(['[[Ewan McGregor]]', '[[Liam Neeson]]']);
 		});
 
-		it('does NOT collect bare numbers (YAML-safe inline, byte-identical)', async () => {
-			(formatter as any).variables.set('rating', 8.5);
+		it.each([
+			{ name: 'does NOT collect bare numbers (YAML-safe inline, byte-identical)', input: 'rating', input2: 8.5, input3: '---\nrating: {{VALUE:rating}}\n---', expected: '---\nrating: 8.5\n---' },
+			{ name: 'coerces non-string values before applying text-only trim options', input: 'rating', input2: 8.5, input3: '---\nrating: {{VALUE:rating|trim}}\n---', expected: '---\nrating: 8.5\n---' },
+			{ name: 'does NOT collect plain strings (stays raw)', input: 'title', input2: 'Phantom Menace', input3: '---\ntitle: {{VALUE:title}}\n---', expected: '---\ntitle: Phantom Menace\n---' },
+		])("$name", async ({ input, input2, input3, expected }) => {
+			(formatter as any).variables.set(input, input2);
 			const output = await formatter.testFormatWithTemplatePropertyCollection(
-				'---\nrating: {{VALUE:rating}}\n---',
+				input3,
 			);
 			const vars = formatter.getAndClearTemplatePropertyVars();
-			expect(output).toBe('---\nrating: 8.5\n---');
-			expect(vars.size).toBe(0);
-		});
-
-		it('coerces non-string values before applying text-only trim options', async () => {
-			(formatter as any).variables.set('rating', 8.5);
-			const output = await formatter.testFormatWithTemplatePropertyCollection(
-				'---\nrating: {{VALUE:rating|trim}}\n---',
-			);
-			const vars = formatter.getAndClearTemplatePropertyVars();
-			expect(output).toBe('---\nrating: 8.5\n---');
-			expect(vars.size).toBe(0);
-		});
-
-		it('does NOT collect plain strings (stays raw)', async () => {
-			(formatter as any).variables.set('title', 'Phantom Menace');
-			const output = await formatter.testFormatWithTemplatePropertyCollection(
-				'---\ntitle: {{VALUE:title}}\n---',
-			);
-			const vars = formatter.getAndClearTemplatePropertyVars();
-			expect(output).toBe('---\ntitle: Phantom Menace\n---');
+			expect(output).toBe(expected);
 			expect(vars.size).toBe(0);
 		});
 

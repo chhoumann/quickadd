@@ -9,21 +9,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 export const MAX_ERROR_LOG_SIZE = 100;
 
 /**
- * Converts any value to an Error object, preserving the original Error if provided
- * 
- * @param err - The error value to convert
- * @param contextMessage - Optional context message to prepend to error message
- * @returns A proper Error object with stack trace
- * 
- * @example
- * ```ts
- * try {
- *   // Some operation that might throw
- * } catch (err) {
- *   const error = toError(err, "Failed during template processing");
- *   log.logError(error);
- * }
- * ```
+ * Preserve Error identity unless adding context. Context wrapping preserves the
+ * original name and stack without mutating the caller's error.
  */
 export function toError(err: unknown, contextMessage?: string): Error {
   // If it's already an Error, return it as-is when there's no context to add.
@@ -41,11 +28,6 @@ export function toError(err: unknown, contextMessage?: string): Error {
     return wrapped;
   }
   
-  // If it's a string, create a new Error with it
-  if (typeof err === 'string') {
-    return new Error(contextMessage ? `${contextMessage}: ${err}` : err);
-  }
-  
   // For everything else, convert to string and create an Error
   const errorMessage = contextMessage 
     ? `${contextMessage}: ${String(err)}`
@@ -55,25 +37,7 @@ export function toError(err: unknown, contextMessage?: string): Error {
 }
 
 /**
- * Checks if a caught value means "the user backed out" rather than "something broke".
- *
- * Every QuickAdd prompt signals a dismissal by throwing {@link UserCancelError}
- * (see `promptCancelled()`), so this is an `instanceof` check. Because
- * `UserCancelError extends MacroAbortError`, a dismissal that nobody classifies still
- * aborts the run quietly instead of being reported as a failure.
- *
- * @param error - The error to check
- * @returns true if the error indicates user cancellation, false otherwise
- *
- * @example
- * ```ts
- * try {
- *   const result = await promptUser();
- * } catch (error) {
- *   if (isCancellationError(error)) return null; // the user backed out
- *   throw error; // a real failure
- * }
- * ```
+ * Recognize typed dismissals and the released bare-string cancellation sentinels.
  */
 export function isCancellationError(error: unknown): boolean {
 	// QuickAdd's own prompts throw a typed cancellation (#1577). This is the whole
@@ -155,26 +119,8 @@ function alreadyReported(err: unknown, at: number): boolean {
 }
 
 /**
- * Reports an error to the logging system with additional context
- * Converts any error type to a proper Error object and logs it with the appropriate level
- *
- * Reports each failure ONCE: a value already reported (directly, or as the `cause` of one)
- * is dropped for {@link REPORT_WINDOW_MS}, so the innermost layer - the one with the most
- * specific context - is the one the user sees. See {@link reportedErrors}.
- *
- * @param err - The error to report
- * @param contextMessage - Optional context message to add
- * @param level - Error level (defaults to ERROR)
- * @returns true if this call reported, false if the failure had already been reported
- *
- * @example
- * ```ts
- * try {
- *   // Some operation
- * } catch (err) {
- *   reportError(err, "Failed during template processing");
- * }
- * ```
+ * Report a failure once per identity/cause within REPORT_WINDOW_MS. The first
+ * reporting layer supplies the context. Returns false if already reported.
  */
 export function reportError(
   err: unknown,
@@ -207,15 +153,7 @@ export function reportError(
 }
 
 /**
- * Reports a failure, staying silent for a dismissal.
- *
- * The outermost handlers - the command-palette callback, the choice picker - catch
- * whatever a run threw, and a user pressing Escape reaches them exactly like a bug does.
- * Reporting that as `(ERROR) Error executing choice <uuid>: One-page input cancelled by
- * user` for a deliberate Escape is the failure PR #1606's first rule exists to prevent,
- * and it is what those handlers did before this guard.
- *
- * @returns true if it reported; false for a cancellation or an already-reported failure.
+ * Report failures while keeping cancellations silent. Returns whether reported.
  */
 export function reportUnlessCancelled(
   err: unknown,
@@ -227,20 +165,7 @@ export function reportUnlessCancelled(
 }
 
 /**
- * Error boundary - wraps a function and reports any errors it throws
- * 
- * @param fn - Function to execute
- * @param contextMessage - Context message for any errors
- * @param level - Error level for logging
- * @returns The function's return value or undefined if an error occurred
- * 
- * @example
- * ```ts
- * const result = withErrorHandling(
- *   () => JSON.parse(someString),
- *   "Failed to parse JSON"
- * );
- * ```
+ * Return the result, or report a synchronous failure and return undefined.
  */
 export function withErrorHandling<T>(
   fn: () => T,
@@ -256,31 +181,9 @@ export function withErrorHandling<T>(
 }
 
 /**
- * Wraps a UI event handler so a failure is REPORTED instead of vanishing.
- *
- * Svelte re-throws event-handler errors to the window
- * (`internal/client/dom/elements/events.js`), and an `async` handler's rejection
- * is an unhandled rejection - Obsidian surfaces neither. The result is a button
- * that simply does nothing, with no Notice and no message the user would ever
- * think to look for, which reads as "the plugin is broken" and gives them nothing
- * to report (#1585). `<svelte:boundary>` does not help: it catches render and
- * effect errors, not event handlers.
- *
- * Handles both halves of the problem - a synchronous throw and a rejected promise
- * - and stays quiet for the cancellations that are an answer rather than a
- * failure (see {@link isCancellationError}).
- *
- * The wrapper returns `void`: it is for handlers whose result nobody awaits. Keep
- * calling the unwrapped function anywhere the caller needs its value or wants to
- * handle the failure itself.
- *
- * @param contextMessage - Names the action that failed, e.g. "Couldn't delete that choice"
- * @param fn - The handler to wrap
- *
- * @example
- * ```ts
- * const actions = { onDelete: reportingHandler("Couldn't delete that choice", deleteChoice) };
- * ```
+ * Wrap fire-and-forget UI handlers, reporting synchronous throws and promise
+ * rejections while keeping cancellations silent. Call the original function
+ * when its result or rejection must reach the caller.
  */
 export function reportingHandler<A extends unknown[]>(
   contextMessage: string,
@@ -309,20 +212,7 @@ export function reportingHandler<A extends unknown[]>(
 }
 
 /**
- * Async error boundary - wraps an async function and reports any errors it throws
- * 
- * @param fn - Async function to execute
- * @param contextMessage - Context message for any errors
- * @param level - Error level for logging
- * @returns Promise resolving to the function's return value or undefined if an error occurred
- * 
- * @example
- * ```ts
- * const result = await withAsyncErrorHandling(
- *   () => fetch(url).then(r => r.json()),
- *   "Failed to fetch data"
- * );
- * ```
+ * Return the result, or report an asynchronous failure and return undefined.
  */
 export async function withAsyncErrorHandling<T>(
   fn: () => Promise<T>,

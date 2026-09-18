@@ -1,8 +1,7 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it } from "vitest";
-import type { PromptContext } from "./formatter";
-import { Formatter } from "./formatter";
 
-class TextMappingFormatter extends Formatter {
+class TextMappingFormatter extends FormatterStub {
 	private nextSuggestionResult = "";
 	private hasExplicitSuggestionResult = false;
 	private selectedDisplayValue?: string;
@@ -13,10 +12,6 @@ class TextMappingFormatter extends Formatter {
 				displayValues?: string[];
 		  }
 		| undefined;
-
-	constructor() {
-		super();
-	}
 
 	public setSelectedDisplayValue(value: string): void {
 		this.selectedDisplayValue = value;
@@ -43,18 +38,6 @@ class TextMappingFormatter extends Formatter {
 		let output = input;
 		output = await this.replaceVariableInString(output);
 		return output;
-	}
-
-	protected promptForValue(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
 	}
 
 	protected getVariableValue(variableName: string): string {
@@ -91,45 +74,6 @@ class TextMappingFormatter extends Formatter {
 		}
 
 		return suggestedValues[0] ?? "";
-	}
-
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected suggestForField(_variableName: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getMacroValue(_macroName: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected promptForVariable(
-		_variableName: string,
-		_context?: PromptContext,
-	): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getTemplateContent(_templatePath: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getSelectedText(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getClipboardContent(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

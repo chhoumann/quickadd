@@ -1,28 +1,19 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-	captureFailureArtifacts,
-	clearVaultRunLockMarker,
-	createSandboxApi,
-} from "obsidian-e2e";
+import { createSuiteLifecycle } from "./suiteLifecycle";
+import { beforeAll, describe, expect, it } from "vitest";
 import type {
 	ObsidianClient,
 	PluginHandle,
 	SandboxApi,
-	VaultRunLock,
 } from "obsidian-e2e";
 import {
-	acquireQuickAddVaultRunLock,
-	createQuickAddObsidianClient,
 	seedVaultFile,
 } from "./e2eVault";
 
-const PLUGIN_ID = "quickadd";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
 let qa: PluginHandle;
-let lock: VaultRunLock | undefined;
 
 type QuickAddData = {
 	choices: Record<string, unknown>[];
@@ -95,62 +86,10 @@ async function waitForFrontmatter(
 	);
 }
 
-async function runTeardownStep(
-	label: string,
-	step: () => Promise<unknown> | unknown,
-	errors: unknown[],
-) {
-	try {
-		await step();
-	} catch (error) {
-		errors.push(error);
-		console.warn(
-			`template-property-links teardown failed during ${label}`,
-			error,
-		);
-	}
-}
-
-beforeAll(async () => {
-	obsidian = createQuickAddObsidianClient();
-	lock = await acquireQuickAddVaultRunLock(obsidian);
-	await lock.publishMarker(obsidian);
-
-	qa = obsidian.plugin(PLUGIN_ID);
-	sandbox = await createSandboxApi({
-		obsidian,
-		sandboxRoot: "__obsidian_e2e__",
-		testName: "template-property-links",
-	});
-}, 30_000);
-
-afterAll(async () => {
-	const errors: unknown[] = [];
-
-	await runTeardownStep("restoreData", () => qa?.restoreData?.(), errors);
-	await runTeardownStep("reload", () => qa?.reload?.(), errors);
-	await runTeardownStep("sandbox cleanup", () => sandbox?.cleanup?.(), errors);
-	await runTeardownStep(
-		"clear vault run lock marker",
-		() => (obsidian ? clearVaultRunLockMarker(obsidian) : undefined),
-		errors,
-	);
-	await runTeardownStep("release vault lock", () => lock?.release(), errors);
-
-	if (errors.length > 0) {
-		throw errors[0];
-	}
-}, 15_000);
-
-beforeEach((ctx) => {
-	ctx.onTestFailed(async () => {
-		await captureFailureArtifacts(
-			{ id: ctx.task.id, name: ctx.task.name },
-			obsidian,
-			{ plugin: qa, captureOnFailure: true },
-		);
-	});
+createSuiteLifecycle("template-property-links", (context) => {
+	({ obsidian, sandbox, qa } = context);
 });
+
 
 describe("issue 1140: list properties with links", () => {
 	beforeAll(async () => {

@@ -1,5 +1,6 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Formatter, type PromptContext } from "./formatter";
+import { type PromptContext } from "./formatter";
 import { log } from "../logger/logManager";
 
 /**
@@ -8,7 +9,7 @@ import { log } from "../logger/logManager";
  * UI/IO hooks are stubbed; prompt/suggest calls are logged so we can assert that
  * a named suggester is shown exactly once and reused without a free-text prompt.
  */
-class TestFormatter extends Formatter {
+class TestFormatter extends FormatterStub {
 	public calls: string[] = [];
 	public suggestReturns = new Map<string, string>();
 	public promptReturns = new Map<string, string>();
@@ -27,13 +28,6 @@ class TestFormatter extends Formatter {
 
 	public seed(key: string, value: unknown): void {
 		this.variables.set(key, value);
-	}
-
-	protected async format(input: string): Promise<string> {
-		return input;
-	}
-	protected async promptForValue(): Promise<string> {
-		return "";
 	}
 	protected async promptForVariable(
 		variableName?: string,
@@ -59,39 +53,8 @@ class TestFormatter extends Formatter {
 		);
 		return this.suggestReturns.get(key) ?? suggestedValues[0];
 	}
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected async suggestForField(): Promise<string> {
-		return "";
-	}
-	protected async getMacroValue(): Promise<string> {
-		return "";
-	}
-	protected async getTemplateContent(): Promise<string> {
-		return "";
-	}
-	protected async getSelectedText(): Promise<string> {
-		return "";
-	}
-	protected async getClipboardContent(): Promise<string> {
-		return "";
-	}
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
 	protected getVariableValue(variableName: string): string {
 		return String(this.variables.get(variableName) ?? "");
-	}
-	protected async promptForMathValue(): Promise<string> {
-		return "";
-	}
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

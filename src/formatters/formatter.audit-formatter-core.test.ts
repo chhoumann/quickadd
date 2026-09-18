@@ -1,5 +1,6 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Formatter, type PromptContext } from "./formatter";
+import { type PromptContext } from "./formatter";
 import { log } from "../logger/logManager";
 
 /**
@@ -7,7 +8,7 @@ import { log } from "../logger/logManager";
  * src/formatters/formatter.ts. Only the abstract UI/IO hooks are stubbed so the
  * REAL replacer methods run.
  */
-class TestFormatter extends Formatter {
+class TestFormatter extends FormatterStub {
 	public selectedText = "";
 	public vdatePrompts: string[] = [];
 	private vdateResponse = "";
@@ -53,13 +54,6 @@ class TestFormatter extends Formatter {
 		//@ts-ignore protected
 		this.value = value;
 	}
-
-	protected async format(input: string): Promise<string> {
-		return input;
-	}
-	protected async promptForValue(): Promise<string> {
-		return "";
-	}
 	protected async promptForVariable(
 		variableName: string,
 		context?: PromptContext,
@@ -75,38 +69,11 @@ class TestFormatter extends Formatter {
 	): Promise<string> {
 		return suggestedValues[0] ?? "";
 	}
-	protected suggestForFile(): string {
-		return "";
-	}
-	protected async suggestForField(): Promise<string> {
-		return "";
-	}
-	protected async getMacroValue(): Promise<string> {
-		return "";
-	}
-	protected async getTemplateContent(): Promise<string> {
-		return "";
-	}
 	protected async getSelectedText(): Promise<string> {
 		return this.selectedText;
 	}
-	protected async getClipboardContent(): Promise<string> {
-		return "";
-	}
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
 	protected getVariableValue(variableName: string): string {
 		return String(this.variables.get(variableName) ?? "");
-	}
-	protected async promptForMathValue(): Promise<string> {
-		return "";
-	}
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

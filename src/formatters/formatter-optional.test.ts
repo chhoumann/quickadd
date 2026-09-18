@@ -1,5 +1,6 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Formatter, type PromptContext } from "./formatter";
+import { type PromptContext } from "./formatter";
 
 /**
  * Issue #1259 — optional / skippable {{VALUE}} / {{VDATE}} prompts.
@@ -26,7 +27,7 @@ function installMomentStub(): void {
 
 const PARSEABLE_DATES = new Set(["tomorrow", "2026-06-14"]);
 
-class OptionalTestFormatter extends Formatter {
+class OptionalTestFormatter extends FormatterStub {
 	public promptCalls: Array<{ name: string; context?: PromptContext }> = [];
 	public suggestCalls: Array<{
 		values: string[];
@@ -71,10 +72,6 @@ class OptionalTestFormatter extends Formatter {
 		return output;
 	}
 
-	protected promptForValue(): string {
-		return "";
-	}
-
 	protected async promptForVariable(
 		name: string,
 		context?: PromptContext,
@@ -94,38 +91,6 @@ class OptionalTestFormatter extends Formatter {
 
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
-	}
-
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected async suggestForField(): Promise<string> {
-		return "";
-	}
-	protected async promptForMathValue(): Promise<string> {
-		return "";
-	}
-	protected async getMacroValue(): Promise<string> {
-		return "";
-	}
-	protected async getTemplateContent(): Promise<string> {
-		return "";
-	}
-	protected async getSelectedText(): Promise<string> {
-		return "";
-	}
-	protected async getClipboardContent(): Promise<string> {
-		return "";
-	}
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 }
 

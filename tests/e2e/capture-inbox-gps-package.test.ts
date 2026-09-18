@@ -22,7 +22,8 @@ import {
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-pkg-capture-inbox-gps";
 const CHOICE_NAME = "Capture to Inbox with GPS";
-const PACKAGE_VAULT_PATH = "packages/capture-inbox-gps.quickadd.json";
+const PACKAGE_RELATIVE_PATH = "packages/capture-inbox-gps.quickadd.json";
+const INBOX_RELATIVE_PATH = "gps-inbox.md";
 const WAIT_OPTS = { timeoutMs: 15_000, intervalMs: 200 };
 const repoRoot = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -38,6 +39,7 @@ let sandbox: SandboxApi;
 let qa: PluginHandle;
 let lock: VaultRunLock | undefined;
 let inboxPath: string;
+let packagePath: string;
 
 type QuickAddData = {
 	choices: Array<{
@@ -133,9 +135,9 @@ describe("Capture to Inbox with GPS package", () => {
 			sandboxRoot: "__obsidian_e2e__",
 			testName: "capture-inbox-gps-package",
 		});
-		inboxPath = sandbox.path("gps-inbox.md");
+		inboxPath = sandbox.path(INBOX_RELATIVE_PATH);
 
-		await seedVaultFile(obsidian, sandbox, PACKAGE_VAULT_PATH, packageJson);
+		packagePath = await seedVaultFile(obsidian, sandbox, PACKAGE_RELATIVE_PATH, packageJson);
 
 		const imported = await obsidian.dev.evalJsonAsync<{
 			ok: boolean;
@@ -143,7 +145,7 @@ describe("Capture to Inbox with GPS package", () => {
 			error?: string;
 		}>(`(async () => {
 			try {
-				const raw = await app.vault.adapter.read(${JSON.stringify(PACKAGE_VAULT_PATH)});
+				const raw = await app.vault.adapter.read(${JSON.stringify(packagePath)});
 				const pkg = JSON.parse(raw);
 				const decode = (b64) => new TextDecoder().decode(
 					Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
@@ -190,7 +192,8 @@ describe("Capture to Inbox with GPS package", () => {
 		await qa.reload({ waitUntilReady: true });
 	}, 30_000);
 
-	beforeEach((ctx) => {
+	beforeEach(async (ctx) => {
+		await seedVaultFile(obsidian, sandbox, INBOX_RELATIVE_PATH, "");
 		ctx.onTestFailed(async () => {
 			await captureFailureArtifacts(
 				{ id: ctx.task.id, name: ctx.task.name },
@@ -219,7 +222,7 @@ describe("Capture to Inbox with GPS package", () => {
 	it("previews the packaged script as executable", async () => {
 		const preview = await obsidian.execJson<PackagePreviewResponse>(
 			"quickadd:package-preview",
-			{ path: PACKAGE_VAULT_PATH, decode: "true" },
+			{ path: packagePath, decode: "true" },
 		);
 
 		expect(preview.ok).toBe(true);
@@ -236,7 +239,7 @@ describe("Capture to Inbox with GPS package", () => {
 		expect(outcome.ok).toBe(true);
 
 		const content = await sandbox.waitForContent(
-			inboxPath,
+			INBOX_RELATIVE_PATH,
 			(text) => text.includes("Trail marker") && text.includes("55.676098"),
 			WAIT_OPTS,
 		);
@@ -251,7 +254,7 @@ describe("Capture to Inbox with GPS package", () => {
 		expect(outcome.ok).toBe(true);
 
 		const content = await sandbox.waitForContent(
-			inboxPath,
+			INBOX_RELATIVE_PATH,
 			(text) => text.includes("No fix today"),
 			WAIT_OPTS,
 		);

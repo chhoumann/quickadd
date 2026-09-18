@@ -1,5 +1,6 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, DropdownComponent, Notice } from "obsidian";
+import { testApp } from "../../../tests/helpers/settings/modalApp";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { DropdownComponent, Notice } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
@@ -9,15 +10,6 @@ type NoticeTestClass = typeof Notice & {
 };
 const noticeClass = Notice as unknown as NoticeTestClass;
 
-function testApp(): App {
-	const app = new App() as App & {
-		dom: { appContainerEl: HTMLElement };
-		keymap: { pushScope: () => void; popScope: () => void };
-	};
-	app.dom = { appContainerEl: document.body };
-	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
-	return app;
-}
 
 function getButton(
 	modal: ConditionalCommandSettingsModal,

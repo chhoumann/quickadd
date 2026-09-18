@@ -1,12 +1,8 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { beforeEach, describe, expect, it } from "vitest";
-import { Formatter } from "./formatter";
 
-class CaseTestFormatter extends Formatter {
+class CaseTestFormatter extends FormatterStub {
 	private valueResponse = "";
-
-	constructor() {
-		super();
-	}
 
 	public setValueResponse(value: string): void {
 		this.valueResponse = value;
@@ -27,75 +23,9 @@ class CaseTestFormatter extends Formatter {
 		return this.valueResponse;
 	}
 
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
 	protected getVariableValue(variableName: string): string {
 		const value = this.variables.get(variableName);
 		return typeof value === "string" ? value : "";
-	}
-
-	protected suggestForValue(
-		_suggestedValues: string[],
-		_allowCustomInput?: boolean,
-		_context?: { placeholder?: string; variableKey?: string },
-	): string {
-		return "";
-	}
-
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected suggestForField(_variableName: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getMacroValue(
-		_macroName: string,
-		_context?: { label?: string },
-	): string {
-		return "";
-	}
-
-	protected promptForVariable(
-		_variableName: string,
-		_context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
-	): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getTemplateContent(_templatePath: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getSelectedText(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getClipboardContent(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 
 	public async testFormat(input: string): Promise<string> {

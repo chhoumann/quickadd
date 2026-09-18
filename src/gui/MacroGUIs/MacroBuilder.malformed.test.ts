@@ -1,21 +1,12 @@
+import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-import { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MacroBuilder } from "./MacroBuilder";
 
-function testApp(): App {
-	const app = new App() as App & {
-		dom: { appContainerEl: HTMLElement };
-		keymap: { pushScope: () => void; popScope: () => void };
-	};
-	app.dom = { appContainerEl: document.body };
-	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
-	return app;
-}
 
 /** The REAL CommandSequenceEditor, unlike MacroBuilder.test.ts which mocks it. */
 function openBuilder(macro: unknown) {

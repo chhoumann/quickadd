@@ -1,3 +1,8 @@
+import { render } from "@testing-library/svelte";
+import { App } from "obsidian";
+import type QuickAdd from "../../main";
+import ChoiceView from "./ChoiceView.svelte";
+import { renderChoiceView } from "../../../tests/helpers/settings/choiceView";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
@@ -5,10 +10,6 @@ vi.mock("../choiceRename", () => ({
 	promptRenameChoice: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { App } from "obsidian";
-import { render } from "@testing-library/svelte";
-import ChoiceView from "./ChoiceView.svelte";
-import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
 import { settingsStore } from "../../settingsStore";
@@ -28,18 +29,6 @@ import {
  * so QuickAdd's settings came up as a bare heading with nothing under it.
  */
 
-const renderChoiceView = (
-	choices: IChoice[],
-	saveChoices: (next: Plain<IChoice[]>) => void = vi.fn(),
-) =>
-	render(ChoiceView, {
-		props: {
-			app: new App() as never,
-			plugin: {} as unknown as QuickAdd,
-			choices,
-			saveChoices,
-		},
-	});
 
 describe("ChoiceView over a malformed tree (#1566)", () => {
 	it("renders every healthy row around the malformed folders", () => {

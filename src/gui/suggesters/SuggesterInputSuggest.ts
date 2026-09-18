@@ -1,11 +1,7 @@
+import { dispatchCompletion } from "./utils";
 import type { App } from "obsidian";
 import { TextInputSuggest } from "./suggest";
 import { normalizeDisplayItem, normalizeQuery } from "./utils";
-
-type CompletionInputEvent = Event & {
-	fromCompletion?: boolean;
-	keepOpen?: boolean;
-};
 
 export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private options: string[];
@@ -89,9 +85,7 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 
 	private selectSingleItem(item: string): void {
 		this.inputEl.value = item;
-		const event = new Event("input", { bubbles: true });
-		(event as CompletionInputEvent).fromCompletion = true;
-		this.inputEl.dispatchEvent(event);
+		dispatchCompletion(this.inputEl);
 		this.close();
 	}
 
@@ -117,21 +111,8 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 			this.inputEl.value.length,
 		);
 
-		// Trigger input event
-		const event = new Event("input", { bubbles: true });
-		const completionEvent = event as CompletionInputEvent;
-		completionEvent.fromCompletion = true;
-
-		// Only keep open if there are more items to select
-		if (hasMoreItems) {
-			completionEvent.keepOpen = true;
-			this.inputEl.dispatchEvent(event);
-			// Force re-focus to trigger suggestions
-			this.inputEl.focus();
-		} else {
-			// All items selected, close the dropdown
-			this.inputEl.dispatchEvent(event);
-			this.close();
-		}
+		dispatchCompletion(this.inputEl, hasMoreItems);
+		if (hasMoreItems) this.inputEl.focus();
+		else this.close();
 	}
 }

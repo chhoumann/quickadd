@@ -1,23 +1,7 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createDatePicker } from "./datePicker";
 
-// createDatePicker renders into a real (jsdom) element and uses Obsidian's
-// HTMLElement augmentations. createDiv/createEl/addClass/empty are polyfilled in
-// the shared vitest setup; setAttr is not, so add a faithful local polyfill.
-beforeAll(() => {
-	const proto = HTMLElement.prototype as unknown as {
-		setAttr?: (name: string, value: string) => void;
-	};
-	if (typeof proto.setAttr !== "function") {
-		proto.setAttr = function setAttr(
-			this: Element,
-			name: string,
-			value: string,
-		) {
-			this.setAttribute(name, value);
-		};
-	}
-});
+import "../../../tests/helpers/prompts/dom";
 
 function findTimeInput(container: HTMLElement): HTMLInputElement {
 	const input = container.querySelector<HTMLInputElement>(

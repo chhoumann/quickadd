@@ -32,10 +32,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian", () => {
-	class MarkdownView {}
-	return { MarkdownView };
-});
+vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mocks")).obsidianMock());
 
 vi.mock("../gui/InputPrompt", () => ({
 	default: class {

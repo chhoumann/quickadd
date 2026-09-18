@@ -6,61 +6,29 @@ vi.mock("obsidian", () => ({
 	normalizePath: (path: string) => path.replace(/\\/g, "/").replace(/\/+/g, "/"),
 }));
 
-vi.mock("../utilityObsidian", () => ({
-	templaterParseTemplate: vi.fn().mockResolvedValue(null),
-}));
+vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
-vi.mock("../gui/InputPrompt", () => ({
-	__esModule: true,
-	default: class {
-		factory() {
-			return {
-				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
-			};
-		}
-	},
-}));
+vi.mock("../gui/InputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).InputPromptMock());
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	__esModule: true,
 	default: { PromptWithContext: vi.fn().mockResolvedValue("") },
 }));
 
-vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
-	__esModule: true,
-	default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("src/gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
 
 vi.mock("src/gui/MultiSuggester/multiSuggester", () => ({
 	__esModule: true,
 	default: { Suggest: vi.fn().mockResolvedValue([]) },
 }));
 
-vi.mock("src/gui/VDateInputPrompt/VDateInputPrompt", () => ({
-	__esModule: true,
-	default: { Prompt: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("src/gui/VDateInputPrompt/VDateInputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).VDateInputPromptMock());
 
-vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
-	__esModule: true,
-	default: { Suggest: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("../gui/GenericSuggester/genericSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
 
-vi.mock("../gui/MathModal", () => ({
-	__esModule: true,
-	MathModal: { Prompt: vi.fn().mockResolvedValue("") },
-}));
+vi.mock("../gui/MathModal", async () => (await import("../../tests/helpers/formatters/mocks")).MathModalMock());
 
-vi.mock("../engine/SingleInlineScriptEngine", () => ({
-	__esModule: true,
-	SingleInlineScriptEngine: class {
-		public params = { variables: {} as Record<string, unknown> };
-		async runAndGetOutput() {
-			return "";
-		}
-	},
-}));
+vi.mock("../engine/SingleInlineScriptEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleInlineScriptEngineMock());
 
 vi.mock("../engine/SingleMacroEngine", () => ({
 	__esModule: true,
@@ -89,18 +57,9 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
+vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
-vi.mock("../logger/logManager", () => ({
-	log: {
-		logError: vi.fn(),
-		logWarning: vi.fn(),
-		logMessage: vi.fn(),
-	},
-}));
+vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { settingsStore } from "../settingsStore";

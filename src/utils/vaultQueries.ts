@@ -39,27 +39,10 @@ export function getMarkdownFilesInFolder(app: App, folderPath: string): TFile[] 
 }
 
 function getFrontmatterTags(fileCache: CachedMetadata): string[] {
-	const frontmatter = fileCache.frontmatter;
-	if (!frontmatter) return [];
-
-	// You can have both a 'tag' and 'tags' key in frontmatter.
-	const frontMatterValues = Object.entries(frontmatter);
-	if (!frontMatterValues.length) return [];
-
-	const tagPairs = frontMatterValues.filter(([key, value]) => {
-		const lowercaseKey = key.toLowerCase();
-
-		// In Obsidian, these are synonymous.
-		return lowercaseKey === "tags" || lowercaseKey === "tag";
-	});
-
-	if (!tagPairs) return [];
-
-	const tags = tagPairs
+	return Object.entries(fileCache.frontmatter ?? {})
+		.filter(([key]) => ["tag", "tags"].includes(key.toLowerCase()))
 		.flatMap(([, value]) => normalizeFrontmatterTagValues(value))
-		.filter((v) => !!v);
-
-	return tags;
+		.filter(Boolean);
 }
 
 function getFileTags(app: App, file: TFile): string[] {

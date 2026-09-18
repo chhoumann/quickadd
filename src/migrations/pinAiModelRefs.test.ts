@@ -22,6 +22,10 @@ function provider(overrides: Partial<AIProvider>): AIProvider {
 	};
 }
 
+function openAIProvider(): AIProvider {
+	return provider({ name: "OpenAI", models: [{ name: "gpt-4o", maxTokens: 1 }] });
+}
+
 function aiCommand(model: string): IAIAssistantCommand {
 	return {
 		id: `cmd-${model}`,
@@ -52,20 +56,24 @@ function storedCommands(): IAIAssistantCommand[] {
 	return choice.macro.commands;
 }
 
+function setAI(ai: Partial<QuickAdd["settings"]["ai"]>, choices?: IChoice[]) {
+	settingsStore.setState({
+		...(choices ? { choices } : {}),
+		ai: { ...settingsStore.getState().ai, ...ai },
+	});
+}
+
 beforeEach(() => {
 	settingsStore.replaceState(deepClone(DEFAULT_SETTINGS));
 });
 
 describe("pinAiModelRefs migration", () => {
 	it("assigns stable ids to providers that lack one", async () => {
-		settingsStore.setState({
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({ name: "OpenAI" }),
-					provider({ name: "My Proxy" }),
-				],
-			},
+		setAI({
+			providers: [
+				provider({ name: "OpenAI" }),
+				provider({ name: "My Proxy" }),
+			],
 		});
 
 		await pinAiModelRefs.migrate(mockPlugin);
@@ -76,24 +84,20 @@ describe("pinAiModelRefs migration", () => {
 	});
 
 	it("pins each command to the provider first-match resolves to today", async () => {
-		settingsStore.setState({
-			choices: [macroChoiceWith([aiCommand("gpt-4o")])],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					// The proxy comes FIRST: pre-#1495 resolution routed gpt-4o to
-					// it, so the pin must record the proxy — not the official one.
-					provider({
-						name: "Proxy",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 2 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [
+				// The proxy comes FIRST: pre-#1495 resolution routed gpt-4o to
+				// it, so the pin must record the proxy — not the official one.
+				provider({
+					name: "Proxy",
+					models: [{ name: "gpt-4o", maxTokens: 1 }],
+				}),
+				provider({
+					name: "OpenAI",
+					models: [{ name: "gpt-4o", maxTokens: 2 }],
+				}),
+			],
+		}, [macroChoiceWith([aiCommand("gpt-4o")])]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -106,20 +110,11 @@ describe("pinAiModelRefs migration", () => {
 	});
 
 	it("leaves 'Ask me' and unresolvable models unpinned", async () => {
-		settingsStore.setState({
-			choices: [
-				macroChoiceWith([aiCommand("Ask me"), aiCommand("deleted-model")]),
-			],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [openAIProvider()],
+		}, [
+			macroChoiceWith([aiCommand("Ask me"), aiCommand("deleted-model")]),
+		]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -129,22 +124,16 @@ describe("pinAiModelRefs migration", () => {
 	});
 
 	it("pins the default model and preserves an existing ref on re-run", async () => {
-		settingsStore.setState({
-			ai: {
-				...settingsStore.getState().ai,
-				defaultModel: "gpt-4o",
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-					provider({
-						id: "proxy",
-						name: "Proxy",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
+		setAI({
+			defaultModel: "gpt-4o",
+			providers: [
+				openAIProvider(),
+				provider({
+					id: "proxy",
+					name: "Proxy",
+					models: [{ name: "gpt-4o", maxTokens: 1 }],
+				}),
+			],
 		});
 
 		await pinAiModelRefs.migrate(mockPlugin);
@@ -154,11 +143,8 @@ describe("pinAiModelRefs migration", () => {
 		});
 
 		// A second run (e.g. after a partial-failure retry) must not re-pin.
-		settingsStore.setState({
-			ai: {
-				...settingsStore.getState().ai,
-				defaultModelRef: { providerId: "proxy", name: "gpt-4o" },
-			},
+		setAI({
+			defaultModelRef: { providerId: "proxy", name: "gpt-4o" }
 		});
 		await pinAiModelRefs.migrate(mockPlugin);
 		expect(settingsStore.getState().ai.defaultModelRef).toEqual({
@@ -173,18 +159,9 @@ describe("pinAiModelRefs migration", () => {
 		// ref survived in data.json.
 		command.modelRef = { providerId: "proxy", name: "o3" };
 
-		settingsStore.setState({
-			choices: [macroChoiceWith([command])],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [openAIProvider()],
+		}, [macroChoiceWith([command])]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -199,18 +176,9 @@ describe("pinAiModelRefs migration", () => {
 		// Name matches, but "their-proxy" is the EXPORTING vault's provider id.
 		command.modelRef = { providerId: "their-proxy", name: "gpt-4o" };
 
-		settingsStore.setState({
-			choices: [macroChoiceWith([command])],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [openAIProvider()],
+		}, [macroChoiceWith([command])]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -224,20 +192,16 @@ describe("pinAiModelRefs migration", () => {
 		const command = aiCommand("gpt-4o");
 		command.modelRef = { providerId: "openai", name: "gpt-4o" };
 
-		settingsStore.setState({
-			choices: [macroChoiceWith([command])],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({ id: "openai", name: "OpenAI", models: [] }),
-					provider({
-						id: "proxy",
-						name: "Proxy",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [
+				provider({ id: "openai", name: "OpenAI", models: [] }),
+				provider({
+					id: "proxy",
+					name: "Proxy",
+					models: [{ name: "gpt-4o", maxTokens: 1 }],
+				}),
+			],
+		}, [macroChoiceWith([command])]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -258,18 +222,9 @@ describe("pinAiModelRefs migration", () => {
 			type: "InfiniteAIAssistant",
 		} as unknown as IAIAssistantCommand;
 
-		settingsStore.setState({
-			choices: [macroChoiceWith([legacy])],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [openAIProvider()],
+		}, [macroChoiceWith([legacy])]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 
@@ -287,18 +242,9 @@ describe("pinAiModelRefs migration", () => {
 			choices: [macroChoiceWith([aiCommand("gpt-4o")])],
 		} as unknown as IChoice;
 
-		settingsStore.setState({
-			choices: [nested],
-			ai: {
-				...settingsStore.getState().ai,
-				providers: [
-					provider({
-						name: "OpenAI",
-						models: [{ name: "gpt-4o", maxTokens: 1 }],
-					}),
-				],
-			},
-		});
+		setAI({
+			providers: [openAIProvider()],
+		}, [nested]);
 
 		await pinAiModelRefs.migrate(mockPlugin);
 

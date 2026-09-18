@@ -1,3 +1,5 @@
+import { captureScopeFiles } from "src/engine/helpers/captureCandidates";
+import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
@@ -19,10 +21,6 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import {
-	getMarkdownFilesInFolder,
-	getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithTag,
-	getMarkdownFilesWithProperty,
 	getTemplateFile,
 	getUserScript,
 	isFolder,
@@ -46,10 +44,8 @@ import { resolveObsidianPropertyType } from "src/utils/obsidianPropertyTypes";
 import {
 	RequirementCollector,
 	type FieldRequirement,
-	type FieldType,
 } from "./RequirementCollector";
 import { isPathScope, type PromptScopeKind } from "src/formatters/promptScope";
-import type { NumericInputConfig, SliderConfig } from "src/utils/valueSyntax";
 import {
 	captureTargetKeyFor,
 	isCaptureTargetKey,
@@ -77,126 +73,6 @@ interface CollectChoiceRequirementsOptions {
 	preloadedUserScripts?: Map<string, unknown>;
 }
 
-const VALID_FIELD_TYPES: FieldType[] = [
-	"text",
-	"number",
-	"textarea",
-	"dropdown",
-	"slider",
-	"date",
-	"field-suggest",
-	"file-picker",
-	"suggester",
-];
-
-function isFieldType(value: unknown): value is FieldType {
-	return (
-		typeof value === "string" &&
-		VALID_FIELD_TYPES.includes(value as FieldType)
-	);
-}
-
-function toFieldRequirement(input: unknown): FieldRequirement | null {
-	if (!input || typeof input !== "object") return null;
-
-	const value = input as Record<string, unknown>;
-	const id = value.id;
-	const type = value.type;
-	if (typeof id !== "string" || !isFieldType(type)) return null;
-	const numericConfig = parseNumericConfig(value.numericConfig);
-	const sliderConfig = parseSliderConfig(value.sliderConfig);
-	const fieldType = type === "slider" && !sliderConfig ? "number" : type;
-
-	return {
-		id,
-		label: typeof value.label === "string" ? value.label : id,
-		type: fieldType,
-		placeholder:
-			typeof value.placeholder === "string" ? value.placeholder : undefined,
-		defaultValue:
-			typeof value.defaultValue === "string" ? value.defaultValue : undefined,
-		numericConfig: sliderConfig ?? numericConfig,
-		sliderConfig,
-		options: Array.isArray(value.options)
-			? value.options.filter((entry): entry is string => typeof entry === "string")
-			: undefined,
-		dateFormat:
-			typeof value.dateFormat === "string" ? value.dateFormat : undefined,
-		description:
-			typeof value.description === "string" ? value.description : undefined,
-		optional: typeof value.optional === "boolean" ? value.optional : undefined,
-		source: "script",
-	};
-}
-
-function parseNumericConfig(value: unknown): NumericInputConfig | undefined {
-	if (!value || typeof value !== "object") return undefined;
-	const raw = value as Record<string, unknown>;
-	const min = typeof raw.min === "number" && Number.isFinite(raw.min)
-		? raw.min
-		: undefined;
-	const max = typeof raw.max === "number" && Number.isFinite(raw.max)
-		? raw.max
-		: undefined;
-	const step = typeof raw.step === "number" && Number.isFinite(raw.step) && raw.step > 0
-		? raw.step
-		: undefined;
-	if (min !== undefined && max !== undefined && max < min) {
-		return step === undefined ? undefined : { step };
-	}
-	const config: NumericInputConfig = {};
-	if (min !== undefined) config.min = min;
-	if (max !== undefined) config.max = max;
-	if (step !== undefined) config.step = step;
-	return Object.keys(config).length > 0 ? config : undefined;
-}
-
-function parseSliderConfig(value: unknown): SliderConfig | undefined {
-	if (!value || typeof value !== "object") return undefined;
-	const raw = value as Record<string, unknown>;
-	const min = typeof raw.min === "number" ? raw.min : undefined;
-	const max = typeof raw.max === "number" ? raw.max : undefined;
-	const step = raw.step === undefined
-		? 1
-		: typeof raw.step === "number"
-			? raw.step
-			: undefined;
-	if (
-		min === undefined ||
-		max === undefined ||
-		step === undefined ||
-		!Number.isFinite(min) ||
-		!Number.isFinite(max) ||
-		!Number.isFinite(step) ||
-		max <= min ||
-		step <= 0
-	) {
-		return undefined;
-	}
-	return { min, max, step };
-}
-
-function getQuickAddScriptInputs(userScript: unknown): unknown[] {
-	const readInputs = (value: unknown): unknown[] => {
-		if (
-			!value ||
-			(typeof value !== "object" && typeof value !== "function")
-		) {
-			return [];
-		}
-		const quickadd = (value as { quickadd?: unknown }).quickadd;
-		if (!quickadd || typeof quickadd !== "object") return [];
-		const inputs = (quickadd as { inputs?: unknown }).inputs;
-		return Array.isArray(inputs) ? inputs : [];
-	};
-
-	if (typeof userScript === "function") {
-		return readInputs(userScript as { quickadd?: unknown });
-	}
-
-	return readInputs(userScript);
-}
-
 async function readTemplate(app: App, path: string): Promise<string> {
 	const file = getTemplateFile(app, path);
 	return file ? await app.vault.cachedRead(file) : "";
@@ -216,9 +92,9 @@ async function scanContentWithTemplateIncludes(
 	app: App,
 	collector: RequirementCollector,
 	content: string,
+	scope: PromptScopeKind = "generic",
 	templateStack = new Set<string>(),
 	depth = 0,
-	scope: PromptScopeKind = "generic",
 ): Promise<void> {
 	const pathContext = isPathScope(scope);
 	// templatesToScan is a queue for this content scan. Clear it before and
@@ -255,11 +131,9 @@ async function scanContentWithTemplateIncludes(
 				app,
 				collector,
 				await readTemplate(app, ref),
+				scope,
 				templateStack,
 				depth + 1,
-				// A template included FROM a path string is spliced into that
-				// path at runtime, so its tokens keep that scope too.
-				scope,
 			);
 		} finally {
 			templateStack.delete(ref);
@@ -297,9 +171,8 @@ async function scanTemplateSource(
 		app,
 		collector,
 		await readTemplate(app, templatePath),
-		new Set([templatePath]),
-		0,
 		"noteBody",
+		new Set([templatePath]),
 	);
 }
 
@@ -323,8 +196,6 @@ async function collectForTemplateChoice(
 			app,
 			collector,
 			choice.fileNameFormat.format,
-			undefined,
-			0,
 			"noteTitle",
 		);
 	}
@@ -335,8 +206,6 @@ async function collectForTemplateChoice(
 				app,
 				collector,
 				folder,
-				undefined,
-				0,
 				"folder",
 			);
 		}
@@ -370,14 +239,14 @@ async function collectForCaptureChoice(
 		app,
 		collector,
 		choice.captureTo,
-		undefined,
-		0,
-		// Scanned BEFORE content so a dual-use {{VALUE}} is marked as path context.
 		"captureTarget",
 	);
 	if (choice.propertyCapture?.property.kind === "named") {
 		await scanContentWithTemplateIncludes(
-			app, collector, choice.propertyCapture.property.format, undefined, 0, "propertyName",
+			app,
+			collector,
+			choice.propertyCapture.property.format,
+			"propertyName",
 		);
 	}
 
@@ -391,8 +260,6 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
-			undefined,
-			0,
 			choice.propertyCapture ? "propertyValue" : "captureText",
 		);
 	}
@@ -408,9 +275,6 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.insertAfter.after,
-			undefined,
-			0,
-			// An embed link can never match a line, so this is path context.
 			"lineTarget",
 		);
 	}
@@ -420,8 +284,6 @@ async function collectForCaptureChoice(
 			app,
 			collector,
 			choice.insertBefore.before,
-			undefined,
-			0,
 			"lineTarget",
 		);
 	}
@@ -456,26 +318,7 @@ async function collectForCaptureChoice(
 	);
 
 	if (captureScope) {
-		let files: TFile[] = [];
-		switch (captureScope.kind) {
-			case "property":
-				files = getMarkdownFilesWithProperty(
-					app,
-					captureScope.field,
-					captureScope.value,
-					captureScope.filter,
-				);
-				break;
-			case "filter":
-				files = getMarkdownFilesMatchingFilter(app, captureScope.filter);
-				break;
-			case "tag":
-				files = getMarkdownFilesWithTag(app, captureScope.tag);
-				break;
-			case "folder":
-				files = getMarkdownFilesInFolder(app, captureScope.folderPathSlash);
-				break;
-		}
+		const files = captureScopeFiles(app, captureScope);
 
 		const orderedFiles = orderFilesForPicker(
 			files,
@@ -708,50 +551,22 @@ export async function collectChoiceRequirements(
 	choice: IChoice,
 	options?: CollectChoiceRequirementsOptions,
 ): Promise<FieldRequirement[]> {
-	if (choice.type === "Template") {
-		const collector = await collectForTemplateChoice(
-			app,
-			plugin,
-			choiceExecutor,
-			choice as ITemplateChoice,
-		);
-		return withDateOriginRequirement(
-			choice,
-			choiceExecutor,
-			Array.from(collector.requirements.values()),
-		);
-	}
-
-	if (choice.type === "Capture") {
+	let requirements: FieldRequirement[];
+	if (isMacroChoice(choice)) {
+		requirements = await collectForMacroChoice(app, plugin, choiceExecutor, choice, options);
+	} else if (isTemplateChoice(choice)) {
+		const collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice);
+		requirements = [...collector.requirements.values()];
+	} else if (choice.type === "Capture") {
 		const collector = await collectForCaptureChoice(
-			app,
-			plugin,
-			choiceExecutor,
-			choice as ICaptureChoice,
+			app, plugin, choiceExecutor, choice as ICaptureChoice,
 			options?.seedCaptureSelectionAsValue ?? false,
 		);
-		return withDateOriginRequirement(
-			choice,
-			choiceExecutor,
-			Array.from(collector.requirements.values()),
-		);
+		requirements = [...collector.requirements.values()];
+	} else {
+		return [];
 	}
-
-	if (isMacroChoice(choice)) {
-		return withDateOriginRequirement(
-			choice,
-			choiceExecutor,
-			await collectForMacroChoice(
-				app,
-				plugin,
-				choiceExecutor,
-				choice,
-				options,
-			),
-		);
-	}
-
-	return [];
+	return withDateOriginRequirement(choice, choiceExecutor, requirements);
 }
 
 export function listDeferredMacroSteps(

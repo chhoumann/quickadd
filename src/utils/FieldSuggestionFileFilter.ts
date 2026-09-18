@@ -46,30 +46,11 @@ export class FieldSuggestionFileFilter {
 		filters: FieldFilter,
 		metadataCache: (file: TFile) => CachedMetadata | null,
 	): TFile[] {
-		return files.filter(file => {
-			// Exclude by folder
-			if (filters.excludeFolders && filters.excludeFolders.length > 0) {
-				if (filters.excludeFolders.some(folder => this.matchesFolder(file, folder))) {
-					return false;
-				}
-			}
-
-			// Exclude by tag
-			if (filters.excludeTags && filters.excludeTags.length > 0) {
-				if (this.matchesTags(file, filters.excludeTags, metadataCache, "any")) {
-					return false;
-				}
-			}
-
-			// Exclude by specific file
-			if (filters.excludeFiles && filters.excludeFiles.length > 0) {
-				if (filters.excludeFiles.some(excludeFile => this.matchesFile(file, excludeFile))) {
-					return false;
-				}
-			}
-
-			return true;
-		});
+		return files.filter(file =>
+			!(filters.excludeFolders?.length && filters.excludeFolders.some(folder => this.matchesFolder(file, folder))) &&
+			!(filters.excludeTags?.length && this.matchesTags(file, filters.excludeTags, metadataCache, "any")) &&
+			!(filters.excludeFiles?.length && filters.excludeFiles.some(target => this.matchesFile(file, target)))
+		);
 	}
 
 	private static getIncludeFolders(filters: FieldFilter): string[] {

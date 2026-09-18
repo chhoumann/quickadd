@@ -3,7 +3,6 @@ import {
 	collectChoiceClosure,
 	collectScriptDependencies,
 	collectFileDependencies,
-	type ChoiceCatalogEntry,
 } from "./packageTraversal";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -419,19 +418,9 @@ describe("collectChoiceClosure", () => {
 // --- collectScriptDependencies ------------------------------------------
 
 describe("collectScriptDependencies", () => {
-	function closureFor(
-		allChoices: IChoice[],
-		roots: string[],
-	): {
-		catalog: Map<string, ChoiceCatalogEntry>;
-		choiceIds: string[];
-	} {
-		const { catalog, choiceIds } = collectChoiceClosure(allChoices, roots);
-		return { catalog, choiceIds };
-	}
 
 	it("returns empty sets for no choices", () => {
-		const { catalog, choiceIds } = closureFor([], []);
+		const { catalog, choiceIds } = collectChoiceClosure([], []);
 		const result = collectScriptDependencies(catalog, choiceIds);
 		expect(result.userScriptPaths.size).toBe(0);
 		expect(result.conditionalScriptPaths.size).toBe(0);
@@ -443,7 +432,7 @@ describe("collectScriptDependencies", () => {
 			[userScriptCommand("scripts/foo.js")],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -463,7 +452,7 @@ describe("collectScriptDependencies", () => {
 			],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -479,7 +468,7 @@ describe("collectScriptDependencies", () => {
 			[conditionalCommand(variableCondition(), [], [])],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -498,7 +487,7 @@ describe("collectScriptDependencies", () => {
 			],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -516,7 +505,7 @@ describe("collectScriptDependencies", () => {
 			],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -529,7 +518,7 @@ describe("collectScriptDependencies", () => {
 			[userScriptCommand("")],
 			"macro",
 		);
-		const { catalog, choiceIds } = closureFor([macro], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro], ["macro"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -543,7 +532,7 @@ describe("collectScriptDependencies", () => {
 			"innerMacro",
 		);
 		const root = makeMulti("Root", [innerMacro], "root");
-		const { catalog, choiceIds } = closureFor([root], ["root"]);
+		const { catalog, choiceIds } = collectChoiceClosure([root], ["root"]);
 
 		const result = collectScriptDependencies(catalog, choiceIds);
 
@@ -609,9 +598,6 @@ describe("collectScriptDependencies", () => {
 // --- collectFileDependencies --------------------------------------------
 
 describe("collectFileDependencies", () => {
-	function closureFor(allChoices: IChoice[], roots: string[]) {
-		return collectChoiceClosure(allChoices, roots);
-	}
 
 	const captureWithTemplate = (
 		name: string,
@@ -625,7 +611,7 @@ describe("collectFileDependencies", () => {
 		);
 
 	it("returns empty sets for no choices", () => {
-		const { catalog, choiceIds } = closureFor([], []);
+		const { catalog, choiceIds } = collectChoiceClosure([], []);
 		const result = collectFileDependencies(catalog, choiceIds);
 		expect(result.templatePaths.size).toBe(0);
 		expect(result.captureTemplatePaths.size).toBe(0);
@@ -633,7 +619,7 @@ describe("collectFileDependencies", () => {
 
 	it("collects template paths from template choices", () => {
 		const tmpl = makeTemplate("T", "templates/note.md", "t");
-		const { catalog, choiceIds } = closureFor([tmpl], ["t"]);
+		const { catalog, choiceIds } = collectChoiceClosure([tmpl], ["t"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 
@@ -643,7 +629,7 @@ describe("collectFileDependencies", () => {
 
 	it("ignores template choices with an empty templatePath", () => {
 		const tmpl = makeTemplate("T", "", "t");
-		const { catalog, choiceIds } = closureFor([tmpl], ["t"]);
+		const { catalog, choiceIds } = collectChoiceClosure([tmpl], ["t"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 
@@ -652,7 +638,7 @@ describe("collectFileDependencies", () => {
 
 	it("collects capture templates when createFileIfItDoesntExist is fully enabled", () => {
 		const cap = captureWithTemplate("C", "templates/cap.md", "c");
-		const { catalog, choiceIds } = closureFor([cap], ["c"]);
+		const { catalog, choiceIds } = collectChoiceClosure([cap], ["c"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 
@@ -662,51 +648,24 @@ describe("collectFileDependencies", () => {
 		expect(result.templatePaths.size).toBe(0);
 	});
 
-	it("does not collect a capture template when createFileIfItDoesntExist is disabled", () => {
-		const cap = makeCapture("C", {
-			enabled: false,
-			createWithTemplate: true,
-			template: "templates/cap.md",
-		});
-		const { catalog, choiceIds } = closureFor([cap], [cap.id]);
-
+	it.each([
+		[
+			"does not collect a capture template when createFileIfItDoesntExist is disabled",
+			{ enabled: false, createWithTemplate: true, template: "templates/cap.md" },
+		],
+		[
+			"does not collect a capture template when createWithTemplate is false",
+			{ enabled: true, createWithTemplate: false, template: "templates/cap.md" },
+		],
+		[
+			"does not collect a capture template when the template path is empty",
+			{ enabled: true, createWithTemplate: true, template: "" },
+		],
+		["handles a capture choice without a createFileIfItDoesntExist object", undefined],
+	] as const)("%s", (_name, creation) => {
+		const cap = makeCapture("C", creation);
+		const { catalog, choiceIds } = collectChoiceClosure([cap], [cap.id]);
 		const result = collectFileDependencies(catalog, choiceIds);
-
-		expect(result.captureTemplatePaths.size).toBe(0);
-	});
-
-	it("does not collect a capture template when createWithTemplate is false", () => {
-		const cap = makeCapture("C", {
-			enabled: true,
-			createWithTemplate: false,
-			template: "templates/cap.md",
-		});
-		const { catalog, choiceIds } = closureFor([cap], [cap.id]);
-
-		const result = collectFileDependencies(catalog, choiceIds);
-
-		expect(result.captureTemplatePaths.size).toBe(0);
-	});
-
-	it("does not collect a capture template when the template path is empty", () => {
-		const cap = makeCapture("C", {
-			enabled: true,
-			createWithTemplate: true,
-			template: "",
-		});
-		const { catalog, choiceIds } = closureFor([cap], [cap.id]);
-
-		const result = collectFileDependencies(catalog, choiceIds);
-
-		expect(result.captureTemplatePaths.size).toBe(0);
-	});
-
-	it("handles a capture choice without a createFileIfItDoesntExist object", () => {
-		const cap = makeCapture("C", undefined);
-		const { catalog, choiceIds } = closureFor([cap], [cap.id]);
-
-		const result = collectFileDependencies(catalog, choiceIds);
-
 		expect(result.captureTemplatePaths.size).toBe(0);
 	});
 
@@ -714,7 +673,7 @@ describe("collectFileDependencies", () => {
 		const tmpl = makeTemplate("T", "templates/child.md", "t");
 		const cap = captureWithTemplate("C", "templates/cap.md", "c");
 		const root = makeMulti("Root", [tmpl, cap], "root");
-		const { catalog, choiceIds } = closureFor([root], ["root"]);
+		const { catalog, choiceIds } = collectChoiceClosure([root], ["root"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 
@@ -727,7 +686,7 @@ describe("collectFileDependencies", () => {
 	it("collects template dependencies reached through macro Choice commands", () => {
 		const tmpl = makeTemplate("T", "templates/target.md", "target");
 		const macro = makeMacro("M", [choiceCommand("target")], "macro");
-		const { catalog, choiceIds } = closureFor([macro, tmpl], ["macro"]);
+		const { catalog, choiceIds } = collectChoiceClosure([macro, tmpl], ["macro"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 
@@ -775,7 +734,7 @@ describe("collectFileDependencies", () => {
 		const m1 = makeMacro("M1", [choiceCommand("shared")], "m1");
 		const m2 = makeMacro("M2", [choiceCommand("shared")], "m2");
 		const root = makeMulti("Root", [m1, m2], "root");
-		const { catalog, choiceIds } = closureFor([root, shared], ["root"]);
+		const { catalog, choiceIds } = collectChoiceClosure([root, shared], ["root"]);
 
 		const result = collectFileDependencies(catalog, choiceIds);
 

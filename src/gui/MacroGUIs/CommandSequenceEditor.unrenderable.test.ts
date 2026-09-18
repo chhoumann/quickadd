@@ -1,21 +1,12 @@
+import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-import { App } from "obsidian";
 import type QuickAdd from "../../main";
 import { CommandSequenceEditor } from "./CommandSequenceEditor";
 import { log } from "../../logger/logManager";
 
-function testApp(): App {
-	const app = new App() as App & {
-		dom: { appContainerEl: HTMLElement };
-		keymap: { pushScope: () => void; popScope: () => void };
-	};
-	app.dom = { appContainerEl: document.body };
-	app.keymap = { pushScope: vi.fn(), popScope: vi.fn() };
-	return app;
-}
 
 function renderEditor(commands: unknown, onCommandsChange = vi.fn()) {
 	const container = document.createElement("div");

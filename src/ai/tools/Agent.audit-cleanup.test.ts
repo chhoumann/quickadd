@@ -1,42 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { CommonResponse } from "../OpenAIRequest";
 
 // ai-tools-agent-generate-text: a multi-step agent run must surface start/step/finish
 // status Notices through makeNoticeHandler — mirroring the legacy ai.prompt path —
 // and ONLY when the "Show assistant messages" (ai.showAssistant) setting is on.
 
 // --- Mirror Agent.test.ts harness: mock the Obsidian-coupled deps. ---
-const chatRequestMock = vi.fn<(...args: unknown[]) => Promise<CommonResponse>>();
-vi.mock("../OpenAIRequest", () => ({
-	chatRequest: (...args: unknown[]) => chatRequestMock(...args),
-	anthropicMaxTokens: () => 8192,
-}));
-
-const confirmMock = vi.fn<() => Promise<string>>(async () => "allow");
-vi.mock("../../gui/AIToolConfirmModal", () => ({
-	default: { Prompt: () => confirmMock() },
-}));
-
-vi.mock("../../formatters/completeFormatter", () => ({
-	CompleteFormatter: class {
-		async formatFileContent(input: string) {
-			return input;
-		}
-	},
-}));
-
-vi.mock("../aiHelpers", () => ({
-	resolveModelInputOrThrow: (input: string | { name: string }) => ({
-		model: {
-			name: typeof input === "string" ? input : input.name,
-			maxTokens: 128000,
-		},
-		provider: { name: "OpenAI", kind: "openai", endpoint: "https://x" },
-	}),
-}));
-
-vi.mock("../providerSecrets", () => ({ resolveProviderApiKey: async () => "key" }));
-vi.mock("../preventCursorChange", () => ({ preventCursorChange: () => () => {} }));
+import { chatRequestMock, confirmMock, agentState, makeAgent, turnResponse, tool } from "../../../tests/helpers/ai/agentHarness";
 
 // Capture every status emitted through the notice handler. Gated path: when
 // makeNoticeHandler is created with showMessages=false it returns a no-op handler,
@@ -51,53 +20,9 @@ const makeNoticeHandlerMock = vi.fn((showMessages: boolean) => {
 		hide: () => {},
 	};
 });
-vi.mock("../makeNoticeHandler", () => ({
+vi.mock("src/ai/makeNoticeHandler", () => ({
 	makeNoticeHandler: (showMessages: boolean) => makeNoticeHandlerMock(showMessages),
 }));
-
-let mockSettings: Record<string, unknown>;
-vi.mock("../../settingsStore", () => ({
-	settingsStore: { getState: () => mockSettings },
-}));
-
-import { Agent } from "./Agent";
-import type { AgentConfig } from "./aiToolTypes";
-
-function makeAgent(config: Partial<AgentConfig> = {}, vars = new Map<string, unknown>()) {
-	const choiceExecutor = { variables: vars } as never;
-	return new Agent({} as never, {} as never, choiceExecutor, {
-		model: "gpt-4o",
-		...config,
-	} as AgentConfig);
-}
-
-function turnResponse(p: Partial<CommonResponse>): CommonResponse {
-	return {
-		id: "r",
-		model: "gpt-4o",
-		content: p.content ?? "",
-		usage: p.usage ?? { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-		stopReason: p.stopReason ?? "",
-		stopSequence: null,
-		created: 0,
-		toolCalls: p.toolCalls,
-		normalizedStopReason: p.normalizedStopReason ?? (p.toolCalls?.length ? "tool_calls" : "stop"),
-	};
-}
-
-function tool(extra: Record<string, unknown> = {}) {
-	return {
-		__qaTool: true as const,
-		description: "create a note",
-		inputSchema: {
-			type: "object" as const,
-			properties: { path: { type: "string" as const } },
-			required: ["path"],
-		},
-		execute: vi.fn(async () => "created"),
-		...extra,
-	};
-}
 
 beforeEach(() => {
 	chatRequestMock.mockReset();
@@ -105,7 +30,7 @@ beforeEach(() => {
 	confirmMock.mockResolvedValue("allow");
 	makeNoticeHandlerMock.mockClear();
 	noticeCalls.length = 0;
-	mockSettings = {
+	agentState.settings = {
 		disableOnlineFeatures: false,
 		ai: { confirmToolCalls: "never", defaultSystemPrompt: "", showAssistant: true },
 	};
@@ -137,7 +62,7 @@ describe("ai-tools-agent-generate-text: status notices follow ai.showAssistant",
 	});
 
 	it("emits NO notices when showAssistant is off (no-op handler)", async () => {
-		mockSettings.ai = { confirmToolCalls: "never", defaultSystemPrompt: "", showAssistant: false };
+		agentState.settings.ai = { confirmToolCalls: "never", defaultSystemPrompt: "", showAssistant: false };
 		chatRequestMock.mockResolvedValueOnce(turnResponse({ content: "done", normalizedStopReason: "stop" }));
 
 		const agent = makeAgent();

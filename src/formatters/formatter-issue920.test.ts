@@ -1,16 +1,12 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from "vitest";
-import { Formatter } from "./formatter";
 
 // Regression tests for issue #920:
 // - Entering `{{value}}` (or text containing it) into the VALUE prompt caused an infinite loop.
 // - Entering `{{mvalue}}` into the math modal caused repeated prompting / non-termination.
-class Issue920TestFormatter extends Formatter {
+class Issue920TestFormatter extends FormatterStub {
 	private valueResponse = "";
 	private mathResponse = "";
-
-	constructor() {
-		super();
-	}
 
 	public setValueResponse(value: string): void {
 		this.valueResponse = value;
@@ -31,74 +27,12 @@ class Issue920TestFormatter extends Formatter {
 		return this.valueResponse;
 	}
 
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
 	}
 
-	protected suggestForValue(
-		_suggestedValues: string[],
-		_allowCustomInput?: boolean,
-		_context?: { placeholder?: string; variableKey?: string },
-	): string {
-		return "";
-	}
-
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected suggestForField(_variableName: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
 	protected promptForMathValue(): Promise<string> {
 		return Promise.resolve(this.mathResponse);
-	}
-
-	protected getMacroValue(
-		_macroName: string,
-		_context?: { label?: string },
-	): string {
-		return "";
-	}
-
-	protected promptForVariable(
-		_variableName: string,
-		_context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
-	): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getTemplateContent(_templatePath: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getSelectedText(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getClipboardContent(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 
 	public async testFormat(input: string): Promise<string> {

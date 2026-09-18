@@ -37,10 +37,7 @@ const mocks = vi.hoisted(() => ({
 	dateAliases: {} as Record<string, string>,
 }));
 
-vi.mock("obsidian", () => {
-	class MarkdownView {}
-	return { MarkdownView };
-});
+vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mocks")).obsidianMock());
 
 vi.mock("../engine/SingleMacroEngine", () => ({
 	SingleMacroEngine: class {
@@ -127,13 +124,7 @@ vi.mock("../settingsStore", () => ({
 	settingsStore: { getState: () => ({ dateAliases: mocks.dateAliases }) },
 }));
 
-vi.mock("../logger/logManager", () => ({
-	log: {
-		logError: vi.fn(),
-		logWarning: vi.fn(),
-		logMessage: vi.fn(),
-	},
-}));
+vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
 const { CompleteFormatter } = await import("./completeFormatter");
 

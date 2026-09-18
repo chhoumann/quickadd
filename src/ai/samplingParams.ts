@@ -116,3 +116,11 @@ export function describeSamplingParams(
 	if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
 	return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
+
+/** Only native sampling fields accepted by Anthropic and Gemini. */
+export function providerSamplingParams(kind: "anthropic" | "gemini", params: Partial<OpenAIModelParameters>): Record<string, number> {
+	const sampling: Record<string, number> = {};
+	if (typeof params.temperature === "number") sampling.temperature = params.temperature;
+	if (typeof params.top_p === "number") sampling[kind === "gemini" ? "topP" : "top_p"] = params.top_p;
+	return sampling;
+}

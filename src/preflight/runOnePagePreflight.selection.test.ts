@@ -1,3 +1,5 @@
+import { createPreflightPlugin } from "../../tests/helpers/preflight/choices";
+import { createCaptureChoice, createTemplateChoice as templateChoiceFixture } from "../../tests/helpers/preflight/choices";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
@@ -83,73 +85,20 @@ const createApp = (selection: string | null) =>
 	} as unknown as App);
 
 const createChoice = (): ICaptureChoice => ({
+	...createCaptureChoice("Inbox.md"),
 	id: "capture-choice-id",
 	name: "Capture Choice",
-	type: "Capture",
-	command: false,
-	captureTo: "Inbox.md",
 	captureToActiveFile: true,
-	createFileIfItDoesntExist: {
-		enabled: false,
-		createWithTemplate: false,
-		template: "",
-	},
 	format: { enabled: true, format: "{{VALUE}}" },
-	prepend: false,
-	appendLink: false,
-	task: false,
-	insertAfter: {
-		enabled: false,
-		after: "",
-		insertAtEnd: false,
-		considerSubsections: false,
-		createIfNotFound: false,
-		createIfNotFoundLocation: "",
-	},
-	newLineCapture: {
-		enabled: false,
-		direction: "below",
-	},
-	openFile: false,
-	fileOpening: {
-		location: "tab",
-		direction: "vertical",
-		mode: "default",
-		focus: true,
-	},
 });
 
-const createExecutor = (): IChoiceExecutor => ({
-	...createChoiceExecutor(),
-	execute: vi.fn(),
-	variables: new Map<string, unknown>(),
-});
+const createExecutor = (): IChoiceExecutor => (createChoiceExecutor());
 
-const createTemplateChoice = (templatePath: string): ITemplateChoice =>
-	({
-		id: "template-choice-id",
-		name: "Template Choice",
-		type: "Template",
-		command: false,
-		templatePath,
-		folder: {
-			enabled: false,
-			folders: [],
-			chooseWhenCreatingNote: false,
-			createInSameFolderAsActiveFile: false,
-			chooseFromSubfolders: false,
-		},
-		fileNameFormat: { enabled: false, format: "{{VALUE}}" },
-		appendLink: false,
-		openFile: false,
-		fileOpening: {
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		},
-		fileExistsBehavior: { kind: "prompt" },
-	}) as ITemplateChoice;
+const createTemplateChoice = (templatePath: string): ITemplateChoice => ({
+	...templateChoiceFixture(templatePath),
+	id: "template-choice-id",
+	fileNameFormat: { enabled: false, format: "{{VALUE}}" },
+});
 
 describe("runOnePagePreflight selection-as-value", () => {
 	beforeEach(() => {
@@ -161,13 +110,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 	it("prefills {{VALUE}} from selection when enabled", async () => {
 		const choice = createChoice();
 		const executor = createExecutor();
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 
 		const result = await runOnePagePreflight(
 			createApp("Selected text"),
@@ -184,13 +127,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 	it("treats a Markdown view without an editor like no selection (#1536)", async () => {
 		const choice = createChoice();
 		const executor = createExecutor();
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 		// Thino-style Markdown-masquerading view: editor is null.
 		const app = {
 			workspace: {
@@ -215,13 +152,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 		(executor as IChoiceExecutor).promptProvider = {
 			requestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: false,
-			},
-		} as any;
+		const plugin = createPreflightPlugin(false);
 
 		await runOnePagePreflight(createApp(null), plugin, executor, choice);
 
@@ -239,13 +170,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 		(executor as IChoiceExecutor).promptProvider = {
 			requestInputs,
 		} as unknown as IChoiceExecutor["promptProvider"];
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: false,
-			},
-		} as any;
+		const plugin = createPreflightPlugin(false);
 
 		await expect(
 			runOnePagePreflight(createApp(null), plugin, executor, choice),
@@ -255,13 +180,7 @@ describe("runOnePagePreflight selection-as-value", () => {
 	it("does not prefill when selection usage is disabled", async () => {
 		const choice = createChoice();
 		const executor = createExecutor();
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: false,
-			},
-		} as any;
+		const plugin = createPreflightPlugin(false);
 		modalResult = { value: "Manual" };
 
 		const result = await runOnePagePreflight(
@@ -326,13 +245,7 @@ describe("runOnePagePreflight template extension handling", () => {
 			},
 		} as unknown as App;
 
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 
 		const executor = createExecutor();
 		modalResult = { boardName: "Project Board" };
@@ -373,13 +286,7 @@ describe("runOnePagePreflight template extension handling", () => {
 			},
 		} as unknown as App;
 
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 
 		const executor = createExecutor();
 
@@ -432,13 +339,7 @@ describe("runOnePagePreflight template extension handling", () => {
 			metadataCache: { getFileCache: vi.fn(() => null) },
 		} as unknown as App;
 
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 		const key = parseFileToken(
 			"People|link|multi|label:Related people",
 		)!.variableKey;
@@ -487,13 +388,7 @@ describe("runOnePagePreflight template extension handling", () => {
 			},
 		} as unknown as App;
 
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 
 		const choice = createTemplateChoice("Templates/Daily.md");
 		choice.discoverExistingNotesBeforeCreate = true;
@@ -532,13 +427,7 @@ describe("runOnePagePreflight template extension handling", () => {
 			},
 		} as unknown as App;
 
-		const plugin = {
-			settings: {
-				inputPrompt: "single-line",
-				globalVariables: {},
-				useSelectionAsCaptureValue: true,
-			},
-		} as any;
+		const plugin = createPreflightPlugin();
 
 		const choice = createTemplateChoice("Templates/Project.md");
 		choice.discoverExistingNotesBeforeCreate = true;

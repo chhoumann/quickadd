@@ -1,206 +1,53 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { DATE_VARIABLE_REGEX } from '../constants';
-import type { IDateParser } from '../parsers/IDateParser';
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import moment from "moment";
+import { StubFormatter } from "../../tests/helpers/formatters/stubFormatter";
+import { createMockApp } from "../../tests/helpers/formatters/captureFixtures";
+import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
+import { FormatDisplayFormatter } from "./formatDisplayFormatter";
 
-// Simple test implementation for comma crash validation
-class TestFormatterCommaCrash {
-    protected variables: Map<string, unknown> = new Map();
-    protected dateParser: IDateParser = {
-        parseDate: () => null
-    };
+const originalMoment = window.moment;
+beforeAll(() => { window.moment = moment; });
+afterAll(() => { window.moment = originalMoment; });
 
-    protected replacer(str: string, reg: RegExp, replaceValue: string) {
-        return str.replace(reg, function () {
-            return replaceValue;
-        });
-    }
-
-    protected async promptForVariable(
-        variableName: string,
-        context?: { type?: string; dateFormat?: string }
-    ): Promise<string> {
-        return "test-date";
-    }
-
-    // Test the regex pattern and validation logic
-    public async testReplaceDateVariableInString(input: string): Promise<string> {
-        let output: string = input;
-        let iterations = 0;
-        const maxIterations = 10; // Prevent infinite loops in tests
-
-        while (DATE_VARIABLE_REGEX.test(output) && iterations < maxIterations) {
-            iterations++;
-            const match = DATE_VARIABLE_REGEX.exec(output);
-            if (!match || !match[1] || !match[2]) break; // Change to break instead of continue
-
-            const variableName = match[1].trim();
-            const dateFormat = match[2].trim();
-            
-            // Skip processing if variable name or format is empty
-            // This prevents crashes when typing incomplete patterns like {{VDATE:,
-            if (!variableName || !dateFormat) {
-                break;
-            }
-
-            // For testing, just replace with a placeholder
-            output = this.replacer(
-                output,
-                DATE_VARIABLE_REGEX,
-                `[${variableName}-${dateFormat}]`
-            );
-        }
-
-        if (iterations >= maxIterations) {
-            throw new Error("Potential infinite loop detected");
-        }
-
-        return output;
-    }
+class DateFormatter extends StubFormatter {
+	constructor() {
+		super();
+		this.dateParser = { parseDate: () => null };
+	}
+	protected async promptForVariable(): Promise<string> {
+		return "@date:2026-09-16T12:00:00";
+	}
+	public render(input: string): Promise<string> {
+		return this.replaceDateVariableInString(input);
+	}
 }
 
-describe('Formatter - VDATE Comma Crash Prevention', () => {
-    let formatter: TestFormatterCommaCrash;
+describe("Formatter - VDATE Comma Crash Prevention", () => {
+	it.each([
+		["should not crash on {{VDATE:, pattern", "Test {{VDATE:,", "Test {{VDATE:,"],
+		["should not crash on {{VDATE:, }} pattern", "Test {{VDATE:, }}", "Test {{VDATE:, }}"],
+		["should not crash on {{VDATE:var, pattern", "Test {{VDATE:var,", "Test {{VDATE:var,"],
+		["should not crash on {{VDATE:var,}} pattern", "Test {{VDATE:var,}}", "Test 2026-09-16"],
+		["should not crash on {{VDATE:,format}} pattern", "Test {{VDATE:,format}}", "Test {{VDATE:,format}}"],
+		["should process valid VDATE pattern", "Test {{VDATE:myDate,YYYY-MM-DD}}", "Test 2026-09-16"],
+		["should handle multiple valid VDATE patterns", "{{VDATE:date1,YYYY}} and {{VDATE:date2,MM-DD}}", "2026 and 09-16"],
+		["should handle whitespace in VDATE pattern", "Test {{VDATE: myDate , YYYY-MM-DD }}", "Test 2026-09-16"],
+		["should handle format with comma inside", "Test {{VDATE:date,MMM D}}", "Test Sep 16"],
+		["should not enter infinite loop with malformed patterns", "{{VDATE:{{VDATE:,}}", "{{VDATE:{{VDATE:,}}"],
+		["should handle empty string input", "", ""],
+		["should support commas in date format patterns", "{{VDATE:myDate,MMM D, YYYY}}", "Sep 16, 2026"],
+		["should handle multiple commas in date format", "{{VDATE:event,YYYY, MMM D, dddd}}", "2026, Sep 16, Wednesday"],
+		["should work with trailing commas", "{{VDATE:test,YYYY,}}", "2026,"],
+	])("%s", async (_name, input, expected) => {
+		await expect(new DateFormatter().render(input)).resolves.toBe(expected);
+	});
 
-    beforeEach(() => {
-        formatter = new TestFormatterCommaCrash();
-    });
-
-    describe('Incomplete VDATE patterns', () => {
-        it('should not crash on {{VDATE:, pattern', async () => {
-            const input = "Test {{VDATE:,";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should return input unchanged since pattern is incomplete
-            expect(result).toBe(input);
-        });
-
-        it('should not crash on {{VDATE:, }} pattern', async () => {
-            const input = "Test {{VDATE:, }}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should return input unchanged since variable name is empty
-            expect(result).toBe(input);
-        });
-
-        it('should not crash on {{VDATE:var, pattern', async () => {
-            const input = "Test {{VDATE:var,";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should return input unchanged since closing braces are missing
-            expect(result).toBe(input);
-        });
-
-        it('should not crash on {{VDATE:var,}} pattern', async () => {
-            const input = "Test {{VDATE:var,}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should return input unchanged since date format is empty
-            expect(result).toBe(input);
-        });
-
-        it('should not crash on {{VDATE:,format}} pattern', async () => {
-            const input = "Test {{VDATE:,format}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should return input unchanged since variable name is empty
-            expect(result).toBe(input);
-        });
-    });
-
-    describe('Valid VDATE patterns', () => {
-        it('should process valid VDATE pattern', async () => {
-            const input = "Test {{VDATE:myDate,YYYY-MM-DD}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should replace with placeholder
-            expect(result).toBe("Test [myDate-YYYY-MM-DD]");
-        });
-
-        it('should handle multiple valid VDATE patterns', async () => {
-            const input = "{{VDATE:date1,YYYY}} and {{VDATE:date2,MM-DD}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            expect(result).toBe("[date1-YYYY] and [date2-MM-DD]");
-        });
-
-        it('should handle whitespace in VDATE pattern', async () => {
-            const input = "Test {{VDATE: myDate , YYYY-MM-DD }}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should trim whitespace and process
-            expect(result).toBe("Test [myDate-YYYY-MM-DD]");
-        });
-    });
-
-    describe('Edge cases', () => {
-        it('should handle format with comma inside', async () => {
-            const input = "Test {{VDATE:date,MMM D}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // The regex captures up to the closing braces, not including commas in format
-            expect(result).toBe("Test [date-MMM D]");
-        });
-
-        it('should not enter infinite loop with malformed patterns', async () => {
-            const input = "{{VDATE:{{VDATE:,}}";
-            
-            // Should not throw infinite loop error
-            await expect(formatter.testReplaceDateVariableInString(input))
-                .resolves.toBe(input);
-        });
-
-        it('should handle empty string input', async () => {
-            const input = "";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            expect(result).toBe("");
-        });
-    });
-
-    describe('Comma support in date formats', () => {
-        it('should support commas in date format patterns', async () => {
-            const input = "{{VDATE:myDate,MMM D, YYYY}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should process the format with comma correctly
-            expect(result).toBe("[myDate-MMM D, YYYY]");
-        });
-
-        it('should handle multiple commas in date format', async () => {
-            const input = "{{VDATE:event,YYYY, MMM D, dddd}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should process the entire format after first comma
-            expect(result).toBe("[event-YYYY, MMM D, dddd]");
-        });
-
-        it('should work with trailing commas', async () => {
-            const input = "{{VDATE:test,YYYY,}}";
-            const result = await formatter.testReplaceDateVariableInString(input);
-            
-            // Should include the trailing comma in the format
-            expect(result).toBe("[test-YYYY,]");
-        });
-    });
-
-    describe('Format display formatter error handling', () => {
-        it('should wrap format method in try-catch', () => {
-            // This tests that FormatDisplayFormatter has try-catch
-            // In real implementation, this prevents crashes during live preview
-            const formatMethod = `
-                try {
-                    // formatting logic
-                } catch (error) {
-                    return input;
-                }
-            `;
-            
-            // Verify the pattern exists (symbolic test)
-            expect(formatMethod).toContain("try");
-            expect(formatMethod).toContain("catch");
-            expect(formatMethod).toContain("return input");
-        });
-    });
-
-
+	it("should wrap format method in try-catch", async () => {
+		class FailedPreview extends FormatDisplayFormatter {
+			protected replaceDateInString(): string { throw new Error("preview failure"); }
+		}
+		const formatter = new FailedPreview(createMockApp(), createCaptureFormatterPlugin());
+		await expect(formatter.format("{{DATE}}")).resolves.toBe("{{DATE}}");
+		expect(formatter.diagnostics.hasError).toBe(true);
+	});
 });

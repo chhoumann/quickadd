@@ -225,9 +225,6 @@ export async function insertLinkWithPlacement(
 			head: { ...sel.head },
 		}));
 
-	//////////////////////////////////////////////////////////////////
-	//  SELECTION-ANCHORED MODES WITH PER-SELECTION TEXT
-	//////////////////////////////////////////////////////////////////
 	if (
 		textForSelection &&
 		selections.length > 0 &&
@@ -237,17 +234,11 @@ export async function insertLinkWithPlacement(
 		return;
 	}
 
-	//////////////////////////////////////////////////////////////////
-	//  REPLACE-SELECTION
-	//////////////////////////////////////////////////////////////////
 	if (mode === "replaceSelection") {
 		editor.replaceSelection(text);
 		return;
 	}
 
-	//////////////////////////////////////////////////////////////////
-	//  ALL OTHER MODES NEED EXPLICIT POSITION CALCULATION
-	//////////////////////////////////////////////////////////////////
 
 	/**
 		* Helper that converts a {line, ch} position to a monotonically
@@ -269,34 +260,16 @@ export async function insertLinkWithPlacement(
 			asIndex(sel.anchor) > asIndex(sel.head) ? sel.anchor : sel.head;
 
 		switch (mode) {
-			//////////////////////////////////////////////////////////////////
-			//  AFTER-SELECTION
-			//////////////////////////////////////////////////////////////////
 			case "afterSelection": {
 				editor.replaceRange(text, head);
 				break;
 			}
 
-			//////////////////////////////////////////////////////////////////
-			//  END-OF-LINE
-			//////////////////////////////////////////////////////////////////
-			case "endOfLine": {
-				const lineStr = editor.getLine(head.line);
-				const eolPos = { line: head.line, ch: lineStr.length };
-				editor.replaceRange(text, eolPos);
-				break;
-			}
-
-			//////////////////////////////////////////////////////////////////
-			//  NEW-LINE
-			//////////////////////////////////////////////////////////////////
+			case "endOfLine":
 			case "newLine": {
-				const lineStr = editor.getLine(head.line);
-				const eolPos = { line: head.line, ch: lineStr.length };
-				// prepend newline only if the current line isn't empty
-				const isLineEmpty = lineStr.length === 0;
-				const prefix = isLineEmpty ? "" : "\n";
-				editor.replaceRange(prefix + text, eolPos);
+				const lineLength = editor.getLine(head.line).length;
+				const prefix = mode === "newLine" && lineLength > 0 ? "\n" : "";
+				editor.replaceRange(prefix + text, { line: head.line, ch: lineLength });
 				break;
 			}
 		}

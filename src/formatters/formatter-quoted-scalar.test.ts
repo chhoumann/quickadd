@@ -1,15 +1,12 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from "vitest";
-import { Formatter } from "./formatter";
 import { FIELD_VARIABLE_PREFIX } from "../constants";
 
 // Issue #1655: authors quote tokens in template front matter so the raw
 // template is valid YAML (Obsidian warns on bare `{{...}}`). The substituted
 // value must then be escaped for the surrounding quotes, or a value containing
 // the quote character corrupts the created note's front matter.
-class QuotedScalarTestFormatter extends Formatter {
-	constructor() {
-		super();
-	}
+class QuotedScalarTestFormatter extends FormatterStub {
 
 	protected async format(input: string): Promise<string> {
 		let output = input;
@@ -25,74 +22,8 @@ class QuotedScalarTestFormatter extends Formatter {
 
 	public anonymousValue = "";
 
-	protected getCurrentFileLink(): string | null {
-		return null;
-	}
-
-	protected getCurrentFileName(): string | null {
-		return null;
-	}
-
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
-	}
-
-	protected suggestForValue(
-		_suggestedValues: string[],
-		_allowCustomInput?: boolean,
-		_context?: { placeholder?: string; variableKey?: string },
-	): string {
-		return "";
-	}
-
-	protected suggestForFile(): string {
-		return "";
-	}
-
-	protected suggestForField(_variableName: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected promptForMathValue(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getMacroValue(
-		_macroName: string,
-		_context?: { label?: string },
-	): string {
-		return "";
-	}
-
-	protected promptForVariable(
-		_variableName: string,
-		_context?: {
-			type?: string;
-			dateFormat?: string;
-			defaultValue?: string;
-			label?: string;
-			description?: string;
-			placeholder?: string;
-			variableKey?: string;
-		},
-	): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getTemplateContent(_templatePath: string): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getSelectedText(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected getClipboardContent(): Promise<string> {
-		return Promise.resolve("");
-	}
-
-	protected isTemplatePropertyTypesEnabled(): boolean {
-		return false;
 	}
 
 	public async testFormat(input: string): Promise<string> {
@@ -167,44 +98,18 @@ describe("issue #1655: values substituted into author-quoted front matter scalar
 		expect(result).toBe('---\ntags: "say \\"hi\\",b"\n---\nBody');
 	});
 
-	it("consumes author quotes when an explicit |type:number is declared", async () => {
-		formatter.seed("num", "42");
+	it.each([
+		{ name: "consumes author quotes when an explicit |type:number is declared", input: "num", input2: "42", input3: '---\nrating: "{{VALUE:num|type:number}}"\n---\nBody', expected: "---\nrating: 42\n---\nBody" },
+		{ name: "consumes author quotes for |type:checkbox", input: "d", input2: "true", input3: '---\ndone: "{{VALUE:d|type:checkbox}}"\n---\nBody', expected: "---\ndone: true\n---\nBody" },
+		{ name: "keeps quotes for |type:text (string semantics)", input: "id", input2: "0042", input3: '---\nid: "{{VALUE:id|type:text}}"\n---\nBody', expected: '---\nid: "0042"\n---\nBody' },
+		{ name: "keeps quotes and escapes for |type:multiline", input: "n", input2: "a\nb", input3: '---\nnotes: "{{VALUE:n|type:multiline}}"\n---\nBody', expected: '---\nnotes: "a\\nb"\n---\nBody' },
+		{ name: "does not consume quotes in the note body", input: "num", input2: "42", input3: '---\nTitle: x\n---\nSaid "{{VALUE:num|type:number}}" today', expected: '---\nTitle: x\n---\nSaid "42" today' },
+	])("$name", async ({ input, input2, input3, expected }) => {
+		formatter.seed(input, input2);
 		const result = await formatter.testFormat(
-			'---\nrating: "{{VALUE:num|type:number}}"\n---\nBody',
+			input3,
 		);
-		expect(result).toBe("---\nrating: 42\n---\nBody");
-	});
-
-	it("consumes author quotes for |type:checkbox", async () => {
-		formatter.seed("d", "true");
-		const result = await formatter.testFormat(
-			'---\ndone: "{{VALUE:d|type:checkbox}}"\n---\nBody',
-		);
-		expect(result).toBe("---\ndone: true\n---\nBody");
-	});
-
-	it("keeps quotes for |type:text (string semantics)", async () => {
-		formatter.seed("id", "0042");
-		const result = await formatter.testFormat(
-			'---\nid: "{{VALUE:id|type:text}}"\n---\nBody',
-		);
-		expect(result).toBe('---\nid: "0042"\n---\nBody');
-	});
-
-	it("keeps quotes and escapes for |type:multiline", async () => {
-		formatter.seed("n", "a\nb");
-		const result = await formatter.testFormat(
-			'---\nnotes: "{{VALUE:n|type:multiline}}"\n---\nBody',
-		);
-		expect(result).toBe('---\nnotes: "a\\nb"\n---\nBody');
-	});
-
-	it("does not consume quotes in the note body", async () => {
-		formatter.seed("num", "42");
-		const result = await formatter.testFormat(
-			'---\nTitle: x\n---\nSaid "{{VALUE:num|type:number}}" today',
-		);
-		expect(result).toBe('---\nTitle: x\n---\nSaid "42" today');
+		expect(result).toBe(expected);
 	});
 
 	it("leaves body substitutions untouched even when the author wrote quotes", async () => {

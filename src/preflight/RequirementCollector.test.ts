@@ -16,11 +16,11 @@ const makePlugin = (overrides: Record<string, unknown> = {}) =>
     },
   } as any);
 
+const createCollector = () => new RequirementCollector(makeApp(), makePlugin());
+
 describe("RequirementCollector", () => {
   it("collects VALUE with default and options", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{VALUE:title|Untitled}} and {{VALUE:low,medium,high}}" );
 
     const reqs = Array.from(rc.requirements.values());
@@ -31,9 +31,7 @@ describe("RequirementCollector", () => {
   });
 
   it("collects VALUE labels for single and multi inputs", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     const multiToken = "low,medium,high|label:Priority";
     await rc.scanString(
       `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}}`,
@@ -54,9 +52,7 @@ describe("RequirementCollector", () => {
   });
 
   it("collects VALUE text mappings for option lists", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{VALUE:🔼,⏫|text:Normal,High}}");
 
     const requirement = rc.requirements.get("🔼,⏫");
@@ -65,9 +61,7 @@ describe("RequirementCollector", () => {
   });
 
   it("throws when VALUE text mappings have mismatched lengths", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
 
     await expect(
       rc.scanString("{{VALUE:a,b|text:Only One}}"),
@@ -75,9 +69,7 @@ describe("RequirementCollector", () => {
   });
 
   it("does not treat case option as a legacy default for named VALUE", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{VALUE:title|case:kebab}}");
 
     const requirement = rc.requirements.get("title");
@@ -85,9 +77,7 @@ describe("RequirementCollector", () => {
   });
 
   it("does not treat case option as a legacy default for unnamed VALUE", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{VALUE|case:kebab|label:Notes}}");
 
     const requirement = rc.requirements.get("value");
@@ -96,9 +86,7 @@ describe("RequirementCollector", () => {
   });
 
   it("collects VDATE with format and default", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{VDATE:due, YYYY-MM-DD|tomorrow}}" );
 
     const [due] = Array.from(rc.requirements.values()).filter(r => r.id === "due");
@@ -108,9 +96,7 @@ describe("RequirementCollector", () => {
   });
 
   it("collects frontmatter VDATE and neighboring VALUE dropdowns", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString(`---
 Date: {{VDATE:Due Date, YYYY-MM-DD}}
 Priority: {{VALUE:Low,Medium,High|label:Priority}}
@@ -144,9 +130,7 @@ Body`);
   });
 
   it("collects no-format VDATE with the default date format", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("Date: {{VDATE:Due Date}}");
 
     expect(rc.requirements.get("Due Date")).toMatchObject({
@@ -158,9 +142,7 @@ Body`);
   });
 
   it("collects lowercase and whitespace-tolerant VDATE syntax", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{vdate: due date , YYYY-MM-DD | tomorrow }}");
 
     expect(rc.requirements.get("due date")).toMatchObject({
@@ -171,18 +153,14 @@ Body`);
   });
 
   it("records TEMPLATE references for recursive scanning", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{TEMPLATE:Templates/Note}}" );
 
     expect(rc.templatesToScan.size === 0 || rc.templatesToScan.has("Templates/Note")).toBe(true);
   });
 
   it("records .base TEMPLATE references for recursive scanning", async () => {
-    const app = makeApp();
-    const plugin = makePlugin();
-    const rc = new RequirementCollector(app, plugin);
+    const rc = createCollector();
     await rc.scanString("{{TEMPLATE:Templates/Kanban.base}}" );
 
     expect(rc.templatesToScan.has("Templates/Kanban.base")).toBe(true);

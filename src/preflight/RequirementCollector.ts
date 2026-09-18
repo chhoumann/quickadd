@@ -1,9 +1,9 @@
+import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
 import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
-	GLOBAL_VAR_REGEX,
 	MATH_VALUE_REGEX,
 	NAME_VALUE_REGEX,
 	TEMPLATE_REGEX,
@@ -21,8 +21,6 @@ import { NLDParser } from "src/parsers/NLDParser";
 import {
 	parseValueToken,
 	splitQuotedCommaList,
-	type NumericInputConfig,
-	type SliderConfig,
 	unwrapQuotedValue,
 } from "src/utils/valueSyntax";
 import { parseVDateOptions } from "src/utils/vdateSyntax";
@@ -36,58 +34,8 @@ import {
 	parseFileToken,
 } from "src/utils/fileSyntax";
 
-export type FieldType =
-	| "text"
-	| "number"
-	| "textarea"
-	| "dropdown"
-	| "slider"
-	| "date"
-	| "field-suggest"
-	| "file-picker"
-	| "suggester";
-
-export interface FieldRequirement {
-	id: string; // variable key or special input id
-	label: string; // user-facing label
-	type: FieldType;
-	description?: string;
-	placeholder?: string;
-	defaultValue?: string;
-	numericConfig?: NumericInputConfig;
-	sliderConfig?: SliderConfig;
-	options?: string[]; // for dropdowns and suggesters
-	displayOptions?: string[]; // visible labels for mapped VALUE lists
-	// Additional metadata
-	dateFormat?: string; // for VDATE
-	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
-	multiEmit?: "text" | "linklist"; // |multi:linklist wraps picks as [[name]]
-	filters?: string; // serialized filters for FIELD variables
-	source?: "collected" | "script"; // provenance for UX badges
-	/**
-	 * True when ANY scanned occurrence of the variable sits in a path-context
-	 * string (file name format, folder path, capture target, insert-after/
-	 * before targets, template path). Sticky: one path usage disables
-	 * image paste for the field - an embed link in a path would corrupt it
-	 * (issue #1484). Content-only fields stay unset.
-	 */
-	pathContext?: boolean;
-	/** Prompt at runtime instead of the one-page form when the form has no safe widget. */
-	runtimeOnly?: boolean;
-	/** True only when EVERY scanned occurrence of the variable is |optional. */
-	optional?: boolean;
-	suggesterConfig?: {
-		allowCustomInput?: boolean;
-		caseSensitive?: boolean;
-		multiSelect?: boolean;
-	};
-	group?: FieldGroup;
-}
-
-export interface FieldGroup {
-	id: string;
-	label: string;
-}
+export type { FieldType, FieldRequirement, FieldGroup } from "./fieldRequirements";
+import type { FieldType, FieldRequirement } from "./fieldRequirements";
 
 /**
  * RequirementCollector walks through strings that may contain QuickAdd format
@@ -249,19 +197,7 @@ export class RequirementCollector extends Formatter {
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
-		let output = input;
-		let guard = 0;
-		const re = new RegExp(GLOBAL_VAR_REGEX.source, "gi");
-		while (re.test(output)) {
-			if (++guard > 5) break;
-			output = output.replace(re, (_m, rawName) => {
-				const name = String(rawName ?? "").trim();
-				if (!name) return _m;
-				const snippet = this.plugin?.settings?.globalVariables?.[name];
-				return typeof snippet === "string" ? snippet : "";
-			});
-		}
-		return output;
+		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
 	// Additional scanning for defaults/options in {{VALUE:...}} tokens
@@ -296,36 +232,18 @@ export class RequirementCollector extends Formatter {
 				// |type:checkbox renders a forced true/false dropdown and
 				// |type:number a numeric input, so the one-page form matches the
 				// runtime suggester/prompt (item #757).
-				const isCheckbox =
-					!hasOptions && parsed.inputTypeOverride === "checkbox";
-				const isNumber =
-					!hasOptions && parsed.inputTypeOverride === "number";
-				const isSlider =
-					!hasOptions && parsed.inputTypeOverride === "slider";
-				const baseInputType: FieldType =
-					parsed.inputTypeOverride === "multiline" ||
-					this.plugin.settings.inputPrompt === "multi-line"
-						? "textarea"
-						: "text";
+				const inputType = this.inputFieldType(parsed);
 				const req: FieldRequirement = {
 					id: requirementId,
 					label: displayLabel,
-					type: hasOptions
-						? this.optionFieldType(parsed)
-						: isCheckbox
-							? "dropdown"
-							: isNumber
-								? "number"
-								: isSlider
-									? "slider"
-									: baseInputType,
+					type: hasOptions ? this.optionFieldType(parsed) : inputType,
 					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
-				else if (isCheckbox) req.options = ["true", "false"];
-				else if (isNumber) req.numericConfig = parsed.numericConfig;
-				else if (isSlider) {
+				else if (inputType === "dropdown") req.options = ["true", "false"];
+				else if (inputType === "number") req.numericConfig = parsed.numericConfig;
+				else if (inputType === "slider") {
 					req.numericConfig = parsed.numericConfig;
 					req.sliderConfig = parsed.sliderConfig;
 				}
@@ -369,6 +287,16 @@ export class RequirementCollector extends Formatter {
 				// AND rule: the field is optional only if every occurrence is.
 				existing.optional = (existing.optional ?? false) && parsed.optional;
 			}
+		}
+	}
+
+	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
+		switch (context?.inputTypeOverride) {
+			case "checkbox": return "dropdown";
+			case "number": return "number";
+			case "slider": return "slider";
+			case "multiline": return "textarea";
+			default: return this.plugin.settings.inputPrompt === "multi-line" ? "textarea" : "text";
 		}
 	}
 
@@ -470,12 +398,7 @@ export class RequirementCollector extends Formatter {
 	protected async promptForValue(header?: string): Promise<string> {
 		const key = "value";
 		if (!this.requirements.has(key)) {
-			const isCheckbox =
-				this.valuePromptContext?.inputTypeOverride === "checkbox";
-			const isNumber =
-				this.valuePromptContext?.inputTypeOverride === "number";
-			const isSlider =
-				this.valuePromptContext?.inputTypeOverride === "slider";
+			const type = this.inputFieldType(this.valuePromptContext);
 			const derived = describeValuePrompt(
 				this.scanningScope,
 				this.scanningSoleValue,
@@ -483,23 +406,13 @@ export class RequirementCollector extends Formatter {
 			this.requirements.set(key, {
 				id: key,
 				label: derived.title || header || "Enter value",
-				type:
-					isCheckbox
-						? "dropdown"
-						: isNumber
-							? "number"
-							: isSlider
-								? "slider"
-								: this.valuePromptContext?.inputTypeOverride === "multiline" ||
-									  this.plugin.settings.inputPrompt === "multi-line"
-						? "textarea"
-						: "text",
+				type,
 				description: this.valuePromptContext?.description,
 				placeholder: derived.placeholder,
 				defaultValue: this.valuePromptContext?.defaultValue,
 				numericConfig: this.valuePromptContext?.numericConfig,
 				sliderConfig: this.valuePromptContext?.sliderConfig,
-				options: isCheckbox ? ["true", "false"] : undefined,
+				options: type === "dropdown" ? ["true", "false"] : undefined,
 				source: "collected",
 				optional: this.valuePromptContext?.optional,
 			});
@@ -538,27 +451,11 @@ export class RequirementCollector extends Formatter {
 				.map((s) => s.trim())
 				.filter(Boolean);
 			const hasOptions = optionValues.length > 1;
-			const isNumber = !hasOptions && context?.inputTypeOverride === "number";
-			const isSlider = !hasOptions && context?.inputTypeOverride === "slider";
-			const isCheckbox =
-				!hasOptions && context?.inputTypeOverride === "checkbox";
-			const baseInputType =
-				context?.inputTypeOverride === "multiline" ||
-				this.plugin.settings.inputPrompt === "multi-line"
-					? "textarea"
-					: "text";
+			const type = hasOptions ? "dropdown" : this.inputFieldType(context);
 			const req: FieldRequirement = {
 				id: key,
 				label: variableName,
-				type: hasOptions
-					? "dropdown"
-					: isCheckbox
-						? "dropdown"
-						: isNumber
-							? "number"
-							: isSlider
-								? "slider"
-								: baseInputType,
+				type,
 				description: context?.description,
 				numericConfig: context?.numericConfig,
 				sliderConfig: context?.sliderConfig,
@@ -566,7 +463,7 @@ export class RequirementCollector extends Formatter {
 			};
 			if (hasOptions) {
 				req.options = optionValues;
-			} else if (isCheckbox) {
+			} else if (type === "dropdown") {
 				req.options = ["true", "false"];
 			}
 			if (context?.defaultValue) req.defaultValue = context.defaultValue;

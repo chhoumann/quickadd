@@ -1,214 +1,87 @@
 import { describe, expect, it, vi } from "vitest";
-import { CommandType } from "../types/macros/CommandType";
+import { legacyMacro, migrationPlugin, nestedChoice } from "../../tests/helpers/utilities/migrationFixtures";
+import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 
 vi.mock("src/logger/logManager", () => ({
-	log: {
-		logMessage: vi.fn(),
-		logError: vi.fn(),
-	},
+	log: { logMessage: vi.fn(), logError: vi.fn() },
 }));
-
-import backfillFileOpeningDefaults from "./backfillFileOpeningDefaults";
 
 type TestChoice = {
 	id: string;
 	name: string;
-	type: "Capture" | "Template" | "Macro" | "Multi";
+	type: "Capture" | "Template";
 	fileOpening?: unknown;
 	openFileInNewTab?: unknown;
 	openFileInMode?: unknown;
-	choices?: TestChoice[];
-	macro?: {
-		id: string;
-		name: string;
-		commands: unknown[];
-	};
 };
+
+function choice(
+	type: TestChoice["type"],
+	id: string,
+	name: string,
+	overrides: Partial<TestChoice> = {},
+): TestChoice {
+	return { type, id, name, ...overrides };
+}
 
 describe("backfillFileOpeningDefaults migration", () => {
 	it("backfills missing fileOpening across nested choices and legacy settings", async () => {
-		const captureLegacy: TestChoice = {
-			id: "capture-legacy",
-			name: "Capture Legacy",
-			type: "Capture",
-			openFileInNewTab: {
-				enabled: true,
-				direction: "horizontal",
-				focus: false,
-			},
+		const captureLegacy = choice("Capture", "capture-legacy", "Capture Legacy", {
+			openFileInNewTab: { enabled: true, direction: "horizontal", focus: false },
 			openFileInMode: "source",
-		};
-		const captureMissing: TestChoice = {
-			id: "capture-missing",
-			name: "Capture Missing",
-			type: "Capture",
-		};
-		const templatePartial: TestChoice = {
-			id: "template-partial",
-			name: "Template Partial",
-			type: "Template",
-			fileOpening: {
-				location: "window",
-			},
-		};
-		const nestedCapture: TestChoice = {
-			id: "nested-capture",
-			name: "Nested Capture",
-			type: "Capture",
-		};
-		const nestedTemplate: TestChoice = {
-			id: "nested-template",
-			name: "Nested Template",
-			type: "Template",
-		};
-		const conditionalCapture: TestChoice = {
-			id: "conditional-capture",
-			name: "Conditional Capture",
-			type: "Capture",
-		};
-		const conditionalElseTemplate: TestChoice = {
-			id: "conditional-else-template",
-			name: "Conditional Else Template",
-			type: "Template",
-		};
-		const legacyMacroCapture: TestChoice = {
-			id: "legacy-macro-capture",
-			name: "Legacy Macro Capture",
-			type: "Capture",
-		};
-
-		const multiChoice: TestChoice = {
-			id: "multi",
-			name: "Multi",
-			type: "Multi",
-			choices: [nestedCapture],
-		};
-
-		const macroWithNested: TestChoice = {
-			id: "macro-nested",
-			name: "Macro Nested",
-			type: "Macro",
-			macro: {
-				id: "macro-nested-id",
-				name: "Macro Nested",
-				commands: [
-					{
-						type: CommandType.NestedChoice,
-						choice: nestedTemplate,
-					},
-				],
-			},
-		};
-
-		const macroWithConditional: TestChoice = {
-			id: "macro-conditional",
-			name: "Macro Conditional",
-			type: "Macro",
-			macro: {
-				id: "macro-conditional-id",
-				name: "Macro Conditional",
-				commands: [
-					{
-						type: CommandType.Conditional,
-						thenCommands: [
-							{
-								type: CommandType.NestedChoice,
-								choice: conditionalCapture,
-							},
-						],
-						elseCommands: [
-							{
-								type: CommandType.NestedChoice,
-								choice: conditionalElseTemplate,
-							},
-						],
-					},
-				],
-			},
-		};
-
-		const plugin = {
-			settings: {
-				choices: [
-					captureLegacy,
-					captureMissing,
-					templatePartial,
-					multiChoice,
-					macroWithNested,
-					macroWithConditional,
-				],
-				macros: [
-					{
-						id: "legacy-macro",
-						name: "Legacy Macro",
-						commands: [
-							{
-								type: CommandType.NestedChoice,
-								choice: legacyMacroCapture,
-							},
-						],
-					},
-				],
-				migrations: {},
-			},
-			saveSettings: vi.fn(),
-		} as any;
+		});
+		const captureMissing = choice("Capture", "capture-missing", "Capture Missing");
+		const templatePartial = choice("Template", "template-partial", "Template Partial", {
+			fileOpening: { location: "window" },
+		});
+		const nestedCapture = choice("Capture", "nested-capture", "Nested Capture");
+		const nestedTemplate = choice("Template", "nested-template", "Nested Template");
+		const conditionalCapture = choice("Capture", "conditional-capture", "Conditional Capture");
+		const conditionalElseTemplate = choice("Template", "conditional-else-template", "Conditional Else Template");
+		const legacyMacroCapture = choice("Capture", "legacy-macro-capture", "Legacy Macro Capture");
+		const plugin = migrationPlugin({
+			choices: [
+				captureLegacy,
+				captureMissing,
+				templatePartial,
+				{ id: "multi", name: "Multi", type: "Multi", choices: [nestedCapture] },
+				{
+					id: "macro-nested",
+					name: "Macro Nested",
+					type: "Macro",
+					macro: legacyMacro([nestedChoice(nestedTemplate)], "macro-nested-id", "Macro Nested"),
+				},
+				{
+					id: "macro-conditional",
+					name: "Macro Conditional",
+					type: "Macro",
+					macro: legacyMacro([{
+						type: "Conditional",
+						thenCommands: [nestedChoice(conditionalCapture)],
+						elseCommands: [nestedChoice(conditionalElseTemplate)],
+					}], "macro-conditional-id", "Macro Conditional"),
+				},
+			],
+			macros: [legacyMacro([nestedChoice(legacyMacroCapture)], "legacy-macro", "Legacy Macro")],
+			migrations: {},
+		});
 
 		await backfillFileOpeningDefaults.migrate(plugin);
 
 		expect(captureLegacy.fileOpening).toEqual({
-			location: "split",
-			direction: "horizontal",
-			mode: "source",
-			focus: false,
-		});
-		expect(captureMissing.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
+			location: "split", direction: "horizontal", mode: "source", focus: false,
 		});
 		expect(templatePartial.fileOpening).toEqual({
-			location: "window",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
+			location: "window", direction: "vertical", mode: "default", focus: true,
 		});
-		expect(nestedCapture.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		});
-		expect(nestedTemplate.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		});
-		expect(conditionalCapture.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		});
-		expect(conditionalElseTemplate.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		});
-		expect(legacyMacroCapture.fileOpening).toEqual({
-			location: "tab",
-			direction: "vertical",
-			mode: "default",
-			focus: true,
-		});
-		// migrate.ts owns the single post-migration save (it re-syncs the store and
-		// saves after the whole run). A per-migration write here is redundant, and
-		// once this migration can stay PENDING it would be charged on every launch -
-		// a full data.json rewrite per launch, into Obsidian Sync's whole-file
-		// last-write-wins.
+		for (const node of [
+			captureMissing, nestedCapture, nestedTemplate,
+			conditionalCapture, conditionalElseTemplate, legacyMacroCapture,
+		]) {
+			expect(node.fileOpening, node.id).toEqual({
+				location: "tab", direction: "vertical", mode: "default", focus: true,
+			});
+		}
 		expect(plugin.saveSettings).not.toHaveBeenCalled();
 	});
 });

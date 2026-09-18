@@ -169,6 +169,19 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		};
 	});
 
+	it.each([
+		{ name: "retains previous output when the script cannot be loaded", callable: false, expected: "previous" },
+		{ name: "clears previous output when the script returns undefined", callable: true, expected: undefined },
+	])("$name", async ({ callable, expected }) => {
+		const script = vi.fn().mockResolvedValue(undefined);
+		mockGetUserScript.mockResolvedValue(callable ? script : undefined);
+		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
+		engine.setOutput("previous");
+		await engine["executeUserScript"](userScriptCommand);
+		expect(engine.getOutput()).toBe(expected);
+		expect(script).toHaveBeenCalledTimes(callable ? 1 : 0);
+	});
+
 	it("runs the entry export without prompting when no settings are defined", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
 

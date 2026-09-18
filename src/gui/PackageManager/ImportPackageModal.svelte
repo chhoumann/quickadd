@@ -22,12 +22,13 @@
 	} from "../../services/packagePreview";
 	import CapabilityBanner from "./CapabilityBanner.svelte";
 	import FilePreviewRow from "./FilePreviewRow.svelte";
-	import MacroDisclosure from "./MacroDisclosure.svelte";
+	import ImportAcknowledgement from "./ImportAcknowledgement.svelte";
+	import ImportChoices from "./ImportChoices.svelte";
+	import PackageWarnings from "./PackageWarnings.svelte";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import {
 		ExistenceResolver,
 		applyExistsResult,
-		effectiveChoiceMode,
 		initAssetDecisions,
 		initChoiceDecisions,
 		resolveAssetDecision,
@@ -107,14 +108,6 @@
 			(!requiresAck || (acknowledged && fullyReviewed)),
 	);
 
-	const criticalScriptCount = $derived(
-		preview?.criticalScriptPaths.length ?? 0,
-	);
-	const hasUnbundledScript = $derived(
-		preview?.missingReferences.some((ref) => ref.asScript) ?? false,
-	);
-	// The checkbox only claims a script review when there are bundled scripts to
-	// open; otherwise the copy stays honest about why no code is shown.
 	const importSummaryText = $derived.by(() => {
 		const s = importSummary;
 		if (!s) return "";
@@ -133,15 +126,6 @@
 			: "Nothing was imported.";
 	});
 
-	const ackLabel = $derived(
-		criticalScriptCount > 0
-			? hasUnbundledScript
-				? "I have reviewed each bundled script above and trust the source, including scripts that are not included and cannot be shown."
-				: "I have reviewed each script above and trust the source."
-			: hasUnbundledScript
-				? "This package runs scripts that are not included and cannot be reviewed. I trust the source."
-				: "I understand this package can run code, and I trust the source.",
-	);
 
 	function markReviewed(path: string) {
 		if (reviewedScriptPaths.has(path)) return;
@@ -327,10 +311,6 @@
 		void analyzePastedContent(value);
 	}
 
-	function formatPathHint(pathHint: string[]): string {
-		if (!pathHint || pathHint.length === 0) return "Root";
-		return pathHint.slice(0, -1).join(" › ") || "Root";
-	}
 
 	async function handleImport() {
 		if (hasImported) {
@@ -450,103 +430,8 @@
 			<CapabilityBanner {preview} />
 		{/if}
 
-		<section class="choicesSection">
-			<h3>Choices</h3>
-			{#if analysis.choiceConflicts.length === 0}
-				<p>No choices found in this package.</p>
-			{:else}
-				<table>
-					<colgroup>
-						<col class="colName" />
-						<col class="colLocation" />
-						<col class="colAction" />
-					</colgroup>
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Location</th>
-							<th>Action</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each analysis.choiceConflicts as conflict (conflict.choiceId)}
-							{@const effectiveMode = effectiveChoiceMode(
-								choiceDecisions.get(conflict.choiceId) ??
-									"import",
-								conflict.exists,
-							)}
-							{@const pc = previewChoiceById.get(
-								conflict.choiceId,
-							)}
-							{@const hasMacro = (pc?.commands?.length ?? 0) > 0}
-							<tr>
-								<td data-label="Name">
-									<div class="choiceName">
-										{conflict.name}
-									</div>
-									{#if conflict.exists}
-										<div class="choiceExists">
-											already in vault
-										</div>
-									{/if}
-									{#if hasMacro}
-										<button
-											type="button"
-											class="macroToggle"
-											aria-expanded={expandedMacros.has(
-												conflict.choiceId,
-											)}
-											onclick={() =>
-												toggleMacro(conflict.choiceId)}
-										>
-											{expandedMacros.has(
-												conflict.choiceId,
-											)
-												? "Hide macro"
-												: "Show macro"}
-										</button>
-									{/if}
-								</td>
-								<td data-label="Location"
-									>{formatPathHint(conflict.pathHint)}</td
-								>
-								<td data-label="Action">
-									<select
-										class="dropdown"
-										value={effectiveMode}
-										onchange={(event) =>
-											onChoiceModeChange(
-												conflict.choiceId,
-												event,
-											)}
-									>
-										<option value="import">Import</option>
-										{#if conflict.exists}
-											<option value="overwrite"
-												>Overwrite</option
-											>
-										{/if}
-										<option value="duplicate"
-											>Duplicate</option
-										>
-										<option value="skip">Skip</option>
-									</select>
-								</td>
-							</tr>
-							{#if hasMacro && expandedMacros.has(conflict.choiceId)}
-								<tr class="macroRow">
-									<td colspan="3">
-										<MacroDisclosure
-											commands={pc?.commands ?? []}
-										/>
-									</td>
-								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
-			{/if}
-		</section>
+		<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
+			{previewChoiceById} {expandedMacros} {toggleMacro} {onChoiceModeChange} />
 
 		{#if loadedPackage}
 			<section class="filesSection">
@@ -554,12 +439,16 @@
 				{#if fileRows.length === 0}
 					<p>No files bundled with this package.</p>
 				{:else}
-					{#if addedFileRows.length > 0}
-						<h4 class="filesGroupHeading">
-							Added ({addedFileRows.length})
-						</h4>
+					{#each [
+						{ label: "Added", rows: addedFileRows, overwrite: false },
+						{ label: "Will overwrite", rows: overwriteFileRows, overwrite: true },
+					] as group (group.label)}
+						{#if group.rows.length > 0}
+							<h4 class="filesGroupHeading" class:overwrite={group.overwrite}>
+								{group.label} ({group.rows.length})
+							</h4>
 						<div class="fileRows">
-							{#each addedFileRows as row (row.conflict.originalPath)}
+							{#each group.rows as row (row.conflict.originalPath)}
 								{#if row.file}
 									<FilePreviewRow
 										file={row.file}
@@ -587,79 +476,12 @@
 								{/if}
 							{/each}
 						</div>
-					{/if}
-					{#if overwriteFileRows.length > 0}
-						<h4 class="filesGroupHeading overwrite">
-							Will overwrite ({overwriteFileRows.length})
-						</h4>
-						<div class="fileRows">
-							{#each overwriteFileRows as row (row.conflict.originalPath)}
-								{#if row.file}
-									<FilePreviewRow
-										file={row.file}
-										pkg={loadedPackage.pkg}
-										mode={row.state.mode}
-										destinationPath={row.state
-											.destinationPath}
-										destinationExists={row.state
-											.destinationExists}
-										onPathInput={(value) =>
-											updateAssetPath(
-												row.conflict,
-												value,
-											)}
-										onModeChange={(mode) =>
-											updateAssetMode(
-												row.conflict.originalPath,
-												mode,
-											)}
-										reviewed={reviewedScriptPaths.has(
-											row.file.originalPath,
-										)}
-										onReviewed={markReviewed}
-									/>
-								{/if}
-							{/each}
-						</div>
-					{/if}
+						{/if}
+					{/each}
 				{/if}
 			</section>
 
-			{#if preview && (preview.missingReferences.length > 0 || preview.orphanAssets.length > 0)}
-				<section class="warningsBand">
-					{#if preview.missingReferences.length > 0}
-						<div class="warnItem">
-							<h4>Missing files</h4>
-							<ul>
-								{#each preview.missingReferences as ref (ref.path)}
-									<li class:script={ref.asScript}>
-										<code>{ref.path}</code>:
-										{ref.asScript
-											? "not bundled, so it runs from whatever file exists at that path after import"
-											: "not bundled and not in your vault"}
-										<span class="warnLoc"
-											>{ref.breadcrumb}</span
-										>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-					{#if preview.orphanAssets.length > 0}
-						<div class="warnItem">
-							<h4>Unreferenced files</h4>
-							<ul>
-								{#each preview.orphanAssets as path (path)}
-									<li>
-										<code>{path}</code>: bundled but not
-										used by any choice
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-				</section>
-			{/if}
+			<PackageWarnings {preview} />
 		{/if}
 
 		{#if importSummary}
@@ -671,30 +493,7 @@
 	{/if}
 
 	{#if loadedPackage && requiresAck && !hasImported}
-		<section class="ackGate" class:critical={preview?.summary.hasCritical}>
-			<label class="ackGate-label">
-				<input
-					id="qa-import-ack-checkbox"
-					type="checkbox"
-					checked={acknowledged}
-					disabled={!fullyReviewed}
-					aria-describedby={criticalScriptCount > 0 && !fullyReviewed
-						? "qa-import-ack-hint"
-						: undefined}
-					onchange={(event) =>
-						(acknowledged = (
-							event.currentTarget as HTMLInputElement
-						).checked)}
-				/>
-				<span>{ackLabel}</span>
-			</label>
-			{#if criticalScriptCount > 0 && !fullyReviewed}
-				<p id="qa-import-ack-hint" class="ackGate-hint">
-					Open “View contents” on each of the {criticalScriptCount} executable
-					script{criticalScriptCount === 1 ? "" : "s"} above to enable this.
-				</p>
-			{/if}
-		</section>
+		<ImportAcknowledgement {preview} {fullyReviewed} bind:acknowledged />
 	{/if}
 
 	<section class="footer">
@@ -793,7 +592,6 @@
 		color: var(--text-faint);
 	}
 
-	.choicesSection,
 	.filesSection {
 		display: flex;
 		flex-direction: column;
@@ -817,175 +615,6 @@
 		gap: 0.5rem;
 	}
 
-	.choiceName {
-		font-weight: 500;
-	}
-
-	/* A plain inline text link, not a chrome button: neutralise Obsidian's
-	   default button background/shadow on every state (!important to win over
-	   the global button:hover / :focus rules that paint the grey box). */
-	.macroToggle {
-		display: inline-block;
-		margin-top: 0.35rem;
-		padding: 0;
-		background: transparent !important;
-		border: none;
-		box-shadow: none !important;
-		color: var(--text-accent);
-		cursor: pointer;
-		font-size: var(--font-ui-smaller, 0.8rem);
-		border-radius: var(--radius-s, 4px);
-	}
-
-	.macroToggle:hover {
-		color: var(--interactive-accent-hover, var(--text-accent));
-		text-decoration: underline;
-	}
-
-	.macroToggle:focus-visible {
-		outline: 2px solid var(--interactive-accent);
-		outline-offset: 2px;
-	}
-
-	.macroRow td {
-		background: var(--background-primary-alt, var(--background-secondary));
-	}
-
-	.warningsBand {
-		display: flex;
-		flex-direction: column;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: var(--radius-m, 8px);
-		padding: 0.6rem 0.75rem;
-		gap: 0.5rem;
-	}
-
-	.warnItem h4 {
-		margin: 0;
-		font-size: var(--font-ui-small, 0.9rem);
-	}
-
-	.warnItem ul {
-		margin: 0.25rem 0 0;
-		padding-left: 1rem;
-	}
-
-	.warnItem li {
-		overflow-wrap: anywhere;
-	}
-
-	/* A missing SCRIPT reference is an execution-hijack risk, not a broken
-	   link: it runs from whatever exists at that path. Mark it as critical. */
-	.warnItem li.script {
-		padding: 0.25rem 0.4rem;
-		border-radius: var(--radius-s, 4px);
-		background: var(--qa-sev-critical-wash);
-	}
-
-	.warnLoc {
-		color: var(--text-muted);
-		font-size: var(--font-ui-smaller, 0.8rem);
-	}
-
-	.choicesSection table {
-		width: 100%;
-		border-collapse: collapse;
-		table-layout: fixed;
-	}
-
-	.choicesSection col.colName {
-		width: 52%;
-	}
-
-	.choicesSection col.colLocation {
-		width: 26%;
-	}
-
-	.choicesSection col.colAction {
-		width: 22%;
-	}
-
-	.choicesSection th,
-	.choicesSection td {
-		padding: 0.5rem;
-		border-bottom: 1px solid var(--background-modifier-border);
-		text-align: left;
-		word-break: break-word;
-		overflow-wrap: anywhere;
-		white-space: normal;
-		vertical-align: top;
-	}
-
-	.choicesSection th {
-		font-size: var(--font-ui-smaller, 0.8rem);
-		color: var(--text-muted);
-		font-weight: 600;
-	}
-
-	.choiceExists {
-		font-size: var(--font-ui-smaller, 0.8rem);
-		color: var(--text-muted);
-		margin-top: 0.1rem;
-	}
-
-	.choicesSection tbody tr:not(.macroRow):hover td {
-		background: var(--background-modifier-hover);
-	}
-
-	.choicesSection select {
-		max-width: 100%;
-	}
-
-	/* Narrow viewports (mobile): a 3-column table can't breathe, so each row
-	   becomes a stacked card with the column name as an inline label. */
-	@media (max-width: 500px) {
-		.choicesSection thead {
-			display: none;
-		}
-
-		.choicesSection table,
-		.choicesSection tbody,
-		.choicesSection tr,
-		.choicesSection td {
-			display: block;
-			width: 100%;
-		}
-
-		.choicesSection tbody tr:not(.macroRow) {
-			border: 1px solid var(--background-modifier-border);
-			border-radius: var(--radius-m, 8px);
-			padding: 0.5rem 0.6rem;
-			margin-bottom: 0.5rem;
-		}
-
-		.choicesSection td {
-			border-bottom: none;
-			padding: 0.15rem 0;
-		}
-
-		.choicesSection td[data-label="Location"]::before,
-		.choicesSection td[data-label="Action"]::before {
-			content: attr(data-label) ": ";
-			font-weight: 600;
-			color: var(--text-muted);
-		}
-
-		.choicesSection td[data-label="Action"] {
-			display: flex;
-			align-items: center;
-			gap: 0.4rem;
-			margin-top: 0.25rem;
-		}
-
-		.choicesSection td[data-label="Action"] select {
-			flex: 1;
-		}
-
-		.macroRow td {
-			padding: 0.25rem 0;
-		}
-	}
-
 	.summary {
 		display: flex;
 		align-items: center;
@@ -1000,49 +629,6 @@
 	.summary :global(.quickadd-icon) {
 		color: var(--text-success, var(--color-green, #0aa344));
 		flex-shrink: 0;
-	}
-
-	.ackGate {
-		display: flex;
-		flex-direction: column;
-		gap: 0.4rem;
-		padding: 0.75rem;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: var(--radius-m, 8px);
-		background: var(--background-secondary);
-	}
-
-	.ackGate.critical {
-		border-color: var(--qa-sev-critical-border);
-	}
-
-	.ackGate-label {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.ackGate-label:has(input:disabled) {
-		cursor: not-allowed;
-		opacity: 0.6;
-	}
-
-	.ackGate-label input {
-		margin-top: 0.2rem;
-		flex-shrink: 0;
-	}
-
-	.ackGate-label input:focus-visible {
-		outline: 2px solid var(--interactive-accent);
-		outline-offset: 2px;
-	}
-
-	.ackGate-hint {
-		margin: 0;
-		font-size: var(--font-ui-smaller, 0.8rem);
-		color: var(--text-muted);
 	}
 
 	.footer {
@@ -1083,11 +669,6 @@
 	.footer .primary:focus-visible {
 		outline: 2px solid var(--text-on-accent);
 		outline-offset: -4px;
-	}
-
-	:global(.is-mobile) .macroToggle {
-		min-height: 36px;
-		padding: 0.4rem 0.3rem;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

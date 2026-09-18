@@ -1,20 +1,14 @@
+import { StubFormatter } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from 'vitest';
 
 // Mock the abstract methods for testing
-class TestFormatter {
-	protected variables: Map<string, unknown> = new Map();
+class TestFormatter extends StubFormatter {
 	private promptResponses: Map<string, string> = new Map();
 	private suggesterResponses: Map<string, string> = new Map();
 	private allowCustomInputCalls: boolean[] = [];
 
 	protected getVariableValue(variableName: string): string {
 		return (this.variables.get(variableName) as string) ?? "";
-	}
-
-	protected replacer(str: string, reg: RegExp, replaceValue: string) {
-		return str.replace(reg, function () {
-			return replaceValue;
-		});
 	}
 
 	protected async promptForVariable(variableName: string): Promise<string> {
@@ -26,67 +20,8 @@ class TestFormatter {
 		const key = suggestedValues.join(",");
 		return this.suggesterResponses.get(key) || "";
 	}
-
-	protected hasConcreteVariable(variableName: string): boolean {
-		const value = this.variables.get(variableName);
-		return value !== undefined && value !== null && value !== "";
-	}
-
-	// Expose the method we're testing
 	public async testReplaceVariableInString(input: string): Promise<string> {
-		const VARIABLE_REGEX = /{{VALUE:([^\n\r}]*)}}/i;
-		let output: string = input;
-
-		while (VARIABLE_REGEX.test(output)) {
-			const match = VARIABLE_REGEX.exec(output);
-			if (!match) throw new Error("unable to parse variable");
-
-			let variableName = match[1];
-			let defaultValue = "";
-
-			if (variableName) {
-				// Parse default value if present (syntax: {{VALUE:name|default}})
-				const pipeIndex = variableName.indexOf("|");
-				if (pipeIndex !== -1) {
-					defaultValue = variableName.substring(pipeIndex + 1).trim();
-					variableName = variableName.substring(0, pipeIndex).trim();
-				}
-
-				if (!this.hasConcreteVariable(variableName)) {
-				const suggestedValues = variableName.split(",");
-				let variableValue = "";
-				let actualDefaultValue = defaultValue;
-
-				if (suggestedValues.length === 1) {
-				 variableValue = await this.promptForVariable(variableName);
-				} else {
-				// Check if defaultValue contains the |custom modifier
-				const allowCustomInput = defaultValue.toLowerCase() === "custom";
-				// If custom modifier is present, don't use it as default value
-				actualDefaultValue = allowCustomInput ? "" : defaultValue;
-				
-					variableValue = await this.suggestForValue(suggestedValues, allowCustomInput);
-				}
-
-				// Use default value if no input provided (applies to both prompt and suggester)
-				if (!variableValue && actualDefaultValue) {
-				 variableValue = actualDefaultValue;
-				}
-
-				 this.variables.set(variableName, variableValue);
-			}
-
-				output = this.replacer(
-					output,
-					VARIABLE_REGEX,
-					this.getVariableValue(variableName)
-				);
-			} else {
-				break;
-			}
-		}
-
-		return output;
+		return this.replaceVariableInString(input);
 	}
 
 	// Test helpers
@@ -212,16 +147,12 @@ describe('Formatter - Custom Input Modifier for {{VALUE:}}', () => {
 		const input = "{{VALUE:OnlyOption|custom}}";
 		const result = await formatter.testReplaceVariableInString(input);
 
-		// Note: Single option uses promptForVariable, not suggestForValue
-		// The |custom modifier only applies to suggesters, so for single-value prompts
-		// it's treated as a default value
-		expect(result).toBe("custom");
+		// The modifier is not a default, including for a single named input.
+		expect(result).toBe("");
 	});
 
 	it('should handle trimmed values correctly with custom modifier', async () => {
-		// Note: The variable name "Red, Green, Blue" gets split but spaces aren't trimmed in the split
-		// So the key is ["Red", " Green", " Blue"]
-		formatter.setSuggesterResponse(["Red", " Green", " Blue"], "Custom Color");
+		formatter.setSuggesterResponse(["Red", "Green", "Blue"], "Custom Color");
 		const input = "{{VALUE:Red, Green, Blue|custom}}";
 		const result = await formatter.testReplaceVariableInString(input);
 

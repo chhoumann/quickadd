@@ -1,6 +1,7 @@
 import type { App, EventRef } from "obsidian";
 
 interface CacheEntry {
+	fieldName: string;
 	values: Set<string>;
 	timestamp: number;
 }
@@ -89,13 +90,10 @@ export class FieldSuggestionCache {
 	set(fieldName: string, values: Set<string>, cacheKey?: string): void {
 		const key = this.makeKey(fieldName, cacheKey);
 
-		// Limit the number of values per entry
 		const limitedValues = new Set<string>();
-		let count = 0;
 		for (const value of values) {
-			if (count >= this.MAX_VALUES_PER_ENTRY) break;
+			if (limitedValues.size >= this.MAX_VALUES_PER_ENTRY) break;
 			limitedValues.add(value);
-			count++;
 		}
 
 		// Check if we need to evict old entries
@@ -104,6 +102,7 @@ export class FieldSuggestionCache {
 		}
 
 		this.cache.set(key, {
+			fieldName,
 			values: limitedValues,
 			timestamp: Date.now(),
 		});
@@ -148,23 +147,12 @@ export class FieldSuggestionCache {
 	 */
 	clear(fieldName?: string): void {
 		this.revision++;
-		if (fieldName) {
-			// Clear all entries for this field. Compare the decoded field-name
-			// component rather than a raw `${fieldName}:` prefix, which would both
-			// over-match (a different field literally named `${fieldName}:...`) and
-			// mis-match once keys are JSON-encoded.
-			const keysToDelete: string[] = [];
-			for (const key of this.cache.keys()) {
-				if (this.keyFieldName(key) === fieldName) {
-					keysToDelete.push(key);
-				}
-			}
-			for (const key of keysToDelete) {
-				this.cache.delete(key);
-			}
-		} else {
-			// Clear entire cache
+		if (!fieldName) {
 			this.cache.clear();
+			return;
+		}
+		for (const [key, entry] of this.cache) {
+			if (entry.fieldName === fieldName) this.cache.delete(key);
 		}
 	}
 
@@ -173,16 +161,8 @@ export class FieldSuggestionCache {
 	 */
 	cleanExpired(): void {
 		const now = Date.now();
-		const keysToDelete: string[] = [];
-
-		for (const [key, entry] of this.cache.entries()) {
-			if (now - entry.timestamp > this.TTL) {
-				keysToDelete.push(key);
-			}
-		}
-
-		for (const key of keysToDelete) {
-			this.cache.delete(key);
+		for (const [key, entry] of this.cache) {
+			if (now - entry.timestamp > this.TTL) this.cache.delete(key);
 		}
 	}
 
@@ -219,17 +199,4 @@ export class FieldSuggestionCache {
 		return JSON.stringify([fieldName, cacheKey || null]);
 	}
 
-	/** Decode the field-name component of a key produced by {@link makeKey}. */
-	private keyFieldName(key: string): string | undefined {
-		try {
-			const parsed = JSON.parse(key) as unknown;
-			if (Array.isArray(parsed) && typeof parsed[0] === "string") {
-				return parsed[0];
-			}
-		} catch {
-			// Keys are always produced by makeKey, so this is unreachable in
-			// practice; fall through to undefined defensively.
-		}
-		return undefined;
-	}
 }

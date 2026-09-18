@@ -116,11 +116,7 @@ const createChoice = (
 		setFileExistsBehavior: false,
 	}) as unknown as ITemplateChoice;
 
-const createExecutor = (): IChoiceExecutor => ({
-	...createChoiceExecutor(),
-	execute: vi.fn(),
-	variables: new Map<string, unknown>(),
-});
+const createExecutor = (): IChoiceExecutor => (createChoiceExecutor());
 
 const createPlugin = () =>
 	({

@@ -1,11 +1,8 @@
+import { StubFormatter as FormatterStub } from "../../tests/helpers/formatters/stubFormatter";
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Formatter } from './formatter';
 
 // Test implementation for issue #929 reproduction
-class Issue929TestFormatter extends Formatter {
-    constructor() {
-        super();
-    }
+class Issue929TestFormatter extends FormatterStub {
 
     protected async format(input: string): Promise<string> {
         let output = input;
@@ -18,74 +15,8 @@ class Issue929TestFormatter extends Formatter {
         return "test value";
     }
 
-    protected getCurrentFileLink(): string | null {
-        return null;
-    }
-
-    protected getCurrentFileName(): string | null {
-        return null;
-    }
-
     protected getVariableValue(variableName: string): string {
         return (this.variables.get(variableName) as string) ?? "";
-    }
-
-    protected suggestForValue(
-        _suggestedValues: string[],
-        _allowCustomInput?: boolean,
-        _context?: { placeholder?: string; variableKey?: string },
-    ): string {
-        return "";
-    }
-
-    protected suggestForFile(): string {
-    	return "";
-    }
-
-    protected suggestForField(_variableName: string): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected promptForMathValue(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getMacroValue(
-        _macroName: string,
-        _context?: { label?: string },
-    ): string {
-        return "";
-    }
-
-    protected promptForVariable(
-        _variableName: string,
-        _context?: {
-            type?: string;
-            dateFormat?: string;
-            defaultValue?: string;
-            label?: string;
-            description?: string;
-            placeholder?: string;
-            variableKey?: string;
-        },
-    ): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getTemplateContent(_templatePath: string): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getSelectedText(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected getClipboardContent(): Promise<string> {
-        return Promise.resolve("");
-    }
-
-    protected isTemplatePropertyTypesEnabled(): boolean {
-        return false; // Test formatter doesn't need structured YAML variable handling
     }
 
     // Expose for testing

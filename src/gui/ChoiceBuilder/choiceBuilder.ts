@@ -1,5 +1,7 @@
 import { type App, Modal } from "obsidian";
-import type { MountHandle } from "../svelte/mountComponent";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import type { Component } from "svelte";
+import type { ChoiceFormProps } from "./choiceFormProps.svelte";
 import { snapshot } from "../svelte/persist.svelte";
 import { addAutosaveFooter } from "./components/autosaveFooter";
 import type IChoice from "../../types/choices/IChoice";
@@ -39,6 +41,17 @@ export abstract class ChoiceBuilder extends Modal {
 	 * subclass has assigned this.choice, so mounting must happen afterwards.
 	 */
 	protected abstract display(): unknown;
+
+	protected mountForm<C extends IChoice>(
+		component: Component<ChoiceFormProps<C>>,
+		props: ChoiceFormProps<C>,
+		what: string,
+	): ChoiceFormProps<C> | undefined {
+		const handle = mountComponent(this.contentEl, component, props, { what });
+		this.svelteElements.push(handle);
+		// An unseen form must not replace the source choice on close.
+		return handle.ok ? props : undefined;
+	}
 
 	private destroySvelteElements() {
 		this.svelteElements.forEach((handle) => handle.destroy());

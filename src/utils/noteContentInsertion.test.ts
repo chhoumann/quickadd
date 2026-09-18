@@ -6,8 +6,12 @@ import {
 } from "./noteContentInsertion";
 
 describe("getBodyStartOffset", () => {
-	it("returns 0 when there is no frontmatter", () => {
-		expect(getBodyStartOffset("# Heading\nBody")).toBe(0);
+	it.each([
+		["returns 0 when there is no frontmatter", "# Heading\nBody"],
+		["treats a non-offset-0 fence as no frontmatter", "\n---\ntitle: A\n---\nBody"],
+		["treats a '...'-closed block as no frontmatter (Obsidian-consistent)", "---\ntitle: A\n...\nBody"],
+	] as const)("%s", (_name, input) => {
+		expect(getBodyStartOffset(input)).toBe(0);
 	});
 
 	it("returns the offset just after the closing fence for normal frontmatter", () => {
@@ -17,14 +21,6 @@ describe("getBodyStartOffset", () => {
 
 	it("detects empty frontmatter", () => {
 		expect(getBodyStartOffset("---\n---\n# Body")).toBe("---\n---\n".length);
-	});
-
-	it("treats a non-offset-0 fence as no frontmatter", () => {
-		expect(getBodyStartOffset("\n---\ntitle: A\n---\nBody")).toBe(0);
-	});
-
-	it("treats a '...'-closed block as no frontmatter (Obsidian-consistent)", () => {
-		expect(getBodyStartOffset("---\ntitle: A\n...\nBody")).toBe(0);
 	});
 });
 

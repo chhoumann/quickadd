@@ -2,45 +2,17 @@ import { describe, expect, it } from "vitest";
 import { normalizeGeneratedFilePath } from "./generatedFilePath";
 
 describe("normalizeGeneratedFilePath", () => {
-	it("folds trailing line breaks out of file names", () => {
-		expect(normalizeGeneratedFilePath("This is the VALUE\n")).toBe(
-			"This is the VALUE",
-		);
-	});
-
-	it("does not create a leading space for a leading line break", () => {
-		expect(normalizeGeneratedFilePath("\nThis is the VALUE")).toBe(
-			"This is the VALUE",
-		);
-	});
-
-	it("folds internal control characters to one linkable space", () => {
-		expect(normalizeGeneratedFilePath("This\r\n\tis the VALUE")).toBe(
-			"This is the VALUE",
-		);
-	});
-
-	it("folds unicode line separators to one linkable space", () => {
-		expect(normalizeGeneratedFilePath("Line\u2028Separator")).toBe(
-			"Line Separator",
-		);
-	});
-
-	it("preserves ordinary leading and repeated spaces", () => {
-		expect(normalizeGeneratedFilePath("  Leading  Spaces")).toBe(
-			"  Leading  Spaces",
-		);
-	});
-
-	it("strips trailing spaces and periods from generated path segments", () => {
-		expect(normalizeGeneratedFilePath("Folder. /Note. ")).toBe(
-			"Folder/Note",
-		);
-	});
-
-	it("preserves folder separators while normalizing each segment", () => {
-		expect(normalizeGeneratedFilePath("Folder/Line\nBreak")).toBe(
-			"Folder/Line Break",
+	it.each([
+		["folds trailing line breaks out of file names", "This is the VALUE\n", "This is the VALUE"],
+		["does not create a leading space for a leading line break", "\nThis is the VALUE", "This is the VALUE"],
+		["folds internal control characters to one linkable space", "This\r\n\tis the VALUE", "This is the VALUE"],
+		["folds unicode line separators to one linkable space", "Line\u2028Separator", "Line Separator"],
+		["preserves ordinary leading and repeated spaces", "  Leading  Spaces", "  Leading  Spaces"],
+		["strips trailing spaces and periods from generated path segments", "Folder. /Note. ", "Folder/Note"],
+		["preserves folder separators while normalizing each segment", "Folder/Line\nBreak", "Folder/Line Break"],
+	] as const)("%s", (_name, input, expected) => {
+		expect(normalizeGeneratedFilePath(input)).toBe(
+			expected,
 		);
 	});
 

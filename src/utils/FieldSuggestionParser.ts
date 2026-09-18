@@ -235,18 +235,14 @@ export class FieldSuggestionParser {
 						) ?? "auto";
 					break;
 				case "folder":
-					if (!filters.folders) {
-						filters.folders = [];
-					}
+					filters.folders ??= [];
 					filters.folders.push(filterValue);
 					if (!filters.folder) {
 						filters.folder = filterValue;
 					}
 					break;
 				case "tag": {
-					if (!filters.tags) {
-						filters.tags = [];
-					}
+					filters.tags ??= [];
 					// Remove # prefix if present
 					const tagName = filterValue.startsWith("#")
 						? filterValue.substring(1)
@@ -258,9 +254,7 @@ export class FieldSuggestionParser {
 					filters.inline = filterValue.toLowerCase() === "true";
 					break;
 				case "inline-code-blocks":
-					if (!filters.inlineCodeBlocks) {
-						filters.inlineCodeBlocks = [];
-					}
+					filters.inlineCodeBlocks ??= [];
 					filters.inlineCodeBlocks.push(
 						...filterValue
 							.split(",")
@@ -288,15 +282,11 @@ export class FieldSuggestionParser {
 					filters.caseSensitive = filterValue.toLowerCase() === "true";
 					break;
 				case "exclude-folder":
-					if (!filters.excludeFolders) {
-						filters.excludeFolders = [];
-					}
+					filters.excludeFolders ??= [];
 					filters.excludeFolders.push(filterValue);
 					break;
 				case "exclude-tag": {
-					if (!filters.excludeTags) {
-						filters.excludeTags = [];
-					}
+					filters.excludeTags ??= [];
 					// Remove # prefix if present
 					const excludeTagName = filterValue.startsWith("#")
 						? filterValue.substring(1)
@@ -305,9 +295,7 @@ export class FieldSuggestionParser {
 					break;
 				}
 				case "exclude-file":
-					if (!filters.excludeFiles) {
-						filters.excludeFiles = [];
-					}
+					filters.excludeFiles ??= [];
 					filters.excludeFiles.push(filterValue);
 					break;
 			}

@@ -1,3 +1,9 @@
+import { describeReplyProblem } from "./promptProtocol";
+import type { PromptSpec, ReplyBody, ReplyOutcome } from "./promptProtocol";
+export type {
+	SuggesterItem, CheckboxItem, FormField, PromptSpec, ReplyBody, ReplyOutcome,
+} from "./promptProtocol";
+
 /**
  * Localhost HTTP bridge that lets an external front end (Raycast, scripts) drive
  * QuickAdd's *interactive* prompts — the ones a script raises at runtime and the
@@ -47,87 +53,6 @@ type HttpModule = {
 		listener: (req: HttpIncomingMessage, res: HttpServerResponse) => void,
 	) => HttpServer;
 };
-
-export interface SuggesterItem {
-	/** Text shown to the user. */
-	title: string;
-	/** The value handed back to the script when this item is chosen. */
-	value: string;
-}
-
-export interface CheckboxItem {
-	title: string;
-	value: string;
-	checked: boolean;
-}
-
-/** One field of a batch `requestInputs` form (a subset of QuickAdd's FieldRequirement). */
-export interface FormField {
-	id: string;
-	label: string;
-	type:
-		| "text"
-		| "number"
-		| "textarea"
-		| "dropdown"
-		| "date"
-		| "suggester"
-		| "slider"
-		| "field-suggest";
-	placeholder?: string;
-	defaultValue?: string;
-	description?: string;
-	options?: string[];
-	displayOptions?: string[];
-	dateFormat?: string;
-	optional?: boolean;
-	numericConfig?: { min?: number; max?: number; step?: number };
-	suggesterConfig?: { allowCustomInput?: boolean; multiSelect?: boolean };
-}
-
-/**
- * A prompt the running script is blocked on. Mirrors the QuickAdd API prompt
- * seam (suggester / inputPrompt / wideInputPrompt / datePrompt / yesNoPrompt /
- * checkboxPrompt / infoDialog). The reply `value` type per prompt:
- *  - suggester/input/date -> string   - confirm -> boolean
- *  - checkbox -> string[]             - info -> acknowledgement (any)
- */
-export type PromptSpec =
-	| {
-			type: "suggester";
-			placeholder?: string;
-			allowCustomInput: boolean;
-			items: SuggesterItem[];
-	  }
-	| {
-			type: "multiselect";
-			placeholder?: string;
-			allowCustomInput: boolean;
-			items: SuggesterItem[];
-			/** `value`s (wire tokens) that start pre-selected. */
-			preselected: string[];
-	  }
-	| {
-			type: "input";
-			header: string;
-			placeholder?: string;
-			defaultValue?: string;
-			/** Render a multi-line field (wideInputPrompt). */
-			multiline: boolean;
-	  }
-	| {
-			type: "date";
-			header: string;
-			placeholder?: string;
-			defaultValue?: string;
-			dateFormat?: string;
-			/** Render a date *and time* picker (VDATE `|time`/`|datetime`). */
-			withTime?: boolean;
-	  }
-	| { type: "confirm"; header: string; text?: string }
-	| { type: "checkbox"; header?: string; items: CheckboxItem[] }
-	| { type: "info"; header: string; text: string[] }
-	| { type: "form"; fields: FormField[] };
 
 /** Events streamed to the polling client. */
 type ServerEvent =
@@ -229,80 +154,11 @@ function randomId(): string {
 	);
 }
 
-/** Body of a `POST /reply`. Every field is untrusted JSON, hence the `unknown`s. */
-export interface ReplyBody {
-	requestId?: string;
-	value?: unknown;
-	cancelled?: unknown;
-}
-
-export type ReplyOutcome =
-	| { ok: true }
-	| { ok: false; status: 400 | 409; error: string };
-
 const NO_PENDING_PROMPT = "No pending prompt for that requestId";
 
-/**
- * Why a prompt that was waiting on the client will never be answered.
- *
- * Thrown as a {@link ChoiceAbortError}, not a bare `Error`, and that matters now that
- * ENGINE prompts travel this bridge too (#1614). `isCancellationError` is false for a
- * plain Error, so the engines' catch blocks would classify a client that simply stopped
- * polling as a run FAILURE - a red "Error running choice" notice on a desktop nobody is
- * sitting at, and an `error` outcome where the truth is an abort. A ChoiceAbortError
- * flows through the existing abort handling and lands as `cancelled`/`aborted` carrying
- * this reason.
- */
+// Disconnects are cancellations, so engines must receive ChoiceAbortError, not Error.
 const SESSION_ENDED_REASON =
 	"The interactive client disconnected, so the run was ended.";
-
-/**
- * Why this reply cannot be honoured, or null if it can.
- *
- * Validating here rather than deeper in is what makes a malformed reply safe: the
- * client is still waiting on the HTTP response, so it gets an actionable 400 and the
- * prompt stays pending. Deeper in, the only options are to invent an answer (which
- * is the bug this seam had) or to fail the whole run with a message the client may
- * never see - the Template/Capture path replaces it with a generic sentence.
- *
- * Only two things are checked, both because a wrong answer there is
- * indistinguishable from a real one. Empty answers stay legal everywhere else:
- * `""` and `[]` are things a user genuinely submits in-app via the Skip
- * affordances and optional fields, so rejecting them would break optional prompts
- * on remote runs.
- */
-function describeReplyProblem(
-	promptType: PromptSpec["type"],
-	body: ReplyBody,
-): string | null {
-	if (body.cancelled !== undefined && typeof body.cancelled !== "boolean") {
-		return 'The "cancelled" flag must be the literal true (or omitted). A cancel that is not recognised would otherwise be answered on the user\'s behalf.';
-	}
-	if (body.cancelled === true) return null;
-
-	if (promptType === "confirm") {
-		const value = body.value;
-		const isBoolean =
-			value === true ||
-			value === false ||
-			value === "true" ||
-			value === "false";
-		if (!isBoolean) {
-			return `A confirm prompt needs a boolean reply, or {"cancelled": true} if the user dismissed it. Got ${describeValue(value)}.`;
-		}
-	}
-	return null;
-}
-
-/** A short, safe rendering of a bad reply value for an error message. */
-function describeValue(value: unknown): string {
-	if (value === undefined) return "no value";
-	if (value === null) return "null";
-	if (typeof value === "string") return JSON.stringify(value.slice(0, 40));
-	if (typeof value === "number" || typeof value === "boolean")
-		return String(value);
-	return Array.isArray(value) ? "an array" : typeof value;
-}
 
 class InteractivePromptServer {
 	private server: HttpServer | null = null;
@@ -440,28 +296,9 @@ class InteractivePromptServer {
 	}
 
 	/**
-	 * End a run at the client's request: reject everything it is blocked on, and make
-	 * the next prompt reject too.
-	 *
-	 * This exists because cancelling an `info` prompt no longer aborts. Escape is the
-	 * only gesture an info panel affords, so treating it as "end the run" made a remote
-	 * run diverge from the identical run in the app, where `GenericInfoDialog` resolves
-	 * on every close path and can never abort anything (#1605). Taking that away without
-	 * replacing it would have left a client with no explicit way out at all - only
-	 * stopping its polling and waiting out the 75-second watchdog.
-	 *
-	 * No final event is pushed: the run unwinds through the ordinary cancellation path
-	 * and delivers its real outcome, which is more truthful than a fabricated one.
-	 *
-	 * The honest limit, documented at the wire: this interrupts prompts that were routed
-	 * to the CLIENT. A run that is mid-work between prompts keeps going, which is why the
-	 * reply says how many pending prompts it actually interrupted. The Template/Capture
-	 * engine prompts that used to be outside that set - the file-exists chooser, the
-	 * folder chooser, the capture-target and heading pickers - now travel this bridge and
-	 * are interruptible (#1614); the AI tool-confirmation modal still is not.
-	 *
-	 * @returns the number of pending prompts rejected, or null if there is no live
-	 * session to abort.
+	 * Reject pending prompts and any raised later. Mid-work runs unwind at their next
+	 * prompt; the executor publishes the final outcome. Returns the interrupted count,
+	 * or null if the session ended. Unlike dismissing an info prompt, this aborts it.
 	 */
 	abortSession(sessionId: string): number | null {
 		const session = this.sessions.get(sessionId);
@@ -490,10 +327,7 @@ class InteractivePromptServer {
 		// discards the server instead of installing it after unload.
 		this.generation++;
 		for (const session of this.sessions.values()) {
-			if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
-			if (session.cleanupTimer) window.clearTimeout(session.cleanupTimer);
-			if (session.attachTimer) window.clearTimeout(session.attachTimer);
-			if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
+			this.clearSessionTimers(session);
 			for (const [, pending] of session.pending) {
 				pending.reject(
 					new ChoiceAbortError("QuickAdd was unloaded during an interactive run."),
@@ -528,11 +362,16 @@ class InteractivePromptServer {
 		}
 	}
 
+	private clearSessionTimers(session: Session): void {
+		for (const timer of [
+			session.waiterTimer, session.cleanupTimer, session.attachTimer, session.pollWatchdog,
+		]) {
+			if (timer) window.clearTimeout(timer);
+		}
+	}
+
 	private destroySession(session: Session): void {
-		if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
-		if (session.cleanupTimer) window.clearTimeout(session.cleanupTimer);
-		if (session.attachTimer) window.clearTimeout(session.attachTimer);
-		if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
+		this.clearSessionTimers(session);
 		// Reject any still-pending prompt so a caller awaiting it aborts rather
 		// than hanging (finish() normally clears these, but be defensive).
 		for (const [, pending] of session.pending) {
@@ -591,18 +430,8 @@ class InteractivePromptServer {
 		// pending - because resolving it would hand the run an empty answer the user
 		// never gave, which is worse than the spurious abort a loose truthy check caused.
 		if (cancelled === true) {
-			// An `info` prompt is the exception, and it is the in-app behaviour that
-			// makes it one: `GenericInfoDialog` resolves on EVERY close path and has no
-			// reject path at all, so pressing Escape on it in the app continues the run.
-			// Escape is the only gesture an info panel affords, so a client that maps it
-			// to a cancel used to kill a run the same choice would have finished in the
-			// app (#1605). Closing an info panel is not a cancellation; a client that
-			// really wants out sends `POST /abort`.
-			//
-			// Decided here rather than in RemotePromptProvider.infoDialog because the
-			// provider cannot tell a per-prompt cancel from a session abort without a
-			// second error class - and swallowing both would leave /abort unable to end
-			// a run blocked on an info panel, the one case it exists for.
+			// Info dialogs resolve on dismissal in-app. Decide here so the provider
+			// never has to swallow cancellation errors from a session-level abort.
 			if (pending.promptType === "info") pending.resolve(value);
 			else pending.reject(new UserCancelError(PROMPT_CANCELLED_MESSAGE));
 		} else pending.resolve(value);

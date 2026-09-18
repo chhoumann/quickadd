@@ -110,7 +110,6 @@ function threeWayMergeKeyedArray(
 	path: readonly string[],
 ): unknown[] {
 	const baseMap = indexByKey(base ?? [], keyOf);
-	const localMap = indexByKey(local, keyOf);
 	const diskMap = indexByKey(disk, keyOf);
 	const result: unknown[] = [];
 	const seen = new Set<string>();
@@ -128,11 +127,8 @@ function threeWayMergeKeyedArray(
 		const diskItem = diskMap.get(key);
 
 		if (!diskMap.has(key)) {
-			if (!baseMap.has(key)) {
-				// Local addition.
-				result.push(deepClone(item));
-			} else if (!settingsValuesEqual(item, baseItem)) {
-				// Local edit vs disk deletion — prefer keeping the local edit.
+			if (!baseMap.has(key) || !settingsValuesEqual(item, baseItem)) {
+				// Keep local additions and local edits that conflict with disk deletion.
 				result.push(deepClone(item));
 			}
 			// else: unchanged locally and deleted on disk → drop.
@@ -155,23 +151,12 @@ function threeWayMergeKeyedArray(
 		if (seen.has(key)) continue;
 		seen.add(key);
 
-		if (!localMap.has(key)) {
-			if (!baseMap.has(key)) {
-				// Disk-only addition.
-				result.push(deepClone(item));
-			}
-			// else: present in base, absent locally → local deletion wins.
-		}
+		// Local keys were already marked seen. Only disk-only additions survive;
+		// keys present in base but absent locally were deliberately deleted.
+		if (!baseMap.has(key)) result.push(deepClone(item));
 	}
 
 	return result;
-}
-
-function everyItem<T>(
-	items: unknown[],
-	predicate: (value: unknown) => value is T,
-): items is T[] {
-	return items.length > 0 && items.every(predicate);
 }
 
 /**
@@ -226,29 +211,13 @@ export function threeWayMergeSettings<T>(
 		const sample = [...localArr, ...diskArr, ...(baseArr ?? [])];
 		// Keyed merges are path-gated. Shape checks alone are not enough:
 		// choices also have `name` and must fall through to prefer-local.
-		if (
-			leaf === "providers" &&
-			(sample.length === 0 || everyItem(sample, isProviderLike))
-		) {
-			return threeWayMergeKeyedArray(
-				baseArr,
-				localArr,
-				diskArr,
-				providerMergeKey,
-				path,
-			) as T;
-		}
-		if (
-			leaf === "models" &&
-			(sample.length === 0 || everyItem(sample, isModelLike))
-		) {
-			return threeWayMergeKeyedArray(
-				baseArr,
-				localArr,
-				diskArr,
-				modelMergeKey,
-				path,
-			) as T;
+		const keyOf = leaf === "providers" && sample.every(isProviderLike)
+			? providerMergeKey
+			: leaf === "models" && sample.every(isModelLike)
+				? modelMergeKey
+				: undefined;
+		if (keyOf) {
+			return threeWayMergeKeyedArray(baseArr, localArr, diskArr, keyOf, path) as T;
 		}
 	}
 

@@ -1,3 +1,4 @@
+import { dispatchCompletion } from "./utils";
 import type { App } from "obsidian";
 import {
 	FieldSuggestionParser,
@@ -7,10 +8,6 @@ import {
 	collectFieldValuesProcessed,
 } from "src/utils/FieldValueCollector";
 import { TextInputSuggest } from "./suggest";
-
-type CompletionInputEvent = Event & {
-	fromCompletion?: boolean;
-};
 
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	private readonly fieldInput: string;
@@ -49,9 +46,7 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	selectSuggestion(item: string): void {
 		// Fill input and dispatch a synthetic input event to trigger onChange listeners
 		this.inputEl.value = item;
-		const event = new Event("input", { bubbles: true });
-		(event as CompletionInputEvent).fromCompletion = true;
-		this.inputEl.dispatchEvent(event);
+		dispatchCompletion(this.inputEl);
 		this.close();
 	}
 }

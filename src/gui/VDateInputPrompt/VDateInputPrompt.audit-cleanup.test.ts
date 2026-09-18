@@ -1,65 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import { settingsStore } from "../../settingsStore";
 import { InputPromptDraftStore } from "../../utils/InputPromptDraftStore";
 import VDateInputPrompt from "./VDateInputPrompt";
 
-// The obsidian-stub Modal does not implement onOpen/onClose; GenericInputPrompt
-// calls super.onOpen() during open(). Provide a no-op base so construction (which
-// opens the modal) does not throw. Guarded so a richer stub still wins.
-const modalProto = Modal.prototype as unknown as { onOpen?: unknown };
-if (typeof modalProto.onOpen !== "function") modalProto.onOpen = () => {};
-
-// Obsidian augments HTMLElement at runtime; the shared vitest setup polyfills
-// addClass/createDiv/etc. but not toggleClass (preview renderer) or setAttr (the
-// date picker). Add them defensively (guarded) so constructing the modal under
-// jsdom does not throw. Mirrors the setup file's pattern.
-const htmlProto = HTMLElement.prototype as unknown as {
-	toggleClass?: unknown;
-	setAttr?: unknown;
-};
-if (typeof htmlProto.toggleClass !== "function") {
-	htmlProto.toggleClass = function toggleClass(
-		this: Element,
-		cls: string,
-		value: boolean,
-	) {
-		this.classList.toggle(cls, value);
-	};
-}
-if (typeof htmlProto.setAttr !== "function") {
-	htmlProto.setAttr = function setAttr(
-		this: Element,
-		name: string,
-		value: string | number | boolean | null,
-	) {
-		if (value === null || value === false) this.removeAttribute(name);
-		else this.setAttribute(name, String(value));
-	};
-}
-
-// Minimal fake app the prompt pulls in transitively via the FileSuggester/
-// TagSuggester created in the GenericInputPrompt constructor.
-function makeFakeApp() {
-	return {
-		workspace: { on: () => ({}) },
-		metadataCache: {
-			on: () => ({}),
-			getTags: () => ({}),
-			getFileCache: () => undefined,
-			isUserIgnored: () => false,
-		},
-		vault: {
-			on: () => ({}),
-			getMarkdownFiles: () => [],
-			getAllLoadedFiles: () => [],
-			getFiles: () => [],
-			getAbstractFileByPath: () => null,
-		},
-	};
-}
+import { makeFakeApp } from "../../../tests/helpers/prompts/app";
+import "../../../tests/helpers/prompts/dom";
 
 interface PromptInternals {
 	currentInput: string;

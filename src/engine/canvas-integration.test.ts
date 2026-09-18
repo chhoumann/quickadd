@@ -1,12 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { MARKDOWN_FILE_EXTENSION_REGEX as MARKDOWN_REGEX,
+	CANVAS_FILE_EXTENSION_REGEX as CANVAS_REGEX,
+	BASE_FILE_EXTENSION_REGEX as BASE_REGEX } from "../constants";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
+import { templateHarness } from "../../tests/helpers/engines/templateHarness";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
+import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
+
+vi.mock("../main", () => ({ default: class {} }));
+vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
+vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 describe('Canvas Template Integration', () => {
 	describe('Regex patterns for canvas support', () => {
-		// Test the actual regex patterns used in the implementation
-		const MARKDOWN_REGEX = new RegExp(/\.md$/);
-		const CANVAS_REGEX = new RegExp(/\.canvas$/);
-		const BASE_REGEX = new RegExp(/\.base$/);
-		
 		it('should correctly identify markdown files', () => {
 			expect(MARKDOWN_REGEX.test('file.md')).toBe(true);
 			expect(MARKDOWN_REGEX.test('path/to/file.md')).toBe(true);
@@ -23,7 +29,7 @@ describe('Canvas Template Integration', () => {
 
 		it('should have mutually exclusive patterns', () => {
 			const testFiles = ['file.md', 'file.canvas', 'file.base', 'file.txt', 'file'];
-			
+
 			testFiles.forEach(file => {
 				const matchesMd = MARKDOWN_REGEX.test(file);
 				const matchesCanvas = CANVAS_REGEX.test(file);
@@ -36,17 +42,7 @@ describe('Canvas Template Integration', () => {
 	});
 
 	describe('Template extension logic', () => {
-		const getTemplateExtension = (templatePath: string): string => {
-			const CANVAS_REGEX = new RegExp(/\.canvas$/);
-			const BASE_REGEX = new RegExp(/\.base$/);
-			if (CANVAS_REGEX.test(templatePath)) {
-				return ".canvas";
-			}
-			if (BASE_REGEX.test(templatePath)) {
-				return ".base";
-			}
-			return ".md";
-		};
+		const getTemplateExtension = (path: string) => templateHarness().engine.extension(path);
 
 		it('should return .canvas for canvas templates', () => {
 			expect(getTemplateExtension('template.canvas')).toBe('.canvas');
@@ -66,33 +62,8 @@ describe('Canvas Template Integration', () => {
 	});
 
 	describe('File path normalization', () => {
-		const stripLeadingSlash = (path: string): string => {
-			return path.replace(/^\/+/, "");
-		};
-
-		const normalizeTemplateFilePath = (
-			folderPath: string,
-			fileName: string,
-			templatePath: string
-		): string => {
-			const MARKDOWN_REGEX = new RegExp(/\.md$/);
-			const CANVAS_REGEX = new RegExp(/\.canvas$/);
-			const BASE_REGEX = new RegExp(/\.base$/);
-			
-			const safeFolderPath = stripLeadingSlash(folderPath);
-			const actualFolderPath = safeFolderPath ? `${safeFolderPath}/` : "";
-			let extension = ".md";
-			if (CANVAS_REGEX.test(templatePath)) {
-				extension = ".canvas";
-			} else if (BASE_REGEX.test(templatePath)) {
-				extension = ".base";
-			}
-			const formattedFileName = stripLeadingSlash(fileName)
-				.replace(MARKDOWN_REGEX, "")
-				.replace(CANVAS_REGEX, "")
-				.replace(BASE_REGEX, "");
-			return `${actualFolderPath}${formattedFileName}${extension}`;
-		};
+		const normalizeTemplateFilePath = (folder: string, name: string, template: string) =>
+			templateHarness().engine.normalizePath(folder, name, template);
 
 		it('should create canvas paths for canvas templates', () => {
 			expect(normalizeTemplateFilePath('Templates', 'MyFile', 'template.canvas'))
@@ -126,14 +97,7 @@ describe('Canvas Template Integration', () => {
 	});
 
 	describe('Template path processing logic', () => {
-		const shouldAppendMdExtension = (templatePath: string): boolean => {
-			const MARKDOWN_REGEX = new RegExp(/\.md$/);
-			const CANVAS_REGEX = new RegExp(/\.canvas$/);
-			const BASE_REGEX = new RegExp(/\.base$/);
-			return !MARKDOWN_REGEX.test(templatePath) &&
-				!CANVAS_REGEX.test(templatePath) &&
-				!BASE_REGEX.test(templatePath);
-		};
+		const shouldAppendMdExtension = (path: string) => !hasTemplateExtension(path);
 
 		it('should not append .md to recognized extensions', () => {
 			expect(shouldAppendMdExtension('template.canvas')).toBe(false);
@@ -147,20 +111,36 @@ describe('Canvas Template Integration', () => {
 		});
 	});
 
-	describe('File validation logic', () => {
-		const isValidFileType = (extension: string): boolean => {
-			return extension === 'md' || extension === 'canvas' || extension === 'base';
-		};
+	describe('File validation through template overwrite', () => {
+		async function overwrite(extension: string) {
+			const h = templateHarness();
+			h.file("template.md", "Replacement");
+			const file = h.file("note.md", "Original");
+			file.extension = extension;
+			const choice = new TemplateChoice("File validation");
+			choice.templatePath = "template.md";
+			choice.fileNameFormat = { enabled: true, format: "note" };
+			choice.folder.enabled = true;
+			choice.folder.folders = [""];
+			choice.fileExistsBehavior = { kind: "apply", mode: "overwrite" };
+			await new TemplateChoiceEngine(h.app, h.plugin, choice, h.executor).run();
+			return h;
+		}
 
-		it('should accept markdown and canvas files', () => {
-			expect(isValidFileType('md')).toBe(true);
-			expect(isValidFileType('canvas')).toBe(true);
-			expect(isValidFileType('base')).toBe(true);
+		it('should accept markdown and canvas files', async () => {
+			for (const extension of ["md", "canvas", "base"]) {
+				const h = await overwrite(extension);
+				expect(h.vault.modify, extension).toHaveBeenCalledOnce();
+				expect(h.contents.get("note.md"), extension).toBe("Replacement");
+			}
 		});
 
-		it('should reject other file types', () => {
-			expect(isValidFileType('txt')).toBe(false);
-			expect(isValidFileType('js')).toBe(false);
+		it('should reject other file types', async () => {
+			for (const extension of ["txt", "js"]) {
+				const h = await overwrite(extension);
+				expect(h.vault.modify, extension).not.toHaveBeenCalled();
+				expect(h.contents.get("note.md"), extension).toBe("Original");
+			}
 		});
 	});
 });

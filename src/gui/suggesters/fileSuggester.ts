@@ -288,15 +288,12 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 
 		switch (matchType) {
 			case 'exact':
+			case 'fuzzy':
 				mainText = file.basename;
 				subText = file.path;
 				break;
 			case 'alias':
 				mainText = displayText;
-				subText = file.path;
-				break;
-			case 'fuzzy':
-				mainText = file.basename;
 				subText = file.path;
 				break;
 			case 'heading': {
@@ -452,50 +449,20 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Detect if we're in embed mode (![[) by looking at the 3 chars before the lastInputStart
 		const isEmbedMode = this.inputEl.value.slice(cursorPosition - this.lastInput.length - 3, cursorPosition - this.lastInput.length) === '![[';
 
-		if (item.matchType === 'unresolved') {
-			insertedEndPosition = this.makeLinkManually(
-				currentInputValue,
-				item.displayText.replace(/.md$/, ""),
-				cursorPosition,
-				lastInputLength
-			);
-		} else if (item.matchType === 'heading' || item.matchType === 'block') {
-			// Heading/block selection - use manual link with full path
-			const linkTarget = item.displayText;
-			insertedEndPosition = this.makeLinkManually(
-				currentInputValue,
-				linkTarget,
-				cursorPosition,
-				lastInputLength
-			);
-		} else if (isEmbedMode) {
-			// For embeds we always make the link manually to avoid duplicating '!'
-			insertedEndPosition = this.makeLinkManually(
-				currentInputValue,
-				item.displayText,
-				cursorPosition,
-				lastInputLength
+		const manual = isEmbedMode || item.matchType === 'unresolved' ||
+			item.matchType === 'heading' || item.matchType === 'block';
+		const file = manual ? undefined : this.app.vault.getAbstractFileByPath(item.file.path);
+		if (file instanceof TFile) {
+			insertedEndPosition = this.makeLinkObsidianMethod(
+				file, currentInputValue, cursorPosition, lastInputLength,
+				item.matchType === 'alias' ? item.displayText : undefined,
 			);
 		} else {
-			// Existing file
-			const obsidianFile = this.app.vault.getAbstractFileByPath(item.file.path);
-			if (obsidianFile instanceof TFile) {
-				const alias = item.matchType === 'alias' ? item.displayText : undefined;
-				insertedEndPosition = this.makeLinkObsidianMethod(
-					obsidianFile,
-					currentInputValue,
-					cursorPosition,
-					lastInputLength,
-					alias
-				);
-			} else {
-				insertedEndPosition = this.makeLinkManually(
-					currentInputValue,
-					item.displayText,
-					cursorPosition,
-					lastInputLength
-				);
-			}
+			insertedEndPosition = this.makeLinkManually(
+				currentInputValue,
+				item.matchType === 'unresolved' ? item.displayText.replace(/.md$/, "") : item.displayText,
+				cursorPosition, lastInputLength,
+			);
 		}
 
 		this.inputEl.trigger("input");

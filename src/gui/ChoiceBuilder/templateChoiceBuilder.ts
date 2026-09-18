@@ -3,7 +3,6 @@ import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
-import { mountComponent } from "../svelte/mountComponent";
 import { ChoiceBuilder } from "./choiceBuilder";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
 import {
@@ -60,23 +59,15 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 
 	protected display() {
 		this.containerEl.addClass("templateChoiceBuilder");
-		this.formProps = createTemplateChoiceFormProps({
-			choice: this.choice,
-			app: this.app,
-			plugin: this.plugin,
-		});
-		const handle = mountComponent(
-			this.contentEl,
+		this.formProps = this.mountForm(
 			TemplateChoiceForm,
-			this.formProps,
-			{ what: "this template choice's settings" },
+			createTemplateChoiceFormProps({
+				choice: this.choice,
+				app: this.app,
+				plugin: this.plugin,
+			}),
+			"this template choice's settings",
 		);
-		// The form never rendered, so its $state clone of the choice holds no edits
-		// — only whatever normalizeChoice() and $state.snapshot() made of it. Drop it
-		// so onClose resolves the ORIGINAL choice and a form the user never saw can't
-		// write itself back over their data (#1584).
-		if (!handle.ok) this.formProps = undefined;
-		this.svelteElements.push(handle);
 	}
 
 	protected getResultChoice(): IChoice {

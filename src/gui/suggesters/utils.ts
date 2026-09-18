@@ -266,3 +266,12 @@ export function renderFuzzyHighlight(el: HTMLElement, text: string, query: strin
 // (linear scanners - the old chained regexes were quadratic on adversarial
 // headings). Re-exported here so existing imports keep working.
 export { sanitizeHeading } from "./headingSanitizer";
+
+/** Mark input changes made by a picker so its refresh does not reopen a completed selection. */
+export function dispatchCompletion(input: HTMLInputElement | HTMLTextAreaElement, keepOpen = false): void {
+	const event = Object.assign(new Event("input", { bubbles: true }), {
+		fromCompletion: true,
+		...(keepOpen ? { keepOpen: true } : {}),
+	});
+	input.dispatchEvent(event);
+}

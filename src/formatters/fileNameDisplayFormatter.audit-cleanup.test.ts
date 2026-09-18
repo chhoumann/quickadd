@@ -61,31 +61,15 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		expect(formatter.diagnostics.list()).toEqual([]);
 	});
 
-	it("shows the date alone, not the (optional) hint (#1578)", async () => {
+	it.each([
+		{ name: "shows the date alone, not the (optional) hint (#1578)", input: "{{VDATE:due,YYYY-MM-DD|optional}}", expected: "2023-06-01" },
+		{ name: "shows the date alone when both options are present (#1578)", input: "{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}", expected: "2023-06-01" },
+		{ name: "applies |startof: snap to the example, as the run does", input: "{{VDATE:wk,gggg.MM.[Wk]w|startof:week}}", expected: "gggg.05.[Wk]22" },
+	])("$name", async ({ input, expected }) => {
 		const out = await makeFormatter().format(
-			"{{VDATE:due,YYYY-MM-DD|optional}}",
+			input,
 		);
-		expect(out).toBe("2023-06-01");
-	});
-
-	it("shows the date alone when both options are present (#1578)", async () => {
-		const out = await makeFormatter().format(
-			"{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}",
-		);
-		expect(out).toBe("2023-06-01");
-	});
-
-	it("applies |startof: snap to the example, as the run does", async () => {
-		const out = await makeFormatter().format(
-			"{{VDATE:wk,gggg.MM.[Wk]w|startof:week}}",
-		);
-		// The clock is Thursday 2023-06-01; start of week (en locale, Sunday
-		// first) is 2023-05-28. #1595 left snap out here on the grounds that
-		// snapping only this row would split it from the body row; both rows snap
-		// now, and {{DATE:...|startof:}} in this same pass always did.
-		// (DateFormatPreviewGenerator leaves gggg / [Wk] literal — that's its
-		// existing simplified-preview behavior.)
-		expect(out).toBe("gggg.05.[Wk]22");
+		expect(out).toBe(expected);
 	});
 
 	it("applies |endof: snap and still appends no hint", async () => {
