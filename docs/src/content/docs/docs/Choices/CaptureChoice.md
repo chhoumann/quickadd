@@ -519,6 +519,10 @@ body capture, it places the cursor at the end of the inserted text so you can ke
 This is skipped for preview/unfocused opens and when Templater cursor markers
 take over.
 
+Use [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the Capture format to place
+the cursor within the inserted text. The marker also works when the destination
+is already focused in an editing mode and **Open** is off.
+
 ### Run it from a hotkey: Command palette {#command-palette}
 
 **Add to command palette** registers the capture as an Obsidian command, the

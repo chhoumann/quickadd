@@ -28,17 +28,14 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(_content: string) {
-			return "";
+		async formatContentWithFile(content: string) {
+			return { content: "", captureContent: content, cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
 			return name;
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
-		}
-		getCaptureInsertionEndOffset() {
-			return undefined;
 		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];

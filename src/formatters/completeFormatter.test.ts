@@ -2028,3 +2028,19 @@ describe("property value formatting", () => {
 		await expect(formatter.formatPropertyValue("{{PROPERTY}}")).rejects.toThrow(/line break/);
 	});
 });
+
+
+describe("Capture cursor token scope", () => {
+	it("strips the token from non-Capture bodies, paths and property values", async () => {
+		const formatter = defaultFormatter();
+		expect(await formatter.formatFileContent("before{{CURSOR}}after")).toBe("beforeafter");
+		expect(await formatter.formatFileName("{{cursor}}Note")).toBe("Note");
+		expect(await formatter.formatFolderPath("Folder{{CURSOR}}")).toBe("Folder");
+		expect(await formatter.formatPropertyValue("before{{CURSOR}}after")).toBe("beforeafter");
+	});
+	it("preserves the token for Capture's placement compiler", async () => {
+		const formatter = defaultFormatter();
+		const input = "before{{cursor}}after";
+		expect(await formatter.withPromptScope("captureText", input, () => formatter.formatFileContent(input))).toBe("before{{cursor}}after");
+	});
+});

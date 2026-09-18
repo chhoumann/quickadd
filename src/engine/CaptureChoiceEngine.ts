@@ -1,3 +1,6 @@
+import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
+import { insertCaptureInEditor } from "../utils/editorInsertion";
+import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
 import {
 	Notice,
@@ -120,8 +123,9 @@ type CaptureWriteResult = {
 	 * leave the file untouched, so the payload is the wrong thing to ask.
 	 */
 	priorContent: string;
-	cursorEndOffset?: number;
+	cursor: CaptureCursor;
 	cursorPlacementSafe?: boolean;
+	markerOnly?: boolean;
 };
 
 export class CaptureChoiceEngine extends CaptureTargetEngine {
@@ -477,8 +481,17 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			}
 
 			const write = fileAlreadyExists
-				? await this.onFileExists(filePath, content)
+				? await this.onFileExists(filePath, content, action === "currentLine" || action === "newLineAbove" || action === "newLineBelow")
 				: await this.onCreateFileIfItDoesntExist(filePath, content, linkOptions);
+			if (write === null) {
+				this.outcome.success(undefined, "unchanged");
+				return;
+			}
+			if (write.markerOnly) {
+				contentCommitted = !fileAlreadyExists;
+				this.outcome.success(write.file, fileAlreadyExists ? "unchanged" : "created");
+				return;
+			}
 			this.captureResolvedOrderedHeading();
 			const committed = await this.commitCapture(write, {
 				action, fileAlreadyExists,
@@ -510,22 +523,18 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				isCanvasTriggered: !!canvasTarget,
 			});
 
-			if (this.choice.openFile && file) {
-				const focus = await openChoiceFile({
+			let focus = normalizeFileOpening(this.choice.fileOpening).focus ?? true;
+			if (this.choice.openFile) {
+				focus = await openChoiceFile({
 					app: this.app, file, opening: this.choice.fileOpening, originLeaf: this.originLeaf,
 				});
-
-				const templaterHandledCursor =
-					await jumpToNextTemplaterCursorIfPossible(this.app, file);
-				if (
-					!templaterHandledCursor && focus && cursor
-				) {
-					setMarkdownCursorAtOffset(
-						this.app,
-						file,
-						cursor.offset,
-						cursor.content,
-					);
+			}
+			const marked = write.cursor.kind === "offset" && write.cursor.source === "marker";
+			const activeDestination = getActiveMarkdownEditorView(this.app)?.file?.path === file.path;
+			if (!committed.cursorHandledInEditor && (this.choice.openFile || (marked && activeDestination))) {
+				const templaterHandled = await jumpToNextTemplaterCursorIfPossible(this.app, file);
+				if (!templaterHandled && cursor && (focus || (marked && activeDestination))) {
+					setMarkdownCursorAtOffset(this.app, file, cursor.offset, cursor.content);
 				}
 			}
 		} catch (err) {
@@ -565,25 +574,34 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		effect: ChoiceEffect;
 		captureIsNoOp: boolean;
 		cursor: { offset: number; content: string } | null;
+		cursorHandledInEditor: boolean;
 	} | null> {
 		const { file, captureContent, newFileContent, priorContent,
-			cursorEndOffset, cursorPlacementSafe = true } = write;
-		const captureIsNoOp = isCaptureContentEmpty(captureContent);
+			cursor: placement, cursorPlacementSafe = true } = write;
+		let captureIsNoOp = isCaptureContentEmpty(captureContent);
 		const { action } = options;
 		if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
-			// Empty insertion must not delete the selection or add a blank line.
+			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
+			const payload = prepareCapture(parsed);
+			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
+				this.outcome.success(file, "unchanged");
+				return null;
+			}
+			captureIsNoOp = isCaptureContentEmpty(payload.content);
+			const marked = payload.cursor.kind === "offset" && payload.cursor.source === "marker";
 			if (!captureIsNoOp) {
-				const content = await templaterParseTemplate(this.app, captureContent, file);
 				const insert = action === "currentLine" ? appendToCurrentLine
 					: action === "newLineAbove" ? insertOnNewLineAbove : insertOnNewLineBelow;
-				if (!insert(content, this.app)) {
+				const inserted = marked ? await insertCaptureInEditor(payload, this.app, file, action)
+					: insert(payload.content, this.app);
+				if (!inserted) {
 					await this.cleanupCreatedClipboardAttachments();
 					this.failRun(`Capture "${this.choice.name}": no active Markdown editor to insert into.`);
 					return null;
 				}
 			}
 			options.onCommit();
-			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor: null };
+			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor: null, cursorHandledInEditor: marked };
 		}
 
 		await this.app.vault.modify(file, newFileContent);
@@ -591,13 +609,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const wholeFileTemplater = this.choice.templater?.afterCapture === "wholeFile";
 		if (wholeFileTemplater) await overwriteTemplaterOnce(this.app, file);
 		const postProcessed = await this.applyCapturePropertyVars(file);
-		// Subsequent whole-file rewrites invalidate offsets and may change a no-op payload.
 		const rewritten = wholeFileTemplater || postProcessed;
 		const effect: ChoiceEffect = !options.fileAlreadyExists ? "created"
 			: newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
-		const cursor = cursorPlacementSafe && !rewritten && typeof cursorEndOffset === "number"
-			? { offset: cursorEndOffset, content: newFileContent } : null;
-		return { effect, captureIsNoOp, cursor };
+		const cursor = cursorPlacementSafe && !rewritten && placement.kind === "offset"
+			? { offset: placement.value, content: newFileContent } : null;
+		return { effect, captureIsNoOp, cursor, cursorHandledInEditor: false };
 	}
 
 	private async captureToProperty(args: {
@@ -802,13 +819,17 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			await this.maybeResolveInsertAfterHeading(existingText);
 		}
 
-		const nextText = await this.formatter.formatContentWithFile(
+		const { content: nextText, markerOnly } = await this.formatter.formatContentWithFile(
 			captureTemplate,
 			this.choice,
 			existingText,
 			file,
 		);
 
+		if (markerOnly) {
+			this.outcome.success(file, "unchanged");
+			return;
+		}
 		this.captureResolvedOrderedHeading();
 
 		// An empty/whitespace capture leaves the card text unchanged (the formatter
@@ -979,6 +1000,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	private async onFileExists(
 		filePath: string,
 		content: string,
+		editorInsertion = false,
 	): Promise<CaptureWriteResult> {
 		const file: TFile = this.getFileByPath(filePath);
 		if (!file) throw new Error("File not found");
@@ -996,9 +1018,15 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
 		const fileContent: string = await this.app.vault.read(file);
+		if (/{{CURSOR}}/i.test(formatted) && prepareCapture(formatted).cursor.kind === "none") {
+			return { file, newFileContent: fileContent, captureContent: "", priorContent: fileContent, cursor: { kind: "none" }, markerOnly: true };
+		}
+		if (editorInsertion) {
+			return { file, newFileContent: fileContent, captureContent: formatted, priorContent: fileContent, cursor: { kind: "none" } };
+		}
 		// Second format pass, with the file content... User input (long running) should have been captured during first pass
 		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
-		const formattedFileContent: string =
+		const placement =
 			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formatted,
@@ -1008,17 +1036,21 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
-		const cursorEndOffset = this.formatter.getCaptureInsertionEndOffset();
+
+
+		if (placement.markerOnly) {
+			return { file, newFileContent: fileContent, captureContent: placement.captureContent, priorContent: fileContent, cursor: placement.cursor, markerOnly: true };
+		}
 
 		const secondReadFileContent: string = await this.app.vault.read(file);
 
-		let newFileContent = formattedFileContent;
+		let newFileContent = placement.content;
 		let cursorPlacementSafe = true;
 		if (secondReadFileContent !== fileContent) {
 			const res = merge(
 				secondReadFileContent,
 				fileContent,
-				formattedFileContent,
+				placement.content,
 			);
 			invariant(
 				res.isSuccess(),
@@ -1033,9 +1065,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		return {
 			file,
 			newFileContent,
-			captureContent: formatted,
+			captureContent: placement.captureContent,
 			priorContent: secondReadFileContent,
-			cursorEndOffset: cursorEndOffset ?? undefined,
+			cursor: placement.cursor,
 			cursorPlacementSafe,
 		};
 	}
@@ -1044,7 +1076,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		filePath: string,
 		captureContent: string,
 		linkOptions?: AppendLinkOptions,
-	): Promise<CaptureWriteResult> {
+	): Promise<CaptureWriteResult | null> {
 		// Re-asserted at the sink, so the invariant is local to the one function
 		// that creates the file, not only to its caller's branch. It is an
 		// `includes` scan over a short string and costs nothing (#1591).
@@ -1066,6 +1098,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				this.formatter.formatContentOnly(captureContent),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
+		if (/{{CURSOR}}/i.test(formattedCaptureContent) && prepareCapture(formattedCaptureContent).cursor.kind === "none") {
+			return null;
+		}
+
 
 		let fileContent = "";
 		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
@@ -1136,7 +1172,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// after the initial Templater run on newly created files.
 		const updatedFileContent: string = await this.app.vault.read(file);
 		// Second formatting pass: embed the already-resolved capture content into the newly created file
-		const newFileContent: string =
+		const placement =
 			await this.collectIfFrontmatter(() =>
 				this.formatter.formatContentWithFile(
 					formattedCaptureContent,
@@ -1146,15 +1182,16 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
-		const cursorEndOffset = this.formatter.getCaptureInsertionEndOffset();
+
 
 		return {
 			file,
-			newFileContent,
-			captureContent: formattedCaptureContent,
+			newFileContent: placement.content,
+			captureContent: placement.captureContent,
 			priorContent: updatedFileContent,
-			cursorEndOffset: cursorEndOffset ?? undefined,
+			cursor: placement.cursor,
 			cursorPlacementSafe: true,
+			markerOnly: placement.markerOnly,
 		};
 	}
 

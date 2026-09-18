@@ -9,6 +9,7 @@ vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/for
 vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
 
 const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
 	id: "test",
@@ -76,7 +77,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({ captureToActiveFile: false, prepend: false }),
 			"Line A\nLine B",
@@ -84,7 +85,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("CAPTURE\nLine A\nLine B");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe("CAPTURE\n".length);
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe("CAPTURE\n".length);
 	});
 
 	it("tracks cursor after top insertion below frontmatter", async () => {
@@ -93,7 +94,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({ captureToActiveFile: false, prepend: false }),
 			"---\ntitle: Test\n---\nBody",
@@ -101,7 +102,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\nBody");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE") + "CAPTURE".length,
 		);
 	});
@@ -112,7 +113,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"Call the dentist",
 			createChoice({ captureToActiveFile: false, prepend: false }),
 			"---\ndate: 2026-07-25\n---\n\n## Log\n\n## Tasks\n",
@@ -123,7 +124,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			"---\ndate: 2026-07-25\n---\n\nCall the dentist\n## Log\n\n## Tasks\n",
 		);
 		// The cursor lands at the end of the capture, not one line too early.
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			"---\ndate: 2026-07-25\n---\n\nCall the dentist".length,
 		);
 	});
@@ -134,7 +135,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({ captureToActiveFile: false, prepend: true }),
 			"Line A\nLine B",
@@ -142,7 +143,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("Line A\nLine B\nCAPTURE");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(result.length);
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(result.length);
 	});
 
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
@@ -151,7 +152,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({
 				captureToActiveFile: true,
@@ -171,7 +172,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertBefore: {
@@ -186,7 +187,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nBody\nCAPTURE\n## Later\nNext");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
@@ -197,7 +198,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({
 				insertBefore: {
@@ -212,7 +213,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("Line A\nCAPTURE\nLine B");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE") + "CAPTURE".length,
 		);
 	});
@@ -224,7 +225,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 		formatter.setTitle("Project Alpha");
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertBefore: {
@@ -239,7 +240,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nCAPTURE\nProject Alpha\nBody");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
@@ -250,7 +251,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({
 				insertBefore: {
@@ -265,7 +266,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Inbox\nCAPTURE\n## Missing");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE") + "CAPTURE".length,
 		);
 	});
@@ -276,7 +277,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({
 				insertBefore: {
@@ -291,7 +292,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("CAPTURE\n## Missing\nBody");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe("CAPTURE".length);
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe("CAPTURE".length);
 	});
 
 	it("keeps frontmatter body content separated when creating a missing insert-before target at top", async () => {
@@ -300,7 +301,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE",
 			createChoice({
 				insertBefore: {
@@ -315,7 +316,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("---\ntitle: Test\n---\nCAPTURE\n## Missing\nBody");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE") + "CAPTURE".length,
 		);
 	});
@@ -326,7 +327,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			" CAPTURE",
 			createChoice({
 				insertAfter: {
@@ -346,7 +347,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("Status: CAPTURE first\nStatus: second");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			"Status: CAPTURE".length,
 		);
 	});
@@ -357,7 +358,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result } = await formatter.formatContentWithFile(
 			"\u00A0",
 			createChoice({ captureToActiveFile: false, prepend: true }),
 			"Line A\nLine B",
@@ -384,7 +385,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result } = await formatter.formatContentWithFile(
 			" \t\n",
 			createChoice({ captureToActiveFile: false, prepend: true }),
 			"Line A\nLine B",
@@ -400,7 +401,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			createCaptureFormatterPlugin(),
 		);
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result } = await formatter.formatContentWithFile(
 			"- [ ] CAPTURE",
 			createChoice({
 				task: true,
@@ -427,7 +428,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		// "Under heading…" sets a verbatim line override; the static `after` is ignored.
 		formatter.setInsertAfterTargetOverride("## Foo");
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertAfter: {
@@ -448,7 +449,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Title\n## Foo\nCAPTURE\nexisting\n## Bar");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
@@ -465,7 +466,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		// capture proves the override is matched verbatim.
 		formatter.setInsertAfterTargetOverride("## {{DATE}}");
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertAfter: {
@@ -486,7 +487,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("## {{DATE}}\nCAPTURE\nbody");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
@@ -502,7 +503,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		// inline:true is a stale flag from a prior "After line…" inline config. The override
 		// must short-circuit the same-line inline path and insert on its own line under the
 		// heading (belt-and-suspenders with the builder's onChange reset).
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertAfter: {
@@ -523,7 +524,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("## Foo\nCAPTURE\nexisting");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
 	});
@@ -538,7 +539,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		// The created block must be byte-identical to what the next run's search will match.
 		formatter.setInsertAfterTargetOverride("## Tasks");
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertAfter: {
@@ -559,7 +560,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 
 		expect(result).toBe("# Title\nbody\n## Tasks\nCAPTURE\n");
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(result.length);
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(result.length);
 	});
 
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
@@ -573,7 +574,7 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		// future override refactor can't silently change which section is targeted.
 		formatter.setInsertAfterTargetOverride("## Tasks");
 
-		const result = await formatter.formatContentWithFile(
+		const { content: result, cursor } = await formatter.formatContentWithFile(
 			"CAPTURE\n",
 			createChoice({
 				insertAfter: {
@@ -596,8 +597,47 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(result).toBe(
 			"## Tasks\nCAPTURE\nfirst\n\n## Other\nx\n\n## Tasks\nsecond",
 		);
-		expect(formatter.getCaptureInsertionEndOffset()).toBe(
+		expect(cursor.kind === "offset" ? cursor.value : null).toBe(
 			result.indexOf("CAPTURE\n") + "CAPTURE\n".length,
 		);
+	});
+});
+
+describe("marked capture placement", () => {
+	it.each(["top", "bottom", "after", "before", "inline", "missingAfter", "missingBefore", "ordered"])("keeps the marker inside its payload through %s insertion", async position => {
+		const choice = new CaptureChoice("Marked capture");
+		const body = "---\nstatus: active\n---\n\n## Log\nOld\n## Next\n";
+		if (position === "bottom") choice.prepend = true;
+		if (["after", "inline", "missingAfter", "ordered"].includes(position)) {
+			choice.insertAfter.enabled = true;
+			choice.insertAfter.after = position === "missingAfter" || position === "ordered" ? "## Missing" : "## Log";
+			choice.insertAfter.inline = position === "inline";
+			choice.insertAfter.createIfNotFound = true;
+			choice.insertAfter.createIfNotFoundLocation = position === "ordered" ? "ordered" : "top";
+		}
+		if (position === "before" || position === "missingBefore") {
+			choice.insertBefore = { enabled: true, before: position === "before" ? "## Next" : "## Missing", createIfNotFound: true, createIfNotFoundLocation: "bottom" };
+		}
+		const formatter = new CaptureChoiceFormatter(createMockApp(), { settings: { globalVariables: {}, enableTemplatePropertyTypes: false } } as any);
+		const result = await formatter.formatContentWithFile("😀before{{cursor}}after{{CURSOR}}", choice, body, createFile());
+		expect(result.captureContent).toBe("😀beforeafter");
+		expect(result.content).not.toMatch(/{{cursor}}/i);
+		expect(result.content).toContain("status: active");
+		expect(result.cursor).toEqual({ kind: "offset", source: "marker", value: result.content.indexOf("😀before") + "😀before".length });
+	});
+
+	it("maps an ordered marker across CRLF conversion and section padding", async () => {
+		const choice = new CaptureChoice("Ordered marker");
+		choice.insertAfter = { ...choice.insertAfter, enabled: true, after: "## 2026-09-18", createIfNotFound: true, createIfNotFoundLocation: "ordered", orderBy: { by: "lexical", direction: "asc", unparseable: "bottom" } };
+		const formatter = new CaptureChoiceFormatter(createMockApp(), { settings: { globalVariables: {}, enableTemplatePropertyTypes: false } } as any);
+		const result = await formatter.formatContentWithFile("Line\n{{CURSOR}}Tail\n", choice, "## 2026-09-17\r\nOlder\r\n## 2026-09-19\r\nLater\r\n", createFile());
+		expect(result.content).toContain("## 2026-09-18\r\nLine\r\nTail");
+		expect(result.cursor).toEqual({ kind: "offset", source: "marker", value: result.content.indexOf("Tail") });
+	});
+
+	it("leaves existing note markers untouched and treats a marker-only payload as empty", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), { settings: { globalVariables: {}, enableTemplatePropertyTypes: false } } as any);
+		const result = await formatter.formatContentWithFile("{{CURSOR}}", new CaptureChoice("Empty"), "Keep {{CURSOR}} literally", createFile());
+		expect(result).toEqual({ content: "Keep {{CURSOR}} literally", captureContent: "", cursor: { kind: "none" }, markerOnly: true });
 	});
 });

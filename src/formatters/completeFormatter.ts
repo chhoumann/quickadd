@@ -1,3 +1,4 @@
+import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
@@ -90,7 +91,7 @@ export class CompleteFormatter extends Formatter {
 			output = this.replacePropertyInString(output);
 		}
 
-		return output;
+		return this.promptScope === "captureText" ? output : stripCursorMarkers(output);
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {

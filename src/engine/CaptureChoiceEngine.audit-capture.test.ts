@@ -65,16 +65,13 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 			return formatContentOnlyMock(content);
 		}
 		async formatContentWithFile(...args: unknown[]) {
-			return formatContentWithFileMock(...(args as []));
+			return { content: await formatContentWithFileMock(...(args as [])), captureContent: args[0], cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
 			return name;
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
-		}
-		getCaptureInsertionEndOffset() {
-			return undefined;
 		}
 		getResolvedInsertAfterHeading() {
 			return null;

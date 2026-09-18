@@ -1,3 +1,4 @@
+import { surroundCapture, placeCapture, type CapturePlacementResult } from "./capturePlacement";
 import { getLinesInString } from "../../utility";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { insertAtNoteBodyStartWithResult } from "../../utils/noteContentInsertion";
@@ -5,13 +6,14 @@ import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
 import { computeOrderedSectionInsertIndex, maskFencedHeadings, type MomentLike } from "./orderedSectionPlacement";
 import * as positioning from "./insertionPositioning";
 
-export function insertOrderedCapture({ formatted, targetString, fileContent, insertAfter, task }: {
-	formatted: string;
+export function insertOrderedCapture({ capture, targetString, fileContent, insertAfter, task }: {
+	capture: CapturePlacementResult;
 	targetString: string;
 	fileContent: string;
 	insertAfter: ICaptureChoice["insertAfter"];
 	task: boolean;
-}): positioning.SpliceResult {
+}): CapturePlacementResult {
+	const formatted = capture.content;
 	const orderBy = insertAfter?.orderBy ?? {
 		by: "insertion" as const,
 		direction: "desc" as const,
@@ -23,11 +25,16 @@ export function insertOrderedCapture({ formatted, targetString, fileContent, ins
 
 	// Reused verbatim so the created block is byte-identical to next-run's search
 	// target (the #742 round-trip invariant that keeps creation idempotent).
-	const payload = `${targetString}\n${formatted}`;
+	const payload = surroundCapture(capture, `${targetString}\n`);
+	const atBodyStart = () => {
+		const result = insertAtNoteBodyStartWithResult(fileContent, payload.content);
+		return placeCapture(payload, result.content, result.insertedStartOffset === null || payload.cursor.kind === "none"
+			? null : result.insertedStartOffset + payload.cursor.value);
+	};
 
 	// Non-heading anchor: ordered placement is meaningless → graceful TOP degrade.
 	if (level === 0) {
-		return insertAtNoteBodyStartWithResult(fileContent, payload);
+		return atBodyStart();
 	}
 
 	// CRLF-safe line model: the helper detects headings on \r-stripped lines;
@@ -74,7 +81,9 @@ export function insertOrderedCapture({ formatted, targetString, fileContent, ins
 					fileContent,
 					insertAfter?.blankLineAfterMatchMode ?? "auto",
 				);
-		return positioning.insertTextAfterPositionInBody(formatted, fileContent, position, task);
+		const result = positioning.insertTextAfterPositionInBody(formatted, fileContent, position, task,
+			capture.cursor.kind === "offset" ? capture.cursor.value : undefined);
+		return placeCapture(capture, result.content, result.insertedEndOffset);
 	}
 
 	const moment =
@@ -91,8 +100,10 @@ export function insertOrderedCapture({ formatted, targetString, fileContent, ins
 	);
 
 	if (slot.mode === "bodyStart") {
-		return insertAtNoteBodyStartWithResult(fileContent, payload);
+		return atBodyStart();
 	}
 
-	return positioning.spliceOrderedSection(rawLines, slot, payload, fileContent);
+	const result = positioning.spliceOrderedSection(rawLines, slot, payload.content, fileContent,
+		payload.cursor.kind === "offset" && payload.cursor.source === "marker" ? payload.cursor.value : undefined);
+	return placeCapture(payload, result.content, result.insertedEndOffset);
 }

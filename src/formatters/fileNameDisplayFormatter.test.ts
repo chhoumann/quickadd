@@ -259,3 +259,8 @@ describe("{{title}} in a file-name format (#1588)", () => {
 		expect(diagnostics).toEqual([]);
 	});
 });
+
+
+it("strips cursor markers from the file-name preview", async () => {
+	expect(await makeFormatter().format("{{CURSOR}}Note{{cursor}}")).toBe("Note");
+});

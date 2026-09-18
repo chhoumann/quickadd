@@ -11,6 +11,54 @@ import {
 } from "../types/linkPlacement";
 import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
+import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
+import { jumpToNextTemplaterCursorIfPossible } from "./templaterIntegration";
+
+export async function insertCaptureInEditor(
+	payload: CapturePlacementResult,
+	app: App,
+	file: TFile,
+	action: string,
+): Promise<boolean> {
+	const view = getMarkdownEditorViewForFile(app, file);
+	if (!view || payload.cursor.kind === "none") return false;
+	const { editor } = view;
+	const at = (pos: EditorPosition) => editor.posToOffset(pos);
+	const cursor = editor.getCursor();
+	let edits: { from: EditorPosition; to?: EditorPosition; text: string; cursor: number }[];
+	if (action === "currentLine") {
+		const offset = payload.cursor.value;
+		edits = editor.listSelections().map(({ anchor, head }) => ({
+			from: at(anchor) <= at(head) ? anchor : head,
+			to: at(anchor) <= at(head) ? head : anchor,
+			text: payload.content,
+			cursor: offset,
+		}));
+	} else if (action === "newLineAbove" || action === "newLineBelow") {
+		const above = action === "newLineAbove";
+		edits = [{
+			from: { line: cursor.line, ch: above ? 0 : editor.getLine(cursor.line).length },
+			text: above ? payload.content + "\n" : "\n" + payload.content,
+			cursor: payload.cursor.value + (above ? 0 : 1),
+		}];
+	} else {
+		return false;
+	}
+	const offsets: number[] = [];
+	let delta = 0;
+	edits.sort((a, b) => at(a.from) - at(b.from));
+	for (const edit of edits) {
+		offsets.push(at(edit.from) + delta + edit.cursor);
+		delta += edit.text.length - (at(edit.to ?? edit.from) - at(edit.from));
+	}
+	editor.transaction({ changes: edits.map(({ from, to, text }) => ({ from, to, text })) });
+	const expectedContent = editor.getValue();
+	const templaterHandled = await jumpToNextTemplaterCursorIfPossible(app, file);
+	if (!templaterHandled && view.getMode() !== "preview" && getMarkdownEditorViewForFile(app, file)?.editor === editor && editor.getValue() === expectedContent) {
+		editor.setSelections(offsets.map(offset => ({ anchor: editor.offsetToPos(offset) })));
+	}
+	return true;
+}
 
 /**
  * Returns the active markdown view if it is showing the given file,

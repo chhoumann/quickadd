@@ -41,7 +41,7 @@ The left column names the job; the middle names the Templater expression you may
 | Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](/docs/FormatSyntax/#linkcurrent) (a link), [`{{FILENAMECURRENT}}`](/docs/FormatSyntax/#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](/docs/FormatSyntax/#linksection) (link to the heading you're in) |
 | Run JavaScript | `tp.user` | [Inline scripts](/docs/InlineScripts/), [user scripts in macros](/docs/Choices/MacroChoice/), [`{{MACRO:...}}`](/docs/FormatSyntax/#macro) |
 | Folder templates | folder templates | No automatic equivalent - see [Templates chosen by folder](#templates-chosen-by-folder) |
-| Cursor marker in a template | `tp.file.cursor` | No direct equivalent - see [Where the cursor lands](#where-the-cursor-lands) |
+| Cursor marker | `tp.file.cursor` | `{{CURSOR}}` in Capture bodies - see [Where the cursor lands](#where-the-cursor-lands) |
 
 ## Create new notes from templates
 
@@ -124,9 +124,11 @@ To gather every prompt on a single form up front instead of one dialog at a time
 
 ## Where the cursor lands
 
-QuickAdd has no in-template cursor marker of its own - you can't mark an arbitrary spot in a template and land there. What you can control:
+Use [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) to mark a position in a Capture
+body. QuickAdd moves there if the target is already focused in an editing mode,
+or if **Open** opens and focuses it. Template choices do not support cursor placement.
 
-- **Captures follow the insertion.** With **Capture to active file**, the cursor ends up right after the inserted text; with **Open** enabled on other targets (opened focused, in an editing mode), QuickAdd places the cursor immediately after the inserted text.
+- **Unmarked Captures keep their existing behavior.** Inserting at the cursor or on an adjacent line leaves the cursor after the inserted text. Other body Captures place it at the end of the insertion when **Open** opens and focuses the target in an editing mode.
 - **Apply template to active note** offers an **Insert at cursor** mode, so content lands where you already are.
 - **After creating a note**, a Template choice with **Open** doesn't move the cursor - you typically land at the top of the note. To end at the bottom instead, wrap the Template choice in a [Macro choice](/docs/Choices/MacroChoice/) and add the **Move cursor to file end** editor command as the next step (file start and line start/end variants exist too).
 

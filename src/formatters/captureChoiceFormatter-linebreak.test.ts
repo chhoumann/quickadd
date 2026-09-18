@@ -141,7 +141,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice(),
 			"",
 			createFile(),
-		);
+		).then(({ content }) => content);
 		expect(result).toBe("\\nabla");
 	});
 
@@ -153,7 +153,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice(),
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// Top insertion places the capture on its own line above the body (#647); the
 		// point here is that the literal backslash-n in the payload survives untouched.
@@ -179,7 +179,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			createChoice({ prepend: true }),
 			"Line A",
 			createFile(),
-		);
+		).then(({ content }) => content);
 		expect(result).toBe("Line A\n- hello\n");
 	});
 
@@ -224,7 +224,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			choice,
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		expect(result).toBe("existing\n## \\nabla\n\\nabla");
 	});
@@ -250,7 +250,7 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			choice,
 			"existing",
 			createFile(),
-		);
+		).then(({ content }) => content);
 
 		// The snippet's \n must become a real newline in the created target line,
 		// matching pre-#527 behavior for global-variable targets.

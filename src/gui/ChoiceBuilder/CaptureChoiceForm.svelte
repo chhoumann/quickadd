@@ -42,10 +42,14 @@ let {
 const templateFilePaths = $derived(
 	plugin.getTemplateFiles().map((f) => f.path),
 );
-const formatSuggesters = [
+const formatSuggestContext = $derived(choice.propertyCapture ? "propertyValue" : "noteContent");
+const formatSuggesters = $derived.by(() => {
+	const context = formatSuggestContext;
+	return [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
-		new FormatSyntaxSuggester(app, el, plugin),
-];
+		new FormatSyntaxSuggester(app, el, plugin, context),
+	];
+});
 
 function validateTemplate(
 	raw: string,

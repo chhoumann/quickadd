@@ -82,10 +82,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentWithFile(content: string) {
 			if (/\{\{clipboard\}\}/i.test(content)) {
 				createdClipboardAttachmentPaths.push("Clipboard image.png");
-				return content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
+				content = content.replace(/\{\{clipboard\}\}/gi, "![[Clipboard image.png]]");
 			}
-
-			return content;
+			return { content, captureContent: content, cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
 			return name;
@@ -95,9 +94,6 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return createdClipboardAttachmentPaths.splice(0);
-		}
-		getCaptureInsertionEndOffset() {
-			return null;
 		}
 	},
 	setUseSelectionAsCaptureValueMock,
@@ -325,7 +321,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 			file,
 			newFileContent: "Line A\nCAPTURE\nLine B",
 			captureContent: "CAPTURE\n",
-			cursorEndOffset: "Line A\nCAPTURE\n".length,
+			cursor: { kind: "offset", source: "defaultEnd", value: "Line A\nCAPTURE\n".length },
 			cursorPlacementSafe: true,
 		});
 
@@ -361,7 +357,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 			file,
 			newFileContent: "CAPTURE",
 			captureContent: "CAPTURE",
-			cursorEndOffset: "CAPTURE".length,
+			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
 			cursorPlacementSafe: true,
 		});
 
@@ -387,7 +383,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 			file,
 			newFileContent: "CAPTURE",
 			captureContent: "CAPTURE",
-			cursorEndOffset: "CAPTURE".length,
+			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
 			cursorPlacementSafe: true,
 		});
 
@@ -413,7 +409,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 			file,
 			newFileContent: "CAPTURE",
 			captureContent: "CAPTURE",
-			cursorEndOffset: "CAPTURE".length,
+			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
 			cursorPlacementSafe: true,
 		});
 
@@ -1410,6 +1406,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			file: linkedFile,
 			newFileContent: "updated",
 			captureContent: "capture",
+			cursor: { kind: "none" },
 		}));
 		(engine as any).fileExists = fileExistsMock;
 		(engine as any).onFileExists = onFileExistsMock;
@@ -1421,6 +1418,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		expect(onFileExistsMock).toHaveBeenCalledWith(
 			"Folder/Note.md",
 			expect.any(String),
+			false,
 		);
 		expect(app.vault.modify).toHaveBeenCalledWith(linkedFile, "updated");
 	});
@@ -1470,6 +1468,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			file: linkedFile,
 			newFileContent: "updated",
 			captureContent: "capture",
+			cursor: { kind: "none" },
 		}));
 
 		await engine.run();
@@ -1542,6 +1541,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		(engine as any).onFileExists = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
+			cursor: { kind: "none" },
 			captureContent: "capture",
 			// Stated, so the `effect: "changed"` assertion below rests on a real
 			// comparison. Left undefined, `newFileContent !== priorContent` is

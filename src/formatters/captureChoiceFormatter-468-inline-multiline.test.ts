@@ -82,7 +82,7 @@ const run = (
 		choice,
 		fileContent,
 		createFile(),
-	);
+	).then(({ content }) => content);
 
 /**
  * Inline insertion is single-line by definition. A `\n`-escape target renders as
@@ -197,7 +197,7 @@ describe("#468 — inline insert-after with a multi-line target aborts cleanly, 
 				choice,
 				"line-a\nline-b\n",
 				createFile(),
-			),
+			).then(({ content }) => content),
 		).rejects.toThrow(/single line/i);
 	});
 });

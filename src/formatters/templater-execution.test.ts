@@ -22,10 +22,10 @@ describe("Templater execution control", () => {
 		choice.captureToActiveFile = false;
 		const first = await formatter.formatContentWithFile(input, choice, "", createFile());
 		expect(parse).toHaveBeenCalledTimes(1);
-		expect(first).toBe(`rendered::${input}`);
+		expect(first.content).toBe(`rendered::${input}`);
 
 		const second = await formatter.formatContentWithFile(input, choice, "", createFile());
 		expect(parse).toHaveBeenCalledTimes(1);
-		expect(second).toBe(input);
+		expect(second.content).toBe(input);
 	});
 });

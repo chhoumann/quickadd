@@ -1,3 +1,4 @@
+import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
 import { defaultDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
@@ -36,9 +37,9 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 	public async format(input: string): Promise<string> {
 		this.diagnostics = new PreviewDiagnostics();
 		try {
-			return await this.formatInternal(input, {
+			return stripCursorMarkers(await this.formatInternal(input, {
 				expandLinebreakEscapes: true,
-			});
+			}));
 		} catch (error) {
 			// Return the input as-is if formatting fails during preview: this
 			// prevents crashes when typing incomplete syntax. The failure itself is
@@ -46,7 +47,7 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 			// diagnostics channel rather than being swallowed (issue #1558).
 			const described = describePreviewFailure(error);
 			if (described) this.diagnostics.add("error", described);
-			return input;
+			return stripCursorMarkers(input);
 		}
 	}
 

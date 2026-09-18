@@ -1,3 +1,4 @@
+import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
 import { defaultDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
@@ -82,14 +83,14 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.templateIncludeBudget = MAX_PREVIEW_TEMPLATE_INCLUDES;
 
 		try {
-			output = await this.formatInternal(input, { included: false });
+			output = stripCursorMarkers(await this.formatInternal(input, { included: false }));
 		} catch (error) {
 			// Return the input as-is if formatting fails during preview. The failure
 			// itself is the most useful thing the preview can say, so it goes on the
 			// diagnostics channel rather than being swallowed (issue #1558).
 			const described = describePreviewFailure(error);
 			if (described) this.diagnostics.add("error", described);
-			return input;
+			return stripCursorMarkers(input);
 		}
 
 		// Before the normalizer, mirroring the run: formatFileName's
