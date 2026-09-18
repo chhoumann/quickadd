@@ -1878,6 +1878,16 @@ describe("property value formatting", () => {
 		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
 	}
 
+	it("keeps a number or list returned by a whole-format inline script", async () => {
+		const f = defaultFormatter();
+		mocks.inlineRunAndGetOutput.mockResolvedValue(6);
+		expect(await f.formatPropertyValue("```js quickadd\nreturn 6;\n```")).toBe(6);
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["fresh", "kept"]);
+		expect(await f.formatPropertyValue("```js quickadd\nreturn ['fresh', 'kept'];\n```")).toEqual(["fresh", "kept"]);
+		mocks.inlineRunAndGetOutput.mockResolvedValue(["a", "b"]);
+		expect(await f.formatPropertyValue("Tags: ```js quickadd\nreturn ['a', 'b'];\n```")).toBe("Tags: a,b");
+	});
+
 	it.each([0, false, ["a,b", "c"], [], { nested: true }])("retains whole-token native values for validation: %j", async (value) => {
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(value);
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE}}")).toEqual(value);
