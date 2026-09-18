@@ -76,9 +76,10 @@ export abstract class ValueFormatter {
 	private templatePropertyCollectionDepth = 0;
 	private singleTokenValue?: { input: string; result?: { value: unknown } };
 
+	/** A format that is exactly one token or one inline script keeps its native value (number, list, ...). */
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
 		const previous = this.singleTokenValue;
-		const capture: typeof this.singleTokenValue = /^(?:\{\{(?:VALUE|NAME)(?::[^{}]+|\|[^{}]+)?\}\}|\{\{(?:FIELD|FILE):[^{}]+\}\}|\{\{PROPERTY\}\})$/i.test(input)
+		const capture: typeof this.singleTokenValue = /^(?:\{\{(?:VALUE|NAME)(?::[^{}]+|\|[^{}]+)?\}\}|\{\{(?:FIELD|FILE):[^{}]+\}\}|\{\{PROPERTY\}\}|`{3,}js quickadd[\s\S]*`{3,})$/i.test(input)
 			? { input }
 			: undefined;
 		this.singleTokenValue = capture;
