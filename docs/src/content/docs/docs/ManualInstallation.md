@@ -7,8 +7,11 @@ slug: docs/ManualInstallation
 1. Go to [Releases](https://github.com/chhoumann/quickadd/releases) and open the latest release.
 2. Download the release assets. If there is a ZIP file named like `quickadd-x.x.x.zip`, download that. If the release lists loose files instead, download `main.js`, `manifest.json`, and `styles.css`.
 3. Open your Obsidian plugins folder. If you don't know where that is, go to `Community Plugins` inside Obsidian. There is a folder icon on the right of `Installed Plugins`. Click that and it opens your plugins folder.
-4. Create a folder named `quickadd` inside the plugins folder.
+4. Create a folder named `quickadd` inside the plugins folder, or open it if QuickAdd is already installed.
 5. Extract the ZIP file into `.obsidian/plugins/quickadd/`, or copy the loose `main.js`, `manifest.json`, and `styles.css` files into `.obsidian/plugins/quickadd/`.
+6. Restart Obsidian. Go to **Settings → Community plugins**, turn off **Restricted mode** if it is on, and enable **QuickAdd** under **Installed plugins**.
+
+When updating, replace only the three release files. Keep `data.json` and the rest of the `quickadd` folder to preserve your choices and settings.
 
 Do not place `main.js`, `manifest.json`, or `styles.css` directly in `.obsidian/plugins/`. They must be inside the `quickadd` folder.
 
