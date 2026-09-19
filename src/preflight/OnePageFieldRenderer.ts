@@ -230,7 +230,7 @@ export class OnePageFieldRenderer {
 					});
 					aliasSummary.addClass("qa-date-alias-summary");
 
-					const aliasList = aliasDetails.createEl("div");
+					const aliasList = aliasDetails.createDiv();
 					aliasList.textContent = formatDateAliasInline(
 						settingsStore.getState().dateAliases,
 					);

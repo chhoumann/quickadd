@@ -23,8 +23,8 @@ export function renderOnePagePreview(container: HTMLElement, rows: readonly Prev
 		const rowEl = container.createDiv({
 			cls: "qa-onepage-preview-row",
 		});
-		rowEl.createEl("div", { text: `${label}:`, cls: "qa-preview-key" });
-		const valueEl = rowEl.createEl("div", {
+		rowEl.createDiv({ text: `${label}:`, cls: "qa-preview-key" });
+		const valueEl = rowEl.createDiv({
 			text: row.text,
 			cls: "qa-preview-val",
 		});

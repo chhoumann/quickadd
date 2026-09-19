@@ -1209,7 +1209,7 @@
 	   higher-specificity than this class and would otherwise inflate every icon and
 	   crush the row's name column. The old <div>/<span> faux-buttons were never
 	   touch-sized, so this restores parity. */
-	padding: 0 !important;
+	padding: var(--qa-icon-button-padding, 0) !important;
 	min-width: 0 !important;
 	min-height: 0 !important;
 	width: auto !important;
@@ -1264,9 +1264,7 @@
 
 .is-mobile .rightButtonsContainer .qa-icon-button,
 .is-mobile .quickAddCommandControls .qa-icon-button {
-	/* Override the compact reset for the controls that remain on mobile so they are
-	   comfortable tap targets. Higher specificity + !important beats the base. */
-	padding: 8px !important;
+	--qa-icon-button-padding: 8px;
 }
 
 @media screen and (max-width: 639px) {
@@ -2116,15 +2114,12 @@ body:not(.is-mobile)
 	}
 }
 
-/* Comfortable 24px hit targets with per-icon hover feedback, matching
-   Obsidian's clickable-icon feel. Scoped to the choice rows; !important matches
-   the base .qa-icon-button reset it overrides. body:not(.is-mobile) keeps the
-   mobile 8px touch-target padding (declared earlier) in charge on phones. */
+/* Desktop row controls use compact padding; mobile controls keep their touch padding. */
 body:not(.is-mobile)
 	:is(.choiceListItem, .multiChoiceListItem)
 	.rightButtonsContainer
 	.qa-icon-button {
-	padding: 3px !important;
+	--qa-icon-button-padding: 3px;
 }
 
 :is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button {
@@ -2439,8 +2434,7 @@ textarea.is-valid {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
-	column-gap: 10px;
-	row-gap: 1px;
+	gap: 1px 10px;
 	line-height: 1.35;
 }
 

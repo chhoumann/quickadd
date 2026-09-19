@@ -46,9 +46,9 @@ export class ProviderPickerModal extends Modal {
     for (const preset of PROVIDER_PRESETS) {
       const card = grid.createDiv({ cls: "qa-provider-card" });
 
-      card.createEl("div", { text: preset.name, cls: "qa-provider-card-title" });
+      card.createDiv({ text: preset.name, cls: "qa-provider-card-title" });
 
-      card.createEl("div", {
+      card.createDiv({
         text: preset.endpoint,
         cls: "qa-provider-card-endpoint",
       });

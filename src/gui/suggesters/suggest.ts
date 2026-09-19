@@ -237,8 +237,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl = inputEl;
 		this.scope = new Scope(parentScope);
 
-		// eslint-disable-next-line no-restricted-syntax -- The popup stays detached until open and must belong to the input document.
-		this.suggestEl = this.inputEl.ownerDocument.createElement("div");
+		this.suggestEl = this.inputEl.ownerDocument.win.createDiv();
 		this.suggestEl.classList.add("suggestion-container");
 		const suggestion = this.suggestEl.createDiv({ cls: "suggestion" });
 

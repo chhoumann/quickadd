@@ -520,7 +520,7 @@ export class OnePageInputModal extends Modal {
 
 		// Use the modal's own document (popout-aware) rather than the bare global.
 		const doc = this.contentEl.ownerDocument;
-		const fragment = doc.createDocumentFragment();
+		const fragment = doc.win.createFragment();
 		fragment.appendChild(doc.createTextNode(req.label));
 		fragment.createSpan({ text: " (optional)", cls: "qa-onepage-optional-badge" });
 		return fragment;

@@ -52,7 +52,7 @@ export function mountSystemPromptLiteralNote(
 	field: HTMLTextAreaElement,
 	initialValue: string,
 ): (value: string) => void {
-	const note = container.createEl("div", {
+	const note = container.createDiv({
 		text: LITERAL_NOTE_TEXT,
 		cls: "qa-literal-format-note",
 	});

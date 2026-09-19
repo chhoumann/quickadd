@@ -21,8 +21,7 @@ export function createOwnedElement<K extends keyof HTMLElementTagNameMap>(
 	owner: Node,
 	tagName: K,
 ): HTMLElementTagNameMap[K] {
-	// eslint-disable-next-line no-restricted-syntax -- Native helpers use the global document; this element must be detached in its owner document.
-	return getOwnerDocument(owner).createElement(tagName);
+	return getOwnerDocument(owner).win.createEl(tagName);
 }
 
 export function createOwnedTextNode(owner: Node, text: string): Text {

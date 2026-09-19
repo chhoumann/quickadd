@@ -31,3 +31,13 @@ declare module "obsidian" {
 		};
 	}
 }
+
+// Obsidian installs its DOM factory globals in each workspace window.
+declare global {
+	interface Window {
+		createEl: typeof createEl;
+		createDiv: typeof createDiv;
+		createSpan: typeof createSpan;
+		createFragment: typeof createFragment;
+	}
+}
