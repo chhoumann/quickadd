@@ -25,7 +25,7 @@ export function createChoicesBuffer(initial: IChoice[]) {
 			if (choices[0]) choices[0].name = name;
 		},
 		snapshot(): IChoice[] {
-			return $state.snapshot(choices) as IChoice[];
+			return $state.snapshot(choices);
 		},
 	};
 }

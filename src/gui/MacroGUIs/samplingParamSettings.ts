@@ -96,7 +96,6 @@ export function addSamplingParamSettings(
 			)
 			.addSlider((slider) => {
 				slider.setLimits(spec.min, spec.max, spec.step);
-				slider.setDynamicTooltip();
 				slider.setValue(modelParameters[spec.key] ?? spec.fallback);
 				slider.onChange((value) => {
 					modelParameters[spec.key] = value;

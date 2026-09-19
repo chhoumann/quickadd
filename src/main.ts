@@ -278,7 +278,7 @@ export default class QuickAdd extends Plugin {
 			settings.choices = dedupeChoicesById(settings.choices);
 		}
 
-		return settings as QuickAddSettings;
+		return settings;
 	}
 
 	async loadSettings() {

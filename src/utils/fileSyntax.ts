@@ -312,7 +312,7 @@ export function buildFileDisplayInfos(
 		const metadata = metadataCache?.(file) ?? null;
 		const basename = basenameFor(file);
 		const primary =
-			frontmatterTitle(metadata?.frontmatter as Record<string, unknown> | undefined) ??
+			frontmatterTitle(metadata?.frontmatter) ??
 			firstLevelHeading(metadata) ??
 			basename;
 		const label = primary === basename

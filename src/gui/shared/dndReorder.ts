@@ -45,7 +45,7 @@ export function capturePlaceholderRecovery<T extends Reorderable>(
 	if (index === -1) return null;
 	const shadow = { ...(items[index] as T & Record<string, unknown>) };
 	delete shadow[SHADOW_ITEM_MARKER_PROPERTY_NAME];
-	return { item: { ...shadow, id: draggedId } as T, index };
+	return { item: { ...shadow, id: draggedId }, index };
 }
 
 /**

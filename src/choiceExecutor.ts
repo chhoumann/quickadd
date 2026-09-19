@@ -390,7 +390,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			try {
 				await runOnePagePreflight(
 					this.app,
-					this.plugin as unknown as QuickAdd,
+					this.plugin,
 					this,
 					choice,
 				);
@@ -452,7 +452,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		}
 
 		Object.entries(macroEngine.params.variables).forEach(([key, value]) => {
-			this.variables.set(key, value as string);
+			this.variables.set(key, value);
 		});
 	}
 

@@ -1,4 +1,4 @@
-import { type Component, type ComponentProps, mount, unmount } from "svelte";
+import { type Component, mount, unmount } from "svelte";
 import { reportError, toError } from "../../utils/errorUtils";
 import MountFailed from "./MountFailed.svelte";
 
@@ -25,13 +25,7 @@ export interface MountHandle {
  * (the default) and ChoicesUnavailable (the settings choice list, which adds
  * data.json recovery instructions).
  */
-// The props position is the one that matters (it is what makes a card missing
-// `what`/`detail` a compile error); the exports position mirrors Svelte's own
-// default for a `.svelte` component and gets the same `any` as `mountComponent`.
-export type MountFallbackComponent = Component<
-	{ what: string; detail: string },
-	any
->;
+export type MountFallbackComponent = Component<{ what: string; detail: string }>;
 
 export interface MountOptions {
 	/**
@@ -72,15 +66,10 @@ const DEFAULT_WHAT = "this part of QuickAdd";
  * mutate its properties (see createCommandListProps) — the documented Svelte 5
  * way to update an imperatively-mounted component.
  */
-// Svelte's `Component` is contravariant in its props, so a generic upper bound
-// that accepts ANY component cannot avoid `any` here: an `unknown`-based bound
-// makes svelte-check reject components with concrete props (CommandList,
-// FolderList, ...). This mirrors how Svelte's own `mount`/`ComponentProps` are
-// typed, and `ComponentProps<C>` still gives each call site full prop checking.
-export function mountComponent<C extends Component<any, any>>(
+export function mountComponent<Props extends object, Exports extends object>(
 	target: HTMLElement,
-	component: C,
-	props: ComponentProps<C>,
+	component: Component<Props, Exports>,
+	props: NoInfer<Props>,
 	options: MountOptions = {},
 ): MountHandle {
 	// Snapshotted so a failed mount can be cleaned up precisely (see below).
@@ -128,9 +117,7 @@ function renderMountFailure(
 
 	// The card gets its own container so `destroy()` is uniform with the success
 	// path: remove what we added, and nothing else.
-	const container = target.ownerDocument.createElement("div");
-	container.className = "qa-mount-failed-host";
-	target.appendChild(container);
+	const container = target.createDiv({ cls: "qa-mount-failed-host" });
 
 	let fallback: ReturnType<typeof mount> | null = null;
 	try {

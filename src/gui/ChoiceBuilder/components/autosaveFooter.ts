@@ -24,23 +24,13 @@ export function addAutosaveFooter(modal: Modal, subject: string): void {
 	modal.containerEl.addClass("qa-choice-builder");
 	if (modal.modalEl.querySelector(".qa-builder-footer")) return;
 
-	// Plain DOM rather than Obsidian's createDiv/createSpan helpers, which the
-	// vitest environment does not implement.
-	const doc = modal.modalEl.ownerDocument;
-	const footer = doc.createElement("div");
-	footer.className = "qa-builder-footer";
+	const footer = modal.modalEl.createDiv({ cls: "qa-builder-footer" });
 
-	const note = doc.createElement("span");
-	note.className = "qa-builder-footer-note";
-	note.textContent = `Changes to this ${subject} are saved automatically`;
-	footer.appendChild(note);
+	footer.createSpan({
+		cls: "qa-builder-footer-note",
+		text: `Changes to this ${subject} are saved automatically`,
+	});
 
-	const done = doc.createElement("button");
-	done.type = "button";
-	done.className = "mod-cta";
-	done.textContent = "Done";
+	const done = footer.createEl("button", { type: "button", cls: "mod-cta", text: "Done" });
 	done.addEventListener("click", () => modal.close());
-	footer.appendChild(done);
-
-	modal.modalEl.appendChild(footer);
 }

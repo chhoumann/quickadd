@@ -33,11 +33,11 @@ export const DATE_REGEX = new RegExp(
 	/{{DATE(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
 export const DATE_REGEX_FORMATTED = new RegExp(
-	/{{DATE:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|\[]|\|(?!(?:startof|endof):[a-z])(?!(?:case):[a-z-]+}}))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
+	/{{DATE:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|[]|\|(?!(?:startof|endof):[a-z])(?!(?:case):[a-z-]+}}))*)(\+-?[0-9]+)?(?:\|((?:startof|endof):[a-z]+))?(?:\|case:([a-z-]+))?}}/i,
 );
 export const TIME_REGEX = new RegExp(/{{TIME(?:\|case:([a-z-]+))?}}/i);
 export const TIME_REGEX_FORMATTED = new RegExp(
-	/{{TIME:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|\[]|\|(?!(?:case):[a-z-]+}}))*)(?:\|case:([a-z-]+))?}}/i,
+	/{{TIME:((?:\[[^\]\n\r]*\]|\[(?![^\]\n\r]*\])|[^}\n\r+|[]|\|(?!(?:case):[a-z-]+}}))*)(?:\|case:([a-z-]+))?}}/i,
 );
 export const NAME_VALUE_REGEX = new RegExp(
 	/{{(?:NAME|VALUE)(?!:)(?:\|[^\n\r}]*)?}}/i,

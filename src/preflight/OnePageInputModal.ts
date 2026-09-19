@@ -271,7 +271,7 @@ export class OnePageInputModal extends Modal {
 		if (note) this.renderNoteField(note);
 		else this.renderFieldControl(req);
 		const elements = Array.from(this.contentEl.children)
-			.filter((element): element is HTMLElement => element instanceof HTMLElement && !before.has(element));
+			.filter((element): element is HTMLElement => element.instanceOf(HTMLElement) && !before.has(element));
 		this.fieldElements.set(req.id, elements);
 		if (!note) {
 			this.controlFor(req).elements = elements;
@@ -373,10 +373,11 @@ export class OnePageInputModal extends Modal {
 				if (!select || req.options?.includes("")) continue;
 				const skip = Array.from(select.options).find((option) => option.value === "");
 				if (req.optional && !skip) {
-					const option = select.ownerDocument.createElement("option");
-					option.value = "";
-					option.textContent = "Skip (leave empty)";
-					select.prepend(option);
+					select.createEl("option", {
+						value: "",
+						text: "Skip (leave empty)",
+						prepend: true,
+					});
 				} else if (!req.optional && skip) {
 					skip.remove();
 					const control = this.controlFor(req);
@@ -521,10 +522,7 @@ export class OnePageInputModal extends Modal {
 		const doc = this.contentEl.ownerDocument;
 		const fragment = doc.createDocumentFragment();
 		fragment.appendChild(doc.createTextNode(req.label));
-		const badge = doc.createElement("span");
-		badge.textContent = " (optional)";
-		badge.className = "qa-onepage-optional-badge";
-		fragment.appendChild(badge);
+		fragment.createSpan({ text: " (optional)", cls: "qa-onepage-optional-badge" });
 		return fragment;
 	}
 

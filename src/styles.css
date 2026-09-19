@@ -1204,16 +1204,11 @@
 	font: inherit;
 	line-height: inherit;
 	border-radius: var(--radius-s, 4px);
-	/* Keep icon buttons compact. !important defeats Obsidian's mobile touch-target
-	   button sizing (.is-mobile settings rule, padding:10px -> 40px boxes) which is
-	   higher-specificity than this class and would otherwise inflate every icon and
-	   crush the row's name column. The old <div>/<span> faux-buttons were never
-	   touch-sized, so this restores parity. */
-	padding: 0 !important;
-	min-width: 0 !important;
-	min-height: 0 !important;
-	width: auto !important;
-	height: auto !important;
+	padding: 0;
+	min-width: 0;
+	min-height: 0;
+	width: auto;
+	height: auto;
 }
 
 .qa-icon-button.qa-icon-button:hover {
@@ -1264,9 +1259,7 @@
 
 .is-mobile .rightButtonsContainer .qa-icon-button,
 .is-mobile .quickAddCommandControls .qa-icon-button {
-	/* Override the compact reset for the controls that remain on mobile so they are
-	   comfortable tap targets. Higher specificity + !important beats the base. */
-	padding: 8px !important;
+	padding: 8px;
 }
 
 @media screen and (max-width: 639px) {
@@ -2050,15 +2043,10 @@
 	--icon-size: 17px;
 }
 
-/* Obsidian's mobile button chrome forces inline padding (10px) and a 40px
-   height onto the folder-name <button> hard enough that the component reset in
-   MultiChoiceListItem.svelte loses on phones, shifting the chevron 10px off
-   the shared icon column and making folder rows taller than leaf rows.
-   Matching force, tightly scoped to the one affected element. */
 body.is-mobile .multiChoiceListItemName {
-	padding: 0 !important;
-	height: auto !important;
-	min-height: 0 !important;
+	padding: 0;
+	height: auto;
+	min-height: 0;
 }
 
 /* On phones Obsidian stacks modal .setting-items vertically. Right for the
@@ -2116,15 +2104,12 @@ body:not(.is-mobile)
 	}
 }
 
-/* Comfortable 24px hit targets with per-icon hover feedback, matching
-   Obsidian's clickable-icon feel. Scoped to the choice rows; !important matches
-   the base .qa-icon-button reset it overrides. body:not(.is-mobile) keeps the
-   mobile 8px touch-target padding (declared earlier) in charge on phones. */
+/* Keep desktop row controls compact and mobile controls touch-sized. */
 body:not(.is-mobile)
 	:is(.choiceListItem, .multiChoiceListItem)
 	.rightButtonsContainer
 	.qa-icon-button {
-	padding: 3px !important;
+	padding: 3px;
 }
 
 :is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button {
@@ -2169,14 +2154,14 @@ body:not(.is-mobile)
 #dnd-action-dragged-el.qa-drag-clone {
 	background: transparent !important;
 	border: none !important;
-	box-shadow: none !important;
-	overflow: visible !important;
+	box-shadow: none;
+	overflow: visible;
 	pointer-events: none;
 }
 
 /* Hide the cloned real row (name, buttons, handle, any nested list) — keep the pill. */
 #dnd-action-dragged-el.qa-drag-clone > *:not(.qa-drag-pill) {
-	display: none !important;
+	display: none;
 }
 
 /* The pill: content-width, vertically centred on the grab Y (top:50%) and anchored

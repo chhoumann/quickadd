@@ -16,6 +16,7 @@ import type { InputPromptOptions } from "../types/inputPrompt";
 
 export class PromptApi {
 	public static async inputPrompt(
+		this: void,
 		app: App,
 		header: string,
 		placeholder?: string,
@@ -39,6 +40,7 @@ export class PromptApi {
 	}
 
 	public static async datePrompt(
+		this: void,
 		app: App,
 		header: string,
 		options?: {
@@ -69,6 +71,7 @@ export class PromptApi {
 	}
 
 	public static async wideInputPrompt(
+		this: void,
 		app: App,
 		header: string,
 		placeholder?: string,
@@ -89,7 +92,7 @@ export class PromptApi {
 		}
 	}
 
-	public static async yesNoPrompt(app: App, header: string, text?: string) {
+	public static async yesNoPrompt(this: void, app: App, header: string, text?: string) {
 		// Scripts are the one caller that must tell "No" from "the user walked
 		// away": answering No returns false and the script carries on, while
 		// dismissing the dialog aborts the macro like every other prompt does.
@@ -105,6 +108,7 @@ export class PromptApi {
 	}
 
 	public static async infoDialog(
+		this: void,
 		app: App,
 		header: string,
 		text: string[] | string,
@@ -117,6 +121,7 @@ export class PromptApi {
 	}
 
 	public static async suggester(
+		this: void,
 		app: App,
 		displayItems:
 			| string[]
@@ -164,6 +169,7 @@ export class PromptApi {
 	}
 
 	public static async checkboxPrompt(
+		this: void,
 		app: App,
 		items: string[],
 		selectedItems?: string[],

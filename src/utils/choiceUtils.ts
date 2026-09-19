@@ -263,7 +263,7 @@ export function normalizeChoiceList(value: unknown): NormalizedChoiceList {
 				continue;
 			}
 
-			const replacement = { ...node, id: uuidv4() } as IChoice;
+			const replacement = { ...node, id: uuidv4() };
 			seen.add(replacement.id);
 			repaired.push({ previousId: id, choice: replacement });
 			out.push(replacement);

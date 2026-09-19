@@ -6,7 +6,6 @@ import {
 } from "src/ai/Provider";
 import { CommandType } from "src/types/macros/CommandType";
 import type { ICommand } from "src/types/macros/ICommand";
-import type IChoice from "src/types/choices/IChoice";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
 import { log } from "src/logger/logManager";
@@ -159,7 +158,7 @@ const refreshStaleDefaultModelSeeds: Migration = {
 		// Legacy top-level macros are gone by now (removeMacroIndirection runs
 		// earlier), so choices are the only command roots left.
 		walkAllCommandsInSettings(
-			{ choices: choices as IChoice[] },
+			{ choices: choices },
 			(command) => {
 				if (!isAICommand(command)) return;
 

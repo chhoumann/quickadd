@@ -125,14 +125,12 @@ export class ModelDirectoryModal extends Modal {
         cls: "qa-model-row",
       });
 
-      const cb = this.contentEl.ownerDocument.createElement("input");
-      cb.type = "checkbox";
+      const cb = row.createEl("input", { type: "checkbox" });
       cb.checked = this.selectedIds.has(m.name);
       cb.onchange = () => {
         if (cb.checked) this.selectedIds.add(m.name);
         else this.selectedIds.delete(m.name);
       };
-      row.appendChild(cb);
 
       row.createDiv({ text: m.name, cls: "qa-model-row-title" });
 
