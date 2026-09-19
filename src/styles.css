@@ -1204,11 +1204,16 @@
 	font: inherit;
 	line-height: inherit;
 	border-radius: var(--radius-s, 4px);
-	padding: 0;
-	min-width: 0;
-	min-height: 0;
-	width: auto;
-	height: auto;
+	/* Keep icon buttons compact. !important defeats Obsidian's mobile touch-target
+	   button sizing (.is-mobile settings rule, padding:10px -> 40px boxes) which is
+	   higher-specificity than this class and would otherwise inflate every icon and
+	   crush the row's name column. The old <div>/<span> faux-buttons were never
+	   touch-sized, so this restores parity. */
+	padding: 0 !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	width: auto !important;
+	height: auto !important;
 }
 
 .qa-icon-button.qa-icon-button:hover {
@@ -1259,7 +1264,9 @@
 
 .is-mobile .rightButtonsContainer .qa-icon-button,
 .is-mobile .quickAddCommandControls .qa-icon-button {
-	padding: 8px;
+	/* Override the compact reset for the controls that remain on mobile so they are
+	   comfortable tap targets. Higher specificity + !important beats the base. */
+	padding: 8px !important;
 }
 
 @media screen and (max-width: 639px) {
@@ -2043,10 +2050,15 @@
 	--icon-size: 17px;
 }
 
+/* Obsidian's mobile button chrome forces inline padding (10px) and a 40px
+   height onto the folder-name <button> hard enough that the component reset in
+   MultiChoiceListItem.svelte loses on phones, shifting the chevron 10px off
+   the shared icon column and making folder rows taller than leaf rows.
+   Matching force, tightly scoped to the one affected element. */
 body.is-mobile .multiChoiceListItemName {
-	padding: 0;
-	height: auto;
-	min-height: 0;
+	padding: 0 !important;
+	height: auto !important;
+	min-height: 0 !important;
 }
 
 /* On phones Obsidian stacks modal .setting-items vertically. Right for the
@@ -2104,12 +2116,15 @@ body:not(.is-mobile)
 	}
 }
 
-/* Keep desktop row controls compact and mobile controls touch-sized. */
+/* Comfortable 24px hit targets with per-icon hover feedback, matching
+   Obsidian's clickable-icon feel. Scoped to the choice rows; !important matches
+   the base .qa-icon-button reset it overrides. body:not(.is-mobile) keeps the
+   mobile 8px touch-target padding (declared earlier) in charge on phones. */
 body:not(.is-mobile)
 	:is(.choiceListItem, .multiChoiceListItem)
 	.rightButtonsContainer
 	.qa-icon-button {
-	padding: 3px;
+	padding: 3px !important;
 }
 
 :is(.choiceListItem, .multiChoiceListItem) .rightButtonsContainer .qa-icon-button {
