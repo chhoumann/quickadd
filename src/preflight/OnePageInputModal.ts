@@ -233,12 +233,6 @@ export class OnePageInputModal extends Modal {
 
 	onOpen() {
 		this.peek.onHostOpened();
-		// Auto-focus the first field so keyboard-first users can start typing
-		// immediately, matching the single-field prompts.
-		const firstField = Array.from(this.contentEl.querySelectorAll<HTMLElement>(
-			"input, textarea, select",
-		)).find((element) => !element.closest("[hidden]"));
-		firstField?.focus();
 
 		// Mod+Enter submits without reaching for the mouse. Guarded because the
 		// test mock's Modal has no scope.
