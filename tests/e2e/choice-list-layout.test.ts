@@ -41,8 +41,8 @@ it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host 
 		for (const action of layout.actions) {
 			expect(action.padding).toBe("8px");
 			expect(action.width).toBeGreaterThan(0);
-			expect(action.width).toBeLessThan(48);
-			expect(action.height).toBeLessThan(48);
+			expect(action.width).toBeLessThan(40);
+			expect(action.height).toBeLessThan(40);
 		}
 	} finally {
 		await obsidian.dev.evalJson("app.setting.close(); true");
