@@ -235,7 +235,7 @@ export function descWithDocsLink(
 	url: string,
 	linkText = "Learn more",
 ): DocumentFragment {
-	const fragment = document.createDocumentFragment();
+	const fragment = createFragment();
 	fragment.append(document.createTextNode(text));
 	createDocsLink(fragment, url, linkText);
 	return fragment;

@@ -142,12 +142,12 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	private createPreviewElement(container: HTMLElement) {
 		const previewContainer = container.createDiv("vdate-preview-container");
 		
-		previewContainer.createEl("div", {
+		previewContainer.createDiv({
 			text: "Preview:",
 			cls: "vdate-preview-label"
 		});
 		
-		this.previewEl = previewContainer.createEl("div", {
+		this.previewEl = previewContainer.createDiv({
 			cls: "vdate-preview-text"
 		});
 		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
@@ -165,7 +165,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			});
 			aliasSummary.addClass("vdate-alias-summary");
 
-			const aliasList = aliasDetails.createEl("div", {
+			const aliasList = aliasDetails.createDiv({
 				cls: "vdate-alias-list",
 			});
 			aliasList.textContent = formatDateAliasInline(

@@ -79,7 +79,7 @@ export function addSamplingParamSettings(
 ): void {
 	const model = resolveModel(selectedModel, { silent: true })?.model;
 	if (model?.supportsTemperature === false) {
-		container.createEl("div", {
+		container.createDiv({
 			text: `${model.name} uses fixed sampling, so these settings are not sent to it.`,
 			cls: "setting-item-description",
 		});

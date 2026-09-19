@@ -225,11 +225,11 @@ export class AIAssistantCommandSettingsModal extends Modal {
 			.setName("System prompt")
 			.setDesc("The system prompt for the AI Assistant");
 
-		const container = this.contentEl.createEl("div");
-		const tokenCount = container.createEl("span", {
+		const container = this.contentEl.createDiv();
+		const tokenCount = container.createSpan({
 			cls: "qa-ai-token-count",
 		});
-		const tokenCountNote = container.createEl("div", {
+		const tokenCountNote = container.createDiv({
 			text: "Estimated locally. Providers enforce exact context limits.",
 			cls: "qa-ai-token-note",
 		});

@@ -95,7 +95,15 @@ export default [
                 'error',
                 {
                     selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="createElement"]',
-                    message: 'Use Obsidian DOM helpers. Detached elements requiring a specific owner document need an explicit rationale.',
+                    message: 'Use Obsidian DOM helpers; use the owner document window for detached elements.',
+                },
+                {
+                    selector: 'CallExpression[callee.property.name="createDocumentFragment"]',
+                    message: 'Use createFragment(), or the owner document window for a specific realm.',
+                },
+                {
+                    selector: 'CallExpression:matches([callee.name="createEl"], [callee.property.name="createEl"])[arguments.0.value=/^(div|span)$/]',
+                    message: 'Use createDiv() or createSpan() for these tags.',
                 },
                 {
                     selector: 'BinaryExpression[operator="instanceof"][right.name="HTMLElement"]',

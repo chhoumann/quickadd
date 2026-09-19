@@ -58,37 +58,53 @@ export function installObsidianDomHelpers(window: Window): void {
 			this.textContent = "";
 		};
 	}
+	function createEl<K extends keyof HTMLElementTagNameMap>(
+		tag: K,
+		options: DomElementInfo | string = {},
+		callback?: (el: HTMLElementTagNameMap[K]) => void,
+	) {
+		const el = realm.document.createElement(tag);
+		const info = typeof options === "string" ? { cls: options } : options;
+		if (info.cls) el.className = Array.isArray(info.cls) ? info.cls.join(" ") : info.cls;
+		if (info.text !== undefined) el.append(info.text);
+		for (const [key, value] of Object.entries(info.attr ?? {})) {
+			if (value !== null) el.setAttribute(key, String(value));
+		}
+		for (const key of ["title", "href", "type", "value", "placeholder"] as const) {
+			if (info[key] !== undefined) el.setAttribute(key, info[key]);
+		}
+		callback?.(el);
+		if (info.parent) {
+			if (info.prepend) info.parent.insertBefore(el, info.parent.firstChild);
+			else info.parent.appendChild(el);
+		}
+		return el;
+	}
+	if (typeof window.createEl !== "function") window.createEl = createEl;
+	if (typeof window.createDiv !== "function") window.createDiv = (options, callback) => createEl("div", options, callback);
+	if (typeof window.createSpan !== "function") window.createSpan = (options, callback) => createEl("span", options, callback);
+	if (typeof window.createFragment !== "function") window.createFragment = (callback) => {
+		const fragment = window.document.createDocumentFragment();
+		callback?.(fragment);
+		return fragment;
+	};
+	if (!("win" in realm.Node.prototype)) Object.defineProperty(realm.Node.prototype, "win", {
+		configurable: true,
+		get(this: Node) { return this.ownerDocument?.defaultView ?? window; },
+	});
 	if (typeof p.createEl !== "function") {
-		p.createEl = function createEl<K extends keyof HTMLElementTagNameMap>(
-			this: Element | DocumentFragment,
-			tag: K,
-			options: DomElementInfo | string = {},
-			callback?: (el: HTMLElementTagNameMap[K]) => void,
-		) {
-			const el = realm.document.createElement(tag);
-			const info = typeof options === "string" ? { cls: options } : options;
-			if (info.cls) el.className = Array.isArray(info.cls) ? info.cls.join(" ") : info.cls;
-			if (info.text !== undefined) el.append(info.text);
-			for (const [key, value] of Object.entries(info.attr ?? {})) {
-				if (value !== null) el.setAttribute(key, String(value));
-			}
-			for (const key of ["title", "href", "type", "value", "placeholder"] as const) {
-				if (info[key] !== undefined) el.setAttribute(key, info[key]);
-			}
-			if (info.prepend) this.prepend(el);
-			else this.appendChild(el);
-			callback?.(el);
-			return el;
+		p.createEl = function<K extends keyof HTMLElementTagNameMap>(this: Node, tag: K, options: DomElementInfo | string = {}, callback?: (el: HTMLElementTagNameMap[K]) => void) {
+			return createEl(tag, { ...(typeof options === "string" ? { cls: options } : options), parent: this }, callback);
 		};
 	}
 	if (typeof p.createDiv !== "function") {
-		p.createDiv = function createDiv(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string) {
-			return this.createEl("div", options);
+		p.createDiv = function createDiv(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string, callback?: (el: HTMLDivElement) => void) {
+			return this.createEl("div", options, callback);
 		};
 	}
 	if (typeof p.createSpan !== "function") {
-		p.createSpan = function createSpan(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string) {
-			return this.createEl("span", options);
+		p.createSpan = function createSpan(this: HTMLElement | DocumentFragment, options?: DomElementInfo | string, callback?: (el: HTMLSpanElement) => void) {
+			return this.createEl("span", options, callback);
 		};
 	}
 }
