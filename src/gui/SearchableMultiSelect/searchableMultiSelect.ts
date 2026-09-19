@@ -55,34 +55,26 @@ export default class SearchableMultiSelect<T> {
 		containerEl: HTMLElement,
 		private readonly options: SearchableMultiSelectOptions<T>,
 	) {
-		this.rootEl = document.createElement("div");
-		this.rootEl.className = "qa-searchable-multi-select";
-
-		const searchContainer = document.createElement("div");
-		searchContainer.className =
-			"search-input-container qa-searchable-multi-select__search-container";
-		this.searchInputEl = document.createElement("input");
-		this.searchInputEl.className = "qa-searchable-multi-select__search";
-		this.searchInputEl.type = "search";
+		this.rootEl = containerEl.createDiv({ cls: "qa-searchable-multi-select" });
+		const searchContainer = this.rootEl.createDiv({
+			cls: "search-input-container qa-searchable-multi-select__search-container",
+		});
+		this.searchInputEl = searchContainer.createEl("input", {
+			cls: "qa-searchable-multi-select__search",
+			type: "search",
+			placeholder: options.searchPlaceholder ?? "Search options...",
+		});
 		this.searchInputEl.name = `qa-multi-select-search-${this.instanceId}`;
-		this.searchInputEl.placeholder =
-			options.searchPlaceholder ?? "Search options...";
 		this.searchInputEl.setAttribute("aria-label", this.searchInputEl.placeholder);
 		this.searchInputEl.setAttribute("autocomplete", "off");
 		this.searchInputEl.setAttribute("spellcheck", "false");
-		searchContainer.appendChild(this.searchInputEl);
 
-		this.summaryEl = document.createElement("div");
-		this.summaryEl.className = "qa-searchable-multi-select__summary";
+		this.summaryEl = this.rootEl.createDiv({ cls: "qa-searchable-multi-select__summary" });
 		this.summaryEl.setAttribute("aria-live", "polite");
 
-		this.listEl = document.createElement("div");
-		this.listEl.className = "qa-searchable-multi-select__list";
+		this.listEl = this.rootEl.createDiv({ cls: "qa-searchable-multi-select__list" });
 		this.listEl.setAttribute("role", "group");
 		this.listEl.setAttribute("aria-label", "Options");
-
-		this.rootEl.append(searchContainer, this.summaryEl, this.listEl);
-		containerEl.appendChild(this.rootEl);
 
 		this.searchInputEl.addEventListener("input", () => {
 			this.query = this.searchInputEl.value;
@@ -165,13 +157,11 @@ export default class SearchableMultiSelect<T> {
 		const visible = this.getVisibleItems(matches);
 
 		if (visible.length === 0) {
-			const empty = document.createElement("div");
-			empty.className = "qa-searchable-multi-select__empty";
+			const empty = this.listEl.createDiv({ cls: "qa-searchable-multi-select__empty" });
 			empty.setAttribute("role", "status");
 			empty.textContent = this.indexedItems.length
 				? `No options match “${this.query.trim()}”`
 				: (this.options.emptyText ?? "No options available");
-			this.listEl.appendChild(empty);
 		}
 
 		for (const indexed of visible) {
@@ -179,11 +169,9 @@ export default class SearchableMultiSelect<T> {
 		}
 
 		if (matches.length > visible.length) {
-			const limit = document.createElement("div");
-			limit.className = "qa-searchable-multi-select__limit";
+			const limit = this.listEl.createDiv({ cls: "qa-searchable-multi-select__limit" });
 			limit.setAttribute("role", "status");
 			limit.textContent = `Showing ${visible.length} of ${matches.length} options. Refine your search to see the rest.`;
-			this.listEl.appendChild(limit);
 		}
 
 		this.updateSummary(matches.length);
@@ -191,19 +179,14 @@ export default class SearchableMultiSelect<T> {
 
 	private renderRow(indexed: IndexedItem<T>): void {
 		const { item, index } = indexed;
-		const row = document.createElement("label");
-		row.className = "qa-searchable-multi-select__option";
-		const input = document.createElement("input");
-		input.type = "checkbox";
+		const row = this.listEl.createEl("label", { cls: "qa-searchable-multi-select__option" });
+		row.createSpan({ cls: "qa-searchable-multi-select__option-label", text: item.label });
+		const input = row.createEl("input", { type: "checkbox" });
 		input.name = `qa-multi-select-${this.instanceId}`;
 		input.id = `qa-multi-select-${this.instanceId}-${index}`;
 		input.checked = this.options.isSelected(item);
-		const label = document.createElement("span");
-		label.className = "qa-searchable-multi-select__option-label";
-		label.textContent = item.label;
 		row.htmlFor = input.id;
 		row.classList.toggle("is-selected", input.checked);
-		row.append(label, input);
 
 		input.addEventListener("change", () => {
 			this.options.onToggle(item, input.checked);
@@ -213,7 +196,6 @@ export default class SearchableMultiSelect<T> {
 			this.handleOptionKeydown(event, input);
 		});
 
-		this.listEl.appendChild(row);
 		this.renderedRows.push({ item, input });
 	}
 

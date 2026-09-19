@@ -618,7 +618,7 @@ export function updateMultiById(
 	return choices.map((c) => {
 		if (!isChoiceLike(c) || c.type !== "Multi") return c;
 		const mc = c as IMultiChoice;
-		if (mc.id === id) return patch(mc) as IChoice;
+		if (mc.id === id) return patch(mc);
 		// A folder whose children are unreadable comes out byte-identical. This
 		// walker re-spreads EVERY folder it passes, and it is on the save path
 		// (collapse a folder, rename a leaf), so substituting the read accessor

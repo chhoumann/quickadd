@@ -251,7 +251,7 @@ export class SingleMacroEngine {
 			// into the index arithmetic below.
 			const refreshed = macroChoice.macro?.commands;
 			const updatedCommands = hasCommandList(refreshed)
-				? (refreshed as typeof originalCommands)
+				? (refreshed)
 				: originalCommands;
 			// Pre-commands may have mutated the commands array, so re-resolve the selected
 			// command by its stable id. Both the candidate and the post-command slice are
@@ -327,7 +327,7 @@ export class SingleMacroEngine {
 				memberSettings = await resolveScriptSettings(
 					this.app, this.plugin, userScriptCommand,
 					settingsExport && typeof settingsExport === "object"
-						? (settingsExport as Record<string, unknown>) : undefined,
+						? (settingsExport) : undefined,
 				);
 			}
 

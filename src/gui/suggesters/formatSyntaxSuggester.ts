@@ -183,16 +183,13 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		if (!value) return;
 		el.classList.add("qa-format-suggestion");
 
-		const tokenEl = el.ownerDocument.createElement("span");
-		tokenEl.className = value.isFragment
-			? "qa-format-suggestion-token qa-format-suggestion-token-fragment"
-			: "qa-format-suggestion-token";
+		const tokenEl = el.createSpan({
+			cls: value.isFragment
+				? "qa-format-suggestion-token qa-format-suggestion-token-fragment"
+				: "qa-format-suggestion-token",
+		});
 		this.renderMatch(tokenEl, value.insert, this.matchedQuery);
-		el.appendChild(tokenEl);
 
-		const descriptionEl = el.ownerDocument.createElement("span");
-		descriptionEl.className = "qa-format-suggestion-description";
-		descriptionEl.textContent = value.description;
-		el.appendChild(descriptionEl);
+		el.createSpan({ cls: "qa-format-suggestion-description", text: value.description });
 	}
 }

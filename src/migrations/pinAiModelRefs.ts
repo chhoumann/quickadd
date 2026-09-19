@@ -4,7 +4,6 @@ import {
 	type ModelRef,
 } from "src/ai/Provider";
 import { pinAiCommandModelRefs } from "src/ai/modelRefPinning";
-import type IChoice from "src/types/choices/IChoice";
 import { settingsStore } from "src/settingsStore";
 import { deepClone } from "src/utils/deepClone";
 import { log } from "src/logger/logManager";
@@ -41,8 +40,8 @@ const pinAiModelRefs: Migration = {
 
 	migrate: async (_) => {
 		const state = settingsStore.getState();
-		const providers = deepClone(state.ai.providers ?? []) as AIProvider[];
-		const choices = deepClone(state.choices ?? []) as IChoice[];
+		const providers = deepClone(state.ai.providers ?? []);
+		const choices = deepClone(state.choices ?? []);
 
 		ensureProviderIds(providers);
 

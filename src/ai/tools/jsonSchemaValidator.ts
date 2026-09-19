@@ -74,7 +74,7 @@ export function assertRegisterableSchema(
 	if (schema.type !== undefined) {
 		const types = Array.isArray(schema.type) ? schema.type : [schema.type];
 		for (const t of types) {
-			if (!VALID_TYPES.has(t as string)) {
+			if (!VALID_TYPES.has(t)) {
 				throw new ToolSchemaError(`${where} has invalid type "${String(t)}".`);
 			}
 		}

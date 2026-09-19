@@ -137,7 +137,7 @@ function threeWayMergeKeyedArray(
 
 		result.push(
 			threeWayMergeSettings(
-				baseItem as Record<string, unknown> | undefined,
+				baseItem,
 				item,
 				diskItem,
 				path,

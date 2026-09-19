@@ -459,7 +459,7 @@ class InteractivePromptServer {
 	private async drainBody(req: HttpIncomingMessage): Promise<void> {
 		let size = 0;
 		for await (const chunk of req) {
-			size += (chunk as Buffer).length;
+			size += (chunk).length;
 			if (size > 1_000_000) throw new Error("Request body too large");
 		}
 	}
@@ -468,10 +468,10 @@ class InteractivePromptServer {
 		const chunks: Buffer[] = [];
 		let size = 0;
 		for await (const chunk of req) {
-			size += (chunk as Buffer).length;
+			size += (chunk).length;
 			// Interactive replies are tiny; cap to avoid buffering junk.
 			if (size > 1_000_000) throw new Error("Request body too large");
-			chunks.push(chunk as Buffer);
+			chunks.push(chunk);
 		}
 		if (chunks.length === 0) return {};
 		return JSON.parse(Buffer.concat(chunks).toString("utf8"));

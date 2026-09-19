@@ -203,7 +203,7 @@ export function settingsTreeHasUnreadableData(settings: {
 
 export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
 	walkSettings(
-		plugin.settings as { choices: IChoice[]; macros?: unknown },
+		plugin.settings,
 		{ onChoice: visitor },
 	);
 }

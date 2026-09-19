@@ -11,8 +11,8 @@ export async function refocusDragHandle(
 ): Promise<void> {
 	await tick();
 	if (!root) return;
-	const handle = root.querySelector(
+	const handle = root.querySelector<HTMLButtonElement>(
 		`button[aria-label="${CSS.escape(label)}"]`,
-	) as HTMLButtonElement | null;
+	);
 	handle?.focus();
 }

@@ -51,7 +51,7 @@ export class ConsoleErrorLogger extends QuickAddLogger {
 	}
 
 	/**
-	 * Logs a message to the console
+	 * Records a diagnostic message without writing routine output to the console
 	 * 
 	 * @param logMsg - Log message
 	 * @param stack - Optional stack trace string
@@ -60,13 +60,6 @@ export class ConsoleErrorLogger extends QuickAddLogger {
 	public logMessage(logMsg: string, stack?: string, originalError?: Error) {
 		const log = this.getQuickAddError(logMsg, ErrorLevel.Log, stack, originalError);
 		this.addMessageToErrorLog(log);
-
-		// For regular logs, we'll still show the error if available
-		if (originalError) {
-			console.log(this.formatOutputString(log), originalError);
-		} else {
-			console.log(this.formatOutputString(log));
-		}
 	}
 
 	/**

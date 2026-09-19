@@ -101,9 +101,7 @@ class Suggest<T> {
 		const suggestionEls: HTMLDivElement[] = [];
 
 		values.forEach((value, index) => {
-			const suggestionEl = this.containerEl.ownerDocument.createElement("div");
-			suggestionEl.classList.add("suggestion-item");
-			this.containerEl.appendChild(suggestionEl);
+			const suggestionEl = this.containerEl.createDiv({ cls: "suggestion-item" });
 			suggestionEl.setAttribute("role", "option");
 			suggestionEl.setAttribute("aria-selected", "false");
 			suggestionEl.setAttribute("id", `${this.optionIdPrefix}-option-${index}`);
@@ -239,11 +237,10 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.inputEl = inputEl;
 		this.scope = new Scope(parentScope);
 
+		// eslint-disable-next-line no-restricted-syntax -- The popup stays detached until open and must belong to the input document.
 		this.suggestEl = this.inputEl.ownerDocument.createElement("div");
 		this.suggestEl.classList.add("suggestion-container");
-		const suggestion = this.inputEl.ownerDocument.createElement("div");
-		suggestion.classList.add("suggestion");
-		this.suggestEl.appendChild(suggestion);
+		const suggestion = this.suggestEl.createDiv({ cls: "suggestion" });
 
 		this.listboxId = `qa-suggest-listbox-${++textInputSuggestSeq}`;
 		suggestion.id = this.listboxId;
@@ -307,13 +304,12 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		}
 	}
 
-	async onInputChanged(event?: Event): Promise<void> {
+	async onInputChanged(event?: CompletionInputEvent): Promise<void> {
 		// A pending debounced call can fire after destroy() removed the input
 		// listeners; bail so a destroyed instance never re-opens.
 		if (this.destroyed || this.inputEl.closest("[hidden]")) return;
-		const completionEvent = event as CompletionInputEvent | undefined;
-		const keepOpen = Boolean(completionEvent?.fromCompletion && completionEvent.keepOpen);
-		if (completionEvent?.fromCompletion && !keepOpen) return;
+		const keepOpen = Boolean(event?.fromCompletion && event.keepOpen);
+		if (event?.fromCompletion && !keepOpen) return;
 
 		const inputStr = this.inputEl.value;
 		const requestId = ++this.currentRequestId;

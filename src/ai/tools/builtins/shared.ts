@@ -38,7 +38,7 @@ export function applyGroupOptions(
 	const prefix = options.prefix ?? "";
 	return Object.fromEntries(
 		entries.map(([name, t]) => [prefix + name, t]),
-	) as ToolSetMap;
+	);
 }
 
 export function defineTool(def: Omit<QATool, "__qaTool">): QATool {

@@ -2169,14 +2169,14 @@ body:not(.is-mobile)
 #dnd-action-dragged-el.qa-drag-clone {
 	background: transparent !important;
 	border: none !important;
-	box-shadow: none !important;
-	overflow: visible !important;
+	box-shadow: none;
+	overflow: visible;
 	pointer-events: none;
 }
 
 /* Hide the cloned real row (name, buttons, handle, any nested list) — keep the pill. */
 #dnd-action-dragged-el.qa-drag-clone > *:not(.qa-drag-pill) {
-	display: none !important;
+	display: none;
 }
 
 /* The pill: content-width, vertically centred on the grab Y (top:50%) and anchored

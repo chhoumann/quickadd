@@ -226,12 +226,11 @@
 			return;
 		}
 
-		const textarea = document.createElement("textarea");
+		const textarea = document.body.createEl("textarea");
 		textarea.value = text;
 		textarea.setAttribute("readonly", "true");
 		textarea.style.position = "fixed";
 		textarea.style.opacity = "0";
-		document.body.appendChild(textarea);
 		textarea.focus();
 		textarea.select();
 		const successful = document.execCommand("copy");

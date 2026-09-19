@@ -1035,6 +1035,31 @@ describe("ChoiceSuggester", () => {
 			expect(completion).toHaveBeenCalledWith(leafError);
 		});
 
+		it.each([undefined, null, "script failed"])("rejects a non-Error leaf failure (%s)", async (reason) => {
+			executor.execute = () => Promise.reject(reason);
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+			suggester.selectSuggestion(
+				{ item: topNote, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+			await flushMicrotasks();
+			expect(completion).toHaveBeenCalledExactlyOnceWith(expect.any(Error));
+			expect(completion.mock.calls[0][0]).toMatchObject({ message: String(reason) });
+		});
+
+		it("preserves a released string cancellation as a typed cancellation", async () => {
+			executor.execute = () => Promise.reject("cancelled");
+			const completion = makeCompletion();
+			const suggester = completionSuggester(rootChoices, completion);
+			suggester.selectSuggestion(
+				{ item: topNote, match: { score: 0, matches: [] } },
+				new MouseEvent("click"),
+			);
+			await flushMicrotasks();
+			expect(completion).toHaveBeenCalledExactlyOnceWith(expect.any(UserCancelError));
+		});
+
 		it("rejects as a cancellation when the picker closes without a pick", () => {
 			const completion = makeCompletion();
 			const suggester = completionSuggester(rootChoices, completion);

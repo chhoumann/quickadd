@@ -38,7 +38,6 @@ export function populateModelDropdown(
 ): void {
 	const providers = settingsStore.getState().ai.providers;
 	const selectEl = dropdown.selectEl;
-	const doc = selectEl.ownerDocument;
 
 	// A ref that no longer matches the legacy string is stale (older QuickAdd
 	// edited the command); the string is what the user last visibly chose.
@@ -60,9 +59,8 @@ export function populateModelDropdown(
 	for (const provider of providers) {
 		if (provider.models.length === 0) continue;
 
-		const group = doc.createElement("optgroup");
+		const group = selectEl.createEl("optgroup");
 		group.label = provider.name;
-		selectEl.appendChild(group);
 
 		for (const model of provider.models) {
 			const value = `${provider.id ?? provider.name}/${model.name}:${index++}`;
@@ -71,10 +69,7 @@ export function populateModelDropdown(
 				modelName: model.name,
 			});
 
-			const option = doc.createElement("option");
-			option.value = value;
-			option.text = model.name;
-			group.appendChild(option);
+			group.createEl("option", { value, text: model.name });
 		}
 	}
 

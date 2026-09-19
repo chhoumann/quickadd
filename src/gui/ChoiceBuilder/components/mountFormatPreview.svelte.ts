@@ -49,9 +49,7 @@ export function mountFormatPreview(
 	// target: `mount()` writes anchor comment nodes into whatever it is given, and
 	// these modals `createEl` straight onto `contentEl`, so mounting into a shared
 	// container would interleave the anchors with later `new Setting(...)` rows.
-	const host = container.ownerDocument.createElement("div");
-	host.className = "qa-format-preview-host";
-	container.appendChild(host);
+	const host = container.createDiv({ cls: "qa-format-preview-host" });
 
 	const props = $state({
 		value: options.value,

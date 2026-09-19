@@ -1,3 +1,4 @@
+import { installObsidianDomHelpers } from "../../../tests/vitest-setup";
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { App, TFile, Vault, MetadataCache, Workspace, Plugin } from 'obsidian';
 import { TFile as RuntimeTFile } from 'obsidian';
@@ -431,6 +432,7 @@ describe('FileSuggester DOM XSS safety', () => {
         document.body.appendChild(frame);
         const popoutDocument = frame.contentDocument!;
         const popoutWindow = frame.contentWindow!;
+        installObsidianDomHelpers(popoutWindow);
         const inputEl = popoutDocument.createElement('input');
         popoutDocument.body.appendChild(inputEl);
 
@@ -510,6 +512,7 @@ describe('FileSuggester DOM XSS safety', () => {
         document.body.appendChild(frame);
         const popoutDocument = frame.contentDocument!;
         const popoutWindow = frame.contentWindow!;
+        installObsidianDomHelpers(popoutWindow);
         const inputEl = popoutDocument.createElement('input');
         popoutDocument.body.appendChild(inputEl);
 

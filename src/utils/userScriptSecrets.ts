@@ -50,7 +50,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function getSecretStorage(app: App | undefined): SecretStorageLike | undefined {
-	return app?.secretStorage as SecretStorageLike | undefined;
+	return app?.secretStorage;
 }
 
 function normalizeSecretIdPart(value: string): string {

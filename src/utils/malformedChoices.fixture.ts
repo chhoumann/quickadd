@@ -9,7 +9,7 @@ import type IMultiChoice from "src/types/choices/IMultiChoice";
  */
 
 export function leaf(name: string, id: string): IChoice {
-	return { id, name, type: "Template", command: false } as IChoice;
+	return { id, name, type: "Template", command: false };
 }
 
 export function folder(name: string, id: string, children: IChoice[]): IChoice {

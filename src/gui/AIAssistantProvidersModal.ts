@@ -11,7 +11,6 @@ import { deepClone } from "src/utils/deepClone";
 import GenericInputPrompt from "./GenericInputPrompt/GenericInputPrompt";
 import { ProviderPickerModal } from "./ProviderPickerModal";
 import GenericYesNoPrompt from "./GenericYesNoPrompt/GenericYesNoPrompt";
-import type { IconType } from "src/types/IconType";
 
 export class AIAssistantProvidersModal extends Modal {
 	public waitForClose: Promise<AIProvider[]>;
@@ -129,7 +128,7 @@ export class AIAssistantProvidersModal extends Modal {
 		remove: () => void,
 	): void {
 		button.setDestructive();
-		button.setIcon("trash" as IconType);
+		button.setIcon("trash");
 		button.onClick(async () => {
 			const confirmed = await GenericYesNoPrompt.Prompt(
 				this.app, `Are you sure you want to delete ${name}?`,
