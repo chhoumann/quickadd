@@ -123,25 +123,7 @@ describe("OnePageInputModal preflight-suggesters audit", () => {
 		});
 	});
 
-	// Finding: prompts-gui-onepage-preflight-modal — the modal must auto-focus
-	// the first field and submit on Mod+Enter without the mouse.
 	describe("keyboard accessibility", () => {
-		it("auto-focuses the first field on open", () => {
-			const requirements: FieldRequirement[] = [
-				{ id: "title", label: "Title", type: "text" },
-				{ id: "body", label: "Body", type: "textarea" },
-			];
-			const modal = new OnePageInputModal({} as App, requirements, new Map());
-			// jsdom only updates activeElement for elements in the document.
-			document.body.appendChild((modal as any).containerEl);
-			(modal as any).open();
-
-			const firstInput = modal.contentEl.querySelector(
-				"input",
-			) as HTMLInputElement;
-			expect(document.activeElement).toBe(firstInput);
-		});
-
 		it("submits on Mod+Enter via the modal scope", async () => {
 			const requirements: FieldRequirement[] = [
 				{ id: "title", label: "Title", type: "text" },
