@@ -61,11 +61,13 @@ async function run(choice: TemplateChoice, values: Record<string, string> = {}) 
 async function expectAt(path: string, trailingText: string) {
 	await expect.poll(async () => {
 		const result = await state(path);
-		return { active: result.active, tail: result.editor.slice(result.offset) };
-	}, POLL_OPTS).toEqual({ active: path, tail: trailingText });
-	const result = await state(path);
-	expect(result.content.replace(/\r\n/g, "\n")).toBe(result.editor);
-	return result;
+		return {
+			active: result.active,
+			tail: result.editor.slice(result.offset),
+			saved: result.content.replace(/\r\n?/g, "\n") === result.editor,
+		};
+	}, POLL_OPTS).toEqual({ active: path, tail: trailingText, saved: true });
+	return state(path);
 }
 
 describe("Template cursor markers in native Obsidian", () => {
@@ -339,6 +341,23 @@ describe("Template cursor markers in native Obsidian", () => {
 		expect(result.editor.slice(0, result.offset)).toMatch(/😀 Before$/);
 		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed 😀 " }) });
 		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe(result.editor.slice(0, result.offset) + "Typed 😀 " + result.editor.slice(result.offset));
+	});
+
+	it.each(["\n", "\r\n", "\r"])("keeps the marker when applying %j line endings at the cursor", async newline => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "newline-template.md", `First${newline}😀 Before{{CURSOR}}after`);
+		const path = await seedVaultFile(obsidian, sandbox, "newline-target.md", "Existing");
+		await open(path);
+		await obsidian.dev.evalJsonAsync(`(async () => {
+			await app.plugins.plugins.quickadd.api.applyTemplateToActiveFile(${JSON.stringify(template)}, { mode: "cursor" });
+			return true;
+		})()`);
+		await expectAt(path, "afterExisting");
+		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { editor: result.editor, saved: result.content };
+		}, POLL_OPTS).toEqual({ editor: "First\n😀 BeforeTyped afterExisting", saved: "First\n😀 BeforeTyped afterExisting" });
 	});
 
 

@@ -217,6 +217,60 @@ describe("Capture cursor markers in native Obsidian", () => {
 		})()`)).toEqual({ links: 2, markers: ["AB", "AB"] });
 	});
 
+	it.each([
+		["cursor", "\r\n"], ["above", "\r\n"], ["below", "\r\n"],
+		["cursor", "\r"], ["above", "\r"], ["below", "\r"],
+	] as const)("keeps the marker in a %s capture with %j line endings", async (position, newline) => {
+		const { choice, path } = await setup("Existing");
+		const { obsidian } = getContext();
+		choice.insertAfter.enabled = false;
+		choice.format.format = `First${newline}😀 Before{{CURSOR}}after`;
+		if (position !== "cursor") choice.newLineCapture = { enabled: true, direction: position };
+		await saveAndOpen(choice, path);
+		await run(choice);
+		const inserted = "First\n😀 BeforeTyped after";
+		const expected = position === "below" ? `Existing\n${inserted}` : inserted + (position === "above" ? "\nExisting" : "Existing");
+		const beforeTyping = expected.replace("Typed ", "");
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { editor: result.editorContent, saved: result.content, offset: result.offset };
+		}, AUTOSAVE_POLL).toEqual({ editor: beforeTyping, saved: beforeTyping, offset: beforeTyping.indexOf("after") });
+		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { editor: result.editorContent, saved: result.content };
+		}, AUTOSAVE_POLL).toEqual({ editor: expected, saved: expected });
+	});
+
+	it("maps CRLF insertions at multiple selections before typing", async () => {
+		const { choice, path } = await setup("one gap two");
+		const { obsidian } = getContext();
+		choice.insertAfter.enabled = false;
+		choice.format.format = "First\r\n😀 Before{{CURSOR}}after";
+		await saveAndOpen(choice, path);
+		await obsidian.dev.evalJson(`(() => {
+			app.workspace.activeLeaf.view.editor.setSelections([
+				{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 3 } },
+				{ anchor: { line: 0, ch: 11 }, head: { line: 0, ch: 8 } },
+			]); return true;
+		})()`);
+		await run(choice);
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { editor: result.editorContent, saved: result.content };
+		}, AUTOSAVE_POLL).toEqual({ editor: "First\n😀 Beforeafter gap First\n😀 Beforeafter", saved: "First\n😀 Beforeafter gap First\n😀 Beforeafter" });
+		expect(await obsidian.dev.evalJson(`(() => {
+			const editor = app.workspace.activeLeaf.view.editor;
+			return editor.listSelections().map(selection => editor.getValue().slice(editor.posToOffset(selection.head), editor.posToOffset(selection.head) + 5));
+		})()`)).toEqual(["after", "after"]);
+		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		const expected = "First\n😀 BeforeTyped after gap First\n😀 BeforeTyped after";
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { editor: result.editorContent, saved: result.content };
+		}, AUTOSAVE_POLL).toEqual({ editor: expected, saved: expected });
+	});
+
 	it("places one marker at the end of a replaced selection after inserting multiple links", async () => {
 		const { choice, path } = await setup("ab tail");
 		const { obsidian } = getContext();
