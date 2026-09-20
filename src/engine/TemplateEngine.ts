@@ -1,3 +1,8 @@
+import type { EditorCursorPlacement } from "../utils/editorCursorPlacement";
+import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateCursorPlacement";
+import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
+import { getBodyStartOffset } from "../utils/noteContentInsertion";
+import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { FolderSelectionEngine } from "./FolderSelectionEngine";
 import {
 	postProcessFrontMatter,
@@ -45,6 +50,67 @@ function isMacroAbortError(error: unknown): error is MacroAbortError {
 export abstract class TemplateEngine extends FolderSelectionEngine {
 	protected formatter: CompleteFormatter;
 	protected readonly templater;
+	protected cursorPlacement: EditorCursorPlacement | null = null;
+	protected templaterCursorHandled = false;
+
+	public hasTemplaterHandledCursor(): boolean {
+		return this.templaterCursorHandled;
+	}
+
+	private async finishTemplateContent(file: TFile): Promise<void> {
+		this.cursorPlacement = null;
+		if (file.extension !== "md") return;
+		const view = getMarkdownEditorViewForFile(this.app, file);
+		let prepared: EditorCursorPlacement | null = null;
+		if (view) {
+			const content = view.editor.getValue();
+			prepared = prepareTemplateContent(content);
+			const changes = [...content.matchAll(/\{\{CURSOR\}\}/gi)].map(marker => ({
+				from: view.editor.offsetToPos(marker.index),
+				to: view.editor.offsetToPos(marker.index + marker[0].length),
+				text: "",
+			}));
+			if (changes.length > 0) {
+				view.editor.transaction({ changes });
+				await view.save();
+			}
+		} else {
+			await this.app.vault.process(file, content => {
+				prepared = prepareTemplateContent(content);
+				return prepared.content;
+			});
+		}
+		this.cursorPlacement = prepared;
+		if (this.cursorPlacement?.offsets.length === 0) this.cursorPlacement = null;
+	}
+
+	public getCursorPlacement(): EditorCursorPlacement | null {
+		return this.cursorPlacement;
+	}
+
+	public placeCursor(file: TFile, beforeLink?: EditorCursorPlacement | null): void {
+		const editor = getMarkdownEditorViewForFile(this.app, file)?.editor;
+		if (this.cursorPlacement && editor) {
+			for (const cursor of [this.cursorPlacement, beforeLink]) {
+				if (!cursor) continue;
+				const placement = rebaseTemplateCursor(cursor, editor.getValue()) ?? cursor;
+				if (setMarkdownCursorsAtOffsets(this.app, file,
+					placement.offsets, placement.content)) return;
+			}
+		}
+	}
+
+	protected async rebaseCursorAfterFileChanges(file: TFile): Promise<void> {
+		if (!this.cursorPlacement) return;
+		try {
+			this.cursorPlacement = rebaseTemplateCursor(
+				this.cursorPlacement, await this.app.vault.read(file),
+			);
+		} catch {
+			this.cursorPlacement = null;
+			log.logMessage(`Unable to verify cursor position in '${file.path}'.`);
+		}
+	}
 
 	protected constructor(
 		app: App,
@@ -205,13 +271,21 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.setTemplateDestination(path, title);
 		const content = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", template, () =>
-				this.formatter.formatFileContent(template)));
+				path.toLowerCase().endsWith(".md")
+					? this.formatter.formatTemplateContent(template)
+					: this.formatter.formatFileContent(template)));
 		const variables = this.formatter.getAndClearTemplatePropertyVars();
 		log.logMessage(`TemplateEngine.${operation}: Collected ${variables.size} template property variables for ${path}`);
 		if (variables.size > 0) {
 			log.logMessage(`Variables: ${Array.from(variables.keys()).join(', ')}`);
 		}
-		return { content, variables };
+		this.cursorPlacement = null;
+		this.templaterCursorHandled = false;
+		const bodyStart = getBodyStartOffset(content);
+		const prepared = path.toLowerCase().endsWith(".md")
+			? stripCursorMarkers(content.slice(0, bodyStart)) + content.slice(bodyStart)
+			: stripCursorMarkers(content);
+		return { content: prepared, variables };
 	}
 
 	protected async createFileWithTemplate(
@@ -253,13 +327,19 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 				{ suppressTemplaterOnCreate },
 			);
 
-			// Post-process front matter for template property types BEFORE Templater
-			if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
-				await postProcessFrontMatter(this.app, createdFile, templateVars);
+			let rendered = false;
+			try {
+				if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
+					await postProcessFrontMatter(this.app, createdFile, templateVars);
+				}
+				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, createdFile);
+				rendered = true;
+			} finally {
+				await this.finishTemplateContent(createdFile).catch(error => {
+					if (rendered) throw error;
+					log.logWarning(`Unable to clean cursor markers in '${createdFile.path}': ${String(error)}`);
+				});
 			}
-
-			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
 
 			return createdFile;
 		} catch (err) {
@@ -329,13 +409,19 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			await this.app.vault.modify(file, formattedTemplateContent);
 
-			// Post-process front matter for template property types BEFORE Templater
-			if (shouldPostProcessFrontMatter(file, templateVars)) {
-				await postProcessFrontMatter(this.app, file, templateVars);
+			let rendered = false;
+			try {
+				if (shouldPostProcessFrontMatter(file, templateVars)) {
+					await postProcessFrontMatter(this.app, file, templateVars);
+				}
+				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
+				rendered = true;
+			} finally {
+				await this.finishTemplateContent(file).catch(error => {
+					if (rendered) throw error;
+					log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
+				});
 			}
-
-			// Process Templater commands
-			await overwriteTemplaterOnce(this.app, file);
 
 			return file;
 		} catch (err) {

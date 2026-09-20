@@ -387,6 +387,11 @@ appear (these are shared with the Capture choice):
 - **Focus new pane** - shown for every location except **Reuse current tab**.
   Focus the opened tab immediately after opening.
 
+Put [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the template body to choose
+where typing starts. The marker works for new notes and existing-note updates.
+The destination must be focused in an editing mode, either already or through
+**Open**. Reading view and background panes keep their state.
+
 ## Run it from a hotkey: Command palette {#command-palette}
 
 **Add to command palette** registers the choice as an Obsidian command, so

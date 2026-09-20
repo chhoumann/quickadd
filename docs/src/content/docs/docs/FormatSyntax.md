@@ -37,7 +37,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{VDATE:due,YYYY-MM-DD}}`](#vdate) | Ask for a date ("tomorrow" works) |
 | [`{{FIELD:project}}`](#field) | Suggest values that property already has in your vault |
 | [`{{PROPERTY}}`](#property) | Insert the property's current value (property Captures only) |
-| [`{{CURSOR}}`](#cursor) | Place the cursor inside a Capture |
+| [`{{CURSOR}}`](#cursor) | Place the cursor inside a Template or Capture |
 | [`{{FILE:People}}`](#file) | Pick a note from a folder |
 | [`{{MVALUE}}`](#mvalue) | Write a math formula (LaTeX) |
 
@@ -853,7 +853,7 @@ FIELD filtering is in beta and the syntax can change - leave your thoughts
 
 ### Cursor position: `{{CURSOR}}` {#cursor}
 
-In a Capture body, `{{CURSOR}}` marks where you want to continue typing.
+In a Template or Capture body, `{{CURSOR}}` marks where you want to continue typing.
 
 ```md
 ### {{DATE:DD-MMM-YYYY}}
@@ -862,23 +862,35 @@ In a Capture body, `{{CURSOR}}` marks where you want to continue typing.
 
 QuickAdd removes the marker and places the cursor there when the target note
 is already focused in an editing mode, or when **Open** opens and focuses it.
-The marker never opens a note by itself. It also works with **At cursor** and
-**New line above/below cursor**, and inside an included `{{TEMPLATE:...}}`.
+The marker never opens a note by itself, switches out of Reading view, or
+focuses a background pane.
 
-The first marker sets the position. Additional markers are removed. Spelling
-is case-insensitive. A format containing only markers and whitespace does nothing.
-If Templater needs a new target note before it produces an empty Capture,
-QuickAdd keeps that created note and skips insertion and cursor placement.
+It works when creating a Markdown note from a Template, overwriting an existing
+note, or adding the template at the top or bottom. It also works in all
+[Apply Template to Note](/docs/ApplyTemplateToNote/) modes, Capture's **At cursor**
+and **New line above/below cursor**, and included `{{TEMPLATE:...}}` content.
 
-Templater's cursor jump takes precedence. Links inserted into the active note's
-body keep the marker position. QuickAdd skips placement if a concurrent edit,
-whole-file Templater run, property update, or link written through a specified
-destination file makes the position unreliable.
+The first marker sets the position. Additional markers in the inserted content
+are removed. Spelling is case-insensitive. Insert and append operations leave
+literal markers already in the destination note alone; replacing the note
+replaces its old content.
+
+A Template containing only markers can create an empty note. A Capture containing
+only markers and whitespace does nothing. If Templater needs a new target note
+before it produces an empty Capture, QuickAdd keeps that created note and skips
+insertion and cursor placement.
+
+Templater's cursor jump takes precedence. In Templates, QuickAdd finds the marker
+after Templater finishes rendering, including content from `tp.file.include`.
+QuickAdd preserves the position through frontmatter merges and links inserted
+into the active note's body. Placement is skipped when a concurrent edit makes
+the position unreliable. Capture also skips placement after a whole-file
+Templater rewrite, a property update, or a link written through a specified
+destination file.
 The marker is still removed. Without a marker, cursor behavior stays unchanged.
 
-This token places the cursor only in Capture bodies. In Template choices,
-property Captures, Canvas cards, file names, and line targets, it is removed
-without moving the cursor.
+In property Captures, Canvas and Base content, file names, folder paths, line
+targets, and generic format API calls, the token is removed without moving the cursor.
 
 ### The property's current value: `{{PROPERTY}}` {#property}
 

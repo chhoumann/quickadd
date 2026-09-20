@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
-import { TFile, TFolder } from "obsidian";
-import { openFile } from "./fileOpening";
+import type { App, WorkspaceLeaf } from "obsidian";
+import { FileView, TFile, TFolder } from "obsidian";
+import { openExistingFileTab, openFile } from "./fileOpening";
 
 type MockLeaf = {
 	openFile: ReturnType<typeof vi.fn>;
@@ -27,6 +27,22 @@ function makeApp(resolved: unknown): { app: App; leaf: MockLeaf } {
 	} as unknown as App;
 	return { app, leaf };
 }
+
+describe("openExistingFileTab", () => {
+	it.each([0, 1, -1])("preserves the active matching tab at index %s", activeIndex => {
+		const file = new TFile();
+		file.path = "Target.md";
+		const leaves = [0, 1].map(() => ({
+			view: Object.assign(Object.create(FileView.prototype), { file }),
+		})) as WorkspaceLeaf[];
+		const { app } = makeApp(file);
+		app.workspace.activeLeaf = leaves[activeIndex] ?? null;
+		app.workspace.iterateRootLeaves = callback => { leaves.forEach(callback); };
+		const expected = leaves[activeIndex] ?? leaves[1];
+		expect(openExistingFileTab(app, file)).toBe(expected);
+		expect(app.workspace.setActiveLeaf).toHaveBeenCalledExactlyOnceWith(expected, { focus: true });
+	});
+});
 
 describe("openFile folder guard", () => {
 	it("throws 'File not found' for a folder path instead of opening the folder", async () => {
@@ -74,5 +90,62 @@ describe("openFile folder guard", () => {
 
 		await openFile(app, "People/Tom.md");
 		expect(leaf.openFile).toHaveBeenCalledWith(fileLike);
+	});
+});
+
+describe("openFile focus", () => {
+	it("restores the active leaf synchronously when creating a background tab activates it", async () => {
+		const file = new TFile();
+		const { app, leaf } = makeApp(file);
+		const previousLeaf = {} as WorkspaceLeaf;
+		app.workspace.activeLeaf = previousLeaf;
+		app.workspace.getLeaf = vi.fn(() => {
+			app.workspace.activeLeaf = leaf as unknown as WorkspaceLeaf;
+			return app.workspace.activeLeaf;
+		});
+		vi.mocked(app.workspace.setActiveLeaf).mockImplementation((active) => {
+			app.workspace.activeLeaf = active;
+		});
+		leaf.openFile.mockImplementation(() => {
+			expect(app.workspace.activeLeaf).toBe(previousLeaf);
+		});
+
+		await openFile(app, file, { focus: false, mode: "source" });
+
+		expect(app.workspace.setActiveLeaf).toHaveBeenCalledExactlyOnceWith(
+			previousLeaf,
+			{ focus: false },
+		);
+	});
+
+	it.each([undefined, "source", "preview"] as const)(
+		"opens in the background with mode %s without activating either operation",
+		async (mode) => {
+			const file = new TFile();
+			file.path = "Background.md";
+			const { app, leaf } = makeApp(file);
+
+			await openFile(app, file, { focus: false, mode });
+
+			expect(leaf.openFile).toHaveBeenCalledWith(file, { active: false });
+			if (mode) {
+				expect(leaf.setViewState).toHaveBeenCalledWith(
+					expect.objectContaining({ active: false }),
+				);
+			} else {
+				expect(leaf.setViewState).not.toHaveBeenCalled();
+			}
+			expect(app.workspace.setActiveLeaf).not.toHaveBeenCalled();
+		},
+	);
+
+	it("focuses the opened leaf by default", async () => {
+		const file = new TFile();
+		const { app, leaf } = makeApp(file);
+
+		await openFile(app, file, { mode: "source" });
+
+		expect(leaf.openFile).toHaveBeenCalledWith(file);
+		expect(app.workspace.setActiveLeaf).toHaveBeenCalledWith(leaf, { focus: true });
 	});
 });

@@ -220,7 +220,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	{
 		regex: CURSOR_SYNTAX_SUGGEST_REGEX,
 		contexts: ["noteContent"],
-		suggestion: token("{{CURSOR}}", "Places the cursor here (Capture bodies only)"),
+		suggestion: token("{{CURSOR}}", "Places the cursor here (Capture and Template bodies)"),
 	},
 	{
 		regex: FILE_SYNTAX_SUGGEST_REGEX,

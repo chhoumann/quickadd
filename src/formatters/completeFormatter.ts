@@ -43,6 +43,7 @@ export class CompleteFormatter extends Formatter {
 	 * never do — an embed link in a path would corrupt it (issue #1484).
 	 */
 	private contentValuePromptsAcceptImagePaste = false;
+	private preserveTemplateCursorMarkers = false;
 
 	constructor(
 		protected app: App,
@@ -91,7 +92,9 @@ export class CompleteFormatter extends Formatter {
 			output = this.replacePropertyInString(output);
 		}
 
-		return this.promptScope === "captureText" ? output : stripCursorMarkers(output);
+		return this.promptScope === "captureText" ||
+			(this.promptScope === "noteBody" && this.preserveTemplateCursorMarkers)
+			? output : stripCursorMarkers(output);
 	}
 
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
@@ -173,8 +176,18 @@ export class CompleteFormatter extends Formatter {
 		return value;
 	}
 
+	async formatTemplateContent(input: string): Promise<string> {
+		return this.formatContentWithCursorMarkers(input, true);
+	}
+
 	async formatFileContent(input: string): Promise<string> {
+		return this.formatContentWithCursorMarkers(input, false);
+	}
+
+	private async formatContentWithCursorMarkers(input: string, preserveMarkers: boolean): Promise<string> {
 		let output: string = input;
+		const previousCursorMarkers = this.preserveTemplateCursorMarkers;
+		this.preserveTemplateCursorMarkers = preserveMarkers;
 
 		// Enable image paste only during content formatting, restoring the flag across nested or failed passes.
 		const previousImagePaste = this.contentValuePromptsAcceptImagePaste;
@@ -186,6 +199,7 @@ export class CompleteFormatter extends Formatter {
 			output = await this.format(output);
 		} finally {
 			this.contentValuePromptsAcceptImagePaste = previousImagePaste;
+			this.preserveTemplateCursorMarkers = previousCursorMarkers;
 		}
 		// A single contextual pass preserves token-looking replacement text. Content may strip optional missing tokens.
 		output = this.replaceCurrentFileTokensInString(output, {
@@ -677,6 +691,9 @@ export class CompleteFormatter extends Formatter {
 		// templates ({{TEMPLATE:...}}), which render via this child engine's own
 		// formatter.
 		childEngine.setTargetFolderPath(this.targetFolderPath);
+		if (this.preserveTemplateCursorMarkers && this.promptScope === "noteBody") {
+			childEngine.setPreserveCursorMarkers(true);
+		}
 		// An include spliced into a path is part of that path: keep the caller's
 		// scope so its prompts do not claim to be asking for note content.
 		if (this.promptScope !== "generic") {

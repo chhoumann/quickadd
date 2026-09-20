@@ -21,25 +21,34 @@ export function insertCaptureInEditor(
 	action: string,
 ): EditorCursorPlacement | null {
 	const view = getMarkdownEditorViewForFile(app, file);
-	if (!view || payload.cursor.kind === "none") return null;
-	const { editor } = view;
+	if (!view) return null;
+	return insertCaptureInBoundEditor(payload, view.editor, action);
+}
+
+export function insertCaptureInBoundEditor(
+	payload: CapturePlacementResult,
+	editor: Editor,
+	action: string,
+): EditorCursorPlacement | null {
+	if (payload.cursor.kind === "none") return null;
+	const content = payload.content.replace(/\r\n?/g, "\n");
+	const cursorOffset = payload.content.slice(0, payload.cursor.value).replace(/\r\n?/g, "\n").length;
 	const at = (pos: EditorPosition) => editor.posToOffset(pos);
 	const cursor = editor.getCursor();
 	let edits: { from: EditorPosition; to?: EditorPosition; text: string; cursor: number }[];
 	if (action === "currentLine") {
-		const offset = payload.cursor.value;
 		edits = editor.listSelections().map(({ anchor, head }) => ({
 			from: at(anchor) <= at(head) ? anchor : head,
 			to: at(anchor) <= at(head) ? head : anchor,
-			text: payload.content,
-			cursor: offset,
+			text: content,
+			cursor: cursorOffset,
 		}));
 	} else if (action === "newLineAbove" || action === "newLineBelow") {
 		const above = action === "newLineAbove";
 		edits = [{
 			from: { line: cursor.line, ch: above ? 0 : editor.getLine(cursor.line).length },
-			text: above ? payload.content + "\n" : "\n" + payload.content,
-			cursor: payload.cursor.value + (above ? 0 : 1),
+			text: above ? content + "\n" : "\n" + content,
+			cursor: cursorOffset + (above ? 0 : 1),
 		}];
 	} else {
 		return null;
@@ -439,10 +448,18 @@ export function setMarkdownCursorsAtOffsets(
 		if (view.getMode() === "preview") return false;
 
 		const editor = view.editor;
-		if (!editor || editor.getValue() !== expectedContent) return false;
+		if (!editor) return false;
+		const content = editor.getValue();
+		let editorOffsets = offsets;
+		if (content !== expectedContent) {
+			if (content !== expectedContent.replace(/\r\n?/g, "\n")) return false;
+			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n?/g, "\n").length);
+		}
 
-		if (offsets.length === 1) editor.setCursor(editor.offsetToPos(offsets[0]));
-		else editor.setSelections(offsets.map(offset => ({ anchor: editor.offsetToPos(offset) })));
+		if (editorOffsets.length === 1) editor.setCursor(editor.offsetToPos(editorOffsets[0]));
+		else editor.setSelections(editorOffsets.map(offset => ({ anchor: editor.offsetToPos(offset) })));
+		const document = view.containerEl?.ownerDocument;
+		if (document && document.activeElement === document.body) editor.focus();
 		return true;
 	} catch {
 		log.logMessage(

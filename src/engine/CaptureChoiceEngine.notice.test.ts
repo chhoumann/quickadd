@@ -428,6 +428,7 @@ describe("CaptureChoiceEngine append-link destination", () => {
 				destination: { type: "specifiedFile", path: destinationFile.path },
 				linkType: "link",
 			}),
+			undefined,
 		);
 	});
 

@@ -1,9 +1,12 @@
+import { jumpToNextTemplaterCursorIfPossible } from "../utilityObsidian";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
 	engineApplyMock,
 	engineConstructorMock,
+	placeCursorMock,
+	nativeCursorHandledMock,
 	resolvedPathMock,
 	setPromptRunContextMock,
 	targetPathMock,
@@ -13,6 +16,8 @@ const {
 	vi.hoisted(() => ({
 		engineApplyMock: vi.fn(),
 		engineConstructorMock: vi.fn(),
+		placeCursorMock: vi.fn(),
+		nativeCursorHandledMock: vi.fn(() => false),
 		setPromptRunContextMock: vi.fn<(context: unknown) => void>(),
 		// Identity by default (raw == resolved); override to simulate a path token
 		// that resolves to a different extension (issue #620).
@@ -35,6 +40,8 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	const actual = await importOriginal<object>();
 
 	class TemplateInsertEngineMock {
+		placeCursor = placeCursorMock;
+		hasTemplaterHandledCursor = nativeCursorHandledMock;
 		templatePath: string;
 		constructor(...args: unknown[]) {
 			engineConstructorMock(...args);
@@ -275,6 +282,28 @@ describe("applyTemplateToNote (non-interactive)", () => {
 		expect(result).toBe(file);
 		expect(engineConstructorMock).toHaveBeenCalledTimes(1);
 		expect(engineConstructorMock.mock.calls[0][4]).toBe("replace");
+	});
+
+	it("does not jump again or apply QuickAdd placement after native overwrite handled the cursor", async () => {
+		const file = makeFile();
+		nativeCursorHandledMock.mockReturnValueOnce(true);
+		expect(await applyTemplateToNote(makeApp("", file), plugin, {
+			templatePath: "templates/tpl.md", choiceExecutor: makeExecutor(),
+		})).toBe(file);
+		expect(jumpToNextTemplaterCursorIfPossible).not.toHaveBeenCalled();
+		expect(placeCursorMock).not.toHaveBeenCalled();
+	});
+
+	it.each([false, true])("gives Templater cursor priority when handled is %s", async handled => {
+		const file = makeFile();
+		vi.mocked(jumpToNextTemplaterCursorIfPossible).mockResolvedValueOnce(handled);
+		await applyTemplateToNote(makeApp("CONTENT", file), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: makeExecutor(),
+		});
+		expect(jumpToNextTemplaterCursorIfPossible).toHaveBeenCalledWith(expect.anything(), file);
+		if (handled) expect(placeCursorMock).not.toHaveBeenCalled();
+		else expect(placeCursorMock).toHaveBeenCalledWith(file);
 	});
 
 	it("defaults to bottom for non-empty notes", async () => {

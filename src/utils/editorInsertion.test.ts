@@ -1,7 +1,9 @@
 import { frontmatterManager } from "../../tests/helpers/utilities/obsidianFixtures";
 import { describe, expect, it, vi } from "vitest";
-import type { App, TFile } from "obsidian";
+import type { App, Editor, TFile } from "obsidian";
+import { prepareCapture } from "../formatters/helpers/capturePlacement";
 import {
+	insertCaptureInBoundEditor,
 	insertFileLinkToActiveView,
 	insertLinkWithPlacement,
 	setMarkdownCursorAtOffset,
@@ -17,11 +19,14 @@ function createHarness({
 	path?: string;
 } = {}) {
 	const setCursor = vi.fn();
+	const focus = vi.fn();
 	const offsetToPos = vi.fn((offset: number) => ({ line: 1, ch: offset }));
 	const view = {
+		containerEl: document.createElement("div"),
 		file: { path },
 		getMode: () => mode,
 		editor: {
+			focus,
 			getValue: () => value,
 			offsetToPos,
 			setCursor,
@@ -34,10 +39,44 @@ function createHarness({
 	} as unknown as App;
 	const file = { path, extension: "md" } as TFile;
 
-	return { app, file, offsetToPos, setCursor };
+	return { app, file, offsetToPos, setCursor, focus };
 }
 
 describe("setMarkdownCursorAtOffset", () => {
+	it.each(["\r\n", "\r"])("maps disk %j line endings to editor LF without changing Unicode offsets", newline => {
+		const disk = ["---", "status: draft", "---", "😀 beforeafter"].join(newline);
+		const value = "---\nstatus: draft\n---\n😀 beforeafter";
+		const { app, file, offsetToPos } = createHarness({ value });
+		expect(setMarkdownCursorAtOffset(app, file, disk.indexOf("after"), disk)).toBe(true);
+		expect(offsetToPos).toHaveBeenCalledWith(value.indexOf("after"));
+	});
+
+	it("still rejects body edits when disk text uses CRLF", () => {
+		const { app, file, setCursor } = createHarness({ value: "changed\nbody" });
+		expect(setMarkdownCursorAtOffset(app, file, 7, "before\r\nbody")).toBe(false);
+		expect(setCursor).not.toHaveBeenCalled();
+	});
+
+	it("restores editor focus when a completed prompt leaves focus on the document", () => {
+		const { app, file, focus } = createHarness();
+		expect(document.activeElement).toBe(document.body);
+		expect(setMarkdownCursorAtOffset(app, file, 7, "Line A\nCAPTURE\nLine B")).toBe(true);
+		expect(focus).toHaveBeenCalledOnce();
+	});
+
+	it("does not take focus from another input", () => {
+		const { app, file, focus } = createHarness();
+		const input = document.createElement("input");
+		document.body.append(input);
+		try {
+			input.focus();
+			expect(setMarkdownCursorAtOffset(app, file, 7, "Line A\nCAPTURE\nLine B")).toBe(true);
+			expect(focus).not.toHaveBeenCalled();
+		} finally {
+			input.remove();
+		}
+	});
+
 	it("sets the cursor in the active markdown editor when content matches", () => {
 		const { app, file, offsetToPos, setCursor } = createHarness();
 
@@ -331,7 +370,7 @@ function createSelectionEditor(
 				.map((change) => ({
 					from: posToOffset(change.from),
 					to: posToOffset(change.to ?? change.from),
-					text: change.text,
+					text: change.text.replace(/\r\n?/g, "\n"),
 				}))
 				.sort((a, b) => b.from - a.from);
 			for (const change of resolved) {
@@ -344,6 +383,8 @@ function createSelectionEditor(
 	);
 
 	const editor = {
+		getValue: vi.fn(() => content),
+		getCursor: vi.fn(() => selections[0].head),
 		listSelections: vi.fn(() => selections),
 		getRange: vi.fn((from: Pos, to: Pos) =>
 			content.slice(posToOffset(from), posToOffset(to)),
@@ -370,6 +411,76 @@ function createSelectionEditor(
 		getSelections: () => selections,
 	};
 }
+
+describe("insertCaptureInBoundEditor line endings", () => {
+	it.each(["\n", "\r\n", "\r"])("keeps a marker's Unicode offset after replacing a selection with %j line endings", newline => {
+		const harness = createSelectionEditor("Start replace end", [
+			{ anchor: { line: 0, ch: 13 }, head: { line: 0, ch: 6 } },
+		]);
+
+		const placement = insertCaptureInBoundEditor(
+			prepareCapture(`First${newline}😀 Before{{CURSOR}}after`),
+			harness.editor as unknown as Editor,
+			"currentLine",
+		);
+
+		expect(harness.getContent()).toBe("Start First\n😀 Beforeafter end");
+		expect(placement).toEqual({
+			content: "Start First\n😀 Beforeafter end",
+			offsets: ["Start First\n😀 Before".length],
+		});
+		expect(harness.getSelections()).toEqual([
+			{ anchor: { line: 1, ch: "😀 Beforeafter".length }, head: { line: 1, ch: "😀 Beforeafter".length } },
+		]);
+	});
+
+	it("maps later markers and insertion ends across multiple CRLF replacements", () => {
+		const harness = createSelectionEditor("one X tail\ntwo Y tail", [
+			{ anchor: { line: 1, ch: 5 }, head: { line: 1, ch: 4 } },
+			{ anchor: { line: 0, ch: 4 }, head: { line: 0, ch: 5 } },
+		]);
+
+		const placement = insertCaptureInBoundEditor(
+			prepareCapture("A\r\n😀 B{{CURSOR}}after"),
+			harness.editor as unknown as Editor,
+			"currentLine",
+		);
+
+		expect(harness.getContent()).toBe("one A\n😀 Bafter tail\ntwo A\n😀 Bafter tail");
+		expect(placement).toEqual({
+			content: "one A\n😀 Bafter tail\ntwo A\n😀 Bafter tail",
+			offsets: ["one A\n😀 B".length, "one A\n😀 Bafter tail\ntwo A\n😀 B".length],
+		});
+		expect(harness.getSelections()).toEqual([
+			{ anchor: { line: 1, ch: 9 }, head: { line: 1, ch: 9 } },
+			{ anchor: { line: 3, ch: 9 }, head: { line: 3, ch: 9 } },
+		]);
+	});
+
+	describe.each(["\n", "\r\n", "\r"])("default cursor with %j line endings", newline => {
+		it.each([
+			{ action: "currentLine", content: "left First\nlast end", line: 1 },
+			{ action: "newLineAbove", content: "First\nlast\nleft RIGHT end", line: 1 },
+			{ action: "newLineBelow", content: "left RIGHT end\nFirst\nlast", line: 2 },
+		])("places the cursor after inserted text for $action", ({ action, content, line }) => {
+			const harness = createSelectionEditor("left RIGHT end", [
+				{ anchor: { line: 0, ch: 5 }, head: { line: 0, ch: 10 } },
+			]);
+
+			const placement = insertCaptureInBoundEditor(
+				prepareCapture(`First${newline}last`),
+				harness.editor as unknown as Editor,
+				action,
+			);
+
+			expect(harness.getContent()).toBe(content);
+			expect(placement).toEqual({ content, offsets: [content.indexOf("last") + 4] });
+			expect(harness.getSelections()).toEqual([
+				{ anchor: { line, ch: 4 }, head: { line, ch: 4 } },
+			]);
+		});
+	});
+});
 
 function createSelectionApp(
 	harness: ReturnType<typeof createSelectionEditor>,

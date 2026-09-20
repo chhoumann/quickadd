@@ -9,6 +9,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		setTargetFolderPath(path: string | null) {
 			this.targetFolderPath = path;
 		}
+		async formatTemplateContent(input: string) {
+			return await this.formatFileContent(input);
+		}
 		async formatFileContent(input: string) {
 			return input;
 		}

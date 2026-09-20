@@ -36,6 +36,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}
+		async formatTemplateContent() {
+			return await this.formatFileContent();
+		}
 		async formatFileContent() {
 			return await formatFileContentMock();
 		}
@@ -149,6 +152,7 @@ function buildEngine(
 	const app = {
 		workspace: {
 			getActiveFile: vi.fn(() => null),
+			getActiveViewOfType: vi.fn(() => null),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),

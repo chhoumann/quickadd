@@ -21,6 +21,7 @@ function setup(values: Record<string, unknown> = {}, enabled = true, suffix = "<
 		h.events.push("templater");
 		seen(h.frontmatter(file), h.contents.get(file.path));
 		await h.vault.modify(file, (h.contents.get(file.path) ?? "").replace(/<%[^%]*%>/g, "2025-01-01"));
+		return false;
 	});
 	return { ...h, seen };
 }
@@ -41,6 +42,7 @@ describe("Production template engine Templater boundary", () => {
 		const h = setup({ tags: ["original"] });
 		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app, file) => {
 			await h.vault.modify(file, "---\ntags: [replaced]\n---\nChanged body");
+			return false;
 		});
 		const file = await h.engine.create("note.md", "template.md");
 		if (!file) throw new Error("Template creation failed");
