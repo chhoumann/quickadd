@@ -1,3 +1,6 @@
+import type { EditorCursorPlacement } from "../utils/editorCursorPlacement";
+import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateCursorPlacement";
+import { setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { FolderSelectionEngine } from "./FolderSelectionEngine";
 import {
 	postProcessFrontMatter,
@@ -45,6 +48,30 @@ function isMacroAbortError(error: unknown): error is MacroAbortError {
 export abstract class TemplateEngine extends FolderSelectionEngine {
 	protected formatter: CompleteFormatter;
 	protected readonly templater;
+	protected cursorPlacement: EditorCursorPlacement | null = null;
+
+	public getCursorPlacement(): EditorCursorPlacement | null {
+		return this.cursorPlacement;
+	}
+
+	public placeCursor(file: TFile): void {
+		if (this.cursorPlacement) {
+			setMarkdownCursorsAtOffsets(this.app, file,
+				this.cursorPlacement.offsets, this.cursorPlacement.content);
+		}
+	}
+
+	protected async rebaseCursorAfterFileChanges(file: TFile): Promise<void> {
+		if (!this.cursorPlacement) return;
+		try {
+			this.cursorPlacement = rebaseTemplateCursor(
+				this.cursorPlacement, await this.app.vault.read(file),
+			);
+		} catch {
+			this.cursorPlacement = null;
+			log.logMessage(`Unable to verify cursor position in '${file.path}'.`);
+		}
+	}
 
 	protected constructor(
 		app: App,
@@ -205,13 +232,17 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.setTemplateDestination(path, title);
 		const content = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", template, () =>
-				this.formatter.formatFileContent(template)));
+				path.toLowerCase().endsWith(".md")
+					? this.formatter.formatTemplateContent(template)
+					: this.formatter.formatFileContent(template)));
 		const variables = this.formatter.getAndClearTemplatePropertyVars();
 		log.logMessage(`TemplateEngine.${operation}: Collected ${variables.size} template property variables for ${path}`);
 		if (variables.size > 0) {
 			log.logMessage(`Variables: ${Array.from(variables.keys()).join(', ')}`);
 		}
-		return { content, variables };
+		const prepared = prepareTemplateContent(content);
+		this.cursorPlacement = path.toLowerCase().endsWith(".md") && prepared.offsets.length > 0 ? prepared : null;
+		return { content: prepared.content, variables };
 	}
 
 	protected async createFileWithTemplate(
@@ -260,6 +291,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			// Process Templater commands for template choices
 			await overwriteTemplaterOnce(this.app, createdFile);
+			await this.rebaseCursorAfterFileChanges(createdFile);
 
 			return createdFile;
 		} catch (err) {
@@ -336,6 +368,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			// Process Templater commands
 			await overwriteTemplaterOnce(this.app, file);
+			await this.rebaseCursorAfterFileChanges(file);
 
 			return file;
 		} catch (err) {

@@ -124,13 +124,14 @@ To gather every prompt on a single form up front instead of one dialog at a time
 
 ## Where the cursor lands
 
-Use [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) to mark a position in a Capture
-body. QuickAdd moves there if the target is already focused in an editing mode,
-or if **Open** opens and focuses it. Template choices do not support cursor placement.
+Use [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) to mark a position in a Template
+or Capture body. QuickAdd moves there if the target is already focused in an
+editing mode, or if **Open** opens and focuses it. Templater's cursor jump takes
+precedence when both are present.
 
-- **Unmarked Captures keep their existing behavior.** Inserting at the cursor or on an adjacent line leaves the cursor after the inserted text. Other body Captures place it at the end of the insertion when **Open** opens and focuses the target in an editing mode.
-- **Apply template to active note** offers an **Insert at cursor** mode, so content lands where you already are.
-- **After creating a note**, a Template choice with **Open** doesn't move the cursor - you typically land at the top of the note. To end at the bottom instead, wrap the Template choice in a [Macro choice](/docs/Choices/MacroChoice/) and add the **Move cursor to file end** editor command as the next step (file start and line start/end variants exist too).
+- Unmarked Captures keep their existing behavior. Inserting at the cursor or on an adjacent line leaves the cursor after the inserted text. Other body Captures place it at the end of the insertion when **Open** opens and focuses the target in an editing mode.
+- **Apply template to active note** supports the marker in every mode, including **Insert at cursor**.
+- Without a marker, a Template choice with **Open** keeps its usual cursor position, typically at the top of a new note. To move to the end instead, put `{{CURSOR}}` at the end of your template.
 
 ## Run scripts
 

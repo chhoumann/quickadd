@@ -29,6 +29,7 @@ import {
 import {
 	getAllFolderPathsInVault,
 	jumpToNextTemplaterCursorIfPossible,
+	getMarkdownEditorViewForFile,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import {
@@ -47,6 +48,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { parentFolderPath } from "../utils/pathUtils";
+import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
@@ -75,6 +77,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	}
 
 	public async run(): Promise<void> {
+		this.cursorPlacement = null;
 		let restoreDiscoveryValue: (() => void) | null = null;
 		let discoveryVaultRelativePath: string | null = null;
 		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
@@ -244,7 +247,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				// Report it as a non-fatal warning that names the created file.
 				try {
 					await insertChoiceFileLink(this.app, createdFile, linkOptions,
-						this.choiceExecutor.focusedProperty);
+						this.choiceExecutor.focusedProperty, this.cursorPlacement ? mutation => {
+							if (this.cursorPlacement && mutation.filePath === createdFile?.path) {
+								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
+							}
+						} : undefined);
 				} catch (linkError) {
 					// An abort propagating through the link step still aborts the run.
 					if (linkError instanceof MacroAbortError) {
@@ -270,7 +277,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					opening: this.choice.fileOpening, originLeaf: this.originLeaf,
 				});
 
-				await jumpToNextTemplaterCursorIfPossible(this.app, createdFile);
+				if (!await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+					this.placeCursor(createdFile);
+				}
+			} else if (this.cursorPlacement && getMarkdownEditorViewForFile(this.app, createdFile)) {
+				if (!await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+					this.placeCursor(createdFile);
+				}
 			} else if (
 				createdNew &&
 				!linkOptions.enabled &&
@@ -580,9 +593,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				: "required",
 		);
 
-		return await this.withAnonymousValueForInsertEngine(() =>
+		const file = await this.withAnonymousValueForInsertEngine(() =>
 			insertEngine.apply()
 		);
+		this.cursorPlacement = insertEngine.getCursorPlacement();
+		return file;
 	}
 
 	private async withAnonymousValueForInsertEngine<T>(

@@ -35,6 +35,11 @@ The template runs through the full QuickAdd
 [format syntax](/docs/FormatSyntax/) pipeline, and Templater syntax is processed
 as usual.
 
+Put [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the template body to choose
+where typing continues after applying it. All four modes support the marker
+when the destination is focused in an editing mode. Existing literal markers
+in the destination note are left alone.
+
 :::note
 Only Markdown templates can be applied. Canvas (`.canvas`) and Base (`.base`)
 templates hold data for their own file types, so they're left out of the picker

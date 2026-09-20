@@ -200,6 +200,7 @@ export async function openFile(
 	}
 
 	const openOriginLeaf = originLeaf ?? getOpenFileOriginLeaf(app);
+	const activeLeaf = !focus ? app.workspace.activeLeaf : null;
 	const leaf = resolveLeafForOpenFileLocation(
 		app,
 		location,
@@ -207,9 +208,16 @@ export async function openFile(
 		openOriginLeaf,
 	);
 	if (!leaf) throw new Error("Could not obtain a workspace leaf.");
+	if (activeLeaf && app.workspace.activeLeaf !== activeLeaf) {
+		app.workspace.setActiveLeaf(activeLeaf, { focus: false });
+	}
 
 	// Open the file
-	await leaf.openFile(file);
+	if (focus) {
+		await leaf.openFile(file);
+	} else {
+		await leaf.openFile(file, { active: false });
+	}
 
 	// Optionally adjust view mode (Reading / Live Preview / Source)
 	if (mode && mode !== "default" && !(typeof mode === "object" && mode.mode === "default")) {
@@ -232,7 +240,11 @@ export async function openFile(
 		}
 
 		// Fix eState usage - merge into state rather than passing as second param
-		await leaf.setViewState({ ...vs, state: { ...next, ...eState } });
+		await leaf.setViewState({
+			...vs,
+			...(!focus && { active: false }),
+			state: { ...next, ...eState },
+		});
 	}
 
 	if (focus) {

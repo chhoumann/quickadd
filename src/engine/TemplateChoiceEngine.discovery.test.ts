@@ -36,6 +36,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async formatFileName(format: string, prompt: string) {
 			return formatFileNameMock(format, prompt);
 		}
+		async formatTemplateContent() {
+			return await this.formatFileContent();
+		}
 		async formatFileContent() {
 			return await formatFileContentMock();
 		}

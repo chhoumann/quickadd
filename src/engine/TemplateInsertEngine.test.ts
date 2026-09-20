@@ -26,6 +26,9 @@ vi.mock("../formatters/completeFormatter", () => {
 				.replace(/{{FOLDER\|name}}/gi, leaf)
 				.replace(/{{FOLDER}}/gi, full);
 		}
+		async formatTemplateContent(input: string) {
+			return await this.formatFileContent(input);
+		}
 		async formatFileContent(input: string) {
 			return input;
 		}
@@ -272,29 +275,29 @@ describe("splitTemplateFrontmatter", () => {
 
 describe("insertBodyIntoNoteContent", () => {
 	it("appends to the bottom", () => {
-		expect(insertBodyIntoNoteContent("existing", "new", "bottom")).toBe(
+		expect(insertBodyIntoNoteContent("existing", "new", "bottom").content).toBe(
 			"existing\nnew",
 		);
 	});
 
 	it("inserts at the top when the note has no frontmatter", () => {
-		expect(insertBodyIntoNoteContent("existing", "new", "top")).toBe(
+		expect(insertBodyIntoNoteContent("existing", "new", "top").content).toBe(
 			"new\nexisting",
 		);
 	});
 
 	it("inserts below the note's frontmatter for top", () => {
 		const note = "---\ntitle: Note\n---\nexisting";
-		expect(insertBodyIntoNoteContent(note, "new", "top")).toBe(
+		expect(insertBodyIntoNoteContent(note, "new", "top").content).toBe(
 			"---\ntitle: Note\n---\nnew\nexisting",
 		);
 	});
 
 	it("does not glue onto the fence for a frontmatter-only note with no trailing newline (#526 regression)", () => {
-		expect(insertBodyIntoNoteContent("---\ntitle: Note\n---", "new", "top")).toBe(
+		expect(insertBodyIntoNoteContent("---\ntitle: Note\n---", "new", "top").content).toBe(
 			"---\ntitle: Note\n---\nnew\n",
 		);
-		expect(insertBodyIntoNoteContent("---\n---", "new", "top")).toBe(
+		expect(insertBodyIntoNoteContent("---\n---", "new", "top").content).toBe(
 			"---\n---\nnew\n",
 		);
 	});
@@ -302,30 +305,30 @@ describe("insertBodyIntoNoteContent", () => {
 	it("ends the inserted block on its own line, with a blank-line separation when the body already ends in a newline", () => {
 		// A single-line body (no trailing newline) lands tight against the next line...
 		expect(
-			insertBodyIntoNoteContent("---\nt: 1\n---\nExisting body", "## Block\nLine", "top"),
+			insertBodyIntoNoteContent("---\nt: 1\n---\nExisting body", "## Block\nLine", "top").content,
 		).toBe("---\nt: 1\n---\n## Block\nLine\nExisting body");
 		// ...but a body that already ends in a newline keeps a blank-line separation.
-		expect(insertBodyIntoNoteContent("Existing", "Block\n", "top")).toBe(
+		expect(insertBodyIntoNoteContent("Existing", "Block\n", "top").content).toBe(
 			"Block\n\nExisting",
 		);
 	});
 
 	it("preserves CRLF frontmatter when inserting at top", () => {
 		expect(
-			insertBodyIntoNoteContent("---\r\nt: 1\r\n---\r\nBody", "new", "top"),
+			insertBodyIntoNoteContent("---\r\nt: 1\r\n---\r\nBody", "new", "top").content,
 		).toBe("---\r\nt: 1\r\n---\r\nnew\nBody");
 	});
 
 	it("keeps the blank line separating the note's frontmatter from its body (issue #1538)", () => {
 		// Symmetric with the no-separator note above: the block lands tight against
 		// the following line, and the note's separator line stays where it was.
-		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL", "top")).toBe(
+		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL", "top").content).toBe(
 			"---\na: 1\n---\n\nTPL\nBody\n",
 		);
 		// A body that already ends in a newline still gets exactly ONE blank line of
 		// separation below it (it used to get two, by stacking onto the separator).
 		expect(
-			insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL\n", "top"),
+			insertBodyIntoNoteContent("---\na: 1\n---\n\nBody\n", "TPL\n", "top").content,
 		).toBe("---\na: 1\n---\n\nTPL\n\nBody\n");
 	});
 
@@ -334,7 +337,7 @@ describe("insertBodyIntoNoteContent", () => {
 		// the shape every "---\nfm\n---\n\nContent" template produces.
 		const { body } = splitTemplateFrontmatter("---\nt: x\n---\n\nContent");
 		expect(body).toBe("\nContent");
-		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nExisting", body, "top")).toBe(
+		expect(insertBodyIntoNoteContent("---\na: 1\n---\n\nExisting", body, "top").content).toBe(
 			"---\na: 1\n---\n\nContent\n\nExisting",
 		);
 	});

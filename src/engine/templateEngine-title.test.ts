@@ -30,7 +30,7 @@ describe("TemplateEngine title handling", () => {
 		const h = templateHarness();
 		h.file("template.md", "# {{title}}\n\nContent here");
 		const setTitle = vi.spyOn(h.engine.bodyFormatter, "setTitle");
-		const format = vi.spyOn(h.engine.bodyFormatter, "formatFileContent");
+		const format = vi.spyOn(h.engine.bodyFormatter, "formatTemplateContent");
 		expect(await h.engine.create("TestDocument.md", "template.md")).not.toBeNull();
 		expect(setTitle).toHaveBeenCalledWith("TestDocument");
 		expect(format).toHaveBeenCalledWith("# {{title}}\n\nContent here");

@@ -16,7 +16,9 @@ import invariant from "../utils/invariant";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
-import { insertAtNoteBodyStart } from "../utils/noteContentInsertion";
+import { insertAtNoteBodyStartWithResult, type NoteBodyInsertionResult } from "../utils/noteContentInsertion";
+import { insertCaptureInEditor } from "../utils/editorInsertion";
+import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
@@ -75,7 +77,7 @@ export function splitTemplateFrontmatter(content: string): {
  * frontmatter-aware: the body lands below the note's frontmatter block, including
  * the blank line that separates that block from the body (issue #1538).
  *
- * The "top" branch reuses the shared, fence-safe `insertAtNoteBodyStart`
+ * The "top" branch reuses the shared, fence-safe `insertAtNoteBodyStartWithResult`
  * (src/utils/noteContentInsertion.ts). Appending a newline to the body expresses
  * the template-apply policy that the inserted block always ends on its own line —
  * leaving a blank-line separation from the existing content when the body itself
@@ -86,12 +88,13 @@ export function insertBodyIntoNoteContent(
 	noteContent: string,
 	body: string,
 	position: "top" | "bottom",
-): string {
+): NoteBodyInsertionResult {
 	if (position === "bottom") {
-		return `${noteContent}\n${body}`;
+		const content = `${noteContent}\n${body}`;
+		return { content, insertedStartOffset: noteContent.length + 1, insertedEndOffset: content.length };
 	}
 
-	return insertAtNoteBodyStart(noteContent, `${body}\n`);
+	return insertAtNoteBodyStartWithResult(noteContent, `${body}\n`);
 }
 
 function isEmptyFrontmatterValue(value: unknown): boolean {
@@ -187,6 +190,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 	}
 
 	public async apply(): Promise<TFile | null> {
+		this.cursorPlacement = null;
 		invariant(
 			this.templatePath,
 			"Cannot apply template: no template path given.",
@@ -307,18 +311,26 @@ export class TemplateInsertEngine extends TemplateEngine {
 			await this.formatTemplateForTargetFile();
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
-		if (body.trim().length > 0) {
-			// vault.process is Obsidian's atomic read-modify-write; the docs recommend
-			// it over read+modify, and it reads fresh from disk (unlike cachedRead).
-			await this.app.vault.process(this.targetFile, (noteContent) =>
-				insertBodyIntoNoteContent(noteContent, body, position),
-			);
+		const cursor = this.cursorPlacement;
+		if (body.trim().length > 0 || cursor) {
+			await this.app.vault.process(this.targetFile, (noteContent) => {
+				const inserted = insertBodyIntoNoteContent(noteContent, body, position);
+				if (cursor && inserted.insertedStartOffset !== null) {
+					const start = inserted.insertedStartOffset - (formatted.length - body.length);
+					this.cursorPlacement = {
+						content: inserted.content,
+						offsets: cursor.offsets.map(offset => start + offset),
+					};
+				}
+				return inserted.content;
+			});
 		}
 
 		await this.mergeFrontmatterProperties(
 			frontmatterYaml,
 			templatePropertyVars,
 		);
+		await this.rebaseCursorAfterFileChanges(this.targetFile);
 		return this.targetFile;
 	}
 
@@ -333,14 +345,23 @@ export class TemplateInsertEngine extends TemplateEngine {
 			await this.formatTemplateForTargetFile();
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
-		if (body.trim().length > 0) {
+		const offset = this.cursorPlacement?.offsets[0];
+		if (offset !== undefined) {
+			this.cursorPlacement = insertCaptureInEditor({
+				content: body,
+				cursor: { kind: "offset", value: offset - (formatted.length - body.length), source: "marker" },
+			}, this.app, this.targetFile, "currentLine");
+		} else if (body.trim().length > 0) {
 			view.editor.replaceSelection(body);
 		}
 
+		// Cursor rebasing reads the saved body after the frontmatter merge.
+		if (this.cursorPlacement && frontmatterYaml) await view.save();
 		await this.mergeFrontmatterProperties(
 			frontmatterYaml,
 			templatePropertyVars,
 		);
+		if (frontmatterYaml) await this.rebaseCursorAfterFileChanges(this.targetFile);
 		return this.targetFile;
 	}
 
@@ -358,7 +379,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", templateContent, () =>
-				this.formatter.formatFileContent(templateContent),
+				this.targetFile.extension === "md"
+					? this.formatter.formatTemplateContent(templateContent)
+					: this.formatter.formatFileContent(templateContent),
 			),
 		);
 		const templatePropertyVars =
@@ -372,7 +395,9 @@ export class TemplateInsertEngine extends TemplateEngine {
 			);
 		}
 
-		return { formatted, templatePropertyVars };
+		const prepared = prepareTemplateContent(formatted);
+		this.cursorPlacement = this.targetFile.extension === "md" && prepared.offsets.length > 0 ? prepared : null;
+		return { formatted: prepared.content, templatePropertyVars };
 	}
 
 	/**
