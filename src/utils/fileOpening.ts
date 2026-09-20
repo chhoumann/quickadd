@@ -275,6 +275,7 @@ export function openExistingFileTab(
 	let leaf: WorkspaceLeaf | undefined = undefined;
 
 	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
+		if (leaf && leaf === app.workspace.activeLeaf) return;
 		const view = m_leaf.view;
 		if (view instanceof FileView) {
 			if (view.file) {

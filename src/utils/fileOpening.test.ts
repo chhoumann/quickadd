@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { App, WorkspaceLeaf } from "obsidian";
-import { TFile, TFolder } from "obsidian";
-import { openFile } from "./fileOpening";
+import { FileView, TFile, TFolder } from "obsidian";
+import { openExistingFileTab, openFile } from "./fileOpening";
 
 type MockLeaf = {
 	openFile: ReturnType<typeof vi.fn>;
@@ -27,6 +27,22 @@ function makeApp(resolved: unknown): { app: App; leaf: MockLeaf } {
 	} as unknown as App;
 	return { app, leaf };
 }
+
+describe("openExistingFileTab", () => {
+	it.each([0, 1, -1])("preserves the active matching tab at index %s", activeIndex => {
+		const file = new TFile();
+		file.path = "Target.md";
+		const leaves = [0, 1].map(() => ({
+			view: Object.assign(Object.create(FileView.prototype), { file }),
+		})) as WorkspaceLeaf[];
+		const { app } = makeApp(file);
+		app.workspace.activeLeaf = leaves[activeIndex] ?? null;
+		app.workspace.iterateRootLeaves = callback => { leaves.forEach(callback); };
+		const expected = leaves[activeIndex] ?? leaves[1];
+		expect(openExistingFileTab(app, file)).toBe(expected);
+		expect(app.workspace.setActiveLeaf).toHaveBeenCalledExactlyOnceWith(expected, { focus: true });
+	});
+});
 
 describe("openFile folder guard", () => {
 	it("throws 'File not found' for a folder path instead of opening the folder", async () => {

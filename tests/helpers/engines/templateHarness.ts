@@ -48,6 +48,11 @@ export function templateHarness(enabled = true) {
 			events.push("create");
 			return file(path, content);
 		}),
+		process: vi.fn(async (f: TFile, transform: (content: string) => string) => {
+			const content = transform(contents.get(f.path) ?? "");
+			contents.set(f.path, content);
+			return content;
+		}),
 		modify: vi.fn(async (f: TFile, content: string) => {
 			events.push("modify");
 			contents.set(f.path, content);

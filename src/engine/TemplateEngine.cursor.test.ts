@@ -1,5 +1,5 @@
 import type * as UtilityObsidian from "../utilityObsidian";
-import type { MarkdownView, EditorPosition } from "obsidian";
+import { WorkspaceLeaf, type MarkdownView, type EditorPosition } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
@@ -15,7 +15,7 @@ vi.mock("../utilityObsidian", async importOriginal => ({
 }));
 
 beforeEach(() => {
-	vi.mocked(overwriteTemplaterOnce).mockReset();
+	vi.mocked(overwriteTemplaterOnce).mockReset().mockResolvedValue(false);
 	vi.mocked(templaterParseTemplate).mockReset();
 	vi.mocked(templaterParseTemplate).mockImplementation(async (_app, content) => content);
 });
@@ -55,19 +55,57 @@ describe("Template write cursor snapshots", () => {
 		h.file("template.md", "before{{CURSOR}}after");
 		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app, file) => {
 			h.contents.set(file.path, "prefix beforeafter");
+			return false;
 		});
 		await h.engine.create("note.md", "template.md");
 		expect(h.contents.get("note.md")).toBe("prefix beforeafter");
 		expect(h.engine.getCursorPlacement()).toBeNull();
 	});
 
-	it("keeps a committed write successful when cursor verification cannot read the file", async () => {
+	it("clears a previous placement when marker cleanup fails", async () => {
 		const h = templateHarness();
 		h.file("template.md", "before{{CURSOR}}after");
-		h.vault.read.mockRejectedValueOnce(new Error("Read unavailable"));
-		expect(await h.engine.create("note.md", "template.md")).not.toBeNull();
-		expect(h.contents.get("note.md")).toBe("beforeafter");
+		await h.engine.create("first.md", "template.md");
+		expect(h.engine.getCursorPlacement()).not.toBeNull();
+		h.vault.process.mockRejectedValueOnce(new Error("Write unavailable"));
+		expect(await h.engine.create("second.md", "template.md")).toBeNull();
 		expect(h.engine.getCursorPlacement()).toBeNull();
+	});
+
+	it.each(["before<% result %>{{CURSOR}}after", "<% include %>"])(
+		"extracts placement from final rendered content: %s", async template => {
+			const h = templateHarness();
+			h.file("template.md", template);
+			vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app, file) => {
+				h.contents.set(file.path, "before expanded {{CURSOR}}after{{cursor}}");
+				return false;
+			});
+			await h.engine.create("note.md", "template.md");
+			expect(h.contents.get("note.md")).toBe("before expanded after");
+			expect(h.engine.getCursorPlacement()).toEqual({ content: "before expanded after", offsets: [16] });
+		},
+	);
+
+	it("cleans body markers when rendering fails", async () => {
+		const h = templateHarness();
+		h.executor.variables.set("tags", ["one"]);
+		h.file("template.md", "---\ntags: {{VALUE:tags}}\n---\nbefore{{CURSOR}}after");
+		vi.mocked(overwriteTemplaterOnce).mockRejectedValueOnce(new Error("Render unavailable"));
+		expect(await h.engine.create("note.md", "template.md")).toBeNull();
+		expect(h.contents.get("note.md")).not.toContain("{{CURSOR}}");
+	});
+
+	it("cleans frontmatter markers before YAML processing while retaining body markers for Templater", async () => {
+		const h = templateHarness();
+		h.executor.variables.set("tags", ["one"]);
+		h.file("template.md", "---\ntags: {{VALUE:tags}}\nlabel: {{CURSOR}}\n---\nbefore{{CURSOR}}after");
+		vi.mocked(overwriteTemplaterOnce).mockImplementation(async (_app, file) => {
+			expect(h.frontmatter(file)).toEqual({ tags: ["one"], label: null });
+			expect(h.contents.get(file.path)).toContain("before{{CURSOR}}after");
+			return false;
+		});
+		await h.engine.create("note.md", "template.md");
+		expect(h.contents.get("note.md")).not.toContain("{{CURSOR}}");
 	});
 
 	it("overwrites with marker placement, then clears it for an unmarked write", async () => {
@@ -130,6 +168,7 @@ describe("Template write cursor snapshots", () => {
 			},
 		} as unknown as MarkdownView;
 		vi.spyOn(h.app.workspace, "getActiveViewOfType").mockReturnValue(view);
+		h.app.workspace.getLeavesOfType = () => [Object.assign(new WorkspaceLeaf(), { view })];
 		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "cursor", h.executor);
 		await engine.apply();
 		const content = h.contents.get(file.path) ?? "";

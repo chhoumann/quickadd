@@ -1,6 +1,8 @@
 import type { EditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateCursorPlacement";
-import { setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
+import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
+import { getBodyStartOffset } from "../utils/noteContentInsertion";
+import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { FolderSelectionEngine } from "./FolderSelectionEngine";
 import {
 	postProcessFrontMatter,
@@ -49,6 +51,38 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	protected formatter: CompleteFormatter;
 	protected readonly templater;
 	protected cursorPlacement: EditorCursorPlacement | null = null;
+	protected templaterCursorHandled = false;
+
+	public hasTemplaterHandledCursor(): boolean {
+		return this.templaterCursorHandled;
+	}
+
+	private async finishTemplateContent(file: TFile): Promise<void> {
+		this.cursorPlacement = null;
+		if (file.extension !== "md") return;
+		const view = getMarkdownEditorViewForFile(this.app, file);
+		let prepared: EditorCursorPlacement | null = null;
+		if (view) {
+			const content = view.editor.getValue();
+			prepared = prepareTemplateContent(content);
+			const changes = [...content.matchAll(/\{\{CURSOR\}\}/gi)].map(marker => ({
+				from: view.editor.offsetToPos(marker.index),
+				to: view.editor.offsetToPos(marker.index + marker[0].length),
+				text: "",
+			}));
+			if (changes.length > 0) {
+				view.editor.transaction({ changes });
+				await view.save();
+			}
+		} else {
+			await this.app.vault.process(file, content => {
+				prepared = prepareTemplateContent(content);
+				return prepared.content;
+			});
+		}
+		this.cursorPlacement = prepared;
+		if (this.cursorPlacement?.offsets.length === 0) this.cursorPlacement = null;
+	}
 
 	public getCursorPlacement(): EditorCursorPlacement | null {
 		return this.cursorPlacement;
@@ -240,9 +274,13 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		if (variables.size > 0) {
 			log.logMessage(`Variables: ${Array.from(variables.keys()).join(', ')}`);
 		}
-		const prepared = prepareTemplateContent(content);
-		this.cursorPlacement = path.toLowerCase().endsWith(".md") && prepared.offsets.length > 0 ? prepared : null;
-		return { content: prepared.content, variables };
+		this.cursorPlacement = null;
+		this.templaterCursorHandled = false;
+		const bodyStart = getBodyStartOffset(content);
+		const prepared = path.toLowerCase().endsWith(".md")
+			? stripCursorMarkers(content.slice(0, bodyStart)) + content.slice(bodyStart)
+			: stripCursorMarkers(content);
+		return { content: prepared, variables };
 	}
 
 	protected async createFileWithTemplate(
@@ -284,14 +322,19 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 				{ suppressTemplaterOnCreate },
 			);
 
-			// Post-process front matter for template property types BEFORE Templater
-			if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
-				await postProcessFrontMatter(this.app, createdFile, templateVars);
+			let rendered = false;
+			try {
+				if (shouldPostProcessFrontMatter(createdFile, templateVars)) {
+					await postProcessFrontMatter(this.app, createdFile, templateVars);
+				}
+				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, createdFile);
+				rendered = true;
+			} finally {
+				await this.finishTemplateContent(createdFile).catch(error => {
+					if (rendered) throw error;
+					log.logWarning(`Unable to clean cursor markers in '${createdFile.path}': ${String(error)}`);
+				});
 			}
-
-			// Process Templater commands for template choices
-			await overwriteTemplaterOnce(this.app, createdFile);
-			await this.rebaseCursorAfterFileChanges(createdFile);
 
 			return createdFile;
 		} catch (err) {
@@ -361,14 +404,19 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 			await this.app.vault.modify(file, formattedTemplateContent);
 
-			// Post-process front matter for template property types BEFORE Templater
-			if (shouldPostProcessFrontMatter(file, templateVars)) {
-				await postProcessFrontMatter(this.app, file, templateVars);
+			let rendered = false;
+			try {
+				if (shouldPostProcessFrontMatter(file, templateVars)) {
+					await postProcessFrontMatter(this.app, file, templateVars);
+				}
+				this.templaterCursorHandled = await overwriteTemplaterOnce(this.app, file);
+				rendered = true;
+			} finally {
+				await this.finishTemplateContent(file).catch(error => {
+					if (rendered) throw error;
+					log.logWarning(`Unable to clean cursor markers in '${file.path}': ${String(error)}`);
+				});
 			}
-
-			// Process Templater commands
-			await overwriteTemplaterOnce(this.app, file);
-			await this.rebaseCursorAfterFileChanges(file);
 
 			return file;
 		} catch (err) {

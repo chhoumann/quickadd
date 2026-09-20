@@ -236,7 +236,7 @@ export async function applyTemplateToNote(
 			await maybeReconcileNoteLocation(app, engine, source.choice, file);
 		}
 
-		if (!await jumpToNextTemplaterCursorIfPossible(app, file)) {
+		if (!engine.hasTemplaterHandledCursor() && !await jumpToNextTemplaterCursorIfPossible(app, file)) {
 			engine.placeCursor(file);
 		}
 		new Notice(`Applied template to '${file.basename}'.`);

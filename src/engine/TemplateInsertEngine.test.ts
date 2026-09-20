@@ -77,7 +77,8 @@ vi.mock("../utilityObsidian", async (importOriginal) => {
 	};
 });
 
-import { TFile, TFolder, type App } from "obsidian";
+import { templaterParseTemplate } from "../utilityObsidian";
+import { TFile, TFolder, MarkdownView, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import {
@@ -152,7 +153,7 @@ function makeHarness(options: {
 	const modify = vi.fn();
 	const frontmatter = options.frontmatter ?? {};
 	const replaceSelection = vi.fn();
-	let activeViewFile: TFile | null = null;
+	const view = { file: null as TFile | null, editor: { replaceSelection } };
 
 	const rootFolders = new Map(
 		(options.rootFolders ?? []).map((path) => {
@@ -200,10 +201,8 @@ function makeHarness(options: {
 			}),
 		},
 		workspace: {
-			getActiveViewOfType: () =>
-				activeViewFile
-					? { file: activeViewFile, editor: { replaceSelection } }
-					: null,
+			getActiveViewOfType: () => view.file ? view : null,
+			getLeavesOfType: () => view.file ? [{ view }] : [],
 		},
 	} as unknown as App;
 
@@ -213,7 +212,7 @@ function makeHarness(options: {
 		frontmatter,
 		replaceSelection,
 		setActiveViewFile: (file) => {
-			activeViewFile = file;
+			view.file = file;
 		},
 	};
 }
@@ -459,6 +458,66 @@ describe("TemplateInsertEngine.apply", () => {
 		expect(result).toBe(file);
 		expect(harness.replaceSelection).toHaveBeenCalledWith("TEMPLATE_CONTENT");
 		expect(harness.modify).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ marked: false, sameFile: false },
+		{ marked: true, sameFile: false },
+		{ marked: false, sameFile: true },
+		{ marked: true, sameFile: true },
+	])("cursor: keeps original editor (marked: $marked, same file: $sameFile)", async ({ marked, sameFile }) => {
+		const harness = makeHarness({ templateContent: marked ? "new{{CURSOR}} text" : "new text", noteContent: "old" });
+		const file = makeFile();
+		harness.setActiveViewFile(file);
+		const original = harness.app.workspace.getActiveViewOfType(MarkdownView)!;
+		let value = "old";
+		Object.assign(original.editor, {
+			getCursor: () => ({ line: 0, ch: 0 }),
+			listSelections: () => [{ anchor: { line: 0, ch: 0 }, head: { line: 0, ch: 0 } }],
+			posToOffset: ({ ch }: { ch: number }) => ch,
+			offsetToPos: (ch: number) => ({ line: 0, ch }),
+			getValue: () => value,
+			transaction: vi.fn(({ changes }: { changes: { text: string }[] }) => { value = changes[0].text + value; }),
+			setSelections: vi.fn(),
+		});
+		const other = {
+			file: sameFile ? file : makeFile({ path: "other.md" }),
+			getMode: () => "source",
+			editor: {
+				replaceSelection: vi.fn(),
+				setCursor: vi.fn(),
+				getValue: () => value,
+				offsetToPos: (ch: number) => ({ line: 0, ch }),
+			},
+		};
+		vi.mocked(templaterParseTemplate).mockImplementationOnce(async (_app, content) => {
+			vi.spyOn(harness.app.workspace, "getActiveViewOfType").mockReturnValue(other as unknown as MarkdownView);
+			return content;
+		});
+		const engine = makeEngine(harness, file, "cursor");
+		await engine.apply();
+		engine.placeCursor(file);
+		if (marked) expect(value).toBe("new textold");
+		else expect(harness.replaceSelection).toHaveBeenCalledWith("new text");
+		expect(other.editor.replaceSelection).not.toHaveBeenCalled();
+		expect(other.editor.setCursor).not.toHaveBeenCalled();
+	});
+
+	it.each(["detached", "reused", "replaced editor"])("cursor: aborts before body and YAML writes when the original editor is %s", async (change) => {
+		const harness = makeHarness({ templateContent: "---\nadded: yes\n---\nnew{{CURSOR}} text", noteContent: "old" });
+		const file = makeFile();
+		harness.setActiveViewFile(file);
+		const view = harness.app.workspace.getActiveViewOfType(MarkdownView)!;
+		vi.mocked(templaterParseTemplate).mockImplementationOnce(async (_app, content) => {
+			if (change === "detached") vi.spyOn(harness.app.workspace, "getLeavesOfType").mockReturnValue([]);
+			else if (change === "reused") view.file = makeFile({ path: "other.md" });
+			else view.editor = { replaceSelection: vi.fn() } as unknown as MarkdownView["editor"];
+			return content;
+		});
+		await expect(makeEngine(harness, file, "cursor").apply()).rejects.toThrow("original editor was closed or changed notes");
+		expect(harness.replaceSelection).not.toHaveBeenCalled();
+		expect(harness.modify).not.toHaveBeenCalled();
+		expect(harness.frontmatter).toEqual({});
 	});
 
 	it("cursor: skips whitespace-only body from frontmatter-only templates", async () => {

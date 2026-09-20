@@ -152,6 +152,7 @@ function buildEngine(
 	const app = {
 		workspace: {
 			getActiveFile: vi.fn(() => null),
+			getActiveViewOfType: vi.fn(() => null),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),

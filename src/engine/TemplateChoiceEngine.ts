@@ -277,11 +277,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					opening: this.choice.fileOpening, originLeaf: this.originLeaf,
 				});
 
-				if (!await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
 					this.placeCursor(createdFile);
 				}
 			} else if (this.cursorPlacement && getMarkdownEditorViewForFile(this.app, createdFile)) {
-				if (!await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
+				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
 					this.placeCursor(createdFile);
 				}
 			} else if (

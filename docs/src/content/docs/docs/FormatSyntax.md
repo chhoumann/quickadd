@@ -871,19 +871,22 @@ note, or adding the template at the top or bottom. It also works in all
 and **New line above/below cursor**, and included `{{TEMPLATE:...}}` content.
 
 The first marker sets the position. Additional markers in the inserted content
-are removed. Spelling is case-insensitive. Literal markers already in the
-destination note are left alone.
+are removed. Spelling is case-insensitive. Insert and append operations leave
+literal markers already in the destination note alone; replacing the note
+replaces its old content.
 
 A Template containing only markers can create an empty note. A Capture containing
 only markers and whitespace does nothing. If Templater needs a new target note
 before it produces an empty Capture, QuickAdd keeps that created note and skips
 insertion and cursor placement.
 
-Templater's cursor jump takes precedence. QuickAdd preserves the marker position
-through frontmatter merges and links inserted into the active note's body.
-Placement is skipped when a concurrent edit or a whole-file Templater body
-rewrite makes the position unreliable. Capture also skips placement after a
-property update or a link written through a specified destination file.
+Templater's cursor jump takes precedence. In Templates, QuickAdd finds the marker
+after Templater finishes rendering, including content from `tp.file.include`.
+QuickAdd preserves the position through frontmatter merges and links inserted
+into the active note's body. Placement is skipped when a concurrent edit makes
+the position unreliable. Capture also skips placement after a whole-file
+Templater rewrite, a property update, or a link written through a specified
+destination file.
 The marker is still removed. Without a marker, cursor behavior stays unchanged.
 
 In property Captures, Canvas and Base content, file names, folder paths, line

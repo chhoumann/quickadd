@@ -1,6 +1,12 @@
-import { MarkdownView, type App, type TFile } from "obsidian";
+import { MarkdownView, type App, type EventRef, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
+
+declare module "obsidian" {
+	interface Workspace {
+		on(name: "templater:overwrite-file", callback: (event: { file: TFile; content: string }) => void): EventRef;
+	}
+}
 
 export type TemplaterPluginLike = {
 	settings?: {
@@ -41,7 +47,7 @@ type EditorSnapshot = {
 };
 
 const TEMPLATER_CURSOR_MARKER_REGEX =
-	/<%\s*tp\.file\.cursor\([0-9]*\)\s*%>/g;
+	/<%\s*tp\.file\.cursor\((?:-?[0-9]+(?:\.[0-9]+)?)?\)\s*%>/g;
 
 function getActiveEditorSnapshot(
 	app: App,
@@ -417,17 +423,17 @@ export async function overwriteTemplaterOnce(
 	app: App,
 	file: TFile,
 	opts: { skipIfNoTags?: boolean; postWait?: boolean } = {},
-): Promise<void> {
-	if (file.extension !== "md") return;
+): Promise<boolean> {
+	if (file.extension !== "md") return false;
 
 	const plugin = getTemplaterPlugin(app);
 	const templater = plugin?.templater;
 	const overwrite = templater?.overwrite_file_commands;
-	if (!plugin || !templater || typeof overwrite !== "function") return;
+	if (!plugin || !templater || typeof overwrite !== "function") return false;
 
 	const { skipIfNoTags = true, postWait = true } = opts;
 
-	await withTemplaterFileLock(file.path, async () => {
+	return await withTemplaterFileLock(file.path, async () => {
 		// Ensure the initial QuickAdd write is flushed & stable on disk.
 		await waitForFileSettle(app, file);
 
@@ -439,19 +445,27 @@ export async function overwriteTemplaterOnce(
 				err as Error,
 				`overwriteTemplaterOnce: failed to read ${file.path} before render`,
 			);
-			return;
+			return false;
 		}
 
 		if (skipIfNoTags && !original.includes("<%")) {
-			return;
+			return false;
 		}
 
+		let renderedContent: string | null = null;
+		const listener = app.workspace.on("templater:overwrite-file", (event: { file: TFile; content: string }) => {
+			if (event.file.path === file.path) renderedContent = event.content;
+		});
 		try {
 			// Preserve Templater's internal `this` context.
 			await overwrite.call(templater, file);
+			const cursorHandled = didConsumeTemplaterCursorMarker(
+				renderedContent, getActiveEditorSnapshot(app, file).value,
+			);
 			if (postWait) {
 				await waitForFileSettle(app, file, 800);
 			}
+			return cursorHandled;
 		} catch (err) {
 			// Roll back to original content to avoid partial renders
 			try {
@@ -465,6 +479,9 @@ export async function overwriteTemplaterOnce(
 				err as Error,
 				`Templater failed on ${file.path}. Rolled back to pre-render state.`,
 			);
+			return false;
+		} finally {
+			app.workspace.offref(listener);
 		}
 	});
 }

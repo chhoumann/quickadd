@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey } from "./uiHelpers";
+import { POLL_OPTS, pressKey, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("template-cursor");
 
@@ -64,7 +64,7 @@ async function expectAt(path: string, trailingText: string) {
 		return { active: result.active, tail: result.editor.slice(result.offset) };
 	}, POLL_OPTS).toEqual({ active: path, tail: trailingText });
 	const result = await state(path);
-	expect(result.content).toBe(result.editor);
+	expect(result.content.replace(/\r\n/g, "\n")).toBe(result.editor);
 	return result;
 }
 
@@ -206,4 +206,141 @@ describe("Template cursor markers in native Obsidian", () => {
 		if (mode !== "replace") expect(result.content).toContain("old-tag");
 		expect(result.content).not.toMatch(/{{CURSOR}}/i);
 	});
+
+	it.each(["other-file", "same-file", "reuse-leaf", "detach-leaf"])("keeps async Apply bound to its original editor after %s", async scenario => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "deferred-template.md",
+			"\n```js quickadd\nawait new Promise(resolve => { window.__applyCursorProbe.release = resolve; }); return 'Before';\n```\n{{CURSOR}}after");
+		const path = await seedVaultFile(obsidian, sandbox, "deferred-target.md", "Existing");
+		const other = await seedVaultFile(obsidian, sandbox, "deferred-other.md", "Other");
+		await open(path);
+		await obsidian.dev.evalJson(`(() => {
+			const probe = window.__applyCursorProbe = { origin: app.workspace.activeLeaf };
+			probe.editor = probe.origin.view.editor;
+			probe.pending = app.plugins.plugins.quickadd.api.applyTemplateToActiveFile(${JSON.stringify(template)}, { mode: "cursor" })
+				.then(file => { probe.result = file?.path ?? null; });
+			return true;
+		})()`);
+		try {
+			await expect.poll(() => obsidian.dev.evalJson("Boolean(window.__applyCursorProbe.release)"), POLL_OPTS).toBe(true);
+			await obsidian.dev.evalJsonAsync(`(async () => {
+				const probe = window.__applyCursorProbe;
+				const scenario = ${JSON.stringify(scenario)};
+				const leaf = scenario === "reuse-leaf" ? probe.origin : app.workspace.getLeaf("tab");
+				await leaf.openFile(app.vault.getAbstractFileByPath(scenario === "same-file" ? ${JSON.stringify(path)} : ${JSON.stringify(other)}), { state: { mode: "source" } });
+				app.workspace.setActiveLeaf(leaf, { focus: true });
+				leaf.view.editor.setCursor({ line: 0, ch: 2 });
+				if (scenario === "detach-leaf") probe.origin.detach();
+				probe.active = leaf;
+				probe.release();
+				await probe.pending;
+				for (const view of new Set([probe.origin.view, leaf.view])) {
+					if (view.file) await view.save();
+				}
+				return true;
+			})()`);
+			const invalidated = scenario === "reuse-leaf" || scenario === "detach-leaf";
+			const result = await obsidian.dev.evalJsonAsync<{
+				result: string | null; content: string; other: string; original: string;
+				activeUnchanged: boolean; cursor: { line: number; ch: number };
+			}>(`(async () => {
+				const probe = window.__applyCursorProbe;
+				return {
+					result: probe.result,
+					content: await app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(path)})),
+					other: await app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(other)})),
+					original: probe.editor.getValue(),
+					activeUnchanged: app.workspace.activeLeaf === probe.active,
+					cursor: probe.active.view.editor.getCursor(),
+				};
+			})()`);
+			expect(result).toMatchObject({
+				result: invalidated ? null : path,
+				content: invalidated ? "Existing" : "\nBefore\nafterExisting",
+				other: "Other", activeUnchanged: true, cursor: { line: 0, ch: scenario === "same-file" ? 0 : 2 },
+			});
+			if (!invalidated) expect(result.original).toBe(result.content);
+		} finally {
+			await obsidian.dev.evalJsonAsync(`(async () => {
+				const probe = window.__applyCursorProbe;
+				probe.release?.();
+				await probe.pending;
+				delete window.__applyCursorProbe;
+				return true;
+			})()`);
+		}
+	});
+
+	it("counts CRLF and emoji correctly after merging properties and accepts typing at the marker", async () => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "crlf-template.md", "---\r\ntags: [new-tag]\r\nstatus: draft\r\n---\r\n😀 Before{{CURSOR}}after");
+		const path = await seedVaultFile(obsidian, sandbox, "crlf-target.md", "---\r\ntags: [old-tag]\r\n---\r\nExisting\r\n");
+		await open(path);
+		await obsidian.dev.evalJsonAsync(`(async () => {
+			await app.plugins.plugins.quickadd.api.applyTemplateToActiveFile(${JSON.stringify(template)}, { mode: "bottom" });
+			return true;
+		})()`);
+		const result = await expectAt(path, "after");
+		expect(result.content).toContain("old-tag");
+		expect(result.content).toContain("new-tag");
+		expect(result.editor.slice(0, result.offset)).toMatch(/😀 Before$/);
+		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed 😀 " }) });
+		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe(result.editor.slice(0, result.offset) + "Typed 😀 " + result.editor.slice(result.offset));
+	});
+
+
+	it.each([false, true])("restores Live Preview typing after Apply prompts with rename=%s", async rename => {
+		const { obsidian, sandbox } = getContext();
+		const { choice, path } = await setup("## {{VALUE:topic}}\n- {{cursor}}");
+		const destination = rename ? sandbox.path(`renamed-${choice.id}.md`) : path;
+		if (rename) {
+			choice.fileNameFormat.format = destination.slice(0, -3);
+			choice.templatePath = await seedVaultFile(obsidian, sandbox, "rename-template.md", `[[result-${choice.id}]]\n## {{VALUE:topic}}\n- {{cursor}}`);
+		}
+		await seedVaultFile(obsidian, sandbox, `result-${choice.id}.md`, "Existing notes\n");
+		await save(choice);
+		await open(path);
+		const previousUpdateLinks = await obsidian.dev.evalJson<boolean>('app.vault.getConfig("alwaysUpdateLinks")');
+		try {
+			await obsidian.dev.evalJsonAsync(`(async () => {
+				app.vault.setConfig("alwaysUpdateLinks", true);
+				const leaf = app.workspace.activeLeaf;
+				await leaf.setViewState({ type: "markdown", state: { file: ${JSON.stringify(path)}, mode: "source", source: false } });
+				leaf.view.editor.focus();
+				return true;
+			})()`);
+			await obsidian.exec("command", { id: "quickadd:applyTemplateToActiveFile" });
+			await waitForElement(obsidian, ".prompt input");
+			await typeInto(obsidian, ".prompt input", choice.name);
+			await pressKey(obsidian, "Enter");
+			await waitForElement(obsidian, 'input[placeholder="How should the template be applied?"]');
+			await typeInto(obsidian, ".prompt input", "Append to bottom");
+			await pressKey(obsidian, "Enter");
+			await waitForElement(obsidian, ".modal input");
+			await typeInto(obsidian, ".modal input", "Planning");
+			await pressKey(obsidian, "Enter");
+			if (rename) {
+				await waitForElement(obsidian, ".qaYesNoPrompt button");
+				expect(await obsidian.dev.evalJson<boolean>(`(() => {
+					const yes = Array.from(document.querySelectorAll(".qaYesNoPrompt button")).find(button => button.textContent.trim() === "Yes");
+					if (!(yes instanceof HTMLButtonElement)) return false;
+					yes.click();
+					return true;
+				})()`)).toBe(true);
+			}
+			await expectNoPrompt(obsidian);
+			await expectAt(destination, "");
+			await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Write here" }) });
+			const link = rename ? `[[renamed-${choice.id}]]\n` : "";
+			await expect.poll(async () => (await state(destination)).editor, POLL_OPTS).toBe(`Existing notes\n\n${link}## Planning\n- Write here`);
+			expect(await obsidian.dev.evalJson("app.workspace.activeLeaf.view.getState().source")).toBe(false);
+		} finally {
+			await obsidian.dev.evalJson(`(() => {
+				app.vault.setConfig("alwaysUpdateLinks", ${JSON.stringify(previousUpdateLinks)});
+				for (const close of document.querySelectorAll(".modal-close-button")) close.click();
+				return true;
+			})()`);
+		}
+	});
+
 });

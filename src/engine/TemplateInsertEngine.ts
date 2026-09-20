@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import type { App, MarkdownView, TFile } from "obsidian";
 import { getFrontMatterInfo, parseYaml } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -17,7 +17,7 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStartWithResult, type NoteBodyInsertionResult } from "../utils/noteContentInsertion";
-import { insertCaptureInEditor } from "../utils/editorInsertion";
+import { insertCaptureInBoundEditor } from "../utils/editorInsertion";
 import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
@@ -168,6 +168,12 @@ export class TemplateInsertEngine extends TemplateEngine {
 	}
 
 	private resolvedTemplatePath: string | null;
+	private cursorView: MarkdownView | null = null;
+
+	public override placeCursor(file: TFile): void {
+		if (this.mode === "cursor" && getMarkdownEditorViewForFile(this.app, file) !== this.cursorView) return;
+		super.placeCursor(file);
+	}
 
 	public async run(): Promise<void> {
 		await this.apply();
@@ -341,18 +347,25 @@ export class TemplateInsertEngine extends TemplateEngine {
 			"Cannot insert at cursor: the note is not open in the active editor.",
 		);
 
+		this.cursorView = view;
+		const editor = view.editor;
 		const { formatted, templatePropertyVars } =
 			await this.formatTemplateForTargetFile();
+		invariant(
+			view.file === this.targetFile && view.editor === editor &&
+				this.app.workspace.getLeavesOfType("markdown").some(leaf => leaf.view === view),
+			"Cannot insert at cursor: the original editor was closed or changed notes.",
+		);
 		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
 
 		const offset = this.cursorPlacement?.offsets[0];
 		if (offset !== undefined) {
-			this.cursorPlacement = insertCaptureInEditor({
+			this.cursorPlacement = insertCaptureInBoundEditor({
 				content: body,
 				cursor: { kind: "offset", value: offset - (formatted.length - body.length), source: "marker" },
-			}, this.app, this.targetFile, "currentLine");
+			}, editor, "currentLine");
 		} else if (body.trim().length > 0) {
-			view.editor.replaceSelection(body);
+			editor.replaceSelection(body);
 		}
 
 		// Cursor rebasing reads the saved body after the frontmatter merge.

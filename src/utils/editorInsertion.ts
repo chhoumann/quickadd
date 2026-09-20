@@ -21,8 +21,16 @@ export function insertCaptureInEditor(
 	action: string,
 ): EditorCursorPlacement | null {
 	const view = getMarkdownEditorViewForFile(app, file);
-	if (!view || payload.cursor.kind === "none") return null;
-	const { editor } = view;
+	if (!view) return null;
+	return insertCaptureInBoundEditor(payload, view.editor, action);
+}
+
+export function insertCaptureInBoundEditor(
+	payload: CapturePlacementResult,
+	editor: Editor,
+	action: string,
+): EditorCursorPlacement | null {
+	if (payload.cursor.kind === "none") return null;
 	const at = (pos: EditorPosition) => editor.posToOffset(pos);
 	const cursor = editor.getCursor();
 	let edits: { from: EditorPosition; to?: EditorPosition; text: string; cursor: number }[];
@@ -439,10 +447,18 @@ export function setMarkdownCursorsAtOffsets(
 		if (view.getMode() === "preview") return false;
 
 		const editor = view.editor;
-		if (!editor || editor.getValue() !== expectedContent) return false;
+		if (!editor) return false;
+		const content = editor.getValue();
+		let editorOffsets = offsets;
+		if (content !== expectedContent) {
+			if (content !== expectedContent.replace(/\r\n/g, "\n")) return false;
+			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n/g, "\n").length);
+		}
 
-		if (offsets.length === 1) editor.setCursor(editor.offsetToPos(offsets[0]));
-		else editor.setSelections(offsets.map(offset => ({ anchor: editor.offsetToPos(offset) })));
+		if (editorOffsets.length === 1) editor.setCursor(editor.offsetToPos(editorOffsets[0]));
+		else editor.setSelections(editorOffsets.map(offset => ({ anchor: editor.offsetToPos(offset) })));
+		const document = view.containerEl?.ownerDocument;
+		if (document && document.activeElement === document.body) editor.focus();
 		return true;
 	} catch {
 		log.logMessage(

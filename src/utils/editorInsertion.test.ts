@@ -17,11 +17,14 @@ function createHarness({
 	path?: string;
 } = {}) {
 	const setCursor = vi.fn();
+	const focus = vi.fn();
 	const offsetToPos = vi.fn((offset: number) => ({ line: 1, ch: offset }));
 	const view = {
+		containerEl: document.createElement("div"),
 		file: { path },
 		getMode: () => mode,
 		editor: {
+			focus,
 			getValue: () => value,
 			offsetToPos,
 			setCursor,
@@ -34,10 +37,44 @@ function createHarness({
 	} as unknown as App;
 	const file = { path, extension: "md" } as TFile;
 
-	return { app, file, offsetToPos, setCursor };
+	return { app, file, offsetToPos, setCursor, focus };
 }
 
 describe("setMarkdownCursorAtOffset", () => {
+	it("maps disk CRLF offsets to the editor's LF text without changing Unicode offsets", () => {
+		const disk = "---\r\nstatus: draft\r\n---\r\n😀 beforeafter";
+		const value = disk.replace(/\r\n/g, "\n");
+		const { app, file, offsetToPos } = createHarness({ value });
+		expect(setMarkdownCursorAtOffset(app, file, disk.indexOf("after"), disk)).toBe(true);
+		expect(offsetToPos).toHaveBeenCalledWith(value.indexOf("after"));
+	});
+
+	it("still rejects body edits when disk text uses CRLF", () => {
+		const { app, file, setCursor } = createHarness({ value: "changed\nbody" });
+		expect(setMarkdownCursorAtOffset(app, file, 7, "before\r\nbody")).toBe(false);
+		expect(setCursor).not.toHaveBeenCalled();
+	});
+
+	it("restores editor focus when a completed prompt leaves focus on the document", () => {
+		const { app, file, focus } = createHarness();
+		expect(document.activeElement).toBe(document.body);
+		expect(setMarkdownCursorAtOffset(app, file, 7, "Line A\nCAPTURE\nLine B")).toBe(true);
+		expect(focus).toHaveBeenCalledOnce();
+	});
+
+	it("does not take focus from another input", () => {
+		const { app, file, focus } = createHarness();
+		const input = document.createElement("input");
+		document.body.append(input);
+		try {
+			input.focus();
+			expect(setMarkdownCursorAtOffset(app, file, 7, "Line A\nCAPTURE\nLine B")).toBe(true);
+			expect(focus).not.toHaveBeenCalled();
+		} finally {
+			input.remove();
+		}
+	});
+
 	it("sets the cursor in the active markdown editor when content matches", () => {
 		const { app, file, offsetToPos, setCursor } = createHarness();
 
