@@ -156,6 +156,7 @@ export default defineConfig({
 							label: "Template Examples",
 							items: [
 								{ label: "Add an inbox item", slug: "docs/Examples/Template_AddAnInboxItem" },
+								{ label: "Meeting notes and project updates", slug: "docs/Examples/Template_MeetingNotes" },
 								{ label: "Create an MOC note with a link dashboard", slug: "docs/Examples/Template_CreateMOCNoteWithLinkDashboard" },
 								{ label: "Automatic book notes from Readwise", slug: "docs/Examples/Template_AutomaticBookNotesFromReadwise" },
 							],

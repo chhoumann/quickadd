@@ -41,6 +41,9 @@ when the destination is focused in an editing mode. Insert and append modes
 leave existing literal markers in the destination note alone. **Replace note
 content** replaces the whole note, including any existing markers.
 
+The [project update example](/docs/Examples/Template_MeetingNotes/#add-an-update-to-an-existing-project)
+shows how to append a dated section and keep typing in it.
+
 :::note
 Only Markdown templates can be applied. Canvas (`.canvas`) and Base (`.base`)
 templates hold data for their own file types, so they're left out of the picker

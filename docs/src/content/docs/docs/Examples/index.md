@@ -15,6 +15,7 @@ from a blank choice.
 | [Fetch Tasks from Todoist](/docs/Examples/Capture_FetchTasksFromTodoist/) | Capture and Macro | Intermediate | Todoist API token | Imported Todoist tasks |
 | [Canvas Capture](/docs/Examples/Capture_CanvasCapture/) | Capture | Intermediate | An Obsidian Canvas file | Text added to a selected or targeted card |
 | [Add an Inbox Item](/docs/Examples/Template_AddAnInboxItem/) | Template | Beginner | Inbox folder or note | A new inbox note |
+| [Meeting notes and project updates](/docs/Examples/Template_MeetingNotes/) | Template | Beginner | QuickAdd 2.27.0 or later | Dated notes and updates, ready to type in |
 | [Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/) | Template | Intermediate | Base template file | A note with an embedded Base dashboard |
 | [Automatic Book Notes from Readwise](/docs/Examples/Template_AutomaticBookNotesFromReadwise/) | Template and Macro | Advanced | Readwise export script | Book notes with highlights |
 | [Book Finder](/docs/Examples/Macro_BookFinder/) | Macro | Intermediate | Book lookup script | A populated book note |
@@ -36,6 +37,8 @@ instead of a Markdown note.
 ### Create structured notes
 
 Start with [Add an Inbox Item](/docs/Examples/Template_AddAnInboxItem/) for a small template.
+Try [meeting notes and project updates](/docs/Examples/Template_MeetingNotes/)
+to create a dated note or add a section, then start typing where you put the cursor marker.
 Use [Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/)
 when you want a generated note to include a live Base dashboard.
 
