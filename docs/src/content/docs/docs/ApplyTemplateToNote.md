@@ -37,8 +37,9 @@ as usual.
 
 Put [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the template body to choose
 where typing continues after applying it. All four modes support the marker
-when the destination is focused in an editing mode. Existing literal markers
-in the destination note are left alone.
+when the destination is focused in an editing mode. Insert and append modes
+leave existing literal markers in the destination note alone. **Replace note
+content** replaces the whole note, including any existing markers.
 
 :::note
 Only Markdown templates can be applied. Canvas (`.canvas`) and Base (`.base`)
