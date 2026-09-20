@@ -41,7 +41,7 @@ The left column names the job; the middle names the Templater expression you may
 | Link back to the note you came from | `tp.file.path` workarounds | [`{{LINKCURRENT}}`](/docs/FormatSyntax/#linkcurrent) (a link), [`{{FILENAMECURRENT}}`](/docs/FormatSyntax/#filenamecurrent) (raw name, for embeds like `![[{{FILENAMECURRENT}}#Heading]]`), [`{{LINKSECTION}}`](/docs/FormatSyntax/#linksection) (link to the heading you're in) |
 | Run JavaScript | `tp.user` | [Inline scripts](/docs/InlineScripts/), [user scripts in macros](/docs/Choices/MacroChoice/), [`{{MACRO:...}}`](/docs/FormatSyntax/#macro) |
 | Folder templates | folder templates | No automatic equivalent - see [Templates chosen by folder](#templates-chosen-by-folder) |
-| Cursor marker | `tp.file.cursor` | `{{CURSOR}}` in Capture bodies - see [Where the cursor lands](#where-the-cursor-lands) |
+| Cursor marker | `tp.file.cursor` | `{{CURSOR}}` in Template or Capture bodies - see [Where the cursor lands](#where-the-cursor-lands) |
 
 ## Create new notes from templates
 

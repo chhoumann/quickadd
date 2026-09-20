@@ -32,8 +32,8 @@ fills in the placeholders and merges the frontmatter for you.
    - **Replace note content**: replaces the entire note with the template.
 
 The template runs through the full QuickAdd
-[format syntax](/docs/FormatSyntax/) pipeline, and Templater syntax is processed
-as usual.
+[format syntax](/docs/FormatSyntax/) pipeline. Templater syntax is also processed
+when the Templater plugin is enabled.
 
 Put [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the template body to choose
 where typing continues after applying it. All four modes support the marker
