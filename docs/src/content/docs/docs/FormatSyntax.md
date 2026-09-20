@@ -860,6 +860,9 @@ In a Template or Capture body, `{{CURSOR}}` marks where you want to continue typ
 - {{CURSOR}}
 ```
 
+For complete setups, see
+[meeting notes and project updates](/docs/Examples/Template_MeetingNotes/).
+
 QuickAdd removes the marker and places the cursor there when the target note
 is already focused in an editing mode, or when **Open** opens and focuses it.
 The marker never opens a note by itself, switches out of Reading view, or
@@ -870,10 +873,10 @@ note, or adding the template at the top or bottom. It also works in all
 [Apply Template to Note](/docs/ApplyTemplateToNote/) modes, Capture's **At cursor**
 and **New line above/below cursor**, and included `{{TEMPLATE:...}}` content.
 
-The first marker sets the position. Additional markers in the inserted content
-are removed. Spelling is case-insensitive. Insert and append operations leave
-literal markers already in the destination note alone; replacing the note
-replaces its old content.
+The first marker in the note body sets the position. Additional markers in the
+inserted content are removed. Spelling is case-insensitive. Insert and append
+operations leave literal markers already in the destination note alone;
+replacing the note replaces its old content.
 
 A Template containing only markers can create an empty note. A Capture containing
 only markers and whitespace does nothing. If Templater needs a new target note

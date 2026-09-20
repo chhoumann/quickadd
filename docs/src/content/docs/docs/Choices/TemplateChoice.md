@@ -20,7 +20,7 @@ to do each familiar job.
 
 ## Set up your first template choice {#set-up}
 
-1. Create a template note, for example `Templates/Book.md`:
+1. Create folders named `Templates` and `Books`, then create `Templates/Book.md`:
 
    ```markdown title="Templates/Book.md"
    ---
@@ -32,14 +32,18 @@ to do each familiar job.
    Started {{DATE}}
    ```
 
-2. Open **Settings → QuickAdd**, type a name like `New book note`, choose
-   **Template** in the dropdown, and click **Add Choice**.
-3. Click the gear (⚙) next to the new choice.
-4. Set **Template Path** to `Templates/Book.md`.
-5. Under **New note location**, choose **In a specific folder** and enter
-   `Books`.
-6. Run it: command palette → `QuickAdd: Run`, pick `New book note`,
-   type the title, for example `Dune`.
+2. Open **Settings → QuickAdd** and choose **New choice → Template**.
+3. Click the choice name at the top of the settings window. Rename it
+   `New book note` and confirm with **Ok**.
+4. Set **Template path** to `Templates/Book.md`.
+5. Turn **File name format** on and enter `{{VALUE:title}}`.
+6. Set **New note location** to **In a specific folder**. Enter `Books` in
+   **Folder path** and click **Add**.
+7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
+   and **View mode** to **Live Preview**.
+8. Choose **Done** and close Settings.
+9. Run **QuickAdd: Run** from the command palette and pick `New book note`.
+   Enter `Dune` for **title** and confirm with **Ok**.
 
 QuickAdd creates `Books/Dune.md` from your template, with the title, date, and
 frontmatter filled in. Assign the choice a hotkey (⚡ icon, or Obsidian's
@@ -94,12 +98,12 @@ is created), **Linking** (whether and how to link to the created file), and
 **Behavior** (what happens when the file already exists, and how the file is
 opened).
 
-## Point to the template file: Template Path {#mandatory}
+## Point to the template file: Template path {#mandatory}
 
-**Template Path** is the one required setting: the path to the template you want
+**Template path** is the one required setting: the path to the template you want
 to insert. Paths are vault-relative; a leading `/` is ignored.
 
-```text title="Template Path"
+```text title="Template path"
 Templates/Book.md
 ```
 
@@ -110,7 +114,7 @@ a new markdown note to include a live embedded Base dashboard, see
 
 ### Use a dynamic template path {#dynamic-template-path}
 
-The Template Path supports [format syntax](/docs/FormatSyntax/), so the path can
+The template path supports [format syntax](/docs/FormatSyntax/), so the path can
 change from run to run. Named values (`{{VALUE:client}}`), dates
 (`{{DATE:YYYY}}`), fields, and global variables all work in the path. The same
 applies to the Capture choice's *Create file with template* path.
@@ -144,9 +148,9 @@ the resolved template's body are gathered when the choice runs rather than in th
 up-front form.
 :::
 
-## Name the new note: File Name Format {#optional}
+## Name the new note: File name format {#optional}
 
-**File Name Format** sets a format for the created file's name, using
+**File name format** sets a format for the created file's name, using
 [format syntax](/docs/FormatSyntax/) - so file names can be dynamic too.
 
 ```text title="You configure"
@@ -158,7 +162,7 @@ up-front form.
 ```
 
 `{{NAME}}` is a value you enter when invoking the template. If you **disable**
-File Name Format, QuickAdd uses `{{VALUE}}` as the file name format, which keeps
+**File name format**, QuickAdd uses `{{VALUE}}` as the file name format, which keeps
 the default behavior of prompting for a file name when you run the choice (with
 the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs).
 
@@ -206,7 +210,7 @@ requires a Markdown template.
 The picker names the action beside each existing note, so an update is visible
 before you select it.
 
-The selected note keeps its path and name. QuickAdd skips **File Name Format**,
+The selected note keeps its path and name. QuickAdd skips **File name format**,
 **New note location**, and the new-note collision setting. `{{TITLE}}` and the
 anonymous `{{VALUE}}` use the selected note's basename, and `{{FOLDER}}` uses its
 folder. The template's other inputs still appear, including in the
@@ -391,6 +395,9 @@ Put [`{{CURSOR}}`](/docs/FormatSyntax/#cursor) in the template body to choose
 where typing starts. The marker works for new notes and existing-note updates.
 The destination must be focused in an editing mode, either already or through
 **Open**. Reading view and background panes keep their state.
+
+Try the [meeting note example](/docs/Examples/Template_MeetingNotes/) to create
+a dated note and start typing under **Notes**.
 
 ## Run it from a hotkey: Command palette {#command-palette}
 
