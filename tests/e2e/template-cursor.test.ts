@@ -311,6 +311,19 @@ describe("Template cursor markers in native Obsidian", () => {
 		}
 	});
 
+	it.each(["\r\n", "\r"])("places the cursor when new-note line endings %j are normalized by the editor", async newline => {
+		const { choice, path } = await setup(`First${newline}😀 Before{{CURSOR}}after`);
+		await save(choice);
+		await run(choice);
+		await expect.poll(async () => {
+			const result = await state(path);
+			return { content: result.editor, tail: result.editor.slice(result.offset) };
+		}, POLL_OPTS).toEqual({ content: "First\n😀 Beforeafter", tail: "after" });
+		await getContext().obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe("First\n😀 BeforeTyped after");
+		await expect.poll(async () => (await state(path)).content.replace(/\r\n?/g, "\n"), POLL_OPTS).toBe("First\n😀 BeforeTyped after");
+	});
+
 	it("counts CRLF and emoji correctly after merging properties and accepts typing at the marker", async () => {
 		const { obsidian, sandbox } = getContext();
 		const template = await seedVaultFile(obsidian, sandbox, "crlf-template.md", "---\r\ntags: [new-tag]\r\nstatus: draft\r\n---\r\n😀 Before{{CURSOR}}after");

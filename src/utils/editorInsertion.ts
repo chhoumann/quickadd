@@ -451,8 +451,8 @@ export function setMarkdownCursorsAtOffsets(
 		const content = editor.getValue();
 		let editorOffsets = offsets;
 		if (content !== expectedContent) {
-			if (content !== expectedContent.replace(/\r\n/g, "\n")) return false;
-			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n/g, "\n").length);
+			if (content !== expectedContent.replace(/\r\n?/g, "\n")) return false;
+			editorOffsets = offsets.map(offset => expectedContent.slice(0, offset).replace(/\r\n?/g, "\n").length);
 		}
 
 		if (editorOffsets.length === 1) editor.setCursor(editor.offsetToPos(editorOffsets[0]));

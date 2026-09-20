@@ -41,9 +41,9 @@ function createHarness({
 }
 
 describe("setMarkdownCursorAtOffset", () => {
-	it("maps disk CRLF offsets to the editor's LF text without changing Unicode offsets", () => {
-		const disk = "---\r\nstatus: draft\r\n---\r\n😀 beforeafter";
-		const value = disk.replace(/\r\n/g, "\n");
+	it.each(["\r\n", "\r"])("maps disk %j line endings to editor LF without changing Unicode offsets", newline => {
+		const disk = ["---", "status: draft", "---", "😀 beforeafter"].join(newline);
+		const value = "---\nstatus: draft\n---\n😀 beforeafter";
 		const { app, file, offsetToPos } = createHarness({ value });
 		expect(setMarkdownCursorAtOffset(app, file, disk.indexOf("after"), disk)).toBe(true);
 		expect(offsetToPos).toHaveBeenCalledWith(value.indexOf("after"));
