@@ -464,6 +464,7 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 					destination: { type: "specifiedFile", path: "Indexes/MOC.md" },
 					linkType: "link",
 				}),
+				undefined,
 			);
 		});
 

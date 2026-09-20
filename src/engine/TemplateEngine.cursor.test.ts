@@ -1,5 +1,5 @@
 import type * as UtilityObsidian from "../utilityObsidian";
-import { WorkspaceLeaf, type MarkdownView, type EditorPosition } from "obsidian";
+import { WorkspaceLeaf, MarkdownView, type EditorPosition, type TFile } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
@@ -21,6 +21,24 @@ beforeEach(() => {
 });
 
 describe("Template write cursor snapshots", () => {
+	function showEditor(h: ReturnType<typeof templateHarness>, file: TFile, content: string) {
+		const setCursor = vi.fn();
+		const view = Object.assign(new MarkdownView(new WorkspaceLeaf()), {
+			file,
+			getMode: () => "source",
+			editor: {
+				getValue: () => content,
+				offsetToPos: (offset: number) => {
+					const before = content.slice(0, offset);
+					return { line: before.split("\n").length - 1, ch: before.length - before.lastIndexOf("\n") - 1 };
+				},
+				setCursor,
+			},
+		});
+		vi.spyOn(h.app.workspace, "getActiveViewOfType").mockReturnValue(view);
+		return setCursor;
+	}
+
 	it("records the marker after rendered values and creates a clean file", async () => {
 		const h = templateHarness();
 		h.executor.variables.set("date", "2026-09-20");
@@ -48,6 +66,88 @@ describe("Template write cursor snapshots", () => {
 		const content = h.contents.get("note.md") ?? "";
 		expect(h.frontmatter(h.vault.getFileByPath("note.md")!)).toEqual({ tags: ["one", "two"] });
 		expect(h.engine.getCursorPlacement()).toEqual({ content, offsets: [content.indexOf("after")] });
+	});
+
+	it.each([
+		{ change: "adds", before: "", after: "---\nstatus: draft\n---\n", line: 3 },
+		{ change: "changes", before: "---\nstatus: draft\n---\n", after: "---\nstatus: done\npriority: high\n---\n", line: 4 },
+	])("places the cursor when the active editor $change frontmatter after the write", async ({ before, after, line }) => {
+		const h = templateHarness();
+		h.file("template.md", `${before}before{{CURSOR}}after`);
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).toEqual({ content: `${before}beforeafter`, offsets: [before.length + 6] });
+		const setCursor = showEditor(h, file, `${after}beforeafter`);
+
+		h.engine.placeCursor(file);
+
+		expect(setCursor).toHaveBeenCalledExactlyOnceWith({ line, ch: 6 });
+		expect(h.contents.get(file.path)).toBe(`${before}beforeafter`);
+	});
+
+	it("does not place the cursor when the active editor body changes after the write", async () => {
+		const h = templateHarness();
+		h.file("template.md", "before{{CURSOR}}after");
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).toEqual({ content: "beforeafter", offsets: [6] });
+		const setCursor = showEditor(h, file, "---\nstatus: draft\n---\nbefore edited after");
+
+		h.engine.placeCursor(file);
+
+		expect(setCursor).not.toHaveBeenCalled();
+	});
+
+	it("places the cursor when the editor normalizes CRLF without changing the body", async () => {
+		const h = templateHarness();
+		h.file("template.md", "first\r\nbefore{{CURSOR}}after");
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).toEqual({ content: "first\r\nbeforeafter", offsets: [13] });
+		const setCursor = showEditor(h, file, "first\nbeforeafter");
+
+		h.engine.placeCursor(file);
+
+		expect(setCursor).toHaveBeenCalledExactlyOnceWith({ line: 1, ch: 6 });
+	});
+
+	it("uses the pre-link snapshot while the editor has not received the appended link", async () => {
+		const h = templateHarness();
+		h.file("template.md", "Before{{CURSOR}}after\n[[link]]");
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).toEqual({ content: "Beforeafter\n[[link]]", offsets: [6] });
+		const setCursor = showEditor(h, file, "Beforeafter");
+
+		h.engine.placeCursor(file, { content: "Beforeafter", offsets: [6] });
+
+		expect(setCursor).toHaveBeenCalledExactlyOnceWith({ line: 0, ch: 6 });
+	});
+
+	it("rejects an unrelated editor body edit even with a pre-link snapshot", async () => {
+		const h = templateHarness();
+		h.file("template.md", "Before{{CURSOR}}after\n[[link]]");
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).not.toBeNull();
+		const setCursor = showEditor(h, file, "Before edited after");
+
+		h.engine.placeCursor(file, { content: "Beforeafter", offsets: [6] });
+
+		expect(setCursor).not.toHaveBeenCalled();
+	});
+
+	it("does not revive an absent placement from a matching pre-link snapshot", async () => {
+		const h = templateHarness();
+		h.file("template.md", "Beforeafter\n[[link]]");
+		const file = await h.engine.create("note.md", "template.md");
+		if (!file) throw new Error("Template did not create a note");
+		expect(h.engine.getCursorPlacement()).toBeNull();
+		const setCursor = showEditor(h, file, "Beforeafter");
+
+		h.engine.placeCursor(file, { content: "Beforeafter", offsets: [6] });
+
+		expect(setCursor).not.toHaveBeenCalled();
 	});
 
 	it("discards placement after Templater rewrites the body", async () => {

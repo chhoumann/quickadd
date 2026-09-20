@@ -238,6 +238,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
 			this.outcome.success(createdFile, effect);
+			const cursorBeforeLink = this.cursorPlacement;
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
@@ -278,11 +279,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				});
 
 				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
-					this.placeCursor(createdFile);
+					this.placeCursor(createdFile, cursorBeforeLink);
 				}
 			} else if (this.cursorPlacement && getMarkdownEditorViewForFile(this.app, createdFile)) {
 				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
-					this.placeCursor(createdFile);
+					this.placeCursor(createdFile, cursorBeforeLink);
 				}
 			} else if (
 				createdNew &&

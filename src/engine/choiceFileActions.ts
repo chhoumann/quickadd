@@ -23,7 +23,7 @@ export async function insertChoiceFileLink(
 ): Promise<void> {
 	if (!options.enabled) return;
 	if (options.destination?.type === "specifiedFile") {
-		await appendFileLinkToDestinationFile(app, file, options);
+		await appendFileLinkToDestinationFile(app, file, options, onEditorTextMutation);
 	} else if (focusedProperty && !placementSupportsFrontmatter(options.placement)) {
 		await appendLinkToFrontmatterProperty(app, focusedProperty, file);
 	} else {

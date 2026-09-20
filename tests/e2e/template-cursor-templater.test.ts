@@ -136,10 +136,18 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with
 		await expectAt(path, "😀 beforeafter", "after");
 	});
 
-	it.each([false, true])("lets native cursor 1 win and leaves cursor 2 for the next jump with Open=%s", async openFile => {
+	it.each([
+		["overwrite", false],
+		["overwrite", true],
+		["appendTop", false],
+		["appendTop", true],
+		["appendBottom", false],
+		["appendBottom", true],
+	] as const)("lets native cursor 1 win and leaves cursor 2 for the next jump during %s with Open=%s", async (mode, openFile) => {
 		const { choice, path, filename } = await setup("A<% tp.file.cursor( 1 ) %>B{{CURSOR}}C<% tp.file.cursor(2) %>D");
 		const { obsidian, sandbox } = getContext();
 		await seedVaultFile(obsidian, sandbox, `${filename}.md`, "Old note");
+		choice.fileExistsBehavior = { kind: "apply", mode };
 		choice.openFile = openFile;
 		await save(choice);
 		await open(path);
@@ -162,9 +170,11 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with
 		await run(choice);
 		await settleNativeCallback();
 		expect(await obsidian.dev.evalJson("app.workspace.activeLeaf.id")).toBe(originalLeafId);
-		await expectAt(path, "ABC<% tp.file.cursor(2) %>D", "BC<% tp.file.cursor(2) %>D");
+		const prefix = mode === "appendBottom" ? "Old note\n" : "";
+		const suffix = mode === "appendTop" ? "\nOld note" : "";
+		await expectAt(path, `${prefix}ABC<% tp.file.cursor(2) %>D${suffix}`, `BC<% tp.file.cursor(2) %>D${suffix}`);
 		await obsidian.exec("command", { id: "templater-obsidian:jump-to-next-cursor-location" });
-		await expectAt(path, "ABCD", "D");
+		await expectAt(path, `${prefix}ABCD${suffix}`, `D${suffix}`);
 	});
 
 	it("uses the QuickAdd marker when Templater automatic jumping is disabled", async () => {

@@ -88,10 +88,15 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		return this.cursorPlacement;
 	}
 
-	public placeCursor(file: TFile): void {
-		if (this.cursorPlacement) {
-			setMarkdownCursorsAtOffsets(this.app, file,
-				this.cursorPlacement.offsets, this.cursorPlacement.content);
+	public placeCursor(file: TFile, beforeLink?: EditorCursorPlacement | null): void {
+		const editor = getMarkdownEditorViewForFile(this.app, file)?.editor;
+		if (this.cursorPlacement && editor) {
+			for (const cursor of [this.cursorPlacement, beforeLink]) {
+				if (!cursor) continue;
+				const placement = rebaseTemplateCursor(cursor, editor.getValue()) ?? cursor;
+				if (setMarkdownCursorsAtOffsets(this.app, file,
+					placement.offsets, placement.content)) return;
+			}
 		}
 	}
 

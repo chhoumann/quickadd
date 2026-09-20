@@ -162,18 +162,58 @@ describe("Template cursor markers in native Obsidian", () => {
 		if (mode !== "overwrite") expect(result.content).toContain("Existing {{CURSOR}} literal");
 	});
 
-	it("keeps the marker after inserting a link into the same destination", async () => {
-		const { choice, path } = await setup("Before{{CURSOR}}after");
+	it.each([
+		["replaceSelection", false, false], ["replaceSelection", true, false],
+		["inFrontmatter", false, false], ["inFrontmatter", true, false],
+		["specifiedFile", false, false], ["specifiedFile", true, false],
+		["specifiedFile", false, true], ["specifiedFile", true, true],
+	] as const)("keeps the marker after a %s link to the same destination with editor update awaited=%s and marker at end=%s", async (placement, waitForEditor, atEnd) => {
+		const after = atEnd ? "" : "after";
+		const { choice, path } = await setup(`Before{{CURSOR}}${after}`);
 		const { obsidian, sandbox } = getContext();
 		await seedVaultFile(obsidian, sandbox, `result-${choice.id}.md`, "Original\n");
 		choice.fileExistsBehavior = { kind: "apply", mode: "appendBottom" };
-		choice.appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: true };
-		choice.openFile = false;
+		choice.appendLink = {
+			enabled: true,
+			placement: placement === "specifiedFile" ? "newLine" : placement,
+			frontmatterProperty: "related",
+			requireActiveFile: true,
+			...(placement === "specifiedFile" ? { destination: { type: "specifiedFile", path } as const } : {}),
+		};
+		choice.openFile = true;
+		choice.fileOpening.mode = "live";
+		choice.copyLinkToClipboard = waitForEditor;
 		await save(choice);
 		await open(path);
-		await run(choice);
+		if (waitForEditor) await obsidian.dev.evalJson(`(() => {
+			const clipboard = navigator.clipboard;
+			window.__qaOriginalClipboardWrite = clipboard.writeText;
+			window.__qaLinkRenderObserved = false;
+			clipboard.writeText = async function(text) {
+				await window.__qaOriginalClipboardWrite.call(this, text);
+				const deadline = Date.now() + 2000;
+				while (!app.workspace.activeLeaf.view.editor.getValue().includes("[[")) {
+					if (Date.now() > deadline) throw new Error("Link did not reach the editor");
+					await new Promise(resolve => setTimeout(resolve, 10));
+				}
+				window.__qaLinkRenderObserved = true;
+			};
+			return true;
+		})()`);
+		try {
+			await run(choice);
+			if (waitForEditor) expect(await obsidian.dev.evalJson("window.__qaLinkRenderObserved")).toBe(true);
+		} finally {
+			if (waitForEditor) await obsidian.dev.evalJson(`(() => {
+				navigator.clipboard.writeText = window.__qaOriginalClipboardWrite;
+				delete window.__qaOriginalClipboardWrite;
+				delete window.__qaLinkRenderObserved;
+				return true;
+			})()`);
+		}
 		await expect.poll(async () => (await state(path)).content, POLL_OPTS).toContain("[[");
-		expect((await expectAt(path, "after")).content).toContain("Beforeafter");
+		const tail = placement === "specifiedFile" ? `${after}\n[[result-${choice.id}]]` : after;
+		expect((await expectAt(path, tail)).content).toContain(`Before${after}`);
 	});
 
 	it.each(["closed", "background", "preview"] as const)("does not move another cursor for a %s destination", async mode => {

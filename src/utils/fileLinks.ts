@@ -8,6 +8,7 @@ import type {
 	LinkType,
 } from "../types/linkPlacement";
 import { placementSupportsEmbed } from "../types/linkPlacement";
+import type { EditorTextMutation, EditorTextMutationObserver } from "./editorCursorPlacement";
 
 const CLIPBOARD_NOTICE_DURATION_MS = 4000;
 
@@ -144,6 +145,7 @@ export async function appendFileLinkToDestinationFile(
 	app: App,
 	file: TFile,
 	linkOptions: AppendLinkOptions,
+	onEditorTextMutation?: EditorTextMutationObserver,
 ): Promise<boolean> {
 	const destination = linkOptions.destination;
 	if (destination?.type !== "specifiedFile") return false;
@@ -160,7 +162,16 @@ export async function appendFileLinkToDestinationFile(
 		linkType: "link",
 	});
 
-	await app.vault.process(targetFile, (content) => appendLine(content, linkText));
+	let mutation: EditorTextMutation | undefined;
+	await app.vault.process(targetFile, (before) => {
+		const after = appendLine(before, linkText);
+		mutation = {
+			filePath: targetFile.path, before, after,
+			edits: [{ from: before.length, to: before.length, text: after.slice(before.length) }],
+		};
+		return after;
+	});
+	if (mutation) onEditorTextMutation?.(mutation);
 	return true;
 }
 
