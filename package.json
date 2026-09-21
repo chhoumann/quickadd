@@ -26,7 +26,7 @@
 		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/svelte": "^5.4.2",
 		"@testing-library/user-event": "^14.6.7",
-		"@types/node": "^26.5.1",
+		"@types/node": "^26.6.1",
 		"@typescript-eslint/eslint-plugin": "^8.70.0",
 		"@typescript-eslint/parser": "^8.70.0",
 		"@vitest/coverage-v8": "4.1.11",
@@ -36,7 +36,7 @@
 		"eslint-plugin-svelte": "^3.23.0",
 		"globals": "17",
 		"jsdom": "30",
-		"moment": "2.30.1",
+		"moment": "2.31.0",
 		"obsidian": "1.13.1",
 		"obsidian-e2e": "^0.10.0",
 		"svelte": "^5",
@@ -47,7 +47,7 @@
 		"typescript": "^6.0.3",
 		"vite": "^8.3.0",
 		"vitest": "^4.1.11",
-		"yaml": "2.9.0"
+		"yaml": "2.9.1"
 	},
 	"dependencies": {
 		"@popperjs/core": "^2.11.8",
