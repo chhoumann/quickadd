@@ -2,6 +2,7 @@
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
+import { unified } from "@astrojs/markdown-remark";
 import starlight from "@astrojs/starlight";
 import starlightLlmsTxt from "starlight-llms-txt";
 import remarkHeadingId from "./plugins/remark-heading-id.mjs";
@@ -41,7 +42,7 @@ export default defineConfig({
 	// output dir), so keep emitting there.
 	outDir: "./build",
 	markdown: {
-		remarkPlugins: [remarkHeadingId],
+		processor: unified({ remarkPlugins: [remarkHeadingId] }),
 	},
 	image: {
 		// Some screen-recording GIFs exceed sharp's default pixel safety limit
