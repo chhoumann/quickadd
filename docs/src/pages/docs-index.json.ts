@@ -19,6 +19,7 @@ export const GET: APIRoute = async () => {
 			),
 			text: (entry.body ?? "")
 				.replace(/```[\s\S]*?```/g, " ")
+				.replace(/\s*\{#[^}]*\}[ \t]*$/gm, "")
 				.replace(/\s+/g, " "),
 		}))
 		.sort((a, b) => a.slug.localeCompare(b.slug));
