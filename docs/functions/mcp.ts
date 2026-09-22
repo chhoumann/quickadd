@@ -107,27 +107,39 @@ async function loadManifest(
 	return data.pages;
 }
 
-function scorePage(page: ManifestPage, terms: string[]): number {
+/**
+ * Matches a query term as a whole word, allowing a plural "s"/"es", so
+ * "capture" finds "captures" but "quick" does not match inside "QuickAdd".
+ */
+function wordPattern(term: string): RegExp {
+	const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?:e?s)?(?![\\p{L}\\p{N}])`, "gu");
+}
+
+function countMatches(haystack: string, pattern: RegExp): number {
+	return haystack.match(pattern)?.length ?? 0;
+}
+
+function scorePage(page: ManifestPage, terms: RegExp[]): number {
 	let score = 0;
 	const title = page.title.toLowerCase();
 	const headings = page.headings.join(" ").toLowerCase();
 	const description = page.description.toLowerCase();
 	const text = page.text.toLowerCase();
 	for (const term of terms) {
-		if (title.includes(term)) score += 8;
-		if (headings.includes(term)) score += 4;
-		if (description.includes(term)) score += 3;
-		const occurrences = text.split(term).length - 1;
-		score += Math.min(occurrences, 5);
+		if (countMatches(title, term) > 0) score += 8;
+		if (countMatches(headings, term) > 0) score += 4;
+		if (countMatches(description, term) > 0) score += 3;
+		score += Math.min(countMatches(text, term), 5);
 	}
 	return score;
 }
 
-function snippetFor(page: ManifestPage, terms: string[]): string {
+function snippetFor(page: ManifestPage, terms: RegExp[]): string {
 	const text = page.text;
 	const lower = text.toLowerCase();
 	for (const term of terms) {
-		const at = lower.indexOf(term);
+		const at = lower.search(term);
 		if (at >= 0) {
 			const start = Math.max(0, at - 120);
 			const end = Math.min(text.length, at + 180);
@@ -150,7 +162,7 @@ async function handleToolCall(
 	if (name === "search_quickadd_docs") {
 		const query = String(args.query ?? "").trim();
 		if (!query) return textResult(id, "Missing 'query' argument.", true);
-		const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+		const terms = query.toLowerCase().split(/\s+/).filter(Boolean).map(wordPattern);
 		const pages = await loadManifest(request, env);
 		const ranked = pages
 			.map((page) => ({ page, score: scorePage(page, terms) }))
