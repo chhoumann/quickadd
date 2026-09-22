@@ -2,10 +2,9 @@
 import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
-import { unified } from "@astrojs/markdown-remark";
+import { satteri } from "@astrojs/markdown-satteri";
 import starlight from "@astrojs/starlight";
 import starlightLlmsTxt from "starlight-llms-txt";
-import remarkHeadingId from "./plugins/remark-heading-id.mjs";
 
 /**
  * Every docs page must pin its URL with `slug:` frontmatter - without it,
@@ -42,7 +41,9 @@ export default defineConfig({
 	// output dir), so keep emitting there.
 	outDir: "./build",
 	markdown: {
-		processor: unified({ remarkPlugins: [remarkHeadingId] }),
+		// `## Heading {#custom-id}` anchors, kept from the Docusaurus site so
+		// inbound links keep working.
+		processor: satteri({ features: { headingAttributes: true } }),
 	},
 	image: {
 		// Some screen-recording GIFs exceed sharp's default pixel safety limit
