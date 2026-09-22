@@ -132,6 +132,9 @@ function scorePage(page: ManifestPage, terms: RegExp[]): number {
 		if (countMatches(description, term) > 0) score += 3;
 		score += Math.min(countMatches(text, term), 5);
 	}
+	// A page titled with every query term is the page being asked for, even
+	// when a broader page (e.g. the API reference) mentions the terms more.
+	if (terms.every((term) => countMatches(title, term) > 0)) score += 10;
 	return score;
 }
 
