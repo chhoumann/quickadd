@@ -113,7 +113,7 @@ async function loadManifest(
  */
 function wordPattern(term: string): RegExp {
 	const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-	return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?:e?s)?(?![\\p{L}\\p{N}])`, "gu");
+	return new RegExp(`(?<![\\p{L}\\p{N}\\p{M}])${escaped}(?:e?s)?(?![\\p{L}\\p{N}\\p{M}])`, "gu");
 }
 
 function countMatches(haystack: string, pattern: RegExp): number {
