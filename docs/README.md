@@ -57,6 +57,11 @@ while an earlier one runs or is queued; a normal build takes about two
 minutes. Cloudflare does not update its PR comment after the PR is closed, so a
 comment still reading "Build in progress" on a merged PR is expected.
 
+The required "Docs" check in GitHub CI (`.github/workflows/ci.yml`) builds the
+site the same way on every PR (`.node-version`, frozen lockfile) and runs
+`scripts/check-links.py`, so a broken docs build is caught before merge, even
+on branches Cloudflare does not preview.
+
 Docs are single-version: pages go live when they land on `master`. When
 documenting a feature that has not shipped in a plugin release yet, add an
 `_Introduced in QuickAdd X.Y.Z._` line at the section (see AGENTS.md).
