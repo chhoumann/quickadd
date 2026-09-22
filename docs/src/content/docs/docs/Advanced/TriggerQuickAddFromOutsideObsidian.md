@@ -163,7 +163,7 @@ when user is logged on" for URL-opening tasks.
 
 Use the full CLI path:
 
-```cron
+```text
 0 9 * * * /home/alice/.local/bin/obsidian vault="My Vault" quickadd:run choice="Daily log" value-entry="Scheduled check"
 ```
 
