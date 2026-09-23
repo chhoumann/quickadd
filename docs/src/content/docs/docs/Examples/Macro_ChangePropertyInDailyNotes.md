@@ -13,8 +13,8 @@ This macro lists every property in today's daily journal note in a menu. Pick on
 ## Setup
 
 1. Save the script below to a `.js` file somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
-2. In QuickAdd settings, click **Add Choice**, select **Macro**, and name it (for example, `Change property`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
-3. Click the configure button (the gear icon) to open the Macro Builder, then add your script as a **User Script** command.
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Change property`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. In the Macro Builder, add your script as a **User Script** command.
 4. Edit the script to point at your own daily notes:
    - Change the date format from `gggg-MM-DD - ddd MMM D` to match your daily notes' file names.
    - Change the path from `bins/daily/` to wherever your daily notes live.

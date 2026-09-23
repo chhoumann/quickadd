@@ -38,10 +38,12 @@ screen.
 
 1. Save <a href="/scripts/captureInboxGps.js" download>captureInboxGps.js</a>
    anywhere in your vault except `.obsidian` or a hidden folder.
-2. **Settings → QuickAdd → Add Choice → Macro**. Name it
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
+   Builder opens; click its name at the top to rename it
    `Capture to Inbox with GPS`.
 3. In the Macro Builder, add that script as a **User Script**.
-4. Enable **Command** on the choice so it appears in the palette.
+4. Turn on the ⚡ **Command palette** toggle on the choice's row so it appears
+   in the palette.
 
 ## What you get
 

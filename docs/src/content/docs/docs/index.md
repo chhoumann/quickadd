@@ -13,7 +13,7 @@ New here? Build your [first workflow](#first-workflow) below in about a minute.
 
 ## Install QuickAdd
 
-Install QuickAdd from Obsidian's Community Plugins browser, then enable it.
+Install QuickAdd from Obsidian's Community plugins browser, then enable it.
 
 If you cannot use the plugin browser, follow the
 [manual installation guide](/docs/ManualInstallation/).
@@ -37,10 +37,10 @@ plugin or API.
 Let's build a capture that adds a timestamped line to your daily journal. It
 takes about a minute.
 
-1. Open **Settings → QuickAdd**. Type a name like `Add to journal`, choose
-   **Capture** in the dropdown, and click **Add Choice**.
-2. Click the gear (⚙) next to your new choice to open its settings.
-3. Set **Capture To** to `Journal/{{DATE}}.md` - the note today's entries land in.
+1. Open **Settings → QuickAdd**, click **New choice**, and pick **Capture**. Its
+   settings open right away.
+2. Click the name at the top and rename it to `Add to journal`.
+3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
 4. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
    of one entry.
 5. Close the settings. Open the command palette (Ctrl/Cmd+P), run

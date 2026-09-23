@@ -13,12 +13,11 @@ You end up with one QuickAdd command that drops whatever you type onto a Kanban 
 
 ## Setup
 
-1. In QuickAdd settings, add a new **Capture** choice and name it (for example, `Add to board`).
-2. Open its settings.
-3. Set **Capture to** to your Kanban board file.
-4. Enable the **Task** toggle (in the **Content** section). This wraps your text in `- [ ]` so Kanban reads it as a card.
-5. Set **Write position** to **After line…**.
-6. In the **Insert after** field that appears, write `## ` followed by the name of the lane you want to add the card to. For a lane called `Backlog`, that is `## Backlog`.
+1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Add to board`).
+2. Set **Capture to** to your Kanban board file.
+3. Enable the **Task** toggle (in the **Content** section). This wraps your text in `- [ ]` so Kanban reads it as a card.
+4. Set **Write position** to **After line…**.
+5. In the **Insert after** field that appears, write `## ` followed by the name of the lane you want to add the card to. For a lane called `Backlog`, that is `## Backlog`.
 
 ## What you get
 

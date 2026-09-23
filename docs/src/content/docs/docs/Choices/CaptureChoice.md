@@ -16,14 +16,14 @@ stay right where you are. Use it to:
 
 ## Set up your first capture {#set-up}
 
-1. Open **Settings → QuickAdd**, type a name like `Add to journal`, choose
-   **Capture** in the dropdown, and click **Add Choice**.
-2. Click the gear (⚙) next to the new choice.
-3. Set **Capture To** to where entries should land, for example
+1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The
+   Capture builder opens; click its name at the top to rename it
+   `Add to journal`.
+2. Set **Capture to** to where entries should land, for example
    `Journal/{{DATE}}.md`.
-4. Enable **Capture format** and describe one entry, for example
+3. Enable **Capture format** and describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`.
-5. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
+4. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
 
 You now have this in today's journal note:
