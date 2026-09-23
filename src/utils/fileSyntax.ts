@@ -318,6 +318,12 @@ export function fileBasenameFromPath(value: string): string {
 	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
+/** File name as Obsidian links it: notes drop `.md`, other files keep their extension. */
+export function fileLinkNameFromPath(value: string): string {
+	const segment = value.split("/").pop() ?? value;
+	return segment.replace(/\.md$/i, "");
+}
+
 function scalarTitleValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
 		? value.trim()
@@ -346,9 +352,8 @@ function parentLabel(file: TFile): string {
 
 /** What name mode inserts: attachments keep their extension (`photo.png`). */
 function basenameFor(file: TFile): string {
-	if (file.basename && (!file.extension || file.extension === "md"))
-		return file.basename;
-	return fileBasenameFromPath(file.path);
+	if (file.extension && file.extension !== "md") return file.name;
+	return file.basename || fileLinkNameFromPath(file.path);
 }
 
 export interface FileDisplayInfo {

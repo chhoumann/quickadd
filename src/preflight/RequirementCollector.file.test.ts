@@ -84,6 +84,17 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(notes?.options).toEqual([`${FILE_PICK_PREFIX}Attachments/notes.md`]);
 	});
 
+	it("labels a |type: canvas pick with its extension", async () => {
+		const app = makeApp(["Boards/Plan.canvas", "Boards/Plan.md"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString("{{FILE:Boards|type:canvas}}");
+
+		const req = rc.requirements.get(
+			parseFileToken("Boards|type:canvas")!.variableKey,
+		);
+		expect(req?.displayOptions).toEqual(["Plan.canvas"]);
+	});
+
 	it("uses title metadata for FILE option display labels", async () => {
 		const app = makeApp(["People/01HX.md"], {
 			"People/01HX.md": { frontmatter: { title: "Ada Lovelace" } },
