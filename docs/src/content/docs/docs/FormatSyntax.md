@@ -649,7 +649,7 @@ The active note's folder, as a vault-relative path with no trailing slash
 confused with [`{{FOLDER}}`](#folder), which is the folder a *new* note is
 being created in.
 
-This makes per-project captures work without a macro. With **Capture To** set
+This makes per-project captures work without a macro. With **Capture to** set
 to:
 
 ```text

@@ -1,126 +1,61 @@
-<p align="center">
-  <img src="assets/quickadd-logo.png" alt="QuickAdd for Obsidian" width="520" />
-</p>
+<p align="center"><img src="assets/quickadd-banner.png" alt="QuickAdd for Obsidian" width="520"></p>
 
-QuickAdd is a powerful combination of four tools (called choices): templates, captures, macros, and multis.
+<p align="center"><b>One hotkey to log a line, create a note, or run a whole workflow.</b></p>
 
-A [**Template**](https://quickadd.obsidian.guide/docs/Choices/TemplateChoice) is a definition of how to create a new note, and composes with Obsidian's own Templates core plugin or community template plugins. For example, it would allow you to define a quick action to create a new note in a particular location, with a templatized title, and templated content.
+<p align="center"><a href="https://community.obsidian.md/plugins/quickadd">Install</a>&nbsp;· <a href="https://quickadd.obsidian.guide/docs/">Documentation</a>&nbsp;· <a href="https://quickadd.obsidian.guide/docs/Examples/">Examples</a>&nbsp;· <a href="https://github.com/chhoumann/quickadd/discussions">Discussions</a>&nbsp;· <a href="https://github.com/chhoumann/quickadd/releases">Changelog</a></p>
 
-A [**Capture**](https://quickadd.obsidian.guide/docs/Choices/CaptureChoice) allows you to quickly add content to predefined files. For example, you could set up a quick action to add a link to the open file to your daily note under a specific section.
+<p align="center"><img src="assets/readme-hero.gif" alt="Running QuickAdd: one hotkey adds a timestamped line to today's daily note, then creates a meeting note from a template" width="880"></p>
 
-[**Macros**](https://quickadd.obsidian.guide/docs/Choices/MacroChoice) will allow you to compound these two together into powerful chained workflows. Imagine pressing one hotkey to automatically create a new note to track a chess match with a specific template, while automatically adding a reference to it in your "list of matches" note and in your daily note.
+## What you can build
 
-[Multi choices](https://quickadd.obsidian.guide/docs/Choices/MultiChoice) are purely organisational: folders of other choices.
+Each workflow you set up in QuickAdd is called a **choice**. There are four kinds:
 
-Throughout your choices, you can use the [QuickAdd format syntax](https://quickadd.obsidian.guide/docs/FormatSyntax), which is similar to the Obsidian template syntax. You could, for example, use ``{{DATE}}`` to insert the current date in a filename.
+- **[Template](https://quickadd.obsidian.guide/docs/Choices/TemplateChoice/)** creates a note from a template, with its name, folder, and properties filled in. For example, a meeting note named with today's date in your Meetings folder.
+- **[Capture](https://quickadd.obsidian.guide/docs/Choices/CaptureChoice/)** adds text to a note without opening it. For example, a timestamped line under the Log heading of today's daily note.
+- **[Macro](https://quickadd.obsidian.guide/docs/Choices/MacroChoice/)** runs several steps in a row: other choices, Obsidian commands, scripts, and AI prompts. For example, look up a book online and create a note with its details.
+- **[Multi](https://quickadd.obsidian.guide/docs/Choices/MultiChoice/)** groups choices into a folder in the QuickAdd menu. For example, a Journal folder holding your daily log and gratitude captures.
 
-### Demo video
-[![Demo video](https://img.youtube.com/vi/gYK3VDQsZJo/0.jpg)](https://www.youtube.com/watch?v=gYK3VDQsZJo)
+Placeholders fill in the details each time a choice runs: `{{DATE}}` inserts today's date, `{{VALUE}}` asks you for text, and `{{FIELD:project}}` suggests the `project` values your notes already use. Others insert links, your selection, or the clipboard. See [format syntax](https://quickadd.obsidian.guide/docs/FormatSyntax/) for all of them.
 
-## Installation
+QuickAdd also has:
 
-QuickAdd can be installed through the community plugin browser in Obsidian, or through manual installation. See the [installation documentation](https://quickadd.obsidian.guide/docs/#installation) for more information.
+- **Forms**: collect every input on [one page](https://quickadd.obsidian.guide/docs/Advanced/onePageInputs/), with dropdowns, date pickers, and sliders.
+- **Scripts**: run your own JavaScript as [user scripts](https://quickadd.obsidian.guide/docs/UserScripts/), and call the [QuickAdd API](https://quickadd.obsidian.guide/docs/QuickAddAPI/) from scripts, Templater, or other plugins.
+- **Triggers**: run choices from [`obsidian://quickadd` links](https://quickadd.obsidian.guide/docs/Advanced/ObsidianUri/), Apple Shortcuts, [launchers and schedulers](https://quickadd.obsidian.guide/docs/Advanced/TriggerQuickAddFromOutsideObsidian/), or the [Obsidian CLI](https://quickadd.obsidian.guide/docs/Advanced/CLI/).
+- **AI**: send prompts to OpenAI, Anthropic, Gemini, or any OpenAI-compatible provider, including local models, with the [AI Assistant](https://quickadd.obsidian.guide/docs/AIAssistant/). AI features stay off until you [turn them on](https://quickadd.obsidian.guide/docs/Settings/#ai--online).
+- **Packages**: export your choices as a [package](https://quickadd.obsidian.guide/docs/Choices/Packages/) and import them into another vault.
 
-## Getting Started
+QuickAdd works on desktop and mobile. The Obsidian CLI is desktop-only.
 
-For detailed instructions and examples on using QuickAdd, see the [QuickAdd documentation](https://quickadd.obsidian.guide/).
+## Get started
 
-## Development
+1. In Obsidian, open **Settings → Community plugins**, search for QuickAdd, then install and enable it.
+2. Build your first choice with the one-minute [first workflow](https://quickadd.obsidian.guide/docs/#first-workflow) guide.
+3. In **Settings → QuickAdd**, click the ⚡ next to a choice to add it to the command palette (on mobile, tap ⋮&nbsp;→&nbsp;**Enable in command palette**). Then give it a hotkey in **Settings → Hotkeys**. You can also run any choice with the **QuickAdd: Run** command.
 
-QuickAdd uses `pnpm` for local development tasks:
+Using Templater? Add your template folder in QuickAdd's settings and **QuickAdd: New note from template** works right away. [Coming from Templater](https://quickadd.obsidian.guide/docs/ComingFromTemplater/) shows the QuickAdd way to do each Templater job.
 
-- `pnpm run test` runs the unit test suite.
-- `pnpm run build` type-checks and bundles the plugin.
-- `pnpm run test:e2e` runs Obsidian-backed end-to-end tests.
+## Learn more
 
-The E2E suite depends on an installed Obsidian app and the `obsidian` CLI being
-available on `PATH`. By default it targets the `dev` vault, but the target is
-configurable:
+- [Examples](https://quickadd.obsidian.guide/docs/Examples/): complete workflows for daily notes, inboxes, meetings, books, movies, and more.
+- [Scripting guide](https://quickadd.obsidian.guide/docs/Advanced/ScriptingGuide/): writing your own scripts when the built-in steps aren't enough.
+- [FAQ](https://quickadd.obsidian.guide/docs/FAQ/): answers to common questions.
+- [llms.txt](https://quickadd.obsidian.guide/llms.txt) and the MCP server at `https://quickadd.obsidian.guide/mcp`: the docs in a form AI assistants can read.
 
-```bash
-pnpm run provision:e2e-vault -- --vault quickadd-my-worktree --register-via dev --print-env
-export QUICKADD_E2E_VAULT='quickadd-my-worktree'
-export QUICKADD_E2E_VAULT_PATH='/absolute/path/from/printed/output'
-pnpm run test:e2e
-```
+## Help and feedback
 
-`provision:e2e-vault` creates an isolated Obsidian vault under
-`.obsidian-e2e-vaults/` and symlinks QuickAdd's `manifest.json`, `main.js`, and
-`styles.css` from the selected worktree. Pass `--worktree /path/to/worktree` to
-provision a vault for another checkout. `--register-via dev` asks the running
-Obsidian app to register the new vault through the already-addressable `dev`
-vault, disables Restricted Mode for the provisioned vault, and waits until
-`quickadd:list` works. Omit it if you only want to prepare the vault directory.
-When `QUICKADD_E2E_VAULT_PATH` is set, the tests verify that the Obsidian CLI
-resolved `QUICKADD_E2E_VAULT` to that exact directory before they mutate the
-vault.
+- Ask questions and share workflows in [Discussions](https://github.com/chhoumann/quickadd/discussions).
+- Report bugs and request features in [Issues](https://github.com/chhoumann/quickadd/issues).
+- Report security problems privately, as described in the [security policy](SECURITY.md).
 
-For worktree-local Obsidian runtime isolation, use:
+## Contributing
 
-```bash
-pnpm run obsidian:e2e -- quickadd:list
-pnpm run obsidian:e2e -- dev:errors
-pnpm run obsidian:e2e -- eval code='app.vault.getName()'
-```
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you start: comment on the issue you want to work on and wait for a go-ahead before writing code.
 
-`obsidian:e2e` prepares the worktree-local vault, starts or reuses an isolated
-Obsidian app instance, disables Restricted Mode for that vault, waits until
-`quickadd:list` succeeds, and then forwards the requested command to the
-`obsidian` CLI with the isolated `HOME` and `vault=<worktree vault>` already
-set. Use this wrapper for ad hoc Obsidian CLI work in Codex worktrees instead of
-hand-exporting `QUICKADD_E2E_*` variables for every command.
+## Support QuickAdd
 
-To run the lower-level setup manually:
+If QuickAdd saves you time, you can [buy me a coffee](https://buymeacoffee.com/chhoumann).
 
-```bash
-pnpm run start:e2e-obsidian -- --vault quickadd-my-worktree --print-env
-export QUICKADD_E2E_VAULT='quickadd-my-worktree'
-export QUICKADD_E2E_VAULT_PATH='/absolute/path/from/printed/output'
-export QUICKADD_E2E_OBSIDIAN_HOME='/absolute/path/from/printed/output'
-pnpm run test:e2e
-```
+## License
 
-`start:e2e-obsidian` creates a private Obsidian `HOME` under
-`/tmp/quickadd-obsidian-e2e/`, launches a separate Obsidian app instance with
-that `HOME` and its own Electron `--user-data-dir`, waits until the CLI resolves
-the provisioned vault through that instance's socket, disables Restricted Mode,
-and waits until `quickadd:list` succeeds. Set the printed
-`QUICKADD_E2E_OBSIDIAN_HOME` when running tests so `obsidian-e2e` talks to that
-worktree's Obsidian instance instead of the shared desktop instance.
-
-Failed E2E runs may write artifacts to `.obsidian-e2e-artifacts/`.
-
-### Amp orb setup
-
-Fresh Amp orbs run [`.agents/setup`](.agents/setup). It reproducibly installs
-the pinned Node.js/pnpm toolchain, the checksum-verified official Obsidian Linux
-package, Xvfb, and xauth; installs project dependencies; builds the plugin; and
-provisions the worktree-local test vault. The setup is idempotent and caches its
-downloads under `~/.cache/quickadd-orb/`.
-
-`obsidian-e2e` 0.10 launches isolated instances through macOS's `open` command.
-On Linux, setup patches only this worktree's installed runner to invoke the
-repository-local [`.agents/obsidian-open`](.agents/obsidian-open) compatibility
-shim and to read the installed `obsidian.asar` directly. It does not replace the
-system `/usr/bin/open`. The shim launches official Obsidian on an ephemeral Xvfb
-display, while `~/.local/bin/obsidian` exposes the official CLI redirector.
-Instances still use the runner's private HOME, user-data directory, vault
-registration, readiness probe, and teardown logic.
-
-Run the complete suite in an orb with:
-
-```bash
-pnpm run test:e2e:orb
-```
-
-The wrapper starts the isolated instance, points the tests at its private HOME,
-and traps exit and interruption so teardown always runs. A teardown failure also
-makes the command fail instead of silently leaking an Obsidian process.
-
-Amp runs [`.agents/resume`](.agents/resume) after an existing orb wakes. It only
-performs fast prerequisite checks; Obsidian is intentionally started on demand
-because GUI processes do not survive orb pause/resume.
-
-## Support
-
-If you have any questions or encounter any problems while using QuickAdd, you can use the [community discussions](https://github.com/chhoumann/quickadd/discussions) for support.
+[MIT](LICENSE)

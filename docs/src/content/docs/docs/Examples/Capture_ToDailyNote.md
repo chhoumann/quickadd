@@ -10,17 +10,16 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 
 ## Base setup
 
-1. In QuickAdd settings, add a new **Capture** choice.
-2. Name it (for example, `Daily entry`) and open its settings.
-3. Disable **Capture to active file**.
-4. Set **Capture to** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
-5. Enable **Create file if it doesn't exist**.
-6. Set **Write position** to **After line...**.
-7. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
-8. Enable **Insert at end of section** so each capture appends at the bottom of the section.
-9. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
-10. Leave **Link to captured file** disabled.
-11. Enable **Capture format** and use one of the recipes below.
+1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
+2. Disable **Capture to active file**.
+3. Set **Capture to** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
+4. Enable **Create file if it doesn't exist**.
+5. Set **Write position** to **After line...**.
+6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
+7. Enable **Insert at end of section** so each capture appends at the bottom of the section.
+8. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
+9. Leave **Link to captured file** disabled.
+10. Enable **Capture format** and use one of the recipes below.
 
 ## Recipes
 

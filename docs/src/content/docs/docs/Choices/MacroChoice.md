@@ -44,9 +44,9 @@ your cursor at the end, ready to type. Two commands, run as one.
 
 ### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
 
-1. Open **Settings → QuickAdd**, type a name like `Open daily note`, choose
-   **Macro** in the dropdown, and click **Add Choice**.
-2. Click the gear (⚙) next to the new choice to open the Macro Builder.
+1. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
+   Builder opens; click its name at the top to rename it `Open daily note`.
+   To reopen the builder later, click the gear on the choice's row.
 
 ![The Macro builder](../Images/choices/macro-builder.png)
 

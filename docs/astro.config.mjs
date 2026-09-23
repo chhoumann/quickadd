@@ -169,6 +169,7 @@ export default defineConfig({
 								{ label: "Book finder", slug: "docs/Examples/Macro_BookFinder" },
 								{ label: "Movie & series notes", slug: "docs/Examples/Macro_MovieAndSeriesScript" },
 								{ label: "Log a book to your daily journal", slug: "docs/Examples/Macro_LogBookToDailyJournal" },
+								{ label: "Capture to your inbox with GPS", slug: "docs/Examples/Macro_CaptureInboxGps" },
 								{ label: "Change properties in daily notes", slug: "docs/Examples/Macro_ChangePropertyInDailyNotes" },
 								{ label: "Move notes with a tag to a folder", slug: "docs/Examples/Macro_MoveNotesWithATagToAFolder" },
 								{ label: "Zettelizer", slug: "docs/Examples/Macro_Zettelizer" },

@@ -7,13 +7,15 @@ slug: docs/Choices/MultiChoice
 A Multi is a **folder for your other choices**. Group related choices under one
 entry in the QuickAdd picker, then open it to see what's inside - handy once your
 picker grows past a handful of items. In the settings list, a Multi is the entry
-you can fold and unfold.
+you can fold and unfold. Create one with **New folder** in **Settings →
+QuickAdd**.
 
 ![The Multi choice settings modal](../Images/choices/multi-choice.png)
 
 ## Put choices inside a multi {#add-choices}
 
-You add a choice to a multi by **dragging it in**. Make sure the multi is
+To create a new choice inside a multi, unfold it and click its **Add choice**
+link. To move an existing choice in, **drag it in**. Make sure the multi is
 unfolded (as in the screenshot above), grab the drag handle of the choice you
 want to move, and drop it just below and slightly to the right of the multi's
 own drag handle. When it works, the choice appears indented under the multi.

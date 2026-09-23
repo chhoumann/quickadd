@@ -39,10 +39,9 @@ The inline properties are removed from the body of the note after migration.
 ## Installation
 
 1. Save the script (`migrateDataviewToFrontmatter.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
-2. Open the QuickAdd settings, click "Add Choice", and select "Macro". Give it a name - I named mine `Migrate Properties`.
-3. Click the configure button (⚙) on the macro choice to open the Macro Builder.
-4. Add the user script to the macro's command list.
-5. Click the cog ⚙ icon next to the script command to configure its settings (see Configuration below).
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it - I named mine `Migrate Properties`.
+3. Add the user script to the macro's command list.
+4. Click the cog ⚙ icon next to the script command to configure its settings (see Configuration below).
 
 You can download the script here: <a href="/scripts/migrateDataviewToFrontmatter.js" download>migrateDataviewToFrontmatter.js</a>
 

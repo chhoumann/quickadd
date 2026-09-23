@@ -14,8 +14,8 @@ This macro asks which book you are reading and writes your answer to the **Book*
 ## Setup
 
 1. Save the script below to a `.js` file somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
-2. In QuickAdd settings, click **Add Choice**, select **Macro**, and name it (for example, `Log Book`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
-3. Click the configure button (the gear icon) to open the Macro Builder, then add your script as a **User Script** command.
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Log Book`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. In the Macro Builder, add your script as a **User Script** command.
 
 Run the macro and enter a book title at the prompt. QuickAdd updates the **Book** property in today's journal note to that title.
 

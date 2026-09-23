@@ -14,10 +14,9 @@ You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. Open the QuickAdd settings, click `Add Choice`, and select `Macro`. You decide what to name it. I named mine `Book`. This is what activates the macro.
-4. Click the configure button (⚙️) on the macro choice to open the Macro Builder.
-5. Add the user script to the command list.
-6. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
+3. In **Settings → QuickAdd**, click **New choice** → **Macro**. This is what activates the macro. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine `Book`.
+4. Add the user script to the command list.
+5. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
     2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.

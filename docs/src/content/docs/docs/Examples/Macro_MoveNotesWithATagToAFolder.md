@@ -11,8 +11,8 @@ This macro moves every note carrying a tag you pick into a folder you pick. It m
 ## Setup
 
 1. Save the script below to a `.js` file somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
-2. In QuickAdd settings, click **Add Choice**, select **Macro**, and name it (for example, `Move tagged notes`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
-3. Click the configure button (the gear icon) to open the Macro Builder, then add your script as a **User Script** command.
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Move tagged notes`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. In the Macro Builder, add your script as a **User Script** command.
 
 Run the macro, pick a tag, choose whether to include nested tags, then pick the destination folder. Every matching note moves there.
 
