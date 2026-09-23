@@ -42,11 +42,40 @@ export type ParsedFileToken = {
 	multiSelect: boolean;
 	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
 	multiFormat: MultiValueFormat;
+	/** Extensions `|type:` lists; undefined means Markdown notes only. */
+	extensions?: ReadonlySet<string> | "any";
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
 	variableKey: string;
 };
 
 const MODE_FLAGS = new Set<FileMode>(["name", "link", "path"]);
+
+// Obsidian's accepted file formats, grouped for `|type:`. Any other value is
+// taken as a bare extension, so `|type:canvas` picks canvases.
+const FILE_TYPE_EXTENSIONS = new Map<string, readonly string[]>([
+	["note", ["md"]],
+	["image", ["avif", "bmp", "gif", "jpeg", "jpg", "png", "svg", "webp"]],
+	["audio", ["3gp", "flac", "m4a", "mp3", "ogg", "wav", "webm"]],
+	["video", ["mkv", "mov", "mp4", "ogv", "webm"]],
+	["pdf", ["pdf"]],
+]);
+
+function addFileTypes(
+	extensions: Set<string> | "any" | undefined,
+	value: string,
+): Set<string> | "any" | undefined {
+	if (extensions === "any") return extensions;
+	for (const part of value.split(",")) {
+		const type = part.trim().toLowerCase().replace(/^\./, "");
+		if (!type) continue;
+		if (type === "any") return "any";
+		extensions ??= new Set();
+		for (const extension of FILE_TYPE_EXTENSIONS.get(type) ?? [type]) {
+			extensions.add(extension);
+		}
+	}
+	return extensions;
+}
 
 /** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
 function normalizeFolder(path: string): string {
@@ -73,8 +102,16 @@ function encodeSignatureList(
  * files the picker lists (folder + tag/exclude-* filters). Two tokens that share
  * this list can meaningfully share a pick; two that don't, can't.
  */
-function buildFileScopeSignature(folderPath: string, filter: FieldFilter): string {
+function buildFileScopeSignature(
+	folderPath: string,
+	filter: FieldFilter,
+	extensions: ParsedFileToken["extensions"],
+): string {
 	const parts = [`folder=${normalizeFolder(folderPath)}`];
+	if (extensions)
+		parts.push(
+			`types=${extensions === "any" ? "any" : encodeSignatureList([...extensions])}`,
+		);
 	if (filter.folders?.length)
 		parts.push(`folders=${encodeSignatureList(filter.folders, normalizeFolder)}`);
 	if (filter.tags?.length)
@@ -104,11 +141,20 @@ function buildFileSignature(parsed: {
 	allowCustomInput: boolean;
 	multiSelect: boolean;
 	filter: FieldFilter;
+	extensions: ParsedFileToken["extensions"];
 }): string {
-	const { folderPath, mode, label, optional, allowCustomInput, multiSelect, filter } =
-		parsed;
+	const {
+		folderPath,
+		mode,
+		label,
+		optional,
+		allowCustomInput,
+		multiSelect,
+		filter,
+		extensions,
+	} = parsed;
 	const parts = [
-		buildFileScopeSignature(folderPath, filter),
+		buildFileScopeSignature(folderPath, filter, extensions),
 		`mode=${mode}`,
 	];
 	if (label) parts.push(`label=${label}`);
@@ -123,7 +169,7 @@ function buildFileSignature(parsed: {
  *
  * The first pipe-part is the (required) folder path. FILE-specific options are
  * peeled off here — the bare mode flags `name`/`link`/`path`, `optional`,
- * `custom`, and the key:value `label:` / `name:` — then the remainder is handed
+ * `custom`, and the key:value `label:` / `name:` / `type:` — then the remainder is handed
  * to {@link FieldSuggestionParser.parse} so the folder/tag/exclude-* filter
  * grammar can never diverge from {{FIELD}}. The folder (first segment) is the
  * picker SCOPE, so it is applied as `filter.folder` regardless of any `|folder:`.
@@ -165,15 +211,18 @@ export function parseFileToken(
 		afterMode.push(part);
 	}
 
-	// Peel key:value options that are FILE-specific (label/name); everything else
-	// (tag/exclude-*) is parsed by FieldSuggestionParser below.
+	// Peel key:value options that are FILE-specific (label/name/type); everything
+	// else (tag/exclude-*) is parsed by FieldSuggestionParser below.
 	let label: string | undefined;
 	let aliasName: string | undefined;
+	let extensions: Set<string> | "any" | undefined;
 	for (const part of afterMode) {
 		const parsed = parsePipeKeyValue(part);
 		if (!parsed) continue;
 		if (parsed.key === "label" && parsed.value) label = parsed.value;
 		else if (parsed.key === "name" && parsed.value) aliasName = parsed.value;
+		else if (parsed.key === "type")
+			extensions = addFileTypes(extensions, parsed.value);
 	}
 
 	// Delegate filter parsing to the shared FIELD parser (it skips unknown keys
@@ -199,7 +248,7 @@ export function parseFileToken(
 	// must not silently reuse each other's pick. Mode/label/optional/custom are
 	// intentionally NOT in the alias key, so one pick renders across modes.
 	const variableKey = aliasName
-		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter)}${multiSelect ? "|multi" : ""}`
+		? `${FILE_VARIABLE_PREFIX}name=${aliasName}|${buildFileScopeSignature(folderPath, filter, extensions)}${multiSelect ? "|multi" : ""}`
 		: `${FILE_VARIABLE_PREFIX}${buildFileSignature({
 				folderPath,
 				mode,
@@ -208,6 +257,7 @@ export function parseFileToken(
 				allowCustomInput,
 				multiSelect,
 				filter,
+				extensions,
 			})}`;
 
 	return {
@@ -221,6 +271,7 @@ export function parseFileToken(
 		filter,
 		multiSelect,
 		multiFormat,
+		extensions,
 		variableKey,
 	};
 }
@@ -267,6 +318,12 @@ export function fileBasenameFromPath(value: string): string {
 	return segment.replace(/\.(md|canvas|base)$/i, "");
 }
 
+/** File name as Obsidian links it: notes drop `.md`, other files keep their extension. */
+export function fileLinkNameFromPath(value: string): string {
+	const segment = value.split("/").pop() ?? value;
+	return segment.replace(/\.md$/i, "");
+}
+
 function scalarTitleValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
 		? value.trim()
@@ -293,9 +350,10 @@ function parentLabel(file: TFile): string {
 	return "vault root";
 }
 
+/** What name mode inserts: attachments keep their extension (`photo.png`). */
 function basenameFor(file: TFile): string {
-	if (file.basename) return file.basename;
-	return fileBasenameFromPath(file.path);
+	if (file.extension && file.extension !== "md") return file.name;
+	return file.basename || fileLinkNameFromPath(file.path);
 }
 
 export interface FileDisplayInfo {

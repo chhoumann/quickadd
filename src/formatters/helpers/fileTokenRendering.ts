@@ -1,6 +1,6 @@
 import {
 	decodeFileValue,
-	fileBasenameFromPath,
+	fileLinkNameFromPath,
 	type FileMode,
 } from "../../utils/fileSyntax";
 
@@ -41,7 +41,7 @@ function renderSingleFileValue(
 		case "file":
 			return mode === "path"
 				? decoded.path
-				: fileBasenameFromPath(decoded.path);
+				: fileLinkNameFromPath(decoded.path);
 		case "custom":
 		case "raw":
 			// Literal, user-provided text (a |custom type-in, a one-page typed

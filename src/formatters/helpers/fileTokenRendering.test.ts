@@ -13,6 +13,15 @@ describe("renderStoredFileValue", () => {
 		);
 	});
 
+	it("keeps a picked attachment's extension in name mode so it stays linkable", () => {
+		expect(renderStoredFileValue("@file:Boards/Plan.canvas", "name", link)).toBe(
+			"Plan.canvas",
+		);
+		expect(renderStoredFileValue("@file:Attachments/photo.png", "name", link)).toBe(
+			"photo.png",
+		);
+	});
+
 	it("renders the full path in path mode", () => {
 		expect(renderStoredFileValue("@file:Notes/Idea.md", "path", link)).toBe(
 			"Notes/Idea.md",

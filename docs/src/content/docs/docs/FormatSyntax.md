@@ -970,6 +970,7 @@ Options:
 - `|optional` - allow skipping the pick (becomes nothing).
 - `|custom` - also allow typing a value that isn't in the folder.
 - `|multi` - pick several files. In frontmatter property positions, including a whole-token [property capture](/docs/Choices/CaptureChoice/#property), QuickAdd writes a YAML list. In note bodies, file names, and other text positions it writes comma-separated text. Combine with `|link` or `|path` to write links or paths for every pick.
+- `|type:image` - pick images instead of notes. See [Pick attachments](#file-type).
 - `|label:Pick a person` - set the picker's placeholder text.
 - `|name:<id>` - share one pick between placeholders. FILE placeholders are cached by their full definition: placeholders that differ (folder, filters, mode, or `|label:`) prompt independently, while identical ones reuse one pick. To pick **two different** people, give the placeholders different labels (`{{FILE:People|label:Author}}` and `{{FILE:People|label:Reviewer}}`). To reuse **the same** pick - say, a name in one place and a link in another - give them the same `|name:`. Placeholders sharing an id should target the same folder and filters; the shared pick is required if *any* occurrence omits `|optional`.
 - Filters reuse the FIELD syntax: `|tag:`, `|exclude-folder:`, `|exclude-tag:`, `|exclude-file:` (each repeatable).
@@ -979,7 +980,7 @@ Good to know:
 - The folder is the first part of the placeholder. A `|folder:` option is FIELD syntax and is ignored here.
 - The folder matches **recursively** (subfolders included). Point at a leaf folder (like `{{FILE:fields/people}}`) to scope tightly.
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
-- Markdown files only.
+- Markdown notes only, unless you add `|type:`.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
 - In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
 
@@ -987,6 +988,29 @@ FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
 `|path`, so `{{FILE:People|multi|link|format:yaml}}` writes a native YAML list
 of links without relying on the capture context.
+
+#### Pick attachments: `|type:` {#file-type}
+
+Add `|type:` to pick images, PDFs, and other attachments instead of notes. Put
+`!` in front of a link to embed the file:
+
+```markdown
+!{{FILE:Attachments|type:image|link}}
+```
+
+| Type | Picks |
+| --- | --- |
+| `image` | avif, bmp, gif, jpeg, jpg, png, svg, webp |
+| `audio` | 3gp, flac, m4a, mp3, ogg, wav, webm |
+| `video` | mkv, mov, mp4, ogv, webm |
+| `pdf` | pdf |
+| `note` | md |
+| `any` | Every file |
+
+Any other value is a file extension, so `|type:canvas` picks canvases. Combine
+types with commas: `|type:image,pdf`. The default mode inserts the file name
+with its extension (`photo.png`). `|tag:` only matches notes, since attachments
+have no tags.
 
 ## Insert other content
 

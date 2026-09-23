@@ -5,7 +5,6 @@ import InputSuggester from "../../gui/InputSuggester/inputSuggester";
 import MultiSuggester from "../../gui/MultiSuggester/multiSuggester";
 import GenericSuggester from "../../gui/GenericSuggester/genericSuggester";
 import { FieldSuggestionParser } from "../../utils/FieldSuggestionParser";
-import { FieldSuggestionFileFilter } from "../../utils/FieldSuggestionFileFilter";
 import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
@@ -13,6 +12,7 @@ import { buildFileDisplayLabels, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type Pars
 import { UserCancelError } from "../../errors/UserCancelError";
 import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
+import { getFileTokenFiles } from "../../utils/vaultQueries";
 
 interface VaultPromptContext {
 	app: App;
@@ -194,11 +194,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 	// is driving; the vault-side file filtering below still runs unchanged.
 	const provider = executor?.promptProvider;
 	try {
-		const files = FieldSuggestionFileFilter.filterFiles(
-			app.vault.getMarkdownFiles(),
-			parsed.filter,
-			(file) => app.metadataCache.getFileCache(file),
-		);
+		const files = getFileTokenFiles(app, parsed);
 
 		const placeholder =
 			parsed.label ?? `Select a file from ${parsed.folderPath}`;
@@ -207,7 +203,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 		// dead-ends, mirroring suggestForField. A typed value is stored as custom
 		// (never resolved to a real file); an empty/skip stays "".
 		if (files.length === 0) {
-			const description = `No markdown files found in "${parsed.folderPath}". Type a value or leave empty.`;
+			const description = `No matching files found in "${parsed.folderPath}". Type a value or leave empty.`;
 			const typed = provider
 				? await provider.inputPrompt(placeholder, description)
 				: await GenericInputPrompt.Prompt(

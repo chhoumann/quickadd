@@ -7,7 +7,7 @@ import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
 	decodeFileValue,
-	fileBasenameFromPath,
+	fileLinkNameFromPath,
 	type ParsedFileToken,
 	parseFileToken,
 } from "../utils/fileSyntax";
@@ -339,10 +339,10 @@ export abstract class Formatter extends ValueFormatter {
 				this.app?.fileManager.generateMarkdownLink(
 					file,
 					this.getLinkSourcePath() ?? "",
-				) ?? `[[${fileBasenameFromPath(path)}]]`
+				) ?? `[[${fileLinkNameFromPath(path)}]]`
 			);
 		}
-		return `[[${fileBasenameFromPath(path)}]]`;
+		return `[[${fileLinkNameFromPath(path)}]]`;
 	}
 
 	/**

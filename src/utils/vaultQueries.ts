@@ -2,6 +2,7 @@ import type { App, CachedMetadata, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import type { FieldFilter } from "./FieldSuggestionParser";
+import type { ParsedFileToken } from "./fileSyntax";
 import {
 	normalizeFrontmatterTagValues,
 	normalizeTag,
@@ -163,4 +164,19 @@ export function getMarkdownFilesWithProperty(
 	}
 
 	return files;
+}
+
+/** The files a `{{FILE:...}}` picker offers: its `|type:` files, then its filters. */
+export function getFileTokenFiles(app: App, parsed: ParsedFileToken): TFile[] {
+	const { extensions } = parsed;
+	const files = !extensions
+		? app.vault.getMarkdownFiles()
+		: extensions === "any"
+			? app.vault.getFiles()
+			: app.vault
+					.getFiles()
+					.filter((file) => extensions.has(file.extension.toLowerCase()));
+	return FieldSuggestionFileFilter.filterFiles(files, parsed.filter, (file) =>
+		app.metadataCache.getFileCache(file),
+	);
 }

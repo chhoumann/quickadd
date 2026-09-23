@@ -1,7 +1,7 @@
 import { Formatter } from "./formatter";
 import { PreviewDiagnostics } from "./previewDiagnostics";
 import { getCurrentFileLinkPreview, getCurrentFileNamePreview, getCurrentFolderPathPreview } from "./helpers/previewHelpers";
-import { FieldSuggestionFileFilter } from "../utils/FieldSuggestionFileFilter";
+import { getFileTokenFiles } from "../utils/vaultQueries";
 import { FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../utils/fileSyntax";
 
 /** Shared inert resolvers. Concrete previews retain their own pass order. */
@@ -45,13 +45,7 @@ export abstract class PreviewFormatter extends Formatter {
 
 	protected suggestForFile(parsed: ParsedFileToken): string {
 		// Preview: show a representative real file, else a placeholder. Never prompt.
-		const files = this.app
-			? FieldSuggestionFileFilter.filterFiles(
-					this.app.vault.getMarkdownFiles(),
-					parsed.filter,
-					(file) => this.app!.metadataCache.getFileCache(file),
-				)
-			: [];
+		const files = this.app ? getFileTokenFiles(this.app, parsed) : [];
 		if (files.length > 0) return `${FILE_PICK_PREFIX}${files[0].path}`;
 		return `${FILE_CUSTOM_PREFIX}${parsed.folderPath || "file"}`;
 	}
