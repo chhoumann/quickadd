@@ -7,11 +7,12 @@ import {
 
 function makeFile(path: string) {
 	const segment = path.split("/").pop() ?? path;
-	const basename = segment.replace(/\.md$/, "");
+	const basename = segment.replace(/\.[^.]+$/, "");
+	const extension = segment.slice(basename.length + 1);
 	const parentPath = path.includes("/")
 		? path.slice(0, path.lastIndexOf("/"))
 		: "/";
-	return { path, name: segment, basename, parent: { path: parentPath } };
+	return { path, name: segment, basename, extension, parent: { path: parentPath } };
 }
 
 const makeApp = (
@@ -23,7 +24,9 @@ const makeApp = (
 		vault: {
 			getAbstractFileByPath: () => null,
 			cachedRead: async () => "",
-			getMarkdownFiles: () => paths.map(makeFile),
+			getFiles: () => paths.map(makeFile),
+			getMarkdownFiles: () =>
+				paths.filter((path) => path.endsWith(".md")).map(makeFile),
 		},
 		metadataCache: {
 			getFileCache: (file: { path: string }) =>
@@ -55,6 +58,30 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 			`${FILE_PICK_PREFIX}Research Topics/Beta.md`,
 		]);
 		expect(req?.displayOptions).toEqual(["Alpha", "Beta"]);
+	});
+
+	it("offers attachments of the |type: instead of notes, labelled with their extension", async () => {
+		const app = makeApp([
+			"Attachments/photo.png",
+			"Attachments/Photo.JPG",
+			"Attachments/scan.pdf",
+			"Attachments/notes.md",
+			"Elsewhere/logo.png",
+		]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString("!{{FILE:Attachments|type:image|link}} {{FILE:Attachments}}");
+
+		const images = rc.requirements.get(
+			parseFileToken("Attachments|type:image|link")!.variableKey,
+		);
+		expect(images?.options).toEqual([
+			`${FILE_PICK_PREFIX}Attachments/photo.png`,
+			`${FILE_PICK_PREFIX}Attachments/Photo.JPG`,
+		]);
+		expect(images?.displayOptions).toEqual(["photo.png", "Photo.JPG"]);
+
+		const notes = rc.requirements.get(parseFileToken("Attachments")!.variableKey);
+		expect(notes?.options).toEqual([`${FILE_PICK_PREFIX}Attachments/notes.md`]);
 	});
 
 	it("uses title metadata for FILE option display labels", async () => {

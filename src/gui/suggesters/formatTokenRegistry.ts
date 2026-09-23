@@ -237,6 +237,7 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 				rows.push(
 					token("{{FILE:<folder>|link}}", "Same, but inserts a link to the note"),
 					token("{{FILE:<folder>|path}}", "Same, but inserts its full path"),
+					token("{{FILE:<folder>|type:image|link}}", "Same, but links an image instead of a note"),
 					token("{{FILE:<folder>|optional}}", "Same, but skippable"),
 				);
 			}

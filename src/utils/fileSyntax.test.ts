@@ -86,6 +86,22 @@ describe("parseFileToken", () => {
 		expect(parsed?.filter.excludeFiles).toEqual(["tmp.md"]);
 	});
 
+	it("lists Markdown notes only unless |type: is given", () => {
+		expect(parseFileToken("People")?.extensions).toBeUndefined();
+		expect(parseFileToken("People|type:any")?.extensions).toBe("any");
+		expect(parseFileToken("People|type:any|type:image")?.extensions).toBe("any");
+	});
+
+	it("expands |type: categories and takes other values as extensions", () => {
+		const extensions = parseFileToken(
+			"Attachments|type:image,PDF|type:.canvas",
+		)?.extensions;
+		expect(extensions).toBeInstanceOf(Set);
+		expect([...(extensions as Set<string>)].sort()).toEqual([
+			"avif", "bmp", "canvas", "gif", "jpeg", "jpg", "pdf", "png", "svg", "webp",
+		]);
+	});
+
 	describe("variableKey identity", () => {
 		it("differs by mode (independent prompts by default)", () => {
 			const name = parseFileToken("People")!.variableKey;
@@ -135,6 +151,12 @@ describe("parseFileToken", () => {
 			const pub = parseFileToken("People|tag:public|name:ref")!.variableKey;
 			const priv = parseFileToken("People|tag:private|name:ref")!.variableKey;
 			expect(pub).not.toBe(priv);
+		});
+
+		it("does NOT share |name: across different file types", () => {
+			const notes = parseFileToken("Inbox|name:ref")!.variableKey;
+			const images = parseFileToken("Inbox|type:image|name:ref")!.variableKey;
+			expect(notes).not.toBe(images);
 		});
 
 		it("does NOT collapse a comma-bearing filter value with two separate values", () => {
