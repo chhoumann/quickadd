@@ -30,8 +30,10 @@ or starting a discussion.
 QuickAdd uses `pnpm` for local development tasks.
 
 ```bash
-pnpm run test
-pnpm run build
+pnpm install
+pnpm run dev    # rebuild main.js on every change
+pnpm run test   # unit tests
+pnpm run build  # type-check and bundle
 ```
 
 For changes that affect the plugin at runtime, verify the behavior in Obsidian
@@ -44,3 +46,20 @@ obsidian vault=dev plugin:reload id=quickadd
 
 Keep pull requests narrow. Include generated files such as `main.js` and
 `styles.css` when the source change updates them.
+
+### End-to-end tests
+
+`pnpm run test:e2e` runs tests against a real Obsidian app. It needs Obsidian
+installed and the `obsidian` CLI on `PATH`. Each worktree gets its own vault and
+Obsidian instance, so the tests never touch your own vaults:
+
+```bash
+eval "$(pnpm run --silent start:e2e-obsidian -- --print-env)"
+export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
+pnpm run test:e2e
+pnpm run stop:e2e-obsidian
+```
+
+Failed runs write artifacts to `.obsidian-e2e-artifacts/`. For ad hoc commands
+against the isolated instance, such as `pnpm run obsidian:e2e -- quickadd:list`,
+see the Obsidian runtime workflow in [AGENTS.md](AGENTS.md).
