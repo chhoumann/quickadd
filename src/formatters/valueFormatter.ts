@@ -22,6 +22,7 @@ import {
 } from "../utils/yamlScalarQuoting";
 import {
 	renderExplicitMultiValue,
+	writesPicksAsItems,
 	type MultiValueFormat,
 } from "../utils/multiValueFormat";
 import { toWikiLink } from "../utils/linkWrap";
@@ -75,6 +76,8 @@ export abstract class ValueFormatter {
 	private readonly propertyCollector: TemplatePropertyCollector;
 	private templatePropertyCollectionDepth = 0;
 	private singleTokenValue?: { input: string; result?: { value: unknown } };
+	/** Set while formatting a list property value, where each pick of a list is one line, so one item. */
+	protected listPicksAsLines = false;
 
 	/** A format that is exactly one token or one inline script keeps its native value (number, list, ...). */
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
@@ -387,6 +390,10 @@ export abstract class ValueFormatter {
 		heuristicEnabled: boolean;
 		multiFormat?: MultiValueFormat;
 	}): string | undefined {
+		if (this.listPicksAsLines && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
+			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
+			return args.rawValue.map(String).join("\n");
+		}
 		if (!args.multiFormat || args.multiFormat === "auto") {
 			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
 		}

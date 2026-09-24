@@ -150,18 +150,21 @@ export class CompleteFormatter extends Formatter {
 		);
 	}
 
-	async formatPropertyValue(input: string): Promise<unknown> {
+	/** `listItems`: the value lands in a list, so each list pick becomes its own line (item). */
+	async formatPropertyValue(input: string, options: { listItems?: boolean } = {}): Promise<unknown> {
 		const value = await this.preserveSingleTokenValue(input, () =>
 			this.withPromptScope("propertyValue", input, async () => {
 				// Author tokens (VALUE/DATE/…) and current-file tokens run first.
 				// PROPERTY expands last so the seeded snapshot is inserted as
 				// literal text and cannot be re-scanned (#1748 CodeRabbit).
 				this.skipPropertyExpansion = true;
+				this.listPicksAsLines = options.listItems ?? false;
 				let output: string;
 				try {
 					output = await this.format(input);
 				} finally {
 					this.skipPropertyExpansion = false;
+					this.listPicksAsLines = false;
 				}
 				output = this.replaceCurrentFileTokensInString(output, {
 					links: true, fileName: true, folder: true, activeFolder: "content", title: true,

@@ -32,6 +32,23 @@ function currentLineIndent(input: string, matchStart: number): string {
 	return input.slice(lineStart, matchStart).match(/^\s*/)?.[0] ?? "";
 }
 
+/**
+ * Whether a list property Capture writes this token's list as one item per pick:
+ * a list-shaped format (inline and spaced ask for one joined item) on a line of its own.
+ */
+export function writesPicksAsItems(args: {
+	input: string;
+	matchStart: number;
+	matchEnd: number;
+	format?: MultiValueFormat;
+}): boolean {
+	if (args.format === "inline" || args.format === "spaced") return false;
+	const lineStart = args.input.lastIndexOf("\n", args.matchStart - 1) + 1;
+	const lineEnd = args.input.indexOf("\n", args.matchEnd);
+	return args.input.slice(lineStart, args.matchStart).trim() === ""
+		&& args.input.slice(args.matchEnd, lineEnd === -1 ? undefined : lineEnd).trim() === "";
+}
+
 function renderMarkdownItem(value: string): string {
 	return `- ${value.replace(/\r\n?|\n/g, "\n  ")}`;
 }

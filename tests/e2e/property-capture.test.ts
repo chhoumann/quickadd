@@ -72,6 +72,19 @@ describe("property capture in native Obsidian", () => {
 			.toEqual({ properties: { tags: ["old", "personal", "work", "Smith, John"] }, body: BODY });
 	});
 
+	it("adds each multi-select pick as its own item next to other lines, whatever its |format:", async () => {
+		const { obsidian, sandbox } = getContext();
+		const path = await seedVaultFile(obsidian, sandbox, "multi-picks.md", `---\ntags: [old]\n---\n${BODY}`);
+		const choice = choiceFor(path);
+		choice.format = { enabled: true, format: "{{VALUE:work,home,urgent|multi|format:markdown}}\ninbox" };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		await saveChoice(choice);
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ "work,home,urgent": ["work", "urgent"] }) });
+		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
+		await expect.poll(() => readNote(path), { timeout: 10000, interval: 100 })
+			.toEqual({ properties: { tags: ["old", "work", "urgent", "inbox"] }, body: BODY });
+	});
+
 	it("sets each line as an item on a property Obsidian already knows as a list", async () => {
 		const { obsidian, sandbox } = getContext();
 		const path = await seedVaultFile(obsidian, sandbox, "set-lines.md", `---\ntags: [old]\n---\n${BODY}`);
