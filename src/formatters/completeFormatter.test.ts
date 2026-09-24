@@ -1905,6 +1905,18 @@ describe("property value formatting", () => {
 		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue(format, { listItems: true })).toEqual(expected);
 	});
 
+	it.each([
+		["{{VALUE:A,B|multi}}", "tags"],
+		["{{VALUE:A,B|multi|label:Topics}}", "Topics"],
+	])("titles the picker of %s after the property unless it has a label", async (format, title) => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyKey", "tags");
+		const f = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["A"]);
+		await f.formatPropertyValue(format, { listItems: true });
+		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({ placeholder: title });
+	});
+
 	it("keeps comma-joined picks when the property is not a list", async () => {
 		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\nfixed")).toBe("A,B\nfixed");
 	});

@@ -497,7 +497,11 @@ export abstract class ValueFormatter {
 		if (resolvedKey) return resolvedKey;
 
 		const helperText = !hasOptions && label ? label : undefined;
-		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+		// A picker in a property Capture is answering for that property, so it is named after it.
+		const propertyKey = this.promptScope === "propertyValue" ? this.variables.get("propertyKey") : undefined;
+		const suggesterPlaceholder = hasOptions
+			? label || (typeof propertyKey === "string" ? propertyKey : undefined)
+			: undefined;
 
 		// |multi opens a multi-select picker and stores a real ARRAY so the
 		// property collector writes a proper YAML list (no beta flag needed).
