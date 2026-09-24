@@ -130,6 +130,14 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		return getSuggestionPreview(context?.displayValues ?? suggestedValues);
 	}
 
+	protected suggestForValueMulti(
+		suggestedValues: string[],
+		_allowCustomInput?: boolean,
+		context?: { displayValues?: string[] },
+	): string[] {
+		return [getSuggestionPreview(context?.displayValues ?? suggestedValues)];
+	}
+
 	protected getMacroValue(
 		macroName: string,
 		_context?: { label?: string },
