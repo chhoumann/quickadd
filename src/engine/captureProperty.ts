@@ -158,6 +158,18 @@ function propertyType(type: string | null, key: string): PropertyType | null {
 	}
 }
 
+/** Whether the capture writes list items, known before the format runs. */
+export function capturesListItems(args: {
+	key: string;
+	action: PropertyCapture["action"];
+	registeredType: string | null;
+	existing: unknown;
+}): boolean {
+	if (args.action === "addToList") return true;
+	const type = propertyType(args.registeredType, args.key);
+	return type === "list" || (type === null && Array.isArray(args.existing));
+}
+
 function inferType(value: CapturePropertyValue): PropertyType {
 	if (Array.isArray(value)) return "list";
 	if (typeof value === "boolean") return "checkbox";

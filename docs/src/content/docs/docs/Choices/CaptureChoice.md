@@ -357,12 +357,13 @@ Other useful patterns:
   box.
 - Text, number, checkbox, date, and date-time properties never split on line
   breaks.
-- Arrays from `|multi` pickers and scripts are written as they are, even if an
-  item contains a line break. A `|multi` picker combined with other lines
-  produces text, so its picks land in one comma-joined item; keep `|multi`
-  alone in the format, or use a plain `{{VALUE}}` line for the typed value.
-  An explicit `|format:markdown` or `|format:yaml` keeps its dashes or YAML
-  markers in each item.
+- A `|multi` picker or a script's list on its own line adds one item per pick,
+  next to any other lines. Its `|format:markdown` or `|format:yaml` adds no dashes or brackets.
+  `|format:inline` or `|format:spaced` joins the picks into one item, and so
+  does other text on the picker's line.
+- A format that is only a `|multi` picker or a script's list writes each item
+  as it is, even one that contains a line break. Next to other lines, such an
+  item stops the capture.
 
 Neither action converts an existing text, number, or checkbox property into a
 list. An empty or whitespace-only text value or empty list with **Add to list**
@@ -393,6 +394,7 @@ to a missing property whose type is already set in Obsidian. An explicit
 | `done` | **Set value** | `{{VALUE:done\|type:checkbox}}` | A Checkbox property. |
 | `tags` | **Add to list** | `work` and `personal` on two lines | Adds both tags without a prompt. |
 | `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` | Adds the selected tags. |
+| `tags` | **Add to list** | `{{VALUE:work,personal\|multi}}` then `inbox` on two lines | Adds the selected tags and `inbox`. |
 | `tags` | **Add to list** | `work` then `{{PROPERTY}}` on two lines | Inserts `work` above the existing tags. |
 | `status` | **Set value** | `{{PROPERTY}} → Ready` | Keeps the current text and appends ` → Ready`. |
 | `people` | **Set value** | `{{FILE:People\|multi\|link}}` | Replaces the list with links to the selected notes. |

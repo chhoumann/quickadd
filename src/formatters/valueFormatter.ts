@@ -22,6 +22,7 @@ import {
 } from "../utils/yamlScalarQuoting";
 import {
 	renderExplicitMultiValue,
+	writesPicksAsItems,
 	type MultiValueFormat,
 } from "../utils/multiValueFormat";
 import { toWikiLink } from "../utils/linkWrap";
@@ -75,6 +76,8 @@ export abstract class ValueFormatter {
 	private readonly propertyCollector: TemplatePropertyCollector;
 	private templatePropertyCollectionDepth = 0;
 	private singleTokenValue?: { input: string; result?: { value: unknown } };
+	/** Set while formatting a list property value, where each pick of a list is one line, so one item. */
+	protected listPicksAsLines = false;
 
 	/** A format that is exactly one token or one inline script keeps its native value (number, list, ...). */
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
@@ -91,10 +94,12 @@ export abstract class ValueFormatter {
 		}
 	}
 
-	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): void {
+	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): boolean {
 		if (this.singleTokenValue?.input === input && start === 0 && end === input.length) {
 			this.singleTokenValue.result = { value };
+			return true;
 		}
+		return false;
 	}
 
 	private propertyTokenValue(value: unknown, inputType?: string): unknown {
@@ -387,6 +392,15 @@ export abstract class ValueFormatter {
 		heuristicEnabled: boolean;
 		multiFormat?: MultiValueFormat;
 	}): string | undefined {
+		if (this.listPicksAsLines && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
+			const picks = args.rawValue.map(String);
+			const whole = this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
+			// Lines are the item boundary, so a pick with a line break would silently become several items.
+			if (!whole && picks.some((pick) => /[\r\n]/.test(pick))) {
+				throw new Error("A list item that contains a line break can only be written when its token is the whole Capture format.");
+			}
+			return picks.join("\n");
+		}
 		if (!args.multiFormat || args.multiFormat === "auto") {
 			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
 		}
@@ -490,7 +504,11 @@ export abstract class ValueFormatter {
 		if (resolvedKey) return resolvedKey;
 
 		const helperText = !hasOptions && label ? label : undefined;
-		const suggesterPlaceholder = hasOptions && label ? label : undefined;
+		// A picker in a property Capture is answering for that property, so it is named after it.
+		const propertyKey = this.promptScope === "propertyValue" ? this.variables.get("propertyKey") : undefined;
+		const suggesterPlaceholder = hasOptions
+			? label || (typeof propertyKey === "string" ? propertyKey : undefined)
+			: undefined;
 
 		// |multi opens a multi-select picker and stores a real ARRAY so the
 		// property collector writes a proper YAML list (no beta flag needed).

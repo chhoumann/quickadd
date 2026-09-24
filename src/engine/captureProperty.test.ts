@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	captureListItems,
+	capturesListItems,
 	formatContainsPropertyToken,
 	isEmptyCaptureListValue,
 	planPropertyUpdate,
@@ -15,6 +16,20 @@ import { parsePropertyCapture } from "../types/choices/ICaptureChoice";
 
 const set = { action: "set", createIfMissing: true } as const;
 const add = { action: "addToList", createIfMissing: true } as const;
+
+describe("captures list items", () => {
+	it.each([
+		["addToList", "status", null, "text", true],
+		["set", "topics", "multitext", undefined, true],
+		["set", "Tags", null, undefined, true],
+		["set", "topics", null, ["a"], true],
+		["set", "topics", null, "a", false],
+		["set", "topics", null, undefined, false],
+		["set", "topics", "text", ["a"], false],
+	] as const)("%s into %s (type %s, current %j) is %s", (action, key, registeredType, existing, expected) => {
+		expect(capturesListItems({ key, action, registeredType, existing })).toBe(expected);
+	});
+});
 
 describe("capture list items", () => {
 	it.each([

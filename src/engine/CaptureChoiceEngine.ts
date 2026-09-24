@@ -29,6 +29,7 @@ import type QuickAdd from "../main";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { parsePropertyCapture, type PropertyCapture } from "../types/choices/ICaptureChoice";
 import {
+	capturesListItems,
 	formatContainsPropertyToken,
 	isEmptyCaptureListValue,
 	planPropertyUpdate,
@@ -699,7 +700,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			this.formatter.consumePropertyTokenExpanded();
 			const value = await this.formatter.formatPropertyValue(inheritPropertyValueType(
 				propertyFormat, inputType,
-			));
+			), {
+				listItems: capturesListItems({ key, action: config.action, registeredType, existing: existingValue }),
+			});
 			// Raw-format detection covers the common case. The expansion flag covers
 			// {{PROPERTY}} injected by macros, templates, or global variables.
 			const compose = formatContainsPropertyToken(propertyFormat)

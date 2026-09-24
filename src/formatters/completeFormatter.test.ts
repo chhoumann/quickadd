@@ -1888,6 +1888,46 @@ describe("property value formatting", () => {
 		expect(await f.formatPropertyValue("Tags: ```js quickadd\nreturn ['a', 'b'];\n```")).toBe("Tags: a,b");
 	});
 
+	function formatterWithPicks(picks: string[]) {
+		const executor = createChoiceExecutor();
+		executor.variables.set("A,B,C", picks);
+		return new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+	}
+
+	it.each([
+		["{{VALUE:A,B,C|multi}}\nfixed", "A\nB\nfixed"],
+		["{{VALUE:A,B,C|multi|format:markdown}}\nfixed", "A\nB\nfixed"],
+		["  {{VALUE:A,B,C|multi|format:yaml}}  \nfixed", "  A\nB  \nfixed"],
+		["{{VALUE:A,B,C|multi|format:markdown}}", ["A", "B"]],
+		["{{VALUE:A,B,C|multi|format:spaced}}\nfixed", "A, B\nfixed"],
+		["project/{{VALUE:A,B,C|multi}}", "project/A,B"],
+	])("writes each pick of %j as its own line for a list property", async (format, expected) => {
+		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue(format, { listItems: true })).toEqual(expected);
+	});
+
+	it.each([
+		["{{VALUE:A,B|multi}}", "tags"],
+		["{{VALUE:A,B|multi|label:Topics}}", "Topics"],
+	])("titles the picker of %s after the property unless it has a label", async (format, title) => {
+		const executor = createChoiceExecutor();
+		executor.variables.set("propertyKey", "tags");
+		const f = new CompleteFormatter(makeApp({ activeFile: null, selection: null, generatedLink: "" }) as any, makePlugin() as any, executor);
+		mocks.multiSuggesterSuggest.mockResolvedValue(["A"]);
+		await f.formatPropertyValue(format, { listItems: true });
+		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({ placeholder: title });
+	});
+
+	it("keeps a pick with a line break whole only when its token is the whole format", async () => {
+		expect(await formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}", { listItems: true }))
+			.toEqual(["Research\nwriting", "B"]);
+		await expect(formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\ninbox", { listItems: true }))
+			.rejects.toThrow("line break");
+	});
+
+	it("keeps comma-joined picks when the property is not a list", async () => {
+		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\nfixed")).toBe("A,B\nfixed");
+	});
+
 	it.each([0, false, ["a,b", "c"], [], { nested: true }])("retains whole-token native values for validation: %j", async (value) => {
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(value);
 		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE}}")).toEqual(value);

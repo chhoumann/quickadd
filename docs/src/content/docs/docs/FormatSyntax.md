@@ -425,7 +425,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
