@@ -362,7 +362,8 @@ Other useful patterns:
   `|format:inline` or `|format:spaced` joins the picks into one item, and so
   does other text on the picker's line.
 - A format that is only a `|multi` picker or a script's list writes each item
-  as it is, even one that contains a line break.
+  as it is, even one that contains a line break. Next to other lines, such an
+  item stops the capture.
 
 Neither action converts an existing text, number, or checkbox property into a
 list. An empty or whitespace-only text value or empty list with **Add to list**

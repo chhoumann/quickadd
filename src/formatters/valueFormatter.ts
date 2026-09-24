@@ -94,10 +94,12 @@ export abstract class ValueFormatter {
 		}
 	}
 
-	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): void {
+	protected retainSingleTokenValue(input: string, start: number, end: number, value: unknown): boolean {
 		if (this.singleTokenValue?.input === input && start === 0 && end === input.length) {
 			this.singleTokenValue.result = { value };
+			return true;
 		}
+		return false;
 	}
 
 	private propertyTokenValue(value: unknown, inputType?: string): unknown {
@@ -391,8 +393,13 @@ export abstract class ValueFormatter {
 		multiFormat?: MultiValueFormat;
 	}): string | undefined {
 		if (this.listPicksAsLines && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
-			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
-			return args.rawValue.map(String).join("\n");
+			const picks = args.rawValue.map(String);
+			const whole = this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
+			// Lines are the item boundary, so a pick with a line break would silently become several items.
+			if (!whole && picks.some((pick) => /[\r\n]/.test(pick))) {
+				throw new Error("A list item that contains a line break can only be written when its token is the whole Capture format.");
+			}
+			return picks.join("\n");
 		}
 		if (!args.multiFormat || args.multiFormat === "auto") {
 			this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);

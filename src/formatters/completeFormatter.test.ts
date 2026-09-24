@@ -1917,6 +1917,13 @@ describe("property value formatting", () => {
 		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({ placeholder: title });
 	});
 
+	it("keeps a pick with a line break whole only when its token is the whole format", async () => {
+		expect(await formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}", { listItems: true }))
+			.toEqual(["Research\nwriting", "B"]);
+		await expect(formatterWithPicks(["Research\nwriting", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\ninbox", { listItems: true }))
+			.rejects.toThrow("line break");
+	});
+
 	it("keeps comma-joined picks when the property is not a list", async () => {
 		expect(await formatterWithPicks(["A", "B"]).formatPropertyValue("{{VALUE:A,B,C|multi}}\nfixed")).toBe("A,B\nfixed");
 	});
