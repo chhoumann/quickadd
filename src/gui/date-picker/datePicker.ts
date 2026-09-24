@@ -177,7 +177,10 @@ export const createDatePicker = (
 			cls: "qa-date-picker__time-label",
 			text: "Time",
 		});
-		timeInput = timeRow.createEl("input", { cls: "qa-date-picker__time-input" });
+		timeInput = timeRow.createEl("input", {
+			cls: "qa-date-picker__time-input",
+			attr: { "aria-label": "Time" },
+		});
 		timeInput.type = "time";
 		if (currentTime) {
 			timeInput.value = `${pad(currentTime.hour)}:${pad(currentTime.minute)}`;

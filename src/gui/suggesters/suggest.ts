@@ -307,6 +307,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// A pending debounced call can fire after destroy() removed the input
 		// listeners; bail so a destroyed instance never re-opens.
 		if (this.destroyed || this.inputEl.closest("[hidden]")) return;
+		// The handler is debounced, so focus may have moved on since the focus or
+		// input event fired; a popup must never open under an unfocused input.
+		if (this.inputEl.ownerDocument.activeElement !== this.inputEl) return;
 		const keepOpen = Boolean(event?.fromCompletion && event.keepOpen);
 		if (event?.fromCompletion && !keepOpen) return;
 

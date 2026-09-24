@@ -1,5 +1,4 @@
-import { dispatchCompletion } from "./utils";
-import type { App } from "obsidian";
+import type { App, SearchMatches } from "obsidian";
 import {
 	FieldSuggestionParser,
 	type FieldFilter,
@@ -7,12 +6,18 @@ import {
 import {
 	collectFieldValuesProcessed,
 } from "src/utils/FieldValueCollector";
+import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
+import { dispatchCompletion, renderHighlightRanges } from "./utils";
+
+const MAX_RESULTS = 200;
 
 export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	private readonly fieldInput: string;
 	private readonly fieldName: string;
 	private readonly filters: FieldFilter;
+	// Match ranges of the last suggestions, for highlighting.
+	private matchesByItem = new Map<string, SearchMatches>();
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
@@ -32,15 +37,15 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 			this.filters,
 		);
 
-		const query = (inputStr || "").toLowerCase();
-		if (!query) return values.slice(0, 200);
-		return values
-			.filter((v) => v.toLowerCase().includes(query))
-			.slice(0, 200);
+		const ranked = rankMatches(inputStr, values, (value) => value, {
+			limit: MAX_RESULTS,
+		});
+		this.matchesByItem = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		return ranked.map(({ item }) => item);
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		this.renderMatch(el, item, this.getCurrentQuery());
+		renderHighlightRanges(el, item, this.matchesByItem.get(item) ?? []);
 	}
 
 	selectSuggestion(item: string): void {

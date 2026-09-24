@@ -237,29 +237,31 @@ export function renderExactHighlight(el: HTMLElement, text: string, query: strin
 }
 
 /**
- * Render fuzzy match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
+ * Render `text` with the given [start, end) ranges wrapped in highlight marks
+ * (DOM nodes, so HTML in `text` stays literal). `offset` shifts ranges that were
+ * computed on a longer string this text is a slice of, e.g. a label searched as
+ * "label path"; ranges outside the text are clipped away.
  */
-export function renderFuzzyHighlight(el: HTMLElement, text: string, query: string): void {
+export function renderHighlightRanges(
+	el: HTMLElement,
+	text: string,
+	ranges: ReadonlyArray<readonly [number, number]>,
+	offset = 0,
+): void {
 	el.replaceChildren();
-	if (!query) {
-		el.textContent = text;
-		return;
+	let from = 0;
+	for (const [rangeStart, rangeEnd] of ranges) {
+		const start = Math.max(from, rangeStart - offset);
+		const end = Math.min(text.length, rangeEnd - offset);
+		if (end <= start) continue;
+		if (start > from) el.append(createOwnedTextNode(el, text.slice(from, start)));
+		const mark = createOwnedElement(el, "mark");
+		mark.className = "qa-highlight";
+		mark.textContent = text.slice(start, end);
+		el.append(mark);
+		from = end;
 	}
-
-	const q = query.toLowerCase();
-	let qi = 0;
-
-	for (const ch of text) {
-		if (qi < q.length && ch.toLowerCase() === q[qi]) {
-			const mark = createOwnedElement(el, 'mark');
-			mark.className = 'qa-highlight';
-			mark.textContent = ch;
-			el.append(mark);
-			qi++;
-		} else {
-			el.append(createOwnedTextNode(el, ch));
-		}
-	}
+	if (from < text.length) el.append(createOwnedTextNode(el, text.slice(from)));
 }
 
 // Single-source heading sanitizer; lives in its own dependency-free module

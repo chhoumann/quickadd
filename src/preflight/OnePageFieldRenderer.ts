@@ -31,7 +31,11 @@ interface FieldRendererHost {
 	publish(control: FieldControl): void;
 	updatePreview(): void;
 	decorateLabel(requirement: FieldRequirement): string | DocumentFragment;
-	attachFreeText(requirement: FieldRequirement, input: HTMLInputElement | HTMLTextAreaElement, setting: Setting): void;
+	attachFreeText(requirement: FieldRequirement, input: HTMLInputElement | HTMLTextAreaElement): void;
+}
+
+function labelId(req: FieldRequirement): string {
+	return `qa-onepage-label-${req.id}`;
 }
 
 export class OnePageFieldRenderer {
@@ -41,10 +45,24 @@ export class OnePageFieldRenderer {
 		private readonly host: FieldRendererHost,
 	) {}
 
+	// The Setting of the field being rendered, so its controls can be named
+	// after the label once created.
+	private fieldSetting?: Setting;
+
 	private setting(req: FieldRequirement, describe = true): Setting {
 		const setting = new Setting(this.contentEl).setName(this.host.decorateLabel(req));
+		setting.nameEl.id = labelId(req);
 		if (describe && req.description) setting.setDesc(req.description);
+		this.fieldSetting = setting;
 		return setting;
+	}
+
+	// Name the field's controls after its label, unless they carry their own name.
+	private labelControls(req: FieldRequirement): void {
+		this.fieldSetting?.controlEl
+			.querySelectorAll("input:not([aria-label]), textarea:not([aria-label]), select:not([aria-label])")
+			.forEach((el) => el.setAttribute("aria-labelledby", labelId(req)));
+		this.fieldSetting = undefined;
 	}
 
 	render(req: FieldRequirement) {
@@ -67,7 +85,7 @@ export class OnePageFieldRenderer {
 				input.setPlaceholder(req.placeholder ?? "").setValue(starting)
 					.onChange((value) => setValue(req.id, value));
 				if (req.type === "textarea") input.inputEl.addClass("qa-onepage-textarea");
-				this.host.attachFreeText(req, input.inputEl, setting);
+				this.host.attachFreeText(req, input.inputEl);
 				break;
 			}
 			case "number": {
@@ -403,10 +421,11 @@ export class OnePageFieldRenderer {
 					.setPlaceholder(req.placeholder ?? "")
 					.setValue(starting)
 					.onChange((v) => setValue(req.id, v));
-				this.host.attachFreeText(req, input.inputEl, setting);
+				this.host.attachFreeText(req, input.inputEl);
 			}
 		}
 
+		this.labelControls(req);
 		// Initialize stored value for empty inputs to ensure presence
 		this.host.publish(control);
 	}
