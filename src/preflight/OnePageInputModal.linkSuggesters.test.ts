@@ -207,6 +207,20 @@ describe("OnePageInputModal link suggesters", () => {
 		modal.close();
 	});
 
+	it("keeps a label id with spaces as one aria-labelledby reference", () => {
+		const modal = new OnePageInputModal(fakeApp as never, [
+			{ id: "Due Date", label: "Due Date", type: "text" },
+		]);
+		modal.waitForClose.catch(() => undefined);
+
+		const input = modal.contentEl.querySelector<HTMLInputElement>("input");
+		const id = input?.getAttribute("aria-labelledby") ?? "";
+		expect(id).toBe("qa-onepage-label-Due%20Date");
+		expect(modal.contentEl.querySelector(`[id="${id}"]`)?.textContent).toBe("Due Date");
+
+		modal.close();
+	});
+
 	it("names picker controls from their field label unless they carry their own name", () => {
 		const modal = new OnePageInputModal(fakeApp as never, [
 			{ id: "company", label: "Company", type: "suggester", options: ["A", "B"] },

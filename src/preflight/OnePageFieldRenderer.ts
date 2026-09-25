@@ -35,7 +35,8 @@ interface FieldRendererHost {
 }
 
 function labelId(req: FieldRequirement): string {
-	return `qa-onepage-label-${req.id}`;
+	// Encoded: an id with a space would read as two references in aria-labelledby.
+	return `qa-onepage-label-${encodeURIComponent(req.id)}`;
 }
 
 export class OnePageFieldRenderer {

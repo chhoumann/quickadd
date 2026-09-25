@@ -37,6 +37,9 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 			this.filters,
 		);
 
+		// The lookup is async; a stale response must not replace the highlight
+		// ranges of a newer query (the base class discards its items anyway).
+		if (inputStr !== this.getCurrentQuery()) return [];
 		const ranked = rankMatches(inputStr, values, (value) => value, {
 			limit: MAX_RESULTS,
 		});
