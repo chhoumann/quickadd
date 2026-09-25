@@ -185,9 +185,10 @@
    instead of core's 80px from the top. The offset uses the height at open (set
    in centerSuggestModal), so filtering doesn't move the input, and a list that
    grows while typing (nested search) scrolls instead of running off-screen.
-   Mobile keeps core's layout. */
+   Core's 80px stays the minimum, so shrinking the window can't push the input
+   off the top. Mobile keeps core's layout. */
 body:not(.is-mobile) .prompt.qa-centered-prompt {
-	top: calc(50% - var(--qa-prompt-open-height) / 2);
+	top: max(80px, calc(50% - var(--qa-prompt-open-height) / 2));
 	max-height: min(
 		var(--prompt-max-height),
 		calc(50% + var(--qa-prompt-open-height) / 2 - 80px)
