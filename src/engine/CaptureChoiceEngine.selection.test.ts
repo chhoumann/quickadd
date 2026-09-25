@@ -150,8 +150,8 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-const createApp = () =>
-	({
+const createApp = () => {
+	const app = {
 		vault: {
 			adapter: {
 				exists: vi.fn(async () => false),
@@ -168,12 +168,21 @@ const createApp = () =>
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),
 			trashFile: vi.fn(async () => {}),
 		},
-	} as unknown as App);
+	} as unknown as App;
+	// Like Obsidian's, but over this fake's `read` and `modify`, which tests replace.
+	app.vault.process = vi.fn(async (file: TFile, fn: (content: string) => string) => {
+		const next = fn(await app.vault.read(file));
+		await app.vault.modify(file, next);
+		return next;
+	});
+	return app;
+};
 
 const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
 	id: "capture-choice-id",
@@ -287,6 +296,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "content",
+			priorContent: "",
 			captureContent: "content",
 		});
 
@@ -320,9 +330,9 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "Line A\nCAPTURE\nLine B",
+			priorContent: "",
 			captureContent: "CAPTURE\n",
 			cursor: { kind: "offset", source: "defaultEnd", value: "Line A\nCAPTURE\n".length },
-			cursorPlacementSafe: true,
 		});
 
 		await engine.run();
@@ -356,9 +366,9 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "CAPTURE",
+			priorContent: "",
 			captureContent: "CAPTURE",
 			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
-			cursorPlacementSafe: true,
 		});
 
 		await engine.run();
@@ -423,9 +433,9 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "CAPTURE",
+			priorContent: "",
 			captureContent: "CAPTURE",
 			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
-			cursorPlacementSafe: true,
 		});
 
 		await engine.run();
@@ -433,13 +443,21 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 
-	it("does not place the cursor after whole-file Templater post-processing", async () => {
+	async function captureWithWholeFileTemplater(content: string, templater: (disk: string) => string) {
+		const app = createApp();
+		let disk = "";
+		app.vault.read = vi.fn(async () => disk);
+		app.vault.modify = vi.fn(async (_file: TFile, next: string) => { disk = next; });
+		vi.mocked(overwriteTemplaterOnce).mockImplementationOnce(async () => {
+			disk = templater(disk);
+			return true;
+		});
 		const choice = createChoice({
 			openFile: true,
 			captureToActiveFile: false,
 			templater: { afterCapture: "wholeFile" },
 		});
-		const engine = createCaptureEngine({ choice: choice, selection: true });
+		const engine = createCaptureEngine({ app, choice, selection: true });
 		const file = { path: "Test.md", basename: "Test", extension: "md" } as any;
 
 		(engine as any).getFormattedPathToCaptureTo = vi
@@ -448,16 +466,29 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).fileExists = vi.fn().mockResolvedValue(true);
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
-			newFileContent: "CAPTURE",
-			captureContent: "CAPTURE",
-			cursor: { kind: "offset", source: "defaultEnd", value: "CAPTURE".length },
-			cursorPlacementSafe: true,
+			newFileContent: content,
+			priorContent: "",
+			captureContent: content,
+			cursor: { kind: "offset", source: "defaultEnd", value: content.length },
 		});
 
 		await engine.run();
-
 		expect(overwriteTemplaterOnce).toHaveBeenCalled();
+		return { app, file, disk };
+	}
+
+	it("does not place the cursor after whole-file Templater rewrites the note", async () => {
+		const { disk } = await captureWithWholeFileTemplater("<% tp.file.title %> CAPTURE",
+			text => text.replace("<% tp.file.title %>", "Test"));
+
+		expect(disk).toBe("Test CAPTURE");
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
+	});
+
+	it("places the cursor when whole-file Templater leaves the note unchanged", async () => {
+		const { app, file } = await captureWithWholeFileTemplater("CAPTURE", text => text);
+
+		expect(setMarkdownCursorAtOffset).toHaveBeenCalledWith(app, file, "CAPTURE".length, "CAPTURE");
 	});
 
 	it("warns when FILE multi cannot become a YAML list in Capture", async () => {
@@ -480,6 +511,7 @@ describe("CaptureChoiceEngine selection-as-value resolution", () => {
 		(engine as any).onFileExists = vi.fn().mockResolvedValue({
 			file,
 			newFileContent: "content",
+			priorContent: "",
 			captureContent: "content",
 		});
 
@@ -1219,6 +1251,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const onFileExists = vi.fn(async () => ({
 			file: { path: "Bad: Title.md", basename: "Bad: Title" },
 			newFileContent: "",
+			priorContent: "",
 			captureContent: "x",
 		}));
 		(engine as any).onFileExists = onFileExists;
@@ -1446,6 +1479,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		const onFileExistsMock = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
+			priorContent: "",
 			captureContent: "capture",
 			cursor: { kind: "none" },
 		}));
@@ -1508,6 +1542,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		(engine as any).onFileExists = vi.fn(async () => ({
 			file: linkedFile,
 			newFileContent: "updated",
+			priorContent: "",
 			captureContent: "capture",
 			cursor: { kind: "none" },
 		}));
@@ -1547,6 +1582,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		};
 		app.workspace.getActiveFile = vi.fn(() => canvasFile);
 		app.workspace.getActiveViewOfType = vi.fn(() => null);
+		app.vault.read = vi.fn(async () => "existing");
 		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
 			path === "Folder/Note.md" ? linkedFile : null,
 		);
@@ -1735,7 +1771,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		};
 
 		const app = createApp() as any;
-		app.vault.read = vi.fn(async () =>
+		app.vault.read = vi.fn(async (file: TFile) => file === createdFile ? "" :
 			JSON.stringify({
 				nodes: [{ id: "node-1", type: "file", file: "Folder/Missing.md" }],
 			}),
@@ -1760,6 +1796,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			async (_path: string, _capture: string) => ({
 				file: createdFile,
 				newFileContent: "created",
+				priorContent: "",
 				captureContent: "capture",
 			}),
 		);

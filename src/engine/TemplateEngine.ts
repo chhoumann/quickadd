@@ -3,6 +3,7 @@ import { prepareTemplateContent, rebaseTemplateCursor } from "../utils/templateC
 import { stripCursorMarkers } from "../formatters/helpers/capturePlacement";
 import { getBodyStartOffset } from "../utils/noteContentInsertion";
 import { getMarkdownEditorViewForFile, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
+import { processNote } from "../utils/noteContent";
 import { FolderSelectionEngine } from "./FolderSelectionEngine";
 import {
 	postProcessFrontMatter,
@@ -60,26 +61,11 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	private async finishTemplateContent(file: TFile): Promise<void> {
 		this.cursorPlacement = null;
 		if (file.extension !== "md") return;
-		const view = getMarkdownEditorViewForFile(this.app, file);
-		let prepared: EditorCursorPlacement | null = null;
-		if (view) {
-			const content = view.editor.getValue();
+		let prepared = null as EditorCursorPlacement | null;
+		await processNote(this.app, file, content => {
 			prepared = prepareTemplateContent(content);
-			const changes = [...content.matchAll(/\{\{CURSOR\}\}/gi)].map(marker => ({
-				from: view.editor.offsetToPos(marker.index),
-				to: view.editor.offsetToPos(marker.index + marker[0].length),
-				text: "",
-			}));
-			if (changes.length > 0) {
-				view.editor.transaction({ changes });
-				await view.save();
-			}
-		} else {
-			await this.app.vault.process(file, content => {
-				prepared = prepareTemplateContent(content);
-				return prepared.content;
-			});
-		}
+			return prepared.content;
+		});
 		this.cursorPlacement = prepared;
 		if (this.cursorPlacement?.offsets.length === 0) this.cursorPlacement = null;
 	}
@@ -407,7 +393,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 				await this.prepareTemplateBody(templateContent, file.path,
 					file.basename, "overwriteFileWithTemplate");
 
-			await this.app.vault.modify(file, formattedTemplateContent);
+			await processNote(this.app, file, () => formattedTemplateContent);
 
 			let rendered = false;
 			try {

@@ -130,7 +130,7 @@ describe('Canvas Template Integration', () => {
 		it('should accept markdown and canvas files', async () => {
 			for (const extension of ["md", "canvas", "base"]) {
 				const h = await overwrite(extension);
-				expect(h.vault.modify, extension).toHaveBeenCalledOnce();
+				expect(h.vault.process, extension).toHaveBeenCalled();
 				expect(h.contents.get("note.md"), extension).toBe("Replacement");
 			}
 		});
@@ -138,7 +138,7 @@ describe('Canvas Template Integration', () => {
 		it('should reject other file types', async () => {
 			for (const extension of ["txt", "js"]) {
 				const h = await overwrite(extension);
-				expect(h.vault.modify, extension).not.toHaveBeenCalled();
+				expect(h.vault.process, extension).not.toHaveBeenCalled();
 				expect(h.contents.get("note.md"), extension).toBe("Original");
 			}
 		});

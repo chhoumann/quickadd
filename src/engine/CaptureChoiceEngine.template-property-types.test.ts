@@ -193,9 +193,10 @@ describe("CaptureChoiceEngine template property types", () => {
 					return tFile;
 				}),
 				read: vi.fn(async (file: TFile) => createdContent[file.path] ?? ""),
-				modify: vi.fn(async (_file: TFile, content: string) => {
-					writtenContent = content;
-					createdContent[_file.path] = content;
+				process: vi.fn(async (file: TFile, fn: (content: string) => string) => {
+					writtenContent = fn(createdContent[file.path] ?? "");
+					createdContent[file.path] = writtenContent;
+					return writtenContent;
 				}),
 				cachedRead: vi.fn(),
 			},
@@ -206,6 +207,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 			},
 			metadataCache: {
 				getFileCache: vi.fn().mockReturnValue(null),
@@ -288,7 +290,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			basename: "Test",
 			extension: "md",
 		} as unknown as TFile;
-		const modify = vi.fn(async () => {});
+		const process = vi.fn(async () => "");
 
 		const app = {
 			vault: {
@@ -299,7 +301,7 @@ describe("CaptureChoiceEngine template property types", () => {
 					path === targetPath ? existingFile : null,
 				),
 				read: vi.fn(async () => ["# Existing", "Body"].join("\n")),
-				modify,
+				process,
 				cachedRead: vi.fn(),
 			},
 			fileManager: {
@@ -309,6 +311,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 			},
 			metadataCache: {
 				getFileCache: vi.fn().mockReturnValue(null),
@@ -376,7 +379,7 @@ describe("CaptureChoiceEngine template property types", () => {
 
 		await engine.run();
 
-		expect(modify).not.toHaveBeenCalled();
+		expect(process).not.toHaveBeenCalled();
 		expect(applyCapturePropertyVars).not.toHaveBeenCalled();
 	});
 
@@ -412,6 +415,7 @@ describe("CaptureChoiceEngine template property types", () => {
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(tFile),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 				activeLeaf: null,
 				getMostRecentLeaf: vi.fn().mockReturnValue(null),
 			},
@@ -489,12 +493,13 @@ describe("CaptureChoiceEngine template property types", () => {
 				create: vi.fn(),
 				read: vi.fn(async () => existing),
 				cachedRead: vi.fn(async () => existing),
-				modify: vi.fn(async (_f: TFile, content: string) => { written = content; }),
+				process: vi.fn(async (_f: TFile, fn: (content: string) => string) => (written = fn(existing))),
 			},
 			fileManager: { generateMarkdownLink: vi.fn().mockReturnValue(""), processFrontMatter },
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(null),
 				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				getLeavesOfType: vi.fn(() => []),
 				activeLeaf: null,
 				getMostRecentLeaf: vi.fn().mockReturnValue(null),
 			},

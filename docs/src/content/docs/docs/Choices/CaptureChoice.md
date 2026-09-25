@@ -539,7 +539,8 @@ choice.
 _Run Templater on entire destination file after capture_ is an advanced,
 legacy option: it executes any `<% %>` anywhere in the destination file,
 including inside code blocks. Leave it off unless you specifically need that
-whole-file pass.
+whole-file pass. When that pass changes the note, QuickAdd skips placing the
+cursor at `{{CURSOR}}`, since the text under the marker may have moved.
 
 ### Templater and newly created notes {#templater-and-newly-created-files}
 

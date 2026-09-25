@@ -11,6 +11,7 @@ import {
 } from "../types/linkPlacement";
 import { buildFileLinkText } from "./fileLinks";
 import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPropertyLinks";
+import { processNoteFrontMatter } from "./noteContent";
 import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
 
@@ -251,7 +252,7 @@ export async function insertLinkWithPlacement(
 			throw new Error("Cannot append link because the active Markdown view has no file.");
 		}
 
-		await app.fileManager.processFrontMatter(file, (frontmatter) => {
+		await processNoteFrontMatter(app, file, (frontmatter) => {
 			appendConfiguredFrontmatterPropertyLinkValue(
 				frontmatter,
 				frontmatterProperty ?? "",

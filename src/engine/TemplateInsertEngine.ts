@@ -18,6 +18,7 @@ import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStartWithResult, type NoteBodyInsertionResult } from "../utils/noteContentInsertion";
 import { insertCaptureInBoundEditor } from "../utils/editorInsertion";
+import { processNote, processNoteFrontMatter } from "../utils/noteContent";
 import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
@@ -319,7 +320,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 		const cursor = this.cursorPlacement;
 		if (body.trim().length > 0 || cursor) {
-			await this.app.vault.process(this.targetFile, (noteContent) => {
+			await processNote(this.app, this.targetFile, (noteContent) => {
 				const inserted = insertBodyIntoNoteContent(noteContent, body, position);
 				if (cursor && inserted.insertedStartOffset !== null) {
 					const start = inserted.insertedStartOffset - (formatted.length - body.length);
@@ -458,7 +459,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 			}
 		}
 
-		await this.app.fileManager.processFrontMatter(
+		await processNoteFrontMatter(
+			this.app,
 			this.targetFile,
 			(frontmatter: Record<string, unknown>) => {
 				for (const [key, value] of Object.entries(parsed)) {

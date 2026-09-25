@@ -56,6 +56,7 @@ function makeDestinationApp(files: TFile[], contents: Map<string, string>): App 
 				contents.set(file.path, change(contents.get(file.path) ?? ""));
 			}),
 		},
+		workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
 		fileManager: {
 			generateMarkdownLink: vi.fn((file: TFile, sourcePath: string) => {
 				return `[[${sourcePath}->${file.path}]]`;

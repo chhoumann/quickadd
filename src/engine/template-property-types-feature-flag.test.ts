@@ -54,7 +54,7 @@ describe('Template Property Types Feature Flag & Edge Cases', () => {
 		mockApp = {
 			vault: mockVault,
 			fileManager: mockFileManager,
-			workspace: { getActiveFile: () => null, getActiveViewOfType: () => null },
+			workspace: { getActiveFile: () => null, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 		};
 
 		mockPlugin = {

@@ -23,6 +23,7 @@ describe("appendLinkToFrontmatterProperty failure visibility (audit)", () => {
 		const targetFile = makeFile("Host.md");
 		const createdFile = makeFile("Created.md");
 		const app = {
+			workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			fileManager: {
 				generateMarkdownLink: vi.fn(() => "[[Created]]"),
 				processFrontMatter: vi.fn(async () => {
@@ -44,6 +45,7 @@ describe("appendLinkToFrontmatterProperty failure visibility (audit)", () => {
 		const message = logError.mock.calls[0]?.[0] as string;
 		expect(message).toContain("could not append the link");
 		expect(message).toContain("'related'");
+		expect(message).toContain("write failed");
 	});
 });
 

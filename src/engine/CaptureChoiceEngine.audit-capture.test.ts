@@ -198,12 +198,13 @@ const createRunApp = (captureFile: TFile, fileContent = "existing body") =>
 				path === captureFile.path ? captureFile : null,
 			),
 			read: vi.fn(async () => fileContent),
-			modify: vi.fn(async () => {}),
+			process: vi.fn(async (_file: TFile, fn: (content: string) => string) => fn(fileContent)),
 			create: vi.fn(),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: { getNewFileParent: vi.fn(() => ({ path: "" })) },
 	}) as unknown as App;

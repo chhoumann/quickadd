@@ -153,6 +153,7 @@ function buildEngine(
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),
@@ -226,6 +227,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		}
 		expect(formatFileContentMock).not.toHaveBeenCalled();
 		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(context.app.vault.process).not.toHaveBeenCalled();
 	});
 
 	it.each(["Templates/Project.md", "/Templates/Project", "  /Templates/Project.md  "])
@@ -240,6 +242,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 			message: expect.stringContaining("own template source"),
 		}));
 		expect(context.app.vault.modify).not.toHaveBeenCalled();
+		expect(context.app.vault.process).not.toHaveBeenCalled();
 		expect(formatFileContentMock).not.toHaveBeenCalled();
 		expect(context.contents.get(source.path)).toBe("Reusable {{VALUE:owner}}");
 	});

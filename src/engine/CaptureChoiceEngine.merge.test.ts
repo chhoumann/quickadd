@@ -1,4 +1,5 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
+import type * as ChoiceFileActions from "./choiceFileActions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
@@ -74,11 +75,17 @@ vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
 }));
 
+vi.mock("./choiceFileActions", async (importOriginal) => ({
+	...(await importOriginal<typeof ChoiceFileActions>()),
+	openChoiceFile: vi.fn(async () => true),
+}));
+
 import type { App } from "obsidian";
 import { TFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import { setMarkdownCursorAtOffset } from "../utilityObsidian";
 
 const createCaptureChoice = (): ICaptureChoice => ({
 	name: "Test Capture Choice",
@@ -127,110 +134,111 @@ const createFile = (path: string) => {
 };
 
 const createEngine = ({
-	firstRead,
-	secondRead,
+	read,
+	concurrent,
 	formattedFileContent,
 }: {
-	firstRead: string;
-	secondRead: string;
+	read: string;
+	/** The note's text when the write lands, after edits made while the capture was formatted. */
+	concurrent: string;
 	formattedFileContent: string;
 }) => {
 	const filePath = "Daily/Test.md";
 	const file = createFile(filePath);
+	const disk = { content: read };
 	const app = {
 		vault: {
 			adapter: {
 				exists: vi.fn(async () => true),
 			},
 			getAbstractFileByPath: vi.fn(() => file),
-			read: vi
-				.fn()
-				.mockResolvedValueOnce(firstRead)
-				.mockResolvedValueOnce(secondRead),
-			modify: vi.fn(),
+			read: vi.fn(async () => disk.content),
+			process: vi.fn(async (_file: TFile, fn: (content: string) => string) => {
+				disk.content = fn(concurrent);
+				return disk.content;
+			}),
 			create: vi.fn(),
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: {
 			getNewFileParent: vi.fn(() => ({ path: "" })),
 		},
 	} as unknown as App;
 
-	const plugin = { settings: { showCaptureNotification: true } } as any;
+	const plugin = { settings: { showCaptureNotification: false } } as any;
 	const choiceExecutor: IChoiceExecutor = {
 		...createChoiceExecutor(),
 		execute: vi.fn(),
+		recordExecutionResult: vi.fn(),
 		variables: new Map<string, unknown>(),
 	};
 	const engine = new CaptureChoiceEngine(
 		app,
 		plugin,
-		createCaptureChoice(),
+		{ ...createCaptureChoice(), openFile: true },
 		choiceExecutor,
 	);
 
 	formatContentWithFileMock.mockResolvedValue(formattedFileContent);
 	getCaptureInsertionEndOffsetMock.mockReturnValue(formattedFileContent.length);
 
-	return { engine, filePath };
+	return { engine, disk, file, choiceExecutor };
 };
 
 describe("CaptureChoiceEngine concurrent-edit merge", () => {
 	beforeEach(() => {
 		formatContentWithFileMock.mockReset();
 		getCaptureInsertionEndOffsetMock.mockReset();
+		vi.mocked(setMarkdownCursorAtOffset).mockClear();
 	});
 
-	it("proceeds when concurrent edits can be merged cleanly", async () => {
-		const firstRead = "alpha\nbeta\ngamma\n";
-		const secondRead = "alpha changed by sync\nbeta\ngamma\n";
-		const formattedFileContent = "alpha\nbeta\ngamma\ncaptured ours\n";
-		const { engine, filePath } = createEngine({
-			firstRead,
-			secondRead,
-			formattedFileContent,
+	it("merges edits made while the capture was formatted and skips cursor placement", async () => {
+		const { engine, disk, choiceExecutor } = createEngine({
+			read: "alpha\nbeta\ngamma\n",
+			concurrent: "alpha changed by sync\nbeta\ngamma\n",
+			formattedFileContent: "alpha\nbeta\ngamma\ncaptured ours\n",
 		});
 
-		const result = await (engine as any).onFileExists(filePath, "captured ours");
+		await engine.run();
 
-		expect(result.newFileContent).toBe(
-			"alpha changed by sync\nbeta\ngamma\ncaptured ours\n",
+		expect(disk.content).toBe("alpha changed by sync\nbeta\ngamma\ncaptured ours\n");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: "success", effect: "changed" }),
 		);
-		expect(result.captureContent).toBe("captured ours");
-		expect(result.cursorPlacementSafe).toBe(false);
+		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 
-	it("aborts when concurrent edits conflict", async () => {
-		const firstRead = "alpha\nbeta\ngamma\n";
-		const secondRead = "alpha from sync\nbeta\ngamma\n";
-		const formattedFileContent = "alpha from capture\nbeta\ngamma\n";
-		const { engine, filePath } = createEngine({
-			firstRead,
-			secondRead,
-			formattedFileContent,
+	it("refuses to write when concurrent edits conflict", async () => {
+		const concurrent = "alpha from sync\nbeta\ngamma\n";
+		const { engine, disk, choiceExecutor } = createEngine({
+			read: "alpha\nbeta\ngamma\n",
+			concurrent,
+			formattedFileContent: "alpha from capture\nbeta\ngamma\n",
 		});
 
-		await expect(
-			(engine as any).onFileExists(filePath, "alpha from capture"),
-		).rejects.toThrow("has been modified since the last read");
+		await engine.run();
+
+		expect(disk.content).toBe("alpha\nbeta\ngamma\n");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: "error" }),
+		);
+		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 
-	it("uses formatted content directly when the file did not change between reads", async () => {
-		const firstRead = "alpha\nbeta\ngamma\n";
+	it("writes the formatted content and places the cursor when the note did not change", async () => {
+		const read = "alpha\nbeta\ngamma\n";
 		const formattedFileContent = "alpha\nbeta\ngamma\ncaptured ours\n";
-		const { engine, filePath } = createEngine({
-			firstRead,
-			secondRead: firstRead,
-			formattedFileContent,
-		});
+		const { engine, disk, file } = createEngine({ read, concurrent: read, formattedFileContent });
 
-		const result = await (engine as any).onFileExists(filePath, "captured ours");
+		await engine.run();
 
-		expect(result.newFileContent).toBe(formattedFileContent);
-		expect(result.cursorPlacementSafe).toBe(true);
-		expect(result.cursor).toEqual({ kind: "offset", source: "defaultEnd", value: formattedFileContent.length });
+		expect(disk.content).toBe(formattedFileContent);
+		expect(setMarkdownCursorAtOffset).toHaveBeenCalledWith(
+			expect.anything(), file, formattedFileContent.length, formattedFileContent,
+		);
 	});
 });

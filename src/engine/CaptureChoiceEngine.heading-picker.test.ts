@@ -83,6 +83,7 @@ const createApp = (content = HEADING_NOTE) =>
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: { getNewFileParent: vi.fn(() => ({ path: "" })) },
 	}) as unknown as App;

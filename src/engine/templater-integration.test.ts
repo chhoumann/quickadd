@@ -33,7 +33,8 @@ describe("Production template engine Templater boundary", () => {
 		const h = setup({ tags: ["one", "two"] });
 		const file = await h.engine.create("note.md", "template.md");
 		expect(file).not.toBeNull();
-		expect(h.events).toEqual(["create", "properties", "templater", "modify"]);
+		// The trailing process strips {{CURSOR}} markers from the finished note.
+		expect(h.events).toEqual(["create", "properties", "templater", "modify", "process"]);
 		expect(h.vault.create).toHaveBeenCalledWith("note.md", expect.not.stringContaining("{{VALUE:"));
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["one", "two"] }, expect.stringContaining('<% tp.date.now() %>'));
 	});
@@ -122,7 +123,7 @@ describe("Production template engine Templater boundary", () => {
 		const h = setup({ tags: ["one", "two"], count: 42 });
 		const file = h.file("note.md", "old");
 		await h.engine.overwrite(file, "template.md");
-		expect(h.events).toEqual(["modify", "properties", "templater", "modify"]);
+		expect(h.events).toEqual(["process", "properties", "templater", "modify", "process"]);
 		expect(h.seen).toHaveBeenCalledWith({ tags: ["one", "two"], count: 42 }, expect.any(String));
 		expect(overwriteTemplaterOnce).toHaveBeenCalledExactlyOnceWith(h.app, file);
 	});
