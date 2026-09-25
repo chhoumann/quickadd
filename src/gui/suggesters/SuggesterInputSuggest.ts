@@ -1,12 +1,21 @@
-import { dispatchCompletion } from "./utils";
-import type { App } from "obsidian";
+import type { App, SearchMatches } from "obsidian";
+import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
-import { normalizeDisplayItem, normalizeQuery } from "./utils";
+import {
+	dispatchCompletion,
+	normalizeDisplayItem,
+	normalizeQuery,
+	renderHighlightRanges,
+} from "./utils";
+
+const MAX_RESULTS = 200;
 
 export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	private options: string[];
 	private caseSensitive: boolean;
 	private multiSelect: boolean;
+	// Match ranges of the last suggestions, for highlighting.
+	private matchesByItem = new Map<string, SearchMatches>();
 	// Fires with the exact item picked on each multi-select selection. The
 	// resulting ", "-joined input text is ambiguous when an option's label equals
 	// the join of two other option labels (e.g. "a", "b", and "a, b"); the
@@ -55,24 +64,18 @@ export class SuggesterInputSuggest extends TextInputSuggest<string> {
 	getSuggestions(query: string): string[] {
 		const safeQuery = normalizeQuery(query);
 		const { alreadySelected, activeTerm } = this.parseMultiSelectInput(safeQuery);
-		const searchQuery = this.caseSensitive ? activeTerm : activeTerm.toLowerCase();
-
 		const available = this.getRemainingOptions(alreadySelected);
 
-		if (!searchQuery) {
-			return available.slice(0, 200);
-		}
-
-		return available
-			.filter((opt) => {
-				const optStr = this.caseSensitive ? opt : opt.toLowerCase();
-				return optStr.includes(searchQuery);
-			})
-			.slice(0, 200);
+		const ranked = rankMatches(activeTerm, available, (option) => option, {
+			limit: MAX_RESULTS,
+			caseSensitive: this.caseSensitive,
+		});
+		this.matchesByItem = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		return ranked.map(({ item }) => item);
 	}
 
 	renderSuggestion(item: string, el: HTMLElement): void {
-		this.renderMatch(el, item, this.getCurrentQuery());
+		renderHighlightRanges(el, item, this.matchesByItem.get(item) ?? []);
 	}
 
 	selectSuggestion(item: string): void {

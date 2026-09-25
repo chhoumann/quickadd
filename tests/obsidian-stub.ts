@@ -957,18 +957,33 @@ export const Platform = {
 };
 
 // Substring (NOT subsequence) matcher standing in for Obsidian's fuzzy search.
-// Returns a SearchResult-like object when q is a case-insensitive substring of
-// the text, else null — enough for filter tests. The single match range covers
-// the first substring hit; scores are always 0. Do NOT assert true fuzzy
-// (subsequence) semantics or graded scores against this stub.
+// Approximates Obsidian's fuzzy scorer tiers: exact match, then prefix, then
+// word start, then substring, then a gapped subsequence (one range per
+// character); null otherwise. Case-insensitive like the real one. The tier
+// scores mimic the real magnitudes (contiguous matches within ~0.1 of 0,
+// gapped ones around -1) but are invented, so assert relative order and the
+// raw score rather than exact numbers; the real ranking is covered by the
+// one-page suggester E2E test.
 export function prepareFuzzySearch(query: string) {
   const q = query.toLowerCase();
-  return (text: string) => {
-    if (q.length === 0) return { score: 0, matches: [] as Array<[number, number]> };
-    const idx = text.toLowerCase().indexOf(q);
-    return idx >= 0
-      ? { score: 0, matches: [[idx, idx + q.length]] as Array<[number, number]> }
-      : null;
+  return (text: string): { score: number; matches: Array<[number, number]> } | null => {
+    if (q.length === 0) return { score: 0, matches: [] };
+    const lower = text.toLowerCase();
+    const idx = lower.indexOf(q);
+    if (idx >= 0) {
+      const wordStart = idx === 0 || /[^\p{L}\p{N}]/u.test(lower[idx - 1]);
+      const score = lower === q ? 0 : idx === 0 ? -0.01 : wordStart ? -0.02 : -0.1;
+      return { score, matches: [[idx, idx + q.length]] };
+    }
+    const matches: Array<[number, number]> = [];
+    let from = 0;
+    for (const ch of q) {
+      const at = lower.indexOf(ch, from);
+      if (at < 0) return null;
+      matches.push([at, at + 1]);
+      from = at + 1;
+    }
+    return { score: -1, matches };
   };
 }
 

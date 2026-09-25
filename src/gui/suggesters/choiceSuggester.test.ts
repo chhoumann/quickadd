@@ -1,6 +1,6 @@
 import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecutor";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Notice } from "obsidian";
+import { App, Notice, prepareFuzzySearch } from "obsidian";
 
 vi.mock("obsidian-dataview", () => ({
 	getAPI: vi.fn(),
@@ -364,10 +364,14 @@ describe("ChoiceSuggester", () => {
 			const scoreOf = (c: IChoice) =>
 				results.find((s) => s.item === c)?.match.score;
 
-			// The stub scores every match 0, so any delta is the penalty.
-			expect(scoreOf(work)).toBe(0);
-			expect(scoreOf(meetings)).toBeLessThan(0);
-			expect(scoreOf(newMeeting)).toBeLessThan(0);
+			// Unpenalized results keep the raw fuzzy score of their label.
+			expect(scoreOf(work)).toBe(prepareFuzzySearch("work")("Work")?.score);
+			expect(scoreOf(meetings)).toBeLessThan(
+				prepareFuzzySearch("work")("Work / Meetings")?.score ?? 0,
+			);
+			expect(scoreOf(newMeeting)).toBeLessThan(
+				prepareFuzzySearch("work")("Work / Meetings / New meeting")?.score ?? 0,
+			);
 		});
 
 		it("does not penalize matches that touch the choice's own name", () => {
@@ -378,9 +382,13 @@ describe("ChoiceSuggester", () => {
 				results.find((s) => s.item === c)?.match.score;
 
 			// "Meetings" matches its own name segment of "Work / Meetings".
-			expect(scoreOf(meetings)).toBe(0);
+			expect(scoreOf(meetings)).toBe(
+				prepareFuzzySearch("meetings")("Work / Meetings")?.score,
+			);
 			// "...New meeting"'s match falls entirely within "Work / Meetings /".
-			expect(scoreOf(newMeeting)).toBeLessThan(0);
+			expect(scoreOf(newMeeting)).toBeLessThan(
+				prepareFuzzySearch("meetings")("Work / Meetings / New meeting")?.score ?? 0,
+			);
 		});
 
 		it("ranks name matches above breadcrumb-only descendant matches", () => {

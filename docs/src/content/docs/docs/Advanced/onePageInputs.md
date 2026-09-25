@@ -213,11 +213,12 @@ Field type details:
 - `textarea`: multi-line text input
 - `dropdown`: fixed dropdown menu (no search, must select from list)
 - `date`: date input with natural language support
-- `field-suggest`: vault field suggestions (uses `{{FIELD:...}}` syntax)
+- `field-suggest`: vault field suggestions (uses `{{FIELD:...}}` syntax). Matches are ranked like `suggester` options.
 - `slider`: bounded numeric input with a slider and editable number field. Requires `sliderConfig.min` and `sliderConfig.max`; invalid configs fall back to `number`.
 - `suggester`: searchable autocomplete with custom options (allows typing custom values)
+  - Matches are ranked the way Obsidian's quick switcher ranks them: an exact match first, then options that start with what you typed, then options with a word that starts with it, then options that contain it anywhere, and finally fuzzy matches. Within a group, shorter options come first. With `caseSensitive`, only options that contain the typed text in the same case are listed.
   - Supports multi-select mode via `suggesterConfig.multiSelect: true`
-  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection.
+  - Multi-select: select multiple items, separated by commas. Suggestions stay open after each selection. The text after the last comma is what gets ranked.
 
 ## Scripts: request inputs at runtime (API) {#scripts-request-inputs-at-runtime-api}
 

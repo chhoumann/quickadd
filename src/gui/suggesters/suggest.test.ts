@@ -163,6 +163,8 @@ describe("TextInputSuggest resource lifecycle", () => {
 		app = createApp();
 		input = document.createElement("input");
 		document.body.appendChild(input);
+		// Suggestions only open under the focused input.
+		input.focus();
 	});
 
 	afterEach(() => {
@@ -301,5 +303,27 @@ describe("TextInputSuggest resource lifecycle", () => {
 		new GenericTextSuggester(app, input, ["x"]);
 
 		expect(secondDestroy).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("TextInputSuggest focus", () => {
+	afterEach(() => {
+		document.body.replaceChildren();
+	});
+
+	it("does not open under an input that lost focus before the debounced handler ran", async () => {
+		const input = document.createElement("input");
+		const other = document.createElement("input");
+		document.body.append(input, other);
+		const suggest = new GenericTextSuggester(createApp(), input, ["Adventure"]);
+
+		input.focus();
+		input.value = "Adv";
+		other.focus();
+		await suggest.onInputChanged();
+
+		expect(input.getAttribute("aria-expanded")).toBe("false");
+		expect(document.querySelector(".suggestion-container")).toBeNull();
+		suggest.destroy();
 	});
 });

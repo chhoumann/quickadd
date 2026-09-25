@@ -438,9 +438,9 @@ export class OnePageInputModal extends Modal {
 			publish: (control) => this.publishControl(control),
 			updatePreview: () => this.updatePreviewDebounced(),
 			decorateLabel: (requirement) => this.decorateLabel(requirement),
-			attachFreeText: (requirement, input, setting) => {
+			attachFreeText: (requirement, input) => {
 				this.enableImagePaste(requirement, input);
-				this.attachFreeTextBehaviors(requirement, input, setting);
+				this.attachFreeTextBehaviors(requirement, input);
 			},
 		}).render(req);
 	}
@@ -448,13 +448,8 @@ export class OnePageInputModal extends Modal {
 	private attachFreeTextBehaviors(
 		req: FieldRequirement,
 		el: HTMLInputElement | HTMLTextAreaElement,
-		setting: Setting,
 	): void {
 		const id = req.id;
-		if (!setting.nameEl.id) {
-			setting.nameEl.id = `qa-onepage-label-${id}`;
-		}
-		el.setAttribute("aria-labelledby", setting.nameEl.id);
 
 		const field: OnePageFreeTextField = {
 			id,

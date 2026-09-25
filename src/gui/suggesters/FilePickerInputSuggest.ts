@@ -1,6 +1,7 @@
-import { dispatchCompletion } from "./utils";
-import { prepareFuzzySearch, type App } from "obsidian";
+import type { App, SearchMatches } from "obsidian";
+import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
+import { dispatchCompletion, renderHighlightRanges } from "./utils";
 
 export interface FilePickerOption {
 	value: string;
@@ -18,6 +19,9 @@ const MAX_RESULTS = 200;
  * or a literal custom value) for every pick.
  */
 export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
+	// Match ranges of the last suggestions, over "label path", for highlighting.
+	private matchesByOption = new Map<FilePickerOption, SearchMatches>();
+
 	constructor(
 		app: App,
 		inputEl: HTMLInputElement,
@@ -37,25 +41,15 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			(option) => !this.isSelected(option.value),
 		);
 
-		if (!trimmed) return available.slice(0, MAX_RESULTS);
-
-		const fuzzy = prepareFuzzySearch(trimmed);
-		const matches = available
-			.map((option) => ({
-				option,
-				match: fuzzy(`${option.label} ${option.path}`),
-			}))
-			.filter(
-				(entry): entry is typeof entry & {
-					match: NonNullable<typeof entry.match>;
-				} =>
-					entry.match !== null,
-			)
-			.sort((a, b) => b.match.score - a.match.score)
-			.slice(0, MAX_RESULTS)
-			.map(({ option }) => option);
-
-		if (!this.allowCustomInput) return matches;
+		const ranked = rankMatches(
+			trimmed,
+			available,
+			(option) => `${option.label} ${option.path}`,
+			{ limit: MAX_RESULTS },
+		);
+		this.matchesByOption = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		const matches = ranked.map(({ item }) => item);
+		if (!trimmed || !this.allowCustomInput) return matches;
 
 		const normalized = trimmed.toLocaleLowerCase();
 		const exactOption = this.getOptions().some(
@@ -83,15 +77,15 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		const primary = text.createDiv({
 			cls: "qa-onepage-file-suggestion__label",
 		});
+		const path = text.createDiv({ cls: "qa-onepage-file-suggestion__path" });
 		if (option.isCustom) {
 			primary.setText(option.label);
-		} else {
-			this.renderMatch(primary, option.label, this.getCurrentQuery().trim());
+			path.setText(option.path);
+			return;
 		}
-		text.createDiv({
-			cls: "qa-onepage-file-suggestion__path",
-			text: option.path,
-		});
+		const matches = this.matchesByOption.get(option) ?? [];
+		renderHighlightRanges(primary, option.label, matches);
+		renderHighlightRanges(path, option.path, matches, option.label.length + 1);
 	}
 
 	selectSuggestion(option: FilePickerOption): void {

@@ -207,6 +207,40 @@ describe("OnePageInputModal link suggesters", () => {
 		modal.close();
 	});
 
+	it("keeps a label id with spaces as one aria-labelledby reference", () => {
+		const modal = new OnePageInputModal(fakeApp as never, [
+			{ id: "Due Date", label: "Due Date", type: "text" },
+		]);
+		modal.waitForClose.catch(() => undefined);
+
+		const input = modal.contentEl.querySelector<HTMLInputElement>("input");
+		const id = input?.getAttribute("aria-labelledby") ?? "";
+		expect(id).toBe("qa-onepage-label-Due%20Date");
+		expect(modal.contentEl.querySelector(`[id="${id}"]`)?.textContent).toBe("Due Date");
+
+		modal.close();
+	});
+
+	it("names picker controls from their field label unless they carry their own name", () => {
+		const modal = new OnePageInputModal(fakeApp as never, [
+			{ id: "company", label: "Company", type: "suggester", options: ["A", "B"] },
+			{ id: "FILE:People", label: "Person", type: "file-picker", options: [] },
+		]);
+		modal.waitForClose.catch(() => undefined);
+
+		const company = modal.contentEl.querySelector<HTMLInputElement>(
+			'input[aria-labelledby="qa-onepage-label-company"]',
+		);
+		expect(company?.placeholder).toBe("Type to search...");
+		const picker = modal.contentEl.querySelector<HTMLInputElement>(
+			".qa-onepage-file-picker__input",
+		);
+		expect(picker?.getAttribute("aria-label")).toBe("Choose file for Person");
+		expect(picker?.hasAttribute("aria-labelledby")).toBe(false);
+
+		modal.close();
+	});
+
 	it("destroys every attached file and tag suggester on close", () => {
 		const modal = new OnePageInputModal(fakeApp as never, [
 			{ id: "title", label: "Title", type: "text" },
