@@ -13,7 +13,7 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
-import { createRenderFallbackWarner } from "./utils";
+import { centerSuggestModal, createRenderFallbackWarner } from "./utils";
 import { isCancellationError, reportUnlessCancelled, toError } from "../../utils/errorUtils";
 import { promptCancelled } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
@@ -286,6 +286,11 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						: [...this.choices, row];
 			}
 		}
+	}
+
+	onOpen(): void {
+		super.onOpen();
+		centerSuggestModal(this.modalEl);
 	}
 
 	onClose(): void {

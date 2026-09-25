@@ -100,6 +100,21 @@ export function createRenderFallbackWarner(
 	};
 }
 
+/**
+ * Opens a suggest modal vertically centered, where QuickAdd's input prompts
+ * open, instead of at core's fixed spot near the top, so a run doesn't jump
+ * between the two (#1796). Centering uses the height at open, so filtering
+ * shrinks the list without moving the input. Call after `super.onOpen()`,
+ * which renders the initial suggestions.
+ */
+export function centerSuggestModal(modalEl: HTMLElement): void {
+	modalEl.style.setProperty(
+		"--qa-prompt-open-height",
+		`${modalEl.offsetHeight}px`,
+	);
+	modalEl.addClass("qa-centered-prompt");
+}
+
 export function normalizeQuery(value: unknown): string {
 	return normalizeDisplayItem(value);
 }

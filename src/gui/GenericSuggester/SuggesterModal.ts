@@ -2,6 +2,7 @@ import { FuzzySuggestModal } from "obsidian";
 import type { FuzzyMatch, App } from "obsidian";
 import { log } from "src/logger/logManager";
 import {
+	centerSuggestModal,
 	createRenderFallbackWarner,
 	installSkipAffordance,
 	normalizeDisplayItem,
@@ -81,6 +82,11 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 				return normalizeDisplayItem(displayItem ?? item);
 			});
 		}
+	}
+
+	onOpen(): void {
+		super.onOpen();
+		centerSuggestModal(this.modalEl);
 	}
 
 	getItemText(item: T): string {

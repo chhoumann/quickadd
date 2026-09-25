@@ -181,6 +181,19 @@
 	display: block;
 }
 
+/* Run-time pickers open vertically centered like the input prompts around them,
+   instead of core's 80px from the top. The offset uses the height at open (set
+   in centerSuggestModal), so filtering doesn't move the input, and a list that
+   grows while typing (nested search) scrolls instead of running off-screen.
+   Mobile keeps core's layout. */
+body:not(.is-mobile) .prompt.qa-centered-prompt {
+	top: calc(50% - var(--qa-prompt-open-height) / 2);
+	max-height: min(
+		var(--prompt-max-height),
+		calc(50% + var(--qa-prompt-open-height) / 2 - 80px)
+	);
+}
+
 /* Run-time prompt context: which choice is asking, and where the answer lands.
    One line on a roomy modal: the middle of a long path is elided in JS
    (elideMiddlePath) so the file name survives, and the tail is clipped here as
