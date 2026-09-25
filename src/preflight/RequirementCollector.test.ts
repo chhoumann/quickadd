@@ -228,6 +228,18 @@ Body`);
       });
     });
 
+    it("names the one-page field after its |label: (issue #1797)", async () => {
+      const rc = new RequirementCollector(makeApp(), makePlugin());
+      await rc.scanString(
+        "{{FIELD:person|label:Host}} {{FIELD:person|label:Note taker}}",
+      );
+
+      expect(rc.requirements.get("FIELD:person|label:Host")?.label).toBe("Host");
+      expect(rc.requirements.get("FIELD:person|label:Note taker")?.label).toBe(
+        "Note taker",
+      );
+    });
+
     it("marks FIELD multi-select requirements as runtime-only", async () => {
       const app = makeApp();
       const plugin = makePlugin();

@@ -500,7 +500,7 @@ export class RequirementCollector extends Formatter {
 		if (!this.requirements.has(key)) {
 			const requirement: FieldRequirement = {
 				id: key,
-				label: parsed.fieldName || variableName,
+				label: parsed.label ?? (parsed.fieldName || variableName),
 				type: "field-suggest",
 				source: "collected",
 				runtimeOnly: parsed.multiSelect,

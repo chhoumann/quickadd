@@ -779,6 +779,27 @@ one-page inputs first, then opens the regular multi-select for the FIELD
 value.
 :::
 
+#### Word the prompt: `|label:` {#field-label}
+
+`{{FIELD:client|label:Which client?}}` asks "Which client?" instead of
+"Enter value for client". The label replaces that wording wherever the prompt
+appears: the picker's placeholder, the title of the text prompt you get when
+the property has no values yet, and the field's name in the
+[one-page input form](/docs/Advanced/onePageInputs/).
+
+```markdown title="You write"
+---
+client: {{FIELD:client|label:Which client?}}
+contact: {{FIELD:contact|label:Who did you talk to?}}
+---
+```
+
+Like any other option, the label is part of what makes a FIELD placeholder
+distinct: placeholders that match exactly share one answer, and placeholders
+that differ, even only by label, each ask. So two different labels on the same
+property ask twice: `{{FIELD:person|label:Host}}` and
+`{{FIELD:person|label:Note taker}}`.
+
 #### Default to the active note's value: `|default-from:active` {#field-default-from-active}
 
 `{{FIELD:project|default-from:active}}` pre-fills the prompt with the value

@@ -1234,6 +1234,52 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
 	});
 
+	it("words every FIELD prompt with its |label: (issue #1797)", async () => {
+		const f = defaultFormatter();
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "client",
+			filters: { defaultValue: "Northwind" },
+			label: "Which client?",
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: ["Northwind", "Globex"],
+			hasDefaultValue: true,
+		});
+		mocks.inputSuggesterSuggest.mockResolvedValue("Globex");
+		await f.formatFolderPath("{{FIELD:client|default:Northwind|label:Which client?}}");
+		expect(mocks.inputSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({
+			placeholder: "Which client? (default: Northwind)",
+		});
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "client",
+			filters: {},
+			multiSelect: true,
+			label: "Clients involved",
+		});
+		mocks.multiSuggesterSuggest.mockResolvedValue(["Globex"]);
+		await f.formatFolderPath("{{FIELD:client|multi|label:Clients involved}}");
+		expect(mocks.multiSuggesterSuggest.mock.calls.at(-1)?.[3]).toMatchObject({
+			placeholder: "Clients involved",
+		});
+
+		mocks.fieldParse.mockReturnValue({
+			fieldName: "budget",
+			filters: {},
+			label: "Budget code",
+		});
+		mocks.collectProcessedDetailed.mockResolvedValue({
+			values: [],
+			hasDefaultValue: false,
+		});
+		mocks.genericInputPromptWithContext.mockResolvedValue("B-17");
+		await f.formatFolderPath("{{FIELD:budget|label:Budget code}}");
+		expect(mocks.genericInputPromptWithContext.mock.calls.at(-1)?.[1]).toBe(
+			"Budget code",
+		);
+	});
+
 	it("maps a field-suggester cancellation to MacroAbortError", async () => {
 		mocks.fieldParse.mockReturnValue({
 			fieldName: "status",

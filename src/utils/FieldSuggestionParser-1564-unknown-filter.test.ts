@@ -27,6 +27,7 @@ const SUGGESTIONS: Array<[typed: string, expected: string[]]> = [
 	["dafault", ["default"]],
 	["excludetag", ["exclude-tag"]],
 	["case-sensitve", ["case-sensitive"]],
+	["lable", ["label"]],
 	// Right family, wrong key.
 	["tags", ["tag"]],
 	["folders", ["folder"]],
@@ -86,7 +87,7 @@ describe("describeUnknownFieldFilter", () => {
 	it("keeps the full vocabulary when nothing is close", () => {
 		const message = describeUnknownFieldFilter("sortby", "status|sortby:x");
 		expect(message).toBe(
-			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format.',
+			'Unknown FIELD filter "sortby" in {{FIELD:status|sortby:x}} was ignored. Supported filters: folder, tag, inline, inline-code-blocks, exclude-folder, exclude-tag, exclude-file, default, default-from, default-empty, default-always, case-sensitive, multi, format, label.',
 		);
 	});
 
@@ -159,7 +160,7 @@ describe("FieldSuggestionParser warns through the new message", () => {
 
 	it("stays silent for every recognised filter, bare flag included", () => {
 		const { warnings } = parse(
-			"status|folder:a|tag:b|inline:true|inline-code-blocks:c|exclude-folder:d|exclude-tag:e|exclude-file:f|default:g|default-from:active|default-empty:true|default-always:true|case-sensitive:true|multi",
+			"status|folder:a|tag:b|inline:true|inline-code-blocks:c|exclude-folder:d|exclude-tag:e|exclude-file:f|default:g|default-from:active|default-empty:true|default-always:true|case-sensitive:true|label:h|multi",
 		);
 		expect(warnings).toEqual([]);
 	});

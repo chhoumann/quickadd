@@ -97,6 +97,7 @@ field if you have not focused one.
 ### How FIELD inputs behave {#field-ux}
 
 - `{{FIELD:...}}` inputs suggest values from your vault (using Dataview when it is available, with a manual fallback otherwise).
+- The field is named after the property, or after its [`|label:`](/docs/FormatSyntax/#field-label) when it has one.
 - `{{FIELD:...|multi}}` is not shown inline in the form, because vault field values can contain commas. QuickAdd collects the rest of the form first, then opens the regular multi-select for that field.
 
 ### How FILE inputs behave {#file-ux}

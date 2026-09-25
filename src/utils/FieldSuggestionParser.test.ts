@@ -235,21 +235,32 @@ describe("FieldSuggestionParser", () => {
 					},
 				},
 			],
+			[
+				"keeps the label out of the filters (issue #1797)",
+				"project|folder:Projects|label:Which project?",
+				{
+					fieldName: "project",
+					filters: { folder: "Projects", folders: ["Projects"] },
+					label: "Which project?",
+				},
+			],
+			[
+				"keeps colons inside a label",
+				"project|label:Project: primary",
+				{
+					fieldName: "project",
+					filters: {},
+					label: "Project: primary",
+				},
+			],
+			[
+				"ignores an empty label",
+				"project|label:",
+				{ fieldName: "project", filters: {} },
+			],
 		])("%s", (_name, input, expected) => {
 			expect(FieldSuggestionParser.parse(input)).toEqual(expected);
 		});
-
-
-
-
-
-
-
-
-
-
-
-
 
 		it("parses an explicit multi-select format", () => {
 			const result=FieldSuggestionParser.parse(
