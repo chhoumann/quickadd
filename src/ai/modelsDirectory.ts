@@ -1,6 +1,8 @@
-import { requestUrl } from "obsidian";
+import { normalizePath, requestUrl } from "obsidian";
+import type { DataAdapter } from "obsidian";
 import type { Model } from "./Provider";
 import { settingsStore } from "src/settingsStore";
+import { log } from "src/logger/logManager";
 
 export type ModelsDevModel = {
   id: string;
@@ -21,9 +23,54 @@ export type ModelsDevProvider = {
 
 export type ModelsDevDirectory = Record<string, ModelsDevProvider>;
 
-let cachedDirectory: { data: ModelsDevDirectory; fetchedAt: number } | null = null;
+const MODELS_DEV_URL = "https://models.dev/api.json";
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Where the last downloaded directory lives between Obsidian launches.
+ * main.ts backs this with a file in the plugin folder; tests use a fake.
+ */
+export interface ModelsDirectoryDiskCache {
+  read(): Promise<string | null>;
+  write(contents: string): Promise<void>;
+}
+
+type PersistedDirectory = { etag?: string; data: ModelsDevDirectory };
+
+let diskCache: ModelsDirectoryDiskCache | null = null;
+let cachedDirectory: { data: ModelsDevDirectory; fetchedAt: number } | null = null;
+let inFlight: Promise<ModelsDevDirectory> | null = null;
+
+export const MODELS_DIRECTORY_CACHE_FILE = "models-dev-cache.json";
+
+/**
+ * Disk cache backed by a file in the plugin folder, next to data.json but
+ * separate from it: the directory is ~5 MB and settings saves rewrite data.json.
+ */
+export function pluginFolderDirectoryCache(
+  adapter: Pick<DataAdapter, "exists" | "read" | "write">,
+  pluginDir: string,
+): ModelsDirectoryDiskCache {
+  const path = normalizePath(`${pluginDir}/${MODELS_DIRECTORY_CACHE_FILE}`);
+  return {
+    read: async () => ((await adapter.exists(path)) ? adapter.read(path) : null),
+    write: (contents) => adapter.write(path, contents),
+  };
+}
+
+export function setModelsDirectoryDiskCache(
+  cache: ModelsDirectoryDiskCache | null,
+): void {
+  diskCache = cache;
+  cachedDirectory = null;
+}
+
+/**
+ * The models.dev directory (~5 MB). Kept in memory for a day, and on disk
+ * across launches: the first fetch of a session revalidates the disk copy with
+ * If-None-Match, so an unchanged directory costs a bodiless 304 instead of a
+ * full download. If revalidation fails, the disk copy is used as-is.
+ */
 export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
   if (
     cachedDirectory &&
@@ -38,14 +85,107 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
     );
   }
 
-  const response = await requestUrl({
-    url: "https://models.dev/api.json",
-    method: "GET",
+  inFlight ??= revalidateDirectory().finally(() => {
+    inFlight = null;
   });
+  return inFlight;
+}
 
-  const data = (await response.json) as ModelsDevDirectory;
+async function revalidateDirectory(): Promise<ModelsDevDirectory> {
+  const persisted = await readPersistedDirectory();
+
+  let fresh: PersistedDirectory;
+  try {
+    const response = await requestUrl({
+      url: MODELS_DEV_URL,
+      method: "GET",
+      headers: persisted?.etag ? { "If-None-Match": persisted.etag } : undefined,
+    });
+    if (response.status === 304 && persisted) {
+      return remember(persisted.data);
+    }
+    const data: unknown = response.json;
+    if (!isDirectory(data)) {
+      throw new Error("models.dev returned an unexpected response.");
+    }
+    fresh = { etag: headerValue(response.headers, "etag"), data };
+  } catch (err) {
+    if (!persisted) throw err;
+    log.logMessage(
+      `Could not refresh the models.dev directory; using the saved copy. ${
+        (err as Error)?.message ?? String(err)
+      }`,
+    );
+    return remember(persisted.data);
+  }
+
+  await writePersistedDirectory(fresh);
+  return remember(fresh.data);
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * A directory is a non-empty map of providers, each with a `models` map;
+ * anything else is unusable (discovery reads `directory[key].models`).
+ */
+function isDirectory(value: unknown): value is ModelsDevDirectory {
+  if (!isPlainObject(value)) return false;
+  const providers = Object.values(value);
+  return (
+    providers.length > 0 &&
+    providers.every(
+      (provider) => isPlainObject(provider) && isPlainObject(provider.models),
+    )
+  );
+}
+
+function remember(data: ModelsDevDirectory): ModelsDevDirectory {
   cachedDirectory = { data, fetchedAt: Date.now() };
   return data;
+}
+
+function headerValue(
+  headers: Record<string, string>,
+  name: string,
+): string | undefined {
+  const match = Object.keys(headers ?? {}).find(
+    (key) => key.toLowerCase() === name,
+  );
+  return match ? headers[match] : undefined;
+}
+
+async function readPersistedDirectory(): Promise<PersistedDirectory | null> {
+  if (!diskCache) return null;
+  try {
+    const raw = await diskCache.read();
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<PersistedDirectory>;
+    if (!isDirectory(parsed.data)) return null;
+    return {
+      etag: typeof parsed.etag === "string" ? parsed.etag : undefined,
+      data: parsed.data,
+    };
+  } catch (err) {
+    // A corrupt or unreadable cache is just a cache miss.
+    log.logMessage(
+      `Ignoring unreadable models.dev cache: ${(err as Error)?.message ?? String(err)}`,
+    );
+    return null;
+  }
+}
+
+async function writePersistedDirectory(entry: PersistedDirectory): Promise<void> {
+  if (!diskCache) return;
+  try {
+    await diskCache.write(JSON.stringify(entry));
+  } catch (err) {
+    // Failing to persist only costs a re-download next launch.
+    log.logMessage(
+      `Could not save the models.dev cache: ${(err as Error)?.message ?? String(err)}`,
+    );
+  }
 }
 
 // Extract the lowercased hostname from an endpoint, tolerating a missing
