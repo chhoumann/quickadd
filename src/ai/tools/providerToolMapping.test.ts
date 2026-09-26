@@ -383,6 +383,18 @@ describe("OpenAI Responses mapping (api.openai.com)", () => {
 		expect(parsed.rawStopReason).toBe("max_output_tokens");
 	});
 
+	it("returns a refusal's explanation instead of an empty answer", () => {
+		const parsed = parseChatResponse("openai-responses", {
+			status: "completed",
+			output: [
+				{ type: "message", content: [{ type: "refusal", refusal: "I can't help with that." }] },
+			],
+		});
+		expect(parsed.content).toBe("I can't help with that.");
+		expect(parsed.normalizedStopReason).toBe("other");
+		expect(parsed.rawStopReason).toBe("refusal");
+	});
+
 	it("flags unparseable function_call arguments instead of throwing", () => {
 		const parsed = parseChatResponse("openai-responses", {
 			status: "completed",

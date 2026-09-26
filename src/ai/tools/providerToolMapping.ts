@@ -340,7 +340,7 @@ interface ResponsesOutputItemRaw {
 	call_id?: string;
 	name?: string;
 	arguments?: unknown;
-	content?: Array<{ type: string; text?: string }>;
+	content?: Array<{ type: string; text?: string; refusal?: string }>;
 }
 function parseOpenAIResponsesResponse(json: Record<string, unknown>): ParsedChatResult {
 	const output = (json.output as ResponsesOutputItemRaw[] | undefined) ?? [];
@@ -352,29 +352,37 @@ function parseOpenAIResponsesResponse(json: Record<string, unknown>): ParsedChat
 				function: { name: item.name ?? "", arguments: item.arguments },
 			}),
 		);
-	const content = output
+	const parts = output
 		.filter((item) => item.type === "message")
-		.flatMap((item) => item.content ?? [])
+		.flatMap((item) => item.content ?? []);
+	const text = parts
 		.filter((part) => part.type === "output_text")
 		.map((part) => part.text ?? "")
 		.join("");
+	// A safety refusal arrives as a `refusal` part instead of output_text. Return
+	// its explanation rather than an empty answer, and don't call it a normal stop.
+	const refusal = parts
+		.filter((part) => part.type === "refusal")
+		.map((part) => part.refusal ?? "")
+		.join("");
+	const refused = !text && refusal.length > 0;
 	const status = String(json.status ?? "");
 	const incompleteReason = String(
 		(json.incomplete_details as { reason?: string } | null | undefined)?.reason ?? "",
 	);
 	const usage = (json.usage as Record<string, number>) ?? {};
 	return {
-		content,
+		content: refused ? refusal : text,
 		toolCalls,
 		normalizedStopReason:
 			toolCalls.length > 0
 				? "tool_calls"
 				: incompleteReason === "max_output_tokens"
 					? "length"
-					: status === "completed"
+					: status === "completed" && !refused
 						? "stop"
 						: "other",
-		rawStopReason: incompleteReason || status,
+		rawStopReason: refused ? "refusal" : incompleteReason || status,
 		usage: {
 			promptTokens: usage.input_tokens ?? 0,
 			completionTokens: usage.output_tokens ?? 0,
