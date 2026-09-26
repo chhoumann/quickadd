@@ -438,6 +438,11 @@ export class Agent {
 		schema: JSONSchema,
 		restoreCursor: () => void,
 	): Promise<unknown> {
+		// A refusal is terminal: the model declined, so its text is never the
+		// structured result (even if it happens to parse), and re-asking for JSON
+		// would only spend another request on the same refusal.
+		if (loop.finalTurn.rawStopReason === "refusal") return undefined;
+
 		const first = parseStructured(loop.finalTurn.content, schema);
 		if (first.ok) return first.value;
 
