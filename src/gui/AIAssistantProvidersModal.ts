@@ -2,9 +2,14 @@ import { addProviderSecret } from "./ai/providerSettings";
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider, Model } from "src/ai/Provider";
-import { ensureProviderIds } from "src/ai/Provider";
-import { mergeModels } from "src/ai/modelsDirectory";
+import { ensureProviderIds, sortModelsForDisplay } from "src/ai/Provider";
+import { mergeModels, mergeSyncedModels } from "src/ai/modelsDirectory";
 import { diffModelLists, syncProviderModels } from "src/ai/modelSyncService";
+import {
+	describeConnectionResult,
+	testProviderConnection,
+} from "src/ai/providerConnection";
+import { describeSyncStatus } from "./ai/syncStatus";
 import { settingsStore } from "src/settingsStore";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { deepClone } from "src/utils/deepClone";
@@ -25,6 +30,15 @@ export class AIAssistantProvidersModal extends Modal {
 
 	/** The edit view's model list, re-rendered in place when a sync changes it. */
 	private modelsContainerEl: HTMLElement | null = null;
+
+	/** The edit view's sync status line under Auto-sync. */
+	private syncStatusEl: HTMLElement | null = null;
+
+	/** The edit view's Test connection result line. */
+	private connectionResultEl: HTMLElement | null = null;
+
+	/** Filter text for the edit view's model list; kept across re-renders. */
+	private modelFilter = "";
 
 	/**
 	 * Cancel swaps an edited provider for its snapshot. A sync still in flight
@@ -70,7 +84,9 @@ export class AIAssistantProvidersModal extends Modal {
 				this.applySyncResult(provider, discovered, added + updated > 0);
 				changed = changed || added > 0;
 			} catch {
-				// Quiet by design; "Sync now" surfaces errors.
+				// No Notice by design; the failure shows in the provider's
+				// sync status line, and "Sync now" is the loud path.
+				this.applySyncStatus(provider);
 			}
 		}
 
@@ -102,25 +118,42 @@ export class AIAssistantProvidersModal extends Modal {
 		discovered: Model[],
 		syncedChanged: boolean,
 	): void {
+		this.applySyncStatus(synced);
 		const current = this.currentFor(synced);
 		if (!current) return;
 
 		let changed = syncedChanged;
 		if (current !== synced) {
 			const before = current.models;
-			current.models = mergeModels(before, discovered);
+			current.models = mergeSyncedModels(before, discovered);
 			const diff = diffModelLists(before, current.models);
 			changed = diff.added + diff.updated > 0;
 		}
 		if (!changed || current !== this.selectedProvider) return;
 
 		if (this._selectedProviderClone) {
-			this._selectedProviderClone.models = mergeModels(
+			this._selectedProviderClone.models = mergeSyncedModels(
 				this._selectedProviderClone.models,
 				discovered,
 			);
 		}
 		this.renderProviderModels();
+	}
+
+	/**
+	 * Carry a finished sync's outcome (syncProviderModels records it on the
+	 * object it synced, success or failure) to whatever represents that
+	 * provider now and its Cancel snapshot, and refresh the status line.
+	 */
+	private applySyncStatus(synced: AIProvider): void {
+		const current = this.currentFor(synced);
+		if (!current) return;
+		current.lastModelSync = synced.lastModelSync;
+		if (current !== this.selectedProvider) return;
+		if (this._selectedProviderClone) {
+			this._selectedProviderClone.lastModelSync = synced.lastModelSync;
+		}
+		this.renderSyncStatus();
 	}
 
 	private display(): void {
@@ -145,6 +178,9 @@ export class AIAssistantProvidersModal extends Modal {
 	private reload(): void {
 		this.contentEl.empty();
 		this.modelsContainerEl = null;
+		this.syncStatusEl = null;
+		this.connectionResultEl = null;
+		if (!this.selectedProvider) this.modelFilter = "";
 
 		this.display();
 	}
@@ -203,6 +239,7 @@ export class AIAssistantProvidersModal extends Modal {
 		this.addNameSetting(container);
 		this.addEndpointSetting(container);
 		this.addApiKeySetting(container);
+		this.addTestConnectionSetting(container);
 		this.addKindSetting(container);
 		this.addModelSourceSetting(container);
 
@@ -237,6 +274,7 @@ export class AIAssistantProvidersModal extends Modal {
 				text.setValue(this.selectedProvider!.endpoint).onChange(
 					(value) => {
 						this.selectedProvider!.endpoint = value;
+						this.invalidateConnectionState();
 					}
 				);
 			});
@@ -252,8 +290,49 @@ export class AIAssistantProvidersModal extends Modal {
 				if (!this.selectedProvider) return;
 				this.selectedProvider.apiKeyRef = value;
 				this.selectedProvider.apiKey = "";
+				this.invalidateConnectionState();
 			},
 		});
+	}
+
+	addTestConnectionSetting(container: HTMLElement) {
+		const setting = new Setting(container)
+			.setName("Connection")
+			.setDesc("Check that QuickAdd can reach this provider's models endpoint with the linked key.");
+		const resultEl = setting.descEl.createDiv({ cls: "qa-ai-connection-result" });
+		this.connectionResultEl = resultEl;
+		setting.addButton((button) => {
+			button.setButtonText("Test connection").onClick(async () => {
+				const provider = this.selectedProvider;
+				if (!provider) return;
+				button.setDisabled(true);
+				resultEl.setText("Testing…");
+				try {
+					const result = await testProviderConnection(this.app, provider);
+					resultEl.setText(describeConnectionResult(result));
+				} finally {
+					button.setDisabled(false);
+				}
+			});
+		});
+	}
+
+	/**
+	 * The endpoint, key, wire type, or model source changed: the last sync
+	 * and connection results describe a configuration that no longer exists.
+	 */
+	private invalidateConnectionState(): void {
+		if (!this.selectedProvider) return;
+		delete this.selectedProvider.lastModelSync;
+		this.renderSyncStatus();
+		this.connectionResultEl?.setText("");
+	}
+
+	private renderSyncStatus(): void {
+		const el = this.syncStatusEl;
+		const provider = this.selectedProvider;
+		if (!el || !provider) return;
+		el.setText(describeSyncStatus(provider, Date.now()));
 	}
 
 	addKindSetting(container: HTMLElement) {
@@ -273,6 +352,7 @@ export class AIAssistantProvidersModal extends Modal {
 					this.selectedProvider.kind = value
 						? (value as AIProvider["kind"])
 						: undefined;
+					this.invalidateConnectionState();
 				});
 			});
 	}
@@ -299,12 +379,25 @@ export class AIAssistantProvidersModal extends Modal {
 				dropdown.onChange((value) => {
 					if (!this.selectedProvider) return;
 					this.selectedProvider.modelSource = value as AIProvider["modelSource"];
+					delete this.selectedProvider.lastModelSync;
 					this.reload();
 				});
 			});
 	}
 
 	addProviderModelsSetting(container: HTMLElement) {
+		new Setting(container)
+			.setName("Models")
+			.setDesc("Newest first. Models the provider has retired are listed last.")
+			.addSearch((search) => {
+				search
+					.setPlaceholder("Filter models")
+					.setValue(this.modelFilter)
+					.onChange((value) => {
+						this.modelFilter = value;
+						this.renderProviderModels();
+					});
+			});
 		this.modelsContainerEl = container.createDiv({
 			cls: "models-container qa-ai-list-container",
 		});
@@ -314,10 +407,48 @@ export class AIAssistantProvidersModal extends Modal {
 	/** (Re)render the selected provider's model list and its "Add model" row. */
 	private renderProviderModels(): void {
 		const modelsContainer = this.modelsContainerEl;
-		if (!modelsContainer || !this.selectedProvider) return;
+		const provider = this.selectedProvider;
+		if (!modelsContainer || !provider) return;
 		modelsContainer.empty();
 
-        this.selectedProvider.models.forEach((model, i) => {
+		const retired = provider.models.filter((model) => model.deprecated);
+		if (retired.length > 0) {
+			// Capture the names shown in the confirm prompt so an in-flight
+			// sync that marks more models deprecated cannot expand the set.
+			const retiredNames = new Set(retired.map((model) => model.name));
+			new Setting(modelsContainer)
+				.setName(`${retired.length} retired model(s)`)
+				.setDesc(
+					"The provider has deprecated these models, so requests to them may start failing. Commands that use them will need another model.",
+				)
+				.addButton((button) => {
+					button
+						.setButtonText(`Remove retired models (${retired.length})`)
+						.onClick(async () => {
+							const confirmed = await GenericYesNoPrompt.Prompt(
+								this.app,
+								`Remove ${retired.length} retired model(s) from ${provider.name}?`,
+							);
+							if (!confirmed) return;
+							provider.models = provider.models.filter(
+								(model) => !retiredNames.has(model.name),
+							);
+							this.renderProviderModels();
+						});
+				});
+		}
+
+		const query = this.modelFilter.trim().toLowerCase();
+		const shown = sortModelsForDisplay(provider.models).filter(
+			(model) => !query || model.name.toLowerCase().includes(query),
+		);
+		if (query && shown.length === 0) {
+			modelsContainer.createDiv({
+				cls: "setting-item-description",
+				text: `No models match "${this.modelFilter.trim()}".`,
+			});
+		}
+        shown.forEach((model) => {
             const metadata = [`Context: ${model.maxTokens.toLocaleString()} tokens`];
             if (model.maxOutputTokens) {
                 metadata.push(`Output: ${model.maxOutputTokens.toLocaleString()} tokens`);
@@ -325,10 +456,21 @@ export class AIAssistantProvidersModal extends Modal {
             if (model.supportsTemperature === false) {
                 metadata.push("Fixed sampling (no temperature)");
             }
+            if (model.releaseDate) metadata.push(`Released ${model.releaseDate}`);
+            if (model.deprecated) metadata.push("Retired by the provider");
             new Setting(modelsContainer)
                 .setName(model.name)
                 .setDesc(metadata.join(" · "))
-                .addButton((button) => this.addDeleteButton(button, model.name, () => this.selectedProvider!.models.splice(i, 1)));
+                .addButton((button) =>
+                    this.addDeleteButton(button, model.name, () => {
+                        // Find by name: a concurrent sync replaces model
+                        // objects, so the closed-over reference may be gone.
+                        const index = provider.models.findIndex(
+                            (entry) => entry.name === model.name,
+                        );
+                        if (index !== -1) provider.models.splice(index, 1);
+                    }),
+                );
         });
 
         new Setting(modelsContainer)
@@ -406,11 +548,14 @@ export class AIAssistantProvidersModal extends Modal {
 
 	addAutoSyncSetting(container: HTMLElement) {
 		const sourceDescription = this.describeModelSource(this.selectedProvider);
-		new Setting(container)
+		const autoSync = new Setting(container)
 			.setName("Auto-sync models")
 			.setDesc(
 				`Keep this provider's models current automatically: QuickAdd imports new models and refreshed context limits from ${sourceDescription} once a day and when these settings open.`,
-			)
+			);
+		this.syncStatusEl = autoSync.descEl.createDiv({ cls: "qa-ai-sync-status" });
+		this.renderSyncStatus();
+		autoSync
 			.addToggle((toggle) => {
 				const current = !!this.selectedProvider?.autoSyncModels;
 				toggle.setValue(current).onChange((value) => {
@@ -451,6 +596,7 @@ export class AIAssistantProvidersModal extends Modal {
 						);
 						this.reload();
 					} catch (err) {
+						this.applySyncStatus(provider);
 						new Notice(
 							`Sync failed: ${(err as { message?: string }).message ?? err}`
 						);

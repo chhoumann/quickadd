@@ -137,6 +137,19 @@
 			<div class="choiceEmptyActions">
 				<AddChoiceControls onAddChoice={actions.onAddChoice} />
 			</div>
+			{#if !disableOnlineFeatures}
+				<!-- The bottom bar (and its AI icon) only renders once choices exist,
+				     so without this a new user had no way into AI settings. -->
+				<button
+					type="button"
+					class="qaAIAssistantBtn qaAIAssistantEmptyBtn clickable-icon"
+					aria-label="Configure AI Assistant"
+					onclick={openAISettings}
+				>
+					<ObsidianIcon iconId="sparkles" size={16} />
+					<span>Configure AI Assistant</span>
+				</button>
+			{/if}
 		</div>
 	{:else}
 		<div class="choiceFilterBar">
@@ -221,6 +234,16 @@
 </div>
 
 <style>
+	.qaAIAssistantEmptyBtn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.375rem;
+		margin-top: 0.75rem;
+		width: auto;
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+	}
+
 	.choiceViewBottomBar {
 		display: flex;
 		flex-direction: row;

@@ -239,6 +239,13 @@ export class TextComponent extends BaseComponent {
   }
 }
 
+export class SearchComponent extends TextComponent {
+  constructor(containerEl: HTMLElement) {
+    super(containerEl);
+    this.inputEl.type = "search";
+  }
+}
+
 export class SecretComponent extends BaseComponent {
   inputEl: HTMLInputElement;
 
@@ -354,6 +361,11 @@ export class Setting {
 
   addText(cb: (component: TextComponent) => any): this {
     cb(new TextComponent(this.controlEl));
+    return this;
+  }
+
+  addSearch(cb: (component: SearchComponent) => any): this {
+    cb(new SearchComponent(this.controlEl));
     return this;
   }
 

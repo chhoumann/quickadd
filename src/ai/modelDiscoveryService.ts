@@ -2,6 +2,8 @@ import { requestUrl } from "obsidian";
 import type { AIProvider, Model, ModelDiscoveryMode } from "./Provider";
 import { CURRENT_MODEL_SEEDS, getProviderKind } from "./Provider";
 import {
+	NON_CHAT_MODEL_ID_RE,
+	dropDatedSnapshots,
 	enrichModelsWithDirectoryMetadata,
 	fetchModelsDevDirectory,
 	mapEndpointToModelsDevKey,
@@ -32,6 +34,15 @@ type ProviderApiResponse =
 	| { object?: string; data?: ProviderApiModel[] };
 
 export async function discoverProviderModels(
+	provider: AIProvider,
+	apiKeyOverride?: string | null,
+): Promise<Model[]> {
+	// Provider catalogs list pinned dated snapshots next to the ids that track
+	// them (e.g. gpt-4o and gpt-4o-2024-11-20); keep only the tracking id.
+	return dropDatedSnapshots(await discoverAllProviderModels(provider, apiKeyOverride));
+}
+
+async function discoverAllProviderModels(
 	provider: AIProvider,
 	apiKeyOverride?: string | null,
 ): Promise<Model[]> {
@@ -166,14 +177,6 @@ async function requestProviderJson<T>(
 		throw new Error(`Provider rejected the models request: ${(err as Error).message}`);
 	}
 }
-
-// OpenAI-compatible /v1/models responses carry no capability metadata, so
-// non-chat entries can only be recognized by name. These families cannot serve
-// chat completions (verified against the live OpenAI and Groq catalogs):
-// speech-to-text, text-to-speech, embeddings, image generation, moderation,
-// rerankers, and realtime/audio-only endpoints.
-const NON_CHAT_MODEL_ID_RE =
-	/(whisper|-tts|tts-|embed|dall-e|image|moderation|transcribe|realtime|rerank)/i;
 
 async function fetchOpenAICompatibleModels(
 	provider: AIProvider,

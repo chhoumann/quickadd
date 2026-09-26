@@ -1,7 +1,7 @@
 import type { DropdownComponent } from "obsidian";
 import { resolveModel } from "src/ai/aiHelpers";
 import type { ModelRef } from "src/ai/Provider";
-import { activeModelRef } from "src/ai/Provider";
+import { activeModelRef, sortModelsForDisplay } from "src/ai/Provider";
 import { settingsStore } from "src/settingsStore";
 
 /**
@@ -62,14 +62,17 @@ export function populateModelDropdown(
 		const group = selectEl.createEl("optgroup");
 		group.label = provider.name;
 
-		for (const model of provider.models) {
+		for (const model of sortModelsForDisplay(provider.models)) {
 			const value = `${provider.id ?? provider.name}/${model.name}:${index++}`;
 			entriesByValue.set(value, {
 				providerId: provider.id,
 				modelName: model.name,
 			});
 
-			group.createEl("option", { value, text: model.name });
+			group.createEl("option", {
+				value,
+				text: model.deprecated ? `${model.name} (retired)` : model.name,
+			});
 		}
 	}
 

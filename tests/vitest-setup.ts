@@ -33,6 +33,12 @@ export function installObsidianDomHelpers(window: Window): void {
 			this.classList.add(...classes);
 		};
 	}
+	const elementWithText = element as unknown as { setText?: unknown };
+	if (typeof elementWithText.setText !== "function") {
+		elementWithText.setText = function setText(this: Element, text: string) {
+			this.textContent = text;
+		};
+	}
 	if (typeof element.removeClass !== "function") {
 		element.removeClass = function removeClass(this: Element, ...classes: string[]) {
 			this.classList.remove(...classes);

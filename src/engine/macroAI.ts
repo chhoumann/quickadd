@@ -8,7 +8,7 @@ import { settingsStore } from "../settingsStore";
 import { CompleteFormatter } from "../formatters/completeFormatter";
 import { getQuickAddInstance } from "../quickAddInstance";
 import { resolveModel, type ResolvedModel } from "../ai/aiHelpers";
-import { activeModelRef } from "../ai/Provider";
+import { activeModelRef, sortModelsForDisplay } from "../ai/Provider";
 import { isCancellationError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -97,8 +97,8 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 	const providers = settingsStore.getState().ai.providers;
 	const entries: { label: string; qualified: string; resolved: ResolvedModel }[] =
 		providers.flatMap((provider) =>
-			provider.models.map((model) => ({
-				label: `${model.name} (${provider.name})`,
+			sortModelsForDisplay(provider.models).map((model) => ({
+				label: `${model.name} (${provider.name}${model.deprecated ? ", retired" : ""})`,
 				qualified: `${provider.id ?? provider.name}/${model.name}`,
 				resolved: { provider, model },
 			})),

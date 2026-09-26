@@ -122,6 +122,10 @@ For a provider that is not listed, click **Add custom...** under **Custom
 provider**. Set the provider name, endpoint, API key secret if needed, model
 source, and models manually.
 
+To check a key, open the provider and click **Test connection**. QuickAdd asks
+the provider's own models endpoint with the linked key and shows either how many
+models it lists or the provider's error.
+
 ### Local models and Ollama {#local-models-and-ollama}
 
 Use **Custom provider** for Ollama and most local OpenAI-compatible servers.
@@ -172,8 +176,15 @@ Each provider has a **Model source** setting:
 - **Automatic** tries the provider first and falls back to models.dev when QuickAdd can map the endpoint.
 
 Imports skip entries that cannot serve chat requests (image generators,
-text-to-speech voices, embedding models), and they carry each model's context
-window, output limit, and sampling support where the source reports them.
+text-to-speech voices, embedding models, realtime audio models) and pinned dated
+snapshots such as `gpt-4o-2024-11-20` when the undated id is listed. They carry
+each model's context window, output limit, sampling support, and release date
+where the source reports them.
+
+The model list shows the newest models first and has a filter box. Models the
+provider has deprecated are marked **Retired by the provider** and listed last,
+and **Remove retired models** clears them in one step. QuickAdd never removes
+them on its own, because saved commands may still use them.
 
 If model import fails, you can still add models manually. Use the provider's
 exact model id and the model's context-window token count.
@@ -184,7 +195,10 @@ Each provider has an **Auto-sync models** toggle. While it is on, QuickAdd
 imports new models and refreshed context limits from the provider's model source
 once a day and whenever provider settings open, so model lists stay current
 without plugin updates. Auto-sync only adds models and updates metadata - it
-never removes models you have configured. Use **Sync now** to refresh on demand.
+never removes models you have configured, and it does not add models the
+directory already marks as deprecated. Use **Sync now** to refresh on demand.
+The line under the toggle shows when the provider last synced, or why the last
+sync failed.
 Models that arrive while you are editing a provider appear in its list right
 away, and the **Sync now** notice counts every model added to the list you were
 looking at when you clicked it.
@@ -496,7 +510,9 @@ For the full script API surface, see the
 ### The AI settings button is missing {#the-ai-settings-button-is-missing}
 
 Turn off **Disable AI & online features** in QuickAdd settings. The AI settings
-button is hidden while AI and online features are disabled.
+button is hidden while AI and online features are disabled. With no choices yet,
+the button is **Configure AI Assistant** below **New choice**; otherwise it is
+the sparkles icon in the bar under the choice list.
 
 ### My model is not listed {#my-model-is-not-listed}
 

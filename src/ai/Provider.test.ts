@@ -4,6 +4,7 @@ import {
 	CURRENT_MODEL_SEEDS,
 	DefaultProviders,
 	activeModelRef,
+	sortModelsForDisplay,
 	ensureProviderIds,
 	getChatWire,
 	getProviderKind,
@@ -186,5 +187,29 @@ describe("shipped model seeds", () => {
 			const names = seeds.map((m) => m.name);
 			expect(new Set(names).size, key).toBe(names.length);
 		}
+	});
+});
+
+describe("sortModelsForDisplay", () => {
+	it("puts current models newest first, then undated ones in stored order, then retired ones", () => {
+		const models = [
+			{ name: "hand-added", maxTokens: 1 },
+			{ name: "gpt-4o", maxTokens: 1, releaseDate: "2024-05-13" },
+			{ name: "o4-mini", maxTokens: 1, releaseDate: "2025-04-16", deprecated: true },
+			{ name: "gpt-6-sol", maxTokens: 1, releaseDate: "2026-09-22" },
+			{ name: "local-model", maxTokens: 1 },
+			{ name: "gpt-5.5", maxTokens: 1, releaseDate: "2026-04-23" },
+		];
+
+		expect(sortModelsForDisplay(models).map((m) => m.name)).toEqual([
+			"gpt-6-sol",
+			"gpt-5.5",
+			"gpt-4o",
+			"hand-added",
+			"local-model",
+			"o4-mini",
+		]);
+		// Display order only: the stored list is untouched.
+		expect(models[0].name).toBe("hand-added");
 	});
 });
