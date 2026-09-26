@@ -42,6 +42,8 @@ You can make one Capture choice per export, so each has its own command.
 
 ## What you get
 
+![Running the Import Todoist tasks choice: picking the QuickAdd Demo project appends its three tasks to the note as checklist items](../Images/todoist_import_demo.gif)
+
 The tasks are written in this format:
 `- [ ] <Task Content> 📅 <YYYY-MM-DD>`
 
