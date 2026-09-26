@@ -3,7 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { waitForElement } from "./uiHelpers";
+import { pressKey, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("choice-list-layout");
 
@@ -45,6 +45,32 @@ it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host 
 			expect(action.height).toBeLessThan(40);
 		}
 	} finally {
+		await obsidian.dev.evalJson("app.setting.close(); true");
+	}
+});
+
+it("opens the New choice menu under its button", async () => {
+	const { obsidian } = getContext();
+	try {
+		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
+		await waitForElement(obsidian, ".qaNewChoiceBtn.mod-cta");
+		await obsidian.dev.evalJson("document.querySelector('.qaNewChoiceBtn.mod-cta').click(); true");
+		await waitForElement(obsidian, ".menu");
+		const { button, menu } = await obsidian.dev.evalJson<{
+			button: { left: number; right: number; bottom: number };
+			menu: { left: number; right: number; top: number };
+		}>(`(() => {
+			const rect = (selector) => {
+				const { left, right, top, bottom } = document.querySelector(selector).getBoundingClientRect();
+				return { left, right, top, bottom };
+			};
+			return { button: rect('.qaNewChoiceBtn.mod-cta'), menu: rect('.menu') };
+		})()`);
+		expect(menu.top).toBeGreaterThan(button.bottom);
+		expect(menu.right).toBeCloseTo(button.right, 0);
+		expect(menu.left).toBeLessThan(button.left);
+	} finally {
+		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");
 	}
 });
