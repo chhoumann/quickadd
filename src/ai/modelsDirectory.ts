@@ -24,6 +24,24 @@ export type ModelsDevDirectory = Record<string, ModelsDevProvider>;
 let cachedDirectory: { data: ModelsDevDirectory; fetchedAt: number } | null = null;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * A directory is a non-empty map of providers, each with a `models` map;
+ * anything else is unusable (discovery reads `directory[key].models`).
+ */
+function isDirectory(value: unknown): value is ModelsDevDirectory {
+  if (!isPlainObject(value)) return false;
+  const providers = Object.values(value);
+  return (
+    providers.length > 0 &&
+    providers.every(
+      (provider) => isPlainObject(provider) && isPlainObject(provider.models),
+    )
+  );
+}
+
 export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
   if (
     cachedDirectory &&
@@ -43,7 +61,12 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
     method: "GET",
   });
 
-  const data = (await response.json) as ModelsDevDirectory;
+  // Validate before the 24h memory cache so a bad 200 cannot poison Sync now
+  // for the rest of the session (independent of the reverted disk cache).
+  const data: unknown = response.json;
+  if (!isDirectory(data)) {
+    throw new Error("models.dev returned an unexpected response.");
+  }
   cachedDirectory = { data, fetchedAt: Date.now() };
   return data;
 }
