@@ -385,7 +385,7 @@ const icons: Record<string, string> = {
 										const active = f === 0 && i === 0;
 										return (
 											<div
-												class:list={["demoShot", { isActive: active }]}
+												class:list={["demoShot", { isActive: active, isNext: f === 0 && i === 1 }]}
 												data-flow={flow.id}
 												data-index={i}
 												aria-hidden={active ? undefined : "true"}>
@@ -653,14 +653,39 @@ const icons: Record<string, string> = {
 				const setCurrent = (el, on, value) =>
 					on ? el.setAttribute("aria-current", value) : el.removeAttribute("aria-current");
 
+				let generation = 0;
 				const show = (index) => {
+					const shown = ++generation;
 					const { flow } = steps[index].dataset;
 					const active = key(steps[index]);
+					const next = key(steps[(index + 1) % steps.length]);
+					const previous = shots.find((el) => el.classList.contains("isActive"));
 					shots.forEach((el) => {
 						const on = key(el) === active;
 						el.classList.toggle("isActive", on);
+						el.classList.toggle("isNext", key(el) === next && !on);
+						el.classList.toggle("isPrev", el === previous && !on);
 						on ? el.removeAttribute("aria-hidden") : el.setAttribute("aria-hidden", "true");
 					});
+					// Keep the old frame underneath until the new one has loaded and
+					// faded in, so a jump to a frame that isn't loaded yet never flashes.
+					const incoming = shots.find((el) => key(el) === active);
+					const image = [...incoming.querySelectorAll("img")].find((img) => img.checkVisibility());
+					const loaded =
+						!image || image.complete
+							? Promise.resolve()
+							: new Promise((resolve) => {
+									image.addEventListener("load", resolve, { once: true });
+									image.addEventListener("error", resolve, { once: true });
+								});
+					loaded
+						.then(() => image?.decode())
+						.catch(() => {})
+						.then(() =>
+							setTimeout(() => {
+								if (shown === generation) previous?.classList.remove("isPrev");
+							}, 500),
+						);
 					// Never strand keyboard focus inside a flow that is about to go inert.
 					const focused = document.activeElement;
 					const strand = flows.some((el) => el.dataset.flow !== flow && el.contains(focused));
@@ -1030,11 +1055,26 @@ code {
   pointer-events: none;
 }
 
+/* Only the current frame, the one it is fading in over, and the next frame
+   are rendered. Everything else is display: none, so its lazy image isn't
+   fetched until the demo gets close to it. */
 .demoShot {
   position: absolute;
   inset: 0;
+  display: none;
   opacity: 0;
   transition: opacity 0.45s ease;
+}
+
+.demoShot.isActive,
+.demoShot.isPrev,
+.demoShot.isNext {
+  display: block;
+}
+
+.demoShot.isPrev {
+  opacity: 1;
+  z-index: 1;
 }
 
 .demoShot img {
@@ -1045,6 +1085,7 @@ code {
 
 .demoShot.isActive {
   opacity: 1;
+  z-index: 2;
 }
 
 /* Both flows share one grid cell, so the caption is always as tall as the
