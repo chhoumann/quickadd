@@ -1,36 +1,39 @@
+// Geocodes an address with OpenStreetMap's free Nominatim API and stores the
+// coordinates in the active note's `location` property as `lat,lng`, the
+// front matter format that the Map View plugin reads and writes itself.
 module.exports = async (params) => {
-    const {createYamlProperty} = params.app.plugins.plugins["metaedit"].api;
-    const address = await params.quickAddApi.inputPrompt("🏠 Address");
-    if (!address) {
-        new Notice("No address given", 5000);
-        return;
-    }
+    const {app, obsidian, quickAddApi} = params;
 
-    const result = await apiGet(address);
-    if (!result.length) {
-        new Notice("No results found", 5000);
-        return;
-    }
-
-    const {lat, lon} = result[0];
-
-    const activeFile = params.app.workspace.getActiveFile();
+    const activeFile = app.workspace.getActiveFile();
     if (!activeFile) {
-        new Notice("No active file", 5000);
+        new obsidian.Notice("No active file", 5000);
         return;
     }
 
-    await createYamlProperty("location", `[${lat}, ${lon}]`, activeFile);
-}
+    const address = await quickAddApi.inputPrompt("🏠 Address");
+    if (!address) {
+        new obsidian.Notice("No address given", 5000);
+        return;
+    }
 
+    const results = await geocode(obsidian, address);
+    if (!results.length) {
+        new obsidian.Notice(`No results found for "${address}"`, 5000);
+        return;
+    }
 
-async function apiGet(searchQuery) {
-    let finalURL = new URL(`https://nominatim.openstreetmap.org/search?q=${searchQuery}&format=json`);
-    
-    return await fetch(finalURL, {
-        method: 'GET', cache: 'no-cache',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-    }).then(async (res) => await res.json());
+    const {lat, lon} = results[0];
+    await app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+        frontmatter.location = `${lat},${lon}`;
+    });
+};
+
+async function geocode(obsidian, address) {
+    const url = new URL("https://nominatim.openstreetmap.org/search");
+    // URLSearchParams encodes the address, so characters like `&` and `#`
+    // stay part of the query instead of cutting it short.
+    url.search = new URLSearchParams({q: address, format: "json", limit: "1"}).toString();
+
+    const response = await obsidian.requestUrl({url: url.toString()});
+    return response.json;
 }
