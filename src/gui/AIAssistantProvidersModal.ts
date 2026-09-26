@@ -412,9 +412,12 @@ export class AIAssistantProvidersModal extends Modal {
 							provider,
 						);
 						if (!isCurrent()) return;
+						// Count only models the source reports, so a model the user
+						// added by hand while waiting is not announced as synced.
+						const sourceNames = new Set(discovered.map((m) => m.name));
 						const { added, updated } = diffModelLists(
 							shown,
-							provider.models,
+							provider.models.filter((m) => sourceNames.has(m.name)),
 						);
 						// Sync is not a user edit: keep its results if Cancel runs.
 						// (After Save the user may be editing another provider, whose

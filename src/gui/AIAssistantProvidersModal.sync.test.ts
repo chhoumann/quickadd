@@ -153,6 +153,25 @@ describe("AIAssistantProvidersModal model sync while editing", () => {
 		expect(shownModelNames(modal)).toEqual(["gpt-5.5", "gpt-6-sol"]);
 	});
 
+	it("does not count a model the user adds while Sync now waits", async () => {
+		const providers = [openAIProvider()];
+		const modal = openAndEdit(providers);
+
+		clickButtonByText(modal, "Sync now");
+		providers[0].models.push({ name: "my-local-model", maxTokens: 8192 });
+		await landDiscovery(0, DIRECTORY);
+		await landDiscovery(1, DIRECTORY);
+
+		expect(notices()).toEqual([
+			"Synced from the models.dev directory: 1 new model(s), 0 updated.",
+		]);
+		expect(providers[0].models.map((model) => model.name)).toEqual([
+			"gpt-5.5",
+			"my-local-model",
+			"gpt-6-sol",
+		]);
+	});
+
 	it("keeps background-synced models when the user cancels their edits", async () => {
 		const providers = [openAIProvider()];
 		const modal = openAndEdit(providers);
