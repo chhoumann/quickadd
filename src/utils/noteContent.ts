@@ -16,6 +16,8 @@ import invariant from "./invariant";
  * recommend, so it holds the result as soon as they resolve.
  */
 
+const SAVE_TIMEOUT_MS = 10_000;
+
 /** A loaded Markdown view editing `file`, preferring the active one. */
 export function getOpenNoteEditorView(app: App, file: TFile): MarkdownView | null {
 	// Reading view keeps its own copy of the text: saving it would write that
@@ -106,9 +108,13 @@ export async function processNoteFrontMatter(
 async function saveView(view: MarkdownView): Promise<void> {
 	await view.save();
 	// save() returns at once while an earlier save is still writing; that save
-	// then re-saves the latest text. Wait for both before trusting the disk.
+	// then re-saves the latest text. Wait for both before trusting the disk,
+	// and write nothing if they never finish, since they would overwrite it.
 	const saving = () => (view as unknown as { saving?: boolean }).saving === true;
-	for (let waited = 0; saving() && waited < 2000; waited += 10) await waitFor(10);
+	for (let waited = 0; saving(); waited += 10) {
+		if (waited >= SAVE_TIMEOUT_MS) throw new Error(`Obsidian is still saving '${view.file?.path}'. Try again once it has saved.`);
+		await waitFor(10);
+	}
 }
 
 /** The single replacement turning `before` into `after`, or null when they are equal. */

@@ -229,6 +229,19 @@ describe("CaptureChoiceEngine concurrent-edit merge", () => {
 		expect(setMarkdownCursorAtOffset).not.toHaveBeenCalled();
 	});
 
+	it("reports unchanged when only a concurrent edit changed the note", async () => {
+		const read = "alpha\nbeta\ngamma\n";
+		const concurrent = "alpha changed by sync\nbeta\ngamma\n";
+		const { engine, disk, choiceExecutor } = createEngine({ read, concurrent, formattedFileContent: read });
+
+		await engine.run();
+
+		expect(disk.content).toBe(concurrent);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenLastCalledWith(
+			expect.objectContaining({ status: "success", effect: "unchanged" }),
+		);
+	});
+
 	it("writes the formatted content and places the cursor when the note did not change", async () => {
 		const read = "alpha\nbeta\ngamma\n";
 		const formattedFileContent = "alpha\nbeta\ngamma\ncaptured ours\n";

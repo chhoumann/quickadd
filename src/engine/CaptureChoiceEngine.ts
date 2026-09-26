@@ -635,7 +635,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// Only a pass that actually rewrote the note invalidates the cursor offsets.
 		const rewritten = (wholeFileTemplater || postProcessed) && await this.app.vault.read(file) !== written;
 		const effect: ChoiceEffect = !options.fileAlreadyExists ? "created"
-			: merged || newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
+			: newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
 		const cursor = !merged && !rewritten && placement.kind === "offset"
 			? { offsets: [placement.value], content: newFileContent } : null;
 		return { effect, captureIsNoOp, cursor, marked: placement.kind === "offset" && placement.source === "marker" };
