@@ -1,10 +1,24 @@
 /* QuickAdd brand theme for Starlight. */
 
-@import url('https://rsms.me/inter/inter.css');
+/* Inter, self-hosted and subset to Latin (see public/fonts/LICENSE.txt). */
+@font-face {
+	font-family: InterVariable;
+	font-style: normal;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/InterVariable.woff2') format('woff2');
+}
+@font-face {
+	font-family: InterVariable;
+	font-style: italic;
+	font-weight: 100 900;
+	font-display: swap;
+	src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
+}
 
 :root {
 	--sl-font:
-		'InterVariable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto,
+		'InterVariable', system-ui, -apple-system, 'Segoe UI', Roboto,
 		Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Apple Color Emoji',
 		'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 	--sl-font-mono:
