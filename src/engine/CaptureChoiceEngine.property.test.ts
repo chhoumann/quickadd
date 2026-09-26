@@ -82,7 +82,7 @@ function fixture(content?: string) {
 			read: async () => stored ?? "",
 			create, createFolder,
 		},
-		workspace: { getActiveFile: () => stored === undefined ? null : file, getActiveViewOfType: () => null },
+		workspace: { getActiveFile: () => stored === undefined ? null : file, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 		fileManager: { processFrontMatter },
 	};
 	const plugin = { settings: { useSelectionAsCaptureValue: false, showCaptureNotification: false } } as QuickAdd;

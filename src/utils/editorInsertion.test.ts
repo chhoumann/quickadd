@@ -34,6 +34,7 @@ function createHarness({
 	};
 	const app = {
 		workspace: {
+			getLeavesOfType: vi.fn(() => []),
 			getActiveViewOfType: vi.fn(() => view),
 		},
 	} as unknown as App;
@@ -136,6 +137,7 @@ describe("insertFileLinkToActiveView", () => {
 		};
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: activeFile,
 					editor,
@@ -173,6 +175,7 @@ describe("insertFileLinkToActiveView", () => {
 		const createdFile = { path: "Folder/Created.md" } as TFile;
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: activeFile,
 					editor: {},
@@ -210,6 +213,7 @@ describe("insertFileLinkToActiveView", () => {
 		};
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({ file: activeFile, editor })),
 			},
 			fileManager: {
@@ -246,6 +250,7 @@ describe("insertFileLinkToActiveView", () => {
 		const activeFile = { path: "Folder/Host.md" } as TFile;
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: activeFile,
 					editor: null,
@@ -270,6 +275,7 @@ describe("insertFileLinkToActiveView", () => {
 	it("treats an editor-less view like no view for text placements (#1536)", async () => {
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: { path: "Host.md" },
 					editor: null,
@@ -303,6 +309,7 @@ describe("insertFileLinkToActiveView", () => {
 	it("propagates configured frontmatter insertion failures", async () => {
 		const app = {
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: { path: "Host.md" },
 					editor: {},
@@ -488,6 +495,7 @@ function createSelectionApp(
 ) {
 	return {
 		workspace: {
+			getLeavesOfType: vi.fn(() => []),
 			getActiveViewOfType: vi.fn(() => ({
 				file: { path },
 				editor: harness.editor,
@@ -516,6 +524,7 @@ describe("insertLinkWithPlacement editor-less view (#1536)", () => {
 	const editorlessApp = () =>
 		({
 			workspace: {
+				getLeavesOfType: vi.fn(() => []),
 				getActiveViewOfType: vi.fn(() => ({
 					file: { path: "Host.md" },
 					editor: null,
@@ -716,7 +725,7 @@ describe("insertFileLinkToActiveView displayText", () => {
 describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
 	it("skips silently when a partial options object omits requireActiveFile and no view is active", async () => {
 		const app = {
-			workspace: { getActiveViewOfType: vi.fn(() => null) },
+			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
 		} as unknown as App;
 
 		// No "placement" key: normalization would treat this as a legacy value
@@ -731,7 +740,7 @@ describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
 
 	it("still throws for strict callers when no view is active", async () => {
 		const app = {
-			workspace: { getActiveViewOfType: vi.fn(() => null) },
+			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
 		} as unknown as App;
 
 		await expect(

@@ -49,6 +49,7 @@ export function templateHarness(enabled = true) {
 			return file(path, content);
 		}),
 		process: vi.fn(async (f: TFile, transform: (content: string) => string) => {
+			events.push("process");
 			const content = transform(contents.get(f.path) ?? "");
 			contents.set(f.path, content);
 			return content;
@@ -71,7 +72,7 @@ export function templateHarness(enabled = true) {
 	});
 	const app = {
 		vault, fileManager: { processFrontMatter },
-		workspace: { getActiveFile: () => null, getActiveViewOfType: () => null },
+		workspace: { getActiveFile: () => null, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 		metadataCache: { getFileCache: () => null },
 		plugins: { plugins: {} },
 	} as unknown as App;

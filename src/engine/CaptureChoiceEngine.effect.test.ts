@@ -132,7 +132,7 @@ function harness({ exists, existing }: { exists: boolean; existing: string }) {
 			adapter: { exists: vi.fn(async () => exists) },
 			getAbstractFileByPath: vi.fn(() => (exists ? captureFile : null)),
 			read: vi.fn(async () => existing),
-			modify: vi.fn(),
+			process: vi.fn(async (_file: TFile, fn: (content: string) => string) => fn(existing)),
 			create: vi.fn(async (path: string, content: string) => {
 				created.push({ path, content });
 				return captureFile;
@@ -142,6 +142,7 @@ function harness({ exists, existing }: { exists: boolean; existing: string }) {
 		workspace: {
 			getActiveFile: vi.fn(() => null),
 			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: { getNewFileParent: vi.fn(() => ({ path: "" })) },
 	} as unknown as App;

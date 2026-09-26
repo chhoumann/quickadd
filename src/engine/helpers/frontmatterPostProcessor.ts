@@ -1,4 +1,5 @@
 import type { App, TFile } from "obsidian";
+import { processNoteFrontMatter } from "../../utils/noteContent";
 import { log } from "../../logger/logManager";
 import { coerceYamlValue } from "../../utils/yamlValues";
 import { TemplatePropertyCollector } from "../../utils/TemplatePropertyCollector";
@@ -217,7 +218,7 @@ export async function postProcessFrontMatter(
 		log.logMessage(`Variable types: ${Array.from(templatePropertyVars.entries())
 			.map(([k, v]) => `${k}:${typeof v}`).join(', ')}`);
 
-		await app.fileManager.processFrontMatter(file, (frontmatter) => {
+		await processNoteFrontMatter(app, file, (frontmatter) => {
 			for (const [key, value] of templatePropertyVars) {
 				const pathSegments = key.includes(TemplatePropertyCollector.PATH_SEPARATOR)
 					? key.split(TemplatePropertyCollector.PATH_SEPARATOR)

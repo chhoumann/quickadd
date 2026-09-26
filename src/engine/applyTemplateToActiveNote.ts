@@ -18,6 +18,7 @@ import {
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
+import { readNote } from "../utils/noteContent";
 import {
 	TemplateInsertEngine,
 	templateInsertModes,
@@ -160,7 +161,7 @@ export async function applyTemplateToNote(
 			return null;
 		}
 
-		const noteContent = await app.vault.cachedRead(file);
+		const noteContent = await readNote(app, file);
 		const noteIsEmpty = isNoteEffectivelyEmpty(noteContent);
 
 		let mode: TemplateInsertModeId;

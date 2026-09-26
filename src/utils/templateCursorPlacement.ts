@@ -18,6 +18,8 @@ export function rebaseTemplateCursor(
 	content: string,
 ): EditorCursorPlacement | null {
 	if (cursor.content === content) return cursor;
+	// Writes through an open editor save CRLF text with LF line endings.
+	if (cursor.content.includes("\r") && !content.includes("\r")) cursor = toLF(cursor);
 	const beforeStart = getBodyStartOffset(cursor.content);
 	const afterStart = getBodyStartOffset(content);
 	if (cursor.offsets.some(offset => offset < beforeStart) ||
@@ -25,5 +27,13 @@ export function rebaseTemplateCursor(
 	return {
 		content,
 		offsets: cursor.offsets.map(offset => offset + afterStart - beforeStart),
+	};
+}
+
+function toLF(cursor: EditorCursorPlacement): EditorCursorPlacement {
+	const lf = (text: string) => text.replace(/\r\n?/g, "\n");
+	return {
+		content: lf(cursor.content),
+		offsets: cursor.offsets.map(offset => lf(cursor.content.slice(0, offset)).length),
 	};
 }

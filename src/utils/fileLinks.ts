@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { Notice, TFile } from "obsidian";
+import { processNote } from "./noteContent";
 import { log } from "../logger/logManager";
 import type {
 	AppendLinkDestination,
@@ -163,7 +164,7 @@ export async function appendFileLinkToDestinationFile(
 	});
 
 	let mutation: EditorTextMutation | undefined;
-	await app.vault.process(targetFile, (before) => {
+	await processNote(app, targetFile, (before) => {
 		const after = appendLine(before, linkText);
 		mutation = {
 			filePath: targetFile.path, before, after,

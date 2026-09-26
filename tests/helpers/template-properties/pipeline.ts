@@ -9,7 +9,10 @@ export function createPropertyPipeline(frontmatter: Record<string, unknown> = {}
 	const processFrontMatter = vi.fn(async (_file: TFile, update: (data: Record<string, unknown>) => void) => {
 		update(frontmatter);
 	});
-	const app = { fileManager: { processFrontMatter } } as unknown as App;
+	const app = {
+		fileManager: { processFrontMatter },
+		workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
+	} as unknown as App;
 
 	function collect(input: string, values: Record<string, unknown>, heuristicEnabled = true) {
 		for (const match of input.matchAll(/\{\{VALUE:([^}]+)\}\}/g)) {

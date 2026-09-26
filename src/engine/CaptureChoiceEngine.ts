@@ -13,7 +13,7 @@ import {
 import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
-import merge from "three-way-merge";
+import { readNote, writeNote } from "../utils/noteContent";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	CANVAS_FILE_EXTENSION_REGEX,
@@ -120,14 +120,13 @@ type CaptureWriteResult = {
 	newFileContent: string;
 	captureContent: string;
 	/**
-	 * The bytes on disk immediately before the write, so `run()` can report whether the
-	 * capture actually changed anything rather than inferring it from the payload
-	 * (#1615). An empty payload can still create a note, and a non-empty one can still
-	 * leave the file untouched, so the payload is the wrong thing to ask.
+	 * The note's text that `newFileContent` was computed from, so `run()` can report
+	 * whether the capture actually changed anything rather than inferring it from the
+	 * payload (#1615). An empty payload can still create a note, and a non-empty one can
+	 * still leave the file untouched, so the payload is the wrong thing to ask.
 	 */
 	priorContent: string;
 	cursor: CaptureCursor;
-	cursorPlacementSafe?: boolean;
 	markerOnly?: boolean;
 };
 
@@ -597,8 +596,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		cursor: EditorCursorPlacement | null;
 		marked: boolean;
 	} | null> {
-		const { file, captureContent, newFileContent, priorContent,
-			cursor: placement, cursorPlacementSafe = true } = write;
+		const { file, captureContent, newFileContent, priorContent, cursor: placement } = write;
 		let captureIsNoOp = isCaptureContentEmpty(captureContent);
 		const { action } = options;
 		if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
@@ -629,15 +627,16 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor, marked };
 		}
 
-		await this.app.vault.modify(file, newFileContent);
+		const { content: written, merged } = await writeNote(this.app, file, priorContent, newFileContent);
 		options.onCommit();
 		const wholeFileTemplater = this.choice.templater?.afterCapture === "wholeFile";
 		if (wholeFileTemplater) await overwriteTemplaterOnce(this.app, file);
 		const postProcessed = await this.applyCapturePropertyVars(file);
-		const rewritten = wholeFileTemplater || postProcessed;
+		// Only a pass that actually rewrote the note invalidates the cursor offsets.
+		const rewritten = (wholeFileTemplater || postProcessed) && await this.app.vault.read(file) !== written;
 		const effect: ChoiceEffect = !options.fileAlreadyExists ? "created"
 			: newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
-		const cursor = cursorPlacementSafe && !rewritten && placement.kind === "offset"
+		const cursor = !merged && !rewritten && placement.kind === "offset"
 			? { offsets: [placement.value], content: newFileContent } : null;
 		return { effect, captureIsNoOp, cursor, marked: placement.kind === "offset" && placement.source === "marker" };
 	}
@@ -667,7 +666,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			destination: filePath, destinationKind: "file",
 		});
 
-		let initialContent = file ? await this.app.vault.read(file) : "";
+		let initialContent = file ? await readNote(this.app, file) : "";
 		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
@@ -720,7 +719,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 			let priorContent = "";
 			if (file) {
-				priorContent = await this.app.vault.read(file);
+				priorContent = await readNote(this.app, file);
 				await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
 					current[resolveCapturePropertyKey(current, key)] = plan(current);
 				});
@@ -1013,7 +1012,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	): Promise<string> {
 		if (!fileAlreadyExists) return "";
 		const file = this.app.vault.getAbstractFileByPath(filePath);
-		return file instanceof TFile ? await this.app.vault.read(file) : "";
+		return file instanceof TFile ? await readNote(this.app, file) : "";
 	}
 
 	private getCaptureContent(): string {
@@ -1047,7 +1046,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
-		const fileContent: string = await this.app.vault.read(file);
+		const fileContent = await readNote(this.app, file);
 		if (/{{CURSOR}}/i.test(formatted) && prepareCapture(formatted).cursor.kind === "none") {
 			return { file, newFileContent: fileContent, captureContent: "", priorContent: fileContent, cursor: { kind: "none" }, markerOnly: true };
 		}
@@ -1072,33 +1071,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			return { file, newFileContent: fileContent, captureContent: placement.captureContent, priorContent: fileContent, cursor: placement.cursor, markerOnly: true };
 		}
 
-		const secondReadFileContent: string = await this.app.vault.read(file);
-
-		let newFileContent = placement.content;
-		let cursorPlacementSafe = true;
-		if (secondReadFileContent !== fileContent) {
-			const res = merge(
-				secondReadFileContent,
-				fileContent,
-				placement.content,
-			);
-			invariant(
-				res.isSuccess(),
-				() =>
-					`The file ${filePath} has been modified since the last read.\nQuickAdd could not merge the versions two without conflicts, and will not modify the file.\nThis is in order to prevent data loss.`,
-			);
-
-			newFileContent = res.joinedResults() as string;
-			cursorPlacementSafe = false;
-		}
-
+		// writeNote merges any edits made to the note while the capture was being formatted.
 		return {
 			file,
-			newFileContent,
+			newFileContent: placement.content,
 			captureContent: placement.captureContent,
-			priorContent: secondReadFileContent,
+			priorContent: fileContent,
 			cursor: placement.cursor,
-			cursorPlacementSafe,
 		};
 	}
 
@@ -1220,7 +1199,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			captureContent: placement.captureContent,
 			priorContent: updatedFileContent,
 			cursor: placement.cursor,
-			cursorPlacementSafe: true,
 			markerOnly: placement.markerOnly,
 		};
 	}

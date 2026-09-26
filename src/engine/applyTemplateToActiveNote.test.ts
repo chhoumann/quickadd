@@ -252,8 +252,8 @@ describe("applyTemplateToNote (non-interactive)", () => {
 
 	function makeApp(noteContent: string, activeFile: TFile | null): App {
 		return {
-			workspace: { getActiveFile: () => activeFile },
-			vault: { cachedRead: async () => noteContent },
+			workspace: { getActiveFile: () => activeFile, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
+			vault: { read: async () => noteContent },
 		} as unknown as App;
 	}
 
@@ -532,11 +532,11 @@ describe("the move offer refuses an impossible target (#1591)", () => {
 		const createFolder = vi.fn(async () => {});
 		const renameFile = vi.fn(async () => {});
 		const app = {
-			workspace: { getActiveFile: () => activeFile },
+			workspace: { getActiveFile: () => activeFile, getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			vault: {
 				// Empty, so the empty-note fast path picks "replace" and the insert
 				// MODE picker is skipped; only the template picker is driven below.
-				cachedRead: async () => "",
+				read: async () => "",
 				adapter: { exists: async () => false },
 				createFolder,
 			},

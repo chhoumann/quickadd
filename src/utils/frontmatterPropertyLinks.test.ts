@@ -423,6 +423,7 @@ describe("appendLinkToFrontmatterProperty", () => {
 			},
 		);
 		const app = {
+			workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			fileManager: {
 				generateMarkdownLink,
 				processFrontMatter,
@@ -448,6 +449,7 @@ describe("appendLinkToFrontmatterProperty", () => {
 		const targetFile = makeFile("Host.md");
 		const createdFile = makeFile("Created.md");
 		const app = {
+			workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			fileManager: {
 				generateMarkdownLink: vi.fn(() => "[[Created]]"),
 				processFrontMatter: vi.fn(async () => {
@@ -478,6 +480,7 @@ describe("appendLinkToConfiguredFrontmatterProperty", () => {
 			},
 		);
 		const app = {
+			workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
 			fileManager: {
 				generateMarkdownLink,
 				processFrontMatter,

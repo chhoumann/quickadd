@@ -59,4 +59,17 @@ describe("rebaseTemplateCursor", () => {
 	it("rejects a cursor inside rewritten frontmatter", () => {
 		expect(rebaseTemplateCursor({ content: "---\nx: a\n---\nbody", offsets: [5] }, "---\nx: abc\n---\nbody")).toBeNull();
 	});
+
+	it("maps CRLF offsets onto the same note saved with LF line endings", () => {
+		const cursor = { content: "a\r\nFirst\r\nBeforeafter", offsets: ["a\r\nFirst\r\nBefore".length] };
+		expect(rebaseTemplateCursor(cursor, "a\nFirst\nBeforeafter")).toEqual({
+			content: "a\nFirst\nBeforeafter", offsets: ["a\nFirst\nBefore".length],
+		});
+	});
+
+	it("maps CRLF offsets when the LF note's front matter also changed", () => {
+		const cursor = { content: "---\r\na: 1\r\n---\r\nFirst\r\nBeforeafter", offsets: ["---\r\na: 1\r\n---\r\nFirst\r\nBefore".length] };
+		const content = "---\na: 1\nb: 2\n---\nFirst\nBeforeafter";
+		expect(rebaseTemplateCursor(cursor, content)).toEqual({ content, offsets: [content.indexOf("after")] });
+	});
 });
