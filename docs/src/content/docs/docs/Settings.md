@@ -16,7 +16,7 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 The choice picker is the list you see when you run **QuickAdd: Run**.
 
 - **Search nested choices** - find a choice even when it lives inside a folder. When on, searching also matches choices nested in folders and shows their path. A nested match can rank above a same-level one. Turn it off to search only the level you have open.
-- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Show at the bottom* (default) keeps your most-used choice in the first slot, *Show at the top* makes the template row first, and *Hide* removes it. The row only appears once you have a [template folder](#templates--properties) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
+- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Bottom* (default) keeps your most-used choice in the first slot, *Top* makes the template row first, and *Hidden* removes it. The row only appears once you have a [template folder](#templates--properties) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
 
 ## Input {#input}
 
@@ -34,7 +34,7 @@ The choice picker is the list you see when you run **QuickAdd: Run**.
 
 ## Notifications {#notifications}
 
-- **Announce updates** - see what changed when a new version installs, including new features, demo videos, and bug fixes. Choose *Show updates on each new release*, *Show updates only on major releases (new features, breaking changes)*, or *Don't show*.
+- **Announce updates** - see what changed when a new version installs, including new features, demo videos, and bug fixes. Choose *Every release*, *Feature releases* (default; new features and breaking changes, not bug-fix-only releases), or *Never*.
 - **Show capture notifications** - get a confirmation that a capture landed. When on, QuickAdd shows a notice after content is captured successfully.
 - **Show input cancellation notifications** - get a notice when you dismiss a prompt without submitting. Turn it off to avoid the extra notice every time you cancel a prompt.
 
