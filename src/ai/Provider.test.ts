@@ -5,10 +5,31 @@ import {
 	DefaultProviders,
 	activeModelRef,
 	ensureProviderIds,
+	getChatWire,
 	getProviderKind,
 	slugifyProviderId,
 	uniqueProviderId,
 } from "./Provider";
+
+describe("getChatWire", () => {
+	it("uses the Responses API only for OpenAI's own endpoint", () => {
+		expect(getChatWire({ kind: "openai", endpoint: "https://api.openai.com/v1" })).toBe("openai-responses");
+		// Legacy providers without an explicit kind infer it first.
+		expect(getChatWire({ name: "OpenAI", endpoint: "https://api.openai.com/v1" })).toBe("openai-responses");
+	});
+
+	it("keeps Chat Completions for OpenAI-compatible endpoints and lookalike hosts", () => {
+		expect(getChatWire({ kind: "openai", endpoint: "https://openrouter.ai/api/v1" })).toBe("openai");
+		expect(getChatWire({ name: "OpenAI", endpoint: "https://proxy.example/v1" })).toBe("openai");
+		expect(getChatWire({ kind: "openai", endpoint: "https://api.openai.com.evil.example/v1" })).toBe("openai");
+		expect(getChatWire({ kind: "openai", endpoint: "https://evil.example/?h=api.openai.com" })).toBe("openai");
+	});
+
+	it("leaves Anthropic and Gemini alone, even on an OpenAI host", () => {
+		expect(getChatWire({ kind: "anthropic", endpoint: "https://api.openai.com/v1" })).toBe("anthropic");
+		expect(getChatWire({ kind: "gemini", endpoint: "https://generativelanguage.googleapis.com" })).toBe("gemini");
+	});
+});
 
 describe("getProviderKind", () => {
 	it("prefers an explicit kind", () => {

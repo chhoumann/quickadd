@@ -695,6 +695,9 @@ const { text, steps, toolCalls } = await agent.generate({
 - `system` - system prompt (defaults to your AI Assistant default system prompt).
 - `tools` - an object map of tool name → tool (from `ai.tool()` and/or `ai.tools.*`).
 - `toolChoice` - `"auto"` (default) | `"none"` | `"required"` | `{ type: "tool", toolName }`.
+  Some models can't be forced to call a tool: Claude Opus 5.5 and Claude Fable 5.1 reject
+  `"required"` and `{ type: "tool", toolName }`, and QuickAdd's error says so. Use
+  `"auto"` and say in the prompt when the tool applies, or pass a `schema` for a fixed JSON shape.
 - `stopWhen` - one or more stop conditions from `ai.stepCountIs(n)` / `ai.hasToolCall(name)`.
 - `maxSteps` - step budget (default 20, hard cap 100). Sugar for `stopWhen: ai.stepCountIs(n)`.
 - `maxOutputTokens`, `modelOptions` - passed to the provider.
@@ -788,15 +791,16 @@ GPT-4o-class), Anthropic Claude 4.x, and Gemini 3.x; it can be combined with too
 that do not support schema-constrained output (e.g. legacy OpenAI chat models) reject the request
 outright with a provider error - use a current model rather than expecting a best-effort fallback.
 
-:::note[OpenAI reasoning models (GPT-5.x, o-series)]
-These accept only the default `temperature` (omit it from `modelOptions`), and QuickAdd
-automatically sends `maxOutputTokens` as `max_completion_tokens` for them. The agent's default
-path sets neither, so `quickAddApi.ai.agent({ model: "gpt-5" })` works as-is.
+:::note[OpenAI reasoning models (GPT-5.x, GPT-6, o-series)]
+These accept only the default `temperature` (omit it from `modelOptions`). The agent sends no
+`temperature` unless you set one, so `quickAddApi.ai.agent({ model: "gpt-6-luna" })` works as-is.
 
-GPT-5.6 and GPT-6 models reason by default, and OpenAI's Chat Completions API rejects function
-tools for them unless reasoning is off. When a tool turn is rejected for that reason, QuickAdd
-retries it once with `reasoning_effort: "none"`. If you set `reasoning_effort` yourself in
-`modelOptions`, QuickAdd keeps it and shows the provider's error instead.
+Agent turns to OpenAI's own API (`https://api.openai.com/v1`) use the Responses API, which lets
+reasoning models such as GPT-5.6 and GPT-6 call tools with reasoning on. Other OpenAI-compatible
+providers use Chat Completions. `modelOptions` keep their Chat Completions names either way:
+QuickAdd sends `reasoning_effort` as `reasoning.effort` and `max_tokens` as `max_output_tokens`
+on the Responses API, and sends `maxOutputTokens` as `max_completion_tokens` to reasoning models
+on Chat Completions.
 :::
 
 ### `getModels(): string[]`

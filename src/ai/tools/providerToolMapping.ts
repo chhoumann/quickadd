@@ -22,6 +22,7 @@ import type {
 	NormalizedToolChoice,
 	NormalizedToolDefinition,
 } from "./NormalizedTools";
+import type { ChatWire } from "../Provider";
 
 export type ProviderKind = "openai" | "anthropic" | "gemini";
 
@@ -235,6 +236,160 @@ function parseOpenAIToolCall(tc: OpenAIToolCallRaw): NormalizedToolCall {
 		};
 	}
 	return { id: tc.id, name: tc.function.name, args: rec };
+}
+
+// ===========================================================================
+// OpenAI Responses API (/v1/responses) — OpenAI's own endpoint only
+// ===========================================================================
+// Same normalized request as Chat Completions, different shape: tools are flat
+// ({type,name,...} with no `function` wrapper), tool calls and their results are
+// top-level input items linked by `call_id`, and structured output lives under
+// `text.format`. Requests are stateless (`store: false`), so reasoning items only
+// survive between turns as `encrypted_content`: we ask for it and echo the
+// previous turn's output items back verbatim (providerRaw), which verified live
+// keeps multi-turn tool loops working on reasoning models.
+function responsesInput(messages: NormalizedMessage[]): Body[] {
+	const out: Body[] = [];
+	for (const m of messages) {
+		if (m.role === "system" || m.role === "user") {
+			out.push({ role: m.role, content: m.content });
+		} else if (m.role === "assistant") {
+			if (Array.isArray(m.providerRaw)) {
+				out.push(...(m.providerRaw as Body[]));
+				continue;
+			}
+			if (m.content) out.push({ role: "assistant", content: m.content });
+			for (const c of m.toolCalls ?? []) {
+				out.push({
+					type: "function_call",
+					call_id: c.id,
+					name: c.name,
+					arguments: c.rawArgs ?? JSON.stringify(c.args ?? {}),
+				});
+			}
+		} else {
+			for (const r of m.results) {
+				out.push({
+					type: "function_call_output",
+					call_id: r.toolCallId,
+					output: r.isError ? `ERROR: ${r.content}` : r.content,
+				});
+			}
+		}
+	}
+	return out;
+}
+
+function responsesToolChoice(choice: NormalizedToolChoice): unknown {
+	if (typeof choice === "string") return choice;
+	return { type: "function", name: choice.name };
+}
+
+function buildOpenAIResponsesBody(modelName: string, req: NormalizedChatRequest): Body {
+	// modelOptions is written for Chat Completions; move the fields the
+	// Responses API names differently and pass the rest through unchanged.
+	const {
+		reasoning_effort: reasoningEffort,
+		max_tokens: legacyMaxTokens,
+		max_completion_tokens: legacyMaxCompletionTokens,
+		...params
+	} = (req.modelParams ?? {}) as Body;
+	const body: Body = {
+		model: modelName,
+		...params,
+		input: responsesInput(req.messages),
+		store: false,
+		include: ["reasoning.encrypted_content"],
+	};
+	if (reasoningEffort !== undefined) body.reasoning = { effort: reasoningEffort };
+	const maxOutputTokens =
+		req.maxOutputTokens ?? legacyMaxCompletionTokens ?? legacyMaxTokens;
+	if (maxOutputTokens !== undefined) body.max_output_tokens = maxOutputTokens;
+	if (req.tools && req.tools.length > 0) {
+		body.tools = req.tools.map((t) => ({
+			type: "function",
+			name: t.name,
+			description: t.description,
+			parameters: t.strict ? injectStrictObjectSchema(t.parameters) : t.parameters,
+			// Explicit either way: keep Chat Completions' non-strict default.
+			strict: t.strict === true,
+		}));
+		if (req.toolChoice) body.tool_choice = responsesToolChoice(req.toolChoice);
+		if (req.disableParallel) body.parallel_tool_calls = false;
+	}
+	if (req.responseFormat) {
+		const strict = req.responseFormat.strict ?? true;
+		body.text = {
+			format: req.responseFormat.schema
+				? {
+						type: "json_schema",
+						name: req.responseFormat.name ?? "response",
+						strict,
+						schema: strict
+							? injectStrictObjectSchema(req.responseFormat.schema)
+							: req.responseFormat.schema,
+				  }
+				: { type: "json_object" },
+		};
+	}
+	return body;
+}
+
+interface ResponsesOutputItemRaw {
+	type: string;
+	call_id?: string;
+	name?: string;
+	arguments?: unknown;
+	content?: Array<{ type: string; text?: string; refusal?: string }>;
+}
+function parseOpenAIResponsesResponse(json: Record<string, unknown>): ParsedChatResult {
+	const output = (json.output as ResponsesOutputItemRaw[] | undefined) ?? [];
+	const toolCalls = output
+		.filter((item) => item.type === "function_call")
+		.map((item) =>
+			parseOpenAIToolCall({
+				id: item.call_id ?? "",
+				function: { name: item.name ?? "", arguments: item.arguments },
+			}),
+		);
+	const parts = output
+		.filter((item) => item.type === "message")
+		.flatMap((item) => item.content ?? []);
+	const text = parts
+		.filter((part) => part.type === "output_text")
+		.map((part) => part.text ?? "")
+		.join("");
+	// A safety refusal arrives as a `refusal` part instead of output_text. Return
+	// its explanation rather than an empty answer, and don't call it a normal stop.
+	const refusal = parts
+		.filter((part) => part.type === "refusal")
+		.map((part) => part.refusal ?? "")
+		.join("");
+	const refused = !text && refusal.length > 0;
+	const status = String(json.status ?? "");
+	const incompleteReason = String(
+		(json.incomplete_details as { reason?: string } | null | undefined)?.reason ?? "",
+	);
+	const usage = (json.usage as Record<string, number>) ?? {};
+	return {
+		content: refused ? refusal : text,
+		toolCalls,
+		normalizedStopReason:
+			toolCalls.length > 0
+				? "tool_calls"
+				: incompleteReason === "max_output_tokens"
+					? "length"
+					: status === "completed" && !refused
+						? "stop"
+						: "other",
+		rawStopReason: refused ? "refusal" : incompleteReason || status,
+		usage: {
+			promptTokens: usage.input_tokens ?? 0,
+			completionTokens: usage.output_tokens ?? 0,
+			totalTokens: usage.total_tokens ?? 0,
+		},
+		providerRaw: output,
+	};
 }
 
 // ===========================================================================
@@ -481,30 +636,34 @@ function parseGeminiResponse(json: Record<string, unknown>): ParsedChatResult {
 // Dispatch
 // ===========================================================================
 export function buildChatBody(
-	kind: ProviderKind,
+	wire: ChatWire,
 	modelName: string,
 	req: NormalizedChatRequest,
 	anthropicDefaultMaxTokens = 8192,
 ): Body {
-	switch (kind) {
+	switch (wire) {
 		case "anthropic":
 			return buildAnthropicBody(modelName, req, anthropicDefaultMaxTokens);
 		case "gemini":
 			return buildGeminiBody(modelName, req);
+		case "openai-responses":
+			return buildOpenAIResponsesBody(modelName, req);
 		default:
 			return buildOpenAIBody(modelName, req);
 	}
 }
 
 export function parseChatResponse(
-	kind: ProviderKind,
+	wire: ChatWire,
 	json: Record<string, unknown>,
 ): ParsedChatResult {
-	switch (kind) {
+	switch (wire) {
 		case "anthropic":
 			return parseAnthropicResponse(json);
 		case "gemini":
 			return parseGeminiResponse(json);
+		case "openai-responses":
+			return parseOpenAIResponsesResponse(json);
 		default:
 			return parseOpenAIResponse(json);
 	}

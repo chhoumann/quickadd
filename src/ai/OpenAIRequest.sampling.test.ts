@@ -266,7 +266,18 @@ describe("sampling parameter recovery (chat/tool path)", () => {
 		getModelProviderMock.mockReturnValue(openaiProvider);
 		requestUrlMock
 			.mockReturnValueOnce(Promise.resolve(unsupportedParamFailure("top_p")))
-			.mockReturnValueOnce(Promise.resolve(openaiSuccess("chat ok")));
+			// Chat turns on api.openai.com use the Responses API.
+			.mockReturnValueOnce(
+				Promise.resolve({
+					status: 200,
+					json: Promise.resolve({
+						id: "resp_1",
+						status: "completed",
+						output: [{ type: "message", content: [{ type: "output_text", text: "chat ok" }] }],
+						usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 },
+					}),
+				}),
+			);
 
 		const model: Model = { name: "o4-mini", maxTokens: 200000 };
 		const res = await chatRequest(makeApp(), "sk", model, currentProvider(), {

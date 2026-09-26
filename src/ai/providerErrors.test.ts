@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildProviderError,
 	classifyProviderError,
+	isForcedToolChoiceUnsupportedError,
 	isLikelyContextLimitError,
 } from "./providerErrors";
 
@@ -163,5 +164,34 @@ describe("buildProviderError", () => {
 		});
 		expect(err.message).toContain("upstream connect error");
 		expect(err.status).toBe(503);
+	});
+});
+
+describe("isForcedToolChoiceUnsupportedError", () => {
+	it("matches Anthropic's documented forced-tool-use 400 as built by buildProviderError", () => {
+		const error = buildProviderError("Anthropic", {
+			status: 400,
+			json: {
+				type: "error",
+				error: {
+					type: "invalid_request_error",
+					message: 'tool_choice: type "tool" and "any" are not supported for this model.',
+				},
+			},
+		});
+		expect(isForcedToolChoiceUnsupportedError(error)).toBe(true);
+	});
+
+	it("ignores other tool_choice errors", () => {
+		expect(
+			isForcedToolChoiceUnsupportedError(
+				new Error("tool_choice.name: Tool 'x' not found in tools."),
+			),
+		).toBe(false);
+		expect(
+			isForcedToolChoiceUnsupportedError(
+				new Error("Thinking may not be enabled when tool_choice forces tool use."),
+			),
+		).toBe(false);
 	});
 });
