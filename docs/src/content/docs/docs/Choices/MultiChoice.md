@@ -10,20 +10,22 @@ picker grows past a handful of items. In the settings list, a Multi is the entry
 you can fold and unfold. Create one with **New folder** in **Settings →
 QuickAdd**.
 
-![The Multi choice settings modal](../Images/choices/multi-choice.png)
+![The QuickAdd choice list with a Journal folder unfolded, showing two choices nested inside it](../Images/choices/multi-choice-list.png)
 
 ## Put choices inside a multi {#add-choices}
 
 To create a new choice inside a multi, unfold it and click its **Add choice**
 link. To move an existing choice in, **drag it in**. Make sure the multi is
-unfolded (as in the screenshot above), grab the drag handle of the choice you
-want to move, and drop it just below and slightly to the right of the multi's
-own drag handle. When it works, the choice appears indented under the multi.
+unfolded (as in the screenshot above), then grab the drag handle (⠿) at the
+right end of the choice's row - it appears when you hover the row - and drop
+the choice onto the rows under the multi. When it works, the choice appears
+indented under the multi.
 
 :::tip
-The first choice is the fiddly one, since there's nothing nested yet to aim for.
-Drop it just below and to the right of the multi's drag handle and watch for the
-indent. Once one choice is inside, the rest are easy.
+An empty multi shows a band that reads **Empty — add a choice or drag one
+here**. Drop your first choice onto that band; it highlights when the drop
+will land inside the multi. Once one choice is inside, drop the rest among the
+nested rows.
 :::
 
 ## Set the search box hint: Placeholder text {#placeholder-text}
@@ -34,6 +36,11 @@ the multi's name is used instead.
 
 Because [search reaches everything nested under the multi](#searching-nested-choices),
 word the hint for the whole group, not just the top level.
+
+To set it, click the gear on the multi's row to open **Edit folder**, fill in
+**Placeholder**, and click **Save**.
+
+![The Edit folder modal with Name, Placeholder, and Icon settings](../Images/choices/multi-choice.png)
 
 ## Change a choice's icon {#icons}
 

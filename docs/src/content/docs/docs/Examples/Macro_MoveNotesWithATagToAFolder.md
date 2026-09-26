@@ -6,7 +6,7 @@ slug: docs/Examples/Macro_MoveNotesWithATagToAFolder
 
 This macro moves every note carrying a tag you pick into a folder you pick. It matches the tag whether it lives in a note's frontmatter or inline in the body, and it can optionally include nested tags (for example `#project/work` when you choose `#project`). No extra plugins are needed - it uses only Obsidian's own API.
 
-![h44DF7W7Ef](https://user-images.githubusercontent.com/29108628/122404732-c18d6f00-cf7f-11eb-8a6f-17d47db8b015.gif)
+![Running the macro: picking the #website tag, answering No to nested tags, and choosing Projects/Website moves both tagged notes out of Inbox](../Images/move_tagged_notes_demo.gif)
 
 ## Setup
 

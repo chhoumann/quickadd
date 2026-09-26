@@ -9,7 +9,7 @@ tag from memory. Start typing a trigger like `[[` and QuickAdd shows a
 searchable list of matches, exactly like Obsidian's own link and tag
 autocomplete. Pick one, and QuickAdd drops it in where you were typing.
 
-![The QuickAdd suggester listing files after typing two square brackets](https://github.com/user-attachments/assets/cc89f672-3451-42c0-89b8-89e0a1ebc780)
+![The QuickAdd suggester listing files after typing two square brackets](./Images/suggester-file-search.png)
 
 ## What you can search for {#special-search-modes}
 

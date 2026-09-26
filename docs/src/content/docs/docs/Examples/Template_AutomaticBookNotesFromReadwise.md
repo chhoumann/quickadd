@@ -6,7 +6,7 @@ slug: docs/Examples/Template_AutomaticBookNotesFromReadwise
 
 This example creates a new book note from a template and fills in a book's highlights straight from [Readwise](https://readwise.io). When you run it, you pick a book, and QuickAdd builds a note whose body already contains that book's highlights and notes.
 
-![OoBBhFGoxl](https://user-images.githubusercontent.com/29108628/122776753-ac7c4d00-d2ab-11eb-9ade-4b88afaee8e4.gif)
+![Running the Add Book Notes choice: searching the Readwise library for The Art of War creates a book note with its highlights and notes](../Images/readwise_book_notes_demo.gif)
 
 ## Before you start
 
@@ -20,9 +20,9 @@ Here's a video guide for [installing user scripts in QuickAdd](/docs/Examples/Ca
 1. Create a new JavaScript file (with the `.js` extension) containing the [script below](#script). In it, replace `YOUR_READWISE_TOKEN` with your own Readwise token.
 2. Create the macro that runs the script: in **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (I use `Readwise`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
 3. In the builder, add a **User Script** command: type the name of the script you created (or click **Browse**) and click **Add**.
-4. Create a [Template choice](/docs/Choices/TemplateChoice/) whose **Template Path** points at the template you made from the [one below](#template). Set the remaining options to your liking. The screenshot shows settings resembling mine:
+4. Create a [Template choice](/docs/Choices/TemplateChoice/) whose **Template path** points at the template you made from the [one below](#template). Set the remaining options to your liking. The screenshot shows settings resembling mine:
 
-![Template choice setup](../Images/readwise_template_choice.png)
+![A Template choice named Add Book Notes, with the file name format set to a Readwise macro call and Open set to a new tab](../Images/readwise_template_choice.png)
 
 A few notes on how it behaves:
 

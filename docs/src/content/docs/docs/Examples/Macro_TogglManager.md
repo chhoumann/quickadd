@@ -11,21 +11,17 @@ It uses the [Toggl plugin](https://github.com/mcndt/obsidian-toggl-integration) 
 ![Toggl Manager](../Images/TogglManager.gif)
 
 We'll need to install a QuickAdd user script for this to work. I have made a video which  shows you how to do so - [click here](https://www.youtube.com/watch?v=gYK3VDQsZJo&t=1730s).
-You will need to put the user script into a new macro and then create a Macro choice in the main menu to activate it.
+You will need to add the user script to a new Macro choice, which you then run from the QuickAdd menu.
 You can find the script <a href="/scripts/togglManager.js" download>here</a>.
 
 ## Installation
 1. Save the script (`togglManager.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
-2. In **Settings → QuickAdd**, click **New choice** → **Macro**. This is what activates the macro. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine ``⏳ Toggl Manager``.
+2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine ``⏳ Toggl Manager``.
 3. Add the user script to the command list.
 
 Your Macro should look like this:
 
-![TogglManager Macro](../Images/TogglManagerMacro.png)
-
-Your Macro Choice should look like this: 
-
-![Toggl Manager Macro Choice](../Images/TogglManagerMacroChoice.png)
+![The Toggl Manager macro, with the togglManager user script as its only command](../Images/TogglManagerMacro.png)
 
 ## Configuration
 You will need to configure your script to match your own settings. I have included some example settings from my own setup, but you'll likely want to make it match your own preferences.

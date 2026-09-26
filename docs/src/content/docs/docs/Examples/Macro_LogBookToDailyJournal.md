@@ -19,7 +19,7 @@ This macro asks which book you are reading and writes your answer to the **Book*
 
 Run the macro and enter a book title at the prompt. QuickAdd updates the **Book** property in today's journal note to that title.
 
-![The Macro builder for the log-book macro](../Images/choices/macro-builder.png)
+![The Macro builder for the Log Book macro, with the logBook user script as its only command](../Images/examples/macro-log-book.png)
 
 ```js
 // You have to export the function you wish to run.
