@@ -4,7 +4,7 @@ import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { ensureProviderIds } from "src/ai/Provider";
 import { mergeModels } from "src/ai/modelsDirectory";
-import { syncProviderModels } from "src/ai/modelSyncService";
+import { diffModelLists, syncProviderModels } from "src/ai/modelSyncService";
 import { settingsStore } from "src/settingsStore";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
 import { deepClone } from "src/utils/deepClone";
@@ -23,6 +23,12 @@ export class AIAssistantProvidersModal extends Modal {
 
 	private _selectedProviderClone: AIProvider | null;
 
+	/** The edit view's model list, re-rendered in place when a sync changes it. */
+	private modelsContainerEl: HTMLElement | null = null;
+
+	/** The quiet on-open sync pass; "Sync now" waits for it before counting. */
+	private readonly backgroundSync: Promise<void>;
+
 	constructor(providers: AIProvider[], app: App) {
 		super(app);
 
@@ -38,7 +44,7 @@ export class AIAssistantProvidersModal extends Modal {
 
 		this.open();
 		this.display();
-		void this.autoSyncOnOpen();
+		this.backgroundSync = this.autoSyncOnOpen();
 	}
 
 	/**
@@ -53,14 +59,32 @@ export class AIAssistantProvidersModal extends Modal {
 		for (const provider of this.providers) {
 			if (!provider.autoSyncModels) continue;
 			try {
-				const { added } = await syncProviderModels(this.app, provider);
-				changed = changed || added > 0;
+				const { added, updated, discovered } = await syncProviderModels(
+					this.app,
+					provider,
+				);
+				if (added === 0 && updated === 0) continue;
+				if (provider === this.selectedProvider) {
+					// The user opened this provider while the sync was in flight, so
+					// the list on screen and the Cancel snapshot both predate it. A
+					// background refresh is not a user edit: show it now, and keep it
+					// if the user cancels their edits.
+					if (this._selectedProviderClone) {
+						this._selectedProviderClone.models = mergeModels(
+							this._selectedProviderClone.models,
+							discovered,
+						);
+					}
+					this.renderProviderModels();
+				} else {
+					changed = changed || added > 0;
+				}
 			} catch {
 				// Quiet by design; "Sync now" surfaces errors.
 			}
 		}
 
-		// Refresh whatever view is showing, but never clobber in-progress edits.
+		// Refresh the provider list, but never clobber in-progress edits.
 		if (changed && !this.selectedProvider) this.reload();
 	}
 
@@ -85,6 +109,7 @@ export class AIAssistantProvidersModal extends Modal {
 
 	private reload(): void {
 		this.contentEl.empty();
+		this.modelsContainerEl = null;
 
 		this.display();
 	}
@@ -244,12 +269,20 @@ export class AIAssistantProvidersModal extends Modal {
 			});
 	}
 
-    addProviderModelsSetting(container: HTMLElement) {
-        const modelsContainer = container.createDiv({
+	addProviderModelsSetting(container: HTMLElement) {
+		this.modelsContainerEl = container.createDiv({
 			cls: "models-container qa-ai-list-container",
 		});
+		this.renderProviderModels();
+	}
 
-        this.selectedProvider!.models.forEach((model, i) => {
+	/** (Re)render the selected provider's model list and its "Add model" row. */
+	private renderProviderModels(): void {
+		const modelsContainer = this.modelsContainerEl;
+		if (!modelsContainer || !this.selectedProvider) return;
+		modelsContainer.empty();
+
+        this.selectedProvider.models.forEach((model, i) => {
             const metadata = [`Context: ${model.maxTokens.toLocaleString()} tokens`];
             if (model.maxOutputTokens) {
                 metadata.push(`Output: ${model.maxOutputTokens.toLocaleString()} tokens`);
@@ -351,10 +384,18 @@ export class AIAssistantProvidersModal extends Modal {
 			})
 			.addButton((button) => {
 				button.setButtonText("Sync now").onClick(async () => {
+					const provider = this.selectedProvider!;
+					// Report against the list the user is looking at. The quiet
+					// on-open sync may still be in flight for this provider; wait for
+					// it instead of racing it, and count whatever it lands too, so the
+					// notice never says "up to date" while the list visibly changes.
+					const shown = provider.models.map((model) => ({ ...model }));
 					try {
-						const { added, updated } = await syncProviderModels(
-							this.app,
-							this.selectedProvider!,
+						await this.backgroundSync;
+						await syncProviderModels(this.app, provider);
+						const { added, updated } = diffModelLists(
+							shown,
+							provider.models,
 						);
 						new Notice(
 							added > 0 || updated > 0

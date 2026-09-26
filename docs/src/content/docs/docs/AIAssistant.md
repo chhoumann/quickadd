@@ -185,6 +185,9 @@ imports new models and refreshed context limits from the provider's model source
 once a day and whenever provider settings open, so model lists stay current
 without plugin updates. Auto-sync only adds models and updates metadata - it
 never removes models you have configured. Use **Sync now** to refresh on demand.
+Models that arrive while you are editing a provider appear in its list right
+away, and the **Sync now** notice counts every model added to the list you were
+looking at when you clicked it.
 
 Auto-sync is on by default for the built-in OpenAI and Gemini providers and for
 providers added from a card. It does nothing while **Disable AI & online
