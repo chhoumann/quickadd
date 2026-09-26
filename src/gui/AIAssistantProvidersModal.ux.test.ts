@@ -144,6 +144,57 @@ describe("AIAssistantProvidersModal model list and connection UX", () => {
 		expect(providers[0].models.map((m) => m.name)).toEqual(["gpt-4o", "o4-mini", "gpt-6-sol"]);
 	});
 
+	it("removes only the retired names confirmed, not ones marked retired while the prompt is open", async () => {
+		const yesNo = await import("./GenericYesNoPrompt/GenericYesNoPrompt");
+		let resolveConfirm!: (value: boolean) => void;
+		vi.mocked(yesNo.default.Prompt).mockImplementationOnce(
+			() =>
+				new Promise<boolean>((resolve) => {
+					resolveConfirm = resolve;
+				}),
+		);
+
+		const providers = [provider([GPT4O, O4MINI, GPT6])];
+		const modal = openEdit(providers);
+		click(modal, "Remove retired models (1)");
+		await flush();
+
+		// In-flight sync marks gpt-4o retired while the confirm is open.
+		providers[0].models = providers[0].models.map((model) =>
+			model.name === "gpt-4o" ? { ...model, deprecated: true } : model,
+		);
+
+		resolveConfirm(true);
+		await flush();
+
+		expect(providers[0].models.map((m) => m.name)).toEqual(["gpt-4o", "gpt-6-sol"]);
+		expect(providers[0].models.find((m) => m.name === "gpt-4o")?.deprecated).toBe(true);
+	});
+
+	it("deletes by model name after a sync replaces the closed-over object", async () => {
+		const yesNo = await import("./GenericYesNoPrompt/GenericYesNoPrompt");
+		let resolveConfirm!: (value: boolean) => void;
+		vi.mocked(yesNo.default.Prompt).mockImplementationOnce(
+			() =>
+				new Promise<boolean>((resolve) => {
+					resolveConfirm = resolve;
+				}),
+		);
+
+		const providers = [provider([GPT4O, GPT6])];
+		const modal = openEdit(providers);
+
+		// Row 0 is gpt-6-sol (newest first). Click delete, then replace objects.
+		modelRows(modal)[0].querySelector("button")!.click();
+		await flush();
+		providers[0].models = providers[0].models.map((model) => ({ ...model }));
+
+		resolveConfirm(true);
+		await flush();
+
+		expect(providers[0].models.map((m) => m.name)).toEqual(["gpt-4o"]);
+	});
+
 	it("tests the connection against the provider's own endpoint, even for a models.dev provider", async () => {
 		discovery.discoverProviderModels.mockResolvedValue([GPT4O, GPT6, O4MINI]);
 		const modal = openEdit([provider([GPT4O])]);

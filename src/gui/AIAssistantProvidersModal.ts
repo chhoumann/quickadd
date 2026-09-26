@@ -405,6 +405,9 @@ export class AIAssistantProvidersModal extends Modal {
 
 		const retired = provider.models.filter((model) => model.deprecated);
 		if (retired.length > 0) {
+			// Capture the names shown in the confirm prompt so an in-flight
+			// sync that marks more models deprecated cannot expand the set.
+			const retiredNames = new Set(retired.map((model) => model.name));
 			new Setting(modelsContainer)
 				.setName(`${retired.length} retired model(s)`)
 				.setDesc(
@@ -420,7 +423,7 @@ export class AIAssistantProvidersModal extends Modal {
 							);
 							if (!confirmed) return;
 							provider.models = provider.models.filter(
-								(model) => !model.deprecated,
+								(model) => !retiredNames.has(model.name),
 							);
 							this.renderProviderModels();
 						});
@@ -452,7 +455,11 @@ export class AIAssistantProvidersModal extends Modal {
                 .setDesc(metadata.join(" · "))
                 .addButton((button) =>
                     this.addDeleteButton(button, model.name, () => {
-                        const index = provider.models.indexOf(model);
+                        // Find by name: a concurrent sync replaces model
+                        // objects, so the closed-over reference may be gone.
+                        const index = provider.models.findIndex(
+                            (entry) => entry.name === model.name,
+                        );
                         if (index !== -1) provider.models.splice(index, 1);
                     }),
                 );

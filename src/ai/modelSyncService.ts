@@ -55,7 +55,7 @@ export async function syncProviderModels(
 	} catch (err) {
 		provider.lastModelSync = {
 			at: Date.now(),
-			error: (err as Error).message ?? String(err),
+			error: syncFailureMessage(err),
 		};
 		throw err;
 	}
@@ -65,9 +65,25 @@ export async function syncProviderModels(
 	return { ...diffModelLists(before, provider.models), discovered };
 }
 
-/** Stable identity for matching a synced provider back into current state. */
+/**
+ * Nonempty message for a failed sync. An empty `Error("")` message must not
+ * be stored as `error: ""` — consumers treat that as success via truthiness.
+ */
+function syncFailureMessage(err: unknown): string {
+	const message = (err as Error)?.message;
+	if (typeof message === "string" && message.length > 0) return message;
+	const asString = String(err);
+	return asString.length > 0 ? asString : "Unknown error";
+}
+
+/**
+ * Stable identity for matching a synced provider back into current state.
+ * Prefer the unique provider `id`; fall back to name+endpoint only for
+ * pre-migration data that still lacks one.
+ */
 function providerIdentity(provider: AIProvider): string {
-	return `${(provider.name ?? "").trim().toLowerCase()}\u0000${(
+	if (provider.id) return `id:${provider.id}`;
+	return `ne:${(provider.name ?? "").trim().toLowerCase()}\u0000${(
 		provider.endpoint ?? ""
 	)
 		.trim()
@@ -119,7 +135,7 @@ export async function autoSyncEnabledProviders(
 				provider: copy.name,
 				added: 0,
 				updated: 0,
-				error: (err as Error).message ?? String(err),
+				error: syncFailureMessage(err),
 			});
 			// Carries the failure in lastModelSync so settings can show it.
 			synced.set(providerIdentity(copy), copy);
@@ -133,8 +149,9 @@ export async function autoSyncEnabledProviders(
 		ai: {
 			...current.ai,
 			// Merge each synced model list into the provider as it exists NOW,
-			// keyed by name+endpoint. Providers the user removed mid-sync stay
-			// removed; providers the user edited keep those edits.
+			// keyed by provider id (name+endpoint only as a pre-id fallback).
+			// Providers the user removed mid-sync stay removed; providers the
+			// user edited keep those edits.
 			providers: current.ai.providers.map((provider) => {
 				const result = synced.get(providerIdentity(provider));
 				if (!result) return provider;

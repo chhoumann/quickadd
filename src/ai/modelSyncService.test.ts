@@ -49,6 +49,7 @@ const { autoSyncEnabledProviders, diffModelLists, syncProviderModels } = await i
 
 function makeProvider(overrides: Partial<AIProvider> = {}): AIProvider {
 	return {
+		id: "openai",
 		name: "OpenAI",
 		endpoint: "https://api.openai.com/v1",
 		apiKey: "",
@@ -124,7 +125,12 @@ describe("autoSyncEnabledProviders", () => {
 						{ name: "user-added", maxTokens: 1234 },
 					],
 				},
-				makeProvider({ name: "Custom", endpoint: "http://x", autoSyncModels: false }),
+				makeProvider({
+					id: "custom",
+					name: "Custom",
+					endpoint: "http://x",
+					autoSyncModels: false,
+				}),
 			];
 			return [{ name: "gpt-5.5", maxTokens: 1050000 }];
 		});
@@ -150,6 +156,53 @@ describe("autoSyncEnabledProviders", () => {
 		expect(openai.models.map((m) => m.name)).toEqual(["gpt-4o"]);
 		expect(openai.lastModelSync?.error).toBe("status 503");
 		expect(openai.lastModelSync?.at).toBeGreaterThan(0);
+	});
+
+	it("stores a nonempty error when the thrown Error has an empty message", async () => {
+		mocks.discoverProviderModelsMock.mockRejectedValue(new Error(""));
+
+		await autoSyncEnabledProviders(undefined);
+
+		const [openai] = storeState.ai.providers as AIProvider[];
+		expect(openai.models.map((m) => m.name)).toEqual(["gpt-4o"]);
+		expect(openai.lastModelSync?.error).toBeTruthy();
+		expect(openai.lastModelSync?.error).not.toBe("");
+	});
+
+	it("keys sync results by provider id, not name+endpoint", async () => {
+		const work = makeProvider({
+			id: "openai-work",
+			apiKey: "work-key",
+			models: [{ name: "gpt-4o", maxTokens: 1 }],
+		});
+		const personal = makeProvider({
+			id: "openai-personal",
+			apiKey: "personal-key",
+			models: [{ name: "gpt-4o", maxTokens: 1 }],
+		});
+		storeState.ai.providers = [work, personal];
+
+		mocks.discoverProviderModelsMock.mockImplementation(
+			async (provider: AIProvider) => {
+				if (provider.id === "openai-work") {
+					throw new Error("work key revoked");
+				}
+				return [{ name: "gpt-6-sol", maxTokens: 1050000 }];
+			},
+		);
+
+		await autoSyncEnabledProviders(undefined);
+
+		const [workAfter, personalAfter] = storeState.ai.providers as AIProvider[];
+		expect(workAfter.id).toBe("openai-work");
+		expect(workAfter.lastModelSync?.error).toBe("work key revoked");
+		expect(workAfter.models.map((m) => m.name)).toEqual(["gpt-4o"]);
+		expect(personalAfter.id).toBe("openai-personal");
+		expect(personalAfter.lastModelSync?.error).toBeUndefined();
+		expect(personalAfter.models.map((m) => m.name)).toEqual([
+			"gpt-4o",
+			"gpt-6-sol",
+		]);
 	});
 
 	it("never adds a model the directory marks deprecated", async () => {
