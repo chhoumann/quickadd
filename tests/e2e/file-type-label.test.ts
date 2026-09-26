@@ -81,6 +81,13 @@ describe("FILE |type: default label", () => {
 		await pressKey(obsidian, "Enter", true);
 		await expectNoPrompt(obsidian);
 		await expect.poll(() => sandbox.read("out/attachment pair.md").catch(() => ""), POLL_OPTS)
-			.toBe(`image: [[${folder}/photo.png]]\npdf: [[${folder}/scan.pdf]]\n`);
+			.toMatch(/^image: \[\[[^\]]+\]\]\npdf: \[\[[^\]]+\]\]\n$/);
+		// Link text follows the vault's link format, so check where each link lands.
+		const note = JSON.stringify(sandbox.path("out/attachment pair.md"));
+		await expect.poll(() => obsidian.dev.evalJson<(string | null)[] | null>(`(() => {
+			const file = app.vault.getAbstractFileByPath(${note});
+			return app.metadataCache.getFileCache(file)?.links?.map(({ link }) =>
+				app.metadataCache.getFirstLinkpathDest(link, ${note})?.path ?? null) ?? null;
+		})()`), POLL_OPTS).toEqual([`${folder}/photo.png`, `${folder}/scan.pdf`]);
 	});
 });

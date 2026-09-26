@@ -54,20 +54,29 @@
 					}),
 			);
 		}
-		// Anchor the menu under the trigger button. Using the button rect (rather
-		// than the event coordinates) makes this work for keyboard activation too
-		// and is robust to Svelte 5's event delegation (currentTarget is the
-		// delegated root, not the button).
 		// Reflect open state for assistive tech (aria-expanded on the trigger).
 		menuOpen = true;
 		menu.onHide(() => {
 			menuOpen = false;
 		});
 
+		// Anchor the menu under the trigger button. Using the button rect (rather
+		// than the event coordinates) makes this work for keyboard activation too
+		// and is robust to Svelte 5's event delegation (currentTarget is the
+		// delegated root, not the button). Passing the button's width with
+		// `overlap` keeps the menu under the button when it has to flip, instead
+		// of ending at the button's left edge. The primary button is the bar's
+		// rightmost action, so its menu prefers to right-align (`left`).
 		const trigger = (evt.target as HTMLElement | null)?.closest("button");
 		if (trigger) {
 			const rect = trigger.getBoundingClientRect();
-			menu.showAtPosition({ x: rect.left, y: rect.bottom + 4 });
+			menu.showAtPosition({
+				x: rect.left,
+				y: rect.bottom + 4,
+				width: rect.width,
+				overlap: true,
+				left: !compact,
+			});
 		} else {
 			menu.showAtMouseEvent(evt);
 		}
