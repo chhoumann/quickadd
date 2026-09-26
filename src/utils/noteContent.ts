@@ -2,6 +2,7 @@ import { MarkdownView, type App, type TFile } from "obsidian";
 import { waitFor } from "../utility";
 import merge from "three-way-merge";
 import invariant from "./invariant";
+import { log } from "../logger/logManager";
 
 /*
  * Reads and writes of a note's full text that stay coherent with an open editor.
@@ -66,7 +67,9 @@ export async function processNote(app: App, file: TFile, fn: (content: string) =
 				editor.transaction({ changes: [{
 					from: editor.offsetToPos(edit.from), to: editor.offsetToPos(edit.to), text: edit.text,
 				}] });
-				await saveView(view);
+				// The editor now holds the edit, so it has happened; if this save
+				// fails, Obsidian's next save of the editor writes it.
+				await saveView(view).catch(error => log.logWarning(`Could not save '${file.path}' yet: ${String(error)}`));
 			}
 			return after;
 		}

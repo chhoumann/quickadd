@@ -240,6 +240,24 @@ describe("processNote", () => {
 		}
 	});
 
+	it("keeps an edit it already made to the editor when the save after it never finishes", async () => {
+		vi.useFakeTimers();
+		try {
+			const { app, file, view, editor } = setup({ disk: "a\n", editor: "a\n" });
+			const saving = view as unknown as { saving: boolean };
+			view.save = vi.fn(async () => { if (editor?.value !== "a\n") saving.saving = true; });
+
+			const result = processNote(app, file, text => `${text}b\n`);
+			await vi.advanceTimersByTimeAsync(10_000);
+
+			await expect(result).resolves.toBe("a\nb\n");
+			expect(editor?.value).toBe("a\nb\n");
+			expect(app.vault.process).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("waits for an autosave already in flight before reading the disk", async () => {
 		const { app, file, view, editor, state } = setup({ disk: "a\n", editor: "a\ntyped\n", unsaved: true });
 		const inFlight = view as unknown as { saving: boolean };
