@@ -59,10 +59,6 @@ import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imageP
 import { setQuickAddInstance } from "./quickAddInstance";
 import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
-import {
-	pluginFolderDirectoryCache,
-	setModelsDirectoryDiskCache,
-} from "./ai/modelsDirectory";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -215,16 +211,6 @@ export default class QuickAdd extends Plugin {
 		} else {
 			this.app.workspace.onLayoutReady(launchStartupMacros);
 		}
-
-		// Persist the models.dev directory across launches so model discovery
-		// revalidates it (ETag/304) instead of re-downloading ~5 MB each start.
-		setModelsDirectoryDiskCache(
-			pluginFolderDirectoryCache(
-				this.app.vault.adapter,
-				this.manifest.dir ??
-					`${this.app.vault.configDir}/plugins/${this.manifest.id}`,
-			),
-		);
 
 		// Keep AI provider model lists current without plugin releases: a quiet,
 		// daily-throttled background sync for providers that opted in. Deferred
