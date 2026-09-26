@@ -84,6 +84,26 @@ describe("RequirementCollector — {{FILE:...}}", () => {
 		expect(notes?.options).toEqual([`${FILE_PICK_PREFIX}Attachments/notes.md`]);
 	});
 
+	it("names the |type: in the default label so same-folder pickers differ", async () => {
+		const app = makeApp(["Attachments/photo.png", "Attachments/scan.pdf"]);
+		const rc = new RequirementCollector(app, makePlugin());
+		await rc.scanString(
+			"{{FILE:Attachments|type:image|link}} {{FILE:Attachments|type:pdf|link}} {{FILE:Attachments|type:image,.PDF}}",
+		);
+
+		const labelOf = (token: string) =>
+			rc.requirements.get(parseFileToken(token)!.variableKey)?.label;
+		expect(labelOf("Attachments|type:image|link")).toBe(
+			"File from Attachments (image, link)",
+		);
+		expect(labelOf("Attachments|type:pdf|link")).toBe(
+			"File from Attachments (pdf, link)",
+		);
+		expect(labelOf("Attachments|type:image,.PDF")).toBe(
+			"File from Attachments (image, pdf)",
+		);
+	});
+
 	it("labels a |type: canvas pick with its extension", async () => {
 		const app = makeApp(["Boards/Plan.canvas", "Boards/Plan.md"]);
 		const rc = new RequirementCollector(app, makePlugin());

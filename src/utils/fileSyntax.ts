@@ -42,6 +42,8 @@ export type ParsedFileToken = {
 	multiSelect: boolean;
 	/** Explicit output shape for a multi-select; auto preserves legacy behavior. */
 	multiFormat: MultiValueFormat;
+	/** Normalized `|type:` values as written, e.g. `["image", "pdf"]`. */
+	types: readonly string[];
 	/** Extensions `|type:` lists; undefined means Markdown notes only. */
 	extensions?: ReadonlySet<string> | "any";
 	/** Variables-map key. Full token identity by default; `|name:` shares it. */
@@ -60,21 +62,21 @@ const FILE_TYPE_EXTENSIONS = new Map<string, readonly string[]>([
 	["pdf", ["pdf"]],
 ]);
 
-function addFileTypes(
-	extensions: Set<string> | "any" | undefined,
-	value: string,
+function parseFileTypes(value: string): string[] {
+	return value
+		.split(",")
+		.map((part) => part.trim().toLowerCase().replace(/^\./, ""))
+		.filter(Boolean);
+}
+
+function getFileTypeExtensions(
+	types: readonly string[],
 ): Set<string> | "any" | undefined {
-	if (extensions === "any") return extensions;
-	for (const part of value.split(",")) {
-		const type = part.trim().toLowerCase().replace(/^\./, "");
-		if (!type) continue;
-		if (type === "any") return "any";
-		extensions ??= new Set();
-		for (const extension of FILE_TYPE_EXTENSIONS.get(type) ?? [type]) {
-			extensions.add(extension);
-		}
-	}
-	return extensions;
+	if (types.length === 0) return undefined;
+	if (types.includes("any")) return "any";
+	return new Set(
+		types.flatMap((type) => FILE_TYPE_EXTENSIONS.get(type) ?? [type]),
+	);
 }
 
 /** Strip leading/trailing slashes, matching FieldSuggestionFileFilter. */
@@ -215,15 +217,17 @@ export function parseFileToken(
 	// else (tag/exclude-*) is parsed by FieldSuggestionParser below.
 	let label: string | undefined;
 	let aliasName: string | undefined;
-	let extensions: Set<string> | "any" | undefined;
+	const types: string[] = [];
 	for (const part of afterMode) {
 		const parsed = parsePipeKeyValue(part);
 		if (!parsed) continue;
 		if (parsed.key === "label" && parsed.value) label = parsed.value;
 		else if (parsed.key === "name" && parsed.value) aliasName = parsed.value;
 		else if (parsed.key === "type")
-			extensions = addFileTypes(extensions, parsed.value);
+			for (const type of parseFileTypes(parsed.value))
+				if (!types.includes(type)) types.push(type);
 	}
+	const extensions = getFileTypeExtensions(types);
 
 	// Delegate filter parsing to the shared FIELD parser (it skips unknown keys
 	// like label/name and bare flags), then force the scope folder. The first
@@ -271,6 +275,7 @@ export function parseFileToken(
 		filter,
 		multiSelect,
 		multiFormat,
+		types,
 		extensions,
 		variableKey,
 	};
