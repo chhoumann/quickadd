@@ -43,7 +43,7 @@ Date: {{DATE:YYYY-MM-DD}}
 8. Set **File opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
 9. Choose **Done** and close Settings.
 
-![The Template choice settings with Open enabled, File opening location set to Reuse current tab, and View mode set to Live Preview](https://files.bagerbach.com/meeting-open-settings-l3soft9zeju2.png)
+![The Template choice settings with Open enabled, File opening location set to Reuse current tab, and View mode set to Live Preview](../Images/examples/meeting-open-settings.png)
 
 ## Run it and start typing
 
@@ -68,7 +68,7 @@ Date: 2026-09-20
 
 The marker is gone, and your sentence appears in the first bullet under **Notes**. QuickAdd uses your meeting name in both the file name and the heading without asking twice.
 
-![A meeting note created in Obsidian, with the title and date filled in and the first sentence typed under Notes](https://files.bagerbach.com/meeting-result-yb8zrgx044ko.png)
+![A meeting note created in Obsidian, with the title and date filled in and the first sentence typed under Notes](../Images/examples/meeting-result.png)
 
 To start in **Next steps** instead, remove the marker from **Notes** and change the checklist line to `- [ ] {{CURSOR}}`. The first marker in the note body sets the cursor position. QuickAdd removes any additional markers.
 
@@ -120,7 +120,7 @@ The file keeps its name, description, and **Decisions** section. QuickAdd adds a
 - [ ]
 ```
 
-![Applying the Project update template in Obsidian, choosing Append to bottom, and typing into the new Progress bullet while the original Decisions remain above](https://files.bagerbach.com/project-update-demo-avxs1h3l2buy.gif)
+![Applying the Project update template in Obsidian, choosing Append to bottom, and typing into the new Progress bullet while the original Decisions remain above](../Images/examples/project-update-demo.gif)
 
 Recorded in Obsidian; played at twice the original speed.
 
