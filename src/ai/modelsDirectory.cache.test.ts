@@ -155,6 +155,7 @@ describe("fetchModelsDevDirectory disk cache", () => {
 		["a non-JSON body", unparsableBody(200)],
 		["an array body", ok([])],
 		["an empty object body", ok({})],
+		["a provider without models", ok({ openai: { id: "openai", name: "OpenAI" } })],
 	])("keeps the saved copy when a 200 refresh has %s", async (_label, response) => {
 		const saved = JSON.stringify({ etag: '"v1"', data: V1 });
 		const disk = fakeDisk(saved);
@@ -181,6 +182,7 @@ describe("fetchModelsDevDirectory disk cache", () => {
 		["missing data", JSON.stringify({ etag: '"v1"' })],
 		["empty data", JSON.stringify({ etag: '"v1"', data: {} })],
 		["array data", JSON.stringify({ etag: '"v1"', data: [] })],
+		["a provider without models", JSON.stringify({ etag: '"v1"', data: { openai: {} } })],
 	])("treats a saved copy with %s as a miss", async (_label, contents) => {
 		const disk = fakeDisk(contents);
 		const mod = await launch(disk);

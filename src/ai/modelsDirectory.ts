@@ -123,13 +123,21 @@ async function revalidateDirectory(): Promise<ModelsDevDirectory> {
   return remember(fresh.data);
 }
 
-/** A directory is a non-empty object of providers; anything else is unusable. */
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * A directory is a non-empty map of providers, each with a `models` map;
+ * anything else is unusable (discovery reads `directory[key].models`).
+ */
 function isDirectory(value: unknown): value is ModelsDevDirectory {
+  if (!isPlainObject(value)) return false;
+  const providers = Object.values(value);
   return (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.keys(value).length > 0
+    providers.length > 0 &&
+    providers.every(
+      (provider) => isPlainObject(provider) && isPlainObject(provider.models),
+    )
   );
 }
 
