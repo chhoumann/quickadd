@@ -51,7 +51,7 @@ vi.mock("src/utilityObsidian", async () => {
 	return {
 		getMarkdownFilesInFolder: vi.fn(() => []),
 		getMarkdownFilesWithTag: vi.fn(() => []),
-		getUserScript: vi.fn(),
+		loadUserScript: vi.fn(),
 		isFolder: vi.fn(() => false),
 		// A configured folder can hold {{DATE:}}, which the requirement scan
 		// resolves through this helper; the preview renders {{DATE}} with it too.

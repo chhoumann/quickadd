@@ -82,6 +82,16 @@ How the pieces fit together:
   object describing the field. Add a `description` to any field to show help
   text beneath it.
 
+### Scripts with several exports {#settings-with-member-access}
+
+A script can export more functions next to `entry` and `settings`. A macro
+command named with `::`, such as `my-script::otherExport`, runs that export
+instead of `entry`. The export still receives `settings` as its second
+argument, and the gear still shows the script's settings, because QuickAdd
+reads `settings` from the script's `module.exports`, not from the export.
+Settings are saved per macro command, so two commands for the same script keep
+separate values.
+
 ## The field types {#setting-types}
 
 Set each field's `type` to one of these:

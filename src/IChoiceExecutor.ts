@@ -10,6 +10,7 @@ import type { PromptProvider } from "./interactive/promptProvider";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
+import type { LoadedUserScript } from "./utils/userScript";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
@@ -110,13 +111,14 @@ export interface IChoiceExecutor {
 	 * User-script modules already loaded (and therefore already EXECUTED - loading
 	 * a CommonJS user script runs its top-level code) by a requirement-collection
 	 * pass, keyed by `getUserScriptPreloadKey` (`command.path ?? command.id` plus
-	 * any `::` member-drill suffix - stored values are DRILLED exports, so keying
-	 * by path alone would collide different members of one file). MacroChoiceEngine
+	 * any `::` member-drill suffix - stored values hold the DRILLED export plus the
+	 * module's settings definition, so keying by path alone would collide
+	 * different members of one file). MacroChoiceEngine
 	 * consumes an entry (delete-on-use) instead of re-loading the script, so
 	 * introspecting `quickadd.inputs` in the one-page preflight / non-interactive
 	 * CLI does not make a script's top-level side effects run twice per trigger.
 	 * Optional so existing stubs are unaffected; absent means "no preloaded
 	 * modules".
 	 */
-	preloadedUserScripts?: Map<string, unknown>;
+	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }

@@ -11,6 +11,7 @@ import {
 	areSameVaultFilePath,
 	getAllFolderPathsInVault,
 	getUserScript,
+	loadUserScript,
 	normalizeVaultFilePath,
 	getOpenFileOriginLeaf,
 	openFile,
@@ -246,6 +247,72 @@ describe("getUserScript", () => {
 				command.settings,
 			),
 		).rejects.toThrow("script rejected");
+	});
+
+	// `Script::Export` drills to what runs, but the settings definition belongs
+	// to the module; the gear and execution both read it from here.
+	describe("loadUserScript settings definition", () => {
+		const rootSettings = { options: { Token: { type: "secret" } } };
+
+		it("reads settings from the module root when the drilled export has none", async () => {
+			const app = createUserScriptApp(`
+				module.exports = {
+					settings: ${JSON.stringify(rootSettings)},
+					Export: async () => "ran",
+				};
+			`);
+
+			const loaded = await loadUserScript(
+				createUserScriptCommand({ name: "Script::Export" }),
+				app,
+			);
+
+			expect(typeof loaded?.script).toBe("function");
+			expect(loaded?.settings).toEqual(rootSettings);
+		});
+
+		it("prefers the nearest settings along the drill path", async () => {
+			const app = createUserScriptApp(`
+				module.exports = {
+					settings: ${JSON.stringify(rootSettings)},
+					group: {
+						settings: { options: { Nested: { type: "text" } } },
+						run: () => "ran",
+					},
+				};
+			`);
+
+			const nested = await loadUserScript(
+				createUserScriptCommand({ name: "Script::group::run" }),
+				app,
+			);
+			const group = await loadUserScript(
+				createUserScriptCommand({ name: "Script::group" }),
+				app,
+			);
+
+			expect(nested?.settings).toEqual({ options: { Nested: { type: "text" } } });
+			expect(group?.settings).toEqual({ options: { Nested: { type: "text" } } });
+		});
+
+		it("reads settings attached to a function export and ignores non-object settings", async () => {
+			const functionRoot = await loadUserScript(
+				createUserScriptCommand(),
+				createUserScriptApp(`
+					const run = () => "ran";
+					run.settings = ${JSON.stringify(rootSettings)};
+					module.exports = run;
+				`),
+			);
+			const primitiveSettings = await loadUserScript(
+				createUserScriptCommand({ name: "Script::run" }),
+				createUserScriptApp(`module.exports = { settings: "nope", run: () => 1 };`),
+			);
+
+			expect(functionRoot?.settings).toEqual(rootSettings);
+			expect(primitiveSettings?.settings).toBeUndefined();
+			expect(typeof primitiveSettings?.script).toBe("function");
+		});
 	});
 
 	it("loads a user script from a note's ```js code block (#1065)", async () => {

@@ -13,10 +13,12 @@ import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INested
 import type IChoice from "../types/choices/IChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { QuickAddApi } from "../quickAddApi";
+import type * as UserScriptModule from "../utils/userScript";
+import type { LoadedUserScript } from "../utils/userScript";
 
-const { mockGetUserScript, mockInitializeUserScriptSettings, mockSuggest, mockGetApi, mockInputPrompt } =
+const { mockLoadModuleExports, mockInitializeUserScriptSettings, mockSuggest, mockGetApi, mockInputPrompt } =
 	vi.hoisted(() => ({
-		mockGetUserScript: vi.fn(),
+		mockLoadModuleExports: vi.fn(),
 		mockInitializeUserScriptSettings: vi.fn(),
 		mockSuggest: vi.fn(),
 		mockGetApi: vi.fn(() => ({})),
@@ -27,10 +29,23 @@ vi.mock("../utilityObsidian", async () => {
 	const actual = await vi.importActual<Record<string, unknown>>(
 		"../utilityObsidian",
 	);
+	const { getUserScriptMemberAccess, selectUserScriptMember } =
+		await vi.importActual<typeof UserScriptModule>(
+			"../utils/userScript",
+		);
 
 	return {
 		...actual,
-		getUserScript: mockGetUserScript,
+		// Fake only reading + evaluating the file (mockLoadModuleExports returns
+		// `module.exports`); the `::` drill and settings lookup run for real.
+		loadUserScript: async (command: IUserScript) => {
+			const moduleExports: unknown = await mockLoadModuleExports(command);
+			if (!moduleExports) return undefined;
+			return selectUserScriptMember(
+				moduleExports,
+				getUserScriptMemberAccess(command.name).memberAccess ?? [],
+			);
+		},
 	};
 });
 
@@ -133,7 +148,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockGetUserScript.mockReset();
+		mockLoadModuleExports.mockReset();
 		mockInitializeUserScriptSettings.mockReset();
 		mockSuggest.mockReset();
 		mockGetApi.mockReset();
@@ -174,7 +189,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		{ name: "clears previous output when the script returns undefined", callable: true, expected: undefined },
 	])("$name", async ({ callable, expected }) => {
 		const script = vi.fn().mockResolvedValue(undefined);
-		mockGetUserScript.mockResolvedValue(callable ? script : undefined);
+		mockLoadModuleExports.mockResolvedValue(callable ? script : undefined);
 		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
 		engine.setOutput("previous");
 		await engine["executeUserScript"](userScriptCommand);
@@ -185,7 +200,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 	it("runs the entry export without prompting when no settings are defined", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
 
-		mockGetUserScript.mockResolvedValue({
+		mockLoadModuleExports.mockResolvedValue({
 			entry: entryFn,
 		});
 
@@ -214,8 +229,8 @@ describe("MacroChoiceEngine user script entry handling", () => {
 	// ONCE so a later run of the same command loads fresh.
 	it("consumes a preloaded user-script module instead of re-loading it", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
-		const preloaded = new Map<string, unknown>([
-			["script.js", { entry: entryFn }],
+		const preloaded = new Map<string, LoadedUserScript>([
+			["script.js", { script: { entry: entryFn }, settings: undefined }],
 		]);
 
 		const engine = new MacroChoiceEngine(
@@ -229,27 +244,27 @@ describe("MacroChoiceEngine user script entry handling", () => {
 
 		await engine["executeUserScript"](userScriptCommand);
 
-		expect(mockGetUserScript).not.toHaveBeenCalled();
+		expect(mockLoadModuleExports).not.toHaveBeenCalled();
 		expect(entryFn).toHaveBeenCalledTimes(1);
 		// Delete-on-use: the preloaded execution is spent.
 		expect(preloaded.has("script.js")).toBe(false);
 
 		// A second execution of the same command loads (and thus runs) fresh.
-		mockGetUserScript.mockResolvedValue({ entry: entryFn });
+		mockLoadModuleExports.mockResolvedValue({ entry: entryFn });
 		await engine["executeUserScript"](userScriptCommand);
-		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(mockLoadModuleExports).toHaveBeenCalledTimes(1);
 	});
 
-	// Preloaded values are member-DRILLED exports, so a command drilling a
+	// Preloaded values hold member-DRILLED exports, so a command drilling a
 	// different `::` member of the same file must NOT consume another
 	// member's entry (path-only keying executed the wrong function).
 	it("does not consume a preloaded entry cached for a different :: member", async () => {
 		const fooEntry = vi.fn().mockResolvedValue("foo-result");
 		const barEntry = vi.fn().mockResolvedValue("bar-result");
-		const preloaded = new Map<string, unknown>([
-			["script.js::foo", { entry: fooEntry }],
+		const preloaded = new Map<string, LoadedUserScript>([
+			["script.js::foo", { script: { entry: fooEntry }, settings: undefined }],
 		]);
-		mockGetUserScript.mockResolvedValue({ entry: barEntry });
+		mockLoadModuleExports.mockResolvedValue({ bar: { entry: barEntry } });
 
 		const engine = new MacroChoiceEngine(
 			app,
@@ -264,7 +279,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		await engine["executeUserScript"](barCommand);
 
 		// bar must load fresh (and run barEntry), leaving foo's entry intact.
-		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(mockLoadModuleExports).toHaveBeenCalledTimes(1);
 		expect(barEntry).toHaveBeenCalledTimes(1);
 		expect(fooEntry).not.toHaveBeenCalled();
 		expect(preloaded.has("script.js::foo")).toBe(true);
@@ -272,7 +287,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		const fooCommand = { ...userScriptCommand, name: "Script::foo" };
 		await engine["executeUserScript"](fooCommand);
 		expect(fooEntry).toHaveBeenCalledTimes(1);
-		expect(mockGetUserScript).toHaveBeenCalledTimes(1);
+		expect(mockLoadModuleExports).toHaveBeenCalledTimes(1);
 		expect(preloaded.has("script.js::foo")).toBe(false);
 	});
 
@@ -285,7 +300,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 			},
 		};
 
-		mockGetUserScript.mockResolvedValue({
+		mockLoadModuleExports.mockResolvedValue({
 			entry: entryFn,
 			settings,
 		});
@@ -327,7 +342,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 			"API Key": "legacy-secret",
 		};
 
-		mockGetUserScript.mockResolvedValue({
+		mockLoadModuleExports.mockResolvedValue({
 			entry: entryFn,
 			settings: {
 				options: {
@@ -364,7 +379,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 	it("ignores malformed primitive settings exports at the user-script boundary", async () => {
 		const entryFn = vi.fn().mockResolvedValue("entry-result");
 
-		mockGetUserScript.mockResolvedValue({
+		mockLoadModuleExports.mockResolvedValue({
 			entry: entryFn,
 			settings: "not-settings",
 		});
@@ -389,7 +404,7 @@ describe("MacroChoiceEngine user script entry handling", () => {
 	it("prompts the user when no entry export is defined", async () => {
 		const optionFn = vi.fn().mockResolvedValue("option-result");
 
-		mockGetUserScript.mockResolvedValue({
+		mockLoadModuleExports.mockResolvedValue({
 			option1: optionFn,
 		});
 		mockSuggest.mockResolvedValueOnce("option1");
@@ -422,7 +437,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockGetUserScript.mockReset();
+		mockLoadModuleExports.mockReset();
 		mockInitializeUserScriptSettings.mockReset();
 		mockSuggest.mockReset();
 
@@ -464,7 +479,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
-		mockGetUserScript.mockImplementation((command: IUserScript) => {
+		mockLoadModuleExports.mockImplementation((command: IUserScript) => {
 			const nextValueByPath: Record<string, number> = {
 				"script-1.js": 1,
 				"script-2.js": 2,
@@ -548,7 +563,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
-		mockGetUserScript.mockImplementationOnce(() => {
+		mockLoadModuleExports.mockImplementationOnce(() => {
 			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
 				params.variables = { foo: "bar" };
 			});
@@ -592,7 +607,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
-		mockGetUserScript.mockImplementationOnce(() => {
+		mockLoadModuleExports.mockImplementationOnce(() => {
 			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
 				params.variables = params.variables;
 				params.variables.added = 2;
@@ -637,7 +652,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
-		mockGetUserScript.mockImplementationOnce(() => {
+		mockLoadModuleExports.mockImplementationOnce(() => {
 			return Promise.resolve(async (params: { variables: any }) => {
 				params.variables = 123;
 				params.variables.added = "ok";
@@ -682,7 +697,7 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
-		mockGetUserScript.mockImplementationOnce(() => {
+		mockLoadModuleExports.mockImplementationOnce(() => {
 			return Promise.resolve(async (params: { variables: any }) => {
 				params.variables = new Map<any, any>([
 					[1, "nope"],

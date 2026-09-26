@@ -22,13 +22,14 @@ import type { IUserScript } from "src/types/macros/IUserScript";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import {
 	getTemplateFile,
-	getUserScript,
 	isFolder,
+	loadUserScript,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
+	type LoadedUserScript,
 } from "src/utils/userScript";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
 import {
@@ -70,7 +71,7 @@ interface CollectChoiceRequirementsOptions {
 	 * body twice: once here for introspection and once in MacroChoiceEngine.
 	 * The engine consumes these entries instead of re-loading (delete-on-use).
 	 */
-	preloadedUserScripts?: Map<string, unknown>;
+	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }
 
 async function readTemplate(app: App, path: string): Promise<string> {
@@ -382,29 +383,29 @@ async function collectForCaptureChoice(
 async function collectUserScriptRequirements(
 	app: App,
 	userScriptCommand: IUserScript,
-	preloadedUserScripts?: Map<string, unknown>,
+	preloadedUserScripts?: Map<string, LoadedUserScript>,
 ): Promise<FieldRequirement[]> {
 	const requirements: FieldRequirement[] = [];
 	try {
 		// Reuse an already-loaded module (loading executes the script's
 		// top-level code); cache what we load so the runtime engine consumes
 		// this execution instead of running the module body a second time.
-		// The key is member-aware (path + `::` drill) because getUserScript
-		// returns the drilled export.
+		// The key is member-aware (path + `::` drill) because the cached
+		// `script` is the drilled export.
 		const cacheKey = getUserScriptPreloadKey(userScriptCommand);
-		let exported =
+		let loaded =
 			cacheKey !== undefined
 				? preloadedUserScripts?.get(cacheKey)
 				: undefined;
-		if (exported === undefined) {
-			exported = await getUserScript(userScriptCommand, app, {
+		if (loaded === undefined) {
+			loaded = await loadUserScript(userScriptCommand, app, {
 				reportLoadErrors: false,
 			});
-			if (cacheKey !== undefined && exported !== undefined) {
-				preloadedUserScripts?.set(cacheKey, exported);
+			if (cacheKey !== undefined && loaded !== undefined) {
+				preloadedUserScripts?.set(cacheKey, loaded);
 			}
 		}
-		const scriptInputs = getQuickAddScriptInputs(exported);
+		const scriptInputs = getQuickAddScriptInputs(loaded?.script);
 		for (const input of scriptInputs) {
 			const requirement = toFieldRequirement(input);
 			if (requirement) requirements.push(requirement);

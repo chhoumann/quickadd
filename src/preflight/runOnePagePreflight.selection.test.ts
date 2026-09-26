@@ -54,7 +54,7 @@ vi.mock("src/utilityObsidian", async () => {
 	return {
 		getMarkdownFilesInFolder: vi.fn(() => []),
 		getMarkdownFilesWithTag: vi.fn(() => []),
-		getUserScript: vi.fn(),
+		loadUserScript: vi.fn(),
 		isFolder: vi.fn(() => false),
 		// Faithful to the real resolver: trim, strip a leading slash, append .md
 		// only when no template extension is present, then resolve to a TFile.

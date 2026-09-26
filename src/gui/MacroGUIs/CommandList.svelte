@@ -21,7 +21,7 @@ import UserScriptCommand from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { log } from "../../logger/logManager";
-import { getUserScript } from "src/utilityObsidian";
+import { loadUserScript } from "src/utilityObsidian";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
@@ -239,14 +239,15 @@ function getChoiceBuilder(choice: IChoice) {
 }
 
 async function configureScript(command: IUserScript) {
-	const userScript = await getUserScript(command, app);
-	if (!userScript) {
+	const loaded = await loadUserScript(command, app);
+	if (!loaded?.script) {
 		log.logWarning(`${command.name} could not be loaded.`);
 		return;
 	}
 
-	const scriptSettings =
-		(userScript as { settings?: { [key: string]: unknown } }).settings ?? {};
+	// The settings definition lives on the module; `Script::Export` drills
+	// to the export that runs, which usually has no `settings` of its own.
+	const scriptSettings = loaded.settings ?? {};
 
 	new UserScriptSettingsModal(
 		app,

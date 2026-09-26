@@ -4,8 +4,8 @@ import type { QuickAddApi } from "../quickAddApi";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IUserScript } from "../types/macros/IUserScript";
-import { getUserScript } from "../utilityObsidian";
-import { getUserScriptPreloadKey } from "../utils/userScript";
+import { loadUserScript } from "../utilityObsidian";
+import { getUserScriptPreloadKey, type LoadedUserScript } from "../utils/userScript";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";
 import { log } from "../logger/logManager";
@@ -31,7 +31,7 @@ type ScriptContext = {
 	choiceName: string;
 	params: ScriptParameters;
 	executor: IChoiceExecutor;
-	preloadedUserScripts: Map<string, unknown>;
+	preloadedUserScripts: Map<string, LoadedUserScript>;
 	promptLabel?: string;
 };
 
@@ -53,17 +53,19 @@ export async function executeUserScript(
 	const { app, plugin, choiceName, params, executor, preloadedUserScripts, promptLabel } = context;
 	// Preloaded exports are member-specific and consumed once.
 	const cacheKey = getUserScriptPreloadKey(command);
-	let userScript = cacheKey === undefined ? undefined : preloadedUserScripts.get(cacheKey);
-	if (cacheKey !== undefined && userScript !== undefined) preloadedUserScripts.delete(cacheKey);
-	if (userScript === undefined) userScript = await getUserScript(command, app);
+	let loaded = cacheKey === undefined ? undefined : preloadedUserScripts.get(cacheKey);
+	if (cacheKey !== undefined && loaded !== undefined) preloadedUserScripts.delete(cacheKey);
+	if (loaded === undefined) loaded = await loadUserScript(command, app);
+	const userScript = loaded?.script;
 	if (!userScript) {
 		log.logError(`failed to load user script ${command.path}.`);
 		return;
 	}
 
 	if (!command.settings) command.settings = {};
-	const settingsExport = isRecord(userScript) ? userScript.settings : undefined;
-	const definition = isRecord(settingsExport) ? settingsExport : undefined;
+	// Read from the module, not the `::`-drilled export (a bare function for
+	// `Script::Export`), so defaults and secrets apply to member access too.
+	const definition = loaded?.settings;
 	if (definition) initializeUserScriptSettings(command.settings, definition);
 
 	async function invoke(fn: UserScriptFunction): Promise<ScriptResult> {

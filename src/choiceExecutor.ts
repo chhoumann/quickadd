@@ -36,12 +36,13 @@ import VDateInputPrompt from "./gui/VDateInputPrompt/VDateInputPrompt";
 import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
 import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
+import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState, getPreparedTemplateNoteSelection } from "./preflight/preparedChoiceInputs";
 import { isTemplateChoice } from "./preflight/macroCommandRole";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
 export class ChoiceExecutor implements IChoiceExecutor {
-	public variables: Map<string, unknown> = new Map<string, unknown>();
+	public variables: Map<string, unknown> = new Map<string, LoadedUserScript>();
 	public readonly preparedInputs = createPreparedChoiceInputState();
 	// Default to interactive so every GUI entry point (command palette, ribbon,
 	// suggester) keeps its current prompt behaviour. Non-interactive callers (CLI
@@ -55,7 +56,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	// consumed once by MacroChoiceEngine so a script's top-level code runs a
 	// single time per trigger instead of once for introspection plus once for
 	// execution (see IChoiceExecutor.preloadedUserScripts).
-	public readonly preloadedUserScripts = new Map<string, unknown>();
+	public readonly preloadedUserScripts = new Map<string, LoadedUserScript>();
 	public focusedProperty: FrontmatterPropertyTarget | null = null;
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;

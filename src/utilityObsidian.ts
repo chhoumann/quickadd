@@ -59,7 +59,11 @@ export {
 	openExistingFileTab,
 } from "./utils/fileOpening";
 
-export { getUserScript, getUserScriptMemberAccess } from "./utils/userScript";
+export {
+	getUserScript,
+	getUserScriptMemberAccess,
+	loadUserScript,
+} from "./utils/userScript";
 
 export {
 	getAllFolderPathsInVault,
