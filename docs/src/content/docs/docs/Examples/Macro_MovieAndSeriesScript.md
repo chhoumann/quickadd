@@ -10,7 +10,7 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 
 ## Demo
 
-![Demo](../Images/moviescript.gif)
+![Running the Movie macro: searching for Dune: Part Two creates a movie note with properties and the poster](../Images/moviescript.gif)
 
 ## Installation
 
@@ -32,7 +32,9 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
     1. Set the template path to the template you created.
     2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
-6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb. [Image demonstration](../Images/moviescript_settings.jpg).
+6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb.
+
+    ![The Movie macro with the movies script settings open, showing the OMDb API Key field](../Images/moviescript_settings.png)
 
 You can now use the macro to create notes with movie or TV show information in your vault.
 

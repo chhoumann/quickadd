@@ -20,14 +20,14 @@ online features** is turned off in QuickAdd settings.
 
 ## Setup {#setup}
 
-1. Create a folder for AI prompt templates, for example `bins/ai_prompts`.
-2. Open QuickAdd settings.
+1. Create a folder for AI prompt templates, for example `AI prompts`.
+2. Open QuickAdd settings and turn off **Disable AI & online features** (under **AI & online**).
 3. In the choice list, click the **Configure AI Assistant** icon button. It uses the sparkles icon at the bottom of the list.
 4. Set **Prompt template folder path** to the folder you created.
-5. Click **Edit providers** and configure at least one provider and model.
+5. Click **Edit providers** and configure at least one provider. OpenAI and Gemini are already listed: click **Edit**, link an API key secret with **Link...**, click **Sync now** to pull the provider's current models, and **Save**. See [Connect a provider](#providers-and-local-models) for other providers.
 6. Choose a **Default model**, or leave it as **Ask me** to pick a model each run.
 
-![AI Assistant Setup](./Images/AI_Assistant_Setup.gif)
+![Setting up the AI Assistant: enabling AI features, setting the prompt template folder, linking an OpenAI API key, syncing models, and choosing gpt-6-luna as the default model](./Images/AI_Assistant_Setup.gif)
 
 Prompt templates are Markdown notes in your prompt template folder. They can use
 QuickAdd [Format Syntax](/docs/FormatSyntax/), including values collected earlier
@@ -47,7 +47,12 @@ After setup, add an **AI Assistant** command to a Macro. The command formats the
 selected prompt template, sends it to the selected model, then stores the
 response as macro variables for later steps.
 
-![AI Assistant Macro](./Images/AI_Assistant_Macro.gif)
+In the recording below, a `Summarize` prompt template (containing
+`{{SELECTED}}`) feeds the selected paragraph to the model, the command stores
+the reply as `summary`, and a Capture writes `{{VALUE:summary}}` to the bottom of
+the active note.
+
+![Building a Summarize selection macro with an AI Assistant command and a Capture, then running it on a selected paragraph to append a summary](./Images/AI_Assistant_Macro.gif)
 
 ## What each setting does {#settings-semantics}
 
