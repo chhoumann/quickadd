@@ -98,7 +98,15 @@ async function importTasks(params, settings, todoist, tasks, sourceName) {
 
     // IMPORTANT: this completes the imported tasks in Todoist.
     // Untick "Complete imported tasks in Todoist" in the script settings to keep them open.
-    if (settings[COMPLETE_TASKS]) await closeSelectedTasks(todoist, tasks);
+    // Always return `output` even if a close fails mid-batch: earlier tasks may
+    // already be completed in Todoist and would otherwise be lost from the capture.
+    if (settings[COMPLETE_TASKS]) {
+        try {
+            await closeSelectedTasks(todoist, tasks);
+        } catch {
+            new params.obsidian.Notice("Some imported tasks could not be completed in Todoist. They are still in the note.");
+        }
+    }
 
     new params.obsidian.Notice(`Added ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} from ${sourceName}.`);
     return output;

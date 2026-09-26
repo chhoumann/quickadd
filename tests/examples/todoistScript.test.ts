@@ -205,6 +205,47 @@ describe("Todoist example script", () => {
 		expect(ctx.requests.every((r) => r.method === "GET")).toBe(true);
 	});
 
+	it("still returns the capture when a mid-batch close fails", async () => {
+		const ctx = setup({ suggest: (labels) => labels.indexOf("Home (4)") });
+		ctx.requestUrl.mockImplementation(async (request: { url: string; method?: string; headers?: Record<string, string> }) => {
+			const method = request.method ?? "GET";
+			ctx.requests.push({ method, url: request.url, auth: request.headers?.Authorization });
+			const url = new URL(request.url);
+			const close = url.pathname.match(/\/tasks\/([^/]+)\/close$/);
+			if (close && method === "POST") {
+				if (close[1] === "t2") return { status: 503, text: "", json: null };
+				ctx.closed.push(close[1]);
+				return { status: 204, text: "", json: null };
+			}
+			const collection = { tasks, projects, sections }[url.pathname.split("/").pop() as string];
+			if (!collection || method !== "GET") return { status: 404, text: "", json: null };
+			const start = Number(url.searchParams.get("cursor") ?? 0);
+			const end = start + PAGE_SIZE;
+			const body = {
+				results: collection.slice(start, end),
+				next_cursor: end < collection.length ? String(end) : null,
+			};
+			return { status: 200, text: JSON.stringify(body), json: body };
+		});
+
+		const output = await loadScript().GetAllTasksFromProject(ctx.params, ctx.settings);
+
+		expect(output).toBe(
+			[
+				"- [ ] Buy oat milk 📅 2031-01-15",
+				"- [ ] Return library books",
+				"- [ ] Water the plants 📅 2031-03-20",
+				"- [ ] Plan picnic",
+				"",
+			].join("\n"),
+		);
+		expect(ctx.closed).toEqual(["t1"]);
+		expect(ctx.notices).toContain(
+			"Some imported tasks could not be completed in Todoist. They are still in the note.",
+		);
+		expect(ctx.notices).toContain("Added 4 tasks from 'Home'.");
+	});
+
 	it("imports nothing when no task is checked", async () => {
 		const ctx = setup({ check: () => [] });
 
