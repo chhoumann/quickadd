@@ -177,10 +177,13 @@ describe("AIAssistantProvidersModal model sync while editing", () => {
 		await landDiscovery(0, DIRECTORY);
 		await flush();
 
-		expect(notices()).toEqual([]);
+		// Sync now must not sync or announce anything for the discarded copy...
 		expect(discovery.calls).toHaveLength(1);
+		expect(notices()).toEqual([]);
+		// ...and the background result lands on the snapshot Cancel restored.
 		expect(providers[0].models.map((model) => model.name)).toEqual([
 			"gpt-5.5",
+			"gpt-6-sol",
 		]);
 	});
 
@@ -195,6 +198,24 @@ describe("AIAssistantProvidersModal model sync while editing", () => {
 		clickButtonByText(modal, "Cancel");
 
 		expect(providers[0].name).toBe("OpenAI");
+		expect(providers[0].models.map((model) => model.name)).toEqual([
+			"gpt-5.5",
+			"gpt-6-sol",
+		]);
+	});
+
+	it("still syncs when the user saves while Sync now waits", async () => {
+		const providers = [openAIProvider()];
+		const modal = openAndEdit(providers);
+
+		clickButtonByText(modal, "Sync now");
+		clickButtonByText(modal, "Save");
+		await landDiscovery(0, SHIPPED);
+		await landDiscovery(1, DIRECTORY);
+
+		expect(notices()).toEqual([
+			"Synced from the models.dev directory: 1 new model(s), 0 updated.",
+		]);
 		expect(providers[0].models.map((model) => model.name)).toEqual([
 			"gpt-5.5",
 			"gpt-6-sol",
