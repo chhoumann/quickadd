@@ -658,8 +658,10 @@ const icons: Record<string, string> = {
 				// to an unloaded frame (even repeatedly) never shows an empty box.
 				let painted = shots.find((el) => el.classList.contains("isActive"));
 				let generation = 0;
+				let current = 0;
+				const theme = () => document.documentElement.dataset.theme;
 				const visibleImage = (shot) =>
-					shot.querySelector(document.documentElement.dataset.theme === "dark" ? ".shotDark" : ".shotLight");
+					shot.querySelector(theme() === "dark" ? ".shotDark" : ".shotLight");
 				const whenLoaded = (image) =>
 					(image.complete
 						? Promise.resolve()
@@ -673,6 +675,9 @@ const icons: Record<string, string> = {
 
 				const show = (index) => {
 					const shown = ++generation;
+					const shownTheme = theme();
+					const stillCurrent = () => shown === generation && shownTheme === theme();
+					current = index;
 					const { flow } = steps[index].dataset;
 					const active = key(steps[index]);
 					const next = key(steps[(index + 1) % steps.length]);
@@ -685,11 +690,11 @@ const icons: Record<string, string> = {
 						on ? el.removeAttribute("aria-hidden") : el.setAttribute("aria-hidden", "true");
 					});
 					whenLoaded(visibleImage(incoming)).then(() => {
-						if (shown !== generation) return;
+						if (!stillCurrent()) return;
 						const underneath = painted;
 						painted = incoming;
 						setTimeout(() => {
-							if (shown === generation && underneath !== incoming) underneath.classList.remove("isPrev");
+							if (stillCurrent() && underneath !== incoming) underneath.classList.remove("isPrev");
 						}, 500);
 					});
 					// Never strand keyboard focus inside a flow that is about to go inert.
@@ -731,6 +736,10 @@ const icons: Record<string, string> = {
 					});
 				});
 				play.addEventListener("click", () => setPlaying(!demo.classList.contains("isPlaying")));
+				// A theme switch swaps every screenshot, so track the new theme's image.
+				new MutationObserver(() => show(current)).observe(document.documentElement, {
+					attributeFilter: ["data-theme"],
+				});
 
 				if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 				play.hidden = false;
