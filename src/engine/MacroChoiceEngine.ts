@@ -10,6 +10,7 @@ import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import type { ICommand } from "../types/macros/ICommand";
+import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
@@ -111,7 +112,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
 	private conditionalScriptCache = new Map<string, ConditionalScriptRunner>();
-	private readonly preloadedUserScripts: Map<string, unknown>;
+	private readonly preloadedUserScripts: Map<string, LoadedUserScript>;
 	private readonly promptLabel?: string;
 	private buildParams(
 		app: App,
@@ -185,7 +186,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		choice: IMacroChoice,
 		choiceExecutor: IChoiceExecutor,
 		variables: Map<string, unknown>,
-		preloadedUserScripts?: Map<string, unknown>,
+		preloadedUserScripts?: Map<string, LoadedUserScript>,
 		promptLabel?: string,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {

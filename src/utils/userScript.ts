@@ -127,12 +127,13 @@ export function getUserScriptMemberAccess(fullMemberPath: string): {
 }
 
 /**
- * Cache key for a preloaded user-script module (the map shared between the
- * requirement collector and MacroChoiceEngine). It must include the `::`
- * member drill from `command.name`, because getUserScript returns the
- * DRILLED value: two commands sharing one path but drilling different
- * members (`lib::foo` vs `lib::bar`) hold different functions and must
- * never consume each other's preloaded entry.
+ * Cache key for a preloaded user script (the map shared between the
+ * requirement collector and MacroChoiceEngine; values are
+ * {@link LoadedUserScript}). It must include the `::` member drill from
+ * `command.name`, because the cached `script` is the DRILLED value: two
+ * commands sharing one path but drilling different members (`lib::foo` vs
+ * `lib::bar`) hold different functions and must never consume each other's
+ * preloaded entry.
  */
 export function getUserScriptPreloadKey(
 	command: IUserScript,
@@ -145,13 +146,58 @@ export function getUserScriptPreloadKey(
 		: base;
 }
 
-// Slightly modified version of Templater's user script import implementation
-// Source: https://github.com/SilentVoid13/Templater
+/**
+ * A loaded user script: `script` is the value selected by the `::` member
+ * drill in `command.name` (what runs), and `settings` is the script's settings
+ * definition. The definition belongs to the module, not to the drilled
+ * export: `Script::Export` usually drills to a bare function, while
+ * `settings` lives on `module.exports`. So `settings` is taken from the
+ * nearest value along the drill path - the drilled export itself first, then
+ * each parent, ending at the module root - that exports a `settings` object.
+ */
+export type LoadedUserScript = {
+	script: unknown;
+	settings: Record<string, unknown> | undefined;
+};
+
+function getOwnSettingsDefinition(
+	value: unknown,
+): Record<string, unknown> | undefined {
+	if (!isRecord(value) && typeof value !== "function") return undefined;
+	const settings = (value as { settings?: unknown }).settings;
+	return isRecord(settings) ? settings : undefined;
+}
+
+export function selectUserScriptMember(
+	moduleExports: unknown,
+	memberAccess: readonly string[],
+): LoadedUserScript {
+	let script = moduleExports;
+	let settings = getOwnSettingsDefinition(script);
+	for (const member of memberAccess) {
+		// Untyped CommonJS exports: a missing intermediate member throws, as before.
+		script = (script as Record<string, unknown>)[member];
+		settings = getOwnSettingsDefinition(script) ?? settings;
+	}
+	return { script, settings };
+}
+
+/** The drilled export only; use {@link loadUserScript} when settings matter. */
 export async function getUserScript(
 	command: IUserScript,
 	app: App,
 	options: GetUserScriptOptions = {},
 ) {
+	return (await loadUserScript(command, app, options))?.script;
+}
+
+// Slightly modified version of Templater's user script import implementation
+// Source: https://github.com/SilentVoid13/Templater
+export async function loadUserScript(
+	command: IUserScript,
+	app: App,
+	options: GetUserScriptOptions = {},
+): Promise<LoadedUserScript | undefined> {
 	// @ts-ignore
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
@@ -218,24 +264,15 @@ export async function getUserScript(
 		const userScript = exp["default"] || mod.exports;
 		if (!userScript) return;
 
-		let script = userScript;
 		const usesExplicitDefaultExport = Boolean(exp["default"]);
 
-		const { memberAccess } = getUserScriptMemberAccess(command.name);
-		const hasMemberAccess = Boolean(memberAccess && memberAccess.length > 0);
-		if (memberAccess && memberAccess.length > 0) {
-			let member: string;
-			while ((member = memberAccess.shift() as string)) {
-				//@ts-ignore
-
-				script = script[member];
-			}
-		}
+		const memberAccess = getUserScriptMemberAccess(command.name).memberAccess ?? [];
+		const loaded = selectUserScriptMember(userScript, memberAccess);
 
 		if (
 			usesExplicitDefaultExport &&
-			!hasMemberAccess &&
-			!isRunnableUserScriptExport(script)
+			memberAccess.length === 0 &&
+			!isRunnableUserScriptExport(loaded.script)
 		) {
 			reportAndThrowUserScriptLoadError(
 				defaultExportMessage(command.path),
@@ -243,6 +280,6 @@ export async function getUserScript(
 			);
 		}
 
-		return script;
+		return loaded;
 	}
 }

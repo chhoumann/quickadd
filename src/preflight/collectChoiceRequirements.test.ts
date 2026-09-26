@@ -13,6 +13,7 @@ import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
 import type { ICommand } from "src/types/macros/ICommand";
 import type { IUserScript } from "src/types/macros/IUserScript";
+import type { LoadedUserScript } from "src/utils/userScript";
 import type { IConditionalCommand } from "src/types/macros/Conditional/IConditionalCommand";
 import type { INestedChoiceCommand } from "src/types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "src/types/choices/IChoice";
@@ -54,7 +55,12 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesMatchingFilter: getMarkdownFilesMatchingFilterMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getMarkdownFilesWithProperty: getMarkdownFilesWithPropertyMock,
-	getUserScript: getUserScriptMock,
+	// getUserScriptMock returns the `::`-drilled export; the collector only
+	// reads quickadd.inputs from it, so the settings definition is irrelevant.
+	loadUserScript: async (...args: unknown[]) => {
+		const script: unknown = await getUserScriptMock(...args);
+		return script === undefined ? undefined : { script, settings: undefined };
+	},
 	getTemplateFile: getTemplateFileMock,
 	isFolder: isFolderMock,
 }));
@@ -558,12 +564,12 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 			},
 		};
 		getUserScriptMock.mockResolvedValue(exported);
-		const preloadedUserScripts = new Map<string, unknown>();
+		const preloadedUserScripts = new Map<string, LoadedUserScript>();
 
 		await collect(createMacroChoice(scriptCommand), choiceExecutor, { preloadedUserScripts });
 
 		expect(getUserScriptMock).toHaveBeenCalledTimes(1);
-		expect(preloadedUserScripts.get("script.js")).toBe(exported);
+		expect(preloadedUserScripts.get("script.js")?.script).toBe(exported);
 
 		// A second collection pass (e.g. CLI collect followed by the one-page
 		// preflight) must reuse the cached module, not execute it again.
@@ -573,7 +579,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		expectCollectedFields(requirements, { id: "project" });
 	});
 
-	// getUserScript returns the `::`-member-DRILLED export, so the cache key
+	// The cached `script` is the `::`-member-DRILLED export, so the cache key
 	// must include the drill: two commands sharing a path but drilling
 	// different members hold different functions with different inputs, and
 	// caching by path alone made the second command reuse the first member's
@@ -589,7 +595,7 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		getUserScriptMock
 			.mockResolvedValueOnce(fooExport)
 			.mockResolvedValueOnce(barExport);
-		const preloadedUserScripts = new Map<string, unknown>();
+		const preloadedUserScripts = new Map<string, LoadedUserScript>();
 
 		const macroChoice = createMacroChoice(scriptCommand);
 		macroChoice.macro.commands = [
@@ -600,8 +606,8 @@ describe("collectChoiceRequirements - macro script metadata", () => {
 		const requirements = await collect(macroChoice, choiceExecutor, { preloadedUserScripts });
 
 		expect(getUserScriptMock).toHaveBeenCalledTimes(2);
-		expect(preloadedUserScripts.get("script.js::foo")).toBe(fooExport);
-		expect(preloadedUserScripts.get("script.js::bar")).toBe(barExport);
+		expect(preloadedUserScripts.get("script.js::foo")?.script).toBe(fooExport);
+		expect(preloadedUserScripts.get("script.js::bar")?.script).toBe(barExport);
 		expectCollectedFields(requirements, { id: "fooInput" }, { id: "barInput" });
 	});
 

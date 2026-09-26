@@ -8,7 +8,7 @@ vi.mock("src/utilityObsidian", () => ({
 	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	getMarkdownFilesWithProperty: vi.fn(() => []),
-	getUserScript: vi.fn(),
+	loadUserScript: vi.fn(),
 	getTemplateFile: vi.fn(() => null),
 	isFolder: vi.fn(() => false),
 }));

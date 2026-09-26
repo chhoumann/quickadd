@@ -41,7 +41,10 @@ describe("ChoiceExecutor preloadedUserScripts lifecycle", () => {
 		// ran (cancelled modal / aborted macro): the entry must not survive to
 		// the NEXT trigger on a long-lived executor, where it would hand the
 		// engine a module loaded before the user's latest edits.
-		executor.preloadedUserScripts.set("stale.js", { entry: () => {} });
+		executor.preloadedUserScripts.set("stale.js", {
+			script: { entry: () => {} },
+			settings: undefined,
+		});
 
 		await executor.execute({
 			id: "unknown",
@@ -57,7 +60,7 @@ describe("ChoiceExecutor preloadedUserScripts lifecycle", () => {
 			{ workspace: { getActiveFile: () => null } } as never,
 			{} as never,
 		);
-		executor.preloadedUserScripts.set("outer.js", {});
+		executor.preloadedUserScripts.set("outer.js", { script: {}, settings: undefined });
 
 		// Depth 2 -> 1: a nested execute() ending must NOT wipe the outer
 		// run's preloaded modules.

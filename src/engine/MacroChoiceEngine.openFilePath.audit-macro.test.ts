@@ -49,6 +49,7 @@ vi.mock("../formatters/completeFormatter", () => ({
 }));
 vi.mock("../utilityObsidian", () => ({
 	getUserScript: vi.fn(),
+	loadUserScript: vi.fn(),
 	openFile: openFileMock,
 }));
 vi.mock("../quickAddInstance", () => ({

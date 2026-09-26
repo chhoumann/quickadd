@@ -242,3 +242,55 @@ describe("issue 964: member access across macro user scripts", () => {
 		expect(content.trim()).toBe("SECOND_BETA");
 	});
 });
+
+describe("`Script::Export` macro commands read the module's settings", () => {
+	const choiceId = `${TEST_PREFIX}member-settings-macro`;
+
+	beforeAll(async () => {
+		const outputPath = sandbox.path("member-settings-output.md");
+		// Mirrors docs/public/scripts/TodoistScript.js: `settings` lives on
+		// module.exports, beside the member the command drills to.
+		await seedFile(
+			"member-settings-script.js",
+			[
+				"module.exports = {",
+				"  settings: { name: 'Member settings', options: {",
+				"    'Complete tasks': { type: 'checkbox', defaultValue: true },",
+				"    'Label': { type: 'text', defaultValue: 'from-default' },",
+				"  } },",
+				"  entry: async () => 'ENTRY_SHOULD_NOT_RUN',",
+				"  Export: async (params, settings) => {",
+				`    await params.app.vault.create(${JSON.stringify(outputPath)}, JSON.stringify(settings));`,
+				"  },",
+				"};",
+			].join("\n"),
+		);
+
+		await qa.data<QuickAddData>().patch((data) => {
+			data.choices = data.choices.filter((choice) => choice.id !== choiceId);
+			data.choices.push(
+				macroChoice(choiceId, [
+					{
+						path: sandbox.path("member-settings-script.js"),
+						name: "member-settings-script::Export",
+					},
+				]),
+			);
+		});
+
+		await qa.reload({ waitUntilReady: true });
+	}, 15_000);
+
+	it("passes the module's default settings to the drilled export", async () => {
+		const content = await runChoiceAndWaitForContent(
+			choiceId,
+			"member-settings-output.md",
+			"Complete tasks",
+		);
+
+		expect(JSON.parse(content)).toEqual({
+			"Complete tasks": true,
+			Label: "from-default",
+		});
+	});
+});

@@ -20,7 +20,7 @@ The Todoist Script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProj
 -   `GetAllTasksFromProject` will prompt you for a project and get all tasks from that project, and
 -   `GetAllTasksFromSection` will prompt you for a section and get all tasks from that section.
 
-If you run the macro as-is, the script asks you which one to run. To always run one of them, reference it in the Capture format with `::`, for example `{{MACRO:Todoist::GetAllTasksFromProject}}`.
+If you run the macro as-is, the script asks you which one to run. To always run one of them, reference it in the Capture format with `::`, for example `{{MACRO:Todoist::GetAllTasksFromProject}}`, or name it in the macro's script command, for example `todoistTaskSync::GetAllTasksFromProject`.
 
 :::caution[Imported tasks are completed in Todoist]
 By default, the script completes every task it imports, so the same task isn't imported twice. Recurring tasks move to their next occurrence instead. To keep the tasks open in Todoist, untick **Complete imported tasks in Todoist** in the script's settings.
@@ -29,7 +29,7 @@ By default, the script completes every task it imports, so the same task isn't i
 ## Setup
 
 1. Save the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> to your vault, for example as `scripts/todoistTaskSync.js`.
-2. In **Settings → QuickAdd**, add a [Macro choice](/docs/Choices/MacroChoice/) named `Todoist`, and add the script to its command list. Add the script by its file name only - don't add `::GetAllTasksFromProject` there, because the script's settings are only available when the command points at the whole script.
+2. In **Settings → QuickAdd**, add a [Macro choice](/docs/Choices/MacroChoice/) named `Todoist`, and add the script to its command list. Add it by its file name (`todoistTaskSync`) to pick an export when the macro runs, or append an export (`todoistTaskSync::GetAllTasksFromProject`) to always run that one. Either way, the script's settings apply.
 3. Click the gear (⚙️) next to the script command, and paste your Todoist API token into **Todoist API token**. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`. Leave **Complete imported tasks in Todoist** ticked, or untick it to leave tasks open in Todoist.
 
     ![Todoist script settings](../Images/Todoist-ScriptSettings.png)
@@ -52,7 +52,7 @@ If there isn't a date set for the task, they'll simply be entered as `- [ ] Buy 
 
 ## Troubleshooting
 
-- **"Add your Todoist API token in the Todoist script's settings"**: open the macro, click the gear next to the script command, and paste the token. If the script command's name ends in `::SomeExport`, remove that part so the gear shows the settings.
+- **"Add your Todoist API token in the Todoist script's settings"**: open the macro, click the gear next to the script command, and paste the token. Settings belong to each script command, so if the macro has several commands for this script, set the token on the one that runs.
 - **"Todoist rejected the API token (HTTP 401)"**: the token is wrong or was reset. Copy it again from Todoist's Developer settings.
 - **"Secret setting ... is unavailable. Re-enter it on this device."**: secrets are stored per device. Paste the token again on this device.
 
