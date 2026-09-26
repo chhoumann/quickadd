@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import { log } from "src/logger/logManager";
 import { settingsStore } from "src/settingsStore";
 import { discoverProviderModels } from "./modelDiscoveryService";
-import { mergeModels } from "./modelsDirectory";
+import { mergeSyncedModels } from "./modelsDirectory";
 import type { AIProvider, Model } from "./Provider";
 import { resolveProviderApiKey } from "./providerSecrets";
 
@@ -38,7 +38,9 @@ export function diffModelLists(
 /**
  * Discover the provider's current models and merge them into its list:
  * new models are appended, existing ones get their context/output/sampling
- * metadata refreshed. Mutates `provider.models`; never removes entries.
+ * metadata refreshed; models marked deprecated upstream are never added.
+ * Mutates `provider.models` and records `provider.lastModelSync` (also on
+ * failure, before rethrowing); never removes entries.
  * Returns what this call changed plus the discovered list, so callers holding
  * another copy of the provider (e.g. an edit snapshot) can merge it too.
  */
@@ -46,10 +48,20 @@ export async function syncProviderModels(
 	app: App | undefined,
 	provider: AIProvider,
 ): Promise<{ added: number; updated: number; discovered: Model[] }> {
-	const apiKey = await resolveProviderApiKey(app, provider);
-	const discovered = await discoverProviderModels(provider, apiKey);
+	let discovered: Model[];
+	try {
+		const apiKey = await resolveProviderApiKey(app, provider);
+		discovered = await discoverProviderModels(provider, apiKey);
+	} catch (err) {
+		provider.lastModelSync = {
+			at: Date.now(),
+			error: (err as Error).message ?? String(err),
+		};
+		throw err;
+	}
 	const before = provider.models;
-	provider.models = mergeModels(provider.models, discovered);
+	provider.models = mergeSyncedModels(provider.models, discovered);
+	provider.lastModelSync = { at: Date.now() };
 	return { ...diffModelLists(before, provider.models), discovered };
 }
 
@@ -109,6 +121,8 @@ export async function autoSyncEnabledProviders(
 				updated: 0,
 				error: (err as Error).message ?? String(err),
 			});
+			// Carries the failure in lastModelSync so settings can show it.
+			synced.set(providerIdentity(copy), copy);
 		}
 	}
 
@@ -126,7 +140,10 @@ export async function autoSyncEnabledProviders(
 				if (!result) return provider;
 				return {
 					...provider,
-					models: mergeModels(provider.models, result.models),
+					models: result.lastModelSync?.error
+						? provider.models
+						: mergeSyncedModels(provider.models, result.models),
+					lastModelSync: result.lastModelSync,
 				};
 			}),
 			// A completely failed pass (e.g. Obsidian started offline) must not

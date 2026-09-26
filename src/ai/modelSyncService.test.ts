@@ -74,6 +74,7 @@ describe("syncProviderModels", () => {
 		const result = await syncProviderModels(undefined, provider);
 
 		expect(result).toMatchObject({ added: 1, updated: 1 });
+		expect(provider.lastModelSync).toEqual({ at: expect.any(Number) });
 		expect(result.discovered.map((m) => m.name)).toEqual(["gpt-4o", "gpt-5.5"]);
 		expect(provider.models.map((m) => m.name)).toEqual([
 			"gpt-4o",
@@ -138,6 +139,34 @@ describe("autoSyncEnabledProviders", () => {
 			"user-added",
 			"gpt-5.5",
 		]);
+	});
+
+	it("records a failed background sync on the provider without touching its models", async () => {
+		mocks.discoverProviderModelsMock.mockRejectedValue(new Error("status 503"));
+
+		await autoSyncEnabledProviders(undefined);
+
+		const [openai] = storeState.ai.providers as AIProvider[];
+		expect(openai.models.map((m) => m.name)).toEqual(["gpt-4o"]);
+		expect(openai.lastModelSync?.error).toBe("status 503");
+		expect(openai.lastModelSync?.at).toBeGreaterThan(0);
+	});
+
+	it("never adds a model the directory marks deprecated", async () => {
+		mocks.discoverProviderModelsMock.mockResolvedValue([
+			{ name: "gpt-4o", maxTokens: 128000, deprecated: true },
+			{ name: "o1", maxTokens: 200000, deprecated: true },
+			{ name: "gpt-6-sol", maxTokens: 1050000 },
+		]);
+
+		await autoSyncEnabledProviders(undefined);
+
+		const [openai] = storeState.ai.providers as AIProvider[];
+		expect(openai.models.map((m) => [m.name, !!m.deprecated])).toEqual([
+			["gpt-4o", true],
+			["gpt-6-sol", false],
+		]);
+		expect(openai.lastModelSync?.error).toBeUndefined();
 	});
 
 	it("drops results for providers the user removed mid-sync", async () => {

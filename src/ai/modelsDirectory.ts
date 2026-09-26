@@ -12,6 +12,9 @@ export type ModelsDevModel = {
   temperature?: boolean;
   modalities?: { input?: string[]; output?: string[] };
   limit?: { context?: number; output?: number };
+  /** "deprecated" when the provider has retired or scheduled the model. */
+  status?: string;
+  release_date?: string;
 };
 
 export type ModelsDevProvider = {
@@ -249,6 +252,16 @@ export function mapEndpointToModelsDevKey(endpoint: string): string | null {
   return null;
 }
 
+// Provider /v1/models responses carry no capability metadata, so non-chat
+// entries can only be recognized by name. These families cannot serve chat
+// completions (verified against the live OpenAI and Groq catalogs):
+// speech-to-text, text-to-speech, embeddings, image generation, moderation,
+// rerankers, and realtime/audio endpoints. models.dev lists realtime models
+// with a text output modality, so the directory path needs the name check too
+// (gpt-realtime-2.1 returns 404 "not a chat model", verified 2026-09-26).
+export const NON_CHAT_MODEL_ID_RE =
+  /(whisper|-tts|tts-|embed|dall-e|image|moderation|transcribe|realtime|rerank)/i;
+
 /**
  * Keep only models a chat completion can actually run on. The directory also
  * lists image generators (context 0), TTS voices (no text output), and
@@ -268,6 +281,7 @@ export function isChatCapableDirectoryModel(model: ModelsDevModel): boolean {
   const family = (model.family ?? "").toLowerCase();
   const id = model.id.toLowerCase();
   if (family.includes("embedding") || id.includes("embedding")) return false;
+  if (NON_CHAT_MODEL_ID_RE.test(id)) return false;
 
   return true;
 }
@@ -284,7 +298,37 @@ export function mapModelsDevToQuickAdd(models: ModelsDevModel[]): Model[] {
     if (typeof m.temperature === "boolean") {
       model.supportsTemperature = m.temperature;
     }
+    Object.assign(model, lifecycleMetadata(m));
     return model;
+  });
+}
+
+/** Release date and deprecation from a directory entry, when it states them. */
+function lifecycleMetadata(
+  entry: ModelsDevModel,
+): Pick<Model, "releaseDate" | "deprecated"> {
+  const metadata: Pick<Model, "releaseDate" | "deprecated"> = {};
+  if (entry.status === "deprecated") metadata.deprecated = true;
+  if (typeof entry.release_date === "string" && entry.release_date) {
+    metadata.releaseDate = entry.release_date;
+  }
+  return metadata;
+}
+
+// A pinned snapshot id: the base id plus a date, e.g. gpt-4o-2024-11-20 or
+// claude-haiku-4-5-20251001.
+const DATED_SNAPSHOT_RE = /^(.+)-(?:\d{4}-\d{2}-\d{2}|\d{8})$/;
+
+/**
+ * Drop pinned, dated snapshots whose undated id is in the same list. The
+ * undated id tracks the same model, so the snapshots only multiply the list;
+ * a snapshot without an undated counterpart is kept.
+ */
+export function dropDatedSnapshots<T extends { name: string }>(models: T[]): T[] {
+  const names = new Set(models.map((m) => m.name));
+  return models.filter((m) => {
+    const base = DATED_SNAPSHOT_RE.exec(m.name)?.[1];
+    return !base || !names.has(base);
   });
 }
 
@@ -331,6 +375,7 @@ export async function enrichModelsWithDirectoryMetadata(
     ) {
       enriched.supportsTemperature = entry.temperature;
     }
+    Object.assign(enriched, lifecycleMetadata(entry));
     return enriched;
   });
 }
@@ -354,16 +399,35 @@ export function mergeModels(existing: Model[], incoming: Model[]): Model[] {
   const refreshed = existing.map((model) => {
     const update = incomingByName.get(model.name);
     if (!update) return model;
-    return {
+    const merged: Model = {
       ...model,
       maxTokens: update.maxTokens,
       maxOutputTokens: update.maxOutputTokens ?? model.maxOutputTokens,
       supportsTemperature:
         update.supportsTemperature ?? model.supportsTemperature,
     };
+    const releaseDate = update.releaseDate ?? model.releaseDate;
+    if (releaseDate !== undefined) merged.releaseDate = releaseDate;
+    const deprecated = update.deprecated ?? model.deprecated;
+    if (deprecated !== undefined) merged.deprecated = deprecated;
+    return merged;
   });
 
   const existingNames = new Set(existing.map((m) => m.name));
   const added = incoming.filter((m) => !existingNames.has(m.name));
   return refreshed.concat(added);
+}
+
+/**
+ * Merge for automatic and "Sync now" syncs: like mergeModels, but a model the
+ * directory marks deprecated is never newly added (it still gets its metadata,
+ * including the deprecated flag, refreshed when the user already has it). An
+ * explicit import from the model browser uses mergeModels and may add anything.
+ */
+export function mergeSyncedModels(existing: Model[], incoming: Model[]): Model[] {
+  const existingNames = new Set(existing.map((m) => m.name));
+  return mergeModels(
+    existing,
+    incoming.filter((m) => existingNames.has(m.name) || !m.deprecated),
+  );
 }

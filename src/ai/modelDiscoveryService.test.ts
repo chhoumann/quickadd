@@ -20,7 +20,13 @@ vi.mock("obsidian", () => ({
 	requestUrl: mocks.requestUrlMock,
 }));
 
-vi.mock("./modelsDirectory", () => ({
+import type * as ModelsDirectory from "./modelsDirectory";
+
+vi.mock("./modelsDirectory", async (importOriginal) => ({
+	...(({ dropDatedSnapshots, NON_CHAT_MODEL_ID_RE }) => ({
+		dropDatedSnapshots,
+		NON_CHAT_MODEL_ID_RE,
+	}))(await importOriginal<typeof ModelsDirectory>()),
 	fetchModelsDevDirectory: mocks.fetchModelsDevDirectoryMock,
 	mapEndpointToModelsDevKey: mocks.mapEndpointToModelsDevKeyMock,
 	mapModelsDevToQuickAdd: mocks.mapModelsDevToQuickAddMock,

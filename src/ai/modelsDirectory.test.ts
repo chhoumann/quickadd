@@ -5,6 +5,8 @@ import {
 	dedupeModels,
 	isChatCapableDirectoryModel,
 	mergeModels,
+	mergeSyncedModels,
+	dropDatedSnapshots,
 	type ModelsDevModel,
 } from "./modelsDirectory";
 
@@ -239,5 +241,74 @@ describe("mergeModels", () => {
 				supportsTemperature: false,
 			},
 		]);
+	});
+});
+
+describe("model lifecycle metadata", () => {
+	it("drops dated snapshots only when their undated id is listed", () => {
+		const names = dropDatedSnapshots([
+			{ name: "gpt-4o" },
+			{ name: "gpt-4o-2024-11-20" },
+			{ name: "claude-haiku-4-5" },
+			{ name: "claude-haiku-4-5-20251001" },
+			// No undated sibling: the snapshot is the only way to reach it.
+			{ name: "gpt-4.5-preview-2025-02-27" },
+			// A version number, not a date.
+			{ name: "gemini-2.5-flash" },
+		]).map((m) => m.name);
+
+		expect(names).toEqual([
+			"gpt-4o",
+			"claude-haiku-4-5",
+			"gpt-4.5-preview-2025-02-27",
+			"gemini-2.5-flash",
+		]);
+	});
+
+	it("maps release date and flags only deprecated directory entries", () => {
+		const [current, retired] = mapModelsDevToQuickAdd([
+			{ id: "gpt-6-sol", release_date: "2026-09-22", limit: { context: 1000, output: 100 } },
+			{ id: "o4-mini", status: "deprecated", release_date: "2025-04-16", limit: { context: 1000, output: 100 } },
+		]);
+
+		expect(current).toEqual({ name: "gpt-6-sol", maxTokens: 1000, maxOutputTokens: 100, releaseDate: "2026-09-22" });
+		expect(retired.deprecated).toBe(true);
+		expect(retired.releaseDate).toBe("2025-04-16");
+	});
+
+	it("sync merges never add a deprecated model but do flag one the user has", () => {
+		const existing = [{ name: "o4-mini", maxTokens: 200000 }];
+		const incoming = [
+			{ name: "o4-mini", maxTokens: 200000, deprecated: true },
+			{ name: "o1", maxTokens: 200000, deprecated: true },
+			{ name: "gpt-6-sol", maxTokens: 1050000, releaseDate: "2026-09-22" },
+		];
+
+		const merged = mergeSyncedModels(existing, incoming);
+
+		expect(merged.map((m) => m.name)).toEqual(["o4-mini", "gpt-6-sol"]);
+		expect(merged[0].deprecated).toBe(true);
+		// An explicit import may still add a deprecated model on purpose.
+		expect(mergeModels(existing, incoming).map((m) => m.name)).toContain("o1");
+	});
+});
+
+describe("isChatCapableDirectoryModel name check", () => {
+	it("drops realtime models even though the directory lists a text output", () => {
+		// Live: gpt-realtime-2.1 returns 404 "not a chat model" on /v1/chat/completions.
+		expect(
+			isChatCapableDirectoryModel({
+				id: "gpt-realtime-2.1",
+				modalities: { input: ["text", "audio"], output: ["text", "audio"] },
+				limit: { context: 128000, output: 32000 },
+			}),
+		).toBe(false);
+		expect(
+			isChatCapableDirectoryModel({
+				id: "gpt-6-sol",
+				modalities: { input: ["text"], output: ["text"] },
+				limit: { context: 1050000, output: 128000 },
+			}),
+		).toBe(true);
 	});
 });

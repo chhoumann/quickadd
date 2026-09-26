@@ -31,6 +31,11 @@ export interface AIProvider {
 	modelSource: ModelDiscoveryMode;
 	/** Wire protocol. Optional for back-compat; inferred when absent (see getProviderKind). */
 	kind?: ProviderKind;
+	/**
+	 * Outcome of the most recent model sync (auto or manual), shown under the
+	 * provider's Auto-sync setting. `error` is set only when that sync failed.
+	 */
+	lastModelSync?: { at: number; error?: string };
 }
 
 /**
@@ -199,6 +204,37 @@ export interface Model {
 	 * unsupported-parameter recovery instead.
 	 */
 	supportsTemperature?: boolean;
+	/** Release date (YYYY-MM-DD) from model metadata; orders lists newest first. */
+	releaseDate?: string;
+	/**
+	 * True when the model directory marks the model deprecated upstream. Sync
+	 * never adds such models and never removes them either; the provider
+	 * settings badge them and offer a one-click cleanup.
+	 */
+	deprecated?: boolean;
+}
+
+/**
+ * Display order for model lists and pickers: current models before retired
+ * ones, newest release first, and models without a date (usually added by
+ * hand) after dated ones in their stored order. Returns a new array.
+ */
+export function sortModelsForDisplay<T extends Model>(models: readonly T[]): T[] {
+	return models
+		.map((model, index) => ({ model, index }))
+		.sort((a, b) => {
+			const retired = Number(!!a.model.deprecated) - Number(!!b.model.deprecated);
+			if (retired !== 0) return retired;
+			const aDate = a.model.releaseDate ?? "";
+			const bDate = b.model.releaseDate ?? "";
+			if (aDate !== bDate) {
+				if (!aDate) return 1;
+				if (!bDate) return -1;
+				return aDate < bDate ? 1 : -1;
+			}
+			return a.index - b.index;
+		})
+		.map(({ model }) => model);
 }
 
 /**
