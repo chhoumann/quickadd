@@ -28,15 +28,14 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * A directory is a non-empty map of providers, each with a `models` map;
- * anything else is unusable (discovery reads `directory[key].models`).
+ * A usable directory is a map of providers in which at least one provider has
+ * a `models` map. One malformed entry must not discard the other ~200
+ * providers: discovery only fails for the provider it actually reads.
  */
 function isDirectory(value: unknown): value is ModelsDevDirectory {
-  if (!isPlainObject(value)) return false;
-  const providers = Object.values(value);
   return (
-    providers.length > 0 &&
-    providers.every(
+    isPlainObject(value) &&
+    Object.values(value).some(
       (provider) => isPlainObject(provider) && isPlainObject(provider.models),
     )
   );

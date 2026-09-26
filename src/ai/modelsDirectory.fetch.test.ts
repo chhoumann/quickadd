@@ -57,6 +57,14 @@ describe("fetchModelsDevDirectory validation", () => {
 		expect(requestUrlMock).toHaveBeenCalledTimes(2);
 	});
 
+	it("keeps the directory when only some providers are malformed", async () => {
+		const fetch = await loadFetch();
+		const body = { ...VALID, broken: { id: "broken", name: "Broken" } };
+		requestUrlMock.mockResolvedValueOnce({ status: 200, json: body });
+
+		expect(await fetch()).toEqual(body);
+	});
+
 	it("keeps the online-features gate", async () => {
 		const fetch = await loadFetch();
 		storeState.disableOnlineFeatures = true;
