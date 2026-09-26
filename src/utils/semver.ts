@@ -89,3 +89,11 @@ export function isMajorUpdate(
 	return current.major > previous.major;
 }
 
+
+/**
+ * Orders two parsed versions: negative if `a` is older than `b`, positive if
+ * newer, 0 if equal.
+ */
+export function compareSemver(a: ParsedVersion, b: ParsedVersion): number {
+	return a.major - b.major || a.minor - b.minor || a.patch - b.patch;
+}

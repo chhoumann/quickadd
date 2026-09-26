@@ -1,5 +1,10 @@
+import { App } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getReleaseNotesAfter, renderVideoAttachments } from "./UpdateModal";
+import {
+	getReleaseNotesAfter,
+	renderVideoAttachments,
+	UpdateModal,
+} from "./UpdateModal";
 
 const requestUrlMock = vi.hoisted(() => vi.fn());
 
@@ -185,10 +190,61 @@ describe("getReleaseNotesAfter", () => {
 		);
 	});
 
-	it("throws a clear error when the start tag is absent from the releases array", async () => {
+	it("returns every stable release newer than a version missing from the list", async () => {
+		// A user upgrading from a version older than the fetched page (e.g. 1.18.1)
+		// must still get notes, not a "could not find release" failure.
+		const release = (tag_name: string, extra = {}) => ({
+			tag_name,
+			body: tag_name,
+			draft: false,
+			prerelease: false,
+			...extra,
+		});
+		mockResponse(200, [
+			release("2.10.0"),
+			release("2.9.5", { prerelease: true }),
+			release("2.9.4", { draft: true }),
+			release("2.9.0"),
+			release("not-a-version"),
+			release("1.18.0"),
+		]);
+
+		const releases = await getReleaseNotesAfter("chhoumann", "quickadd", "1.18.1");
+
+		expect(releases.map((r) => r.tag_name)).toEqual(["2.10.0", "2.9.0"]);
+	});
+
+	it("compares versions numerically, not as strings", async () => {
+		mockResponse(200, [
+			{ tag_name: "2.10.0", body: "", draft: false, prerelease: false },
+			{ tag_name: "2.9.0", body: "", draft: false, prerelease: false },
+		]);
+
+		const releases = await getReleaseNotesAfter("chhoumann", "quickadd", "2.9.0");
+
+		expect(releases.map((r) => r.tag_name)).toEqual(["2.10.0"]);
+	});
+
+	it("rejects a previous version that is not valid semver", async () => {
 		mockResponse(200, [{ tag_name: "9.9.9", body: "", draft: false, prerelease: false }]);
-		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "1.0.0")).rejects.toThrow(
-			"Could not find release with tag 1.0.0",
+		await expect(getReleaseNotesAfter("chhoumann", "quickadd", "garbage")).rejects.toThrow(
+			"Invalid version garbage",
 		);
+	});
+});
+
+describe("UpdateModal", () => {
+	beforeEach(() => {
+		requestUrlMock.mockReset();
+	});
+
+	it("closes instead of staying on the loading state when the fetch fails", async () => {
+		mockResponse(403, { message: "API rate limit exceeded" });
+
+		const modal = new UpdateModal(new App() as never, "2.0.0");
+		modal.open();
+		expect(modal.contentEl.textContent).toContain("Fetching release notes...");
+
+		await vi.waitFor(() => expect(modal.containerEl.isConnected).toBe(false));
 	});
 });

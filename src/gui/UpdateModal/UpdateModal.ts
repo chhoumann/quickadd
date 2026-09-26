@@ -7,6 +7,7 @@ import {
 	requestUrl,
 } from "obsidian";
 import { log } from "src/logger/logManager";
+import { compareSemver, parseSemver } from "src/utils/semver";
 
 type Release = {
 	tag_name: string;
@@ -17,15 +18,14 @@ type Release = {
 };
 
 /**
- * Fetches the releases for a repository on GitHub and returns the release notes for every release
- * that comes after a specific release.
+ * Fetches the releases for a repository on GitHub and returns every stable release
+ * whose version is newer than the given one, newest first.
  *
  * @param repoOwner The owner of the repository.
  * @param repoName The name of the repository.
- * @param releaseTagName The tag name of the release to start getting release notes from.
+ * @param releaseTagName The version the user is upgrading from.
  * @returns An array of Release objects, each containing the tag name and release notes for a single release.
- * @throws An error if there was an error fetching the releases or if the release with the specified tag name
- *         could not be found.
+ * @throws An error if the releases could not be fetched or the given version is not valid semver.
  */
 export async function getReleaseNotesAfter(
 	repoOwner: string,
@@ -33,7 +33,9 @@ export async function getReleaseNotesAfter(
 	releaseTagName: string
 ): Promise<Release[]> {
 	const response = await requestUrl({
-		url: `https://api.github.com/repos/${repoOwner}/${repoName}/releases`,
+		// The newest 100 releases (GitHub's page-size cap). Anyone further behind
+		// sees the latest 100.
+		url: `https://api.github.com/repos/${repoOwner}/${repoName}/releases?per_page=100`,
 		throw: false,
 	});
 
@@ -58,19 +60,16 @@ export async function getReleaseNotesAfter(
 		throw new Error(`Failed to fetch releases: ${message}`);
 	}
 
-	const releases = body as Release[];
-
-	const startReleaseIdx = releases.findIndex(
-		(release) => release.tag_name === releaseTagName
-	);
-
-	if (startReleaseIdx === -1) {
-		throw new Error(`Could not find release with tag ${releaseTagName}`);
+	const previous = parseSemver(releaseTagName);
+	if (!previous) {
+		throw new Error(`Invalid version ${releaseTagName}`);
 	}
 
-	return releases
-		.slice(0, startReleaseIdx)
-		.filter((release) => !release.draft && !release.prerelease);
+	return (body as Release[]).filter((release) => {
+		if (release.draft || release.prerelease) return false;
+		const version = parseSemver(release.tag_name);
+		return version !== null && compareSemver(version, previous) > 0;
+	});
 }
 
 const USER_ATTACHMENT_VIDEO_URL =
@@ -204,15 +203,16 @@ export class UpdateModal extends Modal {
 
 				this.releases = releases;
 
-                if (this.releases.length === 0) {
-                    this.close();
-                    return;
-                }
+				if (this.releases.length === 0) {
+					this.close();
+					return;
+				}
 
 				this.display();
 			})
 			.catch((err) => {
 				log.logError(`Failed to fetch release notes: ${err as string}`);
+				if (!this.isClosed) this.close();
 			});
 	}
 
