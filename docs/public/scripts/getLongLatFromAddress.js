@@ -13,7 +13,7 @@ module.exports = async (params) => {
         return;
     }
 
-    const address = await quickAddApi.inputPrompt(`🏠 Address for ${activeFile.basename}`);
+    const address = await quickAddApi.inputPrompt(`🏠 Address for ${activeFile.path}`);
     if (!address) {
         new obsidian.Notice("No address given", 5000);
         return;

@@ -39,7 +39,7 @@ function run(options: {
 		options.activeFile === false ? null : startFile;
 	const inputPrompt = vi.fn(async (_header: string) => {
 		// While the prompt is open, Peek lets the user open another note.
-		activeFile = { path: "Contacts/Venue.md", basename: "Venue" };
+		activeFile = { path: "Contacts/Eiffel Tower.md", basename: "Eiffel Tower" };
 		return options.address;
 	});
 
@@ -98,7 +98,7 @@ describe("getLongLatFromAddress example script", () => {
 		});
 		await ctx.done;
 
-		expect(ctx.inputPrompt).toHaveBeenCalledWith("🏠 Address for Eiffel Tower");
+		expect(ctx.inputPrompt).toHaveBeenCalledWith("🏠 Address for Places/Eiffel Tower.md");
 		expect(ctx.processFrontMatter).toHaveBeenCalledTimes(1);
 		expect(ctx.processFrontMatter.mock.calls[0][0]).toBe(ctx.startFile);
 	});
