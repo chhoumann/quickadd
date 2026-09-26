@@ -640,7 +640,7 @@ const icons: Record<string, string> = {
 			// progress bar is a CSS animation, and we advance when it ends, so
 			// pausing the animation (hover, focus, off screen) pauses the demo too.
 			// The play button pauses and resumes it; picking a flow or a step by
-			// hand pauses it. Reduced motion never starts it.
+			// hand stops it. Reduced motion never starts it.
 			(() => {
 				const demo = document.querySelector("[data-demo]");
 				if (!demo) return;
