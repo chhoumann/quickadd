@@ -34,8 +34,13 @@ function ok(data: unknown, headers: Record<string, string> = {}) {
 }
 
 function notModified() {
+	return unparsableBody(304);
+}
+
+/** A response whose body is not JSON (empty or truncated): reading .json throws. */
+function unparsableBody(status: number) {
 	return {
-		status: 304,
+		status,
 		headers: {},
 		get json(): unknown {
 			throw new SyntaxError("Unexpected end of JSON input");
@@ -147,8 +152,35 @@ describe("fetchModelsDevDirectory disk cache", () => {
 	});
 
 	it.each([
+		["a non-JSON body", unparsableBody(200)],
+		["an array body", ok([])],
+		["an empty object body", ok({})],
+	])("keeps the saved copy when a 200 refresh has %s", async (_label, response) => {
+		const saved = JSON.stringify({ etag: '"v1"', data: V1 });
+		const disk = fakeDisk(saved);
+		const mod = await launch(disk);
+		requestUrlMock.mockResolvedValueOnce(response);
+
+		expect(await mod.fetchModelsDevDirectory()).toEqual(V1);
+		expect(disk.contents).toBe(saved);
+	});
+
+	it("throws on an unusable 200 when nothing is saved, without saving it", async () => {
+		const disk = fakeDisk();
+		const mod = await launch(disk);
+		requestUrlMock.mockResolvedValueOnce(ok([]));
+
+		await expect(mod.fetchModelsDevDirectory()).rejects.toThrow(
+			/unexpected response/,
+		);
+		expect(disk.contents).toBeNull();
+	});
+
+	it.each([
 		["corrupt JSON", "{not json"],
 		["missing data", JSON.stringify({ etag: '"v1"' })],
+		["empty data", JSON.stringify({ etag: '"v1"', data: {} })],
+		["array data", JSON.stringify({ etag: '"v1"', data: [] })],
 	])("treats a saved copy with %s as a miss", async (_label, contents) => {
 		const disk = fakeDisk(contents);
 		const mod = await launch(disk);

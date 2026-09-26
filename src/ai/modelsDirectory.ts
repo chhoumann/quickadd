@@ -94,13 +94,21 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
 async function revalidateDirectory(): Promise<ModelsDevDirectory> {
   const persisted = await readPersistedDirectory();
 
-  let response: Awaited<ReturnType<typeof requestUrl>>;
+  let fresh: PersistedDirectory;
   try {
-    response = await requestUrl({
+    const response = await requestUrl({
       url: MODELS_DEV_URL,
       method: "GET",
       headers: persisted?.etag ? { "If-None-Match": persisted.etag } : undefined,
     });
+    if (response.status === 304 && persisted) {
+      return remember(persisted.data);
+    }
+    const data: unknown = response.json;
+    if (!isDirectory(data)) {
+      throw new Error("models.dev returned an unexpected response.");
+    }
+    fresh = { etag: headerValue(response.headers, "etag"), data };
   } catch (err) {
     if (!persisted) throw err;
     log.logMessage(
@@ -111,13 +119,18 @@ async function revalidateDirectory(): Promise<ModelsDevDirectory> {
     return remember(persisted.data);
   }
 
-  if (response.status === 304 && persisted) {
-    return remember(persisted.data);
-  }
+  await writePersistedDirectory(fresh);
+  return remember(fresh.data);
+}
 
-  const data = (await response.json) as ModelsDevDirectory;
-  await writePersistedDirectory({ etag: headerValue(response.headers, "etag"), data });
-  return remember(data);
+/** A directory is a non-empty object of providers; anything else is unusable. */
+function isDirectory(value: unknown): value is ModelsDevDirectory {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.keys(value).length > 0
+  );
 }
 
 function remember(data: ModelsDevDirectory): ModelsDevDirectory {
@@ -141,7 +154,7 @@ async function readPersistedDirectory(): Promise<PersistedDirectory | null> {
     const raw = await diskCache.read();
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistedDirectory>;
-    if (!parsed.data || typeof parsed.data !== "object") return null;
+    if (!isDirectory(parsed.data)) return null;
     return {
       etag: typeof parsed.etag === "string" ? parsed.etag : undefined,
       data: parsed.data,
