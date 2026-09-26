@@ -167,4 +167,37 @@ describe("AIAssistantProvidersModal model sync while editing", () => {
 			"gpt-6-sol",
 		]);
 	});
+
+	it("does not sync or notice after Cancel while Sync now awaits background sync", async () => {
+		const providers = [openAIProvider()];
+		const modal = openAndEdit(providers);
+
+		clickButtonByText(modal, "Sync now");
+		clickButtonByText(modal, "Cancel");
+		await landDiscovery(0, DIRECTORY);
+		await flush();
+
+		expect(notices()).toEqual([]);
+		expect(discovery.calls).toHaveLength(1);
+		expect(providers[0].models.map((model) => model.name)).toEqual([
+			"gpt-5.5",
+		]);
+	});
+
+	it("keeps Sync now results when the user cancels afterwards", async () => {
+		const providers = [openAIProvider()];
+		const modal = openAndEdit(providers);
+		await landDiscovery(0, SHIPPED);
+
+		clickButtonByText(modal, "Sync now");
+		await landDiscovery(1, DIRECTORY);
+		providers[0].name = "Renamed by user";
+		clickButtonByText(modal, "Cancel");
+
+		expect(providers[0].name).toBe("OpenAI");
+		expect(providers[0].models.map((model) => model.name)).toEqual([
+			"gpt-5.5",
+			"gpt-6-sol",
+		]);
+	});
 });

@@ -392,11 +392,25 @@ export class AIAssistantProvidersModal extends Modal {
 					const shown = provider.models.map((model) => ({ ...model }));
 					try {
 						await this.backgroundSync;
-						await syncProviderModels(this.app, provider);
+						// Cancel/Save may have left the edit view while we waited;
+						// do not sync or notice against a detached provider object.
+						if (this.selectedProvider !== provider) return;
+						const { discovered } = await syncProviderModels(
+							this.app,
+							provider,
+						);
+						if (this.selectedProvider !== provider) return;
 						const { added, updated } = diffModelLists(
 							shown,
 							provider.models,
 						);
+						// Sync is not a user edit: keep its results if Cancel runs.
+						if (this._selectedProviderClone) {
+							this._selectedProviderClone.models = mergeModels(
+								this._selectedProviderClone.models,
+								discovered,
+							);
+						}
 						new Notice(
 							added > 0 || updated > 0
 								? `Synced from ${sourceDescription}: ${added} new model(s), ${updated} updated.`
