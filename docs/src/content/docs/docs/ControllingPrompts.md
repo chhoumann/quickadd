@@ -59,7 +59,7 @@ The full reference for every flag lives in [Format Syntax](/docs/FormatSyntax/).
 
 Good to know:
 
-- `|label:` works on `{{VALUE}}` placeholders and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers, not on `{{VDATE}}` or `{{FIELD}}`. On a plain text prompt the label shows as helper text below the title; on a pick list it becomes the placeholder.
+- `|label:` works on `{{VALUE}}` placeholders, [`{{FIELD:...}}`](/docs/FormatSyntax/#field-label) suggestions, and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers, not on `{{VDATE}}`. On a plain text prompt the label shows as helper text below the title; on a pick list it becomes the placeholder. A FIELD label also titles the text prompt you get when the property has no values yet.
 - `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use multi-line input prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
 - `|type:` flags only work on single-value placeholders. A pick list ignores them.
 

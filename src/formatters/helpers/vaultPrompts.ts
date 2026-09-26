@@ -30,7 +30,7 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 		// on unknown keys here: the field replacer in formatter.ts already parses
 		// the same token with { warnUnknown: true } before calling this, so
 		// warning again would emit a duplicate notice per malformed FIELD token.
-		const { fieldName, filters, multiSelect } =
+		const { fieldName, filters, multiSelect, label } =
 			FieldSuggestionParser.parse(fieldInput);
 
 		// Resolve the active-note default (issue #1429) BEFORE collection but apply
@@ -79,14 +79,11 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			);
 		}
 
-		// Enhance placeholder with context
-		let placeholder = multiSelect
-			? `Select values for ${fieldName}`
-			: `Enter value for ${fieldName}`;
+		const title = label ?? `Enter value for ${fieldName}`;
+		let placeholder =
+			multiSelect && !label ? `Select values for ${fieldName}` : title;
 		if (hasDefaultValue && effectiveDefault) {
-			placeholder = multiSelect
-				? `Select values for ${fieldName} (default: ${effectiveDefault})`
-				: `Enter value for ${fieldName} (default: ${effectiveDefault})`;
+			placeholder = `${placeholder} (default: ${effectiveDefault})`;
 		}
 
 		if (multiSelect) {
@@ -156,14 +153,11 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			}
 
 			if (provider) {
-				return await provider.inputPrompt(
-					`Enter value for ${fieldName}`,
-					fallbackPrompt,
-				);
+				return await provider.inputPrompt(title, fallbackPrompt);
 			}
 			return await GenericInputPrompt.PromptWithContext(
 				app,
-				`Enter value for ${fieldName}`,
+				title,
 				fallbackPrompt,
 				undefined,
 				getSourcePath() ?? undefined,
