@@ -438,6 +438,11 @@ export class Agent {
 		schema: JSONSchema,
 		restoreCursor: () => void,
 	): Promise<unknown> {
+		// A refusal is terminal: the model declined, so its text is never the
+		// structured result (even if it happens to parse), and re-asking for JSON
+		// would only spend another request on the same refusal.
+		if (loop.finalTurn.rawStopReason === "refusal") return undefined;
+
 		const first = parseStructured(loop.finalTurn.content, schema);
 		if (first.ok) return first.value;
 
@@ -445,12 +450,9 @@ export class Agent {
 		// new outbound call, so DON'T do it when the loop ended in a terminal
 		// non-success state (online disabled mid-run → "aborted", or "context-overflow")
 		// or online features are now off — that would bypass the mid-run stop.
-		// A refusal is also terminal: the model declined, and re-asking for JSON
-		// would only spend another request on the same refusal.
 		if (
 			loop.finishReason === "aborted" ||
 			loop.finishReason === "context-overflow" ||
-			loop.finalTurn.rawStopReason === "refusal" ||
 			settingsStore.getState().disableOnlineFeatures
 		) {
 			return undefined;

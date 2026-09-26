@@ -148,6 +148,19 @@ describe("Agent.generate — structured output", () => {
 		expect(res.text).toBe("I can't help with that.");
 		expect(chatRequestMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("never returns a refusal as the structured object, even when it parses", async () => {
+		chatRequestMock.mockResolvedValueOnce(
+			turnResponse({ content: '{"title":"refused"}', stopReason: "refusal", normalizedStopReason: "other" }),
+		);
+		const agent = makeAgent();
+		const res = await agent.generate({
+			prompt: "extract",
+			schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+		});
+		expect(res.object).toBeUndefined();
+		expect(chatRequestMock).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("Agent construction validation", () => {
