@@ -44,7 +44,7 @@ describe("API modernization", () => {
 			},
 		]);
 		expect(requestUrlSpy).toHaveBeenCalledWith({
-			url: "https://api.github.com/repos/owner/repo/releases",
+			url: "https://api.github.com/repos/owner/repo/releases?per_page=100",
 			throw: false,
 		});
 
