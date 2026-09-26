@@ -29,7 +29,7 @@ location: 48.8582599,2.2945006
 ---
 ```
 
-If the note already has a `location` property, the script replaces its value. If Nominatim finds no match, you get a notice and the note is left unchanged.
+The prompt names the note it will update, for example **🏠 Address for Places/Eiffel Tower.md**. That note gets the location even if you [peek](/docs/ControllingPrompts/#peek) and open another note, say to copy the address, before you submit. If the note already has a `location` property, the script replaces its value. If Nominatim finds no match, you get a notice and the note is left unchanged.
 
 ![The Eiffel Tower note's location property, and its pin in Map View](../Images/examples/macro-location-map-view.png)
 

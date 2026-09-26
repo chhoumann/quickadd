@@ -4,13 +4,16 @@
 module.exports = async (params) => {
     const {app, obsidian, quickAddApi} = params;
 
+    // The note open when the macro starts is the one that gets the location.
+    // Capture it now: the prompt's Peek lets the user open other notes (for
+    // example to copy the address) before submitting.
     const activeFile = app.workspace.getActiveFile();
     if (!activeFile) {
         new obsidian.Notice("No active file", 5000);
         return;
     }
 
-    const address = await quickAddApi.inputPrompt("🏠 Address");
+    const address = await quickAddApi.inputPrompt(`🏠 Address for ${activeFile.path}`);
     if (!address) {
         new obsidian.Notice("No address given", 5000);
         return;
