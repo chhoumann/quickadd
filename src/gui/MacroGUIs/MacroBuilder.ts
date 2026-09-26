@@ -1,6 +1,6 @@
 import type { IMacro } from "../../types/macros/IMacro";
 import type { App } from "obsidian";
-import { Modal, Setting } from "obsidian";
+import { Modal, Setting, setIcon } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
@@ -120,16 +120,27 @@ export class MacroBuilder extends Modal {
 	}
 
 	protected addCenteredHeader(header: string): void {
-		const headerEl = this.contentEl.createEl("h2");
-		headerEl.addClass("qa-clickable-modal-title");
+		// Same markup and classes as ChoiceNameHeader.svelte, the title of the
+		// Template and Capture builders, so the Macro builder also shows the pencil
+		// that signals "click to rename".
+		const headerEl = this.contentEl.createEl("h2", { cls: "choiceNameHeader" });
 
 		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
 		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
 		const renameButton = headerEl.createEl("button", {
-			cls: "qa-rename-title-button",
-			text: header,
+			cls: ["choiceNameHeaderButton", "qa-rename-title-button"],
 			attr: { type: "button", "aria-label": `Rename ${header}` },
 		});
+		renameButton.createSpan({ cls: "choiceNameHeaderText", text: header });
+		const iconEl = renameButton.createSpan({
+			cls: "choiceNameHeaderIcon",
+			attr: { "aria-hidden": "true" },
+		});
+		setIcon(iconEl, "pencil");
+		// ChoiceNameHeader renders the pencil at 16px (ObsidianIcon size={16}).
+		const iconSvg = iconEl.querySelector("svg");
+		iconSvg?.setAttribute("width", "16");
+		iconSvg?.setAttribute("height", "16");
 
 		renameButton.addEventListener("click", () => {
 			void (async () => {
