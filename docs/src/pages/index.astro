@@ -1,74 +1,174 @@
 ---
-// QuickAdd landing page. Static, zero client JS (bar the theme sync snippet).
+// QuickAdd landing page. Static; the only client JS is the theme sync snippet
+// and the demo stepper, and the page reads fine without either.
 const description =
-	"Quickly add new pages or content to your vault. Templates, captures, macros, and AI, bound to one hotkey.";
+	"QuickAdd for Obsidian: create notes from templates, append to the notes you already have, and chain steps into macros, each one a choice you can run from anywhere.";
 
-const features = [
+// The demo frames are unedited captures of QuickAdd running in Obsidian, taken
+// at 1200x720 CSS px and 2x density, one light and one dark capture per step.
+// Each flow runs the choice described by its `recipe`.
+const demoFlows = [
 	{
-		title: "Lightning-fast capture",
-		icon: "zap",
-		description:
-			"Hit one hotkey and drop content into any note. No file picker, no friction — just type and it lands where you want.",
+		id: "capture",
+		label: "Add to a note",
+		icon: "pencil",
+		recipe: {
+			label: "The choice in this demo",
+			rows: [
+				{ label: "Capture to", value: "Daily/{{DATE:YYYY-MM-DD}}.md" },
+				{ label: "Create file if it doesn’t exist", value: "On" },
+				{ label: "Insert after", value: "## Log", note: "at end of section" },
+				{ label: "Capture format", value: "- {{DATE:HH:mm}} {{VALUE}}\\n" },
+			],
+			link: { label: "Follow the recipe", href: "/docs/Examples/Capture_ToDailyNote/" },
+		},
+		steps: [
+			{
+				id: "pick",
+				title: "Pick a choice",
+				description:
+					"Run <strong>QuickAdd: Run</strong> from the command palette, or give the choice a hotkey of its own.",
+				alt: "Obsidian with QuickAdd's choice picker open over a daily note, listing Log to daily note, Add task to inbox, New meeting note, Add book by title, Save quote, and a Projects folder.",
+			},
+			{
+				id: "type",
+				title: "Type the entry",
+				description: "A capture asks only for what it needs, and shows the note it will write to.",
+				alt: "QuickAdd's input prompt titled Log to daily note, showing the target Daily/2026-09-26.md and the entry Booked the plumber for Tuesday morning.",
+			},
+			{
+				id: "done",
+				title: "It lands in place",
+				description:
+					"Timestamped and filed under <code>## Log</code> in today’s note, which is created if it doesn’t exist yet.",
+				alt: "The daily note with a new timestamped line, Booked the plumber for Tuesday morning, at the end of the Log section, and a notice reading Captured to 2026-09-26 under Log.",
+			},
+		],
 	},
 	{
-		title: "Powerful templates",
+		id: "template",
+		label: "Create a note",
 		icon: "fileText",
-		description:
-			"Compose notes with dynamic variables, dates, and inline prompts. Plays well with Obsidian Templates and Templater.",
+		recipe: {
+			label: "The choice in this demo",
+			rows: [
+				{ label: "Template path", value: "Templates/Meeting.md" },
+				{ label: "File name format", value: "{{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}" },
+				{ label: "Folder", value: "Meetings" },
+				{ label: "Open", value: "On" },
+			],
+			link: { label: "Template choices", href: "/docs/Choices/TemplateChoice/" },
+		},
+		steps: [
+			{
+				id: "pick",
+				title: "Find it by name",
+				description: "Type to filter. Choices inside folders show up too, with their folder underneath.",
+				alt: "QuickAdd's choice picker filtered by the query new, showing New meeting note and New project from the Projects folder.",
+			},
+			{
+				id: "type",
+				title: "Name the meeting",
+				description: "The answer fills in the file name. The prompt shows the folder the note goes to.",
+				alt: "QuickAdd's input prompt titled Meeting, showing New meeting note going to Meetings/ and the answer Website planning.",
+			},
+			{
+				id: "done",
+				title: "Start typing",
+				description:
+					"The note opens with its properties set, and the cursor waits at <code>{{CURSOR}}</code>.",
+				alt: "A new note, 2026-09-26 Website planning, in the Meetings folder with date and tags properties, and the first line typed under Notes.",
+			},
+		],
+	},
+];
+
+// Icons match the defaults QuickAdd itself shows for each choice type.
+const choiceTypes = [
+	{
+		name: "Template",
+		icon: "fileText",
+		description: "Create a note from a template file, named and filed where it belongs.",
+		example: "a dated meeting note in Meetings/",
+		href: "/docs/Choices/TemplateChoice/",
 	},
 	{
-		title: "Macro automations",
-		icon: "workflow",
-		description:
-			"Chain choices and user scripts into one-key workflows. Scrape metadata, update a log, open a file — all in sequence.",
+		name: "Capture",
+		icon: "pencil",
+		description: "Add text to a note that already exists: at the cursor, at the top or bottom, or under a heading.",
+		example: "a timestamped line in today’s daily note",
+		href: "/docs/Choices/CaptureChoice/",
 	},
 	{
-		title: "Built-in AI",
-		icon: "sparkles",
-		description:
-			"Talk to OpenAI, Anthropic, or a local model. Summarize, expand, and rewrite notes without leaving Obsidian.",
+		name: "Macro",
+		icon: "terminal",
+		description: "Chain Obsidian commands, user scripts, and other choices into a single step.",
+		example: "look up a book and write its note",
+		href: "/docs/Choices/MacroChoice/",
 	},
 	{
-		title: "Organize with Multis",
-		icon: "folderTree",
-		description:
-			"Group related choices into nested folders. Build your own menu for your own workflows.",
+		name: "Multi",
+		icon: "folder",
+		description: "Group choices into folders and build a menu that fits the way you work.",
+		example: "a Projects folder with its own choices",
+		href: "/docs/Choices/MultiChoice/",
+	},
+];
+
+const further = [
+	{
+		title: "Format syntax",
+		description: "Dates, prompts, links, and clipboard contents, filled in each run.",
+		href: "/docs/FormatSyntax/",
 	},
 	{
-		title: "Actively maintained",
-		icon: "rocket",
-		description:
-			"Regular updates shaped by real community feedback. Battle-tested in thousands of vaults.",
+		title: "Scripts and API",
+		description: "Write user scripts in JavaScript and call QuickAdd from them.",
+		href: "/docs/Advanced/ScriptingGuide/",
+	},
+	{
+		title: "AI Assistant",
+		description: "Send a prompt from a macro and use the reply in later steps.",
+		href: "/docs/AIAssistant/",
+	},
+	{
+		title: "Obsidian URI",
+		description: "Run choices from outside Obsidian and pass values in.",
+		href: "/docs/Advanced/ObsidianUri/",
 	},
 ];
 
 const examples = [
 	{
-		title: "Book database",
-		icon: "book",
+		type: "Capture",
+		icon: "pencil",
+		title: "Daily note entries",
 		description:
-			"Fetch metadata from APIs and generate rich book notes. Track ratings, quotes, and reading progress with one command.",
+			"Timestamped lines, tasks, quotes, and callouts under a heading in today’s note.",
+		href: "/docs/Examples/Capture_ToDailyNote/",
+	},
+	{
+		type: "Template",
+		icon: "fileText",
+		title: "Meeting notes",
+		description:
+			"Create a dated meeting note, answer one question, and start typing under Notes.",
+		href: "/docs/Examples/Template_MeetingNotes/",
+	},
+	{
+		type: "Macro",
+		icon: "terminal",
+		title: "Book notes from a title",
+		description:
+			"Look a book up in Google Books and create its note. No API key needed.",
 		href: "/docs/Examples/Macro_BookFinder/",
 	},
 	{
-		title: "Daily journaling",
-		icon: "pen",
+		type: "Capture",
+		icon: "pencil",
+		title: "Kanban cards",
 		description:
-			"Capture entries with timestamps, weather, and mood. Never miss a day with guided prompts.",
-		href: "/docs/Examples/Capture_AddJournalEntry/",
-	},
-	{
-		title: "Media tracker",
-		icon: "film",
-		description:
-			"Log movies and shows with auto-fetched metadata. Curate watchlists and reviews without friction.",
-		href: "/docs/Examples/Macro_MovieAndSeriesScript/",
-	},
-	{
-		title: "Task management",
-		icon: "listChecks",
-		description:
-			"Populate Kanban boards, pull tasks from Todoist, and run projects. Make Obsidian your productivity hub.",
+			"Drop a card into any lane of a Kanban board without opening the board.",
 		href: "/docs/Examples/Capture_AddTaskToKanbanBoard/",
 	},
 ];
@@ -76,57 +176,29 @@ const examples = [
 const steps = [
 	{
 		title: "Install",
-		description:
-			"Find QuickAdd in Obsidian's Community plugins browser and enable it.",
+		description: "Find QuickAdd in Settings → Community plugins and enable it.",
 	},
 	{
 		title: "Create a choice",
-		description:
-			"Pick Template, Capture, Macro, or Multi based on what you want to automate.",
+		description: "In Settings → QuickAdd, click New choice and pick a type.",
 	},
 	{
-		title: "Hit your hotkey",
-		description:
-			"Trigger QuickAdd with ⌘/Ctrl-P and pick your choice. That’s it.",
+		title: "Run it",
+		description: "Use QuickAdd: Run from the command palette, or bind the choice to a hotkey with ⚡.",
 	},
 ];
 
-const workflowRows = [
-	{
-		type: "Capture",
-		label: "Daily log",
-		detail: "Append a timestamped entry to today’s note.",
-	},
-	{
-		type: "Template",
-		label: "Meeting note",
-		detail: "Create a note with variables, prompts, and properties.",
-	},
-	{
-		type: "Macro",
-		label: "Book lookup",
-		detail: "Fetch metadata, write a note, and open it in place.",
-	},
-];
-
-// Lucide-style icon paths (24x24, currentColor stroke).
+// Lucide icon paths (24x24, currentColor stroke).
 const icons: Record<string, string> = {
-	zap: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />',
 	fileText:
 		'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M10 9H8" /><path d="M16 13H8" /><path d="M16 17H8" />',
-	workflow:
-		'<rect width="8" height="8" x="3" y="3" rx="2" /><path d="M7 11v4a2 2 0 0 0 2 2h4" /><rect width="8" height="8" x="13" y="13" rx="2" />',
-	sparkles:
-		'<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.13-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.13a.5.5 0 0 1 .96 0L14.06 8.5A2 2 0 0 0 15.5 9.94l6.13 1.58a.5.5 0 0 1 0 .96L15.5 14.06a2 2 0 0 0-1.44 1.44l-1.58 6.13a.5.5 0 0 1-.96 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /><path d="M4 17v2" /><path d="M5 18H3" />',
-	folderTree:
-		'<path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z" /><path d="M3 5a2 2 0 0 0 2 2h3" /><path d="M3 3v13a2 2 0 0 0 2 2h3" />',
-	rocket:
-		'<path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" /><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" /><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" /><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />',
-	book: '<path d="M12 7v14" /><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />',
-	pen: '<path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />',
-	film: '<rect width="18" height="18" x="3" y="3" rx="2" /><path d="M7 3v18" /><path d="M3 7.5h4" /><path d="M3 12h18" /><path d="M3 16.5h4" /><path d="M17 3v18" /><path d="M17 7.5h4" /><path d="M17 16.5h4" />',
-	listChecks:
-		'<path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8" /><path d="M13 12h8" /><path d="M13 18h8" />',
+	pencil:
+		'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" />',
+	terminal: '<polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" />',
+	folder:
+		'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />',
+	moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />',
+	sun: '<circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path d="M12 20v2" /><path d="m4.93 4.93 1.41 1.41" /><path d="m17.66 17.66 1.41 1.41" /><path d="M2 12h2" /><path d="M20 12h2" /><path d="m6.34 17.66-1.41 1.41" /><path d="m19.07 4.93-1.41 1.41" />',
 	github:
 		'<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" />',
 };
@@ -137,25 +209,58 @@ const icons: Record<string, string> = {
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>QuickAdd — Supercharge your Obsidian workflow</title>
+		<title>QuickAdd for Obsidian</title>
 		<meta name="description" content={description} />
 		<link rel="icon" href="/img/favicon.ico" />
 		<link rel="canonical" href="https://quickadd.obsidian.guide/" />
-		<meta property="og:title" content="QuickAdd — Supercharge your Obsidian workflow" />
+		<meta property="og:title" content="QuickAdd for Obsidian" />
 		<meta property="og:description" content={description} />
-		<meta property="og:image" content="https://quickadd.obsidian.guide/img/quickadd-logo.png" />
+		<meta property="og:image" content="https://quickadd.obsidian.guide/img/og-home.png" />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta
+			property="og:image:alt"
+			content="QuickAdd: One hotkey from thought to note. Its choice picker open in Obsidian."
+		/>
 		<meta property="og:type" content="website" />
+		<meta property="og:url" content="https://quickadd.obsidian.guide/" />
 		<meta name="twitter:card" content="summary_large_image" />
+		<link
+			rel="preload"
+			href="/fonts/InterVariable.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
 		<script is:inline>
-			// Follow the docs' Starlight theme choice; fall back to the OS scheme.
-			const stored = localStorage.getItem("starlight-theme");
-			const theme =
-				stored === "light" || stored === "dark"
-					? stored
-					: window.matchMedia("(prefers-color-scheme: dark)").matches
-						? "dark"
-						: "light";
-			document.documentElement.dataset.theme = theme;
+			// Follow the docs' Starlight theme choice; fall back to the OS scheme,
+			// and keep following it while the page is open. Then preload the first
+			// demo frame for that theme only: the frames themselves are lazy, so
+			// the theme that isn't showing never downloads.
+			(() => {
+				const root = document.documentElement;
+				const media = window.matchMedia("(prefers-color-scheme: dark)");
+				const stored = () => {
+					try {
+						const value = localStorage.getItem("starlight-theme");
+						return value === "light" || value === "dark" ? value : null;
+					} catch {
+						return null;
+					}
+				};
+				const apply = () => {
+					root.dataset.theme = stored() ?? (media.matches ? "dark" : "light");
+				};
+				apply();
+				media.addEventListener("change", apply);
+
+				const preload = document.createElement("link");
+				preload.rel = "preload";
+				preload.as = "image";
+				preload.fetchPriority = "high";
+				preload.href = `/img/home/capture-pick-${root.dataset.theme}.webp`;
+				document.head.append(preload);
+			})();
 		</script>
 	</head>
 	<body>
@@ -168,12 +273,12 @@ const icons: Record<string, string> = {
 					</a>
 					<div class="navLinks">
 						<a href="/docs/">Docs</a>
-						<a href="/docs/QuickAddAPI/">API</a>
-						<a href="/docs/Examples/">Examples</a>
+						<a class="navOptional" href="/docs/Examples/">Examples</a>
+						<a class="navOptional" href="/docs/QuickAddAPI/">API</a>
 						<a
 							class="navGithub"
 							href="https://github.com/chhoumann/quickadd"
-							aria-label="GitHub repository">
+							aria-label="QuickAdd on GitHub">
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -185,125 +290,69 @@ const icons: Record<string, string> = {
 								set:html={icons.github}
 							/>
 						</a>
+						<button class="themeToggle" type="button" data-theme-toggle aria-label="Toggle dark theme">
+							<svg
+								class="iconMoon"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.75"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								set:html={icons.moon}
+							/>
+							<svg
+								class="iconSun"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.75"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+								set:html={icons.sun}
+							/>
+						</button>
 					</div>
 				</nav>
 			</header>
 
-			<header class="hero">
-				<div class="container">
-					<img src="/img/quickadd-icon.png" alt="" class="heroLogo" aria-hidden="true" />
-					<div class="eyebrow">For Obsidian</div>
-					<h1 class="heroTitle">Supercharge Obsidian with one hotkey.</h1>
-					<p class="heroSubtitle">
-						Templates, captures, macros, and AI, bound to a single command. QuickAdd turns
-						repetitive note-taking tasks into keystrokes.
-					</p>
-					<div class="heroActions">
-						<a class="buttonPrimary" href="/docs/">Read the docs</a>
-						<a class="buttonSecondary" href="https://obsidian.md/plugins?id=quickadd">
-							Install from Obsidian
-						</a>
-					</div>
-					<div class="workflowPreview" aria-label="QuickAdd workflow preview">
-						<div class="previewChrome"><span></span><span></span><span></span></div>
-						<div class="previewGrid">
-							<div class="previewSidebar">
-								<div class="previewSidebarTitle">QuickAdd</div>
-								{
-									workflowRows.map((row) => (
-										<div class="previewChoice">
-											<span class="previewChoiceType">{row.type}</span>
-											<span>{row.label}</span>
-										</div>
-									))
-								}
-							</div>
-							<div class="previewCommand">
-								<div class="previewCommandLabel">Command palette</div>
-								<div class="previewSearch">QuickAdd: Run Choice</div>
-								<div class="previewResults">
-									{
-										workflowRows.map((row) => (
-											<div class="previewResult">
-												<span>{row.label}</span>
-												<span>{row.type}</span>
-											</div>
-										))
-									}
-								</div>
-							</div>
-							<div class="previewNote">
-								<div class="previewNoteTitle">Daily note</div>
-								<div class="previewLine"></div>
-								<div class="previewLineShort"></div>
-								<div class="previewCapture">
-									<span>10:42</span>
-									<p>Captured idea with source link and project tag.</p>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="heroChip" aria-hidden="true">
-						<kbd class="kbd">⌘</kbd>
-						<kbd class="kbd">P</kbd>
-						<span class="chipArrow">/</span>
-						<span class="chipLabel">QuickAdd: Run Choice</span>
-					</div>
-				</div>
-			</header>
-
 			<main>
-				<section class="section">
+				<section class="hero">
 					<div class="container">
-						<div class="sectionHead">
-							<div class="eyebrow">Features</div>
-							<h2 class="sectionTitle">Four composable choices. Endless workflows.</h2>
-							<p class="sectionSubtitle">
-								Templates, Captures, Macros, and Multis combine into whatever automation your
-								vault needs — with AI on tap.
-							</p>
+						<img
+							src="/img/quickadd-icon.png"
+							alt=""
+							class="heroLogo"
+							width="64"
+							height="64"
+						/>
+						<p class="eyebrow">A plugin for Obsidian</p>
+						<h1 class="heroTitle">One hotkey from thought to note.</h1>
+						<p class="heroSubtitle">
+							QuickAdd creates notes from templates, adds to the notes you already
+							have, and chains steps into macros. Each one is a choice you can run from
+							anywhere in your vault.
+						</p>
+						<div class="heroActions">
+							<a class="buttonPrimary" href="/docs/">Get started</a>
+							<a class="buttonSecondary" href="https://obsidian.md/plugins?id=quickadd">
+								View in Obsidian’s plugin directory
+							</a>
 						</div>
-						<dl class="features">
-							{
-								features.map((f) => (
-									<div class="feature">
-										<dt class="featureTitle">
-											<span class="featureIcon" aria-hidden="true">
-												<svg
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="currentColor"
-													stroke-width="1.75"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-													set:html={icons[f.icon]}
-												/>
-											</span>
-											<span class="featureTitleText">{f.title}</span>
-										</dt>
-										<dd class="featureDesc">{f.description}</dd>
-									</div>
-								))
-							}
-						</dl>
 					</div>
-				</section>
 
-				<section class="section">
-					<div class="container">
-						<div class="sectionHead">
-							<div class="eyebrow">Examples</div>
-							<h2 class="sectionTitle">What can you build?</h2>
-							<p class="sectionSubtitle">
-								A few things people actually ship with QuickAdd. Every example ships with a
-								walkthrough.
-							</p>
-						</div>
-						<div class="examples">
-							{
-								examples.map((e) => (
-									<article class="example">
-										<span class="exampleIcon">
+					<section class="demo container" data-demo aria-label="QuickAdd in action">
+						<div class="demoControls">
+							<div class="demoTabs" role="group" aria-label="Demo">
+								{
+									demoFlows.map((flow, f) => (
+										<button
+											class="demoTab"
+											type="button"
+											data-flow={flow.id}
+											aria-current={f === 0 ? "true" : undefined}>
 											<svg
 												viewBox="0 0 24 24"
 												fill="none"
@@ -312,33 +361,202 @@ const icons: Record<string, string> = {
 												stroke-linecap="round"
 												stroke-linejoin="round"
 												aria-hidden="true"
-												set:html={icons[e.icon]}
+												set:html={icons[flow.icon]}
 											/>
-										</span>
-										<h3 class="exampleTitle">{e.title}</h3>
-										<p class="exampleDesc">{e.description}</p>
-										<a class="exampleLink" href={e.href} aria-label={`Learn how: ${e.title}`}>
-											Learn how →
-										</a>
-									</article>
+											{flow.label}
+										</button>
+									))
+								}
+							</div>
+							<button class="demoPlay" type="button" data-demo-play aria-label="Pause demo" hidden>
+								<svg class="iconPause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+									<rect x="6" y="5" width="4" height="14" rx="1" />
+									<rect x="14" y="5" width="4" height="14" rx="1" />
+								</svg>
+								<svg class="iconPlay" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+									<path d="M7 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 7 5.5Z" />
+								</svg>
+							</button>
+						</div>
+						<div class="demoFrame">
+							{
+								demoFlows.map((flow, f) =>
+									flow.steps.map((step, i) => {
+										const active = f === 0 && i === 0;
+										return (
+											<div
+												class:list={["demoShot", { isActive: active, isNext: f === 0 && i === 1 }]}
+												data-flow={flow.id}
+												data-index={i}
+												aria-hidden={active ? undefined : "true"}>
+												{["light", "dark"].map((theme) => (
+													<img
+														class={theme === "light" ? "shotLight" : "shotDark"}
+														src={`/img/home/${flow.id}-${step.id}-${theme}.webp`}
+														alt={step.alt}
+														width="1200"
+														height="720"
+														loading="lazy"
+														decoding="async"
+													/>
+												))}
+											</div>
+										);
+									}),
+								)
+							}
+						</div>
+						<div class="demoCaption">
+							{
+								demoFlows.map((flow, f) => (
+									<div
+										class:list={["demoFlow", { isActive: f === 0 }]}
+										data-flow={flow.id}
+										inert={f === 0 ? undefined : true}>
+										<ol class="demoSteps">
+											{flow.steps.map((step, i) => (
+												<li>
+													<button
+														class="demoStep"
+														type="button"
+														data-flow={flow.id}
+														data-index={i}
+														aria-current={f === 0 && i === 0 ? "step" : undefined}
+														aria-describedby={`demo-${flow.id}-${step.id}`}>
+														<span class="demoProgress" aria-hidden="true" />
+														<span class="demoStepTitle">
+															<span class="demoStepNumber">{i + 1}</span>
+															{step.title}
+														</span>
+													</button>
+													<p
+														class="demoStepDesc"
+														id={`demo-${flow.id}-${step.id}`}
+														set:html={step.description}
+													/>
+												</li>
+											))}
+										</ol>
+										<div class="demoRecipe">
+											<p class="demoRecipeLabel">{flow.recipe.label}</p>
+											<dl>
+												{flow.recipe.rows.map((row) => (
+													<div>
+														<dt>{row.label}</dt>
+														<dd>
+															{row.value === "On" ? row.value : <code>{row.value}</code>}
+															{row.note && <span class="demoRecipeNote">{row.note}</span>}
+														</dd>
+													</div>
+												))}
+											</dl>
+											<a href={flow.recipe.link.href}>{flow.recipe.link.label} →</a>
+										</div>
+									</div>
 								))
 							}
+						</div>
+					</section>
+				</section>
+
+				<section class="section">
+					<div class="container">
+						<div class="sectionHead">
+							<p class="eyebrow">Choices</p>
+							<h2 class="sectionTitle">Every workflow starts with one of four choices.</h2>
+						</div>
+						<ul class="choiceTypes" role="list">
+							{
+								choiceTypes.map((c) => (
+									<li>
+										<a class="choiceType" href={c.href}>
+											<span class="choiceIcon" aria-hidden="true">
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="1.75"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													set:html={icons[c.icon]}
+												/>
+											</span>
+											<span class="choiceName">{c.name}</span>
+											<span class="choiceDesc">{c.description}</span>
+											<span class="choiceExample">{c.example}</span>
+										</a>
+									</li>
+								))
+							}
+						</ul>
+
+						<div class="further">
+							<h3 class="furtherTitle">When you need more</h3>
+							<ul class="furtherList" role="list">
+								{
+									further.map((f) => (
+										<li>
+											<a href={f.href}>
+												<span class="furtherName">{f.title}</span>
+												<span class="furtherDesc">{f.description}</span>
+											</a>
+										</li>
+									))
+								}
+							</ul>
 						</div>
 					</div>
 				</section>
 
-				<section class="quickStart">
+				<section class="section">
+					<div class="container">
+						<div class="sectionHead sectionHeadSplit">
+							<div>
+								<p class="eyebrow">Examples</p>
+								<h2 class="sectionTitle">Start from a working recipe.</h2>
+							</div>
+							<a class="textLink" href="/docs/Examples/">All examples →</a>
+						</div>
+						<ul class="examples" role="list">
+							{
+								examples.map((e) => (
+									<li>
+										<a class="example" href={e.href}>
+											<span class="exampleType">
+												<svg
+													viewBox="0 0 24 24"
+													fill="none"
+													stroke="currentColor"
+													stroke-width="1.75"
+													stroke-linecap="round"
+													stroke-linejoin="round"
+													aria-hidden="true"
+													set:html={icons[e.icon]}
+												/>
+												{e.type}
+											</span>
+											<span class="exampleTitle">{e.title}</span>
+											<span class="exampleDesc">{e.description}</span>
+										</a>
+									</li>
+								))
+							}
+						</ul>
+					</div>
+				</section>
+
+				<section class="section quickStart">
 					<div class="container">
 						<div class="sectionHead">
-							<div class="eyebrow">Get started</div>
-							<h2 class="sectionTitle">Up and running in three steps.</h2>
+							<p class="eyebrow">Get started</p>
+							<h2 class="sectionTitle">Running in three steps.</h2>
 						</div>
 						<ol class="steps" role="list">
 							{
 								steps.map((s, i) => (
 									<li class="step">
 										<span class="stepNumber" aria-hidden="true">
-											{String(i + 1).padStart(2, "0")}
+											{i + 1}
 										</span>
 										<h3 class="stepTitle">{s.title}</h3>
 										<p class="stepDesc">{s.description}</p>
@@ -347,7 +565,7 @@ const icons: Record<string, string> = {
 							}
 						</ol>
 						<div class="quickStartCta">
-							<a class="buttonPrimary" href="/docs/">Read the documentation</a>
+							<a class="buttonPrimary" href="/docs/">Read the guide</a>
 							<a class="buttonSecondary" href="/docs/Examples/">Browse examples</a>
 						</div>
 					</div>
@@ -356,25 +574,225 @@ const icons: Record<string, string> = {
 
 			<footer class="siteFooter">
 				<div class="container footerGrid">
-					<div>
-						<div class="footerTitle">Docs</div>
-						<a href="/docs/">Documentation</a>
+					<div class="footerBrand">
+						<img src="/img/quickadd-icon.png" alt="" width="22" height="22" />
+						<span>QuickAdd</span>
 					</div>
 					<div>
-						<div class="footerTitle">Community</div>
-						<a href="https://github.com/chhoumann/quickadd/discussions">Discussions</a>
+						<p class="footerTitle">Docs</p>
+						<ul role="list">
+							<li><a href="/docs/">Getting started</a></li>
+							<li><a href="/docs/Examples/">Examples</a></li>
+							<li><a href="/docs/QuickAddAPI/">API reference</a></li>
+						</ul>
+					</div>
+					<div>
+						<p class="footerTitle">Community</p>
+						<ul role="list">
+							<li><a href="https://github.com/chhoumann/quickadd">GitHub</a></li>
+							<li><a href="https://github.com/chhoumann/quickadd/discussions">Discussions</a></li>
+							<li><a href="https://github.com/chhoumann/quickadd/issues">Report an issue</a></li>
+						</ul>
+					</div>
+					<div>
+						<p class="footerTitle">Support</p>
+						<ul role="list">
+							<li><a href="https://buymeacoffee.com/chhoumann">Buy me a coffee</a></li>
+						</ul>
 					</div>
 				</div>
-				<div class="container footerMeta">
-					Copyright © {new Date().getFullYear()} Christian Bager Bach Houmann.
+				<div class="container">
+					<p class="footerMeta">
+						© {new Date().getFullYear()} Christian Bager Bach Houmann. Free and open source under
+						the MIT license.
+					</p>
 				</div>
 			</footer>
 		</div>
-		<style is:global>
-			/* QuickAdd landing page styles. Ported from the Docusaurus landing
-   (index.module.css); class names kept 1:1 with the old CSS module. */
 
-@import url('https://rsms.me/inter/inter.css');
+		<script is:inline>
+			// Theme toggle. Writes the key Starlight uses, so the docs follow. When
+			// the pick matches the OS setting it clears the key instead, so the
+			// site goes back to following the OS.
+			(() => {
+				const root = document.documentElement;
+				const toggle = document.querySelector("[data-theme-toggle]");
+				const media = window.matchMedia("(prefers-color-scheme: dark)");
+				const label = () =>
+					toggle.setAttribute(
+						"aria-label",
+						root.dataset.theme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+					);
+				label();
+				new MutationObserver(label).observe(root, { attributeFilter: ["data-theme"] });
+				toggle.addEventListener("click", () => {
+					const next = root.dataset.theme === "dark" ? "light" : "dark";
+					const system = media.matches ? "dark" : "light";
+					try {
+						if (next === system) localStorage.removeItem("starlight-theme");
+						else localStorage.setItem("starlight-theme", next);
+					} catch {}
+					root.dataset.theme = next;
+				});
+			})();
+
+			// Demo stepper. It walks every step of every flow in order. Each step's
+			// progress bar is a CSS animation, and we advance when it ends, so
+			// pausing the animation (hover, focus, off screen) pauses the demo too.
+			// The play button pauses and resumes it; picking a flow or a step by
+			// hand stops it. Reduced motion never starts it.
+			(() => {
+				const demo = document.querySelector("[data-demo]");
+				if (!demo) return;
+				const shots = [...demo.querySelectorAll(".demoShot")];
+				const flows = [...demo.querySelectorAll(".demoFlow")];
+				const tabs = [...demo.querySelectorAll(".demoTab")];
+				const steps = [...demo.querySelectorAll(".demoStep")];
+				const play = demo.querySelector("[data-demo-play]");
+				const key = (el) => `${el.dataset.flow}:${el.dataset.index}`;
+				const setCurrent = (el, on, value) =>
+					on ? el.setAttribute("aria-current", value) : el.removeAttribute("aria-current");
+
+				// The last frame whose image has finished loading. It stays underneath
+				// the incoming frame until that one has loaded and faded in, so jumping
+				// to an unloaded frame (even repeatedly) never shows an empty box.
+				let painted = shots.find((el) => el.classList.contains("isActive"));
+				let generation = 0;
+				let current = 0;
+				const theme = () => document.documentElement.dataset.theme;
+				const visibleImage = (shot) =>
+					shot.querySelector(theme() === "dark" ? ".shotDark" : ".shotLight");
+				// Resolves true once the image has loaded and decoded, false if it failed.
+				const whenLoaded = (image) =>
+					(image.complete
+						? Promise.resolve()
+						: new Promise((resolve) => {
+								image.addEventListener("load", resolve, { once: true });
+								image.addEventListener("error", resolve, { once: true });
+							})
+					)
+						.then(() => image.naturalWidth > 0 && image.decode().then(() => true))
+						.catch(() => false);
+
+				const show = (index) => {
+					const shown = ++generation;
+					const shownTheme = theme();
+					const stillCurrent = () => shown === generation && shownTheme === theme();
+					current = index;
+					const { flow } = steps[index].dataset;
+					const active = key(steps[index]);
+					const next = key(steps[(index + 1) % steps.length]);
+					const incoming = shots.find((el) => key(el) === active);
+					shots.forEach((el) => {
+						const on = el === incoming;
+						el.classList.toggle("isActive", on);
+						el.classList.toggle("isNext", key(el) === next && !on);
+						el.classList.toggle("isPrev", el === painted && !on);
+						on ? el.removeAttribute("aria-hidden") : el.setAttribute("aria-hidden", "true");
+					});
+					whenLoaded(visibleImage(incoming)).then((ready) => {
+						// A frame that failed to load never replaces the fallback.
+						if (!ready || !stillCurrent()) return;
+						const underneath = painted;
+						painted = incoming;
+						shots.forEach((el) => delete el.dataset.hold);
+						setTimeout(() => {
+							if (stillCurrent() && underneath !== incoming) underneath.classList.remove("isPrev");
+						}, 500);
+					});
+					// Never strand keyboard focus inside a flow that is about to go inert.
+					const focused = document.activeElement;
+					const strand = flows.some((el) => el.dataset.flow !== flow && el.contains(focused));
+					flows.forEach((el) => {
+						const on = el.dataset.flow === flow;
+						el.classList.toggle("isActive", on);
+						el.inert = !on;
+					});
+					tabs.forEach((el) => setCurrent(el, el.dataset.flow === flow, "true"));
+					steps.forEach((el, i) => setCurrent(el, i === index, "step"));
+					if (strand) steps[index].focus();
+				};
+
+				// Autoplay has three states: playing, paused (the step's progress bar
+				// freezes and resumes where it left off), and stopped by picking a step
+				// or flow by hand (play then starts that step from the beginning).
+				const running = () => demo.classList.contains("isPlaying") && !demo.classList.contains("isPaused");
+				const label = () => play.setAttribute("aria-label", running() ? "Pause demo" : "Play demo");
+				const setPlaying = (on) => {
+					demo.classList.toggle("isPlaying", on);
+					demo.classList.remove("isPaused");
+					label();
+				};
+
+				steps.forEach((step, i) => {
+					step.addEventListener("click", () => {
+						setPlaying(false);
+						show(i);
+					});
+					// The description sits outside the button; let it pick the step too.
+					step.parentElement.addEventListener("click", (event) => {
+						if (!step.contains(event.target)) step.click();
+					});
+					step.addEventListener("animationend", (event) => {
+						if (event.animationName !== "demoProgress" || !demo.classList.contains("isPlaying")) return;
+						show((i + 1) % steps.length);
+					});
+				});
+				tabs.forEach((tab) => {
+					tab.addEventListener("click", () => {
+						setPlaying(false);
+						show(steps.findIndex((el) => el.dataset.flow === tab.dataset.flow));
+					});
+				});
+				play.addEventListener("click", () => {
+					if (!demo.classList.contains("isPlaying")) setPlaying(true);
+					else demo.classList.toggle("isPaused");
+					label();
+				});
+				// A theme switch swaps every screenshot. Keep one already-loaded image
+				// from the old theme underneath until a frame has loaded in the new
+				// theme (show() clears the hold then): the active frame's own image,
+				// or else the fallback frame's, if the active one hadn't loaded yet.
+				new MutationObserver(([record]) => {
+					const previousTheme = record.oldValue;
+					if (previousTheme === theme()) return;
+					const oldImage = (shot) =>
+						shot?.querySelector(previousTheme === "dark" ? ".shotDark" : ".shotLight");
+					const active = shots.find((el) => el.classList.contains("isActive"));
+					const holder = [active, painted].find((shot) => {
+						const image = oldImage(shot);
+						return image?.complete && image.naturalWidth > 0;
+					});
+					shots.forEach((el) => delete el.dataset.hold);
+					if (holder) holder.dataset.hold = previousTheme;
+					show(current);
+				}).observe(document.documentElement, { attributeFilter: ["data-theme"], attributeOldValue: true });
+
+				if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+				play.hidden = false;
+				setPlaying(true);
+				new IntersectionObserver(([entry]) => {
+					demo.classList.toggle("isOffscreen", !entry.isIntersecting);
+				}).observe(demo);
+			})();
+		</script>
+
+		<style is:global>
+@font-face {
+  font-family: InterVariable;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: InterVariable;
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
+}
 
 :root {
   --qa-canvas: #f7f5f0;
@@ -391,8 +809,11 @@ const icons: Record<string, string> = {
   --qa-cta-bg: #5a4aec;
   --qa-cta-bg-hover: #4a38e9;
   --qa-cta-fg: #ffffff;
-  --qa-font-mono: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, 'Liberation Mono',
-    'Courier New', monospace;
+  --qa-shot-shadow: 0 1px 2px rgba(24, 24, 27, 0.06), 0 12px 32px -8px rgba(24, 24, 27, 0.14),
+    0 40px 80px -24px rgba(24, 24, 27, 0.18);
+  --qa-font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, Consolas, 'Liberation Mono',
+    monospace;
+  --qa-step-duration: 4.5s;
 }
 
 [data-theme='dark'] {
@@ -400,7 +821,7 @@ const icons: Record<string, string> = {
   --qa-canvas-raised: #1f2126;
   --qa-ink: #f4f4f5;
   --qa-ink-muted: #a1a1aa;
-  --qa-ink-subtle: #71717a;
+  --qa-ink-subtle: #8b8b94;
   --qa-line: rgba(244, 244, 245, 0.08);
   --qa-line-strong: rgba(244, 244, 245, 0.14);
   --qa-accent: #a195f7;
@@ -409,6 +830,8 @@ const icons: Record<string, string> = {
   --qa-cta-bg: #5a4aec;
   --qa-cta-bg-hover: #6b5cef;
   --qa-cta-fg: #ffffff;
+  --qa-shot-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 24px 64px -16px rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
 }
 
 * {
@@ -422,7 +845,7 @@ body {
 }
 
 body {
-  font-family: 'InterVariable', 'Inter', system-ui, -apple-system, 'Segoe UI',
+  font-family: 'InterVariable', system-ui, -apple-system, 'Segoe UI',
     Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif, 'Apple Color Emoji',
     'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   background: var(--qa-canvas);
@@ -432,6 +855,64 @@ body {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--qa-accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+code {
+  font-family: var(--qa-font-mono);
+  font-size: 0.875em;
+}
+
+.landing {
+  background: var(--qa-canvas);
+  color: var(--qa-ink);
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.003em;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: 2rem;
+  }
+}
+
+.eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--qa-accent);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.textLink {
+  color: var(--qa-accent);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.textLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 /* Header */
@@ -460,7 +941,7 @@ a {
 .navLinks {
   display: inline-flex;
   align-items: center;
-  gap: 1.4rem;
+  gap: 1.25rem;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--qa-ink-muted);
@@ -470,61 +951,51 @@ a {
   color: var(--qa-ink);
 }
 
-.navGithub svg {
-  width: 21px;
-  height: 21px;
+.navGithub svg,
+.themeToggle svg {
+  width: 20px;
+  height: 20px;
   display: block;
 }
 
-/* Footer */
-
-.siteFooter {
-  border-top: 1px solid var(--qa-line);
-  background: var(--qa-canvas-raised);
-  padding: 2.5rem 0 2rem;
-  color: var(--qa-ink-muted);
-  font-size: 0.9rem;
+/* Icon links get a 36px hit area without changing how they look. */
+.navGithub,
+.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-inline: -0.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
 }
 
-.footerGrid {
-  display: flex;
-  gap: 4rem;
-  flex-wrap: wrap;
-}
-
-.footerGrid a:hover {
-  color: var(--qa-accent);
-}
-
-.footerTitle {
-  font-weight: 650;
-  color: var(--qa-ink);
-  margin-bottom: 0.5rem;
-}
-
-.footerMeta {
-  margin-top: 2rem;
-  font-size: 0.8125rem;
-  color: var(--qa-ink-subtle);
-}
-
-.landing {
-  background: var(--qa-canvas);
-  color: var(--qa-ink);
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11', 'ss01';
-  letter-spacing: -0.003em;
-}
-
-.container {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding-inline: 1.5rem;
-}
-
-@media (min-width: 768px) {
-  .container {
-    padding-inline: 2rem;
+@media (max-width: 519px) {
+  .navLinks {
+    gap: 1rem;
   }
+
+  .navOptional {
+    display: none;
+  }
+}
+
+.themeToggle:hover {
+  color: var(--qa-ink);
+}
+
+.themeToggle .iconSun,
+[data-theme='dark'] .themeToggle .iconMoon {
+  display: none;
+}
+
+[data-theme='dark'] .themeToggle .iconSun {
+  display: block;
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -532,7 +1003,7 @@ a {
    ────────────────────────────────────────────────────────── */
 
 .hero {
-  padding: clamp(3.75rem, 8vw, 5.5rem) 0 clamp(3rem, 6vw, 4rem);
+  padding: clamp(3.5rem, 7vw, 5rem) 0 clamp(4rem, 8vw, 6rem);
   text-align: center;
   position: relative;
   overflow: hidden;
@@ -549,45 +1020,39 @@ a {
     transparent 70%
   );
   pointer-events: none;
-  z-index: 0;
 }
 
 .hero > * {
   position: relative;
-  z-index: 1;
 }
 
 .heroLogo {
   display: block;
-  height: 76px;
-  width: auto;
+  width: 64px;
+  height: 64px;
   margin: 0 auto 1.25rem;
 }
 
-.eyebrow {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--qa-accent);
-  letter-spacing: 0.02em;
-  margin: 0 0 1.25rem;
+.hero .eyebrow {
+  margin-bottom: 1rem;
 }
 
 .heroTitle {
-  font-size: clamp(2.4rem, 5vw + 0.5rem, 4rem);
-  line-height: 1.05;
+  font-size: clamp(2.5rem, 5vw + 0.5rem, 4.25rem);
+  line-height: 1.04;
   font-weight: 600;
-  letter-spacing: -0.028em;
+  letter-spacing: -0.032em;
   color: var(--qa-ink);
-  max-width: 22ch;
+  max-width: 16ch;
   margin: 0 auto 1.25rem;
   text-wrap: balance;
 }
 
 .heroSubtitle {
-  font-size: clamp(1.125rem, 1vw + 0.875rem, 1.3125rem);
+  font-size: clamp(1.0625rem, 0.6vw + 0.9rem, 1.25rem);
   line-height: 1.55;
   color: var(--qa-ink-muted);
-  max-width: 52ch;
+  max-width: 50ch;
   margin: 0 auto;
   text-wrap: pretty;
 }
@@ -596,209 +1061,468 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.5rem 0.75rem;
   margin-top: 2rem;
   flex-wrap: wrap;
 }
 
-.heroChip {
+/* ──────────────────────────────────────────────────────────
+   Demo: real captures of QuickAdd in Obsidian
+   ────────────────────────────────────────────────────────── */
+
+.demo {
+  max-width: 1120px;
+  margin: clamp(2.75rem, 6vw, 4rem) auto 0;
+  text-align: left;
+}
+
+.demoFrame {
+  position: relative;
+  aspect-ratio: 1200 / 720;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--qa-canvas-raised);
+  box-shadow: var(--qa-shot-shadow);
+  outline: 1px solid var(--qa-line-strong);
+  outline-offset: -1px;
+}
+
+/* The outline sits above the captures so the edge stays crisp on both themes. */
+.demoFrame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--qa-line-strong);
+  pointer-events: none;
+}
+
+/* Only the current frame, the one it is fading in over, and the next frame
+   are rendered. Everything else is display: none, so its lazy image isn't
+   fetched until the demo gets close to it. */
+.demoShot {
+  position: absolute;
+  inset: 0;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+.demoShot.isActive,
+.demoShot.isPrev,
+.demoShot.isNext {
+  display: block;
+}
+
+.demoShot.isPrev {
+  opacity: 1;
+  z-index: 1;
+}
+
+.demoShot img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* During a theme switch the old theme's image stays underneath until the new
+   one has loaded, so the frame is never empty. */
+.demoShot[data-hold='light'] .shotLight,
+.demoShot[data-hold='dark'] .shotDark {
+  display: block !important;
+  z-index: 0;
+}
+
+.demoShot.isActive {
+  opacity: 1;
+  z-index: 2;
+}
+
+/* Both flows share one grid cell, so the caption is always as tall as the
+   taller flow and switching flows never moves the rest of the page. */
+.demoCaption {
+  display: grid;
+}
+
+.demoFlow {
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 1.5rem;
+}
+
+.demoFlow:not(.isActive) {
+  visibility: hidden;
+}
+
+.demoControls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+/* Keeps the tabs centred on the frame while the play button sits beside them. */
+.demoControls::before {
+  content: '';
+  width: 2.25rem;
+  flex: none;
+}
+
+.demoPlay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--qa-ink-subtle);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+@media (max-width: 399px) {
+  .demoControls::before {
+    display: none;
+  }
+}
+
+.demoPlay:focus-visible {
+  border-radius: 999px;
+}
+
+.demoPlay[hidden],
+.demoControls:has(.demoPlay[hidden])::before {
+  display: none;
+}
+
+.demoPlay:hover {
+  background: var(--qa-line);
+  color: var(--qa-ink);
+}
+
+.demoPlay svg {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.demoPlay .iconPlay,
+.demo.isPlaying:not(.isPaused) .demoPlay .iconPause {
+  display: block;
+}
+
+.demoPlay .iconPause,
+.demo.isPlaying:not(.isPaused) .demoPlay .iconPlay {
+  display: none;
+}
+
+.demoTabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.25rem;
+  width: fit-content;
+  padding: 0.25rem;
+  border-radius: 10px;
+  background: var(--qa-line);
+}
+
+.demoTab {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1rem;
   padding: 0.5rem 0.875rem;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--qa-ink-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.demoTab svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 519px) {
+  .demoTab svg {
+    display: none;
+  }
+}
+
+.demoTab:hover {
+  color: var(--qa-ink);
+}
+
+.demoTab[aria-current] {
   background: var(--qa-canvas-raised);
+  color: var(--qa-ink);
+  box-shadow: 0 1px 2px rgba(24, 24, 27, 0.08), 0 0 0 1px var(--qa-line);
+}
+
+.demoTab[aria-current] svg {
+  color: var(--qa-accent);
+}
+
+/* On phones the whole window is too small to read, so each frame is cropped
+   to a 720x540 CSS px region around what that step is about, clear of the
+   sidebar where the step allows it. */
+@media (max-width: 639px) {
+  .demoFrame {
+    aspect-ratio: 4 / 3;
+  }
+
+  .demoShot img {
+    position: absolute;
+    width: 166.667%;
+    max-width: none;
+    height: auto;
+    left: -33.333%;
+    top: -7.407%;
+  }
+
+  .demoShot[data-index='1'] img {
+    top: -16.667%;
+  }
+
+  .demoShot[data-index='2'] img {
+    left: -47.917%;
+    top: -14.815%;
+  }
+}
+
+.shotDark,
+[data-theme='dark'] .shotLight {
+  display: none !important;
+}
+
+[data-theme='dark'] .shotDark {
+  display: block !important;
+}
+
+.demoCaption {
+  margin-top: 1.5rem;
+}
+
+.demoSteps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 768px) {
+  .demoSteps {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+.demoSteps > li {
+  cursor: pointer;
+  display: grid;
+  align-content: start;
+  gap: 0.375rem;
+  padding-bottom: 0.5rem;
+}
+
+.demoStep {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 1rem 0 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--qa-ink-subtle);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.demoStep:hover,
+.demoStep[aria-current] {
+  color: var(--qa-ink);
+}
+
+.demoProgress {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--qa-line-strong);
+  overflow: hidden;
+}
+
+.demoProgress::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--qa-accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.demoStep[aria-current] .demoProgress::after {
+  transform: scaleX(1);
+}
+
+.demo.isPlaying .demoStep[aria-current] .demoProgress::after {
+  animation: demoProgress var(--qa-step-duration) linear both;
+}
+
+/* Hovering the screenshot or the captions, or focusing a step, pauses the demo
+   so people can read at their own pace. The controls are left out, so pressing
+   play plays. */
+.demo.isPlaying:is(.isPaused, :has(.demoFrame:hover, .demoCaption:hover, .demoCaption:focus-within), .isOffscreen)
+  .demoStep[aria-current]
+  .demoProgress::after {
+  animation-play-state: paused;
+}
+
+@keyframes demoProgress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.demoStepTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.demoStepNumber {
+  font-variant-numeric: tabular-nums;
+  color: var(--qa-accent);
+}
+
+.demoStepDesc strong {
+  font-weight: 600;
+  color: var(--qa-ink);
+}
+
+.demoStepDesc {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--qa-ink-muted);
+  text-wrap: pretty;
+}
+
+.demoRecipe {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0.875rem 1.5rem;
+  padding: 1rem 1.25rem;
   border: 1px solid var(--qa-line);
-  border-radius: 999px;
+  border-radius: 10px;
+  background: var(--qa-canvas-raised);
   font-size: 0.8125rem;
   color: var(--qa-ink-muted);
 }
 
-.workflowPreview {
-  max-width: 920px;
-  margin: 2rem auto 0;
-  overflow: hidden;
-  text-align: left;
-  background: var(--qa-canvas-raised);
-  border: 1px solid var(--qa-line-strong);
-  border-radius: 14px;
-  box-shadow: 0 18px 60px rgba(24, 24, 27, 0.12);
-}
-
-.previewChrome {
-  display: flex;
-  gap: 0.45rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--qa-line);
-}
-
-.previewChrome span {
-  width: 0.68rem;
-  height: 0.68rem;
-  border-radius: 999px;
-  background: var(--qa-line-strong);
-}
-
-.previewGrid {
-  display: grid;
-  grid-template-columns: 0.85fr 1.2fr 1fr;
-  min-height: 250px;
-}
-
-.previewSidebar,
-.previewCommand,
-.previewNote {
-  padding: 1rem;
-}
-
-.previewSidebar,
-.previewCommand {
-  border-right: 1px solid var(--qa-line);
-}
-
-.previewSidebar {
-  background: var(--qa-canvas);
-}
-
-@supports (background: color-mix(in srgb, white, black)) {
-  .previewSidebar {
-    background: color-mix(in srgb, var(--qa-canvas) 72%, var(--qa-canvas-raised));
-  }
-}
-
-.previewSidebarTitle,
-.previewCommandLabel,
-.previewNoteTitle {
-  margin-bottom: 0.8rem;
-  color: var(--qa-ink-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.previewChoice,
-.previewResult {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.7rem 0.75rem;
-  color: var(--qa-ink);
-  font-size: 0.875rem;
-  border: 1px solid transparent;
-  border-radius: 9px;
-}
-
-.previewChoice + .previewChoice,
-.previewResult + .previewResult {
-  margin-top: 0.45rem;
-}
-
-.previewChoice:nth-child(2),
-.previewResult:first-child {
-  background: var(--qa-accent-soft);
-  border-color: var(--qa-line-strong);
-}
-
-.previewChoiceType,
-.previewResult span:last-child {
-  color: var(--qa-accent);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.previewSearch {
-  margin-bottom: 0.9rem;
-  padding: 0.8rem 0.9rem;
-  color: var(--qa-ink);
-  background: var(--qa-canvas);
-  border: 1px solid var(--qa-line-strong);
-  border-radius: 9px;
-  font-family: var(--qa-font-mono);
-  font-size: 0.82rem;
-}
-
-.previewLine,
-.previewLineShort {
-  height: 0.7rem;
-  background: var(--qa-line);
-  border-radius: 999px;
-}
-
-.previewLine {
-  width: 88%;
-}
-
-.previewLineShort {
-  width: 58%;
-  margin-top: 0.75rem;
-}
-
-.previewCapture {
-  margin-top: 1.2rem;
-  padding: 0.85rem;
-  background: var(--qa-canvas);
-  border: 1px solid var(--qa-line);
-  border-radius: 10px;
-}
-
-.previewCapture span {
-  color: var(--qa-accent);
-  font-family: var(--qa-font-mono);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.previewCapture p {
-  margin: 0.45rem 0 0;
-  color: var(--qa-ink-muted);
-  font-size: 0.88rem;
-  line-height: 1.5;
-}
-
-@media (max-width: 767px) {
-  .workflowPreview {
-    margin-top: 1.5rem;
-  }
-
-  .previewGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .previewSidebar,
-  .previewCommand {
-    border-right: 0;
-    border-bottom: 1px solid var(--qa-line);
-  }
-}
-
-.kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.5rem;
-  height: 1.5rem;
-  padding: 0 0.375rem;
-  background: var(--qa-canvas);
-  border: 1px solid var(--qa-line-strong);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  font-family: var(--qa-font-mono);
-  font-size: 0.75rem;
+.demoRecipeLabel {
+  margin: 0;
   font-weight: 600;
   color: var(--qa-ink);
-  line-height: 1;
 }
 
-.chipArrow {
-  color: var(--qa-ink-subtle);
+.demoRecipe dl {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.625rem 2rem;
+  margin: 0;
 }
 
-.chipLabel {
-  font-weight: 500;
+@media (min-width: 1024px) {
+  .demoRecipe dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.demoRecipe dl > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+@media (min-width: 1024px) {
+  .demoRecipe dl > div {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.625rem;
+  }
+}
+
+.demoRecipe dt {
+  white-space: nowrap;
+}
+
+.demoRecipe dd {
+  margin: 0;
   color: var(--qa-ink);
+}
+
+.demoRecipe code,
+.demoStepDesc code {
+  white-space: nowrap;
+  padding: 0.125em 0.375em;
+  border-radius: 4px;
+  background: var(--qa-line);
+  color: var(--qa-ink);
+}
+
+.demoRecipeNote {
+  margin-left: 0.5rem;
+  color: var(--qa-ink-muted);
+}
+
+.demoRecipe a {
+  justify-self: end;
+  color: var(--qa-accent);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.demoRecipe a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 479px) {
+  .demoRecipe {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .demoRecipe a {
+    grid-row: 3;
+    justify-self: start;
+  }
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -806,55 +1530,47 @@ a {
    ────────────────────────────────────────────────────────── */
 
 .buttonPrimary,
-.buttonPrimary:hover,
-.buttonPrimary:visited {
+.buttonSecondary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.75rem 1.25rem;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  font-size: 0.9375rem;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.buttonPrimary {
   background: var(--qa-cta-bg);
   color: var(--qa-cta-fg);
   font-weight: 600;
-  font-size: 0.9375rem;
-  border-radius: 10px;
-  border: none;
-  text-decoration: none;
-  transition: transform 0.15s ease, background-color 0.15s ease,
-    box-shadow 0.15s ease;
   box-shadow: 0 1px 2px rgba(24, 24, 27, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .buttonPrimary:hover {
   background: var(--qa-cta-bg-hover);
-  transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(90, 74, 236, 0.28),
     inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
-.buttonSecondary,
-.buttonSecondary:hover,
-.buttonSecondary:visited {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1.125rem;
-  background: transparent;
+.buttonSecondary {
+  padding-block: 0.5rem;
+  line-height: 1.3;
+  text-align: center;
   color: var(--qa-ink);
   font-weight: 500;
-  font-size: 0.9375rem;
-  border-radius: 10px;
-  text-decoration: none;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  box-shadow: inset 0 0 0 1px var(--qa-line-strong);
 }
 
 .buttonSecondary:hover {
   background: var(--qa-line);
-  color: var(--qa-ink);
 }
 
 /* ──────────────────────────────────────────────────────────
-   Generic section
+   Sections
    ────────────────────────────────────────────────────────── */
 
 .section {
@@ -866,121 +1582,188 @@ a {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
-  margin-bottom: 3rem;
-  max-width: 780px;
+  margin-bottom: 2.5rem;
 }
 
-.sectionHead .eyebrow {
-  margin: 0;
+.sectionHeadSplit {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+}
+
+.sectionHeadSplit > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
 }
 
 .sectionTitle {
-  font-size: clamp(1.75rem, 2.25vw + 0.5rem, 2.5rem);
-  line-height: 1.15;
+  font-size: clamp(1.75rem, 2.25vw + 0.75rem, 2.5rem);
+  line-height: 1.12;
   font-weight: 600;
-  letter-spacing: -0.022em;
+  letter-spacing: -0.024em;
   color: var(--qa-ink);
-  max-width: 28ch;
+  max-width: 24ch;
   margin: 0;
   text-wrap: balance;
 }
 
-.sectionSubtitle {
-  font-size: 1.125rem;
-  line-height: 1.55;
-  color: var(--qa-ink-muted);
-  max-width: 56ch;
-  margin: 0;
-  text-wrap: pretty;
-}
+/* Choice types */
 
-/* ──────────────────────────────────────────────────────────
-   Features
-   ────────────────────────────────────────────────────────── */
-
-.features {
+.choiceTypes {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
-  margin: 0;
-  padding: 0;
+  gap: 0.75rem;
 }
 
 @media (min-width: 640px) {
-  .features {
+  .choiceTypes {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (min-width: 1024px) {
-  .features {
-    grid-template-columns: repeat(3, 1fr);
+@media (min-width: 1180px) {
+  .choiceTypes {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
-.feature {
+.choiceTypes > li {
+  display: flex;
+}
+
+.choiceType,
+.example {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
-  padding: 1.75rem;
+  width: 100%;
   background: var(--qa-canvas-raised);
   border: 1px solid var(--qa-line);
-  border-radius: 14px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  border-radius: 12px;
+  transition: border-color 0.2s ease;
 }
 
-.feature:hover {
+.choiceType:hover,
+.example:hover {
   border-color: var(--qa-line-strong);
-  transform: translateY(-2px);
 }
 
-.featureIcon {
+.choiceType {
+  gap: 0.5rem;
+  padding: 1.5rem;
+}
+
+.choiceIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
+  margin-bottom: 0.5rem;
   background: var(--qa-accent-soft);
   color: var(--qa-accent);
   border-radius: 9px;
 }
 
-.featureIcon svg {
+.choiceIcon svg {
   width: 1.125rem;
   height: 1.125rem;
 }
 
-.featureTitle {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.featureTitleText {
+.choiceName {
   font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--qa-ink);
 }
 
-.featureDesc {
+.choiceDesc {
+  flex: 1;
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--qa-ink-muted);
-  margin: 0;
   text-wrap: pretty;
 }
 
-/* ──────────────────────────────────────────────────────────
-   Examples
-   ────────────────────────────────────────────────────────── */
+.choiceExample {
+  text-wrap: balance;
+  margin-top: 0.75rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--qa-line);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--qa-ink-subtle);
+}
+
+.choiceExample::before {
+  content: 'e.g. ';
+}
+
+/* When you need more */
+
+.further {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 3rem;
+}
+
+@media (min-width: 1024px) {
+  .further {
+    grid-template-columns: 12rem 1fr;
+    align-items: start;
+  }
+}
+
+.furtherTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--qa-ink);
+}
+
+.furtherList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem 2rem;
+}
+
+@media (min-width: 640px) {
+  .furtherList {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.furtherList a {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.furtherName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--qa-accent);
+}
+
+.furtherList a:hover .furtherName {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.furtherDesc {
+  text-wrap: balance;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--qa-ink-muted);
+}
+
+/* Examples */
 
 .examples {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 @media (min-width: 768px) {
@@ -989,36 +1772,29 @@ a {
   }
 }
 
-.example {
+.examples > li {
   display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 1.75rem;
-  background: var(--qa-canvas-raised);
-  border: 1px solid var(--qa-line);
-  border-radius: 14px;
-  transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.example:hover {
-  border-color: var(--qa-line-strong);
-  transform: translateY(-2px);
+.example {
+  gap: 0.5rem;
+  padding: 1.5rem 1.75rem;
 }
 
-.exampleIcon {
+.exampleType {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  background: var(--qa-accent-soft);
-  color: var(--qa-accent);
-  border-radius: 9px;
+  gap: 0.375rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--qa-ink-subtle);
 }
 
-.exampleIcon svg {
-  width: 1.125rem;
-  height: 1.125rem;
+.exampleType svg {
+  width: 0.9375rem;
+  height: 0.9375rem;
+  color: var(--qa-accent);
 }
 
 .exampleTitle {
@@ -1026,61 +1802,36 @@ a {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--qa-ink);
-  margin: 0.5rem 0 0;
+}
+
+.example:hover .exampleTitle {
+  text-decoration: underline;
+  text-decoration-color: var(--qa-line-strong);
+  text-underline-offset: 4px;
 }
 
 .exampleDesc {
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--qa-ink-muted);
-  margin: 0;
-  flex: 1;
   text-wrap: pretty;
 }
 
-.exampleLink,
-.exampleLink:hover,
-.exampleLink:visited {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.375rem;
-  color: var(--qa-accent);
-  font-weight: 500;
-  font-size: 0.9375rem;
-  text-decoration: none;
-}
-
-.exampleLink:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* ──────────────────────────────────────────────────────────
-   Quick start
-   ────────────────────────────────────────────────────────── */
+/* Quick start */
 
 .quickStart {
-  padding-block: clamp(4rem, 8vw, 6rem);
-  border-top: 1px solid var(--qa-line);
   text-align: center;
 }
 
 .quickStart .sectionHead {
-  margin-inline: auto;
   align-items: center;
-  text-align: center;
-}
-
-.quickStart .sectionTitle {
-  margin-inline: auto;
 }
 
 .steps {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
-  margin: 0.5rem 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -1096,40 +1847,38 @@ a {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
-  padding-inline: 0.5rem;
+  gap: 0.5rem;
 }
 
 .stepNumber {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2rem;
+  height: 2rem;
+  margin-bottom: 0.25rem;
   background: var(--qa-canvas-raised);
   border: 1px solid var(--qa-line-strong);
   border-radius: 999px;
-  font-family: var(--qa-font-mono);
-  font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--qa-accent);
 }
 
 .stepTitle {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--qa-ink);
-  margin: 0.25rem 0 0;
+  margin: 0;
 }
 
 .stepDesc {
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--qa-ink-muted);
-  max-width: 32ch;
+  max-width: 30ch;
   margin: 0;
   text-wrap: pretty;
 }
@@ -1142,23 +1891,79 @@ a {
   flex-wrap: wrap;
 }
 
-/* ──────────────────────────────────────────────────────────
-   Reduced motion
-   ────────────────────────────────────────────────────────── */
+/* Footer */
 
-@media (prefers-reduced-motion: reduce) {
-  .feature,
-  .example,
-  .buttonPrimary {
-    transition: none;
-  }
-  .feature:hover,
-  .example:hover,
-  .buttonPrimary:hover {
-    transform: none;
+.siteFooter {
+  border-top: 1px solid var(--qa-line);
+  background: var(--qa-canvas-raised);
+  padding: 3rem 0 2.5rem;
+  color: var(--qa-ink-muted);
+  font-size: 0.875rem;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .footerGrid {
+    grid-template-columns: 2fr repeat(3, 1fr);
   }
 }
 
+.footerBrand {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  align-self: start;
+  font-weight: 650;
+  color: var(--qa-ink);
+}
+
+@media (min-width: 768px) {
+  .footerBrand {
+    grid-column: auto;
+  }
+}
+
+.footerTitle {
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+  color: var(--qa-ink);
+}
+
+.footerGrid ul {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.footerGrid a:hover {
+  color: var(--qa-ink);
+}
+
+.footerMeta {
+  margin: 2.5rem 0 0;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--qa-line);
+  font-size: 0.8125rem;
+  color: var(--qa-ink-subtle);
+}
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .demoShot,
+  .demoStep,
+  .choiceType,
+  .example,
+  .buttonPrimary,
+  .buttonSecondary {
+    transition: none;
+  }
+}
 		</style>
 	</body>
 </html>
