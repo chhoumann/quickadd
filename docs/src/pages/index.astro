@@ -662,6 +662,7 @@ const icons: Record<string, string> = {
 				const theme = () => document.documentElement.dataset.theme;
 				const visibleImage = (shot) =>
 					shot.querySelector(theme() === "dark" ? ".shotDark" : ".shotLight");
+				// Resolves true once the image has loaded and decoded, false if it failed.
 				const whenLoaded = (image) =>
 					(image.complete
 						? Promise.resolve()
@@ -670,8 +671,8 @@ const icons: Record<string, string> = {
 								image.addEventListener("error", resolve, { once: true });
 							})
 					)
-						.then(() => image.decode())
-						.catch(() => {});
+						.then(() => image.naturalWidth > 0 && image.decode().then(() => true))
+						.catch(() => false);
 
 				const show = (index) => {
 					const shown = ++generation;
@@ -689,8 +690,9 @@ const icons: Record<string, string> = {
 						el.classList.toggle("isPrev", el === painted && !on);
 						on ? el.removeAttribute("aria-hidden") : el.setAttribute("aria-hidden", "true");
 					});
-					whenLoaded(visibleImage(incoming)).then(() => {
-						if (!stillCurrent()) return;
+					whenLoaded(visibleImage(incoming)).then((ready) => {
+						// A frame that failed to load never replaces the fallback.
+						if (!ready || !stillCurrent()) return;
 						const underneath = painted;
 						painted = incoming;
 						shots.forEach((el) => delete el.dataset.hold);
