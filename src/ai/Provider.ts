@@ -185,18 +185,31 @@ export interface Model {
  * offline fallback: live discovery (models.dev / the provider's models endpoint)
  * is the source of truth, and auto-sync keeps lists current without plugin
  * releases. Each entry below was verified live (directory metadata + a real
- * completion) on 2026-07-07. When touching this table, re-verify against
- * https://models.dev/api.json and the provider APIs — never add ids from memory.
+ * completion) on 2026-07-07. Refreshed 2026-09-26: the OpenAI list was
+ * re-verified live (listed by /v1/models, a real completion, and a completion
+ * with temperature to confirm supportsTemperature); the Google and Anthropic
+ * additions come from models.dev metadata cross-checked against the vendors'
+ * model/deprecation docs, without a live completion (no key was available).
+ * When touching this table, re-verify against https://models.dev/api.json and
+ * the provider APIs — never add ids from memory.
  */
 export const CURRENT_MODEL_SEEDS: Record<
 	"openai" | "google" | "anthropic",
 	Model[]
 > = {
 	openai: [
+		{ name: "gpt-6-sol", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-6-luna", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-6-astra", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-sol", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-luna", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "gpt-5.6-terra", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "gpt-5.5", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4-mini", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
-		{ name: "gpt-5.4-nano", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		// The gpt-5.4 family accepts temperature (live 200 with temperature: 0.5,
+		// matching models.dev); only gpt-5.5 and newer reject it.
+		{ name: "gpt-5.4", maxTokens: 1_050_000, maxOutputTokens: 128_000, supportsTemperature: true },
+		{ name: "gpt-5.4-mini", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: true },
+		{ name: "gpt-5.4-nano", maxTokens: 400_000, maxOutputTokens: 128_000, supportsTemperature: true },
 		{ name: "gpt-4.1", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
 		{ name: "gpt-4.1-mini", maxTokens: 1_047_576, maxOutputTokens: 32_768, supportsTemperature: true },
 		{ name: "gpt-4o", maxTokens: 128_000, maxOutputTokens: 16_384, supportsTemperature: true },
@@ -205,16 +218,23 @@ export const CURRENT_MODEL_SEEDS: Record<
 		{ name: "o4-mini", maxTokens: 200_000, maxOutputTokens: 100_000, supportsTemperature: false },
 	],
 	google: [
+		{ name: "gemini-3.8-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.7-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.6-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		{ name: "gemini-3.5-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.1-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-3.1-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
-		{ name: "gemini-3-pro-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
+		// gemini-3-pro-preview was shut down 2026-03-09 (the id now aliases
+		// gemini-3.1-pro-preview), so it is no longer seeded.
 		{ name: "gemini-3-flash-preview", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-pro", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-flash", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 		{ name: "gemini-2.5-flash-lite", maxTokens: 1_048_576, maxOutputTokens: 65_536, supportsTemperature: true },
 	],
 	anthropic: [
+		{ name: "claude-opus-5-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
+		{ name: "claude-fable-5-1", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-fable-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-sonnet-5", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
 		{ name: "claude-opus-4-8", maxTokens: 1_000_000, maxOutputTokens: 128_000, supportsTemperature: false },
