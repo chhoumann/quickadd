@@ -710,9 +710,15 @@ const icons: Record<string, string> = {
 					if (strand) steps[index].focus();
 				};
 
+				// Autoplay has three states: playing, paused (the step's progress bar
+				// freezes and resumes where it left off), and stopped by picking a step
+				// or flow by hand (play then starts that step from the beginning).
+				const running = () => demo.classList.contains("isPlaying") && !demo.classList.contains("isPaused");
+				const label = () => play.setAttribute("aria-label", running() ? "Pause demo" : "Play demo");
 				const setPlaying = (on) => {
 					demo.classList.toggle("isPlaying", on);
-					play.setAttribute("aria-label", on ? "Pause demo" : "Play demo");
+					demo.classList.remove("isPaused");
+					label();
 				};
 
 				steps.forEach((step, i) => {
@@ -735,11 +741,28 @@ const icons: Record<string, string> = {
 						show(steps.findIndex((el) => el.dataset.flow === tab.dataset.flow));
 					});
 				});
-				play.addEventListener("click", () => setPlaying(!demo.classList.contains("isPlaying")));
-				// A theme switch swaps every screenshot, so track the new theme's image.
-				new MutationObserver(() => show(current)).observe(document.documentElement, {
-					attributeFilter: ["data-theme"],
+				play.addEventListener("click", () => {
+					if (!demo.classList.contains("isPlaying")) setPlaying(true);
+					else demo.classList.toggle("isPaused");
+					label();
 				});
+				// A theme switch swaps every screenshot. Hold the old theme's image
+				// underneath the current frame until the new one has loaded, then track
+				// the new theme's image as usual.
+				let hold = 0;
+				new MutationObserver(([record]) => {
+					const previousTheme = record.oldValue;
+					const shot = shots.find((el) => el.classList.contains("isActive"));
+					const held = shot?.querySelector(previousTheme === "dark" ? ".shotDark" : ".shotLight");
+					if (previousTheme !== theme() && held?.complete && held.naturalWidth > 0) {
+						const token = ++hold;
+						shot.dataset.hold = previousTheme;
+						whenLoaded(visibleImage(shot)).then(() => {
+							if (token === hold) delete shot.dataset.hold;
+						});
+					}
+					show(current);
+				}).observe(document.documentElement, { attributeFilter: ["data-theme"], attributeOldValue: true });
 
 				if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 				play.hidden = false;
@@ -1093,9 +1116,21 @@ code {
 }
 
 .demoShot img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
   display: block;
   width: 100%;
   height: 100%;
+}
+
+/* During a theme switch the old theme's image stays underneath until the new
+   one has loaded, so the frame is never empty. */
+.demoShot[data-hold='light'] .shotLight,
+.demoShot[data-hold='dark'] .shotDark {
+  display: block !important;
+  z-index: 0;
 }
 
 .demoShot.isActive {
@@ -1177,12 +1212,12 @@ code {
 }
 
 .demoPlay .iconPlay,
-.demo.isPlaying .demoPlay .iconPause {
+.demo.isPlaying:not(.isPaused) .demoPlay .iconPause {
   display: block;
 }
 
 .demoPlay .iconPause,
-.demo.isPlaying .demoPlay .iconPlay {
+.demo.isPlaying:not(.isPaused) .demoPlay .iconPlay {
   display: none;
 }
 
@@ -1350,7 +1385,7 @@ code {
 /* Hovering the screenshot or the captions, or focusing a step, pauses the demo
    so people can read at their own pace. The controls are left out, so pressing
    play plays. */
-.demo.isPlaying:is(:has(.demoFrame:hover, .demoCaption:hover, .demoCaption:focus-within), .isOffscreen)
+.demo.isPlaying:is(.isPaused, :has(.demoFrame:hover, .demoCaption:hover, .demoCaption:focus-within), .isOffscreen)
   .demoStep[aria-current]
   .demoProgress::after {
   animation-play-state: paused;
