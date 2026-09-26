@@ -693,6 +693,7 @@ const icons: Record<string, string> = {
 						if (!stillCurrent()) return;
 						const underneath = painted;
 						painted = incoming;
+						shots.forEach((el) => delete el.dataset.hold);
 						setTimeout(() => {
 							if (stillCurrent() && underneath !== incoming) underneath.classList.remove("isPrev");
 						}, 500);
@@ -746,21 +747,22 @@ const icons: Record<string, string> = {
 					else demo.classList.toggle("isPaused");
 					label();
 				});
-				// A theme switch swaps every screenshot. Hold the old theme's image
-				// underneath the current frame until the new one has loaded, then track
-				// the new theme's image as usual.
-				let hold = 0;
+				// A theme switch swaps every screenshot. Keep one already-loaded image
+				// from the old theme underneath until a frame has loaded in the new
+				// theme (show() clears the hold then): the active frame's own image,
+				// or else the fallback frame's, if the active one hadn't loaded yet.
 				new MutationObserver(([record]) => {
 					const previousTheme = record.oldValue;
-					const shot = shots.find((el) => el.classList.contains("isActive"));
-					const held = shot?.querySelector(previousTheme === "dark" ? ".shotDark" : ".shotLight");
-					if (previousTheme !== theme() && held?.complete && held.naturalWidth > 0) {
-						const token = ++hold;
-						shot.dataset.hold = previousTheme;
-						whenLoaded(visibleImage(shot)).then(() => {
-							if (token === hold) delete shot.dataset.hold;
-						});
-					}
+					if (previousTheme === theme()) return;
+					const oldImage = (shot) =>
+						shot?.querySelector(previousTheme === "dark" ? ".shotDark" : ".shotLight");
+					const active = shots.find((el) => el.classList.contains("isActive"));
+					const holder = [active, painted].find((shot) => {
+						const image = oldImage(shot);
+						return image?.complete && image.naturalWidth > 0;
+					});
+					shots.forEach((el) => delete el.dataset.hold);
+					if (holder) holder.dataset.hold = previousTheme;
 					show(current);
 				}).observe(document.documentElement, { attributeFilter: ["data-theme"], attributeOldValue: true });
 
