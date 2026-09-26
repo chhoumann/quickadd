@@ -16,7 +16,14 @@ module.exports = async (params) => {
         return;
     }
 
-    const results = await geocode(obsidian, address);
+    let results;
+    try {
+        results = await geocode(obsidian, address);
+    } catch (error) {
+        console.error("getLongLatFromAddress: geocoding failed", error);
+        new obsidian.Notice(`Could not look up "${address}": ${error?.message ?? error}`, 8000);
+        return;
+    }
     if (!results.length) {
         new obsidian.Notice(`No results found for "${address}"`, 5000);
         return;

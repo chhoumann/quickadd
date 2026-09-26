@@ -22,12 +22,14 @@ function run(options: {
 	results?: Array<{ lat: string; lon: string }>;
 	frontmatter?: Record<string, unknown>;
 	activeFile?: boolean;
+	requestError?: Error;
 }) {
 	const frontmatter = options.frontmatter ?? {};
 	const notices: string[] = [];
-	const requestUrl = vi.fn(async (_request: { url: string }) => ({
-		json: options.results ?? [],
-	}));
+	const requestUrl = vi.fn(async (_request: { url: string }) => {
+		if (options.requestError) throw options.requestError;
+		return { json: options.results ?? [] };
+	});
 	const processFrontMatter = vi.fn(
 		async (_file: unknown, fn: (fm: Record<string, unknown>) => void) =>
 			fn(frontmatter),
@@ -116,6 +118,20 @@ describe("getLongLatFromAddress example script", () => {
 
 		expect(ctx.processFrontMatter).not.toHaveBeenCalled();
 		expect(ctx.notices).toEqual(['No results found for "nowhere"']);
+	});
+
+	it("shows a notice and leaves the note unchanged when the lookup fails", async () => {
+		const ctx = run({
+			address: "Paris",
+			requestError: new Error("Request failed, status 429"),
+		});
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+		await expect(ctx.done).resolves.toBeUndefined();
+
+		expect(ctx.processFrontMatter).not.toHaveBeenCalled();
+		expect(ctx.notices).toEqual([
+			'Could not look up "Paris": Request failed, status 429',
+		]);
 	});
 
 	it("does not prompt or geocode without an active file", async () => {
