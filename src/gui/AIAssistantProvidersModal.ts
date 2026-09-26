@@ -1,7 +1,7 @@
 import { addProviderSecret } from "./ai/providerSettings";
 import type { App } from "obsidian";
 import { ButtonComponent, Modal, Notice, Setting } from "obsidian";
-import type { AIProvider } from "src/ai/Provider";
+import type { AIProvider, Model } from "src/ai/Provider";
 import { ensureProviderIds } from "src/ai/Provider";
 import { mergeModels } from "src/ai/modelsDirectory";
 import { diffModelLists, syncProviderModels } from "src/ai/modelSyncService";
@@ -26,13 +26,10 @@ export class AIAssistantProvidersModal extends Modal {
 	/** The edit view's model list, re-rendered in place when a sync changes it. */
 	private modelsContainerEl: HTMLElement | null = null;
 
-	/** The quiet on-open sync pass; "Sync now" waits for it before counting. */
-	private readonly backgroundSync: Promise<void>;
-
 	/**
-	 * Cancel swaps an edited provider for its snapshot. A background sync that
-	 * was in flight for the discarded object lands its models on the snapshot
-	 * that replaced it instead.
+	 * Cancel swaps an edited provider for its snapshot. A sync still in flight
+	 * for the discarded object lands its models on the snapshot that replaced
+	 * it instead (see currentFor).
 	 */
 	private readonly restoredSnapshots = new WeakMap<AIProvider, AIProvider>();
 
@@ -51,7 +48,7 @@ export class AIAssistantProvidersModal extends Modal {
 
 		this.open();
 		this.display();
-		this.backgroundSync = this.autoSyncOnOpen();
+		void this.autoSyncOnOpen();
 	}
 
 	/**
@@ -63,32 +60,15 @@ export class AIAssistantProvidersModal extends Modal {
 		if (settingsStore.getState().disableOnlineFeatures) return;
 
 		let changed = false;
-		for (const provider of this.providers) {
+		for (const provider of [...this.providers]) {
 			if (!provider.autoSyncModels) continue;
 			try {
 				const { added, updated, discovered } = await syncProviderModels(
 					this.app,
 					provider,
 				);
-				if (added === 0 && updated === 0) continue;
-				const restored = this.restoredSnapshots.get(provider);
-				if (restored) {
-					restored.models = mergeModels(restored.models, discovered);
-				} else if (provider === this.selectedProvider) {
-					// The user opened this provider while the sync was in flight, so
-					// the list on screen and the Cancel snapshot both predate it. A
-					// background refresh is not a user edit: show it now, and keep it
-					// if the user cancels their edits.
-					if (this._selectedProviderClone) {
-						this._selectedProviderClone.models = mergeModels(
-							this._selectedProviderClone.models,
-							discovered,
-						);
-					}
-					this.renderProviderModels();
-				} else {
-					changed = changed || added > 0;
-				}
+				this.applySyncResult(provider, discovered, added + updated > 0);
+				changed = changed || added > 0;
 			} catch {
 				// Quiet by design; "Sync now" surfaces errors.
 			}
@@ -96,6 +76,51 @@ export class AIAssistantProvidersModal extends Modal {
 
 		// Refresh the provider list, but never clobber in-progress edits.
 		if (changed && !this.selectedProvider) this.reload();
+	}
+
+	/**
+	 * The object that stands for `provider` now: itself while it is in the
+	 * list, or the snapshot a Cancel swapped in for it (following repeated
+	 * Edit/Cancel rounds). Null once the provider was deleted.
+	 */
+	private currentFor(provider: AIProvider): AIProvider | null {
+		let current: AIProvider | undefined = provider;
+		while (current && !this.providers.includes(current)) {
+			current = this.restoredSnapshots.get(current);
+		}
+		return current ?? null;
+	}
+
+	/**
+	 * Land a finished sync, which syncProviderModels already merged into
+	 * `synced`, on whatever represents that provider now. A sync is not a user
+	 * edit, so an open edit's Cancel snapshot receives it too, and the edit
+	 * view re-renders when it shows that provider.
+	 */
+	private applySyncResult(
+		synced: AIProvider,
+		discovered: Model[],
+		syncedChanged: boolean,
+	): void {
+		const current = this.currentFor(synced);
+		if (!current) return;
+
+		let changed = syncedChanged;
+		if (current !== synced) {
+			const before = current.models;
+			current.models = mergeModels(before, discovered);
+			const diff = diffModelLists(before, current.models);
+			changed = diff.added + diff.updated > 0;
+		}
+		if (!changed || current !== this.selectedProvider) return;
+
+		if (this._selectedProviderClone) {
+			this._selectedProviderClone.models = mergeModels(
+				this._selectedProviderClone.models,
+				discovered,
+			);
+		}
+		this.renderProviderModels();
 	}
 
 	private display(): void {
@@ -396,44 +421,32 @@ export class AIAssistantProvidersModal extends Modal {
 				button.setButtonText("Sync now").onClick(async () => {
 					const provider = this.selectedProvider!;
 					// Report against the list the user is looking at. The quiet
-					// on-open sync may still be in flight for this provider; wait for
-					// it instead of racing it, and count whatever it lands too, so the
-					// notice never says "up to date" while the list visibly changes.
+					// on-open sync may land on this provider while this request
+					// runs; it is counted too, so the notice never says "up to
+					// date" while the list visibly changes.
 					const shown = provider.models.map((model) => ({ ...model }));
-					// Cancel while waiting swaps this object out for its snapshot;
-					// syncing or reporting on the discarded copy would announce
-					// models nobody will see.
-					const isCurrent = () => this.providers.includes(provider);
+					button.setDisabled(true);
 					try {
-						await this.backgroundSync;
-						if (!isCurrent()) return;
-						const { discovered } = await syncProviderModels(
+						const { added, updated, discovered } = await syncProviderModels(
 							this.app,
 							provider,
 						);
-						if (!isCurrent()) return;
+						this.applySyncResult(provider, discovered, added + updated > 0);
+						// Cancel swapped this provider for its snapshot while the
+						// request ran. The snapshot has the models now, but the list
+						// this click was about is gone, so there is nothing to report.
+						if (!this.providers.includes(provider)) return;
+
 						// Count only models the source reports, so a model the user
-						// added by hand while waiting is not announced as synced.
+						// added by hand meanwhile is not announced as synced.
 						const sourceNames = new Set(discovered.map((m) => m.name));
-						const { added, updated } = diffModelLists(
+						const counts = diffModelLists(
 							shown,
 							provider.models.filter((m) => sourceNames.has(m.name)),
 						);
-						// Sync is not a user edit: keep its results if Cancel runs.
-						// (After Save the user may be editing another provider, whose
-						// snapshot must not receive these models.)
-						if (
-							provider === this.selectedProvider &&
-							this._selectedProviderClone
-						) {
-							this._selectedProviderClone.models = mergeModels(
-								this._selectedProviderClone.models,
-								discovered,
-							);
-						}
 						new Notice(
-							added > 0 || updated > 0
-								? `Synced from ${sourceDescription}: ${added} new model(s), ${updated} updated.`
+							counts.added > 0 || counts.updated > 0
+								? `Synced from ${sourceDescription}: ${counts.added} new model(s), ${counts.updated} updated.`
 								: `Synced from ${sourceDescription}: already up to date.`,
 						);
 						this.reload();
@@ -441,6 +454,8 @@ export class AIAssistantProvidersModal extends Modal {
 						new Notice(
 							`Sync failed: ${(err as { message?: string }).message ?? err}`
 						);
+					} finally {
+						button.setDisabled(false);
 					}
 				});
 				button.setCta();

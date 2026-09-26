@@ -187,22 +187,75 @@ describe("AIAssistantProvidersModal model sync while editing", () => {
 		]);
 	});
 
-	it("does not sync or notice after Cancel while Sync now awaits background sync", async () => {
+	it("stays quiet when the user cancels while Sync now runs, and keeps what it found", async () => {
 		const providers = [openAIProvider()];
 		const modal = openAndEdit(providers);
+		await landDiscovery(0, SHIPPED);
 
 		clickButtonByText(modal, "Sync now");
 		clickButtonByText(modal, "Cancel");
-		await landDiscovery(0, DIRECTORY);
-		await flush();
+		await landDiscovery(1, DIRECTORY);
 
-		// Sync now must not sync or announce anything for the discarded copy...
-		expect(discovery.calls).toHaveLength(1);
+		// No list to report against after Cancel, but the restored snapshot
+		// must not lose what the sync found.
 		expect(notices()).toEqual([]);
-		// ...and the background result lands on the snapshot Cancel restored.
 		expect(providers[0].models.map((model) => model.name)).toEqual([
 			"gpt-5.5",
 			"gpt-6-sol",
+		]);
+	});
+
+	it("lands a background sync on the latest snapshot after repeated Edit/Cancel", async () => {
+		const providers = [openAIProvider()];
+		const modal = openAndEdit(providers);
+		clickButtonByText(modal, "Cancel");
+		clickButtonByText(modal, "Edit");
+		clickButtonByText(modal, "Cancel");
+
+		await landDiscovery(0, DIRECTORY);
+
+		expect(providers[0].models.map((model) => model.name)).toEqual([
+			"gpt-5.5",
+			"gpt-6-sol",
+		]);
+	});
+
+	it("announces each model once when Sync now is clicked twice", async () => {
+		const modal = openAndEdit([openAIProvider()]);
+		await landDiscovery(0, SHIPPED);
+
+		clickButtonByText(modal, "Sync now");
+		clickButtonByText(modal, "Sync now");
+		await landDiscovery(1, DIRECTORY);
+		discovery.calls[2]?.resolve(DIRECTORY);
+		await flush();
+
+		expect(notices()).toEqual([
+			"Synced from the models.dev directory: 1 new model(s), 0 updated.",
+		]);
+	});
+
+	it("does not wait for another provider's background sync", async () => {
+		const stalled: AIProvider = {
+			...openAIProvider(),
+			id: "stalled",
+			name: "Stalled",
+			endpoint: "https://stalled.example/v1",
+		};
+		const modal = new AIAssistantProvidersModal(
+			[stalled, openAIProvider()],
+			new App() as App,
+		);
+		Array.from(modal.contentEl.querySelectorAll<HTMLButtonElement>("button"))
+			.filter((button) => button.textContent === "Edit")[1]
+			.click();
+
+		// Request #0 is the stalled provider's background sync; it never lands.
+		clickButtonByText(modal, "Sync now");
+		await landDiscovery(1, DIRECTORY);
+
+		expect(notices()).toEqual([
+			"Synced from the models.dev directory: 1 new model(s), 0 updated.",
 		]);
 	});
 
