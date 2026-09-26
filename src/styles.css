@@ -323,6 +323,18 @@
 	color: var(--text-muted);
 }
 
+/* One control column for every row, so inputs line up however long their
+   labels are. Stacked rows (dates, narrow screens, discovery forms) override
+   the width below. */
+.quickAddModal.onePageInputModal .setting-item-control {
+	flex: none;
+	width: 60%;
+}
+
+.quickAddModal.onePageInputModal .setting-item-control > input {
+	width: 100%;
+}
+
 .quickAddModal .qa-onepage-textarea {
 	width: 100%;
 	height: 120px;
@@ -331,10 +343,6 @@
 .quickAddModal .qa-onepage-dropdown-note {
 	margin-left: 0.5rem;
 	color: var(--text-muted);
-}
-
-.quickAddModal .qa-onepage-file-picker-setting .setting-item-control {
-	width: min(28rem, 62%);
 }
 
 .quickAddModal .qa-onepage-file-picker {
@@ -428,6 +436,7 @@
 
 .quickAddModal .qa-onepage-slider input[type="range"] {
 	width: 100%;
+	margin: 0;
 }
 
 .quickAddModal .qa-onepage-slider input[type="number"] {
