@@ -178,6 +178,12 @@ window, output limit, and sampling support where the source reports them.
 If model import fails, you can still add models manually. Use the provider's
 exact model id and the model's context-window token count.
 
+QuickAdd saves the models.dev directory (about 5 MB) as `models-dev-cache.json`
+in its plugin folder. On later launches it asks models.dev whether the directory
+changed and downloads it again only when it did. If models.dev is unreachable,
+QuickAdd uses the saved copy. Deleting the file is safe; QuickAdd downloads it
+again the next time it needs it.
+
 ### Keep model lists current: Auto-sync {#auto-sync}
 
 Each provider has an **Auto-sync models** toggle. While it is on, QuickAdd
