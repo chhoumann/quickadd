@@ -28,17 +28,19 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**
- * A usable directory is a map of providers in which at least one provider has
- * a `models` map. One malformed entry must not discard the other ~200
- * providers: discovery only fails for the provider it actually reads.
+ * The providers in a models.dev response that have a `models` map, or null
+ * when there are none. Malformed entries are dropped rather than failing the
+ * whole directory, so only lookups of that provider miss (with discovery's
+ * "models.dev does not list a provider" error instead of a TypeError).
  */
-function isDirectory(value: unknown): value is ModelsDevDirectory {
-  return (
-    isPlainObject(value) &&
-    Object.values(value).some(
-      (provider) => isPlainObject(provider) && isPlainObject(provider.models),
-    )
+function usableDirectory(value: unknown): ModelsDevDirectory | null {
+  if (!isPlainObject(value)) return null;
+  const usable = Object.entries(value).filter(
+    ([, provider]) => isPlainObject(provider) && isPlainObject(provider.models),
   );
+  return usable.length > 0
+    ? (Object.fromEntries(usable) as ModelsDevDirectory)
+    : null;
 }
 
 export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
@@ -62,8 +64,8 @@ export async function fetchModelsDevDirectory(): Promise<ModelsDevDirectory> {
 
   // Validate before the 24h memory cache so a bad 200 cannot poison Sync now
   // for the rest of the session (independent of the reverted disk cache).
-  const data: unknown = response.json;
-  if (!isDirectory(data)) {
+  const data = usableDirectory(response.json);
+  if (!data) {
     throw new Error("models.dev returned an unexpected response.");
   }
   cachedDirectory = { data, fetchedAt: Date.now() };

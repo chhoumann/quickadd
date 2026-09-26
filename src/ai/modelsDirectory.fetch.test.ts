@@ -57,12 +57,16 @@ describe("fetchModelsDevDirectory validation", () => {
 		expect(requestUrlMock).toHaveBeenCalledTimes(2);
 	});
 
-	it("keeps the directory when only some providers are malformed", async () => {
+	it("drops only the malformed providers and keeps the rest", async () => {
 		const fetch = await loadFetch();
-		const body = { ...VALID, broken: { id: "broken", name: "Broken" } };
+		const body = {
+			...VALID,
+			broken: { id: "broken", name: "Broken" },
+			nullModels: { id: "nullModels", name: "Null", models: null },
+		};
 		requestUrlMock.mockResolvedValueOnce({ status: 200, json: body });
 
-		expect(await fetch()).toEqual(body);
+		expect(await fetch()).toEqual(VALID);
 	});
 
 	it("keeps the online-features gate", async () => {
