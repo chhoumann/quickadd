@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import type { AIProvider } from "./Provider";
 import {
+	CURRENT_MODEL_SEEDS,
+	DefaultProviders,
 	activeModelRef,
 	ensureProviderIds,
 	getProviderKind,
@@ -117,5 +119,51 @@ describe("activeModelRef", () => {
 		expect(activeModelRef("o3", ref)).toBeUndefined();
 		expect(activeModelRef(undefined, ref)).toBeUndefined();
 		expect(activeModelRef("gpt-4o", undefined)).toBeUndefined();
+	});
+});
+
+describe("shipped model seeds", () => {
+	// Values verified live on 2026-09-26: listed by /v1/models, a completion
+	// succeeds, and temperature: 0.5 is rejected (400 unsupported_value).
+	it("offer the GPT-6 generation on a fresh install, before any sync", () => {
+		const openai = DefaultProviders.find((p) => p.id === "openai");
+		const byName = new Map(openai?.models.map((m) => [m.name, m]));
+		for (const name of [
+			"gpt-6-sol",
+			"gpt-6-luna",
+			"gpt-6-astra",
+			"gpt-5.6-sol",
+			"gpt-5.6-luna",
+			"gpt-5.6-terra",
+		]) {
+			expect(byName.get(name), name).toEqual({
+				name,
+				maxTokens: 1_050_000,
+				maxOutputTokens: 128_000,
+				supportsTemperature: false,
+			});
+		}
+	});
+
+	it("let the gpt-5.4 family keep a user's temperature (accepted live)", () => {
+		for (const name of ["gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"]) {
+			const seed = CURRENT_MODEL_SEEDS.openai.find((m) => m.name === name);
+			expect(seed?.supportsTemperature, name).toBe(true);
+		}
+		const gpt55 = CURRENT_MODEL_SEEDS.openai.find((m) => m.name === "gpt-5.5");
+		expect(gpt55?.supportsTemperature).toBe(false);
+	});
+
+	it("no longer seed gemini-3-pro-preview, which Google shut down", () => {
+		const names = CURRENT_MODEL_SEEDS.google.map((m) => m.name);
+		expect(names).not.toContain("gemini-3-pro-preview");
+		expect(names).toContain("gemini-3.8-flash");
+	});
+
+	it("list each model once per provider", () => {
+		for (const [key, seeds] of Object.entries(CURRENT_MODEL_SEEDS)) {
+			const names = seeds.map((m) => m.name);
+			expect(new Set(names).size, key).toBe(names.length);
+		}
 	});
 });

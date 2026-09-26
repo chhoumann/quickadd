@@ -792,6 +792,11 @@ outright with a provider error - use a current model rather than expecting a bes
 These accept only the default `temperature` (omit it from `modelOptions`), and QuickAdd
 automatically sends `maxOutputTokens` as `max_completion_tokens` for them. The agent's default
 path sets neither, so `quickAddApi.ai.agent({ model: "gpt-5" })` works as-is.
+
+GPT-5.6 and GPT-6 models reason by default, and OpenAI's Chat Completions API rejects function
+tools for them unless reasoning is off. When a tool turn is rejected for that reason, QuickAdd
+retries it once with `reasoning_effort: "none"`. If you set `reasoning_effort` yourself in
+`modelOptions`, QuickAdd keeps it and shows the provider's error instead.
 :::
 
 ### `getModels(): string[]`

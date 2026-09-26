@@ -43,7 +43,7 @@ vi.mock("src/logger/logManager", () => ({
 	log: { logMessage: mocks.logMessageMock, logError: vi.fn() },
 }));
 
-const { autoSyncEnabledProviders, syncProviderModels } = await import(
+const { autoSyncEnabledProviders, diffModelLists, syncProviderModels } = await import(
 	"./modelSyncService"
 );
 
@@ -73,12 +73,33 @@ describe("syncProviderModels", () => {
 
 		const result = await syncProviderModels(undefined, provider);
 
-		expect(result).toEqual({ added: 1, updated: 1 });
+		expect(result).toMatchObject({ added: 1, updated: 1 });
+		expect(result.discovered.map((m) => m.name)).toEqual(["gpt-4o", "gpt-5.5"]);
 		expect(provider.models.map((m) => m.name)).toEqual([
 			"gpt-4o",
 			"gpt-5.5",
 		]);
 		expect(provider.models[0].maxTokens).toBe(128000);
+	});
+});
+
+describe("diffModelLists", () => {
+	it("counts by name, not by length, so a list that lost entries still reports additions", () => {
+		// The before list has a model the after list lacks (deleted mid-sync) and
+		// vice versa: a length delta would report 0 new models.
+		const before = [
+			{ name: "gpt-4o", maxTokens: 128000 },
+			{ name: "removed-by-user", maxTokens: 1000 },
+			{ name: "o3", maxTokens: 200000, supportsTemperature: false },
+		];
+		const after = [
+			{ name: "gpt-4o", maxTokens: 128000, maxOutputTokens: 16384 },
+			{ name: "o3", maxTokens: 200000, supportsTemperature: false },
+			{ name: "gpt-6-sol", maxTokens: 1050000 },
+		];
+
+		expect(diffModelLists(before, after)).toEqual({ added: 1, updated: 1 });
+		expect(diffModelLists(after, after)).toEqual({ added: 0, updated: 0 });
 	});
 });
 

@@ -16,33 +16,41 @@ export interface ProviderSyncOutcome {
 	error?: string;
 }
 
-function countUpdated(before: Model[], after: Model[]): number {
+/**
+ * How `after` differs from `before`, matched by model name: entries that are
+ * new, and entries whose metadata (context/output/sampling) changed.
+ */
+export function diffModelLists(
+	before: Model[],
+	after: Model[],
+): { added: number; updated: number } {
 	const beforeByName = new Map(before.map((m) => [m.name, JSON.stringify(m)]));
+	let added = 0;
 	let updated = 0;
 	for (const model of after) {
 		const prev = beforeByName.get(model.name);
-		if (prev !== undefined && prev !== JSON.stringify(model)) updated += 1;
+		if (prev === undefined) added += 1;
+		else if (prev !== JSON.stringify(model)) updated += 1;
 	}
-	return updated;
+	return { added, updated };
 }
 
 /**
  * Discover the provider's current models and merge them into its list:
  * new models are appended, existing ones get their context/output/sampling
  * metadata refreshed. Mutates `provider.models`; never removes entries.
+ * Returns what this call changed plus the discovered list, so callers holding
+ * another copy of the provider (e.g. an edit snapshot) can merge it too.
  */
 export async function syncProviderModels(
 	app: App | undefined,
 	provider: AIProvider,
-): Promise<{ added: number; updated: number }> {
+): Promise<{ added: number; updated: number; discovered: Model[] }> {
 	const apiKey = await resolveProviderApiKey(app, provider);
 	const discovered = await discoverProviderModels(provider, apiKey);
 	const before = provider.models;
 	provider.models = mergeModels(provider.models, discovered);
-	return {
-		added: provider.models.length - before.length,
-		updated: countUpdated(before, provider.models),
-	};
+	return { ...diffModelLists(before, provider.models), discovered };
 }
 
 /** Stable identity for matching a synced provider back into current state. */

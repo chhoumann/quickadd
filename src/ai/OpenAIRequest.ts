@@ -206,10 +206,26 @@ export async function chatRequest(
 	});
 
 	try {
-		const dispatch = (body: Record<string, unknown>) => dispatchProviderRequest<Record<string, unknown>>({
+		const send = (body: Record<string, unknown>) => dispatchProviderRequest<Record<string, unknown>>({
 			kind, apiKey, provider: modelProvider, model, body,
 			afterRequest: afterRequestCallback,
 		});
+		const dispatch = async (body: Record<string, unknown>) => {
+			try {
+				return await send(body);
+			} catch (error) {
+				const retryBody = toolReasoningRetryBody(
+					kind,
+					body,
+					(error as { message?: string }).message ?? String(error),
+				);
+				if (!retryBody) throw error;
+				log.logMessage(
+					`[AI Chat ${requestLogId}] ${model.name} rejected function tools while reasoning; retrying with reasoning_effort "none".`,
+				);
+				return send(retryBody);
+			}
+		};
 		const json = await retrySampling(
 			() => dispatch(body),
 			() => dispatch(buildChatBody(kind, model.name, {
@@ -258,6 +274,30 @@ export async function chatRequest(
 		reportError(failure);
 		throw failure;
 	}
+}
+
+// "Function tools with reasoning_effort are not supported for gpt-6-sol in
+// /v1/chat/completions. To use function tools, use /v1/responses or set
+// reasoning_effort to 'none'." (verified live 2026-09-26 for the gpt-6 and
+// gpt-5.6 families, which reason by default; gpt-5.5 and older default to none).
+const TOOLS_NEED_NO_REASONING_RE =
+	/function tools with reasoning_effort are not supported[\s\S]*reasoning_effort to 'none'/i;
+
+/**
+ * The body to retry a Chat Completions tool request with when the model
+ * rejected function tools because it reasons by default, or null when the
+ * error is anything else or the caller already chose a reasoning effort.
+ */
+export function toolReasoningRetryBody(
+	kind: ReturnType<typeof getProviderKind>,
+	body: Record<string, unknown>,
+	errorText: string,
+): Record<string, unknown> | null {
+	if (kind !== "openai") return null;
+	if (!Array.isArray(body.tools) || body.tools.length === 0) return null;
+	if (body.reasoning_effort !== undefined) return null;
+	if (!TOOLS_NEED_NO_REASONING_RE.test(errorText)) return null;
+	return { ...body, reasoning_effort: "none" };
 }
 
 async function retrySampling<T>(attempt: () => Promise<T>, retry: () => Promise<T>, context: {
