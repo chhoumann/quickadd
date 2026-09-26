@@ -5,8 +5,10 @@ import type { AIProvider, Model } from "src/ai/Provider";
 import { ensureProviderIds, sortModelsForDisplay } from "src/ai/Provider";
 import { mergeModels, mergeSyncedModels } from "src/ai/modelsDirectory";
 import { diffModelLists, syncProviderModels } from "src/ai/modelSyncService";
-import { discoverProviderModels } from "src/ai/modelDiscoveryService";
-import { resolveProviderApiKey } from "src/ai/providerSecrets";
+import {
+	describeConnectionResult,
+	testProviderConnection,
+} from "src/ai/providerConnection";
 import { describeSyncStatus } from "./ai/syncStatus";
 import { settingsStore } from "src/settingsStore";
 import { ModelDirectoryModal } from "./ModelDirectoryModal";
@@ -31,6 +33,9 @@ export class AIAssistantProvidersModal extends Modal {
 
 	/** The edit view's sync status line under Auto-sync. */
 	private syncStatusEl: HTMLElement | null = null;
+
+	/** The edit view's Test connection result line. */
+	private connectionResultEl: HTMLElement | null = null;
 
 	/** Filter text for the edit view's model list; kept across re-renders. */
 	private modelFilter = "";
@@ -174,6 +179,7 @@ export class AIAssistantProvidersModal extends Modal {
 		this.contentEl.empty();
 		this.modelsContainerEl = null;
 		this.syncStatusEl = null;
+		this.connectionResultEl = null;
 		if (!this.selectedProvider) this.modelFilter = "";
 
 		this.display();
@@ -268,6 +274,7 @@ export class AIAssistantProvidersModal extends Modal {
 				text.setValue(this.selectedProvider!.endpoint).onChange(
 					(value) => {
 						this.selectedProvider!.endpoint = value;
+						this.invalidateConnectionState();
 					}
 				);
 			});
@@ -283,6 +290,7 @@ export class AIAssistantProvidersModal extends Modal {
 				if (!this.selectedProvider) return;
 				this.selectedProvider.apiKeyRef = value;
 				this.selectedProvider.apiKey = "";
+				this.invalidateConnectionState();
 			},
 		});
 	}
@@ -292,34 +300,32 @@ export class AIAssistantProvidersModal extends Modal {
 			.setName("Connection")
 			.setDesc("Check that QuickAdd can reach this provider's models endpoint with the linked key.");
 		const resultEl = setting.descEl.createDiv({ cls: "qa-ai-connection-result" });
+		this.connectionResultEl = resultEl;
 		setting.addButton((button) => {
 			button.setButtonText("Test connection").onClick(async () => {
 				const provider = this.selectedProvider;
 				if (!provider) return;
 				button.setDisabled(true);
 				resultEl.setText("Testing…");
-				let apiKey = "";
 				try {
-					apiKey = await resolveProviderApiKey(this.app, provider);
-					// Always ask the provider itself: the models.dev directory
-					// answers without a key, so it can't vouch for one.
-					const models = await discoverProviderModels(
-						{ ...provider, modelSource: "providerApi" },
-						apiKey,
-					);
-					resultEl.setText(
-						`✓ Connected. The provider lists ${models.length} model(s).`,
-					);
-				} catch (err) {
-					const message = (err as { message?: string }).message ?? String(err);
-					resultEl.setText(
-						`✗ ${message}${apiKey ? "" : " (No API key is linked.)"}`,
-					);
+					const result = await testProviderConnection(this.app, provider);
+					resultEl.setText(describeConnectionResult(result));
 				} finally {
 					button.setDisabled(false);
 				}
 			});
 		});
+	}
+
+	/**
+	 * The endpoint, key, wire type, or model source changed: the last sync
+	 * and connection results describe a configuration that no longer exists.
+	 */
+	private invalidateConnectionState(): void {
+		if (!this.selectedProvider) return;
+		delete this.selectedProvider.lastModelSync;
+		this.renderSyncStatus();
+		this.connectionResultEl?.setText("");
 	}
 
 	private renderSyncStatus(): void {
@@ -346,6 +352,7 @@ export class AIAssistantProvidersModal extends Modal {
 					this.selectedProvider.kind = value
 						? (value as AIProvider["kind"])
 						: undefined;
+					this.invalidateConnectionState();
 				});
 			});
 	}
@@ -372,6 +379,7 @@ export class AIAssistantProvidersModal extends Modal {
 				dropdown.onChange((value) => {
 					if (!this.selectedProvider) return;
 					this.selectedProvider.modelSource = value as AIProvider["modelSource"];
+					delete this.selectedProvider.lastModelSync;
 					this.reload();
 				});
 			});

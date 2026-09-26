@@ -225,6 +225,32 @@ describe("AIAssistantProvidersModal model list and connection UX", () => {
 		);
 	});
 
+	it("clears a stale sync status and connection result when the endpoint changes", async () => {
+		discovery.discoverProviderModels.mockResolvedValue([GPT4O]);
+		const providers = [
+			provider([GPT4O], { lastModelSync: { at: Date.now() - 60_000 } }),
+		];
+		const modal = openEdit(providers);
+		click(modal, "Test connection");
+		await flush();
+		expect(settingDesc(modal, "Auto-sync models")).toContain("Last synced 1 minute ago");
+		expect(settingDesc(modal, "Connection")).toContain("✓ Connected");
+
+		const endpoint = Array.from(modal.contentEl.querySelectorAll<HTMLInputElement>("input")).find(
+			(input) => input.value === "https://api.openai.com/v1",
+		)!;
+		endpoint.value = "https://proxy.example/v1";
+		endpoint.dispatchEvent(new Event("input"));
+
+		expect(settingDesc(modal, "Auto-sync models")).toContain("Not synced yet.");
+		expect(settingDesc(modal, "Connection")).not.toContain("✓ Connected");
+		expect(providers[0].lastModelSync).toBeUndefined();
+
+		// Cancel restores the saved configuration together with its status.
+		click(modal, "Cancel");
+		expect(providers[0].lastModelSync?.at).toBeLessThan(Date.now());
+	});
+
 	it("updates the sync status line when the background sync lands or fails", async () => {
 		let fail!: (error: Error) => void;
 		discovery.discoverProviderModels.mockReturnValue(

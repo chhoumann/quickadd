@@ -4,6 +4,11 @@ import type QuickAdd from "../main";
 import { checkChoiceHandler, listChoicesHandler, previewPackageHandler } from "./inspectChoices";
 import { CHECK_FLAGS, INTERACTIVE_FLAGS, LIST_FLAGS, PREVIEW_FLAGS, RUN_FLAGS, RUN_TEMPLATE_FLAGS } from "./params";
 import { runChoice, runInteractive, runTemplate } from "./runChoice";
+import {
+	AI_TEST_CONNECTION_COMMAND,
+	AI_TEST_CONNECTION_FLAGS,
+	aiTestConnectionHandler,
+} from "./aiConnectionCli";
 import { SAVE_CLIPBOARD_IMAGE_COMMAND, SAVE_CLIPBOARD_IMAGE_FLAGS, saveClipboardImageHandler } from "./saveClipboardImageCli";
 
 type CliResult = { ok: boolean;[key: string]: unknown };
@@ -25,6 +30,7 @@ const CLI_COMMANDS = {
 	preview: "quickadd:package-preview",
 	interactive: "quickadd:interactive",
 	saveClipboardImage: SAVE_CLIPBOARD_IMAGE_COMMAND,
+	aiTestConnection: AI_TEST_CONNECTION_COMMAND,
 } as const;
 
 export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
@@ -91,6 +97,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Run a choice interactively: forwards its runtime prompts to the caller over a local server (returns host/port/sessionId/token to attach)",
 		INTERACTIVE_FLAGS,
 		(params: CliData) => runInteractive(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.aiTestConnection,
+		"Check an AI provider's models endpoint with its linked API key (reports the model count or the provider's error; never the key)",
+		AI_TEST_CONNECTION_FLAGS,
+		(params: CliData) => aiTestConnectionHandler(plugin, params),
 	);
 	cliTarget.registerCliHandler.call(cliTarget,
 		CLI_COMMANDS.saveClipboardImage,
