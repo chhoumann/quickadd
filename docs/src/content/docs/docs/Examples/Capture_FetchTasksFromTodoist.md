@@ -8,8 +8,9 @@ You end up with one QuickAdd command that pulls tasks from your Todoist account 
 
 ## Prerequisites
 
-- The [Todoist](https://github.com/jamiebrynes7/obsidian-todoist-plugin) plugin for Obsidian, set up with your API key. There is a link to grab the key in the plugin's settings.
-- A [macro](/docs/Choices/MacroChoice/) that runs the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> (set up below).
+- A Todoist API token. In Todoist, open **Settings → Integrations → Developer** and copy the **API token**. The script talks to the [Todoist API](https://developer.todoist.com/api/v1/) directly, so you don't need the Todoist plugin for Obsidian.
+- The <a href="/scripts/TodoistScript.js" download>Todoist Script</a>, saved in your vault as a `.js` file, for example `scripts/todoistTaskSync.js`. Don't save it inside the `.obsidian` folder - QuickAdd ignores scripts there.
+- A [macro](/docs/Choices/MacroChoice/) that runs the script, and a [Capture choice](/docs/Choices/CaptureChoice/) that writes its output to a note (set up below).
 
 ## How it works
 
@@ -19,41 +20,44 @@ The Todoist Script has three exports, `SelectFromAllTasks`, `GetAllTasksFromProj
 -   `GetAllTasksFromProject` will prompt you for a project and get all tasks from that project, and
 -   `GetAllTasksFromSection` will prompt you for a section and get all tasks from that section.
 
-Personally, I just let QuickAdd ask me which one to execute.
+If you run the macro as-is, the script asks you which one to run. To always run one of them, reference it in the Capture format with `::`, for example `{{MACRO:Todoist::GetAllTasksFromProject}}`.
 
-However, when you are entering the user script in the macro, you can add `::GetAllTasksFromProject` (or, `::` followed by any of the other exports) to directly call one of the exported functions.
+:::caution[Imported tasks are completed in Todoist]
+By default, the script completes every task it imports, so the same task isn't imported twice. Recurring tasks move to their next occurrence instead. To keep the tasks open in Todoist, untick **Complete imported tasks in Todoist** in the script's settings.
+:::
 
-![Get all tasks from project](../Images/Todoist-GetAllTasksFromProject.png)
+## Setup
 
-**IMPORTANT:** If you do _NOT_ want this script to complete tasks in Todoist that you put into your vault, remove the function call to `closeSelectedTasks`.
+1. Save the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> to your vault, for example as `scripts/todoistTaskSync.js`.
+2. In **Settings → QuickAdd**, add a [Macro choice](/docs/Choices/MacroChoice/) named `Todoist`, and add the script to its command list. Add the script by its file name only - don't add `::GetAllTasksFromProject` there, because the script's settings are only available when the command points at the whole script.
+3. Click the gear (⚙️) next to the script command, and paste your Todoist API token into **Todoist API token**. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`. Leave **Complete imported tasks in Todoist** ticked, or untick it to leave tasks open in Todoist.
 
-Now, you will need a [Capture choice](/docs/Choices/CaptureChoice/) with the following settings.
+    ![Todoist script settings](../Images/Todoist-ScriptSettings.png)
 
--   _Capture to:_ the path to the file where you want to store the tasks.
--   _Capture format:_ Enabled - and in the format, write `{{MACRO:<MACRONAME>}}` where `MACRONAME` is the name of the macro that you made earlier.
+4. Add a [Capture choice](/docs/Choices/CaptureChoice/) with these settings:
+    -   _Capture to:_ the path to the file where you want to store the tasks.
+    -   _Capture format:_ Enabled - and in the format, write `{{MACRO:Todoist}}` to be asked which export to run, or `{{MACRO:Todoist::GetAllTasksFromProject}}` (or any of the other exports) to run that one directly.
+
+You can make one Capture choice per export, so each has its own command.
 
 ## What you get
 
 The tasks are written in this format:
-`- [ ] <Task Content> 📆 <YYYY-MM-DD>`
+`- [ ] <Task Content> 📅 <YYYY-MM-DD>`
 
-Which equals: `- [ ] Buy groceries 📆 2021-06-27`
+Which equals: `- [ ] Buy groceries 📅 2021-06-27`
 
 This task will be recognized by the Tasks plugin for Obsidian, as well.
 If there isn't a date set for the task, they'll simply be entered as `- [ ] Buy groceries`.
 
-### Steps
+## Troubleshooting
 
-_NOTE:_ If you simply follow the process below, you will be asked which export to execute each time.
-That is fine - if you want to be asked - but you can also make separate [Capture choices](/docs/Choices/CaptureChoice/) for each exported function, meaning, it'll execute that function without asking you which one to execute.
-Just set up the macro as shown in the image above.
-
-1. Set up the Todoist plugin - grab the API key from your Todoist account. There's a link in the plugin's settings.
-2. Download the Todoist Script (linked above) and add it to your vault as a javascript file. I'd encourage you to call it something like todoistTaskSync.js to be explicit.
-3. Follow along with what I do in the gif below
-
-![GKkCNWZHLv](https://user-images.githubusercontent.com/29108628/123500983-26ad2880-d642-11eb-9e45-b537271312d1.gif)
+- **"Add your Todoist API token in the Todoist script's settings"**: open the macro, click the gear next to the script command, and paste the token. If the script command's name ends in `::SomeExport`, remove that part so the gear shows the settings.
+- **"Todoist rejected the API token (HTTP 401)"**: the token is wrong or was reset. Copy it again from Todoist's Developer settings.
+- **"Secret setting ... is unavailable. Re-enter it on this device."**: secrets are stored per device. Paste the token again on this device.
 
 ### Installation video
+
+This older video shows the general flow of adding a user script to a macro and a Capture choice. It predates the API token setting: instead of setting up the Todoist plugin, paste your token in the script's settings as described above.
 
 https://user-images.githubusercontent.com/29108628/123511101-bde4a100-d67f-11eb-90c1-5bd146c5d0f2.mp4
