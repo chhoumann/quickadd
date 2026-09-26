@@ -201,6 +201,17 @@ describe("Writes into an open note land in its editor (#1798)", () => {
 		await expect.poll(async () => (await runAndSnapshot(path, "")).disk, POLL_OPTS).toMatch(/old-tag[\s\S]*new-tag/);
 	});
 
+	it.each(["top", "bottom"] as const)("places the cursor from a CRLF template applied to the %s of an open note", async mode => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, `crlf-body-${mode}.md`, "First\r\nSecond\r\nBefore{{CURSOR}}after");
+		const path = await seedNote(`crlf-body-target-${mode}.md`, HEAD);
+		await open(path, { line: 1, ch: 0 });
+		const result = await runAndSnapshot(path, `
+			await app.plugins.plugins.quickadd.api.applyTemplateToActiveFile(${JSON.stringify(template)}, { mode: ${JSON.stringify(mode)} });
+		`);
+		expect(result.editor.slice(result.offset - "Before".length, result.offset + "after".length)).toBe("Beforeafter");
+	});
+
 	it("merges template properties into a note with unsaved typing without a merge notice", async () => {
 		const { obsidian, sandbox } = getContext();
 		const template = await seedVaultFile(obsidian, sandbox, "apply-cursor.md", "---\nstatus: draft\n---\nInserted");
