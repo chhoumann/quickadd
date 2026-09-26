@@ -29,10 +29,11 @@ export abstract class ChoiceBuilder extends Modal {
 		});
 
 		this.containerEl.addClass("quickAddModal");
+		this.open();
 		// Installed here, not in display(): display() runs from the subclass
 		// constructor and is re-run by builders that rebuild their content.
+		// After open() so the footer's Done keeps the initial focus.
 		addAutosaveFooter(this, "choice");
-		this.open();
 	}
 
 	/**

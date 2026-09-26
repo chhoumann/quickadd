@@ -18,6 +18,12 @@ import type { Modal } from "obsidian";
  * content cannot drop it — MacroBuilder.reload() empties contentEl. Idempotent
  * for the same reason.
  *
+ * Also gives Done the initial focus, so every builder opens the same way. Call
+ * it AFTER `modal.open()`: open() autofocuses the first focusable element in the
+ * modal, which was the title's rename button in the Macro builder (built before
+ * open) but Done in the Template/Capture builders (their forms mount after open).
+ * Done is the safe target: Enter only closes, and closing saves.
+ *
  * @param subject What the modal edits, e.g. "choice" or "macro".
  */
 export function addAutosaveFooter(modal: Modal, subject: string): void {
@@ -33,4 +39,5 @@ export function addAutosaveFooter(modal: Modal, subject: string): void {
 
 	const done = footer.createEl("button", { type: "button", cls: "mod-cta", text: "Done" });
 	done.addEventListener("click", () => modal.close());
+	done.focus();
 }
