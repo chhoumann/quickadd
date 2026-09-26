@@ -149,7 +149,7 @@ describe("settings user-authored DOM XSS safety", () => {
 describe("QuickAddSettingsTab declarative bridge", () => {
 	function makeTab(): QuickAddSettingsTab {
 		const app = new App();
-		const plugin = { app } as unknown as QuickAdd;
+		const plugin = { app, register: vi.fn() } as unknown as QuickAdd;
 		return new QuickAddSettingsTab(app, plugin);
 	}
 
@@ -364,7 +364,7 @@ describe("Packages row export availability", () => {
 		cleanup: () => void;
 	} {
 		const app = new App();
-		const plugin = { app } as unknown as QuickAdd;
+		const plugin = { app, register: vi.fn() } as unknown as QuickAdd;
 		const tab = new QuickAddSettingsTab(app, plugin);
 		const setting = new Setting(document.createElement("div"));
 		const cleanup = (

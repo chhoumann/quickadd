@@ -213,11 +213,9 @@ export function resolveModelInputOrThrow(
 		];
 		const hint = candidates.length
 			? ` Did you mean ${candidates.join(" or ")}?`
-			// There has never been an "AI" settings group. Providers live behind the
-			// sparkles "Configure AI Assistant" button under the choice list, and
-			// auto-sync is a per-provider flag in the same modal — so the old path
-			// sent people somewhere that does not exist.
-			: " Add it under Edit providers in QuickAdd's AI Assistant settings (the sparkles button below the choice list), or enable auto-sync for that provider.";
+			// Providers live on their own settings sub-page, and auto-sync is a
+			// per-provider toggle there.
+			: " Add it in Settings → QuickAdd → AI Assistant → your provider, or turn on Auto-sync models for that provider.";
 		throw new Error(
 			`Model '${typeof input === "string" ? input : `${input.provider ?? ""}/${name}`}' not found in configured providers.${hint}`,
 		);

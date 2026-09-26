@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, SettingTab } from "obsidian";
 import { Notice } from "obsidian";
 import { log } from "../logger/logManager";
 
@@ -26,6 +26,40 @@ export function tryOpenPluginSettings(app: App, pluginId: string): boolean {
 		log.logMessage(
 			`QuickAdd: Failed to open plugin settings automatically: ${error}`,
 		);
+		return false;
+	}
+}
+
+/**
+ * Opens a sub-page of a settings tab, e.g. Settings → QuickAdd → AI Assistant.
+ * Obsidian has no public API for this; `navigateToSearchResult` is the
+ * internal path its own settings search takes to a result on a sub-page
+ * (Obsidian 1.13). Returns false when that is unavailable or throws.
+ */
+export function tryOpenSettingsPage(
+	app: App,
+	tab: SettingTab,
+	pagePath: string[],
+): boolean {
+	try {
+		const setting = (
+			app as unknown as {
+				setting?: {
+					navigateToSearchResult?: (
+						target: { tab: SettingTab; pagePath: string[] },
+						match: null,
+					) => void;
+				};
+			}
+		).setting;
+		if (typeof setting?.navigateToSearchResult !== "function") {
+			log.logMessage("QuickAdd: Obsidian's settings page navigation is unavailable.");
+			return false;
+		}
+		setting.navigateToSearchResult({ tab, pagePath }, null);
+		return true;
+	} catch (error) {
+		log.logMessage(`QuickAdd: Failed to open settings page: ${error}`);
 		return false;
 	}
 }

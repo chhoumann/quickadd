@@ -1,8 +1,17 @@
-import type { Setting, SettingDefinitionGroup } from "obsidian";
+import type {
+	Setting,
+	SettingDefinitionGroup,
+	SettingDefinitionPage,
+} from "obsidian";
 import type { QuickAddSettings } from "../../settings";
 import { createDocsLink, DOCS_URLS, openDocsUrl } from "../../docs";
 
-export type SettingsKey = Extract<keyof QuickAddSettings, string>;
+/** Declarative control keys for fields nested under `ai` (see the tab's store bridge). */
+export type AISettingsKey = `ai.${Extract<
+	keyof QuickAddSettings["ai"],
+	"showAssistant" | "confirmToolCalls"
+>}`;
+export type SettingsKey = Extract<keyof QuickAddSettings, string> | AISettingsKey;
 export const PACKAGES_DESC =
 	"Bundle or import QuickAdd automations as reusable packages.";
 
@@ -19,6 +28,7 @@ type SettingsRenderers = Record<
 export function createSettingDefinitions(
 	render: SettingsRenderers,
 	isDevBuild: boolean,
+	aiAssistantPage?: SettingDefinitionPage<SettingsKey>,
 ): SettingDefinitionGroup<SettingsKey>[] {
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{
@@ -193,6 +203,7 @@ export function createSettingDefinitions(
 					desc: "This prevents the plugin from making requests to external providers like OpenAI. You can still use user scripts to execute arbitrary code, including contacting external providers. However, this setting disables plugin features like the AI Assistant from doing so. You need to disable this setting to use the AI Assistant.",
 					control: { type: "toggle", key: "disableOnlineFeatures" },
 				},
+				...(aiAssistantPage ? [aiAssistantPage] : []),
 				{
 					name: "Allow URI x-callback-url",
 					desc: "When on, an obsidian://quickadd URI may open a callback URL (x-success / x-error / x-cancel) after a Template or Capture choice finishes — sending the outcome and the affected note's vault path and URL to that callback. While on, a URI that carries x-* callback params is restricted to Template and Capture choices (other choice types are warned and skipped). Off by default because the callback URL is set by whoever creates the obsidian:// link. Only shortcuts: and obsidian: callback URLs are permitted.",

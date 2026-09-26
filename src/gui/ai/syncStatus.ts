@@ -1,5 +1,10 @@
 import type { AIProvider } from "src/ai/Provider";
 
+/** "1 model", "3 models". */
+export function countModels(count: number): string {
+	return `${count} model${count === 1 ? "" : "s"}`;
+}
+
 /** "just now", "5 minutes ago", "3 hours ago", "2 days ago". */
 export function formatTimeAgo(at: number, now: number): string {
 	const minutes = Math.floor(Math.max(0, now - at) / 60_000);
@@ -20,5 +25,5 @@ export function describeSyncStatus(
 	if (!last) return "Not synced yet.";
 	const when = formatTimeAgo(last.at, now);
 	if (last.error) return `Last sync failed ${when}: ${last.error}`;
-	return `Last synced ${when} · ${provider.models.length} model(s).`;
+	return `Last synced ${when} · ${countModels(provider.models.length)}.`;
 }

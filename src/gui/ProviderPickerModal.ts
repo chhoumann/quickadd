@@ -154,7 +154,7 @@ export class ProviderPickerModal extends Modal {
         b.setButtonText("Add custom...").onClick(() => {
           const provider: AIProvider = { id: uniqueProviderId("custom", this.providers), name: "Custom", endpoint: "", apiKey: "", apiKeyRef: "", models: [], modelSource: "providerApi" };
           this.providers.push(provider);
-          new Notice("Custom provider added. Click Edit to configure.");
+          new Notice("Custom provider added. Open it in the list to configure it.");
           this.close();
         });
       });

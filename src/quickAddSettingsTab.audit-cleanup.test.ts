@@ -10,7 +10,7 @@ vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 function makeTab(): QuickAddSettingsTab {
 	const app = new App();
-	const plugin = { app } as unknown as QuickAdd;
+	const plugin = { app, register: vi.fn() } as unknown as QuickAdd;
 	return new QuickAddSettingsTab(app, plugin);
 }
 

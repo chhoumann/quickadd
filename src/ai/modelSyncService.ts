@@ -66,6 +66,58 @@ export async function syncProviderModels(
 }
 
 /**
+ * Sync one stored provider and merge the result into the store by id. The
+ * request runs against a detached copy, and the discovered models are merged
+ * into the provider as it is when the request returns, so edits made in the
+ * meantime survive (a model the user deleted comes back only if the source
+ * still lists it). The outcome is recorded in `lastModelSync` either way.
+ * Rethrows on failure; resolves to the discovered models, or null when the
+ * provider was removed before the request returned.
+ */
+export async function syncStoredProvider(
+	app: App | undefined,
+	providerId: string,
+): Promise<Model[] | null> {
+	const stored = settingsStore
+		.getState()
+		.ai.providers.find((p) => p.id === providerId);
+	if (!stored) return null;
+	const copy: AIProvider = {
+		...stored,
+		models: stored.models.map((model) => ({ ...model })),
+	};
+
+	let discovered: Model[] | undefined;
+	let failure: { error: unknown } | undefined;
+	try {
+		({ discovered } = await syncProviderModels(app, copy));
+	} catch (error) {
+		failure = { error };
+	}
+
+	let present = false;
+	settingsStore.setState((current) => ({
+		ai: {
+			...current.ai,
+			providers: current.ai.providers.map((provider) => {
+				if (provider.id !== providerId) return provider;
+				present = true;
+				return {
+					...provider,
+					models: discovered
+						? mergeSyncedModels(provider.models, discovered)
+						: provider.models,
+					lastModelSync: copy.lastModelSync,
+				};
+			}),
+		},
+	}));
+
+	if (failure) throw failure.error;
+	return present ? (discovered ?? []) : null;
+}
+
+/**
  * Nonempty message for a failed sync. An empty `Error("")` message must not
  * be stored as `error: ""` — consumers treat that as success via truthiness.
  */

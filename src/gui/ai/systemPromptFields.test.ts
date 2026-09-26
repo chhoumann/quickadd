@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * Both system-prompt modals must not offer a format affordance: the system
+ * Both system-prompt fields (the AI Assistant settings page's default and the
+ * command modal's own) must not offer a format affordance: the system
  * prompt reaches the model verbatim (pinned by
  * AIAssistant.systemPromptLiteral.test.ts), so a live preview resolving its
  * tokens asserted a substitution that never happens (#1565), and on the shipped
@@ -16,13 +17,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
 	formatDisplayFormatter: vi.fn(),
 	formatSyntaxSuggester: vi.fn(),
+	defaultSystemPrompt: "",
 }));
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
+		setState: vi.fn(),
+		subscribe: vi.fn(() => () => {}),
 		getState: () => ({
 			ai: {
+				defaultSystemPrompt: mocks.defaultSystemPrompt,
 				promptTemplatesFolderPath: "",
 				showAssistant: false,
 				providers: [
@@ -74,10 +79,10 @@ vi.mock("src/gui/suggesters/formatSyntaxSuggester", () => ({
 	},
 }));
 
-import { App } from "obsidian";
+import { App, Setting } from "obsidian";
+import type { SettingDefinitionGroup, SettingDefinitionRender } from "obsidian";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import type { QuickAddSettings } from "src/settings";
-import { AIAssistantSettingsModal } from "src/gui/AIAssistantSettingsModal";
+import { createAIAssistantPage } from "src/gui/ai/aiAssistantSettingsPage";
 import { AIAssistantCommandSettingsModal } from "src/gui/MacroGUIs/AIAssistantCommandSettingsModal";
 
 const PROSE_PROMPT = "As an AI assistant within Obsidian, help the user.";
@@ -93,14 +98,29 @@ function testApp(): App {
 	return app;
 }
 
-function aiSettings(defaultSystemPrompt: string): QuickAddSettings["ai"] {
+/** Render the AI Assistant page's "Default system prompt" row, as Obsidian would. */
+function openDefaultSystemPromptRow(systemPrompt: string): OpenedModal {
+	mocks.defaultSystemPrompt = systemPrompt;
+	const page = createAIAssistantPage(testApp());
+	const row = (page.items ?? [])
+		.flatMap((item) => (item as SettingDefinitionGroup).items ?? [])
+		.find((item) => item.name === "Default system prompt") as SettingDefinitionRender;
+	const contentEl = document.body.createDiv();
+	const render = () => {
+		const setting = new Setting(contentEl).setName(row.name);
+		row.render(setting, undefined as never);
+	};
+	render();
 	return {
-		defaultModel: "gpt-test",
-		defaultSystemPrompt,
-		promptTemplatesFolderPath: "",
-		showAssistant: false,
-		providers: [],
-	} as unknown as QuickAddSettings["ai"];
+		contentEl,
+		// Obsidian re-renders a page's rows from scratch on update().
+		reload: () => {
+			contentEl.empty();
+			render();
+		},
+		close: () => contentEl.remove(),
+		label: "Default system prompt",
+	};
 }
 
 function aiCommand(systemPrompt: string): IAIAssistantCommand {
@@ -118,8 +138,8 @@ function aiCommand(systemPrompt: string): IAIAssistantCommand {
 
 interface OpenedModal {
 	contentEl: HTMLElement;
-	/** Every one of these modals re-renders in place; the AI settings modal does
-	 *  it on every "Edit providers", the command modals on every model change. */
+	/** Every one of these re-renders in place: the settings page on update(),
+	 *  the command modal on every model change. */
 	reload: () => void;
 	close: () => void;
 	label: string;
@@ -143,12 +163,8 @@ const MODALS: Array<{
 	open: (systemPrompt: string) => OpenedModal;
 }> = [
 	{
-		name: "AIAssistantSettingsModal (default system prompt)",
-		open: (systemPrompt) =>
-			opened(
-				new AIAssistantSettingsModal(testApp(), aiSettings(systemPrompt)),
-				"Default system prompt",
-			),
+		name: "AI Assistant settings page (default system prompt)",
+		open: openDefaultSystemPromptRow,
 	},
 	{
 		name: "AIAssistantCommandSettingsModal (system prompt)",
@@ -162,7 +178,7 @@ const MODALS: Array<{
 
 function promptTextarea(contentEl: HTMLElement): HTMLTextAreaElement {
 	const textarea = contentEl.querySelector<HTMLTextAreaElement>(
-		"textarea.qa-ai-prompt-textarea",
+		"textarea",
 	);
 	if (!textarea) throw new Error("System prompt textarea not found");
 	return textarea;
