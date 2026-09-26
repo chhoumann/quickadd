@@ -70,9 +70,9 @@ export function createSettingDefinitions(
 						key: "templateFolderLauncherRow",
 						defaultValue: "bottom",
 						options: {
-							bottom: "Show at the bottom (keeps your top choice first)",
-							top: "Show at the top",
-							off: "Hide",
+							bottom: "Bottom",
+							top: "Top",
+							off: "Hidden",
 						},
 					},
 				},
@@ -153,10 +153,9 @@ export function createSettingDefinitions(
 						key: "announceUpdates",
 						defaultValue: "major",
 						options: {
-							all: "Show updates on each new release",
-							major:
-								"Show updates only on major releases (new features, breaking changes)",
-							none: "Don't show",
+							all: "Every release",
+							major: "Feature releases",
+							none: "Never",
 						},
 					},
 				},
