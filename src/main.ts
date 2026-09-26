@@ -59,6 +59,7 @@ import { ingestImagesIntoActivePrompt as ingestPromptImages } from "./gui/imageP
 import { setQuickAddInstance } from "./quickAddInstance";
 import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
+import { scheduleStartupModelSync } from "./ai/startupModelSync";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -214,11 +215,10 @@ export default class QuickAdd extends Plugin {
 
 		// Keep AI provider model lists current without plugin releases: a quiet,
 		// daily-throttled background sync for providers that opted in. Deferred
-		// past layout-ready so it never competes with startup work.
-		this.app.workspace.onLayoutReady(() => {
-			window.setTimeout(() => {
-				void autoSyncEnabledProviders(this.app);
-			}, 5_000);
+		// past layout-ready so it never competes with startup work, and cancelled
+		// if this instance unloads first.
+		scheduleStartupModelSync(this, () => {
+			void autoSyncEnabledProviders(this.app);
 		});
 
 		this.announceUpdate();
