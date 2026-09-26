@@ -142,4 +142,33 @@ describe("MacroBuilder", () => {
 		done.click();
 		expect(close).toHaveBeenCalledTimes(1);
 	});
+
+	// The Template and Capture builders' title (ChoiceNameHeader.svelte) shows a
+	// pencil next to the name; the Macro builder's title must match it.
+	it("renders the title like ChoiceNameHeader, with a pencil rename icon", () => {
+		const modal = new MacroBuilder(
+			new App(),
+			{ settings: { choices: [] } } as unknown as QuickAdd,
+			new MacroChoice("Macro under test"),
+			[],
+		);
+
+		const heading = modal.contentEl.querySelector("h2");
+		expect(heading?.classList.contains("choiceNameHeader")).toBe(true);
+
+		const button = heading?.querySelector("button.qa-rename-title-button");
+		expect(button?.classList.contains("choiceNameHeaderButton")).toBe(true);
+		expect(button?.getAttribute("aria-label")).toBe("Rename Macro under test");
+		expect(
+			button?.querySelector(".choiceNameHeaderText")?.textContent,
+		).toBe("Macro under test");
+
+		const icon = button?.querySelector(".choiceNameHeaderIcon");
+		expect(icon?.getAttribute("aria-hidden")).toBe("true");
+		const svg = icon?.querySelector("svg");
+		expect(svg?.getAttribute("data-icon")).toBe("pencil");
+		expect(svg?.getAttribute("width")).toBe("16");
+		// The icon is decorative: the button's visible text is still just the name.
+		expect(button?.textContent).toBe("Macro under test");
+	});
 });
