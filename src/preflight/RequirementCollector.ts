@@ -590,12 +590,13 @@ export class RequirementCollector extends Formatter {
 		// previous empty-folder one-page behavior by permitting a literal value when
 		// no real file options exist.
 		const allowCustomInput = parsed.allowCustomInput || options.length === 0;
-		// Disambiguate same-scope tokens that differ only by mode (e.g. a basename
-		// and a link to the same folder) when no explicit |label.
-		const autoLabel =
-			parsed.mode === "name"
-				? `File from ${parsed.folderPath}`
-				: `File from ${parsed.folderPath} (${parsed.mode})`;
+		// Disambiguate same-folder tokens that differ only by type or mode (e.g. an
+		// image and a PDF link from one folder) when no explicit |label.
+		const qualifiers = [...parsed.types];
+		if (parsed.mode !== "name") qualifiers.push(parsed.mode);
+		const autoLabel = qualifiers.length
+			? `File from ${parsed.folderPath} (${qualifiers.join(", ")})`
+			: `File from ${parsed.folderPath}`;
 		this.requirements.set(key, {
 			id: key,
 			label: parsed.label ?? autoLabel,
