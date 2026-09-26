@@ -16,7 +16,7 @@ import {
 import { preventCursorChange } from "./preventCursorChange";
 import { reportError } from "../utils/errorUtils";
 import type { AIProvider, Model } from "./Provider";
-import { getProviderKind } from "./Provider";
+import { getChatWire, getProviderKind } from "./Provider";
 import type { NormalizedChatRequest } from "./tools/NormalizedTools";
 import {
 	buildChatBody,
@@ -24,7 +24,10 @@ import {
 } from "./tools/providerToolMapping";
 import { log } from "src/logger/logManager";
 import { estimateTokenCount } from "./tokenEstimator";
-import { classifyProviderError } from "./providerErrors";
+import {
+	classifyProviderError,
+	isForcedToolChoiceUnsupportedError,
+} from "./providerErrors";
 
 
 export type { CommonResponse, AnthropicContentBlock, AnthropicResponse, GeminiResponse } from "./providerRequest";
@@ -172,7 +175,7 @@ export async function chatRequest(
 		);
 	}
 
-	const kind = getProviderKind(modelProvider);
+	const wire = getChatWire(modelProvider);
 	// Same sampling safety as the single-prompt path: drop params the model's
 	// metadata marks unsupported, and keep the sent set for the reactive retry.
 	const effectiveRequest: NormalizedChatRequest = {
@@ -183,7 +186,7 @@ export async function chatRequest(
 		effectiveRequest.modelParams ?? {},
 	);
 	const body = buildChatBody(
-		kind,
+		wire,
 		model.name,
 		effectiveRequest,
 		anthropicMaxTokens(model),
@@ -206,35 +209,19 @@ export async function chatRequest(
 	});
 
 	try {
-		const send = (body: Record<string, unknown>) => dispatchProviderRequest<Record<string, unknown>>({
-			kind, apiKey, provider: modelProvider, model, body,
+		const dispatch = (body: Record<string, unknown>) => dispatchProviderRequest<Record<string, unknown>>({
+			kind: wire, apiKey, provider: modelProvider, model, body,
 			afterRequest: afterRequestCallback,
 		});
-		const dispatch = async (body: Record<string, unknown>) => {
-			try {
-				return await send(body);
-			} catch (error) {
-				const retryBody = toolReasoningRetryBody(
-					kind,
-					body,
-					(error as { message?: string }).message ?? String(error),
-				);
-				if (!retryBody) throw error;
-				log.logMessage(
-					`[AI Chat ${requestLogId}] ${model.name} rejected function tools while reasoning; retrying with reasoning_effort "none".`,
-				);
-				return send(retryBody);
-			}
-		};
 		const json = await retrySampling(
 			() => dispatch(body),
-			() => dispatch(buildChatBody(kind, model.name, {
+			() => dispatch(buildChatBody(wire, model.name, {
 				...effectiveRequest,
 				modelParams: stripSamplingParams(effectiveRequest.modelParams ?? {}),
 			}, anthropicMaxTokens(model))),
 			{ sentKeys: samplingKeysSent, model, provider: modelProvider, logPrefix: `AI Chat ${requestLogId}` },
 		);
-		const parsed = parseChatResponse(kind, json);
+		const parsed = parseChatResponse(wire, json);
 		const durationMs = Date.now() - requestStart;
 		finishAIRequestLogEntry(requestLogId, {
 			status: "success",
@@ -267,37 +254,16 @@ export async function chatRequest(
 		// Report the wrapper, not the bare cause: its message names the provider, and
 		// `reportError` reports a failure once (#1601), so reporting the cause first
 		// would suppress the more informative message at every layer above.
+		const guidance = isForcedToolChoiceUnsupportedError(error)
+			? ` ${model.name} can't be forced to call a tool, so toolChoice "required" and named tools don't work with it. Use toolChoice "auto" (the default) and say in the prompt when to call the tool, or pass a schema to get a fixed JSON shape.`
+			: "";
 		const failure = new Error(
-			`Error while making request to ${modelProvider.name}: ${errorMessage}`,
+			`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 			{ cause: error },
 		);
 		reportError(failure);
 		throw failure;
 	}
-}
-
-// "Function tools with reasoning_effort are not supported for gpt-6-sol in
-// /v1/chat/completions. To use function tools, use /v1/responses or set
-// reasoning_effort to 'none'." (verified live 2026-09-26 for the gpt-6 and
-// gpt-5.6 families, which reason by default; gpt-5.5 and older default to none).
-const TOOLS_NEED_NO_REASONING_RE =
-	/function tools with reasoning_effort are not supported[\s\S]*reasoning_effort to 'none'/i;
-
-/**
- * The body to retry a Chat Completions tool request with when the model
- * rejected function tools because it reasons by default, or null when the
- * error is anything else or the caller already chose a reasoning effort.
- */
-export function toolReasoningRetryBody(
-	kind: ReturnType<typeof getProviderKind>,
-	body: Record<string, unknown>,
-	errorText: string,
-): Record<string, unknown> | null {
-	if (kind !== "openai") return null;
-	if (!Array.isArray(body.tools) || body.tools.length === 0) return null;
-	if (body.reasoning_effort !== undefined) return null;
-	if (!TOOLS_NEED_NO_REASONING_RE.test(errorText)) return null;
-	return { ...body, reasoning_effort: "none" };
 }
 
 async function retrySampling<T>(attempt: () => Promise<T>, retry: () => Promise<T>, context: {

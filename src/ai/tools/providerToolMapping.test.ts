@@ -275,3 +275,122 @@ describe("injectStrictObjectSchema", () => {
 		});
 	});
 });
+
+describe("OpenAI Responses mapping (api.openai.com)", () => {
+	it("minimal body: model, input, stateless storage, encrypted reasoning", () => {
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [{ role: "user", content: "hi" }],
+		});
+		expect(body).toEqual({
+			model: "gpt-6-luna",
+			input: [{ role: "user", content: "hi" }],
+			store: false,
+			include: ["reasoning.encrypted_content"],
+		});
+	});
+
+	it("renames Chat Completions modelOptions and passes the rest through", () => {
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [{ role: "user", content: "hi" }],
+			modelParams: { reasoning_effort: "high", max_tokens: 300, top_p: 0.5 } as never,
+		});
+		expect(body.reasoning).toEqual({ effort: "high" });
+		expect(body.max_output_tokens).toBe(300);
+		expect(body.top_p).toBe(0.5);
+		expect(body).not.toHaveProperty("reasoning_effort");
+		expect(body).not.toHaveProperty("max_tokens");
+	});
+
+	it("maxOutputTokens wins over a max_tokens model option", () => {
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [{ role: "user", content: "hi" }],
+			maxOutputTokens: 50,
+			modelParams: { max_tokens: 300 } as never,
+		});
+		expect(body.max_output_tokens).toBe(50);
+	});
+
+	it("flat tools (strict schema injected), named tool_choice, parallel flag", () => {
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [{ role: "user", content: "make a note" }],
+			tools: [{ ...tool, strict: true }],
+			toolChoice: { name: "create_note" },
+			disableParallel: true,
+		});
+		expect(body.tools).toEqual([
+			{
+				type: "function",
+				name: "create_note",
+				description: "Create a note",
+				parameters: { ...tool.parameters, additionalProperties: false },
+				strict: true,
+			},
+		]);
+		expect(body.tool_choice).toEqual({ type: "function", name: "create_note" });
+		expect(body.parallel_tool_calls).toBe(false);
+	});
+
+	it("structured output goes under text.format with the strict schema", () => {
+		const schema = { type: "object" as const, properties: { title: { type: "string" as const } } };
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [{ role: "user", content: "x" }],
+			responseFormat: { schema, name: "meta" },
+		});
+		expect(body.text).toEqual({
+			format: {
+				type: "json_schema",
+				name: "meta",
+				strict: true,
+				schema: { ...schema, required: ["title"], additionalProperties: false },
+			},
+		});
+		expect(body).not.toHaveProperty("response_format");
+	});
+
+	it("rebuilds function_call items when there is no provider output to echo", () => {
+		const body = buildChatBody("openai-responses", "gpt-6-luna", {
+			messages: [
+				{ role: "user", content: "q" },
+				{
+					role: "assistant",
+					content: "Checking.",
+					toolCalls: [{ id: "call_1", name: "create_note", args: { path: "a.md" } }],
+				},
+				{ role: "tool", results: [{ toolCallId: "call_1", name: "create_note", content: "no", isError: true }] },
+			],
+			tools: [tool],
+		});
+		expect(body.input).toEqual([
+			{ role: "user", content: "q" },
+			{ role: "assistant", content: "Checking." },
+			{ type: "function_call", call_id: "call_1", name: "create_note", arguments: '{"path":"a.md"}' },
+			{ type: "function_call_output", call_id: "call_1", output: "ERROR: no" },
+		]);
+	});
+
+	it("an output cut off by max_output_tokens is 'length', and reasoning text is not content", () => {
+		const parsed = parseChatResponse("openai-responses", {
+			status: "incomplete",
+			incomplete_details: { reason: "max_output_tokens" },
+			output: [
+				{ type: "reasoning", summary: [{ type: "summary_text", text: "thinking" }] },
+				{ type: "message", content: [{ type: "output_text", text: "Once upon" }, { type: "refusal", refusal: "x" }] },
+			],
+			usage: { input_tokens: 3, output_tokens: 16, total_tokens: 19 },
+		});
+		expect(parsed.content).toBe("Once upon");
+		expect(parsed.normalizedStopReason).toBe("length");
+		expect(parsed.rawStopReason).toBe("max_output_tokens");
+	});
+
+	it("flags unparseable function_call arguments instead of throwing", () => {
+		const parsed = parseChatResponse("openai-responses", {
+			status: "completed",
+			output: [{ type: "function_call", id: "fc_1", call_id: "call_9", name: "create_note", arguments: "{oops" }],
+		});
+		expect(parsed.toolCalls).toEqual([
+			{ id: "call_9", name: "create_note", args: null, rawArgs: "{oops", parseError: true },
+		]);
+		expect(parsed.normalizedStopReason).toBe("tool_calls");
+	});
+});

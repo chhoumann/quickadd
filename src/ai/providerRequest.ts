@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
-import type { AIProvider, Model } from "./Provider";
+import type { AIProvider, ChatWire, Model } from "./Provider";
 import type { ProviderKind } from "./tools/providerToolMapping";
 import type { NormalizedStopReason, NormalizedToolCall } from "./tools/NormalizedTools";
 import { buildProviderError } from "./providerErrors";
@@ -17,7 +17,7 @@ type RequestContext = {
 export async function dispatchProviderRequest<T>({
 	kind, apiKey, provider, model, body, afterRequest,
 }: RequestContext & {
-	kind: ProviderKind;
+	kind: ChatWire;
 	body: Record<string, unknown>;
 }): Promise<T> {
 	const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -31,6 +31,10 @@ export async function dispatchProviderRequest<T>({
 		case "gemini":
 			path = `/v1beta/models/${encodeURIComponent(model.name)}:generateContent`;
 			headers["x-goog-api-key"] = apiKey;
+			break;
+		case "openai-responses":
+			path = "/responses";
+			headers.Authorization = `Bearer ${apiKey}`;
 			break;
 		default:
 			path = "/chat/completions";

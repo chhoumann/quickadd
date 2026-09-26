@@ -60,6 +60,27 @@ export function getProviderKind(provider: {
 	return "openai";
 }
 
+/**
+ * The request format a tool/agent turn is sent in. OpenAI's own API gets the
+ * Responses API: its newest models (gpt-6-*, gpt-5.6-*) reason by default and
+ * reject function tools on Chat Completions (verified live 2026-09-26: "use
+ * /v1/responses or set reasoning_effort to 'none'"). OpenAI-compatible
+ * third-party endpoints keep Chat Completions, the format they all implement.
+ */
+export type ChatWire = ProviderKind | "openai-responses";
+
+export function getChatWire(provider: {
+	kind?: ProviderKind;
+	name?: string;
+	endpoint?: string;
+}): ChatWire {
+	const kind = getProviderKind(provider);
+	if (kind === "openai" && endpointHost(provider.endpoint) === "api.openai.com") {
+		return "openai-responses";
+	}
+	return kind;
+}
+
 /** Lowercased hostname of an endpoint, or "" if it can't be parsed (scheme optional). */
 function endpointHost(endpoint?: string): string {
 	const raw = (endpoint ?? "").trim();
