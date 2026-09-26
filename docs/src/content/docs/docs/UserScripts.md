@@ -160,9 +160,10 @@ The `app` object provides access to the entire Obsidian API, including:
 ### The `settings` object {#settings-object}
 
 `settings` holds the user-configured values for your script's options. It's only
-passed when you use the object structure with a `settings` block. That includes
-an export picked with `::` (for example `my-script::start`): QuickAdd reads the
-`settings` block from `module.exports` and passes the values to the export.
+populated when your script defines a `settings` block, as in the object
+structure above. An export picked with `::` (for example `my-script::start`)
+gets the values too: QuickAdd uses the nearest `settings` block on the export
+or its parents, up to `module.exports`.
 
 ## Let users configure your script {#configurable-options}
 

@@ -87,8 +87,10 @@ How the pieces fit together:
 A script can export more functions next to `entry` and `settings`. A macro
 command named with `::`, such as `my-script::otherExport`, runs that export
 instead of `entry`. The export still receives `settings` as its second
-argument, and the gear still shows the script's settings, because QuickAdd
-reads `settings` from the script's `module.exports`, not from the export.
+argument, and the gear still shows the script's settings. QuickAdd looks for
+`settings` on the selected export first, then on each parent up to
+`module.exports`, and uses the nearest one it finds - so an export without its
+own `settings` uses the script's.
 Settings are saved per macro command, so two commands for the same script keep
 separate values.
 
