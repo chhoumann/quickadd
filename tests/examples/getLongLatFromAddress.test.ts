@@ -34,13 +34,19 @@ function run(options: {
 		async (_file: unknown, fn: (fm: Record<string, unknown>) => void) =>
 			fn(frontmatter),
 	);
-	const inputPrompt = vi.fn(async () => options.address);
+	const startFile = { path: "Places/Eiffel Tower.md", basename: "Eiffel Tower" };
+	let activeFile: typeof startFile | null =
+		options.activeFile === false ? null : startFile;
+	const inputPrompt = vi.fn(async (_header: string) => {
+		// While the prompt is open, Peek lets the user open another note.
+		activeFile = { path: "Contacts/Venue.md", basename: "Venue" };
+		return options.address;
+	});
 
 	const params = {
 		app: {
 			workspace: {
-				getActiveFile: () =>
-					options.activeFile === false ? null : { path: "Place.md" },
+				getActiveFile: () => activeFile,
 			},
 			fileManager: { processFrontMatter },
 		},
@@ -62,6 +68,7 @@ function run(options: {
 		requestUrl,
 		processFrontMatter,
 		inputPrompt,
+		startFile,
 	};
 }
 
@@ -82,6 +89,18 @@ describe("getLongLatFromAddress example script", () => {
 			location: "48.8582599,2.2945006",
 		});
 		expect(ctx.notices).toEqual([]);
+	});
+
+	it("writes to the note open when the macro started, even if another note is active on submit", async () => {
+		const ctx = run({
+			address: "Eiffel Tower, Paris",
+			results: [{ lat: "48.8582599", lon: "2.2945006" }],
+		});
+		await ctx.done;
+
+		expect(ctx.inputPrompt).toHaveBeenCalledWith("🏠 Address for Eiffel Tower");
+		expect(ctx.processFrontMatter).toHaveBeenCalledTimes(1);
+		expect(ctx.processFrontMatter.mock.calls[0][0]).toBe(ctx.startFile);
 	});
 
 	it("replaces an existing location", async () => {
