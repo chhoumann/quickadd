@@ -276,6 +276,28 @@ describe("injectStrictObjectSchema", () => {
 	});
 });
 
+describe("OpenAI Chat Completions refusals", () => {
+	it("returns the refusal's explanation instead of an empty answer", () => {
+		const parsed = parseChatResponse("openai", {
+			choices: [
+				{ finish_reason: "stop", message: { role: "assistant", content: null, refusal: "I can't help with that." } },
+			],
+		});
+		expect(parsed.content).toBe("I can't help with that.");
+		expect(parsed.normalizedStopReason).toBe("other");
+		expect(parsed.rawStopReason).toBe("refusal");
+	});
+
+	it("an ordinary answer with a null refusal field is a normal stop", () => {
+		const parsed = parseChatResponse("openai", {
+			choices: [{ finish_reason: "stop", message: { role: "assistant", content: "Hi", refusal: null } }],
+		});
+		expect(parsed.content).toBe("Hi");
+		expect(parsed.normalizedStopReason).toBe("stop");
+		expect(parsed.rawStopReason).toBe("stop");
+	});
+});
+
 describe("OpenAI Responses mapping (api.openai.com)", () => {
 	it("minimal body: model, input, stateless storage, encrypted reasoning", () => {
 		const body = buildChatBody("openai-responses", "gpt-6-luna", {

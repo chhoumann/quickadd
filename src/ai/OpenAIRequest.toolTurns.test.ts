@@ -150,6 +150,25 @@ describe("OpenAI tool turns use the Responses API on api.openai.com", () => {
 		).rejects.toThrow(/Invalid schema/);
 		expect(requestUrlMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("keeps the reasoning_effort retry off the Responses API", async () => {
+		requestUrlMock.mockReturnValueOnce(
+			Promise.resolve({
+				status: 400,
+				json: {
+					error: {
+						message: "Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'.",
+						type: "invalid_request_error",
+					},
+				},
+			}),
+		);
+
+		await expect(
+			chatRequest(makeApp(), "sk", gpt6, openaiCompatible("https://api.openai.com/v1"), toolRequest()),
+		).rejects.toThrow(/reasoning_effort/);
+		expect(requestUrlMock).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("OpenAI-compatible endpoints keep Chat Completions", () => {

@@ -797,7 +797,9 @@ These accept only the default `temperature` (omit it from `modelOptions`). The a
 
 Agent turns to OpenAI's own API (`https://api.openai.com/v1`) use the Responses API, which lets
 reasoning models such as GPT-5.6 and GPT-6 call tools with reasoning on. Other OpenAI-compatible
-providers use Chat Completions. `modelOptions` keep their Chat Completions names either way:
+providers use Chat Completions. If a gateway there (Azure OpenAI, OpenRouter, LiteLLM, ...) rejects
+a tool turn because the model reasons by default, QuickAdd retries it once with
+`reasoning_effort: "none"`, unless you set `reasoning_effort` yourself. `modelOptions` keep their Chat Completions names either way:
 QuickAdd sends `reasoning_effort` as `reasoning.effort` and `max_tokens` as `max_output_tokens`
 on the Responses API, and sends `maxOutputTokens` as `max_completion_tokens` to reasoning models
 on Chat Completions.

@@ -180,18 +180,24 @@ function parseOpenAIResponse(json: Record<string, unknown>): ParsedChatResult {
 	const toolCalls = rawCalls.map((tc) => parseOpenAIToolCall(tc));
 	const finish = String(choice.finish_reason ?? "");
 	const usage = (json.usage as Record<string, number>) ?? {};
+	// A safety refusal leaves content null and explains itself in `refusal`.
+	// Return the explanation rather than an empty answer, and don't call it a
+	// normal stop (matches the Responses API parser).
+	const text = typeof msg.content === "string" ? msg.content : "";
+	const refusal = typeof msg.refusal === "string" ? msg.refusal : "";
+	const refused = !text && refusal.length > 0 && toolCalls.length === 0;
 	return {
-		content: (msg.content as string) ?? "",
+		content: refused ? refusal : text,
 		toolCalls,
 		normalizedStopReason:
 			toolCalls.length > 0 || finish === "tool_calls"
 				? "tool_calls"
 				: finish === "length"
 					? "length"
-					: finish === "stop"
+					: finish === "stop" && !refused
 						? "stop"
 						: "other",
-		rawStopReason: finish,
+		rawStopReason: refused ? "refusal" : finish,
 		usage: {
 			promptTokens: usage.prompt_tokens ?? 0,
 			completionTokens: usage.completion_tokens ?? 0,
