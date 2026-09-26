@@ -206,7 +206,6 @@ describe("getReleaseNotesAfter", () => {
 			release("2.9.4", { draft: true }),
 			release("2.9.0"),
 			release("not-a-version"),
-			release("1.18.1"),
 			release("1.18.0"),
 		]);
 
