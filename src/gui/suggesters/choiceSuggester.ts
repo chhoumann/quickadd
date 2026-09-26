@@ -288,6 +288,12 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		}
 	}
 
+	/** `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal). */
+	onOpen(): void {
+		super.onOpen();
+		this.modalEl.addClass("qa-choice-suggester");
+	}
+
 	onClose(): void {
 		super.onClose();
 		this.markdownComponent.unload();

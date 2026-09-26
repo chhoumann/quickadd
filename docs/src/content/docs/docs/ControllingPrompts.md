@@ -115,6 +115,25 @@ Rather than answering prompts one at a time, QuickAdd can collect everything in 
 
 The full behavior - what is collected, date parsing, defaults, and script-declared inputs - is documented in [One-page Inputs](/docs/Advanced/onePageInputs/).
 
+## Style pickers with CSS {#style-pickers-with-css}
+
+QuickAdd's pickers are standard Obsidian pickers, so they open near the top of the window like the command palette, while text prompts open in the middle. To change that, target these classes from a [CSS snippet](https://obsidian.md/help/snippets):
+
+| Class | Picker |
+| --- | --- |
+| `qa-choice-suggester` | The QuickAdd launcher and Multi choices |
+| `qa-suggester` | Single-value pick lists such as `{{VALUE:a,b,c}}`, the note picker for Template choices that look for existing notes, and `quickAddApi.suggester` in scripts |
+
+For example, this centers QuickAdd's pickers on desktop and leaves the command palette and other plugins alone:
+
+```css
+body:not(.is-mobile) .prompt:is(.qa-choice-suggester, .qa-suggester) {
+	top: auto;
+}
+```
+
+A centered picker re-centers as you type, so the search box moves a little when the list gets shorter.
+
 ## For script authors {#for-script-authors}
 
 User scripts can declare their inputs so they appear in the one-page form (`quickadd.inputs`), and can open a one-page form of their own at runtime with [`quickAddApi.requestInputs`](/docs/QuickAddAPI/). Both are covered in [One-page Inputs](/docs/Advanced/onePageInputs/#user-scripts-declare-inputs-optional).

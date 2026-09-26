@@ -83,6 +83,15 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 		}
 	}
 
+	/**
+	 * `qa-suggester` is a stable hook for user CSS snippets; core styles every
+	 * picker as `.prompt`, so without it a snippet can't tell QuickAdd's apart.
+	 */
+	onOpen(): void {
+		super.onOpen();
+		this.modalEl.addClass("qa-suggester");
+	}
+
 	getItemText(item: T): string {
 		const index = this.items.indexOf(item);
 		const displayItem = index >= 0 ? this.displayItems[index] : undefined;
