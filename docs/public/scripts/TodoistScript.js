@@ -98,13 +98,10 @@ async function importTasks(params, settings, todoist, tasks, sourceName) {
 
     // IMPORTANT: this completes the imported tasks in Todoist.
     // Untick "Complete imported tasks in Todoist" in the script settings to keep them open.
-    // Always return `output` even if a close fails mid-batch: earlier tasks may
-    // already be completed in Todoist and would otherwise be lost from the capture.
     if (settings[COMPLETE_TASKS]) {
-        try {
-            await closeSelectedTasks(todoist, tasks);
-        } catch {
-            new params.obsidian.Notice("Some imported tasks could not be completed in Todoist. They are still in the note.");
+        const failed = await closeSelectedTasks(todoist, tasks);
+        if (failed.length > 0) {
+            new params.obsidian.Notice(`Could not complete ${failed.length} of ${tasks.length} imported tasks in Todoist; they are still open there.`, 10000);
         }
     }
 
@@ -112,10 +109,19 @@ async function importTasks(params, settings, todoist, tasks, sourceName) {
     return output;
 }
 
+// Returns the tasks that could not be completed. The note still gets every
+// imported task, so a failed close never loses one that was already closed.
 async function closeSelectedTasks(todoist, tasks) {
+    const failed = [];
     for (const task of tasks) {
-        await todoist.request("POST", `/tasks/${task.id}/close`);
+        try {
+            await todoist.request("POST", `/tasks/${task.id}/close`);
+        } catch (error) {
+            console.error(`Todoist: could not complete task ${task.id}`, error);
+            failed.push(task);
+        }
     }
+    return failed;
 }
 
 function formatTasksToTasksPluginTask(tasks) {
