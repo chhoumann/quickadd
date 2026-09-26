@@ -122,7 +122,7 @@ QuickAdd's pickers are standard Obsidian pickers, so they open near the top of t
 | Class | Picker |
 | --- | --- |
 | `qa-choice-suggester` | The QuickAdd launcher and Multi choices |
-| `qa-suggester` | Pick lists such as `{{VALUE:a,b,c}}`, and `quickAddApi.suggester` in scripts |
+| `qa-suggester` | Single-value pick lists such as `{{VALUE:a,b,c}}`, the note picker for Template choices that look for existing notes, and `quickAddApi.suggester` in scripts |
 
 For example, this centers QuickAdd's pickers on desktop and leaves the command palette and other plugins alone:
 

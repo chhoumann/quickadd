@@ -37,6 +37,12 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 		this.open();
 	}
 
+	/** `qa-suggester` is a stable hook for user CSS snippets (see SuggesterModal). */
+	onOpen(): void {
+		super.onOpen();
+		this.modalEl.addClass("qa-suggester");
+	}
+
 	getItems(): DiscoveryRow[] { return this.rows; }
 
 	getItemText(row: DiscoveryRow): string {
