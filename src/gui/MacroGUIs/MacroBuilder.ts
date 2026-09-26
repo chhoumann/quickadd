@@ -94,10 +94,11 @@ export class MacroBuilder extends Modal {
 		);
 
 		this.display();
+		this.open();
 		// Installed here, not in display(): reload() re-runs display(), which
 		// empties contentEl. The footer lives on modalEl and survives that.
+		// After open() so the footer's Done, not the title, gets initial focus.
 		addAutosaveFooter(this, "macro");
-		this.open();
 	}
 
 	onClose() {
