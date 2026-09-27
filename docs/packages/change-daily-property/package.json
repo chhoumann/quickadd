@@ -1,0 +1,49 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-change-daily-property"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-change-daily-property",
+				"name": "Change daily note property",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-change-daily-property-macro",
+					"name": "Change daily note property",
+					"commands": [
+						{
+							"id": "qa-pkg-change-daily-property-script",
+							"name": "changeDailyProperty",
+							"type": "UserScript",
+							"path": "scripts/changeDailyProperty.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Change daily note property"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/changeDailyProperty.js",
+			"source": "../../public/scripts/changeDailyProperty.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"If your daily notes are not at `Daily/<date>.md`, open the **Change daily note property** macro and click the cog on the **changeDailyProperty** step to set **Daily note path** (the page uses `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`).",
+			"Run **Change daily note property** from the command palette, pick a property from today's note, and enter its new value."
+		]
+	}
+}

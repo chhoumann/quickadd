@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-change-daily-property"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-change-daily-property",
+				"name": "Change daily note property",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-change-daily-property-macro",
+					"name": "Change daily note property",
+					"commands": [
+						{
+							"id": "qa-pkg-change-daily-property-script",
+							"name": "changeDailyProperty",
+							"type": "UserScript",
+							"path": "scripts/changeDailyProperty.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Change daily note property"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/changeDailyProperty.js",
+			"contentEncoding": "base64",
+			"content": "Ly8gTGlzdHMgdGhlIHByb3BlcnRpZXMgaW4gdG9kYXkncyBkYWlseSBub3RlLCBhc2tzIGZvciBhIG5ldyB2YWx1ZSwgYW5kIHdyaXRlcyBpdCBiYWNrLgovLyBVc2VzIE9ic2lkaWFuJ3Mgb3duIGFwcC5maWxlTWFuYWdlci5wcm9jZXNzRnJvbnRNYXR0ZXI7IG5vIG90aGVyIHBsdWdpbnMgbmVlZGVkLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fQ2hhbmdlUHJvcGVydHlJbkRhaWx5Tm90ZXMKY29uc3QgREFJTFlfTk9URV9QQVRIID0gIkRhaWx5IG5vdGUgcGF0aCI7CmNvbnN0IERFRkFVTFRfUEFUSCA9ICJEYWlseS97e0RBVEU6Z2dnZy1NTS1ERCAtIGRkZCBNTU0gRH19Lm1kIjsKCm1vZHVsZS5leHBvcnRzID0gewoJZW50cnk6IHN0YXJ0LAoJc2V0dGluZ3M6IHsKCQluYW1lOiAiQ2hhbmdlIGRhaWx5IG5vdGUgcHJvcGVydHkiLAoJCWF1dGhvcjogIkNocmlzdGlhbiBCLiBCLiBIb3VtYW5uIiwKCQlvcHRpb25zOiB7CgkJCVtEQUlMWV9OT1RFX1BBVEhdOiB7CgkJCQl0eXBlOiAiZm9ybWF0IiwKCQkJCWRlZmF1bHRWYWx1ZTogREVGQVVMVF9QQVRILAoJCQkJcGxhY2Vob2xkZXI6IERFRkFVTFRfUEFUSCwKCQkJCWRlc2NyaXB0aW9uOiAiUGF0aCBvZiB0b2RheSdzIGRhaWx5IG5vdGUsIHdpdGggUXVpY2tBZGQgZGF0ZSBzeW50YXguIiwKCQkJfSwKCQl9LAoJfSwKfTsKCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0KHBhcmFtcywgc2V0dGluZ3MpIHsKCWNvbnN0IHsgYXBwLCBxdWlja0FkZEFwaSwgb2JzaWRpYW4gfSA9IHBhcmFtczsKCWNvbnN0IHBhdGggPSBhd2FpdCBxdWlja0FkZEFwaS5mb3JtYXQoc2V0dGluZ3NbREFJTFlfTk9URV9QQVRIXSB8fCBERUZBVUxUX1BBVEgsIHt9KTsKCWNvbnN0IGZpbGUgPSBhcHAudmF1bHQuZ2V0QWJzdHJhY3RGaWxlQnlQYXRoKHBhdGgpOwoJaWYgKCEoZmlsZSBpbnN0YW5jZW9mIG9ic2lkaWFuLlRGaWxlKSkgewoJCW5ldyBvYnNpZGlhbi5Ob3RpY2UoYE5vIGRhaWx5IG5vdGUgYXQgJHtwYXRofS5gKTsKCQlyZXR1cm47Cgl9CgoJY29uc3QgZnJvbnRtYXR0ZXIgPSBhcHAubWV0YWRhdGFDYWNoZS5nZXRGaWxlQ2FjaGUoZmlsZSk/LmZyb250bWF0dGVyID8/IHt9OwoJY29uc3Qga2V5cyA9IE9iamVjdC5rZXlzKGZyb250bWF0dGVyKS5maWx0ZXIoKGtleSkgPT4ga2V5ICE9PSAicG9zaXRpb24iKTsKCWlmIChrZXlzLmxlbmd0aCA9PT0gMCkgewoJCW5ldyBvYnNpZGlhbi5Ob3RpY2UoYE5vIHByb3BlcnRpZXMgaW4gJHtmaWxlLmJhc2VuYW1lfWApOwoJCXJldHVybjsKCX0KCgljb25zdCBrZXkgPSBhd2FpdCBxdWlja0FkZEFwaS5zdWdnZXN0ZXIoa2V5cywga2V5cyk7CglpZiAoIWtleSkgcmV0dXJuOwoKCWNvbnN0IGN1cnJlbnQgPSBmcm9udG1hdHRlcltrZXldOwoJY29uc3Qgc2hvd24gPSBTdHJpbmcoY3VycmVudCA/PyAiIik7Cgljb25zdCBuZXdWYWx1ZSA9IGF3YWl0IHF1aWNrQWRkQXBpLmlucHV0UHJvbXB0KGBMb2cgJHtrZXl9YCwgc2hvd24sIHNob3duKTsKCWlmIChuZXdWYWx1ZSA9PT0gdW5kZWZpbmVkIHx8IG5ld1ZhbHVlID09PSBudWxsKSByZXR1cm47CgoJYXdhaXQgYXBwLmZpbGVNYW5hZ2VyLnByb2Nlc3NGcm9udE1hdHRlcihmaWxlLCAoZm0pID0+IHsKCQlmbVtrZXldID0ga2VlcFR5cGUoY3VycmVudCwgbmV3VmFsdWUpOwoJfSk7Cn0KCi8vIFdyaXRlIG51bWJlcnMgYW5kIGJvb2xlYW5zIGJhY2sgYXMgbnVtYmVycyBhbmQgYm9vbGVhbnMgd2hlbiB0aGUgbmV3IHRleHQgc3RpbGwgaXMgb25lLgpmdW5jdGlvbiBrZWVwVHlwZShjdXJyZW50LCB0ZXh0KSB7CglpZiAodHlwZW9mIGN1cnJlbnQgPT09ICJudW1iZXIiICYmIHRleHQudHJpbSgpICE9PSAiIiAmJiBOdW1iZXIuaXNGaW5pdGUoTnVtYmVyKHRleHQpKSkgewoJCXJldHVybiBOdW1iZXIodGV4dCk7Cgl9CglpZiAodHlwZW9mIGN1cnJlbnQgPT09ICJib29sZWFuIiAmJiAodGV4dCA9PT0gInRydWUiIHx8IHRleHQgPT09ICJmYWxzZSIpKSB7CgkJcmV0dXJuIHRleHQgPT09ICJ0cnVlIjsKCX0KCXJldHVybiB0ZXh0Owp9Cg=="
+		}
+	]
+}

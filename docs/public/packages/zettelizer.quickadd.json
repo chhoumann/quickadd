@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-zettelizer"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-zettelizer",
+				"name": "Zettelize headings",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-zettelizer-macro",
+					"name": "Zettelize headings",
+					"commands": [
+						{
+							"id": "qa-pkg-zettelizer-script",
+							"name": "zettelizer",
+							"type": "UserScript",
+							"path": "scripts/zettelizer.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Zettelize headings"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/zettelizer.js",
+			"contentEncoding": "base64",
+			"content": "Ly8gQ3JlYXRlcyBvbmUgbGlua2VkIG5vdGUgcGVyIGhlYWRpbmcgb2YgYSBjaG9zZW4gbGV2ZWwgaW4gdGhlIGFjdGl2ZSBub3RlLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fWmV0dGVsaXplcgpjb25zdCBGT0xERVIgPSAiRm9sZGVyIGZvciBuZXcgbm90ZXMiOwpjb25zdCBIRUFESU5HX0xFVkVMID0gIkhlYWRpbmcgbGV2ZWwiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CiAgICBlbnRyeTogc3RhcnQsCiAgICBzZXR0aW5nczogewogICAgICAgIG5hbWU6ICJaZXR0ZWxpemVyIiwKICAgICAgICBhdXRob3I6ICJDaHJpc3RpYW4gQi4gQi4gSG91bWFubiIsCiAgICAgICAgb3B0aW9uczogewogICAgICAgICAgICBbRk9MREVSXTogewogICAgICAgICAgICAgICAgdHlwZTogInRleHQiLAogICAgICAgICAgICAgICAgZGVmYXVsdFZhbHVlOiAiWmV0dGVscyIsCiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcjogIlpldHRlbHMiLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJGb2xkZXIgdGhlIG5ldyBub3RlcyBnbyBpbiAoY3JlYXRlZCBpZiBtaXNzaW5nKS4gTGVhdmUgZW1wdHkgZm9yIHRoZSB2YXVsdCByb290LiIsCiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIFtIRUFESU5HX0xFVkVMXTogewogICAgICAgICAgICAgICAgdHlwZTogImRyb3Bkb3duIiwKICAgICAgICAgICAgICAgIG9wdGlvbnM6IFsiMSIsICIyIiwgIjMiLCAiNCIsICI1IiwgIjYiXSwKICAgICAgICAgICAgICAgIGRlZmF1bHRWYWx1ZTogIjMiLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJPbmx5IGhlYWRpbmdzIG9mIHRoaXMgbGV2ZWwgYmVjb21lIG5vdGVzICgzIG1lYW5zICMjIyBoZWFkaW5ncykuIiwKICAgICAgICAgICAgfSwKICAgICAgICB9LAogICAgfSwKfTsKCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0KHBhcmFtcywgc2V0dGluZ3MpIHsKICAgIGNvbnN0IHsgYXBwIH0gPSBwYXJhbXM7CiAgICBjb25zdCBjdXJyZW50RmlsZSA9IGFwcC53b3Jrc3BhY2UuZ2V0QWN0aXZlRmlsZSgpOwogICAgaWYgKCFjdXJyZW50RmlsZSkgewogICAgICAgIG5ldyBOb3RpY2UoIk5vIGFjdGl2ZSBmaWxlLiIpOwogICAgICAgIHJldHVybjsKICAgIH0KCiAgICBjb25zdCBjdXJyZW50RmlsZUNhY2hlID0gYXBwLm1ldGFkYXRhQ2FjaGUuZ2V0RmlsZUNhY2hlKGN1cnJlbnRGaWxlKTsKICAgIGNvbnN0IGhlYWRpbmdzSW5GaWxlID0gY3VycmVudEZpbGVDYWNoZSAmJiBjdXJyZW50RmlsZUNhY2hlLmhlYWRpbmdzOwogICAgaWYgKCFoZWFkaW5nc0luRmlsZSkgewogICAgICAgIG5ldyBOb3RpY2UoYE5vIGhlYWRlcnMgaW4gZmlsZSAke2N1cnJlbnRGaWxlLm5hbWV9YCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IGZvbGRlciA9IFN0cmluZyhzZXR0aW5nc1tGT0xERVJdID8/ICIiKS50cmltKCkucmVwbGFjZSgvXlwvK3xcLyskL2csICIiKTsKICAgIGNvbnN0IGxldmVsID0gTnVtYmVyKHNldHRpbmdzW0hFQURJTkdfTEVWRUxdIHx8IDMpOwoKICAgIGlmIChmb2xkZXIgJiYgIShhd2FpdCBhcHAudmF1bHQuYWRhcHRlci5leGlzdHMoZm9sZGVyKSkpIHsKICAgICAgICB0cnkgewogICAgICAgICAgICBhd2FpdCBhcHAudmF1bHQuY3JlYXRlRm9sZGVyKGZvbGRlcik7CiAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHsKICAgICAgICAgICAgaWYgKCFTdHJpbmcoZXJyb3IgJiYgZXJyb3IubWVzc2FnZSkuaW5jbHVkZXMoImFscmVhZHkgZXhpc3RzIikpIHRocm93IGVycm9yOwogICAgICAgIH0KICAgIH0KCiAgICBmb3IgKGNvbnN0IGhlYWRpbmcgb2YgaGVhZGluZ3NJbkZpbGUpIHsKICAgICAgICBpZiAoaGVhZGluZy5sZXZlbCAhPT0gbGV2ZWwpIGNvbnRpbnVlOwoKICAgICAgICBjb25zdCBzcGxpdEhlYWRpbmcgPSBoZWFkaW5nLmhlYWRpbmcuc3BsaXQoIiAiKTsKICAgICAgICBjb25zdCBsb2NhdGlvbiA9IHNwbGl0SGVhZGluZ1swXS50cmltKCk7CiAgICAgICAgY29uc3QgdGV4dCA9IHNwbGl0SGVhZGluZy5sZW5ndGggPiAxID8gc3BsaXRIZWFkaW5nLnNsaWNlKDEpLmpvaW4oIiAiKS50cmltKCkgOiAiIjsKICAgICAgICBpZiAoIXRleHQpIGNvbnRpbnVlOwoKICAgICAgICBjb25zdCBmaWxlTmFtZSA9IGAke3RleHQucmVwbGFjZSgvW1xcLCMlJlx7XH1cLyo8PiRcJ1wiOkBdKi9nLCAiIil9Lm1kYDsKICAgICAgICBjb25zdCBwYXRoID0gZm9sZGVyID8gYCR7Zm9sZGVyfS8ke2ZpbGVOYW1lfWAgOiBmaWxlTmFtZTsKICAgICAgICBjb25zdCBjb250ZW50ID0gYCFbWyR7Y3VycmVudEZpbGUuYmFzZW5hbWV9IyR7bG9jYXRpb259ICR7dGV4dH1dXWA7CgogICAgICAgIGlmIChhd2FpdCBhcHAudmF1bHQuYWRhcHRlci5leGlzdHMocGF0aCkpIHsKICAgICAgICAgICAgbmV3IE5vdGljZShgRmlsZSAke3BhdGh9IGFscmVhZHkgZXhpc3RzLmAsIDUwMDApOwogICAgICAgICAgICBjb250aW51ZTsKICAgICAgICB9CiAgICAgICAgYXdhaXQgYXBwLnZhdWx0LmNyZWF0ZShwYXRoLCBjb250ZW50KTsKICAgIH0KfQo="
+		}
+	]
+}

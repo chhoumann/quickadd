@@ -2,6 +2,7 @@
 title: Migrate Dataview Properties to Frontmatter
 description: Migrate inline Dataview properties to YAML frontmatter with wikilink-aware comma handling and selective property lists
 slug: docs/Examples/Macro_MigrateDataviewProperties
+package: migrate-dataview-properties
 ---
 
 This script allows you to migrate inline Dataview properties to YAML frontmatter. It's particularly useful when transitioning from Dataview's inline syntax to native Obsidian properties, which offer better performance and broader compatibility.
@@ -37,6 +38,8 @@ The inline properties are removed from the body of the note after migration.
 **Note:** The `tags` property is automatically normalized to lowercase and `#` symbols are stripped, following Obsidian's frontmatter conventions for reserved property names.
 
 ## Installation
+
+Imported the package above? The script and the **Migrate Dataview properties** macro are already in place, set to migrate only `Reference, Related`; skip to [Configuration](#configuration) to pick your properties.
 
 1. Save the script (`migrateDataviewToFrontmatter.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it - I named mine `Migrate Properties`.

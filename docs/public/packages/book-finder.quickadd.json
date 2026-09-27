@@ -1,0 +1,88 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-book-finder"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-book-finder",
+				"name": "Add book note",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-book-finder-macro",
+					"name": "Add book note",
+					"commands": [
+						{
+							"id": "qa-pkg-book-finder-script",
+							"name": "BookFinder",
+							"type": "UserScript",
+							"path": "scripts/BookFinder.js",
+							"settings": {}
+						},
+						{
+							"id": "qa-pkg-book-finder-nested",
+							"name": "Book note",
+							"type": "NestedChoice",
+							"choice": {
+								"id": "qa-pkg-book-finder-template",
+								"name": "Book note",
+								"type": "Template",
+								"command": false,
+								"templatePath": "Templates/Book.md",
+								"fileNameFormat": {
+									"enabled": true,
+									"format": "{{VALUE:fileName}}"
+								},
+								"discoverExistingNotesBeforeCreate": false,
+								"folder": {
+									"enabled": true,
+									"folders": [
+										"Books"
+									],
+									"chooseWhenCreatingNote": false,
+									"createInSameFolderAsActiveFile": false,
+									"chooseFromSubfolders": false
+								},
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"openFile": true,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"fileExistsBehavior": {
+									"kind": "prompt"
+								}
+							}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Add book note"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/BookFinder.js",
+			"contentEncoding": "base64",
+			"content": "Y29uc3Qgbm90aWNlID0gKG1zZykgPT4gbmV3IE5vdGljZShtc2csIDUwMDApOwpjb25zdCBsb2cgPSAobXNnKSA9PiBjb25zb2xlLmxvZyhtc2cpOwoKY29uc3QgR09PR0xFX0JPT0tTX0FQSV9VUkwgPSAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYm9va3MvdjEvdm9sdW1lcyI7CmNvbnN0IEdPT0dMRV9CT09LU19USVRMRV9URVJNID0gImludGl0bGU6IgoKbGV0IFF1aWNrQWRkOwoKbW9kdWxlLmV4cG9ydHMgPSAgYXN5bmMgZnVuY3Rpb24gc3RhcnQocGFyYW1zKSB7CiAgUXVpY2tBZGQgPSBwYXJhbXM7CgogIGxldCBjbGlwQm9hcmRDb250ZW50cyA9IGF3YWl0IFF1aWNrQWRkLnF1aWNrQWRkQXBpLnV0aWxpdHkuZ2V0Q2xpcGJvYXJkKCk7CiAgY29uc3QgdGl0bGUgPSBhd2FpdCBRdWlja0FkZC5xdWlja0FkZEFwaS5pbnB1dFByb21wdCgKICAgICJFbnRlciBCb29rIHRpdGxlOiAiLCBjbGlwQm9hcmRDb250ZW50cywgY2xpcEJvYXJkQ29udGVudHMgLy8gY2xpcEJvYXJkQ29udGVudHMgaXMgYWRkZWQgb25jZSBhcyB0aGUgcHJvbXB0IHRleHQgYW5kIG9uY2UgYXMgdGhlIGRlZmF1bHQgdmFsdWUKICApOwogIGlmICghdGl0bGUpIHsKICAgIG5vdGljZSgiTm8gdGl0bGUgZW50ZXJlZC4iKTsKICAgIHRocm93IG5ldyBFcnJvcigiTm8gdGl0bGUgZW50ZXJlZC4iKTsKICB9CgogIGNvbnN0IGVuY29kZWRUaXRsZSA9IGVuY29kZVVSSUNvbXBvbmVudChHT09HTEVfQk9PS1NfVElUTEVfVEVSTSArIHRpdGxlKTsKICBjb25zdCBmaW5hbFVSTCA9IEdPT0dMRV9CT09LU19BUElfVVJMICsgIj9xPSIgKyBlbmNvZGVkVGl0bGUgKyAiJm1heFJlc3VsdHM9MTAiOwogIGNvbnN0IHJlc3BvbnNlID0gYXdhaXQgZmV0Y2goZmluYWxVUkwpOwogIGNvbnN0IGJvb2tEZXNjID0gYXdhaXQgcmVzcG9uc2UuanNvbigpOwoKICAvLyBUaGUgR29vZ2xlIEJvb2tzIEFQSSBvbWl0cyBgaXRlbXNgIGVudGlyZWx5IHdoZW4gYSB0aXRsZSB5aWVsZHMgbm8gbWF0Y2hlcy4KICBpZiAoIWJvb2tEZXNjLml0ZW1zIHx8IGJvb2tEZXNjLml0ZW1zLmxlbmd0aCA9PT0gMCkgewogICAgbm90aWNlKCJObyByZXN1bHRzIGZvdW5kIGZvcjogIiArIHRpdGxlKTsKICAgIHRocm93IG5ldyBFcnJvcigiTm8gcmVzdWx0cyBmb3VuZCBmb3I6ICIgKyB0aXRsZSk7CiAgfQoKICAvLyBJbiBhbiBpZGVhbCB3b3JsZCB3ZSB3b3VsZCBwb3B1cCBhIHBpY2tlciB0aGF0IHNob3dzIHRoZSB1c2VyOiBCb29rIFRpdGxlLCBBdXRob3IocykgYW5kIGNvdmVyLiBUaGV5IHdvdWxkIHNlbGVjdCB0aGUgY29ycmVjdCB2ZXJzaW9uIGZyb20gdGhlcmUKICBjb25zdCBib29rID0gYm9va0Rlc2MuaXRlbXNbMF07CiAgY29uc3Qgdm9sdW1lSW5mbyA9IGJvb2sudm9sdW1lSW5mbzsKCiAgUXVpY2tBZGQudmFyaWFibGVzID0gewogICAgLi4uYm9vaywKICAgIHRpdGxlOiB2b2x1bWVJbmZvLnRpdGxlLAogICAgLy8gSG93IHRvIGdldCBtdXRpcGxlIGF1dGhvcnMgb3IgY2F0ZWdvcmllcyBvdXQgd2l0aCBjb21tYXMgYmV0d2VlbiB0aGVtCiAgICBhdXRob3JzOiB2b2x1bWVJbmZvLmF1dGhvcnMsCiAgICBjYXRlZ29yaWVzOiB2b2x1bWVJbmZvLmNhdGVnb3JpZXMsCiAgICBkZXNjcmlwdGlvbjogdm9sdW1lSW5mby5kZXNjcmlwdGlvbiwKICAgIGZpbGVOYW1lOiByZXBsYWNlSWxsZWdhbEZpbGVOYW1lQ2hhcmFjdGVyc0luU3RyaW5nKHZvbHVtZUluZm8udGl0bGUpLAogICAgLy8gTWFueSB2YWxpZCB2b2x1bWVzIGhhdmUgbm8gY292ZXIsIHNvIHRoZSBpbWFnZUxpbmtzIG9iamVjdCBjYW4gYmUgbWlzc2luZy4KICAgIFBvc3Rlcjogdm9sdW1lSW5mby5pbWFnZUxpbmtzPy5zbWFsbFRodW1ibmFpbAogIH07Cn0KCmZ1bmN0aW9uIHJlcGxhY2VJbGxlZ2FsRmlsZU5hbWVDaGFyYWN0ZXJzSW5TdHJpbmcoc3RyaW5nKSB7CiAgcmV0dXJuIHN0cmluZy5yZXBsYWNlKC9bXFwsIyUmXHtcfVwvKjw+PyRcJ1wiOkBdKi9nLCAiIik7Cn0="
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/Book.md",
+			"contentEncoding": "base64",
+			"content": "IVtwb3N0ZXJdKHt7VkFMVUU6UG9zdGVyfX0pCgoqKkF1dGhvcioqOjoge3tWQUxVRTphdXRob3JzfX0KKipUaXRsZSoqOjoge3tWQUxVRTp0aXRsZX19CioqQ2F0ZWdvcnkqKjo6e3tWQUxVRTpjYXRlZ29yaWVzfX0KKipTdGF0dXMqKjo6IPCfk6UKCioqUmVsYXRlZCBCb29rcyoqCiMjIyBDb3JlIFF1ZXN0aW9ucyBmb3IgTWUKCiMjIyBBY3Rpb25zCgojIyMgTXkgTm90ZXMKCiMjIERldGFpbHMKe3tWQUxVRTpkZXNjcmlwdGlvbn19Cg=="
+		}
+	]
+}

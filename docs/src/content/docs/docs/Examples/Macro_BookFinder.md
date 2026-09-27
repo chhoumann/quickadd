@@ -2,12 +2,15 @@
 title: Book Finder Script
 description: Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required
 slug: docs/Examples/Macro_BookFinder
+package: book-finder
 ---
 
 This macro looks up a book by title and inserts its details into a new note in your vault. It uses the Google Books API, and you don't need an API key because it only reads publicly available information.
 
 
 ## Installation
+
+Imported the package above? The script, the `Templates/Book.md` template, and the **Add book note** macro (with its **Book note** Template step saving to `Books/`) are already in place; skip to [Usage](#usage).
 
 This works by adding the BookFinder [user script](/docs/UserScripts/) to a [Macro choice](/docs/Choices/MacroChoice/) that you run from the main menu.
 You can find the script <a href="/scripts/BookFinder.js" download>here</a>.

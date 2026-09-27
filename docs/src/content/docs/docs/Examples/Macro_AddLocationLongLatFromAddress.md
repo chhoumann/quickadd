@@ -2,6 +2,7 @@
 title: "Macro: Add location long-lat from address"
 description: Macro and user script that geocode an address into a location latitude-longitude property on the active note, for the Map View plugin
 slug: docs/Examples/Macro_AddLocationLongLatFromAddress
+package: location-from-address
 ---
 
 This macro asks you for an address, looks up its coordinates, and sets a `location` property on the note you have open. The value has the form `lat,lng`, for example `location: 48.8582599,2.2945006`. That is the front matter format the [Obsidian Map View plugin](https://github.com/esm7/obsidian-map-view) recommends and writes itself, so Map View places the note on its map.
@@ -12,6 +13,8 @@ This macro asks you for an address, looks up its coordinates, and sets a `locati
 - No other plugin is needed to write the property. Install Map View if you want to see your notes on a map.
 
 ## Setup
+
+Imported the package above? The script and the **Add location from address** macro are already in place; skip to [What you get](#what-you-get).
 
 1. Grab the script from [this page](/scripts/getLongLatFromAddress.js). You can either click the download link, or copy the file contents and save them as `getLongLatFromAddress.js`. The `.js` extension is essential.
 2. Save the file anywhere in your vault, except `.obsidian` or another hidden folder (one whose name starts with a dot). For a fuller walkthrough, see [how to add a script to a macro](/docs/UserScripts/#adding-scripts-to-macros).

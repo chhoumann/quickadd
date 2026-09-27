@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-zettelizer"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-zettelizer",
+				"name": "Zettelize headings",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-zettelizer-macro",
+					"name": "Zettelize headings",
+					"commands": [
+						{
+							"id": "qa-pkg-zettelizer-script",
+							"name": "zettelizer",
+							"type": "UserScript",
+							"path": "scripts/zettelizer.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Zettelize headings"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/zettelizer.js",
+			"source": "../../public/scripts/zettelizer.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Open the note you want to split and run **Zettelize headings** from the command palette.",
+			"Each `###` heading becomes a note in `Zettels/` (created if missing), named after the heading minus its first word and linking back to it.",
+			"To change that, open the **Zettelize headings** macro in **Settings → QuickAdd** and click the cog on the **zettelizer** step: set **Folder for new notes** (empty means the vault root) and **Heading level**."
+		]
+	}
+}

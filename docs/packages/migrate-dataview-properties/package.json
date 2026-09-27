@@ -1,0 +1,53 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-migrate-dataview-properties"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-migrate-dataview-properties",
+				"name": "Migrate Dataview properties",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-migrate-dataview-properties-macro",
+					"name": "Migrate Dataview properties",
+					"commands": [
+						{
+							"id": "qa-pkg-migrate-dataview-properties-script",
+							"name": "migrateDataviewToFrontmatter",
+							"type": "UserScript",
+							"path": "scripts/migrateDataviewToFrontmatter.js",
+							"settings": {
+								"Migrate All Properties": false,
+								"Properties to Migrate": "Reference, Related"
+							}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Migrate Dataview properties"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/migrateDataviewToFrontmatter.js",
+			"source": "../../public/scripts/migrateDataviewToFrontmatter.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"In **Settings → QuickAdd**, open the **Migrate Dataview properties** macro and click the cog on the **migrateDataviewToFrontmatter** step. Set **Properties to Migrate** to the fields you want moved (default `Reference, Related`); turn on **Migrate All Properties** only if you want every inline field moved.",
+			"Open a note and run **Migrate Dataview properties**. It only changes the active note.",
+			"Try it on a test note or back up your vault first: the migrated inline lines are removed from the note body."
+		]
+	}
+}

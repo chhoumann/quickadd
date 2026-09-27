@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-move-tagged-notes"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-move-tagged-notes",
+				"name": "Move notes with a tag",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-move-tagged-notes-macro",
+					"name": "Move notes with a tag",
+					"commands": [
+						{
+							"id": "qa-pkg-move-tagged-notes-script",
+							"name": "moveNotesWithTag",
+							"type": "UserScript",
+							"path": "scripts/moveNotesWithTag.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Move notes with a tag"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/moveNotesWithTag.js",
+			"source": "../../public/scripts/moveNotesWithTag.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Run **Move notes with a tag** from the command palette, pick the tag, answer whether to include nested tags, then pick the destination folder.",
+			"Notes whose path contains `template` (lowercase) are skipped.",
+			"Files move immediately with no undo; to reverse it, move them back or use Obsidian's File recovery."
+		]
+	}
+}

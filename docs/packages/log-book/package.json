@@ -1,0 +1,49 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-log-book"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-log-book",
+				"name": "Log book",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-log-book-macro",
+					"name": "Log book",
+					"commands": [
+						{
+							"id": "qa-pkg-log-book-script",
+							"name": "logBook",
+							"type": "UserScript",
+							"path": "scripts/logBook.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Log book"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/logBook.js",
+			"source": "../../public/scripts/logBook.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"If your daily notes are not at `Daily/<date>.md`, open the **Log book** macro and click the cog on the **logBook** step to set **Daily note path** (the page uses `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`). Change **Property name** there too if you log to something other than `Book`.",
+			"Run **Log book** from the command palette and type a title; it is written to that property in today's note."
+		]
+	}
+}
