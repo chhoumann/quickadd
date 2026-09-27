@@ -1,0 +1,57 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-inbox-item"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-inbox-item",
+				"name": "Inbox item",
+				"type": "Template",
+				"command": true,
+				"templatePath": "Templates/Inbox Template.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"Inbox"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "prompt"
+				}
+			},
+			"pathHint": [
+				"Inbox item"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/Inbox Template.md",
+			"contentEncoding": "base64",
+			"content": "LS0tCmNyZWF0ZWQ6IHt7REFURTpZWVlZLU1NLUREIEhIOm1tfX0KdGFnczogW2luYm94XQotLS0KIyB7e05BTUV9fQoK"
+		}
+	]
+}

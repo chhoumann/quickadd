@@ -73,6 +73,38 @@ const includes = joinList(
 	].filter(Boolean),
 );
 
+// Pre-order listing for "What's inside": a folder's choices follow it,
+// indented, so a reader sees the recipes a folder package installs.
+const listed: Array<{ choice: Manifest["choices"][number]["choice"]; depth: number }> = [];
+const listChildrenOf = (parentId: string | null, depth: number) => {
+	for (const entry of manifest.choices) {
+		if (entry.parentChoiceId !== parentId) continue;
+		listed.push({ choice: entry.choice, depth });
+		if (entry.choice.type === "Multi") listChildrenOf(entry.choice.id, depth + 1);
+	}
+};
+listChildrenOf(null, 0);
+// Repeating "also in the command palette" after every choice is noise when it
+// applies to all of them; say it once below the list instead. A single choice
+// keeps its suffix, which reads as one fact rather than a pattern. A folder
+// with its command off sits in the same list, so "every choice" must not be
+// claimed over it; name the kind instead when the runnable choices share one.
+const kindNoun: Record<string, string> = {
+	Capture: "capture",
+	Template: "template",
+	Macro: "macro",
+};
+const commandNote = (() => {
+	if (runnable.length < 2 || !runnable.every((choice) => choice.command)) return "";
+	if (folders.every((folder) => folder.command)) {
+		return "Every choice is also in the command palette.";
+	}
+	const kinds = new Set(runnable.map((choice) => choice.type));
+	const noun = kinds.size === 1 ? kindNoun[runnable[0].type] : undefined;
+	return noun ? `Every ${noun} is also in the command palette.` : "";
+})();
+const everyChoiceIsCommand = commandNote !== "";
+
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
 	if (reviewed.length === 0) return `${lead} Click **Import package**.`;
@@ -180,17 +212,17 @@ function inline(text: string): string {
 
 			<h3 class="qa-package__subhead">What's inside</h3>
 			<ul class="qa-package__list qa-package__inside">
-				{manifest.choices
-					.filter((entry) => entry.parentChoiceId === null)
-					.map(({ choice }) => (
-						<li>
-							<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
-							<span>
-								<strong>{choice.name}</strong>
-								{choice.command && <span class="qa-package__muted"> · also in the command palette</span>}
-							</span>
-						</li>
-					))}
+				{listed.map(({ choice, depth }) => (
+					<li class:list={{ "qa-package__nested": depth > 0 }} style={`--qa-depth: ${depth}`}>
+						<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
+						<span>
+							<strong>{choice.name}</strong>
+							{choice.command && !everyChoiceIsCommand && (
+								<span class="qa-package__muted"> · also in the command palette</span>
+							)}
+						</span>
+					</li>
+				))}
 				{manifest.assets.map((asset) => (
 					<li>
 						<span class="qa-package__kind">File</span>
@@ -198,10 +230,13 @@ function inline(text: string): string {
 					</li>
 				))}
 			</ul>
+			{everyChoiceIsCommand && <p class="qa-package__note">{commandNote}</p>}
 
 			<p class="qa-package__fine">
 				The import screen lists everything before it writes anything, and you can
-				change where files go. <a href="/docs/Choices/Packages/#install-an-example">Full installation guide</a>.
+				change where files go. Importing again later offers <strong>Overwrite</strong> for
+				the choices you already have; choose <strong>Skip</strong> to keep settings you
+				changed. <a href="/docs/Choices/Packages/#install-an-example">Full installation guide</a>.
 			</p>
 		</div>
 	</details>
@@ -398,6 +433,10 @@ function inline(text: string): string {
 		align-items: baseline;
 		justify-items: start;
 	}
+	/* A folder's choices sit under it, indented one step per level. */
+	.qa-package__nested {
+		margin-inline-start: calc(var(--qa-depth, 0) * 1.25rem);
+	}
 	.qa-package__kind {
 		font-size: var(--sl-text-xs);
 		font-weight: 600;
@@ -406,6 +445,10 @@ function inline(text: string): string {
 		color: var(--sl-color-gray-3);
 	}
 	.qa-package__muted {
+		color: var(--sl-color-gray-3);
+	}
+	.qa-package__note {
+		margin: 0.4rem 0 0;
 		color: var(--sl-color-gray-3);
 	}
 	.qa-package code {
@@ -499,13 +542,13 @@ function inline(text: string): string {
 					await navigator.clipboard.writeText(text);
 					showCopied();
 					status.textContent =
-						"Package copied. Next, open Settings → QuickAdd in Obsidian and click Import package… (steps below).";
+						"Package copied. In Obsidian, open Settings → QuickAdd → Packages and click Import package… (steps below).";
 					guide.open = true;
 				} catch {
 					// Clipboard access can be blocked (permissions, insecure context,
 					// some mobile browsers). Show the JSON so it can be copied by hand.
 					status.textContent =
-						"Automatic copying was blocked. Copy the package from the field below, then follow How to install.";
+						"Automatic copying was blocked. Copy the package from the field below, then continue from step 2 under How to install.";
 					fallback.value = text;
 					fallback.hidden = false;
 					guide.open = true;

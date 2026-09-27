@@ -8,6 +8,7 @@ This pattern has a full step-by-step guide:
 [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/).
 It covers the journal-entry recipe below plus creating today's note, inserting
 under a heading, tasks, quotes, callouts, table rows, and newline gotchas.
+Use **Copy package** on that page to install a journal capture and four other recipes; the packaged journal capture uses `Daily/{{DATE:YYYY-MM-DD}}.md` and `## Journal`.
 
 For reference, the journal entry capture in compact form:
 

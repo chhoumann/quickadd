@@ -1,0 +1,87 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-moc-related-notes"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-moc-related-notes",
+				"name": "Insert related notes base",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "",
+				"captureToActiveFile": true,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "top",
+				"createFileIfItDoesntExist": {
+					"enabled": false,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "## Related Notes\n\n```base\n{{TEMPLATE:Templates/MOC Related Notes.base}}\n```\n\nContext: {{VALUE}}"
+				},
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Insert related notes base"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/MOC Related Notes.base",
+			"source": "files/MOC Related Notes.base"
+		}
+	],
+	"install": {
+		"requires": [
+			"the Bases core plugin"
+		],
+		"afterImport": [
+			"`MOC Related Notes.base` lands in your QuickAdd template folder if you set one, otherwise in `Templates/`. You can change that path under **Files** while importing.",
+			"Open your MOC note, run **Insert related notes base** from the command palette, and type a line of context."
+		]
+	}
+}

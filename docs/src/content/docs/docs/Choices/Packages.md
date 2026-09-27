@@ -35,7 +35,8 @@ workflow as a package, so you can try it without building it by hand:
 
 1. On the example's page, check what the **Get this workflow** card says the
    package needs, such as another plugin or an API token, then click **Copy
-   package**.
+   package**. If your browser blocks copying, the card shows the package in a
+   text field; copy it from there, or open **View JSON**.
 2. In Obsidian, open **Settings → QuickAdd**, scroll to **Packages**, and click
    **Import package…**.
 3. Paste. QuickAdd shows the review described below. If any file under
