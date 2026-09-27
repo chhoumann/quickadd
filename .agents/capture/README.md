@@ -22,8 +22,11 @@ printf '# Inbox\n\n- Buy oat milk\n' > /tmp/qa-capture/Notes/Inbox.md
 eval "$(pnpm exec obsidian-e2e capture launch --vault /tmp/qa-capture/Notes --print-env)"
 amp orb service start quickadd-capture \
   --command "$PWD/node_modules/.bin/obsidian-e2e capture launch --vault /tmp/qa-capture/Notes"
+# `obsidian` is the CLI bridge from .agents/setup (~/.local/bin/obsidian).
 HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugins:restrict off
+HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes quickadd:list   # lists "Add to inbox"
 
+# After the restrict-off reload (any reload drops the injected capture CSS):
 pnpm exec obsidian-e2e capture prepare --width 1280 --height 800 --scale 2 \
   --theme light --font Inter --hide-secret-warning
 ```
@@ -45,18 +48,23 @@ then re-run `capture prepare` (any app reload drops the injected capture CSS).
   and keep the Settings popout closed, or the take is rejected.
 - **Typing**: use `capture type "..."` (one in-page call per string, paced
   and real-time) rather than one `agent-browser` call per key.
-- **Active modal** (prompts, suggesters, choice builders):
-  `capture screenshot out.png --modal --pad 16 --clean`. For tall builders:
-  `capture prepare --height 1900` and add `--expand`.
+- **Active modal** (prompts, suggesters):
+  `capture screenshot out.png --modal --pad 16 --clean`.
+- **Choice builders** are taller than the window (a Capture builder expands to
+  about 1900 CSS px): `capture prepare --height 2100`, then
+  `capture screenshot out.png --modal --expand --clean`. Screenshots refuse
+  targets that do not fit the viewport instead of clipping them. Open a builder
+  from Settings -> QuickAdd with the choice's "Configure <name>" button.
 - **Crop a builder up to a setting**: `--rect-js` with the in-page helpers, e.g.
-  ending just above the "Behavior" heading row:
+  ending just above the "Behavior" heading row (same tall viewport):
 
   ```bash
-  pnpm exec obsidian-e2e capture screenshot out.png --clean --rect-js '(() => {
+  pnpm exec obsidian-e2e capture screenshot out.png --expand --clean --rect-js '(() => {
     const c = __obsidianE2ECapture, m = c.rect(c.modal()), r = c.rect(c.settingItem("Behavior"));
     return { x: m.x, y: m.y, width: m.width, height: r.y - m.y - 4 }; })()'
   ```
 
+  Run `capture prepare --height 800` afterwards to restore the normal window.
 - **Settings**: `app.setting.open(); app.setting.openTabById("quickadd")`, then
   `--modal`. If Settings opens as a popout window, add `--window Settings`
   to `prepare`/`screenshot`.
