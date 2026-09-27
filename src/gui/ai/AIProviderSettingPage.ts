@@ -409,7 +409,7 @@ export class AIProviderSettingPage extends SettingPage {
 			const setting = new Setting(listEl)
 				.setName(`${countModels(retired.length)} retired by the provider`)
 				.setDesc(
-					"Requests to retired models may start failing. Commands that use them will need another model.",
+					"Requests to them may fail. Commands that use them need another model.",
 				)
 				.addButton((button) => {
 					button.setButtonText("Remove retired").onClick(async () => {

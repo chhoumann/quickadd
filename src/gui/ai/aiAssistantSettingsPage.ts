@@ -123,7 +123,7 @@ function createDefaultsGroup(app: App): SettingDefinitionGroup<SettingsKey> {
 		items: [
 			{
 				name: "Default model",
-				desc: "The model new AI commands start with. Ask me picks one each run.",
+				desc: "The model new AI commands start with. “Ask me” prompts you to choose a model each run.",
 				// Settings search matches names and aliases, not the Providers
 				// heading; this lands searches for providers on this page.
 				aliases: ["AI provider", "provider", "API key", "LLM"],
