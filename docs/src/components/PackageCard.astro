@@ -1,0 +1,520 @@
+---
+/**
+ * "Get this workflow" card for an example page that ships a package.
+ *
+ * Rendered by MarkdownContent.astro when a page sets `package: <id>` in its
+ * frontmatter. Everything it shows (counts, choice names, file paths, the
+ * after-import steps) comes from `docs/packages/<id>/package.json`, the same
+ * manifest that builds the downloadable `/packages/<id>.quickadd.json`, so the
+ * card cannot drift from the file the reader copies.
+ */
+interface Props {
+	id: string;
+	page: string;
+}
+
+interface Manifest {
+	quickAddVersion: string;
+	rootChoiceIds: string[];
+	choices: Array<{
+		choice: { id: string; name: string; type: string; command?: boolean };
+		parentChoiceId: string | null;
+	}>;
+	assets: Array<{ kind: string; originalPath: string }>;
+	install?: { requires?: string[]; afterImport?: string[] };
+}
+
+const { id, page } = Astro.props;
+
+const manifests = import.meta.glob<Manifest>("../../packages/*/package.json", {
+	eager: true,
+	import: "default",
+});
+const manifest = manifests[`../../packages/${id}/package.json`];
+if (!manifest) {
+	throw new Error(
+		`Page "${page}" sets package: ${id}, but docs/packages/${id}/package.json does not exist.`,
+	);
+}
+
+const packageUrl = `/packages/${id}.quickadd.json`;
+const choices = manifest.choices.map((entry) => entry.choice);
+const folders = choices.filter((choice) => choice.type === "Multi");
+const runnable = choices.filter((choice) => choice.type !== "Multi");
+const scripts = manifest.assets.filter((asset) => /\.js$/i.test(asset.originalPath));
+const templates = manifest.assets.filter((asset) => !/\.js$/i.test(asset.originalPath));
+// The import screen marks every bundled file that is not a note as Executable
+// and asks the reader to open and acknowledge each one, because QuickAdd's
+// script loader can run any such file (see isExecutableBundledAsset in
+// src/services/packagePreview.ts).
+const reviewed = manifest.assets.filter((asset) => !/\.md$/i.test(asset.originalPath));
+const reviewedNonScripts = reviewed.filter((asset) => !/\.js$/i.test(asset.originalPath));
+// `quickAddVersion` is the version the package was verified against (see
+// docs/packages/README.md), so it doubles as the minimum the reader needs.
+const requires = [
+	`QuickAdd ${manifest.quickAddVersion} or later`,
+	...(manifest.install?.requires ?? []),
+];
+const afterImport = manifest.install?.afterImport ?? [];
+
+const plural = (count: number, noun: string, pluralNoun = `${noun}s`) =>
+	`${count} ${count === 1 ? noun : pluralNoun}`;
+const joinList = (parts: string[]) =>
+	parts.length <= 1
+		? parts.join("")
+		: `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+
+const includes = joinList(
+	[
+		runnable.length > 0 ? plural(runnable.length, "choice") : "",
+		folders.length > 0 ? plural(folders.length, "folder") : "",
+		scripts.length > 0 ? plural(scripts.length, "script") : "",
+		templates.length > 0 ? plural(templates.length, "template") : "",
+	].filter(Boolean),
+);
+
+const pasteStep = (() => {
+	const lead = "Paste the package and review the choices and files it adds.";
+	if (reviewed.length === 0) return `${lead} Click **Import package**.`;
+	const one = reviewed.length === 1;
+	const gate = `Under **Files**, open **View contents** on ${
+		one ? "the file" : "each file"
+	} marked **Executable** to read it. If you trust ${one ? "it" : "them"}, tick the acknowledgement, then click **Import package**.`;
+	if (reviewedNonScripts.length === 0) return `${lead} ${gate}`;
+	const flagged = joinList(reviewedNonScripts.map((asset) => `\`${asset.originalPath}\``));
+	const alongsideScripts = reviewedNonScripts.length < reviewed.length;
+	return `${lead} ${gate} QuickAdd marks ${flagged} as **Executable**${
+		alongsideScripts ? " too" : ""
+	} because it treats every file that is not a Markdown note as runnable.`;
+})();
+
+/** Minimal inline Markdown for manifest strings: `code`, **strong**, [links](url). */
+function inline(text: string): string {
+	return text
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/`([^`]+)`/g, "<code>$1</code>")
+		.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+		.replace(/\[([^\]]+)\]\((\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+}
+---
+
+<aside
+	class="qa-package not-content"
+	data-package-card
+	data-package-id={id}
+	data-package-url={packageUrl}
+	data-pagefind-ignore
+	aria-labelledby={`qa-package-${id}-title`}
+>
+	<div class="qa-package__head">
+		<svg class="qa-package__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+			<path d="M21 8 12 3 3 8v8l9 5 9-5V8Z"></path>
+			<path d="M3.3 8.2 12 13l8.7-4.8"></path>
+			<path d="M12 13v9"></path>
+		</svg>
+		<div class="qa-package__text">
+			<p class="qa-package__eyebrow">QuickAdd package</p>
+			<h2 id={`qa-package-${id}-title`} class="qa-package__title">Get this workflow</h2>
+			<p class="qa-package__summary">
+				Includes {includes}.
+				<span class="qa-package__requires" set:html={`Needs ${inline(joinList(requires))}.`} />
+			</p>
+		</div>
+	</div>
+
+	<div class="qa-package__actions">
+		<button type="button" class="qa-package__copy" data-copy-package>
+			<svg class="qa-package__copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon="copy">
+				<rect width="13" height="13" x="9" y="9" rx="2" ry="2"></rect>
+				<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+			</svg>
+			<svg class="qa-package__copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" data-icon="check">
+				<path d="M20 6 9 17l-5-5"></path>
+			</svg>
+			<span data-label>Copy package</span>
+		</button>
+		<a class="qa-package__link" href={packageUrl} target="_blank" rel="noopener">View JSON</a>
+	</div>
+
+	<!--
+		Always in the DOM (never display: none) so assistive tech sees the live
+		region before its first message; an empty paragraph has no height.
+	-->
+	<p id={`qa-package-${id}-status`} class="qa-package__status" data-status role="status" aria-live="polite"></p>
+
+	<textarea
+		class="qa-package__fallback"
+		data-fallback
+		hidden
+		readonly
+		rows="4"
+		aria-label="Package JSON"
+		aria-describedby={`qa-package-${id}-status`}
+		spellcheck="false"
+	></textarea>
+
+	<details class="qa-package__guide" data-guide>
+		<summary>
+			<svg class="qa-package__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+				<path d="m9 6 6 6-6 6"></path>
+			</svg>
+			How to install
+		</summary>
+		<div class="qa-package__guide-body">
+			<ol class="qa-package__steps">
+				<li>Click <strong>Copy package</strong> above.</li>
+				<li set:html={inline("In Obsidian, open **Settings → QuickAdd**, scroll to **Packages**, and click **Import package…**")} />
+				<li set:html={inline(pasteStep)} />
+			</ol>
+
+			{afterImport.length > 0 && (
+				<>
+					<h3 class="qa-package__subhead">After importing</h3>
+					<ul class="qa-package__list">
+						{afterImport.map((line) => <li set:html={inline(line)} />)}
+					</ul>
+				</>
+			)}
+
+			<h3 class="qa-package__subhead">What's inside</h3>
+			<ul class="qa-package__list qa-package__inside">
+				{manifest.choices
+					.filter((entry) => entry.parentChoiceId === null)
+					.map(({ choice }) => (
+						<li>
+							<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
+							<span>
+								<strong>{choice.name}</strong>
+								{choice.command && <span class="qa-package__muted"> · also in the command palette</span>}
+							</span>
+						</li>
+					))}
+				{manifest.assets.map((asset) => (
+					<li>
+						<span class="qa-package__kind">File</span>
+						<code>{asset.originalPath}</code>
+					</li>
+				))}
+			</ul>
+
+			<p class="qa-package__fine">
+				The import screen lists everything before it writes anything, and you can
+				change where files go. <a href="/docs/Choices/Packages/#install-an-example">Full installation guide</a>.
+			</p>
+		</div>
+	</details>
+</aside>
+
+<style>
+	.qa-package {
+		--qa-card-border: color-mix(in srgb, var(--sl-color-accent) 28%, var(--sl-color-gray-5));
+		--qa-card-bg: color-mix(in srgb, var(--sl-color-accent-low) 30%, var(--sl-color-bg));
+		margin-bottom: 2rem;
+		padding: 1.125rem 1.25rem 1rem;
+		border: 1px solid var(--qa-card-border);
+		border-radius: 0.75rem;
+		background: var(--qa-card-bg);
+		font-size: var(--sl-text-sm);
+		line-height: 1.55;
+		color: var(--sl-color-gray-2);
+	}
+	:root[data-theme='light'] .qa-package {
+		--qa-card-bg: color-mix(in srgb, var(--sl-color-accent-low) 45%, var(--sl-color-bg));
+	}
+
+	/* Header: icon + eyebrow/title/summary */
+	.qa-package__head {
+		display: flex;
+		gap: 0.875rem;
+		align-items: flex-start;
+	}
+	.qa-package__icon {
+		flex: none;
+		width: 1.75rem;
+		height: 1.75rem;
+		margin-top: 0.2rem;
+		color: var(--sl-color-text-accent);
+	}
+	.qa-package__text {
+		min-width: 0;
+	}
+	.qa-package__eyebrow {
+		margin: 0;
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+		color: var(--sl-color-text-accent);
+	}
+	.qa-package__title {
+		margin: 0.1rem 0 0;
+		font-size: var(--sl-text-lg);
+		font-weight: 600;
+		line-height: 1.25;
+		letter-spacing: -0.01em;
+		color: var(--sl-color-white);
+	}
+	.qa-package__summary {
+		margin: 0.35rem 0 0;
+	}
+	.qa-package__requires {
+		display: block;
+		margin-top: 0.15rem;
+		color: var(--sl-color-gray-3);
+	}
+
+	/* Actions */
+	.qa-package__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem 1rem;
+		margin-top: 0.875rem;
+	}
+	.qa-package__copy {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		padding: 0.5rem 1rem;
+		border: 1px solid var(--sl-color-text-accent);
+		border-radius: 999rem;
+		background: var(--sl-color-text-accent);
+		color: var(--sl-color-black);
+		font: inherit;
+		font-weight: 600;
+		line-height: 1.2;
+		cursor: pointer;
+		outline-offset: 0.2rem;
+		transition: filter 120ms ease;
+	}
+	.qa-package__copy:hover {
+		filter: brightness(1.08);
+	}
+	.qa-package__copy:active {
+		filter: brightness(0.95);
+	}
+	.qa-package__copy-icon {
+		width: 1rem;
+		height: 1rem;
+	}
+	.qa-package__copy [data-icon='check'],
+	.qa-package[data-copied] .qa-package__copy [data-icon='copy'] {
+		display: none;
+	}
+	.qa-package[data-copied] .qa-package__copy [data-icon='check'] {
+		display: block;
+	}
+	.qa-package__link {
+		color: var(--sl-color-white);
+		text-decoration: underline;
+		text-decoration-color: var(--sl-color-gray-4);
+		text-underline-offset: 0.2em;
+	}
+	.qa-package__link:hover {
+		text-decoration-color: currentColor;
+	}
+	.qa-package__status {
+		margin: 0.5rem 0 0;
+		color: var(--sl-color-gray-3);
+	}
+	.qa-package__status:empty {
+		margin-top: 0;
+	}
+
+	/* Clipboard fallback */
+	.qa-package__fallback {
+		width: 100%;
+		margin-top: 0.75rem;
+		padding: 0.5rem 0.625rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.5rem;
+		background: var(--sl-color-bg);
+		color: var(--sl-color-white);
+		font-family: var(--sl-font-mono);
+		font-size: var(--sl-text-xs);
+		resize: vertical;
+	}
+	.qa-package__fallback[hidden] {
+		display: none;
+	}
+
+	/* Install guide */
+	.qa-package__guide {
+		margin-top: 0.875rem;
+		border-top: 1px solid color-mix(in srgb, var(--qa-card-border) 70%, transparent);
+		padding-top: 0.5rem;
+	}
+	.qa-package__guide summary {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.25rem 0;
+		font-weight: 600;
+		color: var(--sl-color-white);
+		cursor: pointer;
+		list-style: none;
+		user-select: none;
+	}
+	.qa-package__guide summary::-webkit-details-marker {
+		display: none;
+	}
+	.qa-package__chevron {
+		width: 1rem;
+		height: 1rem;
+		color: var(--sl-color-gray-3);
+		transition: transform 150ms ease;
+	}
+	.qa-package__guide[open] .qa-package__chevron {
+		transform: rotate(90deg);
+	}
+	.qa-package__guide-body {
+		padding: 0.25rem 0 0.25rem;
+	}
+	.qa-package__steps,
+	.qa-package__list {
+		margin: 0.25rem 0 0;
+		padding-inline-start: 1.5rem;
+	}
+	.qa-package__steps li + li,
+	.qa-package__list li + li {
+		margin-top: 0.3rem;
+	}
+	.qa-package__subhead {
+		margin: 0.875rem 0 0;
+		font-size: var(--sl-text-sm);
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+	.qa-package__inside {
+		list-style: none;
+		padding-inline-start: 0;
+	}
+	.qa-package__inside li {
+		display: grid;
+		grid-template-columns: 4.5rem minmax(0, 1fr);
+		column-gap: 0.5rem;
+		align-items: baseline;
+		justify-items: start;
+	}
+	.qa-package__kind {
+		font-size: var(--sl-text-xs);
+		font-weight: 600;
+		letter-spacing: 0.03em;
+		text-transform: uppercase;
+		color: var(--sl-color-gray-3);
+	}
+	.qa-package__muted {
+		color: var(--sl-color-gray-3);
+	}
+	.qa-package code {
+		overflow-wrap: anywhere;
+		font-size: 0.9em;
+		padding: 0.05rem 0.3rem;
+		border-radius: 0.3rem;
+		background: color-mix(in srgb, var(--sl-color-gray-5) 55%, var(--sl-color-bg));
+		border: 1px solid color-mix(in srgb, var(--sl-color-gray-5) 80%, var(--sl-color-bg));
+	}
+	.qa-package strong {
+		color: var(--sl-color-white);
+	}
+	.qa-package a {
+		color: var(--sl-color-white);
+	}
+	.qa-package__fine {
+		margin: 0.875rem 0 0;
+		font-size: var(--sl-text-xs);
+		color: var(--sl-color-gray-3);
+	}
+
+	@media (max-width: 30rem) {
+		.qa-package {
+			padding: 1rem;
+		}
+		.qa-package__copy {
+			flex: 1 1 auto;
+			justify-content: center;
+		}
+	}
+</style>
+
+<script>
+	const COPY_LABEL = "Copy package";
+
+	for (const card of document.querySelectorAll<HTMLElement>("[data-package-card]")) {
+		const url = card.dataset.packageUrl ?? "";
+		const button = card.querySelector<HTMLButtonElement>("[data-copy-package]");
+		const label = button?.querySelector<HTMLElement>("[data-label]");
+		const status = card.querySelector<HTMLElement>("[data-status]");
+		const guide = card.querySelector<HTMLDetailsElement>("[data-guide]");
+		const fallback = card.querySelector<HTMLTextAreaElement>("[data-fallback]");
+		if (!button || !label || !status || !guide || !fallback) continue;
+
+		let json: Promise<string> | undefined;
+		const load = () =>
+			(json ??= fetch(url).then((res) => {
+				if (!res.ok) throw new Error(`HTTP ${res.status}`);
+				return res.text();
+			}).catch((error) => {
+				json = undefined;
+				throw error;
+			}));
+		// Warm the fetch so the clipboard write happens as close to the click
+		// as possible: some browsers only allow it inside a fresh user gesture.
+		const warm = () => void load().catch(() => undefined);
+		button.addEventListener("pointerenter", warm, { once: true });
+		button.addEventListener("focus", warm, { once: true });
+
+		let resetTimer: ReturnType<typeof setTimeout> | undefined;
+		let busy = false;
+		const showCopied = () => {
+			card.dataset.copied = "";
+			label.textContent = "Copied!";
+			clearTimeout(resetTimer);
+			resetTimer = setTimeout(() => {
+				delete card.dataset.copied;
+				label.textContent = COPY_LABEL;
+			}, 2500);
+		};
+		button.addEventListener("click", async () => {
+			if (busy) return;
+			busy = true;
+			// Start every attempt from a clean slate so an old failure message or
+			// fallback field cannot outlive a later success.
+			delete card.dataset.copied;
+			label.textContent = COPY_LABEL;
+			fallback.hidden = true;
+			status.textContent = "Loading package…";
+			try {
+				let text = "";
+				try {
+					text = await load();
+				} catch {
+					status.textContent =
+						"Couldn't load the package. Check your connection and try again, or open View JSON.";
+					return;
+				}
+				try {
+					await navigator.clipboard.writeText(text);
+					showCopied();
+					status.textContent =
+						"Package copied. Next, open Settings → QuickAdd in Obsidian and click Import package… (steps below).";
+					guide.open = true;
+				} catch {
+					// Clipboard access can be blocked (permissions, insecure context,
+					// some mobile browsers). Show the JSON so it can be copied by hand.
+					status.textContent =
+						"Automatic copying was blocked. Copy the package from the field below, then follow How to install.";
+					fallback.value = text;
+					fallback.hidden = false;
+					guide.open = true;
+					fallback.focus();
+					fallback.select();
+				}
+			} finally {
+				busy = false;
+			}
+		});
+	}
+</script>

@@ -1,0 +1,70 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-moc-link-dashboard"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-moc-link-dashboard",
+				"name": "New MOC note",
+				"type": "Template",
+				"command": true,
+				"templatePath": "Templates/MOC Link Dashboard.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{VALUE:moc_title}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"MOCs"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "apply",
+					"mode": "increment"
+				}
+			},
+			"pathHint": [
+				"New MOC note"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/MOC Link Dashboard.md",
+			"source": "files/MOC Link Dashboard.md"
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/MOC Link Dashboard.base",
+			"source": "files/MOC Link Dashboard.base"
+		}
+	],
+	"install": {
+		"requires": [
+			"the Bases core plugin, enabled in **Settings → Core plugins**"
+		],
+		"afterImport": [
+			"Run **New MOC note** from the command palette and enter a title. The note lands in `MOCs/`; change **Folder path** on the choice to use another folder."
+		]
+	}
+}

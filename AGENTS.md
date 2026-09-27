@@ -62,6 +62,12 @@ brief that a skill-less agent still needs.
   checkout can own those symlinks at a time. Run `pnpm run dev` to rebuild.
 - Always pass the `vault=` selector as a **prefix** argument, never a suffix -
   suffix form can resolve to the wrong vault.
+- `pnpm run obsidian:e2e -- <cmd>` reloads the plugin before every command it
+  runs (the runner's warm-instance bring-up). A modal or settings tab opened by
+  one invocation is then bound to a dead plugin instance: its edits look
+  applied but never reach the live store or `data.json`. Drive a multi-step UI
+  flow inside one `eval`, or call the `obsidian` CLI directly with `HOME` set
+  to `$OBSIDIAN_E2E_OBSIDIAN_HOME`, which does not reload.
 
 ```bash
 pnpm run dev                                # or: pnpm run build

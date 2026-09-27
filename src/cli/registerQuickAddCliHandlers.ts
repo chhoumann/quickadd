@@ -10,6 +10,7 @@ import {
 	aiTestConnectionHandler,
 } from "./aiConnectionCli";
 import { SAVE_CLIPBOARD_IMAGE_COMMAND, SAVE_CLIPBOARD_IMAGE_FLAGS, saveClipboardImageHandler } from "./saveClipboardImageCli";
+import { PACKAGE_IMPORT_COMMAND, PACKAGE_IMPORT_FLAGS, importPackageHandler } from "./importPackageCli";
 
 type CliResult = { ok: boolean;[key: string]: unknown };
 interface RegisterCliHandlerTarget {
@@ -28,6 +29,7 @@ const CLI_COMMANDS = {
 	list: "quickadd:list",
 	check: "quickadd:check",
 	preview: "quickadd:package-preview",
+	packageImport: PACKAGE_IMPORT_COMMAND,
 	interactive: "quickadd:interactive",
 	saveClipboardImage: SAVE_CLIPBOARD_IMAGE_COMMAND,
 	aiTestConnection: AI_TEST_CONNECTION_COMMAND,
@@ -91,6 +93,12 @@ export function registerQuickAddCliHandlers(plugin: QuickAdd): boolean {
 		"Preview a QuickAdd package before importing (files + capabilities)",
 		PREVIEW_FLAGS,
 		(params: CliData) => previewPackageHandler(plugin, params),
+	);
+	register(
+		CLI_COMMANDS.packageImport,
+		"Import a QuickAdd package with the modal's default decisions (pass acknowledge=true after reviewing a package that runs code)",
+		PACKAGE_IMPORT_FLAGS,
+		(params: CliData) => importPackageHandler(plugin, params),
 	);
 	register(
 		CLI_COMMANDS.interactive,

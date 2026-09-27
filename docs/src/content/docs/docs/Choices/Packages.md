@@ -28,6 +28,33 @@ If a referenced script is missing from your vault, the exporter finishes with a
 warning so you can locate or recreate the file before you share the package.
 :::
 
+## Install an example from the docs {#install-an-example}
+
+[Example](/docs/Examples/) pages with a **Get this workflow** card ship their
+workflow as a package, so you can try it without building it by hand:
+
+1. On the example's page, check what the **Get this workflow** card says the
+   package needs, such as another plugin or an API token, then click **Copy
+   package**.
+2. In Obsidian, open **Settings → QuickAdd**, scroll to **Packages**, and click
+   **Import package…**.
+3. Paste. QuickAdd shows the review described below. If any file under
+   **Files** is marked **Executable**, open **View contents** on each one. If
+   you trust the package, tick the acknowledgement, then click **Import
+   package**.
+4. Follow **After importing** in the card to finish setup and run the workflow.
+
+Don't see **Import package…**? Update QuickAdd, then reopen its settings.
+
+The packages never contain keys or tokens. Secret settings stay empty until you
+paste yours, and QuickAdd keeps them in Obsidian's secret storage rather than in
+`data.json`.
+
+Importing the same package again offers **Overwrite** for the choices you
+imported before. Overwriting replaces those choices, including settings you
+changed; review any file overwrites too. Choose **Skip** for anything you want
+to keep as it is.
+
 ## Import a package {#import-a-package}
 
 1. Open **Settings → QuickAdd** and click **Import package…**.
@@ -96,8 +123,8 @@ fence runs on every AI call.
 ### Acknowledge the code before importing {#acknowledgement-gate}
 
 When a package can run code, the **Import package** button stays disabled until
-you have opened **View contents** on each bundled executable script and ticked
-the acknowledgement. Reviewed scripts are marked so you can track what is left.
+you have opened **View contents** on each bundled executable file and ticked
+the acknowledgement. Reviewed files are marked so you can track what is left.
 
 ![The Files section of the import modal. The bundled script Scripts/weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded, and Templates/Book.md is grouped under Will overwrite. The acknowledgement is ticked, so the Import package button is enabled](../Images/package-import-files.png)
 
@@ -116,6 +143,19 @@ obsidian quickadd:package-preview path=path/to/package.quickadd.json
 ```
 
 Add `decode=true` to inline the decoded contents of each bundled file.
+
+`quickadd:package-import` installs a package the same way the modal does, with
+the modal's default decisions: choices whose id already exists are overwritten,
+other choices are added, and templates go to your QuickAdd template folder when
+one is set. A package that runs code is refused until you pass
+`acknowledge=true`, which stands in for the modal's review and acknowledgement.
+
+```bash
+obsidian quickadd:package-import path=path/to/package.quickadd.json acknowledge=true
+```
+
+Use `choices=import|overwrite|duplicate|skip` and `files=write|overwrite|skip`
+to force one mode for every choice or bundled file.
 
 ## Check version compatibility {#version-compatibility}
 

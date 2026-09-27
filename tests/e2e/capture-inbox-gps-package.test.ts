@@ -51,6 +51,13 @@ type QuickAddData = {
 	migrations: Record<string, boolean>;
 };
 
+type PackageImportResponse = {
+	ok: boolean;
+	error?: string;
+	added?: string[];
+	writtenAssets?: string[];
+};
+
 type PackagePreviewResponse = {
 	ok: boolean;
 	error?: string;
@@ -139,54 +146,43 @@ describe("Capture to Inbox with GPS package", () => {
 
 		packagePath = await seedVaultFile(obsidian, sandbox, PACKAGE_RELATIVE_PATH, packageJson);
 
-		const imported = await obsidian.dev.evalJsonAsync<{
-			ok: boolean;
-			scriptPath?: string;
-			error?: string;
-		}>(`(async () => {
-			try {
-				const raw = await app.vault.adapter.read(${JSON.stringify(packagePath)});
-				const pkg = JSON.parse(raw);
-				const decode = (b64) => new TextDecoder().decode(
-					Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
-				);
-				for (const asset of pkg.assets) {
-					const dest = asset.originalPath;
-					const folder = dest.split("/").slice(0, -1).join("/");
-					if (folder && !app.vault.getAbstractFileByPath(folder)) {
-						await app.vault.createFolder(folder);
-					}
-					const existing = app.vault.getAbstractFileByPath(dest);
-					const content = decode(asset.content);
-					if (existing) await app.vault.modify(existing, content);
-					else await app.vault.create(dest, content);
-				}
-				return { ok: true, scriptPath: pkg.assets[0].originalPath };
-			} catch (error) {
-				return { ok: false, error: String(error && error.message ? error.message : error) };
-			}
-		})()`);
-
-		expect(imported).toMatchObject({
-			ok: true,
-			scriptPath: "scripts/captureInboxGps.js",
+		// Snapshot data.json before the import so restoreData() in afterAll rolls
+		// the imported choice back out, and drop a stale copy from an aborted run
+		// so the import below adds rather than overwrites.
+		await qa.updateDataAndReload<QuickAddData>((data) => {
+			data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
 		});
 
-		const parsed = JSON.parse(packageJson) as {
-			choices: Array<{ choice: QuickAddData["choices"][number] }>;
-		};
+		// Install the package the way the docs tell readers to, through the
+		// plugin's own import (the CLI shares applyPackageImport with the modal).
+		// Without `acknowledge` the import must refuse a code-running package.
+		const refused = await obsidian.execJson<PackageImportResponse>(
+			"quickadd:package-import",
+			{ path: packagePath },
+		);
+		expect(refused.ok).toBe(false);
+		expect(refused.error).toMatch(/acknowledge/);
 
+		const imported = await obsidian.execJson<PackageImportResponse>(
+			"quickadd:package-import",
+			{ path: packagePath, acknowledge: "true" },
+		);
+		expect(imported).toMatchObject({
+			ok: true,
+			added: [CHOICE_ID],
+			writtenAssets: ["scripts/captureInboxGps.js"],
+		});
+
+		// The one thing the install guide leaves to the reader: point the script at
+		// an inbox note. Done through data.json here in place of the script's cog.
 		await qa.data<QuickAddData>().patch((data) => {
-			data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
-			const choice = structuredClone(parsed.choices[0]?.choice);
+			const choice = data.choices.find((entry) => entry.id === CHOICE_ID);
 			const command = choice?.macro?.commands?.[0];
-			if (command) {
-				command.settings = {
-					"Inbox path": inboxPath,
-					"Create Inbox if missing": true,
-				};
-			}
-			if (choice) data.choices.push(choice);
+			if (!command) throw new Error("imported GPS macro has no script command");
+			command.settings = {
+				"Inbox path": inboxPath,
+				"Create Inbox if missing": true,
+			};
 		});
 
 		await qa.reload({ waitUntilReady: true });

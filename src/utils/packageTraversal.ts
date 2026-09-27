@@ -10,6 +10,7 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
 import { commandListOf, isCommandLike } from "./macroUtils";
+import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
 
 export interface ChoiceCatalogEntry {
@@ -32,6 +33,12 @@ export interface ScriptDependencyCollection {
 export interface FileDependencyCollection {
 	templatePaths: Set<string>;
 	captureTemplatePaths: Set<string>;
+	/**
+	 * Files pulled in by `{{TEMPLATE:...}}` in an enabled Capture format. The
+	 * formatter reads them as vault paths at run time, so a package without
+	 * them imports fine and then captures a "template not found" placeholder.
+	 */
+	includePaths: Set<string>;
 }
 
 const EMPTY_SET = new Set<string>();
@@ -319,6 +326,7 @@ export function collectFileDependencies(
 ): FileDependencyCollection {
 	const templatePaths = new Set<string>();
 	const captureTemplatePaths = new Set<string>();
+	const includePaths = new Set<string>();
 	visitIncludedChoices(catalog, choiceIds, (choice) => {
 		if (isTemplateChoice(choice) && choice.templatePath) {
 			templatePaths.add(choice.templatePath);
@@ -328,7 +336,19 @@ export function collectFileDependencies(
 			if (creation?.enabled && creation.createWithTemplate && creation.template) {
 				captureTemplatePaths.add(creation.template);
 			}
+			for (const path of captureFormatIncludes(choice)) {
+				includePaths.add(path);
+			}
 		}
 	}, () => { });
-	return { templatePaths, captureTemplatePaths };
+	return { templatePaths, captureTemplatePaths, includePaths };
+}
+
+/** `{{TEMPLATE:...}}` paths a Capture's format splices in when it runs. */
+export function captureFormatIncludes(choice: ICaptureChoice): Set<string> {
+	const format = choice.format;
+	if (!format?.enabled || typeof format.format !== "string") {
+		return new Set<string>();
+	}
+	return collectTemplateIncludePaths(format.format);
 }

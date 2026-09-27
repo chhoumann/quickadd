@@ -1,0 +1,64 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-moc-link-dashboard"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-moc-link-dashboard",
+				"name": "New MOC note",
+				"type": "Template",
+				"command": true,
+				"templatePath": "Templates/MOC Link Dashboard.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{VALUE:moc_title}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"MOCs"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "apply",
+					"mode": "increment"
+				}
+			},
+			"pathHint": [
+				"New MOC note"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/MOC Link Dashboard.md",
+			"contentEncoding": "base64",
+			"content": "LS0tCnRhZ3M6CiAgLSBtb2MKLS0tCgojIHt7VkFMVUU6bW9jX3RpdGxlfX0KCiMjIExpbmsgRGFzaGJvYXJkCgpVc2UgdGhlIHZpZXcgcGlja2VyIGluIHRoaXMgZW1iZWRkZWQgYmFzZSB0byBzd2l0Y2ggYmV0d2VlbiBiYWNrbGlua3MgYW5kCm91dGdvaW5nIGxpbmtzIGZvciB0aGlzIG5vdGUuCgpgYGBiYXNlCnt7VEVNUExBVEU6VGVtcGxhdGVzL01PQyBMaW5rIERhc2hib2FyZC5iYXNlfX0KYGBgCgojIyBOb3RlcwoKLSBTdGFydCBsaW5raW5nIHRoaXMgbm90ZSB0byByZWxhdGVkIGlkZWFzLgo="
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/MOC Link Dashboard.base",
+			"contentEncoding": "base64",
+			"content": "Zm9ybXVsYXM6CiAgbm90ZV9saW5rOiAiZmlsZS5hc0xpbmsoKSIKcHJvcGVydGllczoKICBmb3JtdWxhLm5vdGVfbGluazoKICAgIGRpc3BsYXlOYW1lOiBOb3RlCiAgZmlsZS5mb2xkZXI6CiAgICBkaXNwbGF5TmFtZTogRm9sZGVyCiAgZmlsZS5tdGltZToKICAgIGRpc3BsYXlOYW1lOiBVcGRhdGVkCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEJhY2tsaW5rcwogICAgZmlsdGVyczoKICAgICAgYW5kOgogICAgICAgIC0gJ2ZpbGUuZXh0ID09ICJtZCInCiAgICAgICAgLSAiZmlsZS5oYXNMaW5rKHRoaXMuZmlsZSkiCiAgICAgICAgLSAiZmlsZS5wYXRoICE9IHRoaXMuZmlsZS5wYXRoIgogICAgb3JkZXI6CiAgICAgIC0gZm9ybXVsYS5ub3RlX2xpbmsKICAgICAgLSBmaWxlLmZvbGRlcgogICAgICAtIGZpbGUubXRpbWUKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBPdXRnb2luZyBsaW5rcwogICAgZmlsdGVyczoKICAgICAgYW5kOgogICAgICAgIC0gJ2ZpbGUuZXh0ID09ICJtZCInCiAgICAgICAgLSAidGhpcy5maWxlLmhhc0xpbmsoZmlsZSkiCiAgICAgICAgLSAiZmlsZS5wYXRoICE9IHRoaXMuZmlsZS5wYXRoIgogICAgb3JkZXI6CiAgICAgIC0gZm9ybXVsYS5ub3RlX2xpbmsKICAgICAgLSBmaWxlLmZvbGRlcgogICAgICAtIGZpbGUubXRpbWUK"
+		}
+	]
+}

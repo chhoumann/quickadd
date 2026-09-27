@@ -2,6 +2,7 @@
 title: "Capture: Fetch Tasks From Todoist"
 description: Import Todoist tasks into a note using a macro and user script, selecting from all tasks, a project, or a single section
 slug: docs/Examples/Capture_FetchTasksFromTodoist
+package: todoist-tasks
 ---
 
 You end up with one QuickAdd command that pulls tasks from your Todoist account into a note in your vault. This is useful for capturing tasks on the go with your phone, then adding them to Obsidian when you get back to your computer.
@@ -28,9 +29,11 @@ By default, the script completes every task it imports, so the same task isn't i
 
 ## Setup
 
+Imported the package above? The script, the macro, and the Capture choice are already in place. Open the **Todoist** macro and follow step 3 to save your token and decide whether imported tasks are completed.
+
 1. Save the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> to your vault, for example as `scripts/todoistTaskSync.js`.
 2. In **Settings → QuickAdd**, add a [Macro choice](/docs/Choices/MacroChoice/) named `Todoist`, and add the script to its command list. Add it by its file name (`todoistTaskSync`) to pick an export when the macro runs, or append an export (`todoistTaskSync::GetAllTasksFromProject`) to always run that one. Either way, the script's settings apply.
-3. Click the gear (⚙️) next to the script command, and paste your Todoist API token into **Todoist API token**. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`. Leave **Complete imported tasks in Todoist** ticked, or untick it to leave tasks open in Todoist.
+3. Click the gear (⚙️) next to the script command, paste your Todoist API token into **Todoist API token**, and click the save icon next to it. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`. Leave **Complete imported tasks in Todoist** ticked, or untick it to leave tasks open in Todoist.
 
     ![Todoist script settings](../Images/Todoist-ScriptSettings.png)
 

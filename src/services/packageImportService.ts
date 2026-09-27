@@ -6,6 +6,7 @@ import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
+import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { decodeFromBase64 } from "../utils/base64";
 import {
 	flattenChoices,
@@ -13,6 +14,8 @@ import {
 } from "../utils/choiceUtils";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
+import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
@@ -411,7 +414,6 @@ export async function applyPackageImport(
 		handledChoices.add(originalId);
 	}
 
-	const assetPathOverrides = new Map<string, string>();
 	const writtenAssets: string[] = [];
 	const skippedAssets: string[] = [];
 	const resolvedAssetDestinations = pkg.assets.map((asset) => {
@@ -451,6 +453,11 @@ export async function applyPackageImport(
 		await assertWriteStaysInVault(app, destinationPath);
 	}
 
+	// Decide every write before the first one: a bundled template's
+	// `{{TEMPLATE:...}}` includes must point at where the included file is
+	// actually going, which is only known once all destinations are settled.
+	const plannedWrites: Array<{ asset: QuickAddPackage["assets"][number]; destinationPath: string }> = [];
+	const assetPathOverrides = new Map<string, string>();
 	for (const { asset, destinationPath } of resolvedAssetDestinations) {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const exists = await assetExists(app, destinationPath);
@@ -461,12 +468,15 @@ export async function applyPackageImport(
 			skippedAssets.push(destinationPath);
 			continue;
 		}
+		plannedWrites.push({ asset, destinationPath });
+		assetPathOverrides.set(asset.originalPath, destinationPath);
+	}
 
+	for (const { asset, destinationPath } of plannedWrites) {
 		await ensureParentFolders(app, destinationPath);
-		const content = decodeFromBase64(asset.content);
+		const content = importedAssetContent(asset, assetPathOverrides);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
-		assetPathOverrides.set(asset.originalPath, destinationPath);
 	}
 
 	for (const choice of preparedChoices.values()) {
@@ -483,6 +493,27 @@ export async function applyPackageImport(
 	};
 }
 
+
+/**
+ * The bytes to write for a bundled asset. Markdown templates get their
+ * `{{TEMPLATE:...}}` includes followed to the destinations chosen in this
+ * import. Anything that can run as code — scripts, non-Markdown files, and a
+ * note carrying a js fence — is written verbatim, so what the user reviewed is
+ * exactly what lands on disk.
+ */
+function importedAssetContent(
+	asset: QuickAddPackage["assets"][number],
+	pathOverrides: ReadonlyMap<string, string>,
+): string {
+	const content = decodeFromBase64(asset.content);
+	const isTemplateKind =
+		asset.kind === "template" || asset.kind === "capture-template";
+	if (!isTemplateKind || !MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath)) {
+		return content;
+	}
+	if (extractScriptFromMarkdown(content).code) return content;
+	return rewriteTemplateIncludes(content, pathOverrides);
+}
 
 async function assetExists(app: App, path: string): Promise<boolean> {
 	try {

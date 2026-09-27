@@ -91,6 +91,9 @@ export default defineConfig({
 			customCss: ["./src/styles/custom.css"],
 			components: {
 				PageTitle: "./src/components/PageTitle.astro",
+				// Renders the "Get this workflow" package card on pages that set
+				// `package:` in their frontmatter.
+				MarkdownContent: "./src/components/MarkdownContent.astro",
 			},
 			head: [
 				{

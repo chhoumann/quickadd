@@ -8,7 +8,6 @@ import { MAX_TEMPLATE_INCLUSION_DEPTH } from "src/formatters/formatter";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import {
 	QA_INTERNAL_DATE_ORIGIN,
-	TEMPLATE_REGEX,
 	VALUE_SYNTAX,
 } from "src/constants";
 import { normalizeDateOrigin } from "src/types/dateOrigin";
@@ -20,6 +19,7 @@ import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
+import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import {
 	getTemplateFile,
 	isFolder,
@@ -79,16 +79,6 @@ async function readTemplate(app: App, path: string): Promise<string> {
 	return file ? await app.vault.cachedRead(file) : "";
 }
 
-function getRawTemplateRefs(content: string): Set<string> {
-	const refs = new Set<string>();
-	const re = new RegExp(TEMPLATE_REGEX.source, "gi");
-	let match: RegExpExecArray | null;
-	while ((match = re.exec(content)) !== null) {
-		if (match[1]) refs.add(match[1]);
-	}
-	return refs;
-}
-
 async function scanContentWithTemplateIncludes(
 	app: App,
 	collector: RequirementCollector,
@@ -100,7 +90,7 @@ async function scanContentWithTemplateIncludes(
 	const pathContext = isPathScope(scope);
 	// templatesToScan is a queue for this content scan. Clear it before and
 	// after scanning so refs from unrelated strings are not drained together.
-	const rawTemplateRefs = getRawTemplateRefs(content);
+	const rawTemplateRefs = collectTemplateIncludePaths(content);
 	collector.templatesToScan.clear();
 	await collector.scanString(content, pathContext, scope);
 	const nested = [...collector.templatesToScan].filter((ref) =>

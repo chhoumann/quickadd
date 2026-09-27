@@ -20,6 +20,7 @@ import {
 	isMacroObject,
 	macroCommandsValueOf,
 } from "../utils/macroUtils";
+import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import {
 	stripUserScriptSecretRefsFromCommand
@@ -241,6 +242,15 @@ export function applyAssetPathOverrides(
 						...captureChoice.createFileIfItDoesntExist,
 						template: replacement,
 					};
+				}
+			}
+			// The format's `{{TEMPLATE:...}}` includes are vault paths too; a
+			// bundled include written elsewhere must be followed the same way.
+			const format = captureChoice.format;
+			if (format && typeof format.format === "string") {
+				const rewritten = rewriteTemplateIncludes(format.format, pathOverrides);
+				if (rewritten !== format.format) {
+					captureChoice.format = { ...format, format: rewritten };
 				}
 			}
 			break;

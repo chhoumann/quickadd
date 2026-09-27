@@ -1,0 +1,10 @@
+---
+import Default from "@astrojs/starlight/components/MarkdownContent.astro";
+import PackageCard from "./PackageCard.astro";
+
+const { entry } = Astro.locals.starlightRoute;
+const packageId = entry.data.package;
+---
+
+{packageId && <PackageCard id={packageId} page={entry.id} />}
+<Default><slot /></Default>

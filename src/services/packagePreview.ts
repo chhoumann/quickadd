@@ -10,6 +10,7 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
 
@@ -108,19 +109,84 @@ const SEVERITY_ORDER: Record<PreviewSeverity, number> = {
 // --- Public analysis --------------------------------------------------------
 
 /**
- * Every script/template path the package references (deduped). The orchestrator
- * uses this to resolve existence for both bundled and unbundled references in a
+ * Every script/template path the package references (deduped), including the
+ * `{{TEMPLATE:...}}` includes inside bundled templates. The orchestrator uses
+ * this to resolve existence for both bundled and unbundled references in a
  * single vault pass.
  */
 export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
-	const { choiceWalks } = walkPackage(pkg);
-	const paths = new Set<string>();
+	return Array.from(collectPackageUsages(pkg, walkPackage(pkg).choiceWalks).keys());
+}
+
+// Matches the formatter's inclusion depth cap; bounds a crafted package whose
+// bundled notes include each other in a cycle.
+const MAX_INCLUDE_ROUNDS = 10;
+
+/**
+ * Usage sites indexed by referenced path: the command-graph references from
+ * the walk, plus every `{{TEMPLATE:...}}` include found inside a bundled note
+ * that some choice uses as a template (transitively). Includes are attributed
+ * to the choice(s) whose template pulls them in, so the preview can name where
+ * a missing or bundled include comes from.
+ */
+function collectPackageUsages(
+	pkg: QuickAddPackage,
+	choiceWalks: ReturnType<typeof walkPackage>["choiceWalks"],
+): Map<string, PreviewUsageSite[]> {
+	const usagesByPath = new Map<string, PreviewUsageSite[]>();
+	const addUsage = (usage: PreviewUsageSite) => {
+		if (!usage.path) return;
+		const list = usagesByPath.get(usage.path) ?? [];
+		list.push(usage);
+		usagesByPath.set(usage.path, list);
+	};
 	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			if (usage.path) paths.add(usage.path);
-		}
+		for (const usage of walk.usages) addUsage(usage);
 	}
-	return Array.from(paths);
+
+	const assetsByPath = new Map(pkg.assets.map((asset) => [asset.originalPath, asset]));
+	const scanned = new Set<string>();
+	let frontier = Array.from(usagesByPath.keys());
+	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
+		const next: string[] = [];
+		for (const path of frontier) {
+			if (scanned.has(path)) continue;
+			scanned.add(path);
+			const asset = assetsByPath.get(path);
+			if (!asset || !MARKDOWN_FILE_EXTENSION_REGEX.test(path)) continue;
+			// A note referenced only as a script runs its js fence; the formatter
+			// never resolves includes in it.
+			const templateUsages = (usagesByPath.get(path) ?? []).filter((u) => !u.asScript);
+			if (templateUsages.length === 0) continue;
+			let decoded: string;
+			try {
+				decoded = decodeFromBase64(asset.content);
+			} catch {
+				continue;
+			}
+			const includes = collectTemplateIncludePaths(decoded);
+			if (includes.size === 0) continue;
+			const referrers = new Map<string, PreviewUsageSite>();
+			for (const usage of templateUsages) {
+				if (!referrers.has(usage.choiceId)) referrers.set(usage.choiceId, usage);
+			}
+			for (const include of includes) {
+				for (const referrer of referrers.values()) {
+					addUsage({
+						choiceId: referrer.choiceId,
+						path: include,
+						asScript: false,
+						impliedKind: "template",
+						breadcrumb: `${referrer.breadcrumb} › {{TEMPLATE}} include`,
+					});
+				}
+				if (!scanned.has(include)) next.push(include);
+			}
+		}
+		frontier = next;
+	}
+
+	return usagesByPath;
 }
 
 // Cheap decoded-size estimate (no decode). Assumes RFC 4648 base64 as produced
@@ -155,15 +221,8 @@ export function buildPackagePreview(
 		flattenChoices(existingChoices).map((choice) => choice.id),
 	);
 
-	// Index usage sites by referenced path.
-	const usagesByPath = new Map<string, PreviewUsageSite[]>();
-	for (const walk of choiceWalks) {
-		for (const usage of walk.usages) {
-			const list = usagesByPath.get(usage.path) ?? [];
-			list.push(usage);
-			usagesByPath.set(usage.path, list);
-		}
-	}
+	// Usage sites by referenced path (command graph + template includes).
+	const usagesByPath = collectPackageUsages(pkg, choiceWalks);
 	const referencedAsScript = new Set<string>();
 	for (const [path, usages] of usagesByPath) {
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);

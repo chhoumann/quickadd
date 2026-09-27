@@ -2,6 +2,7 @@
 title: "Create a meeting note and start typing"
 description: Create a meeting note or add a project update, then keep typing where you put the CURSOR marker.
 slug: docs/Examples/Template_MeetingNotes
+package: meeting-notes
 ---
 
 Create a dated meeting note, answer one question, and start typing under **Notes**. Then use the same `{{CURSOR}}` marker to add an update to an existing project note.
@@ -9,6 +10,8 @@ Create a dated meeting note, answer one question, and start typing under **Notes
 These examples require QuickAdd 2.27.0 or later. They use QuickAdd's own templates, so you do not need Templater.
 
 ## Create the meeting template
+
+Imported the package above? Both templates and both choices are already set up, so skip to [Run it and start typing](#run-it-and-start-typing).
 
 Create folders named `Templates` and `Meetings` in your vault. In `Templates`, create a note named `Meeting` and paste this content:
 
@@ -75,6 +78,8 @@ To start in **Next steps** instead, remove the marker from **Notes** and change 
 ## Add an update to an existing project
 
 Use a second template when you want to keep a project's history in one note.
+
+Imported the package? Open a project note in **Live Preview**, click in the note body, and run **Add project update** from the command palette. The steps below build the same thing by hand.
 
 1. Create a `Templates` folder if you do not already have one. Create `Templates/Project update.md` with:
 

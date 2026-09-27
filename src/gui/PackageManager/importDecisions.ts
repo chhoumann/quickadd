@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
+import { normalizeTemplateFolderPaths } from "../../utils/templateFolderUtils";
 import { escapesVaultBoundary } from "../../utils/vaultPathBoundary";
 import type {
 	AssetImportMode,
@@ -56,6 +57,34 @@ export function effectiveChoiceMode(
 	exists: boolean,
 ): ChoiceImportMode {
 	return !exists && mode === "overwrite" ? "import" : mode;
+}
+
+// --- Default destination ----------------------------------------------------
+
+/**
+ * Where a bundled file lands unless the user edits the path: templates go into
+ * the first configured QuickAdd template folder (keeping their file name);
+ * scripts and everything else keep the path they had in the exporting vault.
+ * Shared by the import modal and the `quickadd:package-import` CLI so a scripted
+ * import puts files exactly where the modal's defaults would.
+ */
+export function defaultAssetDestinationFor(
+	conflict: Pick<AssetConflict, "kind" | "originalPath">,
+	templateFolderPaths: unknown,
+): string {
+	// normalizeTemplateFolderPaths drops blanks and trailing slashes, so the
+	// primary entry is already a clean folder path.
+	const [templateFolder] = normalizeTemplateFolderPaths(templateFolderPaths);
+	const needsTemplateFolder =
+		conflict.kind === "template" || conflict.kind === "capture-template";
+
+	if (templateFolder && needsTemplateFolder) {
+		const baseName =
+			conflict.originalPath.split("/").pop() ?? conflict.originalPath;
+		return `${templateFolder}/${baseName}`;
+	}
+
+	return conflict.originalPath;
 }
 
 // --- Decision construction --------------------------------------------------

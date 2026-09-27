@@ -27,6 +27,7 @@ import {
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
+import { syncImportedChoiceCommands } from "./services/packageImportCommands";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
 import {
@@ -329,7 +330,10 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
-				new ImportPackageModal(this.app).open();
+				new ImportPackageModal(this.app, {
+					onImported: (result, previousChoices) =>
+						syncImportedChoiceCommands(this.plugin, previousChoices, result),
+				}).open();
 			}),
 		);
 

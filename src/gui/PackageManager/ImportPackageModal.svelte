@@ -2,8 +2,9 @@
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
 	import { settingsStore } from "../../settingsStore";
-	import { normalizeTemplateFolderPaths } from "../../utilityObsidian";
+	import type IChoice from "../../types/choices/IChoice";
 	import type {
+		ApplyImportResult,
 		LoadedQuickAddPackage,
 		PackageAnalysis,
 		ChoiceImportMode,
@@ -29,6 +30,7 @@
 	import {
 		ExistenceResolver,
 		applyExistsResult,
+		defaultAssetDestinationFor,
 		initAssetDecisions,
 		initChoiceDecisions,
 		resolveAssetDecision,
@@ -45,7 +47,16 @@
 		ExistsProbe,
 	} from "./importDecisions";
 
-	let { app, close }: { app: App; close: () => void } = $props();
+	let {
+		app,
+		close,
+		onImported,
+	}: {
+		app: App;
+		close: () => void;
+		/** Called after a successful import with the choices as they were before it. */
+		onImported?: (result: ApplyImportResult, previousChoices: IChoice[]) => void;
+	} = $props();
 
 	// Lazily memoized so the `app` prop is read inside a closure (not captured at
 	// the top level) and so the monotonic token survives every re-paste.
@@ -164,23 +175,10 @@
 	);
 
 	function defaultAssetDestination(conflict: AssetConflict): string {
-		// Default imported templates into the first configured template folder.
-		// normalizeTemplateFolderPaths drops blanks and trailing slashes, so the
-		// primary entry is already a clean folder path.
-		const [templateFolder] = normalizeTemplateFolderPaths(
+		return defaultAssetDestinationFor(
+			conflict,
 			settingsStore.getState().templateFolderPaths,
 		);
-		const needsTemplateFolder =
-			conflict.kind === "template" ||
-			conflict.kind === "capture-template";
-
-		if (templateFolder && needsTemplateFolder) {
-			const baseName =
-				conflict.originalPath.split("/").pop() ?? conflict.originalPath;
-			return `${templateFolder}/${baseName}`;
-		}
-
-		return conflict.originalPath;
 	}
 
 	// Reconcile a destination against the authoritative adapter.exists (which sees
@@ -326,9 +324,10 @@
 		isImporting = true;
 		importSummary = null;
 		try {
+			const previousChoices = settingsStore.getState().choices;
 			const result = await applyPackageImport({
 				app,
-				existingChoices: settingsStore.getState().choices,
+				existingChoices: previousChoices,
 				aiProviders: settingsStore.getState().ai.providers,
 				pkg: loadedPackage.pkg,
 				choiceDecisions: snapshotChoiceDecisions(
@@ -346,6 +345,7 @@
 				...state,
 				choices: result.updatedChoices,
 			}));
+			onImported?.(result, previousChoices);
 
 			importSummary = {
 				added: result.addedChoiceIds.length,
