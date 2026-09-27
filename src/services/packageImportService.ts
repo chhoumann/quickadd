@@ -5,6 +5,7 @@ import type { AIProvider } from "../ai/Provider";
 import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
+import type IMultiChoice from "../types/choices/IMultiChoice";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { decodeFromBase64 } from "../utils/base64";
@@ -20,7 +21,18 @@ import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
-import { applyAssetPathOverrides, findMultiByPath, insertIntoMulti, insertUnderParent, remapChoiceTree, removeChoiceFromTree, replaceChoiceInTree } from "./packageChoiceImport";
+import {
+	applyAssetPathOverrides,
+	findChoiceInTree,
+	findMultiByPath,
+	insertIntoMulti,
+	insertUnderParent,
+	isDirectChildOf,
+	mergeFolderChildren,
+	remapChoiceTree,
+	removeChoiceFromTree,
+	replaceChoiceInTree,
+} from "./packageChoiceImport";
 import type { PackagePreview } from "./packagePreview";
 import {
 	buildPackagePreview,
@@ -303,6 +315,7 @@ export async function applyPackageImport(
 	}
 
 	const updatedChoices = deepClone(existingChoices);
+	const existingIds = new Set(flattenChoices(existingChoices).map((c) => c.id));
 	const addedChoiceIds: string[] = [];
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];
@@ -341,26 +354,25 @@ export async function applyPackageImport(
 
 	const handledChoices = new Set<string>();
 	// Children that ride along inside an imported parent. They are reported
-	// with the parent's outcome once every entry has been placed, so a folder
-	// of five captures counts as six choices in the summary, matching the
-	// preview the reader confirmed.
-	const inlineChildren: Array<{ originalId: string; finalId: string }> = [];
+	// once every entry has been placed, so a folder of five captures counts as
+	// six choices in the summary, matching the preview the reader confirmed.
+	const inlineChildren: Array<{ finalId: string }> = [];
 
 	// A child that arrives inside its parent can still have a same-id copy
 	// elsewhere in the vault: the reader dragged it out of the folder after an
 	// earlier import, and the preview offered "overwrite" for it. Placing the
 	// parent would then leave two choices with one id. Drop the stray before
-	// anything lands; it is reported as overwritten below.
-	const displacedInlineIds = new Set<string>();
+	// anything lands. A copy still inside that folder is not a stray: the
+	// folder merge replaces it where it sits.
 	for (const entry of pkg.choices) {
 		const originalId = entry.choice.id;
 		const parentId = entry.parentChoiceId;
 		if (!importableChoiceIds.has(originalId)) continue;
 		if (!parentId || !importableChoiceIds.has(parentId)) continue;
 		const finalId = idMap.get(originalId) ?? originalId;
-		if (removeChoiceFromTree(updatedChoices, finalId)) {
-			displacedInlineIds.add(finalId);
-		}
+		const finalParentId = idMap.get(parentId) ?? parentId;
+		if (isDirectChildOf(updatedChoices, finalParentId, finalId)) continue;
+		removeChoiceFromTree(updatedChoices, finalId);
 	}
 
 	for (const entry of pkg.choices) {
@@ -384,11 +396,20 @@ export async function applyPackageImport(
 			// The parsed parent carries this child inline; inserting its flat entry would duplicate it.
 			// packageValidation rejects parents that omit their declared children.
 			handledChoices.add(originalId);
-			inlineChildren.push({ originalId, finalId });
+			inlineChildren.push({ finalId });
 			continue;
 		}
 
 		if (decision === "overwrite" || decision === "import") {
+			if (choiceClone.type === "Multi") {
+				const current = findChoiceInTree(updatedChoices, finalId);
+				if (current?.type === "Multi") {
+					mergeFolderChildren(
+						current as IMultiChoice,
+						choiceClone as IMultiChoice,
+					);
+				}
+			}
 			const replaced = replaceChoiceInTree(updatedChoices, choiceClone);
 			if (replaced) {
 				overwrittenChoiceIds.push(finalId);
@@ -438,32 +459,14 @@ export async function applyPackageImport(
 		handledChoices.add(originalId);
 	}
 
-	// An inline child lands wherever its nearest placed ancestor landed. Walk
-	// up through the package's parent links (a grandchild's parent is itself
-	// inline) until an ancestor that was added or overwritten turns up. A child
-	// whose stray copy was dropped above replaced something, whatever its
-	// ancestor's outcome.
-	const placedAsAdded = new Set(addedChoiceIds);
-	const placedAsOverwritten = new Set(overwrittenChoiceIds);
-	for (const { originalId, finalId } of inlineChildren) {
-		if (displacedInlineIds.has(finalId)) {
+	// An inline child rides inside its parent, so it always lands. It replaced
+	// something when the vault already held its id: inside the folder, where
+	// the merge swapped it in place, or as a stray copy dropped above.
+	for (const { finalId } of inlineChildren) {
+		if (existingIds.has(finalId)) {
 			overwrittenChoiceIds.push(finalId);
-			continue;
-		}
-		const seen = new Set<string>([originalId]);
-		let ancestorId = catalog.get(originalId)?.parentChoiceId ?? null;
-		while (ancestorId && !seen.has(ancestorId)) {
-			seen.add(ancestorId);
-			const ancestorFinalId = idMap.get(ancestorId) ?? ancestorId;
-			if (placedAsAdded.has(ancestorFinalId)) {
-				addedChoiceIds.push(finalId);
-				break;
-			}
-			if (placedAsOverwritten.has(ancestorFinalId)) {
-				overwrittenChoiceIds.push(finalId);
-				break;
-			}
-			ancestorId = catalog.get(ancestorId)?.parentChoiceId ?? null;
+		} else {
+			addedChoiceIds.push(finalId);
 		}
 	}
 
