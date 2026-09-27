@@ -41,14 +41,21 @@ takes about a minute.
    settings open right away.
 2. Click the name at the top and rename it to `Add to journal`.
 3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
-4. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
+4. Turn on **Create file if it doesn't exist**, so the first capture of the day
+   creates today's note instead of stopping with a "Target file missing" notice.
+5. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
    of one entry.
-5. Close the settings. Open the command palette (Ctrl/Cmd+P), run
+6. Close the settings. Open the command palette (Ctrl/Cmd+P), run
    **QuickAdd: Run**, pick `Add to journal`, and type your entry.
 
-QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` into today's
-journal note, without opening it. Once it works the way you want, give it a
-hotkey from the ⚡ icon next to the choice or Obsidian's Hotkeys settings.
+QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` to the top of
+today's journal note, without opening it.
+
+![Running QuickAdd: Run from the command palette, picking Add to journal, typing "Standup moved to Wednesday", and the timestamped line appearing at the top of today's journal note](./Images/getting-started-add-to-journal.gif)
+
+Once it works the way you want, click the ⚡ icon next to the choice to add it
+to the command palette, then give it a hotkey in Obsidian's **Settings →
+Hotkeys**.
 
 The `{{DATE}}` and `{{VALUE}}` above are [format syntax](/docs/FormatSyntax/):
 placeholders QuickAdd fills in each time you run the choice. There are

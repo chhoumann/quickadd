@@ -11,6 +11,14 @@ answer you type, a link to the note you came from.
 You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
+In the format fields of a choice's settings (such as **Capture format**,
+**Capture to**, **File name format**, and the insert after/before targets), type
+`{{` to get a list of placeholders, then keep typing to filter it. Template
+files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
+an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
+
+![Typing two curly braces in a Capture format field opens a list of placeholders with a short description of each. Typing "val" narrows it to VALUE variants, Enter inserts {{VALUE}}, and picking {{VDATE:}} leaves the cursor inside so "due,YYYY-MM-DD" can be typed. The preview under the field updates as the format changes](./Images/format-syntax-autocomplete.gif)
+
 For example, a Capture with this format:
 
 ```markdown

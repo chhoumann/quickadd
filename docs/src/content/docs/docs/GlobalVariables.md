@@ -46,10 +46,13 @@ Good places to use one:
    [format syntax](/docs/FormatSyntax/).
 3. That's it - changes save automatically as you type.
 
+![The Global variables section of QuickAdd settings with two variables: Signature, whose value is "Logged by QuickAdd on {{DATE:YYYY-MM-DD}}", and MyProjects, whose value is "{{VALUE:Inbox,Work,Personal,Archive}}"](./Images/settings-global-variables.png)
+
 :::tip
-Typing `{{GLOBAL_VAR:` anywhere QuickAdd formats text pops up suggestions,
-including the names you've defined. Use descriptive names, and avoid two names
-that differ only by case.
+In the format fields of a choice's settings, such as **Capture format** or
+**File name format**, type `{{glob` to get suggestions for the variables you've
+defined, then pick one to insert it. Use descriptive names,
+and avoid two names that differ only by case.
 :::
 
 ## Use it anywhere: `{{GLOBAL_VAR:<name>}}` {#use}
@@ -65,7 +68,7 @@ value. It works everywhere QuickAdd formats text:
 
 Good to know:
 
-- The name after `GLOBAL_VAR:` matches **case-insensitively**, so `{{global_var:Signature}}` also works. The stored key itself is case-sensitive, which is why you should avoid defining two variables whose names differ only in case.
+- The `GLOBAL_VAR` keyword is case-insensitive, so `{{global_var:Signature}}` also works. The name after the colon is **case-sensitive**: `{{GLOBAL_VAR:signature}}` does not find a variable named `Signature`.
 - A name that doesn't match any global variable becomes an **empty string** rather than erroring.
 
 ## Put other placeholders inside a snippet {#nested-tokens}

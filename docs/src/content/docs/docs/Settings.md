@@ -8,12 +8,16 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 
 ## Choices & packages {#choices--packages}
 
+![The Choices & packages section of QuickAdd settings: a filterable list of choices with Projects and Reading folders, row actions shown on hover for Add to journal, the New folder and New choice buttons, and the Export package… and Import package… buttons](./Images/settings-choices-and-packages.png)
+
 - **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
 - **Packages** - share a set of choices with someone else, or bring theirs in. Use **Export package…** to bundle your choices into a file, and **Import package…** to add someone else's. See [Share QuickAdd Packages](/docs/Choices/Packages/).
 
 ## Choice picker {#choice-picker}
 
 The choice picker is the list you see when you run **QuickAdd: Run**.
+
+![The QuickAdd choice picker searching for "new": root choices New person and New meeting note, followed by New book note from the Reading folder and New project from the Projects folder, each nested match labelled with its folder](./Images/choice-picker-nested-search.png)
 
 - **Search nested choices** - find a choice even when it lives inside a folder. When on, searching also matches choices nested in folders and shows their path. A nested match can rank above a same-level one. Turn it off to search only the level you have open.
 - **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Bottom* (default) keeps your most-used choice in the first slot, *Top* makes the template row first, and *Hidden* removes it. The row only appears once you have a [template folder](#templates--properties) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
