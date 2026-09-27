@@ -39,7 +39,7 @@
 		"jsdom": "30",
 		"moment": "2.31.0",
 		"obsidian": "1.13.1",
-		"obsidian-e2e": "^0.10.0",
+		"obsidian-e2e": "^0.11.0",
 		"svelte": "^5",
 		"svelte-check": "^4",
 		"svelte-eslint-parser": "^1.8.1",
