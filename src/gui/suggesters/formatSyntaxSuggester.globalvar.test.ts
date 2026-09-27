@@ -69,6 +69,15 @@ describe("FormatSyntaxSuggester {{GLOBAL_VAR:}} names", () => {
 			suggester.selectSuggestion(row);
 			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
 			expect(inputEl.selectionStart).toBe("- {{GLOBAL_VAR:MyProjects}}".length);
+
+			// Moving the caret past the braces before accepting must not let a
+			// stale suffix eat the text that follows.
+			inputEl.value = "- {{GLOBAL_VAR:My}} after";
+			inputEl.setSelectionRange(caret, caret);
+			const [stale] = suggester.getSuggestions(inputEl.value);
+			inputEl.setSelectionRange(caret + 2, caret + 2);
+			suggester.selectSuggestion(stale);
+			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
 		} finally {
 			suggester.destroy();
 		}

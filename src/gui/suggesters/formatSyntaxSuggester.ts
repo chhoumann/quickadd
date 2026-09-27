@@ -25,8 +25,8 @@ const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
 	/** Start offset of the fragment the accepted suggestion replaces. */
 	private replaceFrom = 0;
-	/** Characters after the caret the accepted suggestion also replaces. */
-	private replaceSuffixLength = 0;
+	/** Whether accepting also replaces a "}}" found right after the caret. */
+	private replaceClosingBraces = false;
 	/** The letters typed after "{{", used to highlight what matched. */
 	private matchedQuery = "";
 	private readonly macroNames: string[];
@@ -55,7 +55,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// the user is currently typing, not earlier, already-completed tokens.
 		const startBrace = inputStr.lastIndexOf("{{", cursorPosition - 1);
 		if (startBrace === -1) return [];
-		this.replaceSuffixLength = 0;
+		this.replaceClosingBraces = false;
 
 		const inputSegment = inputStr.slice(startBrace, cursorPosition);
 
@@ -94,7 +94,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			this.matchedQuery = inputSegment.slice(2);
 			// Accepting the empty {{GLOBAL_VAR:}} row parks the caret before its
 			// "}}"; the completed token brings its own, so consume those.
-			this.replaceSuffixLength = inputStr.startsWith("}}", cursorPosition) ? 2 : 0;
+			this.replaceClosingBraces = true;
 			const fragment = (globalVarMatch[1] ?? "").toLowerCase();
 			return Object.keys(this.plugin?.settings?.globalVariables ?? {})
 				.filter((name) => name.toLowerCase().startsWith(fragment))
@@ -182,8 +182,15 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const replaceStart = this.replaceFrom;
 
+		// Checked against the caret now, not when the list was built: moving the
+		// caret does not refresh the list, and must not widen the replaced span.
+		const replaceEnd =
+			this.replaceClosingBraces && this.inputEl.value.startsWith("}}", cursorPosition)
+				? cursorPosition + 2
+				: cursorPosition;
+
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, cursorPosition + this.replaceSuffixLength, item.insert, {
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
 			fromCompletion: true,
 		});
 
