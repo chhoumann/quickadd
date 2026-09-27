@@ -34,6 +34,7 @@ import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { log } from "../../logger/logManager";
+import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "../../settingsStore";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
@@ -396,7 +397,9 @@ export class CommandSequenceEditor {
 				button
 					.setButtonText("Browse")
 					.setTooltip("Browse and select a script (.js file or note)")
-					.onClick(async () => {
+					// Obsidian drops the click handler's promise: without this, pressing
+					// Escape in the picker is an unhandled rejection.
+					.onClick(reportingHandler("Couldn't add that script", async () => {
 						const selected = await this.showScriptPicker();
 						if (selected) {
 							const name = selected.isMarkdown
@@ -404,7 +407,7 @@ export class CommandSequenceEditor {
 								: selected.file.basename;
 							this.addCommand(new UserScript(name, selected.file.path));
 						}
-					})
+					}))
 			)
 			.addButton((button) => {
 				addButton = button;

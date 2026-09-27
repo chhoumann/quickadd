@@ -1,3 +1,4 @@
+import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import type IChoice from "../types/choices/IChoice";
@@ -37,8 +38,16 @@ export async function executeChoice(
 		}
 	}
 
-	await executor.execute(choice);
-	const aborted = executor.consumeAbortSignal?.();
+	let aborted: MacroAbortError | null | undefined;
+	try {
+		await executor.execute(choice);
+		aborted = executor.consumeAbortSignal?.();
+	} catch (error) {
+		// Most engines signal an abort, but some prompts (the one-page form, the
+		// date prompt) throw it. Either way it is a cancellation, not a failure.
+		if (!(error instanceof MacroAbortError)) throw error;
+		aborted = error;
+	}
 	return aborted
 		? { ok: false, aborted: true, error: aborted.message || "Choice execution aborted" }
 		: { ok: true, verified: false, effect: "unknown" };

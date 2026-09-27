@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { log } from "../logger/logManager";
 import {
+	handledIfCancelled,
 	reportError,
 	reportUnlessCancelled,
 	reportingHandler,
 	toError,
 } from "./errorUtils";
 import { promptCancelled } from "../errors/UserCancelError";
+import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { collectUnhandledRejections } from "../../tests/helpers/unhandledRejections";
 
 describe("toError", () => {
 	it("returns the same Error instance when no context is provided", () => {
@@ -268,5 +271,53 @@ describe("reportUnlessCancelled", () => {
 			reportUnlessCancelled(new Error("Template file not found"), "Could not run it"),
 		).toBe(true);
 		expect(logError).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * Escape in a file picker opened by a floated `api.executeChoice(...)` landed in
+ * Obsidian's `dev:errors` as `MacroAbortError: Input cancelled by user`, because the
+ * rejection went unhandled. `dev:errors` ignores preventDefault(), so the rejection
+ * has to be handled, but only for a cancellation.
+ */
+describe("handledIfCancelled", () => {
+	it("leaves no unhandled rejection when nobody awaits a cancellation", async () => {
+		const unhandled = await collectUnhandledRejections(() => {
+			void handledIfCancelled(Promise.reject(promptCancelled()));
+		});
+
+		expect(unhandled).toEqual([]);
+	});
+
+	it("still rejects with the same cancellation for a caller that awaits", async () => {
+		const cancel = promptCancelled();
+
+		await expect(handledIfCancelled(Promise.reject(cancel))).rejects.toBe(cancel);
+	});
+
+	it("leaves a real failure unhandled so it is still reported", async () => {
+		const failure = new Error("Template file not found");
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void handledIfCancelled(Promise.reject(failure));
+		});
+
+		expect(unhandled).toEqual([failure]);
+	});
+
+	// An involuntary abort is a MacroAbortError too, but it carries copy the user
+	// needs, so it must not be quieted along with the dismissal.
+	it("leaves an involuntary abort unhandled", async () => {
+		const abort = new ChoiceAbortError("Selected folder not allowed.");
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void handledIfCancelled(Promise.reject(abort));
+		});
+
+		expect(unhandled).toEqual([abort]);
+	});
+
+	it("passes a resolved value through", async () => {
+		await expect(handledIfCancelled(Promise.resolve(42))).resolves.toBe(42);
 	});
 });

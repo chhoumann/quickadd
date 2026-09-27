@@ -212,6 +212,27 @@ export function reportingHandler<A extends unknown[]>(
 }
 
 /**
+ * Settle exactly like `promise`, except that a cancellation nobody awaits is not an
+ * unhandled rejection. Real failures are left unhandled so they still get reported.
+ *
+ * For promises QuickAdd hands to code it doesn't control, such as `api.executeChoice`
+ * called from a button's click handler without a `.catch`. A caller that awaits or
+ * catches still receives the cancellation. Obsidian's `dev:errors` records every
+ * unhandled rejection, including ones the unhandled-rejection reporter claims with
+ * `preventDefault()`, so the only way to keep Escape out of it is to never leave the
+ * rejection unhandled.
+ */
+export function handledIfCancelled<T>(promise: Promise<T>): Promise<T> {
+  const result: Promise<T> = promise.then(undefined, (error: unknown) => {
+    // A handler attached before `result` rejects marks it handled; awaiting callers
+    // attach their own and still see the error.
+    if (isCancellationError(error)) result.catch(() => undefined);
+    throw error;
+  });
+  return result;
+}
+
+/**
  * Return the result, or report an asynchronous failure and return undefined.
  */
 export async function withAsyncErrorHandling<T>(

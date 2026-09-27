@@ -6,7 +6,7 @@ import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTempl
 import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } from "./engine/TemplateInsertEngine";
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
 import { applyInvocationDate } from "./utils/resolveDateOrigin";
-import { reportError } from "./utils/errorUtils";
+import { handledIfCancelled, reportError } from "./utils/errorUtils";
 import { getDate } from "./utilityObsidian";
 import type IChoice from "./types/choices/IChoice";
 import type { InputPromptOptions } from "./types/inputPrompt";
@@ -68,6 +68,58 @@ export class QuickAddApi {
 			}
 
 			return output;
+		};
+		const executeChoice = async (
+			choiceName: string,
+			variables?: Record<string, unknown>,
+			options?: { date?: string | Date },
+		) => {
+			// getChoiceByName THROWS when the name doesn't match a choice, so
+			// look it up defensively: report + return (don't abort the macro)
+			// to honor the documented "reports an error, does not throw"
+			// contract. The `!choice` fallback also covers any non-throwing
+			// lookup that yields a falsy result.
+			let choice: IChoice | undefined;
+			try {
+				choice = plugin.getChoiceByName(choiceName);
+			} catch {
+				choice = undefined;
+			}
+
+			if (!choice) {
+				reportError(
+					new Error(`Choice named '${choiceName}' not found`),
+					"API executeChoice error",
+				);
+				return;
+			}
+
+			if (!applyInvocationDate(choiceExecutor, options?.date)) {
+				reportError(
+					new Error(`Could not parse date origin '${String(options?.date)}'`),
+					"API executeChoice error",
+				);
+				return;
+			}
+
+			if (variables) {
+				Object.keys(variables).forEach((key) => {
+					choiceExecutor.variables.set(key, variables[key]);
+				});
+			}
+
+			// The clear stays on the non-throw path only, deliberately: this
+			// executor can be a calling macro's own (params.quickAddApi), so the
+			// map holds the CALLER's variables too, and a script that catches a
+			// cancelled sub-choice and carries on must not lose them. The cost is
+			// the long-standing quirk that variables seeded into a cancelled call
+			// linger until the next completed one.
+			await choiceExecutor.execute(choice);
+			const abort = choiceExecutor.consumeAbortSignal?.();
+			choiceExecutor.variables.clear();
+			if (abort) {
+				throw abort;
+			}
 		};
 		return {
 			requestInputs: (inputs: Parameters<typeof requestInputs>[2]) => requestInputs(app, choiceExecutor, inputs),
@@ -164,58 +216,11 @@ export class QuickAddApi {
 					header,
 				);
 			},
-			executeChoice: async (
-				choiceName: string,
-				variables?: Record<string, unknown>,
-				options?: { date?: string | Date },
-			) => {
-				// getChoiceByName THROWS when the name doesn't match a choice, so
-				// look it up defensively: report + return (don't abort the macro)
-				// to honor the documented "reports an error, does not throw"
-				// contract. The `!choice` fallback also covers any non-throwing
-				// lookup that yields a falsy result.
-				let choice: IChoice | undefined;
-				try {
-					choice = plugin.getChoiceByName(choiceName);
-				} catch {
-					choice = undefined;
-				}
-
-				if (!choice) {
-					reportError(
-						new Error(`Choice named '${choiceName}' not found`),
-						"API executeChoice error",
-					);
-					return;
-				}
-
-				if (!applyInvocationDate(choiceExecutor, options?.date)) {
-					reportError(
-						new Error(`Could not parse date origin '${String(options?.date)}'`),
-						"API executeChoice error",
-					);
-					return;
-				}
-
-				if (variables) {
-					Object.keys(variables).forEach((key) => {
-						choiceExecutor.variables.set(key, variables[key]);
-					});
-				}
-
-				// The clear stays on the non-throw path only, deliberately: this
-				// executor can be a calling macro's own (params.quickAddApi), so the
-				// map holds the CALLER's variables too, and a script that catches a
-				// cancelled sub-choice and carries on must not lose them. The cost is
-				// the long-standing quirk that variables seeded into a cancelled call
-				// linger until the next completed one.
-				await choiceExecutor.execute(choice);
-				const abort = choiceExecutor.consumeAbortSignal?.();
-				choiceExecutor.variables.clear();
-				if (abort) {
-					throw abort;
-				}
-			},
+			// Still rejects when the user cancels, so an awaiting script stops. But
+			// callers often wire this to a button and never catch it, and pressing
+			// Escape there must not show up as an error.
+			executeChoice: (...args: Parameters<typeof executeChoice>) =>
+				handledIfCancelled(executeChoice(...args)),
 			applyTemplateToActiveFile: async (
 				templatePath: string,
 				options?: { mode?: TemplateInsertModeId },
