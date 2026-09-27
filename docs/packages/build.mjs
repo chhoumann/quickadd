@@ -10,6 +10,7 @@
  * and writes the package the docs serve. Run it from the repo root:
  *
  *   pnpm run packages:build          # write every package, drop outputs with no manifest
+ *   pnpm run packages:build <id>...  # write only the named packages
  *   pnpm run packages:build --check  # exit 1 when a committed package is stale
  *
  * `tests/examplePackages.test.ts` runs the same check in CI and additionally
@@ -146,11 +147,12 @@ function readIfExists(file) {
 	}
 }
 
-/** Ids whose committed output differs from what the manifest builds now. */
-export function stalePackageIds() {
-	return listPackageIds().filter(
-		(id) => readIfExists(outputPath(id)) !== buildPackageJson(id),
-	);
+/**
+ * Ids whose committed output differs from what the manifest builds now.
+ * @param {string[]} [ids] Defaults to every package.
+ */
+export function stalePackageIds(ids = listPackageIds()) {
+	return ids.filter((id) => readIfExists(outputPath(id)) !== buildPackageJson(id));
 }
 
 /** Ids of committed outputs whose manifest is gone; the build removes them. */
@@ -164,11 +166,21 @@ export function orphanOutputIds() {
 }
 
 function main() {
-	const check = process.argv.includes("--check");
-	const ids = listPackageIds();
+	const args = process.argv.slice(2);
+	const check = args.includes("--check");
+	const known = listPackageIds();
+	const requested = args.filter((arg) => !arg.startsWith("--"));
+	const unknown = requested.filter((id) => !known.includes(id));
+	if (unknown.length > 0) {
+		console.error(
+			`No manifest for: ${unknown.join(", ")}. Known packages: ${known.join(", ")}.`,
+		);
+		process.exit(1);
+	}
+	const ids = requested.length > 0 ? requested : known;
 	if (check) {
-		const stale = stalePackageIds();
-		const orphans = orphanOutputIds();
+		const stale = stalePackageIds(ids);
+		const orphans = requested.length > 0 ? [] : orphanOutputIds();
 		if (stale.length > 0 || orphans.length > 0) {
 			if (stale.length > 0) {
 				console.error(`Stale example packages: ${stale.join(", ")}.`);
@@ -179,13 +191,18 @@ function main() {
 			console.error('Run "pnpm run packages:build".');
 			process.exit(1);
 		}
-		console.log(`${ids.length} example packages are up to date.`);
+		console.log(
+			ids.length === 1
+				? `${ids[0]} is up to date.`
+				: `${ids.length} example packages are up to date.`,
+		);
 		return;
 	}
 	for (const id of ids) {
 		writeFileSync(outputPath(id), buildPackageJson(id));
 		console.log(`wrote ${path.relative(process.cwd(), outputPath(id))}`);
 	}
+	if (requested.length > 0) return;
 	for (const id of orphanOutputIds()) {
 		rmSync(outputPath(id));
 		console.log(`removed ${path.relative(process.cwd(), outputPath(id))}`);
