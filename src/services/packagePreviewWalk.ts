@@ -15,6 +15,7 @@ import type {
 } from "../types/packages/QuickAddPackage";
 import { isChoiceLike } from "../utils/choiceUtils";
 import { commandListOf, isCommandLike, macroCommandsValueOf } from "../utils/macroUtils";
+import { captureFormatIncludes } from "../utils/packageTraversal";
 
 import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewUsageSite } from "../types/packages/PackagePreview";
 const KNOWN_COMMAND_TYPES = new Set<string>(Object.values(CommandType));
@@ -175,6 +176,15 @@ function collectChoice(
 				asScript: false,
 				impliedKind: "capture-template",
 				breadcrumb: joinCrumb([...crumbs, "new-file template"]),
+			});
+		}
+		for (const path of captureFormatIncludes(choice)) {
+			walk.usages.push({
+				choiceId: walk.choiceId,
+				path,
+				asScript: false,
+				impliedKind: "template",
+				breadcrumb: joinCrumb([...crumbs, "{{TEMPLATE}} include"]),
 			});
 		}
 	}

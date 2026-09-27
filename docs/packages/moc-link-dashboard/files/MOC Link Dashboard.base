@@ -1,0 +1,32 @@
+formulas:
+  note_link: "file.asLink()"
+properties:
+  formula.note_link:
+    displayName: Note
+  file.folder:
+    displayName: Folder
+  file.mtime:
+    displayName: Updated
+views:
+  - type: table
+    name: Backlinks
+    filters:
+      and:
+        - 'file.ext == "md"'
+        - "file.hasLink(this.file)"
+        - "file.path != this.file.path"
+    order:
+      - formula.note_link
+      - file.folder
+      - file.mtime
+  - type: table
+    name: Outgoing links
+    filters:
+      and:
+        - 'file.ext == "md"'
+        - "this.file.hasLink(file)"
+        - "file.path != this.file.path"
+    order:
+      - formula.note_link
+      - file.folder
+      - file.mtime

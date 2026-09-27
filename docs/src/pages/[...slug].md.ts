@@ -14,10 +14,19 @@ export const getStaticPaths = (async () => {
 	}));
 }) satisfies GetStaticPaths;
 
-export const GET: APIRoute = ({ props }) => {
+export const GET: APIRoute = ({ props, site }) => {
 	const { entry } = props;
 	const header = `# ${entry.data.title}\n\n> ${entry.data.description ?? ""}\n\n`;
-	return new Response(header + (entry.body ?? ""), {
+	// The package card is rendered by a component, so tell markdown readers
+	// (agents included) where the ready-made package lives. The link is
+	// absolute because this markdown is read outside the site.
+	const packageUrl = entry.data.package
+		? new URL(`/packages/${entry.data.package}.quickadd.json`, site).href
+		: "";
+	const packageNote = packageUrl
+		? `> Ready-made QuickAdd package for this workflow: [package JSON](${packageUrl}). Copy its contents and import them in Obsidian via **Settings → QuickAdd → Import package…**.\n\n`
+		: "";
+	return new Response(header + packageNote + (entry.body ?? ""), {
 		headers: { "Content-Type": "text/markdown; charset=utf-8" },
 	});
 };

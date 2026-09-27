@@ -2,6 +2,7 @@
 title: "Macro: Capture to Inbox with GPS"
 description: Append a timestamped inbox line with device GPS coordinates, for offline capture on Obsidian mobile 1.11+
 slug: docs/Examples/Macro_CaptureInboxGps
+package: capture-inbox-gps
 ---
 
 This macro asks for a quick note, looks up your device location at the same
@@ -18,21 +19,13 @@ This is not a built-in `{{coordinates}}` token. A capture format that calls
 `{{MACRO:...}}` would wait for GPS *before* opening the prompt, which fights
 voice-to-text. The script starts the location lookup first, then prompts.
 
-## Install from a package {#install-from-a-package}
+## Install from the package {#install-from-a-package}
 
-1. Download <a href="/packages/capture-inbox-gps.quickadd.json" download>capture-inbox-gps.quickadd.json</a>.
-2. Open **Settings → QuickAdd** and click **Import package…**.
-3. Paste the file contents. Review the script (it is marked executable), tick
-   the acknowledgement, and import.
-4. Assign a hotkey to **Capture to Inbox with GPS**, or run it from the command
-   palette.
-
-The package writes `scripts/captureInboxGps.js` and a Macro choice that runs
-it. Open the cog on the script step to change the Inbox path (default
-`Inbox.md`) or to turn off creating the note when it is missing.
-
-See [Share QuickAdd Packages](/docs/Choices/Packages/) for the import review
-screen.
+The package at the top of this page writes `scripts/captureInboxGps.js` and a
+Macro choice that runs it. After importing, open the cog on the script step to
+change the Inbox path (default `Inbox.md`) or to turn off creating the note
+when it is missing. Then assign a hotkey to **Capture to Inbox with GPS**, or
+run it from the command palette.
 
 ## Install by hand {#install-by-hand}
 

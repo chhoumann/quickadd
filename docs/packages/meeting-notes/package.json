@@ -1,0 +1,129 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-meeting-notes",
+		"qa-pkg-meeting-notes-project-update"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-meeting-notes",
+				"name": "New meeting",
+				"type": "Template",
+				"command": true,
+				"templatePath": "Templates/Meeting.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"Meetings"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "reuse",
+					"direction": "vertical",
+					"mode": "live",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "prompt"
+				}
+			},
+			"pathHint": [
+				"New meeting"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-meeting-notes-project-update",
+				"name": "Add project update",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "",
+				"captureToActiveFile": true,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": false,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "{{TEMPLATE:Templates/Project update.md}}"
+				},
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Add project update"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/Meeting.md",
+			"source": "files/Meeting.md"
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/Project update.md",
+			"source": "files/Project update.md"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Run **New meeting** from the command palette and answer the prompt. The note lands in `Meetings/`; change **Folder path** on the choice to use another folder.",
+			"Open any project note in **Live Preview**, click in the note body, and run **Add project update** to append a dated section and start typing under **Progress**."
+		]
+	}
+}

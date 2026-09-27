@@ -20,6 +20,7 @@ import {
 	isMacroObject,
 	macroCommandsValueOf,
 } from "../utils/macroUtils";
+import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import {
 	stripUserScriptSecretRefsFromCommand
@@ -148,6 +149,21 @@ export function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): b
 	return false;
 }
 
+/** Remove the choice with `id` wherever it sits in the tree; returns it, or undefined when absent. */
+export function removeChoiceFromTree(choices: IChoice[], id: string): IChoice | undefined {
+	for (let i = 0; i < choices.length; i++) {
+		const current = choices[i];
+		if (!isChoiceLike(current)) continue;
+		if (current.id === id) {
+			choices.splice(i, 1);
+			return current;
+		}
+		const removed = removeChoiceFromTree(childChoicesOf(current), id);
+		if (removed) return removed;
+	}
+	return undefined;
+}
+
 export function insertUnderParent(
 	choices: IChoice[],
 	parentId: string,
@@ -241,6 +257,15 @@ export function applyAssetPathOverrides(
 						...captureChoice.createFileIfItDoesntExist,
 						template: replacement,
 					};
+				}
+			}
+			// The format's `{{TEMPLATE:...}}` includes are vault paths too; a
+			// bundled include written elsewhere must be followed the same way.
+			const format = captureChoice.format;
+			if (format && typeof format.format === "string") {
+				const rewritten = rewriteTemplateIncludes(format.format, pathOverrides);
+				if (rewritten !== format.format) {
+					captureChoice.format = { ...format, format: rewritten };
 				}
 			}
 			break;

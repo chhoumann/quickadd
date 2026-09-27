@@ -12,7 +12,7 @@ import type {
 	QuickAddPackageChoice,
 } from "../types/packages/QuickAddPackage";
 import { QUICKADD_PACKAGE_SCHEMA_VERSION } from "../types/packages/QuickAddPackage";
-import { encodeToBase64 } from "../utils/base64";
+import { decodeFromBase64, encodeToBase64 } from "../utils/base64";
 import { isChoiceLike } from "../utils/choiceUtils";
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
@@ -21,6 +21,8 @@ import {
 	collectFileDependencies,
 	collectScriptDependencies,
 } from "../utils/packageTraversal";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
+import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import {
 	stripUserScriptSecretRefsFromChoice
 } from "../utils/userScriptSecrets";
@@ -67,6 +69,7 @@ export async function buildPackage(
 	const assetDescriptors = collectAssetDescriptors(scripts, files);
 
 	const assets = await encodeAssets(app, assetDescriptors);
+	await bundleTransitiveIncludes(app, assets);
 	const secretOptionNamesByPath = packageSecretOptionNames(assets.encodedAssets, "export");
 
 	const packageChoices: QuickAddPackageChoice[] = closure.choiceIds.map(
@@ -142,10 +145,58 @@ function collectAssetDescriptors(
 		if (!descriptors.has(path)) descriptors.set(path, "capture-template");
 	}
 
+	// An include is a template by every measure that matters downstream (the
+	// importer offers the template folder as its destination); the schema has no
+	// separate kind for it, and adding one would break older importers.
+	for (const path of files.includePaths) {
+		if (!path) continue;
+		if (!descriptors.has(path)) descriptors.set(path, "template");
+	}
+
 	return Array.from(descriptors.entries()).map(([path, kind]) => ({
 		path,
 		kind,
 	}));
+}
+
+// A template can itself say `{{TEMPLATE:other.md}}`, and that one can too. Walk
+// the bundled Markdown until nothing new turns up; the depth cap mirrors the
+// formatter's own inclusion limit so a self-including note cannot spin forever.
+const MAX_INCLUDE_ROUNDS = 10;
+
+async function bundleTransitiveIncludes(
+	app: App,
+	assets: EncodedAssets,
+): Promise<void> {
+	const known = new Set(assets.encodedAssets.map((asset) => asset.originalPath));
+	for (const missing of assets.missingAssets) known.add(missing.path);
+
+	let frontier = assets.encodedAssets.filter(isIncludeScannable);
+	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
+		const next: AssetDescriptor[] = [];
+		for (const asset of frontier) {
+			for (const path of collectTemplateIncludePaths(decodeFromBase64(asset.content))) {
+				if (known.has(path)) continue;
+				known.add(path);
+				next.push({ path, kind: "template" });
+			}
+		}
+		if (next.length === 0) break;
+		const encoded = await encodeAssets(app, next);
+		assets.encodedAssets.push(...encoded.encodedAssets);
+		assets.missingAssets.push(...encoded.missingAssets);
+		frontier = encoded.encodedAssets.filter(isIncludeScannable);
+	}
+}
+
+// The formatter runs over whatever file a template path names (`.md`,
+// `.canvas` or `.base`), so includes inside any of them resolve at run time. A
+// script's body (even a `.md` note-script) never has its includes resolved.
+function isIncludeScannable(asset: QuickAddPackageAsset): boolean {
+	return (
+		(asset.kind === "template" || asset.kind === "capture-template") &&
+		hasTemplateExtension(asset.originalPath)
+	);
 }
 
 async function encodeAssets(

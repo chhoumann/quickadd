@@ -1,0 +1,115 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-todoist-tasks",
+		"qa-pkg-todoist-tasks-macro"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-todoist-tasks",
+				"name": "Import Todoist tasks",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Todoist tasks.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "cursor",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "{{MACRO:Todoist}}"
+				},
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Import Todoist tasks"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-todoist-tasks-macro",
+				"name": "Todoist",
+				"type": "Macro",
+				"command": false,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-todoist-tasks-macro-body",
+					"name": "Todoist",
+					"commands": [
+						{
+							"id": "qa-pkg-todoist-tasks-script",
+							"name": "todoistTaskSync",
+							"type": "UserScript",
+							"path": "scripts/todoistTaskSync.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Todoist"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/todoistTaskSync.js",
+			"source": "../../public/scripts/TodoistScript.js"
+		}
+	],
+	"install": {
+		"requires": [
+			"a Todoist API token, copied from **Settings → Integrations → Developer** in Todoist"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, open the **Todoist** macro and click the cog on the **todoistTaskSync** step. Paste your token into **Todoist API token** and click the save icon next to it. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"**Imported tasks are completed in Todoist by default**, and recurring tasks move to their next occurrence. Untick **Complete imported tasks in Todoist** in the same settings to leave them open.",
+			"Run **Import Todoist tasks** from the command palette and pick which tasks to fetch: all of them, one project, or one section. They are written to `Todoist tasks.md`; change **Capture to** on the choice to use another note."
+		]
+	}
+}

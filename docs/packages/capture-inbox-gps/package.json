@@ -1,0 +1,52 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.23.0",
+	"createdAt": "2026-08-31T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-capture-inbox-gps"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-capture-inbox-gps",
+				"name": "Capture to Inbox with GPS",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-capture-inbox-gps-macro",
+					"name": "Capture to Inbox with GPS",
+					"commands": [
+						{
+							"id": "qa-pkg-capture-inbox-gps-script",
+							"name": "captureInboxGps",
+							"type": "UserScript",
+							"path": "scripts/captureInboxGps.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Capture to Inbox with GPS"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/captureInboxGps.js",
+			"source": "../../public/scripts/captureInboxGps.js"
+		}
+	],
+	"install": {
+		"requires": [
+			"Obsidian mobile 1.11 or newer for GPS (desktop saves the line without coordinates)"
+		],
+		"afterImport": [
+			"Optional: in **Settings → QuickAdd**, open the **Capture to Inbox with GPS** macro and click the cog on the **captureInboxGps** step to change **Inbox path** (default `Inbox.md`).",
+			"Run **Capture to Inbox with GPS** from the command palette, or give it a hotkey. On mobile, allow location access when asked."
+		]
+	}
+}
