@@ -49,7 +49,10 @@ import {
 	aiPageSignature,
 	createAIAssistantPage,
 } from "./gui/ai/aiAssistantSettingsPage";
-import { tryOpenSettingsPage } from "./utils/openPluginSettings";
+import {
+	openQuickAddSettings,
+	tryOpenSettingsPage,
+} from "./utils/openPluginSettings";
 import { storedProviders } from "./gui/ai/aiSettingsState";
 
 const AI_KEY_PREFIX = "ai.";
@@ -90,6 +93,22 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 				this.update();
 			}),
 		);
+	}
+
+	/**
+	 * The "Open AI Assistant settings" command: open the settings window on
+	 * this tab, then the AI Assistant page. The page is hidden while AI and
+	 * online features are off, so say so instead of showing it anyway.
+	 */
+	openAIAssistantPageFromCommand(): void {
+		if (settingsStore.getState().disableOnlineFeatures) {
+			new Notice(
+				"QuickAdd: Turn off “Disable AI & online features” in QuickAdd settings to use the AI Assistant.",
+			);
+			return;
+		}
+		if (!openQuickAddSettings(this.app, this.plugin.manifest.id)) return;
+		this.openAIAssistantPage();
 	}
 
 	/**

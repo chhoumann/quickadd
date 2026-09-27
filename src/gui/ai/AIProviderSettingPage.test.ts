@@ -179,6 +179,7 @@ describe("AIProviderSettingPage", () => {
 		["blank name", ["   ", "10"]],
 		["non-numeric tokens", ["model", "wat"]],
 		["trailing junk", ["model", "10abc"]],
+		["beyond safe integers", ["model", "9".repeat(400)]],
 		["duplicate", ["old", "10"]],
 	] as const)("rejects invalid Add model input: %s", async (_label, answers) => {
 		install(provider());

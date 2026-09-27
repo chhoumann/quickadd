@@ -489,7 +489,9 @@ export class AIProviderSettingPage extends SettingPage {
 		// Reject non-numeric input outright: parseInt would silently accept
 		// "10abc" as 10. Require a plain positive integer.
 		const tokens = maxTokens.trim();
-		if (!/^[1-9]\d*$/.test(tokens)) {
+		// Past 2^53 a digit string no longer parses to itself (and a long one
+		// to Infinity, which data.json stores as null).
+		if (!/^[1-9]\d*$/.test(tokens) || !Number.isSafeInteger(Number(tokens))) {
 			new Notice("The context window must be a positive whole number.");
 			return;
 		}

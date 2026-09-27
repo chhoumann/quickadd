@@ -106,6 +106,39 @@ describe("QuickAddSettingsTab AI page bridge", () => {
 		expect(app.setting.navigateToSearchResult).toHaveBeenCalledWith({ tab, pagePath: ["AI Assistant"] }, null);
 	});
 
+	it("the command opens the settings window on QuickAdd, then the AI Assistant page", () => {
+		settingsStore.setState({ disableOnlineFeatures: false });
+		const calls: string[] = [];
+		const app = Object.assign(new App(), {
+			setting: {
+				open: vi.fn(() => calls.push("open")),
+				openTabById: vi.fn((id: string) => calls.push(`tab:${id}`)),
+				navigateToSearchResult: vi.fn((target: { pagePath: string[] }) =>
+					calls.push(`page:${target.pagePath.join(">")}`),
+				),
+			},
+		});
+		const plugin = {
+			app,
+			manifest: { id: "quickadd" },
+			register: vi.fn((cleanup: () => void) => cleanups.push(cleanup)),
+		} as unknown as QuickAdd;
+		new QuickAddSettingsTab(app as unknown as App, plugin).openAIAssistantPageFromCommand();
+		expect(calls).toEqual(["open", "tab:quickadd", "page:AI Assistant"]);
+	});
+
+	it("the command explains itself instead of opening a hidden page while AI is off", () => {
+		settingsStore.setState({ disableOnlineFeatures: true });
+		const navigate = vi.fn();
+		const app = Object.assign(new App(), {
+			setting: { open: vi.fn(), openTabById: vi.fn(), navigateToSearchResult: navigate },
+		});
+		makeTab(app as unknown as App).openAIAssistantPageFromCommand();
+		expect(navigate).not.toHaveBeenCalled();
+		expect((Notice as unknown as { instances: Array<{ message: string }> }).instances.at(-1)?.message)
+			.toContain("Disable AI & online features");
+	});
+
 	it("falls back to a Notice when internal navigation is unavailable", () => {
 		makeTab().openAIAssistantPage();
 		expect((Notice as unknown as { instances: Array<{ message: string }> }).instances.at(-1)?.message)
