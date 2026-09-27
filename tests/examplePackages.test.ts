@@ -373,7 +373,19 @@ describe("example packages", () => {
 				const value = install[key];
 				if (value === undefined) continue;
 				expect(Array.isArray(value), `install.${key}`).toBe(true);
-				for (const line of value) expect(typeof line).toBe("string");
+				for (const line of value) {
+					expect(typeof line).toBe("string");
+					// PackageCard.astro's inline() only renders site-relative and
+					// https links, and drops the target straight into href="…";
+					// anything else (a bare domain, `//host`, a quote) would ship as
+					// literal brackets or break the attribute.
+					for (const [, target] of line.matchAll(/\]\(([^)]*)\)/g)) {
+						expect(
+							/^(\/(?!\/)|https:\/\/)[^\s"]+$/.test(target),
+							`install.${key} link "${target}" must be site-relative or https://, without quotes`,
+						).toBe(true);
+					}
+				}
 			}
 			const unknownKeys = Object.keys(install).filter(
 				(key) => key !== "requires" && key !== "afterImport",

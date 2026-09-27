@@ -28,7 +28,8 @@ with two differences:
   - `requires`: things the reader needs before importing (an account, another
     plugin, a minimum Obsidian version).
   - `afterImport`: settings to fill in afterwards, as short imperative lines.
-    Lines support `` `code` ``, `**bold**` and `[links](/docs/...)`.
+    Lines support `` `code` ``, `**bold**` and `[links](/docs/...)`; a link
+    target must be site-relative or `https://`.
 
 Choice ids must be `qa-pkg-<id>` or `qa-pkg-<id>-<suffix>`. Stable ids let a
 reader re-import an updated package and get "Overwrite" instead of a duplicate.

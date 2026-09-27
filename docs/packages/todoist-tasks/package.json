@@ -107,7 +107,7 @@
 			"a Todoist API token, copied from **Settings → Integrations → Developer** in Todoist"
 		],
 		"afterImport": [
-			"In **Settings → QuickAdd**, open the **Todoist** macro and click the cog on the **todoistTaskSync** step. Paste your token into **Todoist API token** and click the save icon next to it. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"In **Settings → QuickAdd**, click the cog next to **Todoist**, then the cog on the **todoistTaskSync** step. Paste your token into **Todoist API token** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
 			"**Imported tasks are completed in Todoist by default**, and recurring tasks move to their next occurrence. Untick **Complete imported tasks in Todoist** in the same settings to leave them open.",
 			"Run **Import Todoist tasks** from the command palette and pick which tasks to fetch: all of them, one project, or one section. They are written to `Todoist tasks.md`; change **Capture to** on the choice to use another note."
 		]

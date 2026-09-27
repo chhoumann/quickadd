@@ -46,7 +46,7 @@
 	"install": {
 		"afterImport": [
 			"Try it on a copy of a note first: migrated inline fields are removed from the note body.",
-			"In **Settings → QuickAdd**, open the **Migrate Dataview properties** macro and click the cog on the **migrateDataviewToFrontmatter** step. Set **Properties to Migrate** to the fields you want moved (default `Reference, Related`); turn on **Migrate All Properties** only if you want every inline field moved.",
+			"In **Settings → QuickAdd**, click the cog next to **Migrate Dataview properties**, then the cog on the **migrateDataviewToFrontmatter** step. Set **Properties to Migrate** to the fields you want moved (default `Reference, Related`); turn on **Migrate All Properties** only if you want every inline field moved.",
 			"Open the note you want to migrate and run **Migrate Dataview properties** from the command palette. Only that note changes."
 		]
 	}

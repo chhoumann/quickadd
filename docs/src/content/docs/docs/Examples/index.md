@@ -5,7 +5,12 @@ slug: docs/Examples
 ---
 
 Use these examples when you want to copy a working pattern instead of starting
-from a blank choice.
+from a blank choice. Every workflow below ships as a package: on its page,
+check what the **Get this workflow** card says it needs, click **Copy
+package**, import it in Obsidian, and follow **After importing** under **How
+to install** in the card. See
+[Install an example from the docs](/docs/Choices/Packages/#install-an-example)
+for the full walkthrough.
 
 | Workflow | Choice type | Setup | Prerequisites | What it creates |
 | --- | --- | --- | --- | --- |
@@ -17,12 +22,12 @@ from a blank choice.
 | [Add an Inbox Item](/docs/Examples/Template_AddAnInboxItem/) | Template | Beginner | Inbox folder or note | A new inbox note |
 | [Meeting notes and project updates](/docs/Examples/Template_MeetingNotes/) | Template | Beginner | QuickAdd 2.27.0 or later | Dated notes and updates, ready to type in |
 | [Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/) | Template | Intermediate | Base template file | A note with an embedded Base dashboard |
-| [Automatic Book Notes from Readwise](/docs/Examples/Template_AutomaticBookNotesFromReadwise/) | Template and Macro | Advanced | Readwise export script | Book notes with highlights |
+| [Automatic Book Notes from Readwise](/docs/Examples/Template_AutomaticBookNotesFromReadwise/) | Template and Macro | Advanced | Readwise account and access token | Book notes with highlights |
 | [Book Finder](/docs/Examples/Macro_BookFinder/) | Macro | Intermediate | Book lookup script | A populated book note |
 | [Movie and Series Script](/docs/Examples/Macro_MovieAndSeriesScript/) | Macro | Intermediate | OMDb API key | Media notes with metadata |
 | [Move Notes with a Tag](/docs/Examples/Macro_MoveNotesWithATagToAFolder/) | Macro | Intermediate | Tagged notes | Notes moved into a target folder |
 | [Zettelizer](/docs/Examples/Macro_Zettelizer/) | Macro | Intermediate | Headings in an existing note | New notes split from headings |
-| [Toggl Manager](/docs/Examples/Macro_TogglManager/) | Macro | Advanced | Toggl integration | Preset time entries |
+| [Toggl Manager](/docs/Examples/Macro_TogglManager/) | Macro | Advanced | Toggl Track account and integration plugin | Preset time entries |
 
 ## Pick by goal
 

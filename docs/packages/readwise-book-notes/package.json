@@ -1,0 +1,98 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-readwise-book-notes",
+		"qa-pkg-readwise-book-notes-macro"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-readwise-book-notes",
+				"name": "Add Book Notes",
+				"type": "Template",
+				"command": true,
+				"onePageInput": "never",
+				"templatePath": "Templates/Book Notes.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{MACRO:Readwise::getBooks}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"Books"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "prompt"
+				}
+			},
+			"pathHint": [
+				"Add Book Notes"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-readwise-book-notes-macro",
+				"name": "Readwise",
+				"type": "Macro",
+				"command": false,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-readwise-book-notes-macro-body",
+					"name": "Readwise",
+					"commands": [
+						{
+							"id": "qa-pkg-readwise-book-notes-script",
+							"name": "readwise",
+							"type": "UserScript",
+							"path": "scripts/readwise.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Readwise"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/readwise.js",
+			"source": "../../public/scripts/readwise.js"
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/Book Notes.md",
+			"source": "files/Book Notes.md"
+		}
+	],
+	"install": {
+		"requires": [
+			"a Readwise account and its [access token](https://readwise.io/access_token)"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Readwise**, then the cog on the **readwise** step. Paste your token into **Readwise access token** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"Run **Add Book Notes** from the command palette and pick a book. The note is named after it and lands in `Books/`, with the book's highlights under **Highlights & Notes**; change **Folder path** on the choice to use another folder."
+		]
+	}
+}

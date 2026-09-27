@@ -120,7 +120,12 @@ const pasteStep = (() => {
 	} because it treats every file that is not a Markdown note as runnable.`;
 })();
 
-/** Minimal inline Markdown for manifest strings: `code`, **strong**, [links](url). */
+/**
+ * Minimal inline Markdown for manifest strings: `code`, **strong**, [links](url).
+ * A link target is either site-relative (`/docs/...`) or `https://`; both
+ * navigate like every other link in the docs (tests/examplePackages.test.ts
+ * rejects other targets, and quotes, so the href needs no further escaping).
+ */
 function inline(text: string): string {
 	return text
 		.replace(/&/g, "&amp;")
@@ -128,7 +133,7 @@ function inline(text: string): string {
 		.replace(/>/g, "&gt;")
 		.replace(/`([^`]+)`/g, "<code>$1</code>")
 		.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-		.replace(/\[([^\]]+)\]\((\/[^)\s]+)\)/g, '<a href="$2">$1</a>');
+		.replace(/\[([^\]]+)\]\(((?:\/(?!\/)|https:\/\/)[^)\s"]+)\)/g, '<a href="$2">$1</a>');
 }
 ---
 

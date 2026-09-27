@@ -45,7 +45,7 @@
 			"Obsidian mobile 1.11 or newer for GPS (desktop saves the line without coordinates)"
 		],
 		"afterImport": [
-			"Optional: in **Settings → QuickAdd**, open the **Capture to Inbox with GPS** macro and click the cog on the **captureInboxGps** step to change **Inbox path** (default `Inbox.md`).",
+			"Optional: in **Settings → QuickAdd**, click the cog next to **Capture to Inbox with GPS**, then the cog on the **captureInboxGps** step, to change **Inbox path** (default `Inbox.md`).",
 			"Run **Capture to Inbox with GPS** from the command palette, or give it a hotkey. On mobile, allow location access when asked."
 		]
 	}

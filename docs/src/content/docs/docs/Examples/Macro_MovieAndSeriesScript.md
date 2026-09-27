@@ -2,6 +2,7 @@
 title: Movie & Series Script
 description: Insert a movie or TV show note from the OMDb API into your vault with a Macro choice and template, requires an API key
 slug: docs/Examples/Macro_MovieAndSeriesScript
+package: movie-notes
 ---
 
 This script allows you to easily insert a movie or TV show note into your vault.
@@ -13,6 +14,8 @@ We use OMDb api to get the movie or TV show information. You can get an API key 
 ![Running the Movie macro: searching for Dune: Part Two creates a movie note with properties and the poster](../Images/moviescript.gif)
 
 ## Installation
+
+Imported the package above? The script, the `Movie.md` template and the **Add movie note** macro are already in place. Save your OMDb API key as described under **After importing** in the card, then skip to [Usage](#usage).
 
 <details>
 <summary>Prerequisites</summary>
@@ -32,7 +35,7 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
     1. Set the template path to the template you created.
     2. Enable File Name Format and use `{{VALUE:fileName}}` as the file name format. You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
-6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb.
+6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb; click the save icon next to it and QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.
 
     ![The Movie macro with the movies script settings open, showing the OMDb API Key field](../Images/moviescript_settings.png)
 
