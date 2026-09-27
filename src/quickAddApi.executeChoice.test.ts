@@ -6,6 +6,8 @@ import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import { MacroAbortError } from "./errors/MacroAbortError";
+import { promptCancelled } from "./errors/UserCancelError";
+import { collectUnhandledRejections } from "../tests/helpers/unhandledRejections";
 
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -57,6 +59,53 @@ describe("QuickAddApi.executeChoice", () => {
 			.rejects.toBe(abortError);
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 		expect(variables.size).toBe(0);
+	});
+
+	// Buttons in notes call executeChoice without a .catch. Pressing Escape in the
+	// choice's prompt must not become an unhandled rejection (Obsidian's dev:errors).
+	it("leaves no unhandled rejection when a floated call is cancelled by the user", async () => {
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+			promptCancelled(),
+		);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([]);
+	});
+
+	it("still rejects with the user's cancellation for a script that awaits it", async () => {
+		const cancel = promptCancelled();
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(cancel);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		await expect(api.executeChoice("My Template")).rejects.toBe(cancel);
+	});
+
+	it("leaves a floated call's real failure unhandled so it is still reported", async () => {
+		const failure = new Error("Template file not found");
+		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockRejectedValueOnce(failure);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([failure]);
+	});
+
+	it("leaves a floated call's involuntary abort unhandled", async () => {
+		const abort = new MacroAbortError("Target file missing");
+		(choiceExecutor.consumeAbortSignal as ReturnType<typeof vi.fn>).mockReturnValueOnce(abort);
+		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
+
+		const unhandled = await collectUnhandledRejections(() => {
+			void api.executeChoice("My Template");
+		});
+
+		expect(unhandled).toEqual([abort]);
 	});
 
 	it("clears variables and resolves when no abort is signalled", async () => {
