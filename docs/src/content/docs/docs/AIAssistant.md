@@ -24,7 +24,8 @@ online features** is turned off in QuickAdd settings.
 2. Open **Settings → QuickAdd**, turn off **Disable AI & online features**
    (under **AI & online**), and open **AI Assistant** just below it. The
    **Configure AI Assistant** button in the choice list (the sparkles icon at
-   the bottom of the list) opens the same page.
+   the bottom of the list) and the **QuickAdd: Open AI Assistant settings**
+   command open the same page.
 3. Set **Prompt template folder** to the folder you created.
 4. Under **Providers**, set up at least one provider. OpenAI and Gemini are
    already listed: open one, link an API key secret with **Link...**, and click
@@ -32,7 +33,9 @@ online features** is turned off in QuickAdd settings.
    click **+**. See [Connect a provider](#providers-and-local-models).
 5. Choose a **Default model**, or leave it as **Ask me** to pick a model each run.
 
-Changes on these pages save as you make them.
+Changes on these pages save as you make them. The settings pages need QuickAdd
+2.28.0 or later; earlier versions edit providers in dialogs with **Save** and
+**Cancel**.
 
 ![Setting up the AI Assistant: turning on AI features, opening the AI Assistant page, setting the prompt template folder, linking an OpenAI API key, testing the connection and syncing models, then choosing gpt-6-luna as the default model](./Images/AI_Assistant_Setup.gif)
 
@@ -137,6 +140,17 @@ source, and models manually.
 To check a key, open the provider and click **Test connection**. QuickAdd asks
 the provider's own models endpoint with the linked key and shows either how many
 models it lists or the provider's error.
+
+The [Obsidian CLI](/docs/Advanced/CLI/#quickaddai-test-connection) runs the same
+check. Name the provider by its ID or its name:
+
+```bash
+obsidian vault=dev quickadd:ai-test-connection provider=openai
+```
+
+It prints `"ok":true` with `modelCount`, or `"ok":false` with the provider's
+error. `apiKeyLinked` says whether a key is linked. The output never contains
+the key.
 
 ### Local models and Ollama {#local-models-and-ollama}
 

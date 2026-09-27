@@ -360,7 +360,9 @@ Other useful patterns:
 - A `|multi` picker or a script's list on its own line adds one item per pick,
   next to any other lines. Its `|format:markdown` or `|format:yaml` adds no dashes or brackets.
   `|format:inline` or `|format:spaced` joins the picks into one item, and so
-  does other text on the picker's line.
+  does other text on the picker's line. This needs QuickAdd 2.28.0 or later;
+  earlier versions join the picks into one item when the format has other
+  lines.
 - A format that is only a `|multi` picker or a script's list writes each item
   as it is, even one that contains a line break. Next to other lines, such an
   item stops the capture.

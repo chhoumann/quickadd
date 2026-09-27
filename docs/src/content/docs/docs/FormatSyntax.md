@@ -789,6 +789,8 @@ value.
 
 #### Label the prompt: `|label:` {#field-label}
 
+_Requires QuickAdd 2.28.0 or later._
+
 `{{FIELD:client|label:Which client?}}` asks "Which client?" instead of
 "Enter value for client". The label replaces that wording wherever the prompt
 appears: the picker's placeholder, the title of the text prompt you get when
@@ -1018,6 +1020,8 @@ FILE multi-selects support `|format:yaml`, `|format:markdown`,
 of links without relying on the capture context.
 
 #### Pick attachments: `|type:` {#file-type}
+
+_Requires QuickAdd 2.28.0 or later._
 
 Add `|type:` to pick images, PDFs, and other attachments instead of notes. Put
 `!` in front of a link to embed the file:
