@@ -64,6 +64,8 @@ to keep as it is.
 4. Under **Choices**, pick an action for each choice:
    - **Import** adds a new choice only when its ID does not already exist.
    - **Overwrite** keeps the original ID and replaces the existing choice.
+     Overwriting a folder keeps the choices inside it that you skipped or
+     added yourself.
    - **Duplicate** copies the choice with new IDs so you can keep both versions.
    - **Skip** leaves the choice untouched.
 5. Under **Files**, each bundled file is grouped as **Added** or **Will

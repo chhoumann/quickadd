@@ -134,6 +134,88 @@ function remapCommands(
 	}
 }
 
+export function findChoiceInTree(choices: IChoice[], id: string): IChoice | undefined {
+	for (const current of choices) {
+		if (!isChoiceLike(current)) continue;
+		if (current.id === id) return current;
+		const found = findChoiceInTree(childChoicesOf(current), id);
+		if (found) return found;
+	}
+	return undefined;
+}
+
+/** Whether `child` sits directly inside the folder `parentId`, wherever that folder is. */
+export function isDirectChildOf(
+	choices: IChoice[],
+	parentId: string,
+	childId: string,
+): boolean {
+	const parent = findChoiceInTree(choices, parentId);
+	return (
+		parent !== undefined &&
+		childChoicesOf(parent).some(
+			(choice) => isChoiceLike(choice) && choice.id === childId,
+		)
+	);
+}
+
+/**
+ * Overwriting a folder must not cost the reader what they put in it. Each
+ * child the package carries replaces its existing counterpart where it sits,
+ * so the reader's order survives; children they skipped, added themselves, or
+ * that the package no longer carries stay where they are; children new to the
+ * package go last. Nested folders merge the same way, including one the reader
+ * had dragged out of this folder: the stray-copy pass detaches it before
+ * placement, and `detached` hands what it held back to its incoming copy.
+ * Entries that are not choices are carried over untouched, never repaired
+ * (#1566), and a folder whose children cannot be read at all is left to the
+ * wholesale replace. `existing` is undefined when the folder is new to the
+ * vault; only detached folders are folded in then.
+ */
+export function mergeFolderChildren(
+	existing: IMultiChoice | undefined,
+	incoming: IMultiChoice,
+	detached: ReadonlyMap<string, IChoice>,
+): void {
+	if (!Array.isArray(incoming.choices)) return;
+	if (existing && !Array.isArray(existing.choices)) return;
+	const pending = new Map<string, IChoice>();
+	for (const choice of incoming.choices) {
+		if (isChoiceLike(choice)) pending.set(choice.id, choice);
+	}
+	const merged: IChoice[] = [];
+	for (const current of existing?.choices ?? []) {
+		const replacement = isChoiceLike(current)
+			? pending.get(current.id)
+			: undefined;
+		if (!replacement) {
+			merged.push(current);
+			continue;
+		}
+		if (current.type === "Multi" && replacement.type === "Multi") {
+			mergeFolderChildren(
+				current as IMultiChoice,
+				replacement as IMultiChoice,
+				detached,
+			);
+		}
+		merged.push(replacement);
+		pending.delete(replacement.id);
+	}
+	for (const replacement of pending.values()) {
+		const source = detached.get(replacement.id);
+		if (replacement.type === "Multi") {
+			mergeFolderChildren(
+				source?.type === "Multi" ? (source as IMultiChoice) : undefined,
+				replacement as IMultiChoice,
+				detached,
+			);
+		}
+		merged.push(replacement);
+	}
+	incoming.choices = merged;
+}
+
 export function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): boolean {
 	for (let i = 0; i < choices.length; i++) {
 		const current = choices[i];

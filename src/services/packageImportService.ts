@@ -5,6 +5,7 @@ import type { AIProvider } from "../ai/Provider";
 import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
+import type IMultiChoice from "../types/choices/IMultiChoice";
 import type { QuickAddPackage } from "../types/packages/QuickAddPackage";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { decodeFromBase64 } from "../utils/base64";
@@ -20,7 +21,18 @@ import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
-import { applyAssetPathOverrides, findMultiByPath, insertIntoMulti, insertUnderParent, remapChoiceTree, removeChoiceFromTree, replaceChoiceInTree } from "./packageChoiceImport";
+import {
+	applyAssetPathOverrides,
+	findChoiceInTree,
+	findMultiByPath,
+	insertIntoMulti,
+	insertUnderParent,
+	isDirectChildOf,
+	mergeFolderChildren,
+	remapChoiceTree,
+	removeChoiceFromTree,
+	replaceChoiceInTree,
+} from "./packageChoiceImport";
 import type { PackagePreview } from "./packagePreview";
 import {
 	buildPackagePreview,
@@ -303,6 +315,7 @@ export async function applyPackageImport(
 	}
 
 	const updatedChoices = deepClone(existingChoices);
+	const existingIds = new Set(flattenChoices(existingChoices).map((c) => c.id));
 	const addedChoiceIds: string[] = [];
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];
@@ -328,6 +341,30 @@ export async function applyPackageImport(
 		preparedChoices.set(entry.choice.id, remapped);
 	}
 
+	// Point the package's choices at where its files will actually land. This
+	// happens before any prepared folder is merged with the vault's, so a
+	// child the reader skipped or added is never rewritten. A skipped asset is
+	// still referenced at its destination: the reader kept the file already
+	// there (typically after re-importing), so choices and includes have to
+	// point at that copy, not at the package's original path.
+	const resolvedAssetDestinations = pkg.assets.map((asset) => {
+		const decision = assetDecisionMap.get(asset.originalPath);
+		const destinationPathInput = decision?.destinationPath?.trim();
+		const destinationPath = validateAssetDestination(
+			destinationPathInput || asset.originalPath,
+		);
+		return { asset, destinationPath };
+	});
+	const assetPathOverrides = new Map(
+		resolvedAssetDestinations.map(({ asset, destinationPath }) => [
+			asset.originalPath,
+			destinationPath,
+		]),
+	);
+	for (const choice of preparedChoices.values()) {
+		applyAssetPathOverrides(choice, assetPathOverrides);
+	}
+
 	// Pin imported bare-name AI commands before insertion: cross-vault refs
 	// that survived export are kept when still valid; everything else adopts
 	// this vault's current first-match provider, so a later provider add or
@@ -341,26 +378,29 @@ export async function applyPackageImport(
 
 	const handledChoices = new Set<string>();
 	// Children that ride along inside an imported parent. They are reported
-	// with the parent's outcome once every entry has been placed, so a folder
-	// of five captures counts as six choices in the summary, matching the
-	// preview the reader confirmed.
-	const inlineChildren: Array<{ originalId: string; finalId: string }> = [];
+	// once every entry has been placed, so a folder of five captures counts as
+	// six choices in the summary, matching the preview the reader confirmed.
+	const inlineChildren: Array<{ finalId: string }> = [];
 
 	// A child that arrives inside its parent can still have a same-id copy
 	// elsewhere in the vault: the reader dragged it out of the folder after an
 	// earlier import, and the preview offered "overwrite" for it. Placing the
 	// parent would then leave two choices with one id. Drop the stray before
-	// anything lands; it is reported as overwritten below.
-	const displacedInlineIds = new Set<string>();
+	// anything lands. A copy still inside that folder is not a stray: the
+	// folder merge replaces it where it sits. A stray that is itself a folder
+	// may hold choices the reader skipped or added; it is kept aside so the
+	// merge can fold those into its incoming copy.
+	const detachedFolders = new Map<string, IChoice>();
 	for (const entry of pkg.choices) {
 		const originalId = entry.choice.id;
 		const parentId = entry.parentChoiceId;
 		if (!importableChoiceIds.has(originalId)) continue;
 		if (!parentId || !importableChoiceIds.has(parentId)) continue;
 		const finalId = idMap.get(originalId) ?? originalId;
-		if (removeChoiceFromTree(updatedChoices, finalId)) {
-			displacedInlineIds.add(finalId);
-		}
+		const finalParentId = idMap.get(parentId) ?? parentId;
+		if (isDirectChildOf(updatedChoices, finalParentId, finalId)) continue;
+		const stray = removeChoiceFromTree(updatedChoices, finalId);
+		if (stray?.type === "Multi") detachedFolders.set(finalId, stray);
 	}
 
 	for (const entry of pkg.choices) {
@@ -384,8 +424,18 @@ export async function applyPackageImport(
 			// The parsed parent carries this child inline; inserting its flat entry would duplicate it.
 			// packageValidation rejects parents that omit their declared children.
 			handledChoices.add(originalId);
-			inlineChildren.push({ originalId, finalId });
+			inlineChildren.push({ finalId });
 			continue;
+		}
+
+		if (choiceClone.type === "Multi") {
+			// A duplicated folder has a fresh id, so nothing in the vault matches.
+			const current = findChoiceInTree(updatedChoices, finalId);
+			mergeFolderChildren(
+				current?.type === "Multi" ? (current as IMultiChoice) : undefined,
+				choiceClone as IMultiChoice,
+				detachedFolders,
+			);
 		}
 
 		if (decision === "overwrite" || decision === "import") {
@@ -438,45 +488,19 @@ export async function applyPackageImport(
 		handledChoices.add(originalId);
 	}
 
-	// An inline child lands wherever its nearest placed ancestor landed. Walk
-	// up through the package's parent links (a grandchild's parent is itself
-	// inline) until an ancestor that was added or overwritten turns up. A child
-	// whose stray copy was dropped above replaced something, whatever its
-	// ancestor's outcome.
-	const placedAsAdded = new Set(addedChoiceIds);
-	const placedAsOverwritten = new Set(overwrittenChoiceIds);
-	for (const { originalId, finalId } of inlineChildren) {
-		if (displacedInlineIds.has(finalId)) {
+	// An inline child rides inside its parent, so it always lands. It replaced
+	// something when the vault already held its id: inside the folder, where
+	// the merge swapped it in place, or as a stray copy dropped above.
+	for (const { finalId } of inlineChildren) {
+		if (existingIds.has(finalId)) {
 			overwrittenChoiceIds.push(finalId);
-			continue;
-		}
-		const seen = new Set<string>([originalId]);
-		let ancestorId = catalog.get(originalId)?.parentChoiceId ?? null;
-		while (ancestorId && !seen.has(ancestorId)) {
-			seen.add(ancestorId);
-			const ancestorFinalId = idMap.get(ancestorId) ?? ancestorId;
-			if (placedAsAdded.has(ancestorFinalId)) {
-				addedChoiceIds.push(finalId);
-				break;
-			}
-			if (placedAsOverwritten.has(ancestorFinalId)) {
-				overwrittenChoiceIds.push(finalId);
-				break;
-			}
-			ancestorId = catalog.get(ancestorId)?.parentChoiceId ?? null;
+		} else {
+			addedChoiceIds.push(finalId);
 		}
 	}
 
 	const writtenAssets: string[] = [];
 	const skippedAssets: string[] = [];
-	const resolvedAssetDestinations = pkg.assets.map((asset) => {
-		const decision = assetDecisionMap.get(asset.originalPath);
-		const destinationPathInput = decision?.destinationPath?.trim();
-		const destinationPath = validateAssetDestination(
-			destinationPathInput || asset.originalPath,
-		);
-		return { asset, destinationPath };
-	});
 
 	// Validate all resolved destinations before writes so reviewed bytes cannot be replaced by a collision.
 	// Skipped assets cannot collide. Fold case only on case-insensitive vaults.
@@ -509,18 +533,12 @@ export async function applyPackageImport(
 	// Decide every write before the first one: a bundled template's
 	// `{{TEMPLATE:...}}` includes must point at where the included file is
 	// actually going, which is only known once all destinations are settled.
-	// A skipped asset is still referenced at its destination: the reader kept
-	// the file that is already there (typically after re-importing), so the
-	// choices and includes have to point at that copy, not at the package's
-	// original path.
 	const plannedWrites: Array<{ asset: QuickAddPackage["assets"][number]; destinationPath: string }> = [];
-	const assetPathOverrides = new Map<string, string>();
 	for (const { asset, destinationPath } of resolvedAssetDestinations) {
 		const decision = assetDecisionMap.get(asset.originalPath);
 		const exists = await assetExists(app, destinationPath);
 		const mode =
 			decision?.mode ?? (exists ? "overwrite" : "write");
-		assetPathOverrides.set(asset.originalPath, destinationPath);
 
 		if (mode === "skip") {
 			skippedAssets.push(destinationPath);
@@ -534,10 +552,6 @@ export async function applyPackageImport(
 		const content = importedAssetContent(asset, assetPathOverrides);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
-	}
-
-	for (const choice of preparedChoices.values()) {
-		applyAssetPathOverrides(choice, assetPathOverrides);
 	}
 
 	return {
