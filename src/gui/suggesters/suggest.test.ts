@@ -397,6 +397,32 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(popper.update).toHaveBeenCalledTimes(1);
 		expect(createPopperMock).toHaveBeenCalledTimes(1);
 	});
+
+	it("re-places the list when a multi-select pick refreshes it in place", async () => {
+		// A filtered list fits below; after the pick the input is cleared and the
+		// unfiltered list that stays open would reach the action bar.
+		geometry = { input: [484, 514], actionsTop: 560, listHeight: 30 };
+		const suggest = new GenericTextSuggester(createApp(), input, ["Ann", "Bob"]);
+		input.value = "Ann";
+		await suggest.onInputChanged();
+		const popper = popperInstances[0];
+		expect(popper.state.options.placement).toBe("bottom-start");
+
+		const keepOpenRefresh = () => {
+			input.value = "";
+			return suggest.onInputChanged(
+				Object.assign(new Event("input"), { fromCompletion: true, keepOpen: true }),
+			);
+		};
+		geometry.listHeight = 90;
+		await keepOpenRefresh();
+		expect(popper.setOptions).toHaveBeenCalledWith({ placement: "top-start" });
+
+		// Same placement, but the input may have moved (a new chip row).
+		await keepOpenRefresh();
+		expect(popper.update).toHaveBeenCalledTimes(1);
+		expect(createPopperMock).toHaveBeenCalledTimes(1);
+	});
 });
 
 describe("TextInputSuggest focus", () => {

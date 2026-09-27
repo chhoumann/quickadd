@@ -31,26 +31,24 @@ async function closeOpenPrompts() {
 beforeEach(closeOpenPrompts);
 afterEach(closeOpenPrompts);
 
-async function openDealForm() {
+type Folders = { deals: string; people: string };
+
+// `name` is also the created note's file name; the sandbox is shared by the file's tests.
+async function openForm(name: string, templateLines: (folders: Folders) => string[]) {
 	const { obsidian, plugin, sandbox } = getContext();
 	const deals = [["Acme", "Lead"], ["Globex", "Active"], ["Initech", "Paused"], ["Umbrella", "Done"], ["Hooli", "Proposal sent"]];
 	for (const [client, stage] of deals) {
 		await seedVaultFile(obsidian, sandbox, `Deals/${client}.md`, `---\nclient: ${client}\nstage: ${stage}\n---\n`);
 	}
-	const scope = `folder:${sandbox.path("Deals")}`;
-	const template = new TemplateChoice("Deal form");
+	for (const person of ["Ann", "Bob", "Cara", "Dan", "Eve", "Fay"]) {
+		await seedVaultFile(obsidian, sandbox, `People/${person}.md`);
+	}
+	const folders = { deals: sandbox.path("Deals"), people: sandbox.path("People") };
+	const template = new TemplateChoice(name);
 	template.command = true;
 	template.onePageInput = "always";
-	template.templatePath = await seedVaultFile(obsidian, sandbox, "deal-template.md", [
-		"---",
-		`client: {{FIELD:client|${scope}|label:Which client?}}`,
-		`contact: {{FIELD:contact|${scope}|label:Who did you talk to?}}`,
-		`stage: {{FIELD:stage|${scope}|label:Where does the deal stand?}}`,
-		"date: {{DATE:YYYY-MM-DD}}",
-		"---",
-		"",
-	].join("\n"));
-	template.fileNameFormat = { enabled: true, format: "deal" };
+	template.templatePath = await seedVaultFile(obsidian, sandbox, "form-template.md", templateLines(folders).join("\n"));
+	template.fileNameFormat = { enabled: true, format: name };
 	template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("out")] };
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
 		data.choices.push(template);
@@ -60,7 +58,7 @@ async function openDealForm() {
 	await waitForElement(obsidian, ".onePageInputModal");
 	return (field: string, label: string) =>
 		`.onePageInputModal input[aria-labelledby=${JSON.stringify(
-			`qa-onepage-label-${encodeURIComponent(`FIELD:${field}|${scope}|label:${label}`)}`,
+			`qa-onepage-label-${encodeURIComponent(`FIELD:${field}|folder:${folders.deals}|label:${label}`)}`,
 		)}]`;
 }
 
@@ -78,7 +76,8 @@ async function layout(inputSelector: string): Promise<Layout> {
 		const y = box.top + box.height / 2;
 		const list = document.querySelector(".suggestion-container");
 		return {
-			suggestions: Array.from(document.querySelectorAll(".suggestion-container .suggestion-item")).map((item) => item.textContent),
+			suggestions: Array.from(document.querySelectorAll(".suggestion-container .suggestion-item"))
+				.map((item) => (item.querySelector(".qa-onepage-file-suggestion__label") ?? item).textContent),
 			list: list ? rect(list) : null,
 			input: rect(input),
 			actions: rect(actions),
@@ -90,7 +89,15 @@ async function layout(inputSelector: string): Promise<Layout> {
 
 it("keeps Submit clickable while the last field's suggestions are open", async () => {
 	const { obsidian, sandbox } = getContext();
-	const field = await openDealForm();
+	const field = await openForm("deal", ({ deals }) => [
+		"---",
+		`client: {{FIELD:client|folder:${deals}|label:Which client?}}`,
+		`contact: {{FIELD:contact|folder:${deals}|label:Who did you talk to?}}`,
+		`stage: {{FIELD:stage|folder:${deals}|label:Where does the deal stand?}}`,
+		"date: {{DATE:YYYY-MM-DD}}",
+		"---",
+		"",
+	]);
 	const client = field("client", "Which client?");
 	const stage = field("stage", "Where does the deal stand?");
 
@@ -111,4 +118,35 @@ it("keeps Submit clickable while the last field's suggestions are open", async (
 	await expectNoPrompt(obsidian);
 	await expect.poll(() => sandbox.read("out/deal.md").catch(() => ""), POLL_OPTS)
 		.toMatch(/^---\nclient: Acme\ncontact: Jane\nstage: Lead\ndate: \d{4}-\d{2}-\d{2}\n---\n$/);
+});
+
+it("re-places the list when a multi-select FILE pick keeps it open", async () => {
+	const { obsidian, sandbox } = getContext();
+	const field = await openForm("meeting", ({ deals, people }) => [
+		`people: {{FILE:${people}|multi|label:Who was there?}}`,
+		`client: {{FIELD:client|folder:${deals}|label:Which client?}}`,
+		"",
+	]);
+	const picker = ".onePageInputModal .qa-onepage-file-picker__input";
+	await typeInto(obsidian, field("client", "Which client?"), "Acme");
+
+	// One match fits between the picker and the action bar, so it opens below.
+	await typeInto(obsidian, picker, "Fay");
+	await expect.poll(async () => (await layout(picker)).suggestions, POLL_OPTS).toEqual(["Fay"]);
+	const filtered = await layout(picker);
+	expect(filtered.list?.top).toBeGreaterThanOrEqual(filtered.input.bottom);
+
+	// The pick clears the search and refreshes the open list in place with every
+	// other person; below the picker that list would reach the action bar.
+	await pressKey(obsidian, "Enter");
+	await expect.poll(async () => (await layout(picker)).suggestions.sort(), POLL_OPTS)
+		.toEqual(["Ann", "Bob", "Cara", "Dan", "Eve"]);
+	const refreshed = await layout(picker);
+	expect(refreshed.list?.bottom).toBeLessThanOrEqual(refreshed.input.top);
+	expect(refreshed.submitIsHit).toBe(true);
+
+	await clickAt(obsidian, refreshed.submitCentre.x, refreshed.submitCentre.y);
+	await expectNoPrompt(obsidian);
+	await expect.poll(() => sandbox.read("out/meeting.md").catch(() => ""), POLL_OPTS)
+		.toBe("people: Fay\nclient: Acme\n");
 });

@@ -348,7 +348,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 				return;
 			}
 			this.suggest.setSuggestions(suggestions);
-			if (!keepOpen || !this.isOpen) {
+			if (keepOpen && this.isOpen) {
+				// A multi-select pick refreshes the open list in place, but the list's
+				// height and the input's position (a new chip row) can both change.
+				this.reposition();
+			} else {
 				this.open(this.app.dom.appContainerEl, this.inputEl);
 			}
 		} catch (error) {
@@ -375,25 +379,18 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			containerDocument === inputDocument ? container : inputDocument.body;
 		ownerCompatibleContainer.appendChild(this.suggestEl);
 
-		// Decided on every refresh: the list's height changes as the user types.
-		const placement = listPlacement(inputEl, this.suggestEl);
-
 		// open() runs on every keystroke (onInputChanged re-opens to refresh the
 		// suggestions). If a Popper already exists, reposition it instead of
 		// creating a new one — recreating here would leak a Popper instance, and
 		// the scroll/resize listeners it attaches, on every keystroke. The Popper
 		// (and the global listeners below) are torn down together in close().
 		if (this.popper) {
-			if (this.popper.state.options.placement === placement) {
-				void this.popper.update();
-			} else {
-				void this.popper.setOptions({ placement });
-			}
+			this.reposition();
 			return;
 		}
 
 		this.popper = createPopper(inputEl, this.suggestEl, {
-			placement,
+			placement: listPlacement(inputEl, this.suggestEl),
 			modifiers: [
 				{
 					name: "sameWidth",
@@ -434,6 +431,20 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeDocument.addEventListener("wheel", this.globalWheelListener, true);
 		activeWindow.addEventListener("resize", this.globalResizeListener);
 		activeWindow.addEventListener("blur", this.globalBlurListener);
+	}
+
+	/**
+	 * Re-place the open list after its contents changed. The placement is
+	 * re-decided each time because the list's height changes as the user types.
+	 */
+	private reposition(): void {
+		if (!this.popper) return;
+		const placement = listPlacement(this.inputEl, this.suggestEl);
+		if (this.popper.state.options.placement === placement) {
+			void this.popper.update();
+		} else {
+			void this.popper.setOptions({ placement });
+		}
 	}
 
 	close(): void {
