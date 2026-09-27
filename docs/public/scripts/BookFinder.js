@@ -24,12 +24,12 @@ module.exports =  async function start(params) {
   const encodedTitle = encodeURIComponent(GOOGLE_BOOKS_TITLE_TERM + title);
   const finalURL = GOOGLE_BOOKS_API_URL + "?q=" + encodedTitle + "&maxResults=10";
   const response = await fetch(finalURL);
-  // A proxy or outage can answer with an HTML error page rather than JSON.
-  const bookDesc = await response.json().catch(() => ({}));
+  // A proxy or outage can answer with an HTML page rather than JSON, even with a 2xx status.
+  const bookDesc = await response.json().catch(() => null);
 
   // Keyless requests share a per-network daily quota, so a 429 here is not "no results".
-  if (!response.ok || bookDesc.error) {
-    const reason = bookDesc.error?.message ?? `HTTP ${response.status}`;
+  if (!response.ok || !bookDesc || bookDesc.error) {
+    const reason = bookDesc?.error?.message ?? (response.ok ? "the response was not JSON" : `HTTP ${response.status}`);
     notice("Google Books request failed: " + reason);
     throw new Error("Google Books request failed: " + reason);
   }

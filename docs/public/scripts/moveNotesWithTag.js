@@ -17,11 +17,11 @@ module.exports = async function moveFilesWithTag(params) {
 	let filesToMove = [];
 
 	// Helper function to get tags as array from frontmatter
-	// Handles both string format ("tag1 tag2") and array format (["tag1", "tag2"])
+	// Handles both string format ("tag1 tag2", "tag1, tag2") and array format (["tag1", "tag2"])
 	function getTagsAsArray(tagValue) {
 		if (!tagValue) return [];
 		if (Array.isArray(tagValue)) return tagValue;
-		if (typeof tagValue === 'string') return tagValue.split(" ");
+		if (typeof tagValue === 'string') return tagValue.split(/[\s,]+/).filter(Boolean);
 		return [];
 	}
 
