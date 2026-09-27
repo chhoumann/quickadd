@@ -62,17 +62,20 @@ brief that a skill-less agent still needs.
   checkout can own those symlinks at a time. Run `pnpm run dev` to rebuild.
 - Always pass the `vault=` selector as a **prefix** argument, never a suffix -
   suffix form can resolve to the wrong vault.
-- The runner reloads the plugin whenever it brings up a warm instance: every
-  `pnpm run obsidian:e2e -- <cmd>` and every `start:e2e-obsidian --print-env`.
-  A modal or settings tab opened before such a reload is bound to a dead plugin
-  instance: its edits look applied but never reach the live store or
-  `data.json`. Drive a multi-step UI flow inside one `eval`, or run
-  `--print-env` once, save its output to a file, `source` it, and call the
-  `obsidian` CLI directly (with `HOME=$OBSIDIAN_E2E_OBSIDIAN_HOME`), which does
-  not reload.
+- `pnpm run obsidian:e2e -- <cmd>` attaches to a running instance without
+  reloading QuickAdd, so plugin state, open modals and settings tabs, and a
+  plugin you disabled all persist between separate commands. After a rebuild,
+  load the new `main.js` with `pnpm run obsidian:e2e -- --reload <cmd>` (or
+  `start:e2e-obsidian`, which always reloads and verifies). If no instance is
+  running, `obsidian:e2e` launches one first.
+- Toggle desktop mobile emulation with `pnpm run obsidian:e2e -- dev:mobile on`
+  (or `off`). The command returns only after the reloaded app reports the new
+  mode, so the next command can run straight away with no sleep. The switch
+  reloads the whole app, so reopen any UI afterwards.
 
 ```bash
 pnpm run dev                                # or: pnpm run build
+pnpm run obsidian:e2e -- --reload quickadd:list   # load the rebuilt main.js
 pnpm run obsidian:e2e -- quickadd:list
 pnpm run obsidian:e2e -- eval code='Boolean(app.plugins.plugins.quickadd)'
 pnpm run obsidian:e2e -- dev:errors
