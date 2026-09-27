@@ -108,7 +108,8 @@ linked key. This is the provider page's **Test connection** button:
 obsidian vault=dev quickadd:ai-test-connection provider=openai
 ```
 
-- `provider=` is the provider's ID or name, in any case.
+- `provider=` is the provider's ID, such as `openai`, or its name. The ID must
+  match exactly; the name can be in any case.
 - A working key returns `"ok":true` and the number of models the provider
   lists:
 
