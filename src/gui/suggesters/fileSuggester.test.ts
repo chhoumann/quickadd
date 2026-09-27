@@ -7,7 +7,12 @@ import { FileSuggester } from './fileSuggester';
 import { renderExactHighlight } from './utils';
 
 vi.mock("@popperjs/core", () => ({
-    createPopper: () => ({ update: vi.fn(), destroy: vi.fn() }),
+    createPopper: (_reference: Element, _popper: HTMLElement, options: { placement: string }) => ({
+        update: vi.fn(),
+        setOptions: vi.fn(),
+        destroy: vi.fn(),
+        state: { options: { placement: options.placement } },
+    }),
 }));
 
 beforeEach(() => {

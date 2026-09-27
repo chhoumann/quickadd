@@ -4,12 +4,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Track Popper instances so we can assert that the existing one is reused
 // (update) rather than recreated — and leaked — on every keystroke.
 const { createPopperMock, popperInstances } = vi.hoisted(() => {
+	type Options = { placement: string };
 	const popperInstances: Array<{
 		destroy: ReturnType<typeof vi.fn>;
 		update: ReturnType<typeof vi.fn>;
+		setOptions: ReturnType<typeof vi.fn>;
+		state: { options: Options };
 	}> = [];
-	const createPopperMock = vi.fn(() => {
-		const instance = { destroy: vi.fn(), update: vi.fn() };
+	const createPopperMock = vi.fn((_reference: Element, _popper: HTMLElement, options: Options) => {
+		const state = { options: { placement: options.placement } };
+		const instance = {
+			destroy: vi.fn(),
+			update: vi.fn(),
+			setOptions: vi.fn((next: Partial<Options>) => {
+				state.options = { ...state.options, ...next };
+			}),
+			state,
+		};
 		popperInstances.push(instance);
 		return instance;
 	});
@@ -303,6 +314,88 @@ describe("TextInputSuggest resource lifecycle", () => {
 		new GenericTextSuggester(app, input, ["x"]);
 
 		expect(secondDestroy).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("TextInputSuggest placement in a prompt", () => {
+	// jsdom has no layout, so each test states the geometry: the input and the
+	// prompt's action bar in viewport pixels, and the height the list renders at.
+	let input: HTMLInputElement;
+	let actions: HTMLElement;
+	let geometry: { input: [top: number, bottom: number]; actionsTop: number; listHeight: number };
+
+	const box = (top: number, bottom: number) =>
+		({ top, bottom, height: bottom - top, left: 0, right: 300, width: 300, x: 0, y: top }) as DOMRect;
+
+	beforeEach(() => {
+		createPopperMock.mockClear();
+		popperInstances.length = 0;
+		const modal = document.createElement("div");
+		modal.className = "modal";
+		input = document.createElement("input");
+		actions = document.createElement("div");
+		actions.className = "qa-prompt-actions";
+		modal.append(input, actions);
+		document.body.appendChild(modal);
+		input.focus();
+		vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+			if (this === input) return box(...geometry.input);
+			if (this === actions) return box(geometry.actionsTop, geometry.actionsTop + 30);
+			if (this.classList.contains("suggestion-container")) return box(0, geometry.listHeight);
+			return box(0, 0);
+		});
+	});
+
+	afterEach(() => {
+		document.body.replaceChildren();
+		vi.restoreAllMocks();
+	});
+
+	async function openedPlacement(): Promise<string> {
+		const suggest = new GenericTextSuggester(createApp(), input, ["Lead"]);
+		input.value = "Le";
+		await suggest.onInputChanged();
+		return createPopperMock.mock.calls[0][2].placement;
+	}
+
+	// Input 484-514, action bar from 546: 32px below the input, 4px of it the gap.
+	it.each([
+		[28, "bottom-start"], // ends at 546, touching but not covering the bar
+		[29, "top-start"], // would cover the bar's top pixel
+		[180, "top-start"],
+	])("opens a %ipx list below the last input only when it clears the action bar", async (listHeight, expected) => {
+		geometry = { input: [484, 514], actionsTop: 546, listHeight };
+		expect(await openedPlacement()).toBe(expected);
+	});
+
+	it("stays below when there is no room above either", async () => {
+		// Opening above would need 4 + 47 = 51px over the input; only 40px exist.
+		geometry = { input: [40, 70], actionsTop: 102, listHeight: 47 };
+		expect(await openedPlacement()).toBe("bottom-start");
+	});
+
+	it("ignores inputs outside a prompt with an action bar", async () => {
+		actions.remove();
+		geometry = { input: [484, 514], actionsTop: 546, listHeight: 47 };
+		expect(await openedPlacement()).toBe("bottom-start");
+	});
+
+	it("re-decides on each refresh as the list's height changes", async () => {
+		geometry = { input: [484, 514], actionsTop: 546, listHeight: 47 };
+		const suggest = new GenericTextSuggester(createApp(), input, ["Lead", "Lean"]);
+		input.value = "Le";
+		await suggest.onInputChanged();
+		const popper = popperInstances[0];
+		expect(popper.state.options.placement).toBe("top-start");
+
+		geometry.listHeight = 20;
+		await suggest.onInputChanged();
+		expect(popper.setOptions).toHaveBeenLastCalledWith({ placement: "bottom-start" });
+
+		await suggest.onInputChanged();
+		expect(popper.setOptions).toHaveBeenCalledTimes(1);
+		expect(popper.update).toHaveBeenCalledTimes(1);
+		expect(createPopperMock).toHaveBeenCalledTimes(1);
 	});
 });
 

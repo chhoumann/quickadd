@@ -10,6 +10,30 @@ const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
 };
 
+// Gap between the input and the list (Popper's offset modifier).
+const LIST_GAP_PX = 4;
+
+type ListPlacement = "bottom-start" | "top-start";
+
+/**
+ * Where to open the list relative to its input. QuickAdd prompts end in an
+ * action bar (`.qa-prompt-actions`: Submit, Cancel, Peek) right under their
+ * last input, and the list is layered above the modal, so a list that reaches
+ * the bar takes the click aimed at Submit. Open it above the input when it
+ * fits there; otherwise keep the usual placement below.
+ */
+function listPlacement(inputEl: HTMLElement, listEl: HTMLElement): ListPlacement {
+	const actionsEl = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions");
+	if (!actionsEl) return "bottom-start";
+	const input = inputEl.getBoundingClientRect();
+	const actions = actionsEl.getBoundingClientRect();
+	const listHeight = listEl.getBoundingClientRect().height;
+	const actionsBelowInput = actions.height > 0 && actions.top >= input.bottom;
+	const reachesActions = input.bottom + LIST_GAP_PX + listHeight > actions.top;
+	const fitsAbove = input.top - LIST_GAP_PX - listHeight >= 0;
+	return actionsBelowInput && reachesActions && fitsAbove ? "top-start" : "bottom-start";
+}
+
 let textInputSuggestSeq = 0;
 
 type CompletionInputEvent = Event & {
@@ -351,18 +375,25 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			containerDocument === inputDocument ? container : inputDocument.body;
 		ownerCompatibleContainer.appendChild(this.suggestEl);
 
+		// Decided on every refresh: the list's height changes as the user types.
+		const placement = listPlacement(inputEl, this.suggestEl);
+
 		// open() runs on every keystroke (onInputChanged re-opens to refresh the
 		// suggestions). If a Popper already exists, reposition it instead of
 		// creating a new one — recreating here would leak a Popper instance, and
 		// the scroll/resize listeners it attaches, on every keystroke. The Popper
 		// (and the global listeners below) are torn down together in close().
 		if (this.popper) {
-			void this.popper.update();
+			if (this.popper.state.options.placement === placement) {
+				void this.popper.update();
+			} else {
+				void this.popper.setOptions({ placement });
+			}
 			return;
 		}
 
 		this.popper = createPopper(inputEl, this.suggestEl, {
-			placement: "bottom-start",
+			placement,
 			modifiers: [
 				{
 					name: "sameWidth",
@@ -390,7 +421,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 					name: "offset",
 					enabled: true,
 					options: {
-						offset: [0, 4],
+						offset: [0, LIST_GAP_PX],
 					},
 				},
 			],
