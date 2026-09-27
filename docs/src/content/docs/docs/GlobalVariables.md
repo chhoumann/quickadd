@@ -49,8 +49,9 @@ Good places to use one:
 ![The Global variables section of QuickAdd settings with two variables: Signature, whose value is "Logged by QuickAdd on {{DATE:YYYY-MM-DD}}", and MyProjects, whose value is "{{VALUE:Inbox,Work,Personal,Archive}}"](./Images/settings-global-variables.png)
 
 :::tip
-In any QuickAdd format field, type `{{glob` to get suggestions for the
-variables you've defined, then pick one to insert it. Use descriptive names,
+In the format fields of a choice's settings, such as **Capture format** or
+**File name format**, type `{{glob` to get suggestions for the variables you've
+defined, then pick one to insert it. Use descriptive names,
 and avoid two names that differ only by case.
 :::
 
