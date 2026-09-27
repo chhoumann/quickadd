@@ -2,7 +2,7 @@
 image:
 tags: in/books
 aliases:
-    - {{TITLE}}
+    - "{{VALUE:Book Title}}"
 cssclass:
 ---
 
@@ -15,8 +15,8 @@ Type:: [[Book]]
 Author:: {{VALUE:author}}
 Reference::
 Rating::
-Reviewed Date:: [[{{DATE:gggg-MM-DD - ddd MMM D}}]]
-Finished Year:: [[{{DATE:gggg}}]]
+Reviewed Date:: [[{{DATE:YYYY-MM-DD - ddd MMM D}}]]
+Finished Year:: [[{{DATE:YYYY}}]]
 
 # Thoughts
 

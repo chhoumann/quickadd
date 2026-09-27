@@ -41,11 +41,13 @@ const categories = {
 const randomNumberInRange = (max) => Math.floor(Math.random() * max);
 let token;
 let quickAddApi;
+let notice = () => {};
 
 function useToken(params, settings) {
+	notice = (message, timeout) => new params.obsidian.Notice(message, timeout);
 	token = (settings?.[ACCESS_TOKEN] ?? "").trim();
 	if (!token) {
-		new params.obsidian.Notice("Set your Readwise access token in the script settings.");
+		notice("Set your Readwise access token in the script settings.");
 		throw new Error("Readwise access token is not set.");
 	}
 }
@@ -60,74 +62,107 @@ async function start(params, settings) {
 	if (category === "searchAll") {
 		highlights = await getAllHighlights();
 	} else {
-		let res = await getHighlightsByCategory(category);
-		if (!res) return;
+		const items = await getHighlightsByCategory(category);
+		if (items.length === 0) {
+			notice(`Nothing under ${categories[category]} in Readwise yet.`);
+			return "";
+		}
 
-		const { results } = res;
 		const item = await quickAddApi.suggester(
-			results.map((item) => item.title),
-			results
+			items.map((item) => item.title),
+			items
 		);
 		if (!item) return;
 
 		params.variables["author"] = `[[${item.author}]]`;
 
-		const res2 = await getHighlightsForElement(item);
-		if (!res2) return;
+		highlights = (await getHighlightsForElement(item)).reverse();
+	}
 
-		highlights = res2.results.reverse();
+	if (highlights.length === 0) {
+		notice("No highlights there yet.");
+		return "";
 	}
 
 	const textToAppend = await highlightsPromptHandler(highlights);
 	return !textToAppend ? "" : textToAppend;
 }
 
+// Use in a file name format: picks a book and returns a name a note can have.
+// The book's real title and id are kept in variables for instaFetchBook and
+// for {{VALUE:Book Title}} in the template.
 async function getBooks(params, settings) {
 	useToken(params, settings);
-	const { results: books } = await getHighlightsByCategory("books");
-	const bookNames = books.map((book) => book.title);
-	const selectedBook = await params.quickAddApi.suggester(
-		bookNames,
-		bookNames
+	const books = await getHighlightsByCategory("books");
+	if (books.length === 0) {
+		notice("No books in Readwise yet.");
+		throw new Error("No books in Readwise yet.");
+	}
+
+	const book = await params.quickAddApi.suggester(
+		books.map((book) => book.title),
+		books
 	);
-	params.variables["Book Title"] = selectedBook;
-	return selectedBook;
+	if (!book) throw new Error("No book selected.");
+
+	params.variables["Book Title"] = book.title;
+	params.variables["Book Id"] = String(book.id);
+	return fileNameFor(book.title);
+}
+
+// Obsidian refuses ":" in a name and reads "/" and "\" as folders; Windows also
+// refuses * ? " < > |, and [ ] # ^ | would break the [[{{TITLE}}]] link.
+function fileNameFor(title) {
+	return (
+		title
+			.replace(/\s*:\s*/g, " - ")
+			.replace(/[\\/*?"<>|#^[\]]/g, "")
+			.replace(/\s+/g, " ")
+			.trim() || "Untitled"
+	);
 }
 
 async function instaFetchBook(params, settings) {
 	useToken(params, settings);
+	const bookId = params.variables["Book Id"];
 	const bookTitle = params.variables["Book Title"];
-	if (!bookTitle) return await start(params, settings);
+	if (!bookId && !bookTitle) return await start(params, settings);
 
-	const { results: books } = await getHighlightsByCategory("books");
-	const book = books.find((b) =>
-		b.title.toLowerCase().contains(bookTitle.toLowerCase())
-	);
+	const books = await getHighlightsByCategory("books");
+	// getBooks stored the id, so the lookup is exact. A title set some other way
+	// (an older template, a {{VALUE:Book Title}} prompt) matches exactly first,
+	// then partially, so "Dune" is not mistaken for "Dune Messiah".
+	const wanted = String(bookTitle ?? "").toLowerCase();
+	const book =
+		books.find((b) => String(b.id) === String(bookId)) ??
+		books.find((b) => b.title.toLowerCase() === wanted) ??
+		books.find((b) => wanted && b.title.toLowerCase().includes(wanted));
 	if (!book) throw new Error("Book " + bookTitle + " not found.");
 
 	params.variables["author"] = `[[${book.author}]]`;
 
-	const highlights = (await getHighlightsForElement(book)).results.reverse();
+	const highlights = (await getHighlightsForElement(book)).reverse();
 	return writeAllHandler(highlights);
 }
 
 async function getDailyQuote(params, settings) {
 	useToken(params, settings);
-	const category = "supplementals";
-	const res = await getHighlightsByCategory(category);
-	if (!res) return;
+	const items = await getHighlightsByCategory("supplementals");
+	if (items.length === 0) {
+		notice("No supplemental highlights in Readwise yet.");
+		return "";
+	}
+	const targetItem = items[randomNumberInRange(items.length)];
 
-	const { results } = res;
-	const targetItem = results[randomNumberInRange(results.length)];
-
-	const { results: highlights } = await getHighlightsForElement(targetItem);
-	if (!highlights) return;
+	const highlights = await getHighlightsForElement(targetItem);
+	if (highlights.length === 0) {
+		notice(`No highlights in ${targetItem.title} yet.`);
+		return "";
+	}
 
 	const randomHighlight = highlights[randomNumberInRange(highlights.length)];
 
-	const quote = formatDailyQuote(randomHighlight.text, targetItem);
-
-	return `${quote}`;
+	return formatDailyQuote(randomHighlight.text, targetItem);
 }
 
 async function categoryPromptHandler() {
@@ -187,7 +222,7 @@ function formatDailyQuote(sourceText, sourceItem) {
 
 	const attr = `\n>\\- ${sourceItem.author}, _${sourceItem.title}_`;
 
-	return `${quote}${attr}`;
+	return `${quote.join("\n")}${attr}`;
 }
 
 function textFormatter(sourceText, rawSourceNote) {
@@ -215,52 +250,70 @@ function textFormatter(sourceText, rawSourceNote) {
 	return { quote, note };
 }
 
+// Readwise lists at most 1000 items per page; these return every page's items.
+const PAGE_SIZE = 1000;
+
 async function getHighlightsByCategory(category) {
-	return apiGet(`${apiUrl}books`, { category, page_size: 1000 });
+	return apiGetAll(`${apiUrl}books`, { category, page_size: PAGE_SIZE });
 }
 
 async function getHighlightsForElement(element) {
-	return apiGet(`${apiUrl}highlights`, {
+	return apiGetAll(`${apiUrl}highlights`, {
 		book_id: element.id,
-		page_size: 1000,
+		page_size: PAGE_SIZE,
 	});
 }
 
 async function getAllHighlights() {
-	const MAX_PAGE_SIZE = 1000;
-	const URL = `${apiUrl}highlights`;
-	let promises = [];
+	return apiGetAll(`${apiUrl}highlights`, { page_size: PAGE_SIZE });
+}
 
-	const { count } = await apiGet(URL);
-	const requestsToMake = Math.ceil(count / MAX_PAGE_SIZE);
-
-	for (let i = 1; i <= requestsToMake; i++) {
-		promises.push(apiGet(URL, { page_size: MAX_PAGE_SIZE, page: i }));
+// Follows `next` one page at a time: the list endpoints allow 20 requests a
+// minute, so fetching pages in parallel would trip the limit on big libraries.
+async function apiGetAll(url, data) {
+	const results = [];
+	let next = withQuery(url, data);
+	while (next) {
+		const page = await apiGet(next);
+		results.push(...page.results);
+		next = page.next;
 	}
+	return results;
+}
 
-	const allHighlights = (await Promise.all(promises)).map((hl) => hl.results);
-
-	return allHighlights;
+function withQuery(url, data) {
+	const finalURL = new URL(url);
+	for (const [key, value] of Object.entries(data ?? {})) {
+		finalURL.searchParams.set(key, value);
+	}
+	return finalURL.toString();
 }
 
 async function apiGet(url, data) {
-	let finalURL = new URL(url);
-	if (data)
-		Object.keys(data).forEach((key) =>
-			finalURL.searchParams.append(key, data[key])
-		);
-
-	const res = await fetch(finalURL, {
-		method: "GET",
-		cache: "no-cache",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Token ${token}`,
-		},
-	});
-	if (!res.ok) {
-		const hint = res.status === 401 || res.status === 403 ? "check your access token" : "request failed";
-		throw new Error(`Readwise API error ${res.status}: ${hint}.`);
+	const finalURL = withQuery(url, data);
+	for (let attempt = 1; ; attempt++) {
+		const res = await fetch(finalURL, {
+			method: "GET",
+			cache: "no-cache",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Token ${token}`,
+			},
+		});
+		// Over the rate limit: Readwise says how long to wait, so wait and go again.
+		if (res.status === 429 && attempt < 4) {
+			const seconds = Number(res.headers.get("Retry-After")) || 60;
+			notice(`Readwise rate limit reached, waiting ${seconds} s…`, seconds * 1000);
+			await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+			continue;
+		}
+		if (!res.ok) {
+			const hint =
+				res.status === 401 || res.status === 403 ? "check your access token"
+				: res.status === 429 ? "rate limit reached, try again in a minute"
+				: "request failed";
+			throw new Error(`Readwise API error ${res.status}: ${hint}.`);
+		}
+		return await res.json();
 	}
-	return await res.json();
 }

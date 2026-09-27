@@ -29,10 +29,10 @@ New to user scripts? See [how to add a script to a macro](/docs/UserScripts/#add
 
 <a id="how-it-behaves"></a>A few notes on how it behaves:
 
-- The note is named after the book you select.
+- The note is named after the book you select, minus what a file name can't hold: `Dune: Part One` becomes `Dune - Part One`. The alias keeps the real title.
 - Running the choice opens a menu to choose a book, and the highlights are appended into the template where the macro placeholder sits.
 - Customize the template however you like, but keep `{{MACRO:Readwise::instaFetchBook}}` - that placeholder is what fetches the highlights and marks where they are inserted. If you named your macro something other than `Readwise`, replace `Readwise` in that placeholder with your macro's name.
-- The script fills in `{{VALUE:author}}` from the book you pick. If you use [one-page input](/docs/Advanced/onePageInputs/), set **One-page input override** to **Never** on the **Add Book Notes** choice (the package already does), or the form asks you for the author before the script has a chance to.
+- The script fills in `{{VALUE:author}}` and `{{VALUE:Book Title}}` from the book you pick. If you use [one-page input](/docs/Advanced/onePageInputs/), set **One-page input override** to **Never** on the **Add Book Notes** choice (the package already does), or the form asks you for them before the script has a chance to.
 
 ## Script
 
@@ -47,7 +47,7 @@ The script is the <a href="/scripts/readwise.js" download>Readwise script</a> fr
 image:
 tags: in/books
 aliases:
-    - {{TITLE}}
+    - "{{VALUE:Book Title}}"
 cssclass:
 ---
 
@@ -60,8 +60,8 @@ Type:: [[Book]]
 Author:: {{VALUE:author}}
 Reference::
 Rating::
-Reviewed Date:: [[{{DATE:gggg-MM-DD - ddd MMM D}}]]
-Finished Year:: [[{{DATE:gggg}}]]
+Reviewed Date:: [[{{DATE:YYYY-MM-DD - ddd MMM D}}]]
+Finished Year:: [[{{DATE:YYYY}}]]
 
 # Thoughts
 
