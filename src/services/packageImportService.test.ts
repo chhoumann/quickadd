@@ -1051,12 +1051,56 @@ describe("applyPackageImport - parent/child trees", () => {
 			]),
 		});
 
-		// Parent added once at root; child handled inside the parent's tree.
-		expect(result.addedChoiceIds).toEqual(["parent"]);
+		// Parent added once at root; child handled inside the parent's tree,
+		// and reported as added with it (the preview counted both).
+		expect(result.addedChoiceIds).toEqual(["parent", "child"]);
 		expect(result.updatedChoices).toHaveLength(1);
 		const insertedParent = result.updatedChoices[0] as IMultiChoice;
 		expect(insertedParent.id).toBe("parent");
 		expect(insertedParent.choices!.map((c) => c.id)).toEqual(["child"]);
+	});
+
+	it("reports inline children with their parent's outcome, through nested folders", async () => {
+		const { app } = createFakeApp();
+		const grandchild = makeChoice("grandchild", "Grandchild", "Capture");
+		const inner = makeMulti("inner", "Inner", [grandchild]);
+		const sibling = makeChoice("sibling", "Sibling", "Template");
+		const outer = makeMulti("outer", "Outer", [inner, sibling]);
+		// The grandchild is listed before its parent: placement must not
+		// depend on package order.
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(outer),
+				makePackageChoice(grandchild, "inner", ["Outer", "Inner"]),
+				makePackageChoice(inner, "outer", ["Outer"]),
+				makePackageChoice(sibling, "outer", ["Outer"]),
+			],
+		});
+		const allImport = decisions([
+			["outer", "import"],
+			["inner", "import"],
+			["grandchild", "import"],
+			["sibling", "import"],
+		]);
+
+		const fresh = await importPackage({ app, pkg, choiceDecisions: allImport });
+		expect([...fresh.addedChoiceIds].sort()).toEqual(
+			["outer", "inner", "grandchild", "sibling"].sort(),
+		);
+		expect(fresh.overwrittenChoiceIds).toEqual([]);
+
+		// Re-importing over the previous result overwrites the folder, and the
+		// children it carries count as overwritten too, not as added.
+		const again = await importPackage({
+			app,
+			existingChoices: fresh.updatedChoices,
+			pkg,
+			choiceDecisions: allImport.map((d) => ({ ...d, mode: "overwrite" as const })),
+		});
+		expect(again.addedChoiceIds).toEqual([]);
+		expect([...again.overwrittenChoiceIds].sort()).toEqual(
+			["outer", "inner", "grandchild", "sibling"].sort(),
+		);
 	});
 
 	it("inserts a new child under an already-existing parent multi", async () => {

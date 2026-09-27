@@ -339,6 +339,11 @@ export async function applyPackageImport(
 	}
 
 	const handledChoices = new Set<string>();
+	// Children that ride along inside an imported parent. They are reported
+	// with the parent's outcome once every entry has been placed, so a folder
+	// of five captures counts as six choices in the summary, matching the
+	// preview the reader confirmed.
+	const inlineChildren: Array<{ originalId: string; finalId: string }> = [];
 
 	for (const entry of pkg.choices) {
 		const originalId = entry.choice.id;
@@ -361,6 +366,7 @@ export async function applyPackageImport(
 			// The parsed parent carries this child inline; inserting its flat entry would duplicate it.
 			// packageValidation rejects parents that omit their declared children.
 			handledChoices.add(originalId);
+			inlineChildren.push({ originalId, finalId });
 			continue;
 		}
 
@@ -412,6 +418,29 @@ export async function applyPackageImport(
 		}
 
 		handledChoices.add(originalId);
+	}
+
+	// An inline child lands wherever its nearest placed ancestor landed. Walk
+	// up through the package's parent links (a grandchild's parent is itself
+	// inline) until an ancestor that was added or overwritten turns up.
+	const placedAsAdded = new Set(addedChoiceIds);
+	const placedAsOverwritten = new Set(overwrittenChoiceIds);
+	for (const { originalId, finalId } of inlineChildren) {
+		const seen = new Set<string>([originalId]);
+		let ancestorId = catalog.get(originalId)?.parentChoiceId ?? null;
+		while (ancestorId && !seen.has(ancestorId)) {
+			seen.add(ancestorId);
+			const ancestorFinalId = idMap.get(ancestorId) ?? ancestorId;
+			if (placedAsAdded.has(ancestorFinalId)) {
+				addedChoiceIds.push(finalId);
+				break;
+			}
+			if (placedAsOverwritten.has(ancestorFinalId)) {
+				overwrittenChoiceIds.push(finalId);
+				break;
+			}
+			ancestorId = catalog.get(ancestorId)?.parentChoiceId ?? null;
+		}
 	}
 
 	const writtenAssets: string[] = [];
