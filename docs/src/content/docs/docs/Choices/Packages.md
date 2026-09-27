@@ -80,7 +80,9 @@ to keep as it is.
    choices to reference the new locations.
 6. If the package runs code, tick the acknowledgement, then click **Import
    package**. The choices list updates immediately and a notice summarises what
-   changed.
+   changed. The package's commands are in the command palette right away, with
+   no reload. Importing doesn't run a startup macro; it first runs the next time
+   Obsidian starts or you reload QuickAdd.
 
 :::note
 QuickAdd rebuilds your choice hierarchy from the stored parent IDs and path
