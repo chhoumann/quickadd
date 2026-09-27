@@ -73,6 +73,18 @@ const includes = joinList(
 	].filter(Boolean),
 );
 
+// Pre-order listing for "What's inside": a folder's choices follow it,
+// indented, so a reader sees the recipes a folder package installs.
+const listed: Array<{ choice: Manifest["choices"][number]["choice"]; depth: number }> = [];
+const listChildrenOf = (parentId: string | null, depth: number) => {
+	for (const entry of manifest.choices) {
+		if (entry.parentChoiceId !== parentId) continue;
+		listed.push({ choice: entry.choice, depth });
+		if (entry.choice.type === "Multi") listChildrenOf(entry.choice.id, depth + 1);
+	}
+};
+listChildrenOf(null, 0);
+
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
 	if (reviewed.length === 0) return `${lead} Click **Import package**.`;
@@ -180,17 +192,15 @@ function inline(text: string): string {
 
 			<h3 class="qa-package__subhead">What's inside</h3>
 			<ul class="qa-package__list qa-package__inside">
-				{manifest.choices
-					.filter((entry) => entry.parentChoiceId === null)
-					.map(({ choice }) => (
-						<li>
-							<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
-							<span>
-								<strong>{choice.name}</strong>
-								{choice.command && <span class="qa-package__muted"> · also in the command palette</span>}
-							</span>
-						</li>
-					))}
+				{listed.map(({ choice, depth }) => (
+					<li class:list={{ "qa-package__nested": depth > 0 }} style={`--qa-depth: ${depth}`}>
+						<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
+						<span>
+							<strong>{choice.name}</strong>
+							{choice.command && <span class="qa-package__muted"> · also in the command palette</span>}
+						</span>
+					</li>
+				))}
 				{manifest.assets.map((asset) => (
 					<li>
 						<span class="qa-package__kind">File</span>
@@ -397,6 +407,10 @@ function inline(text: string): string {
 		column-gap: 0.5rem;
 		align-items: baseline;
 		justify-items: start;
+	}
+	/* A folder's choices sit under it, indented one step per level. */
+	.qa-package__nested {
+		margin-inline-start: calc(var(--qa-depth, 0) * 1.25rem);
 	}
 	.qa-package__kind {
 		font-size: var(--sl-text-xs);
