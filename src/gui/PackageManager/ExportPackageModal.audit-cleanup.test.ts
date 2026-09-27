@@ -89,7 +89,7 @@ async function selectRootAndSave(): Promise<{ close: ReturnType<typeof vi.fn> }>
 	await fireEvent.change(checkbox, { target: { checked: true } });
 
 	const saveButton = container.querySelector(
-		".saveRow button",
+		".qa-export-save button",
 	) as HTMLButtonElement;
 	await fireEvent.click(saveButton);
 

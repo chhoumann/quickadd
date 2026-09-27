@@ -21,54 +21,58 @@
 	}
 </script>
 
-<ul class="macroCommands">
+<ul class="qa-macro-commands">
 	{#each commands as command, index (index)}
-		<li style={`padding-left:${command.depth * 1}rem`}>
-			<span class="macroCommandName">{command.name}</span>
+		<li style={`--qa-macro-depth: ${command.depth}`}>
+			<span class="qa-macro-command-name">{command.name}</span>
 			{#if command.flag}
 				<CapabilityTag flag={command.flag} />
 			{:else}
-				<span class="macroCommandType"
+				<span class="qa-macro-command-type"
 					>{humanCommandType(command.type)}</span
 				>
 			{/if}
 			{#if command.scriptPath}
 				<code>{command.scriptPath}</code>
 			{:else if command.summary}
-				<span class="macroCommandSummary">{command.summary}</span>
+				<span class="qa-macro-command-summary">{command.summary}</span>
 			{/if}
 		</li>
 	{/each}
 </ul>
 
 <style>
-	.macroCommands {
+	/* Obsidian's outline/file-tree indentation guide on the left. */
+	.qa-macro-commands {
 		list-style: none;
 		margin: 0;
-		padding: 0;
+		padding: 0 0 0 var(--size-4-3);
+		border-inline-start: var(--nav-indentation-guide-width, 1px) solid
+			var(--nav-indentation-guide-color, var(--background-modifier-border));
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--size-4-1);
 	}
 
-	.macroCommands li {
+	.qa-macro-commands li {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
-		gap: 0.4rem;
-		font-size: var(--font-ui-smaller, 0.85rem);
+		gap: var(--size-4-1) var(--size-4-2);
+		padding-inline-start: calc(var(--qa-macro-depth, 0) * var(--size-4-4));
+		font-size: var(--font-ui-smaller);
+		line-height: var(--line-height-tight);
 	}
 
-	.macroCommandName {
-		font-weight: 500;
-	}
-
-	.macroCommandType {
+	.qa-macro-command-type,
+	.qa-macro-command-summary {
 		color: var(--text-muted);
-		font-size: 0.72rem;
 	}
 
-	.macroCommandSummary {
+	.qa-macro-commands code {
+		font-family: var(--font-monospace);
+		font-size: var(--code-size);
 		color: var(--text-muted);
+		overflow-wrap: anywhere;
 	}
 </style>
