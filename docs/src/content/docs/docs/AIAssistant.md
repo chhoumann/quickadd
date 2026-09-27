@@ -34,7 +34,7 @@ online features** is turned off in QuickAdd settings.
 
 Changes on these pages save as you make them.
 
-![Setting up the AI Assistant: enabling AI features, setting the prompt template folder, linking an OpenAI API key, syncing models, and choosing gpt-6-luna as the default model](./Images/AI_Assistant_Setup.gif)
+![Setting up the AI Assistant: turning on AI features, opening the AI Assistant page, setting the prompt template folder, linking an OpenAI API key, testing the connection and syncing models, then choosing gpt-6-luna as the default model](./Images/AI_Assistant_Setup.gif)
 
 Prompt templates are Markdown notes in your prompt template folder. They can use
 QuickAdd [Format Syntax](/docs/FormatSyntax/), including values collected earlier
