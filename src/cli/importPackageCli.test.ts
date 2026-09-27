@@ -230,6 +230,95 @@ describe("quickadd:package-import", () => {
 		expect(files.get("Templates/Meeting.md")).toBe("mine");
 	});
 
+	it("keeps original paths for templates that would share a file name in the template folder", async () => {
+		// The modal lets the reader rename one of them; the CLI has no per-file
+		// override, so falling back to the bundled paths is the only way the
+		// import can succeed without a collision.
+		const meeting = templateChoice({
+			id: "tpl-1",
+			name: "Work meeting",
+			templatePath: "Work/Meeting.md",
+		});
+		const personal = templateChoice({
+			id: "tpl-2",
+			name: "Home meeting",
+			templatePath: "Home/Meeting.md",
+		});
+		const { app, files } = fakeVault({
+			[PACKAGE_PATH]: pkg(
+				[meeting, personal],
+				[
+					{
+						kind: "template",
+						originalPath: "Work/Meeting.md",
+						contentEncoding: "base64",
+						content: encodeToBase64("work"),
+					},
+					{
+						kind: "template",
+						originalPath: "Home/Meeting.md",
+						contentEncoding: "base64",
+						content: encodeToBase64("home"),
+					},
+					{
+						kind: "template",
+						originalPath: "Exporter/Retro.md",
+						contentEncoding: "base64",
+						content: encodeToBase64("retro"),
+					},
+				],
+			),
+		});
+		const plugin = fakePlugin(app);
+
+		const result = await run(plugin, { path: PACKAGE_PATH });
+
+		expect(result.ok).toBe(true);
+		expect(result.writtenAssets).toEqual([
+			"Work/Meeting.md",
+			"Home/Meeting.md",
+			"Templates/Retro.md",
+		]);
+		expect(files.get("Work/Meeting.md")).toBe("work");
+		expect(files.get("Home/Meeting.md")).toBe("home");
+		expect(files.has("Templates/Meeting.md")).toBe(false);
+		const paths = settingsStore
+			.getState()
+			.choices.map((choice) => (choice as ITemplateChoice).templatePath);
+		expect(paths).toEqual(["Work/Meeting.md", "Home/Meeting.md"]);
+	});
+
+	it("runs overlapping imports one after another so neither loses the other's choices", async () => {
+		const first = templateChoice({ id: "tpl-1", name: "First", templatePath: "First.md" });
+		const second = templateChoice({ id: "tpl-2", name: "Second", templatePath: "Second.md" });
+		const { app } = fakeVault({
+			"packages/first.quickadd.json": pkg([first]),
+			"packages/second.quickadd.json": pkg([second]),
+		});
+		const plugin = fakePlugin(app);
+
+		const [a, b] = await Promise.all([
+			run(plugin, { path: "packages/first.quickadd.json" }),
+			run(plugin, { path: "packages/second.quickadd.json" }),
+		]);
+
+		expect(a.added).toEqual(["tpl-1"]);
+		expect(b.added).toEqual(["tpl-2"]);
+		expect(settingsStore.getState().choices.map((c) => c.id)).toEqual(["tpl-1", "tpl-2"]);
+	});
+
+	it("keeps accepting imports after one of them fails", async () => {
+		const { app } = fakeVault({
+			[PACKAGE_PATH]: pkg([templateChoice()]),
+		});
+		const plugin = fakePlugin(app);
+
+		await expect(run(plugin, { path: "packages/missing.quickadd.json" })).rejects.toThrow();
+		const result = await run(plugin, { path: PACKAGE_PATH });
+
+		expect(result.added).toEqual(["tpl-1"]);
+	});
+
 	it("never stats a redirected destination that would leave the vault", async () => {
 		// A template asset is redirected into the template folder by file name,
 		// so a crafted name can only escape via a traversal segment.

@@ -1,6 +1,7 @@
 import type { CliData, CliFlags } from "obsidian";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
+import type { AssetConflict } from "../gui/PackageManager/importDecisions";
 import {
 	defaultAssetDestinationFor,
 	effectiveChoiceMode,
@@ -64,13 +65,60 @@ function parseMode<T extends string>(
 }
 
 /**
+ * Where each bundled file lands when nobody edits the destination. The modal
+ * lets the reader rename a colliding file; the CLI cannot, so two templates
+ * that share a file name (`One/Meeting.md`, `Two/Meeting.md`) keep their
+ * original paths instead of both claiming `Templates/Meeting.md` and having
+ * the whole import refused.
+ */
+export function cliAssetDestinations(
+	conflicts: ReadonlyArray<Pick<AssetConflict, "kind" | "originalPath">>,
+	templateFolderPaths: unknown,
+): Map<string, string> {
+	const defaults = new Map(
+		conflicts.map((conflict) => [
+			conflict.originalPath,
+			defaultAssetDestinationFor(conflict, templateFolderPaths),
+		]),
+	);
+	// Fold case unconditionally: on a case-sensitive vault this only sends an
+	// extra file back to its original path, which is always a valid choice.
+	const claims = new Map<string, number>();
+	for (const destination of defaults.values()) {
+		const key = destination.toLowerCase();
+		claims.set(key, (claims.get(key) ?? 0) + 1);
+	}
+	for (const [originalPath, destination] of defaults) {
+		if ((claims.get(destination.toLowerCase()) ?? 0) > 1) {
+			defaults.set(originalPath, originalPath);
+		}
+	}
+	return defaults;
+}
+
+// Imports read the choices, analyse, write files, then store the merged
+// choices. Two overlapping runs would each merge into the snapshot they took
+// and the later store would drop the earlier import, so runs are queued.
+let importQueue: Promise<unknown> = Promise.resolve();
+
+/**
  * CLI seam for the import modal: same analysis, same trust gate, same default
  * decisions (existing ids are overwritten, templates land in the template
  * folder), then the same apply step. Lets a package be installed and exercised
  * end to end without driving the modal — the docs' example packages are
  * verified this way.
  */
-export async function importPackageHandler(
+export function importPackageHandler(
+	plugin: QuickAdd,
+	params: CliData,
+): Promise<{ ok: boolean; [key: string]: unknown }> {
+	const run = importQueue.then(() => importPackage(plugin, params));
+	// A failed import must not poison the queue for the next one.
+	importQueue = run.catch(() => undefined);
+	return run;
+}
+
+async function importPackage(
 	plugin: QuickAdd,
 	params: CliData,
 ): Promise<{ ok: boolean; [key: string]: unknown }> {
@@ -109,10 +157,14 @@ export async function importPackageHandler(
 		}),
 	);
 
-	const templateFolderPaths = settingsStore.getState().templateFolderPaths;
+	const destinations = cliAssetDestinations(
+		analysis.assetConflicts,
+		settingsStore.getState().templateFolderPaths,
+	);
 	const assetDecisions: AssetImportDecision[] = [];
 	for (const conflict of analysis.assetConflicts) {
-		const destinationPath = defaultAssetDestinationFor(conflict, templateFolderPaths);
+		const destinationPath =
+			destinations.get(conflict.originalPath) ?? conflict.originalPath;
 		// applyPackageImport rejects a destination outside the vault; do not
 		// stat it first (the package, and so this path, is untrusted input).
 		const exists =
