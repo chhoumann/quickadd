@@ -21,6 +21,8 @@ so you always see the scripts and macros before they run.
    When saving, QuickAdd creates any missing folders inside your vault
    automatically.
 
+![The Export QuickAdd package modal with the Reading folder, its two choices, and the Weekly review macro ticked. The package summary shows 2 selected choices, 4 total packaged, 2 auto-included, 1 script embedded, and 1 template embedded, above the Copy JSON and Save to file buttons](../Images/package-export.png)
+
 :::caution
 If a referenced script is missing from your vault, the exporter finishes with a
 warning so you can locate or recreate the file before you share the package.
@@ -64,6 +66,8 @@ makes everything visible **before** anything is written.
 A **What this package can do** panel lists the package's capabilities, ranked by
 how much they can affect your vault:
 
+![The Import QuickAdd package modal after pasting a package. The What this package can do panel lists a SCRIPT row for the Weekly review macro's user script, a COMMAND row, and an OVERWRITES row. Below it, the Choices table lists Reading, Weekly review, New book note, and Add to reading list, each with an Import action](../Images/package-import-review.png)
+
 - **Runs custom JavaScript** - a user script, or a script-mode condition, that runs arbitrary code.
 - **Runs on startup** - a macro set to run automatically every time Obsidian launches, with no interaction.
 - **Adds commands** - choices that register a command in the palette / hotkeys.
@@ -94,6 +98,8 @@ fence runs on every AI call.
 When a package can run code, the **Import package** button stays disabled until
 you have opened **View contents** on each bundled executable script and ticked
 the acknowledgement. Reviewed scripts are marked so you can track what is left.
+
+![The Files section of the import modal. The bundled script Scripts/weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded, and Templates/Book.md is grouped under Will overwrite. The acknowledgement is ticked, so the Import package button is enabled](../Images/package-import-files.png)
 
 :::caution
 If a referenced script is **not** bundled, QuickAdd warns that it will run from
