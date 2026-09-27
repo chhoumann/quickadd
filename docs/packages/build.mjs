@@ -85,6 +85,16 @@ export function readManifest(id) {
 }
 
 /**
+ * Text as this script writes it. Git's autocrlf (on by default on Windows)
+ * checks tracked files out with CRLF, so anything read back from the tree
+ * goes through here before it is embedded or compared.
+ * @param {string} text
+ */
+export function withLfLineEndings(text) {
+	return text.replace(/\r\n/g, "\n");
+}
+
+/**
  * Resolve an asset's `source` against its manifest and read it with LF line
  * endings, so the package is identical on every platform.
  * @param {string} id
@@ -95,7 +105,7 @@ export function readAssetSource(id, asset) {
 	if (!file.startsWith(path.resolve(PACKAGES_DIR, "..") + path.sep)) {
 		throw new Error(`Package "${id}": asset source escapes docs/: ${asset.source}`);
 	}
-	return readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+	return withLfLineEndings(readFileSync(file, "utf8"));
 }
 
 /**
@@ -148,11 +158,22 @@ function readIfExists(file) {
 }
 
 /**
+ * Whether a committed output (null when missing) differs from the build.
+ * @param {string | null} committed
+ * @param {string} built
+ */
+export function outputIsStale(committed, built) {
+	return committed === null || withLfLineEndings(committed) !== built;
+}
+
+/**
  * Ids whose committed output differs from what the manifest builds now.
  * @param {string[]} [ids] Defaults to every package.
  */
 export function stalePackageIds(ids = listPackageIds()) {
-	return ids.filter((id) => readIfExists(outputPath(id)) !== buildPackageJson(id));
+	return ids.filter((id) =>
+		outputIsStale(readIfExists(outputPath(id)), buildPackageJson(id)),
+	);
 }
 
 /** Ids of committed outputs whose manifest is gone; the build removes them. */
