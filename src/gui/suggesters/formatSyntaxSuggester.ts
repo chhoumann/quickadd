@@ -17,6 +17,9 @@ export type { FormatSuggestContext } from "./formatTokenRegistry";
 
 const CASE_FRAGMENT_REGEX =
 	/^\{\{(VALUE|NAME|DATE|TIME|VDATE)([^\n\r}]*)\|case:([a-z-]*)$/i;
+/** An unfinished {{GLOBAL_VAR: token; the name is trimmed at runtime, so skip leading blanks. */
+const GLOBAL_VAR_NAME_FRAGMENT_REGEX = /^\{\{GLOBAL_VAR:[ \t]*([^\n\r}]*)$/i;
+const GLOBAL_VAR_PREFIX = "{{GLOBAL_VAR:";
 const DATE_TOKEN_TYPES = new Set(["DATE", "TIME", "VDATE"]);
 /** The `<folder>`-style fill-in-the-blank inside an example row. */
 const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
@@ -24,6 +27,8 @@ const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
 	/** Start offset of the fragment the accepted suggestion replaces. */
 	private replaceFrom = 0;
+	/** Whether the open list completes a {{GLOBAL_VAR: variable name. */
+	private completingGlobalVarName = false;
 	/** The letters typed after "{{", used to highlight what matched. */
 	private matchedQuery = "";
 	private readonly macroNames: string[];
@@ -52,6 +57,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// the user is currently typing, not earlier, already-completed tokens.
 		const startBrace = inputStr.lastIndexOf("{{", cursorPosition - 1);
 		if (startBrace === -1) return [];
+		this.completingGlobalVarName = false;
 
 		const inputSegment = inputStr.slice(startBrace, cursorPosition);
 
@@ -80,6 +86,23 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			return CASE_STYLE_SUGGESTIONS.filter((style) =>
 				style.insert.startsWith(normalizedFragment),
 			).map((style) => ({ ...style }));
+		}
+
+		// Inside {{GLOBAL_VAR:, keep completing the variable name from the ones
+		// defined in settings, as the list did before the colon was typed.
+		const globalVarMatch = inputSegment.match(GLOBAL_VAR_NAME_FRAGMENT_REGEX);
+		if (globalVarMatch) {
+			const typedName = globalVarMatch[1] ?? "";
+			this.replaceFrom = startBrace;
+			this.matchedQuery = `GLOBAL_VAR:${typedName}`;
+			this.completingGlobalVarName = true;
+			return Object.keys(this.plugin?.settings?.globalVariables ?? {})
+				.filter((name) => name.toLowerCase().startsWith(typedName.toLowerCase()))
+				.map((name) => ({
+					insert: `${GLOBAL_VAR_PREFIX}${name}}}`,
+					description: `Inserts your "${name}" snippet`,
+					caretOffset: 0,
+				}));
 		}
 
 		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions.
@@ -159,8 +182,32 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const replaceStart = this.replaceFrom;
 
+		let replaceEnd = cursorPosition;
+		if (this.completingGlobalVarName) {
+			// Checked against the caret now, not when the list was built: the list
+			// is rebuilt on a debounce, so it can be a keystroke stale, and moving
+			// the caret does not rebuild it at all. A row only completes the
+			// unfinished {{GLOBAL_VAR: fragment the caret is still in, and only
+			// while its name still starts with what has been typed there.
+			const value = this.inputEl.value;
+			const fragment = value.slice(replaceStart, cursorPosition);
+			const typedName = GLOBAL_VAR_NAME_FRAGMENT_REGEX.exec(fragment)?.[1];
+			const rowName = item.insert.slice(GLOBAL_VAR_PREFIX.length, -2);
+			if (
+				fragment.lastIndexOf("{{") !== 0 ||
+				typedName === undefined ||
+				!rowName.toLowerCase().startsWith(typedName.toLowerCase())
+			) {
+				this.close();
+				return;
+			}
+			// Accepting the empty {{GLOBAL_VAR:}} row parks the caret before its
+			// "}}"; the completed token brings its own, so consume those.
+			if (value.startsWith("}}", cursorPosition)) replaceEnd += 2;
+		}
+
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, cursorPosition, item.insert, {
+		replaceRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
 			fromCompletion: true,
 		});
 
