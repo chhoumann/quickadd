@@ -182,8 +182,9 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const replaceStart = this.replaceFrom;
 
-		// Checked against the caret now, not when the list was built: moving the
-		// caret does not refresh the list, and must not widen the replaced span.
+		// Checked against the caret now, not when the list was built: the list is
+		// rebuilt on a debounce, so a span captured then can be a keystroke stale,
+		// and moving the caret does not rebuild it at all.
 		const replaceEnd =
 			this.replaceClosingBraces && this.inputEl.value.startsWith("}}", cursorPosition)
 				? cursorPosition + 2

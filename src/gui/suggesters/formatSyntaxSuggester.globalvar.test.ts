@@ -70,8 +70,18 @@ describe("FormatSyntaxSuggester {{GLOBAL_VAR:}} names", () => {
 			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
 			expect(inputEl.selectionStart).toBe("- {{GLOBAL_VAR:MyProjects}}".length);
 
-			// Moving the caret past the braces before accepting must not let a
-			// stale suffix eat the text that follows.
+			// The list is rebuilt on a debounce: typing "y" and accepting before
+			// the rebuild must still consume the braces after the new caret.
+			inputEl.value = "- {{GLOBAL_VAR:M}} after";
+			inputEl.setSelectionRange(caret - 1, caret - 1);
+			const [beforeY] = suggester.getSuggestions(inputEl.value);
+			inputEl.value = "- {{GLOBAL_VAR:My}} after";
+			inputEl.setSelectionRange(caret, caret);
+			suggester.selectSuggestion(beforeY);
+			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
+
+			// Moving the caret past the braces (which does not rebuild the list)
+			// must not let a stale suffix eat the text that follows.
 			inputEl.value = "- {{GLOBAL_VAR:My}} after";
 			inputEl.setSelectionRange(caret, caret);
 			const [stale] = suggester.getSuggestions(inputEl.value);
