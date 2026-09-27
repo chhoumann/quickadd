@@ -12,10 +12,12 @@ can apply a template to a note you already have.
 There are two ways in:
 
 - Run **QuickAdd: Apply template to active note** from the command palette to apply a template to the note currently open.
-- Right-click a Markdown file (in the file explorer, a tab header, and so on) and pick **Apply QuickAdd template** to target that file directly.
+- Right-click a Markdown file (in the file explorer, a tab header, and so on) and pick **QuickAdd: Apply template to active note** to target that file directly.
 
 Either way, you pick a template, choose how it should be added, and QuickAdd
 fills in the placeholders and merges the frontmatter for you.
+
+![Right-clicking the note "Nora Lindqvist" in the file explorer and choosing QuickAdd: Apply template to active note. The picker lists Template choices and template files. Picking "Choice: New person" and then "Insert at top" makes QuickAdd offer to move the note to People/Nora Lindqvist.md. After clicking Yes, the note has the template's properties and headings above the original text](./Images/apply-template-to-note.gif)
 
 ## How it works {#how-it-works}
 

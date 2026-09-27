@@ -73,6 +73,8 @@ Add [`|optional`](/docs/FormatSyntax/#optional-fields) to let a prompt be left b
 
 An optional prompt gains a **Skip** button and treats an empty submission as the answer, so you are not asked again later in the run. `|optional` works on `{{VALUE}}` placeholders, option lists, `{{VDATE}}`, and `{{FILE}}`.
 
+![The date prompt for the due variable of an Add task to inbox Capture. "next fri" is typed, the calendar highlights Friday 2 October 2026, and the preview reads "📅 2026-10-02". Because the placeholder is optional, the prompt shows a hint and a Skip button next to Cancel and Ok](./Images/date-prompt.png)
+
 Skipping is an answer; pressing **Esc** still cancels the whole choice. If the same variable appears in several places, put `|optional` on every occurrence - that is the one spelling that behaves the same in both the sequential prompts and the one-page form.
 
 ## Keys that submit, skip, and cancel {#submit-keys}
@@ -91,6 +93,8 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 ## Peek at the note {#peek}
 
 Single-line and multi-line text prompts, plus the one-page input form, can get out of the way so you can read or select text in the open note, then come back to the same draft.
+
+![A Capture's task prompt holds the draft "Ask Jonas to ". Clicking Peek at note hides the prompt and shows a "QuickAdd is waiting" chip. Selecting "prototype the contact form" in the meeting note and clicking Insert brings the prompt back with "Ask Jonas to prototype the contact form", and Ok captures it to the Inbox](./Images/peek-at-note.gif)
 
 - **Peek at note** on the prompt, or `Ctrl/Cmd+Shift+E` on desktop, hides the prompt without cancelling the run. On the one-page form, it hides the whole form. Everything in the prompt survives the peek: the draft, its undo history, a paste still saving, even the text you had selected in the field.
 - A chip stays on screen: **Insert selection** replaces the field's selection (or drops in at the caret) and returns, **Return** comes back as-is, and **Cancel** aborts the run. On the one-page form, **Insert selection** uses the last text field you focused, or the first text field if you have not focused one. On desktop, `Ctrl/Cmd+Shift+E` also returns. Peek does not bind `Esc` in the editor, so Vim users can still leave insert mode, and your other Obsidian hotkeys keep working while the chip is up.

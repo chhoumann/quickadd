@@ -361,6 +361,12 @@ const selected = await quickAddApi.checkboxPrompt(
 );
 ```
 
+`checkboxPrompt` opens a searchable list where the user can tick several items.
+Here a weekly review script offers five areas with Work and Home preselected,
+and the user has also ticked Side projects:
+
+![A QuickAdd checkbox prompt with a search box and the counter "3 selected · 5 options". Work, Home, and Side projects are ticked, Health and Learning are not, and Submit and Cancel buttons sit below](./Images/checkbox-prompt.png)
+
 ### Share values with later steps: variables {#variables}
 
 Set variables that can be used in subsequent template operations:

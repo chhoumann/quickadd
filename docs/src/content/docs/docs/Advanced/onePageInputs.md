@@ -10,6 +10,8 @@ runs. This is nicer when a choice asks for several things at once - a title, a
 date, and a status, say - and you would rather see them all together than click
 through them one by one.
 
+![The one-page Provide inputs form for a New project Template choice. It shows the file name preview "Community garden workshop", a title field, a Status dropdown set to active, a priority slider at 4, an optional summary textarea with the helper text "One or two sentences", an optional due date field where "next friday" previews as 2026-10-02 above a calendar, and an area field filled with Home](../Images/one-page-input-form.png)
+
 For a task-oriented overview of prompts in general, see
 [Controlling Prompts](/docs/ControllingPrompts/).
 

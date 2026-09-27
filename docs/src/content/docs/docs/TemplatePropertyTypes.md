@@ -111,7 +111,8 @@ Content here...
 
 ### 3. Get perfect property types {#3-get-perfect-property-types}
 
-The result is properly formatted as Obsidian property types:
+With [string conversion](#enabling-the-string-conversion-beta) turned on, the
+result is properly formatted as Obsidian property types:
 
 ```yaml
 ---
@@ -132,13 +133,23 @@ metadata:
     - AI
 published: true
 year: 2023
-notes: null
+notes:
 ---
 
 # My Research Paper
 
 Content here...
 ```
+
+In Obsidian's Properties view, `authors` is a List, `tags` are tags,
+`published` is a Checkbox, and `year` is a Number. `notes` is empty. Obsidian
+has no property type for nested objects, so `metadata` shows as raw JSON:
+
+![The Properties panel of the resulting My Research Paper note: title as text, authors as a list of three names, tags as research, ai, and papers, metadata as raw JSON, published as a ticked checkbox, year as the number 2023, and notes as Empty](./Images/template-property-types-result.png)
+
+With string conversion off, the lists and the `metadata` object come out the same
+way. Because this template wraps each placeholder in quotes, `published`,
+`year`, and `notes` stay quoted strings (`"true"`, `"2023"`, `""`).
 
 ## Which JavaScript type becomes which property {#supported-data-types}
 
