@@ -208,7 +208,8 @@ describe("example packages", () => {
 		const built = buildPackageJson(ids[0]);
 		expect(built).not.toContain("\r");
 		expect(outputIsStale(built.replace(/\n/g, "\r\n"), built)).toBe(false);
-		expect(outputIsStale(built.replace("\n", "\n\n"), built)).toBe(true);
+		// Real drift still counts: an extra blank line at the end, or no file.
+		expect(outputIsStale(`${built}\n`, built)).toBe(true);
 		expect(outputIsStale(null, built)).toBe(true);
 	});
 
