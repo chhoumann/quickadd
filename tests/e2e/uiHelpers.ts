@@ -35,6 +35,20 @@ export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape"
 	}
 }
 
+/**
+ * A real left click at viewport coordinates. Unlike `element.click()`, it goes
+ * through the browser's hit testing, so whatever is layered on top at that
+ * point receives it.
+ */
+export async function clickAt(obsidian: ObsidianClient, x: number, y: number) {
+	for (const type of ["mousePressed", "mouseReleased"]) {
+		await obsidian.exec("dev:cdp", {
+			method: "Input.dispatchMouseEvent",
+			params: JSON.stringify({ type, x, y, button: "left", clickCount: 1 }),
+		});
+	}
+}
+
 export async function expectNoPrompt(obsidian: ObsidianClient) {
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
 		'Boolean(document.querySelector(".modal-container, .prompt"))',
