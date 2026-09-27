@@ -105,7 +105,7 @@ export COREPACK_HOME="$HOME/.cache/quickadd-corepack"
 EOF
 fi
 
-echo "[setup] Obsidian ${OBSIDIAN_VERSION} and virtual display"
+echo "[setup] Obsidian ${OBSIDIAN_VERSION}, virtual display and capture tools"
 obsidian_installed="$(dpkg-query -W -f='${Version}' obsidian 2>/dev/null || true)"
 if [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
 	download_verified \
@@ -114,7 +114,7 @@ if [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
 fi
 
 missing_system_package=false
-for package_name in xvfb xauth; do
+for package_name in xvfb xauth fonts-inter gifsicle; do
 	if ! dpkg-query -W -f='${Status}' "$package_name" 2>/dev/null | grep -Fqx "install ok installed"; then
 		missing_system_package=true
 	fi
@@ -122,9 +122,9 @@ done
 if [[ "$missing_system_package" == true ]]; then
 	sudo apt-get update -qq
 	if [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
-		sudo apt-get install -y -qq --allow-downgrades xvfb xauth "$obsidian_deb"
+		sudo apt-get install -y -qq --allow-downgrades xvfb xauth fonts-inter gifsicle "$obsidian_deb"
 	else
-		sudo apt-get install -y -qq xvfb xauth
+		sudo apt-get install -y -qq xvfb xauth fonts-inter gifsicle
 	fi
 elif [[ "$obsidian_installed" != "$OBSIDIAN_VERSION" ]]; then
 	sudo apt-get install -y -qq --allow-downgrades "$obsidian_deb"
@@ -134,7 +134,7 @@ fi
 	echo "Installed Obsidian version validation failed." >&2
 	exit 1
 }
-for package_name in xvfb xauth; do
+for package_name in xvfb xauth fonts-inter gifsicle; do
 	dpkg-query -W -f='${Status}' "$package_name" 2>/dev/null | grep -Fqx "install ok installed" || {
 		echo "Required package $package_name is not installed." >&2
 		exit 1
