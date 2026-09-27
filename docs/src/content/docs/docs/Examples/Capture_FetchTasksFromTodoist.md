@@ -57,9 +57,3 @@ If there isn't a date set for the task, they'll simply be entered as `- [ ] Buy 
 - **"Add your Todoist API token in the Todoist script's settings"**: open the macro, click the gear next to the script command, and paste the token. Settings belong to each script command, so if the macro has several commands for this script, set the token on the one that runs.
 - **"Todoist rejected the API token (HTTP 401)"**: the token is wrong or was reset. Copy it again from Todoist's Developer settings.
 - **"Secret setting ... is unavailable. Re-enter it on this device."**: secrets are stored per device. Paste the token again on this device.
-
-### Installation video
-
-This older video shows the general flow of adding a user script to a macro and a Capture choice. It predates the API token setting: instead of setting up the Todoist plugin, paste your token in the script's settings as described above.
-
-https://user-images.githubusercontent.com/29108628/123511101-bde4a100-d67f-11eb-90c1-5bd146c5d0f2.mp4

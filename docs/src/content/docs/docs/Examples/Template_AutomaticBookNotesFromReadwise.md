@@ -15,7 +15,7 @@ This example creates a new book note from a template and fills in a book's highl
 
 ## Installation
 
-Here's a video guide for [installing user scripts in QuickAdd](/docs/Examples/Capture_FetchTasksFromTodoist/#installation-video).
+New to user scripts? See [how to add a script to a macro](/docs/UserScripts/#adding-scripts-to-macros).
 
 1. Create a new JavaScript file (with the `.js` extension) containing the [script below](#script). In it, replace `YOUR_READWISE_TOKEN` with your own Readwise token.
 2. Create the macro that runs the script: in **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (I use `Readwise`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
