@@ -14,7 +14,7 @@ You end up with one QuickAdd command that drops whatever you type onto a Kanban 
 
 ## Setup
 
-Imported the package above? The **Add task to board** choice is in place; set **Capture to** on it to your board file, then skip to [What you get](#what-you-get).
+Imported the package above? Follow **After importing** in the card, then skip the manual setup below and read [What you get](#what-you-get).
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Add to board`).
 2. Set **Capture to** to your Kanban board file.

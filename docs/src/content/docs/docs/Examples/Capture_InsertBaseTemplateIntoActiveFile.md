@@ -22,7 +22,7 @@ This is useful for MOCs where you want a note-local index of backlinks.
 
 ## Setup
 
-Imported the package above? The template and the **Insert related notes base** choice are in place; open your MOC note and run **Insert related notes base**. The steps below build the same choice by hand.
+Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
 
 1. Create a `.base` template file, for example
    `Templates/MOC Related Notes.base`:

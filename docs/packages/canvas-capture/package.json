@@ -71,8 +71,8 @@
 	"assets": [],
 	"install": {
 		"afterImport": [
-			"Open a canvas, select exactly one text card (or a card for a Markdown file), and run **Add idea to card** from the command palette. Your text is added as a bullet at the bottom of the card.",
-			"To always write to one card instead, turn off **Capture to active file** on the choice, set **Capture to** to your `.canvas` file, and pick the card in **Target canvas node**."
+			"Open a canvas and select exactly one text card or Markdown-file card. Run **Add idea to card** from the command palette and type your idea. It is added as a bullet at the bottom of the card.",
+			"Optional: to always write to the same card, open **Add idea to card** in **Settings → QuickAdd**, turn off **Capture to active file**, set **Capture to** to your `.canvas` file, and pick the card under **Target canvas node**."
 		]
 	}
 }

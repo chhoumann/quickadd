@@ -55,7 +55,8 @@
 	],
 	"install": {
 		"afterImport": [
-			"Run **Inbox item** from the command palette and type a short name. Notes land in `Inbox/`; change **Folder path** on the choice to use another folder."
+			"Run **Inbox item** from the command palette and type a short name. QuickAdd creates and opens a timestamped note in `Inbox/`.",
+			"Optional: to use another folder, open **Inbox item** in **Settings → QuickAdd**, remove `Inbox` from the list under **New note location**, type your folder in **Folder path**, and click **Add**."
 		]
 	}
 }

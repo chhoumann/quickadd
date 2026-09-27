@@ -80,7 +80,8 @@
 			"the Bases core plugin"
 		],
 		"afterImport": [
-			"Open an MOC note, run **Insert related notes base** from the command palette, and type a line of context. The `MOC Related Notes.base` template is saved to your QuickAdd template folder if you set one, otherwise to `Templates/`."
+			"`MOC Related Notes.base` lands in your QuickAdd template folder if you set one, otherwise in `Templates/`. You can change that path under **Files** while importing.",
+			"Open your MOC note, run **Insert related notes base** from the command palette, and type a line of context."
 		]
 	}
 }

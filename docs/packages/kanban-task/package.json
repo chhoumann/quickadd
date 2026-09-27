@@ -71,7 +71,8 @@
 	"assets": [],
 	"install": {
 		"requires": [
-			"the Kanban community plugin"
+			"the Kanban community plugin",
+			"a board with at least one lane"
 		],
 		"afterImport": [
 			"Open the **Add task to board** choice in **Settings → QuickAdd** and set **Capture to** to your board file. Until you do, QuickAdd asks which file to capture to on every run.",

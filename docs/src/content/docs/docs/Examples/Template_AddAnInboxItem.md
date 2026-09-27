@@ -9,7 +9,7 @@ This example gives you a QuickAdd choice that creates a new inbox note in one st
 
 ## Before you start
 
-- A template note you want each inbox item to start from. The package uses `Templates/Inbox Template.md`, shown below, but you can use any note. The template can be as simple as an empty file or contain any [format placeholders](/docs/FormatSyntax/) you like.
+- A template note you want each inbox item to start from. The package includes the one below as `Templates/Inbox Template.md`. Building by hand? Save it yourself, or use any note: a template can be as simple as an empty file or contain any [format placeholders](/docs/FormatSyntax/) you like.
 
 ```markdown
 ---
@@ -22,7 +22,7 @@ tags: [inbox]
 
 ## Setup
 
-Imported the package above? The template and the **Inbox item** choice are in place; skip to [What you get](#what-you-get).
+Imported the package above? Follow **After importing** in the card, then skip the manual setup below and read [What you get](#what-you-get).
 
 1. In **Settings → QuickAdd**, click **New choice** → **Template**. The Template choice settings open; click its name at the top to rename it (for example, `Inbox Item`). For a full tour of these settings, see [the Template choice docs](/docs/Choices/TemplateChoice/).
 2. Set **Template path** to your inbox template:

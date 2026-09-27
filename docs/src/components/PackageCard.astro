@@ -84,6 +84,11 @@ const listChildrenOf = (parentId: string | null, depth: number) => {
 	}
 };
 listChildrenOf(null, 0);
+// Repeating "also in the command palette" after every choice is noise when it
+// applies to all of them; say it once below the list instead. A single choice
+// keeps its suffix, which reads as one fact rather than a pattern.
+const everyChoiceIsCommand =
+	runnable.length > 1 && runnable.every((choice) => choice.command);
 
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
@@ -197,7 +202,9 @@ function inline(text: string): string {
 						<span class="qa-package__kind">{choice.type === "Multi" ? "Folder" : choice.type}</span>
 						<span>
 							<strong>{choice.name}</strong>
-							{choice.command && <span class="qa-package__muted"> · also in the command palette</span>}
+							{choice.command && !everyChoiceIsCommand && (
+								<span class="qa-package__muted"> · also in the command palette</span>
+							)}
 						</span>
 					</li>
 				))}
@@ -208,10 +215,15 @@ function inline(text: string): string {
 					</li>
 				))}
 			</ul>
+			{everyChoiceIsCommand && (
+				<p class="qa-package__note">Every choice is also in the command palette.</p>
+			)}
 
 			<p class="qa-package__fine">
 				The import screen lists everything before it writes anything, and you can
-				change where files go. <a href="/docs/Choices/Packages/#install-an-example">Full installation guide</a>.
+				change where files go. Importing again later offers <strong>Overwrite</strong> for
+				the choices you already have; choose <strong>Skip</strong> to keep settings you
+				changed. <a href="/docs/Choices/Packages/#install-an-example">Full installation guide</a>.
 			</p>
 		</div>
 	</details>
@@ -422,6 +434,10 @@ function inline(text: string): string {
 	.qa-package__muted {
 		color: var(--sl-color-gray-3);
 	}
+	.qa-package__note {
+		margin: 0.4rem 0 0;
+		color: var(--sl-color-gray-3);
+	}
 	.qa-package code {
 		overflow-wrap: anywhere;
 		font-size: 0.9em;
@@ -513,13 +529,13 @@ function inline(text: string): string {
 					await navigator.clipboard.writeText(text);
 					showCopied();
 					status.textContent =
-						"Package copied. Next, open Settings → QuickAdd in Obsidian and click Import package… (steps below).";
+						"Package copied. In Obsidian, open Settings → QuickAdd → Packages and click Import package… (steps below).";
 					guide.open = true;
 				} catch {
 					// Clipboard access can be blocked (permissions, insecure context,
 					// some mobile browsers). Show the JSON so it can be copied by hand.
 					status.textContent =
-						"Automatic copying was blocked. Copy the package from the field below, then follow How to install.";
+						"Automatic copying was blocked. Copy the package from the field below, then continue from step 2 under How to install.";
 					fallback.value = text;
 					fallback.hidden = false;
 					guide.open = true;

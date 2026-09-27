@@ -27,7 +27,7 @@ Good fits:
 
 ## Capture to the selected card
 
-Imported the package above? The **Add idea to card** choice is in place; open a canvas, select one card, and run it.
+Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
 
 1. Create a Capture choice.
 2. Enable **Capture to active file**.

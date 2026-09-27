@@ -11,7 +11,7 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 
 ## Base setup
 
-Imported the package above? The journal, task, task-with-due-date, quote, and callout recipes are in place as captures under the **Daily note** folder; change **Capture to** on each if your daily-note path differs, then skip to [Recipes](#recipes).
+Imported the package above? Follow **After importing** in the card, then skip the base setup below. [Recipes](#recipes) explains what each imported capture does and how to add more.
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
 2. Disable **Capture to active file**.
