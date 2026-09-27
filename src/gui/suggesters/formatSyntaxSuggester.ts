@@ -17,6 +17,7 @@ export type { FormatSuggestContext } from "./formatTokenRegistry";
 
 const CASE_FRAGMENT_REGEX =
 	/^\{\{(VALUE|NAME|DATE|TIME|VDATE)([^\n\r}]*)\|case:([a-z-]*)$/i;
+const GLOBAL_VAR_NAME_FRAGMENT_REGEX = /^\{\{GLOBAL_VAR:([^\n\r}]*)$/i;
 const DATE_TOKEN_TYPES = new Set(["DATE", "TIME", "VDATE"]);
 /** The `<folder>`-style fill-in-the-blank inside an example row. */
 const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
@@ -24,6 +25,8 @@ const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
 	/** Start offset of the fragment the accepted suggestion replaces. */
 	private replaceFrom = 0;
+	/** Characters after the caret the accepted suggestion also replaces. */
+	private replaceSuffixLength = 0;
 	/** The letters typed after "{{", used to highlight what matched. */
 	private matchedQuery = "";
 	private readonly macroNames: string[];
@@ -52,6 +55,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// the user is currently typing, not earlier, already-completed tokens.
 		const startBrace = inputStr.lastIndexOf("{{", cursorPosition - 1);
 		if (startBrace === -1) return [];
+		this.replaceSuffixLength = 0;
 
 		const inputSegment = inputStr.slice(startBrace, cursorPosition);
 
@@ -80,6 +84,25 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			return CASE_STYLE_SUGGESTIONS.filter((style) =>
 				style.insert.startsWith(normalizedFragment),
 			).map((style) => ({ ...style }));
+		}
+
+		// Inside {{GLOBAL_VAR:, keep completing the variable name from the ones
+		// defined in settings, as the list did before the colon was typed.
+		const globalVarMatch = inputSegment.match(GLOBAL_VAR_NAME_FRAGMENT_REGEX);
+		if (globalVarMatch) {
+			this.replaceFrom = startBrace;
+			this.matchedQuery = inputSegment.slice(2);
+			// Accepting the empty {{GLOBAL_VAR:}} row parks the caret before its
+			// "}}"; the completed token brings its own, so consume those.
+			this.replaceSuffixLength = inputStr.startsWith("}}", cursorPosition) ? 2 : 0;
+			const fragment = (globalVarMatch[1] ?? "").toLowerCase();
+			return Object.keys(this.plugin?.settings?.globalVariables ?? {})
+				.filter((name) => name.toLowerCase().startsWith(fragment))
+				.map((name) => ({
+					insert: `{{GLOBAL_VAR:${name}}}`,
+					description: `Inserts your "${name}" snippet`,
+					caretOffset: 0,
+				}));
 		}
 
 		// If the segment already contains a colon we consider the token "open" for user parameters → no more format suggestions.
@@ -160,7 +183,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		const replaceStart = this.replaceFrom;
 
 		// Replace the partial syntax with the complete syntax
-		replaceRange(this.inputEl, replaceStart, cursorPosition, item.insert, {
+		replaceRange(this.inputEl, replaceStart, cursorPosition + this.replaceSuffixLength, item.insert, {
 			fromCompletion: true,
 		});
 
