@@ -85,17 +85,54 @@ describe("syncImportedChoiceCommands", () => {
 
 		// Both the folder and its inline child are reported as overwritten.
 		// Removing the child after the folder re-registered its subtree would
-		// unregister the fresh command, so only the folder is processed.
+		// unregister the fresh command, so every removal precedes registration
+		// and only the folder is registered.
 		syncImportedChoiceCommands(reg, [previous], {
 			updatedChoices: [replacement],
 			addedChoiceIds: [],
 			overwrittenChoiceIds: ["m1", "c1"],
 		});
 
-		expect(reg.remove).toHaveBeenCalledTimes(1);
-		expect(reg.remove.mock.calls[0][0]).toBe(previous);
+		expect(reg.remove.mock.calls.map(([c]) => c)).toEqual([previous, oldChild]);
 		expect(reg.add).toHaveBeenCalledTimes(1);
 		expect(reg.add.mock.calls[0][0]).toBe(replacement);
+		const lastRemoval = Math.max(...reg.remove.mock.invocationCallOrder);
+		expect(lastRemoval).toBeLessThan(reg.add.mock.invocationCallOrder[0]);
+	});
+
+	it("drops the commands of a child that previously lived outside the imported folder", () => {
+		// The reader dragged c1 out of the folder after the last import; the
+		// package still carries it inside m1. applyPackageImport removes the
+		// stray and reports c1 as overwritten, so its old commands must go even
+		// though the folder's recursive removal never reaches it.
+		const stray = choice("c1", "Child (moved out)");
+		const previousFolder = multi("m1", "Folder", []);
+		const replacement = multi("m1", "Folder", [choice("c1", "Child")]);
+		const reg = registrar();
+
+		syncImportedChoiceCommands(reg, [stray, previousFolder], {
+			updatedChoices: [replacement],
+			addedChoiceIds: [],
+			overwrittenChoiceIds: ["m1", "c1"],
+		});
+
+		expect(reg.remove.mock.calls.map(([c]) => c)).toEqual([previousFolder, stray]);
+		expect(reg.add.mock.calls.map(([c]) => c)).toEqual([replacement]);
+	});
+
+	it("removes a stray child's commands even when its folder is new", () => {
+		const stray = choice("c1", "Child (moved out)");
+		const folder = multi("m1", "Folder", [choice("c1", "Child")]);
+		const reg = registrar();
+
+		syncImportedChoiceCommands(reg, [stray], {
+			updatedChoices: [folder],
+			addedChoiceIds: ["m1"],
+			overwrittenChoiceIds: ["c1"],
+		});
+
+		expect(reg.remove.mock.calls.map(([c]) => c)).toEqual([stray]);
+		expect(reg.add.mock.calls.map(([c]) => c)).toEqual([folder]);
 	});
 
 	it("drops the previous subtree before registering an overwritten choice", () => {

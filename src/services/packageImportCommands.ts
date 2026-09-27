@@ -18,12 +18,15 @@ export interface ChoiceCommandRegistrar {
  * to hotkeys) until the next reload — which is exactly when a fresh import is
  * most likely to be tried out.
  *
- * Overwritten choices drop their previous subtree's commands first, so a
- * renamed choice or a folder that lost children leaves no stale entries.
+ * Every overwritten choice drops its previous subtree's commands before any
+ * registration happens, so a renamed choice, a folder that lost children, or
+ * a child that used to live elsewhere in the vault leaves no stale entries,
+ * and no ordering of the result can unregister a command just added.
  *
  * The result lists a folder's inline children next to the folder itself (the
  * import summary counts them). Registering a folder already walks its
- * children, so a choice whose ancestor is in the result is skipped here.
+ * children, so a choice whose ancestor is in the result is not registered
+ * again.
  */
 export function syncImportedChoiceCommands(
 	registrar: ChoiceCommandRegistrar,
@@ -48,16 +51,13 @@ export function syncImportedChoiceCommands(
 	};
 
 	for (const id of result.overwrittenChoiceIds) {
-		if (coveredByAncestor(id)) continue;
 		const previous = previousById.get(id);
 		if (previous) registrar.removeCommandForChoice(previous, { recursive: true });
-		const replacement = updatedById.get(id);
-		if (replacement) registrar.addCommandForChoice(replacement);
 	}
 
-	for (const id of result.addedChoiceIds) {
+	for (const id of listed) {
 		if (coveredByAncestor(id)) continue;
-		const added = updatedById.get(id);
-		if (added) registrar.addCommandForChoice(added);
+		const current = updatedById.get(id);
+		if (current) registrar.addCommandForChoice(current);
 	}
 }

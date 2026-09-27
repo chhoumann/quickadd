@@ -19,7 +19,7 @@ import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
-import { applyAssetPathOverrides, findMultiByPath, insertIntoMulti, insertUnderParent, remapChoiceTree, replaceChoiceInTree } from "./packageChoiceImport";
+import { applyAssetPathOverrides, findMultiByPath, insertIntoMulti, insertUnderParent, remapChoiceTree, removeChoiceFromTree, replaceChoiceInTree } from "./packageChoiceImport";
 import type { PackagePreview } from "./packagePreview";
 import {
 	buildPackagePreview,
@@ -345,6 +345,23 @@ export async function applyPackageImport(
 	// preview the reader confirmed.
 	const inlineChildren: Array<{ originalId: string; finalId: string }> = [];
 
+	// A child that arrives inside its parent can still have a same-id copy
+	// elsewhere in the vault: the reader dragged it out of the folder after an
+	// earlier import, and the preview offered "overwrite" for it. Placing the
+	// parent would then leave two choices with one id. Drop the stray before
+	// anything lands; it is reported as overwritten below.
+	const displacedInlineIds = new Set<string>();
+	for (const entry of pkg.choices) {
+		const originalId = entry.choice.id;
+		const parentId = entry.parentChoiceId;
+		if (!importableChoiceIds.has(originalId)) continue;
+		if (!parentId || !importableChoiceIds.has(parentId)) continue;
+		const finalId = idMap.get(originalId) ?? originalId;
+		if (removeChoiceFromTree(updatedChoices, finalId)) {
+			displacedInlineIds.add(finalId);
+		}
+	}
+
 	for (const entry of pkg.choices) {
 		const originalId = entry.choice.id;
 		if (!importableChoiceIds.has(originalId)) continue;
@@ -422,10 +439,16 @@ export async function applyPackageImport(
 
 	// An inline child lands wherever its nearest placed ancestor landed. Walk
 	// up through the package's parent links (a grandchild's parent is itself
-	// inline) until an ancestor that was added or overwritten turns up.
+	// inline) until an ancestor that was added or overwritten turns up. A child
+	// whose stray copy was dropped above replaced something, whatever its
+	// ancestor's outcome.
 	const placedAsAdded = new Set(addedChoiceIds);
 	const placedAsOverwritten = new Set(overwrittenChoiceIds);
 	for (const { originalId, finalId } of inlineChildren) {
+		if (displacedInlineIds.has(finalId)) {
+			overwrittenChoiceIds.push(finalId);
+			continue;
+		}
 		const seen = new Set<string>([originalId]);
 		let ancestorId = catalog.get(originalId)?.parentChoiceId ?? null;
 		while (ancestorId && !seen.has(ancestorId)) {

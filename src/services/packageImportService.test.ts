@@ -43,6 +43,7 @@ import {
 } from "./packageImportService";
 import { buildPackage } from "./packageExportService";
 import { requiresAcknowledgement } from "./packagePreview";
+import { flattenChoices } from "../utils/choiceUtils";
 import { macroCommandsValueOf } from "../utils/macroUtils";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import type {
@@ -1101,6 +1102,84 @@ describe("applyPackageImport - parent/child trees", () => {
 		expect([...again.overwrittenChoiceIds].sort()).toEqual(
 			["outer", "inner", "grandchild", "sibling"].sort(),
 		);
+	});
+
+	it("drops a same-id copy of an inline child that was moved out of its folder", async () => {
+		const { app } = createFakeApp();
+		const child = makeChoice("child", "Child", "Capture");
+		const folder = makeMulti("folder", "Folder", [child]);
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(folder),
+				makePackageChoice(child, "folder", ["Folder", "Child"]),
+			],
+		});
+		const overwriteAll = decisions([
+			["folder", "overwrite"],
+			["child", "overwrite"],
+		]);
+
+		// After the first import the reader dragged the child out of the folder
+		// and edited it; the folder still exists, now empty.
+		const moved = makeChoice("child", "Child (moved out)", "Capture");
+		const existing: IChoice[] = [moved, makeMulti("folder", "Folder", [])];
+
+		const result = await importPackage({
+			app,
+			existingChoices: existing,
+			pkg,
+			choiceDecisions: overwriteAll,
+		});
+
+		const flat = flattenChoices(result.updatedChoices);
+		expect(flat.map((c) => c.id)).toEqual(["folder", "child"]);
+		expect(flat.find((c) => c.id === "child")?.name).toBe("Child");
+		expect(result.addedChoiceIds).toEqual([]);
+		expect([...result.overwrittenChoiceIds].sort()).toEqual(["child", "folder"]);
+
+		// Same when the folder itself is new: the child still replaced something.
+		const folderless = await importPackage({
+			app,
+			existingChoices: [moved],
+			pkg,
+			choiceDecisions: decisions([
+				["folder", "import"],
+				["child", "overwrite"],
+			]),
+		});
+		expect(flattenChoices(folderless.updatedChoices).map((c) => c.id)).toEqual([
+			"folder",
+			"child",
+		]);
+		expect(folderless.addedChoiceIds).toEqual(["folder"]);
+		expect(folderless.overwrittenChoiceIds).toEqual(["child"]);
+	});
+
+	it("keeps the moved-out copy when the reader duplicates the inline child instead", async () => {
+		const { app } = createFakeApp();
+		const child = makeChoice("child", "Child", "Capture");
+		const folder = makeMulti("folder", "Folder", [child]);
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(folder),
+				makePackageChoice(child, "folder", ["Folder", "Child"]),
+			],
+		});
+		const moved = makeChoice("child", "Child (moved out)", "Capture");
+
+		const result = await importPackage({
+			app,
+			existingChoices: [moved, makeMulti("folder", "Folder", [])],
+			pkg,
+			choiceDecisions: decisions([
+				["folder", "overwrite"],
+				["child", "duplicate"],
+			]),
+		});
+
+		const flat = flattenChoices(result.updatedChoices);
+		expect(flat.map((c) => c.name)).toEqual(["Child (moved out)", "Folder", "Child"]);
+		expect(new Set(flat.map((c) => c.id)).size).toBe(3);
 	});
 
 	it("inserts a new child under an already-existing parent multi", async () => {

@@ -149,6 +149,21 @@ export function replaceChoiceInTree(choices: IChoice[], replacement: IChoice): b
 	return false;
 }
 
+/** Remove the choice with `id` wherever it sits in the tree; returns it, or undefined when absent. */
+export function removeChoiceFromTree(choices: IChoice[], id: string): IChoice | undefined {
+	for (let i = 0; i < choices.length; i++) {
+		const current = choices[i];
+		if (!isChoiceLike(current)) continue;
+		if (current.id === id) {
+			choices.splice(i, 1);
+			return current;
+		}
+		const removed = removeChoiceFromTree(childChoicesOf(current), id);
+		if (removed) return removed;
+	}
+	return undefined;
+}
+
 export function insertUnderParent(
 	choices: IChoice[],
 	parentId: string,
