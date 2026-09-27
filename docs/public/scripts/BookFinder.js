@@ -23,6 +23,13 @@ module.exports =  async function start(params) {
   const response = await fetch(finalURL);
   const bookDesc = await response.json();
 
+  // Keyless requests share a per-network daily quota, so a 429 here is not "no results".
+  if (!response.ok || bookDesc.error) {
+    const reason = bookDesc.error?.message ?? `HTTP ${response.status}`;
+    notice("Google Books request failed: " + reason);
+    throw new Error("Google Books request failed: " + reason);
+  }
+
   // The Google Books API omits `items` entirely when a title yields no matches.
   if (!bookDesc.items || bookDesc.items.length === 0) {
     notice("No results found for: " + title);

@@ -2,7 +2,6 @@
 // Uses Obsidian's own app.fileManager.processFrontMatter; no other plugins needed.
 // Docs: https://quickadd.obsidian.guide/docs/Examples/Macro_ChangePropertyInDailyNotes
 const DAILY_NOTE_PATH = "Daily note path";
-const DEFAULT_PATH = "Daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md";
 
 module.exports = {
 	entry: start,
@@ -12,9 +11,10 @@ module.exports = {
 		options: {
 			[DAILY_NOTE_PATH]: {
 				type: "format",
-				defaultValue: DEFAULT_PATH,
-				placeholder: DEFAULT_PATH,
-				description: "Path of today's daily note, with QuickAdd date syntax.",
+				defaultValue: "",
+				placeholder: "Daily/{{DATE:YYYY-MM-DD}}.md",
+				description:
+					"Path of today's daily note, with QuickAdd date syntax. Leave empty to use the Daily notes core plugin's folder and date format.",
 			},
 		},
 	},
@@ -22,7 +22,11 @@ module.exports = {
 
 async function start(params, settings) {
 	const { app, quickAddApi, obsidian } = params;
-	const path = await quickAddApi.format(settings[DAILY_NOTE_PATH] || DEFAULT_PATH, {});
+	const path = await todaysDailyNotePath(app, quickAddApi, settings[DAILY_NOTE_PATH]);
+	if (!path) {
+		new obsidian.Notice("Enable the Daily notes core plugin or set Daily note path in the script settings.", 8000);
+		return;
+	}
 	const file = app.vault.getAbstractFileByPath(path);
 	if (!(file instanceof obsidian.TFile)) {
 		new obsidian.Notice(`No daily note at ${path}.`);
@@ -47,6 +51,20 @@ async function start(params, settings) {
 	await app.fileManager.processFrontMatter(file, (fm) => {
 		fm[key] = keepType(current, newValue);
 	});
+}
+
+// An explicit path wins; otherwise today's note is where the Daily notes core
+// plugin would create it. Returns null when neither is available.
+async function todaysDailyNotePath(app, quickAddApi, setting) {
+	const explicit = String(setting ?? "").trim();
+	if (explicit) return quickAddApi.format(explicit, {});
+
+	const dailyNotes = app.internalPlugins.plugins["daily-notes"];
+	if (!dailyNotes?.enabled) return null;
+	const { folder = "", format = "YYYY-MM-DD" } = dailyNotes.instance.options ?? {};
+	const name = window.moment().format(format || "YYYY-MM-DD");
+	const dir = String(folder).trim().replace(/^\/+|\/+$/g, "");
+	return dir ? `${dir}/${name}.md` : `${name}.md`;
 }
 
 // Write numbers and booleans back as numbers and booleans when the new text still is one.

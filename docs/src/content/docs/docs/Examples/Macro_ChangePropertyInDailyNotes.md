@@ -9,16 +9,16 @@ This macro lists every property in today's daily journal note in a menu. Pick on
 
 ## Before you start
 
-- Today's daily journal note must exist at the path set in the script's **Daily note path** setting, and the property you want to change must already be in its frontmatter; the menu only lists existing properties.
+- Today's daily journal note must exist, and the property you want to change must already be in its frontmatter; the menu only lists existing properties. The script finds the note through the **Daily notes** core plugin's folder and date format; if your daily notes live elsewhere, point the script's **Daily note path** setting at them (step 4).
 
 ## Setup
 
-Imported the package above? The script and the **Change daily note property** macro are already in place; set **Daily note path** as in step 4, then run it.
+Imported the package above? The script and the **Change daily note property** macro are already in place; run it, and only do step 4 if your daily notes are not where the Daily notes plugin puts them.
 
 1. <a href="/scripts/changeDailyProperty.js" download>Download changeDailyProperty.js</a> and save it somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
 2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Change property`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
 3. In the Macro Builder, add your script as a **User Script** command.
-4. Click the cog on the script step and set **Daily note path** to where your daily notes live, with your daily notes' date format, for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
+4. Optionally, click the cog on the script step and set **Daily note path** to where your daily notes live, with your daily notes' date format, for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 
 Run the macro, choose a property from the menu, and enter its new value. If the old value was a number or `true`/`false` and the new text still is one, it is written back as a number or boolean; otherwise as text.
 
