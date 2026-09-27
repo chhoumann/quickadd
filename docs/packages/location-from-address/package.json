@@ -1,0 +1,52 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-location-from-address"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-location-from-address",
+				"name": "Add location from address",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-location-from-address-macro",
+					"name": "Add location from address",
+					"commands": [
+						{
+							"id": "qa-pkg-location-from-address-script",
+							"name": "getLongLatFromAddress",
+							"type": "UserScript",
+							"path": "scripts/getLongLatFromAddress.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Add location from address"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/getLongLatFromAddress.js",
+			"source": "../../public/scripts/getLongLatFromAddress.js"
+		}
+	],
+	"install": {
+		"requires": [
+			"an internet connection (addresses are looked up on OpenStreetMap's Nominatim service; no account needed)"
+		],
+		"afterImport": [
+			"Open the note you want to place, run **Add location from address** from the command palette, and enter an address. A specific address (street, city, country) gives the best match.",
+			"The note's `location` property becomes `lat,lng`, replacing any earlier value. Map View is optional: install it if you want to see the note on a map."
+		]
+	}
+}

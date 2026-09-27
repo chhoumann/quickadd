@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-zettelizer"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-zettelizer",
+				"name": "Zettelize headings",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-zettelizer-macro",
+					"name": "Zettelize headings",
+					"commands": [
+						{
+							"id": "qa-pkg-zettelizer-script",
+							"name": "zettelizer",
+							"type": "UserScript",
+							"path": "scripts/zettelizer.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Zettelize headings"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/zettelizer.js",
+			"source": "../../public/scripts/zettelizer.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"By default each `###` heading gets a note in `Zettels/` (created if missing) that embeds that section; the source note is not changed. The file name is the heading minus its first word, so one-word headings are skipped, and so are names that already exist.",
+			"To change the folder or heading level, open the **Zettelize headings** macro in **Settings → QuickAdd** and click the cog on the **zettelizer** step: **Folder for new notes** (empty means the vault root) and **Heading level**.",
+			"Open the note you want to split up and run **Zettelize headings** from the command palette."
+		]
+	}
+}

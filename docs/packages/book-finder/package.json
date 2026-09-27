@@ -1,0 +1,96 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-book-finder"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-book-finder",
+				"name": "Add book note",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-book-finder-macro",
+					"name": "Add book note",
+					"commands": [
+						{
+							"id": "qa-pkg-book-finder-script",
+							"name": "BookFinder",
+							"type": "UserScript",
+							"path": "scripts/BookFinder.js",
+							"settings": {}
+						},
+						{
+							"id": "qa-pkg-book-finder-nested",
+							"name": "Book note",
+							"type": "NestedChoice",
+							"choice": {
+								"id": "qa-pkg-book-finder-template",
+								"name": "Book note",
+								"type": "Template",
+								"command": false,
+								"templatePath": "Templates/Book.md",
+								"fileNameFormat": {
+									"enabled": true,
+									"format": "{{VALUE:fileName}}"
+								},
+								"discoverExistingNotesBeforeCreate": false,
+								"folder": {
+									"enabled": true,
+									"folders": [
+										"Books"
+									],
+									"chooseWhenCreatingNote": false,
+									"createInSameFolderAsActiveFile": false,
+									"chooseFromSubfolders": false
+								},
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"openFile": true,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"fileExistsBehavior": {
+									"kind": "prompt"
+								}
+							}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Add book note"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/BookFinder.js",
+			"source": "../../public/scripts/BookFinder.js"
+		},
+		{
+			"kind": "template",
+			"originalPath": "Templates/Book.md",
+			"source": "files/Book.md"
+		}
+	],
+	"install": {
+		"requires": [
+			"an internet connection (titles are looked up on Google Books; no API key needed)"
+		],
+		"afterImport": [
+			"Notes land in `Books/`. To use another folder, open the **Add book note** macro in **Settings → QuickAdd**, click the cog on the **Book note** step, and change **Folder path**.",
+			"Run **Add book note** from the command palette and enter a book title (a short clipboard text is prefilled). The first Google Books match becomes the note; there is no picker.",
+			"If Google Books answers with a quota error, try again later. It does not mean the book was not found."
+		]
+	}
+}

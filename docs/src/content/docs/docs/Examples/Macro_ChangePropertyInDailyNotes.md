@@ -1,40 +1,26 @@
 ---
-title: "Macro: Change properties in your daily notes (requires MetaEdit)"
-description: Update a property in your daily note by picking it from a suggester and entering a new value, using the MetaEdit API
+title: "Macro: Change properties in your daily notes"
+description: Update a property in your daily note by picking it from a suggester and entering a new value, using Obsidian's frontmatter API
 slug: docs/Examples/Macro_ChangePropertyInDailyNotes
+package: change-daily-property
 ---
 
 This macro lists every property in today's daily journal note in a menu. Pick one, type a new value, and the macro writes it back - a quick way to update a property without opening the note or editing frontmatter by hand.
 
 ## Before you start
 
-- The [MetaEdit plugin](https://github.com/chhoumann/MetaEdit) must be installed and enabled. This macro calls MetaEdit's `getPropertiesInFile` and `update` functions.
+- Today's daily journal note must exist, and the property you want to change must already be in its frontmatter; the menu only lists existing properties, and only text, number and checkbox ones.
+- The **Daily notes** core plugin turned on, or a custom **Daily note path** in the script settings (step 4).
 
 ## Setup
 
-1. Save the script below to a `.js` file somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
+Imported the package above? The script and the **Change daily note property** macro are already in place; skip to step 4 to check its settings, then run it.
+
+1. <a href="/scripts/changeDailyProperty.js" download>Download changeDailyProperty.js</a> and save it somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
 2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Change property`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
 3. In the Macro Builder, add your script as a **User Script** command.
-4. Edit the script to point at your own daily notes:
-   - Change the date format from `gggg-MM-DD - ddd MMM D` to match your daily notes' file names.
-   - Change the path from `bins/daily/` to wherever your daily notes live.
+4. Click the cog on the script step. Leave **Daily note path** empty to use the Daily notes plugin's folder and date format, or set it to where your daily notes live, with their date format, for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 
-Run the macro, choose a property from the menu, and enter its new value.
+Run the macro, choose a property from the menu, and enter its new value. If the old value was a number or `true`/`false` and the new text still is one, it is written back as a number or boolean; otherwise as text. List properties such as `tags` are not offered, since a one-line prompt cannot edit them.
 
-If you already know which properties you want to change and don't want to be asked about the rest, replace the suggester's property list with a plain array of property names. You'd pass that array to the `suggester` method instead.
-
-````js
-module.exports = async (params) => {
-    const {quickAddApi: {inputPrompt, suggester}} = params;
-    const {update, getPropertiesInFile} = app.plugins.plugins["metaedit"].api;
-    const date = window.moment().format("gggg-MM-DD - ddd MMM D");
-    const dailyJournalFilePath = `bins/daily/${date}.md`;
-
-    const propertiesInDailyJournal = await getPropertiesInFile(dailyJournalFilePath);
-    const targetProp = await suggester(propertiesInDailyJournal.map(p => p.key), propertiesInDailyJournal);
-
-    const newPropertyValue = await inputPrompt(`Log ${targetProp.key}`, targetProp.content, targetProp.content);
-    
-    await update(targetProp.key, newPropertyValue, dailyJournalFilePath);
-}
-````
+If you already know which properties you want to change and don't want to be asked about the rest, edit the script and replace `keys` with a plain array of property names. You'd pass that array to the `suggester` method instead.

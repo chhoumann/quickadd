@@ -1,0 +1,50 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-move-tagged-notes"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-move-tagged-notes",
+				"name": "Move notes with a tag",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-move-tagged-notes-macro",
+					"name": "Move notes with a tag",
+					"commands": [
+						{
+							"id": "qa-pkg-move-tagged-notes-script",
+							"name": "moveNotesWithTag",
+							"type": "UserScript",
+							"path": "scripts/moveNotesWithTag.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Move notes with a tag"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/moveNotesWithTag.js",
+			"source": "../../public/scripts/moveNotesWithTag.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Back up your vault first. Picking the destination folder moves every matching note at once, with no preview or undo; to reverse it, move the notes back.",
+			"Run **Move notes with a tag** from the command palette, pick a tag, and choose whether nested tags count too (`#project/work` when you picked `#project`). The folder menu shows how many notes will move.",
+			"Notes whose path contains `template` (in any case, such as `Templates/`) are left where they are."
+		]
+	}
+}

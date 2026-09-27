@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-location-from-address"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-location-from-address",
+				"name": "Add location from address",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-location-from-address-macro",
+					"name": "Add location from address",
+					"commands": [
+						{
+							"id": "qa-pkg-location-from-address-script",
+							"name": "getLongLatFromAddress",
+							"type": "UserScript",
+							"path": "scripts/getLongLatFromAddress.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Add location from address"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/getLongLatFromAddress.js",
+			"contentEncoding": "base64",
+			"content": "Ly8gR2VvY29kZXMgYW4gYWRkcmVzcyB3aXRoIE9wZW5TdHJlZXRNYXAncyBmcmVlIE5vbWluYXRpbSBBUEkgYW5kIHN0b3JlcyB0aGUKLy8gY29vcmRpbmF0ZXMgaW4gdGhlIGFjdGl2ZSBub3RlJ3MgYGxvY2F0aW9uYCBwcm9wZXJ0eSBhcyBgbGF0LGxuZ2AsIHRoZQovLyBmcm9udCBtYXR0ZXIgZm9ybWF0IHRoYXQgdGhlIE1hcCBWaWV3IHBsdWdpbiByZWFkcyBhbmQgd3JpdGVzIGl0c2VsZi4KbW9kdWxlLmV4cG9ydHMgPSBhc3luYyAocGFyYW1zKSA9PiB7CiAgICBjb25zdCB7YXBwLCBvYnNpZGlhbiwgcXVpY2tBZGRBcGl9ID0gcGFyYW1zOwoKICAgIC8vIFRoZSBub3RlIG9wZW4gd2hlbiB0aGUgbWFjcm8gc3RhcnRzIGlzIHRoZSBvbmUgdGhhdCBnZXRzIHRoZSBsb2NhdGlvbi4KICAgIC8vIENhcHR1cmUgaXQgbm93OiB0aGUgcHJvbXB0J3MgUGVlayBsZXRzIHRoZSB1c2VyIG9wZW4gb3RoZXIgbm90ZXMgKGZvcgogICAgLy8gZXhhbXBsZSB0byBjb3B5IHRoZSBhZGRyZXNzKSBiZWZvcmUgc3VibWl0dGluZy4KICAgIGNvbnN0IGFjdGl2ZUZpbGUgPSBhcHAud29ya3NwYWNlLmdldEFjdGl2ZUZpbGUoKTsKICAgIGlmICghYWN0aXZlRmlsZSkgewogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoIk5vIGFjdGl2ZSBmaWxlIiwgNTAwMCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IGFkZHJlc3MgPSBhd2FpdCBxdWlja0FkZEFwaS5pbnB1dFByb21wdChg8J+PoCBBZGRyZXNzIGZvciAke2FjdGl2ZUZpbGUucGF0aH1gKTsKICAgIGlmICghYWRkcmVzcykgewogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoIk5vIGFkZHJlc3MgZ2l2ZW4iLCA1MDAwKTsKICAgICAgICByZXR1cm47CiAgICB9CgogICAgbGV0IHJlc3VsdHM7CiAgICB0cnkgewogICAgICAgIHJlc3VsdHMgPSBhd2FpdCBnZW9jb2RlKG9ic2lkaWFuLCBhZGRyZXNzKTsKICAgIH0gY2F0Y2ggKGVycm9yKSB7CiAgICAgICAgY29uc29sZS5lcnJvcigiZ2V0TG9uZ0xhdEZyb21BZGRyZXNzOiBnZW9jb2RpbmcgZmFpbGVkIiwgZXJyb3IpOwogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoYENvdWxkIG5vdCBsb29rIHVwICIke2FkZHJlc3N9IjogJHtlcnJvcj8ubWVzc2FnZSA/PyBlcnJvcn1gLCA4MDAwKTsKICAgICAgICByZXR1cm47CiAgICB9CiAgICBpZiAoIXJlc3VsdHMubGVuZ3RoKSB7CiAgICAgICAgbmV3IG9ic2lkaWFuLk5vdGljZShgTm8gcmVzdWx0cyBmb3VuZCBmb3IgIiR7YWRkcmVzc30iYCwgNTAwMCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IHtsYXQsIGxvbn0gPSByZXN1bHRzWzBdOwogICAgYXdhaXQgYXBwLmZpbGVNYW5hZ2VyLnByb2Nlc3NGcm9udE1hdHRlcihhY3RpdmVGaWxlLCAoZnJvbnRtYXR0ZXIpID0+IHsKICAgICAgICBmcm9udG1hdHRlci5sb2NhdGlvbiA9IGAke2xhdH0sJHtsb259YDsKICAgIH0pOwp9OwoKYXN5bmMgZnVuY3Rpb24gZ2VvY29kZShvYnNpZGlhbiwgYWRkcmVzcykgewogICAgY29uc3QgdXJsID0gbmV3IFVSTCgiaHR0cHM6Ly9ub21pbmF0aW0ub3BlbnN0cmVldG1hcC5vcmcvc2VhcmNoIik7CiAgICAvLyBVUkxTZWFyY2hQYXJhbXMgZW5jb2RlcyB0aGUgYWRkcmVzcywgc28gY2hhcmFjdGVycyBsaWtlIGAmYCBhbmQgYCNgCiAgICAvLyBzdGF5IHBhcnQgb2YgdGhlIHF1ZXJ5IGluc3RlYWQgb2YgY3V0dGluZyBpdCBzaG9ydC4KICAgIHVybC5zZWFyY2ggPSBuZXcgVVJMU2VhcmNoUGFyYW1zKHtxOiBhZGRyZXNzLCBmb3JtYXQ6ICJqc29uIiwgbGltaXQ6ICIxIn0pLnRvU3RyaW5nKCk7CgogICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBvYnNpZGlhbi5yZXF1ZXN0VXJsKHt1cmw6IHVybC50b1N0cmluZygpfSk7CiAgICByZXR1cm4gcmVzcG9uc2UuanNvbjsKfQo="
+		}
+	]
+}
