@@ -374,80 +374,67 @@
 	}
 </script>
 
-<div class="importPackageModal">
-	<header>
-		<h2>Import QuickAdd package</h2>
-		<p>Review what this package adds and runs before importing.</p>
-	</header>
-
-	<section class="pasteSection">
-		<label>
-			<span>Paste package JSON</span>
+<div class="qa-package-dialog">
+	<div class="qa-package-body">
+		<section class="qa-import-paste">
+			<label class="qa-visually-hidden" for="qa-import-json">Package JSON</label>
 			<textarea
+				id="qa-import-json"
 				bind:value={pastedContent}
 				oninput={handleContentInput}
 				placeholder="Paste the contents of a .quickadd.json package here"
 				rows="8"
 			></textarea>
-		</label>
-		{#if loadError}
-			<div class="errorMessage">{loadError}</div>
-		{:else if isAnalyzing}
-			<div class="info">Analyzing package…</div>
-		{/if}
-	</section>
-
-	{#if loadedPackage && analysis}
-		<section class="packageMeta">
-			<span
-				><span class="metaLabel">Version</span>
-				{loadedPackage.pkg.quickAddVersion}</span
-			>
-			<span class="metaSep" aria-hidden="true">·</span>
-			<span
-				><span class="metaLabel">Created</span>
-				{new Date(
-					loadedPackage.pkg.createdAt,
-				).toLocaleDateString()}</span
-			>
-			<span class="metaSep" aria-hidden="true">·</span>
-			<span
-				>{analysis.choiceConflicts.length} choice{analysis
-					.choiceConflicts.length === 1
-					? ""
-					: "s"}</span
-			>
-			<span class="metaSep" aria-hidden="true">·</span>
-			<span
-				>{loadedPackage.pkg.assets.length} file{loadedPackage.pkg.assets
-					.length === 1
-					? ""
-					: "s"}</span
-			>
+			{#if loadError}
+				<p class="qa-import-status mod-error">{loadError}</p>
+			{:else if isAnalyzing}
+				<p class="qa-import-status">Analyzing package…</p>
+			{:else if loadedPackage && analysis}
+				<p class="qa-import-status">
+					Version {loadedPackage.pkg.quickAddVersion} · Created {new Date(
+						loadedPackage.pkg.createdAt,
+					).toLocaleDateString()} · {analysis.choiceConflicts.length} choice{analysis
+						.choiceConflicts.length === 1
+						? ""
+						: "s"} · {loadedPackage.pkg.assets.length} file{loadedPackage.pkg
+						.assets.length === 1
+						? ""
+						: "s"}
+				</p>
+			{/if}
 		</section>
 
-		{#if showBanner && preview}
-			<CapabilityBanner {preview} />
-		{/if}
+		{#if loadedPackage && analysis}
+			{#if showBanner && preview}
+				<CapabilityBanner {preview} />
+			{/if}
 
-		<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
-			{previewChoiceById} {expandedMacros} {toggleMacro} {onChoiceModeChange} />
+			<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
+				{previewChoiceById} {expandedMacros} {toggleMacro} {onChoiceModeChange} />
 
-		{#if loadedPackage}
-			<section class="filesSection">
-				<h3>Files</h3>
+			<section class="setting-group qa-import-files">
+				<div class="setting-item setting-item-heading">
+					<div class="setting-item-name">Files</div>
+				</div>
 				{#if fileRows.length === 0}
-					<p>No files bundled with this package.</p>
+					<div class="setting-items">
+						<div class="setting-item mod-empty-state">
+							<div class="setting-item-info">
+								<div class="setting-item-name">
+									No files bundled with this package.
+								</div>
+							</div>
+						</div>
+					</div>
 				{:else}
 					{#each [
 						{ label: "Added", rows: addedFileRows, overwrite: false },
 						{ label: "Will overwrite", rows: overwriteFileRows, overwrite: true },
 					] as group (group.label)}
 						{#if group.rows.length > 0}
-							<h4 class="filesGroupHeading" class:overwrite={group.overwrite}>
+							<h4 class="qa-import-files-group" class:mod-warning={group.overwrite}>
 								{group.label} ({group.rows.length})
 							</h4>
-						<div class="fileRows">
 							{#each group.rows as row (row.conflict.originalPath)}
 								{#if row.file}
 									<FilePreviewRow
@@ -475,40 +462,38 @@
 									/>
 								{/if}
 							{/each}
-						</div>
 						{/if}
 					{/each}
 				{/if}
 			</section>
 
 			<PackageWarnings {preview} />
+
+			{#if importSummary}
+				<section class="callout qa-import-summary" data-callout="success">
+					<div class="callout-title">
+						<div class="callout-icon">
+							<ObsidianIcon iconId="check" />
+						</div>
+						<div class="callout-title-inner">{importSummaryText}</div>
+					</div>
+				</section>
+			{/if}
 		{/if}
 
-		{#if importSummary}
-			<section class="summary">
-				<ObsidianIcon iconId="check-circle" size={16} />
-				<span>{importSummaryText}</span>
-			</section>
+		{#if loadedPackage && requiresAck && !hasImported}
+			<ImportAcknowledgement {preview} {fullyReviewed} bind:acknowledged />
 		{/if}
-	{/if}
+	</div>
 
-	{#if loadedPackage && requiresAck && !hasImported}
-		<ImportAcknowledgement {preview} {fullyReviewed} bind:acknowledged />
-	{/if}
-
-	<section class="footer">
-		<button
-			type="button"
-			onclick={close}
-			class="secondary"
-			disabled={isImporting}
-		>
+	<div class="modal-button-container">
+		<button type="button" onclick={close} disabled={isImporting}>
 			Cancel
 		</button>
 		<button
 			type="button"
 			onclick={hasImported ? close : handleImport}
-			class="primary"
+			class="mod-cta"
 			disabled={isImporting || (!hasImported && !canImport)}
 			title={!hasImported && requiresAck && fullyReviewed && !acknowledged
 				? "Confirm the acknowledgement above to continue"
@@ -522,164 +507,62 @@
 				Import package
 			{/if}
 		</button>
-	</section>
+	</div>
 </div>
 
 <style>
-	.importPackageModal {
+	.qa-import-paste {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
-		width: min(720px, 100%);
-		max-height: 80vh;
-		overflow-y: auto;
-		/* overflow-x:hidden (paired with overflow-y:auto) clips child focus rings
-		   at the flush left/right edges; the inline padding gives the ring room. */
-		overflow-x: hidden;
-		box-sizing: border-box;
-		padding: 2px 4px;
+		gap: var(--size-4-2);
 	}
 
-	.importPackageModal * {
-		box-sizing: border-box;
-	}
-
-	.importPackageModal > section {
-		max-width: 100%;
-	}
-
-	.pasteSection label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.pasteSection textarea {
+	.qa-import-paste textarea {
 		width: 100%;
 		font-family: var(--font-monospace);
+		font-size: var(--font-ui-small);
 		resize: vertical;
 	}
 
-	.errorMessage {
-		color: var(--text-error);
-	}
-
-	.info {
+	.qa-import-status {
+		margin: 0;
+		font-size: var(--font-ui-smaller);
 		color: var(--text-muted);
-	}
-
-	/* A single compact line that sizes to content and wraps naturally, instead
-	   of a 4-equal-column grid where the date wraps to 3 lines and the rest
-	   leave dead space. */
-	.packageMeta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: baseline;
-		gap: 0.3rem 0.6rem;
-		padding: 0.55rem 0.75rem;
-		border: 1px solid var(--background-modifier-border);
-		border-radius: var(--radius-m, 8px);
-		width: 100%;
-		font-size: var(--font-ui-small, 0.9rem);
 		overflow-wrap: anywhere;
 	}
 
-	.metaLabel {
-		color: var(--text-muted);
-	}
-
-	.metaSep {
-		color: var(--text-faint);
-	}
-
-	.filesSection {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
-
-	.filesGroupHeading {
-		margin: 0;
-		font-size: var(--font-ui-small, 0.9rem);
-		font-weight: 600;
-		color: var(--text-muted);
-	}
-
-	.filesGroupHeading.overwrite {
+	.qa-import-status.mod-error {
 		color: var(--text-error);
 	}
 
-	.fileRows {
+	.qa-import-files {
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: var(--size-4-3);
 	}
 
-	.summary {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.55rem 0.7rem;
-		border-radius: var(--radius-m, 8px);
-		border: 1px solid var(--qa-sev-success-border);
-		background: var(--qa-sev-success-wash);
-		color: var(--text-normal);
+	.qa-import-files .setting-item-heading {
+		margin-bottom: var(--size-4-1);
 	}
 
-	.summary :global(.quickadd-icon) {
-		color: var(--text-success, var(--color-green, #0aa344));
-		flex-shrink: 0;
+	/* Small muted group label, like Obsidian's settings sidebar sections. */
+	.qa-import-files-group {
+		margin: var(--size-4-2) 0 0;
+		padding: 0 var(--size-4-4);
+		font-size: var(--font-ui-smaller);
+		font-weight: var(--font-semibold);
+		color: var(--text-muted);
 	}
 
-	.footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		margin-top: 0.5rem;
+	.qa-import-files-group:first-of-type {
+		margin-top: 0;
 	}
 
-	.footer .primary {
-		background: var(--interactive-accent);
-		color: var(--text-on-accent);
+	.qa-import-files-group.mod-warning {
+		color: var(--text-warning);
 	}
 
-	.footer .primary:hover:not(:disabled) {
-		background: var(--interactive-accent-hover);
-	}
-
-	.footer .primary:active:not(:disabled),
-	.footer .secondary:active:not(:disabled) {
-		transform: translateY(1px);
-	}
-
-	.footer .secondary {
-		background: transparent;
-	}
-
-	.footer .secondary:hover:not(:disabled) {
-		background: var(--background-modifier-hover);
-	}
-
-	.footer .secondary:focus-visible {
-		outline: 2px solid var(--interactive-accent);
-		outline-offset: 2px;
-	}
-
-	/* Accent background needs a light outline to stay visible. */
-	.footer .primary:focus-visible {
-		outline: 2px solid var(--text-on-accent);
-		outline-offset: -4px;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.footer .primary,
-		.footer .secondary {
-			transition: none;
-		}
-
-		.footer .primary:active:not(:disabled),
-		.footer .secondary:active:not(:disabled) {
-			transform: none;
-		}
+	.qa-import-summary {
+		margin: 0;
 	}
 </style>

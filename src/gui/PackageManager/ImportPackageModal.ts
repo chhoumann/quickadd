@@ -20,7 +20,8 @@ export class ImportPackageModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.modalEl.addClass("quickAddModal", "packageImportModal");
+		this.modalEl.addClass("quickAddModal", "qa-package-modal", "packageImportModal");
+		this.setTitle("Import QuickAdd package");
 		this.handle = mountComponent(
 			this.contentEl,
 			ImportPackageModalComponent,

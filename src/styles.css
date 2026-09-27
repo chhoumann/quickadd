@@ -2522,43 +2522,95 @@ textarea.is-valid {
 	min-width: 0;
 }
 
-/* Package import/export severity surfaces — one source for the ranked
-   "tint, don't blanket-fill" recipe shared by CapabilityBanner, CapabilityTag,
-   FilePreviewRow, and the import/export modals. */
-.quickAddModal {
-	--qa-sev-critical-wash: color-mix(
-		in srgb,
-		var(--color-red, #e93147) 9%,
-		var(--background-secondary)
-	);
-	--qa-sev-warning-wash: color-mix(
-		in srgb,
-		var(--color-orange, #ff8c00) 11%,
-		var(--background-secondary)
-	);
-	--qa-sev-info-wash: var(--background-modifier-hover);
-	--qa-sev-critical-border: color-mix(
-		in srgb,
-		var(--color-red, #e93147) 40%,
-		var(--background-modifier-border)
-	);
-	--qa-sev-warning-border: color-mix(
-		in srgb,
-		var(--color-orange, #ff8c00) 40%,
-		var(--background-modifier-border)
-	);
-	--qa-sev-success-border: color-mix(
-		in srgb,
-		var(--color-green, #0aa344) 40%,
-		var(--background-modifier-border)
-	);
-	--qa-sev-success-wash: color-mix(
-		in srgb,
-		var(--color-green, #0aa344) 7%,
-		var(--background-secondary)
-	);
-	/* Darkened red so white pill text clears WCAG AA at small sizes. */
-	--qa-sev-critical-pill: color-mix(in srgb, var(--color-red, #c0392b) 82%, #000);
+/* Package import/export modals. The title and button row stay put while the
+   body scrolls, like the choice builders; the body extends to the modal edges
+   so its scrollbar sits there instead of against the content. */
+.quickAddModal.qa-package-modal {
+	overflow: hidden;
+}
+
+.quickAddModal.qa-package-modal .modal-content {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+
+.qa-package-dialog {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+.qa-package-body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-6);
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	margin-inline: calc(-1 * var(--size-4-4));
+	padding: var(--size-2-1) var(--size-4-4);
+	scrollbar-gutter: stable;
+}
+
+/* Sections keep their natural height and the body scrolls; without this,
+   overflow-clipped children such as callouts shrink to fit. */
+.qa-package-body > * {
+	flex-shrink: 0;
+}
+
+.qa-package-body .setting-group + .setting-group {
+	margin-top: 0;
+}
+
+.qa-package-dialog > .modal-button-container {
+	flex: none;
+	margin-top: var(--size-4-4);
+}
+
+/* Severity tints for Obsidian's .flair chip, set through its public variables
+   so theme flair styling still applies. The text blends the severity colour
+   with --text-normal so 10px labels clear WCAG AA (>= 4.5:1) on the tinted chip
+   in light and dark themes. Neutral flairs need no class. */
+.flair.qa-flair-critical {
+	--flair-background: color-mix(in srgb, var(--color-red) 12%, transparent);
+	--flair-color: color-mix(in srgb, var(--text-error) 55%, var(--text-normal));
+}
+
+.flair.qa-flair-warning {
+	--flair-background: color-mix(in srgb, var(--color-orange) 12%, transparent);
+	--flair-color: color-mix(in srgb, var(--text-warning) 55%, var(--text-normal));
+}
+
+/* A button that reads as an inline text link. The doubled class outranks
+   Obsidian's button background/shadow rules on every state. */
+.qa-link-button.qa-link-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+	height: auto;
+	padding: 0;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-accent);
+	cursor: var(--cursor);
+	font-size: var(--font-ui-small);
+}
+
+.qa-link-button.qa-link-button:hover {
+	color: var(--text-accent-hover);
+}
+
+.qa-link-button.qa-link-button:focus-visible {
+	outline: 2px solid var(--background-modifier-border-focus);
+	outline-offset: 2px;
+	border-radius: var(--radius-s);
+}
+
+.is-mobile .qa-link-button.qa-link-button {
+	min-height: 36px;
 }
 
 .qa-image-paste-busy {

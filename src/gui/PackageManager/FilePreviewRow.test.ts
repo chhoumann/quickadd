@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "svelte";
-import { fireEvent, render } from "@testing-library/svelte";
+import { fireEvent, render, screen } from "@testing-library/svelte";
 import FilePreviewRow from "./FilePreviewRow.svelte";
 import type { PreviewFile } from "../../services/packagePreview";
 import type {
@@ -166,13 +166,42 @@ describe("FilePreviewRow", () => {
 			onModeChange,
 		});
 
-		// Controls are reachable by their field name (label association intact).
-		const input = getByLabelText("Destination") as HTMLInputElement;
+		// Controls are reachable by a label that names their file, so rows stay
+		// distinguishable when a package has several.
+		const input = getByLabelText(
+			"Destination for scripts/fetch.js",
+		) as HTMLInputElement;
 		await fireEvent.input(input, { target: { value: "vault/new.js" } });
 		expect(onPathInput).toHaveBeenCalledWith("vault/new.js");
 
-		const select = getByLabelText("Action") as HTMLSelectElement;
+		const select = getByLabelText(
+			"Action for scripts/fetch.js",
+		) as HTMLSelectElement;
 		await fireEvent.change(select, { target: { value: "skip" } });
 		expect(onModeChange).toHaveBeenCalledWith("skip");
+	});
+
+	it("keeps each row's labels on its own controls when paths look alike", () => {
+		// "a/b.js" and "a-b.js" read the same once path characters are replaced
+		// with "-", so ids derived that way would point both labels at one row.
+		for (const path of ["scripts/a/b.js", "scripts/a-b.js"]) {
+			renderRow({
+				file: makeFile({ originalPath: path }),
+				pkg: makePackage(path, "x"),
+				destinationPath: `dest/${path}`,
+			});
+		}
+
+		for (const path of ["scripts/a/b.js", "scripts/a-b.js"]) {
+			const input = screen.getByLabelText(
+				`Destination for ${path}`,
+			) as HTMLInputElement;
+			expect(input.value).toBe(`dest/${path}`);
+		}
+		const toggles = screen.getAllByText("View contents");
+		const targets = toggles.map((toggle) =>
+			toggle.closest("button")?.getAttribute("aria-controls"),
+		);
+		expect(new Set(targets).size).toBe(2);
 	});
 });

@@ -89,6 +89,19 @@ describe("CapabilityBanner", () => {
 		expect(queryByText(/reload|restart/i)).toBeNull();
 	});
 
+	it("uses a danger callout only when the package can run code", () => {
+		const critical = render(CapabilityBanner, { props: { preview } });
+		expect(
+			critical.container.querySelector<HTMLElement>(".callout")?.dataset.callout,
+		).toBe("danger");
+
+		const commandOnly = buildPackagePreview([], commandOnlyPackage(), new Set());
+		const warning = render(CapabilityBanner, { props: { preview: commandOnly } });
+		expect(
+			warning.container.querySelector<HTMLElement>(".callout")?.dataset.callout,
+		).toBe("warning");
+	});
+
 	it("says a startup macro does not run until the next plugin load", () => {
 		const { container } = render(CapabilityBanner, { props: { preview } });
 		const note = container.querySelector(".qa-import-banner-note");
