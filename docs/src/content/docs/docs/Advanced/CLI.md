@@ -85,6 +85,44 @@ obsidian vault=dev quickadd:save-clipboard-image \
 - `sourcePath=` is the note the attachment belongs to (the capture destination). Empty uses vault-root attachment placement and the timestamp name even when title-naming is on.
 - `nameAfterNoteTitle=` overrides the **Name pasted images after the note title** setting for this save. Omit it to use the setting.
 
+### Preview and import a package: `quickadd:package-preview` / `quickadd:package-import` {#quickaddpackage-import}
+
+Review a [package](/docs/Choices/Packages/) as JSON, or install it with the
+import modal's default decisions:
+
+```bash
+obsidian vault=dev quickadd:package-preview path=path/to/package.quickadd.json
+obsidian vault=dev quickadd:package-import path=path/to/package.quickadd.json acknowledge=true
+```
+
+A package that runs code is refused until you pass `acknowledge=true`. See
+[Preview a package from the command line](/docs/Choices/Packages/#preview-from-the-command-line)
+for the other options. `quickadd:package-import` needs QuickAdd 2.28.0 or later.
+
+### Check an AI provider: `quickadd:ai-test-connection` {#quickaddai-test-connection}
+
+Check that an [AI provider](/docs/AIAssistant/#add-a-provider) accepts its
+linked key. This is the provider page's **Test connection** button:
+
+```bash
+obsidian vault=dev quickadd:ai-test-connection provider=openai
+```
+
+- `provider=` is the provider's ID, such as `openai`, or its name. The ID must
+  match exactly; the name can be in any case.
+- A working key returns `"ok":true` and the number of models the provider
+  lists:
+
+  ```json
+  {"command":"quickadd:ai-test-connection","provider":"openai","ok":true,"modelCount":64,"apiKeyLinked":true}
+  ```
+
+  A rejected key returns `"ok":false` with the provider's error.
+- An unknown or missing `provider=` returns `"ok":false` and lists the
+  provider IDs you can use.
+- The output never contains the key. This command needs QuickAdd 2.28.0 or
+  later.
+
 ## Pass variables to a choice {#passing-variables}
 
 QuickAdd's CLI accepts variables three ways:

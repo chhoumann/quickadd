@@ -121,6 +121,8 @@ The full behavior - what is collected, date parsing, defaults, and script-declar
 
 ## Style pickers with CSS {#style-pickers-with-css}
 
+_Requires QuickAdd 2.28.0 or later._
+
 QuickAdd's pickers are standard Obsidian pickers, so they open near the top of the window like the command palette, while text prompts open in the middle. To change that, target these classes from a [CSS snippet](https://obsidian.md/help/snippets):
 
 | Class | Picker |
