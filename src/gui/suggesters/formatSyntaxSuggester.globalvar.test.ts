@@ -34,6 +34,9 @@ describe("FormatSyntaxSuggester {{GLOBAL_VAR:}} names", () => {
 		expect(await suggestInserts("{{global_var:my", VARS)).toEqual([
 			"{{GLOBAL_VAR:MyProjects}}",
 		]);
+		expect(await suggestInserts("{{GLOBAL_VAR:  my", VARS)).toEqual([
+			"{{GLOBAL_VAR:MyProjects}}",
+		]);
 		expect(await suggestInserts("{{GLOBAL_VAR:Nope", VARS)).toEqual([]);
 		expect(await suggestInserts("{{GLOBAL_VAR:")).toEqual([]);
 	});
@@ -79,6 +82,15 @@ describe("FormatSyntaxSuggester {{GLOBAL_VAR:}} names", () => {
 			inputEl.setSelectionRange(caret, caret);
 			suggester.selectSuggestion(beforeY);
 			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
+
+			// Nor may a row that no longer matches a letter typed since.
+			inputEl.value = "- {{GLOBAL_VAR:M}} after";
+			inputEl.setSelectionRange(caret - 1, caret - 1);
+			const [beforeZ] = suggester.getSuggestions(inputEl.value);
+			inputEl.value = "- {{GLOBAL_VAR:Mz}} after";
+			inputEl.setSelectionRange(caret, caret);
+			suggester.selectSuggestion(beforeZ);
+			expect(inputEl.value).toBe("- {{GLOBAL_VAR:Mz}} after");
 
 			// Once the caret has left the unfinished fragment, a still-visible row
 			// changes nothing: no braces or text between are consumed.

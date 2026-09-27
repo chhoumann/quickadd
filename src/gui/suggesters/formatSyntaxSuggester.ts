@@ -17,7 +17,9 @@ export type { FormatSuggestContext } from "./formatTokenRegistry";
 
 const CASE_FRAGMENT_REGEX =
 	/^\{\{(VALUE|NAME|DATE|TIME|VDATE)([^\n\r}]*)\|case:([a-z-]*)$/i;
-const GLOBAL_VAR_NAME_FRAGMENT_REGEX = /^\{\{GLOBAL_VAR:([^\n\r}]*)$/i;
+/** An unfinished {{GLOBAL_VAR: token; the name is trimmed at runtime, so skip leading blanks. */
+const GLOBAL_VAR_NAME_FRAGMENT_REGEX = /^\{\{GLOBAL_VAR:[ \t]*([^\n\r}]*)$/i;
+const GLOBAL_VAR_PREFIX = "{{GLOBAL_VAR:";
 const DATE_TOKEN_TYPES = new Set(["DATE", "TIME", "VDATE"]);
 /** The `<folder>`-style fill-in-the-blank inside an example row. */
 const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
@@ -90,14 +92,14 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// defined in settings, as the list did before the colon was typed.
 		const globalVarMatch = inputSegment.match(GLOBAL_VAR_NAME_FRAGMENT_REGEX);
 		if (globalVarMatch) {
+			const typedName = globalVarMatch[1] ?? "";
 			this.replaceFrom = startBrace;
-			this.matchedQuery = inputSegment.slice(2);
+			this.matchedQuery = `GLOBAL_VAR:${typedName}`;
 			this.completingGlobalVarName = true;
-			const fragment = (globalVarMatch[1] ?? "").toLowerCase();
 			return Object.keys(this.plugin?.settings?.globalVariables ?? {})
-				.filter((name) => name.toLowerCase().startsWith(fragment))
+				.filter((name) => name.toLowerCase().startsWith(typedName.toLowerCase()))
 				.map((name) => ({
-					insert: `{{GLOBAL_VAR:${name}}}`,
+					insert: `${GLOBAL_VAR_PREFIX}${name}}}`,
 					description: `Inserts your "${name}" snippet`,
 					caretOffset: 0,
 				}));
@@ -185,10 +187,17 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 			// Checked against the caret now, not when the list was built: the list
 			// is rebuilt on a debounce, so it can be a keystroke stale, and moving
 			// the caret does not rebuild it at all. A row only completes the
-			// unfinished {{GLOBAL_VAR: fragment the caret is still in.
+			// unfinished {{GLOBAL_VAR: fragment the caret is still in, and only
+			// while its name still starts with what has been typed there.
 			const value = this.inputEl.value;
 			const fragment = value.slice(replaceStart, cursorPosition);
-			if (fragment.lastIndexOf("{{") !== 0 || !GLOBAL_VAR_NAME_FRAGMENT_REGEX.test(fragment)) {
+			const typedName = GLOBAL_VAR_NAME_FRAGMENT_REGEX.exec(fragment)?.[1];
+			const rowName = item.insert.slice(GLOBAL_VAR_PREFIX.length, -2);
+			if (
+				fragment.lastIndexOf("{{") !== 0 ||
+				typedName === undefined ||
+				!rowName.toLowerCase().startsWith(typedName.toLowerCase())
+			) {
 				this.close();
 				return;
 			}
