@@ -281,7 +281,7 @@ describe("resolveModelInputOrThrow", () => {
 		// group that has never existed — and the generic prefix above passed either
 		// way, so nothing caught it. Pin the route the docs actually document.
 		expect(() => resolveModelInputOrThrow("claude-x")).toThrow(
-			/Edit providers in QuickAdd's AI Assistant settings/,
+			/Settings → QuickAdd → AI Assistant → your provider/,
 		);
 		expect(() => resolveModelInputOrThrow("claude-x")).not.toThrow(
 			/QuickAdd . AI . Providers/,

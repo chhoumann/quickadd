@@ -72,6 +72,7 @@ describe("ChoiceView new-choice race (#1625)", () => {
 				plugin: {} as unknown as QuickAdd,
 				choices: settingsStore.getState().choices,
 				saveChoices,
+				openAISettings: vi.fn(),
 			},
 		});
 

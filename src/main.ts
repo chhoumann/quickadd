@@ -162,7 +162,13 @@ export default class QuickAdd extends Plugin {
 			});
 		}
 
-		this.addSettingTab(new QuickAddSettingsTab(this.app, this));
+		const settingsTab = new QuickAddSettingsTab(this.app, this);
+		this.addSettingTab(settingsTab);
+		this.addCommand({
+			id: "openAIAssistantSettings",
+			name: QUICK_ADD_COMMAND_LABELS.openAISettings,
+			callback: () => settingsTab.openAIAssistantPageFromCommand(),
+		});
 
 		// Everything from here on reads the choice tree, i.e. untrusted data.json.
 		// Each step is isolated so a defect in that data costs one capability

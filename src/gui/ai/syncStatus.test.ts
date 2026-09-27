@@ -23,7 +23,10 @@ describe("describeSyncStatus", () => {
 		expect(describeSyncStatus({ models }, now)).toBe("Not synced yet.");
 		expect(
 			describeSyncStatus({ models, lastModelSync: { at: now - 5 * MINUTE } }, now),
-		).toBe("Last synced 5 minutes ago · 2 model(s).");
+		).toBe("Last synced 5 minutes ago · 2 models.");
+		expect(
+			describeSyncStatus({ models: [models[0]], lastModelSync: { at: now } }, now),
+		).toBe("Last synced just now · 1 model.");
 		expect(
 			describeSyncStatus(
 				{ models, lastModelSync: { at: now - 2 * MINUTE, error: "Request failed, status 503" } },

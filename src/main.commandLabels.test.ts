@@ -9,6 +9,7 @@ describe("QuickAdd command labels", () => {
 			applyTemplate: "Apply template to active note",
 			reloadDev: "Reload (dev)",
 			openSettings: "Open settings",
+			openAISettings: "Open AI Assistant settings",
 			resumePrompt: "Return to prompt",
 		});
 

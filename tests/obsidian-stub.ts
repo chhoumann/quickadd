@@ -55,6 +55,16 @@ export class ButtonComponent extends BaseComponent {
     return this;
   }
 
+  setWarning(): this {
+    this.buttonEl.classList.add("mod-warning");
+    return this;
+  }
+
+  setDestructive(): this {
+    this.buttonEl.classList.add("mod-destructive");
+    return this;
+  }
+
   // Mirrors Obsidian: BaseComponent tracks the flag, the native button carries
   // it, and the tooltip is driven by aria-label (a delegated pointerover handler).
   setDisabled(disabled: boolean): this {
@@ -391,14 +401,37 @@ export class Setting {
     this.components.push(component);
     return this;
   }
+
+  addExtraButton(cb: (component: ExtraButtonComponent) => any): this {
+    cb(new ExtraButtonComponent(this.controlEl));
+    return this;
+  }
 }
 
+// Obsidian 1.11+: groupEl > [headerEl, listEl]. Settings added through
+// addSetting land in listEl, and header controls (search, extra buttons) in
+// headerEl, as in the real app.
 export class SettingGroup {
   groupEl: HTMLElement;
+  headerEl: HTMLElement;
+  listEl: HTMLElement;
 
   constructor(containerEl: HTMLElement) {
     this.groupEl = document.createElement("div");
+    this.headerEl = document.createElement("div");
+    this.listEl = document.createElement("div");
+    this.groupEl.append(this.headerEl, this.listEl);
     containerEl.appendChild(this.groupEl);
+  }
+
+  addSearch(cb: (component: SearchComponent) => any): this {
+    cb(new SearchComponent(this.headerEl));
+    return this;
+  }
+
+  addExtraButton(cb: (component: ExtraButtonComponent) => any): this {
+    cb(new ExtraButtonComponent(this.headerEl));
+    return this;
   }
 
   setHeading(text: string | DocumentFragment): this {
@@ -408,19 +441,37 @@ export class SettingGroup {
     } else {
       headingEl.appendChild(text);
     }
-    this.groupEl.appendChild(headingEl);
+    this.headerEl.prepend(headingEl);
     return this;
   }
 
-  addClass(cls: string): this {
-    this.groupEl.classList.add(cls);
+  addClass(...classes: string[]): this {
+    this.groupEl.classList.add(...classes);
     return this;
   }
 
   addSetting(cb: (setting: Setting) => void): this {
-    cb(new Setting(this.groupEl));
+    cb(new Setting(this.listEl));
     return this;
   }
+}
+
+// Obsidian 1.13 sub-page: rootEl > [titlebarEl, containerEl].
+export abstract class SettingPage {
+  rootEl: HTMLElement;
+  titlebarEl: HTMLElement;
+  containerEl: HTMLElement;
+  title = "";
+
+  constructor() {
+    this.rootEl = document.createElement("div");
+    this.titlebarEl = document.createElement("div");
+    this.containerEl = document.createElement("div");
+    this.rootEl.append(this.titlebarEl, this.containerEl);
+  }
+
+  abstract display(): void;
+  hide(): void {}
 }
 
 // Ensure window and global moment are available
@@ -514,6 +565,8 @@ export class PluginSettingTab {
 
   display() {}
   hide() {}
+  update() {}
+  refreshDomState() {}
 }
 
 export class TFile { 
@@ -1035,6 +1088,7 @@ export default {
   PluginSettingTab,
   Setting,
   SettingGroup,
+  SettingPage,
   TFile,
   TFolder,
   MarkdownView,

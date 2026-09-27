@@ -7,6 +7,7 @@ import type {
 import {
 	ButtonComponent,
 	ExtraButtonComponent,
+	Notice,
 	PluginSettingTab,
 	TextComponent,
 } from "obsidian";
@@ -42,6 +43,19 @@ import {
 	type SettingsKey,
 } from "./gui/components/settingsDefinitions";
 import { rootChoicesOf } from "./utils/choiceUtils";
+import { ensureProviderIds } from "./ai/Provider";
+import {
+	AI_ASSISTANT_PAGE_NAME,
+	aiPageSignature,
+	createAIAssistantPage,
+} from "./gui/ai/aiAssistantSettingsPage";
+import {
+	openQuickAddSettings,
+	tryOpenSettingsPage,
+} from "./utils/openPluginSettings";
+import { storedProviders } from "./gui/ai/aiSettingsState";
+
+const AI_KEY_PREFIX = "ai.";
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
@@ -54,6 +68,59 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.icon = "zap";
+
+		// The AI pages address providers by id. Migrations assign ids, but a
+		// hand-edited data.json can still hold a provider without one, or two
+		// providers claiming the same one.
+		const withIds = storedProviders().map((provider) => ({ ...provider }));
+		if (ensureProviderIds(withIds)) {
+			settingsStore.setState((state) => ({
+				ai: { ...state.ai, providers: withIds },
+			}));
+		}
+
+		// Declarative definitions are a snapshot: Obsidian re-renders from them
+		// until update() rebuilds them. Rebuild when the AI page's provider
+		// entries change (the way Obsidian's own Keychain tab follows its
+		// secrets), but not on every store write: update() re-renders the page
+		// on screen.
+		let signature = aiPageSignature(storedProviders());
+		plugin.register(
+			settingsStore.subscribe((state) => {
+				const next = aiPageSignature(storedProviders(state));
+				if (next === signature) return;
+				signature = next;
+				this.update();
+			}),
+		);
+	}
+
+	/**
+	 * The "Open AI Assistant settings" command: open the settings window on
+	 * this tab, then the AI Assistant page. The page is hidden while AI and
+	 * online features are off, so say so instead of showing it anyway.
+	 */
+	openAIAssistantPageFromCommand(): void {
+		if (settingsStore.getState().disableOnlineFeatures) {
+			new Notice(
+				"QuickAdd: Turn off “Disable AI & online features” in QuickAdd settings to use the AI Assistant.",
+			);
+			return;
+		}
+		if (!openQuickAddSettings(this.app, this.plugin.manifest.id)) return;
+		this.openAIAssistantPage();
+	}
+
+	/**
+	 * Settings → QuickAdd → AI Assistant, for the choice list's "Configure AI
+	 * Assistant" buttons, which live on this tab.
+	 */
+	openAIAssistantPage(): void {
+		if (!tryOpenSettingsPage(this.app, this, [AI_ASSISTANT_PAGE_NAME])) {
+			new Notice(
+				`QuickAdd: Open the ${AI_ASSISTANT_PAGE_NAME} page under "AI & online" below.`,
+			);
+		}
 	}
 
 	// -----------------------------------------------------------------------
@@ -73,6 +140,11 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	override getControlValue(key: string): unknown {
 		const state = settingsStore.getState();
 
+		if (key.startsWith(AI_KEY_PREFIX)) {
+			const field = key.slice(AI_KEY_PREFIX.length);
+			return state.ai[field as keyof QuickAddSettings["ai"]];
+		}
+
 		// `inputPrompt` is stored as an enum but surfaced as a boolean toggle.
 		if (key === "inputPrompt") {
 			return state.inputPrompt === "multi-line";
@@ -82,6 +154,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	override setControlValue(key: string, value: unknown): void {
+		if (key.startsWith(AI_KEY_PREFIX)) {
+			const field = key.slice(AI_KEY_PREFIX.length);
+			settingsStore.setState((state) => ({
+				ai: { ...state.ai, [field]: value },
+			}));
+			return;
+		}
+
 		if (key === "inputPrompt") {
 			settingsStore.setState({
 				inputPrompt: value ? "multi-line" : "single-line",
@@ -109,7 +189,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			templateFolders: (setting) => this.renderTemplateFolderPaths(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
-		}, __IS_DEV_BUILD__);
+		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app));
 	}
 
 	override hide(): void {
@@ -188,6 +268,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					saveChoices: (choices: Plain<IChoice[]>) => {
 						settingsStore.setState({ choices });
 					},
+					openAISettings: () => this.openAIAssistantPage(),
 				},
 				// The choice list is the one view whose failure has a recovery story worth
 				// spelling out (the data.json advice in ChoicesUnavailable), and the same

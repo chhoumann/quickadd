@@ -37,7 +37,8 @@ export async function testProviderConnection(
 /** The one-line result shown under the provider's Connection setting. */
 export function describeConnectionResult(result: ProviderConnectionResult): string {
 	if (result.ok) {
-		return `✓ Connected. The provider lists ${result.modelCount} model(s).`;
+		const models = `${result.modelCount} model${result.modelCount === 1 ? "" : "s"}`;
+		return `✓ Connected. The provider lists ${models}.`;
 	}
 	return `✗ ${result.error}${result.apiKeyLinked ? "" : " (No API key is linked.)"}`;
 }

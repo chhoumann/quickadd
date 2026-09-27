@@ -261,6 +261,7 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 					plugin: { addCommandForChoice } as unknown as QuickAdd,
 					choices: tree,
 					saveChoices: vi.fn(),
+					openAISettings: vi.fn(),
 				},
 			});
 			const id = container

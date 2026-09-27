@@ -7,13 +7,11 @@
 	import type QuickAdd from "../../main";
 	import { CommandRegistry } from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
-	import { AIAssistantSettingsModal } from "../AIAssistantSettingsModal";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { DOCS_URLS } from "../../docs";
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import ChoicesUnavailable from "./ChoicesUnavailable.svelte";
-	import { reportingHandler } from "../../utils/errorUtils";
 	import { type Plain } from "../svelte/persist.svelte";
 
 	import { createChoiceViewActions } from "./createChoiceViewActions";
@@ -24,12 +22,16 @@
 		plugin,
 		choices = $bindable([]),
 		saveChoices,
+		openAISettings,
 	}: {
 		app: App;
 		plugin: QuickAdd;
 		choices?: IChoice[];
 		// Accepts only Plain<IChoice[]> (from snapshot()) — see persist.svelte.ts.
 		saveChoices: (choices: Plain<IChoice[]>) => void;
+		// Opens Settings → QuickAdd → AI Assistant; the settings tab owns that
+		// navigation because this view is mounted inside it.
+		openAISettings: () => void;
 	} = $props();
 
 	let filterQuery = $state(""); // not persisted
@@ -86,19 +88,6 @@
 		saveChoices: (value) => saveChoices(value),
 	});
 
-	const openAISettings = reportingHandler(
-		"Couldn't open the AI assistant settings",
-		async () => {
-			const newSettings = await new AIAssistantSettingsModal(
-				app,
-				settingsStore.getState().ai,
-			).waitForClose;
-
-			if (newSettings) {
-				settingsStore.setState((state) => ({ ...state, ai: newSettings }));
-			}
-		},
-	);
 </script>
 
 

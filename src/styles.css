@@ -1056,20 +1056,49 @@
 	white-space: nowrap;
 }
 
-.qa-ai-list-container {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-	overflow-y: auto;
-	max-height: 400px;
-	padding: 10px;
+.qa-ai-status-line:not(:empty) {
+	margin-top: var(--size-4-1);
 }
 
-.qa-ai-provider-button-row {
-	display: flex;
-	justify-content: space-between;
-	margin-top: 20px;
-	gap: 0.5rem;
+.qa-ai-status-line.mod-success {
+	color: var(--text-success);
+}
+
+.qa-ai-status-line.mod-error {
+	color: var(--text-error);
+}
+
+.qa-ai-model-badge {
+	margin-inline-start: var(--size-4-2);
+	padding: 0 var(--size-4-1);
+	border-radius: var(--radius-s);
+	background-color: rgba(var(--color-orange-rgb), 0.15);
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-normal);
+	vertical-align: middle;
+}
+
+/* The default system prompt spans the row: label and description above a
+   full-width field, like the template folder list. */
+.qa-ai-system-prompt-setting {
+	display: block;
+}
+
+.qa-ai-system-prompt-setting .setting-item-control {
+	display: block;
+	margin-top: var(--size-4-3);
+}
+
+.qa-ai-system-prompt-input {
+	width: 100%;
+	min-height: 8rem;
+	resize: vertical;
+	box-sizing: border-box;
+}
+
+.qa-ai-system-prompt-setting .qa-literal-format-note {
+	margin: var(--size-4-2) 0 0;
 }
 
 .qa-ai-prompt-textarea,
