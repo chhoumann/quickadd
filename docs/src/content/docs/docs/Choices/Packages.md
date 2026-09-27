@@ -17,11 +17,11 @@ so you always see the scripts and macros before they run.
 3. Use the filter to find the choices you want to share, then tick their
    checkboxes. Any dependent choices or scripts are added automatically.
 4. Review the summary panel to confirm how many choices and assets are included.
-5. Choose **Copy JSON** (puts the package on your clipboard) or **Save to file**.
-   When saving, QuickAdd creates any missing folders inside your vault
-   automatically.
+5. Choose **Copy JSON** (puts the package on your clipboard), or click **Save**
+   in the **Save to file** row to write it to the path shown there. When saving,
+   QuickAdd creates any missing folders inside your vault automatically.
 
-![The Export QuickAdd package modal with the Reading folder, its two choices, and the Weekly review macro ticked. The package summary shows 2 selected choices, 4 total packaged, 2 auto-included, 1 script embedded, and 1 template embedded, above the Copy JSON and Save to file buttons](../Images/package-export.png)
+![The Export QuickAdd package modal with the Reading folder, its two choices, and the Weekly review macro ticked. The package summary shows 2 selected choices, 4 total packaged, 2 auto-included, 1 script embedded, and 1 template embedded. Below it are the Save to file row with its Save button, then the Cancel and Copy JSON buttons](../Images/package-export.png)
 
 :::caution
 If a referenced script is missing from your vault, the exporter finishes with a
@@ -102,7 +102,7 @@ makes everything visible **before** anything is written.
 A **What this package can do** panel lists the package's capabilities, ranked by
 how much they can affect your vault:
 
-![The Import QuickAdd package modal after pasting a package. The What this package can do panel lists a SCRIPT row for the Weekly review macro's user script, a COMMAND row, and an OVERWRITES row. Below it, the Choices table lists Reading, Weekly review, New book note, and Add to reading list, each with an Import action](../Images/package-import-review.png)
+![The Import QuickAdd package modal after pasting a package. The What this package can do callout lists a SCRIPT row for the Weekly review macro's user script, a COMMAND row, and an OVERWRITES row. Below it, the Choices list shows Reading, Weekly review, New book note, and Add to reading list, each set to Import](../Images/package-import-review.png)
 
 - **Runs custom JavaScript** - a user script, or a script-mode condition, that runs arbitrary code.
 - **Runs on startup** - a macro set to run automatically every time Obsidian launches, with no interaction.
@@ -135,7 +135,7 @@ When a package can run code, the **Import package** button stays disabled until
 you have opened **View contents** on each bundled executable file and ticked
 the acknowledgement. Reviewed files are marked so you can track what is left.
 
-![The Files section of the import modal. The bundled script Scripts/weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded, and Templates/Book.md is grouped under Will overwrite. The acknowledgement is ticked, so the Import package button is enabled](../Images/package-import-files.png)
+![The Files section of the import modal. Under Added, the bundled script weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded and its destination set to Scripts/weekly-review.js. Under Will overwrite, Book.md goes to Templates/Book.md. The acknowledgement checkbox is ticked, so the Import package button is enabled](../Images/package-import-files.png)
 
 :::caution
 If a referenced script is **not** bundled, QuickAdd warns that it will run from
