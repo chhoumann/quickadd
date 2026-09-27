@@ -1202,8 +1202,8 @@ describe("applyPackageImport - parent/child trees", () => {
 		const extra = makeChoice("extra", "Extra", "Capture");
 		const existing: IChoice[] = [
 			makeMulti("folder", "Folder", [
-				makeChoice("b", "B (old)", "Capture"),
 				mine,
+				makeChoice("b", "B (old)", "Capture"),
 				extra,
 			]),
 		];
@@ -1221,13 +1221,14 @@ describe("applyPackageImport - parent/child trees", () => {
 
 		expect(result.updatedChoices).toHaveLength(1);
 		const folder = result.updatedChoices[0] as IMultiChoice;
-		// Existing order wins; B is refreshed in place.
+		// Existing order wins; B is refreshed in place, between the two kept
+		// children rather than moved to either end.
 		expect(folder.choices!.map((c) => [c.id, c.name])).toEqual([
-			["b", "B"],
 			["a", "A (mine)"],
+			["b", "B"],
 			["extra", "Extra"],
 		]);
-		expect(folder.choices![1]).toEqual(mine);
+		expect(folder.choices![0]).toEqual(mine);
 		expect(result.skippedChoiceIds).toEqual(["a"]);
 		expect([...result.overwrittenChoiceIds].sort()).toEqual(["b", "folder"]);
 		expect(result.addedChoiceIds).toEqual([]);
@@ -1262,6 +1263,11 @@ describe("applyPackageImport - parent/child trees", () => {
 			]),
 		});
 
+		expect(flattenChoices(result.updatedChoices).map((c) => c.id)).toEqual([
+			"outer",
+			"inner",
+			"grandchild",
+		]);
 		const outer = result.updatedChoices[0] as IMultiChoice;
 		expect(outer.name).toBe("Outer");
 		const innerResult = outer.choices![0] as IMultiChoice;
@@ -1269,6 +1275,137 @@ describe("applyPackageImport - parent/child trees", () => {
 		expect(innerResult.choices).toEqual([edited]);
 		expect(result.skippedChoiceIds).toEqual(["grandchild"]);
 		expect([...result.overwrittenChoiceIds].sort()).toEqual(["inner", "outer"]);
+		expect(result.addedChoiceIds).toEqual([]);
+	});
+
+	it("folds a folder the reader dragged out back into its incoming copy", async () => {
+		const { app } = createFakeApp();
+		const grandchild = makeChoice("grandchild", "Grandchild", "Capture");
+		const inner = makeMulti("inner", "Inner", [grandchild]);
+		const entries = {
+			outer: makePackageChoice(makeMulti("outer", "Outer", [inner])),
+			inner: makePackageChoice(inner, "outer", ["Outer", "Inner"]),
+			grandchild: makePackageChoice(grandchild, "inner", ["Outer", "Inner", "Grandchild"]),
+		};
+		// After the first import the reader moved Inner to the root, edited the
+		// grandchild and added a capture to Inner. Overwriting both folders
+		// while skipping the grandchild must keep both of those.
+		const edited = makeChoice("grandchild", "Grandchild (mine)", "Capture");
+		const extra = makeChoice("extra", "Extra", "Capture");
+		const existing = (): IChoice[] => [
+			makeMulti("outer", "Outer", []),
+			makeMulti("inner", "Inner", [edited, extra]),
+		];
+		const choiceDecisions = decisions([
+			["outer", "overwrite"],
+			["inner", "overwrite"],
+			["grandchild", "skip"],
+		]);
+
+		// Placement must not depend on package order: the child before its
+		// parent, and the parent before its child.
+		for (const order of [
+			[entries.outer, entries.inner, entries.grandchild],
+			[entries.grandchild, entries.inner, entries.outer],
+		]) {
+			const result = await importPackage({
+				app,
+				existingChoices: existing(),
+				pkg: makePackage({ choices: order }),
+				choiceDecisions,
+			});
+
+			expect(flattenChoices(result.updatedChoices).map((c) => c.id)).toEqual([
+				"outer",
+				"inner",
+				"grandchild",
+				"extra",
+			]);
+			const outer = result.updatedChoices[0] as IMultiChoice;
+			const innerResult = outer.choices![0] as IMultiChoice;
+			expect(innerResult.choices).toEqual([edited, extra]);
+			expect(result.skippedChoiceIds).toEqual(["grandchild"]);
+			expect([...result.overwrittenChoiceIds].sort()).toEqual(["inner", "outer"]);
+			expect(result.addedChoiceIds).toEqual([]);
+		}
+	});
+
+	it("does not rewrite a skipped child's paths when its folder is overwritten", async () => {
+		const { app } = createFakeApp();
+		const template = makeChoice("tpl", "Note", "Template", {
+			templatePath: "Templates/base.md",
+		} as Partial<ITemplateChoice>);
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [template])),
+				makePackageChoice(template, "folder", ["Folder", "Note"]),
+			],
+			assets: [packageAsset("template", "Templates/base.md", encodeToBase64("# base"))],
+		});
+		// The reader kept their edited copy of the template choice, which still
+		// points at the file the first import wrote, and sends this import's
+		// copy of the file elsewhere.
+		const mine = makeChoice("tpl", "Note (mine)", "Template", {
+			templatePath: "Templates/base.md",
+		} as Partial<ITemplateChoice>);
+		const existing: IChoice[] = [makeMulti("folder", "Folder", [mine])];
+
+		const result = await importPackage({
+			app,
+			existingChoices: existing,
+			pkg,
+			choiceDecisions: decisions([
+				["folder", "overwrite"],
+				["tpl", "skip"],
+			]),
+			assetDecisions: [
+				{
+					originalPath: "Templates/base.md",
+					destinationPath: "Templates/imported.md",
+					mode: "write",
+				},
+			],
+		});
+
+		const folder = result.updatedChoices[0] as IMultiChoice;
+		expect(folder.choices).toEqual([mine]);
+		expect((folder.choices![0] as ITemplateChoice).templatePath).toBe(
+			"Templates/base.md",
+		);
+		expect(result.writtenAssets).toEqual(["Templates/imported.md"]);
+	});
+
+	it("carries an unreadable entry in an overwritten folder over untouched", async () => {
+		const { app } = createFakeApp();
+		const a = makeChoice("a", "A", "Capture");
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [a])),
+				makePackageChoice(a, "folder", ["Folder", "A"]),
+			],
+		});
+		// data.json holds a hole where a child used to be (#1566). The import
+		// neither drops it nor trips over it.
+		const existing: IChoice[] = [
+			makeMulti("folder", "Folder", [
+				null as unknown as IChoice,
+				makeChoice("a", "A (old)", "Capture"),
+			]),
+		];
+
+		const result = await importPackage({
+			app,
+			existingChoices: existing,
+			pkg,
+			choiceDecisions: decisions([
+				["folder", "overwrite"],
+				["a", "overwrite"],
+			]),
+		});
+
+		const folder = result.updatedChoices[0] as IMultiChoice;
+		expect(folder.choices).toEqual([null, a]);
+		expect([...result.overwrittenChoiceIds].sort()).toEqual(["a", "folder"]);
 	});
 
 	it("appends children the package adds after the ones the reader already had", async () => {
