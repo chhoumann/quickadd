@@ -10,7 +10,7 @@ This macro turns the headings of your active note into separate linked notes. Fo
 
 ## Setup
 
-Get the `.js` file for this user script <a href="/scripts/zettelizer.js" download>here</a>, then add it to a Macro choice. To install it, follow the same process as in the [fetch tasks from Todoist example - with video](/docs/Examples/Capture_FetchTasksFromTodoist/), and see [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough of creating a macro.
+Get the `.js` file for this user script <a href="/scripts/zettelizer.js" download>here</a>, then add it to a Macro choice. To install it, follow [how to add a script to a macro](/docs/UserScripts/#adding-scripts-to-macros), and see [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough of creating a macro.
 
 Next, define the folder you want the script to place the new notes in.
 
