@@ -1,5 +1,5 @@
 import type IChoice from "../types/choices/IChoice";
-import { flattenChoices } from "../utils/choiceUtils";
+import { flattenChoices, flattenChoicesWithPath } from "../utils/choiceUtils";
 import type { ApplyImportResult } from "./packageImportService";
 
 /** The two plugin methods the command palette sync needs; QuickAdd (main.ts) satisfies it. */
@@ -20,6 +20,10 @@ export interface ChoiceCommandRegistrar {
  *
  * Overwritten choices drop their previous subtree's commands first, so a
  * renamed choice or a folder that lost children leaves no stale entries.
+ *
+ * The result lists a folder's inline children next to the folder itself (the
+ * import summary counts them). Registering a folder already walks its
+ * children, so a choice whose ancestor is in the result is skipped here.
  */
 export function syncImportedChoiceCommands(
 	registrar: ChoiceCommandRegistrar,
@@ -32,11 +36,19 @@ export function syncImportedChoiceCommands(
 	const previousById = new Map(
 		flattenChoices(previousChoices).map((choice) => [choice.id, choice]),
 	);
-	const updatedById = new Map(
-		flattenChoices(result.updatedChoices).map((choice) => [choice.id, choice]),
-	);
+	const updated = flattenChoicesWithPath(result.updatedChoices);
+	const updatedById = new Map(updated.map((entry) => [entry.id, entry.choice]));
+	const parentById = new Map(updated.map((entry) => [entry.id, entry.parentId]));
+	const listed = new Set([...result.overwrittenChoiceIds, ...result.addedChoiceIds]);
+	const coveredByAncestor = (id: string): boolean => {
+		for (let parent = parentById.get(id); parent; parent = parentById.get(parent)) {
+			if (listed.has(parent)) return true;
+		}
+		return false;
+	};
 
 	for (const id of result.overwrittenChoiceIds) {
+		if (coveredByAncestor(id)) continue;
 		const previous = previousById.get(id);
 		if (previous) registrar.removeCommandForChoice(previous, { recursive: true });
 		const replacement = updatedById.get(id);
@@ -44,6 +56,7 @@ export function syncImportedChoiceCommands(
 	}
 
 	for (const id of result.addedChoiceIds) {
+		if (coveredByAncestor(id)) continue;
 		const added = updatedById.get(id);
 		if (added) registrar.addCommandForChoice(added);
 	}

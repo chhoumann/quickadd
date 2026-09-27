@@ -1,6 +1,6 @@
 # Example packages
 
-Every example workflow in the docs ships as a QuickAdd package the reader can
+An example workflow in the docs ships as a QuickAdd package the reader can
 copy from the page and import in **Settings → QuickAdd → Import package…**.
 This folder is the source of truth for those packages.
 
@@ -48,8 +48,9 @@ script's `settings` object and tell the reader where to paste it in
    behaviour that is merged but unreleased, name the next minor release
    (releases are cut from Conventional Commits); the test suite allows at most
    one minor above `manifest.json`.
-3. Replace each asset's `content` with a `source` path. Scripts point at
-   `docs/public/scripts/`; put templates under `files/`.
+3. Replace each asset's `content` with a `source` path relative to the
+   manifest: `../../public/scripts/<name>.js` for scripts, `files/<name>.md`
+   for templates.
 4. Add the `install` block and set `package: <id>` on the docs page.
 5. Run `pnpm run packages:build` and commit the generated file.
 
