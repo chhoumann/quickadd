@@ -73,16 +73,30 @@ module.exports = async function moveFilesWithTag(params) {
 
 	let moved = 0;
 	let alreadyThere = 0;
+	const nameTaken = [];
 	for (const file of filesToMove) {
+		// A note can be deleted or moved while the folder prompt is open.
 		const tfile = app.vault.getAbstractFileByPath(file);
+		if (!tfile) continue;
 		const newPath = targetFolder === "/" ? tfile.name : `${targetFolder}/${tfile.name}`;
 		if (newPath === tfile.path) {
 			alreadyThere++;
 			continue;
 		}
+		// renameFile throws on an occupied destination, which would abort the
+		// batch halfway; skip the note and say so instead. This also catches two
+		// tagged notes that share a name, since the first one to move takes it.
+		if (app.vault.getAbstractFileByPath(newPath)) {
+			nameTaken.push(tfile.path);
+			continue;
+		}
 		await app.fileManager.renameFile(tfile, newPath);
 		moved++;
 	}
-	const summary = `Moved ${moved} ${moved === 1 ? "note" : "notes"} to ${targetFolder}.`;
-	new Notice(alreadyThere ? `${summary} ${alreadyThere} already there.` : summary);
+	const parts = [`Moved ${moved} ${moved === 1 ? "note" : "notes"} to ${targetFolder}.`];
+	if (alreadyThere) parts.push(`${alreadyThere} already there.`);
+	if (nameTaken.length) {
+		parts.push(`Skipped ${nameTaken.length} whose name is taken there: ${nameTaken.join(", ")}.`);
+	}
+	new Notice(parts.join(" "), nameTaken.length ? 10000 : undefined);
 };

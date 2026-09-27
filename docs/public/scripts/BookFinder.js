@@ -24,7 +24,8 @@ module.exports =  async function start(params) {
   const encodedTitle = encodeURIComponent(GOOGLE_BOOKS_TITLE_TERM + title);
   const finalURL = GOOGLE_BOOKS_API_URL + "?q=" + encodedTitle + "&maxResults=10";
   const response = await fetch(finalURL);
-  const bookDesc = await response.json();
+  // A proxy or outage can answer with an HTML error page rather than JSON.
+  const bookDesc = await response.json().catch(() => ({}));
 
   // Keyless requests share a per-network daily quota, so a 429 here is not "no results".
   if (!response.ok || bookDesc.error) {
@@ -43,16 +44,18 @@ module.exports =  async function start(params) {
   const book = bookDesc.items[0];
   const volumeInfo = book.volumeInfo;
 
+  // Authors, categories, description and cover are all optional in the API.
+  // QuickAdd treats an undefined variable as "not answered yet" and would prompt
+  // for it, so fall back to an empty value instead.
   QuickAdd.variables = {
     ...book,
     title: volumeInfo.title,
     // How to get mutiple authors or categories out with commas between them
-    authors: volumeInfo.authors,
-    categories: volumeInfo.categories,
-    description: volumeInfo.description,
+    authors: volumeInfo.authors ?? "",
+    categories: volumeInfo.categories ?? "",
+    description: volumeInfo.description ?? "",
     fileName: replaceIllegalFileNameCharactersInString(volumeInfo.title),
-    // Many valid volumes have no cover, so the imageLinks object can be missing.
-    Poster: volumeInfo.imageLinks?.smallThumbnail
+    Poster: volumeInfo.imageLinks?.smallThumbnail ?? ""
   };
 }
 
