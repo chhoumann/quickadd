@@ -9,9 +9,11 @@ import {
 	listPackageIds,
 	manifestPath,
 	orphanOutputIds,
+	outputIsStale,
 	outputPath,
 	readManifest,
 	stalePackageIds,
+	withLfLineEndings,
 } from "../docs/packages/build.mjs";
 import { buildPackage } from "../src/services/packageExportService";
 import {
@@ -189,7 +191,7 @@ function sortedByPath<T extends { originalPath: string }>(entries: T[]): T[] {
 }
 
 function frontmatterOf(file: string): string {
-	return readFileSync(file, "utf8").split("\n---\n", 2)[0] ?? "";
+	return withLfLineEndings(readFileSync(file, "utf8")).split("\n---\n", 2)[0] ?? "";
 }
 
 describe("example packages", () => {
@@ -200,6 +202,15 @@ describe("example packages", () => {
 	it("committed docs/public/packages/*.quickadd.json match their manifests (run `pnpm run packages:build`)", () => {
 		expect(stalePackageIds()).toEqual([]);
 		expect(orphanOutputIds(), "built packages whose manifest was removed").toEqual([]);
+	});
+
+	it("is not stale just because Git checked the output out with CRLF (autocrlf on Windows)", () => {
+		const built = buildPackageJson(ids[0]);
+		expect(built).not.toContain("\r");
+		expect(outputIsStale(built.replace(/\n/g, "\r\n"), built)).toBe(false);
+		// Real drift still counts: an extra blank line at the end, or no file.
+		expect(outputIsStale(`${built}\n`, built)).toBe(true);
+		expect(outputIsStale(null, built)).toBe(true);
 	});
 
 	it("every page's `package:` names a manifest, and every manifest is offered by exactly one page", () => {
