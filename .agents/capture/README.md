@@ -33,26 +33,26 @@ pnpm exec obsidian-e2e capture prepare --width 1280 --height 800 --scale 2 \
 
 After `pnpm run build`, reload the plugin in the capture instance with
 `HOME=$OBSIDIAN_E2E_CAPTURE_HOME obsidian vault=Notes plugin:reload id=quickadd`,
-then re-run `capture prepare` (any app reload drops the injected capture CSS).
+then re-run `pnpm exec obsidian-e2e capture prepare` (any app reload drops the injected capture CSS).
 
 ## Recipes
 
 - **GIF of a flow**: `pnpm exec obsidian-e2e capture record inbox.webm --cursor -- .agents/capture/record-inbox-capture.sh`,
-  then `capture sheet inbox.webm review.png` to review and
-  `capture gif inbox.webm docs/src/content/docs/docs/Images/<name>.gif`.
+  then `pnpm exec obsidian-e2e capture sheet inbox.webm review.png` to review and
+  `pnpm exec obsidian-e2e capture gif inbox.webm docs/src/content/docs/docs/Images/<name>.gif`.
   The script asserts the note really changed; if anything fails (or you
   Ctrl-C) the take is discarded and an existing file is left untouched.
   On the capture instance's Xvfb display the recorder uses x11grab: use the
   default `--fps 10` for GIFs and heavy views, `--fps 30` for a smooth WebM.
   Keep the window's size fixed during a take (no `prepare` inside the driver)
   and keep the Settings popout closed, or the take is rejected.
-- **Typing**: use `capture type "..."` (one in-page call per string, paced
+- **Typing**: use `pnpm exec obsidian-e2e capture type "..."` (one in-page call per string, paced
   and real-time) rather than one `agent-browser` call per key.
 - **Active modal** (prompts, suggesters):
-  `capture screenshot out.png --modal --pad 16 --clean`.
+  `pnpm exec obsidian-e2e capture screenshot out.png --modal --pad 16 --clean`.
 - **Choice builders** are taller than the window (a Capture builder expands to
-  about 1900 CSS px): `capture prepare --height 2100`, then
-  `capture screenshot out.png --modal --expand --clean`. Screenshots refuse
+  about 1900 CSS px): `pnpm exec obsidian-e2e capture prepare --height 2100`, then
+  `pnpm exec obsidian-e2e capture screenshot out.png --modal --expand --clean`. Screenshots refuse
   targets that do not fit the viewport instead of clipping them. Open a builder
   from Settings -> QuickAdd with the choice's "Configure <name>" button.
 - **Crop a builder up to a setting**: `--rect-js` with the in-page helpers, e.g.
@@ -64,7 +64,7 @@ then re-run `capture prepare` (any app reload drops the injected capture CSS).
     return { x: m.x, y: m.y, width: m.width, height: r.y - m.y - 4 }; })()'
   ```
 
-  Run `capture prepare --height 800` afterwards to restore the normal window.
+  Run `pnpm exec obsidian-e2e capture prepare --height 800` afterwards to restore the normal window.
 - **Settings**: `app.setting.open(); app.setting.openTabById("quickadd")`, then
   `--modal`. If Settings opens as a popout window, add `--window Settings`
   to `prepare`/`screenshot`.
