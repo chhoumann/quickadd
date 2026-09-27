@@ -4,11 +4,6 @@
 	import type { PackagePreview } from "../../services/packagePreview";
 
 	let { preview }: { preview: PackagePreview } = $props();
-
-	const showReloadNote = $derived(
-		preview.summary.runsOnStartup ||
-			preview.summary.registersCommandCount > 0,
-	);
 </script>
 
 <section
@@ -40,9 +35,14 @@
 		{/each}
 	</ul>
 
-	{#if showReloadNote}
+	<!-- Imported commands are live as soon as the import finishes (both import
+	     paths call syncImportedChoiceCommands), so they need no note. A startup
+	     macro's automatic run is the one effect that waits: StartupMacroEngine
+	     only runs from onload. -->
+	{#if preview.summary.runsOnStartup}
 		<p class="qa-import-banner-note">
-			Takes effect after you reload the plugin or restart Obsidian.
+			Importing doesn't run startup macros. They first run the next time
+			Obsidian starts or you reload QuickAdd.
 		</p>
 	{/if}
 </section>

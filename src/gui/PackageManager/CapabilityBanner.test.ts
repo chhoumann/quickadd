@@ -9,6 +9,20 @@ import type { IUserScript } from "../../types/macros/IUserScript";
 import { CommandType } from "../../types/macros/CommandType";
 import { encodeToBase64 } from "../../utils/base64";
 
+function packageWith(
+	macro: IMacroChoice,
+	assets: QuickAddPackage["assets"] = [],
+): QuickAddPackage {
+	return {
+		schemaVersion: 1,
+		quickAddVersion: "1.18.0",
+		createdAt: "2026-06-01T00:00:00.000Z",
+		rootChoiceIds: [macro.id],
+		choices: [{ choice: macro, pathHint: [macro.name], parentChoiceId: null }],
+		assets,
+	};
+}
+
 function criticalPackage(): QuickAddPackage {
 	const script: IUserScript = {
 		id: "cmd1",
@@ -17,24 +31,29 @@ function criticalPackage(): QuickAddPackage {
 		path: "scripts/fetch.js",
 		settings: {},
 	};
-	const macro: IMacroChoice = {
-		id: "m1",
-		name: "Daily Sync",
+	return packageWith(
+		{
+			id: "m1",
+			name: "Daily Sync",
+			type: "Macro",
+			command: false,
+			runOnStartup: true,
+			macro: { id: "macro-m1", name: "Daily Sync", commands: [script] },
+		},
+		[packageAsset("user-script", "scripts/fetch.js", encodeToBase64("console.log(1)"))],
+	);
+}
+
+/** Adds a palette command and nothing else: no startup run, no scripts. */
+function commandOnlyPackage(): QuickAddPackage {
+	return packageWith({
+		id: "c1",
+		name: "Journal entry",
 		type: "Macro",
-		command: false,
-		runOnStartup: true,
-		macro: { id: "macro-m1", name: "Daily Sync", commands: [script] },
-	};
-	return {
-		schemaVersion: 1,
-		quickAddVersion: "1.18.0",
-		createdAt: "2026-06-01T00:00:00.000Z",
-		rootChoiceIds: ["m1"],
-		choices: [{ choice: macro, pathHint: ["Daily Sync"], parentChoiceId: null }],
-		assets: [
-			packageAsset("user-script", "scripts/fetch.js", encodeToBase64("console.log(1)")),
-		],
-	};
+		command: true,
+		runOnStartup: false,
+		macro: { id: "macro-c1", name: "Journal entry", commands: [] },
+	});
 }
 
 const preview = buildPackagePreview([], criticalPackage(), new Set());
@@ -53,5 +72,28 @@ describe("CapabilityBanner", () => {
 		// above' copy is spatially honest; the banner no longer owns a checkbox.
 		const { queryByRole } = render(CapabilityBanner, { props: { preview } });
 		expect(queryByRole("checkbox")).toBeNull();
+	});
+
+	it("does not ask for a reload when the package only adds commands", () => {
+		// Imports register their commands immediately (syncImportedChoiceCommands),
+		// so a reload note here would send readers after a step they don't need.
+		const commandOnly = buildPackagePreview([], commandOnlyPackage(), new Set());
+		expect(commandOnly.summary.registersCommandCount).toBe(1);
+		expect(commandOnly.summary.runsOnStartup).toBe(false);
+
+		const { container, getByText, queryByText } = render(CapabilityBanner, {
+			props: { preview: commandOnly },
+		});
+		expect(getByText("Adds commands to the command palette")).toBeTruthy();
+		expect(container.querySelector(".qa-import-banner-note")).toBeNull();
+		expect(queryByText(/reload|restart/i)).toBeNull();
+	});
+
+	it("says a startup macro does not run until the next plugin load", () => {
+		const { container } = render(CapabilityBanner, { props: { preview } });
+		const note = container.querySelector(".qa-import-banner-note");
+		expect(note?.textContent?.replace(/\s+/g, " ").trim()).toBe(
+			"Importing doesn't run startup macros. They first run the next time Obsidian starts or you reload QuickAdd.",
+		);
 	});
 });
