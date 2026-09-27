@@ -86,9 +86,24 @@ const listChildrenOf = (parentId: string | null, depth: number) => {
 listChildrenOf(null, 0);
 // Repeating "also in the command palette" after every choice is noise when it
 // applies to all of them; say it once below the list instead. A single choice
-// keeps its suffix, which reads as one fact rather than a pattern.
-const everyChoiceIsCommand =
-	runnable.length > 1 && runnable.every((choice) => choice.command);
+// keeps its suffix, which reads as one fact rather than a pattern. A folder
+// with its command off sits in the same list, so "every choice" must not be
+// claimed over it; name the kind instead when the runnable choices share one.
+const kindNoun: Record<string, string> = {
+	Capture: "capture",
+	Template: "template",
+	Macro: "macro",
+};
+const commandNote = (() => {
+	if (runnable.length < 2 || !runnable.every((choice) => choice.command)) return "";
+	if (folders.every((folder) => folder.command)) {
+		return "Every choice is also in the command palette.";
+	}
+	const kinds = new Set(runnable.map((choice) => choice.type));
+	const noun = kinds.size === 1 ? kindNoun[runnable[0].type] : undefined;
+	return noun ? `Every ${noun} is also in the command palette.` : "";
+})();
+const everyChoiceIsCommand = commandNote !== "";
 
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
@@ -215,9 +230,7 @@ function inline(text: string): string {
 					</li>
 				))}
 			</ul>
-			{everyChoiceIsCommand && (
-				<p class="qa-package__note">Every choice is also in the command palette.</p>
-			)}
+			{everyChoiceIsCommand && <p class="qa-package__note">{commandNote}</p>}
 
 			<p class="qa-package__fine">
 				The import screen lists everything before it writes anything, and you can
