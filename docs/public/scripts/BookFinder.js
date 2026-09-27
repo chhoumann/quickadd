@@ -9,9 +9,12 @@ let QuickAdd;
 module.exports =  async function start(params) {
   QuickAdd = params;
 
-  let clipBoardContents = await QuickAdd.quickAddApi.utility.getClipboard();
+  // Prefill the prompt from the clipboard when it looks like a title, not when it
+  // holds something long or multi-line such as a pasted article or a package.
+  const clipBoardContents = String((await QuickAdd.quickAddApi.utility.getClipboard().catch(() => "")) ?? "").trim();
+  const prefill = clipBoardContents.length <= 120 && !clipBoardContents.includes("\n") ? clipBoardContents : "";
   const title = await QuickAdd.quickAddApi.inputPrompt(
-    "Enter Book title: ", clipBoardContents, clipBoardContents // clipBoardContents is added once as the prompt text and once as the default value
+    "Enter Book title: ", prefill, prefill // prefill is added once as the placeholder and once as the default value
   );
   if (!title) {
     notice("No title entered.");

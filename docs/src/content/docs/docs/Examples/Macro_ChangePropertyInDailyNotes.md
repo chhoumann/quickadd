@@ -9,17 +9,18 @@ This macro lists every property in today's daily journal note in a menu. Pick on
 
 ## Before you start
 
-- Today's daily journal note must exist, and the property you want to change must already be in its frontmatter; the menu only lists existing properties. The script finds the note through the **Daily notes** core plugin's folder and date format; if your daily notes live elsewhere, point the script's **Daily note path** setting at them (step 4).
+- Today's daily journal note must exist, and the property you want to change must already be in its frontmatter; the menu only lists existing properties, and only text, number and checkbox ones.
+- The **Daily notes** core plugin turned on, or a custom **Daily note path** in the script settings (step 4).
 
 ## Setup
 
-Imported the package above? The script and the **Change daily note property** macro are already in place; run it, and only do step 4 if your daily notes are not where the Daily notes plugin puts them.
+Imported the package above? The script and the **Change daily note property** macro are already in place; skip to step 4 to check its settings, then run it.
 
 1. <a href="/scripts/changeDailyProperty.js" download>Download changeDailyProperty.js</a> and save it somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
 2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Change property`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
 3. In the Macro Builder, add your script as a **User Script** command.
-4. Optionally, click the cog on the script step and set **Daily note path** to where your daily notes live, with your daily notes' date format, for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
+4. Click the cog on the script step. Leave **Daily note path** empty to use the Daily notes plugin's folder and date format, or set it to where your daily notes live, with their date format, for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`.
 
-Run the macro, choose a property from the menu, and enter its new value. If the old value was a number or `true`/`false` and the new text still is one, it is written back as a number or boolean; otherwise as text.
+Run the macro, choose a property from the menu, and enter its new value. If the old value was a number or `true`/`false` and the new text still is one, it is written back as a number or boolean; otherwise as text. List properties such as `tags` are not offered, since a one-line prompt cannot edit them.
 
 If you already know which properties you want to change and don't want to be asked about the rest, edit the script and replace `keys` with a plain array of property names. You'd pass that array to the `suggester` method instead.

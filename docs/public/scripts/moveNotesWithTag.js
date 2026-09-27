@@ -25,61 +25,64 @@ module.exports = async function moveFilesWithTag(params) {
 		return [];
 	}
 
+	// `#project` matches `#project`, and with nested tags also `#project/work`,
+	// but never `#projectile`.
+	const cleanTag = tag.replace(/^#/, "");
+	const matches = (candidate) => {
+		const clean = String(candidate).replace(/^#/, "");
+		return clean === cleanTag || (shouldMoveNested && clean.startsWith(cleanTag + "/"));
+	};
+
 	cache.forEach((key) => {
-		if (key.contains("template")) return;
+		// Skip template notes wherever they live, for example Templates/ or _templates/.
+		if (key.toLowerCase().includes("template")) return;
 		const fileCache = app.metadataCache.getCache(key);
-		
+		if (!fileCache) return;
+
 		// Check if file has the tag we're looking for
 		let hasMatchingTag = false;
-		const cleanTag = tag.replace("#", "");
 
 		// Check frontmatter tags (supports tags, Tags, tag, Tag)
 		if (fileCache.frontmatter) {
 			const tagFields = ['tags', 'Tags', 'tag', 'Tag'];
-			
-			for (const field of tagFields) {
-				const tagsArray = getTagsAsArray(fileCache.frontmatter[field]);
-				
-				if (!shouldMoveNested) {
-					// Exact match
-					if (tagsArray.some(t => t === cleanTag)) {
-						hasMatchingTag = true;
-						break;
-					}
-				} else {
-					// Nested match (contains)
-					if (tagsArray.some(t => t.includes(cleanTag))) {
-						hasMatchingTag = true;
-						break;
-					}
-				}
-			}
+			hasMatchingTag = tagFields.some((field) =>
+				getTagsAsArray(fileCache.frontmatter[field]).some(matches)
+			);
 		}
 
 		// Check inline tags (#tag in the note content)
 		if (!hasMatchingTag && fileCache.tags) {
-			if (!shouldMoveNested) {
-				hasMatchingTag = fileCache.tags.some(t => t.tag === tag);
-			} else {
-				hasMatchingTag = fileCache.tags.some(t => t.tag.includes(tag));
-			}
+			hasMatchingTag = fileCache.tags.some((t) => matches(t.tag));
 		}
 
 		if (hasMatchingTag) filesToMove.push(key);
 	});
 
+	if (filesToMove.length === 0) {
+		new Notice(`No notes carry ${tag}.`);
+		return;
+	}
+
 	const folders = app.vault
 		.getAllLoadedFiles()
 		.filter((f) => f.children)
 		.map((f) => f.path);
-	const targetFolder = await suggester(folders, folders);
+	const noun = filesToMove.length === 1 ? "note" : "notes";
+	const targetFolder = await suggester(folders, folders, `Move ${filesToMove.length} ${noun} to…`);
 	if (!targetFolder) return;
 
+	let moved = 0;
+	let alreadyThere = 0;
 	for (const file of filesToMove) {
 		const tfile = app.vault.getAbstractFileByPath(file);
-		await app.fileManager.renameFile(
-			tfile,
-			`${targetFolder}/${tfile.name}`
-		);
+		const newPath = targetFolder === "/" ? tfile.name : `${targetFolder}/${tfile.name}`;
+		if (newPath === tfile.path) {
+			alreadyThere++;
+			continue;
+		}
+		await app.fileManager.renameFile(tfile, newPath);
+		moved++;
 	}
+	const summary = `Moved ${moved} ${moved === 1 ? "note" : "notes"} to ${targetFolder}.`;
+	new Notice(alreadyThere ? `${summary} ${alreadyThere} already there.` : summary);
 };

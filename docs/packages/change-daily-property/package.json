@@ -41,9 +41,13 @@
 		}
 	],
 	"install": {
+		"requires": [
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** (see below)"
+		],
 		"afterImport": [
-			"Run **Change daily note property** from the command palette, pick a property from today's daily note, and enter its new value.",
-			"Today's note is found through the Daily notes core plugin's folder and date format. If yours live elsewhere, open the **Change daily note property** macro in **Settings → QuickAdd**, click the cog on the **changeDailyProperty** step, and set **Daily note path** (for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`)."
+			"Create today's daily note and give it the properties you want to change; the menu only lists properties that already exist, and only text, number and checkbox ones.",
+			"Run **Change daily note property** from the command palette, pick a property, and enter its new value.",
+			"Daily notes somewhere else? Open the **Change daily note property** macro in **Settings → QuickAdd**, click the cog on the **changeDailyProperty** step, and set **Daily note path** (for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`). Leave it empty to use the Daily notes plugin's folder and date format."
 		]
 	}
 }

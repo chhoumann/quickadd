@@ -33,10 +33,13 @@ async function start(params, settings) {
 		return;
 	}
 
+	// Only single-value properties: a one-line prompt cannot edit lists or nested objects.
 	const frontmatter = app.metadataCache.getFileCache(file)?.frontmatter ?? {};
-	const keys = Object.keys(frontmatter).filter((key) => key !== "position");
+	const keys = Object.keys(frontmatter).filter(
+		(key) => key !== "position" && (frontmatter[key] === null || typeof frontmatter[key] !== "object")
+	);
 	if (keys.length === 0) {
-		new obsidian.Notice(`No properties in ${file.basename}`);
+		new obsidian.Notice(`No text, number or checkbox properties in ${file.basename}`);
 		return;
 	}
 

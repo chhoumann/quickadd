@@ -10,7 +10,7 @@ This macro looks up a book by title and inserts its details into a new note in y
 
 ## Installation
 
-Imported the package above? The script, the `Templates/Book.md` template, and the **Add book note** macro (with its **Book note** Template step saving to `Books/`) are already in place; skip to [Usage](#usage).
+Imported the package above? The script, the template, and the **Add book note** macro are already in place; skip to [Usage](#usage).
 
 This works by adding the BookFinder [user script](/docs/UserScripts/) to a [Macro choice](/docs/Choices/MacroChoice/) that you run from the main menu.
 You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
@@ -48,6 +48,8 @@ You can now use the macro to create notes with book information in your vault.
 ```
 
 ## Usage
+
+Run the macro and enter a book title; a short clipboard text is prefilled. The first Google Books match for that title becomes the note; there is no picker, so a full, exact title gives the best result.
 
 You can pull any field from the API response into your template with a `{{VALUE:<variable>}}` placeholder (for example, `{{VALUE:title}}`). Below is an example response for the book 'Flowers for Algernon'. The response is deeply nested, so if you want fields that the example template doesn't already expose, you may need to extend the script to read them out.
 

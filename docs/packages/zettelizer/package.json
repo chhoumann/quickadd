@@ -42,9 +42,9 @@
 	],
 	"install": {
 		"afterImport": [
-			"Open the note you want to split and run **Zettelize headings** from the command palette.",
-			"Each `###` heading becomes a note in `Zettels/` (created if missing), named after the heading minus its first word and linking back to it.",
-			"To change that, open the **Zettelize headings** macro in **Settings → QuickAdd** and click the cog on the **zettelizer** step: set **Folder for new notes** (empty means the vault root) and **Heading level**."
+			"By default each `###` heading gets a note in `Zettels/` (created if missing) that embeds that section; the source note is not changed. The file name is the heading minus its first word, so one-word headings are skipped, and so are names that already exist.",
+			"To change the folder or heading level, open the **Zettelize headings** macro in **Settings → QuickAdd** and click the cog on the **zettelizer** step: **Folder for new notes** (empty means the vault root) and **Heading level**.",
+			"Open the note you want to split up and run **Zettelize headings** from the command palette."
 		]
 	}
 }

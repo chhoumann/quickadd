@@ -42,11 +42,11 @@
 	],
 	"install": {
 		"requires": [
-			"an internet connection (addresses are looked up on OpenStreetMap's Nominatim service)"
+			"an internet connection (addresses are looked up on OpenStreetMap's Nominatim service; no account needed)"
 		],
 		"afterImport": [
 			"Open the note you want to place, run **Add location from address** from the command palette, and enter an address. A specific address (street, city, country) gives the best match.",
-			"The script sets the note's `location` property to `lat,lng`, replacing any existing value. Install the [Map View](https://github.com/esm7/obsidian-map-view) plugin to see the note on a map."
+			"The note's `location` property becomes `lat,lng`, replacing any earlier value. Map View is optional: install it if you want to see the note on a map."
 		]
 	}
 }

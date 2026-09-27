@@ -11,7 +11,7 @@ This macro turns the headings of your active note into separate linked notes. Fo
 
 ## Setup
 
-Imported the package above? The script and the **Zettelize headings** macro are already in place; open a note, run it, and use the settings below to change where notes go.
+Imported the package above? The script and the **Zettelize headings** macro are already in place; skip the download and check the two settings below before you run it.
 
 Get the `.js` file for this user script <a href="/scripts/zettelizer.js" download>here</a>, then add it to a Macro choice. To install it, follow [how to add a script to a macro](/docs/UserScripts/#adding-scripts-to-macros), and see [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough of creating a macro.
 
