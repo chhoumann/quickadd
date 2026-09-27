@@ -21,6 +21,26 @@ const PROMPT = ".modal-container, .prompt";
 
 type Entry = "command" | "launcher" | "cli" | "uri" | "api" | "api-floated";
 
+const UNSAFE_IN_CODE: Record<string, string> = {
+	"<": "\\u003C",
+	">": "\\u003E",
+	"/": "\\u002F",
+	"\\": "\\\\",
+	"\b": "\\b",
+	"\f": "\\f",
+	"\n": "\\n",
+	"\r": "\\r",
+	"\t": "\\t",
+	"\0": "\\0",
+	"\u2028": "\\u2028",
+	"\u2029": "\\u2029",
+};
+
+/** A JavaScript literal for `value`, safe to splice into code run by `eval` (CodeQL js/bad-code-sanitization). */
+function jsLiteral(value: unknown): string {
+	return JSON.stringify(value).replace(/[<>\b\f\n\r\t\0\u2028\u2029]/g, (char) => UNSAFE_IN_CODE[char]);
+}
+
 async function devErrors(obsidian: ObsidianClient): Promise<string> {
 	return (await obsidian.execText("dev:errors")).trim();
 }
@@ -30,13 +50,13 @@ async function clearDevErrors(obsidian: ObsidianClient) {
 }
 
 async function promptOpen(obsidian: ObsidianClient): Promise<boolean> {
-	return obsidian.dev.evalJson<boolean>(`Boolean(document.querySelector(${JSON.stringify(PROMPT)}))`);
+	return obsidian.dev.evalJson<boolean>(`Boolean(document.querySelector(${jsLiteral(PROMPT)}))`);
 }
 
 /** Escape only reaches a prompt once it has focus; pressing earlier is a no-op. */
 async function waitForFocusedPrompt(obsidian: ObsidianClient) {
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
-		`Boolean(document.activeElement?.closest(${JSON.stringify(PROMPT)}))`,
+		`Boolean(document.activeElement?.closest(${jsLiteral(PROMPT)}))`,
 	), POLL_OPTS).toBe(true);
 }
 
@@ -109,7 +129,7 @@ async function seedChoices() {
 async function openNote(obsidian: ObsidianClient, path: string) {
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		const leaf = app.workspace.getLeaf(false);
-		await leaf.openFile(app.vault.getAbstractFileByPath(${JSON.stringify(path)}), { state: { mode: "source" } });
+		await leaf.openFile(app.vault.getAbstractFileByPath(${jsLiteral(path)}), { state: { mode: "source" } });
 		app.workspace.setActiveLeaf(leaf, { focus: true });
 		return true;
 	})()`);
@@ -121,7 +141,7 @@ async function start(
 	entry: Entry,
 	choice: IChoice,
 ): Promise<{ cliResult?: Promise<string> }> {
-	const name = JSON.stringify(choice.name);
+	const name = jsLiteral(choice.name);
 	switch (entry) {
 		case "command":
 			await obsidian.command(`quickadd:choice:${choice.id}`).run();
@@ -226,7 +246,7 @@ it("a floated run that fails for real still lands in dev:errors", async () => {
 	await plugin.reload({ waitUntilReady: true });
 	await clearDevErrors(obsidian);
 
-	await obsidian.dev.evalJson(`(() => { void app.plugins.plugins.quickadd.api.executeChoice(${JSON.stringify(macro.name)}); return true; })()`);
+	await obsidian.dev.evalJson(`(() => { void app.plugins.plugins.quickadd.api.executeChoice(${jsLiteral(macro.name)}); return true; })()`);
 
 	await expect.poll(() => devErrors(obsidian), POLL_OPTS).toContain("qa real failure");
 });
@@ -248,8 +268,8 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 	const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
 	await obsidian.dev.evalJson("app.vault.setConfig('settingsPopoutWindow', false), true");
 	const click = (selector: string, text?: string) => obsidian.dev.evalJson<boolean>(`(() => {
-		const all = Array.from(document.querySelectorAll(${JSON.stringify(selector)}))
-			.filter((el) => ${JSON.stringify(text ?? null)} === null || el.textContent.trim() === ${JSON.stringify(text ?? null)});
+		const all = Array.from(document.querySelectorAll(${jsLiteral(selector)}))
+			.filter((el) => ${jsLiteral(text ?? null)} === null || el.textContent.trim() === ${jsLiteral(text ?? null)});
 		const target = all[all.length - 1];
 		target?.click();
 		return Boolean(target);
