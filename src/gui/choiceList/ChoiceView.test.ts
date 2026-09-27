@@ -201,6 +201,7 @@ describe("ChoiceView", () => {
 				} as unknown as QuickAdd,
 				choices: [folderChoice],
 				saveChoices,
+				openAISettings: vi.fn(),
 			},
 		});
 
@@ -245,6 +246,7 @@ describe("ChoiceView", () => {
 				plugin: {} as unknown as QuickAdd,
 				choices: [folderChoice],
 				saveChoices,
+				openAISettings: vi.fn(),
 			},
 		});
 

@@ -11,6 +11,6 @@ export function renderChoiceView(
 	saveChoices: (next: Plain<IChoice[]>) => void = vi.fn(),
 ) {
 	return render(ChoiceView, {
-		props: { app: new App(), plugin: {} as QuickAdd, choices, saveChoices },
+		props: { app: new App(), plugin: {} as QuickAdd, choices, saveChoices, openAISettings: () => {} },
 	});
 }
