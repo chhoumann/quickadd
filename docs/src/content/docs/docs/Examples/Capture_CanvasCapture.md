@@ -2,6 +2,7 @@
 title: "Capture: Canvas Capture"
 description: Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking
 slug: docs/Examples/Capture_CanvasCapture
+package: canvas-capture
 ---
 
 You end up with a Capture choice that writes into an Obsidian Canvas: either the
@@ -25,6 +26,8 @@ Good fits:
 - Send repeated updates to one known Canvas card.
 
 ## Capture to the selected card
+
+Imported the package above? The **Add idea to card** choice is in place; open a canvas, select one card, and run it.
 
 1. Create a Capture choice.
 2. Enable **Capture to active file**.

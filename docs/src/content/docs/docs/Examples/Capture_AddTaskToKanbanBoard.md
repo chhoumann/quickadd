@@ -2,6 +2,7 @@
 title: "Capture: Add a Task to a Kanban Board"
 description: Add a task to a chosen lane on an Obsidian Kanban board by capturing after the lane heading, with optional date formatting
 slug: docs/Examples/Capture_AddTaskToKanbanBoard
+package: kanban-task
 ---
 
 You end up with one QuickAdd command that drops whatever you type onto a Kanban board as a card in the lane you choose - without opening the board first.
@@ -12,6 +13,8 @@ You end up with one QuickAdd command that drops whatever you type onto a Kanban 
 - A Kanban board with at least one lane. Each lane is a Markdown heading, for example `## Backlog`.
 
 ## Setup
+
+Imported the package above? The **Add task to board** choice is in place; set **Capture to** on it to your board file, then skip to [What you get](#what-you-get).
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Add to board`).
 2. Set **Capture to** to your Kanban board file.

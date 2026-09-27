@@ -1,0 +1,8 @@
+filters:
+  and:
+    - 'file.ext == "md"'
+    - "file.hasLink(this.file)"
+    - "file.path != this.file.path"
+views:
+  - type: table
+    name: Related notes

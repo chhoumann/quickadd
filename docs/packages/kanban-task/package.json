@@ -1,0 +1,82 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-kanban-task"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-kanban-task",
+				"name": "Add task to board",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "cursor",
+				"createFileIfItDoesntExist": {
+					"enabled": false,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": false,
+					"format": ""
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "## Backlog",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": true,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Add task to board"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [],
+	"install": {
+		"requires": [
+			"the Kanban community plugin"
+		],
+		"afterImport": [
+			"Open the **Add task to board** choice in **Settings → QuickAdd** and set **Capture to** to your board file. Until you do, QuickAdd asks which file to capture to on every run.",
+			"Cards go to the top of the `## Backlog` lane. If your lane has another name, change **Insert after** to match its heading, for example `## To do`.",
+			"Run **Add task to board** from the command palette and type your task."
+		]
+	}
+}

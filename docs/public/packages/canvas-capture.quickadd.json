@@ -1,0 +1,72 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-canvas-capture"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-canvas-capture",
+				"name": "Add idea to card",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "",
+				"captureToActiveFile": true,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": false,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "- {{VALUE}}"
+				},
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Add idea to card"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": []
+}

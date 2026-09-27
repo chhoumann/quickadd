@@ -2,6 +2,7 @@
 title: "Capture: Add entries to your daily note"
 description: Cookbook of Capture recipes that add timestamped lines, tasks, quotes, callouts, and table rows to today's daily note
 slug: docs/Examples/Capture_ToDailyNote
+package: daily-note-captures
 ---
 
 This cookbook gives you one QuickAdd choice that adds text to today's daily note - even when the note or the target heading doesn't exist yet.
@@ -9,6 +10,8 @@ This cookbook gives you one QuickAdd choice that adds text to today's daily note
 Every recipe starts from the same base Capture choice; you only change the **Capture format** and the target heading.
 
 ## Base setup
+
+Imported the package above? The journal, task, task-with-due-date, quote, and callout recipes are in place as captures under the **Daily note** folder; change **Capture to** on each if your daily-note path differs, then skip to [Recipes](#recipes).
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
 2. Disable **Capture to active file**.

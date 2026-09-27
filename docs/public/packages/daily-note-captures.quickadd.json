@@ -1,0 +1,611 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-daily-note-captures"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures",
+				"name": "Daily note",
+				"type": "Multi",
+				"command": false,
+				"choices": [
+					{
+						"id": "qa-pkg-daily-note-captures-journal",
+						"name": "Journal entry",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "- {{DATE:HH:mm}} {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Journal",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					{
+						"id": "qa-pkg-daily-note-captures-task",
+						"name": "Task",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "{{VALUE}}"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Tasks",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": true,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					{
+						"id": "qa-pkg-daily-note-captures-task-due",
+						"name": "Task with due date",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "{{VALUE}} due {{VDATE:due,YYYY-MM-DD}}"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Tasks",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": true,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					{
+						"id": "qa-pkg-daily-note-captures-quote",
+						"name": "Quote",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "> {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Quotes",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					{
+						"id": "qa-pkg-daily-note-captures-callout",
+						"name": "Callout",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "> {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "> [!info]- Captured today",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					}
+				],
+				"collapsed": false
+			},
+			"pathHint": [
+				"Daily note"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures-journal",
+				"name": "Journal entry",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "- {{DATE:HH:mm}} {{VALUE}}\\n"
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "## Journal",
+					"insertAtEnd": true,
+					"considerSubsections": false,
+					"createIfNotFound": true,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Daily note",
+				"Journal entry"
+			],
+			"parentChoiceId": "qa-pkg-daily-note-captures"
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures-task",
+				"name": "Task",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "{{VALUE}}"
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "## Tasks",
+					"insertAtEnd": true,
+					"considerSubsections": false,
+					"createIfNotFound": true,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": true,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Daily note",
+				"Task"
+			],
+			"parentChoiceId": "qa-pkg-daily-note-captures"
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures-task-due",
+				"name": "Task with due date",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "{{VALUE}} due {{VDATE:due,YYYY-MM-DD}}"
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "## Tasks",
+					"insertAtEnd": true,
+					"considerSubsections": false,
+					"createIfNotFound": true,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": true,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Daily note",
+				"Task with due date"
+			],
+			"parentChoiceId": "qa-pkg-daily-note-captures"
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures-quote",
+				"name": "Quote",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "> {{VALUE}}\\n"
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "## Quotes",
+					"insertAtEnd": true,
+					"considerSubsections": false,
+					"createIfNotFound": true,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Daily note",
+				"Quote"
+			],
+			"parentChoiceId": "qa-pkg-daily-note-captures"
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-daily-note-captures-callout",
+				"name": "Callout",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "> {{VALUE}}\\n"
+				},
+				"insertAfter": {
+					"enabled": true,
+					"after": "> [!info]- Captured today",
+					"insertAtEnd": true,
+					"considerSubsections": false,
+					"createIfNotFound": true,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": false,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Daily note",
+				"Callout"
+			],
+			"parentChoiceId": "qa-pkg-daily-note-captures"
+		}
+	],
+	"assets": []
+}

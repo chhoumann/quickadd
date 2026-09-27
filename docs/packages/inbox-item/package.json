@@ -1,0 +1,61 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.28.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-inbox-item"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-inbox-item",
+				"name": "Inbox item",
+				"type": "Template",
+				"command": true,
+				"templatePath": "Templates/Inbox Template.md",
+				"fileNameFormat": {
+					"enabled": true,
+					"format": "{{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}"
+				},
+				"discoverExistingNotesBeforeCreate": false,
+				"folder": {
+					"enabled": true,
+					"folders": [
+						"Inbox"
+					],
+					"chooseWhenCreatingNote": false,
+					"createInSameFolderAsActiveFile": false,
+					"chooseFromSubfolders": false
+				},
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"openFile": true,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"fileExistsBehavior": {
+					"kind": "prompt"
+				}
+			},
+			"pathHint": [
+				"Inbox item"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "template",
+			"originalPath": "Templates/Inbox Template.md",
+			"source": "files/Inbox Template.md"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Run **Inbox item** from the command palette and type a short name. Notes land in `Inbox/`; change **Folder path** on the choice to use another folder."
+		]
+	}
+}
