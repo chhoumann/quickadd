@@ -38,10 +38,12 @@
 	const content = $derived<AssetPreviewContent | null>(
 		expanded ? decodeAssetPreview(pkg, file.originalPath) : null,
 	);
-	const domId = $derived(file.originalPath.replace(/[^a-zA-Z0-9_-]/g, "-"));
-	const previewId = $derived(`qa-file-preview-${domId}`);
-	const destinationId = $derived(`qa-file-destination-${domId}`);
-	const actionId = $derived(`qa-file-action-${domId}`);
+	// Unique per row, unlike an id built from the path: "a/b.js" and "a-b.js"
+	// would sanitise to the same string and cross-wire the labels.
+	const uid = $props.id();
+	const previewId = `${uid}-preview`;
+	const destinationId = `${uid}-destination`;
+	const actionId = `${uid}-action`;
 	const fileName = $derived(file.originalPath.split("/").pop() ?? file.originalPath);
 
 	function formatBytes(bytes: number): string {
@@ -124,7 +126,9 @@
 			</button>
 		</div>
 		<div class="setting-item-control">
-			<label class="qa-visually-hidden" for={actionId}>Action</label>
+			<label class="qa-visually-hidden" for={actionId}
+				>Action for {file.originalPath}</label
+			>
 			<select
 				id={actionId}
 				class="dropdown"
@@ -183,7 +187,11 @@
 
 	<div class="setting-item qa-import-file-destination">
 		<div class="setting-item-info">
-			<label class="setting-item-name" for={destinationId}>Destination</label>
+			<label class="setting-item-name" for={destinationId}
+				>Destination <span class="qa-visually-hidden"
+					>for {file.originalPath}</span
+				></label
+			>
 		</div>
 		<div class="setting-item-control">
 			<input

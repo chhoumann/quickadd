@@ -12,6 +12,9 @@
 		toggleMacro: (id: string) => void;
 		onChoiceModeChange: (id: string, event: Event) => void;
 	} = $props();
+	// Choice ids come from the package, which is untrusted, so they are not
+	// safe as element ids.
+	const uid = $props.id();
 
 	/** "In Parent › Child" for a nested choice; nothing for a top-level one. */
 	function describeChoice(conflict: ChoiceConflict): string {
@@ -37,7 +40,7 @@
 				</div>
 			</div>
 		{/if}
-		{#each conflicts as conflict (conflict.choiceId)}
+		{#each conflicts as conflict, index (conflict.choiceId)}
 			{@const effectiveMode = effectiveChoiceMode(
 				choiceDecisions.get(conflict.choiceId) ?? "import",
 				conflict.exists,
@@ -67,13 +70,11 @@
 					{/if}
 				</div>
 				<div class="setting-item-control">
-					<label
-						class="qa-visually-hidden"
-						for={`qa-import-choice-${conflict.choiceId}`}
+					<label class="qa-visually-hidden" for={`${uid}-action-${index}`}
 						>Action for {conflict.name}</label
 					>
 					<select
-						id={`qa-import-choice-${conflict.choiceId}`}
+						id={`${uid}-action-${index}`}
 						class="dropdown"
 						value={effectiveMode}
 						onchange={(event) =>

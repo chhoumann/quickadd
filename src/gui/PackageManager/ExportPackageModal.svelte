@@ -247,7 +247,11 @@
 		<section class="qa-export-select">
 			<div class="qa-export-controls">
 				<div class="search-input-container">
+					<label class="qa-visually-hidden" for="qa-export-filter"
+						>Filter choices</label
+					>
 					<input
+						id="qa-export-filter"
 						type="search"
 						enterkeyhint="search"
 						placeholder="Filter choices..."
