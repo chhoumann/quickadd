@@ -1,0 +1,54 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.27.0",
+	"createdAt": "2026-09-27T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-toggl-manager"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-toggl-manager",
+				"name": "Toggl manager",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-toggl-manager-macro",
+					"name": "Toggl manager",
+					"commands": [
+						{
+							"id": "qa-pkg-toggl-manager-script",
+							"name": "togglManager",
+							"type": "UserScript",
+							"path": "scripts/togglManager.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Toggl manager"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/togglManager.js",
+			"source": "../../public/scripts/togglManager.js"
+		}
+	],
+	"install": {
+		"requires": [
+			"a Toggl Track [API token](https://track.toggl.com/profile)",
+			"the [Toggl Track integration](https://github.com/mcndt/obsidian-toggl-integration) community plugin"
+		],
+		"afterImport": [
+			"If you have not already, install and enable **Toggl Track integration** from **Settings → Community plugins → Browse**. In its settings, paste the token from the bottom of your [Toggl profile](https://track.toggl.com/profile) into **API Token**, click **connect** to check it, then pick your workspace under **Toggl Workspace** (click its refresh icon if the list is empty). The token lives in the Toggl plugin, not in QuickAdd.",
+			"Open `scripts/togglManager.js` (or wherever you put it during import) in a text editor and edit the `menu` object: each sub-menu has a `togglProjectName`, which must match a project in that workspace exactly, and `menuOptions`, where the left side is the label you see and the right side is the description Toggl gets. Save the file.",
+			"Run **Toggl manager** from the command palette, pick a project, then an entry to start the timer."
+		]
+	}
+}

@@ -3,37 +3,37 @@
 	"quickAddVersion": "2.28.0",
 	"createdAt": "2026-09-27T00:00:00.000Z",
 	"rootChoiceIds": [
-		"qa-pkg-book-finder"
+		"qa-pkg-movie-notes"
 	],
 	"choices": [
 		{
 			"choice": {
-				"id": "qa-pkg-book-finder",
-				"name": "Add book note",
+				"id": "qa-pkg-movie-notes",
+				"name": "Add movie note",
 				"type": "Macro",
 				"command": true,
 				"runOnStartup": false,
 				"macro": {
-					"id": "qa-pkg-book-finder-macro",
-					"name": "Add book note",
+					"id": "qa-pkg-movie-notes-macro",
+					"name": "Add movie note",
 					"commands": [
 						{
-							"id": "qa-pkg-book-finder-script",
-							"name": "BookFinder",
+							"id": "qa-pkg-movie-notes-script",
+							"name": "movies",
 							"type": "UserScript",
-							"path": "scripts/BookFinder.js",
+							"path": "scripts/movies.js",
 							"settings": {}
 						},
 						{
-							"id": "qa-pkg-book-finder-nested",
-							"name": "Book note",
+							"id": "qa-pkg-movie-notes-nested",
+							"name": "Movie note",
 							"type": "NestedChoice",
 							"choice": {
-								"id": "qa-pkg-book-finder-template",
-								"name": "Book note",
+								"id": "qa-pkg-movie-notes-template",
+								"name": "Movie note",
 								"type": "Template",
 								"command": false,
-								"templatePath": "Templates/Book.md",
+								"templatePath": "Templates/Movie.md",
 								"fileNameFormat": {
 									"enabled": true,
 									"format": "{{VALUE:fileName}}"
@@ -42,7 +42,7 @@
 								"folder": {
 									"enabled": true,
 									"folders": [
-										"Books"
+										"Movies"
 									],
 									"chooseWhenCreatingNote": false,
 									"createInSameFolderAsActiveFile": false,
@@ -66,7 +66,7 @@
 				}
 			},
 			"pathHint": [
-				"Add book note"
+				"Add movie note"
 			],
 			"parentChoiceId": null
 		}
@@ -74,23 +74,22 @@
 	"assets": [
 		{
 			"kind": "user-script",
-			"originalPath": "scripts/BookFinder.js",
-			"source": "../../public/scripts/BookFinder.js"
+			"originalPath": "scripts/movies.js",
+			"source": "../../public/scripts/movies.js"
 		},
 		{
 			"kind": "template",
-			"originalPath": "Templates/Book.md",
-			"source": "files/Book.md"
+			"originalPath": "Templates/Movie.md",
+			"source": "files/Movie.md"
 		}
 	],
 	"install": {
 		"requires": [
-			"an internet connection (titles are looked up on Google Books; no API key needed)"
+			"an OMDb API key ([free at omdbapi.com](https://www.omdbapi.com/apikey.aspx))"
 		],
 		"afterImport": [
-			"Notes land in `Books/`. To use another folder, click the cog next to **Add book note** in **Settings → QuickAdd**, then the cog on the **Book note** step, and change **Folder path**.",
-			"Run **Add book note** from the command palette and enter a book title (a short clipboard text is prefilled). The first Google Books match becomes the note; there is no picker.",
-			"If Google Books answers with a quota error, try again later. It does not mean the book was not found."
+			"In **Settings → QuickAdd**, click the cog next to **Add movie note**, then the cog on the **movies** step. Paste your key into **OMDb API Key** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"Run **Add movie note** from the command palette and search for a title or IMDb id (like `tt0111161`). The note lands in `Movies/`; change **Folder path** on the **Movie note** step to use another folder."
 		]
 	}
 }

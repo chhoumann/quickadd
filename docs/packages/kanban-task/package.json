@@ -75,7 +75,7 @@
 			"a board with at least one lane"
 		],
 		"afterImport": [
-			"Open the **Add task to board** choice in **Settings → QuickAdd** and set **Capture to** to your board file. Until you do, QuickAdd asks which file to capture to on every run.",
+			"In **Settings → QuickAdd**, click the cog next to **Add task to board** and set **Capture to** to your board file. Until you do, QuickAdd asks which file to capture to on every run.",
 			"Cards go to the top of the `## Backlog` lane. If your lane has another name, change **Insert after** to match its heading, for example `## To do`.",
 			"Run **Add task to board** from the command palette and type your task."
 		]

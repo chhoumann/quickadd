@@ -30,8 +30,9 @@ warning so you can locate or recreate the file before you share the package.
 
 ## Install an example from the docs {#install-an-example}
 
-[Example](/docs/Examples/) pages with a **Get this workflow** card ship their
-workflow as a package, so you can try it without building it by hand:
+Every [example](/docs/Examples/) page has a **Get this workflow** card at the
+top. It installs a ready-made copy of that workflow, so you can try it without
+building it by hand:
 
 1. On the example's page, check what the **Get this workflow** card says the
    package needs, such as another plugin or an API token, then click **Copy
@@ -43,13 +44,16 @@ workflow as a package, so you can try it without building it by hand:
    **Files** is marked **Executable**, open **View contents** on each one. If
    you trust the package, tick the acknowledgement, then click **Import
    package**.
-4. Follow **After importing** in the card to finish setup and run the workflow.
+4. Back on the example's page, expand **How to install** in the card and follow
+   **After importing** to finish setup and run the workflow.
 
 Don't see **Import package…**? Update QuickAdd, then reopen its settings.
 
-The packages never contain keys or tokens. Secret settings stay empty until you
-paste yours, and QuickAdd keeps them in Obsidian's secret storage rather than in
-`data.json`.
+The packages never contain keys or tokens. Where a workflow needs one, **After
+importing** says where to paste it. QuickAdd's secret fields store it in
+Obsidian's secret storage rather than in `data.json`; a token you enter in
+another plugin's settings, such as Toggl Track integration, is that plugin's to
+keep.
 
 Importing the same package again offers **Overwrite** for the choices you
 imported before. Overwriting replaces those choices, including settings you

@@ -12,9 +12,10 @@ module.exports = {
         author: "Christian B. B. Houmann",
         options: {
             [API_KEY_OPTION]: {
-                type: "text",
-                defaultValue: "",
-                placeholder: "OMDb API Key",
+                type: "secret",
+                id: "omdb-api-key",
+                placeholder: "Paste OMDb API key",
+                description: "Free at omdbapi.com.",
             },
         }
     }
