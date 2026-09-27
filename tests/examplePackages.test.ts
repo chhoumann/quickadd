@@ -8,6 +8,7 @@ import {
 	buildPackageJson,
 	listPackageIds,
 	manifestPath,
+	orphanOutputIds,
 	outputPath,
 	readManifest,
 	stalePackageIds,
@@ -198,6 +199,7 @@ describe("example packages", () => {
 
 	it("committed docs/public/packages/*.quickadd.json match their manifests (run `pnpm run packages:build`)", () => {
 		expect(stalePackageIds()).toEqual([]);
+		expect(orphanOutputIds(), "built packages whose manifest was removed").toEqual([]);
 	});
 
 	it("every page's `package:` names a manifest, and every manifest is offered by exactly one page", () => {

@@ -9,13 +9,13 @@
  * docs render as the "After importing" guide. This script inlines the sources
  * and writes the package the docs serve. Run it from the repo root:
  *
- *   pnpm run packages:build          # write every package
+ *   pnpm run packages:build          # write every package, drop outputs with no manifest
  *   pnpm run packages:build --check  # exit 1 when a committed package is stale
  *
  * `tests/examplePackages.test.ts` runs the same check in CI and additionally
  * validates each package against the plugin's real import code.
  */
-import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -153,15 +153,30 @@ export function stalePackageIds() {
 	);
 }
 
+/** Ids of committed outputs whose manifest is gone; the build removes them. */
+export function orphanOutputIds() {
+	const suffix = ".quickadd.json";
+	return readdirSync(OUTPUT_DIR)
+		.filter((name) => name.endsWith(suffix))
+		.map((name) => name.slice(0, -suffix.length))
+		.filter((id) => !safeExists(manifestPath(id)))
+		.sort();
+}
+
 function main() {
 	const check = process.argv.includes("--check");
 	const ids = listPackageIds();
 	if (check) {
 		const stale = stalePackageIds();
-		if (stale.length > 0) {
-			console.error(
-				`Stale example packages: ${stale.join(", ")}. Run "pnpm run packages:build".`,
-			);
+		const orphans = orphanOutputIds();
+		if (stale.length > 0 || orphans.length > 0) {
+			if (stale.length > 0) {
+				console.error(`Stale example packages: ${stale.join(", ")}.`);
+			}
+			if (orphans.length > 0) {
+				console.error(`Built packages without a manifest: ${orphans.join(", ")}.`);
+			}
+			console.error('Run "pnpm run packages:build".');
 			process.exit(1);
 		}
 		console.log(`${ids.length} example packages are up to date.`);
@@ -170,6 +185,10 @@ function main() {
 	for (const id of ids) {
 		writeFileSync(outputPath(id), buildPackageJson(id));
 		console.log(`wrote ${path.relative(process.cwd(), outputPath(id))}`);
+	}
+	for (const id of orphanOutputIds()) {
+		rmSync(outputPath(id));
+		console.log(`removed ${path.relative(process.cwd(), outputPath(id))}`);
 	}
 }
 
