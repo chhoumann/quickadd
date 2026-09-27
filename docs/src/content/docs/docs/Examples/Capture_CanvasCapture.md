@@ -34,6 +34,8 @@ Good fits:
    **Bottom of file**, or **After line…** / **Before line…**.
 6. Run the Capture choice.
 
+![Selecting the Contact flow card on a Website brainstorm canvas, running QuickAdd: Run, and picking an Add idea to card Capture that has Capture to active file on, Write position set to Bottom of file, and the format "- {{VALUE}}". After typing "Add a map with the studio address", the text appears as a new bullet at the bottom of the selected card](../Images/examples/canvas-capture-selected-card.gif)
+
 Supported selected-card targets:
 
 - Text cards
