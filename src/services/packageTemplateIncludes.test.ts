@@ -642,6 +642,39 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect(files.get("Templates/MOC.md")).toBe(scriptBody);
 	});
 
+	it("rewrites includes inside .base and .canvas templates, which the formatter also renders", async () => {
+		const base = "summary: {{TEMPLATE:Templates/Summary.md}}\n";
+		const canvas = '{"nodes":[{"text":"{{TEMPLATE:Templates/Summary.md}}"}]}';
+		const basePkg = makePackage(
+			[templateChoice("t1", "Dashboard", "Templates/Dashboard.base")],
+			[
+				asset("template", "Templates/Dashboard.base", base),
+				asset("template", "Boards/Board.canvas", canvas),
+				asset("template", "Templates/Summary.md", "Summary\n"),
+			],
+		);
+		const { app, files } = fakeApp();
+
+		await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: basePkg,
+			choiceDecisions: [{ choiceId: "t1", mode: "import" }],
+			assetDecisions: [
+				{ originalPath: "Templates/Dashboard.base", destinationPath: "Templates/Dashboard.base", mode: "write" },
+				{ originalPath: "Boards/Board.canvas", destinationPath: "Boards/Board.canvas", mode: "write" },
+				{ originalPath: "Templates/Summary.md", destinationPath: "My Templates/Summary.md", mode: "write" },
+			],
+		});
+
+		expect(files.get("Templates/Dashboard.base")).toBe(
+			"summary: {{TEMPLATE:My Templates/Summary.md}}\n",
+		);
+		expect(files.get("Boards/Board.canvas")).toBe(
+			'{"nodes":[{"text":"{{TEMPLATE:My Templates/Summary.md}}"}]}',
+		);
+	});
+
 	it("round-trips: an exported include chain imports into another folder and still resolves", async () => {
 		const source = fakeApp({
 			"Templates/MOC.md": MOC_TEMPLATE,

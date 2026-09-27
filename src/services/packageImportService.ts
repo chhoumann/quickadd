@@ -15,6 +15,7 @@ import {
 import { deepClone } from "../utils/deepClone";
 import { ensureParentFolders } from "../utils/ensureParentFolders";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { rewriteTemplateIncludes } from "../utils/templateIncludes";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
@@ -551,11 +552,12 @@ export async function applyPackageImport(
 
 
 /**
- * The bytes to write for a bundled asset. Markdown templates get their
- * `{{TEMPLATE:...}}` includes followed to the destinations chosen in this
- * import. Anything that can run as code — scripts, non-Markdown files, and a
- * note carrying a js fence — is written verbatim, so what the user reviewed is
- * exactly what lands on disk.
+ * The bytes to write for a bundled asset. A template the formatter renders
+ * (`.md`, `.canvas` or `.base`, the same set the export scans for includes)
+ * gets its `{{TEMPLATE:...}}` includes followed to the destinations chosen in
+ * this import. Anything that runs as code — scripts, files with any other
+ * extension, and a note carrying a js fence — is written verbatim, so what the
+ * user reviewed is exactly what lands on disk.
  */
 function importedAssetContent(
 	asset: QuickAddPackage["assets"][number],
@@ -564,10 +566,15 @@ function importedAssetContent(
 	const content = decodeFromBase64(asset.content);
 	const isTemplateKind =
 		asset.kind === "template" || asset.kind === "capture-template";
-	if (!isTemplateKind || !MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath)) {
+	if (!isTemplateKind || !hasTemplateExtension(asset.originalPath)) {
 		return content;
 	}
-	if (extractScriptFromMarkdown(content).code) return content;
+	if (
+		MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath) &&
+		extractScriptFromMarkdown(content).code
+	) {
+		return content;
+	}
 	return rewriteTemplateIncludes(content, pathOverrides);
 }
 
