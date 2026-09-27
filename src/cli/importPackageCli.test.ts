@@ -230,6 +230,35 @@ describe("quickadd:package-import", () => {
 		expect(files.get("Templates/Meeting.md")).toBe("mine");
 	});
 
+	it("never stats a redirected destination that would leave the vault", async () => {
+		// A template asset is redirected into the template folder by file name,
+		// so a crafted name can only escape via a traversal segment.
+		const { app } = fakeVault({
+			[PACKAGE_PATH]: pkg(
+				[templateChoice({ templatePath: ".." })],
+				[
+					{
+						kind: "template",
+						originalPath: "..",
+						contentEncoding: "base64",
+						content: encodeToBase64("x"),
+					},
+				],
+			),
+		});
+		const plugin = fakePlugin(app);
+
+		await expect(
+			run(plugin, { path: PACKAGE_PATH, acknowledge: "true" }),
+		).rejects.toThrow();
+
+		const probed = (app.vault.adapter.exists as ReturnType<typeof vi.fn>).mock.calls.map(
+			([path]) => path as string,
+		);
+		expect(probed).not.toContain("Templates/..");
+		expect(settingsStore.getState().choices).toEqual([]);
+	});
+
 	it("rejects unknown modes and a missing path without touching settings", async () => {
 		const { app } = fakeVault({ [PACKAGE_PATH]: pkg([templateChoice()]) });
 		const plugin = fakePlugin(app);

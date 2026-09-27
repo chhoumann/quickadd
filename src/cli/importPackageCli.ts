@@ -22,6 +22,7 @@ import {
 import { requiresAcknowledgement } from "../services/packagePreview";
 import type IChoice from "../types/choices/IChoice";
 import { flattenChoices } from "../utils/choiceUtils";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { isTruthy } from "./params";
 
 export const PACKAGE_IMPORT_COMMAND = "quickadd:package-import";
@@ -112,10 +113,13 @@ export async function importPackageHandler(
 	const assetDecisions: AssetImportDecision[] = [];
 	for (const conflict of analysis.assetConflicts) {
 		const destinationPath = defaultAssetDestinationFor(conflict, templateFolderPaths);
+		// applyPackageImport rejects a destination outside the vault; do not
+		// stat it first (the package, and so this path, is untrusted input).
 		const exists =
 			destinationPath === conflict.originalPath
 				? conflict.exists
-				: await app.vault.adapter.exists(destinationPath);
+				: !escapesVaultBoundary(destinationPath) &&
+					(await app.vault.adapter.exists(destinationPath));
 		assetDecisions.push({
 			originalPath: conflict.originalPath,
 			destinationPath,

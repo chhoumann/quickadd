@@ -456,6 +456,10 @@ export async function applyPackageImport(
 	// Decide every write before the first one: a bundled template's
 	// `{{TEMPLATE:...}}` includes must point at where the included file is
 	// actually going, which is only known once all destinations are settled.
+	// A skipped asset is still referenced at its destination: the reader kept
+	// the file that is already there (typically after re-importing), so the
+	// choices and includes have to point at that copy, not at the package's
+	// original path.
 	const plannedWrites: Array<{ asset: QuickAddPackage["assets"][number]; destinationPath: string }> = [];
 	const assetPathOverrides = new Map<string, string>();
 	for (const { asset, destinationPath } of resolvedAssetDestinations) {
@@ -463,13 +467,13 @@ export async function applyPackageImport(
 		const exists = await assetExists(app, destinationPath);
 		const mode =
 			decision?.mode ?? (exists ? "overwrite" : "write");
+		assetPathOverrides.set(asset.originalPath, destinationPath);
 
 		if (mode === "skip") {
 			skippedAssets.push(destinationPath);
 			continue;
 		}
 		plannedWrites.push({ asset, destinationPath });
-		assetPathOverrides.set(asset.originalPath, destinationPath);
 	}
 
 	for (const { asset, destinationPath } of plannedWrites) {

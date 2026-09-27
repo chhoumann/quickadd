@@ -10,6 +10,7 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
@@ -151,13 +152,14 @@ function collectPackageUsages(
 		const next: string[] = [];
 		for (const path of frontier) {
 			if (scanned.has(path)) continue;
-			scanned.add(path);
 			const asset = assetsByPath.get(path);
-			if (!asset || !MARKDOWN_FILE_EXTENSION_REGEX.test(path)) continue;
+			if (!asset || !hasTemplateExtension(path)) continue;
 			// A note referenced only as a script runs its js fence; the formatter
-			// never resolves includes in it.
+			// never resolves includes in it. Leave it unscanned so a later
+			// `{{TEMPLATE:...}}` reference to the same note still gets a walk.
 			const templateUsages = (usagesByPath.get(path) ?? []).filter((u) => !u.asScript);
 			if (templateUsages.length === 0) continue;
+			scanned.add(path);
 			let decoded: string;
 			try {
 				decoded = decodeFromBase64(asset.content);

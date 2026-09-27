@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"quickAddVersion": "2.27.0",
+	"quickAddVersion": "2.28.0",
 	"createdAt": "2026-09-27T00:00:00.000Z",
 	"rootChoiceIds": [
 		"qa-pkg-moc-link-dashboard"

@@ -46,6 +46,13 @@ const pluginVersion = (
 		version: string;
 	}
 ).version;
+// A package may need import behaviour that is merged but not yet released.
+// Releases are cut from Conventional Commits, so the next release is at most
+// one minor above manifest.json; anything beyond that is a typo.
+const nextMinorVersion = (() => {
+	const [major, minor] = pluginVersion.split(".").map(Number);
+	return `${major}.${minor + 1}.0`;
+})();
 
 const ids = listPackageIds();
 
@@ -225,8 +232,8 @@ describe("example packages", () => {
 		it("is a valid package that this plugin version can import", () => {
 			expect(() => parseQuickAddPackage(output)).not.toThrow();
 			expect(
-				compareSemver(pkg.quickAddVersion, pluginVersion),
-				`quickAddVersion ${pkg.quickAddVersion} is newer than manifest.json (${pluginVersion})`,
+				compareSemver(pkg.quickAddVersion, nextMinorVersion),
+				`quickAddVersion ${pkg.quickAddVersion} is beyond the next release (${nextMinorVersion}); manifest.json is ${pluginVersion}`,
 			).toBeLessThanOrEqual(0);
 			expect(pkg.rootChoiceIds.length).toBeGreaterThan(0);
 			for (const rootId of pkg.rootChoiceIds) {

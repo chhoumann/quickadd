@@ -43,7 +43,11 @@ script's `settings` object and tell the reader where to paste it in
    and copy the JSON.
 2. Create `docs/packages/<id>/package.json`, paste the `choices` and
    `rootChoiceIds`, and rename every choice id to the `qa-pkg-<id>` namespace.
-   Set `quickAddVersion` to the plugin version the workflow needs.
+   Set `quickAddVersion` to the plugin version the workflow needs: the card
+   shows it as "Needs QuickAdd X or later". If the package leans on import
+   behaviour that is merged but unreleased, name the next minor release
+   (releases are cut from Conventional Commits); the test suite allows at most
+   one minor above `manifest.json`.
 3. Replace each asset's `content` with a `source` path. Scripts point at
    `docs/public/scripts/`; put templates under `files/`.
 4. Add the `install` block and set `package: <id>` on the docs page.

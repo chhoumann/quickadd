@@ -2,7 +2,6 @@ import { packageSecretOptionNames } from "./packageAssets";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
 import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -22,6 +21,7 @@ import {
 	collectFileDependencies,
 	collectScriptDependencies,
 } from "../utils/packageTraversal";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import {
 	stripUserScriptSecretRefsFromChoice
@@ -189,12 +189,13 @@ async function bundleTransitiveIncludes(
 	}
 }
 
-// Only note-like templates are read as templates by the formatter; a script's
-// body (even a `.md` note-script) never has its includes resolved.
+// The formatter runs over whatever file a template path names (`.md`,
+// `.canvas` or `.base`), so includes inside any of them resolve at run time. A
+// script's body (even a `.md` note-script) never has its includes resolved.
 function isIncludeScannable(asset: QuickAddPackageAsset): boolean {
 	return (
 		(asset.kind === "template" || asset.kind === "capture-template") &&
-		MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath)
+		hasTemplateExtension(asset.originalPath)
 	);
 }
 

@@ -229,6 +229,50 @@ describe("buildPackage bundles {{TEMPLATE:}} includes", () => {
 		expect(Object.keys(assetPaths(pkg))).toEqual(["Scripts/note-script.md"]);
 	});
 
+	it("follows includes inside a bundled .base or .canvas template, which the formatter also renders", async () => {
+		const template = templateChoice("t1", "Dashboard", "Templates/Dashboard.base");
+		const { app } = fakeApp({
+			"Templates/Dashboard.base": "summary: {{TEMPLATE:Templates/Summary.md}}\n",
+			"Templates/Summary.md": "{{TEMPLATE:Boards/Board.canvas}}",
+			"Boards/Board.canvas": '{"nodes":[{"text":"{{TEMPLATE:Templates/Deep.md}}"}]}',
+			"Templates/Deep.md": "deep",
+		});
+
+		const { pkg, missingAssets } = await buildPackage(app, {
+			choices: [template],
+			rootChoiceIds: ["t1"],
+			quickAddVersion: "2.30.0",
+		});
+
+		expect(Object.keys(assetPaths(pkg)).sort()).toEqual([
+			"Boards/Board.canvas",
+			"Templates/Dashboard.base",
+			"Templates/Deep.md",
+			"Templates/Summary.md",
+		]);
+		expect(missingAssets).toEqual([]);
+	});
+
+	it("matches an include written with a leading slash to the vault file it resolves to", async () => {
+		const template = templateChoice("t1", "New MOC", "Templates/MOC.md");
+		const { app } = fakeApp({
+			"Templates/MOC.md": "{{TEMPLATE: /Templates/Dashboard.base}}",
+			"Templates/Dashboard.base": DASHBOARD_BASE,
+		});
+
+		const { pkg, missingAssets } = await buildPackage(app, {
+			choices: [template],
+			rootChoiceIds: ["t1"],
+			quickAddVersion: "2.30.0",
+		});
+
+		expect(assetPaths(pkg)).toEqual({
+			"Templates/MOC.md": "template",
+			"Templates/Dashboard.base": "template",
+		});
+		expect(missingAssets).toEqual([]);
+	});
+
 	it("terminates on templates that include each other", async () => {
 		const template = templateChoice("t1", "Loop", "Templates/A.md");
 		const { app } = fakeApp({
@@ -376,6 +420,49 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(preview.missingReferences).toEqual([]);
 	});
 
+	it("still walks a note used as a script once a template include reaches it", () => {
+		// The macro's script reference comes first in the walk; the include
+		// found inside the bundled template must not be shadowed by it.
+		const macro = macroChoice("m1", "Run", [userScript("s1", "Notes/Shared.md")]);
+		const template = templateChoice("t1", "New", "Templates/Entry.md");
+		const pkg = makePackage(
+			[macro, template],
+			[
+				asset("user-script", "Notes/Shared.md", "{{TEMPLATE:Templates/Nested.md}}"),
+				asset("template", "Templates/Entry.md", "{{TEMPLATE:Notes/Shared.md}}"),
+			],
+		);
+
+		const preview = buildPackagePreview([], pkg, new Set());
+
+		expect(preview.missingReferences.map((ref) => ref.path)).toEqual([
+			"Templates/Nested.md",
+		]);
+	});
+
+	it("follows includes inside a bundled .base template", () => {
+		const capture = captureChoice("c1", "Insert dashboard", {
+			enabled: true,
+			format: "{{TEMPLATE:Templates/Dashboard.base}}",
+		});
+		const pkg = makePackage(
+			[capture],
+			[
+				asset(
+					"template",
+					"Templates/Dashboard.base",
+					"summary: {{TEMPLATE:Templates/Summary.md}}\n",
+				),
+			],
+		);
+
+		const preview = buildPackagePreview([], pkg, new Set());
+
+		expect(preview.missingReferences.map((ref) => ref.path)).toEqual([
+			"Templates/Summary.md",
+		]);
+	});
+
 	it("terminates on bundled templates that include each other", () => {
 		const template = templateChoice("t1", "Loop", "Templates/A.md");
 		const pkg = makePackage(
@@ -485,6 +572,42 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			"## {{VALUE}}\n{{TEMPLATE:Templates/Dashboard.base}}\n",
 		);
 		expect(files.get("Templates/Dashboard.base")).toBe("existing");
+	});
+
+	it("points choices and includes at a skipped file's destination, not the package path", async () => {
+		// Second import into a vault whose template folder is "My Templates":
+		// the reader keeps every file that is already there.
+		const { app, files } = fakeApp({
+			"My Templates/MOC.md": "kept",
+			"My Templates/Section.md": "kept",
+			"My Templates/Dashboard.base": "kept",
+		});
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [
+				{ choiceId: "t1", mode: "import" },
+				{ choiceId: "c1", mode: "import" },
+			],
+			assetDecisions: [
+				{ originalPath: "Templates/MOC.md", destinationPath: "My Templates/MOC.md", mode: "skip" },
+				{ originalPath: "Templates/Section.md", destinationPath: "My Templates/Section.md", mode: "write" },
+				{ originalPath: "Templates/Dashboard.base", destinationPath: "My Templates/Dashboard.base", mode: "skip" },
+			],
+		});
+
+		expect(result.skippedAssets).toEqual(["My Templates/MOC.md", "My Templates/Dashboard.base"]);
+		expect(files.get("My Templates/MOC.md")).toBe("kept");
+		expect(files.get("My Templates/Section.md")).toBe(
+			"## {{VALUE}}\n{{TEMPLATE:My Templates/Dashboard.base}}\n",
+		);
+		const importedTemplate = result.updatedChoices[0] as ITemplateChoice;
+		expect(importedTemplate.templatePath).toBe("My Templates/MOC.md");
+		const importedCapture = result.updatedChoices[1] as ICaptureChoice;
+		expect(importedCapture.format.format).toBe("{{TEMPLATE:My Templates/Section.md}}\n");
+		expect(importedCapture.createFileIfItDoesntExist.template).toBe("My Templates/MOC.md");
 	});
 
 	it("writes anything that can run as code byte-for-byte, even when an include moved", async () => {

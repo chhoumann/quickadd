@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEMPLATE_REGEX } from "../constants";
 import {
 	collectTemplateIncludePaths,
 	rewriteTemplateIncludes,
@@ -30,6 +31,57 @@ describe("collectTemplateIncludePaths", () => {
 	it("returns an empty set for empty content", () => {
 		expect(collectTemplateIncludePaths("").size).toBe(0);
 	});
+
+	it("normalizes paths the way the formatter resolves them", () => {
+		const content =
+			"{{TEMPLATE: /Templates/X.md}}{{TEMPLATE:Templates/X.md}}{{TEMPLATE:///Y.base}}";
+		expect(Array.from(collectTemplateIncludePaths(content))).toEqual([
+			"Templates/X.md",
+			"Y.base",
+		]);
+	});
+
+	// The hand-written scanner must never disagree with the formatter's regex
+	// about which tokens exist; these inputs cover every branch of the regex.
+	const PARITY_CORPUS = [
+		"{{TEMPLATE:a.md}}",
+		"{{TEMPLATE:a.md}}}",
+		"{{TEMPLATE:a.md}}{{TEMPLATE:b.canvas}}",
+		"{{TEMPLATE:}}",
+		"{{TEMPLATE:.md}}",
+		"{{TEMPLATE:a.md}",
+		"{{TEMPLATE:a.md\n}}",
+		"{{TEMPLATE:a.txt}}",
+		"{{TEMPLATE:a.md.bak}}",
+		"{{template:A.MD}} {{Template:b.Base}}",
+		"{{TEMPLATE:{{TEMPLATE:x.md}}",
+		"{{TEMPLATE:x{{TEMPLATE:y.md}}",
+		"{{TEMPLATE:a.md} {{TEMPLATE:b.md}}",
+		"{{TEMPLATE:a}}{{TEMPLATE:b.md}}",
+		"{{TEMPLATE: /spaced.md}}",
+		"{{TEMPLATE:trailing.md }}",
+		"no tokens {{VALUE}} {{MACRO:x}}",
+		"{{TEMPLATE:a.md}}\r\n{{TEMPLATE:b.md}}\r{{TEMPLATE:c.md}}",
+	];
+
+	it.each(PARITY_CORPUS)("matches TEMPLATE_REGEX on %j", (content) => {
+		const expected = new Set<string>();
+		const re = new RegExp(TEMPLATE_REGEX.source, "gi");
+		let match: RegExpExecArray | null;
+		while ((match = re.exec(content)) !== null) {
+			const path = match[1]?.trim().replace(/^\/+/, "");
+			if (path) expected.add(path);
+		}
+		expect(collectTemplateIncludePaths(content)).toEqual(expected);
+	});
+
+	it("scans a crafted line of unterminated prefixes in linear time", () => {
+		// 20 000 prefixes take ~5 s with a global regex retrying each one.
+		const content = "{{TEMPLATE:".repeat(20_000) + "x.md";
+		const started = performance.now();
+		expect(collectTemplateIncludePaths(content).size).toBe(0);
+		expect(performance.now() - started).toBeLessThan(500);
+	});
 });
 
 describe("rewriteTemplateIncludes", () => {
@@ -57,6 +109,13 @@ describe("rewriteTemplateIncludes", () => {
 		expect(rewriteTemplateIncludes("{{TEMPLATE:t/a.md.bak.md}}", overrides)).toBe(
 			"{{TEMPLATE:t/a.md.bak.md}}",
 		);
+	});
+
+	it("rewrites a token whose path is written with a leading slash or padding", () => {
+		const overrides = new Map([["t/a.md", "u/a.md"]]);
+		expect(
+			rewriteTemplateIncludes("x {{TEMPLATE: /t/a.md}} y", overrides),
+		).toBe("x {{TEMPLATE:u/a.md}} y");
 	});
 
 	it("returns the same string when there is nothing to rewrite", () => {
