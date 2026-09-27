@@ -14,17 +14,20 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-quickadd-capture}"
 ab() { agent-browser --cdp "$OBSIDIAN_E2E_CDP_PORT" "$@" >/dev/null; }
 cap() { obsidian-e2e capture "$@"; }
 text="Call the plumber about the kitchen tap"
+inbox="$OBSIDIAN_E2E_CAPTURE_VAULT_PATH/Inbox.md"
+count() { local n; n=$(grep -cxF -- "- $text" "$inbox" 2>/dev/null); echo "${n:-0}"; }
+before=$(count)
 
 ab eval 'app.workspace.openLinkText("Inbox", "", false).then(() => app.workspace.activeEditor?.editor?.blur?.())'
 ab mouse move 1180 740
 sleep 1
 ab press Control+p
 sleep 0.5
-cap type "QuickAdd: Run" --delay 60
+cap type "QuickAdd: Run" --delay 60 --selector ".prompt-input"
 sleep 0.5
 ab press Enter
 sleep 0.9
-cap type "inbox" --delay 80
+cap type "inbox" --delay 80 --selector ".prompt-input"
 sleep 0.5
 ab press Enter
 sleep 0.8
@@ -32,10 +35,11 @@ cap type "$text" --delay 45
 sleep 0.6
 ab press Enter
 
-# Verify the product behaviour, not just the pixels.
+# Verify the product behaviour, not just the pixels: this take must add a NEW
+# entry (a reused vault may already contain one from an earlier take).
 for _ in $(seq 1 30); do
-	grep -qF -- "- $text" "$OBSIDIAN_E2E_CAPTURE_VAULT_PATH/Inbox.md" && break
+	(( $(count) > before )) && break
 	sleep 0.2
 done
-grep -qF -- "- $text" "$OBSIDIAN_E2E_CAPTURE_VAULT_PATH/Inbox.md"
+(( $(count) > before )) || { echo "QuickAdd did not add a new entry to Inbox.md" >&2; exit 1; }
 sleep 2
