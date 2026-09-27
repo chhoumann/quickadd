@@ -1,0 +1,37 @@
+{
+	"choices": [
+		{
+			"id": "c0ffee00-0000-4000-8000-000000000001",
+			"name": "Add to inbox",
+			"type": "Capture",
+			"command": false,
+			"captureTo": "Inbox.md",
+			"captureToActiveFile": false,
+			"captureToCanvasNodeId": "",
+			"activeFileWritePosition": "cursor",
+			"createFileIfItDoesntExist": { "enabled": true, "createWithTemplate": false, "template": "" },
+			"format": { "enabled": true, "format": "- {{VALUE}}\n" },
+			"insertAfter": {
+				"enabled": false,
+				"after": "",
+				"insertAtEnd": false,
+				"considerSubsections": false,
+				"createIfNotFound": false,
+				"createIfNotFoundLocation": "top",
+				"inline": false,
+				"replaceExisting": false,
+				"blankLineAfterMatchMode": "auto",
+				"promptHeading": false
+			},
+			"insertBefore": { "enabled": false, "before": "", "createIfNotFound": false, "createIfNotFoundLocation": "top" },
+			"newLineCapture": { "enabled": false, "direction": "below" },
+			"prepend": true,
+			"appendLink": false,
+			"copyLinkToClipboard": false,
+			"task": false,
+			"openFile": false,
+			"templater": { "afterCapture": "none" }
+		}
+	],
+	"migrations": {}
+}
