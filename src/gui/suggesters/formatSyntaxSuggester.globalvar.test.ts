@@ -80,14 +80,19 @@ describe("FormatSyntaxSuggester {{GLOBAL_VAR:}} names", () => {
 			suggester.selectSuggestion(beforeY);
 			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
 
-			// Moving the caret past the braces (which does not rebuild the list)
-			// must not let a stale suffix eat the text that follows.
-			inputEl.value = "- {{GLOBAL_VAR:My}} after";
-			inputEl.setSelectionRange(caret, caret);
-			const [stale] = suggester.getSuggestions(inputEl.value);
-			inputEl.setSelectionRange(caret + 2, caret + 2);
-			suggester.selectSuggestion(stale);
-			expect(inputEl.value).toBe("- {{GLOBAL_VAR:MyProjects}} after");
+			// Once the caret has left the unfinished fragment, a still-visible row
+			// changes nothing: no braces or text between are consumed.
+			for (const [value, moveTo] of [
+				["- {{GLOBAL_VAR:My}} after", caret + 2],
+				["- {{GLOBAL_VAR:My {{DATE}}", "- {{GLOBAL_VAR:My {{DATE".length],
+			] as const) {
+				inputEl.value = value;
+				inputEl.setSelectionRange(caret, caret);
+				const [stale] = suggester.getSuggestions(inputEl.value);
+				inputEl.setSelectionRange(moveTo, moveTo);
+				suggester.selectSuggestion(stale);
+				expect(inputEl.value).toBe(value);
+			}
 		} finally {
 			suggester.destroy();
 		}

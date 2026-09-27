@@ -25,8 +25,8 @@ const PLACEHOLDER_REGEX = /<[^<>\n\r]+>/;
 export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestion> {
 	/** Start offset of the fragment the accepted suggestion replaces. */
 	private replaceFrom = 0;
-	/** Whether accepting also replaces a "}}" found right after the caret. */
-	private replaceClosingBraces = false;
+	/** Whether the open list completes a {{GLOBAL_VAR: variable name. */
+	private completingGlobalVarName = false;
 	/** The letters typed after "{{", used to highlight what matched. */
 	private matchedQuery = "";
 	private readonly macroNames: string[];
@@ -55,7 +55,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		// the user is currently typing, not earlier, already-completed tokens.
 		const startBrace = inputStr.lastIndexOf("{{", cursorPosition - 1);
 		if (startBrace === -1) return [];
-		this.replaceClosingBraces = false;
+		this.completingGlobalVarName = false;
 
 		const inputSegment = inputStr.slice(startBrace, cursorPosition);
 
@@ -92,9 +92,7 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		if (globalVarMatch) {
 			this.replaceFrom = startBrace;
 			this.matchedQuery = inputSegment.slice(2);
-			// Accepting the empty {{GLOBAL_VAR:}} row parks the caret before its
-			// "}}"; the completed token brings its own, so consume those.
-			this.replaceClosingBraces = true;
+			this.completingGlobalVarName = true;
 			const fragment = (globalVarMatch[1] ?? "").toLowerCase();
 			return Object.keys(this.plugin?.settings?.globalVariables ?? {})
 				.filter((name) => name.toLowerCase().startsWith(fragment))
@@ -182,13 +180,22 @@ export class FormatSyntaxSuggester extends TextInputSuggest<FormatTokenSuggestio
 		const cursorPosition: number = this.inputEl.selectionStart;
 		const replaceStart = this.replaceFrom;
 
-		// Checked against the caret now, not when the list was built: the list is
-		// rebuilt on a debounce, so a span captured then can be a keystroke stale,
-		// and moving the caret does not rebuild it at all.
-		const replaceEnd =
-			this.replaceClosingBraces && this.inputEl.value.startsWith("}}", cursorPosition)
-				? cursorPosition + 2
-				: cursorPosition;
+		let replaceEnd = cursorPosition;
+		if (this.completingGlobalVarName) {
+			// Checked against the caret now, not when the list was built: the list
+			// is rebuilt on a debounce, so it can be a keystroke stale, and moving
+			// the caret does not rebuild it at all. A row only completes the
+			// unfinished {{GLOBAL_VAR: fragment the caret is still in.
+			const value = this.inputEl.value;
+			const fragment = value.slice(replaceStart, cursorPosition);
+			if (fragment.lastIndexOf("{{") !== 0 || !GLOBAL_VAR_NAME_FRAGMENT_REGEX.test(fragment)) {
+				this.close();
+				return;
+			}
+			// Accepting the empty {{GLOBAL_VAR:}} row parks the caret before its
+			// "}}"; the completed token brings its own, so consume those.
+			if (value.startsWith("}}", cursorPosition)) replaceEnd += 2;
+		}
 
 		// Replace the partial syntax with the complete syntax
 		replaceRange(this.inputEl, replaceStart, replaceEnd, item.insert, {
