@@ -101,8 +101,9 @@ two ways to point it at your script:
   folder, so same-named scripts such as several `view.js` files are easy to
   tell apart.
 - **Type it in.** For a `.js` file, type its basename - for
-  `scripts/my-macro.js`, enter `my-macro`. For a note, type its vault path, for
-  example `Scripts/my-macro.md`. Then click **Add**. To run a specific exported
+  `scripts/my-macro.js`, enter `my-macro`; if two `.js` files share that name,
+  use its vault path instead. For a note, type its vault path, for example
+  `Scripts/my-macro.md`. Then click **Add**. To run a specific exported
   function, append it with `::`, such as `my-macro::start`.
 
 If the script exports more than one function and you don't name one, QuickAdd

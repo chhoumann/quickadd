@@ -221,7 +221,21 @@ describe("CommandSequenceEditor script picker (Browse)", () => {
 		editor.destroy();
 	});
 
+	it("adds a script typed into the picker by its vault path", async () => {
+		vi.spyOn(InputSuggester, "Suggest").mockResolvedValue("Scripts/ask.js");
+		const { editor, browse, onCommandsChange } = renderEditor();
+
+		await fireEvent.click(browse);
+		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalledTimes(1));
+
+		expect(onCommandsChange.mock.calls[0][0]).toMatchObject([
+			{ name: "ask", path: "Scripts/ask.js" },
+		]);
+		editor.destroy();
+	});
+
 	// #942: several `view.js` files in different folders all rendered as "view".
+	// Picking one must save that file, named by its path.
 	it("tells same-named scripts apart by path", async () => {
 		const app = testApp();
 		app.vault.getFiles = () =>
@@ -273,7 +287,10 @@ describe("CommandSequenceEditor script picker (Browse)", () => {
 		picker.selectSuggestion(matches[0], new MouseEvent("click"));
 		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalled());
 		expect(onCommandsChange.mock.lastCall?.[0]).toEqual([
-			expect.objectContaining({ name: "view", path: "bins/views/progress-bar/view.js" }),
+			expect.objectContaining({
+				name: "bins/views/progress-bar/view.js",
+				path: "bins/views/progress-bar/view.js",
+			}),
 		]);
 		editor.destroy();
 	});

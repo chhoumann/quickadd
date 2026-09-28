@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { TFile, type App } from "obsidian";
 import {
 	type ScriptCandidate,
+	candidateLabels,
 	noteScriptError,
 	resolveScriptSelector,
 } from "./scriptCandidates";
@@ -77,6 +78,46 @@ describe("resolveScriptSelector", () => {
 		const app = appWith([file("Notes/plain.txt")]);
 		expect(resolveScriptSelector(app, [], "Notes/plain.txt")).toBeNull();
 		expect(resolveScriptSelector(app, [], "does/not/exist.md")).toBeNull();
+	});
+});
+
+describe("candidateLabels", () => {
+	it("gives every script a label that adds that script, even with shared basenames", () => {
+		const candidates = [
+			candidate("bins/scripts/formatDate.js", false),
+			candidate("Projects/work/scripts/formatDate.js", false),
+			candidate("bins/scripts/cleanup.js", false),
+			candidate("Projects/work/Tally.md", true),
+		];
+		const app = appWith(candidates.map((c) => c.file));
+
+		const labels = candidateLabels(candidates);
+
+		expect(labels).toEqual([
+			"bins/scripts/formatDate.js",
+			"Projects/work/scripts/formatDate.js",
+			"cleanup",
+			"Projects/work/Tally.md",
+		]);
+		labels.forEach((label, i) => {
+			expect(resolveScriptSelector(app, candidates, label)).toBe(candidates[i]);
+		});
+	});
+
+	it("uses the path when a .js basename equals another script's path", () => {
+		const candidates = [
+			candidate("foo.js", false),
+			candidate("sub/foo.js", false),
+			candidate("scripts/foo.js.js", false),
+		];
+		const app = appWith(candidates.map((c) => c.file));
+
+		const labels = candidateLabels(candidates);
+
+		expect(labels).toEqual(["foo.js", "sub/foo.js", "scripts/foo.js.js"]);
+		labels.forEach((label, i) => {
+			expect(resolveScriptSelector(app, candidates, label)).toBe(candidates[i]);
+		});
 	});
 });
 
