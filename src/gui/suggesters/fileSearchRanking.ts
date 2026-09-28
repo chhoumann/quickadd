@@ -10,7 +10,6 @@ export const SearchWeights = {
 		aliasPrefix: -500,
 		substringBasename: -300,
 		fuzzyMatch: 0,
-		unresolvedLink: 1000,
 	},
 	boosts: {
 		sameFolder: -0.15,
