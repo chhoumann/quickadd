@@ -113,6 +113,17 @@ Daily/2026-07-08.md
 Review on 2026-07-15
 ```
 
+<a id="obsidian-date-placeholders"></a>
+
+:::note[Seeing `+3` or `{{DATE+3}}` in your note?]
+Obsidian's **Daily notes** and **Templates** core plugins fill `{{date}}`,
+`{{time}}`, and `{{title}}` themselves, and nothing else. If **Open today's
+daily note** or **Insert template** filled in the note, `{{DATE}}` works, but
+`{{DATE:YYYY-MM-DD+3}}` becomes `2026-07-08+3`, `{{DATE+3}}` stays as-is, and
+`|startof:` turns into gibberish. Run the file from a QuickAdd
+[Template choice](/docs/Choices/TemplateChoice/) instead.
+:::
+
 ### Choose the date format: `{{DATE:<format>}}` {#date-format}
 
 Put a [Moment.js format](https://momentjs.com/docs/#/displaying/format/) after
@@ -189,6 +200,7 @@ order.
 
 Good to know:
 
+- Snaps are QuickAdd-only. Obsidian's **Open today's daily note** and **Insert template** garble them; see [above](#obsidian-date-placeholders).
 - The `+N` day offset is applied **before** the snap, so `{{DATE:YYYY-MM-DD+7|startof:week}}` means "the start of next week".
 - `endof:` snaps to the last moment of the period (`23:59:59.999`), so `{{DATE:YYYY-MM-DD HH:mm|endof:day}}` renders `... 23:59`.
 - `|startof:`, `|endof:`, and `|case:` are special pipe options in a date format. Any other literal `|` is kept as-is: `{{DATE:YYYY|MM}}` gives `2023|06`. Put a literal `|case:lower` inside square brackets.
