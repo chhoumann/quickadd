@@ -9,6 +9,7 @@ import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
+import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
 import type { ICommand } from "../types/macros/ICommand";
 import type { LoadedUserScript } from "../utils/userScript";
 import { executeUserScript, type ScriptParameters } from "./userScriptExecution";
@@ -150,6 +151,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				if (!entries) return;
 
 				sharedVariables.clear();
+				restoreDateVariableFormats(sharedVariables, new Map());
 
 				entries?.forEach(([key, value]) => sharedVariables.set(key, value));
 			},

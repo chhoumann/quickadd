@@ -1,6 +1,6 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+export { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
@@ -452,6 +452,25 @@ export abstract class Formatter extends ValueFormatter {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
+	}
+
+	protected getValueTokenText(variableName: string): string {
+		const stored = this.variables.get(variableName);
+		// An unparseable @date: value prints as-is, as it always has.
+		if (
+			typeof stored === "string" &&
+			stored.startsWith("@date:") &&
+			window.moment?.(stored.slice(6)).isValid()
+		) {
+			const dateFormat =
+				getDateVariableFormat(this.variables, variableName) ??
+				defaultDateVariableFormat(false);
+			return (
+				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)
+					?.text ?? ""
+			);
+		}
+		return super.getValueTokenText(variableName);
 	}
 
 	protected async replaceTemplateInString(input: string): Promise<string> {

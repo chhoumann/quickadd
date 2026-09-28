@@ -1,3 +1,4 @@
+import realMoment from "moment";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1108,6 +1109,56 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 			f.formatFolderPath("{{VDATE:due,YYYY-MM-DD}}"),
 		).resolves.toBe("2025-06-21");
 		expect(mocks.vdatePrompt).toHaveBeenCalled();
+	});
+
+	it("renders a {{VALUE:<name>}} reuse of a date in the VDATE's format (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath(
+				"{{VDATE:due date,DD.MM.YYYY}} {{VALUE:due date}} {{VDATE:due date,YYYY}}",
+			),
+		).resolves.toBe("25.02.2024 25.02.2024 2024");
+		expect(mocks.vdatePrompt).toHaveBeenCalledTimes(1);
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
+	});
+
+	it("shares the VDATE format with later formatters on the run's variables (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const variables = new Map<string, unknown>();
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const format = (input: string) =>
+			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any)
+				.formatFolderPath(input);
+
+		// A later macro step or an included {{TEMPLATE:}} formats with its own
+		// formatter, sharing only the executor's variables.
+		await format("{{VDATE:due,DD.MM.YYYY}}");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("25.02.2024");
+		// Its own VDATE doesn't replace the first format.
+		await expect(format("{{VDATE:due,YYYY}} {{VALUE:due}}")).resolves.toBe(
+			"2024 25.02.2024",
+		);
+
+		// A different answer, here set by a script, has no VDATE format.
+		variables.set("due", "@date:2024-03-01T12:00:00.000Z");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-03-01");
+
+		// A script deletes the answer to ask again, and the same date is picked.
+		variables.delete("due");
+		await expect(format("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
+			"2024/02/25 2024/02/25",
+		);
+	});
+
+	it("prints an unparseable @date: value as-is", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		const variables = new Map<string, unknown>([["due", "@date:not-a-date"]]);
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any);
+		await expect(f.formatFolderPath("{{VALUE:due}}")).resolves.toBe("@date:not-a-date");
 	});
 });
 

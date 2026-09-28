@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import { CompleteFormatter } from "./formatters/completeFormatter";
+import { restoreDateVariableFormats, snapshotDateVariableFormats } from "./formatters/helpers/dateTokens";
 import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTemplateToActiveNote";
 import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } from "./engine/TemplateInsertEngine";
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
@@ -15,20 +16,22 @@ import { requestInputs } from "./api/requestInputs";
 import { createAiApi } from "./api/aiApi";
 import { createFieldSuggestionsApi } from "./api/fieldSuggestionsApi";
 
-function snapshotVariables(
-	vars: Map<string, unknown>,
-): Array<[string, unknown]> {
-	return Array.from(vars.entries());
+function snapshotVariables(vars: Map<string, unknown>) {
+	return {
+		entries: Array.from(vars.entries()),
+		dateFormats: snapshotDateVariableFormats(vars),
+	};
 }
 
 function restoreVariables(
 	vars: Map<string, unknown>,
-	snapshot: Array<[string, unknown]>,
+	snapshot: ReturnType<typeof snapshotVariables>,
 ): void {
 	vars.clear();
-	for (const [key, value] of snapshot) {
+	for (const [key, value] of snapshot.entries) {
 		vars.set(key, value);
 	}
+	restoreDateVariableFormats(vars, snapshot.dateFormats);
 }
 
 export class QuickAddApi {
@@ -117,6 +120,7 @@ export class QuickAddApi {
 			await choiceExecutor.execute(choice);
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
+			restoreDateVariableFormats(choiceExecutor.variables, new Map());
 			if (abort) {
 				throw abort;
 			}

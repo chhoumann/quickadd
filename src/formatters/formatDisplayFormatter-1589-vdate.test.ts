@@ -86,6 +86,17 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
 	});
 
+	it("previews a {{VALUE:}} reuse of an ANSWERED date in the VDATE's format, as the run does (#645)", async () => {
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
+		);
+		await expect(
+			formatter.format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("15.08.2026 15.08.2026");
+	});
+
 	it("keeps the text stable for a half-typed |startof: unit, and still reports it", async () => {
 		// parseVDateOptions throws on a unit that does not resolve. Before, that
 		// blanked the whole body preview between two keystrokes (#1558's failure

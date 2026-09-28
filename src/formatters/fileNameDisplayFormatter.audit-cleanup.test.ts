@@ -139,6 +139,17 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		await expect(formatter.format("{{VDATE:due}}")).resolves.toBe("2026-08-15");
 	});
 
+	it("previews a {{VALUE:}} reuse of an ANSWERED date in the VDATE's format, as the run does (#645)", async () => {
+		const formatter = makeFormatter();
+		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
+			"due",
+			`@date:${new Date(2026, 7, 15, 12, 0, 0).toISOString()}`,
+		);
+		await expect(
+			formatter.format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}}"),
+		).resolves.toBe("15.08.2026 15.08.2026");
+	});
+
 	it("renders an answered-empty optional date as empty, not as today", async () => {
 		const formatter = makeFormatter();
 		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(

@@ -28,6 +28,55 @@ export function defaultDateVariableFormat(withTime: boolean): string {
 	return withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD";
 }
 
+type DateVariableFormats = Map<string, { answer: unknown; dateFormat: string }>;
+
+// The {{VDATE}} format a {{VALUE:<name>}} reuse prints the stored @date:ISO in:
+// the first VDATE that rendered the answer. Run-scoped like the answer itself,
+// so it is keyed by the run's variables map, which included templates and
+// macro steps share. Code that clears or restores a variables map for reuse
+// must carry these along (quickAddApi.ts, MacroChoiceEngine's params.variables).
+const dateVariableFormats = new WeakMap<Map<string, unknown>, DateVariableFormats>();
+
+/** `freshAnswer`: this VDATE just produced the answer, so its format wins. */
+export function rememberDateVariableFormat(
+	variables: Map<string, unknown>,
+	name: string,
+	dateFormat: string,
+	freshAnswer = false,
+): void {
+	let formats = dateVariableFormats.get(variables);
+	if (!formats) {
+		formats = new Map();
+		dateVariableFormats.set(variables, formats);
+	}
+	const answer = variables.get(name);
+	// A different answer (a later prompt or script) never inherits the format.
+	if (freshAnswer || formats.get(name)?.answer !== answer) {
+		formats.set(name, { answer, dateFormat });
+	}
+}
+
+export function getDateVariableFormat(
+	variables: Map<string, unknown>,
+	name: string,
+): string | undefined {
+	const entry = dateVariableFormats.get(variables)?.get(name);
+	return entry && entry.answer === variables.get(name) ? entry.dateFormat : undefined;
+}
+
+export function snapshotDateVariableFormats(
+	variables: Map<string, unknown>,
+): DateVariableFormats {
+	return new Map(dateVariableFormats.get(variables));
+}
+
+export function restoreDateVariableFormats(
+	variables: Map<string, unknown>,
+	snapshot: DateVariableFormats,
+): void {
+	dateVariableFormats.set(variables, new Map(snapshot));
+}
+
 export function renderStoredDateVariable(
 	stored: unknown,
 	dateFormat: string,
@@ -229,6 +278,12 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 		if (rendered?.normalized !== undefined) {
 			context.variables.set(variableName, rendered.normalized);
 		}
+		rememberDateVariableFormat(
+			context.variables,
+			variableName,
+			dateFormat,
+			existingValue === undefined || rendered?.normalized !== undefined,
+		);
 
 		output += context.applyCase(
 			rendered?.text ?? "",

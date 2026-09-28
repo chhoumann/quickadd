@@ -1,6 +1,7 @@
 import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
+import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 
 // ---------------------------------------------------------------------------
@@ -1049,6 +1050,26 @@ describe("format", () => {
 		// The temporary variable must NOT leak; the original snapshot is restored.
 		expect(executor.variables.get("pre")).toBe("existing");
 		expect(executor.variables.has("temp")).toBe(false);
+	});
+
+	it("restores the VDATE formats with the variables (#645)", async () => {
+		const answer = "@date:2024-02-25T12:00:00.000Z";
+		const executor = makeChoiceExecutor();
+		executor.variables.set("start", answer);
+		rememberDateVariableFormat(executor.variables, "start", "YYYY");
+		mocks.formatFileContent.mockImplementationOnce(async () => {
+			rememberDateVariableFormat(executor.variables, "due", "DD.MM.YYYY");
+			return "out";
+		});
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await api.format("in", { due: answer });
+
+		// The caller's format survives; the call's own is gone, even if a later
+		// call supplies the same date.
+		expect(getDateVariableFormat(executor.variables, "start")).toBe("YYYY");
+		executor.variables.set("due", answer);
+		expect(getDateVariableFormat(executor.variables, "due")).toBeUndefined();
 	});
 
 	it("keeps injected variables when shouldClearVariables is false", async () => {
