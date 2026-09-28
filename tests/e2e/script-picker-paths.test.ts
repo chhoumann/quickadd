@@ -12,11 +12,11 @@ const getContext = createQuickAddE2EHarness("script-picker-paths");
 
 it("adds same-named scripts by path from the typeahead and Browse, and runs each", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
-	const log = await seedVaultFile(obsidian, sandbox, "ran.md", "");
-	const script = (tag: string) =>
-		`module.exports = async ({ app }) => { await app.vault.append(app.vault.getAbstractFileByPath(${JSON.stringify(log)}), ${JSON.stringify(`${tag}\n`)}); };`;
-	const books = await seedVaultFile(obsidian, sandbox, "views/books/view.js", script("books"));
-	const progress = await seedVaultFile(obsidian, sandbox, "views/qa-progress-panel/view.js", script("progress"));
+	// Each script records its own name, so a run shows which file executed.
+	const books = await seedVaultFile(obsidian, sandbox, "views/books/view.js",
+		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("books"); };');
+	const progress = await seedVaultFile(obsidian, sandbox, "views/qa-progress-panel/view.js",
+		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("progress"); };');
 	const macro = new MacroChoice("Script picker paths");
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
 		data.choices = [macro];
@@ -86,8 +86,8 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await obsidian.dev.evalJson(`(() => { document.querySelectorAll(".macroBuilder").forEach((builder) => Array.from(builder.querySelectorAll("button")).find((button) => button.textContent.trim() === "Done")?.click()); app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
 	}
 
+	await obsidian.dev.evalJson("(() => { window.__qaScriptPickerRuns = []; return true; })()");
 	await obsidian.exec("quickadd:run", { choice: macro.name });
-	await expect.poll(() => obsidian.dev.evalJsonAsync<string>(
-		`app.vault.adapter.read(${JSON.stringify(log)})`,
-	), POLL_OPTS).toBe("progress\nbooks\n");
+	await expect.poll(() => obsidian.dev.evalJson<string[]>("window.__qaScriptPickerRuns"), POLL_OPTS)
+		.toEqual(["progress", "books"]);
 });
