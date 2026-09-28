@@ -118,9 +118,11 @@ export class RequirementCollector extends Formatter {
 		try {
 			// Expand global variables first so we can detect inner requirements
 			const expanded = await this.replaceGlobalVarInString(input);
-			// Run a safe formatting pass that collects variables but avoids side-effects
-			this.scanVariableTokens(expanded);
+			// Run a safe formatting pass that collects variables but avoids side-effects.
+			// Dates first, as the run replaces VDATEs before named VALUEs: a
+			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.
 			this.scanDateTokens(expanded);
+			this.scanVariableTokens(expanded);
 			this.scanFileTokens(expanded);
 			// Anonymous {{VALUE}}/{{NAME}} and {{MVALUE}} resolutions are
 			// cached, so their prompt hooks fire once per collector; a path
@@ -228,6 +230,14 @@ export class RequirementCollector extends Formatter {
 			const description = !hasOptions && label ? label : undefined;
 			const requirementId = variableKey;
 
+			// A VDATE with this name asks first at run time, which matches names
+			// case-insensitively, so this VALUE only reuses the date.
+			const reusedDate = this.findRequirementIgnoringCase(requirementId, "date");
+			if (reusedDate) {
+				this.markScanContext(reusedDate);
+				continue;
+			}
+
 			if (!this.requirements.has(requirementId)) {
 				// |type:checkbox renders a forced true/false dropdown and
 				// |type:number a numeric input, so the one-page form matches the
@@ -288,6 +298,25 @@ export class RequirementCollector extends Formatter {
 				existing.optional = (existing.optional ?? false) && parsed.optional;
 			}
 		}
+	}
+
+	/**
+	 * A named VALUE finds an earlier answer by its exact name, or else by the
+	 * one name that matches case-insensitively (two are ambiguous at run time).
+	 */
+	private findRequirementIgnoringCase(
+		key: string,
+		type: FieldType,
+	): FieldRequirement | undefined {
+		const exact = this.requirements.get(key);
+		if (exact) return exact.type === type ? exact : undefined;
+		const lower = key.toLowerCase();
+		const matches = [...this.requirements.values()].filter(
+			(req) => req.id.toLowerCase() === lower,
+		);
+		return matches.length === 1 && matches[0].type === type
+			? matches[0]
+			: undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
@@ -362,6 +391,7 @@ export class RequirementCollector extends Formatter {
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
+			// A VDATE finds an earlier answer by its exact name at run time.
 			const existing = this.requirements.get(variableName);
 			if (!existing) {
 				this.requirements.set(variableName, {
@@ -375,6 +405,16 @@ export class RequirementCollector extends Formatter {
 					source: "collected",
 				});
 			} else {
+				// A plain {{VALUE:<name>}} seen first, say in the file name, is
+				// answered with text that this VDATE then parses: ask for a date.
+				if (
+					(existing.type === "text" || existing.type === "textarea") &&
+					!this.hasOptionList(existing)
+				) {
+					existing.type = "date";
+					existing.dateFormat = dateFormat;
+					existing.withTime = withTime;
+				}
 				// Only backfill date metadata onto date requirements — a
 				// same-name VALUE requirement must not inherit a VDATE default.
 				if (

@@ -15,6 +15,7 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"Due: {{VDATE:due,YYYY-MM-DD}}\nWeek: {{VDATE:due,gggg-[W]WW}}",
 	"{{VDATE:due,YYYY-MM-DD|next monday}}",
 	"{{VDATE:due,dddd, MMMM Do, YYYY|case:lower}}",
+	"- [ ] Throw and trim 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Glaze fire 📅 {{VALUE:due}}",
 	"- [ ] {{VALUE|label:Task}}",
 	"---\ntitle: {{VALUE:title}}\n---\n# {{VALUE:title}}",
 	"{{VALUE:project|label:Client or project name}}",
@@ -288,6 +289,18 @@ describe("Format Syntax documentation examples", () => {
 
 			expect(rendered, example).not.toMatch(/\{\{[^}]+}}/);
 		}
+	});
+
+	it("reuses a VDATE answer through {{VALUE:<name>}} in the VDATE's format", async () => {
+		const formatter = new DocsExampleFormatter();
+
+		await expect(
+			formatter.render(
+				"- [ ] Throw and trim 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Glaze fire 📅 {{VALUE:due}}",
+			),
+		).resolves.toBe(
+			"- [ ] Throw and trim 📅 2026-05-11\n- [ ] Glaze fire 📅 2026-05-11",
+		);
 	});
 
 	it("applies documented DATE +N day offsets instead of concatenating them", async () => {

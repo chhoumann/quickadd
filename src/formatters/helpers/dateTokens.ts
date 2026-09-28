@@ -50,8 +50,10 @@ export function rememberDateVariableFormat(
 		dateVariableFormats.set(variables, formats);
 	}
 	const answer = variables.get(name);
+	const remembered = formats.get(name);
 	// A different answer (a later prompt or script) never inherits the format.
-	if (freshAnswer || formats.get(name)?.answer !== answer) {
+	// The previews remember an unanswered date too, so a reuse shows its format.
+	if (freshAnswer || !remembered || remembered.answer !== answer) {
 		formats.set(name, { answer, dateFormat });
 	}
 }
@@ -62,6 +64,25 @@ export function getDateVariableFormat(
 ): string | undefined {
 	const entry = dateVariableFormats.get(variables)?.get(name);
 	return entry && entry.answer === variables.get(name) ? entry.dateFormat : undefined;
+}
+
+/**
+ * Exact name first, then one case-insensitive match, as the run resolves a
+ * named {{VALUE}} (two matches are ambiguous there, so they are here too).
+ */
+export function findDateVariableFormat(
+	variables: Map<string, unknown>,
+	name: string,
+): string | undefined {
+	const exact = getDateVariableFormat(variables, name);
+	if (exact !== undefined) return exact;
+	const lower = name.toLowerCase();
+	const matches = [...(dateVariableFormats.get(variables)?.keys() ?? [])].filter(
+		(key) => key.toLowerCase() === lower,
+	);
+	return matches.length === 1
+		? getDateVariableFormat(variables, matches[0])
+		: undefined;
 }
 
 export function snapshotDateVariableFormats(
