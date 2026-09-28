@@ -248,36 +248,14 @@ describe("UpdateModal", () => {
 		await vi.waitFor(() => expect(modal.containerEl.isConnected).toBe(false));
 	});
 
-	it("nests release headings without touching code blocks or tags", async () => {
+	it("renders each release's notes exactly as written", async () => {
 		const body = [
 			"# QuickAdd 1.2.0",
 			"## Journal entries",
 			"#project is a tag, not a heading.",
-			"```markdown",
-			"## Journal",
-			"- 09:10 Unloaded the kiln.",
-			"```",
-			"~~~~",
-			"# Still code",
-			"```",
-			"# Still code after a shorter fence",
-			"~~~~",
-			"## After the code",
-			"```markdown",
-			"```typescript is not a closing fence",
-			"## Still code",
-			"```",
-			"  ## Indented heading",
-			"###### Deepest heading",
 			"- ```markdown",
-			"  # Code in a list item",
+			"  ## Journal",
 			"  ```",
-			"1. Step",
-			"",
-			"      ```markdown",
-			"   # Code under a numbered step",
-			"      ```",
-			"## Last heading",
 		].join("\n");
 		mockResponse(200, [
 			{ tag_name: "1.2.0", body, draft: false, prerelease: false },
@@ -289,38 +267,8 @@ describe("UpdateModal", () => {
 		await vi.waitFor(() => expect(render).toHaveBeenCalled());
 
 		const [, markdown, container] = render.mock.calls[0];
-		expect(markdown).toContain(
-			[
-				"## QuickAdd 1.2.0",
-				"### Journal entries",
-				"#project is a tag, not a heading.",
-				"```markdown",
-				"## Journal",
-				"- 09:10 Unloaded the kiln.",
-				"```",
-				"~~~~",
-				"# Still code",
-				"```",
-				"# Still code after a shorter fence",
-				"~~~~",
-				"### After the code",
-				"```markdown",
-				"```typescript is not a closing fence",
-				"## Still code",
-				"```",
-				"  ### Indented heading",
-				"###### Deepest heading",
-				"- ```markdown",
-				"  # Code in a list item",
-				"  ```",
-				"1. Step",
-				"",
-				"      ```markdown",
-				"   # Code under a numbered step",
-				"      ```",
-				"### Last heading",
-			].join("\n"),
-		);
+		// Copied examples keep their headings and tags.
+		expect(markdown).toContain(body);
 		// Obsidian styles code blocks, inline code, and callouts only inside it.
 		expect(container.classList.contains("markdown-rendered")).toBe(true);
 		render.mockRestore();

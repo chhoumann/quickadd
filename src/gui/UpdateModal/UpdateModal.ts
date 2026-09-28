@@ -156,42 +156,6 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-// Fences may sit inside list items, after a marker or indented under one. A
-// backtick fence's info string can't contain backticks, and a closing fence
-// has nothing after it but whitespace (CommonMark).
-const FENCE_OPEN = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(`{3,}(?=[^`]*$)|~{3,})/;
-const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/;
-// Levels 1-5: a seventh # would turn a level-6 heading into plain text.
-const HEADING = /^( {0,3})(#{1,5})(?=\s|$)/;
-
-/**
- * Nests the release notes' headings one level under the modal's own heading.
- * Lines inside fenced code blocks are examples to copy, and `#tag` lines are
- * tags, so both stay as written.
- */
-function addExtraHashToHeadings(markdownText: string): string {
-	let openFence: string | null = null;
-
-	return markdownText
-		.split("\n")
-		.map((line) => {
-			if (openFence === null) {
-				openFence = line.match(FENCE_OPEN)?.[1] ?? null;
-				return openFence ? line : line.replace(HEADING, "$1#$2");
-			}
-			const close = line.match(FENCE_CLOSE)?.[1];
-			if (
-				close &&
-				close[0] === openFence[0] &&
-				close.length >= openFence.length
-			) {
-				openFence = null;
-			}
-			return line;
-		})
-		.join("\n");
-}
-
 export class UpdateModal extends Modal {
 	releases: Release[];
 	private releaseNotesPromise: Promise<Release[]>;
@@ -271,7 +235,7 @@ export class UpdateModal extends Modal {
 		contentEl.empty();
 		contentEl.classList.add("quickadd-update-modal-container");
 
-        const header = `### New in QuickAdd v${this.releases[0].tag_name}\n`
+		const header = `## New in QuickAdd v${this.releases[0].tag_name}\n`;
 		const text = `Thank you for using QuickAdd! If you like the plugin, please consider supporting me by buying me a coffee. With your sponsorship, I'll be able to contribute more to my existing projects, start new ones, and be more responsive to issues & feature requests.`;
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
@@ -284,9 +248,9 @@ export class UpdateModal extends Modal {
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
         const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
-		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${addExtraHashToHeadings(
-			releaseNotes
-		)}`;
+		// The notes render exactly as written, code examples included. CSS in
+		// styles.css shows their headings one level smaller than in a note.
+		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${releaseNotes}`;
 
 		this.markdownComponent.load();
 		void MarkdownRenderer.render(
