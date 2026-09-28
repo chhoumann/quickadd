@@ -23,7 +23,7 @@ import { CaptureChoice } from "../../types/choices/CaptureChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import {
 	type ScriptCandidate,
-	candidateLabel,
+	candidateLabels,
 	loadScriptCandidates,
 	noteScriptError,
 	resolveScriptSelector,
@@ -390,7 +390,7 @@ export class CommandSequenceEditor {
 				input = this.configureSuggestedInput(
 					textComponent,
 					"Start typing script name...",
-					this.scriptCandidates.map(candidateLabel),
+					candidateLabels(this.scriptCandidates),
 					addUserScriptFromInput,
 				);
 			})
@@ -401,13 +401,8 @@ export class CommandSequenceEditor {
 					// Obsidian drops the click handler's promise: without this, pressing
 					// Escape in the picker is an unhandled rejection.
 					.onClick(reportingHandler("Couldn't add that script", async () => {
-						const selected = await this.showScriptPicker();
-						if (selected) {
-							const name = selected.isMarkdown
-								? selected.file.path
-								: selected.file.basename;
-							this.addCommand(new UserScript(name, selected.file.path));
-						}
+						const script = await this.showScriptPicker();
+						if (script) this.addCommand(script);
 					}))
 			)
 			.addButton((button) => {
@@ -502,7 +497,7 @@ export class CommandSequenceEditor {
 			.onClick(() => this.addCommand(create()));
 	}
 
-	private async showScriptPicker(): Promise<ScriptCandidate | null> {
+	private async showScriptPicker(): Promise<UserScript | null> {
 		// Refresh so scripts/notes created while this editor is open are listed.
 		this.loadScriptCandidates();
 		if (this.scriptCandidates.length === 0) {
@@ -514,7 +509,7 @@ export class CommandSequenceEditor {
 		// Rows show the name with the full path beneath it, and search matches the
 		// path, so same-named scripts in different folders can be told apart.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
-		const labels = this.scriptCandidates.map((c) => candidateLabel(c));
+		const labels = candidateLabels(this.scriptCandidates);
 		const selectedPath = await InputSuggester.Suggest(
 			this.app,
 			labels,
@@ -527,12 +522,9 @@ export class CommandSequenceEditor {
 			}
 		);
 
-		if (!selectedPath) return null;
-
-		const candidate = this.scriptCandidates.find(
-			(c) => c.file.path === selectedPath
-		);
-		if (!candidate) return null;
+		const index = paths.indexOf(selectedPath);
+		if (index === -1) return null;
+		const candidate = this.scriptCandidates[index];
 
 		if (candidate.isMarkdown) {
 			const reason = await noteScriptError(this.app, candidate.file);
@@ -542,7 +534,7 @@ export class CommandSequenceEditor {
 			}
 		}
 
-		return candidate;
+		return new UserScript(labels[index], candidate.file.path);
 	}
 
 	private addCommand(command: ICommand) {

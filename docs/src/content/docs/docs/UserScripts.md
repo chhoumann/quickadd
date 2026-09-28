@@ -68,7 +68,8 @@ in the script picker.
 In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
 (both `.js` files and notes that contain a code block); it is not a native file
 picker. If you add a script manually, type a `.js` script's basename - for
-`scripts/my-script.js`, enter `my-script` - or, for a note, type its vault path
+`scripts/my-script.js`, enter `my-script` (or its vault path, if another `.js`
+file shares that name) - or, for a note, type its vault path
 (e.g. `Scripts/my-script.md`). For a specific export, append a member expression
 such as `my-script::start` (or `Scripts/my-script.md::start`).
 

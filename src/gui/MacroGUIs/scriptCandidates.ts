@@ -87,7 +87,24 @@ export async function noteScriptError(
 	return error ?? "No ```js code block found in the note.";
 }
 
-/** Suggester label: basename for .js (legacy), full path for notes. */
-export function candidateLabel(candidate: ScriptCandidate): string {
-	return candidate.isMarkdown ? candidate.file.path : candidate.file.basename;
+/**
+ * Suggester labels, one per candidate: basename for .js (legacy), full path for
+ * notes and for .js files whose basename is ambiguous (shared with another .js,
+ * or equal to some file's path). Labels are unique, and each resolves back to
+ * its own file through `resolveScriptSelector`.
+ */
+export function candidateLabels(candidates: ScriptCandidate[]): string[] {
+	const paths = new Set(candidates.map(({ file }) => file.path));
+	const jsBasenameCounts = new Map<string, number>();
+	for (const { file, isMarkdown } of candidates) {
+		if (isMarkdown) continue;
+		jsBasenameCounts.set(file.basename, (jsBasenameCounts.get(file.basename) ?? 0) + 1);
+	}
+	return candidates.map(({ file, isMarkdown }) =>
+		isMarkdown ||
+		jsBasenameCounts.get(file.basename)! > 1 ||
+		paths.has(file.basename)
+			? file.path
+			: file.basename,
+	);
 }
