@@ -1105,7 +1105,7 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
-	it("shares the VDATE format with formatters on the same run's variables, and drops it once the answer changes", async () => {
+	it("shares the VDATE format across formatters on one run's variables, but not with a later run on the same map", async () => {
 		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
 		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
 		const choiceExecutor = { variables: new Map<string, unknown>() };
@@ -1127,6 +1127,12 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		await expect(formatter().formatFolderPath("{{VALUE:due}}")).resolves.toBe(
 			"2024-03-01",
 		);
+
+		// A later run on the reused map with the SAME answer but another format.
+		choiceExecutor.variables.clear();
+		await expect(
+			formatter().formatFolderPath("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}"),
+		).resolves.toBe("2024/02/25 2024/02/25");
 	});
 });
 
