@@ -236,6 +236,9 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 			if (!cleanVariableName) {
 				return match; // Return original if incomplete
 			}
+			if (!this.dateVariableFormats.has(cleanVariableName)) {
+				this.dateVariableFormats.set(cleanVariableName, cleanDateFormat);
+			}
 
 			// An ANSWERED date wins over the example, resolved through the run's
 			// own renderer so a seeded @date:ISO renders exactly as it will.

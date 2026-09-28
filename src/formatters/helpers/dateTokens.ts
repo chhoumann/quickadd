@@ -16,6 +16,7 @@ interface DateTokenContext {
 }
 interface DateVariableContext {
 	variables: Map<string, unknown>;
+	dateFormats: Map<string, string>;
 	dateParser: IDateParser | undefined;
 	prompt: (name: string, context: PromptContext) => Promise<string>;
 	applyCase: ApplyCase;
@@ -169,6 +170,9 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 		// default so the rendered value carries the picked time.
 		const dateFormat =
 			match[2]?.trim() || defaultDateVariableFormat(withTime);
+		if (!context.dateFormats.has(variableName)) {
+			context.dateFormats.set(variableName, dateFormat);
+		}
 
 		const existingValue = context.variables.get(variableName);
 

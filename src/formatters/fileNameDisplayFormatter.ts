@@ -430,6 +430,9 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 			const { withTime, snap, caseStyle } = options;
 			const cleanDateFormat =
 				dateFormat?.trim() || defaultDateVariableFormat(withTime);
+			if (!this.dateVariableFormats.has(cleanVariableName)) {
+				this.dateVariableFormats.set(cleanVariableName, cleanDateFormat);
+			}
 
 			// An ANSWERED date wins over the example. The one-page input form
 			// seeds the user's real picks into this formatter before computing the

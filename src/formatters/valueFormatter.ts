@@ -670,7 +670,7 @@ export abstract class ValueFormatter {
 			} else {
 				const stringVal = String(
 					this.applyValueTextOptions(
-						this.getVariableValue(effectiveKey),
+						this.getValueTokenText(effectiveKey),
 						parsed,
 					) ?? "",
 				);
@@ -720,6 +720,11 @@ export abstract class ValueFormatter {
 	}
 
 	protected abstract getVariableValue(variableName: string): string;
+
+	/** The text a `{{VALUE:<name>}}` token renders for a resolved variable. */
+	protected getValueTokenText(variableName: string): string {
+		return this.getVariableValue(variableName);
+	}
 
 	protected abstract suggestForValue(
 		suggestedValues: string[],

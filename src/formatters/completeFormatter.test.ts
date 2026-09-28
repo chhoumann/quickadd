@@ -1,3 +1,4 @@
+import realMoment from "moment";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1089,6 +1090,19 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 			f.formatFolderPath("{{VDATE:due,YYYY-MM-DD}}"),
 		).resolves.toBe("2025-06-21");
 		expect(mocks.vdatePrompt).toHaveBeenCalled();
+	});
+
+	it("renders a {{VALUE:<name>}} reuse of a date in the VDATE's format (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const f = defaultFormatter();
+		await expect(
+			f.formatFolderPath(
+				"{{VDATE:due date,DD.MM.YYYY}} {{VALUE:due date}} {{VDATE:due date,YYYY}}",
+			),
+		).resolves.toBe("25.02.2024 25.02.2024 2024");
+		expect(mocks.vdatePrompt).toHaveBeenCalledTimes(1);
+		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 });
 
