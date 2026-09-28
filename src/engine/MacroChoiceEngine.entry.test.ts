@@ -13,6 +13,7 @@ import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INested
 import type IChoice from "../types/choices/IChoice";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { QuickAddApi } from "../quickAddApi";
+import { getDateVariableFormat, rememberDateVariableFormat } from "../formatters/helpers/dateTokens";
 import type * as UserScriptModule from "../utils/userScript";
 import type { LoadedUserScript } from "../utils/userScript";
 
@@ -563,13 +564,16 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 			} as IMacro,
 		};
 
+		const date = "@date:2024-02-25T12:00:00.000Z";
 		mockLoadModuleExports.mockImplementationOnce(() => {
 			return Promise.resolve(async (params: { variables: Record<string, unknown> }) => {
-				params.variables = { foo: "bar" };
+				params.variables = { foo: "bar", due: date };
 			});
 		});
 
 		variables.set("old", "value");
+		variables.set("due", date);
+		rememberDateVariableFormat(variables, "due", "DD.MM.YYYY");
 
 		const engine = new MacroChoiceEngine(
 			app,
@@ -583,6 +587,8 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 
 		expect(choiceExecutor.variables.get("foo")).toBe("bar");
 		expect(choiceExecutor.variables.has("old")).toBe(false);
+		// The replaced scratchpad's VDATE formats go with it (#645).
+		expect(getDateVariableFormat(variables, "due")).toBeUndefined();
 	});
 
 	it("does not clear variables when assigned the same backing map", async () => {

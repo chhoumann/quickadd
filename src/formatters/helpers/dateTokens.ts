@@ -34,7 +34,7 @@ type DateVariableFormats = Map<string, { answer: unknown; dateFormat: string }>;
 // the first VDATE that rendered the answer. Run-scoped like the answer itself,
 // so it is keyed by the run's variables map, which included templates and
 // macro steps share. Code that clears or restores a variables map for reuse
-// must carry these along (see quickAddApi.ts).
+// must carry these along (quickAddApi.ts, MacroChoiceEngine's params.variables).
 const dateVariableFormats = new WeakMap<Map<string, unknown>, DateVariableFormats>();
 
 export function rememberDateVariableFormat(
