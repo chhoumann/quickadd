@@ -1126,6 +1126,12 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		// A different answer, here set by a script, has no VDATE format.
 		variables.set("due", "@date:2024-03-01T12:00:00.000Z");
 		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-03-01");
+
+		// A script deletes the answer to ask again, and the same date is picked.
+		variables.delete("due");
+		await expect(format("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
+			"2024/02/25 2024/02/25",
+		);
 	});
 
 	it("prints an unparseable @date: value as-is", async () => {

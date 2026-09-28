@@ -37,10 +37,12 @@ type DateVariableFormats = Map<string, { answer: unknown; dateFormat: string }>;
 // must carry these along (quickAddApi.ts, MacroChoiceEngine's params.variables).
 const dateVariableFormats = new WeakMap<Map<string, unknown>, DateVariableFormats>();
 
+/** `freshAnswer`: this VDATE just produced the answer, so its format wins. */
 export function rememberDateVariableFormat(
 	variables: Map<string, unknown>,
 	name: string,
 	dateFormat: string,
+	freshAnswer = false,
 ): void {
 	let formats = dateVariableFormats.get(variables);
 	if (!formats) {
@@ -49,7 +51,7 @@ export function rememberDateVariableFormat(
 	}
 	const answer = variables.get(name);
 	// A different answer (a later prompt or script) never inherits the format.
-	if (formats.get(name)?.answer !== answer) {
+	if (freshAnswer || formats.get(name)?.answer !== answer) {
 		formats.set(name, { answer, dateFormat });
 	}
 }
@@ -276,7 +278,12 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 		if (rendered?.normalized !== undefined) {
 			context.variables.set(variableName, rendered.normalized);
 		}
-		rememberDateVariableFormat(context.variables, variableName, dateFormat);
+		rememberDateVariableFormat(
+			context.variables,
+			variableName,
+			dateFormat,
+			existingValue === undefined || rendered?.normalized !== undefined,
+		);
 
 		output += context.applyCase(
 			rendered?.text ?? "",
