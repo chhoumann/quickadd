@@ -15,9 +15,10 @@ QuickAdd is an Obsidian community plugin. Source code lives in `src/`: core logi
 - GitHub does not allow approving your own PR from the same account; do not
   block merge waiting for self-approval.
 - Never merge a `release/*` PR from `quickadd-release-bot`; chhoumann
-  squash-merges those himself. The release workflow refuses any other merge,
-  which leaves `master` advertising a version with no GitHub release. Obsidian
-  then fails to install QuickAdd and drops it from Community plugins (#1763).
+  squash-merges those himself. After any other merge, the release workflow
+  refuses to publish, so `master` advertises a version with no GitHub release.
+  Obsidian then fails to install QuickAdd and drops it from Community plugins
+  (#1763).
 
 ## Build, Test, and Development Commands
 - `pnpm run dev`: watch-mode bundle via `esbuild.config.mjs`, regenerating `main.js` as you edit.
