@@ -54,10 +54,14 @@ it("shows and searches script paths in the macro builder's Browse picker", async
 		await expect.poll(() => obsidian.dev.evalJson<string[]>(
 			`Array.from(document.querySelectorAll(".macroBuilder .quickAddCommandLabel")).map((el) => el.textContent)`,
 		), POLL_OPTS).toEqual(["view"]);
+		// Closing the builder saves through a debounce; wait for it on disk so the
+		// harness's data restore can't race it.
 		await pressKey(obsidian, "Escape");
-		await expect.poll(() => obsidian.dev.evalJson<unknown>(
-			`app.plugins.plugins.quickadd.settings.choices[0].macro.commands.map((c) => c.path)`,
-		), POLL_OPTS).toEqual([progress]);
+		await expect.poll(() => obsidian.dev.evalJsonAsync<unknown>(`(async () => {
+			const p = app.plugins.plugins.quickadd;
+			const data = JSON.parse(await app.vault.adapter.read(p.manifest.dir + "/data.json"));
+			return data.choices[0].macro.commands.map((c) => c.path);
+		})()`), POLL_OPTS).toEqual([progress]);
 	} finally {
 		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
 	}
