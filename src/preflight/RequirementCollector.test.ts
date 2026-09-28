@@ -499,6 +499,11 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     await rc.scanString("{{VDATE:Start,YYYY-MM-DD}} {{VDATE:start,YYYY-MM-DD}}");
 
     expect([...rc.requirements.keys()]).toEqual(["Start", "start"]);
+
+    // A reuse picks the exact name first.
+    await rc.scanString("{{VALUE:start}}", true);
+    expect(rc.requirements.get("start")?.pathContext).toBe(true);
+    expect(rc.requirements.get("Start")?.pathContext).toBeFalsy();
   });
 
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {

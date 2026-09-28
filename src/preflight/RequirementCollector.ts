@@ -305,6 +305,8 @@ export class RequirementCollector extends Formatter {
 		key: string,
 		type?: FieldType,
 	): FieldRequirement | undefined {
+		const exact = this.requirements.get(key);
+		if (exact && (!type || exact.type === type)) return exact;
 		const lower = key.toLowerCase();
 		for (const req of this.requirements.values()) {
 			if (req.id.toLowerCase() === lower && (!type || req.type === type)) {
