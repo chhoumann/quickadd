@@ -1,0 +1,106 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.29.0",
+	"createdAt": "2026-09-28T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-brain-dump",
+		"qa-pkg-brain-dump-inbox"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump",
+				"name": "Brain dump",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-brain-dump-macro",
+					"name": "Brain dump",
+					"commands": [
+						{
+							"id": "qa-pkg-brain-dump-script",
+							"name": "brainDump",
+							"type": "UserScript",
+							"path": "scripts/brainDump.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Brain dump"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump-inbox",
+				"name": "Add to inbox",
+				"type": "Capture",
+				"command": true,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Inbox.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "- {{VALUE}}"
+				},
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": true,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Add to inbox"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/brainDump.js",
+			"contentEncoding": "base64",
+			"content": "Y29uc3QgQ0FQVFVSRV9DSE9JQ0UgPSAiQ2FwdHVyZSBjaG9pY2UiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CgllbnRyeTogc3RhcnQsCglzZXR0aW5nczogewoJCW5hbWU6ICJCcmFpbiBkdW1wIiwKCQlhdXRob3I6ICJRdWlja0FkZCIsCgkJb3B0aW9uczogewoJCQlbQ0FQVFVSRV9DSE9JQ0VdOiB7CgkJCQl0eXBlOiAidGV4dCIsCgkJCQlkZWZhdWx0VmFsdWU6ICJBZGQgdG8gaW5ib3giLAoJCQkJcGxhY2Vob2xkZXI6ICJBZGQgdG8gaW5ib3giLAoJCQkJZGVzY3JpcHRpb246ICJUaGUgQ2FwdHVyZSBjaG9pY2UgdG8gb3BlbiBhZ2FpbiBhZnRlciBlYWNoIGVudHJ5IiwKCQkJfSwKCQl9LAoJfSwKfTsKCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0KHBhcmFtcywgc2V0dGluZ3MpIHsKCWNvbnN0IGNob2ljZSA9CgkJU3RyaW5nKHNldHRpbmdzPy5bQ0FQVFVSRV9DSE9JQ0VdID8/ICIiKS50cmltKCkgfHwgIkFkZCB0byBpbmJveCI7CgoJLy8gRWFjaCBlbnRyeSBydW5zIHRoZSBDYXB0dXJlIG9uY2UuIFByZXNzIEVzYyAob3IgQ2FuY2VsKSB0byBzdG9wLgoJd2hpbGUgKHRydWUpIHsKCQljb25zdCBzdGFydGVkID0gRGF0ZS5ub3coKTsKCQlhd2FpdCBwYXJhbXMucXVpY2tBZGRBcGkuZXhlY3V0ZUNob2ljZShjaG9pY2UpOwoKCQkvLyBBIENhcHR1cmUgdGhhdCBuZXZlciBhc2tzIGZvciBpbnB1dCB3b3VsZCByZXBlYXQgZm9yZXZlci4KCQlpZiAoRGF0ZS5ub3coKSAtIHN0YXJ0ZWQgPCAzMDApIHsKCQkJbmV3IHBhcmFtcy5vYnNpZGlhbi5Ob3RpY2UoCgkJCQlgQnJhaW4gZHVtcCBzdG9wcGVkOiAiJHtjaG9pY2V9IiBkaWRuJ3QgYXNrIGZvciBhbnkgaW5wdXQuYCwKCQkJKTsKCQkJcmV0dXJuOwoJCX0KCX0KfQo="
+		}
+	]
+}
