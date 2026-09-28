@@ -42,6 +42,7 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"{{TEMPLATE:Templates/Meeting.md}}",
 	"{{GLOBAL_VAR:Meeting Header}}",
 	"Equation: ${{MVALUE}}$",
+	"- {{TIME}} {{VALUE|type:multiline}}",
 	"project: {{FIELD:project}}",
 	"status: {{FIELD:status|default:Draft|default-always:true}}",
 	"id: {{FIELD:Id|inline:true|inline-code-blocks:ad-note}}",

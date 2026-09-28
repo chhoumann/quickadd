@@ -1091,6 +1091,14 @@ match exactly as you defined it.
 Opens a math prompt for writing LaTeX, with a live preview. Submit with
 Ctrl/Cmd+Enter: `Equation: ${{MVALUE}}$`.
 
+The math prompt only suggests LaTeX commands, so `#` tag and `[[` link search
+don't work there. For multi-line plain text, use
+[`|type:multiline`](#value-multiline) instead:
+
+```markdown
+- {{TIME}} {{VALUE|type:multiline}}
+```
+
 ### A random ID: `{{RANDOM:<length>}}` {#random}
 
 Generates a random alphanumeric string of the given length (1-100). Useful for
