@@ -158,11 +158,11 @@ describe('FileSuggester - Issue #838 and #839', () => {
     });
 
     describe('Issue #838 - Unresolved links rank by how well they match', () => {
-        async function searchVault(names: string[], unresolved: string[], query: string) {
+        function vaultApp(names: string[], unresolved: string[]) {
             (FileIndex as any).instance = null;
             const vaultFiles = names.map(name => createMockFile(`${name}.md`, name.split('/').pop()!));
             vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(vaultFiles);
-            const app = {
+            return {
                 ...mockApp,
                 metadataCache: {
                     ...mockApp.metadataCache,
@@ -170,8 +170,11 @@ describe('FileSuggester - Issue #838 and #839', () => {
                         'Journal/2025-07-05.md': Object.fromEntries(unresolved.map(link => [link, 1])),
                     },
                 },
-            };
-            const index = FileIndex.getInstance(app as unknown as App, mockPlugin);
+            } as unknown as App;
+        }
+
+        async function searchVault(names: string[], unresolved: string[], query: string) {
+            const index = FileIndex.getInstance(vaultApp(names, unresolved), mockPlugin);
             await index.ensureIndexed();
             return index.search(query).map(result => result.displayText);
         }
@@ -199,6 +202,33 @@ describe('FileSuggester - Issue #838 and #839', () => {
             const results = await searchVault([], [...weaker, 'Love Triangle'], 'lo');
 
             expect(results[0]).toBe('Love Triangle');
+        });
+
+        it('ranks a folder-qualified unresolved link by its last segment', async () => {
+            const results = await searchVault(['Notes/Love Triangle'], ['Projects/Love'], 'Love');
+
+            expect(results).toEqual(['Projects/Love', 'Love Triangle']);
+        });
+
+        it('looks up headings in an existing note, not a better-ranked unresolved link', async () => {
+            const app = vaultApp(['Notes/Love Triangle Notes'], ['Love Triangle']);
+            vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation(file =>
+                (file.basename === 'Love Triangle Notes' ? { headings: [{ heading: 'Plot' }] } : null) as any);
+            await FileIndex.getInstance(app, mockPlugin).ensureIndexed();
+
+            const inputEl = document.createElement('input');
+            inputEl.value = '[[Love T#';
+            inputEl.setSelectionRange(inputEl.value.length, inputEl.value.length);
+            const suggester = new FileSuggester({
+                ...app,
+                dom: { appContainerEl: document.body },
+                keymap: { pushScope: vi.fn(), popScope: vi.fn() },
+                workspace: { on: vi.fn(), getActiveFile: vi.fn(() => null) },
+            } as unknown as App, inputEl);
+
+            expect(suggester.getSuggestions(inputEl.value).map(result => result.displayText))
+                .toEqual(['Love Triangle Notes#Plot']);
+            suggester.destroy();
         });
     });
 

@@ -169,7 +169,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 				}
 			}
 		} else {
-			candidateFiles = this.fileIndex.search(fileName, {}, 1).map(r => r.file);
+			candidateFiles = this.fileIndex.searchFiles(fileName, {}, 1).map(r => r.file);
 		}
 
 		if (candidateFiles.length === 0) return [];
@@ -202,7 +202,7 @@ export class FileSuggester extends TextInputSuggest<SearchResult> {
 		// Split on the full "#^" sequence to correctly separate file name and block query
 		const [fileName, blockQuery] = input.split('#^');
 		const blockQueryNormalized = normalizeForSearch(blockQuery ?? "");
-		const fileResults = this.fileIndex.search(fileName, {}, 1);
+		const fileResults = this.fileIndex.searchFiles(fileName, {}, 1);
 
 		if (fileResults.length === 0) return [];
 

@@ -432,18 +432,21 @@ export class FileIndex {
 		if (query.length >= 2) {
 			const weights = this.effectiveWeights.base;
 			for (const unresolvedLink of this.unresolvedLinks) {
-				const nameNormalized = normalizeForSearch(unresolvedLink);
-				const index = nameNormalized.indexOf(queryNormalized);
-				if (index === -1) continue;
+				const pathNormalized = normalizeForSearch(unresolvedLink);
+				if (!pathNormalized.includes(queryNormalized)) continue;
 
-				const base = index > 0
-					? (ALPHANUMERIC_REGEX.test(nameNormalized[index - 1]) ? weights.fuzzyMatch : weights.substringBasename)
-					: (nameNormalized === queryNormalized ? weights.basenameExact : weights.basenamePrefix);
+				// Tier on the last path segment, like a note's basename.
+				const basename = unresolvedLink.slice(unresolvedLink.lastIndexOf('/') + 1);
+				const basenameNormalized = normalizeForSearch(basename);
+				const index = basenameNormalized.indexOf(queryNormalized);
+				const base = index === 0
+					? (basenameNormalized === queryNormalized ? weights.basenameExact : weights.basenamePrefix)
+					: (index > 0 && !ALPHANUMERIC_REGEX.test(basenameNormalized[index - 1]) ? weights.substringBasename : weights.fuzzyMatch);
 				const file: IndexedFile = {
 					path: unresolvedLink,
-					pathNormalized: nameNormalized,
-					basename: unresolvedLink,
-					basenameNormalized: nameNormalized,
+					pathNormalized,
+					basename,
+					basenameNormalized,
 					aliases: [],
 					aliasesNormalized: [],
 					headings: [],
@@ -525,7 +528,7 @@ export class FileIndex {
 			.slice(0, limit);
 	}
 
-	private searchFiles(query: string, context: SearchContext, limit: number): SearchResult[] {
+	searchFiles(query: string, context: SearchContext, limit: number): SearchResult[] {
 		// Heading lookup retains its fixed basename/prefix ranking.
 		return this.matchFiles(query, context, limit, {
 			...this.effectiveWeights.base,
