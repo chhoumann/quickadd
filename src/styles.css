@@ -2405,8 +2405,17 @@ body:not(.is-mobile)
 .quickadd-update-modal img {
 	width: 100%;
 	height: auto;
-	margin: 5px;
+	margin: 5px 0;
 }
+
+/* Release notes use # for the release and ## for its sections. Show every
+   heading one level smaller, so the notes sit under the window's own heading
+   without rewriting their text (and the code examples in it). */
+.quickadd-update-modal h1 { font-size: var(--h2-size); }
+.quickadd-update-modal h2 { font-size: var(--h3-size); }
+.quickadd-update-modal h3 { font-size: var(--h4-size); }
+.quickadd-update-modal h4 { font-size: var(--h5-size); }
+.quickadd-update-modal h5 { font-size: var(--h6-size); }
 
 /* A guaranteed, always-reachable dismiss for the (mobile-)X-only update modal.
    Follows the scrollable release notes in normal flow so it stays visible, and on

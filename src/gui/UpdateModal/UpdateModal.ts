@@ -156,25 +156,6 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-function addExtraHashToHeadings(
-	markdownText: string,
-	numHashes = 1
-): string {
-	// Split the markdown text into an array of lines
-	const lines = markdownText.split("\n");
-
-	// Loop through each line and check if it starts with a heading syntax (#)
-	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].startsWith("#")) {
-			// If the line starts with a heading syntax, add an extra '#' to the beginning
-			lines[i] = "#".repeat(numHashes) + lines[i];
-		}
-	}
-
-	// Join the array of lines back into a single string and return it
-	return lines.join("\n");
-}
-
 export class UpdateModal extends Modal {
 	releases: Release[];
 	private releaseNotesPromise: Promise<Release[]>;
@@ -254,20 +235,22 @@ export class UpdateModal extends Modal {
 		contentEl.empty();
 		contentEl.classList.add("quickadd-update-modal-container");
 
-        const header = `### New in QuickAdd v${this.releases[0].tag_name}\n`
+		const header = `## New in QuickAdd v${this.releases[0].tag_name}\n`;
 		const text = `Thank you for using QuickAdd! If you like the plugin, please consider supporting me by buying me a coffee. With your sponsorship, I'll be able to contribute more to my existing projects, start new ones, and be more responsive to issues & feature requests.`;
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
-		const contentDiv = contentEl.createDiv("quickadd-update-modal");
+		const contentDiv = contentEl.createDiv(
+			"quickadd-update-modal markdown-rendered",
+		);
 		const releaseNotes = this.releases
 			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
 
 		const andNow = `And now, here is everything new in QuickAdd since your last update (v${this.previousVersion}):`;
         const feedbackForm = `I'd love to get your feedback on QuickAdd! Please fill out this <a href="https://forms.gle/WRq1ewcKK8qmkqps6">feedback form</a> to let me know what you think.`;
-		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${addExtraHashToHeadings(
-			releaseNotes
-		)}`;
+		// The notes render exactly as written, code examples included. CSS in
+		// styles.css shows their headings one level smaller than in a note.
+		const markdownStr = `${header}\n${text}\n${buymeacoffee}\n${feedbackForm}\n\n${andNow}\n\n---\n\n${releaseNotes}`;
 
 		this.markdownComponent.load();
 		void MarkdownRenderer.render(

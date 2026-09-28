@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, MarkdownRenderer } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	getReleaseNotesAfter,
@@ -246,5 +246,31 @@ describe("UpdateModal", () => {
 		expect(modal.contentEl.textContent).toContain("Fetching release notes...");
 
 		await vi.waitFor(() => expect(modal.containerEl.isConnected).toBe(false));
+	});
+
+	it("renders each release's notes exactly as written", async () => {
+		const body = [
+			"# QuickAdd 1.2.0",
+			"## Journal entries",
+			"#project is a tag, not a heading.",
+			"- ```markdown",
+			"  ## Journal",
+			"  ```",
+		].join("\n");
+		mockResponse(200, [
+			{ tag_name: "1.2.0", body, draft: false, prerelease: false },
+		]);
+		const render = vi.spyOn(MarkdownRenderer, "render");
+
+		const modal = new UpdateModal(new App() as never, "1.0.0");
+		modal.open();
+		await vi.waitFor(() => expect(render).toHaveBeenCalled());
+
+		const [, markdown, container] = render.mock.calls[0];
+		// Copied examples keep their headings and tags.
+		expect(markdown).toContain(body);
+		// Obsidian styles code blocks, inline code, and callouts only inside it.
+		expect(container.classList.contains("markdown-rendered")).toBe(true);
+		render.mockRestore();
 	});
 });
