@@ -16,7 +16,7 @@ export interface InputPromptDraftKey {
 	scopeId?: string;
 }
 
-interface ExecutionScope {
+export interface ExecutionScope {
 	submittedDraftKeys: Set<string>;
 	failed: boolean;
 }
@@ -89,26 +89,30 @@ export class InputPromptDraftStore {
 		scope.submittedDraftKeys.add(key);
 	}
 
-	beginExecutionScope(): void {
-		this.executionScopes.push({ submittedDraftKeys: new Set(), failed: false });
+	beginExecutionScope(): ExecutionScope {
+		const scope: ExecutionScope = { submittedDraftKeys: new Set(), failed: false };
+		this.executionScopes.push(scope);
+		return scope;
 	}
 
-	commitExecutionScope(): void {
-		const scope = this.executionScopes.pop();
-		if (!scope || scope.failed) return;
+	commitExecutionScope(scope: ExecutionScope): void {
+		if (!this.endExecutionScope(scope) || scope.failed) return;
 
 		for (const key of scope.submittedDraftKeys) {
 			this.clear(key);
 		}
 	}
 
-	rollbackExecutionScope(): void {
-		if (!this.executionScopes.pop()) return;
+	rollbackExecutionScope(scope: ExecutionScope): void {
+		if (!this.endExecutionScope(scope)) return;
 
 		this.markExecutionScopeFailed();
 	}
 
-	/** A failure keeps the drafts of the failing choice and every choice around it. */
+	/**
+	 * A failure keeps the drafts of every choice still running, which includes
+	 * the ones around the failing choice.
+	 */
 	markExecutionScopeFailed(): void {
 		for (const scope of this.executionScopes) {
 			scope.failed = true;
@@ -129,6 +133,15 @@ export class InputPromptDraftStore {
 	clearAll(): void {
 		this.drafts.clear();
 		this.executionScopes = [];
+	}
+
+	/** Scopes can end out of order when `executeChoice` calls overlap. */
+	private endExecutionScope(scope: ExecutionScope): boolean {
+		const index = this.executionScopes.indexOf(scope);
+		if (index === -1) return false;
+
+		this.executionScopes.splice(index, 1);
+		return true;
 	}
 
 	private evictOldest(count: number): void {

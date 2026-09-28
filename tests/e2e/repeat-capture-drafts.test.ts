@@ -4,7 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { expectNoPrompt, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // Discussion #763: a Macro that re-runs a Capture until Escape, for quick
 // brain dumps. Every re-opened prompt must start empty, and stopping the loop
@@ -16,9 +16,9 @@ const INPUT = ".qaInputPrompt input";
 async function openPromptValue(): Promise<string> {
 	const { obsidian } = getContext();
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
-		`document.activeElement?.matches(${JSON.stringify(INPUT)}) ?? false`,
+		`document.activeElement?.matches(${jsLiteral(INPUT)}) ?? false`,
 	), POLL_OPTS).toBe(true);
-	return obsidian.dev.evalJson<string>(`document.querySelector(${JSON.stringify(INPUT)}).value`);
+	return obsidian.dev.evalJson<string>(`document.querySelector(${jsLiteral(INPUT)}).value`);
 }
 
 it("a capture re-run from a Macro loop opens empty every time, including after Escape", async () => {
@@ -33,7 +33,7 @@ it("a capture re-run from a Macro loop opens empty every time, including after E
 	const script = await seedVaultFile(
 		obsidian, sandbox, "Scripts/repeat.js",
 		`module.exports = async ({ quickAddApi }) => {
-			while (true) await quickAddApi.executeChoice(${JSON.stringify(capture.name)});
+			while (true) await quickAddApi.executeChoice(${jsLiteral(capture.name)});
 		};`,
 	);
 	const macro = new MacroChoice("Repeat capture loop");
@@ -46,10 +46,10 @@ it("a capture re-run from a Macro loop opens empty every time, including after E
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = (name: string) => obsidian.dev.evalJson(
-		`(() => { void app.plugins.plugins.quickadd.api.executeChoice(${JSON.stringify(name)}); return true; })()`,
+		`(() => { void app.plugins.plugins.quickadd.api.executeChoice(${jsLiteral(name)}); return true; })()`,
 	);
 	const inboxContent = () => obsidian.dev.evalJsonAsync<string>(
-		`app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(inbox)}))`,
+		`app.vault.read(app.vault.getAbstractFileByPath(${jsLiteral(inbox)}))`,
 	);
 
 	await run(macro.name);
