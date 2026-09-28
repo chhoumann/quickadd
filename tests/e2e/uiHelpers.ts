@@ -43,14 +43,14 @@ export async function typeInto(obsidian: ObsidianClient, selector: string, text:
 	});
 }
 
-export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8", modified = false) {
+export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace", modified = false) {
 	const modifiers = modified
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
 	for (const type of ["keyDown", "keyUp"]) {
 		await obsidian.exec("dev:cdp", {
 			method: "Input.dispatchKeyEvent",
-			params: JSON.stringify({ type, key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) }),
+			params: JSON.stringify({ type, key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) }),
 		});
 	}
 }
