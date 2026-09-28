@@ -35,7 +35,8 @@ in the card, then skip to [What you get](#what-you-get).
 
    Click **Done**.
 5. <a href="/scripts/brainDump.js" download>Download brainDump.js</a> and save
-   it in your vault, anywhere except the `.obsidian` folder.
+   it in your vault. QuickAdd doesn't list scripts in `.obsidian` or in other
+   folders whose names start with a dot.
 6. Click **New choice** → **Macro** and rename it `Brain dump`. In the Macro
    builder, type `brainDump` in the **User scripts** box, pick the script, and
    click **Add**.
