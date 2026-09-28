@@ -1,6 +1,6 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+export { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
@@ -42,9 +42,6 @@ export abstract class Formatter extends ValueFormatter {
 	protected targetFolderPath: string | null = null;
 	protected templateInclusion?: TemplateInclusionState;
 	protected clocks?: RunClocks;
-	// The first {{VDATE}} format this formatter rendered per date variable. A
-	// {{VALUE:<name>}} reuse prints the stored @date:ISO in it.
-	private dateVariableFormats = new Map<string, string>();
 
 	protected runClocks(): RunClocks | undefined {
 		return this.clocks;
@@ -453,27 +450,8 @@ export abstract class Formatter extends ValueFormatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
-			rememberFormat: (name, dateFormat) => this.rememberDateFormat(name, dateFormat),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
-	}
-
-	protected rememberDateFormat(name: string, dateFormat: string): void {
-		if (!this.dateVariableFormats.has(name)) {
-			this.dateVariableFormats.set(name, dateFormat);
-		}
-	}
-
-	// An included {{TEMPLATE:}} renders with its own formatter on the same
-	// variables, so formats are passed down to it and back up afterwards.
-	public getDateVariableFormats(): ReadonlyMap<string, string> {
-		return this.dateVariableFormats;
-	}
-
-	public mergeDateVariableFormats(formats: ReadonlyMap<string, string>): void {
-		for (const [name, dateFormat] of formats) {
-			this.rememberDateFormat(name, dateFormat);
-		}
 	}
 
 	protected getValueTokenText(variableName: string): string {
@@ -485,7 +463,7 @@ export abstract class Formatter extends ValueFormatter {
 			window.moment?.(stored.slice(6)).isValid()
 		) {
 			const dateFormat =
-				this.dateVariableFormats.get(variableName) ??
+				getDateVariableFormat(this.variables, variableName) ??
 				defaultDateVariableFormat(false);
 			return (
 				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)

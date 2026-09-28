@@ -709,12 +709,10 @@ export class CompleteFormatter extends Formatter {
 				draftScopeId: `${this.promptRunContext.draftScopeId ?? ""}#${templatePath}`,
 			});
 		}
-		childEngine.seedDateVariableFormats(this.getDateVariableFormats());
 		const content = await childEngine.run();
 		this.mergeTemplatePropertyVars(
 			childEngine.getAndClearTemplatePropertyVars(),
 		);
-		this.mergeDateVariableFormats(childEngine.getDateVariableFormats());
 		return content;
 	}
 

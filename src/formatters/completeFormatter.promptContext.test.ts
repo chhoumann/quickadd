@@ -29,10 +29,6 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		getAndClearTemplatePropertyVars() {
 			return new Map();
 		}
-		getDateVariableFormats() {
-			return new Map();
-		}
-		seedDateVariableFormats() {}
 	},
 }));
 
