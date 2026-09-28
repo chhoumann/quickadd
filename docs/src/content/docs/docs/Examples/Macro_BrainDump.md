@@ -33,14 +33,16 @@ in the card, then skip to [What you get](#what-you-get).
    - {{VALUE}}
    ```
 
-   Click **Done**.
-5. <a href="/scripts/brainDump.js" download>Download brainDump.js</a> and save
+5. Set **Use editor selection as default value** to **Ignore selection**, so
+   text you have selected in a note doesn't stand in for the first entry. Click
+   **Done**.
+6. <a href="/scripts/brainDump.js" download>Download brainDump.js</a> and save
    it in your vault. QuickAdd doesn't list scripts in `.obsidian` or in other
    folders whose names start with a dot.
-6. Click **New choice** → **Macro** and rename it `Brain dump`. In the Macro
+7. Click **New choice** → **Macro** and rename it `Brain dump`. In the Macro
    builder, type `brainDump` in the **User scripts** box, pick the script, and
    click **Add**.
-7. Turn **Add to command palette** on and click **Done**.
+8. Turn **Add to command palette** on and click **Done**.
 
 ## What you get
 

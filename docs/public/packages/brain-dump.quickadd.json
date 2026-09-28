@@ -54,6 +54,7 @@
 					"enabled": true,
 					"format": "- {{VALUE}}"
 				},
+				"useSelectionAsCaptureValue": false,
 				"insertAfter": {
 					"enabled": false,
 					"after": "",
