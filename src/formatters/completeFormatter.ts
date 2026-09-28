@@ -713,6 +713,7 @@ export class CompleteFormatter extends Formatter {
 		this.mergeTemplatePropertyVars(
 			childEngine.getAndClearTemplatePropertyVars(),
 		);
+		this.mergeDateVariableFormats(childEngine.getDateVariableFormats());
 		return content;
 	}
 

@@ -1,6 +1,6 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
@@ -42,6 +42,9 @@ export abstract class Formatter extends ValueFormatter {
 	protected targetFolderPath: string | null = null;
 	protected templateInclusion?: TemplateInclusionState;
 	protected clocks?: RunClocks;
+	// The first {{VDATE}} format this formatter rendered per date variable. A
+	// {{VALUE:<name>}} reuse prints the stored @date:ISO in it.
+	private dateVariableFormats = new Map<string, string>();
 
 	protected runClocks(): RunClocks | undefined {
 		return this.clocks;
@@ -450,15 +453,33 @@ export abstract class Formatter extends ValueFormatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
+			rememberFormat: (name, dateFormat) => this.rememberDateFormat(name, dateFormat),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
+	}
+
+	protected rememberDateFormat(name: string, dateFormat: string): void {
+		if (!this.dateVariableFormats.has(name)) {
+			this.dateVariableFormats.set(name, dateFormat);
+		}
+	}
+
+	/** Read by the formatter whose {{TEMPLATE:}} this one rendered; they share variables. */
+	public getDateVariableFormats(): ReadonlyMap<string, string> {
+		return this.dateVariableFormats;
+	}
+
+	protected mergeDateVariableFormats(formats: ReadonlyMap<string, string>): void {
+		for (const [name, dateFormat] of formats) {
+			this.rememberDateFormat(name, dateFormat);
+		}
 	}
 
 	protected getValueTokenText(variableName: string): string {
 		const stored = this.variables.get(variableName);
 		if (typeof stored === "string" && stored.startsWith("@date:")) {
 			const dateFormat =
-				getDateVariableFormat(this.variables, variableName) ??
+				this.dateVariableFormats.get(variableName) ??
 				defaultDateVariableFormat(false);
 			const rendered = renderStoredDateVariable(
 				stored,

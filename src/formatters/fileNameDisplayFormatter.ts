@@ -1,7 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, rememberDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { defaultDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
@@ -430,7 +430,7 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 			const { withTime, snap, caseStyle } = options;
 			const cleanDateFormat =
 				dateFormat?.trim() || defaultDateVariableFormat(withTime);
-			rememberDateVariableFormat(this.variables, cleanVariableName, cleanDateFormat);
+			this.rememberDateFormat(cleanVariableName, cleanDateFormat);
 
 			// An ANSWERED date wins over the example. The one-page input form
 			// seeds the user's real picks into this formatter before computing the

@@ -1,5 +1,4 @@
 import realMoment from "moment";
-import { forgetDateVariableFormats } from "./helpers/dateTokens";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -23,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 	macroRunAndGetOutput: vi.fn(),
 	macroGetVariables: vi.fn(() => new Map()),
 	templateRun: vi.fn(),
+	templateDateFormats: new Map<string, string>(),
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
@@ -87,6 +87,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 			const vars = new Map(this.templatePropertyVars);
 			this.templatePropertyVars.clear();
 			return vars;
+		}
+
+		getDateVariableFormats() {
+			return mocks.templateDateFormats;
 		}
 	},
 }));
@@ -281,6 +285,8 @@ beforeEach(() => {
 	(globalThis as any).navigator = {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
 	};
+
+	mocks.templateDateFormats = new Map();
 
 	// Deterministic moment used by the base formatter's VDATE formatting.
 	(globalThis as any).window ??= globalThis;
@@ -1106,33 +1112,37 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
-	it("shares the VDATE format across formatters on one run's variables, never across answers or cleared runs", async () => {
+	it("reuses the format of a VDATE in an included template (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		const variables = new Map<string, unknown>();
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		// The include renders with its own formatter, sharing only the variables.
+		mocks.templateRun.mockImplementationOnce(async () => {
+			variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+			return "Due 25.02.2024";
+		});
+		mocks.templateDateFormats = new Map([["due", "DD.MM.YYYY"]]);
+		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any);
+		await expect(
+			f.formatFileContent("{{TEMPLATE:Child.md}} / {{VALUE:due}}"),
+		).resolves.toBe("Due 25.02.2024 / 25.02.2024");
+	});
+
+	it("does not carry a VDATE format into the next run on the same variables", async () => {
 		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
 		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
 		const variables = new Map<string, unknown>();
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
-		const format = (input: string) =>
+		const run = (input: string) =>
 			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any)
 				.formatFolderPath(input);
 
-		// An included {{TEMPLATE:}} or a macro step formats with its own
-		// formatter, sharing only the executor's variables.
-		await format("{{VDATE:due,DD.MM.YYYY}}");
-		await expect(format("{{VALUE:due}}")).resolves.toBe("25.02.2024");
-
-		// A different answer (here set by a script) has no VDATE format.
-		variables.set("due", "@date:2024-03-01T12:00:00.000Z");
-		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-03-01");
-
-		// executeChoice clears the map for the next run. The same answer there
-		// takes that run's VDATE format, or the fallback without one.
-		variables.set("due", "@date:2024-02-25T12:00:00.000Z");
-		await format("{{VDATE:due,DD.MM.YYYY}}");
-		variables.clear();
-		forgetDateVariableFormats(variables);
-		variables.set("due", "@date:2024-02-25T12:00:00.000Z");
-		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-02-25");
-		await expect(format("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
+		await expect(run("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}}")).resolves.toBe(
+			"25.02.2024 25.02.2024",
+		);
+		// executeChoice / format reuse the executor's map, even with the same date.
+		await expect(run("{{VALUE:due}}")).resolves.toBe("2024-02-25");
+		await expect(run("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
 			"2024/02/25 2024/02/25",
 		);
 	});

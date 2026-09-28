@@ -2,7 +2,6 @@ import { createChoiceExecutor } from "../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App } from "obsidian";
 import { QuickAddApi } from "./quickAddApi";
-import { getDateVariableFormat, rememberDateVariableFormat } from "./formatters/helpers/dateTokens";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import type IChoice from "./types/choices/IChoice";
@@ -116,19 +115,5 @@ describe("QuickAddApi.executeChoice", () => {
 		).resolves.toBeUndefined();
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 		expect(variables.size).toBe(0);
-	});
-
-	it("forgets the run's VDATE formats with its variables (#645)", async () => {
-		const answer = "@date:2024-02-25T12:00:00.000Z";
-		(choiceExecutor.execute as ReturnType<typeof vi.fn>).mockImplementationOnce(() => {
-			variables.set("due", answer);
-			rememberDateVariableFormat(variables, "due", "DD.MM.YYYY");
-		});
-		const api = QuickAddApi.GetApi(app, plugin, choiceExecutor);
-		await api.executeChoice("My Template");
-
-		// The next run on this executor picks the same date.
-		variables.set("due", answer);
-		expect(getDateVariableFormat(variables, "due")).toBeUndefined();
 	});
 });

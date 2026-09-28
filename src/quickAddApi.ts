@@ -2,7 +2,6 @@ import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import { CompleteFormatter } from "./formatters/completeFormatter";
-import { forgetDateVariableFormats } from "./formatters/helpers/dateTokens";
 import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTemplateToActiveNote";
 import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } from "./engine/TemplateInsertEngine";
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
@@ -118,7 +117,6 @@ export class QuickAddApi {
 			await choiceExecutor.execute(choice);
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
-			forgetDateVariableFormats(choiceExecutor.variables);
 			if (abort) {
 				throw abort;
 			}
