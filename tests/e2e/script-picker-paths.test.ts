@@ -75,8 +75,10 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 
 		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress, books]);
 		// Closing the builder saves through a debounce; wait for it on disk so the
-		// harness's data restore can't race it.
-		await pressKey(obsidian, "Escape");
+		// harness's data restore can't race it. Click Done rather than pressing
+		// Escape: focus returns to the typeahead after Browse, and an Escape there
+		// doesn't always reach the builder.
+		expect(await click(".macroBuilder button", "Done")).toBe(true);
 		await expect.poll(() => obsidian.dev.evalJsonAsync<unknown>(`(async () => {
 			const p = app.plugins.plugins.quickadd;
 			const data = JSON.parse(await app.vault.adapter.read(p.manifest.dir + "/data.json"));
