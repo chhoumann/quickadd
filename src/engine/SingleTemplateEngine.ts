@@ -71,4 +71,8 @@ export class SingleTemplateEngine extends TemplateEngine {
 	public getDateVariableFormats(): ReadonlyMap<string, string> {
 		return this.formatter.getDateVariableFormats();
 	}
+
+	public seedDateVariableFormats(formats: ReadonlyMap<string, string>): void {
+		this.formatter.mergeDateVariableFormats(formats);
+	}
 }

@@ -464,12 +464,13 @@ export abstract class Formatter extends ValueFormatter {
 		}
 	}
 
-	/** Read by the formatter whose {{TEMPLATE:}} this one rendered; they share variables. */
+	// An included {{TEMPLATE:}} renders with its own formatter on the same
+	// variables, so formats are passed down to it and back up afterwards.
 	public getDateVariableFormats(): ReadonlyMap<string, string> {
 		return this.dateVariableFormats;
 	}
 
-	protected mergeDateVariableFormats(formats: ReadonlyMap<string, string>): void {
+	public mergeDateVariableFormats(formats: ReadonlyMap<string, string>): void {
 		for (const [name, dateFormat] of formats) {
 			this.rememberDateFormat(name, dateFormat);
 		}
@@ -477,18 +478,19 @@ export abstract class Formatter extends ValueFormatter {
 
 	protected getValueTokenText(variableName: string): string {
 		const stored = this.variables.get(variableName);
-		if (typeof stored === "string" && stored.startsWith("@date:")) {
+		// An unparseable @date: value prints as-is, as it always has.
+		if (
+			typeof stored === "string" &&
+			stored.startsWith("@date:") &&
+			window.moment?.(stored.slice(6)).isValid()
+		) {
 			const dateFormat =
 				this.dateVariableFormats.get(variableName) ??
 				defaultDateVariableFormat(false);
-			const rendered = renderStoredDateVariable(
-				stored,
-				dateFormat,
-				undefined,
-				this.dateParser,
+			return (
+				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)
+					?.text ?? ""
 			);
-			// An unparseable @date: value prints as-is, as it always has.
-			if (rendered?.text) return rendered.text;
 		}
 		return super.getValueTokenText(variableName);
 	}

@@ -32,6 +32,7 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		getDateVariableFormats() {
 			return new Map();
 		}
+		seedDateVariableFormats() {}
 	},
 }));
 

@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 	macroGetVariables: vi.fn(() => new Map()),
 	templateRun: vi.fn(),
 	templateDateFormats: new Map<string, string>(),
+	templateSeededDateFormats: [] as Map<string, string>[],
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
@@ -91,6 +92,10 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 
 		getDateVariableFormats() {
 			return mocks.templateDateFormats;
+		}
+
+		seedDateVariableFormats(formats: ReadonlyMap<string, string>) {
+			mocks.templateSeededDateFormats.push(new Map(formats));
 		}
 	},
 }));
@@ -287,6 +292,7 @@ beforeEach(() => {
 	};
 
 	mocks.templateDateFormats = new Map();
+	mocks.templateSeededDateFormats = [];
 
 	// Deterministic moment used by the base formatter's VDATE formatting.
 	(globalThis as any).window ??= globalThis;
@@ -1126,6 +1132,26 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		await expect(
 			f.formatFileContent("{{TEMPLATE:Child.md}} / {{VALUE:due}}"),
 		).resolves.toBe("Due 25.02.2024 / 25.02.2024");
+	});
+
+	it("hands an earlier pass's VDATE format down to an included template (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		mocks.templateRun.mockResolvedValueOnce("Due 25.02.2024");
+		const f = defaultFormatter();
+		await f.formatFileName("{{VDATE:due,DD.MM.YYYY}} note");
+		await f.formatFileContent("{{TEMPLATE:Child.md}}");
+		expect(mocks.templateSeededDateFormats).toEqual([
+			new Map([["due", "DD.MM.YYYY"]]),
+		]);
+	});
+
+	it("keeps a VDATE format that renders empty (#645)", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		await expect(
+			defaultFormatter().formatFolderPath("<{{VDATE:due,[]}}|{{VALUE:due}}>"),
+		).resolves.toBe("<|>");
 	});
 
 	it("does not carry a VDATE format into the next run on the same variables", async () => {
