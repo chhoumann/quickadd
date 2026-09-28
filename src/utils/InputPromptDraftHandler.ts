@@ -37,9 +37,11 @@ export class InputPromptDraftHandler {
 			return;
 		}
 
-		if (!this.didChange || value === this.initialValue) return;
+		if (!this.didChange) return;
 
-		if (!value.trim()) {
+		// Back to empty or to the prompt's own starting value: nothing to keep,
+		// including a draft this prompt opened with.
+		if (!value.trim() || value === this.initialValue) {
 			this.store.clear(this.draftKey);
 			return;
 		}

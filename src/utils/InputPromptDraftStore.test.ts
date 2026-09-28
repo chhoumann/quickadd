@@ -16,6 +16,38 @@ describe("InputPromptDraftStore execution scopes", () => {
 		store.clearAll();
 	});
 
+	it("forgets a restored draft when the prompt is cleared and cancelled", () => {
+		store.set(draftKey, "half a thought");
+		const handler = new InputPromptDraftHandler(key, shouldPersist);
+		expect(handler.hydrate("")).toBe("half a thought");
+
+		handler.markChanged();
+		handler.persist("", false);
+
+		expect(store.get(draftKey)).toBeUndefined();
+	});
+
+	it("forgets a restored draft when the prompt is set back to its default", () => {
+		store.set(draftKey, "Urgent");
+		const handler = new InputPromptDraftHandler(key, shouldPersist);
+		expect(handler.hydrate("Normal")).toBe("Urgent");
+
+		handler.markChanged();
+		handler.persist("Normal", false);
+
+		expect(store.get(draftKey)).toBeUndefined();
+	});
+
+	it("keeps a draft when the prompt is closed without edits", () => {
+		store.set(draftKey, "half a thought");
+		const handler = new InputPromptDraftHandler(key, shouldPersist);
+		handler.hydrate("");
+
+		handler.persist("half a thought", false);
+
+		expect(store.get(draftKey)).toBe("half a thought");
+	});
+
 	it("keeps existing submit behavior outside an execution scope", () => {
 		store.set(draftKey, "old draft");
 		const handler = new InputPromptDraftHandler(key, shouldPersist);
