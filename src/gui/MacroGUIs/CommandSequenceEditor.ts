@@ -33,6 +33,7 @@ import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
+import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
 import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
@@ -510,6 +511,8 @@ export class CommandSequenceEditor {
 		}
 
 		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
+		// Rows show the name with the full path beneath it, and search matches the
+		// path, so same-named scripts in different folders can be told apart.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
 		const labels = this.scriptCandidates.map((c) => candidateLabel(c));
 		const selectedPath = await InputSuggester.Suggest(
@@ -518,7 +521,9 @@ export class CommandSequenceEditor {
 			paths,
 			{
 				placeholder: "Select a script (.js file or note with a ```js block)",
-				emptyStateText: "No scripts found in your vault",
+				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
+				searchItems: paths,
+				allowCustomValue: false,
 			}
 		);
 

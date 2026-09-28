@@ -220,4 +220,61 @@ describe("CommandSequenceEditor script picker (Browse)", () => {
 		);
 		editor.destroy();
 	});
+
+	// #942: several `view.js` files in different folders all rendered as "view".
+	it("tells same-named scripts apart by path", async () => {
+		const app = testApp();
+		app.vault.getFiles = () =>
+			["bins/views/books/view.js", "bins/views/progress-bar/view.js"].map((path) => {
+				const file = new TFile();
+				file.path = path;
+				file.name = "view.js";
+				file.basename = "view";
+				file.extension = "js";
+				return file;
+			});
+		let picker: InputSuggester | undefined;
+		vi.spyOn(InputSuggester, "Suggest").mockImplementation((...args) => {
+			picker = new InputSuggester(...args);
+			return picker.promise;
+		});
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app,
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		editor.render(container);
+		const browse = Array.from(container.querySelectorAll("button")).find(
+			(button) => button.textContent === "Browse",
+		);
+		if (!browse) throw new Error("Browse button not found");
+
+		await fireEvent.click(browse);
+		if (!picker) throw new Error("Script picker did not open");
+
+		const rows = picker.getSuggestions("").map((suggestion) => {
+			const el = document.createElement("div");
+			picker?.renderSuggestion(suggestion, el);
+			return el.textContent;
+		});
+		expect(new Set(rows).size).toBe(2);
+		expect(rows.some((row) => row?.includes("bins/views/progress-bar"))).toBe(true);
+
+		picker.inputEl.value = "progress";
+		const matches = picker.getSuggestions("progress");
+		expect(matches.map((match) => match.item)).toEqual([
+			"bins/views/progress-bar/view.js",
+		]);
+
+		picker.selectSuggestion(matches[0], new MouseEvent("click"));
+		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalled());
+		expect(onCommandsChange.mock.lastCall?.[0]).toEqual([
+			expect.objectContaining({ name: "view", path: "bins/views/progress-bar/view.js" }),
+		]);
+		editor.destroy();
+	});
 });

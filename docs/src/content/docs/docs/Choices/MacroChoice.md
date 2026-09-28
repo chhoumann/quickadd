@@ -97,7 +97,9 @@ two ways to point it at your script:
 - **Browse** opens QuickAdd's script picker (not your operating system's file
   picker). It lists the `.js` files and notes-with-a-code-block that Obsidian
   has already discovered, so it can't reach files outside the vault or hidden
-  from Obsidian's index.
+  from Obsidian's index. Each entry shows its full path, and you can search by
+  folder, so same-named scripts such as several `view.js` files are easy to
+  tell apart.
 - **Type it in.** For a `.js` file, type its basename - for
   `scripts/my-macro.js`, enter `my-macro`. For a note, type its vault path, for
   example `Scripts/my-macro.md`. Then click **Add**. To run a specific exported
