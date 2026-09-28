@@ -1,6 +1,6 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+export { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
@@ -42,9 +42,6 @@ export abstract class Formatter extends ValueFormatter {
 	protected targetFolderPath: string | null = null;
 	protected templateInclusion?: TemplateInclusionState;
 	protected clocks?: RunClocks;
-	// First {{VDATE}} format seen per date variable. A {{VALUE:<name>}} reuse of
-	// that variable renders the stored @date:ISO in this format.
-	protected dateVariableFormats = new Map<string, string>();
 
 	protected runClocks(): RunClocks | undefined {
 		return this.clocks;
@@ -452,7 +449,7 @@ export abstract class Formatter extends ValueFormatter {
 	): Promise<string | string[]>;
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
-			variables: this.variables, dateFormats: this.dateVariableFormats, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
+			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
 	}
@@ -461,7 +458,7 @@ export abstract class Formatter extends ValueFormatter {
 		const stored = this.variables.get(variableName);
 		if (typeof stored === "string" && stored.startsWith("@date:")) {
 			const dateFormat =
-				this.dateVariableFormats.get(variableName) ??
+				getDateVariableFormat(this.variables, variableName) ??
 				defaultDateVariableFormat(false);
 			return (
 				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)

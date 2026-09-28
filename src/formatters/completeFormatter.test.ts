@@ -1104,6 +1104,30 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		expect(mocks.vdatePrompt).toHaveBeenCalledTimes(1);
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
+
+	it("shares the VDATE format with formatters on the same run's variables, and drops it once the answer changes", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
+		const choiceExecutor = { variables: new Map<string, unknown>() };
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const formatter = () =>
+			new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
+
+		// An included {{TEMPLATE:}} or a macro step formats with its own
+		// formatter, sharing only the executor's variables.
+		await formatter().formatFolderPath("{{VDATE:due,DD.MM.YYYY}}");
+		await expect(formatter().formatFolderPath("{{VALUE:due}}")).resolves.toBe(
+			"25.02.2024",
+		);
+
+		// The executor's map is cleared and reused for the next run; a
+		// script-set date there has no VDATE format to reuse.
+		choiceExecutor.variables.clear();
+		choiceExecutor.variables.set("due", "@date:2024-03-01T12:00:00.000Z");
+		await expect(formatter().formatFolderPath("{{VALUE:due}}")).resolves.toBe(
+			"2024-03-01",
+		);
+	});
 });
 
 describe("CompleteFormatter - math value prompting", () => {

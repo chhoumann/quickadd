@@ -1,7 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -236,9 +236,7 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 			if (!cleanVariableName) {
 				return match; // Return original if incomplete
 			}
-			if (!this.dateVariableFormats.has(cleanVariableName)) {
-				this.dateVariableFormats.set(cleanVariableName, cleanDateFormat);
-			}
+			rememberDateVariableFormat(this.variables, cleanVariableName, cleanDateFormat);
 
 			// An ANSWERED date wins over the example, resolved through the run's
 			// own renderer so a seeded @date:ISO renders exactly as it will.
