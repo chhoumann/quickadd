@@ -1,4 +1,4 @@
-import { App } from "obsidian";
+import { App, MarkdownRenderer } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	getReleaseNotesAfter,
@@ -246,5 +246,53 @@ describe("UpdateModal", () => {
 		expect(modal.contentEl.textContent).toContain("Fetching release notes...");
 
 		await vi.waitFor(() => expect(modal.containerEl.isConnected).toBe(false));
+	});
+
+	it("nests release headings without touching code blocks or tags", async () => {
+		const body = [
+			"# QuickAdd 1.2.0",
+			"## Journal entries",
+			"#project is a tag, not a heading.",
+			"```markdown",
+			"## Journal",
+			"- 09:10 Unloaded the kiln.",
+			"```",
+			"~~~~",
+			"# Still code",
+			"```",
+			"# Still code after a shorter fence",
+			"~~~~",
+			"## After the code",
+		].join("\n");
+		mockResponse(200, [
+			{ tag_name: "1.2.0", body, draft: false, prerelease: false },
+		]);
+		const render = vi.spyOn(MarkdownRenderer, "render");
+
+		const modal = new UpdateModal(new App() as never, "1.0.0");
+		modal.open();
+		await vi.waitFor(() => expect(render).toHaveBeenCalled());
+
+		const [, markdown, container] = render.mock.calls[0];
+		expect(markdown).toContain(
+			[
+				"## QuickAdd 1.2.0",
+				"### Journal entries",
+				"#project is a tag, not a heading.",
+				"```markdown",
+				"## Journal",
+				"- 09:10 Unloaded the kiln.",
+				"```",
+				"~~~~",
+				"# Still code",
+				"```",
+				"# Still code after a shorter fence",
+				"~~~~",
+				"### After the code",
+			].join("\n"),
+		);
+		// Obsidian styles code blocks, inline code, and callouts only inside it.
+		expect(container.classList.contains("markdown-rendered")).toBe(true);
+		render.mockRestore();
 	});
 });

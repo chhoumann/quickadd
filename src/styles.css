@@ -2405,7 +2405,7 @@ body:not(.is-mobile)
 .quickadd-update-modal img {
 	width: 100%;
 	height: auto;
-	margin: 5px;
+	margin: 5px 0;
 }
 
 /* A guaranteed, always-reachable dismiss for the (mobile-)X-only update modal.

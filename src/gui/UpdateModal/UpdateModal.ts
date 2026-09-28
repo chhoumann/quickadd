@@ -156,23 +156,34 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-function addExtraHashToHeadings(
-	markdownText: string,
-	numHashes = 1
-): string {
-	// Split the markdown text into an array of lines
-	const lines = markdownText.split("\n");
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+const HEADING = /^#{1,6}(\s|$)/;
 
-	// Loop through each line and check if it starts with a heading syntax (#)
-	for (let i = 0; i < lines.length; i++) {
-		if (lines[i].startsWith("#")) {
-			// If the line starts with a heading syntax, add an extra '#' to the beginning
-			lines[i] = "#".repeat(numHashes) + lines[i];
-		}
-	}
+/**
+ * Nests the release notes' headings one level under the modal's own heading.
+ * Lines inside fenced code blocks are examples to copy, and `#tag` lines are
+ * tags, so both stay as written.
+ */
+function addExtraHashToHeadings(markdownText: string): string {
+	let openFence: string | null = null;
 
-	// Join the array of lines back into a single string and return it
-	return lines.join("\n");
+	return markdownText
+		.split("\n")
+		.map((line) => {
+			const fence = line.match(FENCE)?.[1];
+			if (openFence === null) {
+				if (fence) openFence = fence;
+				else if (HEADING.test(line)) return `#${line}`;
+			} else if (
+				fence &&
+				fence[0] === openFence[0] &&
+				fence.length >= openFence.length
+			) {
+				openFence = null;
+			}
+			return line;
+		})
+		.join("\n");
 }
 
 export class UpdateModal extends Modal {
@@ -258,7 +269,9 @@ export class UpdateModal extends Modal {
 		const text = `Thank you for using QuickAdd! If you like the plugin, please consider supporting me by buying me a coffee. With your sponsorship, I'll be able to contribute more to my existing projects, start new ones, and be more responsive to issues & feature requests.`;
 		const buymeacoffee = `<div class="quickadd-bmac-container"><a href="https://www.buymeacoffee.com/chhoumann" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" style="height: 40px !important;width: 144px !important;" ></a></div>`;
 
-		const contentDiv = contentEl.createDiv("quickadd-update-modal");
+		const contentDiv = contentEl.createDiv(
+			"quickadd-update-modal markdown-rendered",
+		);
 		const releaseNotes = this.releases
 			.map((release) => renderVideoAttachments(release.body ?? ""))
 			.join("\n---\n");
