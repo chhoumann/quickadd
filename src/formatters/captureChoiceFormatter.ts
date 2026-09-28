@@ -271,7 +271,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (shouldAppendToBottom) {
 			const needsLeadingNewline = this.fileContent.length > 0 &&
 				!this.fileContent.endsWith("\n") && !formatted.startsWith("\n");
-			const separator = !this.choice.task || needsLeadingNewline ? "\n" : "";
+			const separator =
+				this.fileContent.length > 0 && (!this.choice.task || needsLeadingNewline)
+					? "\n"
+					: "";
 			return surroundCapture(payload, this.fileContent + separator);
 		}
 		if (this.choice.insertAfter.enabled) return this.insertAfterHandler(payload);
