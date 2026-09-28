@@ -464,6 +464,13 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
       type: "date",
       dateFormat: "YYYY-MM-DD",
     });
+
+    const withList = new RequirementCollector(makeApp(), makePlugin());
+    await withList.scanString(
+      "{{VDATE:due,YYYY-MM-DD}} {{VALUE:low,high|name:due}}",
+    );
+    expect(withList.requirements.get("due")).toMatchObject({ type: "date" });
+    expect(withList.requirements.get("due")?.options).toBeUndefined();
   });
 
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {

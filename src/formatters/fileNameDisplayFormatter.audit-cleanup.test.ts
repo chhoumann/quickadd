@@ -154,6 +154,14 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		await expect(
 			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}} {{VALUE:due}}"),
 		).resolves.toBe("01.06.2023 01.06.2023 01.06.2023");
+		await expect(
+			makeFormatter().format("{{VDATE:Due,DD.MM.YYYY}} {{VALUE:when|name:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023");
+		// Not swapped for "user input": the VDATE itself isn't either.
+		const formatter = makeFormatter();
+		await expect(
+			formatter.format("{{VDATE:due,YYYY-MM-DD HH:mm}} - {{VALUE:due}}"),
+		).resolves.toBe("2023-06-01 12:00 - 2023-06-01 12:00");
 	});
 
 	it("renders an answered-empty optional date as empty, not as today", async () => {

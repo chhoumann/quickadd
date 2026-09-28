@@ -1,7 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, getDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { defaultDateVariableFormat, findDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -151,7 +151,10 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 	): Promise<string> {
 		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
 		// the VDATE's example date, as the run prints the one answer.
-		const dateFormat = getDateVariableFormat(this.variables, variableName);
+		const dateFormat = findDateVariableFormat(
+			this.variables,
+			context?.variableKey ?? variableName,
+		);
 		if (dateFormat) {
 			return Promise.resolve(DateFormatPreviewGenerator.generate(dateFormat));
 		}

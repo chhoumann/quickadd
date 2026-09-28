@@ -260,7 +260,13 @@ export class RequirementCollector extends Formatter {
 				// first recorded option-less (a bare {{VALUE:x}} reuse seen
 				// earlier, in this or a prior scanned string), upgrade it in place
 				// so the one-page form renders the dropdown/suggester either way.
-				if (hasOptions && !this.hasOptionList(existing)) {
+				// A VDATE with this name asks first at run time, so the list only
+				// reuses its answer: the field stays a date.
+				if (
+					hasOptions &&
+					existing.type !== "date" &&
+					!this.hasOptionList(existing)
+				) {
 					existing.type = this.optionFieldType(parsed);
 					existing.label = displayLabel;
 					this.applyOptionFields(existing, parsed);

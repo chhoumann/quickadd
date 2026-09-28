@@ -66,6 +66,20 @@ export function getDateVariableFormat(
 	return entry && entry.answer === variables.get(name) ? entry.dateFormat : undefined;
 }
 
+/** Exact name first, then case-insensitively, as the run resolves a named {{VALUE}}. */
+export function findDateVariableFormat(
+	variables: Map<string, unknown>,
+	name: string,
+): string | undefined {
+	const exact = getDateVariableFormat(variables, name);
+	if (exact !== undefined) return exact;
+	const lower = name.toLowerCase();
+	for (const key of dateVariableFormats.get(variables)?.keys() ?? []) {
+		if (key.toLowerCase() === lower) return getDateVariableFormat(variables, key);
+	}
+	return undefined;
+}
+
 export function snapshotDateVariableFormats(
 	variables: Map<string, unknown>,
 ): DateVariableFormats {
