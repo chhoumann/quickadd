@@ -1,0 +1,113 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.29.0",
+	"createdAt": "2026-09-28T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-brain-dump",
+		"qa-pkg-brain-dump-inbox"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump",
+				"name": "Brain dump",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-brain-dump-macro",
+					"name": "Brain dump",
+					"commands": [
+						{
+							"id": "qa-pkg-brain-dump-script",
+							"name": "brainDump",
+							"type": "UserScript",
+							"path": "scripts/brainDump.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Brain dump"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump-inbox",
+				"name": "Brain dump entry",
+				"type": "Capture",
+				"command": false,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Inbox.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "- {{VALUE}}"
+				},
+				"useSelectionAsCaptureValue": false,
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": true,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Brain dump entry"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/brainDump.js",
+			"source": "../../public/scripts/brainDump.js"
+		}
+	],
+	"install": {
+		"afterImport": [
+			"Run **Brain dump** from the command palette, or give it a hotkey in **Settings → Hotkeys**.",
+			"Optional: to put entries somewhere other than `Inbox.md`, hover over **Brain dump entry** in **Settings → QuickAdd**, click its cog, and change **Capture to**.",
+			"Optional: to repeat a Capture you already have, hover over **Brain dump** and click its cog, then click the cog on the **brainDump** step and enter that Capture's name in **Capture choice**."
+		]
+	}
+}

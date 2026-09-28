@@ -1,0 +1,107 @@
+{
+	"schemaVersion": 1,
+	"quickAddVersion": "2.29.0",
+	"createdAt": "2026-09-28T00:00:00.000Z",
+	"rootChoiceIds": [
+		"qa-pkg-brain-dump",
+		"qa-pkg-brain-dump-inbox"
+	],
+	"choices": [
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump",
+				"name": "Brain dump",
+				"type": "Macro",
+				"command": true,
+				"runOnStartup": false,
+				"macro": {
+					"id": "qa-pkg-brain-dump-macro",
+					"name": "Brain dump",
+					"commands": [
+						{
+							"id": "qa-pkg-brain-dump-script",
+							"name": "brainDump",
+							"type": "UserScript",
+							"path": "scripts/brainDump.js",
+							"settings": {}
+						}
+					]
+				}
+			},
+			"pathHint": [
+				"Brain dump"
+			],
+			"parentChoiceId": null
+		},
+		{
+			"choice": {
+				"id": "qa-pkg-brain-dump-inbox",
+				"name": "Brain dump entry",
+				"type": "Capture",
+				"command": false,
+				"appendLink": false,
+				"copyLinkToClipboard": false,
+				"captureTo": "Inbox.md",
+				"captureToActiveFile": false,
+				"captureToCanvasNodeId": "",
+				"activeFileWritePosition": "bottom",
+				"createFileIfItDoesntExist": {
+					"enabled": true,
+					"createWithTemplate": false,
+					"template": ""
+				},
+				"format": {
+					"enabled": true,
+					"format": "- {{VALUE}}"
+				},
+				"useSelectionAsCaptureValue": false,
+				"insertAfter": {
+					"enabled": false,
+					"after": "",
+					"insertAtEnd": false,
+					"considerSubsections": false,
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top",
+					"inline": false,
+					"replaceExisting": false,
+					"blankLineAfterMatchMode": "auto",
+					"promptHeading": false
+				},
+				"insertBefore": {
+					"enabled": false,
+					"before": "",
+					"createIfNotFound": false,
+					"createIfNotFoundLocation": "top"
+				},
+				"newLineCapture": {
+					"enabled": false,
+					"direction": "below"
+				},
+				"prepend": true,
+				"task": false,
+				"openFile": false,
+				"fileOpening": {
+					"location": "tab",
+					"direction": "vertical",
+					"mode": "default",
+					"focus": true
+				},
+				"templater": {
+					"afterCapture": "none"
+				}
+			},
+			"pathHint": [
+				"Brain dump entry"
+			],
+			"parentChoiceId": null
+		}
+	],
+	"assets": [
+		{
+			"kind": "user-script",
+			"originalPath": "scripts/brainDump.js",
+			"contentEncoding": "base64",
+			"content": "Y29uc3QgQ0FQVFVSRV9DSE9JQ0UgPSAiQ2FwdHVyZSBjaG9pY2UiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CgllbnRyeTogc3RhcnQsCglzZXR0aW5nczogewoJCW5hbWU6ICJCcmFpbiBkdW1wIiwKCQlhdXRob3I6ICJRdWlja0FkZCIsCgkJb3B0aW9uczogewoJCQlbQ0FQVFVSRV9DSE9JQ0VdOiB7CgkJCQl0eXBlOiAidGV4dCIsCgkJCQlkZWZhdWx0VmFsdWU6ICJCcmFpbiBkdW1wIGVudHJ5IiwKCQkJCXBsYWNlaG9sZGVyOiAiQnJhaW4gZHVtcCBlbnRyeSIsCgkJCQlkZXNjcmlwdGlvbjogIlRoZSBDYXB0dXJlIGNob2ljZSB0byBvcGVuIGFnYWluIGFmdGVyIGVhY2ggZW50cnkiLAoJCQl9LAoJCX0sCgl9LAp9OwoKYXN5bmMgZnVuY3Rpb24gc3RhcnQocGFyYW1zLCBzZXR0aW5ncykgewoJY29uc3QgY2hvaWNlID0KCQlTdHJpbmcoc2V0dGluZ3M/LltDQVBUVVJFX0NIT0lDRV0gPz8gIiIpLnRyaW0oKSB8fCAiQnJhaW4gZHVtcCBlbnRyeSI7CgoJLy8gRWFjaCBlbnRyeSBydW5zIHRoZSBDYXB0dXJlIG9uY2UuIEVzYyAob3IgQ2FuY2VsKSByZWplY3RzLCB3aGljaCBlbmRzIHRoZQoJLy8gbG9vcC4gQSBDYXB0dXJlIHRoYXQgbmV2ZXIgYXNrcyBmb3IgaW5wdXQgd291bGQgcmVwZWF0IGZvcmV2ZXIsIHNvIHN0b3AuCgl3aGlsZSAoYXdhaXQgYXNrZWRGb3JJbnB1dCgoKSA9PiBwYXJhbXMucXVpY2tBZGRBcGkuZXhlY3V0ZUNob2ljZShjaG9pY2UpKSkge30KCgluZXcgcGFyYW1zLm9ic2lkaWFuLk5vdGljZSgKCQlgQnJhaW4gZHVtcCBzdG9wcGVkOiAiJHtjaG9pY2V9IiBkaWRuJ3QgYXNrIGZvciBhbnkgaW5wdXQuYCwKCSk7Cn0KCi8vIFJ1bnMgYHJ1bmAgYW5kIHJlcG9ydHMgd2hldGhlciBhIGRpYWxvZywgc3VjaCBhcyBhIHByb21wdCwgb3BlbmVkIG1lYW53aGlsZS4KYXN5bmMgZnVuY3Rpb24gYXNrZWRGb3JJbnB1dChydW4pIHsKCWxldCBvcGVuZWQgPSBmYWxzZTsKCWNvbnN0IGNoZWNrID0gKHJlY29yZHMpID0+IHsKCQlvcGVuZWQgfHw9IHJlY29yZHMuc29tZSgocmVjb3JkKSA9PgoJCQlbLi4ucmVjb3JkLmFkZGVkTm9kZXNdLnNvbWUoKG5vZGUpID0+CgkJCQlub2RlLmNsYXNzTGlzdD8uY29udGFpbnMoIm1vZGFsLWNvbnRhaW5lciIpLAoJCQkpLAoJCSk7Cgl9OwoJY29uc3Qgb2JzZXJ2ZXIgPSBuZXcgTXV0YXRpb25PYnNlcnZlcihjaGVjayk7CglvYnNlcnZlci5vYnNlcnZlKGFjdGl2ZURvY3VtZW50LmJvZHksIHsgY2hpbGRMaXN0OiB0cnVlIH0pOwoJdHJ5IHsKCQlhd2FpdCBydW4oKTsKCX0gZmluYWxseSB7CgkJY2hlY2sob2JzZXJ2ZXIudGFrZVJlY29yZHMoKSk7CgkJb2JzZXJ2ZXIuZGlzY29ubmVjdCgpOwoJfQoJcmV0dXJuIG9wZW5lZDsKfQo="
+		}
+	]
+}

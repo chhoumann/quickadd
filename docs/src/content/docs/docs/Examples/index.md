@@ -16,6 +16,7 @@ for the full walkthrough.
 | --- | --- | --- | --- | --- |
 | [Capture to Your Daily Note](/docs/Examples/Capture_ToDailyNote/) | Capture | Beginner | Daily note path | Timestamped entries, tasks, quotes, callouts, and table rows |
 | [Capture to Inbox with GPS](/docs/Examples/Macro_CaptureInboxGps/) | Macro | Intermediate | Obsidian mobile 1.11+ for GPS | A timestamped inbox line with coordinates |
+| [Brain dump](/docs/Examples/Macro_BrainDump/) | Macro and Capture | Beginner | QuickAdd 2.29.0 or later | Several inbox lines in one go, one per entry |
 | [Add a Task to a Kanban Board](/docs/Examples/Capture_AddTaskToKanbanBoard/) | Capture | Beginner | Obsidian Kanban plugin | A task in a board section |
 | [Fetch Tasks from Todoist](/docs/Examples/Capture_FetchTasksFromTodoist/) | Capture and Macro | Intermediate | Todoist API token | Imported Todoist tasks |
 | [Canvas Capture](/docs/Examples/Capture_CanvasCapture/) | Capture | Intermediate | An Obsidian Canvas file | Text added to a selected or targeted card |
@@ -35,7 +36,8 @@ for the full walkthrough.
 
 Start with [Capture to Your Daily Note](/docs/Examples/Capture_ToDailyNote/) for daily-note
 captures. Use [Capture to Inbox with GPS](/docs/Examples/Macro_CaptureInboxGps/) when the
-line should also store device coordinates. Move to
+line should also store device coordinates. Use [Brain dump](/docs/Examples/Macro_BrainDump/)
+to type several entries in a row without reopening the Capture. Move to
 [Canvas Capture](/docs/Examples/Capture_CanvasCapture/) when your target is a Canvas card
 instead of a Markdown note.
 

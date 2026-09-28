@@ -249,6 +249,28 @@ Due: 2026-07-10
 Week: 2026-W28
 ```
 
+#### Reuse the date with `{{VALUE:<name>}}` {#vdate-reuse}
+
+_Requires QuickAdd 2.29.0 or later._
+
+`{{VALUE:due}}` after `{{VDATE:due,<format>}}` prints the same date, in that
+VDATE's format. It's a short way to repeat a date you already asked for. With
+several VDATEs for one name, the first one's format is used.
+
+```markdown title="You write"
+- [ ] Throw and trim 📅 {{VDATE:due,YYYY-MM-DD}}
+- [ ] Glaze fire 📅 {{VALUE:due}}
+```
+
+```markdown title="You get (after answering "friday")"
+- [ ] Throw and trim 📅 2026-07-10
+- [ ] Glaze fire 📅 2026-07-10
+```
+
+A date that a script set, with no VDATE for that name, prints as
+`YYYY-MM-DD`. QuickAdd 1.14.0 to 2.28.0 printed the stored value instead, such
+as `@date:2026-07-10T10:00:00.000Z`.
+
 :::note
 Pipes (`|`) can't be part of a VDATE date format; everything after the first
 pipe is read as the default value and flags. For a literal separator, use
