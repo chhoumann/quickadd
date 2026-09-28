@@ -118,9 +118,11 @@ export class RequirementCollector extends Formatter {
 		try {
 			// Expand global variables first so we can detect inner requirements
 			const expanded = await this.replaceGlobalVarInString(input);
-			// Run a safe formatting pass that collects variables but avoids side-effects
-			this.scanVariableTokens(expanded);
+			// Run a safe formatting pass that collects variables but avoids side-effects.
+			// Dates first, as the run replaces VDATEs before named VALUEs: a
+			// {{VALUE:<name>}} reuse of a VDATE answer keeps the field a date.
 			this.scanDateTokens(expanded);
+			this.scanVariableTokens(expanded);
 			this.scanFileTokens(expanded);
 			// Anonymous {{VALUE}}/{{NAME}} and {{MVALUE}} resolutions are
 			// cached, so their prompt hooks fire once per collector; a path

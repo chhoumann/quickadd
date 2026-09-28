@@ -452,6 +452,20 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     });
   });
 
+  it("keeps a VDATE a date field when {{VALUE:<name>}} reuses it in the same string", async () => {
+    // The run replaces VDATEs before named VALUEs, so the date prompt comes
+    // first and the VALUE reuses its answer, wherever the VALUE sits.
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString(
+      "Starts {{VALUE:due}}\n- [ ] Throw 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Ship 📅 {{VALUE:due}}",
+    );
+
+    expect(rc.requirements.get("due")).toMatchObject({
+      type: "date",
+      dateFormat: "YYYY-MM-DD",
+    });
+  });
+
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {
     const rc = new RequirementCollector(makeApp(), makePlugin());
     await rc.scanString("{{VDATE:due,YYYY-MM-DD|optional}}");
