@@ -146,6 +146,22 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(cursor.kind === "offset" ? cursor.value : null).toBe(result.length);
 	});
 
+	it("starts an empty note with the capture, not a blank line, when writing to the bottom", async () => {
+		const formatter = new CaptureChoiceFormatter(
+			createMockApp(),
+			createCaptureFormatterPlugin(),
+		);
+
+		const { content: result } = await formatter.formatContentWithFile(
+			"- First idea",
+			createChoice({ captureToActiveFile: false, prepend: true }),
+			"",
+			createFile(),
+		);
+
+		expect(result).toBe("- First idea");
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
