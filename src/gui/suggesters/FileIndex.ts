@@ -85,7 +85,8 @@ export class FileIndex {
 	private fuseStrict: Fuse<IndexedFile>;
 	private fuseRelaxed: Fuse<IndexedFile>;
 	private recentFiles = new LRUCache<number>();
-	private unresolvedLinks: Set<string> = new Set();
+	// Built once per metadata change so each keystroke only scores matches.
+	private unresolvedLinks: IndexedFile[] = [];
 	private unresolvedLinksDirty = true;
 	private isIndexing = false;
 	private indexPromise: Promise<void> | null = null;
@@ -408,13 +409,32 @@ export class FileIndex {
 
 	private updateUnresolvedLinks(): void {
 		const unresolvedLinks = this.app.metadataCache.unresolvedLinks;
-		this.unresolvedLinks.clear();
+		const links = new Set<string>();
 
 		for (const sourceFile in unresolvedLinks) {
 			for (const link in unresolvedLinks[sourceFile]) {
-				this.unresolvedLinks.add(link);
+				links.add(link);
 			}
 		}
+
+		this.unresolvedLinks = Array.from(links, (link) => {
+			// Tier on the last path segment, like a note's basename.
+			const slash = link.lastIndexOf('/');
+			const basename = link.slice(slash + 1);
+			return {
+				path: link,
+				pathNormalized: normalizeForSearch(link),
+				basename,
+				basenameNormalized: normalizeForSearch(basename),
+				aliases: [],
+				aliasesNormalized: [],
+				headings: [],
+				blockIds: [],
+				tags: [],
+				modified: 0,
+				folder: slash === -1 ? "" : link.slice(0, slash)
+			};
+		});
 
 		this.unresolvedLinksDirty = false;
 	}
@@ -431,36 +451,19 @@ export class FileIndex {
 		// Unresolved links rank in the same tiers as note names.
 		if (query.length >= 2) {
 			const weights = this.effectiveWeights.base;
-			for (const unresolvedLink of this.unresolvedLinks) {
-				const pathNormalized = normalizeForSearch(unresolvedLink);
-				if (!pathNormalized.includes(queryNormalized)) continue;
+			for (const file of this.unresolvedLinks) {
+				if (!file.pathNormalized.includes(queryNormalized)) continue;
 
-				// Tier on the last path segment, like a note's basename.
-				const slash = unresolvedLink.lastIndexOf('/');
-				const basename = unresolvedLink.slice(slash + 1);
-				const basenameNormalized = normalizeForSearch(basename);
+				const { basenameNormalized } = file;
 				const index = basenameNormalized.indexOf(queryNormalized);
 				const base = index === 0
 					? (basenameNormalized === queryNormalized ? weights.basenameExact : weights.basenamePrefix)
 					: (index > 0 && !ALPHANUMERIC_REGEX.test(basenameNormalized[index - 1]) ? weights.substringBasename : weights.fuzzyMatch);
-				const file: IndexedFile = {
-					path: unresolvedLink,
-					pathNormalized,
-					basename,
-					basenameNormalized,
-					aliases: [],
-					aliasesNormalized: [],
-					headings: [],
-					blockIds: [],
-					tags: [],
-					modified: 0,
-					folder: slash === -1 ? "" : unresolvedLink.slice(0, slash)
-				};
 				results.push({
 					file,
 					score: this.calculateScore(file, query, context, base),
 					matchType: 'unresolved',
-					displayText: unresolvedLink
+					displayText: file.path
 				});
 			}
 		}
