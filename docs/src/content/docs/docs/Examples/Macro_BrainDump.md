@@ -1,13 +1,13 @@
 ---
 title: "Macro: Brain dump"
-description: Jot down several inbox entries in a row - a macro opens your Capture again after each entry until you press Esc
+description: Jot down several inbox entries in a row - a macro opens a Capture again after each entry until you press Esc
 slug: docs/Examples/Macro_BrainDump
 package: brain-dump
 ---
 
-When ideas come faster than you can file them, a Capture that closes after
-every entry slows you down. This macro opens your **Add to inbox** Capture
-again after each entry: type, press Enter, type the next one, and press Esc
+A Capture closes after each entry, so writing down ten ideas means running it
+ten times. This macro opens its **Brain dump entry** Capture again after each
+entry: type, press Enter, type the next one, and press Esc
 when you're done. Every entry becomes its own line in `Inbox.md`.
 
 This example needs QuickAdd 2.29.0 or later. In earlier versions, each new
@@ -17,13 +17,13 @@ prompt opened with the entry you had just saved.
 
 ## Setup
 
-Imported the package above? It adds the **Add to inbox** Capture, the
-**Brain dump** macro, and `scripts/brainDump.js`. Follow **After importing**
+Imported the package above? It adds the **Brain dump** macro, the **Brain
+dump entry** Capture, and `scripts/brainDump.js`. Follow **After importing**
 in the card, then skip to [What you get](#what-you-get).
 
 1. Create the Capture. In **Settings → QuickAdd**, click **New choice** →
    **Capture**. Click its name at the top of the settings window and rename it
-   `Add to inbox`.
+   `Brain dump entry`.
 2. Set **Capture to** to `Inbox.md` and turn on **Create file if it doesn't
    exist**.
 3. Set **Write position** to **Bottom of file**.
@@ -66,7 +66,7 @@ on the **brainDump** step, and enter that Capture's name in **Capture choice**.
 If the Capture you name doesn't ask for anything, the macro runs it once and
 stops with a notice, so it can't keep writing the same line.
 
-The loop at the heart of the script is one line:
+The script's loop is one line:
 
 ```js
 while (await askedForInput(() => params.quickAddApi.executeChoice(choice))) {}

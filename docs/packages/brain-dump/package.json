@@ -36,9 +36,9 @@
 		{
 			"choice": {
 				"id": "qa-pkg-brain-dump-inbox",
-				"name": "Add to inbox",
+				"name": "Brain dump entry",
 				"type": "Capture",
-				"command": true,
+				"command": false,
 				"appendLink": false,
 				"copyLinkToClipboard": false,
 				"captureTo": "Inbox.md",
@@ -90,7 +90,7 @@
 				}
 			},
 			"pathHint": [
-				"Add to inbox"
+				"Brain dump entry"
 			],
 			"parentChoiceId": null
 		}
@@ -105,7 +105,7 @@
 	"install": {
 		"afterImport": [
 			"Run **Brain dump** from the command palette, or give it a hotkey in **Settings → Hotkeys**.",
-			"Optional: to put entries somewhere other than `Inbox.md`, click the cog next to **Add to inbox** and change **Capture to**.",
+			"Optional: to put entries somewhere other than `Inbox.md`, click the cog next to **Brain dump entry** and change **Capture to**.",
 			"Optional: to repeat a Capture you already have, click the cog next to **Brain dump**, then the cog on the **brainDump** step, and enter that Capture's name in **Capture choice**."
 		]
 	}

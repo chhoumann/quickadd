@@ -8,8 +8,8 @@ module.exports = {
 		options: {
 			[CAPTURE_CHOICE]: {
 				type: "text",
-				defaultValue: "Add to inbox",
-				placeholder: "Add to inbox",
+				defaultValue: "Brain dump entry",
+				placeholder: "Brain dump entry",
 				description: "The Capture choice to open again after each entry",
 			},
 		},
@@ -18,7 +18,7 @@ module.exports = {
 
 async function start(params, settings) {
 	const choice =
-		String(settings?.[CAPTURE_CHOICE] ?? "").trim() || "Add to inbox";
+		String(settings?.[CAPTURE_CHOICE] ?? "").trim() || "Brain dump entry";
 
 	// Each entry runs the Capture once. Esc (or Cancel) rejects, which ends the
 	// loop. A Capture that never asks for input would repeat forever, so stop.
