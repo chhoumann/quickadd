@@ -157,6 +157,51 @@ describe('FileSuggester - Issue #838 and #839', () => {
         });
     });
 
+    describe('Issue #838 - Unresolved links rank by how well they match', () => {
+        async function searchVault(names: string[], unresolved: string[], query: string) {
+            (FileIndex as any).instance = null;
+            const vaultFiles = names.map(name => createMockFile(`${name}.md`, name.split('/').pop()!));
+            vi.mocked(mockApp.vault.getMarkdownFiles).mockReturnValue(vaultFiles);
+            const app = {
+                ...mockApp,
+                metadataCache: {
+                    ...mockApp.metadataCache,
+                    unresolvedLinks: {
+                        'Journal/2025-07-05.md': Object.fromEntries(unresolved.map(link => [link, 1])),
+                    },
+                },
+            };
+            const index = FileIndex.getInstance(app as unknown as App, mockPlugin);
+            await index.ensureIndexed();
+            return index.search(query).map(result => result.displayText);
+        }
+
+        it('puts an unresolved prefix match above weak fuzzy matches of existing notes', async () => {
+            const results = await searchVault(
+                ['Ideas/Move Fast', 'Movies/Clover Field', 'Books/Glove Theory', 'Movies/Love Actually'],
+                ['Love Triangle'],
+                'Love T',
+            );
+
+            expect(results[0]).toBe('Love Triangle');
+            // Fuzzy matches are ordered by match quality, not vault order.
+            expect(results.indexOf('Glove Theory')).toBeLessThan(results.indexOf('Move Fast'));
+        });
+
+        it('keeps an existing note ahead of an unresolved link in a better tier', async () => {
+            const results = await searchVault(['Notes/Love'], ['Love Triangle'], 'Love');
+
+            expect(results).toEqual(['Love', 'Love Triangle']);
+        });
+
+        it('does not drop a good unresolved match behind many weaker ones', async () => {
+            const weaker = Array.from({ length: 30 }, (_, i) => `Topic ${i} lo`);
+            const results = await searchVault([], [...weaker, 'Love Triangle'], 'lo');
+
+            expect(results[0]).toBe('Love Triangle');
+        });
+    });
+
     describe('Issue #839 - Exact title matches always rank first', () => {
         it('should rank exact basename match as #1 result', () => {
             const query = '2024-01-15';

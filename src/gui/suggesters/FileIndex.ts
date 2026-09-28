@@ -113,6 +113,7 @@ export class FileIndex {
 			ignoreLocation: true,
 			findAllMatches: true,
 			shouldSort: false, // We'll handle sorting ourselves
+			includeScore: true,
 			includeMatches: true // Include match information to detect alias hits
 		};
 
@@ -427,35 +428,36 @@ export class FileIndex {
 		const queryNormalized = normalizeForSearch(query);
 		const results = this.matchFiles(query, context, limit);
 
-		// 4. Unresolved links - Tier 3
+		// Unresolved links rank in the same tiers as note names.
 		if (query.length >= 2) {
-			let unresolvedCount = 0;
-			const unresolvedLimit = query.length < 3 ? 10 : 20;
-			
+			const weights = this.effectiveWeights.base;
 			for (const unresolvedLink of this.unresolvedLinks) {
-				if (unresolvedCount >= unresolvedLimit) break;
-				
-				if (normalizeForSearch(unresolvedLink).includes(queryNormalized)) {
-					results.push({
-						file: {
-							path: unresolvedLink,
-							pathNormalized: normalizeForSearch(unresolvedLink),
-							basename: unresolvedLink,
-							basenameNormalized: normalizeForSearch(unresolvedLink),
-							aliases: [],
-							aliasesNormalized: [],
-							headings: [],
-							blockIds: [],
-							tags: [],
-							modified: 0,
-							folder: ""
-						},
-						score: this.effectiveWeights.base.unresolvedLink,
-						matchType: 'unresolved',
-						displayText: unresolvedLink
-					});
-					unresolvedCount++;
-				}
+				const nameNormalized = normalizeForSearch(unresolvedLink);
+				const index = nameNormalized.indexOf(queryNormalized);
+				if (index === -1) continue;
+
+				const base = index > 0
+					? (ALPHANUMERIC_REGEX.test(nameNormalized[index - 1]) ? weights.fuzzyMatch : weights.substringBasename)
+					: (nameNormalized === queryNormalized ? weights.basenameExact : weights.basenamePrefix);
+				const file: IndexedFile = {
+					path: unresolvedLink,
+					pathNormalized: nameNormalized,
+					basename: unresolvedLink,
+					basenameNormalized: nameNormalized,
+					aliases: [],
+					aliasesNormalized: [],
+					headings: [],
+					blockIds: [],
+					tags: [],
+					modified: 0,
+					folder: ""
+				};
+				results.push({
+					file,
+					score: this.calculateScore(file, query, context, base),
+					matchType: 'unresolved',
+					displayText: unresolvedLink
+				});
 			}
 		}
 
