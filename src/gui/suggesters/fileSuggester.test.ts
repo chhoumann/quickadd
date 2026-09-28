@@ -173,10 +173,10 @@ describe('FileSuggester - Issue #838 and #839', () => {
             } as unknown as App;
         }
 
-        async function searchVault(names: string[], unresolved: string[], query: string) {
+        async function searchVault(names: string[], unresolved: string[], query: string, currentFolder?: string) {
             const index = FileIndex.getInstance(vaultApp(names, unresolved), mockPlugin);
             await index.ensureIndexed();
-            return index.search(query).map(result => result.displayText);
+            return index.search(query, { currentFolder }).map(result => result.displayText);
         }
 
         it('puts an unresolved prefix match above weak fuzzy matches of existing notes', async () => {
@@ -208,6 +208,8 @@ describe('FileSuggester - Issue #838 and #839', () => {
             const results = await searchVault(['Notes/Love Triangle'], ['Projects/Love'], 'Love');
 
             expect(results).toEqual(['Projects/Love', 'Love Triangle']);
+            expect(await searchVault([], ['Archive/Love', 'Projects/Love'], 'Love', 'Projects'))
+                .toEqual(['Projects/Love', 'Archive/Love']);
         });
 
         it('looks up headings in an existing note, not a better-ranked unresolved link', async () => {

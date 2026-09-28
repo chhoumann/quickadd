@@ -436,7 +436,8 @@ export class FileIndex {
 				if (!pathNormalized.includes(queryNormalized)) continue;
 
 				// Tier on the last path segment, like a note's basename.
-				const basename = unresolvedLink.slice(unresolvedLink.lastIndexOf('/') + 1);
+				const slash = unresolvedLink.lastIndexOf('/');
+				const basename = unresolvedLink.slice(slash + 1);
 				const basenameNormalized = normalizeForSearch(basename);
 				const index = basenameNormalized.indexOf(queryNormalized);
 				const base = index === 0
@@ -453,7 +454,7 @@ export class FileIndex {
 					blockIds: [],
 					tags: [],
 					modified: 0,
-					folder: ""
+					folder: slash === -1 ? "" : unresolvedLink.slice(0, slash)
 				};
 				results.push({
 					file,
