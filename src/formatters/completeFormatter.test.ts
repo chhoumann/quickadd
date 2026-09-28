@@ -524,6 +524,25 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(vars.get("items")).toEqual(["alpha", "beta"]);
 	});
 
+	it("fills a quoted property from a one-line script, as the docs show", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("person");
+		const f = defaultFormatter();
+		const template = [
+			"---",
+			"type: \"```js quickadd return 'person'```\"",
+			"---",
+			"# Person",
+		].join("\n");
+
+		const result = await f.withTemplatePropertyCollection(() =>
+			f.formatFileContent(template),
+		);
+
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledWith("return 'person'");
+		expect(result).toBe('---\ntype: "person"\n---\n# Person');
+		expect(f.getAndClearTemplatePropertyVars().size).toBe(0);
+	});
+
 	it("does not collect an array when text follows the closing fence", async () => {
 		mocks.inlineRunAndGetOutput.mockResolvedValue(["alpha", "beta"]);
 		const f = defaultFormatter();

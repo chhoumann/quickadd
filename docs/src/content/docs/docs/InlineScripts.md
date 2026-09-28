@@ -32,9 +32,15 @@ typed.
 Good to know:
 
 - Label the block `js quickadd`, not plain `js`. A plain `js` block is inserted as an ordinary code snippet and never runs.
+- Write the code as the body of a function, not as `module.exports = ...`. That shape is for [user scripts](/docs/UserScripts/), which run from a macro.
 - The [QuickAdd API](/docs/QuickAddAPI/) is available as `this` (the same API user scripts get, where it arrives as a parameter instead).
 - To insert something, `return` it. Strings, numbers, booleans, and arrays are
   supported.
+- The script runs while QuickAdd builds the text, before anything is written.
+  In a Template choice the new note doesn't exist yet, and
+  `this.app.workspace.getActiveFile()` is still the note you had open, so
+  editing it changes that note. To fill in a property of the new note,
+  [return the value from the property itself](#set-a-property).
 
 Return values follow the same rendering contract as a typed
 [`{{VALUE:name}}`](/docs/FormatSyntax/#named-value):
@@ -50,6 +56,22 @@ Plain objects and other unsupported JavaScript values also insert nothing.
 QuickAdd does not guess how to serialize them into Markdown. Assign an object to
 `this.variables` and reference its fields explicitly, or return the exact string
 you want to insert.
+
+## Set a property on the new note {#set-a-property}
+
+Put the script where the property's value goes. Keep it on one line and wrap it
+in double quotes, with single quotes inside the script, so the template's own
+frontmatter stays valid:
+
+````
+---
+type: "```js quickadd return 'person'```"
+---
+````
+
+A note made from this template gets `type: "person"`, while the template file
+itself keeps the script text as its `type`, so it never shows up as a `person`.
+A quoted value stays text: `return 1 + 1` gives `"2"`.
 
 ## Execution order and `{{VALUE}}` {#execution-order-and-value}
 

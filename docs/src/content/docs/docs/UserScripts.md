@@ -94,6 +94,10 @@ module.exports = async (params) => {
 
 If the note has no ` ```js ` block, QuickAdd shows a notice and skips the script.
 
+The note only runs when a macro calls it. A ` ```js ` block inside a template or
+capture format is copied into the output as text; to run code there, use an
+[inline script](/docs/InlineScripts/).
+
 :::note
 Only plain ` ```js ` fences are recognized - blocks nested inside callouts or
 blockquotes (`> ```js`) and `~~~` fences are not. To embed a literal ` ``` ` line
