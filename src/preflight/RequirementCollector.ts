@@ -300,20 +300,23 @@ export class RequirementCollector extends Formatter {
 		}
 	}
 
-	/** Named variables match case-insensitively at run time. */
+	/**
+	 * A named VALUE finds an earlier answer by its exact name, or else by the
+	 * one name that matches case-insensitively (two are ambiguous at run time).
+	 */
 	private findRequirementIgnoringCase(
 		key: string,
-		type?: FieldType,
+		type: FieldType,
 	): FieldRequirement | undefined {
 		const exact = this.requirements.get(key);
-		if (exact && (!type || exact.type === type)) return exact;
+		if (exact) return exact.type === type ? exact : undefined;
 		const lower = key.toLowerCase();
-		for (const req of this.requirements.values()) {
-			if (req.id.toLowerCase() === lower && (!type || req.type === type)) {
-				return req;
-			}
-		}
-		return undefined;
+		const matches = [...this.requirements.values()].filter(
+			(req) => req.id.toLowerCase() === lower,
+		);
+		return matches.length === 1 && matches[0].type === type
+			? matches[0]
+			: undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
@@ -388,12 +391,8 @@ export class RequirementCollector extends Formatter {
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
-			// VDATEs match their own names exactly at run time; only a plain
-			// VALUE with another case can be the same variable.
-			const existing =
-				this.requirements.get(variableName) ??
-				this.findRequirementIgnoringCase(variableName, "text") ??
-				this.findRequirementIgnoringCase(variableName, "textarea");
+			// A VDATE finds an earlier answer by its exact name at run time.
+			const existing = this.requirements.get(variableName);
 			if (!existing) {
 				this.requirements.set(variableName, {
 					id: variableName,

@@ -483,15 +483,22 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
   it("asks for a date when a plain {{VALUE:<name>}} in an earlier string reuses a later VDATE", async () => {
     // The file name is scanned first; the VDATE in the body parses its answer.
     const rc = new RequirementCollector(makeApp(), makePlugin());
-    await rc.scanString("{{VALUE:Due}} report", true);
+    await rc.scanString("{{VALUE:due}} report", true);
     await rc.scanString("Due: {{VDATE:due,DD.MM.YYYY|tomorrow}}");
 
-    expect([...rc.requirements.keys()]).toEqual(["Due"]);
-    expect(rc.requirements.get("Due")).toMatchObject({
+    expect([...rc.requirements.keys()]).toEqual(["due"]);
+    expect(rc.requirements.get("due")).toMatchObject({
       type: "date",
       dateFormat: "DD.MM.YYYY",
       defaultValue: "tomorrow",
     });
+
+    // The VDATE looks its name up exactly, so another case is a second prompt.
+    const otherCase = new RequirementCollector(makeApp(), makePlugin());
+    await otherCase.scanString("{{VALUE:Due}} report", true);
+    await otherCase.scanString("Due: {{VDATE:due,DD.MM.YYYY}}");
+    expect([...otherCase.requirements.keys()]).toEqual(["Due", "due"]);
+    expect(otherCase.requirements.get("Due")?.type).toBe("text");
   });
 
   it("keeps VDATEs whose names differ only in case apart, as the run does", async () => {
@@ -504,6 +511,10 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     await rc.scanString("{{VALUE:start}}", true);
     expect(rc.requirements.get("start")?.pathContext).toBe(true);
     expect(rc.requirements.get("Start")?.pathContext).toBeFalsy();
+
+    // Two case-insensitive matches are ambiguous: the VALUE asks for itself.
+    await rc.scanString("{{VALUE:START}}");
+    expect(rc.requirements.get("START")?.type).toBe("text");
   });
 
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {

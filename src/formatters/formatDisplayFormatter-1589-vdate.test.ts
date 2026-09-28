@@ -116,6 +116,10 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		await expect(
 			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:when|name:due}}"),
 		).resolves.toBe("01.06.2023 01.06.2023");
+		// Two case-insensitive matches are ambiguous at run time: no date reuse.
+		await expect(
+			makeFormatter().format("{{VDATE:Start,YYYY}} {{VDATE:start,MM}} {{VALUE:START}}"),
+		).resolves.toBe("2023 06 START_value");
 	});
 
 	it("keeps the text stable for a half-typed |startof: unit, and still reports it", async () => {

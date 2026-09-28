@@ -66,7 +66,10 @@ export function getDateVariableFormat(
 	return entry && entry.answer === variables.get(name) ? entry.dateFormat : undefined;
 }
 
-/** Exact name first, then case-insensitively, as the run resolves a named {{VALUE}}. */
+/**
+ * Exact name first, then one case-insensitive match, as the run resolves a
+ * named {{VALUE}} (two matches are ambiguous there, so they are here too).
+ */
 export function findDateVariableFormat(
 	variables: Map<string, unknown>,
 	name: string,
@@ -74,10 +77,12 @@ export function findDateVariableFormat(
 	const exact = getDateVariableFormat(variables, name);
 	if (exact !== undefined) return exact;
 	const lower = name.toLowerCase();
-	for (const key of dateVariableFormats.get(variables)?.keys() ?? []) {
-		if (key.toLowerCase() === lower) return getDateVariableFormat(variables, key);
-	}
-	return undefined;
+	const matches = [...(dateVariableFormats.get(variables)?.keys() ?? [])].filter(
+		(key) => key.toLowerCase() === lower,
+	);
+	return matches.length === 1
+		? getDateVariableFormat(variables, matches[0])
+		: undefined;
 }
 
 export function snapshotDateVariableFormats(
