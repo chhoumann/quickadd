@@ -60,8 +60,9 @@ After three entries, `Inbox.md` ends like this:
 ## Repeat a different Capture
 
 The macro can repeat any Capture that asks for input, such as one that adds a
-task to today's daily note. Click the cog next to **Brain dump**, then the cog
-on the **brainDump** step, and enter that Capture's name in **Capture choice**.
+task to today's daily note. In **Settings → QuickAdd**, hover over **Brain dump**
+and click its cog, then click the cog on the **brainDump** step and enter that
+Capture's name in **Capture choice**.
 
 If the Capture you name doesn't ask for anything, the macro runs it once and
 stops with a notice, so it can't keep writing the same line.

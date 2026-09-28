@@ -105,8 +105,8 @@
 	"install": {
 		"afterImport": [
 			"Run **Brain dump** from the command palette, or give it a hotkey in **Settings → Hotkeys**.",
-			"Optional: to put entries somewhere other than `Inbox.md`, click the cog next to **Brain dump entry** and change **Capture to**.",
-			"Optional: to repeat a Capture you already have, click the cog next to **Brain dump**, then the cog on the **brainDump** step, and enter that Capture's name in **Capture choice**."
+			"Optional: to put entries somewhere other than `Inbox.md`, hover over **Brain dump entry** in **Settings → QuickAdd**, click its cog, and change **Capture to**.",
+			"Optional: to repeat a Capture you already have, hover over **Brain dump** and click its cog, then click the cog on the **brainDump** step and enter that Capture's name in **Capture choice**."
 		]
 	}
 }
