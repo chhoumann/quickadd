@@ -9,7 +9,7 @@ import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
 // Obsidian's `dev:errors`, which records every unhandled promise rejection (even one
@@ -20,26 +20,6 @@ const NO_ERRORS = "No errors captured.";
 const PROMPT = ".modal-container, .prompt";
 
 type Entry = "command" | "launcher" | "cli" | "uri" | "api" | "api-floated";
-
-const UNSAFE_IN_CODE: Record<string, string> = {
-	"<": "\\u003C",
-	">": "\\u003E",
-	"/": "\\u002F",
-	"\\": "\\\\",
-	"\b": "\\b",
-	"\f": "\\f",
-	"\n": "\\n",
-	"\r": "\\r",
-	"\t": "\\t",
-	"\0": "\\0",
-	"\u2028": "\\u2028",
-	"\u2029": "\\u2029",
-};
-
-/** A JavaScript literal for `value`, safe to splice into code run by `eval` (CodeQL js/bad-code-sanitization). */
-function jsLiteral(value: unknown): string {
-	return JSON.stringify(value).replace(/[<>\b\f\n\r\t\0\u2028\u2029]/g, (char) => UNSAFE_IN_CODE[char]);
-}
 
 async function devErrors(obsidian: ObsidianClient): Promise<string> {
 	return (await obsidian.execText("dev:errors")).trim();

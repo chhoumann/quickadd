@@ -144,7 +144,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
-		promptDraftStore.beginExecutionScope();
+		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
@@ -177,14 +177,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				}
 
 				if (this.pendingAbort) {
-					promptDraftStore.rollbackExecutionScope();
+					promptDraftStore.rollbackExecutionScope(draftScope);
 					return;
 				}
 
-				promptDraftStore.commitExecutionScope();
+				promptDraftStore.commitExecutionScope(draftScope);
 			});
 		} catch (error) {
-			promptDraftStore.rollbackExecutionScope();
+			promptDraftStore.rollbackExecutionScope(draftScope);
 			throw error;
 		} finally {
 			this.pendingResult = savedResult;
@@ -231,7 +231,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
-		promptDraftStore.beginExecutionScope();
+		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
@@ -244,7 +244,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				}
 
 				if (this.pendingAbort) {
-					promptDraftStore.rollbackExecutionScope();
+					promptDraftStore.rollbackExecutionScope(draftScope);
 					const abort = this.consumeAbortSignal();
 					const isUser = abort instanceof UserCancelError;
 					return {
@@ -257,14 +257,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					};
 				}
 
-				promptDraftStore.commitExecutionScope();
+				promptDraftStore.commitExecutionScope(draftScope);
 				const result = this.pendingResult;
 				this.pendingResult = null;
 				// No success recorded and no abort => the engine swallowed a failure.
 				return result ?? { status: "error" };
 			});
 		} catch (error) {
-			promptDraftStore.rollbackExecutionScope();
+			promptDraftStore.rollbackExecutionScope(draftScope);
 			if (error instanceof UserCancelError) {
 				// Stable user-facing text; no internal message surfaced.
 				return { status: "cancelled", cancelKind: "user" };

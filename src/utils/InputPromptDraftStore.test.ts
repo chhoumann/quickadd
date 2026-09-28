@@ -28,12 +28,12 @@ describe("InputPromptDraftStore execution scopes", () => {
 	it("keeps submitted drafts pending until the execution scope commits", () => {
 		const handler = new InputPromptDraftHandler(key, shouldPersist);
 
-		store.beginExecutionScope();
+		const scope = store.beginExecutionScope();
 		handler.persist("submitted", true);
 
 		expect(store.get(draftKey)).toBe("submitted");
 
-		store.commitExecutionScope();
+		store.commitExecutionScope(scope);
 
 		expect(store.get(draftKey)).toBeUndefined();
 	});
@@ -41,9 +41,9 @@ describe("InputPromptDraftStore execution scopes", () => {
 	it("preserves submitted drafts when the execution scope rolls back", () => {
 		const handler = new InputPromptDraftHandler(key, shouldPersist);
 
-		store.beginExecutionScope();
+		const scope = store.beginExecutionScope();
 		handler.persist("submitted", true);
-		store.rollbackExecutionScope();
+		store.rollbackExecutionScope(scope);
 
 		expect(store.get(draftKey)).toBe("submitted");
 	});
@@ -51,12 +51,59 @@ describe("InputPromptDraftStore execution scopes", () => {
 	it("preserves submitted drafts when a swallowed failure marks the scope failed", () => {
 		const handler = new InputPromptDraftHandler(key, shouldPersist);
 
-		store.beginExecutionScope();
+		const scope = store.beginExecutionScope();
 		handler.persist("submitted", true);
 		store.markExecutionScopeFailed();
-		store.commitExecutionScope();
+		store.commitExecutionScope(scope);
 
 		expect(store.get(draftKey)).toBe("submitted");
+	});
+
+	it("clears a nested choice's submitted draft when that choice completes, even if the outer run is cancelled", () => {
+		// A Macro that re-runs a Capture until Escape (discussion #763).
+		const handler = new InputPromptDraftHandler(key, shouldPersist);
+
+		const macro = store.beginExecutionScope();
+		const firstCapture = store.beginExecutionScope();
+		handler.persist("first entry", true);
+		store.commitExecutionScope(firstCapture);
+
+		expect(store.get(draftKey)).toBeUndefined();
+
+		const cancelledCapture = store.beginExecutionScope();
+		store.rollbackExecutionScope(cancelledCapture);
+		store.rollbackExecutionScope(macro);
+
+		expect(store.get(draftKey)).toBeUndefined();
+	});
+
+	it("keeps the enclosing run's drafts when a nested choice fails", () => {
+		const outerPromptKey = { ...key, header: "Outer value" };
+		const outerKey = store.makeKey(outerPromptKey);
+		const outer = new InputPromptDraftHandler(outerPromptKey, shouldPersist);
+		const nested = new InputPromptDraftHandler(key, shouldPersist);
+
+		const outerScope = store.beginExecutionScope();
+		outer.persist("outer answer", true);
+		const nestedScope = store.beginExecutionScope();
+		nested.persist("nested answer", true);
+		store.rollbackExecutionScope(nestedScope);
+		store.commitExecutionScope(outerScope);
+
+		expect(store.get(outerKey)).toBe("outer answer");
+		expect(store.get(draftKey)).toBe("nested answer");
+	});
+
+	it("keeps a later run's draft when an overlapping earlier run finishes first", () => {
+		const handler = new InputPromptDraftHandler(key, shouldPersist);
+
+		const first = store.beginExecutionScope();
+		const second = store.beginExecutionScope();
+		handler.persist("second run answer", true);
+		store.commitExecutionScope(first);
+		store.rollbackExecutionScope(second);
+
+		expect(store.get(draftKey)).toBe("second run answer");
 	});
 
 	it("does not resurrect unchanged defaults after cancellation before submit", () => {

@@ -1307,9 +1307,9 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			configurable: true,
 		});
 
-		store.beginExecutionScope();
+		const draftScope = store.beginExecutionScope();
 		await engine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(draftScope);
 
 		expect(store.get(draftKey)).toBe("Capture body to preserve");
 		expect(clipboardWriteText).not.toHaveBeenCalled();
@@ -1355,9 +1355,9 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			}),
 		);
 
-		store.beginExecutionScope();
+		const retryScope = store.beginExecutionScope();
 		await successfulEngine.run();
-		store.commitExecutionScope();
+		store.commitExecutionScope(retryScope);
 
 		expect(promptHydratedValues).toContain("Capture body to preserve");
 		expect(store.get(draftKey)).toBeUndefined();

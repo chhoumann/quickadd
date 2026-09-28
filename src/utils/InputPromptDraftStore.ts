@@ -16,6 +16,11 @@ export interface InputPromptDraftKey {
 	scopeId?: string;
 }
 
+export interface ExecutionScope {
+	submittedDraftKeys: Set<string>;
+	failed: boolean;
+}
+
 interface DraftEntry {
 	value: string;
 	timestamp: number;
@@ -24,9 +29,13 @@ interface DraftEntry {
 export class InputPromptDraftStore {
 	private static instance: InputPromptDraftStore;
 	private drafts: Map<string, DraftEntry> = new Map();
-	private pendingSubmittedDraftKeys: Set<string> = new Set();
-	private executionScopeDepth = 0;
-	private executionScopeFailed = false;
+	/**
+	 * One entry per running choice, innermost last. A choice clears the drafts
+	 * it submitted once it completes, so a nested choice (a Macro step or an
+	 * `executeChoice` call) that already wrote its text does not pre-fill the
+	 * next run, even if the enclosing Macro is cancelled later.
+	 */
+	private executionScopes: ExecutionScope[] = [];
 	private readonly MAX_ENTRIES = 100;
 
 	static getInstance(): InputPromptDraftStore {
@@ -70,62 +79,69 @@ export class InputPromptDraftStore {
 	}
 
 	handleSubmittedDraft(key: string, value: string): void {
-		if (!this.hasActiveExecutionScope()) {
+		const scope = this.executionScopes.at(-1);
+		if (!scope) {
 			this.clear(key);
 			return;
 		}
 
 		this.set(key, value);
-		this.pendingSubmittedDraftKeys.add(key);
+		scope.submittedDraftKeys.add(key);
 	}
 
-	beginExecutionScope(): void {
-		this.executionScopeDepth += 1;
+	beginExecutionScope(): ExecutionScope {
+		const scope: ExecutionScope = { submittedDraftKeys: new Set(), failed: false };
+		this.executionScopes.push(scope);
+		return scope;
 	}
 
-	commitExecutionScope(): void {
-		if (!this.hasActiveExecutionScope()) return;
+	commitExecutionScope(scope: ExecutionScope): void {
+		if (!this.endExecutionScope(scope) || scope.failed) return;
 
-		this.executionScopeDepth -= 1;
-		if (this.executionScopeDepth > 0) return;
-
-		if (!this.executionScopeFailed) {
-			for (const key of this.pendingSubmittedDraftKeys) {
-				this.clear(key);
-			}
-		}
-
-		this.resetExecutionScope();
-	}
-
-	rollbackExecutionScope(): void {
-		if (!this.hasActiveExecutionScope()) return;
-
-		this.executionScopeFailed = true;
-		this.executionScopeDepth -= 1;
-		if (this.executionScopeDepth === 0) {
-			this.resetExecutionScope();
+		for (const key of scope.submittedDraftKeys) {
+			this.clear(key);
 		}
 	}
 
+	rollbackExecutionScope(scope: ExecutionScope): void {
+		if (!this.endExecutionScope(scope)) return;
+
+		this.markExecutionScopeFailed();
+	}
+
+	/**
+	 * A failure keeps the drafts of every choice still running, which includes
+	 * the ones around the failing choice.
+	 */
 	markExecutionScopeFailed(): void {
-		if (!this.hasActiveExecutionScope()) return;
-
-		this.executionScopeFailed = true;
+		for (const scope of this.executionScopes) {
+			scope.failed = true;
+		}
 	}
 
 	hasActiveExecutionScope(): boolean {
-		return this.executionScopeDepth > 0;
+		return this.executionScopes.length > 0;
 	}
 
 	clear(key: string): void {
 		this.drafts.delete(key);
-		this.pendingSubmittedDraftKeys.delete(key);
+		for (const scope of this.executionScopes) {
+			scope.submittedDraftKeys.delete(key);
+		}
 	}
 
 	clearAll(): void {
 		this.drafts.clear();
-		this.resetExecutionScope();
+		this.executionScopes = [];
+	}
+
+	/** Scopes can end out of order when `executeChoice` calls overlap. */
+	private endExecutionScope(scope: ExecutionScope): boolean {
+		const index = this.executionScopes.indexOf(scope);
+		if (index === -1) return false;
+
+		this.executionScopes.splice(index, 1);
+		return true;
 	}
 
 	private evictOldest(count: number): void {
@@ -134,14 +150,7 @@ export class InputPromptDraftStore {
 			.slice(0, count);
 
 		for (const [key] of entries) {
-			this.drafts.delete(key);
-			this.pendingSubmittedDraftKeys.delete(key);
+			this.clear(key);
 		}
-	}
-
-	private resetExecutionScope(): void {
-		this.pendingSubmittedDraftKeys.clear();
-		this.executionScopeDepth = 0;
-		this.executionScopeFailed = false;
 	}
 }
