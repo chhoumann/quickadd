@@ -1,7 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, rememberDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { defaultDateVariableFormat, getDateVariableFormat, rememberDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
@@ -281,8 +281,13 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		variableName: string,
 		context?: PromptContext
 	): Promise<string> {
+		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
+		// the VDATE's example date, as the run prints the one answer.
+		const dateFormat = getDateVariableFormat(this.variables, variableName);
 		return fileNameSafeStandIn(
-			getVariablePromptExample(variableName),
+			dateFormat
+				? DateFormatPreviewGenerator.generate(dateFormat)
+				: getVariablePromptExample(variableName),
 			"user input",
 		);
 	}

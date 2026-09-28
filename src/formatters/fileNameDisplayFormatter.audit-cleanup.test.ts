@@ -150,6 +150,12 @@ describe("FileNameDisplayFormatter VDATE preview", () => {
 		).resolves.toBe("15.08.2026 15.08.2026");
 	});
 
+	it("previews a {{VALUE:}} reuse of an UNANSWERED date as the same example date, in the VDATE's format", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:due,DD.MM.YYYY}} {{VALUE:due}} {{VALUE:due}}"),
+		).resolves.toBe("01.06.2023 01.06.2023 01.06.2023");
+	});
+
 	it("renders an answered-empty optional date as empty, not as today", async () => {
 		const formatter = makeFormatter();
 		(formatter as unknown as { variables: Map<string, unknown> }).variables.set(
