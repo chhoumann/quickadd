@@ -26,7 +26,9 @@ Type one of these triggers anywhere in a prompt:
 The `#` and `[[` triggers work in QuickAdd's single-line and multi-line input
 prompts, and in text and textarea fields on the
 [one-page input form](/docs/ControllingPrompts/#one-form-instead-of-many-prompts).
-Field and pick-list widgets keep their own inline suggestions.
+Field and pick-list widgets keep their own inline suggestions. The
+[math prompt](/docs/FormatSyntax/#mvalue) (`{{MVALUE}}`) suggests LaTeX
+commands instead.
 :::
 
 ### Search your tags: `#` {#tag-search}
