@@ -269,6 +269,15 @@ describe("UpdateModal", () => {
 			"```",
 			"  ## Indented heading",
 			"###### Deepest heading",
+			"- ```markdown",
+			"  # Code in a list item",
+			"  ```",
+			"1. Step",
+			"",
+			"      ```markdown",
+			"   # Code under a numbered step",
+			"      ```",
+			"## Last heading",
 		].join("\n");
 		mockResponse(200, [
 			{ tag_name: "1.2.0", body, draft: false, prerelease: false },
@@ -301,6 +310,15 @@ describe("UpdateModal", () => {
 				"```",
 				"  ### Indented heading",
 				"###### Deepest heading",
+				"- ```markdown",
+				"  # Code in a list item",
+				"  ```",
+				"1. Step",
+				"",
+				"      ```markdown",
+				"   # Code under a numbered step",
+				"      ```",
+				"### Last heading",
 			].join("\n"),
 		);
 		// Obsidian styles code blocks, inline code, and callouts only inside it.

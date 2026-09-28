@@ -156,10 +156,11 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-// A backtick fence's info string can't contain backticks, and a closing fence
+// Fences may sit inside list items, after a marker or indented under one. A
+// backtick fence's info string can't contain backticks, and a closing fence
 // has nothing after it but whitespace (CommonMark).
-const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
-const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
+const FENCE_OPEN = /^\s*(?:(?:[-*+]|\d+[.)])\s+)?(`{3,}(?=[^`]*$)|~{3,})/;
+const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/;
 // Levels 1-5: a seventh # would turn a level-6 heading into plain text.
 const HEADING = /^( {0,3})(#{1,5})(?=\s|$)/;
 
