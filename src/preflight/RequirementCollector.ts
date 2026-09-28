@@ -386,9 +386,12 @@ export class RequirementCollector extends Formatter {
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
+			// VDATEs match their own names exactly at run time; only a plain
+			// VALUE with another case can be the same variable.
 			const existing =
 				this.requirements.get(variableName) ??
-				this.findRequirementIgnoringCase(variableName);
+				this.findRequirementIgnoringCase(variableName, "text") ??
+				this.findRequirementIgnoringCase(variableName, "textarea");
 			if (!existing) {
 				this.requirements.set(variableName, {
 					id: variableName,

@@ -494,6 +494,13 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     });
   });
 
+  it("keeps VDATEs whose names differ only in case apart, as the run does", async () => {
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VDATE:Start,YYYY-MM-DD}} {{VDATE:start,YYYY-MM-DD}}");
+
+    expect([...rc.requirements.keys()]).toEqual(["Start", "start"]);
+  });
+
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {
     const rc = new RequirementCollector(makeApp(), makePlugin());
     await rc.scanString("{{VDATE:due,YYYY-MM-DD|optional}}");
