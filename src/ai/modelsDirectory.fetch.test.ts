@@ -4,7 +4,7 @@ const storeState = vi.hoisted(() => ({ disableOnlineFeatures: false }));
 const requestUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock("obsidian", async (importOriginal) => ({
-	...(await importOriginal<typeof import("obsidian")>()),
+	...(await importOriginal<Record<string, unknown>>()),
 	requestUrl: requestUrlMock,
 }));
 
