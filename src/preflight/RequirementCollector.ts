@@ -232,7 +232,7 @@ export class RequirementCollector extends Formatter {
 
 			// A VDATE with this name asks first at run time, which matches names
 			// case-insensitively, so this VALUE only reuses the date.
-			const reusedDate = this.findDateRequirement(requirementId);
+			const reusedDate = this.findRequirementIgnoringCase(requirementId, "date");
 			if (reusedDate) {
 				this.markScanContext(reusedDate);
 				continue;
@@ -300,10 +300,16 @@ export class RequirementCollector extends Formatter {
 		}
 	}
 
-	private findDateRequirement(key: string): FieldRequirement | undefined {
+	/** Named variables match case-insensitively at run time. */
+	private findRequirementIgnoringCase(
+		key: string,
+		type?: FieldType,
+	): FieldRequirement | undefined {
 		const lower = key.toLowerCase();
 		for (const req of this.requirements.values()) {
-			if (req.type === "date" && req.id.toLowerCase() === lower) return req;
+			if (req.id.toLowerCase() === lower && (!type || req.type === type)) {
+				return req;
+			}
 		}
 		return undefined;
 	}
@@ -380,7 +386,9 @@ export class RequirementCollector extends Formatter {
 			const dateFormat =
 				match[2]?.trim() || (withTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD");
 
-			const existing = this.requirements.get(variableName);
+			const existing =
+				this.requirements.get(variableName) ??
+				this.findRequirementIgnoringCase(variableName);
 			if (!existing) {
 				this.requirements.set(variableName, {
 					id: variableName,
@@ -393,6 +401,16 @@ export class RequirementCollector extends Formatter {
 					source: "collected",
 				});
 			} else {
+				// A plain {{VALUE:<name>}} seen first, say in the file name, is
+				// answered with text that this VDATE then parses: ask for a date.
+				if (
+					(existing.type === "text" || existing.type === "textarea") &&
+					!this.hasOptionList(existing)
+				) {
+					existing.type = "date";
+					existing.dateFormat = dateFormat;
+					existing.withTime = withTime;
+				}
 				// Only backfill date metadata onto date requirements — a
 				// same-name VALUE requirement must not inherit a VDATE default.
 				if (

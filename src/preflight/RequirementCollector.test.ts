@@ -480,6 +480,20 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
     expect(otherCase.requirements.get("Due")).toMatchObject({ type: "date" });
   });
 
+  it("asks for a date when a plain {{VALUE:<name>}} in an earlier string reuses a later VDATE", async () => {
+    // The file name is scanned first; the VDATE in the body parses its answer.
+    const rc = new RequirementCollector(makeApp(), makePlugin());
+    await rc.scanString("{{VALUE:Due}} report", true);
+    await rc.scanString("Due: {{VDATE:due,DD.MM.YYYY|tomorrow}}");
+
+    expect([...rc.requirements.keys()]).toEqual(["Due"]);
+    expect(rc.requirements.get("Due")).toMatchObject({
+      type: "date",
+      dateFormat: "DD.MM.YYYY",
+      defaultValue: "tomorrow",
+    });
+  });
+
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {
     const rc = new RequirementCollector(makeApp(), makePlugin());
     await rc.scanString("{{VDATE:due,YYYY-MM-DD|optional}}");
