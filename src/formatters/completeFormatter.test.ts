@@ -1,4 +1,5 @@
 import realMoment from "moment";
+import { forgetDateVariableFormats } from "./helpers/dateTokens";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1105,34 +1106,43 @@ describe("CompleteFormatter - VDATE variable prompting", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
-	it("shares the VDATE format across formatters on one run's variables, but not with a later run on the same map", async () => {
+	it("shares the VDATE format across formatters on one run's variables, never across answers or cleared runs", async () => {
 		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
 		mocks.vdatePrompt.mockResolvedValue("@date:2024-02-25T12:00:00.000Z");
-		const choiceExecutor = { variables: new Map<string, unknown>() };
+		const variables = new Map<string, unknown>();
 		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
-		const formatter = () =>
-			new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
+		const format = (input: string) =>
+			new CompleteFormatter(app as any, makePlugin() as any, { variables } as any)
+				.formatFolderPath(input);
 
 		// An included {{TEMPLATE:}} or a macro step formats with its own
 		// formatter, sharing only the executor's variables.
-		await formatter().formatFolderPath("{{VDATE:due,DD.MM.YYYY}}");
-		await expect(formatter().formatFolderPath("{{VALUE:due}}")).resolves.toBe(
-			"25.02.2024",
-		);
+		await format("{{VDATE:due,DD.MM.YYYY}}");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("25.02.2024");
 
-		// The executor's map is cleared and reused for the next run; a
-		// script-set date there has no VDATE format to reuse.
-		choiceExecutor.variables.clear();
-		choiceExecutor.variables.set("due", "@date:2024-03-01T12:00:00.000Z");
-		await expect(formatter().formatFolderPath("{{VALUE:due}}")).resolves.toBe(
-			"2024-03-01",
-		);
+		// A different answer (here set by a script) has no VDATE format.
+		variables.set("due", "@date:2024-03-01T12:00:00.000Z");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-03-01");
 
-		// A later run on the reused map with the SAME answer but another format.
-		choiceExecutor.variables.clear();
-		await expect(
-			formatter().formatFolderPath("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}"),
-		).resolves.toBe("2024/02/25 2024/02/25");
+		// executeChoice clears the map for the next run. The same answer there
+		// takes that run's VDATE format, or the fallback without one.
+		variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+		await format("{{VDATE:due,DD.MM.YYYY}}");
+		variables.clear();
+		forgetDateVariableFormats(variables);
+		variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+		await expect(format("{{VALUE:due}}")).resolves.toBe("2024-02-25");
+		await expect(format("{{VDATE:due,YYYY/MM/DD}} {{VALUE:due}}")).resolves.toBe(
+			"2024/02/25 2024/02/25",
+		);
+	});
+
+	it("prints an unparseable @date: value as-is", async () => {
+		(globalThis as any).window.moment = (input?: string) => realMoment.utc(input);
+		const variables = new Map<string, unknown>([["due", "@date:not-a-date"]]);
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		const f = new CompleteFormatter(app as any, makePlugin() as any, { variables } as any);
+		await expect(f.formatFolderPath("{{VALUE:due}}")).resolves.toBe("@date:not-a-date");
 	});
 });
 

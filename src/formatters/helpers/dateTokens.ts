@@ -18,7 +18,6 @@ interface DateVariableContext {
 	variables: Map<string, unknown>;
 	dateParser: IDateParser | undefined;
 	prompt: (name: string, context: PromptContext) => Promise<string>;
-	rememberFormat: (name: string, dateFormat: string) => void;
 	applyCase: ApplyCase;
 }
 function replaceLiteral(input: string, pattern: RegExp, value: string): string {
@@ -30,10 +29,10 @@ export function defaultDateVariableFormat(withTime: boolean): string {
 }
 
 // The {{VDATE}} format a {{VALUE:<name>}} reuse renders the stored @date:ISO
-// in. Keyed by the variables map, so formatters sharing a run's variables
-// (included templates, macro steps) share it. Each entry remembers the answer
-// it was recorded for, so a map that is cleared and reused for a later run
-// never serves a format for a different answer.
+// in: the first VDATE that rendered the answer. Keyed by the variables map, so
+// formatters sharing a run's variables (included templates, macro steps) share
+// it. Each entry remembers the answer it was recorded for, so a new answer
+// never gets an old format.
 const dateVariableFormats = new WeakMap<
 	Map<string, unknown>,
 	Map<string, { answer: unknown; dateFormat: string }>
@@ -49,7 +48,10 @@ export function rememberDateVariableFormat(
 		formats = new Map();
 		dateVariableFormats.set(variables, formats);
 	}
-	formats.set(name, { answer: variables.get(name), dateFormat });
+	const answer = variables.get(name);
+	if (formats.get(name)?.answer !== answer) {
+		formats.set(name, { answer, dateFormat });
+	}
 }
 
 export function getDateVariableFormat(
@@ -58,6 +60,11 @@ export function getDateVariableFormat(
 ): string | undefined {
 	const entry = dateVariableFormats.get(variables)?.get(name);
 	return entry?.answer === variables.get(name) ? entry?.dateFormat : undefined;
+}
+
+/** Call wherever a variables map is cleared for reuse by a later run. */
+export function forgetDateVariableFormats(variables: Map<string, unknown>): void {
+	dateVariableFormats.delete(variables);
 }
 
 export function renderStoredDateVariable(
@@ -261,7 +268,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 		if (rendered?.normalized !== undefined) {
 			context.variables.set(variableName, rendered.normalized);
 		}
-		context.rememberFormat(variableName, dateFormat);
+		rememberDateVariableFormat(context.variables, variableName, dateFormat);
 
 		output += context.applyCase(
 			rendered?.text ?? "",

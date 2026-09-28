@@ -1,6 +1,6 @@
 import { ValueFormatter } from "./valueFormatter";
-import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat, rememberDateVariableFormat } from "./helpers/dateTokens";
-export { defaultDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
+import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
+export { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
@@ -42,7 +42,6 @@ export abstract class Formatter extends ValueFormatter {
 	protected targetFolderPath: string | null = null;
 	protected templateInclusion?: TemplateInclusionState;
 	protected clocks?: RunClocks;
-	private dateFormatsRemembered = new Set<string>();
 
 	protected runClocks(): RunClocks | undefined {
 		return this.clocks;
@@ -451,18 +450,8 @@ export abstract class Formatter extends ValueFormatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
-			rememberFormat: (name, dateFormat) => this.rememberDateFormat(name, dateFormat),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
-	}
-
-	// A formatter's first {{VDATE}} for a variable sets the format its
-	// {{VALUE:<name>}} reuses print. It replaces one left by an earlier run on
-	// the same variables map, which may have picked the same date.
-	protected rememberDateFormat(name: string, dateFormat: string): void {
-		if (this.dateFormatsRemembered.has(name)) return;
-		this.dateFormatsRemembered.add(name);
-		rememberDateVariableFormat(this.variables, name, dateFormat);
 	}
 
 	protected getValueTokenText(variableName: string): string {
@@ -471,10 +460,14 @@ export abstract class Formatter extends ValueFormatter {
 			const dateFormat =
 				getDateVariableFormat(this.variables, variableName) ??
 				defaultDateVariableFormat(false);
-			return (
-				renderStoredDateVariable(stored, dateFormat, undefined, this.dateParser)
-					?.text ?? ""
+			const rendered = renderStoredDateVariable(
+				stored,
+				dateFormat,
+				undefined,
+				this.dateParser,
 			);
+			// An unparseable @date: value prints as-is, as it always has.
+			if (rendered?.text) return rendered.text;
 		}
 		return super.getValueTokenText(variableName);
 	}
