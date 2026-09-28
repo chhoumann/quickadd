@@ -65,19 +65,14 @@ on the **brainDump** step, and enter that Capture's name in **Capture choice**.
 If the Capture you name doesn't ask for anything, the macro runs it once and
 stops with a notice, so it can't keep writing the same line.
 
-The script is short enough to adapt:
+The loop at the heart of the script is one line:
 
 ```js
-// Each entry runs the Capture once. Press Esc (or Cancel) to stop.
-while (true) {
-	const started = Date.now();
-	await params.quickAddApi.executeChoice(choice);
-
-	// A Capture that never asks for input would repeat forever.
-	if (Date.now() - started < 300) return;
-}
+while (await askedForInput(() => params.quickAddApi.executeChoice(choice))) {}
 ```
 
-`executeChoice` rejects when you cancel the prompt, which ends the loop. The
+`executeChoice` runs the Capture and rejects when you cancel its prompt, which
+ends the loop. `askedForInput` reports whether a dialog opened while the
+Capture ran, so a Capture that asks for nothing stops the loop too. The
 [QuickAdd API](/docs/QuickAddAPI/) page shows how to pass variables to the
 Capture.
