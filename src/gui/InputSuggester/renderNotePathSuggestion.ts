@@ -4,9 +4,10 @@ import { stripMdExtensionForDisplay } from "../suggesters/utils";
 
 /**
  * Renders a vault file path as a Quick-Switcher-style row: the note name on the
- * title line, the parent folder as a muted note line beneath it. Runtime/DOM-only
- * (never invoked in unit tests). Used by the tag-scoped capture picker so it shows
- * note names instead of raw `Some/Deep/Folder/Note.md` paths (issue #745).
+ * title line, its location as a muted note line beneath it (the full path when the
+ * file is in the vault, else the parent folder). Used by the capture picker so it shows
+ * note names instead of raw `Some/Deep/Folder/Note.md` paths (issue #745), and by
+ * the macro script picker so same-named scripts can be told apart (issue #942).
  */
 export function renderNotePathSuggestion(
 	el: HTMLElement,
