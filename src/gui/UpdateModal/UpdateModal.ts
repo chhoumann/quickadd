@@ -156,8 +156,12 @@ export function renderVideoAttachments(markdownText: string): string {
 	return result.join("\n");
 }
 
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
-const HEADING = /^#{1,6}(\s|$)/;
+// A backtick fence's info string can't contain backticks, and a closing fence
+// has nothing after it but whitespace (CommonMark).
+const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/;
+const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})\s*$/;
+// Levels 1-5: a seventh # would turn a level-6 heading into plain text.
+const HEADING = /^( {0,3})(#{1,5})(?=\s|$)/;
 
 /**
  * Nests the release notes' headings one level under the modal's own heading.
@@ -170,14 +174,15 @@ function addExtraHashToHeadings(markdownText: string): string {
 	return markdownText
 		.split("\n")
 		.map((line) => {
-			const fence = line.match(FENCE)?.[1];
 			if (openFence === null) {
-				if (fence) openFence = fence;
-				else if (HEADING.test(line)) return `#${line}`;
-			} else if (
-				fence &&
-				fence[0] === openFence[0] &&
-				fence.length >= openFence.length
+				openFence = line.match(FENCE_OPEN)?.[1] ?? null;
+				return openFence ? line : line.replace(HEADING, "$1#$2");
+			}
+			const close = line.match(FENCE_CLOSE)?.[1];
+			if (
+				close &&
+				close[0] === openFence[0] &&
+				close.length >= openFence.length
 			) {
 				openFence = null;
 			}

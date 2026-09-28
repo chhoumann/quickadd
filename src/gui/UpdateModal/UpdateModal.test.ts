@@ -263,6 +263,12 @@ describe("UpdateModal", () => {
 			"# Still code after a shorter fence",
 			"~~~~",
 			"## After the code",
+			"```markdown",
+			"```typescript is not a closing fence",
+			"## Still code",
+			"```",
+			"  ## Indented heading",
+			"###### Deepest heading",
 		].join("\n");
 		mockResponse(200, [
 			{ tag_name: "1.2.0", body, draft: false, prerelease: false },
@@ -289,6 +295,12 @@ describe("UpdateModal", () => {
 				"# Still code after a shorter fence",
 				"~~~~",
 				"### After the code",
+				"```markdown",
+				"```typescript is not a closing fence",
+				"## Still code",
+				"```",
+				"  ### Indented heading",
+				"###### Deepest heading",
 			].join("\n"),
 		);
 		// Obsidian styles code blocks, inline code, and callouts only inside it.
