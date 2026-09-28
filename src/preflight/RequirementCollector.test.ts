@@ -467,10 +467,17 @@ describe("RequirementCollector — optional fields (issue #1259)", () => {
 
     const withList = new RequirementCollector(makeApp(), makePlugin());
     await withList.scanString(
-      "{{VDATE:due,YYYY-MM-DD}} {{VALUE:low,high|name:due}}",
+      "{{VDATE:due,YYYY-MM-DD}} {{VALUE:low,high|name:due|default:high}}",
     );
     expect(withList.requirements.get("due")).toMatchObject({ type: "date" });
     expect(withList.requirements.get("due")?.options).toBeUndefined();
+    expect(withList.requirements.get("due")?.defaultValue).toBeUndefined();
+
+    // The run matches the name case-insensitively: one date field, not two.
+    const otherCase = new RequirementCollector(makeApp(), makePlugin());
+    await otherCase.scanString("{{VDATE:Due,YYYY-MM-DD}} {{VALUE:due}}");
+    expect([...otherCase.requirements.keys()]).toEqual(["Due"]);
+    expect(otherCase.requirements.get("Due")).toMatchObject({ type: "date" });
   });
 
   it("applies the AND rule across VDATE occurrences and scan calls", async () => {

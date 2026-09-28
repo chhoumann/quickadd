@@ -230,6 +230,14 @@ export class RequirementCollector extends Formatter {
 			const description = !hasOptions && label ? label : undefined;
 			const requirementId = variableKey;
 
+			// A VDATE with this name asks first at run time, which matches names
+			// case-insensitively, so this VALUE only reuses the date.
+			const reusedDate = this.findDateRequirement(requirementId);
+			if (reusedDate) {
+				this.markScanContext(reusedDate);
+				continue;
+			}
+
 			if (!this.requirements.has(requirementId)) {
 				// |type:checkbox renders a forced true/false dropdown and
 				// |type:number a numeric input, so the one-page form matches the
@@ -260,13 +268,7 @@ export class RequirementCollector extends Formatter {
 				// first recorded option-less (a bare {{VALUE:x}} reuse seen
 				// earlier, in this or a prior scanned string), upgrade it in place
 				// so the one-page form renders the dropdown/suggester either way.
-				// A VDATE with this name asks first at run time, so the list only
-				// reuses its answer: the field stays a date.
-				if (
-					hasOptions &&
-					existing.type !== "date" &&
-					!this.hasOptionList(existing)
-				) {
+				if (hasOptions && !this.hasOptionList(existing)) {
 					existing.type = this.optionFieldType(parsed);
 					existing.label = displayLabel;
 					this.applyOptionFields(existing, parsed);
@@ -296,6 +298,14 @@ export class RequirementCollector extends Formatter {
 				existing.optional = (existing.optional ?? false) && parsed.optional;
 			}
 		}
+	}
+
+	private findDateRequirement(key: string): FieldRequirement | undefined {
+		const lower = key.toLowerCase();
+		for (const req of this.requirements.values()) {
+			if (req.type === "date" && req.id.toLowerCase() === lower) return req;
+		}
+		return undefined;
 	}
 
 	private inputFieldType(context?: Pick<PromptContext, "inputTypeOverride">): FieldType {
