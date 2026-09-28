@@ -454,11 +454,12 @@ export class FileIndex {
 			for (const file of this.unresolvedLinks) {
 				if (!file.pathNormalized.includes(queryNormalized)) continue;
 
-				const { basenameNormalized } = file;
-				const index = basenameNormalized.indexOf(queryNormalized);
+				// A query that names a folder is matched against the whole path.
+				const name = queryNormalized.includes('/') ? file.pathNormalized : file.basenameNormalized;
+				const index = name.indexOf(queryNormalized);
 				const base = index === 0
-					? (basenameNormalized === queryNormalized ? weights.basenameExact : weights.basenamePrefix)
-					: (index > 0 && !ALPHANUMERIC_REGEX.test(basenameNormalized[index - 1]) ? weights.substringBasename : weights.fuzzyMatch);
+					? (name === queryNormalized ? weights.basenameExact : weights.basenamePrefix)
+					: (index > 0 && !ALPHANUMERIC_REGEX.test(name[index - 1]) ? weights.substringBasename : weights.fuzzyMatch);
 				results.push({
 					file,
 					score: this.calculateScore(file, query, context, base),

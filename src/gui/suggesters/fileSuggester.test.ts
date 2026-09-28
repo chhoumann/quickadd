@@ -212,6 +212,12 @@ describe('FileSuggester - Issue #838 and #839', () => {
                 .toEqual(['Projects/Love', 'Archive/Love']);
         });
 
+        it('ranks by the full path when the query names a folder', async () => {
+            const results = await searchVault([], ['Archive/Projects/Love', 'Projects/Love'], 'Projects/Love');
+
+            expect(results).toEqual(['Projects/Love', 'Archive/Projects/Love']);
+        });
+
         it('looks up headings in an existing note, not a better-ranked unresolved link', async () => {
             const app = vaultApp(['Notes/Love Triangle Notes'], ['Love Triangle']);
             vi.mocked(mockApp.metadataCache.getFileCache).mockImplementation(file =>
