@@ -59,19 +59,22 @@ you want to insert.
 
 ## Set a property on the new note {#set-a-property}
 
+A value that never changes doesn't need a script: write `type: person` straight
+into the template. Use a script when the value has to be worked out, such as
+this number that counts the notes already in `People`:
+
+````
+---
+type: person
+number: "```js quickadd return this.app.vault.getMarkdownFiles().filter(f => f.parent?.path === 'People').length + 1```"
+---
+````
+
 Put the script where the property's value goes. Keep it on one line and wrap it
 in double quotes, with single quotes inside the script, so the template's own
-frontmatter stays valid:
-
-````
----
-type: "```js quickadd return 'person'```"
----
-````
-
-A note made from this template gets `type: "person"`, while the template file
-itself keeps the script text as its `type`, so it never shows up as a `person`.
-A quoted value stays text: `return 1 + 1` gives `"2"`.
+frontmatter stays valid. The script runs before the new note exists, so with two
+notes in `People` the new one gets `number: "3"`. A quoted value stays text,
+even when the script returns a number.
 
 ## Execution order and `{{VALUE}}` {#execution-order-and-value}
 

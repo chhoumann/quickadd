@@ -526,21 +526,22 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 	});
 
 	it("fills a quoted property from a one-line script, as the docs show", async () => {
-		mocks.inlineRunAndGetOutput.mockResolvedValue("person");
+		mocks.inlineRunAndGetOutput.mockResolvedValue(3);
 		const f = defaultFormatter();
+		const script = "return this.app.vault.getMarkdownFiles().filter(f => f.parent?.path === 'People').length + 1";
 		const template = [
 			"---",
-			"type: \"```js quickadd return 'person'```\"",
+			"type: person",
+			'number: "```js quickadd ' + script + '```"',
 			"---",
-			"# Person",
 		].join("\n");
 
 		const result = await f.withTemplatePropertyCollection(() =>
 			f.formatFileContent(template),
 		);
 
-		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledWith("return 'person'");
-		expect(result).toBe('---\ntype: "person"\n---\n# Person');
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledWith(script);
+		expect(result).toBe('---\ntype: person\nnumber: "3"\n---');
 		expect(f.getAndClearTemplatePropertyVars().size).toBe(0);
 	});
 
