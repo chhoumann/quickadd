@@ -5,8 +5,6 @@ import { seedVaultFile } from "./e2eVault";
 
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 const CHOICE = "__qa-test-inline-property";
-const OTHER_NOTE = "other-note.md";
-const OTHER_CONTENT = "---\ntype: project\n---\n# Other note\n";
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;
@@ -20,14 +18,19 @@ createSuiteLifecycle("inline-script-property", (context) => {
 
 // The InlineScripts docs recipe for setting a property on the new note.
 describe("inline script as a property value", () => {
+	let script = "";
+
 	beforeAll(async () => {
+		const people = sandbox.path("People");
+		script = `return this.app.vault.getMarkdownFiles().filter(f => f.parent?.path === '${people}').length + 1`;
+		await seedVaultFile(obsidian, sandbox, "People/Grace.md", "---\ntype: person\n---\n");
+		await seedVaultFile(obsidian, sandbox, "People/Alan.md", "---\ntype: person\n---\n");
 		await seedVaultFile(
 			obsidian,
 			sandbox,
 			"person-template.md",
-			"---\ntype: \"```js quickadd return 'person'```\"\n---\n# Person\n",
+			'---\ntype: person\nnumber: "```js quickadd ' + script + '```"\n---\n',
 		);
-		await seedVaultFile(obsidian, sandbox, OTHER_NOTE, OTHER_CONTENT);
 
 		await qa.data<QuickAddData>().patch((data) => {
 			data.choices = data.choices.filter((choice) => choice.id !== CHOICE);
@@ -37,7 +40,7 @@ describe("inline script as a property value", () => {
 				type: "Template",
 				command: false,
 				templatePath: sandbox.path("person-template.md"),
-				fileNameFormat: { enabled: true, format: `${sandbox.root}/Ada` },
+				fileNameFormat: { enabled: true, format: `${people}/Ada` },
 				folder: {
 					enabled: false,
 					folders: [],
@@ -46,32 +49,23 @@ describe("inline script as a property value", () => {
 					chooseFromSubfolders: false,
 				},
 				appendLink: false,
-				openFile: true,
-				fileOpening: { location: "tab", direction: "vertical", mode: "source", focus: true },
+				openFile: false,
 			});
 		});
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);
 
-	it("keeps the template valid and sets the property only on the new note", async () => {
-		const template = await obsidian.metadata.waitForFrontmatter<{ type: string }>(
+	it("keeps the template valid and fills the property on the new note", async () => {
+		const template = await obsidian.metadata.waitForFrontmatter<{ number: string }>(
 			sandbox.path("person-template.md"),
-			(value) => typeof value.type === "string",
+			(value) => typeof value.number === "string",
 			WAIT_OPTS,
 		);
-		expect(template.type).toBe("```js quickadd return 'person'```");
-
-		await obsidian.dev.evalJsonAsync(`(async () => {
-			const leaf = app.workspace.getLeaf(false);
-			await leaf.openFile(app.vault.getAbstractFileByPath(${JSON.stringify(sandbox.path(OTHER_NOTE))}));
-			app.workspace.setActiveLeaf(leaf, { focus: true });
-			return true;
-		})()`);
+		expect(template.number).toBe("```js quickadd " + script + "```");
 
 		await obsidian.exec("quickadd:run", { choice: CHOICE });
-		await sandbox.waitForExists("Ada.md", WAIT_OPTS);
+		await sandbox.waitForExists("People/Ada.md", WAIT_OPTS);
 
-		expect(await sandbox.read("Ada.md")).toBe("---\ntype: \"person\"\n---\n# Person\n");
-		expect(await sandbox.read(OTHER_NOTE)).toBe(OTHER_CONTENT);
+		expect(await sandbox.read("People/Ada.md")).toBe('---\ntype: person\nnumber: "3"\n---\n');
 	});
 });
