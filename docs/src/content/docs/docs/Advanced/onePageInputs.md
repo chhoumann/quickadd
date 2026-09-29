@@ -128,6 +128,20 @@ Good to know:
 - Optional dropdowns get a **Skip (leave empty)** entry; the first real option stays preselected.
 - An optional date field left blank resolves to empty. If what you typed cannot be read as a date, the field is handed to the regular step-by-step date prompt after you submit, instead of silently becoming empty.
 
+## Fill the form from the clipboard {#fill-from-clipboard}
+
+Copy an article, an email, or a chat, run the choice, and click **Fill from
+clipboard**. QuickAdd sends the clipboard text, the field names, and the
+choice's format or template to the [AI Assistant](/docs/AIAssistant/)'s
+default model, then types each answer into its field. Nothing is written until
+you review the form and click **Submit**.
+
+- The button appears when AI features are on and a **Default model** is set
+  (not **Ask me**).
+- It fills only empty fields and fields still showing their default. What you
+  typed stays.
+- File pickers are left for you to choose.
+
 ## When the form is skipped {#skipping-the-modal}
 
 The form only opens when it has something to ask:
