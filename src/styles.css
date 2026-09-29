@@ -87,10 +87,11 @@
 	gap: 4px;
 }
 
+/* Height and scrolling come from Obsidian's own `.modal` rule
+   (`max-height: var(--dialog-max-height)`, `overflow: auto`), so QuickAdd's
+   dialogs get the same room as core's on every platform. */
 .quickAddModal .modal {
 	min-width: 35%;
-	overflow-y: auto;
-	max-height: 70%;
 }
 
 /* Autosave footer for the choice builders (#1545). Core already lays `.modal`
@@ -138,17 +139,14 @@
 	font-size: var(--font-ui-smaller);
 }
 
-/* On a phone the 70% cap above is the binding constraint, and a pinned footer
-   would eat into an already-short sheet. Hand the builder back Obsidian's own
-   dialog height, and keep the button clear of the home indicator. */
+/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
+   above would otherwise drop them. */
 .is-phone .quickAddModal.qa-choice-builder .modal {
-	max-height: var(--dialog-max-height);
-	/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
-	   above would otherwise drop them. */
 	padding-left: var(--safe-area-inset-left);
 	padding-right: var(--safe-area-inset-right);
 }
 
+/* Keep the phone builder's button clear of the home indicator. */
 .is-phone .quickAddModal.qa-choice-builder .qa-builder-footer {
 	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
 }
