@@ -37,7 +37,7 @@ import { planDateOrigin, dateFromStoredValue } from "./utils/resolveDateOrigin";
 import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
 import type { LoadedUserScript } from "./utils/userScript";
-import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState, getPreparedTemplateNoteSelection } from "./preflight/preparedChoiceInputs";
+import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import { isTemplateChoice } from "./preflight/macroCommandRole";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
@@ -285,17 +285,20 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async applyDateOrigin(choice: IChoice): Promise<void> {
 		if (
 			isTemplateChoice(choice) &&
-			(choice.existingNoteAction ?? "open") === "open" &&
-			getPreparedTemplateNoteSelection(this, choice.id)?.kind === "existing" &&
 			shouldRunTemplateNoteDiscovery(
 				choice,
 				choice.fileNameFormat.enabled ? choice.fileNameFormat.format : VALUE_SYNTAX,
 				this.variables.get("value"),
 			)
 		) {
-			// Opening an existing note must not prompt for hidden creation inputs.
+			// The note picker needs no date, and opening an existing note uses none,
+			// so TemplateChoiceEngine resolves it after the picker.
 			return;
 		}
+		await this.resolveDateOrigin(choice);
+	}
+
+	async resolveDateOrigin(choice: IChoice): Promise<void> {
 		const setting = this.pickDate
 			? dateOriginForPick(normalizeDateOrigin(choice.dateOrigin))
 			: normalizeDateOrigin(choice.dateOrigin);

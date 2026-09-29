@@ -129,6 +129,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					restoreDiscoveryValue = this.setTemporaryValueVariable(discovery.title);
 					discoveryVaultRelativePath = discovery.vaultRelativePath ?? null;
 				}
+				await this.choiceExecutor.resolveDateOrigin?.(this.choice);
 			}
 
 			if (!this.validateAppendLinkDestination(linkOptions)) return;

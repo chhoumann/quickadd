@@ -183,6 +183,7 @@ function buildEngine(
 		recordExecutionResult: vi.fn(),
 		signalAbort: vi.fn(),
 		consumeAbortSignal: vi.fn(),
+		resolveDateOrigin: vi.fn(async () => {}),
 	};
 	const plugin = { settings: { globalVariables: {} } } as never;
 	const engine = new TemplateChoiceEngine(
@@ -284,6 +285,33 @@ describe("TemplateChoiceEngine note discovery", () => {
 			file: existing,
 			effect: "unchanged",
 		});
+	});
+
+	it.each([
+		{ action: "open", pick: "existing", asksDate: false },
+		{ action: "appendBottom", pick: "existing", asksDate: true },
+		{ action: "open", pick: "create", asksDate: true },
+	] as const)("resolves Which day after the picker only when a note is written: $action/$pick", async ({ action, pick, asksDate }) => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue(
+			pick === "existing" ? { kind: "existing", file: existing } : { kind: "create", title: "Bob" },
+		);
+		const templateChoice = choice({ existingNoteAction: action });
+		const { engine, choiceExecutor, files, contents } = buildEngine(templateChoice);
+		files.set(existing.path, existing);
+		contents.set(existing.path, "Original body");
+
+		await engine.run();
+
+		const resolveDateOrigin = vi.mocked(choiceExecutor.resolveDateOrigin!);
+		if (!asksDate) {
+			expect(resolveDateOrigin).not.toHaveBeenCalled();
+			return;
+		}
+		expect(resolveDateOrigin).toHaveBeenCalledExactlyOnceWith(templateChoice);
+		const dateOrder = resolveDateOrigin.mock.invocationCallOrder[0];
+		expect(promptForTemplateNoteDiscoveryMock.mock.invocationCallOrder[0]).toBeLessThan(dateOrder);
+		expect(dateOrder).toBeLessThan(formatFileContentMock.mock.invocationCallOrder[0]);
 	});
 
 	it.each([
