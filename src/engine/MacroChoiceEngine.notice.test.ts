@@ -24,9 +24,11 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IMacro } from "../types/macros/IMacro";
 import { CommandType } from "../types/macros/CommandType";
+import { ConditionalCommand } from "../types/macros/Conditional/ConditionalCommand";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
+import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
 
@@ -62,17 +64,17 @@ class CancellationTestMacroChoiceEngine extends MacroChoiceEngine {
 	}
 }
 
-const createTestEngine = (abortMessage: string) => {
+const createTestEngine = (
+	abortMessage: string,
+	commands: IMacro["commands"] = [{ type: CommandType.Obsidian } as any],
+	runChoice?: (executor: IChoiceExecutor) => Promise<void>,
+) => {
 	const app = {} as App;
 	const plugin = { settings: settingsStore.getState() } as any;
 	const macro: IMacro = {
 		id: "macro-id",
 		name: "Test macro",
-		commands: [
-			{
-				type: CommandType.Obsidian,
-			} as any,
-		],
+		commands,
 	};
 	const choice: IMacroChoice = {
 		id: "choice-id",
@@ -82,12 +84,21 @@ const createTestEngine = (abortMessage: string) => {
 		macro,
 		runOnStartup: false,
 	};
+	let pendingAbort: MacroAbortError | null = null;
 	const choiceExecutor: IChoiceExecutor = {
 		...createChoiceExecutor(),
-		execute: vi.fn(),
+		execute: vi.fn(() => runChoice?.(choiceExecutor) ?? Promise.resolve()),
 		variables: new Map<string, unknown>(),
+		signalAbort: (error) => {
+			pendingAbort = error;
+		},
+		consumeAbortSignal: () => {
+			const error = pendingAbort;
+			pendingAbort = null;
+			return error;
+		},
 	};
-	const variables = new Map<string, unknown>();
+	const variables = new Map<string, unknown>([["go", "yes"]]);
 
 	return new CancellationTestMacroChoiceEngine(
 		app,
@@ -142,6 +153,45 @@ describe("MacroChoiceEngine cancellation notices", () => {
 		expect(noticeClass.instances).toHaveLength(1);
 		expect(noticeClass.instances[0]?.message).toContain("Invalid project name");
 });
+
+	it("shows one notice when a conditional branch aborts the macro", async () => {
+		const engine = createTestEngine("Stopped on purpose", [
+			new ConditionalCommand({
+				condition: { mode: "variable", variableName: "go", operator: "isTruthy", valueType: "string" },
+				thenCommands: [{ type: CommandType.Obsidian } as any],
+				elseCommands: [],
+			}),
+		]);
+
+		await engine.run();
+
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([
+			"Macro execution aborted: Stopped on purpose",
+		]);
+	});
+
+	it("leaves the notice to a Capture step that aborts inside the macro", async () => {
+		const capture: IChoice = { id: "capture", name: "Capture", type: "Capture", command: false };
+		// What CaptureChoiceEngine does when its run aborts.
+		const engine = createTestEngine(
+			"unused",
+			[{ id: "step", name: "Capture", type: CommandType.NestedChoice, choice: capture } as any],
+			async (executor) => {
+				const error = new MacroAbortError("Target file missing: Inbox.md");
+				handleMacroAbort(error, {
+					logPrefix: "Capture execution aborted",
+					defaultReason: "Capture aborted",
+				});
+				executor.signalAbort?.(error);
+			},
+		);
+
+		await engine.run();
+
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([
+			"Capture execution aborted: Target file missing: Inbox.md",
+		]);
+	});
 
 describe("MacroChoiceEngine nested choice propagation", () => {
 	it("halts subsequent commands when a nested choice cancels", async () => {
