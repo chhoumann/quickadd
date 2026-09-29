@@ -2,11 +2,12 @@ import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
+import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { RunClocks } from "../types/dateOrigin";
-import { INLINE_JAVASCRIPT_REGEX, TITLE_REGEX } from "../constants";
+import { TITLE_REGEX } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -762,11 +763,13 @@ export class CompleteFormatter extends Formatter {
 
 	protected async replaceInlineJavascriptInString(input: string) {
 		let output: string = input;
+		let fence: ReturnType<typeof findInlineScriptSpans>[number] | undefined;
 
-		while (INLINE_JAVASCRIPT_REGEX.test(output)) {
-			const match = INLINE_JAVASCRIPT_REGEX.exec(output);
-			if (!match) break;
-			const code = match.at(1)?.trim();
+		// Scan again from the start after each fence: a script's output can hold
+		// a fence of its own, which then runs too.
+		while ((fence = findInlineScriptSpans(output)[0])) {
+			const { start, end, code } = fence;
+			let replacement = "";
 
 			if (code) {
 				// Imported lazily to avoid the completeFormatter ⇄ engine cycle (#1249).
@@ -786,7 +789,6 @@ export class CompleteFormatter extends Formatter {
 					this.variables.set(key, executor.params.variables[key]);
 				}
 
-				let replacement = "";
 				if (typeof outVal === "string") {
 					// Keep string insertion byte-for-byte compatible, including the
 					// later formatter passes that may process tokens in the result.
@@ -802,8 +804,8 @@ export class CompleteFormatter extends Formatter {
 					replacement =
 						this.renderCollectedOrArrayValue({
 							input: output,
-							matchStart: match.index,
-							matchEnd: match.index + match[0].length,
+							matchStart: start,
+							matchEnd: end,
 							rawValue: outVal,
 							fallbackKey: "inlineScript",
 							heuristicEnabled: this.isTemplatePropertyTypesEnabled(),
@@ -811,16 +813,10 @@ export class CompleteFormatter extends Formatter {
 				}
 				// null/undefined and unsupported values intentionally keep the
 				// legacy empty-output behavior rather than inventing serialization.
-				output = this.replacer(
-					output,
-					INLINE_JAVASCRIPT_REGEX,
-					replacement,
-				);
-			} else {
-				// Empty/whitespace-only fence (e.g. ```js quickadd\n```): consume the
-				// matched block so the loop terminates instead of spinning forever.
-				output = this.replacer(output, INLINE_JAVASCRIPT_REGEX, "");
 			}
+			// An empty/whitespace-only fence (e.g. ```js quickadd\n```) is consumed
+			// too, so the loop terminates instead of spinning forever.
+			output = output.slice(0, start) + replacement + output.slice(end);
 		}
 
 		return output;

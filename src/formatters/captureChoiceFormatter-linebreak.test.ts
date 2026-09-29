@@ -22,7 +22,6 @@ vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/form
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { findInlineScriptSpans } from "./formatter";
-import { INLINE_JAVASCRIPT_REGEX } from "../constants";
 
 const createChoice = (
 	overrides: Partial<ICaptureChoice> = {},
@@ -337,19 +336,21 @@ describe("capture linebreak escapes only apply to the format string (issue #527)
 			expect(result).toBe(`{{oops \n${fenceOne}\n${fenceTwo}`);
 		});
 
-		it("finds spans identical to INLINE_JAVASCRIPT_REGEX (fuzz)", () => {
+		it("finds the same fences and code as the reference regex (fuzz)", () => {
+			// The grammar as a regex. Too slow to ship: it backtracks on long
+			// backtick runs (#1907). On short inputs it is the reference.
 			const regexSpans = (input: string) => {
-				const re = new RegExp(INLINE_JAVASCRIPT_REGEX.source, "g");
+				const re = /`{3,}js quickadd([\s\S]*?)`{3,}/g;
 				const out: string[] = [];
 				let m: RegExpExecArray | null;
 				while ((m = re.exec(input)) !== null) {
-					out.push(`${m.index}:${m.index + m[0].length}`);
+					out.push(`${m.index}:${m.index + m[0].length}:${JSON.stringify(m[1].trim())}`);
 				}
 				return out.join(",");
 			};
 			const scanSpans = (input: string) =>
 				findInlineScriptSpans(input)
-					.map((s) => `${s.start}:${s.end}`)
+					.map((s) => `${s.start}:${s.end}:${JSON.stringify(s.code)}`)
 					.join(",");
 
 			// Deterministic LCG so failures reproduce.

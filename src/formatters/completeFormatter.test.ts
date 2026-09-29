@@ -625,6 +625,60 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 			f.formatFolderPath("```js quickadd\nnoop\n```{{VALUE:scriptVar}}"),
 		).resolves.toBe("fromScript");
 	});
+
+	it("runs each fence once, in order, and consumes the closer's whole backtick run", async () => {
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.toUpperCase());
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("a ```js quickadd one``` b ````js quickadd\ntwo\n````` c"),
+		).resolves.toBe("a ONE b TWO c");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["one"], ["two"]]);
+	});
+
+	it("leaves an unterminated fence as text without running it", async () => {
+		const f = defaultFormatter();
+		const template = "```js quickadd one``` then ```js quickadd never closed";
+		mocks.inlineRunAndGetOutput.mockResolvedValue("1");
+
+		await expect(f.formatFileContent(template)).resolves.toBe(
+			"1 then ```js quickadd never closed",
+		);
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs a fence written inside a markdown code block", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ran");
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("````md\n```js quickadd\nreturn 'ran'\n```\n````"),
+		).resolves.toBe("````md\nran\n````");
+	});
+
+	it("runs a fence that a script's output creates", async () => {
+		mocks.inlineRunAndGetOutput
+			.mockResolvedValueOnce("```js quickadd inner```")
+			.mockResolvedValueOnce("done");
+		const f = defaultFormatter();
+
+		await expect(f.formatFileContent("```js quickadd outer```")).resolves.toBe("done");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["outer"], ["inner"]]);
+	});
+
+	it("does not stall on a long backtick run before the fences (#1907)", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ok");
+		const f = defaultFormatter();
+		const flood = "`".repeat(20_000);
+		const fence = "```js quickadd\nreturn 'ok'\n```";
+
+		const started = performance.now();
+		const result = await f.formatFileContent(`${flood}\n${fence}\n${fence}`);
+
+		expect(result).toBe(`${flood}\nok\nok`);
+		// The old backtracking regex took seconds here; the linear scan takes milliseconds.
+		expect(performance.now() - started).toBeLessThan(500);
+	});
 });
 
 describe("CompleteFormatter - empty-token loop termination (regression)", () => {

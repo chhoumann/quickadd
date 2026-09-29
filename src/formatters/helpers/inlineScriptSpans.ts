@@ -1,10 +1,15 @@
 const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
-/** Linear fence scan matching INLINE_JAVASCRIPT_REGEX without backtracking on backtick floods. */
+/**
+ * Finds each complete ```js quickadd fence and its trimmed code. A fence opens
+ * with 3+ backticks and the language, and closes at the next run of 3+
+ * backticks, which it consumes whole. The scan is linear; a regex for the same
+ * grammar backtracks on long backtick runs and freezes the app (#1907).
+ */
 export function findInlineScriptSpans(
 	input: string,
-): Array<{ start: number; end: number }> {
-	const spans: Array<{ start: number; end: number }> = [];
+): Array<{ start: number; end: number; code: string }> {
+	const spans: Array<{ start: number; end: number; code: string }> = [];
 	const n = input.length;
 	let i = 0;
 
@@ -25,7 +30,9 @@ export function findInlineScriptSpans(
 		// Opener found — the next 3+ backtick run closes it. If none exists,
 		// no later opener can match either (its backticks would have served
 		// as this fence's closer), so scanning is done.
-		let j = runEnd + INLINE_SCRIPT_FENCE_LANG.length;
+		const codeStart = runEnd + INLINE_SCRIPT_FENCE_LANG.length;
+		let j = codeStart;
+		let codeEnd = -1;
 		let end = -1;
 		while (j < n) {
 			const tick = input.indexOf("`", j);
@@ -33,6 +40,7 @@ export function findInlineScriptSpans(
 			let tickRunEnd = tick;
 			while (tickRunEnd < n && input[tickRunEnd] === "`") tickRunEnd++;
 			if (tickRunEnd - tick >= 3) {
+				codeEnd = tick;
 				end = tickRunEnd;
 				break;
 			}
@@ -40,7 +48,7 @@ export function findInlineScriptSpans(
 		}
 		if (end === -1) break;
 
-		spans.push({ start: runStart, end });
+		spans.push({ start: runStart, end, code: input.slice(codeStart, codeEnd).trim() });
 		i = end;
 	}
 
@@ -75,14 +83,7 @@ export function hasUnterminatedInlineScriptFence(input: string): boolean {
  * out: the formatter consumes them without running anything.
  */
 export function inlineScriptBodies(input: string): string[] {
-	const bodies: string[] = [];
-	for (const { start, end } of findInlineScriptSpans(input)) {
-		let open = start;
-		while (input[open] === "`") open++;
-		let close = end;
-		while (input[close - 1] === "`") close--;
-		const code = input.slice(open + INLINE_SCRIPT_FENCE_LANG.length, close).trim();
-		if (code) bodies.push(code);
-	}
-	return bodies;
+	return findInlineScriptSpans(input)
+		.map(({ code }) => code)
+		.filter((code) => code !== "");
 }

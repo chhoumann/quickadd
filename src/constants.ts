@@ -124,9 +124,6 @@ export const TEMPLATE_REGEX = new RegExp(
 	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base))}}/i,
 );
 export const GLOBAL_VAR_REGEX = new RegExp(/{{GLOBAL_VAR:([^\n\r}]*)}}/i);
-export const INLINE_JAVASCRIPT_REGEX = new RegExp(
-	/`{3,}js quickadd([\s\S]*?)`{3,}/,
-);
 export const MATH_VALUE_REGEX = new RegExp(/{{MVALUE}}/i);
 export const TITLE_REGEX = new RegExp(/{{TITLE}}/i);
 // {{PROPERTY}} expands to the current value of the property this Capture is
