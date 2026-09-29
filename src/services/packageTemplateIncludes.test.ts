@@ -308,9 +308,8 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		const file = preview.files[0];
 		expect(file?.orphan).toBe(false);
 		expect(file?.executable).toBe(false);
-		// Unchanged policy: any non-.md bundled file (a .base too) is reviewable
-		// because the script loader would run its raw bytes if a step pointed at it.
-		expect(file?.requiresReview).toBe(true);
+		// A Base holds no code QuickAdd runs, so it is not gated as a script (#1881).
+		expect(file?.requiresReview).toBe(false);
 		expect(file?.referencedBy).toEqual([
 			{
 				choiceId: "c1",

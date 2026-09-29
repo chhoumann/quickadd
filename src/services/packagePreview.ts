@@ -1,6 +1,10 @@
 export type * from "../types/packages/PackagePreview";
 export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import {
+	INLINE_JAVASCRIPT_REGEX,
+	JAVASCRIPT_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../constants";
 import type IChoice from "../types/choices/IChoice";
 import type { CapabilityRow, MissingReference, PackagePreview, PreviewChoice, PreviewFile, PreviewFlag, PreviewSeverity, PreviewSummary, PreviewUsageSite } from "../types/packages/PackagePreview";
 import type {
@@ -33,59 +37,38 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 	return kind === "user-script" || kind === "conditional-script";
 }
 
-// A bundled asset that can be executed as code: a declared script kind, OR any
-// non-`.md` file — because `kind` is an untrusted hint and a macro (in this
-// package or already in the vault) loads it via the user-script loader, which
-// runs the RAW bytes of ANY non-`.md` file as JavaScript (src/utils/userScript.ts:
-// only `.md` is special-cased, to extract its first ```js fence). A `.js`-only
-// check under-discloses: a payload at `scripts/x.txt`, `x.cjs`, or no extension
-// runs identically. `.md` notes are handled by markdownAssetIsExecutable so plain
-// templates stay un-flagged. Path-only check keeps this App-free.
-function isExecutableBundledAsset(
-	kind: QuickAddPackageAssetKind,
-	originalPath: string,
-): boolean {
-	return isScriptKind(kind) || !MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath);
-}
+const INLINE_JAVASCRIPT_GLOBAL_REGEX = new RegExp(INLINE_JAVASCRIPT_REGEX.source, "g");
 
-// Since #1065 a `.md` note is loadable as a user script (its first ```js fence
-// runs). The `.js` path check above can't see that, so a bundled note that lies
-// about its `kind` (e.g. "template") and is referenced by no choice would slip the
-// disclosure gate, land on disk, and run via any macro pointing at its path.
-// Decode the bundled content and run the SAME extractor the loader uses: only a
-// note that actually contains a runnable js fence is treated as executable, so
-// plain `.md` templates are not flagged. Pure/App-free — operates on the payload.
-function markdownAssetIsExecutable(
-	originalPath: string,
-	content: string,
-): boolean {
-	if (!MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) return false;
-	let decoded: string;
-	try {
-		decoded = decodeFromBase64(content);
-	} catch {
-		return false;
-	}
-	const { code } = extractScriptFromMarkdown(decoded);
-	return code !== null && code.length > 0;
-}
-
-// The runnable code of a bundled executable asset, for static disclosure scans:
-// a `.md` note yields its first js fence (what the loader runs); any other
-// executable asset (a `.js`, or a script-kind asset) yields its decoded body.
-// Pure/App-free — operates on the bundled payload only.
-function bundledScriptCode(originalPath: string, content: string): string | null {
+/**
+ * The code QuickAdd can run from a bundled file once it is in the vault, or
+ * null when the file holds none. It mirrors the two places that execute vault
+ * files, so the review asks you to read exactly the files that can run:
+ * - the user-script loader (src/utils/userScript.ts) runs a `.js` file's bytes,
+ *   or the first ```js fence of a `.md` note, and refuses every other file;
+ * - the formatter runs each ```js quickadd fence in a template, and any
+ *   `.md`, `.canvas` or `.base` file can be used as one.
+ * The package-declared `kind` is an untrusted hint and plays no part.
+ */
+function bundledRunnableCode(originalPath: string, content: string): string | null {
 	let decoded: string;
 	try {
 		decoded = decodeFromBase64(content);
 	} catch {
 		return null;
 	}
+	if (JAVASCRIPT_FILE_EXTENSION_REGEX.test(originalPath)) return decoded;
+	if (!hasTemplateExtension(originalPath)) return null;
+
+	const blocks: string[] = [];
 	if (MARKDOWN_FILE_EXTENSION_REGEX.test(originalPath)) {
 		const { code } = extractScriptFromMarkdown(decoded);
-		return code !== null && code.length > 0 ? code : null;
+		if (code) blocks.push(code);
 	}
-	return decoded;
+	for (const match of decoded.matchAll(INLINE_JAVASCRIPT_GLOBAL_REGEX)) {
+		const code = match[1]?.trim();
+		if (code) blocks.push(code);
+	}
+	return blocks.length > 0 ? blocks.join("\n") : null;
 }
 
 // #714: a bundled script that wires up QuickAdd's AI tool-calling lets an AI MODEL
@@ -232,14 +215,19 @@ export function buildPackagePreview(
 
 	const bundledPaths = new Set(pkg.assets.map((asset) => asset.originalPath));
 
+	const runnableCodeByPath = new Map(
+		pkg.assets.map((asset) => [
+			asset.originalPath,
+			bundledRunnableCode(asset.originalPath, asset.content),
+		]),
+	);
+
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
 		const usages = usagesByPath.get(asset.originalPath) ?? [];
 		const executable = referencedAsScript.has(asset.originalPath);
 		const requiresReview =
-			executable ||
-			isExecutableBundledAsset(asset.kind, asset.originalPath) ||
-			markdownAssetIsExecutable(asset.originalPath, asset.content);
+			executable || runnableCodeByPath.get(asset.originalPath) != null;
 		return {
 			originalPath: asset.originalPath,
 			kind: asset.kind,
@@ -307,12 +295,11 @@ export function buildPackagePreview(
 		});
 	}
 
-	// A bundled file written to disk can be executed by any macro that points at
-	// its path (in this package OR already in the user's vault), so it must be
-	// reviewed even when no choice in THIS package references it.
-	// isExecutableBundledAsset covers declared script kinds AND every non-`.md`
-	// path (the loader runs the raw bytes of any non-`.md` file), regardless of
-	// what `kind` the package claims.
+	// A bundled file written to disk can be executed by any macro or template
+	// that points at its path (in this package OR already in the user's vault),
+	// so it must be reviewed even when no choice in THIS package references it.
+	// bundledRunnableCode decides which files can run, whatever `kind` the
+	// package claims.
 	for (const file of files) {
 		if (!file.requiresReview) continue;
 		if (file.executable) continue; // already a critical user-script/mislabeled row + in criticalScriptPaths
@@ -327,12 +314,9 @@ export function buildPackagePreview(
 
 	// AI-tools disclosure (#714): scan each reviewable bundled script for AI
 	// tool-calling and surface a distinct critical row. Scans the SAME decoded code
-	// the loader runs, so a note that hides a js fence is covered too.
+	// QuickAdd runs, so a note that hides a js fence is covered too.
 	for (const file of files) {
-		if (!file.requiresReview) continue;
-		const asset = pkg.assets.find((a) => a.originalPath === file.originalPath);
-		if (!asset) continue;
-		const code = bundledScriptCode(asset.originalPath, asset.content);
+		const code = runnableCodeByPath.get(file.originalPath);
 		if (!code || !scriptUsesAiTools(code)) continue;
 		capabilityRows.push({
 			flag: "ai-tools",

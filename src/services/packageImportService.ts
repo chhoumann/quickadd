@@ -569,9 +569,9 @@ export async function applyPackageImport(
  * The bytes to write for a bundled asset. A template the formatter renders
  * (`.md`, `.canvas` or `.base`, the same set the export scans for includes)
  * gets its `{{TEMPLATE:...}}` includes followed to the destinations chosen in
- * this import. Anything that runs as code — scripts, files with any other
- * extension, and a note carrying a js fence — is written verbatim, so what the
- * user reviewed is exactly what lands on disk.
+ * this import. Everything else - scripts, other files, and a note carrying a
+ * js fence - is written verbatim, so what the user reviewed is exactly what
+ * lands on disk.
  */
 function importedAssetContent(
 	asset: QuickAddPackage["assets"][number],
