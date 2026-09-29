@@ -320,9 +320,19 @@
 	border-radius: 4px;
 }
 
+/* The date prompt stacks its input, calendar, preview and actions in
+   `.qa-date-input`, a flex column whose 8px gap already sits between them, and
+   flex margins don't collapse. So the preview drops the bottom margin it shares
+   with the one-page preview, and the actions keep only what the gap doesn't
+   supply: preview→actions is 16px, as calendar→preview is. */
 .quickAddModal .vdate-preview-container {
 	margin-top: 0.5rem;
+	margin-bottom: 0;
 	font-size: 0.9em;
+}
+
+.quickAddModal .qa-date-input > .qa-prompt-actions {
+	margin-top: 0.5rem;
 }
 
 .quickAddModal .vdate-preview-label,

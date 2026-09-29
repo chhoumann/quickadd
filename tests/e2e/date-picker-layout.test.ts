@@ -126,3 +126,31 @@ it.each(["is-phone", "is-tablet"])("keeps the calendar month readable under %s h
 		})()`);
 	}
 });
+
+// The preview sat 36 px above Ok/Cancel while every other gap in the prompt is
+// 16 px: its own margin, the flex column's gap and the actions' margin added up.
+it("spaces the date prompt's actions from the preview like the preview from the calendar", async () => {
+	const { obsidian } = getContext();
+	try {
+		await obsidian.dev.evalJson(`(() => {
+			void app.plugins.plugins.quickadd.api.datePrompt('due date').catch(() => undefined);
+			return true;
+		})()`);
+		await waitForElement(obsidian, ".qaDatePrompt .vdate-preview-container");
+		const gaps = await obsidian.dev.evalJson<{ calendarToPreview: number; previewToActions: number }>(`(() => {
+			const prompt = document.querySelector('.qaDatePrompt');
+			const rect = (selector) => prompt.querySelector(selector).getBoundingClientRect();
+			const calendar = rect('.qa-date-picker-container');
+			const preview = rect('.vdate-preview-container');
+			const actions = rect('.qa-prompt-actions');
+			return { calendarToPreview: preview.top - calendar.bottom, previewToActions: actions.top - preview.bottom };
+		})()`);
+		expect(gaps.calendarToPreview).toBeGreaterThan(0);
+		expect(gaps.previewToActions).toBeCloseTo(gaps.calendarToPreview, 0);
+	} finally {
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll('.qaDatePrompt button')].find(e => e.textContent === 'Cancel')?.click();
+			return true;
+		})()`);
+	}
+});
