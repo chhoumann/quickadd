@@ -622,6 +622,22 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(requiresAcknowledgement(preview)).toBe(true);
 	});
 
+	it("scans a backtick flood in a bundled template in linear time", () => {
+		const m = macro("m1", "Empty", []);
+		const flood = "`".repeat(200_000);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "Templates/flood.base", `name: ${flood}`),
+				asset("template", "Templates/flood.canvas", `${flood}js quickadd return 1;`),
+			],
+		);
+		const started = performance.now();
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(preview.criticalScriptPaths).toEqual([]);
+	});
+
 	it("scans a template's inline fences for AI tool use", () => {
 		const m = macro("m1", "Empty", []);
 		const pkg = makePackage(

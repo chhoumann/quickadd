@@ -1,9 +1,12 @@
 export type * from "../types/packages/PackagePreview";
 export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags";
 import {
-	INLINE_JAVASCRIPT_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
+import {
+	findInlineScriptSpans,
+	INLINE_SCRIPT_FENCE_LANG,
+} from "../formatters/helpers/inlineScriptSpans";
 import type IChoice from "../types/choices/IChoice";
 import type { CapabilityRow, MissingReference, PackagePreview, PreviewChoice, PreviewFile, PreviewFlag, PreviewSeverity, PreviewSummary, PreviewUsageSite } from "../types/packages/PackagePreview";
 import type {
@@ -36,7 +39,6 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 	return kind === "user-script" || kind === "conditional-script";
 }
 
-const INLINE_JAVASCRIPT_GLOBAL_REGEX = new RegExp(INLINE_JAVASCRIPT_REGEX.source, "g");
 // The loader itself runs only .js, but a reviewed script can require() a .cjs or
 // .mjs module it ships alongside, so every JavaScript file is shown as code.
 const JAVASCRIPT_MODULE_EXTENSION_REGEX = /\.[cm]?js$/i;
@@ -67,8 +69,14 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 		const { code } = extractScriptFromMarkdown(decoded);
 		if (code) blocks.push(code);
 	}
-	for (const match of decoded.matchAll(INLINE_JAVASCRIPT_GLOBAL_REGEX)) {
-		const code = match[1]?.trim();
+	// The linear scan, not INLINE_JAVASCRIPT_REGEX: a crafted file with a long
+	// backtick run would make the regex backtrack and freeze the review.
+	for (const { start, end } of findInlineScriptSpans(decoded)) {
+		let open = start;
+		while (decoded[open] === "`") open++;
+		let close = end;
+		while (decoded[close - 1] === "`") close--;
+		const code = decoded.slice(open + INLINE_SCRIPT_FENCE_LANG.length, close).trim();
 		if (code) blocks.push(code);
 	}
 	return blocks.length > 0 ? blocks.join("\n") : null;
