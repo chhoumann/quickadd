@@ -83,6 +83,10 @@
 
 	let choiceDecisions = $state<ChoiceDecisions>(new Map());
 	let assetDecisions = $state<AssetDecisions>(new Map());
+	// Files that will overwrite, as found when the package was analysed. Rows are
+	// grouped by this, not by the live destination, so a row never jumps groups
+	// (and loses focus) while you type its path; the row itself shows the live state.
+	let overwritesAtLoad = $state(new Set<string>());
 	let pastedContent = $state("");
 	let isAnalyzing = $state(false);
 	let analysisToken = $state(0);
@@ -116,6 +120,7 @@
 			// resolves; block Import in that window so a stale package can't be
 			// written while new content is being analysed.
 			!isAnalyzing &&
+			!fileRows.some((row) => row.destinationIsFolder) &&
 			(!requiresAck || (acknowledged && fullyReviewed)),
 	);
 
@@ -156,22 +161,28 @@
 		existence().optimistic(path);
 
 	const fileRows = $derived(
-		(analysis?.assetConflicts ?? []).map((conflict) => ({
-			conflict,
-			state: resolveAssetDecision(
+		(analysis?.assetConflicts ?? []).map((conflict) => {
+			const state = resolveAssetDecision(
 				assetDecisions,
 				conflict,
 				defaultAssetDestination,
 				optimisticExists,
-			),
-			file: previewFileByPath.get(conflict.originalPath),
-		})),
+			);
+			return {
+				conflict,
+				state,
+				destinationIsFolder:
+					state.mode !== "skip" &&
+					existence().isFolder(state.destinationPath),
+				file: previewFileByPath.get(conflict.originalPath),
+			};
+		}),
 	);
 	const addedFileRows = $derived(
-		fileRows.filter((row) => !row.state.destinationExists),
+		fileRows.filter((row) => !overwritesAtLoad.has(row.conflict.originalPath)),
 	);
 	const overwriteFileRows = $derived(
-		fileRows.filter((row) => row.state.destinationExists),
+		fileRows.filter((row) => overwritesAtLoad.has(row.conflict.originalPath)),
 	);
 
 	function defaultAssetDestination(conflict: AssetConflict): string {
@@ -184,13 +195,23 @@
 	// Reconcile a destination against the authoritative adapter.exists (which sees
 	// config/dot-folder files the vault index omits) and correct the stored
 	// decision when it differs.
-	function scheduleExists(originalPath: string, effectivePath: string) {
+	function scheduleExists(
+		originalPath: string,
+		effectivePath: string,
+		regroup = false,
+	) {
 		existence().schedule(originalPath, effectivePath, (exists) => {
 			assetDecisions = applyExistsResult(
 				assetDecisions,
 				originalPath,
 				exists,
 			);
+			if (regroup && exists !== overwritesAtLoad.has(originalPath)) {
+				const next = new Set(overwritesAtLoad);
+				if (exists) next.add(originalPath);
+				else next.delete(originalPath);
+				overwritesAtLoad = next;
+			}
 		});
 	}
 
@@ -198,6 +219,7 @@
 		if (!analysis) {
 			choiceDecisions = new Map();
 			assetDecisions = new Map();
+			overwritesAtLoad = new Set();
 			return;
 		}
 		choiceDecisions = initChoiceDecisions(analysis.choiceConflicts);
@@ -206,10 +228,22 @@
 			defaultAssetDestination,
 			optimisticExists,
 		);
+		overwritesAtLoad = new Set(
+			analysis.assetConflicts
+				.filter(
+					(conflict) =>
+						assetDecisions.get(conflict.originalPath)?.destinationExists,
+				)
+				.map((conflict) => conflict.originalPath),
+		);
 		for (const conflict of analysis.assetConflicts) {
 			const decision = assetDecisions.get(conflict.originalPath);
 			if (decision)
-				scheduleExists(conflict.originalPath, decision.destinationPath);
+				scheduleExists(
+					conflict.originalPath,
+					decision.destinationPath,
+					true,
+				);
 		}
 	}
 
@@ -445,6 +479,7 @@
 											.destinationPath}
 										destinationExists={row.state
 											.destinationExists}
+										destinationIsFolder={row.destinationIsFolder}
 										onPathInput={(value) =>
 											updateAssetPath(
 												row.conflict,
