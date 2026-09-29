@@ -68,7 +68,7 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 	}
 	// The linear scan, not INLINE_JAVASCRIPT_REGEX: a crafted file with a long
 	// backtick run would make the regex backtrack and freeze the review.
-	blocks.push(...inlineScriptBodies(decoded));
+	for (const code of inlineScriptBodies(decoded)) blocks.push(code);
 	return blocks.length > 0 ? blocks.join("\n") : null;
 }
 
