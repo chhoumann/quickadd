@@ -24,9 +24,11 @@ It works with Template, Capture, and Macro choices.
 When you run a Macro, the Templates and Captures you added to it share one
 form.
 
-Fields appear in the order the choice uses them: a Capture's note picker first
-(when it captures to a folder or a tag), the file name before the note content,
-a Macro's steps in turn, and within each, the order they have in the format.
+Fields appear in the order the choice uses them: the day first when
+[Which day](/docs/Choices/TemplateChoice/#date-origin) is **Ask each time**,
+then a Capture's note picker (when it captures to a folder or a tag), the file
+name before the note content, a Macro's steps in turn, and within each, the
+order they have in the format.
 Step-by-step prompts group one text's fields by kind instead; see
 [The order prompts appear in](/docs/ControllingPrompts/#prompt-order).
 
