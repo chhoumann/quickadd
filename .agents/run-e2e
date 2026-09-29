@@ -15,6 +15,10 @@ if [[ -e /opt/Obsidian/resources/obsidian.asar ]]; then
 	node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" >/dev/null
 fi
 
+# The runner loads whatever main.js is on disk. Build it from the checked-out
+# source so a stale bundle can't pass or fail a run for code it doesn't hold.
+pnpm run --silent build >/dev/null
+
 cleanup() {
 	local status=$?
 	trap - EXIT INT TERM
