@@ -33,6 +33,11 @@ asks you for a value, and if you answer `Standup moved to Wednesday`, it inserts
 
 You describe the shape once; QuickAdd fills in the blanks every run.
 
+Answers, selected text, clipboard contents and `value-` URI parameters are
+inserted as written. A placeholder or Templater `<% %>` tag inside them stays
+text. A Templater tag in the format itself can still use an answer, as in
+`<% "{{VALUE:title}}".toUpperCase() %>`.
+
 ## Quick reference {#quick-reference}
 
 **Ask for input**

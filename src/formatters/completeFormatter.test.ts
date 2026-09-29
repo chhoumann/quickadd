@@ -2383,10 +2383,10 @@ describe("property value formatting", () => {
 	});
 
 	it.each([
-		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "beforeafter" },
-		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["beforeafter", "{{VALUE}}"] },
-		{ format: "Added\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbeforeafter\n{{DATE}}" },
-	])("strips cursor markers after expanding $format from $value", async ({ format, value, expected }) => {
+		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "before{{CURSOR}}after" },
+		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"] },
+		{ format: "Added{{CURSOR}}\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbefore{{CURSOR}}after\n{{cursor}}{{DATE}}" },
+	])("keeps cursor markers in the property value as text when expanding $format", async ({ format, value, expected }) => {
 		const executor = createChoiceExecutor();
 		const originalValue = structuredClone(value);
 		executor.variables.set("propertyValue", value);
@@ -2396,9 +2396,9 @@ describe("property value formatting", () => {
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 	});
 
-	it("strips cursor markers from retained VALUE lists without changing native types", async () => {
+	it("keeps retained VALUE lists as they are, cursor markers included", async () => {
 		const value = ["before{{CURSOR}}after", false, 0];
-		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["beforeafter", false, 0]);
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["before{{CURSOR}}after", false, 0]);
 		expect(value).toEqual(["before{{CURSOR}}after", false, 0]);
 	});
 

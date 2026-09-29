@@ -1,4 +1,5 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
@@ -46,6 +47,8 @@ export class CompleteFormatter extends Formatter {
 	 */
 	private contentValuePromptsAcceptImagePaste = false;
 	private preserveTemplateCursorMarkers = false;
+	/** See {@link withUserTextProtected}. */
+	private keepUserTextProtected = false;
 
 	constructor(
 		protected app: App,
@@ -57,6 +60,25 @@ export class CompleteFormatter extends Formatter {
 		this.dateParser = dateParser || NLDParser;
 		if (choiceExecutor) {
 			this.variables = choiceExecutor?.variables;
+		}
+	}
+
+	protected userText(text: string): string {
+		return protectUserText(text);
+	}
+
+	/**
+	 * Content formatted inside `work` keeps answers and other user text marked,
+	 * for a caller that runs Templater and finds `{{CURSOR}}` markers before it
+	 * calls restoreUserText. Every other result is restored before it is returned.
+	 */
+	async withUserTextProtected<T>(work: () => Promise<T>): Promise<T> {
+		const previous = this.keepUserTextProtected;
+		this.keepUserTextProtected = true;
+		try {
+			return await work();
+		} finally {
+			this.keepUserTextProtected = previous;
 		}
 	}
 
@@ -134,7 +156,7 @@ export class CompleteFormatter extends Formatter {
 			folder: true,
 			activeFolder: "path",
 		});
-		return output;
+		return restoreUserText(output);
 	}
 
 	/**
@@ -165,9 +187,9 @@ export class CompleteFormatter extends Formatter {
 
 	async formatPropertyName(input: string): Promise<string> {
 		return await this.withPromptScope("propertyName", input, async () =>
-			this.replaceCurrentFileTokensInString(await this.format(input), {
+			restoreUserText(this.replaceCurrentFileTokensInString(await this.format(input), {
 				links: true, fileName: true, folder: true, activeFolder: "content", title: true,
-			}),
+			})),
 		);
 	}
 
@@ -193,11 +215,8 @@ export class CompleteFormatter extends Formatter {
 				return this.replacePropertyInString(output);
 			}),
 		);
-		if (typeof value === "string") return stripCursorMarkers(value);
-		if (Array.isArray(value)) {
-			return value.map((item: unknown) => typeof item === "string" ? stripCursorMarkers(item) : item);
-		}
-		return value;
+		// A value that is not the formatted text is the token's own value, kept as data.
+		return typeof value === "string" ? restoreUserText(stripCursorMarkers(value)) : value;
 	}
 
 	async formatTemplateContent(input: string): Promise<string> {
@@ -234,7 +253,8 @@ export class CompleteFormatter extends Formatter {
 			title: true,
 		});
 
-		return output;
+		// An included template's text is restored by the formatter that includes it.
+		return this.keepUserTextProtected || this.includer ? output : restoreUserText(output);
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
@@ -261,7 +281,7 @@ export class CompleteFormatter extends Formatter {
 			activeFolder: "path",
 		});
 		// Empty folder tokens can leave leading slashes; remove them to keep the remaining path vault-relative.
-		return resolved.replace(/^\/+/, "");
+		return restoreUserText(resolved).replace(/^\/+/, "");
 	}
 
 	/** Resolve source paths once, without executable tokens or inclusions.
@@ -292,7 +312,7 @@ export class CompleteFormatter extends Formatter {
 		// Trim so the suffix the engine reads for the extension matches the path
 		// getTemplateFile ultimately resolves (which trims) — otherwise a token
 		// that leaves trailing whitespace could split the two.
-		return output.trim();
+		return restoreUserText(output).trim();
 	}
 
 	/**
@@ -311,7 +331,7 @@ export class CompleteFormatter extends Formatter {
 			fileName: true,
 			title: true,
 		});
-		return output;
+		return restoreUserText(output);
 	}
 
 	// CaptureChoiceFormatter overrides this with the capture destination.

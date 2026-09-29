@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
+import { restoreUserText } from "./helpers/userText";
 
 vi.mock("obsidian", () => ({
 	MarkdownView: class {},
@@ -227,7 +228,8 @@ describe("CaptureChoiceFormatter clipboard image support", () => {
 
 		const result = await formatter.formatContentOnly("A {{clipboard}} B");
 
-		expect(result).toBe("A {{clipboard}} B");
+		// The engine restores the text once it has placed it.
+		expect(restoreUserText(result)).toBe("A {{clipboard}} B");
 	});
 
 	it("keeps image fallback disabled for file name formatting", async () => {
