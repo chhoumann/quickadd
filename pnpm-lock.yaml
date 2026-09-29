@@ -18,9 +18,6 @@ importers:
 
   .:
     dependencies:
-      '@popperjs/core':
-        specifier: ^2.11.8
-        version: 2.11.8
       chrono-node:
         specifier: ^2.10.1
         version: 2.10.1
@@ -774,9 +771,6 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
-
-  '@popperjs/core@2.11.8':
-    resolution: {integrity: sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==}
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     resolution: {integrity: sha512-tN5aztYkKCte4i5SIrrz5yK/HMjEuCqCSCJa418jOV8tZ1cBY3YF2otxB1ktPxzsLA1BeTqwapK0bfjxNvHJVw==}
@@ -2773,8 +2767,6 @@ snapshots:
   '@oxlint/plugins@1.61.0': {}
 
   '@polka/url@1.0.0-next.29': {}
-
-  '@popperjs/core@2.11.8': {}
 
   '@rolldown/binding-android-arm-eabi@1.2.8':
     optional: true
