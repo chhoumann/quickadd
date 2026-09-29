@@ -1,14 +1,15 @@
-import { TextInputSuggest } from "./suggest";
 import type { App } from "obsidian";
+import { GenericTextSuggester } from "./genericTextSuggester";
 
-export class ExclusiveSuggester extends TextInputSuggest<string> {
+/** A GenericTextSuggester that leaves out the items already chosen. */
+export class ExclusiveSuggester extends GenericTextSuggester {
 	constructor(
-		public app: App,
-		public inputEl: HTMLInputElement | HTMLTextAreaElement,
-		private suggestItems: string[],
+		app: App,
+		inputEl: HTMLInputElement | HTMLTextAreaElement,
+		suggestItems: string[],
 		private currentItems: string[]
 	) {
-		super(app, inputEl);
+		super(app, inputEl, suggestItems);
 	}
 
 	updateCurrentItems(currentItems: string[]) {
@@ -16,16 +17,8 @@ export class ExclusiveSuggester extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		return this.suggestItems.filter((item) => item.contains(inputStr));
-	}
-
-	selectSuggestion(item: string): void {
-		this.inputEl.value = item;
-		this.inputEl.trigger("input");
-		this.close();
-	}
-
-	renderSuggestion(value: string, el: HTMLElement): void {
-		if (value) el.setText(value);
+		return super
+			.getSuggestions(inputStr)
+			.filter((item) => !this.currentItems.includes(item));
 	}
 }

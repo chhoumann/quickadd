@@ -378,4 +378,10 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		margin-bottom: 8px;
 		padding: 20px;
 	}
+
+	/* A macro without steps shows no blank list area. The zone type is unique
+	   to this list, so an empty list is never a drop target. */
+	.quickAddCommandList:empty {
+		display: none;
+	}
 </style>
