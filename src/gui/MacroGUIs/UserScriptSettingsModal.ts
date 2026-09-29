@@ -7,6 +7,7 @@ import {
 	type FormatPreviewHandle,
 } from "../ChoiceBuilder/components/mountFormatPreview.svelte";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+import { attachTextareaIndent } from "../components/textareaIndent";
 import { setPasswordOnBlur } from "../../utils/setPasswordOnBlur";
 import { initializeUserScriptSettings } from "../../utils/userScriptSettings";
 import {
@@ -360,6 +361,7 @@ export class UserScriptSettingsModal extends Modal {
 
 		const input = new TextAreaComponent(this.contentEl);
 		new FormatSyntaxSuggester(this.app, input.inputEl, getQuickAddInstance());
+		attachTextareaIndent(input.inputEl, { passThroughUntilUsed: true });
 		input.inputEl.addClass("qa-user-script-format-textarea");
 		// Appended to contentEl rather than the Setting's controlEl (it needs the
 		// full modal width), so nothing associates it with the option name above.

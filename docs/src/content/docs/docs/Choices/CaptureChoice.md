@@ -225,6 +225,11 @@ All of [format syntax](/docs/FormatSyntax/) works here:
 - 09:42 Called the bank
 ```
 
+To nest a line, press **Tab** in the box: once you have typed or clicked in it,
+Tab inserts a tab character (with a selection, it indents every touched line).
+Tabbing through the settings still passes the box by, and **Shift+Tab** moves
+focus out.
+
 For a long format, keep it in a note and reference it:
 
 ```text

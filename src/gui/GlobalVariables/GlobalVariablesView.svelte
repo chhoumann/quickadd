@@ -2,6 +2,7 @@
   import type { App } from "obsidian";
   import { settingsStore } from "../../settingsStore";
   import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
+  import { indentOnTab } from "../components/textareaIndent";
   import type QuickAdd from "../../main";
 
   let { app, plugin }: { app: App; plugin: QuickAdd } = $props();
@@ -134,6 +135,7 @@
         <div class="qa-gv__cell qa-gv__value">
           <textarea rows="2"
                     use:attachSuggester
+                    use:indentOnTab
                     bind:value={it.value}
                     oninput={() => debouncedPersist(it)}
                     placeholder="Snippet value (supports QuickAdd tokens)"></textarea>
