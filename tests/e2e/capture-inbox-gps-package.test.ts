@@ -238,6 +238,20 @@ describe("Capture to Inbox with GPS package", () => {
 		);
 	});
 
+	it("starts a new line when the inbox's last line has no line break (#1935)", async () => {
+		await seedVaultFile(obsidian, sandbox, INBOX_RELATIVE_PATH, "- Earlier entry");
+		await mockGeolocation("error");
+		const outcome = await runCapture({ value: "Next entry" });
+		expect(outcome.ok).toBe(true);
+
+		const content = await sandbox.waitForContent(
+			INBOX_RELATIVE_PATH,
+			(text) => text.includes("Next entry"),
+			WAIT_OPTS,
+		);
+		expect(content).toMatch(/^- Earlier entry\n- \d{4}-\d{2}-\d{2} \d{2}:\d{2} Next entry\n$/);
+	});
+
 	it("still captures when GPS is unavailable", async () => {
 		await mockGeolocation("error");
 		const outcome = await runCapture({ value: "No fix today" });
