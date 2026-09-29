@@ -203,6 +203,49 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(await capture("# Inbox\n")).toBe("# Inbox\n## Log\n- first");
 	});
 
+	it("ends a callout at the next heading or the end of the note when inserting at the end of its section (#1926)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "> [!info]- Captured today",
+				insertAtEnd: true,
+			},
+		});
+		const capture = async (note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile("> two\n", choice, note, createFile())).content;
+
+		expect(await capture("> [!info]- Captured today\n> one\n## Journal\n- entry\n")).toBe(
+			"> [!info]- Captured today\n> one\n> two\n## Journal\n- entry\n",
+		);
+		expect(await capture("## Journal\n> [!info]- Captured today\n> one")).toBe(
+			"## Journal\n> [!info]- Captured today\n> one\n> two\n",
+		);
+	});
+
+	it("inserts after a code fence below a non-heading line, not at a # line inside it (#1926)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "Setup steps:",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- run the tests\n",
+			choice,
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n\n## Next\n",
+			createFile(),
+		);
+
+		expect(content).toBe(
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n- run the tests\n\n## Next\n",
+		);
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
