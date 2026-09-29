@@ -1,3 +1,4 @@
+import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -8,6 +9,7 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { ConditionalCondition } from "../types/macros/Conditional/types";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
+import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type {
@@ -86,6 +88,48 @@ function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
 
 function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
 	return choice.type === "Capture";
+}
+
+/**
+ * A choice's settings that the formatter runs through `format()`, which executes
+ * every ```js quickadd fence first (CompleteFormatter.format). The template path
+ * and a capture's new-file template are only scalar-formatted, so no code runs
+ * from them. Listed whether or not the setting is switched on: one toggle after
+ * import would run it without another review.
+ */
+function inlineScriptFields(choice: IChoice): Array<[field: string, value: unknown]> {
+	if (isTemplateChoice(choice)) {
+		const folders: unknown[] = Array.isArray(choice.folder?.folders) ? choice.folder.folders : [];
+		return [
+			["file name format", choice.fileNameFormat?.format],
+			...folders.map((folder): [string, unknown] => ["folder", folder]),
+		];
+	}
+	if (isCaptureChoice(choice)) {
+		const property = choice.propertyCapture?.property;
+		return [
+			["capture to", choice.captureTo],
+			["capture format", choice.format?.format],
+			["insert after", choice.insertAfter?.after],
+			["insert before", choice.insertBefore?.before],
+			["property name", property?.kind === "named" ? property.format : undefined],
+		];
+	}
+	return [];
+}
+
+function hasInlineScript(value: unknown): boolean {
+	return typeof value === "string" && inlineScriptBodies(value).length > 0;
+}
+
+function pushInlineScriptRow(walk: ChoiceWalk, crumbs: string[]): void {
+	walk.flags.add("user-script");
+	walk.rows.push({
+		flag: "user-script",
+		severity: "critical",
+		title: "Runs custom JavaScript written into a choice setting",
+		detail: joinCrumb(crumbs),
+	});
 }
 
 /** True when a template's file-exists behavior can modify an existing note. */
@@ -202,6 +246,13 @@ function collectChoice(
 				breadcrumb: joinCrumb([...crumbs, "{{TEMPLATE}} include"]),
 			});
 		}
+	}
+
+	const reported = new Set<string>();
+	for (const [field, value] of inlineScriptFields(choice)) {
+		if (reported.has(field) || !hasInlineScript(value)) continue;
+		reported.add(field);
+		pushInlineScriptRow(walk, [...crumbs, field]);
 	}
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
@@ -346,6 +397,10 @@ function collectCommands(
 			}
 			case CommandType.OpenFile: {
 				walk.flags.add("open-file");
+				if (hasInlineScript((command as IOpenFileCommand).filePath)) {
+					previewCommand.flag = "user-script";
+					pushInlineScriptRow(walk, [...commandCrumbs, "file path"]);
+				}
 				break;
 			}
 			case CommandType.Choice:
