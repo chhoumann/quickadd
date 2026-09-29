@@ -416,7 +416,7 @@ Opens the date prompt: a text field that understands dates like `tomorrow` or `n
 - `options.defaultValue`: (Optional) Date the field starts with, such as `2026-01-05` or `today`
 - `options.dateFormat`: (Optional) Moment.js format for the returned date
 
-**Returns:** Promise resolving to the chosen date in `dateFormat`, or as an ISO timestamp (`2026-09-30T20:21:24.495Z`) when you leave `dateFormat` out. Submitting an empty field resolves to `""`. Cancelling rejects with `MacroAbortError`.
+**Returns:** Promise resolving to the chosen date in `dateFormat`, or as an ISO timestamp (`2026-09-30T20:21:24.495Z`) when you leave `dateFormat` out. Text that isn't a date comes back as typed, and QuickAdd shows a notice that it couldn't parse it, so check the value if your script needs a real date. Submitting an empty field resolves to the `defaultValue` date, returned the same way, when you set one, and to `""` otherwise. Cancelling rejects with `MacroAbortError`.
 
 **Example:**
 ```javascript
