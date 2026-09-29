@@ -164,6 +164,28 @@ test("getEndOfSection - target isn't heading", () => {
 	expect(result).toBe(5);
 });
 
+test("getEndOfSection - target isn't heading, a heading ends the block before any blank line (#1926)", () => {
+	const lines = [
+		"> [!info]- Captured today", // target (0)
+		"> one", // result (1)
+		"## Journal",
+		"- entry",
+		"",
+	];
+
+	expect(getEndOfSection(lines, 0, false)).toBe(1);
+});
+
+test("getEndOfSection - target isn't heading, the block runs to the end of a note without a final line break (#1926)", () => {
+	const lines = [
+		"## Journal",
+		"> [!info]- Captured today", // target (1)
+		"> one", // result (2)
+	];
+
+	expect(getEndOfSection(lines, 1, false)).toBe(2);
+});
+
 test("getEndOfSection - target is heading, should not consider subsections", () => {
 	const lines = [
 		"# Notes",
