@@ -320,6 +320,32 @@ describe("CaptureChoiceForm", () => {
 		).toBe(textarea.id);
 	});
 
+	// #1875: Tab in the format box indents, but tabbing through the form still
+	// passes it by without editing it.
+	it("indents the capture format on Tab once the field is in use", async () => {
+		const { container, props } = mountForm();
+		await fireEvent.click(
+			settingItem(container, "Capture format").querySelector(
+				".checkbox-container",
+			) as HTMLElement,
+		);
+		flushSync();
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+		textarea.value = "- {{VALUE}}\n";
+		await fireEvent.input(textarea);
+		textarea.focus();
+		textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+		expect(await fireEvent.keyDown(textarea, { key: "Tab" })).toBe(true);
+		expect(props.choice.format.format).toBe("- {{VALUE}}\n");
+
+		await fireEvent.keyDown(textarea, { key: "End" });
+		expect(await fireEvent.keyDown(textarea, { key: "Tab" })).toBe(false);
+		expect(props.choice.format.format).toBe("- {{VALUE}}\n\t");
+	});
+
 	// #1543: the preview used to render above the field it previews, and rendered
 	// as a bare "Preview:" with nothing after it whenever the field was empty.
 	it("renders the preview after the field it previews, and only once the field has a value", async () => {

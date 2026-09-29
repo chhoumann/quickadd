@@ -211,3 +211,63 @@ describe("attachTextareaIndent", () => {
 		expect(textarea.value).toBe("x");
 	});
 });
+
+describe("attachTextareaIndent with passThroughUntilUsed", () => {
+	let textarea: HTMLTextAreaElement;
+
+	const pressKey = (key: string, opts: Partial<KeyboardEventInit> = {}) => {
+		const evt = new KeyboardEvent("keydown", {
+			key,
+			bubbles: true,
+			cancelable: true,
+			...opts,
+		});
+		textarea.dispatchEvent(evt);
+		return evt;
+	};
+
+	beforeEach(() => {
+		textarea = document.createElement("textarea");
+		document.body.appendChild(textarea);
+		attachTextareaIndent(textarea, { passThroughUntilUsed: true });
+		textarea.value = "- item\n";
+		textarea.focus();
+		textarea.setSelectionRange(7, 7);
+	});
+
+	it("lets a Tab pressed straight after focusing move focus on", () => {
+		const evt = pressKey("Tab");
+		expect(evt.defaultPrevented).toBe(false);
+		expect(textarea.value).toBe("- item\n");
+	});
+
+	it("indents once a key other than Tab has been pressed", () => {
+		pressKey("ArrowDown");
+		expect(pressKey("Tab").defaultPrevented).toBe(true);
+		expect(textarea.value).toBe("- item\n\t");
+	});
+
+	it("indents once the field has been clicked", () => {
+		textarea.dispatchEvent(new Event("pointerup", { bubbles: true }));
+		expect(pressKey("Tab").defaultPrevented).toBe(true);
+		expect(textarea.value).toBe("- item\n\t");
+	});
+
+	it("indents once text arrives without a keydown, such as a paste", () => {
+		textarea.dispatchEvent(new Event("input", { bubbles: true }));
+		expect(pressKey("Tab").defaultPrevented).toBe(true);
+	});
+
+	it("does not count a lone modifier key as using the field", () => {
+		pressKey("Shift", { shiftKey: true });
+		expect(pressKey("Tab").defaultPrevented).toBe(false);
+	});
+
+	it("passes Tab through again after focus leaves and comes back", () => {
+		pressKey("a");
+		textarea.blur();
+		textarea.focus();
+		expect(pressKey("Tab").defaultPrevented).toBe(false);
+		expect(textarea.value).toBe("- item\n");
+	});
+});

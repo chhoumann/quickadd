@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import { GenericTextSuggester } from "../../suggesters/genericTextSuggester";
 import type { TextInputSuggest } from "../../suggesters/suggest";
 import { suggester } from "./suggesterAction";
+import { indentOnTab } from "../../components/textareaIndent";
 
 type AnySuggest = Pick<TextInputSuggest<unknown>, "destroy">;
 type HintVariant = "neutral" | "success";
@@ -156,6 +157,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		{value}
 		oninput={handleInput}
 		use:suggester={attach}
+		use:indentOnTab
 	></textarea>
 {:else}
 	<input

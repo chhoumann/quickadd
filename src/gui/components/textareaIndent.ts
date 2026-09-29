@@ -9,10 +9,17 @@
  * stay in sync).
  *
  * Scope is deliberately minimal: only Tab is captured. Shift+Tab is left alone so
- * it still moves focus — that keeps both surfaces free of any keyboard trap.
+ * it still moves focus, which keeps every surface free of any keyboard trap.
+ *
+ * In a form (the choice builder's Capture format, say), Tab is also how keyboard
+ * users move between controls. There, `passThroughUntilUsed` lets a Tab pressed
+ * straight after focusing the field move on as usual, so tabbing through the
+ * form never edits the field or stops at it. Once the user types, pastes, moves
+ * the caret, or clicks in the field, Tab indents.
  */
 
 const DEFAULT_TAB = "\t";
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
 
 export interface IndentEdit {
 	/** Region of the current value to replace (applied via one undoable edit). */
@@ -127,14 +134,30 @@ export function applyIndentEdit(
  */
 export function attachTextareaIndent(
 	inputEl: HTMLTextAreaElement,
-	opts: { tab?: string } = {},
+	opts: { tab?: string; passThroughUntilUsed?: boolean } = {},
 ): () => void {
+	const passThrough = opts.passThroughUntilUsed ?? false;
+	let used = !passThrough;
+	const onFocus = () => {
+		used = !passThrough;
+	};
+	// pointerup, not pointerdown: a click on an unfocused field fires pointerdown
+	// before focus, and focus would reset it. `input` covers text that arrives
+	// without a keydown, such as a paste from the context menu or dictation.
+	const onUse = () => {
+		used = true;
+	};
+
 	const onKeyDown = (evt: KeyboardEvent) => {
+		if (evt.key !== "Tab") {
+			if (!MODIFIER_KEYS.has(evt.key)) used = true;
+			return;
+		}
+		if (!used) return;
 		// Only plain Tab. Shift+Tab keeps native focus traversal (no trap), and
 		// modifier combos stay reserved for OS/Obsidian shortcuts. Skip IME
 		// composition, and yield if an earlier listener already handled the event.
 		if (
-			evt.key !== "Tab" ||
 			evt.shiftKey ||
 			evt.ctrlKey ||
 			evt.metaKey ||
@@ -153,11 +176,27 @@ export function attachTextareaIndent(
 	};
 
 	inputEl.addEventListener("keydown", onKeyDown);
+	inputEl.addEventListener("focus", onFocus);
+	inputEl.addEventListener("pointerup", onUse);
+	inputEl.addEventListener("input", onUse);
 
 	let disposed = false;
 	return () => {
 		if (disposed) return;
 		disposed = true;
 		inputEl.removeEventListener("keydown", onKeyDown);
+		inputEl.removeEventListener("focus", onFocus);
+		inputEl.removeEventListener("pointerup", onUse);
+		inputEl.removeEventListener("input", onUse);
+	};
+}
+
+/**
+ * Svelte action for a format textarea among other form controls: Tab indents
+ * once the field is in use, and passes through while tabbing across the form.
+ */
+export function indentOnTab(inputEl: HTMLTextAreaElement) {
+	return {
+		destroy: attachTextareaIndent(inputEl, { passThroughUntilUsed: true }),
 	};
 }
