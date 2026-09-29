@@ -279,12 +279,13 @@ describe("example packages", () => {
 			const preview = buildPackagePreview([], pkg, new Set());
 			expect(preview.missingReferences).toEqual([]);
 			expect(preview.orphanAssets).toEqual([]);
-			// The install card tells readers to open "View contents" on each script
-			// before acknowledging; that step must match what the import flags.
+			// The install card (PackageCard.astro) tells readers to open "View
+			// contents" on each script, and only the scripts, before acknowledging;
+			// that step must match what the import asks them to review.
 			const scriptPaths = manifest.assets
 				.map((asset) => asset.originalPath)
 				.filter((assetPath) => /\.js$/i.test(assetPath));
-			expect(preview.criticalScriptPaths).toEqual(expect.arrayContaining(scriptPaths));
+			expect([...preview.criticalScriptPaths].sort()).toEqual([...scriptPaths].sort());
 			expect(preview.summary.scriptCount).toBe(scriptPaths.length);
 		});
 
