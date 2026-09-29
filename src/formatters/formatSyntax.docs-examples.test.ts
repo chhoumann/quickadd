@@ -18,7 +18,7 @@ const CURRENT_AND_2120_EXAMPLES = [
 	"- [ ] Throw and trim 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Glaze fire 📅 {{VALUE:due}}",
 	"- [ ] {{VALUE|label:Task}}",
 	"---\ntitle: {{VALUE:title}}\n---\n# {{VALUE:title}}",
-	"{{VALUE:project|label:Client or project name}}",
+	"{{VALUE:project|label:Which client or project?}}",
 	"priority: {{VALUE:🔽,🔼,⏫|text:Low,Normal,High}}",
 	'{{VALUE:"This is a single choice, with a comma",Second choice}}',
 	'priority: {{VALUE:high,"a, b"|text:"High, urgent","A or B"}}',
@@ -329,11 +329,11 @@ describe("Format Syntax documentation examples", () => {
 			dateFormat: "YYYY-MM-DD",
 		});
 		expect(collector.requirements.get("project")).toMatchObject({
-			description: "Client or project name",
+			label: "Which client or project?",
 			type: "text",
 		});
 		expect(collector.requirements.get("summary")).toMatchObject({
-			description: "Summary",
+			label: "Summary",
 			type: "textarea",
 		});
 		expect(collector.requirements.get("status")).toMatchObject({

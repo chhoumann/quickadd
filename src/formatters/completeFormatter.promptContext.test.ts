@@ -284,6 +284,29 @@ describe("forced true/false picker", () => {
 	});
 });
 
+describe("named {{VALUE}} prompt copy", () => {
+	it("is titled by its |label:, not the variable name with the label as helper text", async () => {
+		const f = makeFormatter();
+		f.setPromptRunContext({ choiceName: "Log meeting" });
+
+		await f.formatFileContent("{{VALUE:attendees|label:Who attended?}}");
+
+		expect(lastPromptCall()).toMatchObject({
+			header: "Who attended?",
+			options: { contextLine: "Log meeting" },
+		});
+		expect((mocks.prompt.mock.calls.at(-1) as unknown[])[4]).toBeUndefined();
+	});
+
+	it("is titled by its variable name without a label", async () => {
+		const f = makeFormatter();
+
+		await f.formatFileContent("{{VALUE:attendees}}");
+
+		expect(lastPromptCall()).toMatchObject({ header: "attendees" });
+	});
+});
+
 describe("{{VDATE}} prompt copy", () => {
 	it("is titled by its |label:, which is never read as the default (#1869)", async () => {
 		const f = makeFormatter();

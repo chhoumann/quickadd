@@ -47,7 +47,7 @@ Each control is a flag you add to the placeholder. The most common ones:
 
 | You want | Flag | Example |
 | --- | --- | --- |
-| Helper text on the prompt | [`\|label:`](/docs/FormatSyntax/#value-label) | `{{VALUE:attendees\|label:Comma-separated names}}` |
+| Your own wording for the prompt | [`\|label:`](/docs/FormatSyntax/#value-label) | `{{VALUE:attendees\|label:Who attended?}}` |
 | A pre-filled default | [`\|default:`](/docs/FormatSyntax/#value-default-option) | `{{VALUE:status\|default:open}}` |
 | A large, multi-line text box | [`\|type:multiline`](/docs/FormatSyntax/#value-multiline) | `{{VALUE:notes\|type:multiline}}` |
 | A number, slider, or checkbox | [`\|type:number` and friends](/docs/FormatSyntax/#value-property-types) | `{{VALUE:rating\|type:slider\|min:0\|max:10}}` |
@@ -59,7 +59,7 @@ The full reference for every flag lives in [Format Syntax](/docs/FormatSyntax/).
 
 Good to know:
 
-- `|label:` works on `{{VALUE}}` placeholders, [`{{VDATE:...}}`](/docs/FormatSyntax/#vdate-label) dates, [`{{FIELD:...}}`](/docs/FormatSyntax/#field-label) suggestions, and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers. It names the prompt: it titles a date prompt and an unnamed `{{VALUE}}` prompt, and becomes a pick list's placeholder. On a named text prompt like `{{VALUE:attendees|label:...}}`, the name stays the title and the label shows as helper text below it. A FIELD label also titles the text prompt you get when the property has no values yet.
+- `|label:` works on `{{VALUE}}` placeholders, [`{{VDATE:...}}`](/docs/FormatSyntax/#vdate-label) dates, [`{{FIELD:...}}`](/docs/FormatSyntax/#field-label) suggestions, and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers. It names the prompt: it titles a text or date prompt in place of the variable name, names the field in the one-page form, and becomes a pick list's placeholder. The variable name still identifies the answer for reuse. A FIELD label also titles the text prompt you get when the property has no values yet.
 - `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use multi-line input prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
 - `|type:` flags only work on single-value placeholders. A pick list ignores them.
 

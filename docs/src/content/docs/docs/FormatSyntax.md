@@ -510,14 +510,20 @@ Good to know:
 These options work on text prompts and pickers alike. Combine them freely:
 `{{VALUE:title|label:Note title|default:Untitled}}`.
 
-#### Add helper text: `|label:` {#value-label}
+#### Name the prompt: `|label:` {#value-label}
 
-`{{VALUE:project|label:Client or project name}}` shows the helper text below
-the prompt's header - handy for instructions or reminders. On an option list,
-the label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
-An unnamed `{{VALUE|label:What's the order?}}` has no name for a header, so
-the label is its title, in the prompt, the one-page form and the builder's
-preview (QuickAdd 2.30.0 or later).
+`{{VALUE:project|label:Which client or project?}}` asks "Which client or
+project?" instead of "project", in the prompt and in the
+[one-page input form](/docs/Advanced/onePageInputs/). The name is still the
+variable, so `{{VALUE:project}}` reuses the answer. On an option list, the
+label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`. An
+unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
+builder's preview.
+
+Before QuickAdd 2.30.0, a named prompt kept its name as the title and showed
+the label as helper text below it. If you wrote a label as an instruction,
+such as `|label:Comma-separated names`, reword it as the question you want
+asked.
 
 #### Pre-fill a default: `|<default>` {#value-default}
 
