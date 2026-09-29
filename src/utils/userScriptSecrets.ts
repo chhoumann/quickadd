@@ -474,13 +474,6 @@ export async function clearUserScriptSecretsFromCommand(
 	return clearScriptSecrets(app, userScriptsInCommand(command));
 }
 
-export async function clearUserScriptSecretsFromCommands(
-	app: App | undefined,
-	commands: unknown,
-): Promise<boolean> {
-	return clearScriptSecrets(app, userScriptsInCommands(commands));
-}
-
 function getSecretOptionNamesForCommand(
 	command: Record<string, unknown>,
 	options?: UserScriptSecretSanitizerOptions,
@@ -534,13 +527,6 @@ export function stripUserScriptSecretRefsFromCommand(
 	options?: UserScriptSecretSanitizerOptions,
 ): void {
 	stripScriptSecrets(userScriptsInCommand(command), options);
-}
-
-export function stripUserScriptSecretRefsFromCommands(
-	commands: unknown,
-	options?: UserScriptSecretSanitizerOptions,
-): void {
-	stripScriptSecrets(userScriptsInCommands(commands), options);
 }
 
 export function stripUserScriptSecretRefsFromChoice(

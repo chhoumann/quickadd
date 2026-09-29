@@ -224,15 +224,6 @@ export function normalizeAppendLinkOptions(appendLink: boolean | AppendLinkOptio
 	};
 }
 
-/**
- * Gets the enabled state from either format of appendLink.
- * @param appendLink - Boolean or options format
- * @returns Whether link appending is enabled
- */
-export function isAppendLinkEnabled(appendLink: boolean | AppendLinkOptions): boolean {
-	return isAppendLinkOptions(appendLink) ? appendLink.enabled : appendLink;
-}
-
 // TODO: Consider adding a formal migration in a future major version to:
 // 1. Convert all boolean appendLink values to AppendLinkOptions objects in saved settings
 // 2. Remove the boolean union type from ICaptureChoice and ITemplateChoice interfaces  
