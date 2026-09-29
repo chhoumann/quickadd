@@ -211,6 +211,9 @@ describe("anchorAllowsSubsections", () => {
 		expect(anchorAllowsSubsections(true, ["## H"], 0)).toBe(true);
 		expect(anchorAllowsSubsections(true, ["- item"], 0)).toBe(false);
 	});
+	it("is false for a # line inside a code fence (#1968)", () => {
+		expect(anchorAllowsSubsections(true, ["```bash", "# comment", "```"], 1)).toBe(false);
+	});
 });
 
 describe("insertTextAfterPositionInBody", () => {

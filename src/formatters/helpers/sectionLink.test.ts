@@ -306,6 +306,12 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("reads an unclosed leading --- as a rule, not frontmatter, as Obsidian does (#1968)", () => {
+		expect(extractHeadingsFromLines(["---", "## A", "- x"])).toEqual([
+			{ heading: "A", level: 2, line: 1 },
+		]);
+	});
+
 	it("parses setext headings (=== / ---)", () => {
 		expect(extractHeadingsFromLines(["Title", "===", "body"])).toEqual([
 			{ heading: "Title", level: 1, line: 0 },

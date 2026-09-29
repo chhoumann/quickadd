@@ -1,17 +1,21 @@
-import { extractHeadingsFromLines } from "./sectionLink";
+import { extractHeadingsFromLines, type SimpleHeading } from "./sectionLink";
 
-type Heading = {
-	level: number;
-	line: number;
-	text: string;
-};
+type Heading = SimpleHeading;
 
 function isSameHeading(heading1: Heading, heading2: Heading): boolean {
 	return heading1.line === heading2.line;
 }
 
-export function getMarkdownHeadings(bodyLines: string[]): Heading[] {
-	const headers: Heading[] = [];
+/**
+ * ATX headings by line, without fence or frontmatter awareness. Only the
+ * "Choose heading when capturing" dropdown still uses it: it offers each
+ * heading's own line as the insert-after target, which a setext heading
+ * (text line plus underline) doesn't fit.
+ */
+export function getMarkdownHeadings(
+	bodyLines: string[],
+): { level: number; line: number; text: string }[] {
+	const headers: { level: number; line: number; text: string }[] = [];
 
 	bodyLines.forEach((line, index) => {
 		const match = line.match(/^(#+)[\s]+(.*)$/);
@@ -40,7 +44,9 @@ export default function getEndOfSection(
 	targetLine: number,
 	shouldConsiderSubsections = false,
 ): number {
-	const headings = getMarkdownHeadings(lines);
+	// The same headings Obsidian sees: a `#` line inside a code fence or the
+	// frontmatter is not one, and neither is a 7+ `#` run.
+	const headings = extractHeadingsFromLines(lines);
 
 	const targetHeading = headings.find((heading) => heading.line === targetLine);
 	const targetIsHeading = !!targetHeading;
@@ -53,11 +59,9 @@ export default function getEndOfSection(
 
 	// A block under a non-heading line (a paragraph, list, table or callout)
 	// ends before the next blank line or heading, or at the end of the note.
-	// A `#` line inside a code fence is not a heading, so it doesn't end it.
 	if (!targetIsHeading && !shouldConsiderSubsections) {
 		const nextHeadingLine =
-			extractHeadingsFromLines(lines).find((heading) => heading.line > targetLine)
-				?.line ?? null;
+			headings.find((heading) => heading.line > targetLine)?.line ?? null;
 		const nextBlankIdx = findNextIdx(
 			lines,
 			targetLine,

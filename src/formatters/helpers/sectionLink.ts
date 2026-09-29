@@ -75,12 +75,16 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 
-		// YAML frontmatter: only when it opens on the very first line.
+		// YAML frontmatter: only when it opens on the very first line and closes.
+		// Without a closing `---`, Obsidian reads the first line as a rule and
+		// the rest as body.
 		if (i === 0 && /^---\s*$/.test(line)) {
 			let j = i + 1;
 			while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
-			i = j; // land on the closing `---` (or EOF); the loop's ++ steps past it
-			continue;
+			if (j < lines.length) {
+				i = j; // land on the closing `---`; the loop's ++ steps past it
+				continue;
+			}
 		}
 
 		// Fenced code blocks (``` or ~~~, 3+). An opening fence may carry an info

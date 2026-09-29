@@ -1,4 +1,5 @@
-import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
+import getEndOfSection from "./getEndOfSection";
+import { extractHeadingsFromLines } from "./sectionLink";
 import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
 
 /**
@@ -156,7 +157,7 @@ export function computeOrderedSectionInsertIndex(
 	bodyStartLine = 0,
 ): OrderedSlot {
 	const masked = maskFencedHeadings(lines);
-	const headings = getMarkdownHeadings(masked).filter(
+	const headings = extractHeadingsFromLines(masked).filter(
 		(heading) => heading.line >= bodyStartLine,
 	);
 	const siblings = headings.filter((heading) => heading.level === level);
@@ -192,7 +193,7 @@ export function computeOrderedSectionInsertIndex(
 
 	const sink = ob.unparseable ?? "bottom"; // governs EXISTING unparseable siblings
 	for (const sibling of siblings) {
-		const sibKey = parseKey(headingKeyText(masked[sibling.line]), ob, moment);
+		const sibKey = parseKey(sibling.heading.trim(), ob, moment);
 		let shouldPrecede: boolean;
 		if (!sibKey.parsed) {
 			// New key parsed, sibling not: place new ABOVE the sibling iff
