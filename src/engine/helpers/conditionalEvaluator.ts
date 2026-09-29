@@ -40,11 +40,10 @@ function evaluateVariableCondition(
 		return false;
 	}
 
+	// A variable nothing has set yet is empty: only "is falsy" holds for it, and
+	// every other operator takes the Else branch, as it always has.
 	if (!(variableName in variables)) {
-		log.logWarning(
-			`Conditional command skipped: Variable '${variableName}' is not defined.`
-		);
-		return false;
+		return condition.operator === "isFalsy";
 	}
 
 	const rawValue = variables[variableName];
