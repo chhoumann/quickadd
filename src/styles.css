@@ -1666,6 +1666,12 @@
 	overflow-y: auto;
 }
 
+/* A path wraps after its slashes (see TextInputSuggest); a single name too long
+   for the row still wraps instead of being cut off at the list's edge. */
+.qa-text-input-suggest {
+	overflow-wrap: anywhere;
+}
+
 /* Core suggestion item - sleek, compact, information-dense */
 .qaFileSuggestionItem {
   display: flex;
@@ -1904,12 +1910,12 @@
   border-radius: 0 1px 1px 0;
 }
 
-/* Main content area */
+/* Main content area: the name takes the width it needs, the path the rest. */
 .qa-suggestion-content {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0; /* Allow text truncation */
 }
 
@@ -1919,7 +1925,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
 }
 
 .qaFileSuggestionItem .suggestion-sub-text {
@@ -1928,8 +1933,9 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
-  margin-left: auto;
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: end;
   padding-left: 8px;
   opacity: 0.7;
 }

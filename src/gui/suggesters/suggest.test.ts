@@ -110,6 +110,46 @@ describe("TextInputSuggest", () => {
 		expect(input.value).toBe("Adventure");
 	});
 
+	it("lets a path wrap after its slashes without changing the row's text", async () => {
+		const input = document.createElement("input");
+		document.body.appendChild(input);
+		const suggest = new GenericTextSuggester(createApp(), input, ["Scripts/Books/fetch.js"]);
+
+		input.focus();
+		input.value = "fetch";
+		await suggest.onInputChanged();
+
+		const row = document.querySelector<HTMLElement>(".suggestion-item");
+		expect(row?.innerHTML).toBe(
+			'Scripts/<wbr>Books/<wbr><mark class="qa-highlight">fetch</mark>.js',
+		);
+		expect(row?.textContent).toBe("Scripts/Books/fetch.js");
+		expect(document.querySelector(".suggestion-container")?.classList).toContain(
+			"qa-text-input-suggest",
+		);
+	});
+
+	it("leaves a structured row's own path span alone", async () => {
+		// Such spans are nowrap + ellipsis, and Chromium lets <wbr> break nowrap.
+		class PathRowSuggest extends DeferredSuggest {
+			renderSuggestion(item: string, el: HTMLElement): void {
+				el.createSpan({ cls: "suggestion-sub-text", text: item });
+			}
+		}
+		const input = document.createElement("input");
+		document.body.appendChild(input);
+		const suggest = new PathRowSuggest(createApp(), input);
+
+		input.focus();
+		const opened = suggest.onInputChanged();
+		suggest.resolvePending?.(["People/Nora.md"]);
+		await opened;
+
+		expect(document.querySelector(".suggestion-item")?.innerHTML).toBe(
+			'<span class="suggestion-sub-text">People/Nora.md</span>',
+		);
+	});
+
 	it("exposes the input as a combobox wired to the listbox and active option", async () => {
 		const input = document.createElement("input");
 		input.trigger = (eventName: string) => {

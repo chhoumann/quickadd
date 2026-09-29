@@ -3,7 +3,7 @@ import { createPopper } from "@popperjs/core";
 import type { App, ISuggestOwner } from "obsidian";
 import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
-import { getOwnerDocument, getOwnerWindow } from "src/utils/activeWindow";
+import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "src/utils/activeWindow";
 import { renderExactHighlight } from "./utils";
 
 const wrapAround = (value: number, size: number): number => {
@@ -32,6 +32,31 @@ function listPlacement(inputEl: HTMLElement, listEl: HTMLElement): ListPlacement
 	const reachesActions = input.bottom + LIST_GAP_PX + listHeight > actions.top;
 	const fitsAbove = input.top - LIST_GAP_PX - listHeight >= 0;
 	return actionsBelowInput && reachesActions && fitsAbove ? "top-start" : "bottom-start";
+}
+
+/**
+ * Let a path in a plain row wrap after its slashes rather than mid-name. `/` is
+ * not a line-break opportunity, so without this a long path either runs past
+ * the list's edge or (with `overflow-wrap: anywhere`) breaks at whatever letter
+ * reaches it. `<wbr>` leaves the row's text unchanged. Only text directly in
+ * the row or its highlight marks is touched: structured rows (a name and a
+ * path in their own spans) keep their own wrapping, such as an ellipsized
+ * path, which Chromium would let `<wbr>` break.
+ */
+function allowBreaksAfterSlashes(row: HTMLElement): void {
+	const texts = Array.from(row.childNodes)
+		.flatMap((node) => (node.nodeName === "MARK" ? Array.from(node.childNodes) : [node]))
+		.filter((node): node is Text =>
+			node.nodeType === Node.TEXT_NODE && Boolean(node.nodeValue?.includes("/")),
+		);
+	for (const text of texts) {
+		const parts = (text.nodeValue ?? "").split(/(?<=\/)/);
+		text.replaceWith(
+			...parts.flatMap((part) =>
+				part.endsWith("/") ? [part, createOwnedElement(row, "wbr")] : [part],
+			),
+		);
+	}
 }
 
 let textInputSuggestSeq = 0;
@@ -131,6 +156,7 @@ class Suggest<T> {
 			suggestionEl.setAttribute("id", `${this.optionIdPrefix}-option-${index}`);
 
 			this.owner.renderSuggestion(value, suggestionEl);
+			allowBreaksAfterSlashes(suggestionEl);
 			suggestionEls.push(suggestionEl);
 		});
 
@@ -262,7 +288,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.scope = new Scope(parentScope);
 
 		this.suggestEl = this.inputEl.ownerDocument.win.createDiv();
-		this.suggestEl.classList.add("suggestion-container");
+		this.suggestEl.classList.add("suggestion-container", "qa-text-input-suggest");
 		const suggestion = this.suggestEl.createDiv({ cls: "suggestion" });
 
 		this.listboxId = `qa-suggest-listbox-${++textInputSuggestSeq}`;
@@ -393,9 +419,13 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			placement: listPlacement(inputEl, this.suggestEl),
 			modifiers: [
 				{
+					// The list is exactly as wide as its input, also past the 500px
+					// cap Obsidian puts on `.suggestion-container` (the text prompt's
+					// input is wider).
 					name: "sameWidth",
 					enabled: true,
 					fn: ({ state, instance }) => {
+						state.styles.popper.maxWidth = "none";
 						const targetWidth = `${state.rects.reference.width}px`;
 						if (state.styles.popper.width === targetWidth) {
 							return;
