@@ -37,7 +37,7 @@ const tfile = (path: string) =>
 	});
 
 /** A Capture whose format includes `Include.md`, the way `{{TEMPLATE:Include.md}}` renders it in Obsidian. */
-function makeCapture(include: string, { selection = "" } = {}) {
+function makeCapture(include: string, { selection = "", globalVariables = {} } = {}) {
 	const files = new Map([
 		["Include.md", tfile("Include.md")],
 		["People/Ann.md", tfile("People/Ann.md")],
@@ -65,7 +65,7 @@ function makeCapture(include: string, { selection = "" } = {}) {
 	} as unknown as App;
 	const plugin = {
 		settings: {
-			globalVariables: {},
+			globalVariables,
 			choices: [],
 			inputPrompt: "single-line",
 			enableTemplatePropertyTypes: false,
@@ -162,6 +162,19 @@ describe("an included template reuses a date of the Capture format (#1950)", () 
 		expect(datePrompt).toHaveBeenCalledTimes(1);
 		expect(datePrompt.mock.calls[0][1]).toBe("When is it due?");
 		expect(prompt).toHaveBeenCalledTimes(1);
+	});
+
+	it("finds the VDATE in a global variable of a template body", async () => {
+		const { formatter } = makeCapture("(due {{VALUE:due}})", {
+			globalVariables: { due: "{{VDATE:due,DD.MM.YYYY|label:When is it due?}}" },
+		});
+		datePrompt.mockResolvedValueOnce("@date:2026-09-30T12:00:00.000Z");
+
+		// A Template choice's body expands globals after its includes; a Capture format expands them first.
+		expect(await formatter.formatTemplateContent("📅 {{GLOBAL_VAR:due}}\n{{TEMPLATE:Include.md}}"))
+			.toBe("📅 30.09.2026\n(due 30.09.2026)");
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(prompt).not.toHaveBeenCalled();
 	});
 
 	it("prints a prefilled answer, as from the one-page form, in the VDATE's format", async () => {

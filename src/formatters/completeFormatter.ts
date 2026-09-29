@@ -71,7 +71,8 @@ export class CompleteFormatter extends Formatter {
 		output = await this.replaceInlineJavascriptInString(output);
 		output = await this.replaceMacrosInString(output);
 		const outerIncludingText = this.includingText;
-		this.includingText = output;
+		// Globals expand after the includes render, but a VDATE inside one still counts.
+		this.includingText = await this.replaceGlobalVarInString(output);
 		try {
 			output = await this.replaceTemplateInString(output);
 		} finally {
