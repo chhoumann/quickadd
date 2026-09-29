@@ -1053,11 +1053,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (editorInsertion) {
 			return { file, newFileContent: fileContent, captureContent: formatted, priorContent: fileContent, cursor: { kind: "none" } };
 		}
-		// Second format pass, with the file content... User input (long running) should have been captured during first pass
-		// So this pass is to insert the formatted capture value into the file content, depending on the user's settings
+		// The first pass ran every prompt before the note was read, so placement
+		// starts from the note's current content (#210). This step only runs
+		// Templater and places the text; it does not format it again.
 		const placement =
 			await this.collectIfFrontmatter(() =>
-				this.formatter.formatContentWithFile(
+				this.formatter.insertFormattedContent(
 					formatted,
 					this.choice,
 					fileContent,
@@ -1180,10 +1181,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// Read the file fresh from disk to avoid any potential cached content
 		// after the initial Templater run on newly created files.
 		const updatedFileContent: string = await this.app.vault.read(file);
-		// Second formatting pass: embed the already-resolved capture content into the newly created file
+		// Place the already-formatted capture content into the newly created file
 		const placement =
 			await this.collectIfFrontmatter(() =>
-				this.formatter.formatContentWithFile(
+				this.formatter.insertFormattedContent(
 					formattedCaptureContent,
 					this.choice,
 					updatedFileContent,

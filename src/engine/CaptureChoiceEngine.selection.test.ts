@@ -86,6 +86,9 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 			}
 			return { content, captureContent: content, cursor: { kind: "none" } };
 		}
+		async insertFormattedContent(content: string) {
+			return { content, captureContent: content, cursor: { kind: "none" } };
+		}
 		async formatFileName(name: string) {
 			return name;
 		}

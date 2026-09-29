@@ -2,8 +2,8 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type * as ChoiceFileActions from "./choiceFileActions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
-	formatContentWithFileMock: vi.fn(),
+const { insertFormattedContentMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
+	insertFormattedContentMock: vi.fn(),
 	getCaptureInsertionEndOffsetMock: vi.fn(),
 }));
 
@@ -26,10 +26,10 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(content: string, ...args: unknown[]) {
+		async insertFormattedContent(content: string, ...args: unknown[]) {
 			const value = getCaptureInsertionEndOffsetMock();
 			return {
-				content: await formatContentWithFileMock(content, ...args), captureContent: content,
+				content: await insertFormattedContentMock(content, ...args), captureContent: content,
 				cursor: typeof value === "number" ? { kind: "offset", source: "defaultEnd", value } : { kind: "none" },
 			};
 		}
@@ -183,7 +183,7 @@ const createEngine = ({
 		choiceExecutor,
 	);
 
-	formatContentWithFileMock.mockResolvedValue(formattedFileContent);
+	insertFormattedContentMock.mockResolvedValue(formattedFileContent);
 	getCaptureInsertionEndOffsetMock.mockReturnValue(formattedFileContent.length);
 
 	return { engine, disk, file, choiceExecutor };
@@ -191,7 +191,7 @@ const createEngine = ({
 
 describe("CaptureChoiceEngine concurrent-edit merge", () => {
 	beforeEach(() => {
-		formatContentWithFileMock.mockReset();
+		insertFormattedContentMock.mockReset();
 		getCaptureInsertionEndOffsetMock.mockReset();
 		vi.mocked(setMarkdownCursorAtOffset).mockClear();
 	});
