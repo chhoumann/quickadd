@@ -60,11 +60,15 @@ describe("Templater native overwrite cursor ownership", () => {
 		expect(await overwriteTemplaterOnce(h.app, h.file)).toBe(false);
 	});
 
-	it("removes its listener and rolls back when native rendering fails", async () => {
+	it("removes its listener and keeps the saved render when Templater throws after writing", async () => {
 		const h = setup();
-		h.overwrite.mockRejectedValueOnce(new Error("render failed"));
+		h.overwrite.mockImplementationOnce(async () => {
+			h.write("rendered");
+			throw new Error("cursor jump failed");
+		});
 		expect(await overwriteTemplaterOnce(h.app, h.file)).toBe(false);
 		expect(h.app.workspace.offref).toHaveBeenCalledExactlyOnceWith(h.listener);
-		expect(h.app.vault.modify).toHaveBeenCalledWith(h.file, "<% rendered %>");
+		expect(h.app.vault.modify).not.toHaveBeenCalled();
+		expect(await h.app.vault.read(h.file)).toBe("rendered");
 	});
 });

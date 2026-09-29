@@ -467,18 +467,10 @@ export async function overwriteTemplaterOnce(
 			}
 			return cursorHandled;
 		} catch (err) {
-			// Roll back to original content to avoid partial renders
-			try {
-				await app.vault.modify(file, original);
-			} catch (rollbackErr) {
-				log.logWarning(
-					`Failed to rollback ${file.path} after Templater error: ${(rollbackErr as Error).message}`,
-				);
-			}
-			reportError(
-				err as Error,
-				`Templater failed on ${file.path}. Rolled back to pre-render state.`,
-			);
+			// Templater catches template errors itself: it shows a notice and skips
+			// the write. An error that reaches here can come after the rendered note
+			// was saved, so leave the note as it is.
+			reportError(err as Error, `Templater failed on ${file.path}`);
 			return false;
 		} finally {
 			app.workspace.offref(listener);
