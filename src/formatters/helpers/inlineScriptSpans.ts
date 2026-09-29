@@ -1,17 +1,20 @@
 const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
+export type InlineScriptSpan = { start: number; end: number; code: string };
+
 /**
- * Finds each complete ```js quickadd fence and its trimmed code. A fence opens
- * with 3+ backticks and the language, and closes at the next run of 3+
- * backticks, which it consumes whole. The scan is linear; a regex for the same
- * grammar backtracks on long backtick runs and freezes the app (#1907).
+ * The first complete ```js quickadd fence at or after `from`, with its trimmed
+ * code. A fence opens with 3+ backticks and the language, and closes at the
+ * next run of 3+ backticks, which it consumes whole. `from` must not fall
+ * inside a backtick run. The scan is linear; a regex for the same grammar
+ * backtracks on long backtick runs and freezes the app (#1907).
  */
-export function findInlineScriptSpans(
+export function findNextInlineScript(
 	input: string,
-): Array<{ start: number; end: number; code: string }> {
-	const spans: Array<{ start: number; end: number; code: string }> = [];
+	from = 0,
+): InlineScriptSpan | undefined {
 	const n = input.length;
-	let i = 0;
+	let i = from;
 
 	while (i < n) {
 		const runStart = input.indexOf("`", i);
@@ -32,27 +35,54 @@ export function findInlineScriptSpans(
 		// as this fence's closer), so scanning is done.
 		const codeStart = runEnd + INLINE_SCRIPT_FENCE_LANG.length;
 		let j = codeStart;
-		let codeEnd = -1;
-		let end = -1;
 		while (j < n) {
 			const tick = input.indexOf("`", j);
 			if (tick === -1) break;
 			let tickRunEnd = tick;
 			while (tickRunEnd < n && input[tickRunEnd] === "`") tickRunEnd++;
 			if (tickRunEnd - tick >= 3) {
-				codeEnd = tick;
-				end = tickRunEnd;
-				break;
+				return {
+					start: runStart,
+					end: tickRunEnd,
+					code: input.slice(codeStart, tick).trim(),
+				};
 			}
 			j = tickRunEnd;
 		}
-		if (end === -1) break;
-
-		spans.push({ start: runStart, end, code: input.slice(codeStart, codeEnd).trim() });
-		i = end;
+		break;
 	}
 
+	return undefined;
+}
+
+export function findInlineScriptSpans(input: string): InlineScriptSpan[] {
+	const spans: InlineScriptSpan[] = [];
+	let span = findNextInlineScript(input);
+	while (span) {
+		spans.push(span);
+		span = findNextInlineScript(input, span.end);
+	}
 	return spans;
+}
+
+/**
+ * Where to resume findNextInlineScript after the fence at `start` was replaced.
+ * No fence opened before `start`, but its last few characters can open one
+ * together with the replacement, as in "```js quick" followed by "add".
+ */
+export function inlineScriptRescanFrom(input: string, start: number): number {
+	const firstLangStart = Math.max(3, start - INLINE_SCRIPT_FENCE_LANG.length + 1);
+	for (let langStart = firstLangStart; langStart < start; langStart++) {
+		if (
+			input.startsWith("```", langStart - 3) &&
+			input.startsWith(INLINE_SCRIPT_FENCE_LANG, langStart)
+		) {
+			let runStart = langStart - 3;
+			while (runStart > 0 && input[runStart - 1] === "`") runStart--;
+			return runStart;
+		}
+	}
+	return start;
 }
 
 /** Ignore complete fences, then check whether the remaining text opened one without closing it. */

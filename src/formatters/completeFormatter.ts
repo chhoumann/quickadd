@@ -2,7 +2,7 @@ import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
+import { findNextInlineScript, inlineScriptRescanFrom } from "./helpers/inlineScriptSpans";
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
@@ -763,11 +763,9 @@ export class CompleteFormatter extends Formatter {
 
 	protected async replaceInlineJavascriptInString(input: string) {
 		let output: string = input;
-		let fence: ReturnType<typeof findInlineScriptSpans>[number] | undefined;
+		let fence = findNextInlineScript(output);
 
-		// Scan again from the start after each fence: a script's output can hold
-		// a fence of its own, which then runs too.
-		while ((fence = findInlineScriptSpans(output)[0])) {
+		while (fence) {
 			const { start, end, code } = fence;
 			let replacement = "";
 
@@ -817,6 +815,9 @@ export class CompleteFormatter extends Formatter {
 			// An empty/whitespace-only fence (e.g. ```js quickadd\n```) is consumed
 			// too, so the loop terminates instead of spinning forever.
 			output = output.slice(0, start) + replacement + output.slice(end);
+			// Scan on from the replacement, not past it: a script's output can
+			// hold a fence of its own, which then runs too.
+			fence = findNextInlineScript(output, inlineScriptRescanFrom(output, start));
 		}
 
 		return output;
