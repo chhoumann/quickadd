@@ -227,6 +227,32 @@ describe("ImportPackageModal inline code in a choice setting", () => {
 		await waitFor(() => expect(importButton.disabled).toBe(false));
 		expect(reason()).toBeUndefined();
 	});
+
+	it("doesn't call inline code a bundled script next to a missing one", async () => {
+		const pkg = JSON.parse(INLINE_PACKAGE);
+		pkg.rootChoiceIds.push("m1");
+		pkg.choices.push({
+			choice: {
+				id: "m1",
+				name: "Fetch",
+				type: "Macro",
+				command: false,
+				macro: { id: "mm", name: "Fetch", commands: [{ id: "c", name: "fetch", type: "UserScript", path: "scripts/missing.js", settings: {} }] },
+			},
+			pathHint: ["Fetch"],
+			parentChoiceId: null,
+		});
+		const { container, getByText } = render(ImportPackageModal, {
+			props: { app: fakeApp(), close: () => {} },
+		});
+		const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: JSON.stringify(pkg) } });
+		await waitFor(() => expect(getByText("Missing files")).toBeTruthy());
+
+		expect(container.querySelector(".qa-import-ack-label")?.textContent?.trim()).toBe(
+			"I have reviewed each script shown above and trust the source, including scripts that are not included and cannot be shown.",
+		);
+	});
 });
 
 describe("ImportPackageModal after import (#1880)", () => {

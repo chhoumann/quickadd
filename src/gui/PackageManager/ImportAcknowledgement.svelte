@@ -21,7 +21,7 @@
 	const ackLabel = $derived(
 		reviewableCount > 0
 			? hasUnbundledScript
-				? "I have reviewed each bundled script above and trust the source, including scripts that are not included and cannot be shown."
+				? "I have reviewed each script shown above and trust the source, including scripts that are not included and cannot be shown."
 				: "I have reviewed each script above and trust the source."
 			: hasUnbundledScript
 				? "This package runs scripts that are not included and cannot be reviewed. I trust the source."
