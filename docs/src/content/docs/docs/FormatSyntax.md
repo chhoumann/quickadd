@@ -58,6 +58,7 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{DATE+7}}`](#date) | Seven days from today |
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
 | [`{{TIME}}`](#time) | The current time, like `14:05` |
+| [`{{DAILY}}`](#periodic-notes) | Today's daily note, like `Journal/2026-07-08` |
 
 **The note you ran QuickAdd from**
 
@@ -228,6 +229,30 @@ allowed in file names on Windows or macOS.
 Unlike `{{DATE}}`, `{{TIME}}` takes no `+N` offset. For a time other than "now",
 use `{{DATE:HH:mm}}` with an offset, or ask for one with
 [`{{VDATE:<name>, <format>|time}}`](#vdate).
+
+### Your daily and periodic notes: `{{DAILY}}` {#periodic-notes}
+
+`{{DAILY}}` becomes the path of the day's daily note, using the folder and
+date format from Obsidian's **Daily notes** settings. Capture to `{{DAILY}}`
+and entries land in the same note **Open today's daily note** opens, even
+after you change those settings.
+
+| You write | You get (Daily notes folder `Journal`, format `YYYY/YYYY-MM-DD`) |
+| --- | --- |
+| `{{DAILY}}` | `Journal/2026/2026-07-08` |
+| `[[{{DAILY}}]]` | `[[Journal/2026/2026-07-08]]` |
+
+`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}` do the same
+for the notes the [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
+plugin manages. When Periodic Notes manages daily notes, `{{DAILY}}` uses its
+settings instead.
+
+Good to know:
+
+- The note follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
+- A week, month, quarter, or year note is named from the start of its period, the way Periodic Notes names it.
+- With **Create file if it doesn't exist** on and no template set, a Capture to `{{DAILY}}` creates the missing note from your Daily notes template.
+- If the period's plugin is off, the run stops with an error instead of writing somewhere else.
 
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 

@@ -1,6 +1,7 @@
 import {
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
+	DAILY_SYNTAX_SUGGEST_REGEX,
 	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 	DATE_SYNTAX_SUGGEST_REGEX,
 	FIELD_SYNTAX_SUGGEST_REGEX,
@@ -24,6 +25,7 @@ import {
 	VALUE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
+	WEEKLY_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 
 /**
@@ -299,6 +301,16 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		expansions: () => [
 			token("{{TIME:A|case:lower}}", "Lowercases formatted text, such as AM to am"),
 		],
+	},
+	{
+		regex: DAILY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{DAILY}}", "Today's daily note, from your Daily notes settings"),
+	},
+	{
+		regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{WEEKLY}}", "This week's note, from your Periodic Notes settings"),
 	},
 
 	// == The note you ran QuickAdd from ==

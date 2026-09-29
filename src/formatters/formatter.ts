@@ -12,6 +12,7 @@ import {
 	parseFileToken,
 } from "../utils/fileSyntax";
 import { renderStoredFileValue } from "./helpers/fileTokenRendering";
+import { PERIODIC_NOTE_REGEX, replacePeriodicNoteTokens } from "../utils/periodicNotes";
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -56,10 +57,14 @@ export abstract class Formatter extends ValueFormatter {
 		this.templateInclusion = state;
 	}
 	protected replaceDateInString(input: string): string {
-		return replaceDateInString(input, {
+		const output = replaceDateInString(input, {
 			clocks: () => this.runClocks(),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
+		// Periodic-note paths are dates too: they follow the run's Which day.
+		if (!PERIODIC_NOTE_REGEX.test(output)) return output;
+		const clocks = this.runClocks();
+		return replacePeriodicNoteTokens(output, this.app, window.moment(clocks?.date ?? clocks?.now));
 	}
 	protected replaceTimeInString(input: string): string {
 		return replaceTimeInString(input, {

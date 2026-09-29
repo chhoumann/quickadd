@@ -90,6 +90,7 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { PERIODIC_NOTE_REGEX, periodicNoteTemplateFor } from "../utils/periodicNotes";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -667,14 +668,15 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		});
 
 		let initialContent = file ? await readNote(this.app, file) : "";
-		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
+		const templatePath = file ? null : this.templateForNewFile(filePath);
+		const createWithTemplate = !!templatePath;
 		let templateVars = new Map<string, unknown>();
-		if (createWithTemplate) {
+		if (templatePath) {
 			const template = new SingleTemplateEngine(this.app, this.plugin,
-				this.choice.createFileIfItDoesntExist.template, this.choiceExecutor);
+				templatePath, this.choiceExecutor);
 			template.setDestinationPath(filePath);
 			template.setPromptRunContext({
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
+				draftScopeId: `${this.choice.id}#${templatePath}`,
 				choiceName: this.choice.name, destination: filePath, destinationKind: "file",
 			});
 			if (linkOptions.enabled && !linkOptions.requireActiveFile) template.setLinkToCurrentFileBehavior("optional");
@@ -1082,6 +1084,19 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		};
 	}
 
+	/**
+	 * The template a missing target is created from: the choice's own template,
+	 * or, when Capture to names a periodic note ({{DAILY}}, ...), the template
+	 * that note's plugin would use, so QuickAdd creates it the way Obsidian does.
+	 */
+	private templateForNewFile(filePath: string): string | null {
+		const create = this.choice.createFileIfItDoesntExist;
+		if (create.createWithTemplate) return create.template;
+		if (!PERIODIC_NOTE_REGEX.test(this.choice.captureTo ?? "")) return null;
+		const clocks = this.choiceExecutor.clocks;
+		return periodicNoteTemplateFor(this.app, filePath, window.moment(clocks?.date ?? clocks?.now));
+	}
+
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
@@ -1114,12 +1129,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 
 		let fileContent = "";
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+		const template = this.templateForNewFile(filePath);
+		if (template) {
 			const singleTemplateEngine: SingleTemplateEngine =
 				new SingleTemplateEngine(
 					this.app,
 					this.plugin,
-					this.choice.createFileIfItDoesntExist.template,
+					template,
 					this.choiceExecutor,
 				);
 
@@ -1135,7 +1151,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				// Scoped to the template: the engine has its own formatter and raises
 				// its own {{VALUE}} prompt, which must not share the capture body
 				// prompt's draft key.
-				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
+				draftScopeId: `${this.choice.id}#${template}`,
 				choiceName: this.choice.name,
 				destination: filePath,
 				destinationKind: "file",
@@ -1157,12 +1173,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		// Create the new file with the (optional) template content
 		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
-			suppressTemplaterOnCreate:
-				this.choice.createFileIfItDoesntExist.createWithTemplate,
+			suppressTemplaterOnCreate: !!template,
 		});
 
 		// Post-process front matter for template property types if we used a template
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+		if (template &&
 			this.templatePropertyVars &&
 			shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
 			await postProcessFrontMatter(this.app, file, this.templatePropertyVars);
@@ -1170,7 +1185,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		// Process Templater commands in the template if a template was used
 		if (
-			this.choice.createFileIfItDoesntExist.createWithTemplate &&
+			template &&
 			fileContent
 		) {
 			await overwriteTemplaterOnce(this.app, file);

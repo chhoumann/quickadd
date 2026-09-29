@@ -215,6 +215,12 @@ export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i,
 );
+export const DAILY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[D]?[A]?[I]?[L]?[Y]?[}]?[}]?$/i,
+);
+export const WEEKLY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[W]?[E]?[E]?[K]?[L]?[Y]?[}]?[}]?$/i,
+);
 export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i,
 );
