@@ -4,6 +4,7 @@ import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type { InputPromptOptions } from "../../types/inputPrompt";
 import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
 import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
+import { positionInputPromptCursor } from "../inputPromptCursor";
 import { settingsStore } from "../../settingsStore";
 import {
 	formatDateAliasInline,
@@ -78,6 +79,17 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		// super() display() call before this.withTime is set), so the time
 		// control reflects the |time/|datetime flag.
 		this.mountDatePicker();
+
+		// A run that failed keeps what this prompt submitted, `@date:<ISO>`. Show
+		// that date the way the picker would, without counting it as an edit. The
+		// prompt already opened, so place the cursor again for the new text.
+		if (this.currentInput.startsWith("@date:")) {
+			const iso = this.currentInput.slice(6).trim();
+			if (iso) {
+				this.applyPickerSelection(iso, false);
+				positionInputPromptCursor(this.inputComponent.inputEl, options);
+			}
+		}
 
 		// Create debounced preview update function (250ms delay, reset on each call)
 		this.updatePreviewDebounced = debounce(
@@ -238,14 +250,15 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		this.datePicker?.setSelectedIso(iso, { updateView });
 	}
 
-	private applyPickerSelection(iso: string) {
+	private applyPickerSelection(iso: string, byUser = true) {
 		const displayValue = this.formatIsoForInput(iso);
 		this.selectedIso = iso;
 		this.lastPickerDisplayValue = displayValue;
 		if (this.inputComponent?.inputEl) {
 			this.inputComponent.inputEl.value = displayValue;
 		}
-		this.onInputChanged(displayValue);
+		if (byUser) this.onInputChanged(displayValue);
+		else this.input = displayValue;
 		this.currentInput = displayValue;
 		this.syncPickerSelection(iso);
 		this.renderPreviewFromIso(iso);
