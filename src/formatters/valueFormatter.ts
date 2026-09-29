@@ -79,6 +79,10 @@ export abstract class ValueFormatter {
 	/** Set while formatting a list property value, where each pick of a list is one line, so one item. */
 	protected listPicksAsLines = false;
 
+	protected writesListPicksAsLines(): boolean {
+		return this.listPicksAsLines;
+	}
+
 	/** A format that is exactly one token or one inline script keeps its native value (number, list, ...). */
 	protected async preserveSingleTokenValue(input: string, work: () => Promise<string>): Promise<unknown> {
 		const previous = this.singleTokenValue;
@@ -392,7 +396,7 @@ export abstract class ValueFormatter {
 		heuristicEnabled: boolean;
 		multiFormat?: MultiValueFormat;
 	}): string | undefined {
-		if (this.listPicksAsLines && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
+		if (this.writesListPicksAsLines() && Array.isArray(args.rawValue) && writesPicksAsItems({ ...args, format: args.multiFormat })) {
 			const picks = args.rawValue.map(String);
 			const whole = this.retainSingleTokenValue(args.input, args.matchStart, args.matchEnd, args.rawValue);
 			// Lines are the item boundary, so a pick with a line break would silently become several items.

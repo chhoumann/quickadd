@@ -85,6 +85,20 @@ describe("property capture in native Obsidian", () => {
 			.toEqual({ properties: { tags: ["old", "work", "urgent", "inbox"] }, body: BODY });
 	});
 
+	it("adds each multi-select pick in an included template as its own item", async () => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "tags-template.md", "{{VALUE:business,pricing,marketing|multi}}\nto-read");
+		const path = await seedVaultFile(obsidian, sandbox, "included-picks.md", `---\ntags: [clippings]\n---\n${BODY}`);
+		const choice = choiceFor(path);
+		choice.format = { enabled: true, format: `{{TEMPLATE:${template}}}` };
+		choice.propertyCapture = { property: { kind: "named", format: "tags" }, action: "addToList", createIfMissing: true };
+		await saveChoice(choice);
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ "business,pricing,marketing": ["business", "pricing"] }) });
+		expect(outcome).toMatchObject({ ok: true, verified: true, effect: "changed" });
+		await expect.poll(() => readNote(path), { timeout: 10000, interval: 100 })
+			.toEqual({ properties: { tags: ["clippings", "business", "pricing", "to-read"] }, body: BODY });
+	});
+
 	it("sets each line as an item on a property Obsidian already knows as a list", async () => {
 		const { obsidian, sandbox } = getContext();
 		const path = await seedVaultFile(obsidian, sandbox, "set-lines.md", `---\ntags: [old]\n---\n${BODY}`);
