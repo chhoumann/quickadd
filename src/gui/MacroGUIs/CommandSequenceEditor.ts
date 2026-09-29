@@ -34,6 +34,7 @@ import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
+import { buildFileDisplayInfos } from "../../utils/fileSyntax";
 import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
@@ -506,10 +507,15 @@ export class CommandSequenceEditor {
 		}
 
 		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
-		// Rows show the name with the full path beneath it, and search matches the
-		// path, so same-named scripts in different folders can be told apart.
+		// Rows show the name (a note's title or heading) with the full path beneath
+		// it, and search matches both, so same-named scripts in different folders
+		// can be told apart and a note is found by the name its row shows.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
 		const labels = candidateLabels(this.scriptCandidates);
+		const titles = buildFileDisplayInfos(
+			this.scriptCandidates.map((c) => c.file),
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
 		const selectedPath = await InputSuggester.Suggest(
 			this.app,
 			labels,
@@ -517,7 +523,7 @@ export class CommandSequenceEditor {
 			{
 				placeholder: "Select a script (.js file or note with a ```js block)",
 				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
-				searchItems: paths,
+				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
 				allowCustomValue: false,
 			}
 		);
