@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { TFile, TFolder } from "obsidian";
 import type { App } from "obsidian";
 import {
 	ExistenceResolver,
@@ -168,13 +169,16 @@ describe("snapshots for applyPackageImport", () => {
 
 describe("ExistenceResolver — monotonic token (regression: re-paste race)", () => {
 	function deferredApp() {
-		const pending: Array<(value: boolean) => void> = [];
+		const pending: Array<(exists: boolean) => void> = [];
 		const app = {
 			vault: {
 				getAbstractFileByPath: vi.fn(() => null),
 				adapter: {
-					exists: vi.fn(
-						() => new Promise<boolean>((resolve) => pending.push(resolve)),
+					stat: vi.fn(
+						() =>
+							new Promise((resolve) =>
+								pending.push((exists) => resolve(exists ? { type: "file" } : null)),
+							),
 					),
 				},
 			},
@@ -219,12 +223,12 @@ describe("ExistenceResolver — monotonic token (regression: re-paste race)", ()
 
 describe("ExistenceResolver — vault-boundary containment (security)", () => {
 	function spyApp() {
-		// adapter.exists would happily stat anything (incl. out-of-vault) and the
+		// adapter.stat would happily stat anything (incl. out-of-vault) and the
 		// index lookup would too — so the spies prove the boundary check, not luck.
-		const exists = vi.fn(async () => true);
+		const exists = vi.fn(async () => ({ type: "file" }));
 		const getAbstractFileByPath = vi.fn(() => ({}) as unknown);
 		const app = {
-			vault: { getAbstractFileByPath, adapter: { exists } },
+			vault: { getAbstractFileByPath, adapter: { stat: exists } },
 		} as unknown as App;
 		return { app, exists, getAbstractFileByPath };
 	}
@@ -256,5 +260,39 @@ describe("ExistenceResolver — vault-boundary containment (security)", () => {
 		await flush();
 		expect(exists).toHaveBeenCalledWith("scripts/x.js");
 		expect(result).toBe(true);
+	});
+});
+
+describe("ExistenceResolver — a folder is not an existing file (#1865)", () => {
+	const flush = () => new Promise((r) => setTimeout(r, 0));
+	function vaultWithFolder() {
+		const folder = new TFolder();
+		folder.path = "Scripts";
+		const file = new TFile();
+		file.path = "Scripts/brainDump.js";
+		const entries = new Map<string, unknown>([["Scripts", folder], [file.path, file]]);
+		return {
+			vault: {
+				getAbstractFileByPath: vi.fn((path: string) => entries.get(path) ?? null),
+				adapter: {
+					stat: vi.fn(async (path: string) =>
+						path === "Scripts" ? { type: "folder" } : entries.has(path) ? { type: "file" } : null,
+					),
+				},
+			},
+		} as unknown as App;
+	}
+
+	it("reports a folder as not existing, and as a folder", async () => {
+		const resolver = new ExistenceResolver(vaultWithFolder());
+		expect(resolver.optimistic("Scripts")).toBe(false);
+		expect(resolver.isFolder("Scripts")).toBe(true);
+		expect(resolver.optimistic("Scripts/brainDump.js")).toBe(true);
+		expect(resolver.isFolder("Scripts/brainDump.js")).toBe(false);
+
+		let result: boolean | undefined;
+		resolver.schedule("k", "Scripts", (exists) => (result = exists));
+		await flush();
+		expect(result).toBe(false);
 	});
 });

@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import { normalizePath } from "obsidian";
+import { normalizePath, TFile, TFolder } from "obsidian";
 import { normalizeTemplateFolderPaths } from "../../utils/templateFolderUtils";
 import { escapesVaultBoundary } from "../../utils/vaultPathBoundary";
 import type {
@@ -258,12 +258,13 @@ export function snapshotAssetDecisions(
 // --- Existence resolver -----------------------------------------------------
 
 /**
- * Resolves whether a destination already exists.
+ * Resolves whether a destination already holds a file. A folder is not a file:
+ * writing there fails, so it never counts as something to overwrite.
  *
  * - `optimistic` is synchronous and a strict SUBSET of the truth:
  *   getAbstractFileByPath only knows the vault index, so it never
  *   false-positives but misses files under config / dot-folders.
- * - `schedule` reconciles against adapter.exists (which sees everything on
+ * - `schedule` reconciles against adapter.stat (which sees everything on
  *   disk) and calls back with the authoritative answer.
  *
  * The per-key token is MONOTONIC for the lifetime of the resolver and is never
@@ -275,14 +276,20 @@ export class ExistenceResolver {
 
 	constructor(private readonly app: App) {}
 
-	optimistic(path: string): boolean {
+	private indexed(path: string) {
 		const trimmed = path.trim();
-		if (!trimmed) return false;
 		// Untrusted package paths that escape the vault are never "present".
-		if (escapesVaultBoundary(trimmed)) return false;
-		return Boolean(
-			this.app.vault.getAbstractFileByPath(normalizePath(trimmed)),
-		);
+		if (!trimmed || escapesVaultBoundary(trimmed)) return null;
+		return this.app.vault.getAbstractFileByPath(normalizePath(trimmed));
+	}
+
+	optimistic(path: string): boolean {
+		return this.indexed(path) instanceof TFile;
+	}
+
+	/** Whether the destination names a folder, which can't be written as a file. */
+	isFolder(path: string): boolean {
+		return this.indexed(path) instanceof TFolder;
 	}
 
 	private async resolve(path: string): Promise<boolean> {
@@ -292,7 +299,8 @@ export class ExistenceResolver {
 		// destination like "../../../etc/passwd" must not reach the filesystem.
 		if (escapesVaultBoundary(trimmed)) return false;
 		try {
-			return await this.app.vault.adapter.exists(normalizePath(trimmed));
+			const stat = await this.app.vault.adapter.stat(normalizePath(trimmed));
+			return stat?.type === "file";
 		} catch {
 			return false;
 		}

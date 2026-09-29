@@ -90,6 +90,10 @@ function createFakeApp(initialExisting: string[] = []): {
 			state.writes.set(path, content);
 			state.existingPaths.add(path);
 		}),
+		stat: vi.fn(async (path: string) => {
+			if (!state.existingPaths.has(path)) return null;
+			return { type: state.createdFolders.includes(path) ? "folder" : "file" };
+		}),
 	};
 
 	const app = {
@@ -789,6 +793,30 @@ describe("asset write containment (security)", () => {
 		).rejects.toThrow(/resolve to the same destination/);
 
 		// All-or-nothing: nothing is written, so no silent last-write-wins.
+		expect(state.writes.size).toBe(0);
+	});
+
+	it("refuses a destination that is a folder, before writing anything (#1865)", async () => {
+		const { app, state } = createFakeApp();
+		state.existingPaths.add("Scripts");
+		state.createdFolders.push("Scripts");
+		const pkg = makePackage({
+			assets: [
+				packageAsset("template", "Templates/note.md", encodeToBase64("# Note")),
+				packageAsset("user-script", "scripts/brainDump.js", encodeToBase64("module.exports = () => {};")),
+			],
+		});
+
+		await expect(
+			importPackage({
+				app,
+				pkg,
+				assetDecisions: [
+					{ originalPath: "Templates/note.md", destinationPath: "Templates/note.md", mode: "write" },
+					{ originalPath: "scripts/brainDump.js", destinationPath: "Scripts", mode: "overwrite" },
+				],
+			}),
+		).rejects.toThrow('Refusing to import: "Scripts" is a folder. Choose a file path for "scripts/brainDump.js".');
 		expect(state.writes.size).toBe(0);
 	});
 

@@ -115,6 +115,7 @@ function fakeApp(initialFiles: Record<string, string> = {}) {
 			configDir: ".obsidian",
 			adapter: {
 				exists: vi.fn(async (path: string) => files.has(path)),
+				stat: vi.fn(async (path: string) => (files.has(path) ? { type: "file" } : null)),
 				read: vi.fn(async (path: string) => {
 					const content = files.get(path);
 					if (content === undefined) throw new Error(`Missing file: ${path}`);

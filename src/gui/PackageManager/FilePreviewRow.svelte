@@ -15,6 +15,7 @@
 		mode,
 		destinationPath,
 		destinationExists,
+		destinationIsFolder = false,
 		reviewed = false,
 		onPathInput,
 		onModeChange,
@@ -25,6 +26,8 @@
 		mode: AssetImportMode;
 		destinationPath: string;
 		destinationExists: boolean;
+		/** The destination names a folder, so the file can't be written there. */
+		destinationIsFolder?: boolean;
 		/** Whether this gate-required file has been opened toward the gate. */
 		reviewed?: boolean;
 		onPathInput: (value: string) => void;
@@ -44,6 +47,7 @@
 	const previewId = `${uid}-preview`;
 	const destinationId = `${uid}-destination`;
 	const actionId = `${uid}-action`;
+	const folderId = `${uid}-folder`;
 	const fileName = $derived(file.originalPath.split("/").pop() ?? file.originalPath);
 
 	function formatBytes(bytes: number): string {
@@ -100,9 +104,15 @@
 				{/if}
 			</div>
 			<div class="setting-item-description">
-				<span class:mod-warning={destinationExists}
-					>{destinationExists ? "Will overwrite" : "New file"}</span
-				>
+				{#if destinationIsFolder}
+					<span class="qa-import-file-folder" id={folderId}
+						>The destination is a folder. Add a file name.</span
+					>
+				{:else}
+					<span class:mod-warning={destinationExists}
+						>{destinationExists ? "Will overwrite" : "New file"}</span
+					>
+				{/if}
 				· {formatBytes(file.sizeBytes)}
 			</div>
 			{#if file.requiresReview && mode === "skip"}
@@ -198,6 +208,8 @@
 				id={destinationId}
 				type="text"
 				value={destinationPath}
+				aria-invalid={destinationIsFolder}
+				aria-describedby={destinationIsFolder ? folderId : undefined}
 				oninput={onDestinationInput}
 				placeholder="vault/path/to/file"
 				disabled={mode === "skip"}
@@ -228,6 +240,10 @@
 	.qa-import-file-flair {
 		margin-inline-start: 0;
 		cursor: help;
+	}
+
+	.qa-import-file-folder {
+		color: var(--text-error);
 	}
 
 	.qa-import-file-reviewed {

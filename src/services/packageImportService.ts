@@ -544,6 +544,11 @@ export async function applyPackageImport(
 			skippedAssets.push(destinationPath);
 			continue;
 		}
+		if (exists && (await app.vault.adapter.stat(destinationPath))?.type === "folder") {
+			throw new Error(
+				`Refusing to import: "${destinationPath}" is a folder. Choose a file path for "${asset.originalPath}".`,
+			);
+		}
 		plannedWrites.push({ asset, destinationPath });
 	}
 
