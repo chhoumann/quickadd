@@ -49,6 +49,16 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
 		await expect.poll(() => click(`[aria-label="Configure ${macro.name}"]`), POLL_OPTS).toBe(true);
 
+		// #1878: a macro without steps has no blank list area above the buttons.
+		await expect.poll(() => obsidian.dev.evalJson<number>(
+			'document.querySelector(".macroBuilder .quickAddCommandList").getBoundingClientRect().height',
+		), POLL_OPTS).toBe(0);
+
+		// #1883: the icon picker ranks the exact icon first (real Obsidian scorer).
+		await typeInto(obsidian, ".macroBuilder .qa-choice-icon-input", "star");
+		await expect.poll(async () => (await texts(".suggestion-container .suggestion-item"))[0], POLL_OPTS).toBe("star");
+		await pressKey(obsidian, "Escape");
+
 		// Inline typeahead: same-named scripts are listed by path, and the picked
 		// one is the one that gets added.
 		await typeInto(obsidian, typeahead, "views/");
@@ -60,6 +70,9 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await expect.poll(() => obsidian.dev.evalJson<string>(
 			`document.querySelector(${JSON.stringify(typeahead)}).value`,
 		), POLL_OPTS).toBe(progress);
+		// #1878: the list stays closed once the input's debounced refresh has run.
+		await new Promise((resolve) => setTimeout(resolve, 300));
+		expect(await texts(".suggestion-container .suggestion-item")).toEqual([]);
 		expect(await click(".macroBuilder .setting-item:has(input[placeholder='Start typing script name...']) button", "Add")).toBe(true);
 
 		// Browse: rows show each script's path, and search matches it.

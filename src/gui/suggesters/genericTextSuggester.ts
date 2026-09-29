@@ -1,12 +1,18 @@
-import type { App } from "obsidian";
+import type { App, SearchMatches } from "obsidian";
+import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import {
+	dispatchCompletion,
 	normalizeDisplayItem,
 	normalizeQuery,
+	renderHighlightRanges,
 	stripMdExtensionForDisplay,
 } from "./utils";
 
 export class GenericTextSuggester extends TextInputSuggest<string> {
+	// Match ranges of the last suggestions, for highlighting.
+	private matchesByItem = new Map<string, SearchMatches>();
+
 	constructor(
 		public app: App,
 		public inputEl: HTMLInputElement | HTMLTextAreaElement,
@@ -18,39 +24,25 @@ export class GenericTextSuggester extends TextInputSuggest<string> {
 	}
 
 	getSuggestions(inputStr: string): string[] {
-		const inputLowerCase = normalizeQuery(inputStr).toLowerCase();
-
-		const filtered = this.items.filter((item) => {
-			return item.toLowerCase().includes(inputLowerCase);
+		const ranked = rankMatches(normalizeQuery(inputStr), this.items, (item) => item, {
+			limit: this.maxSuggestions,
 		});
-
-		if (filtered.length === 0) this.close();
-
-		const limited = filtered.slice(0, this.maxSuggestions);
-
-		return limited;
+		this.matchesByItem = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		return ranked.map(({ item }) => item);
 	}
 
 	selectSuggestion(item: string): void {
 		this.inputEl.value = item;
-		this.inputEl.trigger("input");
+		dispatchCompletion(this.inputEl);
 		this.close();
 	}
 
 	renderSuggestion(value: string, el: HTMLElement): void {
-		if (!value) return;
-		const displayValue = stripMdExtensionForDisplay(value);
-		let displayQuery = stripMdExtensionForDisplay(this.getCurrentQuery());
-		if (
-			value.toLowerCase().endsWith(".md") &&
-			displayQuery.toLowerCase().startsWith(`${displayValue.toLowerCase()}.`)
-		) {
-			displayQuery = displayValue;
-		}
-		this.renderMatch(el, displayValue, displayQuery);
-	}
-
-	protected getCurrentQuery(): string {
-		return this.inputEl.value;
+		// Ranges past the hidden ".md" are clipped away.
+		renderHighlightRanges(
+			el,
+			stripMdExtensionForDisplay(value),
+			this.matchesByItem.get(value) ?? [],
+		);
 	}
 }

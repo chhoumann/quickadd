@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
-import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
 import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
 import { createDragArming } from "../shared/dragArming.svelte";
@@ -129,8 +129,14 @@ function persist() {
 // position, and a pre-drag-order restore would silently cancel it.
 let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
 
+// A drag is underway: from its first consider until finalize (pointer) or a
+// DRAG_STOPPED consider (keyboard). Dragging the only command empties
+// `commands` (stripShadow), and the zone must stay in place for the drop.
+let dragging = $state(false);
+
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
 	const items = e.detail.items as ICommand[];
 	placeholderRecovery =
 		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
@@ -150,6 +156,7 @@ function handleSort(e: CustomEvent<DndEvent>) {
 		next.splice(Math.min(placeholderRecovery.index, next.length), 0, placeholderRecovery.item);
 	}
 	placeholderRecovery = null;
+	dragging = false;
 	commands = next;
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
@@ -279,6 +286,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 <ol
 	bind:this={listEl}
 	class="quickAddCommandList"
+	class:is-empty={renderable.length === 0 && !dragging}
 	use:dndzone={baseDndOptions({
 		items: renderable,
 		dragDisabled,
@@ -377,5 +385,11 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		height: auto;
 		margin-bottom: 8px;
 		padding: 20px;
+	}
+
+	/* A macro without steps shows no blank list area. The zone type is unique
+	   to this list, so an empty list is never a drop target. */
+	.quickAddCommandList.is-empty {
+		display: none;
 	}
 </style>
