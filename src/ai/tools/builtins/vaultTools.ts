@@ -11,6 +11,7 @@
  */
 import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
+import { insertTextAfterPositionInBody } from "../../../formatters/helpers/insertionPositioning";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { processNote } from "../../../utils/noteContent";
 import { isWithinAllowedRoots } from "../allowedRoots";
@@ -232,8 +233,17 @@ export function createVaultTools(
 				const target = headings.find((h) => h.heading === String(heading));
 				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);
 				const body = await app.vault.read(file);
-				const next = insertUnderHeading(body, target.position.start.line, target.level, String(content), headings);
-				await app.vault.modify(file, next);
+				const lines = body.split("\n");
+				const headingLine = target.position.start.line;
+				const nextHeading = headings.find(
+					(h) => h.position.start.line > headingLine && h.level <= target.level,
+				);
+				// Write after the section's last non-blank line, so blank lines before the
+				// next heading stay below the new text.
+				let lastLine = (nextHeading?.position.start.line ?? lines.length) - 1;
+				while (lastLine > headingLine && lines[lastLine].trim() === "") lastLine--;
+				const next = insertTextAfterPositionInBody(String(content), body, lastLine, false);
+				await app.vault.modify(file, next.content);
 				return { inserted: true, path: norm, heading: String(heading) };
 			},
 		}),
@@ -299,29 +309,4 @@ async function ensureParentFolder(app: App, normalizedPath: string): Promise<voi
 function snippetAround(text: string, idx: number): string {
 	const start = Math.max(0, idx - 40);
 	return text.slice(start, idx + 80).replace(/\s+/g, " ").trim();
-}
-function insertUnderHeading(
-	body: string,
-	headingLine: number,
-	headingLevel: number,
-	content: string,
-	headings: Array<{ position: { start: { line: number } }; level: number }>,
-): string {
-	const lines = body.split("\n");
-	// Find the next heading at the same or shallower level after this one.
-	let endLine = lines.length;
-	for (const h of headings) {
-		if (h.position.start.line > headingLine && h.level <= headingLevel) {
-			endLine = h.position.start.line;
-			break;
-		}
-	}
-	const insertText = content.endsWith("\n") ? content : content + "\n";
-	const before = lines.slice(0, endLine);
-	const after = lines.slice(endLine);
-	// Trim a trailing blank line in `before` so we do not pile up blank lines.
-	while (before.length > headingLine + 1 && before[before.length - 1].trim() === "") {
-		before.pop();
-	}
-	return [...before, insertText.replace(/\n$/, ""), ...after].join("\n");
 }

@@ -365,3 +365,48 @@ describe("search_notes — content-scan cap reports truncated", () => {
 		expect(cachedRead).toHaveBeenCalledTimes(400);
 	});
 });
+
+// insert_under_heading writes like Capture's After line: it adds only the line
+// break that ends the new text and keeps every blank line the note had (#1909).
+describe("insert_under_heading — keeps the note's blank lines", () => {
+	async function insert(note: string, content = "- AI"): Promise<string> {
+		const file = fileLike("Note.md");
+		// Obsidian's heading cache for the note's ATX headings.
+		const headings = note.split("\n").flatMap((line, i) => {
+			const m = /^(#{1,6}) (.*)$/.exec(line);
+			return m ? [{ heading: m[2], level: m[1].length, position: { start: { line: i } } }] : [];
+		});
+		let written = note;
+		const app = makeApp({
+			vault: {
+				getAbstractFileByPath: () => file,
+				read: async () => note,
+				modify: async (_f: TFile, next: string) => { written = next; },
+			},
+			metadataCache: { getFileCache: () => ({ headings }) },
+		});
+		await createVaultTools(app).insert_under_heading.execute(
+			{ path: "Note.md", heading: "Tasks", content },
+			{ toolCallId: "c", toolName: "insert_under_heading" },
+		);
+		return written;
+	}
+
+	it.each([
+		["# Tasks\n- a\n\n# Notes\n", "# Tasks\n- a\n- AI\n\n# Notes\n"],
+		["# Tasks\n- a\n\n\n# Notes\n", "# Tasks\n- a\n- AI\n\n\n# Notes\n"],
+		["# Tasks\n\n# Notes\n", "# Tasks\n- AI\n\n# Notes\n"],
+		["# Tasks\n- a\n\n", "# Tasks\n- a\n- AI\n\n"],
+		["# Tasks\n- a\n# Notes\n", "# Tasks\n- a\n- AI\n# Notes\n"],
+		["# Tasks\n- a\n\n## Sub\n- s\n\n# Notes\n", "# Tasks\n- a\n\n## Sub\n- s\n- AI\n\n# Notes\n"],
+		["# Tasks\n- a", "# Tasks\n- a\n- AI"],
+		// Like Bottom of file: the note's final line break ends "- a".
+		["# Tasks\n- a\n", "# Tasks\n- a\n- AI"],
+	])("%j", async (note, expected) => {
+		expect(await insert(note)).toBe(expected);
+	});
+
+	it("keeps a trailing line break the text brings", async () => {
+		expect(await insert("# Tasks\n- a\n", "- AI\n")).toBe("# Tasks\n- a\n- AI\n");
+	});
+});
