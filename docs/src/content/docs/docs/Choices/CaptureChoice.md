@@ -794,7 +794,7 @@ Selected-card mode needs exactly one selected card. If the selection is
 missing, multiple, or unsupported, QuickAdd aborts with a notice instead of
 writing to the wrong place.
 
-When append-link is **Enabled (requires active file)** and the capture runs
+When **Link to captured file** is **Enabled (strict)** and the capture runs
 from a Canvas card without a focused Markdown editor, the capture still writes
 and link insertion is skipped.
 

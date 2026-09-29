@@ -80,7 +80,7 @@ If **Capture to active file** is enabled and the write position is still
 
 ## Link-to-captured-file behavior
 
-When **Link to captured file** is set to **Enabled (requires active file)** and
+When **Link to captured file** is set to **Enabled (strict)** and
 capture runs from a Canvas card without a focused Markdown editor, the capture
 still writes. QuickAdd skips link insertion because there is no active Markdown
 file to link from.
