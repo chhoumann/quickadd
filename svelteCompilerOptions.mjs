@@ -12,7 +12,10 @@ import { VERSION } from "svelte/compiler";
 // The hash therefore covers everything the compiled CSS depends on: the
 // component's full source (the template matters too, because Svelte drops
 // selectors that match nothing) and the compiler version. Styles a previous
-// version left behind then target class names no element uses anymore.
+// version left behind then target class names no element uses anymore. That
+// holds because every component rule, including `:global(...)` parts, sits
+// under the component's scoped class; put fully global rules in styles.css,
+// which Obsidian replaces on update.
 /** @type {import("svelte/compiler").CompileOptions} */
 export const svelteCompilerOptions = {
 	css: "injected",
