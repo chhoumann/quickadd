@@ -3,7 +3,6 @@ import { log } from "../../logger/logManager";
 import { 
 	insertAtCursor, 
 	replaceRange, 
-	getTextBeforeCursor, 
 	renderExactHighlight, 
 	renderHighlightRanges,
 	stripMdExtensionForDisplay,
@@ -69,26 +68,6 @@ describe("Suggester Utils", () => {
 
 			expect(mockInput.value).toBe("Hello Universe");
 			expect(mockInput.selectionStart).toBe(14);
-		});
-	});
-
-	describe("getTextBeforeCursor", () => {
-		it("should return text before cursor", () => {
-			mockInput.value = "Hello Beautiful World";
-			mockInput.selectionStart = 15;
-
-			const result = getTextBeforeCursor(mockInput as any);
-
-			expect(result).toBe("Hello Beautiful");
-		});
-
-		it("should respect lookbehind limit", () => {
-			mockInput.value = "Hello Beautiful World";
-			mockInput.selectionStart = 15;
-
-			const result = getTextBeforeCursor(mockInput as any, 5);
-
-			expect(result).toBe("tiful");
 		});
 	});
 

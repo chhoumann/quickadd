@@ -6,8 +6,6 @@ import type {
 	VariableCondition,
 } from "../types/macros/Conditional/types";
 
-export const DEFAULT_CONDITIONAL_VALUE_TYPE: ConditionalValueType = "string";
-
 const OPERATORS_REQUIRING_EXPECTED: ConditionalOperator[] = [
 	"equals",
 	"notEquals",

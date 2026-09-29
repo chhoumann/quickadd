@@ -152,17 +152,6 @@ export function replaceRange(
 }
 
 /**
- * Get text before cursor up to a certain length
- */
-export function getTextBeforeCursor(
-	input: HTMLInputElement | HTMLTextAreaElement,
-	lookbehind = 15
-): string {
-	const cursorPosition = input.selectionStart ?? 0;
-	return input.value.slice(Math.max(0, cursorPosition - lookbehind), cursorPosition);
-}
-
-/**
  * Render exact match highlighting with DOM nodes (XSS-safe, handles HTML entities correctly)
  */
 export function renderExactHighlight(el: HTMLElement, text: string, query: string): void {

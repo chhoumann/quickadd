@@ -101,23 +101,6 @@ export function droppedImageStem(originalName: string): string | null {
 	return isPortablePathSegment(stem) ? stem : null;
 }
 
-export function droppedImageFilename(
-	originalName: string,
-	mimeType: string,
-	now: Date,
-): string {
-	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported image type: ${mimeType}`);
-	}
-
-	const stem = droppedImageStem(originalName);
-	if (stem === null) {
-		return clipboardImageFilename(mimeType, now);
-	}
-
-	return `${stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
-}
-
 export interface SaveClipboardImageOptions {
 	nameAfterNoteTitle?: boolean;
 	now?: Date;

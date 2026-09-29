@@ -98,10 +98,6 @@ export function planDateOrigin(input: {
 	return { status: "set", date };
 }
 
-export function parseDateOriginInput(input: string): Date | undefined {
-	return dateFromStoredValue(input);
-}
-
 export function applyInvocationDate(
 	executor: { clocks?: RunClocks; pickDate?: boolean },
 	raw: unknown,
