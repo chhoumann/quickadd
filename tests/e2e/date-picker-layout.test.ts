@@ -35,6 +35,44 @@ it("focuses the first form field through the host and submits from the keyboard"
 	}
 });
 
+// QuickAdd's dialogs get Obsidian's own dialog height; with less, the date
+// prompt hides Ok and Cancel in an 800 px window (#1860). A bare modal stands
+// in for core's dialogs.
+it.each(["desktop", "is-phone"])("gives the date prompt Obsidian's dialog height under %s host styles", async (deviceClass) => {
+	const { obsidian } = getContext();
+	try {
+		await obsidian.dev.evalJson(`(() => {
+			void app.plugins.plugins.quickadd.api.datePrompt('due date').catch(() => undefined);
+			return true;
+		})()`);
+		await waitForElement(obsidian, ".qaDatePrompt .modal");
+		const caps = await obsidian.dev.evalJson<{ prompt: string; core: string }>(`(() => {
+			const original = document.body.className;
+			const core = document.body.createDiv({ cls: "modal-container" }).createDiv({ cls: "modal" });
+			try {
+				if (${JSON.stringify(deviceClass)} === 'is-phone') {
+					document.body.classList.remove('is-tablet');
+					document.body.classList.add('is-mobile', 'is-phone');
+				}
+				return {
+					prompt: getComputedStyle(document.querySelector('.qaDatePrompt .modal')).maxHeight,
+					core: getComputedStyle(core).maxHeight,
+				};
+			} finally {
+				document.body.className = original;
+				core.parentElement.remove();
+			}
+		})()`);
+		expect(caps.core).toMatch(/px$/);
+		expect(caps.prompt).toBe(caps.core);
+	} finally {
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll('.qaDatePrompt button')].find(e => e.textContent === 'Cancel')?.click();
+			return true;
+		})()`);
+	}
+});
+
 it.each(["is-phone", "is-tablet"])("keeps the calendar month readable under %s host styles", async (deviceClass) => {
 	const { obsidian } = getContext();
 	try {
