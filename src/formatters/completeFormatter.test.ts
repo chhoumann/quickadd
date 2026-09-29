@@ -1859,6 +1859,27 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		);
 	});
 
+	it("parses a just-saved note whose heading level Obsidian hasn't re-read yet", async () => {
+		// The second "X" was "# X" and is now "## X" under B; a stale level-1
+		// entry would make it undisambiguable (whole-file link).
+		const value = ["# A", "## X", "# B", "## X", "body"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 4, value, data: value }),
+			cache: {
+				headings: [
+					{ heading: "A", level: 1, line: 0 },
+					{ heading: "X", level: 2, line: 1 },
+					{ heading: "B", level: 1, line: 2 },
+					{ heading: "X", level: 1, line: 3 },
+				],
+			},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#B#X]]",
+		);
+	});
+
 	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
 		const value = `${COMMENTED}\n## Rollout\n- c`;
 		const app = makeSectionApp({

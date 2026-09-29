@@ -396,17 +396,14 @@ export class CompleteFormatter extends Formatter {
 			line: h.position.start.line,
 		}));
 		// The cache catches up a few ms after a save (longer for big notes), so
-		// only trust it while every cached heading is still at its line in the
-		// live parse. A renamed or removed heading would otherwise be linked.
-		const parsedByLine = new Map(
-			parsed.map((p) => [p.line, sanitizeHeadingForSubpath(p.heading)]),
-		);
+		// only trust it while every cached heading is still at its line, with its
+		// level, in the live parse. A renamed or removed heading would otherwise
+		// be linked.
+		const key = (h: { heading: string; level: number }) =>
+			`${h.level}:${sanitizeHeadingForSubpath(h.heading)}`;
+		const parsedByLine = new Map(parsed.map((p) => [p.line, key(p)]));
 		const fresh =
-			cache &&
-			cached.every(
-				(c) =>
-					parsedByLine.get(c.line) === sanitizeHeadingForSubpath(c.heading),
-			);
+			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
 
 		return buildSectionSubpath(fresh ? cached : parsed, cursor.line);
 	}
