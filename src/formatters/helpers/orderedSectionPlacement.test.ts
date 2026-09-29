@@ -130,6 +130,16 @@ describe("computeOrderedSectionInsertIndex", () => {
 				),
 			).toEqual({ mode: "before", line: 2 });
 		});
+		it("sorts an indented new heading by its heading text (#1968)", () => {
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "## Alpha", "- standup"],
+					"  ## Zulu",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "after", line: 3 });
+		});
 		it("is case-insensitive", () => {
 			const slot = computeOrderedSectionInsertIndex(
 				lines,

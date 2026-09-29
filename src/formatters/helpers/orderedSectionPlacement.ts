@@ -75,10 +75,6 @@ export function maskFencedHeadings(lines: string[]): string[] {
 	return out;
 }
 
-function headingKeyText(line: string): string {
-	return (line.match(/^#+\s+(.*)$/)?.[1] ?? "").trim();
-}
-
 function parseSemver(text: string): ParsedKey {
 	// Tolerate a leading "[" (Keep a Changelog "## [1.10.0] - 2026-06-16") and a
 	// "v" prefix; the leading-prefix match ignores any trailing " - date"/codename.
@@ -161,7 +157,11 @@ export function computeOrderedSectionInsertIndex(
 		(heading) => heading.line >= bodyStartLine,
 	);
 	const siblings = headings.filter((heading) => heading.level === level);
-	const newKey = parseKey(headingKeyText(newHeaderFirstLine), ob, moment);
+	const newKey = parseKey(
+		extractHeadingsFromLines([newHeaderFirstLine])[0]?.heading.trim() ?? "",
+		ob,
+		moment,
+	);
 
 	// R1 (preamble pinned): with zero same-level siblings, nest the new section
 	// after the nearest higher-level ancestor's WHOLE section (so an H1 title and
