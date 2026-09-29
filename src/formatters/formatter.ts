@@ -19,6 +19,7 @@ import { escapeValueInsideQuotedYamlScalar } from "../utils/yamlScalarQuoting";
 import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { stringifyPropertyTokenValue } from "../engine/captureProperty";
+import type { CompleteFormatter } from "./completeFormatter";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 export { type PromptContext } from "./valueFormatter";
@@ -26,6 +27,8 @@ export { type PromptContext } from "./valueFormatter";
 export interface TemplateInclusionState {
 	visited: Set<string>;
 	depth: number;
+	/** The formatter whose text this `{{TEMPLATE:}}` is spliced into. */
+	includer?: CompleteFormatter;
 }
 
 export const MAX_TEMPLATE_INCLUSION_DEPTH = 10;

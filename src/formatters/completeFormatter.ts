@@ -88,7 +88,7 @@ export class CompleteFormatter extends Formatter {
 		output = this.replaceRandomInString(output);
 		// PROPERTY last so seeded property text is never re-scanned as format
 		// tokens (#1748). Scripts/macros/globals above can still inject the token.
-		if (!this.skipPropertyExpansion) {
+		if (!this.defersPropertyExpansion()) {
 			output = this.replacePropertyInString(output);
 		}
 
@@ -141,6 +141,25 @@ export class CompleteFormatter extends Formatter {
 	 * not re-scanned by current-file tokens).
 	 */
 	private skipPropertyExpansion = false;
+
+	/**
+	 * An included `{{TEMPLATE:}}` renders in its own formatter, but its text lands
+	 * wherever its includer's text does. So it answers every question about that
+	 * destination (list items, `{{PROPERTY}}`, selection as value, clipboard,
+	 * links) the way its includer does. These are the hooks
+	 * CaptureChoiceFormatter overrides.
+	 */
+	private get includer(): CompleteFormatter | undefined {
+		return this.templateInclusion?.includer;
+	}
+
+	private defersPropertyExpansion(): boolean {
+		return this.includer?.defersPropertyExpansion() ?? this.skipPropertyExpansion;
+	}
+
+	protected writesListPicksAsLines(): boolean {
+		return this.includer?.writesListPicksAsLines() ?? super.writesListPicksAsLines();
+	}
 
 	async formatPropertyName(input: string): Promise<string> {
 		return await this.withPromptScope("propertyName", input, async () =>
@@ -293,10 +312,13 @@ export class CompleteFormatter extends Formatter {
 		return output;
 	}
 
-	// getLinkSourcePath() inherits the base Formatter default (null);
-	// CaptureChoiceFormatter overrides it with the capture destination.
+	// CaptureChoiceFormatter overrides this with the capture destination.
+	protected getLinkSourcePath(): string | null {
+		return this.includer?.getLinkSourcePath() ?? null;
+	}
 
 	protected getCurrentFileLink(): string | null {
+		if (this.includer) return this.includer.getCurrentFileLink();
 		const currentFile = this.app.workspace.getActiveFile();
 		if (!currentFile) return null;
 
@@ -369,11 +391,13 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected shouldUseSelectionForValue(): boolean {
-		return true;
+		return this.includer?.shouldUseSelectionForValue() ?? true;
 	}
 
 	protected async getSelectedTextForValue(): Promise<string> {
-		return await this.getSelectedText();
+		return this.includer
+			? await this.includer.getSelectedTextForValue()
+			: await this.getSelectedText();
 	}
 
 	/** Allow remote prompts before applying headless rejection; every token prompt calls this guard. */
@@ -682,6 +706,7 @@ export class CompleteFormatter extends Formatter {
 		const childInclusion = {
 			visited: this.templateInclusion.visited,
 			depth: this.templateInclusion.depth + 1,
+			includer: this,
 		};
 		const childEngine = new SingleTemplateEngine(
 			this.app,
@@ -724,6 +749,7 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async getClipboardContent(): Promise<string> {
+		if (this.includer) return this.includer.getClipboardContent();
 		try {
 			return await navigator.clipboard.readText();
 		} catch {
