@@ -1934,7 +1934,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1 1 0;
-  min-width: 0;
+  /* A name as wide as the row still leaves room to tell same-named notes apart. */
+  min-width: min(40%, 12em);
   text-align: end;
   padding-left: 8px;
   opacity: 0.7;

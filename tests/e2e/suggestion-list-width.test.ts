@@ -26,7 +26,7 @@ type ListLayout = {
 	actionsTop: number;
 	// Scrollable width past the list's own width: a cut-off row.
 	listOverflow: number;
-	rows: Array<{ text: string; pathCut: boolean; height: number }>;
+	rows: Array<{ text: string; pathCut: boolean; pathWidth: number; height: number }>;
 };
 
 async function listLayout(inputSelector: string): Promise<ListLayout> {
@@ -48,6 +48,7 @@ async function listLayout(inputSelector: string): Promise<ListLayout> {
 				return {
 					text: row.textContent,
 					pathCut: path ? path.scrollWidth > path.clientWidth : false,
+					pathWidth: path ? path.clientWidth : 0,
 					height: row.getBoundingClientRect().height,
 				};
 			}),
@@ -61,6 +62,8 @@ it("matches a wide text prompt's input and shows note paths in full", async () =
 	const nora = await seedVaultFile(obsidian, sandbox, "Noravik.md", "# Noravik\n");
 	const deep = await seedVaultFile(obsidian, sandbox,
 		"Archive/Projects/2026/Q3 Planning/Meeting notes/Clients/Noravik archive.md", "# Noravik archive\n");
+	const longName = await seedVaultFile(obsidian, sandbox,
+		"Noravik kickoff with the whole regional team, agenda, decisions and every follow-up.md", "# Kickoff\n");
 	const capture = new CaptureChoice("List width inbox");
 	capture.captureTo = inbox;
 	capture.onePageInput = "never";
@@ -77,7 +80,11 @@ it("matches a wide text prompt's input and shows note paths in full", async () =
 	await waitForElement(obsidian, input);
 	await typeInto(obsidian, input, "Ask [[Noravik");
 	await expect.poll(async () => (await listLayout(input)).rows.map((row) => row.text), POLL_OPTS)
-		.toEqual([expect.stringContaining(nora), expect.stringContaining(deep)]);
+		.toEqual(expect.arrayContaining([
+			expect.stringContaining(nora),
+			expect.stringContaining(deep),
+			expect.stringContaining(longName),
+		]));
 
 	const layout = await listLayout(input);
 	// Obsidian's 500px cap only shows on an input wider than that.
@@ -86,11 +93,14 @@ it("matches a wide text prompt's input and shows note paths in full", async () =
 	expect(layout.list?.right).toBeCloseTo(layout.input.right, 0);
 	// #1839: the list still stays off the action bar.
 	expect(layout.list!.bottom).toBeLessThanOrEqual(layout.actionsTop);
+	const row = (path: string) => layout.rows.find((candidate) => candidate.text.includes(path))!;
 	// The ~330px sandbox path fits beside the short name; a path too long for
-	// its row is ellipsized on one line, like the rest.
-	expect(layout.rows[0].pathCut).toBe(false);
-	expect(layout.rows[1].pathCut).toBe(true);
-	expect(layout.rows[1].height).toBe(layout.rows[0].height);
+	// its row is ellipsized on one line, like the rest; and a name as wide as
+	// the row still leaves part of its path visible.
+	expect(row(nora).pathCut).toBe(false);
+	expect(row(deep).pathCut).toBe(true);
+	expect(row(deep).height).toBe(row(nora).height);
+	expect(row(longName).pathWidth).toBeGreaterThan(100);
 });
 
 it("wraps a long value without spaces instead of cutting it off", async () => {
