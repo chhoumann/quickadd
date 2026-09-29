@@ -15,6 +15,7 @@ import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
+import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
@@ -54,7 +55,6 @@ import {
 	resolveCaptureTargetVariableKey,
 	unscopedAliasSatisfiesSoleCaptureTarget,
 } from "./captureTargetKey";
-import { isTemplateChoice } from "./macroCommandRole";
 import {
 	buildFormRoster,
 	type DeferredStep,
@@ -415,10 +415,6 @@ async function collectUserScriptRequirements(
 	}
 
 	return requirements;
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
 }
 
 async function collectForMacroChoice(

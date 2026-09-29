@@ -4,7 +4,6 @@
 	import { Notice } from "obsidian";
 	import type QuickAdd from "../../main";
 	import type IChoice from "../../types/choices/IChoice";
-	import type IMultiChoice from "../../types/choices/IMultiChoice";
 
 	import {
 		childChoicesOf,
@@ -60,10 +59,6 @@
 			flatChoices.map((entry) => [entry.id, entry.path.join(" / ")]),
 		),
 	);
-
-	function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-		return choice.type === "Multi";
-	}
 
 	function getDescendantIds(choice: IChoice): string[] {
 		const ids: string[] = [];
