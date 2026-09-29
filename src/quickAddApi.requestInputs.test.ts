@@ -86,6 +86,20 @@ describe("QuickAddApi.requestInputs", () => {
 		expect(choiceExecutor.variables.get("raw-date")).toBe("@date:2025-12-10T15:41:11.393Z");
 	});
 
+	it("drops the separator a multi-select field leaves after its last pick", async () => {
+		// The field reads like this after picking #work and #urgent from its list.
+		modalReturnValue = { tags: "#work, #urgent, ", note: "a, " };
+
+		const api = QuickAddApi.GetApi({} as App, plugin, choiceExecutor);
+		const result = await api.requestInputs([
+			{ id: "tags", type: "suggester", options: ["#work", "#urgent"], suggesterConfig: { multiSelect: true } },
+			{ id: "note", type: "text" },
+		]);
+
+		expect(result).toEqual({ tags: "#work, #urgent", note: "a, " });
+		expect(choiceExecutor.variables.get("tags")).toBe("#work, #urgent");
+	});
+
 	it("routes to a remote prompt provider instead of the modal when one is set", async () => {
 		// The modal would return {} (empty) here; the provider returns rating=8, so
 		// seeing 8 proves the provider path ran, not the modal.
