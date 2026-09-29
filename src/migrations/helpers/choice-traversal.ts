@@ -1,7 +1,6 @@
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
-import type IMacroChoice from "../../types/choices/IMacroChoice";
-import type { MultiChoice } from "../../types/choices/MultiChoice";
+import { isMacroChoice, isMultiChoice } from "../../types/choices/choiceType";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { CommandType } from "../../types/macros/CommandType";
 import type { ICommand } from "../../types/macros/ICommand";
@@ -25,14 +24,6 @@ interface Visitors {
 	 * (or skips) differently.
 	 */
 	onUnreadable?: () => void;
-}
-
-function isMultiChoice(choice: IChoice): choice is MultiChoice {
-	return choice.type === "Multi";
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
 }
 
 function walkChoice(

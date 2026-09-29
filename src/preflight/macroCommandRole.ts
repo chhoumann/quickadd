@@ -1,5 +1,6 @@
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
+import { isCaptureChoice, isTemplateChoice } from "src/types/choices/choiceType";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
@@ -33,14 +34,6 @@ function noneRole(deferred: DeferralReason | null = null): StepRole {
 
 function cutRole(reason: DeferralReason): StepRole {
 	return { collect: { kind: "none" }, opaque: reason, deferred: reason };
-}
-
-export function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-export function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
 }
 
 function roleForResolvedChoice(choice: IChoice | null): StepRole {
