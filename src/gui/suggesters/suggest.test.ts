@@ -411,6 +411,22 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(side()).toBe("below");
 	});
 
+	it("stays below when opening above would leave the visible viewport", async () => {
+		// Pinch-zoomed: the visible viewport starts at y=350, so a 180px list
+		// above an input at 484 (top edge 300) would be cut off.
+		Object.defineProperty(window, "visualViewport", {
+			configurable: true,
+			value: { offsetLeft: 0, offsetTop: 350, width: 1000, height: 450 },
+		});
+		try {
+			geometry = { input: [484, 514], actionsTop: 546, listHeight: 180 };
+			await openSuggest();
+			expect(side()).toBe("below");
+		} finally {
+			Reflect.deleteProperty(window, "visualViewport");
+		}
+	});
+
 	it("opens above when the viewport has no room below", async () => {
 		actions.remove();
 		geometry = { input: [700, 730], actionsTop: 0, listHeight: 200 };

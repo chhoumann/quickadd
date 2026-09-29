@@ -12,11 +12,11 @@ const wrapAround = (value: number, size: number): number => {
 const LIST_GAP_PX = 4;
 
 /**
- * Whether to open the list above its input rather than below. QuickAdd prompts
- * end in an action bar (`.qa-prompt-actions`: Submit, Cancel, Peek) below their
- * inputs (pinned to the bottom of the one-page form), and the list is layered
- * above the modal, so a list that reaches the bar takes the click aimed at
- * Submit. Open it above the input when it fits there.
+ * Whether the list should open above its input when it fits there. QuickAdd
+ * prompts end in an action bar (`.qa-prompt-actions`: Submit, Cancel, Peek)
+ * below their inputs (pinned to the bottom of the one-page form), and the list
+ * is layered above the modal, so a list that reaches the bar takes the click
+ * aimed at Submit.
  */
 function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number): boolean {
 	const actionsEl = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions");
@@ -24,16 +24,15 @@ function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number):
 	const actions = actionsEl.getBoundingClientRect();
 	const actionsBelowInput = actions.height > 0 && actions.top >= input.bottom;
 	const reachesActions = input.bottom + LIST_GAP_PX + listHeight > actions.top;
-	const fitsAbove = input.top - LIST_GAP_PX - listHeight >= 0;
-	return actionsBelowInput && reachesActions && fitsAbove;
+	return actionsBelowInput && reachesActions;
 }
 
 /**
  * Place the list against its input, exactly as wide as the input (also past
  * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
- * input is wider). It opens below the input, and above it per `prefersAbove`
- * or when the viewport has room above but not below. Horizontally it stays
- * inside the viewport.
+ * input is wider). It opens below the input, and above it when the visible
+ * viewport has room there and either `prefersAbove` or there is no room below.
+ * Horizontally it stays inside the viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
@@ -56,7 +55,7 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const above = input.top - LIST_GAP_PX - origin.height;
 	const fitsBelow = below + origin.height <= viewport.offsetTop + viewport.height;
 	const fitsAbove = above >= viewport.offsetTop;
-	const top = prefersAbove(inputEl, input, origin.height) || (!fitsBelow && fitsAbove) ? above : below;
+	const top = fitsAbove && (!fitsBelow || prefersAbove(inputEl, input, origin.height)) ? above : below;
 	const left = Math.max(
 		viewport.offsetLeft,
 		Math.min(input.left, viewport.offsetLeft + viewport.width - input.width),
