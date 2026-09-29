@@ -1,7 +1,7 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
-import { alertToScreenReader, type DndEvent, dndzone, SOURCES } from "svelte-dnd-action";
+import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
 import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
 import { createDragArming } from "../shared/dragArming.svelte";
@@ -129,13 +129,14 @@ function persist() {
 // position, and a pre-drag-order restore would silently cancel it.
 let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
 
-// Between consider and finalize. Dragging the only command empties `commands`
-// (stripShadow), and the zone must stay in place for the drop.
+// A drag is underway: from its first consider until finalize (pointer) or a
+// DRAG_STOPPED consider (keyboard). Dragging the only command empties
+// `commands` (stripShadow), and the zone must stay in place for the drop.
 let dragging = $state(false);
 
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
-	dragging = true;
+	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
 	const items = e.detail.items as ICommand[];
 	placeholderRecovery =
 		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;

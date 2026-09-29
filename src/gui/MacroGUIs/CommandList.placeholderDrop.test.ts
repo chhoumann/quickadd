@@ -2,6 +2,7 @@ import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
+import { tick } from "svelte";
 
 // CommandList transitively imports src/main, which pulls obsidian-dataview's CJS
 // require('obsidian'); mock it as the rest of the suite does.
@@ -83,5 +84,26 @@ describe("CommandList empty state", () => {
 
 		await fireDnd(zone, "finalize", [a], TRIGGERS.DROPPED_INTO_ZONE, a.id);
 		expect(zone.classList).not.toContain("is-empty");
+	});
+});
+
+describe("CommandList empty state after a keyboard drag", () => {
+	it("hides the list once the last command is gone after a keyboard drag ended", async () => {
+		const a = new ObsidianCommand("Alpha", "a");
+		const props = makeProps([a], vi.fn());
+		const { container } = render(CommandList, { props });
+		const zone = container.querySelector(".quickAddCommandList") as Element;
+
+		// A keyboard drag ends with a DRAG_STOPPED consider, not a finalize.
+		const keyboard = (trigger: string) =>
+			fireEvent(zone, new CustomEvent("consider", {
+				detail: { items: [a], info: { trigger, id: a.id, source: "keyboard" } },
+			}));
+		await keyboard(TRIGGERS.DRAG_STARTED);
+		await keyboard(TRIGGERS.DRAG_STOPPED);
+
+		props.commands = [];
+		await tick();
+		expect(zone.classList).toContain("is-empty");
 	});
 });
