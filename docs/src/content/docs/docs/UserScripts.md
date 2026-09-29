@@ -402,6 +402,10 @@ const formatted = await quickAddApi.format(
 );
 ```
 
+By default, `format` leaves `params.variables` as it found them. The variables you pass
+and the answers to its prompts are gone once it returns, and also when it
+rejects because the user cancelled a prompt.
+
 ### Run another choice {#execute-other-choices}
 
 Trigger other QuickAdd choices programmatically:

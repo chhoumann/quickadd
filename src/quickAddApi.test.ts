@@ -1072,6 +1072,25 @@ describe("format", () => {
 		expect(getDateVariableFormat(executor.variables, "due")).toBeUndefined();
 	});
 
+	it("restores the variables when a prompt is cancelled (#1871)", async () => {
+		const executor = makeChoiceExecutor();
+		executor.variables.set("pre", "existing");
+		const cancel = promptCancelled();
+		mocks.formatFileContent.mockImplementationOnce(async () => {
+			// The date was answered, then the next prompt was dismissed.
+			executor.variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+			rememberDateVariableFormat(executor.variables, "due", "YYYY-MM-DD");
+			throw cancel;
+		});
+		const { api } = getApi(makeApp(), makePlugin(), executor);
+
+		await expect(api.format("in", { temp: "value" })).rejects.toBe(cancel);
+
+		expect([...executor.variables.entries()]).toEqual([["pre", "existing"]]);
+		executor.variables.set("due", "@date:2024-02-25T12:00:00.000Z");
+		expect(getDateVariableFormat(executor.variables, "due")).toBeUndefined();
+	});
+
 	it("keeps injected variables when shouldClearVariables is false", async () => {
 		mocks.formatFileContent.mockResolvedValue("out");
 		const executor = makeChoiceExecutor();
