@@ -23,7 +23,6 @@ function makeApp(over: Record<string, unknown> = {}): App {
 			read: vi.fn(async () => ""),
 			create: vi.fn(async (p: string) => fileLike(p)),
 			modify: vi.fn(async () => undefined),
-			process: vi.fn(async () => ""),
 			createFolder: vi.fn(async () => undefined),
 			...((over.vault as object) ?? {}),
 		},
@@ -110,58 +109,20 @@ describe("vault write tools — safety", () => {
 		).rejects.toThrow(/not found/i);
 	});
 
-	/** A vault holding one note, written through `vault.process` like an unopened note. */
-	function noteApp(path: string, initial: string) {
-		const file = fileLike(path);
-		const note = { content: initial };
+	it("append_to_note position=top keeps the frontmatter separator line (issue #1538)", async () => {
+		let content = "---\ndate: 2026-07-25\n---\n\nExisting\n";
 		const app = makeApp({
 			vault: {
-				getAbstractFileByPath: () => file,
-				process: vi.fn(async (_file: TFile, fn: (content: string) => string) => (note.content = fn(note.content))),
+				getAbstractFileByPath: () => fileLike("Daily/2026-07-25.md"),
+				process: vi.fn(async (_file: TFile, fn: (current: string) => string) => (content = fn(content))),
 			},
 		});
-		return { app, note, tools: createVaultTools(app) };
-	}
-
-	it("append_to_note position=top keeps the frontmatter separator line (issue #1538)", async () => {
-		const { note, tools } = noteApp("Daily/2026-07-25.md", "---\ndate: 2026-07-25\n---\n\nExisting\n");
+		const tools = createVaultTools(app);
 		await tools.append_to_note.execute(
 			{ path: "Daily/2026-07-25.md", content: "note text", position: "top" },
 			{ toolCallId: "c", toolName: "append_to_note" },
 		);
-		expect(note.content).toBe("---\ndate: 2026-07-25\n---\n\nnote text\nExisting\n");
-	});
-
-	it("insert_under_heading finds headings in the note text, not the metadata cache", async () => {
-		// Lines typed above the heading since the last save shift it down, and
-		// Obsidian reports "# Tasks ##" as "Tasks".
-		const { app, note, tools } = noteApp("Plan.md", "typed\n\n# Tasks ##\n- a\n\n# Notes\n- n\n");
-		(app.metadataCache.getFileCache as ReturnType<typeof vi.fn>).mockReturnValue({
-			headings: [{ heading: "Tasks", level: 1, position: { start: { line: 0 } } }],
-		});
-		await tools.insert_under_heading.execute(
-			{ path: "Plan.md", heading: "Tasks", content: "- AI" },
-			{ toolCallId: "c", toolName: "insert_under_heading" },
-		);
-		expect(note.content).toBe("typed\n\n# Tasks ##\n- a\n- AI\n# Notes\n- n\n");
-	});
-
-	it("insert_under_heading finds headings in a CRLF note", async () => {
-		const { note, tools } = noteApp("Plan.md", "# Tasks\r\n- a\r\n# Notes\r\n");
-		await tools.insert_under_heading.execute(
-			{ path: "Plan.md", heading: "Tasks", content: "- AI" },
-			{ toolCallId: "c", toolName: "insert_under_heading" },
-		);
-		expect(note.content).toBe("# Tasks\r\n- a\r\n- AI\n# Notes\r\n");
-	});
-
-	it("insert_under_heading writes nothing when the heading is missing", async () => {
-		const { note, tools } = noteApp("Plan.md", "# Tasks\n```\n# Fenced\n```\n");
-		await expect(tools.insert_under_heading.execute(
-			{ path: "Plan.md", heading: "Fenced", content: "- AI" },
-			{ toolCallId: "c", toolName: "insert_under_heading" },
-		)).rejects.toThrow('Heading "Fenced" not found in Plan.md');
-		expect(note.content).toBe("# Tasks\n```\n# Fenced\n```\n");
+		expect(content).toBe("---\ndate: 2026-07-25\n---\n\nnote text\nExisting\n");
 	});
 
 	it("respects allowedRoots for reads", async () => {

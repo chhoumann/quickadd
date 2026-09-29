@@ -13,7 +13,6 @@ import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { processNote } from "../../../utils/noteContent";
-import { extractHeadingsFromLines, type SimpleHeading } from "../../../formatters/helpers/sectionLink";
 import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
@@ -226,14 +225,15 @@ export function createVaultTools(
 				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
-				// Headings come from the text being edited, which includes unsaved
-				// typing; the metadata cache only reflects the last save.
-				await processNote(app, file, (body) => {
-					const headings = extractHeadingsFromLines(body.split(/\r?\n/));
-					const target = headings.find((h) => obsidianHeadingText(h.heading) === String(heading));
-					if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);
-					return insertUnderHeading(body, target.line, target.level, String(content), headings);
-				});
+				// Section positions come from Obsidian's heading parse, which only
+				// exists for the saved text, so this stays a disk write: Obsidian merges
+				// it into an open editor with unsaved typing (#1872).
+				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
+				const target = headings.find((h) => h.heading === String(heading));
+				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);
+				const body = await app.vault.read(file);
+				const next = insertUnderHeading(body, target.position.start.line, target.level, String(content), headings);
+				await app.vault.modify(file, next);
 				return { inserted: true, path: norm, heading: String(heading) };
 			},
 		}),
@@ -300,23 +300,19 @@ function snippetAround(text: string, idx: number): string {
 	const start = Math.max(0, idx - 40);
 	return text.slice(start, idx + 80).replace(/\s+/g, " ").trim();
 }
-/** Heading text as Obsidian reports it: without trailing spaces or a closing `#` run. */
-function obsidianHeadingText(raw: string): string {
-	return raw.replace(/(^|[ \t]+)#+[ \t]*$/, "").trim();
-}
 function insertUnderHeading(
 	body: string,
 	headingLine: number,
 	headingLevel: number,
 	content: string,
-	headings: SimpleHeading[],
+	headings: Array<{ position: { start: { line: number } }; level: number }>,
 ): string {
 	const lines = body.split("\n");
 	// Find the next heading at the same or shallower level after this one.
 	let endLine = lines.length;
 	for (const h of headings) {
-		if (h.line > headingLine && h.level <= headingLevel) {
-			endLine = h.line;
+		if (h.position.start.line > headingLine && h.level <= headingLevel) {
+			endLine = h.position.start.line;
 			break;
 		}
 	}

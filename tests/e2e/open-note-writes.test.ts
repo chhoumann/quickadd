@@ -257,33 +257,16 @@ describe("Writes into an open note land in its editor (#1798)", () => {
 		expect(result.editor.startsWith("# Fresh\n\nLine 0")).toBe(true);
 	});
 
-	// The AI note tools (#1872). Unsaved typing where the tool inserts used to be
-	// merged onto the same line as the tool's text, behind the merge notice.
-	it.each([
-		["append_to_note", { content: "- AI" }, "# Tasks\n- a\n- b\n- AI"],
-		["insert_under_heading", { heading: "Tasks", content: "- AI" }, "# Tasks\n- a\n- b\n- AI\n# Notes\n"],
-	])("%s keeps unsaved typing at the insertion point on its own line", async (tool, args, expected) => {
-		const path = await seedNote(`ai-${tool}.md`, tool === "append_to_note" ? "# Tasks\n- a\n" : "# Tasks\n- a\n\n# Notes\n");
+	it("the AI append_to_note tool keeps unsaved typing at the end of the note on its own line", async () => {
+		const path = await seedNote("ai-append.md", "# Tasks\n- a\n");
 		await open(path, { line: 2, ch: 0 });
 		const result = await runAndSnapshot(path, `
 			app.workspace.activeLeaf.view.editor.replaceRange("- b", { line: 2, ch: 0 });
-			await app.plugins.plugins.quickadd.api.ai.tools.vault()[${JSON.stringify(tool)}]
-				.execute({ path: ${JSON.stringify(path)}, ...${JSON.stringify(args)} });
+			await app.plugins.plugins.quickadd.api.ai.tools.vault().append_to_note
+				.execute({ path: ${JSON.stringify(path)}, content: "- AI" });
 		`);
-		expect(result.editor).toBe(expected);
+		expect(result.editor).toBe("# Tasks\n- a\n- b\n- AI");
 		expect(result.disk).toBe(result.editor);
 		expect(result.notices.filter(notice => MERGE_NOTICE.test(notice))).toEqual([]);
-	});
-
-	it("insert_under_heading finds a heading that unsaved typing moved", async () => {
-		const path = await seedNote("ai-heading-moved.md", "# Tasks\n- a\n\n# Notes\n- n\n");
-		await open(path, { line: 0, ch: 0 });
-		const result = await runAndSnapshot(path, `
-			app.workspace.activeLeaf.view.editor.replaceRange("typed 1\\ntyped 2\\n", { line: 0, ch: 0 });
-			await app.plugins.plugins.quickadd.api.ai.tools.vault().insert_under_heading
-				.execute({ path: ${JSON.stringify(path)}, heading: "Tasks", content: "- AI" });
-		`);
-		expect(result.editor).toBe("typed 1\ntyped 2\n# Tasks\n- a\n- AI\n# Notes\n- n\n");
-		expect(result.disk).toBe(result.editor);
 	});
 });
