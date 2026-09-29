@@ -119,23 +119,44 @@
 	/* Inside the scrollport, so a ring on the last field survives, and content
 	   scrolling past is cut at the footer rule rather than above it. */
 	padding-bottom: var(--size-4-4);
-	/* Reserve the scrollbar gutter unconditionally, so the footer below can
-	   mirror it and stay aligned with the fields whether or not they scroll. */
-	scrollbar-gutter: stable;
+	/* Names the content's scroll progress for the footer below. */
+	scroll-timeline: --qa-modal-content y;
 }
 
 .quickAddModal .modal > .qa-modal-footer {
 	flex-shrink: 0;
 	margin-top: 0;
-	/* Sibling of the scrollport, so it carries the same inset itself — including
-	   the scrollbar gutter, which `overflow: hidden` + `scrollbar-gutter: stable`
-	   reserves at the platform's own width without ever showing a scrollbar. Without
-	   it the buttons and the footer rule overhang the fields above by the width
-	   of the scrollbar. */
+	/* Sibling of the scrollport, so it carries the same inset itself. */
 	padding: var(--size-4-4);
+	/* Lets `scrollbar-gutter` below take effect without ever showing a
+	   scrollbar. */
 	overflow: hidden;
-	scrollbar-gutter: stable;
 	border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+/* While the content scrolls, a classic scrollbar narrows it, and the footer
+   has to mirror that gutter or its buttons overhang the fields by the
+   scrollbar's width. A scroll timeline is inactive while its scroller has no
+   overflow, so this animation reserves the footer's gutter — at the
+   platform's own width, zero for overlay scrollbars — exactly when the
+   content has a scrollbar. A form that fits stays symmetric, as core's
+   dialogs are. */
+@supports (animation-timeline: scroll()) {
+	.quickAddModal .modal:has(> .qa-modal-footer) {
+		timeline-scope: --qa-modal-content;
+	}
+
+	.quickAddModal .modal > .qa-modal-footer {
+		animation: qa-modal-footer-gutter linear both;
+		animation-timeline: --qa-modal-content;
+	}
+}
+
+@keyframes qa-modal-footer-gutter {
+	from,
+	to {
+		scrollbar-gutter: stable;
+	}
 }
 
 /* Core gives the phone modal only its safe-area insets; the padding-inline: 0
