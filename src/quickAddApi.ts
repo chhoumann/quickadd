@@ -60,17 +60,17 @@ export class QuickAddApi {
 				});
 			}
 
-			const output = await new CompleteFormatter(
-				app,
-				plugin,
-				choiceExecutor,
-			).formatFileContent(input);
-
-			if (shouldClearVariables && snapshot) {
-				restoreVariables(choiceExecutor.variables, snapshot);
+			// Restored on failure too: answers given before a cancelled prompt must
+			// not stay behind for the caller's later format calls and Macro steps.
+			try {
+				return await new CompleteFormatter(
+					app,
+					plugin,
+					choiceExecutor,
+				).formatFileContent(input);
+			} finally {
+				if (snapshot) restoreVariables(choiceExecutor.variables, snapshot);
 			}
-
-			return output;
 		};
 		const executeChoice = async (
 			choiceName: string,
