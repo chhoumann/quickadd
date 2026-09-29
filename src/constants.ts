@@ -118,7 +118,7 @@ export const TARGET_FOLDER_REGEX = new RegExp(/{{FOLDER(\|name)?}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/i);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/i);
 export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);
-export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/);
+export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/i);
 export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
 	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base))}}/i,

@@ -365,6 +365,31 @@ describe("getUserScript", () => {
 		}
 	});
 
+	it("runs only .js files and notes, and says how to fix any other file (#1881)", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const source = "module.exports = () => 'ran';";
+		try {
+			for (const path of ["Scripts/dashboard.base", "Scripts/helper.txt", "Scripts/helper"]) {
+				const app = createUserScriptApp(source, path);
+				await expect(
+					getUserScript(createUserScriptCommand({ path }), app),
+				).rejects.toThrow(`QuickAdd could not run ${path}`);
+				expect(app.vault.read).not.toHaveBeenCalled();
+			}
+			expect((logError.mock.calls[0][0] as Error).message).toContain(
+				"Rename the file so it ends in .js.",
+			);
+
+			const upper = await getUserScript(
+				createUserScriptCommand({ path: "Scripts/Helper.JS" }),
+				createUserScriptApp(source, "Scripts/Helper.JS"),
+			);
+			expect((upper as () => string)()).toBe("ran");
+		} finally {
+			logError.mockRestore();
+		}
+	});
+
 	it("can suppress user-facing load reporting during preflight", async () => {
 		const before = noticeMessages().length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
