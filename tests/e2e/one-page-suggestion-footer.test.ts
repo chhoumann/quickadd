@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, clickAt, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { DESCRIBE_ELEMENT, POLL_OPTS, clickAt, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // The suggestion list is layered above the modal. Opened under the one-page
 // form's last field, it landed on the Submit/Cancel bar, so a click on Submit
@@ -16,7 +16,8 @@ type Layout = {
 	input: Rect;
 	actions: Rect;
 	submitCentre: { x: number; y: number };
-	submitIsHit: boolean;
+	/** What a click at Submit's centre would hit. */
+	atSubmit: string;
 };
 
 async function closeOpenPrompts() {
@@ -64,6 +65,7 @@ async function openForm(name: string, templateLines: (folders: Folders) => strin
 
 async function layout(inputSelector: string): Promise<Layout> {
 	return getContext().obsidian.dev.evalJson<Layout>(`(() => {
+		${DESCRIBE_ELEMENT}
 		const rect = (el) => {
 			const { top, bottom } = el.getBoundingClientRect();
 			return { top, bottom };
@@ -74,6 +76,7 @@ async function layout(inputSelector: string): Promise<Layout> {
 		const box = submit.getBoundingClientRect();
 		const x = box.left + box.width / 2;
 		const y = box.top + box.height / 2;
+		const hit = document.elementFromPoint(x, y);
 		const list = document.querySelector(".suggestion-container");
 		return {
 			suggestions: Array.from(document.querySelectorAll(".suggestion-container .suggestion-item"))
@@ -82,7 +85,7 @@ async function layout(inputSelector: string): Promise<Layout> {
 			input: rect(input),
 			actions: rect(actions),
 			submitCentre: { x, y },
-			submitIsHit: submit.contains(document.elementFromPoint(x, y)),
+			atSubmit: submit.contains(hit) ? "Submit" : describe(hit),
 		};
 	})()`);
 }
@@ -112,7 +115,7 @@ it("keeps Submit clickable while the last field's suggestions are open", async (
 	await expect.poll(async () => (await layout(stage)).suggestions, POLL_OPTS).toEqual(["Lead"]);
 	const stageLayout = await layout(stage);
 	expect(stageLayout.list?.bottom).toBeLessThanOrEqual(stageLayout.actions.top);
-	expect(stageLayout.submitIsHit).toBe(true);
+	expect(stageLayout.atSubmit).toBe("Submit");
 
 	await clickAt(obsidian, stageLayout.submitCentre.x, stageLayout.submitCentre.y);
 	await expectNoPrompt(obsidian);
@@ -143,7 +146,7 @@ it("re-places the list when a multi-select FILE pick keeps it open", async () =>
 		.toEqual(["Ann", "Bob", "Cara", "Dan", "Eve"]);
 	const refreshed = await layout(picker);
 	expect(refreshed.list?.bottom).toBeLessThanOrEqual(refreshed.input.top);
-	expect(refreshed.submitIsHit).toBe(true);
+	expect(refreshed.atSubmit).toBe("Submit");
 
 	await clickAt(obsidian, refreshed.submitCentre.x, refreshed.submitCentre.y);
 	await expectNoPrompt(obsidian);

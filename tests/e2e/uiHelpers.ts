@@ -29,6 +29,54 @@ export async function waitForElement(obsidian: ObsidianClient, selector: string)
 	), POLL_OPTS).toBe(true);
 }
 
+/**
+ * Page source for `describe(element)`, a short label such as
+ * `button.mod-cta "Submit"`, for failure messages that name what is on top or
+ * what has focus.
+ */
+export const DESCRIBE_ELEMENT = `const describe = (el) => {
+	if (!el) return "nothing";
+	const classes = Array.from(el.classList).slice(0, 2).map((name) => "." + name).join("");
+	const text = (el.getAttribute("aria-label") || el.placeholder || el.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 60);
+	return el.tagName.toLowerCase() + classes + (text ? " " + JSON.stringify(text) : "");
+};`;
+
+const INPUT_TARGET = `(() => {
+	${DESCRIBE_ELEMENT}
+	return [
+		"focus: " + describe(document.activeElement),
+		document.hasFocus() ? "" : "document not focused",
+		activeWindow === window ? "" : "activeWindow is another window",
+		"modals: " + document.querySelectorAll(".modal-container").length,
+	].filter(Boolean).join(", ");
+})()`;
+
+// Where each native input of the running test went, printed if it fails. See
+// tests/e2e/setup.ts.
+const inputLog: string[] = [];
+
+export function takeInputLog(): string[] {
+	return inputLog.splice(0);
+}
+
+/**
+ * Sends native input through the Chrome DevTools Protocol. Obsidian answers a
+ * failed CDP command with an "Error: ..." reply and a zero exit code, so check
+ * for the JSON result rather than lose the input silently.
+ */
+async function sendInput(obsidian: ObsidianClient, label: string, target: string, commands: [string, object][]) {
+	inputLog.push(`${label} -> ${await obsidian.dev.evalJson<string>(target)}`);
+	for (const [method, params] of commands) {
+		const reply = await obsidian.execText("dev:cdp", { method, params: JSON.stringify(params) });
+		if (!reply.startsWith("{")) throw new Error(`dev:cdp ${method} failed: ${reply}`);
+	}
+}
+
+/** Inserts text at the focused element, the way an IME commits it. */
+export async function insertText(obsidian: ObsidianClient, text: string) {
+	await sendInput(obsidian, `insertText ${JSON.stringify(text)}`, INPUT_TARGET, [["Input.insertText", { text }]]);
+}
+
 export async function typeInto(obsidian: ObsidianClient, selector: string, text: string) {
 	expect(await obsidian.dev.evalJson<boolean>(`(() => {
 		const input = document.querySelector(${JSON.stringify(selector)});
@@ -37,22 +85,18 @@ export async function typeInto(obsidian: ObsidianClient, selector: string, text:
 		input.select();
 		return true;
 	})()`)).toBe(true);
-	await obsidian.exec("dev:cdp", {
-		method: "Input.insertText",
-		params: JSON.stringify({ text }),
-	});
+	await insertText(obsidian, text);
 }
 
 export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace", modified = false) {
 	const modifiers = modified
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
-	for (const type of ["keyDown", "keyUp"]) {
-		await obsidian.exec("dev:cdp", {
-			method: "Input.dispatchKeyEvent",
-			params: JSON.stringify({ type, key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) }),
-		});
-	}
+	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
+		["Input.dispatchKeyEvent", { type: "keyDown", ...event }],
+		["Input.dispatchKeyEvent", { type: "keyUp", ...event }],
+	]);
 }
 
 /**
@@ -61,12 +105,11 @@ export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape"
  * point receives it.
  */
 export async function clickAt(obsidian: ObsidianClient, x: number, y: number) {
-	for (const type of ["mousePressed", "mouseReleased"]) {
-		await obsidian.exec("dev:cdp", {
-			method: "Input.dispatchMouseEvent",
-			params: JSON.stringify({ type, x, y, button: "left", clickCount: 1 }),
-		});
-	}
+	const target = `(() => { ${DESCRIBE_ELEMENT} return "on top: " + describe(document.elementFromPoint(${x}, ${y})); })()`;
+	await sendInput(obsidian, `click (${Math.round(x)}, ${Math.round(y)})`, target, [
+		["Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 }],
+		["Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 }],
+	]);
 }
 
 export async function expectNoPrompt(obsidian: ObsidianClient) {

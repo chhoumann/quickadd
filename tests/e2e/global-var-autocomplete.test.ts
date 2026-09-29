@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { POLL_OPTS, pressKey } from "./uiHelpers";
+import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("global-var-autocomplete");
 
@@ -27,10 +27,7 @@ async function formatState() {
 /** Types at the caret the way a keyboard does: one CDP insertText per key. */
 async function type(text: string) {
 	for (const char of text) {
-		await getContext().obsidian.exec("dev:cdp", {
-			method: "Input.insertText",
-			params: JSON.stringify({ text: char }),
-		});
+		await insertText(getContext().obsidian, char);
 	}
 }
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
+import { insertText, POLL_OPTS, pressKey, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("template-cursor");
 
@@ -90,7 +90,7 @@ describe("Template cursor markers in native Obsidian", () => {
 		await run(choice, { "value-date": "23-Sep-2026" });
 		const result = await expectAt(path, "");
 		expect(result.content).toBe("## Log\n### 23-Sep-2026\n- ");
-		await getContext().obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Write here" }) });
+		await insertText(getContext().obsidian, "Write here");
 		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe("## Log\n### 23-Sep-2026\n- Write here");
 	});
 
@@ -321,7 +321,7 @@ describe("Template cursor markers in native Obsidian", () => {
 			const result = await state(path);
 			return { content: result.editor, tail: result.editor.slice(result.offset) };
 		}, POLL_OPTS).toEqual({ content: "First\n😀 Beforeafter", tail: "after" });
-		await getContext().obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await insertText(getContext().obsidian, "Typed ");
 		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe("First\n😀 BeforeTyped after");
 		await expect.poll(async () => (await state(path)).content.replace(/\r\n?/g, "\n"), POLL_OPTS).toBe("First\n😀 BeforeTyped after");
 	});
@@ -339,7 +339,7 @@ describe("Template cursor markers in native Obsidian", () => {
 		expect(result.content).toContain("old-tag");
 		expect(result.content).toContain("new-tag");
 		expect(result.editor.slice(0, result.offset)).toMatch(/😀 Before$/);
-		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed 😀 " }) });
+		await insertText(obsidian, "Typed 😀 ");
 		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe(result.editor.slice(0, result.offset) + "Typed 😀 " + result.editor.slice(result.offset));
 	});
 
@@ -353,7 +353,7 @@ describe("Template cursor markers in native Obsidian", () => {
 			return true;
 		})()`);
 		await expectAt(path, "afterExisting");
-		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await insertText(obsidian, "Typed ");
 		await expect.poll(async () => {
 			const result = await state(path);
 			return { editor: result.editor, saved: result.content };
@@ -402,7 +402,7 @@ describe("Template cursor markers in native Obsidian", () => {
 			}
 			await expectNoPrompt(obsidian);
 			await expectAt(destination, "");
-			await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Write here" }) });
+			await insertText(obsidian, "Write here");
 			const link = rename ? `[[renamed-${choice.id}]]\n` : "";
 			await expect.poll(async () => (await state(destination)).editor, POLL_OPTS).toBe(`Existing notes\n\n${link}## Planning\n- Write here`);
 			expect(await obsidian.dev.evalJson("app.workspace.activeLeaf.view.getState().source")).toBe(false);
