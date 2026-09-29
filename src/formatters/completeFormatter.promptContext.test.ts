@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 	prompt: vi.fn(async () => "answer"),
 	promptWithContext: vi.fn(async () => "answer"),
 	suggest: vi.fn(async (..._args: unknown[]) => "true"),
+	datePrompt: vi.fn(async (..._args: unknown[]) => "@date:2026-10-02T00:00:00.000Z"),
 	childScopes: [] as string[],
 	childRunContexts: [] as unknown[],
 }));
@@ -53,7 +54,9 @@ vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn(() => null) }));
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({ default: {} }));
 vi.mock("../gui/MultiSuggester/multiSuggester", () => ({ default: {} }));
-vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({ default: {} }));
+vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
+	default: { Prompt: mocks.datePrompt },
+}));
 vi.mock("../gui/MathModal", () => ({ MathModal: {} }));
 vi.mock("../parsers/NLDParser", () => ({ NLDParser: { getNattyParser: () => ({}) } }));
 vi.mock("../logger/logManager", () => ({
@@ -97,6 +100,7 @@ beforeEach(() => {
 	mocks.prompt.mockClear();
 	mocks.promptWithContext.mockClear();
 	mocks.suggest.mockClear();
+	mocks.datePrompt.mockClear();
 });
 
 describe("anonymous {{VALUE}} prompt copy", () => {
@@ -137,6 +141,27 @@ describe("anonymous {{VALUE}} prompt copy", () => {
 			header: "Text to capture",
 			placeholder: "Text to add to the note",
 		});
+	});
+
+	it("is titled by its |label:, with the choice name moved to the context line (#1876)", async () => {
+		const f = makeFormatter();
+		f.setPromptRunContext({
+			choiceName: "Orders",
+			destination: "Orders.md",
+			destinationKind: "file",
+		});
+		const format = "### {{VALUE|label:What's the order?}}\n- [ ] Deliver\n";
+
+		await f.withPromptScope("captureText", format, () =>
+			f.formatFileContent(format),
+		);
+
+		expect(lastPromptCall()).toMatchObject({
+			header: "What's the order?",
+			options: { contextLine: "Orders → Orders.md" },
+		});
+		// The label is the title, so it is not repeated as helper text.
+		expect((mocks.prompt.mock.calls.at(-1) as unknown[])[4]).toBeUndefined();
 	});
 
 	it("falls back to 'Enter value' with no run context (script API, AI agent)", async () => {
@@ -256,5 +281,27 @@ describe("forced true/false picker", () => {
 		await f.formatFileContent("done: {{VALUE|type:checkbox}}");
 
 		expect(mocks.suggest.mock.calls.at(-1)?.[3]).toBe("Task");
+	});
+});
+
+describe("{{VDATE}} prompt copy", () => {
+	it("is titled by its |label:, which is never read as the default (#1869)", async () => {
+		const f = makeFormatter();
+
+		await f.formatFileContent("{{VDATE:due,YYYY-MM-DD|label:Due}}");
+
+		const [, header, , defaultValue] = mocks.datePrompt.mock.calls.at(-1) ?? [];
+		expect(header).toBe("Due");
+		expect(defaultValue).toBeUndefined();
+	});
+
+	it("is titled by its variable name without a label", async () => {
+		const f = makeFormatter();
+
+		await f.formatFileContent("{{VDATE:due,YYYY-MM-DD|tomorrow}}");
+
+		const [, header, , defaultValue] = mocks.datePrompt.mock.calls.at(-1) ?? [];
+		expect(header).toBe("due");
+		expect(defaultValue).toBe("tomorrow");
 	});
 });

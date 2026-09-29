@@ -233,7 +233,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			continue;
 		}
 
-		const { defaultValue, optional, withTime, snap, caseStyle } =
+		const { defaultValue, optional, withTime, snap, caseStyle, label } =
 			parseVDateOptions(match[3]);
 		// A |time/|datetime token with no explicit format gets a datetime
 		// default so the rendered value carries the picked time.
@@ -250,7 +250,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 			// Prompt for date input with VDATE context
 			const dateInput = await context.prompt(
 				variableName,
-				{ type: "VDATE", dateFormat, defaultValue, optional, withTime }
+				{ type: "VDATE", dateFormat, defaultValue, optional, withTime, label }
 			);
 			if (optional && !dateInput?.trim()) {
 				// Optional date left blank or skipped: answered-empty.

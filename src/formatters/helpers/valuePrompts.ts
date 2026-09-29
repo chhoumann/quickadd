@@ -27,7 +27,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 	if (provider) {
 		if (context?.type === "VDATE") {
 			return await provider.datePrompt(
-				header ?? context.label ?? "Enter date",
+				context.label ?? header ?? "Enter date",
 				{
 					defaultValue: context.defaultValue,
 					dateFormat: context.dateFormat ?? "YYYY-MM-DD",
@@ -60,7 +60,8 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 		// Named prompts already title themselves with the variable name, so they
 		// only gain the run context: which choice is asking, and where the
 		// answer lands (issue #1546).
-		const variableTitle = header ?? context?.label ?? "Enter value";
+		// A VDATE's |label: names its prompt; the variable name is only its key.
+		const variableTitle = context?.label ?? header ?? "Enter value";
 		const showDestination = scopeShowsDestination(runtime.scope);
 		const namedContextLine = buildPromptContextLine(
 			runtime.runContext,
@@ -77,7 +78,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 		if (context?.type === "VDATE") {
 			return await VDateInputPrompt.Prompt(
 				runtime.app,
-				(header as string) ?? context.label ?? "Enter date",
+				variableTitle,
 				context.withTime
 					? "Enter a date & time (e.g., 'tomorrow at 3pm', '2025-12-25 14:30')"
 					: "Enter a date (e.g., 'tomorrow', 'next friday', '2025-12-25')",

@@ -81,8 +81,27 @@ describe("RequirementCollector", () => {
     await rc.scanString("{{VALUE|case:kebab|label:Notes}}");
 
     const requirement = rc.requirements.get("value");
-    expect(requirement?.description).toBe("Notes");
+    // The unnamed VALUE's label is its name, not helper text under "Enter value" (#1876).
+    expect(requirement?.label).toBe("Notes");
+    expect(requirement?.description).toBeUndefined();
     expect(requirement?.defaultValue).toBeUndefined();
+  });
+
+  it("names a VDATE field after its |label: and keeps the name as its id (#1869)", async () => {
+    const rc = createCollector();
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|label:Due|tomorrow}} {{VALUE:due}}");
+
+    expect([...rc.requirements.values()]).toEqual([
+      expect.objectContaining({ id: "due", label: "Due", type: "date", defaultValue: "tomorrow" }),
+    ]);
+  });
+
+  it("gives a file-name {{VALUE:due}} the label of the VDATE that makes it a date", async () => {
+    const rc = createCollector();
+    await rc.scanString("{{VALUE:due}}", true);
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|label:Due}}");
+
+    expect(rc.requirements.get("due")).toMatchObject({ label: "Due", type: "date" });
   });
 
   it("collects VDATE with format and default", async () => {
@@ -184,7 +203,7 @@ Body`);
 
     const requirement = rc.requirements.get("value");
     expect(requirement?.type).toBe("textarea");
-    expect(requirement?.description).toBe("Notes");
+    expect(requirement?.label).toBe("Notes");
   });
 
   it("respects global multiline setting for named VALUE tokens", async () => {

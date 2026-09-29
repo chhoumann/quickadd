@@ -385,7 +385,7 @@ export class RequirementCollector extends Formatter {
 			const variableName = match[1]?.trim();
 			if (!variableName) continue;
 
-			const { defaultValue, optional, withTime } = parseVDateOptions(
+			const { defaultValue, optional, withTime, label } = parseVDateOptions(
 				match[3],
 			);
 			const dateFormat =
@@ -396,7 +396,7 @@ export class RequirementCollector extends Formatter {
 			if (!existing) {
 				this.requirements.set(variableName, {
 					id: variableName,
-					label: variableName,
+					label: label ?? variableName,
 					type: "date",
 					defaultValue,
 					dateFormat,
@@ -414,6 +414,7 @@ export class RequirementCollector extends Formatter {
 					existing.type = "date";
 					existing.dateFormat = dateFormat;
 					existing.withTime = withTime;
+					if (label) existing.label = label;
 				}
 				// Only backfill date metadata onto date requirements — a
 				// same-name VALUE requirement must not inherit a VDATE default.
@@ -445,9 +446,12 @@ export class RequirementCollector extends Formatter {
 			);
 			this.requirements.set(key, {
 				id: key,
-				label: derived.title || header || "Enter value",
+				label:
+					this.valuePromptContext?.label ||
+					derived.title ||
+					header ||
+					"Enter value",
 				type,
-				description: this.valuePromptContext?.description,
 				placeholder: derived.placeholder,
 				defaultValue: this.valuePromptContext?.defaultValue,
 				numericConfig: this.valuePromptContext?.numericConfig,

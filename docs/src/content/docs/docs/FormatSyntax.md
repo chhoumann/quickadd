@@ -288,6 +288,16 @@ A default combines with the [`optional` flag](#optional-fields) in any order:
 `{{VDATE:due,YYYY-MM-DD|tomorrow|optional}}` and
 `{{VDATE:due,YYYY-MM-DD|optional|tomorrow}}` are equivalent.
 
+#### Name the date prompt: `|label:` {#vdate-label}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{VDATE:due,YYYY-MM-DD|label:When is it due?}}` asks "When is it due?"
+instead of "due", in the date prompt and in the
+[one-page input form](/docs/Advanced/onePageInputs/). The name is still the
+variable, so `{{VALUE:due}}` reuses the answer as before. With several VDATEs
+for one name, the first one's label is used.
+
 #### Ask for a time too: `|time` {#vdate-time}
 
 Add `|time` (aliases: `|datetime`, `|type:datetime`) to put a time picker on
@@ -505,6 +515,9 @@ These options work on text prompts and pickers alike. Combine them freely:
 `{{VALUE:project|label:Client or project name}}` shows the helper text below
 the prompt's header - handy for instructions or reminders. On an option list,
 the label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
+An unnamed `{{VALUE|label:What's the order?}}` has no name for a header, so
+the label is its title, in the prompt, the one-page form and the builder's
+preview (QuickAdd 2.30.0 or later).
 
 #### Pre-fill a default: `|<default>` {#value-default}
 

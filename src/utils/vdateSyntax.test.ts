@@ -133,3 +133,33 @@ describe("parseVDateOptions case transforms", () => {
 		});
 	});
 });
+
+describe("parseVDateOptions |label: (issue #1869)", () => {
+	it("reads |label: as the prompt's name, never as the default date", () => {
+		expect(parseVDateOptions("label:Due")).toEqual({
+			defaultValue: undefined,
+			optional: false,
+			withTime: false,
+			label: "Due",
+		});
+	});
+
+	it("combines with a default and flags in any order", () => {
+		expect(
+			parseVDateOptions("optional|label:When is it due?|next friday"),
+		).toMatchObject({
+			defaultValue: "next friday",
+			optional: true,
+			label: "When is it due?",
+		});
+	});
+
+	it("keeps a colon inside the label and ignores an empty one", () => {
+		expect(parseVDateOptions("label:Due: final").label).toBe("Due: final");
+		expect(parseVDateOptions("label:")).toEqual({
+			defaultValue: undefined,
+			optional: false,
+			withTime: false,
+		});
+	});
+});
