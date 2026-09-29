@@ -62,9 +62,9 @@ function isSetextContentLine(line: string): boolean {
  * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
  * headings from raw buffer lines, skipping YAML frontmatter and fenced code
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
- * bounding ATX levels to 1–6. Used for unsaved editor text, which the metadata
- * cache doesn't cover yet. Unlike Obsidian, it doesn't skip `#` lines inside
- * comments, HTML, or math blocks.
+ * bounding ATX levels to 1–6. Used for editor text the metadata cache doesn't
+ * cover yet, and to check that the cache is current. Unlike Obsidian, it
+ * doesn't skip `#` lines inside comments, HTML, or math blocks.
  */
 export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const headings: SimpleHeading[] = [];

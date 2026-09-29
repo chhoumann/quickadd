@@ -61,6 +61,21 @@ describe("{{linksection}} in native Obsidian", () => {
 		expect(await read(inbox)).toContain("Meeting notes#Decisions]]");
 	});
 
+	// Through the script API, which formats right away (a Capture choice awaits
+	// enough first that the cache usually catches up).
+	it("links a heading renamed and saved before Obsidian re-reads it", async () => {
+		await setup("- revisit pricing");
+		const result = await getContext().obsidian.dev.evalJsonAsync<{ stale: boolean; link: string }>(`(async () => {
+			const view = app.workspace.activeLeaf.view;
+			view.editor.replaceRange("Outcomes", { line: 2, ch: 3 }, { line: 2, ch: 12 });
+			await view.save();
+			const stale = app.metadataCache.getFileCache(view.file).headings.some(h => h.heading === "Decisions");
+			return { stale, link: await app.plugins.plugins.quickadd.api.format("{{linksection}}") };
+		})()`);
+		expect(result.stale).toBe(true);
+		expect(result.link).toContain("Meeting notes#Outcomes]]");
+	});
+
 	it("links a just-typed heading before the note is saved", async () => {
 		const { choice, inbox } = await setup("%%\n## Parking lot\n%%");
 		const dirty = await getContext().obsidian.dev.evalJsonAsync<boolean>(`(async () => {

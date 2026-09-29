@@ -1846,6 +1846,19 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		);
 	});
 
+	it("parses a just-saved note whose headings Obsidian hasn't re-read yet", async () => {
+		// "## Tasks" was renamed and saved; the cache still has the old name.
+		const value = COMMENTED.replace("## Tasks", "## Todo");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 2, value, data: value }),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Todo]]",
+		);
+	});
+
 	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
 		const value = `${COMMENTED}\n## Rollout\n- c`;
 		const app = makeSectionApp({

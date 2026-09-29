@@ -30,6 +30,7 @@ import {
 import {
 	buildSectionSubpath,
 	extractHeadingsFromLines,
+	sanitizeHeadingForSubpath,
 } from "./helpers/sectionLink";
 import { UserCancelError } from "../errors/UserCancelError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
@@ -377,25 +378,37 @@ export class CompleteFormatter extends Formatter {
 		const cursor = editor?.getCursor();
 		if (!editor || !cursor) return null;
 
+		// Split on \r?\n so CRLF buffers don't leave a trailing \r that breaks the
+		// heading parse (and so line indices match the editor's cursor line).
+		const text = editor.getValue();
+		const parsed = extractHeadingsFromLines(text.split(/\r?\n/));
+
 		// Obsidian resolves a `#heading` link against its metadata cache, so when
 		// the buffer is saved (view.data is the last loaded/saved text) use those
 		// headings: they skip `#` lines inside comments, HTML, and math blocks.
-		// Unsaved text isn't in the cache yet, so parse the live buffer instead.
+		// Unsaved text isn't in the cache yet, so keep the live parse instead.
 		// view.data keeps a CRLF file's line endings; the editor text is LF-only.
-		const text = editor.getValue();
 		const saved = view.data.replace(/\r\n/g, "\n") === text;
 		const cache = saved ? this.app.metadataCache.getFileCache(file) : null;
-		const headings = cache
-			? (cache.headings ?? []).map((h) => ({
-					heading: h.heading,
-					level: h.level,
-					line: h.position.start.line,
-				}))
-			: // Split on \r?\n so CRLF buffers don't leave a trailing \r that
-				// breaks the heading parse (and so line indices match the cursor).
-				extractHeadingsFromLines(text.split(/\r?\n/));
+		const cached = (cache?.headings ?? []).map((h) => ({
+			heading: h.heading,
+			level: h.level,
+			line: h.position.start.line,
+		}));
+		// The cache catches up a few ms after a save (longer for big notes), so
+		// only trust it while every cached heading is still at its line in the
+		// live parse. A renamed or removed heading would otherwise be linked.
+		const parsedByLine = new Map(
+			parsed.map((p) => [p.line, sanitizeHeadingForSubpath(p.heading)]),
+		);
+		const fresh =
+			cache &&
+			cached.every(
+				(c) =>
+					parsedByLine.get(c.line) === sanitizeHeadingForSubpath(c.heading),
+			);
 
-		return buildSectionSubpath(headings, cursor.line);
+		return buildSectionSubpath(fresh ? cached : parsed, cursor.line);
 	}
 
 	protected getVariableValue(variableName: string): string {
