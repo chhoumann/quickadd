@@ -398,6 +398,7 @@ export class CompleteFormatter extends Formatter {
 			this.promptScopeSoleValue,
 		);
 		const title =
+			this.valuePromptContext?.label ??
 			derived.title ??
 			(this.promptRunContext?.choiceName?.trim() || "Enter value");
 		const showDestination = scopeShowsDestination(this.promptScope);
@@ -440,8 +441,7 @@ export class CompleteFormatter extends Formatter {
 						await checkboxProvider.suggester(
 							["true", "false"],
 							["true", "false"],
-							this.valuePromptContext.description ??
-								this.describeAnonymousValuePrompt().title,
+							this.describeAnonymousValuePrompt().title,
 							false,
 						),
 					);
@@ -452,8 +452,7 @@ export class CompleteFormatter extends Formatter {
 						this.app,
 						["true", "false"],
 						["true", "false"],
-						this.valuePromptContext.description ??
-							this.describeAnonymousValuePrompt().title,
+						this.describeAnonymousValuePrompt().title,
 						undefined,
 						this.valuePromptContext.optional
 							? { skippable: true }
@@ -486,7 +485,6 @@ export class CompleteFormatter extends Formatter {
 					this.valuePromptContext?.inputTypeOverride,
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
-				const description = this.valuePromptContext?.description;
 				const promptOptions = this.buildInputPromptOptions(
 					this.valuePromptContext,
 					prompt.contextLine,
@@ -501,7 +499,7 @@ export class CompleteFormatter extends Formatter {
 						placeholder,
 						defaultValue,
 						linkSourcePath,
-						description,
+						undefined,
 						promptOptions,
 					);
 				} else {
@@ -510,7 +508,7 @@ export class CompleteFormatter extends Formatter {
 						prompt.title,
 						placeholder,
 						defaultValue,
-						description,
+						undefined,
 						promptOptions,
 					);
 				}

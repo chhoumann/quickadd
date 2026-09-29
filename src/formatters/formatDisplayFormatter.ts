@@ -101,7 +101,7 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 	protected promptForValue(header?: string): string {
-		return header || "user input";
+		return header || this.valuePromptContext?.label || "user input";
 	}
 
 	protected getVariableValue(variableName: string): string {

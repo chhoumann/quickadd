@@ -15,6 +15,8 @@ export type ParsedVDateOptions = {
 	snap?: DateSnap;
 	/** Apply the shared per-token case transform after formatting the date. */
 	caseStyle?: string;
+	/** |label: names the date prompt; the variable name stays the key. */
+	label?: string;
 };
 
 /**
@@ -53,6 +55,7 @@ export function parseVDateOptions(
 	let keyedDatetime = false;
 	let snap: DateSnap | undefined;
 	let caseStyle: string | undefined;
+	let label: string | undefined;
 	const rest: string[] = [];
 
 	for (const part of remaining) {
@@ -82,6 +85,10 @@ export function parseVDateOptions(
 			caseStyle = keyed.value.trim() || undefined;
 			continue;
 		}
+		if (keyed?.key === "label") {
+			label = keyed.value || undefined;
+			continue;
+		}
 
 		rest.push(part);
 	}
@@ -93,6 +100,7 @@ export function parseVDateOptions(
 		withTime: bareTime || bareDatetime || keyedDatetime,
 		snap,
 		...(caseStyle ? { caseStyle } : {}),
+		...(label ? { label } : {}),
 	};
 }
 

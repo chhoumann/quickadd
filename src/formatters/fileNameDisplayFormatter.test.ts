@@ -91,6 +91,14 @@ describe("FileNameDisplayFormatter resolves the tokens a file name can hold", ()
 		expect(text).toMatch(/^\d{4}-\d{2}-\d{2} - user input$/);
 	});
 
+	it("previews an unnamed {{VALUE}} by its |label: when a file name can hold it", async () => {
+		expect((await preview("{{VALUE|label:Order}}")).text).toBe("Order");
+		// A label Obsidian could not put in a name degrades to the neutral stand-in.
+		expect((await preview("{{VALUE|label:Client: name}}")).text).toBe(
+			"user input",
+		);
+	});
+
 	it("previews named {{VALUE:x}} prompts with per-name examples", async () => {
 		const { text } = await preview("{{VALUE:title}} - {{VALUE:project}}");
 		expect(text).toBe("Example Title - Project Alpha");

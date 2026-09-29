@@ -249,7 +249,10 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		// The header is a PROMPT header at run time, not part of the name, so an
 		// unusable one degrades to the generic stand-in rather than putting a
 		// character in the preview that the run would never produce.
-		return fileNameSafeStandIn(header || "user input", "user input");
+		return fileNameSafeStandIn(
+			header || this.valuePromptContext?.label || "user input",
+			"user input",
+		);
 	}
 
 	protected getVariableValue(variableName: string): string {

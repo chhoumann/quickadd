@@ -347,8 +347,9 @@ export abstract class ValueFormatter {
 			});
 			if (!context) context = {};
 
-			if (!context.description && parsed.label) {
-				context.description = parsed.label;
+			// An unnamed VALUE has no name of its own, so its |label: names it.
+			if (!context.label && parsed.label) {
+				context.label = parsed.label;
 			}
 			if (!context.defaultValue && parsed.defaultValue) {
 				context.defaultValue = parsed.defaultValue;

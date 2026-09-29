@@ -67,6 +67,12 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		).resolves.toBe("2023-06-01 (default: tomorrow)");
 	});
 
+	it("never previews a |label: as the default (#1869)", async () => {
+		await expect(
+			makeFormatter().format("{{VDATE:due|label:Due|tomorrow}}"),
+		).resolves.toBe("2023-06-01 (default: tomorrow)");
+	});
+
 	it("still leaves a NAMELESS token literal, as the run does", async () => {
 		await expect(makeFormatter().format("{{VDATE:}}")).resolves.toBe(
 			"{{VDATE:}}",
@@ -150,5 +156,18 @@ describe("FormatDisplayFormatter VDATE default format (#1589)", () => {
 		await expect(
 			makeFormatter().format("{{VDATE:due,dddd, MMMM Do|case:lower}}"),
 		).resolves.toBe("thursday, june 1st");
+	});
+});
+
+describe("FormatDisplayFormatter unnamed {{VALUE}} stand-in (#1877)", () => {
+	it("previews an unnamed VALUE by its |label:, the name its prompt shows", async () => {
+		await expect(
+			makeFormatter().format(
+				"### {{VALUE|label:What's the order?}}\n- [ ] Deliver 📅 {{VDATE:due date,YYYY-MM-DD}}",
+			),
+		).resolves.toBe("### What's the order?\n- [ ] Deliver 📅 2023-06-01");
+		await expect(makeFormatter().format("- {{VALUE}}")).resolves.toBe(
+			"- user input",
+		);
 	});
 });
