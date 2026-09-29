@@ -154,6 +154,15 @@ export async function requestInputs(app: App, choiceExecutor: IChoiceExecutor, i
 		}
 	}
 
+	// A multi-select field leaves ", " after the last pick, ready for the next
+	// one. That separator is not part of the answer.
+	for (const spec of inputs) {
+		const value = collected[spec.id];
+		if (spec.type === "suggester" && spec.suggesterConfig?.multiSelect && typeof value === "string") {
+			collected[spec.id] = value.replace(/,\s*$/, "");
+		}
+	}
+
 	const rawResult = { ...existing, ...collected };
 
 	// The modal omits blank/unparseable date keys so the preflight
