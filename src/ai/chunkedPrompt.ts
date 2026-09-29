@@ -8,11 +8,11 @@ import { estimateModelInputBudget, estimateTokenCount } from "./tokenEstimator";
 import { log } from "src/logger/logManager";
 import {
 	GLOBAL_VAR_REGEX,
-	INLINE_JAVASCRIPT_REGEX,
 	MACRO_REGEX,
 	TEMPLATE_REGEX,
 	VARIABLE_REGEX,
 } from "src/constants";
+import { findInlineScriptSpans } from "src/formatters/helpers/inlineScriptSpans";
 import { transformCase } from "src/utils/caseTransform";
 import { outputVariables, trackPrompt } from "./promptProgress";
 
@@ -176,7 +176,7 @@ function templateHasDynamicExpansionSite(template: string): boolean {
 		TEMPLATE_REGEX.test(template) ||
 		MACRO_REGEX.test(template) ||
 		GLOBAL_VAR_REGEX.test(template) ||
-		INLINE_JAVASCRIPT_REGEX.test(template)
+		findInlineScriptSpans(template).length > 0
 	);
 }
 

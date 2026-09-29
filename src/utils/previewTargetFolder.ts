@@ -1,4 +1,4 @@
-import { INLINE_JAVASCRIPT_REGEX } from "../constants";
+import { findInlineScriptSpans } from "../formatters/helpers/inlineScriptSpans";
 import type { TemplateFolderConfig } from "../types/choices/ITemplateChoice";
 
 /**
@@ -49,6 +49,6 @@ export function likelyTargetFolderPath(
 	const only = folders[0]?.trim();
 	if (!only) return undefined;
 	if (only.includes("{{")) return undefined;
-	if (INLINE_JAVASCRIPT_REGEX.test(only)) return undefined;
+	if (findInlineScriptSpans(only).length > 0) return undefined;
 	return only;
 }

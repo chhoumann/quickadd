@@ -625,6 +625,103 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 			f.formatFolderPath("```js quickadd\nnoop\n```{{VALUE:scriptVar}}"),
 		).resolves.toBe("fromScript");
 	});
+
+	it("runs each fence once, in order, and consumes the closer's whole backtick run", async () => {
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.toUpperCase());
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("a ```js quickadd one``` b ````js quickadd\ntwo\n````` c"),
+		).resolves.toBe("a ONE b TWO c");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["one"], ["two"]]);
+	});
+
+	it("leaves an unterminated fence as text without running it", async () => {
+		const f = defaultFormatter();
+		const template = "```js quickadd one``` then ```js quickadd never closed";
+		mocks.inlineRunAndGetOutput.mockResolvedValue("1");
+
+		await expect(f.formatFileContent(template)).resolves.toBe(
+			"1 then ```js quickadd never closed",
+		);
+		expect(mocks.inlineRunAndGetOutput).toHaveBeenCalledTimes(1);
+	});
+
+	it("runs a fence written inside a markdown code block", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ran");
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("````md\n```js quickadd\nreturn 'ran'\n```\n````"),
+		).resolves.toBe("````md\nran\n````");
+	});
+
+	it("runs a fence that a script's output creates", async () => {
+		mocks.inlineRunAndGetOutput
+			.mockResolvedValueOnce("```js quickadd inner```")
+			.mockResolvedValueOnce("done");
+		const f = defaultFormatter();
+
+		await expect(f.formatFileContent("```js quickadd outer```")).resolves.toBe("done");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["outer"], ["inner"]]);
+	});
+
+	it("runs a fence that the text before a script and its output form together", async () => {
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.slice(1));
+		const f = defaultFormatter();
+
+		await expect(
+			f.formatFileContent("```js quick```js quickadd Xadd 12``` ``` done"),
+		).resolves.toBe("2 done");
+		expect(mocks.inlineRunAndGetOutput.mock.calls).toEqual([["Xadd 12"], ["12"]]);
+	});
+
+	it("replaces fences exactly as the old regex loop did (fuzz)", async () => {
+		// The pre-#1907 loop: find the first match from the start, replace it, repeat.
+		const regexLoop = (input: string) => {
+			const re = /`{3,}js quickadd([\s\S]*?)`{3,}/;
+			let output = input;
+			let m: RegExpExecArray | null;
+			while ((m = re.exec(output)) !== null) {
+				const code = m[1].trim();
+				output = output.slice(0, m.index) + (code ? code.slice(1) : "") + output.slice(m.index + m[0].length);
+			}
+			return output;
+		};
+		// Each script returns its code minus the first character, so outputs can
+		// hold backticks, openers and language fragments, and the loop still ends.
+		mocks.inlineRunAndGetOutput.mockImplementation(async (code: string) => code.slice(1));
+		const f = defaultFormatter() as unknown as {
+			replaceInlineJavascriptInString(input: string): Promise<string>;
+		};
+		const alphabet = ["`", "``", "```", "````", "js quickadd", "```js quickadd", "```js quick", "```js", "js quick", "add", " quickadd", "x", " ", "\n"];
+		let seed = 7;
+		const rnd = (max: number) => {
+			seed = (seed * 1103515245 + 12345) % 2147483648;
+			return seed % max;
+		};
+
+		for (let t = 0; t < 3000; t++) {
+			let input = "";
+			const len = rnd(25);
+			for (let k = 0; k < len; k++) input += alphabet[rnd(alphabet.length)];
+			expect(await f.replaceInlineJavascriptInString(input), JSON.stringify(input)).toBe(regexLoop(input));
+		}
+	});
+
+	it("does not stall on a long backtick run before the fences (#1907)", async () => {
+		mocks.inlineRunAndGetOutput.mockResolvedValue("ok");
+		const f = defaultFormatter();
+		const flood = "`".repeat(20_000);
+		const fence = "```js quickadd\nreturn 'ok'\n```";
+
+		const started = performance.now();
+		const result = await f.formatFileContent(`${flood}\n${fence}\n${fence}`);
+
+		expect(result).toBe(`${flood}\nok\nok`);
+		// The old backtracking regex took seconds here; the linear scan takes milliseconds.
+		expect(performance.now() - started).toBeLessThan(500);
+	});
 });
 
 describe("CompleteFormatter - empty-token loop termination (regression)", () => {

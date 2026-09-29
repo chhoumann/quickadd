@@ -66,8 +66,6 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 		const { code } = extractScriptFromMarkdown(decoded);
 		if (code) blocks.push(code);
 	}
-	// The linear scan, not INLINE_JAVASCRIPT_REGEX: a crafted file with a long
-	// backtick run would make the regex backtrack and freeze the review.
 	for (const code of inlineScriptBodies(decoded)) blocks.push(code);
 	return blocks.length > 0 ? blocks.join("\n") : null;
 }
