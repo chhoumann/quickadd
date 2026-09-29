@@ -99,17 +99,27 @@ it("gates inline JavaScript written into a choice's settings", async () => {
 		choices: [capture("qa-inline", format)],
 		assets: [],
 	});
-	type Preview = { ok: boolean; preview?: { summary: { hasCritical: boolean }; capabilityRows: Array<{ flag: string; detail: string }> } };
+	type Preview = {
+		ok: boolean;
+		preview?: {
+			summary: { hasCritical: boolean };
+			capabilityRows: Array<{ flag: string; detail: string }>;
+			choices: Array<{ inlineScripts: Array<{ setting: string; text: string }> }>;
+		};
+	};
 	const preview = async (name: string, format: string) => {
 		const path = await seedVaultFile(obsidian, sandbox, name, JSON.stringify(pkg(format)));
 		return obsidian.execJson<Preview>("quickadd:package-preview", { path });
 	};
 
-	const inline = await preview("inline.quickadd.json", "- ```js quickadd return app.vault.getName()```");
+	const format = "- ```js quickadd return app.vault.getName()```";
+	const inline = await preview("inline.quickadd.json", format);
 	expect(inline.preview?.summary.hasCritical).toBe(true);
 	expect(inline.preview?.capabilityRows).toContainEqual(
 		expect.objectContaining({ flag: "user-script", detail: "qa-inline › capture format" }),
 	);
+	// #1912: the review can show the code it gates on.
+	expect(inline.preview?.choices[0]?.inlineScripts).toEqual([{ setting: "capture format", text: format }]);
 
 	const plain = await preview("plain.quickadd.json", "- {{DATE:HH:mm}} {{VALUE}} <% tp.date.now() %>");
 	expect(plain.preview?.summary.hasCritical).toBe(false);
