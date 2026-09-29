@@ -45,7 +45,7 @@ The path supports [format syntax](/docs/FormatSyntax/), so it can be dynamic.
 A daily journal capture might use:
 
 ```text
-Journal/{{DATE:gggg-MM-DD - ddd MMM D}}.md
+Journal/{{DATE:YYYY-MM-DD - ddd MMM D}}.md
 ```
 
 Every run finds today's file, and your entry is captured to it.
