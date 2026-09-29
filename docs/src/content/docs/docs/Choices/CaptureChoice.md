@@ -281,6 +281,26 @@ setting.
 
 _Task_ formats your captured text as a task (`- [ ] ...`).
 
+### One entry per line {#one-entry-per-line}
+
+_One entry per line_ writes the capture format once for each line of
+`{{VALUE}}`. Paste or type several lines, and each becomes its own entry:
+
+```markdown title="Format (with Task on)"
+{{VALUE}} 📅 {{VDATE:due,YYYY-MM-DD}}
+```
+
+```markdown title="You type three lines and answer "friday""
+- [ ] Book the venue 📅 2026-10-02
+- [ ] Send the invites 📅 2026-10-02
+- [ ] Order the cake 📅 2026-10-02
+```
+
+Blank lines are skipped and each line is trimmed. Every other placeholder is
+asked once and reused for every line. The `{{VALUE}}` prompt opens as a
+multi-line box, and a multi-line selection or a value passed from a script,
+URI, or the CLI is split the same way.
+
 ### Which day {#date-origin}
 
 Same [Which day](/docs/Choices/TemplateChoice/#date-origin) setting as a

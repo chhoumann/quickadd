@@ -64,6 +64,8 @@ export abstract class ValueFormatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected valuePromptContext?: PromptContext;
+	/** The {{VALUE}} prompt type when the token itself sets none. */
+	protected defaultValueInputType?: ValueInputType;
 	/** Declared prompt scope, restored by withPromptScope across nested formatting. */
 	protected promptScope: PromptScopeKind = "generic";
 	/** Whether an anonymous {{VALUE}} answers the whole of what the scope names. */

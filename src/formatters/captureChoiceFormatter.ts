@@ -308,14 +308,18 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return content.length > 0 && !content.endsWith("\n") ? `${content}\n` : content;
 	}
 
-	async formatContentOnly(input: string): Promise<string> {
+	async formatContentOnly(input: string, options: { eachLine?: boolean } = {}): Promise<string> {
 		// Process the input with templater (if needed) at this stage
 		// This is the first pass where we want to run any templater code
-		const formatted = await this.withClipboardImageFallback(async () =>
+		const template = await this.expandTemplateLinebreaksOnce(input);
+		const formatOnce = () => this.withClipboardImageFallback(async () =>
 			this.withPromptScope("captureText", input, async () =>
-				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+				super.formatFileContent(template),
 			),
 		);
+		this.defaultValueInputType = options.eachLine ? "multiline" : undefined;
+		let formatted = await formatOnce();
+		if (options.eachLine) formatted = await this.formatEachLine(formatted, formatOnce);
 
 		// The engine or formatContentWithFile owns Templater execution; running it here would execute twice.
 
@@ -323,6 +327,36 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
+	}
+
+	/**
+	 * "One entry per line": renders the format again for each non-blank line of
+	 * {{VALUE}}. Every other answer came from the first pass and is reused, so
+	 * only {{VALUE}} changes between entries.
+	 */
+	private async formatEachLine(whole: string, formatOnce: () => Promise<string>): Promise<string> {
+		const answer = this.value;
+		const lines = (answer ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+		if (lines.length < 2) return whole;
+
+		// A value passed in by the API, URI, or CLI lives in the variables map.
+		const seeded = this.hasConcreteVariable("value");
+		const seededValue = this.variables.get("value");
+		const entries: string[] = [];
+		try {
+			for (const line of lines) {
+				this.value = line;
+				if (seeded) this.variables.set("value", line);
+				entries.push(await formatOnce());
+			}
+		} finally {
+			this.value = answer;
+			if (seeded) this.variables.set("value", seededValue);
+		}
+		const last = entries.length - 1;
+		return entries
+			.map((entry, index) => (index < last && !entry.endsWith("\n") ? `${entry}\n` : entry))
+			.join("");
 	}
 
 	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {

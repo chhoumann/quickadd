@@ -529,7 +529,7 @@ export class CompleteFormatter extends Formatter {
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
-					this.valuePromptContext?.inputTypeOverride,
+					this.valuePromptContext?.inputTypeOverride ?? this.defaultValueInputType,
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const promptOptions = this.buildInputPromptOptions(
