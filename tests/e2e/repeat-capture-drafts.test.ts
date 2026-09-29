@@ -71,3 +71,64 @@ it("a capture re-run from a Macro loop opens empty every time, including after E
 
 	expect(seen).toEqual(["", "", "", ""]);
 });
+
+// #1866: a script's own prompts share one header-only draft key, so a second
+// `inputPrompt("Idea")` in the same run used to open with the first answer.
+// Its submitted draft may only come back on a later run, after a failure.
+it("a script prompt asked again in the same run opens empty, and a failed run keeps its draft", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const inbox = await seedVaultFile(obsidian, sandbox, "Ideas.md", "# Ideas\n");
+
+	const capture = new CaptureChoice("Add idea to inbox");
+	capture.captureTo = inbox;
+	capture.onePageInput = "never";
+	capture.format = { enabled: true, format: "- {{VALUE}}" };
+
+	const script = await seedVaultFile(
+		obsidian, sandbox, "Scripts/ideas.js",
+		`module.exports = async ({ quickAddApi }) => {
+			for (let i = 0; i < 3; i++) {
+				const idea = await quickAddApi.inputPrompt("Idea");
+				if (!idea) return;
+				await quickAddApi.executeChoice(${jsLiteral(capture.name)}, { value: idea });
+			}
+		};`,
+	);
+	const macro = new MacroChoice("Idea loop");
+	macro.onePageInput = "never";
+	macro.macro.commands.push(new UserScript("ideas", script));
+
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [capture, macro];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	const run = () => obsidian.dev.evalJson(
+		`(() => { void app.plugins.plugins.quickadd.api.executeChoice(${jsLiteral(macro.name)}); return true; })()`,
+	);
+	const inboxContent = () => obsidian.dev.evalJsonAsync<string>(
+		`app.vault.read(app.vault.getAbstractFileByPath(${jsLiteral(inbox)}))`,
+	);
+
+	await run();
+	const seen: string[] = [];
+	for (const idea of ["first idea", "second idea"]) {
+		seen.push(await openPromptValue());
+		await typeInto(obsidian, INPUT, idea);
+		await pressKey(obsidian, "Enter");
+		await expect.poll(inboxContent, POLL_OPTS).toContain(`- ${idea}`);
+	}
+	seen.push(await openPromptValue());
+	await typeInto(obsidian, INPUT, "unsaved idea");
+	await pressKey(obsidian, "Escape");
+	await expectNoPrompt(obsidian);
+
+	// The Escape failed the run, so the next run offers the unsaved text back.
+	await run();
+	seen.push(await openPromptValue());
+	await pressKey(obsidian, "Escape");
+	await expectNoPrompt(obsidian);
+
+	expect(seen).toEqual(["", "", "", "unsaved idea"]);
+	expect(await inboxContent()).not.toContain("unsaved idea");
+});

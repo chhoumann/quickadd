@@ -67,6 +67,22 @@ export class InputPromptDraftStore {
 		return entry.value;
 	}
 
+	/**
+	 * The draft a prompt opens with. A run keeps what it submitted so a failed run
+	 * can be retried without retyping, but that text is the run's own answer, not
+	 * unfinished work: a prompt with the same key that opens again in the same run
+	 * (a script asking `inputPrompt("Idea")` in a loop) starts from its own value
+	 * and takes over the key, so an answer the run already used is not kept either.
+	 */
+	takeDraftForPrompt(key: string): string | undefined {
+		if (this.executionScopes.some((scope) => scope.submittedDraftKeys.has(key))) {
+			this.clear(key);
+			return undefined;
+		}
+
+		return this.get(key);
+	}
+
 	set(key: string, value: string): void {
 		if (this.drafts.size >= this.MAX_ENTRIES && !this.drafts.has(key)) {
 			this.evictOldest(1);

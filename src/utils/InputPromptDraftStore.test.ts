@@ -138,6 +138,48 @@ describe("InputPromptDraftStore execution scopes", () => {
 		expect(store.get(draftKey)).toBe("second run answer");
 	});
 
+	describe("a prompt asked again in the same run (#1866)", () => {
+		// A script that calls `inputPrompt("Idea")` in a loop: every call shares the
+		// header-only key and runs in the Macro's one scope.
+		function askAgain() {
+			const macro = store.beginExecutionScope();
+			new InputPromptDraftHandler(key, shouldPersist).persist("first idea", true);
+			const again = new InputPromptDraftHandler(key, shouldPersist);
+			return { again, opensWith: again.hydrate(""), macro };
+		}
+
+		it("opens with its own value, not the answer the run already submitted", () => {
+			const { opensWith } = askAgain();
+
+			expect(opensWith).toBe("");
+		});
+
+		it("keeps nothing when the run fails with the prompt left as it opened", () => {
+			const { again, macro } = askAgain();
+			again.persist("", false);
+			store.rollbackExecutionScope(macro);
+
+			expect(new InputPromptDraftHandler(key, shouldPersist).hydrate("")).toBe("");
+		});
+
+		it("keeps what was typed into it when the run fails", () => {
+			const { again, macro } = askAgain();
+			again.markChanged();
+			again.persist("unsaved idea", false);
+			store.rollbackExecutionScope(macro);
+
+			expect(new InputPromptDraftHandler(key, shouldPersist).hydrate("")).toBe("unsaved idea");
+		});
+
+		it("keeps its submitted answer when the run fails after it", () => {
+			const { again, macro } = askAgain();
+			again.persist("second idea", true);
+			store.rollbackExecutionScope(macro);
+
+			expect(new InputPromptDraftHandler(key, shouldPersist).hydrate("")).toBe("second idea");
+		});
+	});
+
 	it("does not resurrect unchanged defaults after cancellation before submit", () => {
 		const handler = new InputPromptDraftHandler(key, shouldPersist);
 

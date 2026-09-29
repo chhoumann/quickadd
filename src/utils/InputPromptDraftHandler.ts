@@ -21,7 +21,7 @@ export class InputPromptDraftHandler {
 		this.initialValue = initialValue;
 		if (!this.shouldPersist()) return initialValue;
 
-		const draft = this.store.get(this.draftKey);
+		const draft = this.store.takeDraftForPrompt(this.draftKey);
 		return draft ?? initialValue;
 	}
 
