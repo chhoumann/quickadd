@@ -169,7 +169,7 @@ export function buildUserScriptSecretId(
 	);
 }
 
-export function getSecretOptionNames(
+function getSecretOptionNames(
 	userScriptSettings: UserScriptSettingsDefinition | undefined,
 ): string[] {
 	const options = userScriptSettings?.options;

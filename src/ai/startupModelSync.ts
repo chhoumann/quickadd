@@ -7,7 +7,7 @@ export interface StartupSyncHost {
 	register(cleanup: () => void): void;
 }
 
-export const STARTUP_MODEL_SYNC_DELAY_MS = 5_000;
+const STARTUP_MODEL_SYNC_DELAY_MS = 5_000;
 
 /**
  * Run the background model sync shortly after layout-ready, so it never

@@ -64,7 +64,7 @@ export function resolveObsidianPropertyType(
 	return typeof type === "string" ? type : null;
 }
 
-export function isSetLikeObsidianPropertyType(
+function isSetLikeObsidianPropertyType(
 	propertyType: string | null,
 ): boolean {
 	return (

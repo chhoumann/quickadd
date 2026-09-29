@@ -3,7 +3,7 @@
  * is what keeps every member clear of the wide prompt's ctrl/cmd+Enter submit
  * (issue #1259), and `isComposing` keeps IME composition out of all of them.
  */
-export function isModShiftShortcut(evt: KeyboardEvent, key: string): boolean {
+function isModShiftShortcut(evt: KeyboardEvent, key: string): boolean {
 	return (
 		!evt.isComposing &&
 		evt.key.toLowerCase() === key.toLowerCase() &&
@@ -27,7 +27,7 @@ export function isSkipPromptShortcut(evt: KeyboardEvent): boolean {
  * what hints and tooltips show. Change both together.
  */
 export const PEEK_SHORTCUT_KEY = "E";
-export const PEEK_SHORTCUT_DISPLAY = "Ctrl/Cmd+Shift+E";
+const PEEK_SHORTCUT_DISPLAY = "Ctrl/Cmd+Shift+E";
 
 export function isPeekPromptShortcut(evt: KeyboardEvent): boolean {
 	return isModShiftShortcut(evt, PEEK_SHORTCUT_KEY);

@@ -134,7 +134,7 @@ function token(
  * behaviour change; previously the list mixed "{{date}}" with "{{DATE:}}" and
  * left users guessing whether the difference meant anything (#1542).
  */
-export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
+const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	// == Ask for input ==
 	{
 		regex: VALUE_SYNTAX_SUGGEST_REGEX,
