@@ -377,11 +377,23 @@ export class CompleteFormatter extends Formatter {
 		const cursor = editor?.getCursor();
 		if (!editor || !cursor) return null;
 
-		// Split on \r?\n so CRLF buffers don't leave a trailing \r that breaks the
-		// heading parse (and so line indices match the editor's cursor line).
-		const headings = extractHeadingsFromLines(
-			editor.getValue().split(/\r?\n/),
-		);
+		// Obsidian resolves a `#heading` link against its metadata cache, so when
+		// the buffer is saved (view.data is the last loaded/saved text) use those
+		// headings: they skip `#` lines inside comments, HTML, and math blocks.
+		// Unsaved text isn't in the cache yet, so parse the live buffer instead.
+		// view.data keeps a CRLF file's line endings; the editor text is LF-only.
+		const text = editor.getValue();
+		const saved = view.data.replace(/\r\n/g, "\n") === text;
+		const cache = saved ? this.app.metadataCache.getFileCache(file) : null;
+		const headings = cache
+			? (cache.headings ?? []).map((h) => ({
+					heading: h.heading,
+					level: h.level,
+					line: h.position.start.line,
+				}))
+			: // Split on \r?\n so CRLF buffers don't leave a trailing \r that
+				// breaks the heading parse (and so line indices match the cursor).
+				extractHeadingsFromLines(text.split(/\r?\n/));
 
 		return buildSectionSubpath(headings, cursor.line);
 	}

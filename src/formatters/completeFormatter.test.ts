@@ -1715,10 +1715,13 @@ function makeSectionView(opts: {
 	mode?: "source" | "preview";
 	cursorLine?: number;
 	value?: string;
+	/** Last saved text; equal to `value` means the buffer has no unsaved edits. */
+	data?: string;
 	getValueThrows?: boolean;
 }) {
 	return {
 		file: { path: opts.path },
+		data: opts.data ?? "",
 		getMode: () => opts.mode ?? "source",
 		editor: {
 			getSelection: () => "",
@@ -1734,6 +1737,8 @@ function makeSectionView(opts: {
 function makeSectionApp(opts: {
 	activeFile?: { basename: string; path: string } | null;
 	view?: ReturnType<typeof makeSectionView> | undefined;
+	/** Obsidian's metadata cache for the note (null = not indexed). */
+	cache?: { headings?: { heading: string; level: number; line: number }[] } | null;
 }) {
 	const activeFile =
 		opts.activeFile === undefined
@@ -1751,11 +1756,40 @@ function makeSectionApp(opts: {
 				subpath?: string,
 			) => (subpath ? `[[${file.basename}${subpath}]]` : `[[${file.basename}]]`),
 		},
-		metadataCache: { getFileCache: () => null },
+		metadataCache: {
+			getFileCache: () =>
+				opts.cache
+					? {
+							headings: opts.cache.headings?.map((h) => ({
+								heading: h.heading,
+								level: h.level,
+								position: { start: { line: h.line } },
+							})),
+						}
+					: null,
+		},
 	};
 }
 
 const BODY = ["# Project", "", "## Tasks", "- a", "- b"].join("\n");
+
+// A heading-like line inside an Obsidian comment, which Obsidian's metadata
+// cache does not count as a heading.
+const COMMENTED = [
+	"# Project",
+	"## Tasks",
+	"- a",
+	"%%",
+	"## Draft",
+	"%%",
+	"- b",
+].join("\n");
+const COMMENTED_CACHE = {
+	headings: [
+		{ heading: "Project", level: 1, line: 0 },
+		{ heading: "Tasks", level: 2, line: 1 },
+	],
+};
 
 describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 	it("links to the heading the cursor is under", async () => {
@@ -1765,6 +1799,67 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const f = new CompleteFormatter(app as any, makePlugin() as any);
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#Tasks]]",
+		);
+	});
+
+	it("uses Obsidian's headings for a saved note", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 6,
+				value: COMMENTED,
+				data: COMMENTED,
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("treats a CRLF note as saved when only line endings differ", async () => {
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 6,
+				value: COMMENTED,
+				data: COMMENTED.replace(/\n/g, "\r\n"),
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("links the whole file when Obsidian finds no headings in a saved note", async () => {
+		const value = ["%%", "# Draft", "%%", "body"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 3, value, data: value }),
+			cache: {},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note]]",
+		);
+	});
+
+	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
+		const value = `${COMMENTED}\n## Rollout\n- c`;
+		const app = makeSectionApp({
+			view: makeSectionView({
+				path: "Note.md",
+				cursorLine: 8,
+				value,
+				data: COMMENTED,
+			}),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Rollout]]",
 		);
 	});
 
