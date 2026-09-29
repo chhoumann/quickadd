@@ -96,6 +96,14 @@ describe("RequirementCollector", () => {
     ]);
   });
 
+  it("gives a file-name {{VALUE:due}} the label of the VDATE that makes it a date", async () => {
+    const rc = createCollector();
+    await rc.scanString("{{VALUE:due}}", true);
+    await rc.scanString("{{VDATE:due,YYYY-MM-DD|label:Due}}");
+
+    expect(rc.requirements.get("due")).toMatchObject({ label: "Due", type: "date" });
+  });
+
   it("collects VDATE with format and default", async () => {
     const rc = createCollector();
     await rc.scanString("{{VDATE:due, YYYY-MM-DD|tomorrow}}" );

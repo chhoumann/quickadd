@@ -414,6 +414,7 @@ export class RequirementCollector extends Formatter {
 					existing.type = "date";
 					existing.dateFormat = dateFormat;
 					existing.withTime = withTime;
+					if (label) existing.label = label;
 				}
 				// Only backfill date metadata onto date requirements — a
 				// same-name VALUE requirement must not inherit a VDATE default.
