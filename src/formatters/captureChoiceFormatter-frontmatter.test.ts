@@ -374,6 +374,17 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
     expect(second).toBe(['Target', 'Existing', 'One', '', 'Two', '', ''].join('\n'));
   });
 
+  it('keeps the blank line before the next heading when the format has no trailing newline', async () => {
+    const { formatter, file } = createFormatter();
+    const choice = createInsertAfterChoice('# Tasks');
+    const initial = '# Tasks\n- a\n\n# Notes\n';
+
+    const { content: first } = await formatter.formatContentWithFile('- b', choice, initial, file);
+    const { content: second } = await formatter.formatContentWithFile('- c', choice, first, file);
+
+    expect(second).toBe('# Tasks\n- a\n- b\n- c\n\n# Notes\n');
+  });
+
   it('preserves insertion order when format has no trailing newline and EOF blanks exist', async () => {
     const { formatter, file } = createFormatter();
     const choice = createInsertAfterChoice('# H');
@@ -393,7 +404,8 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
       file,
     );
 
-    expect(second).toBe(['# H', 'A', 'X', 'Y'].join('\n'));
+    // The note's blank last line stays below the entries.
+    expect(second).toBe(['# H', 'A', 'X', 'Y', '', ''].join('\n'));
   });
 
   it('does not change behavior when insert-at-end is disabled', async () => {
