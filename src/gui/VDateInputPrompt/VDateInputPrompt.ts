@@ -82,10 +82,11 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 		// A run that failed keeps what this prompt submitted, `@date:<ISO>`. Show
 		// that date the way the picker would, without counting it as an edit. The
-		// prompt already opened, so place the cursor again for the new text.
+		// prompt already opened, so place the cursor again for the new text. A kept
+		// value that isn't a date stays as it is, so the field shows what submits.
 		if (this.currentInput.startsWith("@date:")) {
 			const iso = this.currentInput.slice(6).trim();
-			if (iso) {
+			if (iso && formatISODate(iso, this.dateFormat) !== null) {
 				this.applyPickerSelection(iso, false);
 				positionInputPromptCursor(this.inputComponent.inputEl, options);
 			}

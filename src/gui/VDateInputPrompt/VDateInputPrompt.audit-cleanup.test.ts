@@ -93,6 +93,21 @@ describe("VDateInputPrompt restored-draft preview", () => {
 		}
 	});
 
+	it("leaves a kept @date: value that isn't a date in the field as it is", () => {
+		draftStore.set(draftKey, "@date:not-a-date-with-details");
+		const stubMoment = window.moment;
+		window.moment = ((input?: string) => realMoment.utc(input)) as typeof window.moment;
+		try {
+			const state = construct("");
+
+			expect(state.inputComponent.inputEl.value).toBe("@date:not-a-date-with-details");
+			expect(state.transformInputOnSubmit(state.inputComponent.inputEl.value))
+				.toBe("@date:not-a-date-with-details");
+		} finally {
+			window.moment = stubMoment;
+		}
+	});
+
 	it("keeps the no-draft default path: preview reflects the defaultValue", () => {
 		// No draft stored: input + preview follow the parseable default.
 		const state = construct("2025-01-15");
