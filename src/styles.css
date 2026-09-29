@@ -141,7 +141,7 @@
    platform's own width, zero for overlay scrollbars — exactly when the
    content has a scrollbar. A form that fits stays symmetric, as core's
    dialogs are. */
-@supports (animation-timeline: scroll()) {
+@supports (animation-timeline: scroll()) and (timeline-scope: --qa-modal-content) {
 	.quickAddModal .modal:has(> .qa-modal-footer) {
 		timeline-scope: --qa-modal-content;
 	}
