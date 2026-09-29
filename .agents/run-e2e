@@ -8,6 +8,13 @@ export COREPACK_HOME="${COREPACK_HOME:-$ORIGINAL_HOME/.cache/quickadd-corepack}"
 
 cd "$REPO_ROOT"
 
+# `pnpm install` rewrites obsidian-e2e's dist, which drops the orb's Linux
+# launcher patch that .agents/setup applied. Reapply it (idempotent) so a
+# dependency bump mid-session doesn't stop the suite from starting.
+if [[ -e /opt/Obsidian/resources/obsidian.asar ]]; then
+	node "$SCRIPT_DIR/patch-obsidian-e2e-linux.mjs" >/dev/null
+fi
+
 cleanup() {
 	local status=$?
 	trap - EXIT INT TERM
