@@ -265,21 +265,22 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private async insertCapture(payload: CapturePlacementResult): Promise<CapturePlacementResult> {
-		const formatted = payload.content;
 		const shouldAppendToBottom = this.choice.prepend ||
 			(this.choice.captureToActiveFile && this.choice.activeFileWritePosition === "bottom");
-		if (shouldAppendToBottom) {
-			const needsLeadingNewline = this.fileContent.length > 0 &&
-				!this.fileContent.endsWith("\n") && !formatted.startsWith("\n");
-			const separator =
-				this.fileContent.length > 0 && (!this.choice.task || needsLeadingNewline)
-					? "\n"
-					: "";
-			return surroundCapture(payload, this.fileContent + separator);
-		}
+		if (shouldAppendToBottom) return surroundCapture(payload, this.withLastLineEnded());
 		if (this.choice.insertAfter.enabled) return this.insertAfterHandler(payload);
 		if (this.choice.insertBefore?.enabled) return this.insertBeforeHandler(payload);
 		return this.insertAtNoteBodyStartTracking(payload);
+	}
+
+	/**
+	 * The note, ready for text appended at the bottom. Like the other write
+	 * positions, this adds a line break only to end the note's last line. Any
+	 * blank line comes from the format.
+	 */
+	private withLastLineEnded(): string {
+		const content = this.fileContent;
+		return content.length > 0 && !content.endsWith("\n") ? `${content}\n` : content;
 	}
 
 	async formatContentOnly(input: string): Promise<string> {
@@ -568,7 +569,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			case CREATE_IF_NOT_FOUND_TOP:
 				return this.insertAtNoteBodyStartTracking(payload);
 			case CREATE_IF_NOT_FOUND_BOTTOM:
-				return surroundCapture(payload, `${this.fileContent}\n`);
+				return surroundCapture(payload, this.withLastLineEnded());
 			case CREATE_IF_NOT_FOUND_CURSOR: {
 				const view = getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(

@@ -162,6 +162,47 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(result).toBe("- First idea");
 	});
 
+	it("keeps a list tight when the bottom capture's format ends with a line break", async () => {
+		const choice = createChoice({ captureToActiveFile: false, prepend: true });
+		let note = "- a\n";
+		for (const entry of ["- first\n", "- second\n"]) {
+			const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+			note = (await formatter.formatContentWithFile(entry, choice, note, createFile())).content;
+		}
+
+		expect(note).toBe("- a\n- first\n- second\n");
+	});
+
+	it("keeps the blank line a bottom capture's format asks for", async () => {
+		const choice = createChoice({ captureToActiveFile: false, prepend: true });
+		const append = async (entry: string, note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile(entry, choice, note, createFile())).content;
+
+		expect(await append("\nsecond", "first")).toBe("first\n\nsecond");
+		expect(await append("\nsecond", "first\n")).toBe("first\n\nsecond");
+		expect(await append("second\n\n", "first\n\n")).toBe("first\n\nsecond\n\n");
+	});
+
+	it("puts a heading it creates at the bottom on the next line, not after a blank line", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				createIfNotFound: true,
+				createIfNotFoundLocation: "bottom",
+			},
+		});
+		const capture = async (note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile("- first", choice, note, createFile())).content;
+
+		expect(await capture("")).toBe("## Log\n- first");
+		expect(await capture("# Inbox")).toBe("# Inbox\n## Log\n- first");
+		expect(await capture("# Inbox\n")).toBe("# Inbox\n## Log\n- first");
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),

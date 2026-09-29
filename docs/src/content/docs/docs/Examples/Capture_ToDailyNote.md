@@ -148,6 +148,3 @@ Use **Before line...** instead of **After line...** and target the placeholder, 
 
 **Capture writes to the wrong file.**
 The date pattern in **Capture to** must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
-
-**Table rows or callout content breaks when using bottom-of-file placement.**
-Use **After line...** with **Insert at end of section** instead of **Bottom of file**. Bottom-of-file placement starts non-task captures on a new line, and when the file already ends with a newline that leaves a blank line before the captured content. That blank line splits table rows and callout blocks.
