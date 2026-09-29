@@ -9,7 +9,7 @@ import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
 // Obsidian's `dev:errors`, which records every unhandled promise rejection (even one
@@ -129,7 +129,7 @@ async function start(
 		case "launcher":
 			await obsidian.command("quickadd:runQuickAdd").run();
 			await waitForFocusedPrompt(obsidian);
-			await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: choice.name }) });
+			await insertText(obsidian, choice.name);
 			await obsidian.sleep(200);
 			await pressKey(obsidian, "Enter");
 			await obsidian.sleep(400);

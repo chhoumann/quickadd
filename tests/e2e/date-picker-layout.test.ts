@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { DESCRIBE_ELEMENT, insertText, POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("date-picker-layout");
 
@@ -16,13 +16,12 @@ it("focuses the first form field through the host and submits from the keyboard"
 			return true;
 		})()`);
 		await waitForElement(obsidian, ".onePageInputModal input");
-		expect(await obsidian.dev.evalJson<boolean>(
-			"document.activeElement === document.querySelector('.onePageInputModal input')",
-		)).toBe(true);
-		await obsidian.exec("dev:cdp", {
-			method: "Input.insertText",
-			params: JSON.stringify({ text: "Native focus" }),
-		});
+		expect(await obsidian.dev.evalJson<string>(`(() => {
+			${DESCRIBE_ELEMENT}
+			const first = document.querySelector(".onePageInputModal input");
+			return document.activeElement === first ? "first field" : describe(document.activeElement);
+		})()`)).toBe("first field");
+		await insertText(obsidian, "Native focus");
 		await pressKey(obsidian, "Enter", true);
 		await expect.poll(() => obsidian.dev.evalJson<string | null>(
 			"window.__qaFocusResult?.title ?? null",

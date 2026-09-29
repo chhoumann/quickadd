@@ -2,7 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS } from "./uiHelpers";
+import { insertText, POLL_OPTS } from "./uiHelpers";
 
 describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with real Templater", () => {
 	const getContext = createQuickAddE2EHarness("template-cursor-templater");
@@ -123,7 +123,7 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with
 		await save(choice);
 		await run(choice);
 		await expectAt(path, `${filename} 2026-09-20`, "2026-09-20");
-		await getContext().obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await insertText(getContext().obsidian, "Typed ");
 		await expect.poll(async () => (await state(path)).editor, POLL_OPTS).toBe(`${filename} Typed 2026-09-20`);
 	});
 

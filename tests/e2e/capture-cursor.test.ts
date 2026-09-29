@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey } from "./uiHelpers";
+import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("capture-cursor");
 const AUTOSAVE_POLL = { ...POLL_OPTS, timeout: 5_000 };
@@ -89,10 +89,7 @@ async function typeIntoLatestCaptureFormat(text: string) {
 		return true;
 	})()`);
 	expect(focused).toBe(true);
-	await getContext().obsidian.exec("dev:cdp", {
-		method: "Input.insertText",
-		params: JSON.stringify({ text }),
-	});
+	await insertText(getContext().obsidian, text);
 }
 
 async function enableCaptureNotices() {
@@ -235,7 +232,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 			const result = await state(path);
 			return { editor: result.editorContent, saved: result.content, offset: result.offset };
 		}, AUTOSAVE_POLL).toEqual({ editor: beforeTyping, saved: beforeTyping, offset: beforeTyping.indexOf("after") });
-		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await insertText(obsidian, "Typed ");
 		await expect.poll(async () => {
 			const result = await state(path);
 			return { editor: result.editorContent, saved: result.content };
@@ -263,7 +260,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 			const editor = app.workspace.activeLeaf.view.editor;
 			return editor.listSelections().map(selection => editor.getValue().slice(editor.posToOffset(selection.head), editor.posToOffset(selection.head) + 5));
 		})()`)).toEqual(["after", "after"]);
-		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "Typed " }) });
+		await insertText(obsidian, "Typed ");
 		const expected = "First\n😀 BeforeTyped after gap First\n😀 BeforeTyped after";
 		await expect.poll(async () => {
 			const result = await state(path);
