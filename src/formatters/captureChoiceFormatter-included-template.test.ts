@@ -177,6 +177,16 @@ describe("an included template reuses a date of the Capture format (#1950)", () 
 		expect(prompt).not.toHaveBeenCalled();
 	});
 
+	it("leaves a reuse whose name matches two VDATE names only by case to its own prompt", async () => {
+		const { formatter } = makeCapture("(due {{VALUE:due}})");
+		prompt.mockResolvedValueOnce("soon").mockResolvedValueOnce("Pay rent");
+		datePrompt.mockResolvedValue("@date:2026-09-30T12:00:00.000Z");
+
+		await formatter.formatContentOnly("{{VDATE:Due,DD.MM.YYYY}} {{VDATE:DUE,YYYY}} {{VALUE}}\n{{TEMPLATE:Include.md}}");
+		expect((prompt.mock.calls[0] as unknown[])[1]).toBe("due");
+		expect(prompt).toHaveBeenCalledBefore(datePrompt);
+	});
+
 	it("prints a prefilled answer, as from the one-page form, in the VDATE's format", async () => {
 		const { formatter, executor } = makeCapture("(due {{VALUE:due}})");
 		executor.variables.set("value", "Pay rent");

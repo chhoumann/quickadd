@@ -176,8 +176,10 @@ export class CompleteFormatter extends Formatter {
 		if (!this.includer || findDateVariableFormat(this.variables, variableName) !== undefined) return;
 		for (let includer: CompleteFormatter | undefined = this.includer; includer; includer = includer.includer) {
 			const tokens = [...(includer.includingText ?? "").matchAll(new RegExp(DATE_VARIABLE_REGEX.source, "gi"))];
-			const token = tokens.find((match) => match[1]?.trim() === variableName) ??
-				tokens.find((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
+			// Exact name first, then one case-insensitive name, as a named VALUE resolves.
+			const sameName = tokens.filter((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
+			const token = sameName.find((match) => match[1]?.trim() === variableName) ??
+				(new Set(sameName.map((match) => match[1]?.trim())).size === 1 ? sameName[0] : undefined);
 			if (token) {
 				await includer.replaceDateVariableInString(token[0]);
 				return;
