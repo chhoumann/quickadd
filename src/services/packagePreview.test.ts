@@ -328,6 +328,27 @@ describe("buildPackagePreview - choice flags & dedupe", () => {
 		expect(row?.detail).toContain("app:toggle-left-sidebar");
 	});
 
+	it("names a script's path once, even when the step is named after it (#1880)", () => {
+		const path = "Scripts/Books/fetch.js";
+		const m = macro("m1", "Fetch media", [
+			userScript("c1", path, path),
+			userScript("c2", `${path}::run`, path),
+			userScript("c3", "fetch", path),
+			conditional("c4", path, { mode: "script", scriptPath: path }),
+		]);
+		const preview = buildPackagePreview(NO_EXISTING, makePackage([pkgChoice(m, ["Fetch media"])]), NONE);
+		expect(
+			preview.capabilityRows
+				.filter((r) => r.flag === "user-script" || r.flag === "conditional-script")
+				.map((r) => r.detail),
+		).toEqual([
+			`Fetch media › ${path}`,
+			`Fetch media › ${path}::run`,
+			`Fetch media › fetch (${path})`,
+			`Fetch media › ${path}`,
+		]);
+	});
+
 	it("stops promising AI for a legacy InfiniteAIAssistant command", () => {
 		// It used to share the AIAssistant row, so the disclosure said "Sends note
 		// content to your AI provider" for a step the engine could not run at all.

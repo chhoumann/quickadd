@@ -42,6 +42,21 @@ function joinCrumb(parts: Array<string | undefined>): string {
 	return parts.filter((part): part is string => Boolean(part)).join(" › ");
 }
 
+/**
+ * Whether a step's name already shows its script path, as it does for the steps
+ * the macro builder names after same-named scripts (#1850). A `::member` suffix
+ * doesn't count. The review then shows the path once.
+ */
+export function isNamedAfterScript(label: string, scriptPath: string): boolean {
+	return label.split("::")[0].trim() === scriptPath;
+}
+
+function crumbWithScriptPath(crumbs: string[], label: string, scriptPath: string): string {
+	return isNamedAfterScript(label, scriptPath)
+		? joinCrumb(crumbs)
+		: `${joinCrumb(crumbs)} (${scriptPath})`;
+}
+
 function commandLabel(command: ICommand): string {
 	const name = command.name?.trim();
 	return name && name.length > 0 ? name : String(command.type);
@@ -237,7 +252,7 @@ function collectCommands(
 						flag: "user-script",
 						severity: "critical",
 						title: "Runs custom JavaScript with full access to your vault and the network",
-						detail: `${joinCrumb(commandCrumbs)} (${script.path})`,
+						detail: crumbWithScriptPath(commandCrumbs, label, script.path),
 						scriptPath: script.path,
 					});
 				}
@@ -268,7 +283,7 @@ function collectCommands(
 						flag: "conditional-script",
 						severity: "critical",
 						title: "Runs custom JavaScript chosen by a condition",
-						detail: `${joinCrumb(commandCrumbs)} (${scriptPath})`,
+						detail: crumbWithScriptPath(commandCrumbs, label, scriptPath),
 						scriptPath,
 					});
 				}

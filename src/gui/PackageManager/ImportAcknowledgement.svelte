@@ -43,8 +43,9 @@
 	</label>
 	{#if criticalScriptCount > 0 && !fullyReviewed}
 		<p id="qa-import-ack-hint" class="qa-import-ack-hint">
-			Open “View contents” on each of the {criticalScriptCount} executable
-			script{criticalScriptCount === 1 ? "" : "s"} above to enable this.
+			{criticalScriptCount === 1
+				? "Open “View contents” on the executable script above to enable this."
+				: `Open “View contents” on each of the ${criticalScriptCount} executable scripts above to enable this.`}
 		</p>
 	{/if}
 </section>

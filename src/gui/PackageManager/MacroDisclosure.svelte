@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CapabilityTag from "./CapabilityTag.svelte";
 	import type { PreviewCommand } from "../../services/packagePreview";
+	import { isNamedAfterScript } from "../../services/packagePreviewWalk";
 
 	let { commands }: { commands: PreviewCommand[] } = $props();
 
@@ -33,7 +34,9 @@
 				>
 			{/if}
 			{#if command.scriptPath}
-				<code>{command.scriptPath}</code>
+				{#if !isNamedAfterScript(command.name, command.scriptPath)}
+					<code>{command.scriptPath}</code>
+				{/if}
 			{:else if command.summary}
 				<span class="qa-macro-command-summary">{command.summary}</span>
 			{/if}
