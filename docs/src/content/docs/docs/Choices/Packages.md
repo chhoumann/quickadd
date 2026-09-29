@@ -120,11 +120,11 @@ Files that are run as code are marked **Executable** (regardless of their
 declared type), and very long or minified scripts are flagged as not fully
 reviewable.
 
-Besides `.js` files, a note, canvas, or Base can carry runnable code too. One
-that contains a JavaScript code fence is flagged with a critical **can be run
-as code** capability row and counts toward the acknowledgement gate below,
-because it executes when something uses it: a user-script step runs a note's
-first `js` fence as its script, and
+Besides JavaScript files (`.js`, `.cjs`, `.mjs`), a note, canvas, or Base can
+carry runnable code too. One that contains a JavaScript code fence is flagged
+with a critical **can be run as code** capability row and counts toward the
+acknowledgement gate below, because it executes when something uses it: a
+user-script step runs a note's first `js` fence as its script, and
 [inline `js quickadd` fences](/docs/InlineScripts/) run whenever the file is
 used as a template - **including as an AI Assistant prompt template**, where the
 fence runs on every AI call. Other files, such as a Base without code or an

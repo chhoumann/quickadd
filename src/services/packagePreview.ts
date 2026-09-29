@@ -2,7 +2,6 @@ export type * from "../types/packages/PackagePreview";
 export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags";
 import {
 	INLINE_JAVASCRIPT_REGEX,
-	JAVASCRIPT_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
 import type IChoice from "../types/choices/IChoice";
@@ -38,13 +37,17 @@ function isScriptKind(kind: QuickAddPackageAssetKind): boolean {
 }
 
 const INLINE_JAVASCRIPT_GLOBAL_REGEX = new RegExp(INLINE_JAVASCRIPT_REGEX.source, "g");
+// The loader itself runs only .js, but a reviewed script can require() a .cjs or
+// .mjs module it ships alongside, so every JavaScript file is shown as code.
+const JAVASCRIPT_MODULE_EXTENSION_REGEX = /\.[cm]?js$/i;
 
 /**
  * The code QuickAdd can run from a bundled file once it is in the vault, or
  * null when the file holds none. It mirrors the two places that execute vault
  * files, so the review asks you to read exactly the files that can run:
  * - the user-script loader (src/utils/userScript.ts) runs a `.js` file's bytes,
- *   or the first ```js fence of a `.md` note, and refuses every other file;
+ *   or the first ```js fence of a `.md` note, and refuses every other file
+ *   (a `.cjs`/`.mjs` module counts too, since a script can require() it);
  * - the formatter runs each ```js quickadd fence in a template, and any
  *   `.md`, `.canvas` or `.base` file can be used as one.
  * The package-declared `kind` is an untrusted hint and plays no part.
@@ -56,7 +59,7 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 	} catch {
 		return null;
 	}
-	if (JAVASCRIPT_FILE_EXTENSION_REGEX.test(originalPath)) return decoded;
+	if (JAVASCRIPT_MODULE_EXTENSION_REGEX.test(originalPath)) return decoded;
 	if (!hasTemplateExtension(originalPath)) return null;
 
 	const blocks: string[] = [];

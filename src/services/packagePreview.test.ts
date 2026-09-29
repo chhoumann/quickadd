@@ -581,14 +581,13 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 				asset("template", "Templates/Dashboard.base", "views:\n  - type: table\n"),
 				asset("template", "Boards/Plan.canvas", '{"nodes":[],"edges":[]}'),
 				asset("user-script", "scripts/payload.txt", payload),
-				asset("conditional-script", "scripts/payload.cjs", payload),
 				asset("template", "scripts/payload", payload),
 			],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
 
 		expect(preview.files.map((file) => file.requiresReview)).toEqual([
-			false, false, false, false, false,
+			false, false, false, false,
 		]);
 		expect(preview.criticalScriptPaths).toEqual([]);
 		expect(requiresAcknowledgement(preview)).toBe(false);
@@ -601,6 +600,9 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 			[pkgChoice(m, ["Empty"])],
 			[
 				asset("template", "scripts/Upper.JS", "module.exports = () => {};"),
+				// A reviewed script can require() a module it ships alongside.
+				asset("template", "scripts/lib.cjs", "module.exports = {};"),
+				asset("template", "scripts/lib.mjs", "export default {};"),
 				// The formatter runs a `js quickadd` fence anywhere in a template.
 				asset("template", "Templates/Dashboard.base", `filters: "${inline}"`),
 				asset("template", "Boards/Plan.canvas", `{"nodes":[{"text":"${inline}"}]}`),
@@ -611,6 +613,8 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 
 		expect(preview.criticalScriptPaths).toEqual([
 			"scripts/Upper.JS",
+			"scripts/lib.cjs",
+			"scripts/lib.mjs",
 			"Templates/Dashboard.base",
 			"Boards/Plan.canvas",
 			"Templates/inline.md",

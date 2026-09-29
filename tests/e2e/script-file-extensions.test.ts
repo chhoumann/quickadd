@@ -5,6 +5,7 @@ import { UserScript } from "../../src/types/macros/UserScript";
 import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 import { encodeToBase64 } from "../../src/utils/base64";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { jsLiteral } from "./uiHelpers";
 
 // #1881: code runs only from .js files and notes, and the package import review
 // asks you to read exactly the bundled files that can run.
@@ -15,7 +16,7 @@ type RunResult = { ok: boolean; error?: string };
 it("runs a user script only from a .js file or a note", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	const script = (tag: string) =>
-		`module.exports = () => { (window.__qaScriptExtRuns ??= []).push(${JSON.stringify(tag)}); };`;
+		`module.exports = () => { (window.__qaScriptExtRuns ??= []).push(${jsLiteral(tag)}); };`;
 	const js = await seedVaultFile(obsidian, sandbox, "scripts/run.js", script("js"));
 	const txt = await seedVaultFile(obsidian, sandbox, "scripts/run.txt", script("txt"));
 	const base = await seedVaultFile(obsidian, sandbox, "scripts/run.base", script("base"));
