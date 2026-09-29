@@ -19,8 +19,8 @@
 	} from "../../services/packageImportService";
 	import type { PackagePreview } from "../../services/packagePreview";
 	import {
-		isFullyReviewed,
 		requiresAcknowledgement,
+		unreviewedScriptCount,
 	} from "../../services/packagePreview";
 	import CapabilityBanner from "./CapabilityBanner.svelte";
 	import FilePreviewRow from "./FilePreviewRow.svelte";
@@ -71,7 +71,9 @@
 	let preview = $state<PackagePreview | null>(null);
 	let acknowledged = $state(false);
 	let reviewedScriptPaths = $state(new Set<string>());
+	let reviewedChoiceIds = $state(new Set<string>());
 	let expandedMacros = $state(new Set<string>());
+	let expandedCode = $state(new Set<string>());
 	let loadError = $state<string | null>(null);
 	let isImporting = $state(false);
 	let importSummary = $state<{
@@ -97,9 +99,12 @@
 	const requiresAck = $derived(
 		preview ? requiresAcknowledgement(preview) : false,
 	);
-	const fullyReviewed = $derived(
-		preview ? isFullyReviewed(preview, reviewedScriptPaths) : true,
+	const unreviewedCount = $derived(
+		preview
+			? unreviewedScriptCount(preview, reviewedScriptPaths, reviewedChoiceIds)
+			: 0,
 	);
+	const fullyReviewed = $derived(unreviewedCount === 0);
 	const previewChoiceById = $derived(
 		new Map(
 			(preview?.choices ?? []).map((choice) => [choice.choiceId, choice]),
@@ -149,6 +154,15 @@
 		expandedMacros = next;
 	}
 
+	function toggleCode(choiceId: string) {
+		const next = new Set(expandedCode);
+		if (next.has(choiceId)) next.delete(choiceId);
+		else next.add(choiceId);
+		expandedCode = next;
+		if (next.has(choiceId) && !reviewedChoiceIds.has(choiceId))
+			reviewedChoiceIds = new Set(reviewedChoiceIds).add(choiceId);
+	}
+
 	const optimisticExists: ExistsProbe = (path) =>
 		existence().optimistic(path);
 
@@ -186,6 +200,18 @@
 			!fileRows.some((row) => row.destinationIsFolder) &&
 			(!requiresAck || (acknowledged && fullyReviewed)),
 	);
+
+	// Said beside the button, since what blocks it is usually scrolled out of view.
+	const blockedReason = $derived.by(() => {
+		if (!loadedPackage || !analysis || isAnalyzing || hasImported) return "";
+		if (requiresAck && !fullyReviewed)
+			return `View ${unreviewedCount} script${unreviewedCount === 1 ? "" : "s"} above to import.`;
+		if (requiresAck && !acknowledged)
+			return "Confirm the acknowledgement above to import.";
+		if (fileRows.some((row) => row.destinationIsFolder))
+			return "A destination above is a folder. Add a file name to import.";
+		return "";
+	});
 
 	function defaultAssetDestination(conflict: AssetConflict): string {
 		return defaultAssetDestinationFor(
@@ -283,7 +309,9 @@
 		preview = null;
 		acknowledged = false;
 		reviewedScriptPaths = new Set();
+		reviewedChoiceIds = new Set();
 		expandedMacros = new Set();
+		expandedCode = new Set();
 	}
 
 	async function analyzePastedContent(raw: string) {
@@ -452,7 +480,8 @@
 			{/if}
 
 			<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
-				{previewChoiceById} {expandedMacros} {toggleMacro} {onChoiceModeChange} />
+				{previewChoiceById} {expandedMacros} {toggleMacro} {expandedCode}
+				{reviewedChoiceIds} {toggleCode} {onChoiceModeChange} />
 
 			<section class="setting-group qa-import-files">
 				<div class="setting-item setting-item-heading">
@@ -530,11 +559,16 @@
 		{/if}
 
 		{#if loadedPackage && requiresAck && !hasImported}
-			<ImportAcknowledgement {preview} {fullyReviewed} bind:acknowledged />
+			<ImportAcknowledgement {preview} {fullyReviewed}
+				reasonId={blockedReason ? "qa-import-reason" : undefined}
+				bind:acknowledged />
 		{/if}
 	</div>
 
 	<div class="modal-button-container">
+		{#if blockedReason}
+			<p id="qa-import-reason" class="qa-import-reason">{blockedReason}</p>
+		{/if}
 		{#if !hasImported}
 			<button type="button" onclick={close} disabled={isImporting}>
 				Cancel
@@ -545,9 +579,7 @@
 			onclick={hasImported ? close : handleImport}
 			class="mod-cta"
 			disabled={isImporting || (!hasImported && !canImport)}
-			title={!hasImported && requiresAck && fullyReviewed && !acknowledged
-				? "Confirm the acknowledgement above to continue"
-				: undefined}
+			aria-describedby={blockedReason ? "qa-import-reason" : undefined}
 		>
 			{#if isImporting}
 				Importing…
@@ -614,5 +646,21 @@
 
 	.qa-import-summary {
 		margin: 0;
+	}
+
+	/* Left of the buttons; the text wraps before they do. */
+	.qa-import-reason {
+		flex: 1 1 0;
+		align-self: center;
+		margin: 0;
+		font-size: var(--font-ui-smaller);
+		color: var(--text-muted);
+	}
+
+	/* The phone footer stacks its buttons bottom-up; put the reason on top. */
+	:global(.is-phone) .qa-import-reason {
+		flex: none;
+		order: 1;
+		text-align: center;
 	}
 </style>

@@ -2607,6 +2607,15 @@ textarea.is-valid {
 	margin-top: var(--size-4-4);
 }
 
+/* Marks a script in the import review as opened toward the gate. */
+.qa-import-reviewed {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-success);
+}
+
 /* Severity tints for Obsidian's .flair chip, set through its public variables
    so theme flair styling still applies. The text blends the severity colour
    with --text-normal so 10px labels clear WCAG AA (>= 4.5:1) on the tinted chip

@@ -22,7 +22,7 @@ import {
 	buildPackagePreview,
 	collectReferencedAssetPaths,
 	decodeAssetPreview,
-	isFullyReviewed,
+	unreviewedScriptCount,
 	requiresAcknowledgement,
 	MAX_PREVIEW_CHARS,
 } from "./packagePreview";
@@ -562,10 +562,10 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(preview.summary.hasCritical).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("scripts/orphan.js");
 		// Gate is real: not reviewed yet => not fully reviewed.
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(1);
 		expect(
-			isFullyReviewed(preview, new Set(["scripts/orphan.js"])),
-		).toBe(true);
+			unreviewedScriptCount(preview, new Set(["scripts/orphan.js"]), NONE),
+		).toBe(0);
 	});
 
 	it("flags an orphan .md note-script that lies about its kind (#1065)", () => {
@@ -588,7 +588,7 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(file?.requiresReview).toBe(true);
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("Notes/payload.md");
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(1);
 	});
 
 	it("does not gate bundled files that hold no code QuickAdd runs (#1881)", () => {
@@ -843,7 +843,7 @@ describe("decodeAssetPreview", () => {
 });
 
 describe("gate predicates", () => {
-	it("isFullyReviewed requires every critical script path to be reviewed", () => {
+	it("unreviewedScriptCount counts every critical script path not yet reviewed", () => {
 		const m = macro("m1", "Two scripts", [
 			userScript("c1", "a", "scripts/a.js"),
 			userScript("c2", "b", "scripts/b.js"),
@@ -853,10 +853,10 @@ describe("gate predicates", () => {
 			[asset("user-script", "scripts/a.js"), asset("user-script", "scripts/b.js")],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
-		expect(isFullyReviewed(preview, new Set(["scripts/a.js"]))).toBe(false);
+		expect(unreviewedScriptCount(preview, new Set(["scripts/a.js"]), NONE)).toBe(1);
 		expect(
-			isFullyReviewed(preview, new Set(["scripts/a.js", "scripts/b.js"])),
-		).toBe(true);
+			unreviewedScriptCount(preview, new Set(["scripts/a.js", "scripts/b.js"]), NONE),
+		).toBe(0);
 	});
 
 	it("requires acknowledgement but has no script gate set for a startup-only macro", () => {
@@ -869,7 +869,7 @@ describe("gate predicates", () => {
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toEqual([]);
 		// Nothing to expand -> trivially reviewed; acknowledgement still required.
-		expect(isFullyReviewed(preview, new Set())).toBe(true);
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(0);
 	});
 
 	it("requiresAcknowledgement is false for a package with no critical capability", () => {
@@ -941,8 +941,29 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 			expect.arrayContaining(["user-script"]),
 		]);
 		expect(requiresAcknowledgement(preview)).toBe(true);
-		// Nothing to open: the code lives in the choice, not in a bundled file.
+		// The code lives in the choice, not in a bundled file. Each value is shown
+		// whole, including every folder that shares the one "folder" row.
 		expect(preview.criticalScriptPaths).toEqual([]);
+		expect(preview.choices.map((choice) => choice.inlineScripts)).toEqual([
+			[
+				{ setting: "capture to", text: `Logs/${inline}.md` },
+				{ setting: "capture format", text: `- ${inline}` },
+				{ setting: "insert after", text: `## ${inline}` },
+				{ setting: "insert before", text: inline },
+				{ setting: "property name", text: inline },
+			],
+			[
+				{ setting: "file name format", text: `Note ${inline}` },
+				{ setting: "folder", text: `Dated/${inline}` },
+				{ setting: "folder", text: `Again/${inline}` },
+			],
+		]);
+		// Viewing counts per choice, like opening a bundled file.
+		expect(unreviewedScriptCount(preview, NONE, NONE)).toBe(2);
+		expect(unreviewedScriptCount(preview, NONE, new Set(["c1"]))).toBe(1);
+		expect(unreviewedScriptCount(preview, NONE, new Set(["c1", "t1"]))).toBe(0);
+		// A file path is not a choice id, even when a crafted package makes them equal.
+		expect(unreviewedScriptCount(preview, new Set(["c1", "t1"]), NONE)).toBe(2);
 	});
 
 	it("finds it in an inline Multi child and in a macro's Open file path", () => {
@@ -974,6 +995,11 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 			"Macro › Open log › file path",
 		]);
 		expect(preview.choices[1]?.commands[0]?.flag).toBe("user-script");
+		// Shown under the top-level choice, named from there.
+		expect(preview.choices.map((choice) => choice.inlineScripts)).toEqual([
+			[{ setting: "Hidden › capture format", text: inline }],
+			[{ setting: "Open log › file path", text: `Logs/${inline}.md` }],
+		]);
 	});
 
 	it("leaves settings without a runnable fence unflagged", () => {
@@ -1009,5 +1035,6 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 
 		expect(scriptRows(preview)).toEqual([]);
 		expect(preview.summary.hasCritical).toBe(false);
+		expect(preview.choices.flatMap((choice) => choice.inlineScripts)).toEqual([]);
 	});
 });

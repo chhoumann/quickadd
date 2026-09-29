@@ -42,6 +42,14 @@ export interface PreviewCommand {
 	summary?: string;
 }
 
+/** A choice setting holding ```js quickadd code, shown whole in the review. */
+export interface PreviewInlineScript {
+	/** Where the setting is, below the choice, e.g. "capture format". */
+	setting: string;
+	/** The setting's value, fences included. */
+	text: string;
+}
+
 export interface PreviewChoice {
 	choiceId: string;
 	name: string;
@@ -53,6 +61,8 @@ export interface PreviewChoice {
 	registersCommand: boolean;
 	flags: PreviewFlag[];
 	commands: PreviewCommand[];
+	/** Must be viewed before the package import acknowledgement gate can pass. */
+	inlineScripts: PreviewInlineScript[];
 }
 
 export interface PreviewFile {
@@ -113,7 +123,10 @@ export interface PackagePreview {
 	capabilityRows: CapabilityRow[];
 	missingReferences: MissingReference[];
 	orphanAssets: string[];
-	/** Bundled executable scripts the user must review to satisfy the gate. */
+	/**
+	 * Bundled executable scripts the user must review to satisfy the gate. A
+	 * choice's own inline code is in `choices[].inlineScripts`.
+	 */
 	criticalScriptPaths: string[];
 	summary: PreviewSummary;
 }

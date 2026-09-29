@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import CodePreview from "./CodePreview.svelte";
 	import type {
 		AssetPreviewContent,
 		PreviewFile,
@@ -98,7 +99,7 @@
 					>
 				{/if}
 				{#if reviewed && mode !== "skip" && file.requiresReview}
-					<span class="qa-import-file-reviewed">
+					<span class="qa-import-reviewed">
 						<ObsidianIcon iconId="check" size={14} /> Reviewed
 					</span>
 				{/if}
@@ -160,35 +161,11 @@
 			<div class="qa-import-file-preview-inner">
 				{#if content}
 					<div class="qa-import-file-preview">
-						{#if content.error}
-							<p class="qa-import-file-note mod-error">
-								Preview unavailable: {content.error}
-							</p>
-						{:else}
-							{#if content.looksMinified}
-								<p class="qa-import-file-note mod-warning">
-									Minified: cannot be visually reviewed. Import
-									only if you trust the source.
-								</p>
-							{/if}
-							<span class="qa-visually-hidden" id={`${previewId}-label`}
-								>Contents of {file.originalPath}</span
-							>
-							<!-- Focusable so keyboard users can scroll long scripts. -->
-							<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-							<pre
-								class="qa-import-file-code"
-								tabindex="0"
-								role="region"
-								aria-labelledby={`${previewId}-label`}>{content.text}</pre>
-							{#if content.truncated}
-								<p class="qa-import-file-note mod-warning">
-									Preview truncated. The full {file.executable
-										? "script will run"
-										: "file will be imported"}.
-								</p>
-							{/if}
-						{/if}
+						<CodePreview
+							{content}
+							label={`Contents of ${file.originalPath}`}
+							executable={file.executable}
+						/>
 					</div>
 				{/if}
 			</div>
@@ -244,14 +221,6 @@
 
 	.qa-import-file-folder {
 		color: var(--text-error);
-	}
-
-	.qa-import-file-reviewed {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--size-2-1);
-		font-size: var(--font-ui-smaller);
-		color: var(--text-success);
 	}
 
 	/* The path is the point of this row: let the input take the width the
@@ -318,42 +287,7 @@
 	}
 
 	.qa-import-file-preview {
-		display: flex;
-		flex-direction: column;
-		gap: var(--size-4-2);
 		padding-top: var(--size-4-3);
-	}
-
-	.qa-import-file-note {
-		margin: 0;
-		font-size: var(--font-ui-smaller);
-	}
-
-	.qa-import-file-note.mod-error {
-		color: var(--text-error);
-	}
-
-	/* Obsidian's code-block look. The card already uses --code-background, so
-	   the block sits on the modal background instead to stay distinct. */
-	.qa-import-file-code {
-		margin: 0;
-		max-height: 240px;
-		overflow: auto;
-		padding: var(--size-4-3) var(--size-4-4);
-		border-radius: var(--code-radius);
-		background-color: var(--background-primary);
-		color: var(--code-normal);
-		font-family: var(--font-monospace);
-		font-size: var(--code-size);
-		line-height: var(--line-height-normal);
-		white-space: pre;
-		tab-size: 4;
-		user-select: text;
-	}
-
-	.qa-import-file-code:focus-visible {
-		outline: 2px solid var(--background-modifier-border-focus);
-		outline-offset: -2px;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

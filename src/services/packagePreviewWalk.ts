@@ -19,7 +19,7 @@ import { isChoiceLike } from "../utils/choiceUtils";
 import { commandListOf, isCommandLike, macroCommandsValueOf } from "../utils/macroUtils";
 import { captureFormatIncludes } from "../utils/packageTraversal";
 
-import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewUsageSite } from "../types/packages/PackagePreview";
+import type { CapabilityRow, PreviewCommand, PreviewFlag, PreviewInlineScript, PreviewUsageSite } from "../types/packages/PackagePreview";
 const KNOWN_COMMAND_TYPES = new Set<string>(Object.values(CommandType));
 // --- Walk -------------------------------------------------------------------
 
@@ -34,6 +34,7 @@ interface ChoiceWalk {
 	usages: PreviewUsageSite[];
 	/** Granular critical/warning rows attributable to this choice. */
 	rows: CapabilityRow[];
+	inlineScripts: PreviewInlineScript[];
 }
 
 interface PackageWalk {
@@ -118,11 +119,14 @@ function inlineScriptFields(choice: IChoice): Array<[field: string, value: unkno
 	return [];
 }
 
-function hasInlineScript(value: unknown): boolean {
+function hasInlineScript(value: unknown): value is string {
 	return typeof value === "string" && inlineScriptBodies(value).length > 0;
 }
 
-function pushInlineScriptRow(walk: ChoiceWalk, crumbs: string[]): void {
+/** `crumbs` start with the top-level choice's name; the row names it, the code view doesn't. */
+function recordInlineScript(walk: ChoiceWalk, crumbs: string[], text: string, addRow = true): void {
+	walk.inlineScripts.push({ setting: joinCrumb(crumbs.slice(1)), text });
+	if (!addRow) return;
 	walk.flags.add("user-script");
 	walk.rows.push({
 		flag: "user-script",
@@ -171,6 +175,7 @@ export function walkPackage(pkg: QuickAddPackage): PackageWalk {
 			commands: [],
 			usages: [],
 			rows: [],
+			inlineScripts: [],
 		};
 
 		collectChoice(choice, walk, [choice.name], entryIds, 0);
@@ -248,11 +253,13 @@ function collectChoice(
 		}
 	}
 
+	// One row per setting, but every value is shown: a choice's folders all
+	// share the "folder" row.
 	const reported = new Set<string>();
 	for (const [field, value] of inlineScriptFields(choice)) {
-		if (reported.has(field) || !hasInlineScript(value)) continue;
+		if (!hasInlineScript(value)) continue;
+		recordInlineScript(walk, [...crumbs, field], value, !reported.has(field));
 		reported.add(field);
-		pushInlineScriptRow(walk, [...crumbs, field]);
 	}
 
 	if (isMultiChoice(choice) && Array.isArray(choice.choices)) {
@@ -397,9 +404,10 @@ function collectCommands(
 			}
 			case CommandType.OpenFile: {
 				walk.flags.add("open-file");
-				if (hasInlineScript((command as IOpenFileCommand).filePath)) {
+				const filePath = (command as IOpenFileCommand).filePath;
+				if (hasInlineScript(filePath)) {
 					previewCommand.flag = "user-script";
-					pushInlineScriptRow(walk, [...commandCrumbs, "file path"]);
+					recordInlineScript(walk, [...commandCrumbs, "file path"], filePath);
 				}
 				break;
 			}

@@ -1,22 +1,27 @@
 <script lang="ts">
 	import type { PackagePreview } from "../../services/packagePreview";
-	let { preview, fullyReviewed, acknowledged = $bindable(false) }: {
+	let { preview, fullyReviewed, reasonId, acknowledged = $bindable(false) }: {
 		preview: PackagePreview | null;
 		fullyReviewed: boolean;
+		/** The footer text saying what is left before Import. */
+		reasonId: string | undefined;
 		acknowledged?: boolean;
 	} = $props();
-	const criticalScriptCount = $derived(
-		preview?.criticalScriptPaths.length ?? 0,
+	// Scripts the review can show: bundled files and choices' inline code.
+	const reviewableCount = $derived(
+		(preview?.criticalScriptPaths.length ?? 0) +
+			(preview?.choices.filter((choice) => choice.inlineScripts.length > 0)
+				.length ?? 0),
 	);
 	const hasUnbundledScript = $derived(
 		preview?.missingReferences.some((ref) => ref.asScript) ?? false,
 	);
-	// The checkbox only claims a script review when there are bundled scripts to
-	// open; otherwise the copy stays honest about why no code is shown.
+	// The checkbox only claims a script review when there are scripts to open;
+	// otherwise the copy stays honest about why no code is shown.
 	const ackLabel = $derived(
-		criticalScriptCount > 0
+		reviewableCount > 0
 			? hasUnbundledScript
-				? "I have reviewed each bundled script above and trust the source, including scripts that are not included and cannot be shown."
+				? "I have reviewed each script shown above and trust the source, including scripts that are not included and cannot be shown."
 				: "I have reviewed each script above and trust the source."
 			: hasUnbundledScript
 				? "This package runs scripts that are not included and cannot be reviewed. I trust the source."
@@ -31,9 +36,7 @@
 			type="checkbox"
 			checked={acknowledged}
 			disabled={!fullyReviewed}
-			aria-describedby={criticalScriptCount > 0 && !fullyReviewed
-				? "qa-import-ack-hint"
-				: undefined}
+			aria-describedby={reasonId}
 			onchange={(event) =>
 				(acknowledged = (
 					event.currentTarget as HTMLInputElement
@@ -41,22 +44,9 @@
 		/>
 		<span>{ackLabel}</span>
 	</label>
-	{#if criticalScriptCount > 0 && !fullyReviewed}
-		<p id="qa-import-ack-hint" class="qa-import-ack-hint">
-			{criticalScriptCount === 1
-				? "Open “View contents” on the executable script above to enable this."
-				: `Open “View contents” on each of the ${criticalScriptCount} executable scripts above to enable this.`}
-		</p>
-	{/if}
 </section>
 
 <style>
-	.qa-import-ack {
-		display: flex;
-		flex-direction: column;
-		gap: var(--size-4-1);
-	}
-
 	.qa-import-ack-label {
 		display: flex;
 		align-items: flex-start;
@@ -74,13 +64,5 @@
 	.qa-import-ack-label input {
 		flex-shrink: 0;
 		margin: 0;
-	}
-
-	.qa-import-ack-hint {
-		margin: 0;
-		/* Aligns under the label text: checkbox width + the label's gap. */
-		padding-inline-start: calc(var(--checkbox-size) + var(--size-4-2));
-		font-size: var(--font-ui-smaller);
-		color: var(--text-muted);
 	}
 </style>
