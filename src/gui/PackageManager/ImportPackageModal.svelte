@@ -114,16 +114,6 @@
 			(preview.summary.hasCritical || preview.summary.hasWarning),
 		),
 	);
-	const canImport = $derived(
-		Boolean(loadedPackage && analysis) &&
-			// A re-paste keeps the previous package live until its analysis
-			// resolves; block Import in that window so a stale package can't be
-			// written while new content is being analysed.
-			!isAnalyzing &&
-			!fileRows.some((row) => row.destinationIsFolder) &&
-			(!requiresAck || (acknowledged && fullyReviewed)),
-	);
-
 	const importSummaryText = $derived.by(() => {
 		const s = importSummary;
 		if (!s) return "";
@@ -183,6 +173,16 @@
 	);
 	const overwriteFileRows = $derived(
 		fileRows.filter((row) => overwritesAtLoad.has(row.conflict.originalPath)),
+	);
+
+	const canImport = $derived(
+		Boolean(loadedPackage && analysis) &&
+			// A re-paste keeps the previous package live until its analysis
+			// resolves; block Import in that window so a stale package can't be
+			// written while new content is being analysed.
+			!isAnalyzing &&
+			!fileRows.some((row) => row.destinationIsFolder) &&
+			(!requiresAck || (acknowledged && fullyReviewed)),
 	);
 
 	function defaultAssetDestination(conflict: AssetConflict): string {
