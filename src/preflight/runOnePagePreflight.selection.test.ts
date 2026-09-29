@@ -44,11 +44,6 @@ vi.mock("src/main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
 vi.mock("src/utilityObsidian", async () => {
 	const { TFile } = await import("obsidian");
 	return {

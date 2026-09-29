@@ -49,7 +49,6 @@ vi.mock("../utilityObsidian", () => ({
 }));
 
 vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {

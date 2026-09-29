@@ -1,7 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App, Component } from "obsidian";
 import { render } from "@testing-library/svelte";
 import { flushSync } from "svelte";

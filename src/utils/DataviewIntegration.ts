@@ -1,21 +1,26 @@
 import type { App } from "obsidian";
-import { getAPI } from "obsidian-dataview";
 import { log } from "src/logger/logManager";
 import type { FieldFilter } from "./FieldSuggestionParser";
 import { splitWikilinkAwareList } from "./splitWikilinkAwareList";
 
 type DataviewFileLike = { path: string };
 
-// Minimal structural surface of the Dataview API actually used here. Declaring it
-// locally decouples this integration from `obsidian-dataview`'s exported
-// `DataviewApi` type, which resolves to `any` and made the `DataviewApi | null`
-// return type a redundant union.
+// The part of the Dataview API used here.
 type DataviewQueryApi = {
 	query(source: string): Promise<{
 		successful: boolean;
 		value: { values: unknown[][] };
 	}>;
 };
+
+/**
+ * The enabled Dataview plugin's API. Read here the way `obsidian-dataview`'s
+ * `getAPI` reads it, since importing that package bundles its whole query
+ * parser (~115 KB) into main.js.
+ */
+function getDataviewApi(app: App): DataviewQueryApi | null {
+	return (app.plugins.plugins.dataview?.api as DataviewQueryApi | undefined) ?? null;
+}
 
 function escapeDataviewString(value: string): string {
 	return value.replace(/[\\"]/g, "\\$&");
@@ -47,7 +52,7 @@ function isDataviewFileLike(value: unknown): value is DataviewFileLike {
 // biome-ignore lint/complexity/noStaticOnlyClass: <explanation>
 export class DataviewIntegration {
 	private static getDataviewAPI(app: App): DataviewQueryApi | null {
-		const dataview = getAPI(app);
+		const dataview = getDataviewApi(app);
 		if (!dataview) {
 			log.logMessage("Dataview plugin is not installed or enabled");
 			return null;
@@ -198,6 +203,6 @@ export class DataviewIntegration {
 	 * Check if Dataview is available
 	 */
 	static isAvailable(app: App): boolean {
-		return getAPI(app) !== null;
+		return getDataviewApi(app) !== null;
 	}
 }

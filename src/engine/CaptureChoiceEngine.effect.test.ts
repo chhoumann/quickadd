@@ -79,7 +79,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 	default: class InputSuggesterMock {},
 }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";

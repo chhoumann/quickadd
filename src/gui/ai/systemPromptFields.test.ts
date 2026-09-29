@@ -20,7 +20,6 @@ const mocks = vi.hoisted(() => ({
 	defaultSystemPrompt: "",
 }));
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		setState: vi.fn(),

@@ -1,17 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
-import { getAPI } from "obsidian-dataview";
+import { App } from "obsidian";
 import { DataviewIntegration } from "./DataviewIntegration";
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
 
 vi.mock("src/logger/logManager", () => ({
 	log: { logMessage: vi.fn(), logError: vi.fn() },
 }));
 
-const app = {} as App;
+let app: App;
 
 function mockDataview(): { query: ReturnType<typeof vi.fn> } {
 	const dv = {
@@ -20,9 +15,24 @@ function mockDataview(): { query: ReturnType<typeof vi.fn> } {
 			value: { values: [] },
 		}),
 	};
-	vi.mocked(getAPI).mockReturnValue(dv as unknown as ReturnType<typeof getAPI>);
+	app.plugins.plugins.dataview = { api: dv } as never;
 	return dv;
 }
+
+beforeEach(() => {
+	app = new App();
+});
+
+describe("DataviewIntegration.isAvailable", () => {
+	it("is false when Dataview is not installed or enabled", () => {
+		expect(DataviewIntegration.isAvailable(app)).toBe(false);
+	});
+
+	it("is true when the Dataview plugin exposes its API", () => {
+		mockDataview();
+		expect(DataviewIntegration.isAvailable(app)).toBe(true);
+	});
+});
 
 describe("DataviewIntegration folder DQL escaping", () => {
 	beforeEach(() => {

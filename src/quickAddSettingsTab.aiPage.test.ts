@@ -6,8 +6,6 @@ import { DEFAULT_SETTINGS } from "./settings";
 import { settingsStore } from "./settingsStore";
 import { deepClone } from "./utils/deepClone";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 
 function provider(id: string | undefined, name: string): AIProvider {

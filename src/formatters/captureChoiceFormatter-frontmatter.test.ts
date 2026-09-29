@@ -44,8 +44,6 @@ vi.mock('../engine/SingleMacroEngine', async () => (await import("../../tests/he
 
 vi.mock('../engine/SingleTemplateEngine', async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMockWithConstructor());
 
-vi.mock('obsidian-dataview', async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 vi.mock('../main', async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
 
 import { CaptureChoiceFormatter } from './captureChoiceFormatter';

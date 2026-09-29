@@ -100,10 +100,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { TFile, TFolder, type App } from "obsidian";
 import { Notice } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";

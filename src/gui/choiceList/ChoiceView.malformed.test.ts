@@ -5,7 +5,6 @@ import ChoiceView from "./ChoiceView.svelte";
 import { renderChoiceView } from "../../../tests/helpers/settings/choiceView";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../choiceRename", () => ({
 	promptRenameChoice: vi.fn().mockResolvedValue(undefined),
 }));

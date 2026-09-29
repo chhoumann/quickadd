@@ -5,7 +5,6 @@ vi.mock("../quickAddApi", () => ({ QuickAddApi: { GetApi: () => ({}) } }));
 vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 
 import type { App } from "obsidian";

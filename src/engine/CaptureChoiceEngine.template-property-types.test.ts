@@ -111,10 +111,6 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 	default: class {},
 }));

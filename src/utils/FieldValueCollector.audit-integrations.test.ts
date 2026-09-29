@@ -18,9 +18,11 @@ const dataviewQuery = vi.fn(async () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: () => ({ query: dataviewQuery }),
-}));
+function appWithDataview(): App {
+	const app = new App();
+	app.plugins.plugins.dataview = { api: { query: dataviewQuery } } as never;
+	return app;
+}
 
 describe("FieldValueCollector - exclude-file with Dataview installed (integrations audit)", () => {
 	beforeEach(() => {
@@ -29,7 +31,7 @@ describe("FieldValueCollector - exclude-file with Dataview installed (integratio
 	});
 
 	it("honors exclude-file via the Dataview path, dropping the excluded file's row while keeping Dataview's parsing", async () => {
-		const app = new App();
+		const app = appWithDataview();
 		// No markdown files, so any value can only come from the Dataview branch.
 		app.vault.getMarkdownFiles = () => [];
 
@@ -51,7 +53,7 @@ describe("FieldValueCollector - exclude-file with Dataview installed (integratio
 	});
 
 	it("matches exclude-file by basename when given a full path target, too", async () => {
-		const app = new App();
+		const app = appWithDataview();
 		app.vault.getMarkdownFiles = () => [];
 
 		const values = await collectFieldValuesProcessed(app, "project", {
@@ -63,7 +65,7 @@ describe("FieldValueCollector - exclude-file with Dataview installed (integratio
 	});
 
 	it("still uses Dataview when no exclude-file filter is present", async () => {
-		const app = new App();
+		const app = appWithDataview();
 		app.vault.getMarkdownFiles = () => [];
 
 		const values = await collectFieldValuesProcessed(app, "project", {});

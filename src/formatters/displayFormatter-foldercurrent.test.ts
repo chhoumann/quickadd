@@ -1,19 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { App } from "obsidian";
 import { FileNameDisplayFormatter } from "./fileNameDisplayFormatter";
 import { FormatDisplayFormatter } from "./formatDisplayFormatter";
 import type QuickAdd from "../main";
-
-// FormatDisplayFormatter statically imports SingleTemplateEngine, whose module
-// graph reaches obsidian-dataview (which requires a real 'obsidian' module).
-// The {{foldercurrent}} preview never touches templates, so stub it out.
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	SingleTemplateEngine: class {
-		run(): Promise<string> {
-			return Promise.resolve("");
-		}
-	},
-}));
 
 /**
  * {{foldercurrent}} previews (issue #1480): both display formatters resolve the

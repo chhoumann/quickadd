@@ -4,11 +4,6 @@ import ChoiceView from "./ChoiceView.svelte";
 import { renderChoiceView } from "../../../tests/helpers/settings/choiceView";
 import { describe, expect, it, vi } from "vitest";
 
-// CommandList/ChoiceListItem transitively reach the formatter/engine graph, which
-// pulls obsidian-dataview's CJS `require('obsidian')`; mock it like the rest of
-// the component suite does.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 // Folder adds now auto-open the rename prompt; stub it so these component tests
 // don't block on a real modal (resolving undefined = the user cancelled rename,
 // which keeps the default name).

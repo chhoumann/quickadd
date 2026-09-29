@@ -3,10 +3,6 @@ import { App } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import { collectFieldValuesProcessed } from "./FieldValueCollector";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: () => null,
-}));
-
 describe("Issue #671 - {{FIELD:tags}} suggestions", () => {
 	beforeEach(() => {
 		FieldSuggestionCache.getInstance().clear();

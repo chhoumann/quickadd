@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// FormatPreviewField -> formatter graph pulls obsidian-dataview's CJS require.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App, Modal } from "obsidian";
 import type QuickAdd from "../../main";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
