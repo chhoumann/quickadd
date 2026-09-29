@@ -460,8 +460,8 @@ properties are merged into the existing note instead of inserting a second `---`
 block. Missing or empty properties are filled from the template. If a property
 already contains one value, the note's value wins. Properties that can contain
 multiple values add any template values that are not already present. Canvas and
-base files can only be overwritten: appending would break their JSON, so QuickAdd
-stops and says so.
+base files can only be overwritten. QuickAdd stops and says so if you append to
+them, because raw template text would break their structure.
 
 :::
 
