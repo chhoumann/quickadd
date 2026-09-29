@@ -570,36 +570,89 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(isFullyReviewed(preview, NONE)).toBe(false);
 	});
 
-	it("flags an orphan non-.js asset the loader still runs as raw JavaScript", () => {
-		// The user-script loader (src/utils/userScript.ts) runs the RAW bytes of any
-		// non-.md file a macro points at as JavaScript — not just .js. A bundled asset
-		// with a benign-looking extension (or none) that lies about its kind would
-		// otherwise slip the .js-only disclosure heuristic, land on disk, and run via
-		// any macro pointing at its path. The gate must treat it as executable code.
+	it("does not gate bundled files that hold no code QuickAdd runs (#1881)", () => {
+		// The user-script loader only runs .js files and notes, so a Base, a canvas,
+		// or a file with any other extension cannot run, whatever `kind` it claims.
 		const m = macro("m1", "Empty", []);
 		const payload = "module.exports = () => exfiltrate();";
 		const pkg = makePackage(
 			[pkgChoice(m, ["Empty"])],
 			[
-				asset("template", "scripts/payload.txt", payload),
-				asset("capture-template", "scripts/payload.cjs", payload),
+				asset("template", "Templates/Dashboard.base", "views:\n  - type: table\n"),
+				asset("template", "Boards/Plan.canvas", '{"nodes":[],"edges":[]}'),
+				asset("user-script", "scripts/payload.txt", payload),
 				asset("template", "scripts/payload", payload),
 			],
 		);
 		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
 
-		for (const path of [
-			"scripts/payload.txt",
-			"scripts/payload.cjs",
-			"scripts/payload",
-		]) {
-			const file = preview.files.find((f) => f.originalPath === path);
-			expect(file?.orphan).toBe(true);
-			expect(file?.requiresReview).toBe(true);
-			expect(preview.criticalScriptPaths).toContain(path);
-		}
+		expect(preview.files.map((file) => file.requiresReview)).toEqual([
+			false, false, false, false,
+		]);
+		expect(preview.criticalScriptPaths).toEqual([]);
+		expect(requiresAcknowledgement(preview)).toBe(false);
+	});
+
+	it("gates every bundled file that holds code QuickAdd runs", () => {
+		const m = macro("m1", "Empty", []);
+		const inline = "```js quickadd\nreturn app.vault.getName();\n```";
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "scripts/Upper.JS", "module.exports = () => {};"),
+				// A reviewed script can require() a module it ships alongside.
+				asset("template", "scripts/lib.cjs", "module.exports = {};"),
+				asset("template", "scripts/lib.mjs", "export default {};"),
+				// The formatter runs a `js quickadd` fence anywhere in a template.
+				asset("template", "Templates/Dashboard.base", `filters: "${inline}"`),
+				asset("template", "Boards/Plan.canvas", `{"nodes":[{"text":"${inline}"}]}`),
+				asset("template", "Templates/inline.md", `Name: \`\`\`js quickadd return 1\`\`\``),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.criticalScriptPaths).toEqual([
+			"scripts/Upper.JS",
+			"scripts/lib.cjs",
+			"scripts/lib.mjs",
+			"Templates/Dashboard.base",
+			"Boards/Plan.canvas",
+			"Templates/inline.md",
+		]);
 		expect(requiresAcknowledgement(preview)).toBe(true);
-		expect(isFullyReviewed(preview, NONE)).toBe(false);
+	});
+
+	it("scans a backtick flood in a bundled template in linear time", () => {
+		const m = macro("m1", "Empty", []);
+		const flood = "`".repeat(200_000);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset("template", "Templates/flood.base", `name: ${flood}`),
+				asset("template", "Templates/flood.canvas", `${flood}js quickadd return 1;`),
+			],
+		);
+		const started = performance.now();
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(performance.now() - started).toBeLessThan(1000);
+		expect(preview.criticalScriptPaths).toEqual([]);
+	});
+
+	it("scans a template's inline fences for AI tool use", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[
+				asset(
+					"template",
+					"Templates/agent.base",
+					"note: |\n  ```js quickadd\n  await quickAddApi.ai.agent({});\n  ```\n",
+				),
+			],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+
+		expect(preview.capabilityRows.map((row) => row.flag)).toContain("ai-tools");
 	});
 
 	it("does not flag a plain .md template with no js code block", () => {

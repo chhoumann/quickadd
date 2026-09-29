@@ -1,6 +1,9 @@
 import type { App, TAbstractFile } from "obsidian";
 import { Notice, TFile } from "obsidian";
-import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
+import {
+	JAVASCRIPT_FILE_EXTENSION_REGEX,
+	MARKDOWN_FILE_EXTENSION_REGEX,
+} from "../constants";
 import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
@@ -54,6 +57,10 @@ function reportAndThrowUserScriptLoadError(
 	}
 
 	throw error;
+}
+
+function unsupportedScriptFileMessage(path: string): string {
+	return `QuickAdd could not run ${path}. A user script must be a .js file or a note with a \`\`\`js code block. Rename the file so it ends in .js.`;
 }
 
 function savedWebpageMessage(path: string): string {
@@ -206,6 +213,15 @@ export async function loadUserScript(
 	}
 
 	if (file instanceof TFile) {
+		const isNote = MARKDOWN_FILE_EXTENSION_REGEX.test(file.path);
+		// Code runs only from .js files and notes, the same files the script
+		// pickers offer and the package import review asks you to read.
+		if (!isNote && !JAVASCRIPT_FILE_EXTENSION_REGEX.test(file.path)) {
+			reportAndThrowUserScriptLoadError(
+				unsupportedScriptFileMessage(command.path),
+				options,
+			);
+		}
 
 		const req = (s: string) => window.require && window.require(s);
 		const exp: Record<string, unknown> = {};
@@ -217,7 +233,7 @@ export async function loadUserScript(
 		// in a note (#1065) — the latter is editable on mobile. For a note we run the
 		// first js fence and ignore surrounding prose; the .js path is byte-identical.
 		let scriptSource = fileContent;
-		if (MARKDOWN_FILE_EXTENSION_REGEX.test(file.path)) {
+		if (isNote) {
 			const { code, error } = extractScriptFromMarkdown(fileContent);
 			if (code === null || code.length === 0) {
 				// Surface a visible, actionable reason (the caller's generic "failed to

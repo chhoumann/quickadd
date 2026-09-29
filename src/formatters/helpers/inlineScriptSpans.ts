@@ -1,4 +1,4 @@
-const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
+export const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
 /** Linear fence scan matching INLINE_JAVASCRIPT_REGEX without backtracking on backtick floods. */
 export function findInlineScriptSpans(

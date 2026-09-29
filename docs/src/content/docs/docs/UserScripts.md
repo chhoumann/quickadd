@@ -39,6 +39,8 @@ A user script can live in either of two places inside your vault:
 - a note (`.md`) containing a ` ```js ` (or ` ```javascript `) code block.
 
 The note form is handy on mobile, where Obsidian can't open `.js` files at all.
+QuickAdd doesn't run scripts from files with any other extension, such as
+`.cjs` or `.txt`; rename those so they end in `.js`.
 
 :::caution[Where scripts can live]
 A user script must sit inside your Obsidian vault, but **not** in the
