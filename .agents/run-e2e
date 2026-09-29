@@ -86,4 +86,6 @@ for name in "${!start_env[@]}"; do
 done
 
 export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
-pnpm run test:e2e -- "$@"
+# No `--`: pnpm passes it through, and Vitest ignores everything after it, so
+# file and `-t` filters would silently run the whole suite.
+pnpm run test:e2e "$@"

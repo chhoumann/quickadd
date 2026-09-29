@@ -110,7 +110,40 @@ exit 0
 		expect(result.status).toBe(23);
 		expect(result.stderr).toContain("status 23");
 		expect(fs.readFileSync(log, "utf8")).toContain("stop:e2e-obsidian");
-		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e --");
+		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e");
+	});
+
+	it("passes its arguments to Vitest as filters", () => {
+		const instanceName = `orb-args-test-${process.pid}-${Date.now()}`;
+		const initialRoot = prepareProfileRoot();
+		const home = path.join(profileRoot, instanceName, "home");
+		fs.mkdirSync(home, { recursive: true });
+		const vault = path.join(repoRoot, ".obsidian-e2e-vaults", instanceName);
+		fs.mkdirSync(vault, { recursive: true });
+		const bin = temporaryDirectory("quickadd-mock-bin-args-");
+		const log = path.join(bin, "calls.log");
+		fs.writeFileSync(path.join(bin, "pnpm"), `#!/usr/bin/env bash
+echo "$*" >> ${JSON.stringify(log)}
+if [[ "$*" == *"start:e2e-obsidian"* ]]; then
+	for prefix in OBSIDIAN QUICKADD; do
+		echo "export \${prefix}_E2E_VAULT='${instanceName}'"
+		echo "export \${prefix}_E2E_VAULT_PATH='${vault}'"
+		echo "export \${prefix}_E2E_OBSIDIAN_HOME='${home}'"
+	done
+fi
+`, { mode: 0o755 });
+
+		try {
+			const result = spawnSync(runE2E, ["tests/e2e/field-label.test.ts", "-t", "label"], {
+				env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+				encoding: "utf8",
+			});
+			expect(result.status, result.stderr).toBe(0);
+			expect(fs.readFileSync(log, "utf8")).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label\n");
+		} finally {
+			fs.rmSync(vault, { recursive: true, force: true });
+			cleanProfileInstance(instanceName, initialRoot);
+		}
 	});
 
 	it("rejects rather than evaluates unexpected start output", () => {
@@ -165,7 +198,7 @@ exit 0
 				expect(result.status, testCase.name).toBe(1);
 				const calls = fs.readFileSync(log, "utf8");
 				expect(calls, testCase.name).toContain("stop:e2e-obsidian");
-				expect(calls, testCase.name).not.toContain("test:e2e --");
+				expect(calls, testCase.name).not.toContain("test:e2e");
 			}
 			expect(fs.existsSync("/tmp/quickadd-env-injected")).toBe(false);
 		} finally {
