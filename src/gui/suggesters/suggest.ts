@@ -17,10 +17,11 @@ type ListPlacement = "bottom-start" | "top-start";
 
 /**
  * Where to open the list relative to its input. QuickAdd prompts end in an
- * action bar (`.qa-prompt-actions`: Submit, Cancel, Peek) right under their
- * last input, and the list is layered above the modal, so a list that reaches
- * the bar takes the click aimed at Submit. Open it above the input when it
- * fits there; otherwise keep the usual placement below.
+ * action bar (`.qa-prompt-actions`: Submit, Cancel, Peek) below their inputs
+ * (pinned to the bottom of the one-page form), and the list is layered above
+ * the modal, so a list that reaches the bar takes the click aimed at Submit.
+ * Open it above the input when it fits there; otherwise keep the usual
+ * placement below.
  */
 function listPlacement(inputEl: HTMLElement, listEl: HTMLElement): ListPlacement {
 	const actionsEl = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions");

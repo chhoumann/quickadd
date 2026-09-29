@@ -28,9 +28,13 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 
 	class Modal {
 		containerEl = document.createElement("div");
+		modalEl = document.createElement("div");
 		contentEl = document.createElement("div");
 		scope = new Scope();
-		constructor(_app: App) { this.containerEl.appendChild(this.contentEl); }
+		constructor(_app: App) {
+			this.modalEl.appendChild(this.contentEl);
+			this.containerEl.appendChild(this.modalEl);
+		}
 		open() {
 			if (noticeMessages && "onOpen" in this && typeof this.onOpen === "function") this.onOpen();
 		}
@@ -111,8 +115,8 @@ export function ensureObsidianDomPolyfills(): void {
 	};
 }
 
-export function modalButton(modal: Pick<Modal, "contentEl">, label = "Submit"): HTMLButtonElement {
-	const button = Array.from(modal.contentEl.querySelectorAll("button"))
+export function modalButton(modal: Pick<Modal, "modalEl">, label = "Submit"): HTMLButtonElement {
+	const button = Array.from(modal.modalEl.querySelectorAll("button"))
 		.find((candidate) => candidate.textContent === label);
 	if (!button) throw new Error(`Missing modal button: ${label}`);
 	return button;

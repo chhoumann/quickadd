@@ -88,11 +88,11 @@ export async function typeInto(obsidian: ObsidianClient, selector: string, text:
 	await insertText(obsidian, text);
 }
 
-export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace", modified = false) {
+export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace" | "Tab", modified = false) {
 	const modifiers = modified
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
-	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
 	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
 		["Input.dispatchKeyEvent", { type: "keyDown", ...event }],
 		["Input.dispatchKeyEvent", { type: "keyUp", ...event }],
