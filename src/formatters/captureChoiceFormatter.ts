@@ -202,6 +202,30 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		fileContent: string,
 		file: TFile,
 	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+		return this.captureIntoFile(input, choice, fileContent, file, true);
+	}
+
+	/**
+	 * Places text that formatContentOnly already formatted. That text now holds
+	 * the selection, clipboard and prompt answers, which are data: formatting it
+	 * again would expand tokens and inline scripts written inside them.
+	 */
+	public async insertFormattedContent(
+		formatted: string,
+		choice: ICaptureChoice,
+		fileContent: string,
+		file: TFile,
+	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+		return this.captureIntoFile(formatted, choice, fileContent, file, false);
+	}
+
+	private async captureIntoFile(
+		input: string,
+		choice: ICaptureChoice,
+		fileContent: string,
+		file: TFile,
+		format: boolean,
+	): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
@@ -218,8 +242,7 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			!choice.captureToActiveFile ||
 			choice.activeFileWritePosition === "top" ||
 			choice.activeFileWritePosition === "bottom";
-		const formatted = await this.formatCapture(input, shouldRunTemplater);
-		return formatted;
+		return await this.formatCapture(input, shouldRunTemplater, format);
 	}
 
 	public async formatContent(
@@ -236,13 +259,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return (await this.formatCapture(input, runTemplater)).content;
 	}
 
-	private async formatCapture(input: string, runTemplater: boolean): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
+	private async formatCapture(input: string, runTemplater: boolean, format = true): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
-		let formatted = await this.withClipboardImageFallback(async () =>
-			this.withPromptScope("captureText", input, async () =>
-				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
-			),
-		);
+		let formatted = format
+			? await this.withClipboardImageFallback(async () =>
+				this.withPromptScope("captureText", input, async () =>
+					super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+				),
+			)
+			: input;
 
 		// Run templater only once per capture payload to prevent #533 double execution
 		if (runTemplater && this.file && !this.templaterProcessed) {

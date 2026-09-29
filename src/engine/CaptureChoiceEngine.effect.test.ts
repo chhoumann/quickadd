@@ -31,7 +31,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		}
 		// The engine's second pass: splice the payload into the file. An empty payload
 		// yields the file back unchanged, which is what the real formatter does.
-		async formatContentWithFile(content: string, _choice: unknown, file: string) {
+		async insertFormattedContent(content: string, _choice: unknown, file: string) {
 			return { content: content.trim() ? `${file}${content}` : file, captureContent: content, cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
