@@ -155,14 +155,13 @@ export async function suggestForField({ app, executor, getSourcePath }: VaultPro
 			if (provider) {
 				return await provider.inputPrompt(title, fallbackPrompt);
 			}
-			return await GenericInputPrompt.PromptWithContext(
+			return await GenericInputPrompt.Prompt(
 				app,
 				title,
 				fallbackPrompt,
 				undefined,
-				getSourcePath() ?? undefined,
 				undefined,
-				{ allowPeek: true },
+				{ allowPeek: true, linkSourcePath: getSourcePath() ?? undefined },
 			);
 		}
 

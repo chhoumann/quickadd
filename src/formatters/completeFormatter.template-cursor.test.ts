@@ -12,7 +12,7 @@ const { prompt } = vi.hoisted(() => ({
 vi.mock("../gui/InputPrompt", () => ({
 	default: class {
 		factory() {
-			return { Prompt: prompt, PromptWithContext: prompt };
+			return { Prompt: prompt };
 		}
 	},
 }));

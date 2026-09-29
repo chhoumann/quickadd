@@ -559,26 +559,14 @@ export class CompleteFormatter extends Formatter {
 				);
 				const placeholder =
 					this.valuePromptContext?.placeholder ?? prompt.placeholder;
-				if (linkSourcePath) {
-					this.value = await promptFactory.PromptWithContext(
-						this.app,
-						prompt.title,
-						placeholder,
-						defaultValue,
-						linkSourcePath,
-						undefined,
-						promptOptions,
-					);
-				} else {
-					this.value = await promptFactory.Prompt(
-						this.app,
-						prompt.title,
-						placeholder,
-						defaultValue,
-						undefined,
-						promptOptions,
-					);
-				}
+				this.value = await promptFactory.Prompt(
+					this.app,
+					prompt.title,
+					placeholder,
+					defaultValue,
+					undefined,
+					{ ...promptOptions, linkSourcePath: linkSourcePath || undefined },
+				);
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw new UserCancelError("Input cancelled by user");

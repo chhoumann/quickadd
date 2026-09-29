@@ -38,7 +38,7 @@ function field(): HTMLInputElement | HTMLTextAreaElement {
 }
 
 function open(Prompt: (typeof prompts)[keyof typeof prompts], header: string, linkSourcePath?: string) {
-	return Prompt.PromptWithContext(fakeApp as never, header, undefined, undefined, linkSourcePath);
+	return Prompt.Prompt(fakeApp as never, header, undefined, undefined, undefined, { linkSourcePath });
 }
 
 async function cancel(waitForClose: Promise<string>) {

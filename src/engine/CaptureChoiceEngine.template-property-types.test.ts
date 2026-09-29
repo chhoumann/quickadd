@@ -69,7 +69,6 @@ vi.mock("src/gui/InputPrompt", () => ({
 		factory() {
 			return {
 				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
 			};
 		}
 	},

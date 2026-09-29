@@ -17,28 +17,6 @@ export default class GenericInputPrompt extends TextPromptModal<TextComponent> {
 			header,
 			placeholder,
 			value,
-			undefined,
-			description,
-			options,
-		);
-		return newPromptModal.waitForClose;
-	}
-
-	public static PromptWithContext(
-		app: App,
-		header: string,
-		placeholder?: string,
-		value?: string,
-		linkSourcePath?: string,
-		description?: string,
-		options?: InputPromptOptions,
-	): Promise<string> {
-		const newPromptModal = new GenericInputPrompt(
-			app,
-			header,
-			placeholder,
-			value,
-			linkSourcePath,
 			description,
 			options,
 		);

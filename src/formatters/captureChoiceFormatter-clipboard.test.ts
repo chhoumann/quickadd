@@ -13,7 +13,7 @@ vi.mock("../gui/InputPrompt", async () => (await import("../../tests/helpers/for
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	__esModule: true,
-	default: { PromptWithContext: vi.fn().mockResolvedValue("") },
+	default: { Prompt: vi.fn().mockResolvedValue("") },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());

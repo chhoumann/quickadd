@@ -14,7 +14,6 @@ vi.mock("../gui/InputPrompt", () => ({
 		factory() {
 			return {
 				Prompt: promptMock,
-				PromptWithContext: promptMock,
 			} as any;
 		}
 	},
