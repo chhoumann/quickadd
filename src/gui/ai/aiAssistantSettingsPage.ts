@@ -7,12 +7,10 @@ import type {
 } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { settingsStore } from "src/settingsStore";
-import { getAllFolderPathsInVault } from "src/utilityObsidian";
 import type { SettingsKey } from "../components/settingsDefinitions";
 import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
 import { populateModelDropdown } from "../modelSelect";
 import { ProviderPickerModal } from "../ProviderPickerModal";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { AIProviderSettingPage } from "./AIProviderSettingPage";
 import {
 	providerEntryNames,
@@ -60,7 +58,7 @@ export function createAIAssistantPage(app: App): SettingDefinitionPage<SettingsK
 		desc: "Providers, models, and defaults for AI commands.",
 		displayValue: () => describeProviderCount(storedProviders().length),
 		visible: () => !settingsStore.getState().disableOnlineFeatures,
-		items: [createProvidersList(app), createDefaultsGroup(app)],
+		items: [createProvidersList(app), createDefaultsGroup()],
 	};
 }
 
@@ -116,7 +114,7 @@ async function confirmRemoveProvider(
 	if (confirmed) removeProvider(provider.id);
 }
 
-function createDefaultsGroup(app: App): SettingDefinitionGroup<SettingsKey> {
+function createDefaultsGroup(): SettingDefinitionGroup<SettingsKey> {
 	return {
 		type: "group",
 		heading: "Defaults",
@@ -132,7 +130,11 @@ function createDefaultsGroup(app: App): SettingDefinitionGroup<SettingsKey> {
 			{
 				name: "Prompt template folder",
 				desc: "The folder QuickAdd reads prompt templates from.",
-				render: (setting) => renderPromptTemplateFolder(app, setting),
+				control: {
+					type: "folder",
+					key: "ai.promptTemplatesFolderPath",
+					placeholder: "prompts/",
+				},
 			},
 			{
 				name: "Show assistant",
@@ -190,22 +192,6 @@ function renderDefaultModel(setting: Setting): () => void {
 		});
 	});
 	return () => unsubscribe();
-}
-
-function renderPromptTemplateFolder(app: App, setting: Setting): () => void {
-	let suggester: GenericTextSuggester | undefined;
-	setting.addText((text) => {
-		text
-			.setPlaceholder("prompts/")
-			.setValue(settingsStore.getState().ai.promptTemplatesFolderPath)
-			.onChange((value) => updateAISettings({ promptTemplatesFolderPath: value }));
-		suggester = new GenericTextSuggester(
-			app,
-			text.inputEl,
-			getAllFolderPathsInVault(app),
-		);
-	});
-	return () => suggester?.destroy();
 }
 
 function renderDefaultSystemPrompt(setting: Setting): void {

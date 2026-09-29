@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { App, Component, ExtraButtonComponent, Setting } from "obsidian";
+import type { SettingDefinitionList } from "obsidian";
 import { renderChoiceName } from "./gui/choiceList/renderChoiceName";
 import { renderDevelopmentInfo } from "./quickAddSettingsDevelopmentInfo";
 import { formatDateAliasLines } from "./utils/dateAliases";
@@ -238,14 +239,15 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 			items?: Array<{ name?: unknown; control?: { key?: string } }>;
 		}>;
 
-		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): 8 groups.
-		expect(groups).toHaveLength(8);
+		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): 8 groups
+		// and the template folder list.
+		expect(groups).toHaveLength(9);
 
 		const validKeys = new Set(Object.keys(DEFAULT_SETTINGS));
 		const controlKeys: string[] = [];
 
 		for (const group of groups) {
-			expect(group.type).toBe("group");
+			expect(group.type).toBe(group.heading === "Template folders" ? "list" : "group");
 			expect(typeof group.heading).toBe("string");
 			expect(Array.isArray(group.items)).toBe(true);
 
@@ -276,6 +278,34 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 				"enableRibbonIcon",
 			]),
 		);
+	});
+
+	it("lists template folders natively and deletes the one at the given row", () => {
+		settingsStore.setState({ templateFolderPaths: ["Templates", "Areas/Work/"] });
+		const list = makeTab().getSettingDefinitions().find(
+			(item) => "heading" in item && item.heading === "Template folders",
+		) as SettingDefinitionList;
+
+		expect(list.type).toBe("list");
+		expect(list.items?.map((item) => item.name)).toEqual(["Templates", "Areas/Work"]);
+		expect(list.addItem?.name).toBe("Add folder");
+
+		list.onDelete?.(1);
+		expect(settingsStore.getState().templateFolderPaths).toEqual(["Templates"]);
+	});
+
+	it("rebuilds the tab when the template folders change, and only then", () => {
+		const tab = makeTab();
+		const update = vi.spyOn(tab, "update").mockImplementation(() => {});
+		const plugin = tab.plugin as unknown as { register: ReturnType<typeof vi.fn> };
+		const unsubscribe = plugin.register.mock.calls[0][0] as () => void;
+
+		settingsStore.setState({ showCaptureNotification: false });
+		expect(update).not.toHaveBeenCalled();
+
+		settingsStore.setState({ templateFolderPaths: ["Templates"] });
+		expect(update).toHaveBeenCalledTimes(1);
+		unsubscribe();
 	});
 
 	it("keeps nested choice search in the choice picker section", () => {

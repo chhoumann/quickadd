@@ -89,7 +89,6 @@ describe("settings tab copy", () => {
 			choices: vi.fn(),
 			packages: vi.fn(),
 			dateAliases: vi.fn(),
-			templateFolders: vi.fn(),
 			globalVariables: vi.fn(),
 			developmentInfo: vi.fn(),
 		}, true);

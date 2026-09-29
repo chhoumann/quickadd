@@ -1,6 +1,7 @@
 import type {
 	Setting,
 	SettingDefinitionGroup,
+	SettingDefinitionList,
 	SettingDefinitionPage,
 } from "obsidian";
 import type { QuickAddSettings } from "../../settings";
@@ -9,7 +10,7 @@ import { createDocsLink, DOCS_URLS, openDocsUrl } from "../../docs";
 /** Declarative control keys for fields nested under `ai` (see the tab's store bridge). */
 export type AISettingsKey = `ai.${Extract<
 	keyof QuickAddSettings["ai"],
-	"showAssistant" | "confirmToolCalls"
+	"showAssistant" | "confirmToolCalls" | "promptTemplatesFolderPath"
 >}`;
 export type SettingsKey = Extract<keyof QuickAddSettings, string> | AISettingsKey;
 export const PACKAGES_DESC =
@@ -19,7 +20,6 @@ type SettingsRenderers = Record<
 	| "choices"
 	| "packages"
 	| "dateAliases"
-	| "templateFolders"
 	| "globalVariables"
 	| "developmentInfo",
 	(setting: Setting) => void | (() => void)
@@ -29,6 +29,7 @@ export function createSettingDefinitions(
 	render: SettingsRenderers,
 	isDevBuild: boolean,
 	aiAssistantPage?: SettingDefinitionPage<SettingsKey>,
+	templateFolders?: SettingDefinitionList<SettingsKey>,
 ): SettingDefinitionGroup<SettingsKey>[] {
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{
@@ -132,15 +133,11 @@ export function createSettingDefinitions(
 				},
 			],
 		},
+		...(templateFolders ? [templateFolders] : []),
 		{
 			type: "group",
-			heading: "Templates & properties",
+			heading: "Properties",
 			items: [
-				{
-					name: "Template folder paths",
-					desc: "Folders where templates are stored. Used to suggest template files when configuring QuickAdd. Add as many as you like; leave empty to suggest every template file in the vault.",
-					render: render.templateFolders,
-				},
 				{
 					name: "Convert string front matter variables to typed properties (Beta)",
 					desc:

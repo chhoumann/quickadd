@@ -1,23 +1,19 @@
 import type {
 	App,
+	ButtonComponent,
 	Setting,
 	SettingDefinitionItem,
+	SettingDefinitionList,
 	TextAreaComponent,
 } from "obsidian";
-import {
-	ButtonComponent,
-	ExtraButtonComponent,
-	Notice,
-	PluginSettingTab,
-	TextComponent,
-} from "obsidian";
+import { Notice, PluginSettingTab } from "obsidian";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import ChoiceView from "./gui/choiceList/ChoiceView.svelte";
 import ChoicesUnavailable from "./gui/choiceList/ChoicesUnavailable.svelte";
 import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import type { Plain } from "./gui/svelte/persist.svelte";
-import { GenericTextSuggester } from "./gui/suggesters/genericTextSuggester";
+import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
 import {
@@ -55,6 +51,7 @@ import {
 	tryOpenSettingsPage,
 } from "./utils/openPluginSettings";
 import { storedProviders } from "./gui/ai/aiSettingsState";
+import { isCancellationError } from "./utils/errorUtils";
 
 const AI_KEY_PREFIX = "ai.";
 
@@ -82,13 +79,18 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		// Declarative definitions are a snapshot: Obsidian re-renders from them
 		// until update() rebuilds them. Rebuild when the AI page's provider
-		// entries change (the way Obsidian's own Keychain tab follows its
-		// secrets), but not on every store write: update() re-renders the page
-		// on screen.
-		let signature = aiPageSignature(storedProviders());
+		// entries or the template folder list change (the way Obsidian's own
+		// Keychain tab follows its secrets), but not on every store write:
+		// update() re-renders the page on screen.
+		const definitionsSignature = (state: QuickAddSettings): string =>
+			JSON.stringify([
+				aiPageSignature(storedProviders(state)),
+				normalizeTemplateFolderPaths(state.templateFolderPaths),
+			]);
+		let signature = definitionsSignature(settingsStore.getState());
 		plugin.register(
 			settingsStore.subscribe((state) => {
-				const next = aiPageSignature(storedProviders(state));
+				const next = definitionsSignature(state);
 				if (next === signature) return;
 				signature = next;
 				this.update();
@@ -187,10 +189,53 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			choices: (setting) => this.renderChoicesView(setting),
 			packages: (setting) => this.renderPackages(setting),
 			dateAliases: (setting) => this.renderDateAliases(setting),
-			templateFolders: (setting) => this.renderTemplateFolderPaths(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
-		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app));
+		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
+	}
+
+	private templateFoldersList(): SettingDefinitionList<SettingsKey> {
+		const paths = templateFolderPaths();
+		return {
+			type: "list",
+			heading: "Template folders",
+			emptyState: "No folders yet. QuickAdd suggests templates from the whole vault.",
+			addItem: {
+				name: "Add folder",
+				action: () => void this.addTemplateFolder(),
+			},
+			onDelete: (index) => {
+				settingsStore.setState({
+					templateFolderPaths: templateFolderPaths().filter(
+						(folder) => folder !== paths[index],
+					),
+				});
+			},
+			// List headings are not indexed by settings search; the alias keeps
+			// "template folder" finding the rows.
+			items: paths.map((folder) => ({ name: folder, aliases: ["Template folder"] })),
+		};
+	}
+
+	private async addTemplateFolder(): Promise<void> {
+		const added = new Set(templateFolderPaths());
+		const folders = sortFolderPathsByTree(getAllFolderPathsInVault(this.app))
+			.filter((path) => path !== "/" && !added.has(path));
+		let folder: string;
+		try {
+			folder = await GenericSuggester.Suggest(
+				this.app,
+				folders,
+				folders,
+				"Choose a template folder",
+			);
+		} catch (error) {
+			if (isCancellationError(error)) return;
+			throw error;
+		}
+		const paths = templateFolderPaths();
+		if (paths.includes(folder)) return;
+		settingsStore.setState({ templateFolderPaths: [...paths, folder] });
 	}
 
 	override hide(): void {
@@ -407,95 +452,6 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		});
 	}
 
-	private renderTemplateFolderPaths(setting: Setting): () => void {
-		// Let this row span the full pane (label/desc stacked above a full-width
-		// list) instead of cramming a growing list into the narrow control column.
-		setting.settingEl.addClass("qa-template-folders-setting");
-
-		const container = setting.controlEl.createDiv("qa-template-folders");
-		const listEl = container.createDiv("qa-template-folder-list");
-
-		const getPaths = (): string[] =>
-			normalizeTemplateFolderPaths(settingsStore.getState().templateFolderPaths);
-		const setPaths = (paths: string[]): void => {
-			settingsStore.setState({ templateFolderPaths: paths });
-		};
-
-		const renderList = (): void => {
-			listEl.empty();
-			const paths = getPaths();
-			if (paths.length === 0) {
-				listEl.createDiv({
-					cls: "qa-template-folder-empty",
-					text: "No folders added yet.",
-				});
-				return;
-			}
-			for (const folder of paths) {
-				const row = listEl.createDiv("qa-template-folder-row");
-				// title gives desktop a hover tooltip for paths truncated by ellipsis;
-				// on mobile (no hover) the path wraps instead — see styles.css.
-				row.createSpan({
-					cls: "qa-template-folder-name",
-					text: folder,
-					attr: { title: folder },
-				});
-				new ExtraButtonComponent(row)
-					.setIcon("trash-2")
-					.setTooltip(`Remove ${folder}`)
-					.onClick(() => {
-						setPaths(getPaths().filter((f) => f !== folder));
-						renderList();
-					});
-			}
-		};
-
-		const inputRow = container.createDiv("qa-template-folder-input-row");
-		const input = new TextComponent(inputRow);
-		input.setPlaceholder("templates/");
-		input.inputEl.addClass("qa-template-folder-input");
-		const suggester = new GenericTextSuggester(
-			this.app,
-			input.inputEl,
-			sortFolderPathsByTree(getAllFolderPathsInVault(this.app)).filter(
-				(path) => path !== "/",
-			),
-		);
-
-		const addFolder = (): void => {
-			// Store the canonical (normalized) form so "templates" and "templates/"
-			// can't both be added, and dedupe against the existing list.
-			const [folder] = normalizeTemplateFolderPaths([input.inputEl.value]);
-			input.inputEl.value = "";
-			if (!folder) return;
-			const paths = getPaths();
-			if (paths.includes(folder)) return;
-			setPaths([...paths, folder]);
-			renderList();
-		};
-
-		const onKeydown = (e: KeyboardEvent): void => {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				addFolder();
-			}
-		};
-		input.inputEl.addEventListener("keydown", onKeydown);
-		new ButtonComponent(inputRow)
-			.setCta()
-			.setButtonText("Add")
-			.onClick(() => addFolder());
-
-		renderList();
-
-		// The suggester registers global (document/window) listeners while open;
-		// tear it down when the row is rebuilt or the tab hides so nothing leaks.
-		return () => {
-			input.inputEl.removeEventListener("keydown", onKeydown);
-			suggester.destroy();
-		};
-	}
-
 	private renderDevInfo(setting: Setting): void {
 		const infoContainer = setting.settingEl.createDiv();
 		infoContainer.addClass("qa-dev-info");
@@ -506,4 +462,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			dirty: __DEV_GIT_DIRTY__,
 		});
 	}
+}
+
+function templateFolderPaths(): string[] {
+	return normalizeTemplateFolderPaths(settingsStore.getState().templateFolderPaths);
 }
