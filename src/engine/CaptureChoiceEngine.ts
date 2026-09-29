@@ -23,7 +23,7 @@ import {
 	VALUE_SYNTAX,
 } from "../constants";
 import { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatter";
-import { getMarkdownHeadings } from "../formatters/helpers/getEndOfSection";
+import { extractHeadingsFromLines } from "../formatters/helpers/sectionLink";
 import { getLinesInString } from "../utility";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -932,6 +932,20 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 	}
 
+	/**
+	 * For "Choose heading when capturing": prompt the user with a dropdown of the
+	 * destination's headings and set the picked line as the formatter's insert-after
+	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
+	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
+	 * parsed with the same `extractHeadingsFromLines` that finds section ends, so it offers
+	 * the headings Obsidian shows. `allowCustomValue` lets the user type a NEW heading
+	 * only when "Create line if not found" is enabled — otherwise the override path can only
+	 * match an existing line and would abort after the user already typed one (the picker must
+	 * never offer to create a heading the engine cannot create). `content` is the
+	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
+	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
+	 * before any write.
+	 */
 	private async maybeResolveInsertAfterHeading(content: string): Promise<void> {
 		const insertAfter = this.choice.insertAfter;
 		if (!insertAfter?.enabled || !insertAfter.promptHeading) return;
@@ -939,12 +953,18 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const allowCreate = !!insertAfter.createIfNotFound;
 
 		const lines = getLinesInString(content);
-		const headings = getMarkdownHeadings(lines);
+		// The headings Obsidian shows, minus setext ones: the picked line becomes
+		// the insert-after target, and a setext heading's line is its text, so a
+		// capture after it would split the heading from its underline. An ATX
+		// line always differs from its text by the `#` marker.
+		const headings = extractHeadingsFromLines(lines).filter(
+			(h) => lines[h.line].trim() !== h.heading,
+		);
 		const headingLines = headings.map((h) => lines[h.line]);
 		const headingDisplay = headings.map(
-			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.text}`,
+			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.heading}`,
 		);
-		const headingTexts = headings.map((h) => h.text);
+		const headingTexts = headings.map((h) => h.heading);
 
 		const placeholder = "Choose a heading to insert under";
 		const chosen = String(

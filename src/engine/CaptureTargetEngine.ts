@@ -454,20 +454,6 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 	}
 
 	/**
-	 * For "Choose heading when capturing": prompt the user with a dropdown of the
-	 * destination's headings and set the picked line as the formatter's insert-after
-	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
-	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
-	 * parsed with the same `getMarkdownHeadings` the inserter uses (so what is offered can
-	 * never desync from what is matched). `allowCustomValue` lets the user type a NEW heading
-	 * only when "Create line if not found" is enabled — otherwise the override path can only
-	 * match an existing line and would abort after the user already typed one (the picker must
-	 * never offer to create a heading the engine cannot create). `content` is the
-	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
-	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
-	 * before any write.
-	 */
-	/**
 	 * Abort a runtime capture-target file picker on a non-interactive run (CLI
 	 * without `ui`) instead of hanging on an unanswerable suggester. Reached when a
 	 * format-syntax "Capture to" resolves to a folder/tag/property scope the

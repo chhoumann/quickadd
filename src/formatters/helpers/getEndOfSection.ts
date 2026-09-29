@@ -7,32 +7,6 @@ function isSameHeading(heading1: Heading, heading2: Heading): boolean {
 }
 
 /**
- * ATX headings by line, without fence or frontmatter awareness. Only the
- * "Choose heading when capturing" dropdown still uses it: it offers each
- * heading's own line as the insert-after target, which a setext heading
- * (text line plus underline) doesn't fit.
- */
-export function getMarkdownHeadings(
-	bodyLines: string[],
-): { level: number; line: number; text: string }[] {
-	const headers: { level: number; line: number; text: string }[] = [];
-
-	bodyLines.forEach((line, index) => {
-		const match = line.match(/^(#+)[\s]+(.*)$/);
-
-		if (!match) return;
-
-		headers.push({
-			level: match[1].length,
-			text: match[2],
-			line: index,
-		});
-	});
-
-	return headers;
-}
-
-/**
  *
  * @param lines Lines in body to find end of section
  * @param targetLine Target line to find end of section
