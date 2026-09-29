@@ -224,6 +224,28 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 	});
 
+	it("inserts after a code fence below a non-heading line, not at a # line inside it (#1926)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "Setup steps:",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- run the tests\n",
+			choice,
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n\n## Next\n",
+			createFile(),
+		);
+
+		expect(content).toBe(
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n- run the tests\n\n## Next\n",
+		);
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),

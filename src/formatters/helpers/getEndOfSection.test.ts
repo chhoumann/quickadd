@@ -186,6 +186,20 @@ test("getEndOfSection - target isn't heading, the block runs to the end of a not
 	expect(getEndOfSection(lines, 1, false)).toBe(2);
 });
 
+test("getEndOfSection - target isn't heading, a # line inside a code fence doesn't end the block (#1926)", () => {
+	const lines = [
+		"Setup steps:", // target (0)
+		"```bash",
+		"# install deps",
+		"pnpm install",
+		"```", // result (4)
+		"",
+		"## Next",
+	];
+
+	expect(getEndOfSection(lines, 0, false)).toBe(4);
+});
+
 test("getEndOfSection - target is heading, should not consider subsections", () => {
 	const lines = [
 		"# Notes",
