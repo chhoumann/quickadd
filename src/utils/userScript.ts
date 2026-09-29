@@ -4,7 +4,6 @@ import {
 	JAVASCRIPT_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
@@ -61,6 +60,10 @@ function reportAndThrowUserScriptLoadError(
 
 function unsupportedScriptFileMessage(path: string): string {
 	return `QuickAdd could not run ${path}. A user script must be a .js file or a note with a \`\`\`js code block. Rename the file so it ends in .js.`;
+}
+
+function missingScriptMessage(path: string): string {
+	return `QuickAdd could not find ${path}. If you moved or renamed the script, update its path in the macro.`;
 }
 
 function savedWebpageMessage(path: string): string {
@@ -208,8 +211,7 @@ export async function loadUserScript(
 	// @ts-ignore
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
 	if (!file) {
-		log.logError(`failed to load file ${command.path}.`);
-		return;
+		reportAndThrowUserScriptLoadError(missingScriptMessage(command.path), options);
 	}
 
 	if (file instanceof TFile) {

@@ -1192,6 +1192,7 @@ For complete working examples, see:
 ## Troubleshooting {#troubleshooting}
 
 **Script not loading:**
+- If QuickAdd says it "could not find" the script, the file was moved, renamed, or deleted, and the macro stops at that step. Update the script's path in the macro
 - Check the file path in your macro configuration
 - Ensure the script exports a valid module
 - Check console for syntax errors

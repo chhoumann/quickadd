@@ -22,6 +22,7 @@ import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { log } from "../../logger/logManager";
 import { loadUserScript } from "src/utilityObsidian";
+import { isUserScriptLoadError } from "src/utils/userScript";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
@@ -246,7 +247,14 @@ function getChoiceBuilder(choice: IChoice) {
 }
 
 async function configureScript(command: IUserScript) {
-	const loaded = await loadUserScript(command, app);
+	let loaded: Awaited<ReturnType<typeof loadUserScript>>;
+	try {
+		loaded = await loadUserScript(command, app);
+	} catch (error) {
+		// Already reported, e.g. "could not find" for a moved script.
+		if (isUserScriptLoadError(error)) return;
+		throw error;
+	}
 	if (!loaded?.script) {
 		log.logWarning(`${command.name} could not be loaded.`);
 		return;

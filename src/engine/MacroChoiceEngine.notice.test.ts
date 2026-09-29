@@ -154,6 +154,16 @@ describe("MacroChoiceEngine cancellation notices", () => {
 		expect(noticeClass.instances[0]?.message).toContain("Invalid project name");
 });
 
+	it("says a bare abort() once", async () => {
+		const engine = createTestEngine("");
+
+		await engine.run();
+
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([
+			"Macro execution aborted",
+		]);
+	});
+
 	it("shows one notice when a conditional branch aborts the macro", async () => {
 		const engine = createTestEngine("Stopped on purpose", [
 			new ConditionalCommand({

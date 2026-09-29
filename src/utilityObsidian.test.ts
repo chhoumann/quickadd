@@ -390,6 +390,21 @@ describe("getUserScript", () => {
 		}
 	});
 
+	it("stops with one clear error when the script is missing, such as after a rename", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const app = {
+			vault: { getAbstractFileByPath: vi.fn(() => null), read: vi.fn() },
+		} as unknown as App;
+		try {
+			await expect(
+				getUserScript(createUserScriptCommand({ path: "Scripts/gone.js" }), app),
+			).rejects.toThrow("QuickAdd could not find Scripts/gone.js.");
+			expect(logError).toHaveBeenCalledTimes(1);
+		} finally {
+			logError.mockRestore();
+		}
+	});
+
 	it("can suppress user-facing load reporting during preflight", async () => {
 		const before = noticeMessages().length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
