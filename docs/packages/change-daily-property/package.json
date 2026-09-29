@@ -47,7 +47,7 @@
 		"afterImport": [
 			"Create today's daily note and give it the properties you want to change; the menu only lists properties that already exist, and only text, number and checkbox ones.",
 			"Run **Change daily note property** from the command palette, pick a property, and enter its new value.",
-			"Daily notes somewhere else? Click the cog next to **Change daily note property** in **Settings → QuickAdd**, then the cog on the **changeDailyProperty** step, and set **Daily note path** (for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`). Leave it empty to use the Daily notes plugin's folder and date format."
+			"Daily notes somewhere else? Click the cog next to **Change daily note property** in **Settings → QuickAdd**, then the cog on the **changeDailyProperty** step, and set **Daily note path** (for example `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`). Leave it empty to use the Daily notes plugin's folder and date format."
 		]
 	}
 }

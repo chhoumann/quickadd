@@ -39,7 +39,7 @@ Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Enable **Capture 
 - Get asked which date to use each time:
 
   ```
-  {{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}
+  {{VALUE}} @{{{VDATE:DATE,YYYY-MM-DD}}}
   ```
 
   You can type an exact date or a natural-language date such as `tomorrow`.
