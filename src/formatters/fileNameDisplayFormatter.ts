@@ -1,9 +1,8 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, findDateVariableFormat, rememberDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { findDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, type PromptContext } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
-import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -14,7 +13,7 @@ import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import type { RunClocks } from "../types/dateOrigin";
-import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, fileNameSafeStandIn, getCurrentFileLinkToSectionPreview, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
+import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, fileNameSafeStandIn, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
 import {
 	describeIllegalFilePathChars,
 	findIllegalFilePathChars,
@@ -391,16 +390,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		);
 	}
 
-	protected getCurrentFileLinkToSection(): string | null {
-		// Only reachable for an INCLUDED body (the file-name pass leaves links
-		// literal, as the run does). Mirrors FormatDisplayFormatter's static
-		// example so the two previews describe the token the same way.
-		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
-		return getCurrentFileLinkToSectionPreview(
-			this.app.workspace.getActiveFile(),
-		);
-	}
-
 	protected async suggestForField(
 		_variableName: string,
 		parsed: { fieldName: string },
@@ -409,76 +398,27 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
-		let output: string = input;
-
 		// The date only. FormatDisplayFormatter appends " (default: X)" /
 		// " (optional)" hints about the token; this row is a FILE NAME, and the
 		// run splices in the formatted date and nothing else - so a hint here
-		// asserted a name that could never be created, which is the whole point
-		// of #1563/#1578. The hints survive where they are true: on the body
-		// preview, and in the run's own prompt placeholder ("Enter value for due
-		// (default: tomorrow)"). Like the body preview, this renders the current
-		// date WITHOUT applying |startof:/|endof: snap - snap is only resolved in
-		// the real CompleteFormatter pass, and snapping only the file-name
-		// preview would diverge from the body preview.
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
-			const cleanVariableName = variableName?.trim();
+		// asserted a name that could never be created (#1563/#1578). The hints
+		// survive where they are true: on the body preview, and in the run's own
+		// prompt placeholder ("Enter value for due (default: tomorrow)").
+		return input.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+			// Only a NAMELESS token stays literal, which is what the run does with it.
+			const name = variableName?.trim();
+			if (!name) return match;
 
-			// Only a NAMELESS token stays literal, which is what the run does with
-			// it too. A token that names no FORMAT is complete and working - the
-			// run supplies YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time - so
-			// echoing it back promised a name with a token in it (#1589).
-			if (!cleanVariableName) {
-				return match;
-			}
-
-			const { options, error } = parseVDateOptionsForPreview(rawOptions);
 			// A unit that never resolves is an authoring mistake the run aborts on,
 			// so it belongs on the diagnostics channel (held back until the field is
 			// idle) rather than being swallowed. The options still come back usable,
 			// so the TEXT does not flicker while the unit is being typed.
+			const { options, error } = parseVDateOptionsForPreview(rawOptions);
 			if (error) this.reportProblem(error);
-			const { withTime, snap, caseStyle } = options;
-			const cleanDateFormat =
-				dateFormat?.trim() || defaultDateVariableFormat(withTime);
-			rememberDateVariableFormat(this.variables, cleanVariableName, cleanDateFormat);
 
-			// An ANSWERED date wins over the example. The one-page input form
-			// seeds the user's real picks into this formatter before computing the
-			// preview (runOnePagePreflight.computePreview), so without this the row
-			// showed today's date beside the date they had just chosen (#1590).
-			const stored = renderStoredDateVariable(
-				this.variables.get(cleanVariableName),
-				cleanDateFormat,
-				snap,
-				this.dateParser,
-			);
-			if (stored) return this.applyCaseOption(stored.text, caseStyle, match);
-
-			// Nothing answered: a realistic example from the current date, snapped
-			// the way the run snaps it. #1595 deliberately left snap out of this
-			// preview, on the grounds that snapping only the file-name row would
-			// split it from the body row - both rows do it now, so that reason is
-			// gone, and the alternative was worse: the ANSWERED branch above snaps
-			// (it is the run's own renderer), and {{DATE:...|startof:month}} in the
-			// very same pass has always snapped, so the row contradicted itself
-			// depending on which token you used. Inside the try, because the snap
-			// needs moment and a throw here would redden the row per keystroke.
-			try {
-				return this.applyCaseOption(
-					DateFormatPreviewGenerator.generate(
-						cleanDateFormat,
-						snappedExampleDate(snap),
-					),
-					caseStyle,
-					match,
-				);
-			} catch {
-				return `[${cleanDateFormat}]`;
-			}
+			const date = this.previewDateVariable(match, name, dateFormat, options);
+			return date.text ?? `[${date.format}]`;
 		});
-
-		return output;
 	}
 
 	protected replaceRandomInString(input: string): string {
