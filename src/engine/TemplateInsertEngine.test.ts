@@ -283,15 +283,9 @@ describe("insertBodyIntoNoteContent", () => {
 		expect(insertBodyIntoNoteContent(note, "- tpl V\n", "bottom").content).toBe(expected);
 	});
 
-	it("drops the template's leading blank lines at the bottom, such as the one after its frontmatter (#1958)", () => {
-		expect(insertBodyIntoNoteContent("- old\n", "\n\n- tpl V", "bottom").content).toBe(
-			"- old\n\n- tpl V",
-		);
-	});
-
 	it("adds no blank line above the template in an empty note (#1958)", () => {
 		expect(insertBodyIntoNoteContent("", "- tpl V\n", "bottom").content).toBe("- tpl V\n");
-		expect(insertBodyIntoNoteContent("\n\n", "\n- tpl V\n", "bottom").content).toBe("- tpl V\n");
+		expect(insertBodyIntoNoteContent("\n\n", "- tpl V\n", "bottom").content).toBe("- tpl V\n");
 	});
 
 	it("keeps the last line's own trailing spaces at the bottom", () => {
@@ -390,6 +384,18 @@ describe("TemplateInsertEngine.apply", () => {
 			file,
 			"EXISTING\n\nTEMPLATE_CONTENT",
 		);
+	});
+
+	it("bottom: drops the template's leading blank lines, such as the one after its frontmatter (#1958)", async () => {
+		const harness = makeHarness({
+			templateContent: "---\nstatus: draft\n---\n\n\nTEMPLATE_CONTENT",
+			noteContent: "EXISTING\n",
+		});
+		const file = makeFile();
+
+		await makeEngine(harness, file, "bottom").apply();
+
+		expect(harness.modify).toHaveBeenCalledWith(file, "EXISTING\n\nTEMPLATE_CONTENT");
 	});
 
 	it("top: inserts body below note frontmatter and keeps existing scalar values", async () => {

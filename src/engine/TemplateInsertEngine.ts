@@ -80,8 +80,9 @@ const LEADING_BLANK_LINES = /^(?:[^\S\r\n]*\r?\n)+/;
 
 /**
  * Inserts a template body into existing note content. "bottom" leaves exactly
- * one blank line between the note and the template, however either one ends or
- * starts, and none above the template in an empty note (#1958). "top" is
+ * one blank line between the note and the template, however the note ends, and
+ * none above the template in an empty note (#1958). Callers drop the body's own
+ * leading blank lines first (see insertTemplateIntoFile). "top" is
  * frontmatter-aware: the body lands below the note's frontmatter block, including
  * the blank line that separates that block from the body (issue #1538).
  *
@@ -100,10 +101,8 @@ export function insertBodyIntoNoteContent(
 	if (position === "bottom") {
 		const note = noteContent.replace(TRAILING_BLANK_LINES, "");
 		const head = note.trim() ? `${note}\n\n` : "";
-		const content = head + body.replace(LEADING_BLANK_LINES, "");
-		// insertedStartOffset is where body[0] would sit, so offsets into `body`
-		// still map; one in a dropped leading blank line lands on the separator.
-		return { content, insertedStartOffset: content.length - body.length, insertedEndOffset: content.length };
+		const content = head + body;
+		return { content, insertedStartOffset: head.length, insertedEndOffset: content.length };
 	}
 
 	return insertAtNoteBodyStartWithResult(noteContent, `${body}\n`);
@@ -327,17 +326,23 @@ export class TemplateInsertEngine extends TemplateEngine {
 	): Promise<TFile> {
 		const { formatted, templatePropertyVars } =
 			await this.formatTemplateForTargetFile();
-		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
+		const split = splitTemplateFrontmatter(formatted);
+		const { frontmatterYaml } = split;
+		// At the bottom, the one blank line above the template replaces the
+		// template's own leading blank lines, such as the one after its frontmatter.
+		const body = position === "bottom" ? split.body.replace(LEADING_BLANK_LINES, "") : split.body;
 
 		const cursor = this.cursorPlacement;
 		if (body.trim().length > 0 || cursor) {
 			await processNote(this.app, this.targetFile, (noteContent) => {
 				const inserted = insertBodyIntoNoteContent(noteContent, body, position);
 				if (cursor && inserted.insertedStartOffset !== null) {
-					const start = inserted.insertedStartOffset - (formatted.length - body.length);
+					const blockStart = inserted.insertedStartOffset;
+					const start = blockStart - (formatted.length - body.length);
 					this.cursorPlacement = {
 						content: inserted.content,
-						offsets: cursor.offsets.map(offset => Math.max(0, start + offset)),
+						// A cursor in a dropped blank line goes to the start of the template.
+						offsets: cursor.offsets.map(offset => Math.max(blockStart, start + offset)),
 					};
 				}
 				return inserted.content;

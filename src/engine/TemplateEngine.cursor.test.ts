@@ -293,6 +293,20 @@ describe("Template write cursor snapshots", () => {
 		expect(engine.getCursorPlacement()).toEqual({ content, offsets: [content.indexOf("after")] });
 	});
 
+	it("moves a cursor on a dropped leading blank line to the start of the appended template (#1958)", async () => {
+		const h = templateHarness();
+		h.file("template.md", "{{CURSOR}}\n\n\ntext");
+		const file = h.file("note.md", "existing");
+		h.app.vault.process = async (target, transform) => {
+			const content = transform(h.contents.get(target.path) ?? "");
+			h.contents.set(target.path, content);
+			return content;
+		};
+		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
+		await engine.apply();
+		expect(engine.getCursorPlacement()).toEqual({ content: "existing\n\ntext", offsets: ["existing\n\n".length] });
+	});
+
 	it("extracts a fragment marker after Templater expands the inserted text", async () => {
 		const h = templateHarness();
 		h.file("template.md", "<% result %>{{CURSOR}}after");
