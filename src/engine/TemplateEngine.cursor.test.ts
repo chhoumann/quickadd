@@ -230,7 +230,7 @@ describe("Template write cursor snapshots", () => {
 	it.each([
 		["top", "---\ntags: old\n---\n\nExisting {{CURSOR}}", "---\ntags: old\n---\n\nbeforeafter\nExisting {{CURSOR}}"],
 		["top", "---\n---", "---\n---\nbeforeafter\n"],
-		["bottom", "Existing {{CURSOR}}", "Existing {{CURSOR}}\nbeforeafter"],
+		["bottom", "Existing {{CURSOR}}", "Existing {{CURSOR}}\n\nbeforeafter"],
 	] as const)("maps %s insertion and leaves existing markers literal", async (mode, note, expected) => {
 		const h = templateHarness();
 		h.file("template.md", "before{{cursor}}after{{CURSOR}}");
@@ -277,6 +277,22 @@ describe("Template write cursor snapshots", () => {
 		expect(engine.getCursorPlacement()).toEqual({ content, offsets: [content.indexOf("after")] });
 	});
 
+	it("keeps the cursor on its text when bottom drops the template's leading blank lines (#1958)", async () => {
+		const h = templateHarness();
+		h.file("template.md", "---\nstatus: draft\n---\n\nbefore{{CURSOR}}after");
+		const file = h.file("note.md", "existing\n\n");
+		h.app.vault.process = async (target, transform) => {
+			const content = transform(h.contents.get(target.path) ?? "");
+			h.contents.set(target.path, content);
+			return content;
+		};
+		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
+		await engine.apply();
+		const content = h.contents.get(file.path) ?? "";
+		expect(content.endsWith("existing\n\nbeforeafter")).toBe(true);
+		expect(engine.getCursorPlacement()).toEqual({ content, offsets: [content.indexOf("after")] });
+	});
+
 	it("extracts a fragment marker after Templater expands the inserted text", async () => {
 		const h = templateHarness();
 		h.file("template.md", "<% result %>{{CURSOR}}after");
@@ -289,6 +305,6 @@ describe("Template write cursor snapshots", () => {
 		vi.mocked(templaterParseTemplate).mockImplementation(async (_app, content) => content.replace("<% result %>", "expanded"));
 		const engine = new TemplateInsertEngine(h.app, h.plugin, file, "template.md", "bottom", h.executor);
 		await engine.apply();
-		expect(engine.getCursorPlacement()).toEqual({ content: "existing\nexpandedafter", offsets: ["existing\nexpanded".length] });
+		expect(engine.getCursorPlacement()).toEqual({ content: "existing\n\nexpandedafter", offsets: ["existing\n\nexpanded".length] });
 	});
 });

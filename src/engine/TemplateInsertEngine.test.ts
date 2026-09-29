@@ -273,9 +273,30 @@ describe("splitTemplateFrontmatter", () => {
 });
 
 describe("insertBodyIntoNoteContent", () => {
-	it("appends to the bottom", () => {
-		expect(insertBodyIntoNoteContent("existing", "new", "bottom").content).toBe(
-			"existing\nnew",
+	it.each([
+		["a final line break", "# E\n- old\n", "# E\n- old\n\n- tpl V\n"],
+		["no final line break", "# E\n- old", "# E\n- old\n\n- tpl V\n"],
+		["a trailing blank line", "# E\n- old\n\n", "# E\n- old\n\n- tpl V\n"],
+		["blank lines with spaces", "# E\n- old\n  \n\t\n", "# E\n- old\n\n- tpl V\n"],
+		["CRLF line breaks", "# E\r\n- old\r\n\r\n", "# E\r\n- old\n\n- tpl V\n"],
+	])("appends to the bottom after exactly one blank line, for a note ending with %s (#1958)", (_, note, expected) => {
+		expect(insertBodyIntoNoteContent(note, "- tpl V\n", "bottom").content).toBe(expected);
+	});
+
+	it("drops the template's leading blank lines at the bottom, such as the one after its frontmatter (#1958)", () => {
+		expect(insertBodyIntoNoteContent("- old\n", "\n\n- tpl V", "bottom").content).toBe(
+			"- old\n\n- tpl V",
+		);
+	});
+
+	it("adds no blank line above the template in an empty note (#1958)", () => {
+		expect(insertBodyIntoNoteContent("", "- tpl V\n", "bottom").content).toBe("- tpl V\n");
+		expect(insertBodyIntoNoteContent("\n\n", "\n- tpl V\n", "bottom").content).toBe("- tpl V\n");
+	});
+
+	it("keeps the last line's own trailing spaces at the bottom", () => {
+		expect(insertBodyIntoNoteContent("- old  \n", "new", "bottom").content).toBe(
+			"- old  \n\nnew",
 		);
 	});
 
@@ -367,7 +388,7 @@ describe("TemplateInsertEngine.apply", () => {
 
 		expect(harness.modify).toHaveBeenCalledWith(
 			file,
-			"EXISTING\nTEMPLATE_CONTENT",
+			"EXISTING\n\nTEMPLATE_CONTENT",
 		);
 	});
 

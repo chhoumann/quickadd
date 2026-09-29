@@ -73,8 +73,15 @@ export function splitTemplateFrontmatter(content: string): {
 	};
 }
 
+/** Blank lines (spaces and tabs allowed) at the end of a note. */
+const TRAILING_BLANK_LINES = /(?:\r?\n[^\S\r\n]*)+$/;
+/** Blank lines at the start of a template body. */
+const LEADING_BLANK_LINES = /^(?:[^\S\r\n]*\r?\n)+/;
+
 /**
- * Inserts a template body into existing note content. "top" is
+ * Inserts a template body into existing note content. "bottom" leaves exactly
+ * one blank line between the note and the template, however either one ends or
+ * starts, and none above the template in an empty note (#1958). "top" is
  * frontmatter-aware: the body lands below the note's frontmatter block, including
  * the blank line that separates that block from the body (issue #1538).
  *
@@ -91,8 +98,12 @@ export function insertBodyIntoNoteContent(
 	position: "top" | "bottom",
 ): NoteBodyInsertionResult {
 	if (position === "bottom") {
-		const content = `${noteContent}\n${body}`;
-		return { content, insertedStartOffset: noteContent.length + 1, insertedEndOffset: content.length };
+		const note = noteContent.replace(TRAILING_BLANK_LINES, "");
+		const head = note.trim() ? `${note}\n\n` : "";
+		const content = head + body.replace(LEADING_BLANK_LINES, "");
+		// insertedStartOffset is where body[0] would sit, so offsets into `body`
+		// still map; one in a dropped leading blank line lands on the separator.
+		return { content, insertedStartOffset: content.length - body.length, insertedEndOffset: content.length };
 	}
 
 	return insertAtNoteBodyStartWithResult(noteContent, `${body}\n`);
@@ -326,7 +337,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 					const start = inserted.insertedStartOffset - (formatted.length - body.length);
 					this.cursorPlacement = {
 						content: inserted.content,
-						offsets: cursor.offsets.map(offset => start + offset),
+						offsets: cursor.offsets.map(offset => Math.max(0, start + offset)),
 					};
 				}
 				return inserted.content;

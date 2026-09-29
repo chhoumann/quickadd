@@ -315,7 +315,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 	});
 
 	it.each([
-		["appendBottom", "---\nstatus: active\n---\nOriginal body\nUpdate"],
+		["appendBottom", "---\nstatus: active\n---\nOriginal body\n\nUpdate"],
 		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],
 		["overwrite", "Update"],
 	] as const)("applies %s to the selected file without creating or rerouting a note", async (action, expected) => {
