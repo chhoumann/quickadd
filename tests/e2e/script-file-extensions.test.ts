@@ -83,3 +83,34 @@ it("asks you to review only the bundled files that can run", async () => {
 		"Templates/Note.md",
 	]);
 });
+
+it("gates inline JavaScript written into a choice's settings", async () => {
+	const { obsidian, sandbox } = getContext();
+	const capture = (id: string, format: string) => ({
+		choice: { id, name: id, type: "Capture", command: false, captureTo: "Inbox.md", format: { enabled: true, format } },
+		pathHint: [id],
+		parentChoiceId: null,
+	});
+	const pkg = (format: string) => ({
+		schemaVersion: 1,
+		quickAddVersion: "2.29.0",
+		createdAt: "2026-09-29T00:00:00.000Z",
+		rootChoiceIds: ["qa-inline"],
+		choices: [capture("qa-inline", format)],
+		assets: [],
+	});
+	type Preview = { ok: boolean; preview?: { summary: { hasCritical: boolean }; capabilityRows: Array<{ flag: string; detail: string }> } };
+	const preview = async (name: string, format: string) => {
+		const path = await seedVaultFile(obsidian, sandbox, name, JSON.stringify(pkg(format)));
+		return obsidian.execJson<Preview>("quickadd:package-preview", { path });
+	};
+
+	const inline = await preview("inline.quickadd.json", "- ```js quickadd return app.vault.getName()```");
+	expect(inline.preview?.summary.hasCritical).toBe(true);
+	expect(inline.preview?.capabilityRows).toContainEqual(
+		expect.objectContaining({ flag: "user-script", detail: "qa-inline › capture format" }),
+	);
+
+	const plain = await preview("plain.quickadd.json", "- {{DATE:HH:mm}} {{VALUE}} <% tp.date.now() %>");
+	expect(plain.preview?.summary.hasCritical).toBe(false);
+});

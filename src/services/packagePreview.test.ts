@@ -890,3 +890,124 @@ describe("gate predicates", () => {
 		expect(requiresAcknowledgement(preview)).toBe(false);
 	});
 });
+
+describe("buildPackagePreview - inline JavaScript in a choice's own settings", () => {
+	const inline = "```js quickadd\nreturn app.vault.getName();\n```";
+	const scriptRows = (preview: ReturnType<typeof buildPackagePreview>) =>
+		preview.capabilityRows
+			.filter((row) => row.flag === "user-script")
+			.map((row) => [row.severity, row.title, row.detail]);
+	const ROW = "Runs custom JavaScript written into a choice setting";
+
+	it("gates each formatted Capture and Template setting that holds a js quickadd fence", () => {
+		const capture = {
+			id: "c1",
+			name: "Log",
+			type: "Capture",
+			command: false,
+			captureTo: `Logs/${inline}.md`,
+			captureToActiveFile: false,
+			format: { enabled: true, format: `- ${inline}` },
+			insertAfter: { enabled: true, after: `## ${inline}` },
+			insertBefore: { enabled: false, before: inline },
+			propertyCapture: { property: { kind: "named", format: inline }, action: "set", createIfMissing: true },
+		} as unknown as ICaptureChoice;
+		const template = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			templatePath: "templates/Note.md",
+			fileNameFormat: { enabled: true, format: `Note ${inline}` },
+			folder: { enabled: true, folders: ["Plain", `Dated/${inline}`, `Again/${inline}`] },
+		} as unknown as ITemplateChoice;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([pkgChoice(capture, ["Log"]), pkgChoice(template, ["Note"])]),
+			NONE,
+		);
+
+		expect(scriptRows(preview)).toEqual([
+			["critical", ROW, "Log › capture to"],
+			["critical", ROW, "Log › capture format"],
+			["critical", ROW, "Log › insert after"],
+			["critical", ROW, "Log › insert before"],
+			["critical", ROW, "Log › property name"],
+			["critical", ROW, "Note › file name format"],
+			["critical", ROW, "Note › folder"],
+		]);
+		expect(preview.choices.map((choice) => choice.flags)).toEqual([
+			expect.arrayContaining(["user-script"]),
+			expect.arrayContaining(["user-script"]),
+		]);
+		expect(requiresAcknowledgement(preview)).toBe(true);
+		// Nothing to open: the code lives in the choice, not in a bundled file.
+		expect(preview.criticalScriptPaths).toEqual([]);
+	});
+
+	it("finds it in an inline Multi child and in a macro's Open file path", () => {
+		const child = {
+			id: "c2",
+			name: "Hidden",
+			type: "Capture",
+			command: false,
+			captureTo: "Inbox.md",
+			format: { enabled: true, format: inline },
+		} as unknown as ICaptureChoice;
+		const openFile = {
+			id: "o1",
+			name: "Open log",
+			type: CommandType.OpenFile,
+			filePath: `Logs/${inline}.md`,
+		} as unknown as ICommand;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([
+				pkgChoice(multi("f1", "Folder", [child]), ["Folder"]),
+				pkgChoice(macro("m1", "Macro", [openFile]), ["Macro"]),
+			]),
+			NONE,
+		);
+
+		expect(scriptRows(preview).map(([, , detail]) => detail)).toEqual([
+			"Folder › Hidden › capture format",
+			"Macro › Open log › file path",
+		]);
+		expect(preview.choices[1]?.commands[0]?.flag).toBe("user-script");
+	});
+
+	it("leaves settings without a runnable fence unflagged", () => {
+		const capture = {
+			id: "c1",
+			name: "Plain",
+			type: "Capture",
+			command: false,
+			captureTo: "Journal/{{DATE:YYYY-MM-DD}}.md",
+			format: {
+				enabled: true,
+				// Tokens, Templater, a plain js code block, and an empty fence
+				// (which the formatter consumes without running anything).
+				format: "- {{DATE:HH:mm}} {{VALUE}} <% tp.date.now() %>\n```js\nconsole.log(1)\n```\n```js quickadd\n```",
+			},
+			insertAfter: { enabled: true, after: "## {{DATE}}" },
+		} as unknown as ICaptureChoice;
+		const template = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			// Not formatted with format(): scalar tokens only, so no code runs here.
+			templatePath: `templates/${inline}.md`,
+			fileNameFormat: { enabled: true, format: "{{VALUE:title}}" },
+			folder: { enabled: true, folders: ["Notes/{{DATE:YYYY}}"] },
+		} as unknown as ITemplateChoice;
+		const preview = buildPackagePreview(
+			NO_EXISTING,
+			makePackage([pkgChoice(capture, ["Plain"]), pkgChoice(template, ["Note"])]),
+			NONE,
+		);
+
+		expect(scriptRows(preview)).toEqual([]);
+		expect(preview.summary.hasCritical).toBe(false);
+	});
+});

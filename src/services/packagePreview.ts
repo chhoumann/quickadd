@@ -3,10 +3,7 @@ export { flagDescription, flagLabel, flagSeverity } from "./packagePreviewFlags"
 import {
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
-import {
-	findInlineScriptSpans,
-	INLINE_SCRIPT_FENCE_LANG,
-} from "../formatters/helpers/inlineScriptSpans";
+import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
 import type IChoice from "../types/choices/IChoice";
 import type { CapabilityRow, MissingReference, PackagePreview, PreviewChoice, PreviewFile, PreviewFlag, PreviewSeverity, PreviewSummary, PreviewUsageSite } from "../types/packages/PackagePreview";
 import type {
@@ -71,14 +68,7 @@ function bundledRunnableCode(originalPath: string, content: string): string | nu
 	}
 	// The linear scan, not INLINE_JAVASCRIPT_REGEX: a crafted file with a long
 	// backtick run would make the regex backtrack and freeze the review.
-	for (const { start, end } of findInlineScriptSpans(decoded)) {
-		let open = start;
-		while (decoded[open] === "`") open++;
-		let close = end;
-		while (decoded[close - 1] === "`") close--;
-		const code = decoded.slice(open + INLINE_SCRIPT_FENCE_LANG.length, close).trim();
-		if (code) blocks.push(code);
-	}
+	for (const code of inlineScriptBodies(decoded)) blocks.push(code);
 	return blocks.length > 0 ? blocks.join("\n") : null;
 }
 

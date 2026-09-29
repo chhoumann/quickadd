@@ -1,4 +1,4 @@
-export const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
+const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
 /** Linear fence scan matching INLINE_JAVASCRIPT_REGEX without backtracking on backtick floods. */
 export function findInlineScriptSpans(
@@ -68,4 +68,21 @@ export function hasUnterminatedInlineScriptFence(input: string): boolean {
 		i = runEnd;
 	}
 	return false;
+}
+
+/**
+ * The code of each complete ```js quickadd fence, trimmed. Empty fences are left
+ * out: the formatter consumes them without running anything.
+ */
+export function inlineScriptBodies(input: string): string[] {
+	const bodies: string[] = [];
+	for (const { start, end } of findInlineScriptSpans(input)) {
+		let open = start;
+		while (input[open] === "`") open++;
+		let close = end;
+		while (input[close - 1] === "`") close--;
+		const code = input.slice(open + INLINE_SCRIPT_FENCE_LANG.length, close).trim();
+		if (code) bodies.push(code);
+	}
+	return bodies;
 }
