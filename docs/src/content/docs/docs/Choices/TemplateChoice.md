@@ -36,7 +36,7 @@ to do each familiar job.
 3. Click the choice name at the top of the settings window. Rename it
    `New book note` and confirm with **Ok**.
 4. Set **Template path** to `Templates/Book.md`.
-5. Turn **File name format** on and enter `{{VALUE:title}}`.
+5. In **File name**, enter `{{VALUE:title}}`.
 6. Set **New note location** to **In a specific folder**. Enter `Books` in
    **Folder path** and click **Add**.
 7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
@@ -148,9 +148,9 @@ the resolved template's body are gathered when the choice runs rather than in th
 up-front form.
 :::
 
-## Name the new note: File name format {#optional}
+## Name the new note: File name {#optional}
 
-**File name format** sets a format for the created file's name, using
+**File name** sets a format for the created file's name, using
 [format syntax](/docs/FormatSyntax/) - so file names can be dynamic too.
 
 ```text title="You configure"
@@ -161,10 +161,9 @@ up-front form.
 £ 2021-06-12 Manually-Written-File-Name
 ```
 
-`{{NAME}}` is a value you enter when invoking the template. If you **disable**
-**File name format**, QuickAdd uses `{{VALUE}}` as the file name format, which keeps
-the default behavior of prompting for a file name when you run the choice (with
-the same `{{VALUE}}` / `{{NAME}}` behavior described in the format syntax docs).
+`{{NAME}}` is a value you enter when invoking the template. Leave **File name**
+empty and QuickAdd asks for the note title when you run the choice, the same as
+writing `{{VALUE}}`.
 
 A slash in the format creates a folder, so the name can include a path. The
 file is created under [New note location](#new-note-location).
@@ -210,7 +209,7 @@ requires a Markdown template.
 The picker names the action beside each existing note, so an update is visible
 before you select it.
 
-The selected note keeps its path and name. QuickAdd skips **File name format**,
+The selected note keeps its path and name. QuickAdd skips **File name**,
 **New note location**, and the new-note collision setting. `{{TITLE}}` and the
 anonymous `{{VALUE}}` use the selected note's basename, and `{{FOLDER}}` uses its
 folder. The template's other inputs still appear, including in the

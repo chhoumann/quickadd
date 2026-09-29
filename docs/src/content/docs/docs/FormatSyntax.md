@@ -12,7 +12,7 @@ You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
 In the format fields of a choice's settings (such as **Capture format**,
-**Capture to**, **File name format**, and the insert after/before targets), type
+**Capture to**, **File name**, and the insert after/before targets), type
 `{{` to get a list of placeholders, then keep typing to filter it. Template
 files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
 an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
@@ -699,7 +699,7 @@ The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
-In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+In a Template [File name](/docs/Choices/TemplateChoice/#optional),
 `{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
 the active note.
 

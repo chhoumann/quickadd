@@ -21,7 +21,7 @@ stay right where you are. Use it to:
    `Add to journal`.
 2. Set **Capture to** to where entries should land, for example
    `Journal/{{DATE}}.md`.
-3. Enable **Capture format** and describe one entry, for example
+3. In **Capture format**, describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`.
 4. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
@@ -211,7 +211,7 @@ is friendlier than the filename.
 ## Shape the entry: Capture format {#capture-format}
 
 _Capture format_ is what actually gets written - think of it as a mini
-template for one entry. When disabled, QuickAdd writes `{{VALUE}}`: whatever
+template for one entry. Left empty, QuickAdd writes `{{VALUE}}`: whatever
 you type in the prompt (or your editor selection, if selection-as-value is
 enabled).
 

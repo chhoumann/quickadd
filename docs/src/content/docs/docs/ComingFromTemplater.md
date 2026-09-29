@@ -49,7 +49,7 @@ A [Template choice](/docs/Choices/TemplateChoice/) creates a note from a templat
 
 To position user input at an exact spot in the new note, put the token exactly where the text belongs. One named value can drive both the file name and the body:
 
-File name format: `{{VALUE:topic}}`
+File name: `{{VALUE:topic}}`
 
 ```markdown
 ---

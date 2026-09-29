@@ -22,7 +22,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
 7. Enable **Insert at end of section** so each capture appends at the bottom of the section.
 8. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
 9. Leave **Link to captured file** disabled.
-10. Enable **Capture format** and use one of the recipes below.
+10. Fill in **Capture format** with one of the recipes below.
 
 ## Recipes
 

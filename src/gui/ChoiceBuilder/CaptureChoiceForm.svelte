@@ -68,6 +68,10 @@ function validateTemplate(
 	return getTemplateFile(app, value) !== null || "Template not found";
 }
 
+// An empty format captures {{VALUE}} on its own; `enabled` just mirrors whether
+// there is text, so choices saved with the old toggle keep working.
+const captureFormat = $derived(choice.format.enabled ? choice.format.format : "");
+
 const selectionOptions = [
 	{ value: "", label: "Follow global setting" },
 	{ value: "enabled", label: "Use selection" },
@@ -163,26 +167,23 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 <LabeledField
 	name="Capture format"
-	desc={"Set the format of the capture. When off, QuickAdd captures {{VALUE}} on its own - what you type at the prompt, or the current selection."}
-	bodyVisible={choice.format.enabled}
+	desc={"Leave empty to capture {{VALUE}} on its own - what you type at the prompt, or the current selection."}
 >
-	{#snippet control()}
-		<Toggle bind:checked={choice.format.enabled} />
-	{/snippet}
 	{#snippet children(id)}
 		{#key formatSuggestContext}
 			<ValidatedInput
 				{id}
 				inputKind="textarea"
-				bind:value={choice.format.format}
-				placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "Format"}
-				required
-				requiredMessage="Capture format is required when enabled"
+				bind:value={
+					() => captureFormat,
+					(value) => (choice.format = { enabled: value.trim() !== "", format: value })
+				}
+				placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "{{VALUE}}"}
 				makeSuggesters={formatSuggesters}
 			/>
 		{/key}
-		<FormatTokenHint value={choice.format.format} />
-		<FormatPreviewField value={choice.format.format} {app} {plugin} />
+		<FormatTokenHint value={captureFormat} />
+		<FormatPreviewField value={captureFormat} {app} {plugin} />
 	{/snippet}
 </LabeledField>
 
