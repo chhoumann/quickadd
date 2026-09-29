@@ -14,7 +14,7 @@ import { templaterParseTemplate } from "../utilityObsidian";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
-import { restoreUserTextInCapture } from "./helpers/userText";
+import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
 import * as positioning from "./helpers/insertionPositioning";
 import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
@@ -230,7 +230,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
-		if (!choice || !file || fileContent === null) return { content: input, captureContent: input, cursor: { kind: "none" } };
+		if (!choice || !file || fileContent === null) {
+			const content = restoreUserText(input);
+			return { content, captureContent: content, cursor: { kind: "none" } };
+		}
 		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 
