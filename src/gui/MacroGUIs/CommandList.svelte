@@ -129,8 +129,13 @@ function persist() {
 // position, and a pre-drag-order restore would silently cancel it.
 let placeholderRecovery: PlaceholderRecovery<ICommand> | null = null;
 
+// Between consider and finalize. Dragging the only command empties `commands`
+// (stripShadow), and the zone must stay in place for the drop.
+let dragging = $state(false);
+
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+	dragging = true;
 	const items = e.detail.items as ICommand[];
 	placeholderRecovery =
 		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
@@ -150,6 +155,7 @@ function handleSort(e: CustomEvent<DndEvent>) {
 		next.splice(Math.min(placeholderRecovery.index, next.length), 0, placeholderRecovery.item);
 	}
 	placeholderRecovery = null;
+	dragging = false;
 	commands = next;
 
 	// Desktop: disarm after a pointer drag so the handle must be grabbed again.
@@ -279,6 +285,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 <ol
 	bind:this={listEl}
 	class="quickAddCommandList"
+	class:is-empty={renderable.length === 0 && !dragging}
 	use:dndzone={baseDndOptions({
 		items: renderable,
 		dragDisabled,
@@ -381,7 +388,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 
 	/* A macro without steps shows no blank list area. The zone type is unique
 	   to this list, so an empty list is never a drop target. */
-	.quickAddCommandList:empty {
+	.quickAddCommandList.is-empty {
 		display: none;
 	}
 </style>

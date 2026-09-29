@@ -60,3 +60,28 @@ describe("CommandList placeholder-window drop (#1692)", () => {
 	});
 
 });
+
+// #1878: a macro without steps hides its empty list, but dragging the only
+// command also empties the list for the length of the drag, and the zone must
+// stay in place for the drop.
+describe("CommandList empty state", () => {
+	it("hides the list of a macro without steps", () => {
+		const { container } = render(CommandList, { props: makeProps([], vi.fn()) });
+		expect(container.querySelector(".quickAddCommandList")?.classList).toContain("is-empty");
+	});
+
+	it("keeps the zone while its only command is dragged", async () => {
+		const a = new ObsidianCommand("Alpha", "a");
+		const { container } = render(CommandList, { props: makeProps([a], vi.fn()) });
+		const zone = container.querySelector(".quickAddCommandList") as Element;
+		expect(zone.querySelectorAll(".quickAddCommandListItem")).toHaveLength(1);
+
+		const shadowOfA = { ...a, id: SHADOW_PLACEHOLDER_ITEM_ID } as ICommand;
+		await fireDnd(zone, "consider", [shadowOfA], TRIGGERS.DRAG_STARTED, a.id);
+		expect(zone.querySelectorAll(".quickAddCommandListItem")).toHaveLength(0);
+		expect(zone.classList).not.toContain("is-empty");
+
+		await fireDnd(zone, "finalize", [a], TRIGGERS.DROPPED_INTO_ZONE, a.id);
+		expect(zone.classList).not.toContain("is-empty");
+	});
+});
