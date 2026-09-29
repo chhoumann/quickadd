@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { App } from "obsidian";
 	import { Notice } from "obsidian";
+	import { tick } from "svelte";
 	import { settingsStore } from "../../settingsStore";
 	import type IChoice from "../../types/choices/IChoice";
 	import type {
@@ -91,6 +92,7 @@
 	let isAnalyzing = $state(false);
 	let analysisToken = $state(0);
 	let hasImported = $state(false);
+	let importSummaryEl = $state<HTMLElement | null>(null);
 
 	const requiresAck = $derived(
 		preview ? requiresAcknowledgement(preview) : false,
@@ -405,6 +407,12 @@
 		} finally {
 			isImporting = false;
 		}
+
+		if (!hasImported) return;
+		// The result renders at the end of the scrolling body, below the review
+		// you just finished; bring it into view above the footer.
+		await tick();
+		importSummaryEl?.scrollIntoView({ block: "nearest" });
 	}
 </script>
 
@@ -505,7 +513,12 @@
 			<PackageWarnings {preview} />
 
 			{#if importSummary}
-				<section class="callout qa-import-summary" data-callout="success">
+				<section
+					class="callout qa-import-summary"
+					data-callout="success"
+					role="status"
+					bind:this={importSummaryEl}
+				>
 					<div class="callout-title">
 						<div class="callout-icon">
 							<ObsidianIcon iconId="check" />
@@ -522,9 +535,11 @@
 	</div>
 
 	<div class="modal-button-container">
-		<button type="button" onclick={close} disabled={isImporting}>
-			Cancel
-		</button>
+		{#if !hasImported}
+			<button type="button" onclick={close} disabled={isImporting}>
+				Cancel
+			</button>
+		{/if}
 		<button
 			type="button"
 			onclick={hasImported ? close : handleImport}

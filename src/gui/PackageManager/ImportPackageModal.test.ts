@@ -30,6 +30,14 @@ vi.mock("../../services/packageImportService", async (importOriginal) => {
 				return actual.analysePackagePreview(...args);
 			},
 		),
+		applyPackageImport: vi.fn(async () => ({
+			updatedChoices: [],
+			addedChoiceIds: ["m1"],
+			overwrittenChoiceIds: [],
+			skippedChoiceIds: [],
+			writtenAssets: ["scripts/fetch.js"],
+			skippedAssets: [],
+		})),
 	};
 });
 
@@ -158,5 +166,41 @@ describe("ImportPackageModal gate flow", () => {
 		// Let the re-analysis settle (resets the gate, so it stays disabled).
 		previewGate.releases[1]();
 		await waitFor(() => expect(checkbox.disabled).toBe(true));
+	});
+});
+
+describe("ImportPackageModal after import (#1880)", () => {
+	it("says which script to open, then shows the result with a single Close", async () => {
+		const scrollIntoView = vi.fn();
+		Element.prototype.scrollIntoView = scrollIntoView;
+		const close = vi.fn();
+		const { container, getByText, getByRole, queryByText } = render(ImportPackageModal, {
+			props: { app: fakeApp(), close },
+		});
+		const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: PACKAGE } });
+		await waitFor(() =>
+			expect(getByText("What this package can do")).toBeTruthy(),
+		);
+
+		expect(container.querySelector("#qa-import-ack-hint")?.textContent?.trim()).toBe(
+			"Open “View contents” on the executable script above to enable this.",
+		);
+
+		await fireEvent.click(getByText("View contents"));
+		const checkbox = getByRole("checkbox") as HTMLInputElement;
+		await waitFor(() => expect(checkbox.disabled).toBe(false));
+		await fireEvent.click(checkbox);
+		await fireEvent.click(getByText("Import package"));
+
+		const summary = await waitFor(() => getByRole("status"));
+		expect(summary.textContent).toContain("Imported: 1 choice added, 1 file written.");
+		await waitFor(() => expect(scrollIntoView.mock.contexts).toContain(summary));
+		const footer = container.querySelector(".modal-button-container") as HTMLElement;
+		expect(Array.from(footer.querySelectorAll("button"), (b) => b.textContent?.trim())).toEqual(["Close"]);
+		expect(queryByText("Cancel")).toBeNull();
+
+		await fireEvent.click(getByText("Close"));
+		expect(close).toHaveBeenCalledTimes(1);
 	});
 });
