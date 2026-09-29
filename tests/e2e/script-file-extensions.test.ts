@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
-import type IMacroChoice from "../../src/types/choices/IMacroChoice";
-import { CommandType } from "../../src/types/macros/CommandType";
+import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { UserScript } from "../../src/types/macros/UserScript";
 import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 import { encodeToBase64 } from "../../src/utils/base64";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
@@ -19,18 +19,11 @@ it("runs a user script only from a .js file or a note", async () => {
 	const js = await seedVaultFile(obsidian, sandbox, "scripts/run.js", script("js"));
 	const txt = await seedVaultFile(obsidian, sandbox, "scripts/run.txt", script("txt"));
 	const base = await seedVaultFile(obsidian, sandbox, "scripts/run.base", script("base"));
-	const macro = (name: string, path: string): IMacroChoice => ({
-		id: `qa-script-ext-${name}`,
-		name: `Script ext ${name}`,
-		type: "Macro",
-		command: false,
-		runOnStartup: false,
-		macro: {
-			id: `qa-script-ext-${name}-body`,
-			name,
-			commands: [{ id: `qa-script-ext-${name}-cmd`, name: path, type: CommandType.UserScript, path, settings: {} }],
-		},
-	} as IMacroChoice);
+	const macro = (name: string, path: string) => {
+		const choice = new MacroChoice(`Script ext ${name}`);
+		choice.macro.commands.push(new UserScript(path, path));
+		return choice;
+	};
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
 		data.choices = [macro("js", js), macro("txt", txt), macro("base", base)];
 	});
