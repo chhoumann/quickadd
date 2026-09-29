@@ -19,14 +19,13 @@ stay right where you are. Use it to:
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The
    Capture builder opens; click its name at the top to rename it
    `Add to journal`.
-2. Set **Capture to** to where entries should land, for example
-   `Journal/{{DATE}}.md`.
+2. Set **Capture to** to **Daily note**.
 3. Enable **Capture format** and describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`.
 4. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
 
-You now have this in today's journal note:
+You now have this in today's daily note:
 
 ```markdown
 - 09:42 Standup moved to Wednesday
@@ -37,9 +36,15 @@ behaves the way you want.
 
 ## Choose where it goes: Capture To {#capture-to}
 
-_Capture To_ is the note you are capturing to. Either enable **Capture to
-active file** to write into the note you are currently in, or enter a file
-path.
+_Capture To_ is the note you are capturing to:
+
+- **Active note** writes into the note you are currently in.
+- **Daily note** writes into the day's daily note. The folder, date format, and
+  template come from Obsidian's **Daily notes** settings (or **Periodic Notes**,
+  when it manages your daily notes), so they never drift apart. The note is
+  created from that template if it doesn't exist yet, and
+  [Which day](/docs/Choices/TemplateChoice/#date-origin) picks the day.
+- **File, folder, or tag** takes a path, described below.
 
 The path supports [format syntax](/docs/FormatSyntax/), so it can be dynamic.
 A daily journal capture might use:
@@ -64,8 +69,7 @@ from that path segment. The text inserted into the note is not changed.
 
 ### How QuickAdd picks the target {#how-quickadd-picks-a-target}
 
-When **Capture to active file** is off, the resolved _Capture to_
-value decides what happens:
+With **File, folder, or tag**, the resolved path decides what happens:
 
 | You write | What happens |
 | --- | --- |

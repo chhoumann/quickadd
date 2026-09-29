@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"quickAddVersion": "2.27.0",
+	"quickAddVersion": "2.30.0",
 	"createdAt": "2026-09-27T00:00:00.000Z",
 	"rootChoiceIds": [
 		"qa-pkg-daily-note-captures"
@@ -22,6 +22,7 @@
 						"copyLinkToClipboard": false,
 						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 						"captureToActiveFile": false,
+						"captureToDailyNote": true,
 						"captureToCanvasNodeId": "",
 						"activeFileWritePosition": "bottom",
 						"createFileIfItDoesntExist": {
@@ -77,6 +78,7 @@
 						"copyLinkToClipboard": false,
 						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 						"captureToActiveFile": false,
+						"captureToDailyNote": true,
 						"captureToCanvasNodeId": "",
 						"activeFileWritePosition": "bottom",
 						"createFileIfItDoesntExist": {
@@ -132,6 +134,7 @@
 						"copyLinkToClipboard": false,
 						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 						"captureToActiveFile": false,
+						"captureToDailyNote": true,
 						"captureToCanvasNodeId": "",
 						"activeFileWritePosition": "bottom",
 						"createFileIfItDoesntExist": {
@@ -187,6 +190,7 @@
 						"copyLinkToClipboard": false,
 						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 						"captureToActiveFile": false,
+						"captureToDailyNote": true,
 						"captureToCanvasNodeId": "",
 						"activeFileWritePosition": "bottom",
 						"createFileIfItDoesntExist": {
@@ -242,6 +246,7 @@
 						"copyLinkToClipboard": false,
 						"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 						"captureToActiveFile": false,
+						"captureToDailyNote": true,
 						"captureToCanvasNodeId": "",
 						"activeFileWritePosition": "bottom",
 						"createFileIfItDoesntExist": {
@@ -306,6 +311,7 @@
 				"copyLinkToClipboard": false,
 				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 				"captureToActiveFile": false,
+				"captureToDailyNote": true,
 				"captureToCanvasNodeId": "",
 				"activeFileWritePosition": "bottom",
 				"createFileIfItDoesntExist": {
@@ -368,6 +374,7 @@
 				"copyLinkToClipboard": false,
 				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 				"captureToActiveFile": false,
+				"captureToDailyNote": true,
 				"captureToCanvasNodeId": "",
 				"activeFileWritePosition": "bottom",
 				"createFileIfItDoesntExist": {
@@ -430,6 +437,7 @@
 				"copyLinkToClipboard": false,
 				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 				"captureToActiveFile": false,
+				"captureToDailyNote": true,
 				"captureToCanvasNodeId": "",
 				"activeFileWritePosition": "bottom",
 				"createFileIfItDoesntExist": {
@@ -492,6 +500,7 @@
 				"copyLinkToClipboard": false,
 				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 				"captureToActiveFile": false,
+				"captureToDailyNote": true,
 				"captureToCanvasNodeId": "",
 				"activeFileWritePosition": "bottom",
 				"createFileIfItDoesntExist": {
@@ -554,6 +563,7 @@
 				"copyLinkToClipboard": false,
 				"captureTo": "Daily/{{DATE:YYYY-MM-DD}}.md",
 				"captureToActiveFile": false,
+				"captureToDailyNote": true,
 				"captureToCanvasNodeId": "",
 				"activeFileWritePosition": "bottom",
 				"createFileIfItDoesntExist": {
@@ -610,8 +620,7 @@
 	"assets": [],
 	"install": {
 		"afterImport": [
-			"In **Settings → QuickAdd**, expand the **Daily note** folder. If your daily notes are not at `Daily/YYYY-MM-DD.md`, change **Capture to** on each of the five captures to your path and date pattern, for example `Journal/{{DATE:YYYY.MM.DD}}.md`.",
-			"A missing daily note is created empty. To start it from your daily-note template instead, turn on **Create file with a template** on each capture and pick the template.",
+			"Your daily notes' folder, date format, and template are read from Obsidian's **Daily notes** settings, so there is nothing to change.",
 			"Run any of the five from the command palette, or run **QuickAdd: Run**, choose **Daily note**, and pick one. The note, and the heading or callout it writes under, are created when missing."
 		]
 	}

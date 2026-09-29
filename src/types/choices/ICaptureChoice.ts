@@ -37,6 +37,13 @@ export default interface ICaptureChoice extends IChoice {
 	propertyCapture?: PropertyCapture;
 	captureTo: string;
 	captureToActiveFile: boolean;
+	/**
+	 * Capture into the daily note that Obsidian's Daily notes settings (or
+	 * Periodic Notes) point at, created from its template when missing. Wins
+	 * over `captureTo`; never set together with `captureToActiveFile`.
+	 * Undefined means false.
+	 */
+	captureToDailyNote?: boolean;
 	captureToCanvasNodeId?: string;
 	activeFileWritePosition?: "cursor" | "top" | "bottom";
 	createFileIfItDoesntExist: {

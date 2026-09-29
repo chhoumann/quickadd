@@ -14,15 +14,12 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 Imported the package above? Follow **After importing** in the card, then skip the base setup below. [Recipes](#recipes) explains what each imported capture does and how to add more.
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
-2. Disable **Capture to active file**.
-3. Set **Capture to** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
-4. Enable **Create file if it doesn't exist**.
-5. Set **Write position** to **After line...**.
-6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
-7. Enable **Insert at end of section** so each capture appends at the bottom of the section.
-8. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
-9. Leave **Link to captured file** disabled.
-10. Enable **Capture format** and use one of the recipes below.
+2. Set **Capture to** to **Daily note**. QuickAdd finds today's note through Obsidian's Daily notes settings and creates it from your daily-note template when it doesn't exist yet.
+3. Set **Write position** to **After line...**.
+4. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
+5. Enable **Insert at end of section** so each capture appends at the bottom of the section.
+6. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
+7. Enable **Capture format** and use one of the recipes below.
 
 ## Recipes
 
@@ -124,13 +121,7 @@ This keeps the row attached to the table:
 
 ### Tomorrow's daily note
 
-Change **Capture to** to:
-
-```
-Daily/{{DATE:YYYY-MM-DD+1}}.md
-```
-
-The `+1` shifts the target date one day forward. Combine with any of the formats above.
+Set **Which day** to **Custom…** with an offset of `1` day. Combine with any of the formats above.
 
 ## Troubleshooting
 
@@ -146,5 +137,3 @@ Enable **Create line if not found** with placement **Top** (or **Bottom**). Quic
 **You need to insert above a placeholder.**
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
 
-**Capture writes to the wrong file.**
-The date pattern in **Capture to** must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.

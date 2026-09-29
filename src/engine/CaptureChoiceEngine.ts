@@ -45,6 +45,7 @@ import { resolveObsidianPropertyType } from "../utils/obsidianPropertyTypes";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
+import { resolveDailyNoteTarget } from "../utils/dailyNoteTarget";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -156,7 +157,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		private readonly originLeaf: WorkspaceLeaf | null = null,
 	) {
 		super(app);
-		this.choice = choice;
+		this.choice = resolveDailyNoteTarget(app, choice);
 		this.plugin = plugin;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);

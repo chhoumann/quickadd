@@ -100,7 +100,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 <SettingItem name="Location" heading />
 <CaptureTargetSetting bind:choice {app} {plugin} />
 
-{#if !choice.captureToActiveFile}
+{#if !choice.captureToActiveFile && !choice.captureToDailyNote}
 	<SettingItem name="Create file if it doesn't exist">
 		{#snippet control()}
 			<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />

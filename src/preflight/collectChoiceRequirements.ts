@@ -26,6 +26,7 @@ import {
 	loadUserScript,
 } from "src/utilityObsidian";
 import { log } from "src/logger/logManager";
+import { resolveDailyNoteTarget } from "src/utils/dailyNoteTarget";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
@@ -221,10 +222,11 @@ async function collectForCaptureChoice(
 	app: App,
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
-	choice: ICaptureChoice,
+	rawChoice: ICaptureChoice,
 	seedCaptureSelectionAsValue: boolean,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const choice = resolveDailyNoteTarget(app, rawChoice);
 
 	await scanContentWithTemplateIncludes(
 		app,

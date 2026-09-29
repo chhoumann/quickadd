@@ -284,7 +284,7 @@ describe("CaptureChoiceForm", () => {
 		expect(names).not.toContain("File path / format");
 		expect(names.filter((name) => name === "Capture to")).toHaveLength(1);
 
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Path") as HTMLInputElement;
 		expect(input.placeholder).toBe("Daily/{{DATE}}.md");
 
 		// The label is a real <label for>, and the field lives in the same group.
@@ -350,7 +350,7 @@ describe("CaptureChoiceForm", () => {
 	// as a bare "Preview:" with nothing after it whenever the field was empty.
 	it("renders the preview after the field it previews, and only once the field has a value", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Path") as HTMLInputElement;
 
 		await settleValidation();
 		const preview = previewRows(container)[0];
@@ -374,7 +374,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Path") as HTMLInputElement;
 		// Only the capture-target preview renders: the capture format is empty, and
 		// an empty field shows no preview row at all (#1543).
 		expect(previewRows(container)).toHaveLength(1);
@@ -395,7 +395,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("rejects multi-select capture target filters before runtime", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Path") as HTMLInputElement;
 		expect(previewRows(container)).toHaveLength(1);
 
 		input.value = "tag:work|multi";
@@ -413,7 +413,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("does not show the canvas node picker for filter syntax that ends in .canvas", async () => {
 		const { container, getByLabelText, props } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Path") as HTMLInputElement;
 		props.choice.captureToCanvasNodeId = "stale-node-id";
 
 		input.value = "folder:Boards.canvas";

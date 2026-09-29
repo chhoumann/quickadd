@@ -16,6 +16,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	copyLinkToClipboard: boolean;
 	captureTo: string;
 	captureToActiveFile: boolean;
+	captureToDailyNote?: boolean;
 	captureToCanvasNodeId: string;
 	activeFileWritePosition: "cursor" | "top" | "bottom";
 	createFileIfItDoesntExist: {

@@ -63,7 +63,7 @@ const ids = listPackageIds();
 const OPTIONAL_CHOICE_KEYS: Record<string, readonly string[]> = {
 	"*": ["dateOrigin", "pickDayCommand", "onePageInput", "icon"],
 	Template: ["existingNoteAction"],
-	Capture: ["propertyCapture", "useSelectionAsCaptureValue"],
+	Capture: ["propertyCapture", "useSelectionAsCaptureValue", "captureToDailyNote"],
 	Multi: ["placeholder"],
 	Macro: [],
 };

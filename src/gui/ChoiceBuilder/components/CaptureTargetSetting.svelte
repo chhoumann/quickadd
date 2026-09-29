@@ -6,8 +6,9 @@ import { getAllFolderPathsInVault } from "../../../utilityObsidian";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";
+import { dailyNotePathFormat, getDailyNoteSettings } from "../../../utils/dailyNoteTarget";
 import SettingItem from "../../components/SettingItem.svelte";
-import Toggle from "../../components/Toggle.svelte";
+import Dropdown from "../../components/Dropdown.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import LabeledField from "./LabeledField.svelte";
 import FormatPreviewField from "./FormatPreviewField.svelte";
@@ -69,6 +70,23 @@ const isCanvasTarget = $derived(
 	!usesPickerTargetSyntax && isCanvasTargetPath(choice.captureTo),
 );
 
+type CaptureTargetMode = "active" | "daily" | "path";
+
+const targetOptions: { value: CaptureTargetMode; label: string }[] = [
+	{ value: "active", label: "Active note" },
+	{ value: "daily", label: "Daily note" },
+	{ value: "path", label: "File, folder, or tag" },
+];
+const targetMode = $derived<CaptureTargetMode>(
+	choice.captureToActiveFile ? "active" : choice.captureToDailyNote ? "daily" : "path",
+);
+const dailyNote = $derived(getDailyNoteSettings(app));
+
+function onTargetModeChange(value: string) {
+	onCaptureToActiveFileChange(value === "active");
+	choice.captureToDailyNote = value === "daily";
+}
+
 function onCaptureToActiveFileChange(value: boolean) {
 	// Read the prior state BEFORE mutating (one-way toggle, not bind).
 	const wasActiveBottomMode =
@@ -126,21 +144,43 @@ function validateCaptureTo(value: string) {
 }
 </script>
 
-<SettingItem
-	name="Capture to active file"
-	desc="Capture into whichever note is open when the choice runs, instead of a fixed target."
->
-	{#snippet control()}
-		<Toggle
-			checked={choice.captureToActiveFile}
-			onchange={onCaptureToActiveFileChange}
-		/>
-	{/snippet}
-</SettingItem>
-
-{#if !choice.captureToActiveFile}
-	<LabeledField
+<div class="qa-field">
+	<SettingItem
 		name="Capture to"
+		desc={targetMode === "daily"
+			? "Folder, date format, and template come from your Daily notes settings."
+			: undefined}
+	>
+		{#snippet control()}
+			<Dropdown
+				value={targetMode}
+				options={targetOptions}
+				ariaLabel="Capture to"
+				onchange={onTargetModeChange}
+			/>
+		{/snippet}
+	</SettingItem>
+	{#if targetMode === "daily"}
+		<div class="qa-field-body">
+			<FormatPreviewField
+				value={dailyNotePathFormat(dailyNote)}
+				formatterKind="fileName"
+				{app}
+				{plugin}
+			/>
+			{#if dailyNote.template}
+				<div class="qa-preview-row">
+					<span class="qa-preview-label">Template:</span>
+					<span class="qa-preview-value">{dailyNote.template}</span>
+				</div>
+			{/if}
+		</div>
+	{/if}
+</div>
+
+{#if targetMode === "path"}
+	<LabeledField
+		name="Path"
 		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
 	>
 		{#snippet children(id)}
