@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
 	mapEndpointToModelsDevKey,
 	mapModelsDevToQuickAdd,
-	dedupeModels,
 	isChatCapableDirectoryModel,
 	mergeModels,
 	mergeSyncedModels,
@@ -101,20 +100,6 @@ describe("mapModelsDevToQuickAdd", () => {
 			{ name: "gpt-x", maxTokens: 200000 },
 			{ name: "no-limit", maxTokens: 128000 },
 			{ name: "tiny", maxTokens: 1 },
-		]);
-	});
-});
-
-describe("dedupeModels", () => {
-	it("appends only incoming models whose name isn't already present", () => {
-		const existing = [{ name: "a", maxTokens: 1 }];
-		const incoming = [
-			{ name: "a", maxTokens: 2 },
-			{ name: "b", maxTokens: 3 },
-		];
-		expect(dedupeModels(existing, incoming)).toEqual([
-			{ name: "a", maxTokens: 1 },
-			{ name: "b", maxTokens: 3 },
 		]);
 	});
 });

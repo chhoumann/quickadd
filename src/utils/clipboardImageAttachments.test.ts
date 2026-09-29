@@ -5,7 +5,6 @@ import {
 	buildImageEmbedLink,
 	clipboardImageAttachmentFileName,
 	clipboardImageFilename,
-	droppedImageFilename,
 	droppedImageStem,
 	formatClipboardAttachmentTimestamp,
 	isSupportedImageExtension,
@@ -158,18 +157,12 @@ describe("image attachment naming", () => {
 		);
 	});
 
-	it("keeps a usable dropped basename and normalizes its extension", () => {
-		expect(droppedImageStem("holiday.jpeg")).toBe("holiday");
-		expect(droppedImageFilename("holiday.jpeg", "image/jpeg", now)).toBe(
-			"holiday.jpg",
-		);
-	});
-
 	it.each([
-		["photos/summer.png", "summer.png"],
-		["C:\\Users\\me\\winter.png", "winter.png"],
-	])("strips path segments from %s", (originalName, expected) => {
-		expect(droppedImageFilename(originalName, "image/png", now)).toBe(expected);
+		["holiday.jpeg", "holiday"],
+		["photos/summer.png", "summer"],
+		["C:\\Users\\me\\winter.png", "winter"],
+	])("keeps the usable stem of dropped %s", (originalName, expected) => {
+		expect(droppedImageStem(originalName)).toBe(expected);
 	});
 
 	it.each([
@@ -184,23 +177,8 @@ describe("image attachment naming", () => {
 		"photo..png",
 		"photo .png",
 		`photo${String.fromCharCode(0x01)}.png`,
-	])("falls back to clipboard naming for %s", (originalName) => {
-		expect(droppedImageFilename(originalName, "image/png", now)).toBe(
-			"Clipboard image 2026-07-06 09.05.03.png",
-		);
+	])("has no usable stem for dropped %s", (originalName) => {
 		expect(droppedImageStem(originalName)).toBeNull();
-	});
-
-	it("uses the MIME extension instead of the dropped extension", () => {
-		expect(droppedImageFilename("portrait.jpeg", "image/png", now)).toBe(
-			"portrait.png",
-		);
-	});
-
-	it("rejects unsupported MIME types", () => {
-		expect(() =>
-			droppedImageFilename("portrait.png", "application/pdf", now),
-		).toThrow(/Unsupported image type/);
 	});
 });
 

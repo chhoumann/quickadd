@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDatePicker } from "./datePicker";
 
 import "../../../tests/helpers/prompts/dom";
@@ -78,5 +78,47 @@ describe("createDatePicker time-clearing (audit: prompts-gui-date-picker-time-co
 		timeInput.value = "09:15";
 		timeInput.dispatchEvent(new Event("change", { bubbles: true }));
 		expect(emitted.at(-1)).toBe("2025-12-05T09:15:00");
+	});
+});
+
+describe("createDatePicker in a non-UTC timezone (#1946)", () => {
+	let originalTz: string | undefined;
+	beforeEach(() => {
+		originalTz = process.env.TZ;
+		process.env.TZ = "Europe/Copenhagen"; // UTC+2 in September
+	});
+	afterEach(() => {
+		if (originalTz === undefined) delete process.env.TZ;
+		else process.env.TZ = originalTz;
+	});
+
+	it("shows a typed UTC instant in local time and keeps that time on a day pick", () => {
+		const container = document.createElement("div");
+		const emitted: Array<string | null> = [];
+		const picker = createDatePicker({
+			container,
+			withTime: true,
+			weekStartsOn: 0,
+			onSelect: (iso) => emitted.push(iso),
+		});
+
+		// What typing "tomorrow 3pm" stores: moment.toISOString(), 15:00 local.
+		picker.setSelectedIso("2026-09-30T13:00:00.000Z");
+		expect(findTimeInput(container).value).toBe("15:00");
+
+		clickDay(container, "2");
+		expect(emitted.at(-1)).toBe("2026-09-02T15:00:00");
+	});
+
+	it("seeds the time control from a UTC initial value in local time", () => {
+		const container = document.createElement("div");
+		createDatePicker({
+			container,
+			initialIso: "2026-09-29T23:30:00.000Z", // 01:30 on 30 September locally
+			withTime: true,
+			weekStartsOn: 0,
+			onSelect: () => {},
+		});
+		expect(findTimeInput(container).value).toBe("01:30");
 	});
 });

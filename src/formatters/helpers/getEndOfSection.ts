@@ -1,3 +1,5 @@
+import { extractHeadingsFromLines } from "./sectionLink";
+
 type Heading = {
 	level: number;
 	line: number;
@@ -49,18 +51,23 @@ export default function getEndOfSection(
 		);
 	}
 
+	// A block under a non-heading line (a paragraph, list, table or callout)
+	// ends before the next blank line or heading, or at the end of the note.
+	// A `#` line inside a code fence is not a heading, so it doesn't end it.
 	if (!targetIsHeading && !shouldConsiderSubsections) {
-		const nextEmptyStringIdx = findNextIdx(
+		const nextHeadingLine =
+			extractHeadingsFromLines(lines).find((heading) => heading.line > targetLine)
+				?.line ?? null;
+		const nextBlankIdx = findNextIdx(
 			lines,
 			targetLine,
 			(str: string) => str.trim() === "",
 		);
+		const stops = [nextHeadingLine, nextBlankIdx].filter(
+			(idx): idx is number => idx !== null,
+		);
 
-		if (nextEmptyStringIdx !== null && nextEmptyStringIdx > targetLine) {
-			return nextEmptyStringIdx - 1;
-		}
-
-		return targetLine;
+		return stops.length > 0 ? Math.min(...stops) - 1 : lines.length - 1;
 	}
 
 	const lastLineInBodyIdx = lines.length - 1;

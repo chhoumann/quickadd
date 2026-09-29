@@ -47,7 +47,7 @@
 		"afterImport": [
 			"Create today's daily note if you have not yet; the macro does not create one.",
 			"Run **Log book** from the command palette and enter a title. It sets the `Book` property of today's note, replacing any earlier value.",
-			"Daily notes somewhere else, or another property? Click the cog next to **Log book** in **Settings → QuickAdd**, then the cog on the **logBook** step, and set **Daily note path** (for example `bins/daily/{{DATE:gggg-MM-DD - ddd MMM D}}.md`) or **Property name**. Leave the path empty to use the Daily notes plugin's folder and date format."
+			"Daily notes somewhere else, or another property? Click the cog next to **Log book** in **Settings → QuickAdd**, then the cog on the **logBook** step, and set **Daily note path** (for example `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`) or **Property name**. Leave the path empty to use the Daily notes plugin's folder and date format."
 		]
 	}
 }

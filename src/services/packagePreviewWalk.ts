@@ -1,8 +1,6 @@
 import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
-import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
-import type IMacroChoice from "../types/choices/IMacroChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -73,22 +71,6 @@ function conditionSummary(condition: ConditionalCondition): string {
 	const expected =
 		condition.expectedValue !== undefined ? ` ${condition.expectedValue}` : "";
 	return `${condition.variableName} ${condition.operator}${expected}`;
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
-}
-
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	return choice.type === "Multi";
-}
-
-function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
 }
 
 /**

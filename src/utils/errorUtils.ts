@@ -231,19 +231,3 @@ export function handledIfCancelled<T>(promise: Promise<T>): Promise<T> {
   });
   return result;
 }
-
-/**
- * Return the result, or report an asynchronous failure and return undefined.
- */
-export async function withAsyncErrorHandling<T>(
-  fn: () => Promise<T>,
-  contextMessage?: string,
-  level: ErrorLevel = ErrorLevelEnum.Error
-): Promise<T | undefined> {
-  try {
-    return await fn();
-  } catch (err) {
-    reportError(err, contextMessage, level);
-    return undefined;
-  }
-}

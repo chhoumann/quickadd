@@ -43,7 +43,6 @@ export const NAME_VALUE_REGEX = new RegExp(
 	/{{(?:NAME|VALUE)(?!:)(?:\|[^\n\r}]*)?}}/i,
 );
 export const VARIABLE_REGEX = new RegExp(/{{VALUE:([^\n\r}]*)}}/i);
-export const FIELD_VAR_REGEX = new RegExp(/{{FIELD:([^\n\r}]*)}}/i);
 // Prefix used to namespace FIELD variable values in the variables map,
 // keeping them separate from plain VALUE variables with the same name.
 export const FIELD_VARIABLE_PREFIX = "FIELD:";
@@ -103,18 +102,6 @@ export const LINK_TO_CURRENT_FILE_REGEX = new RegExp(/{{LINKCURRENT}}/i);
 // {{LINKSECTION}} resolves to a link to the current file at the heading the
 // cursor is under, so the link scrolls there instead of the top (issue #387).
 export const LINK_TO_CURRENT_SECTION_REGEX = new RegExp(/{{LINKSECTION}}/i);
-export const FILE_NAME_OF_CURRENT_FILE_REGEX = new RegExp(/{{FILENAMECURRENT}}/i);
-// {{FOLDERCURRENT}} resolves to the ACTIVE file's parent folder (vault-relative,
-// no trailing slash; "" for a root-level file). The optional |name modifier
-// yields just the leaf folder segment, mirroring {{FOLDER|name}}. Resolved in
-// the combined single-pass resolver (formatter.replaceCurrentFileTokensInString),
-// never via a standalone replace loop (#1358).
-export const FOLDER_OF_CURRENT_FILE_REGEX = new RegExp(
-	/{{FOLDERCURRENT(\|name)?}}/i,
-);
-// {{FOLDER}} resolves to the target folder the note is being created in.
-// The optional |name modifier yields just the leaf folder segment.
-export const TARGET_FOLDER_REGEX = new RegExp(/{{FOLDER(\|name)?}}/i);
 export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/i);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/i);
 export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);

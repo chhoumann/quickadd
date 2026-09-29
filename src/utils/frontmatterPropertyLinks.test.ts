@@ -4,7 +4,6 @@ import type { TFile, App } from "obsidian";
 import {
 	appendConfiguredFrontmatterPropertyLinkValue,
 	appendFrontmatterPropertyLinkValue,
-	appendLinkToConfiguredFrontmatterProperty,
 	appendLinkToFrontmatterProperty,
 	getFocusedPropertyTarget,
 	type FrontmatterPropertyTarget,
@@ -465,47 +464,5 @@ describe("appendLinkToFrontmatterProperty", () => {
 				createdFile,
 			),
 		).resolves.toBe(false);
-	});
-});
-
-describe("appendLinkToConfiguredFrontmatterProperty", () => {
-	it("uses the configured property's file as the markdown link source", async () => {
-		const targetFile = makeFile("Folder/Host.md");
-		const createdFile = makeFile("Folder/Sub/Created.md");
-		const frontmatter: Record<string, unknown> = { related: ["[[Existing]]"] };
-		const generateMarkdownLink = vi.fn(() => "[[Sub/Created|Created]]");
-		const processFrontMatter = vi.fn(
-			async (_file: TFile, update: (fm: Record<string, unknown>) => void) => {
-				update(frontmatter);
-			},
-		);
-		const app = {
-			workspace: { getActiveViewOfType: () => null, getLeavesOfType: () => [] },
-			fileManager: {
-				generateMarkdownLink,
-				processFrontMatter,
-			},
-		} as unknown as App;
-
-		await appendLinkToConfiguredFrontmatterProperty(
-			app,
-			targetFile,
-			"related",
-			createdFile,
-			"error",
-		);
-
-		expect(generateMarkdownLink).toHaveBeenCalledWith(
-			createdFile,
-			"Folder/Host.md",
-		);
-		expect(processFrontMatter).toHaveBeenCalledWith(
-			targetFile,
-			expect.any(Function),
-		);
-		expect(frontmatter.related).toEqual([
-			"[[Existing]]",
-			"[[Sub/Created|Created]]",
-		]);
 	});
 });

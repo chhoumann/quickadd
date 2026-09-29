@@ -37,7 +37,7 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
     3. The remaining settings are for you to specify depending on your needs.
 6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb; click the save icon next to it and QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.
 
-    ![The Movie macro with the movies script settings open, showing the OMDb API Key field](../Images/moviescript_settings.png)
+    ![The movies script settings open over the macro: the OMDb API Key field with its save and clear buttons](../Images/moviescript_settings.png)
 
 You can now use the macro to create notes with movie or TV show information in your vault.
 

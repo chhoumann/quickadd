@@ -224,15 +224,3 @@ export function resolveModelInputOrThrow(
 	return resolved;
 }
 
-export function getModelMaxTokens(model: ModelInput) {
-	const resolved = resolveModel(model);
-
-	if (resolved) {
-		return resolved.model.maxTokens;
-	}
-
-	throw new Error(
-		`Model ${typeof model === "string" ? model : model.name} not found with any provider.`,
-	);
-}
-
