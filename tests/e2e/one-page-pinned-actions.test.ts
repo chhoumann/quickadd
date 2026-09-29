@@ -15,6 +15,8 @@ type Layout = {
 	/** Whether focused Submit's ring fits inside the footer, which clips it. */
 	ringFits: boolean | null;
 	focused: string;
+	/** Distances from the modal's inner edges to the rows and to the footer buttons. */
+	insets: { fieldsLeft: number; fieldsRight: number; buttonsLeft: number; buttonsRight: number };
 };
 
 const layout = () => getContext().obsidian.dev.evalJson<Layout>(`(() => {
@@ -38,7 +40,18 @@ const layout = () => getContext().obsidian.dev.evalJson<Layout>(`(() => {
 			&& box.left - ring >= clip.left
 			&& box.right + ring <= clip.right;
 	}
+	const outer = modal.getBoundingClientRect();
+	const border = parseFloat(getComputedStyle(modal).borderLeftWidth);
+	const rows = Array.from(content.querySelectorAll(".setting-item")).map((row) => row.getBoundingClientRect());
+	const buttons = Array.from(modal.querySelectorAll(".qa-modal-footer button")).map((button) => button.getBoundingClientRect());
+	const inset = (rects) => ({
+		left: Math.min(...rects.map((rect) => rect.left)) - outer.left - border,
+		right: outer.right - border - Math.max(...rects.map((rect) => rect.right)),
+	});
+	const fields = inset(rows);
+	const actions = inset(buttons);
 	return {
+		insets: { fieldsLeft: fields.left, fieldsRight: fields.right, buttonsLeft: actions.left, buttonsRight: actions.right },
 		overflows: content.scrollHeight > content.clientHeight || modal.scrollHeight > modal.clientHeight,
 		submitCentre: { x, y },
 		atSubmit: submit.contains(hit) ? "Submit" : describe(hit),
@@ -69,6 +82,9 @@ it.each(["desktop", "is-phone"])("keeps Submit in view on a form taller than the
 		const opened = await layout();
 		expect(opened.overflows).toBe(true);
 		expect(opened.atSubmit).toBe("Submit");
+		// The scrollbar narrows the fields; the buttons line up with them anyway.
+		expect(opened.insets.buttonsRight).toBeCloseTo(opened.insets.fieldsRight, 0);
+		expect(opened.insets.buttonsLeft).toBeCloseTo(opened.insets.fieldsLeft, 0);
 
 		// Keyboard path: from the last field, Tab lands on Submit, and the pinned
 		// footer doesn't clip its focus ring.
@@ -89,6 +105,52 @@ it.each(["desktop", "is-phone"])("keeps Submit in view on a form taller than the
 			if (window.__qaPinnedOriginalClasses !== undefined) document.body.className = window.__qaPinnedOriginalClasses;
 			delete window.__qaPinnedOriginalClasses;
 			delete window.__qaPinnedResult;
+			return true;
+		})()`);
+	}
+});
+
+// A form that fits used to keep a scrollbar's width of blank space on its right
+// only, reserved for a scrollbar it never showed.
+it.each(["desktop", "is-phone"])("keeps a form that fits symmetric, and aligned once it scrolls, under %s host styles", async (deviceClass) => {
+	const { obsidian } = getContext();
+	try {
+		await obsidian.dev.evalJson(`(() => {
+			window.__qaPinnedOriginalClasses = document.body.className;
+			if (${JSON.stringify(deviceClass)} === "is-phone") {
+				document.body.classList.remove("is-tablet");
+				document.body.classList.add("is-mobile", "is-phone");
+			}
+			void app.plugins.plugins.quickadd.api.requestInputs([
+				{ id: "title", label: "Title", type: "text" },
+				{ id: "body", label: "Body", type: "textarea", optional: true },
+			]).catch(() => undefined);
+			return true;
+		})()`);
+		await waitForElement(obsidian, ".onePageInputModal textarea");
+
+		const short = await layout();
+		expect(short.overflows).toBe(false);
+		expect(short.insets.fieldsLeft).toBeGreaterThan(0);
+		expect(short.insets.fieldsRight).toBeCloseTo(short.insets.fieldsLeft, 0);
+		expect(short.insets.buttonsLeft).toBeCloseTo(short.insets.fieldsLeft, 0);
+		expect(short.insets.buttonsRight).toBeCloseTo(short.insets.fieldsLeft, 0);
+
+		// Growing past the dialog brings in the scrollbar; the footer follows it.
+		await obsidian.dev.evalJson(`(() => {
+			document.querySelector(".onePageInputModal textarea").style.height = "2000px";
+			return true;
+		})()`);
+		await expect.poll(async () => (await layout()).overflows, POLL_OPTS).toBe(true);
+		await expect.poll(async () => {
+			const { insets } = await layout();
+			return Math.abs(insets.buttonsRight - insets.fieldsRight) < 0.5;
+		}, POLL_OPTS).toBe(true);
+	} finally {
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll(".onePageInputModal button")].find((e) => e.textContent === "Cancel")?.click();
+			if (window.__qaPinnedOriginalClasses !== undefined) document.body.className = window.__qaPinnedOriginalClasses;
+			delete window.__qaPinnedOriginalClasses;
 			return true;
 		})()`);
 	}
