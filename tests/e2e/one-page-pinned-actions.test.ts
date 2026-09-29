@@ -78,6 +78,12 @@ it.each(["desktop", "is-phone"])("keeps Submit in view on a form taller than the
 			return true;
 		})()`);
 		await waitForElement(obsidian, ".onePageInputModal textarea");
+		// The footer reserves the scrollbar's gutter through a scroll-driven
+		// animation, which applies a couple of frames after the form opens.
+		await expect.poll(async () => {
+			const { insets } = await layout();
+			return Math.abs(insets.buttonsRight - insets.fieldsRight);
+		}, POLL_OPTS).toBeLessThan(0.5);
 
 		const opened = await layout();
 		expect(opened.overflows).toBe(true);
