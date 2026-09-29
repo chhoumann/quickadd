@@ -5,7 +5,7 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 // vite-plugin-svelte's "no Svelte config found" notice during tests.
 //
 // NOTE: the PRODUCTION build does NOT read this file — it uses esbuild-svelte with
-// its own compilerOptions ({ css: 'injected' }) + svelte-preprocess in
+// its own compilerOptions (svelteCompilerOptions.mjs) + svelte-preprocess in
 // esbuild.config.mjs. Keep this minimal so the two paths stay equivalent.
 export default {
 	preprocess: vitePreprocess(),
