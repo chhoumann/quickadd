@@ -65,7 +65,7 @@
 				},
 				"format": {
 					"enabled": true,
-					"format": "{{TEMPLATE:Templates/Project update.md}}"
+					"format": "\\n{{TEMPLATE:Templates/Project update.md}}"
 				},
 				"insertAfter": {
 					"enabled": false,
