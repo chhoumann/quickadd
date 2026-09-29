@@ -268,8 +268,11 @@
 .quickAddModal .qa-preview-label {
 	font-weight: 600;
 }
+/* Keep the format's line breaks and indentation, so a multi-line format
+   previews as the lines it will write. Long lines still wrap. */
 .quickAddModal .qa-preview-value {
 	color: var(--text-normal);
+	white-space: pre-wrap;
 }
 /* A file name is one line. Since #1563 this row can hold a whole included
    template, which would otherwise wrap to fifteen lines of muted text under a
