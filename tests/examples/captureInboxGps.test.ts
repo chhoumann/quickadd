@@ -40,6 +40,7 @@ function loadScript() {
 
 function makeParams(options: {
 	files?: Map<string, TFile | { folder: true; path: string }>;
+	contents?: Map<string, string>;
 	value?: string;
 	coordinates?: string;
 	geolocation?: {
@@ -50,7 +51,8 @@ function makeParams(options: {
 }) {
 	const files = options.files ?? new Map<string, TFile>();
 	const created: { path: string; content: string }[] = [];
-	const appended: { path: string; content: string }[] = [];
+	const contents = options.contents ?? new Map<string, string>();
+	const written: { path: string; content: string }[] = [];
 	const folders: string[] = [];
 
 	const params = {
@@ -59,8 +61,11 @@ function makeParams(options: {
 				getAbstractFileByPath(filePath: string) {
 					return files.get(filePath) ?? null;
 				},
-				append: vi.fn(async (file: TFile, content: string) => {
-					appended.push({ path: file.path, content });
+				process: vi.fn(async (file: TFile, fn: (data: string) => string) => {
+					const content = fn(contents.get(file.path) ?? "");
+					contents.set(file.path, content);
+					written.push({ path: file.path, content });
+					return content;
 				}),
 				create: vi.fn(async (filePath: string, content: string) => {
 					created.push({ path: filePath, content });
@@ -127,7 +132,7 @@ function makeParams(options: {
 		value: { ...(typeof window === "undefined" ? {} : window), moment: globalThis.moment },
 	});
 
-	return { params, created, appended, folders };
+	return { params, created, written, folders };
 }
 
 describe("captureInboxGps script", () => {
@@ -138,7 +143,7 @@ describe("captureInboxGps script", () => {
 
 	it("starts GPS, then appends a stamped line with coordinates", async () => {
 		const existing = new TFile("Inbox.md");
-		const { params, appended } = makeParams({
+		const { params, written } = makeParams({
 			files: new Map([["Inbox.md", existing]]),
 		});
 		const script = loadScript();
@@ -149,7 +154,7 @@ describe("captureInboxGps script", () => {
 		});
 
 		expect(params.quickAddApi.inputPrompt).toHaveBeenCalled();
-		expect(appended).toEqual([
+		expect(written).toEqual([
 			{
 				path: "Inbox.md",
 				content:
@@ -161,7 +166,7 @@ describe("captureInboxGps script", () => {
 
 	it("uses preset value and coordinates without prompting or GPS", async () => {
 		const existing = new TFile("Inbox.md");
-		const { params, appended } = makeParams({
+		const { params, written } = makeParams({
 			files: new Map([["Inbox.md", existing]]),
 			value: "Trail marker",
 			coordinates: "1.000000, 2.000000",
@@ -175,7 +180,7 @@ describe("captureInboxGps script", () => {
 		});
 
 		expect(params.quickAddApi.inputPrompt).not.toHaveBeenCalled();
-		expect(appended[0]?.content).toBe(
+		expect(written[0]?.content).toBe(
 			"- 2026-08-31 15:42 Trail marker (1.000000, 2.000000)\n",
 		);
 	});
@@ -201,9 +206,28 @@ describe("captureInboxGps script", () => {
 		]);
 	});
 
+	it("starts a new line when the inbox's last line has no line break (#1935)", async () => {
+		const { params, written } = makeParams({
+			files: new Map([["Inbox.md", new TFile("Inbox.md")]]),
+			contents: new Map([["Inbox.md", "- earlier entry"]]),
+			value: "next entry",
+			coordinates: "1.000000, 2.000000",
+		});
+		const script = loadScript();
+
+		await script.entry(params, {
+			"Inbox path": "Inbox.md",
+			"Create Inbox if missing": true,
+		});
+
+		expect(written[0]?.content).toBe(
+			"- earlier entry\n- 2026-08-31 15:42 next entry (1.000000, 2.000000)\n",
+		);
+	});
+
 	it("saves without GPS when the location lookup fails", async () => {
 		const existing = new TFile("Inbox.md");
-		const { params, appended } = makeParams({
+		const { params, written } = makeParams({
 			files: new Map([["Inbox.md", existing]]),
 			value: "no fix",
 			geolocation: { error: true },
@@ -215,7 +239,7 @@ describe("captureInboxGps script", () => {
 			"Create Inbox if missing": true,
 		});
 
-		expect(appended[0]?.content).toBe("- 2026-08-31 15:42 no fix\n");
+		expect(written[0]?.content).toBe("- 2026-08-31 15:42 no fix\n");
 		expect(Notice.messages[0]).toContain("Saved without GPS");
 	});
 });
