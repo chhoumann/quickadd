@@ -175,13 +175,12 @@ export class CompleteFormatter extends Formatter {
 	protected override async resolveIncludingTextDate(variableName: string): Promise<void> {
 		if (!this.includer || findDateVariableFormat(this.variables, variableName) !== undefined) return;
 		for (let includer: CompleteFormatter | undefined = this.includer; includer; includer = includer.includer) {
-			const tokens = [...(includer.includingText ?? "").matchAll(new RegExp(DATE_VARIABLE_REGEX.source, "gi"))];
-			// Exact name first, then one case-insensitive name, as a named VALUE resolves.
-			const sameName = tokens.filter((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
-			const token = sameName.find((match) => match[1]?.trim() === variableName) ??
-				(new Set(sameName.map((match) => match[1]?.trim())).size === 1 ? sameName[0] : undefined);
-			if (token) {
-				await includer.replaceDateVariableInString(token[0]);
+			// Every VDATE a named VALUE could match, in order, as the including
+			// text's own VDATE phase would resolve them before its VALUEs.
+			const sameName = [...(includer.includingText ?? "").matchAll(new RegExp(DATE_VARIABLE_REGEX.source, "gi"))]
+				.filter((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
+			if (sameName.length > 0) {
+				await includer.replaceDateVariableInString(sameName.map((match) => match[0]).join(""));
 				return;
 			}
 		}

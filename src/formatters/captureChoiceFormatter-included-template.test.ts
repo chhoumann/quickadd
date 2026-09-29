@@ -177,14 +177,22 @@ describe("an included template reuses a date of the Capture format (#1950)", () 
 		expect(prompt).not.toHaveBeenCalled();
 	});
 
-	it("leaves a reuse whose name matches two VDATE names only by case to its own prompt", async () => {
-		const { formatter } = makeCapture("(due {{VALUE:due}})");
-		prompt.mockResolvedValueOnce("soon").mockResolvedValueOnce("Pay rent");
-		datePrompt.mockResolvedValue("@date:2026-09-30T12:00:00.000Z");
+	it.each([
+		["two names that differ only by case", "{{VDATE:Due,DD.MM.YYYY}} {{VDATE:DUE,YYYY}}", [["Due", "@date:2026-09-30T12:00:00.000Z"]]],
+		["a given answer under another case", "{{VDATE:Due,DD.MM.YYYY}}", [["due", "@date:2026-09-30T12:00:00.000Z"]]],
+	])("resolves %s the way the same text inline would", async (_, dates, given) => {
+		const run = async (format: string) => {
+			prompt.mockReset();
+			datePrompt.mockReset();
+			prompt.mockResolvedValue("typed");
+			datePrompt.mockResolvedValue("@date:2026-10-02T12:00:00.000Z");
+			const { formatter, executor } = makeCapture("{{VALUE:due}}");
+			for (const [key, value] of given) executor.variables.set(key, value);
+			const output = await formatter.formatContentOnly(format);
+			return { output, prompts: prompt.mock.calls.length, datePrompts: datePrompt.mock.calls.length };
+		};
 
-		await formatter.formatContentOnly("{{VDATE:Due,DD.MM.YYYY}} {{VDATE:DUE,YYYY}} {{VALUE}}\n{{TEMPLATE:Include.md}}");
-		expect((prompt.mock.calls[0] as unknown[])[1]).toBe("due");
-		expect(prompt).toHaveBeenCalledBefore(datePrompt);
+		expect(await run(`${dates}\n{{TEMPLATE:Include.md}}`)).toEqual(await run(`${dates}\n{{VALUE:due}}`));
 	});
 
 	it("prints a prefilled answer, as from the one-page form, in the VDATE's format", async () => {
