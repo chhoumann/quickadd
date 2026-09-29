@@ -162,6 +162,49 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(result).toBe("- First idea");
 	});
 
+	it("keeps a list tight when the bottom capture's format ends with a line break", async () => {
+		const choice = createChoice({ captureToActiveFile: false, prepend: true });
+		let note = "- a\n";
+		for (const entry of ["- first\n", "- second\n"]) {
+			const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+			note = (await formatter.formatContentWithFile(entry, choice, note, createFile())).content;
+		}
+
+		expect(note).toBe("- a\n- first\n- second\n");
+	});
+
+	it("keeps the blank line a bottom capture's format asks for", async () => {
+		const choice = createChoice({ captureToActiveFile: false, prepend: true });
+		const append = async (entry: string, note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile(entry, choice, note, createFile())).content;
+
+		expect(await append("\nsecond", "first")).toBe("first\n\nsecond");
+		expect(await append("\nsecond", "first\n")).toBe("first\n\nsecond");
+		expect(await append("second\n\n", "first\n\n")).toBe("first\n\nsecond\n\n");
+	});
+
+	it("starts an empty note with a heading it creates at the bottom, not a blank line", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+
+		const { content: result } = await formatter.formatContentWithFile(
+			"- first",
+			createChoice({
+				insertAfter: {
+					...createChoice().insertAfter,
+					enabled: true,
+					after: "## Log",
+					createIfNotFound: true,
+					createIfNotFoundLocation: "bottom",
+				},
+			}),
+			"",
+			createFile(),
+		);
+
+		expect(result).toBe("## Log\n- first");
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
