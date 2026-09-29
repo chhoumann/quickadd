@@ -4,6 +4,9 @@ import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
+import { isTemplateChoice, normalizeTemplateChoice } from "../migrations/helpers/normalizeTemplateFileExistsBehavior";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -26,12 +29,41 @@ import {
 	stripUserScriptSecretRefsFromCommand
 } from "../utils/userScriptSecrets";
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+	return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Bring an imported Template or Capture to the shape the rest of QuickAdd
+ * expects. Import runs after the one-time migrations, so it applies their
+ * per-choice conversions itself (legacy file-exists settings), then fills any
+ * setting the package leaves out from the defaults a new choice of that type
+ * starts with - older exports and hand-written packages omit settings added
+ * since. Values the package sets always win.
+ */
+export function normalizeImportedChoice(choice: IChoice): void {
+	if (isTemplateChoice(choice)) normalizeTemplateChoice(choice);
+	const defaults =
+		choice.type === "Capture" ? new CaptureChoice(choice.name) :
+		choice.type === "Template" ? new TemplateChoice(choice.name) :
+		undefined;
+	if (!defaults) return;
+	const target = choice as unknown as Record<string, unknown>;
+	for (const [key, value] of Object.entries(defaults)) {
+		if (value === undefined) continue;
+		const current = target[key];
+		if (current === undefined) target[key] = value;
+		else if (isPlainObject(current) && isPlainObject(value)) target[key] = { ...value, ...current };
+	}
+}
+
 export function remapChoiceTree(
 	choice: IChoice,
 	idMap: Map<string, string>,
 	importableChoiceIds: Set<string>,
 	secretSanitizerOptions: UserScriptSecretSanitizerOptions,
 ): IChoice {
+	normalizeImportedChoice(choice);
 	const originalId = choice.id;
 	const finalId = idMap.get(originalId) ?? originalId;
 	choice.id = finalId;
@@ -125,6 +157,8 @@ function remapCommands(
 						importableChoiceIds,
 						secretSanitizerOptions,
 					);
+				} else if (isChoiceLike(nested.choice)) {
+					normalizeImportedChoice(nested.choice);
 				}
 				break;
 			}
