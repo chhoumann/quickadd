@@ -935,8 +935,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	/**
 	 * For "Choose heading when capturing": prompt the user with a dropdown of the
 	 * destination's headings and set the picked line as the formatter's insert-after
-	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
-	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
+	 * override. The items are heading LINES from `content`, without indentation (so the
+	 * formatter's literal search finds them, the #742 invariant),
 	 * parsed with the same `extractHeadingsFromLines` that finds section ends, so it offers
 	 * the headings Obsidian shows. `allowCustomValue` lets the user type a NEW heading
 	 * only when "Create line if not found" is enabled — otherwise the override path can only
@@ -960,7 +960,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const headings = extractHeadingsFromLines(lines).filter(
 			(h) => lines[h.line].trim() !== h.heading,
 		);
-		const headingLines = headings.map((h) => lines[h.line]);
+		// Without indentation: the insert-after search compares each note line
+		// with its leading whitespace trimmed, so an indented heading's own line
+		// would never match.
+		const headingLines = headings.map((h) => lines[h.line].trimStart());
 		const headingDisplay = headings.map(
 			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.heading}`,
 		);

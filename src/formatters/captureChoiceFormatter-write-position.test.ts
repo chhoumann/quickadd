@@ -745,6 +745,22 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(cursor.kind === "offset" ? cursor.value : null).toBe(result.length);
 	});
 
+	it("inserts under an indented heading picked at runtime (#1987)", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("### Indented");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\n   ### Indented\n- a\n",
+			createFile(),
+		);
+
+		expect(content).toBe("## Log\n   ### Indented\n- captured\n- a\n");
+	});
+
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),

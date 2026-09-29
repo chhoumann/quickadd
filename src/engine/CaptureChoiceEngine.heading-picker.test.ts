@@ -177,7 +177,9 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
 		// A setext heading's own line is its text, not a line a capture can be
 		// inserted after without splitting the heading from its underline.
-		expect(items).toEqual(["## Log", "   ### Indented", "## Next"]);
+		// Without indentation: the insert-after search compares lines with their
+		// leading whitespace trimmed.
+		expect(items).toEqual(["## Log", "### Indented", "## Next"]);
 		expect(displayItems).toEqual(["  Log", "    Indented", "  Next"]);
 	});
 
