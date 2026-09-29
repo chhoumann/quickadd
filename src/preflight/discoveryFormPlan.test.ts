@@ -216,8 +216,9 @@ describe("discovery form planning", () => {
 		expect(initial?.requirements).toEqual([]);
 		const suffix = await buildDiscoveryFormPlan(app, plugin, executor,
 			macro(nested(capture, "first"), nested(capture, "second")));
+		// Each step's fields follow its format, "{{VALUE}} {{VALUE:shared}}" (#1876).
 		expect(suffix?.requirements.map((field) => field.id)).toEqual([
-			"shared", "__qa.value.first", "__qa.value.second",
+			"__qa.value.first", "shared", "__qa.value.second",
 		]);
 		expect(suffix?.config.notes).toEqual([]);
 	});

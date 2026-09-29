@@ -51,6 +51,36 @@ describe("RequirementCollector", () => {
     expect(byId[variableKey].type).toBe("dropdown");
   });
 
+  describe("field order (#1876)", () => {
+    it("lists fields in the order the format reads, not by token type", async () => {
+      const rc = createCollector();
+      await rc.scanString(
+        "### {{VALUE}}\n- {{FIELD:client}} {{VDATE:due,YYYY-MM-DD}} {{VALUE:qty}} {{MVALUE}} {{VALUE:due}}",
+      );
+
+      expect([...rc.requirements.keys()]).toEqual([
+        "value", "FIELD:client", "due", "qty", "mvalue",
+      ]);
+    });
+
+    it("places a reused date where the date is first used", async () => {
+      const rc = createCollector();
+      await rc.scanString("{{VALUE:due}} {{VALUE:qty}} {{VDATE:due,YYYY-MM-DD}}");
+
+      expect([...rc.requirements.values()].map(({ id, type }) => [id, type])).toEqual([
+        ["due", "date"], ["qty", "text"],
+      ]);
+    });
+
+    it("keeps fields from an earlier string, like the file name, first", async () => {
+      const rc = createCollector();
+      await rc.scanString("{{VALUE:title}}", true);
+      await rc.scanString("{{VALUE}} {{VDATE:due,YYYY-MM-DD}} {{VALUE:title}}");
+
+      expect([...rc.requirements.keys()]).toEqual(["title", "value", "due"]);
+    });
+  });
+
   it("collects VALUE text mappings for option lists", async () => {
     const rc = createCollector();
     await rc.scanString("{{VALUE:🔼,⏫|text:Normal,High}}");
