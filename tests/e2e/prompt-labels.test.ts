@@ -4,8 +4,8 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
-// `|label:` names the prompt of a {{VDATE}} (#1869) and of an unnamed
-// {{VALUE}} (#1876), which have no other name for their title.
+// `|label:` names the prompt of a {{VDATE}} (#1869), an unnamed {{VALUE}}
+// (#1876) and a named single-value {{VALUE}}, in place of the variable name.
 const getContext = createQuickAddE2EHarness("prompt-labels");
 
 type QuickAddData = {
@@ -42,6 +42,22 @@ async function readPrompt(label: string) {
 	})()`);
 }
 
+/** Run a new Capture choice that writes `format` to `file`. */
+async function runCapture(file: string, format: string, onePage: boolean) {
+	const { obsidian, plugin, sandbox } = getContext();
+	const choice = new CaptureChoice(`Log ${file}`);
+	choice.command = true;
+	choice.captureTo = sandbox.path(file);
+	choice.createFileIfItDoesntExist = { ...choice.createFileIfItDoesntExist, enabled: true };
+	choice.format = { enabled: true, format };
+	await plugin.data<QuickAddData>().patch((data) => {
+		data.onePageInputEnabled = onePage;
+		data.choices.push(choice);
+	});
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
+}
+
 describe("|label: names the prompt", () => {
 	it("titles a VDATE prompt, and is never read as the default date (#1869)", async () => {
 		const { obsidian } = getContext();
@@ -63,18 +79,8 @@ describe("|label: names the prompt", () => {
 	});
 
 	it("titles an unnamed VALUE prompt instead of showing as helper text (#1876)", async () => {
-		const { obsidian, plugin, sandbox } = getContext();
-		const choice = new CaptureChoice("Log order");
-		choice.command = true;
-		choice.captureTo = sandbox.path("orders.md");
-		choice.createFileIfItDoesntExist = { ...choice.createFileIfItDoesntExist, enabled: true };
-		choice.format = { enabled: true, format: "### {{VALUE|label:What's the order?}}\n" };
-		await plugin.data<QuickAddData>().patch((data) => {
-			data.onePageInputEnabled = false;
-			data.choices.push(choice);
-		});
-		await plugin.reload({ waitUntilReady: true });
-		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
+		const { obsidian, sandbox } = getContext();
+		await runCapture("orders.md", "### {{VALUE|label:What's the order?}}\n", false);
 
 		expect(await readPrompt("What's the order?")).toMatchObject({
 			title: "What's the order?",
@@ -85,5 +91,33 @@ describe("|label: names the prompt", () => {
 		await expectNoPrompt(obsidian);
 		await expect.poll(() => sandbox.read("orders.md").catch(() => ""), POLL_OPTS)
 			.toBe("### 48 speckled sage mugs\n");
+	});
+
+	it("titles a named VALUE prompt, where it used to be helper text under the name", async () => {
+		const { obsidian, sandbox } = getContext();
+		await runCapture("meeting prompt.md", "- attendees: {{VALUE:attendees|label:Who attended?}}\n", false);
+
+		const prompt = await readPrompt("Who attended?");
+		expect(prompt).toMatchObject({ title: "Who attended?", labelCount: 1 });
+		await typeInto(obsidian, PROMPT_INPUT, "Ada, Grace");
+		await pressKey(obsidian, "Enter");
+		await expectNoPrompt(obsidian);
+		await expect.poll(() => sandbox.read("meeting prompt.md").catch(() => ""), POLL_OPTS)
+			.toBe("- attendees: Ada, Grace\n");
+	});
+
+	it("names a named VALUE's one-page field, with no helper text", async () => {
+		const { obsidian, sandbox } = getContext();
+		await runCapture("meeting form.md", "- attendees: {{VALUE:attendees|label:Who attended?}}\n", true);
+
+		await waitForElement(obsidian, ".onePageInputModal");
+		expect(await obsidian.dev.evalJson<{ name: string; description: string }[]>(
+			'Array.from(document.querySelectorAll(".onePageInputModal .setting-item")).filter((row) => row.querySelector("input")).map((row) => ({ name: row.querySelector(".setting-item-name")?.textContent ?? "", description: row.querySelector(".setting-item-description")?.textContent ?? "" }))',
+		)).toEqual([{ name: "Who attended?", description: "" }]);
+		await typeInto(obsidian, '.onePageInputModal input[aria-labelledby="qa-onepage-label-attendees"]', "Ada, Grace");
+		await pressKey(obsidian, "Enter", true);
+		await expectNoPrompt(obsidian);
+		await expect.poll(() => sandbox.read("meeting form.md").catch(() => ""), POLL_OPTS)
+			.toBe("- attendees: Ada, Grace\n");
 	});
 });

@@ -2140,6 +2140,21 @@ describe("CompleteFormatter - remote prompt provider routing", () => {
 		expect(mocks.inputPromptPrompt).not.toHaveBeenCalled();
 	});
 
+	it("titles a named {{VALUE:name}} provider prompt with its |label:", async () => {
+		const inputPrompt = vi.fn(async (_header: string) => "Ada, Grace");
+		const suggester = vi.fn(
+			async (_display: string[], _actual: string[], _placeholder?: string) => "true",
+		);
+		const f = providerFormatter({ inputPrompt, suggester });
+
+		await f.formatFolderPath(
+			"{{VALUE:attendees|label:Who attended?}} {{VALUE:done|type:checkbox|label:Completed?}}",
+		);
+
+		expect(inputPrompt.mock.calls[0]?.[0]).toBe("Who attended?");
+		expect(suggester.mock.calls[0]?.[2]).toBe("Completed?");
+	});
+
 	it("routes {{VALUE:a,b,c|multi}} to the provider's suggesterMulti, not the Obsidian modal", async () => {
 		const suggesterMulti = vi.fn(
 			async (_display: string[], _actual: string[]) => ["a", "c"],

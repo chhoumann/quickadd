@@ -43,7 +43,6 @@ export interface PromptContext {
 	dateFormat?: string;
 	defaultValue?: string;
 	label?: string;
-	description?: string;
 	placeholder?: string;
 	variableKey?: string;
 	inputTypeOverride?: ValueInputType; // Undefined means use global input prompt setting.
@@ -508,7 +507,6 @@ export abstract class ValueFormatter {
 
 		if (resolvedKey) return resolvedKey;
 
-		const helperText = !hasOptions && label ? label : undefined;
 		// A picker in a property Capture is answering for that property, so it is named after it.
 		const propertyKey = this.promptScope === "propertyValue" ? this.variables.get("propertyKey") : undefined;
 		const suggesterPlaceholder = hasOptions
@@ -541,7 +539,7 @@ export abstract class ValueFormatter {
 			// For single-value prompts, pass default value to pre-populate the input
 			variableValue = await this.promptForVariable(variableName, {
 				defaultValue,
-				description: helperText,
+				label,
 				inputTypeOverride: parsed.inputTypeOverride,
 				numericConfig: parsed.numericConfig,
 				sliderConfig: parsed.sliderConfig,

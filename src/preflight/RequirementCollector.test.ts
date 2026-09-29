@@ -34,14 +34,16 @@ describe("RequirementCollector", () => {
     const rc = createCollector();
     const multiToken = "low,medium,high|label:Priority";
     await rc.scanString(
-      `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}}`,
+      `{{VALUE:title|label:Snake cased name}} and {{VALUE:${multiToken}}} {{VALUE:done|type:checkbox|label:Completed?}}`,
     );
 
     const reqs = Array.from(rc.requirements.values());
     const byId = Object.fromEntries(reqs.map((r) => [r.id, r]));
 
-    expect(byId["title"].label).toBe("title");
-    expect(byId["title"].description).toBe("Snake cased name");
+    expect(byId["title"].label).toBe("Snake cased name");
+    expect(byId["title"].description).toBeUndefined();
+    // The run titles a checkbox picker with its label too.
+    expect(byId["done"]).toMatchObject({ label: "Completed?", type: "dropdown" });
     const variableKey = buildValueVariableKey(
       "low,medium,high",
       "Priority",

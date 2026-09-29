@@ -267,8 +267,7 @@ export class RequirementCollector extends Formatter {
 
 			if (!variableName) continue;
 
-			const displayLabel = hasOptions && label ? label : variableName;
-			const description = !hasOptions && label ? label : undefined;
+			const displayLabel = label ?? variableName;
 			const requirementId = variableKey;
 
 			// A VDATE with this name asks first at run time, which matches names
@@ -289,7 +288,6 @@ export class RequirementCollector extends Formatter {
 					id: requirementId,
 					label: displayLabel,
 					type: hasOptions ? this.optionFieldType(parsed) : inputType,
-					description,
 					optional: parsed.optional,
 				};
 				if (hasOptions) this.applyOptionFields(req, parsed);
@@ -541,9 +539,8 @@ export class RequirementCollector extends Formatter {
 			const type = hasOptions ? "dropdown" : this.inputFieldType(context);
 			const req: FieldRequirement = {
 				id: key,
-				label: variableName,
+				label: context?.label ?? variableName,
 				type,
-				description: context?.description,
 				numericConfig: context?.numericConfig,
 				sliderConfig: context?.sliderConfig,
 				source: "collected",

@@ -42,13 +42,13 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 				await provider.suggester(
 					["true", "false"],
 					["true", "false"],
-					context.description ?? header ?? context.label ?? "Choose value",
+					context.label ?? header ?? "Choose value",
 					false,
 				),
 			);
 		}
 		return await provider.inputPrompt(
-			header ?? context?.label ?? "Enter value",
+			context?.label ?? header ?? "Enter value",
 			context?.placeholder,
 			context?.defaultValue,
 		);
@@ -57,10 +57,9 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 		header ? `{{VALUE:${header}}}` : "a template variable",
 	);
 	try {
-		// Named prompts already title themselves with the variable name, so they
-		// only gain the run context: which choice is asking, and where the
-		// answer lands (issue #1546).
-		// A VDATE's |label: names its prompt; the variable name is only its key.
+		// A |label: names the prompt; otherwise the variable name does. The name
+		// stays the variable's key either way. The context line adds which choice
+		// is asking and where the answer lands (issue #1546).
 		const variableTitle = context?.label ?? header ?? "Enter value";
 		const showDestination = scopeShowsDestination(runtime.scope);
 		const namedContextLine = buildPromptContextLine(
@@ -96,14 +95,14 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 
 		// {{VALUE:x|type:checkbox}} renders a forced true/false picker (no
 		// free text) so the written `x: true` round-trips as a Checkbox. The
-		// |label (carried as description for single-value tokens) becomes the
-		// modal title so the user knows which property they are setting (#202).
+		// |label becomes the picker's title so the user knows which property
+		// they are setting (#202).
 		if (context?.inputTypeOverride === "checkbox") {
 			return await GenericSuggester.Suggest(
 				runtime.app,
 				["true", "false"],
 				["true", "false"],
-				context.description ?? header ?? context.label ?? "Choose value",
+				context.label ?? header ?? "Choose value",
 				undefined,
 				context.optional ? { skippable: true } : undefined,
 			);
@@ -116,7 +115,7 @@ export async function promptForVariable(runtime: PromptRuntime, header?: string,
 			context?.placeholder ??
 				(context?.defaultValue ? context.defaultValue : undefined),
 			context?.defaultValue,
-			context?.description,
+			undefined,
 			runtime.buildInputPromptOptions(
 				context,
 				namedContextLine,
