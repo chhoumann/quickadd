@@ -106,7 +106,7 @@ vi.mock("../utilityObsidian", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	setMarkdownCursorAtOffset: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 }));
 
 vi.mock("three-way-merge", () => ({

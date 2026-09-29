@@ -55,7 +55,11 @@ vi.mock("../utilityObsidian", () => ({
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	isTemplaterTriggerOnCreateEnabled: () => mocks.templaterEnabled,
-	waitForTemplaterTriggerOnCreateToComplete: mocks.afterCreate,
+	createNoteAfterTemplaterTrigger: async (_app: unknown, _path: string, create: () => Promise<unknown>) => {
+		const file = await create();
+		await mocks.afterCreate();
+		return file;
+	},
 	withTemplaterFileCreationSuppressed: async (_app: unknown, _path: string, work: () => Promise<unknown>) => await work(),
 }));
 

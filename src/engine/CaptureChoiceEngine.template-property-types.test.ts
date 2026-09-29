@@ -123,6 +123,7 @@ vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 
 vi.mock("../utilityObsidian", () => ({
 	appendToCurrentLine: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),
 	getMarkdownFilesWithTag: vi.fn().mockResolvedValue([]),
 	insertFileLinkToActiveView: vi.fn(),

@@ -22,6 +22,7 @@ export {
 	getTemplaterPlugin,
 	isTemplaterTriggerOnCreateEnabled,
 	waitForTemplaterTriggerOnCreateToComplete,
+	createNoteAfterTemplaterTrigger,
 	withTemplaterFileCreationSuppressed,
 	waitForFileToStopChanging,
 	overwriteTemplaterOnce,
