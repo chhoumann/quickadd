@@ -272,6 +272,26 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		},
 	);
 
+	it("does not read an inline-code line as a fence when ending a heading's section (#1968)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\n```inline```\n\n## Next\n- untouched\n",
+			createFile(),
+		);
+
+		expect(content).toBe("## Log\n```inline```\n- captured\n\n## Next\n- untouched\n");
+	});
+
 	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
 		const choice = createChoice({
 			insertAfter: {

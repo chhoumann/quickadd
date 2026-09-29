@@ -92,8 +92,11 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 		// length >= the opener, then optional whitespace) — otherwise a content
 		// line like ```js inside the block would wrongly close it (CommonMark).
 		if (!inFence) {
-			const open = line.match(/^ {0,3}(`{3,}|~{3,})/);
-			if (open) {
+			const open = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+			// A backtick fence's info string can't contain a backtick: a line
+			// like ```inline``` is inline code, not a fence (CommonMark, and
+			// Obsidian).
+			if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
 				inFence = true;
 				fenceChar = open[1][0];
 				fenceLen = open[1].length;

@@ -281,6 +281,19 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("does not open a backtick fence whose info string has a backtick, as Obsidian does (#1968)", () => {
+		expect(
+			extractHeadingsFromLines(["## Log", "```inline```", "", "## Next"]).map((h) => h.heading),
+		).toEqual(["Log", "Next"]);
+		expect(
+			extractHeadingsFromLines(["```js `x`", "# heading", "## Next"]).map((h) => h.heading),
+		).toEqual(["heading", "Next"]);
+		// A tilde fence's info string may hold backticks.
+		expect(
+			extractHeadingsFromLines(["~~~ a`b", "# in fence", "~~~", "## Next"]).map((h) => h.heading),
+		).toEqual(["Next"]);
+	});
+
 	it("handles ~~~ fences too", () => {
 		const lines = ["~~~", "# fenced", "~~~", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([
