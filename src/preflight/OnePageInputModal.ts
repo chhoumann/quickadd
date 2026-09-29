@@ -208,8 +208,10 @@ export class OnePageInputModal extends Modal {
 		// ("Example Title") over prefilled answers for 150ms.
 		if (this.computePreview) void this.updatePreviews();
 
-		const buttonBar = this.contentEl.createDiv({
-			cls: "qa-prompt-actions",
+		// A sibling of the fields rather than their last row, so Submit stays in
+		// view however long the form is (#1910).
+		const buttonBar = this.modalEl.createDiv({
+			cls: "qa-prompt-actions qa-modal-footer",
 		});
 		const primary = buttonBar.createDiv({
 			cls: "qa-prompt-actions-primary",

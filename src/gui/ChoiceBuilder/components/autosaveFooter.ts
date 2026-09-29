@@ -30,7 +30,7 @@ export function addAutosaveFooter(modal: Modal, subject: string): void {
 	modal.containerEl.addClass("qa-choice-builder");
 	if (modal.modalEl.querySelector(".qa-builder-footer")) return;
 
-	const footer = modal.modalEl.createDiv({ cls: "qa-builder-footer" });
+	const footer = modal.modalEl.createDiv({ cls: "qa-builder-footer qa-modal-footer" });
 
 	footer.createSpan({
 		cls: "qa-builder-footer-note",

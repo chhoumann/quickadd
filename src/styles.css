@@ -94,26 +94,60 @@
 	min-width: 35%;
 }
 
-/* Autosave footer for the choice builders (#1545). Core already lays `.modal`
-   out as a flex column with `.modal-content` as the growing item, so moving the
-   scrollport onto the content is all it takes to pin the footer — which also
-   re-pins the absolutely-positioned close button, previously scrolled away with
-   the rest of the modal. */
-.quickAddModal.qa-choice-builder .modal {
+/* Pinned footer: a `.qa-modal-footer` appended to `modalEl`, as a sibling of
+   `.modal-content`, stays in view while the content scrolls. Used by the choice
+   builders' autosave footer (#1545) and the one-page form's actions (#1910).
+   Core already lays `.modal` out as a flex column with `.modal-content` as the
+   growing item, so moving the scrollport onto the content is all it takes —
+   which also pins the absolutely-positioned close button. Core's own
+   `.mod-scrollable-content` dialogs do the same. */
+.quickAddModal .modal:has(> .qa-modal-footer) {
 	overflow: hidden;
-	/* A scrollport clips ink overflow at its padding box, and the builder's
-	   full-width fields are exactly as wide as it — so a focus or validity ring,
-	   which paints outside the border box, would lose its left and right edges.
-	   Hand the horizontal inset to the scrollport itself. */
+	/* A scrollport clips ink overflow at its padding box, and full-width fields
+	   are exactly as wide as it — so a focus or validity ring, which paints
+	   outside the border box, would lose its left and right edges. Hand the
+	   horizontal inset to the scrollport itself. */
 	padding-inline: 0;
+	/* The footer below is a scrollport too, so it carries the bottom inset:
+	   a focus ring on its buttons would lose its bottom edge otherwise. */
+	padding-bottom: 0;
 }
 
-.quickAddModal.qa-choice-builder .modal-content {
+.quickAddModal .modal:has(> .qa-modal-footer) > .modal-content {
 	overflow-y: auto;
 	padding-inline: var(--size-4-4);
-	/* Reserve the scrollbar gutter unconditionally, so the pinned footer below can
-	   mirror it and stay aligned with the rows whether or not they scroll. */
+	/* Inside the scrollport, so a ring on the last field survives, and content
+	   scrolling past is cut at the footer rule rather than above it. */
+	padding-bottom: var(--size-4-4);
+	/* Reserve the scrollbar gutter unconditionally, so the footer below can
+	   mirror it and stay aligned with the fields whether or not they scroll. */
 	scrollbar-gutter: stable;
+}
+
+.quickAddModal .modal > .qa-modal-footer {
+	flex-shrink: 0;
+	margin-top: 0;
+	/* Sibling of the scrollport, so it carries the same inset itself — including
+	   the scrollbar gutter, which `overflow: hidden` + `scrollbar-gutter: stable`
+	   reserves at the platform's own width without ever showing a scrollbar. Without
+	   it the buttons and the footer rule overhang the fields above by the width
+	   of the scrollbar. */
+	padding: var(--size-4-4);
+	overflow: hidden;
+	scrollbar-gutter: stable;
+	border-top: var(--border-width) solid var(--background-modifier-border);
+}
+
+/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
+   above would otherwise drop them. */
+.is-phone .quickAddModal .modal:has(> .qa-modal-footer) {
+	padding-left: var(--safe-area-inset-left);
+	padding-right: var(--safe-area-inset-right);
+}
+
+/* Keep the phone footer's buttons clear of the home indicator. */
+.is-phone .quickAddModal .modal > .qa-modal-footer {
+	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
 }
 
 .quickAddModal.qa-choice-builder .qa-builder-footer {
@@ -121,34 +155,11 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: var(--size-4-2);
-	flex-shrink: 0;
-	margin-top: var(--size-4-2);
-	/* Sibling of the scrollport, so it carries the same inset itself — including
-	   the scrollbar gutter, which `overflow: hidden` + `scrollbar-gutter: stable`
-	   reserves at the platform's own width without ever showing a scrollbar. Without
-	   it the Done button and the footer rule overhang the rows above by the width
-	   of the scrollbar. */
-	padding: var(--size-4-3) var(--size-4-4) 0;
-	overflow: hidden;
-	scrollbar-gutter: stable;
-	border-top: var(--border-width) solid var(--background-modifier-border);
 }
 
 .quickAddModal.qa-choice-builder .qa-builder-footer-note {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
-}
-
-/* Core gives the phone modal only its safe-area insets; the padding-inline: 0
-   above would otherwise drop them. */
-.is-phone .quickAddModal.qa-choice-builder .modal {
-	padding-left: var(--safe-area-inset-left);
-	padding-right: var(--safe-area-inset-right);
-}
-
-/* Keep the phone builder's button clear of the home indicator. */
-.is-phone .quickAddModal.qa-choice-builder .qa-builder-footer {
-	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
 }
 
 /* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries

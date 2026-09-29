@@ -95,11 +95,11 @@ describe("OnePageInputModal peek", () => {
 		input.dispatchEvent(new Event("input", { bubbles: true }));
 
 		const buttons = Array.from(
-			modal.contentEl.querySelectorAll("button"),
+			modal.modalEl.querySelectorAll("button"),
 		);
-		const peekButton = findButton(modal.contentEl, "Peek at note");
+		const peekButton = findButton(modal.modalEl, "Peek at note");
 		expect(peekButton.classList.contains("qa-peek-button")).toBe(true);
-		expect(buttons.indexOf(findButton(modal.contentEl, "Submit"))).toBeLessThan(
+		expect(buttons.indexOf(findButton(modal.modalEl, "Submit"))).toBeLessThan(
 			buttons.indexOf(peekButton),
 		);
 		peekButton.click();
@@ -118,7 +118,7 @@ describe("OnePageInputModal peek", () => {
 
 		PromptPeekSession.getActive()?.resume();
 		expect(modal.containerEl.classList.contains(PEEK_HIDDEN_CLASS)).toBe(false);
-		findButton(modal.contentEl, "Submit").click();
+		findButton(modal.modalEl, "Submit").click();
 
 		await expect(modal.waitForClose).resolves.toEqual({
 			title: "Draft title",
@@ -129,7 +129,7 @@ describe("OnePageInputModal peek", () => {
 		const modal = new OnePageInputModal(fakeApp as never, [
 			{ id: "title", label: "Title", type: "text" },
 		]);
-		findButton(modal.contentEl, "Peek at note").click();
+		findButton(modal.modalEl, "Peek at note").click();
 
 		const chip = document.querySelector(".qa-peek-chip") as HTMLElement;
 		findButton(chip, "Cancel").click();
@@ -178,12 +178,12 @@ describe("OnePageInputModal peek", () => {
 		second.focus();
 		second.setSelectionRange(second.value.length, second.value.length);
 
-		findButton(modal.contentEl, "Peek at note").click();
+		findButton(modal.modalEl, "Peek at note").click();
 		const chip = document.querySelector(".qa-peek-chip") as HTMLElement;
 		findButton(chip, "Insert").click();
 
 		expect(second.value).toBe("before selected");
-		findButton(modal.contentEl, "Submit").click();
+		findButton(modal.modalEl, "Submit").click();
 		await expect(modal.waitForClose).resolves.toEqual({
 			first: "unchanged",
 			second: "before selected",
@@ -205,13 +205,13 @@ describe("OnePageInputModal peek", () => {
 			},
 		]);
 
-		findButton(modal.contentEl, "Peek at note").click();
+		findButton(modal.modalEl, "Peek at note").click();
 		expect(modal.containerEl.classList.contains(PEEK_HIDDEN_CLASS)).toBe(true);
 		const chip = document.querySelector(".qa-peek-chip") as HTMLElement;
 		findButton(chip, "Insert").click();
 
 		expect(modal.containerEl.classList.contains(PEEK_HIDDEN_CLASS)).toBe(false);
-		findButton(modal.contentEl, "Submit").click();
+		findButton(modal.modalEl, "Submit").click();
 		await expect(modal.waitForClose).resolves.toEqual({ count: "4" });
 	});
 });
