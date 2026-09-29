@@ -299,7 +299,7 @@ describe("Template actions for discovered existing notes", () => {
 		expect(await workflow.sandbox.read(workflow.relativePath)).toBe(INITIAL_CONTENT);
 		await pressKey(workflow.obsidian, "Enter", true);
 		const content = await workflow.sandbox.waitForContent(workflow.relativePath, (text) => text.includes("Follow-up (Ada)"), WAIT_OPTS);
-		expect(content.trimEnd()).toBe(`${INITIAL_CONTENT}\nOwner: Ada\n\nFollow-up (Ada)`);
+		expect(content.trimEnd()).toBe(`${INITIAL_CONTENT}\nOwner: Ada\nFollow-up (Ada)`);
 		await expectNoPrompt(workflow.obsidian);
 		expect(await workflow.obsidian.dev.evalJson<string | null>("app.workspace.getActiveFile()?.path ?? null"))
 			.toBe(workflow.targetPath);
