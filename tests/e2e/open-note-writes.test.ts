@@ -256,4 +256,17 @@ describe("Writes into an open note land in its editor (#1798)", () => {
 		expect(result.cursor).toEqual({ line: 1, ch: 0 });
 		expect(result.editor.startsWith("# Fresh\n\nLine 0")).toBe(true);
 	});
+
+	it("the AI append_to_note tool keeps unsaved typing at the end of the note on its own line", async () => {
+		const path = await seedNote("ai-append.md", "# Tasks\n- a\n");
+		await open(path, { line: 2, ch: 0 });
+		const result = await runAndSnapshot(path, `
+			app.workspace.activeLeaf.view.editor.replaceRange("- b", { line: 2, ch: 0 });
+			await app.plugins.plugins.quickadd.api.ai.tools.vault().append_to_note
+				.execute({ path: ${JSON.stringify(path)}, content: "- AI" });
+		`);
+		expect(result.editor).toBe("# Tasks\n- a\n- b\n- AI");
+		expect(result.disk).toBe(result.editor);
+		expect(result.notices.filter(notice => MERGE_NOTICE.test(notice))).toEqual([]);
+	});
 });

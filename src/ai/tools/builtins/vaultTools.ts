@@ -12,6 +12,7 @@
 import { type App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
+import { processNote } from "../../../utils/noteContent";
 import { isWithinAllowedRoots } from "../allowedRoots";
 import { sanitizeVaultPath } from "../sanitizeVaultPath";
 import { assertWriteStaysInVault } from "../../../utils/vaultWriteGuards";
@@ -198,13 +199,12 @@ export function createVaultTools(
 				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
-				const body = await app.vault.read(file);
 				const text = String(content);
-				const next =
+				await processNote(app, file, (body) =>
 					position === "top"
 						? insertAtNoteBodyStart(body, text.endsWith("\n") ? text : text + "\n")
-						: `${body}${body.endsWith("\n") || body.length === 0 ? "" : "\n"}${text}`;
-				await app.vault.modify(file, next);
+						: `${body}${body.endsWith("\n") || body.length === 0 ? "" : "\n"}${text}`,
+				);
 				return { appended: true, path: norm };
 			},
 		}),
@@ -225,6 +225,9 @@ export function createVaultTools(
 				const norm = sanitizeVaultPath(ensureMarkdownPath(String(path)), { allowedRoots: roots });
 				const file = requireFile(app, norm);
 				await assertWriteStaysInVault(app, norm);
+				// Section positions come from Obsidian's heading parse, which only
+				// exists for the saved text, so this stays a disk write: Obsidian merges
+				// it into an open editor with unsaved typing (#1872).
 				const headings = app.metadataCache.getFileCache(file)?.headings ?? [];
 				const target = headings.find((h) => h.heading === String(heading));
 				if (!target) throw new Error(`Heading "${heading}" not found in ${norm}`);

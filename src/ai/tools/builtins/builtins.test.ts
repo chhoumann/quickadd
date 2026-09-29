@@ -27,7 +27,12 @@ function makeApp(over: Record<string, unknown> = {}): App {
 			...((over.vault as object) ?? {}),
 		},
 		metadataCache: { getFileCache: vi.fn(() => null), ...((over.metadataCache as object) ?? {}) },
-		workspace: { getActiveFile: vi.fn(() => null), getActiveViewOfType: vi.fn(() => null), ...((over.workspace as object) ?? {}) },
+		workspace: {
+			getActiveFile: vi.fn(() => null),
+			getActiveViewOfType: vi.fn(() => null),
+			getLeavesOfType: vi.fn(() => []),
+			...((over.workspace as object) ?? {}),
+		},
 	} as unknown as App;
 }
 
@@ -105,13 +110,11 @@ describe("vault write tools — safety", () => {
 	});
 
 	it("append_to_note position=top keeps the frontmatter separator line (issue #1538)", async () => {
-		const file = fileLike("Daily/2026-07-25.md");
-		const modify = vi.fn(async () => undefined);
+		let content = "---\ndate: 2026-07-25\n---\n\nExisting\n";
 		const app = makeApp({
 			vault: {
-				getAbstractFileByPath: () => file,
-				read: vi.fn(async () => "---\ndate: 2026-07-25\n---\n\nExisting\n"),
-				modify,
+				getAbstractFileByPath: () => fileLike("Daily/2026-07-25.md"),
+				process: vi.fn(async (_file: TFile, fn: (current: string) => string) => (content = fn(content))),
 			},
 		});
 		const tools = createVaultTools(app);
@@ -119,10 +122,7 @@ describe("vault write tools — safety", () => {
 			{ path: "Daily/2026-07-25.md", content: "note text", position: "top" },
 			{ toolCallId: "c", toolName: "append_to_note" },
 		);
-		expect(modify).toHaveBeenCalledWith(
-			file,
-			"---\ndate: 2026-07-25\n---\n\nnote text\nExisting\n",
-		);
+		expect(content).toBe("---\ndate: 2026-07-25\n---\n\nnote text\nExisting\n");
 	});
 
 	it("respects allowedRoots for reads", async () => {
