@@ -233,7 +233,7 @@ export class OnePageInputModal extends Modal {
 				.setButtonText("Peek at note")
 				.onClick(() => this.peek.peek()),
 		);
-		if (this.fillFromText && fillableFields(this.activeRequirements).length > 0) {
+		if (this.fillFromText && fillableFields(this.requirements).length > 0) {
 			const fill = new ButtonComponent(secondary)
 				.setButtonText("Fill from clipboard")
 				.onClick(() => void this.fillFromClipboard(fill));
@@ -247,21 +247,22 @@ export class OnePageInputModal extends Modal {
 	 * parsing, validation, and preview apply. What the user already entered wins.
 	 */
 	private async fillFromClipboard(button: ButtonComponent): Promise<void> {
-		const text = (await navigator.clipboard.readText()).trim();
-		if (!text) {
-			new Notice("The clipboard has no text to fill from.");
-			return;
-		}
 		// A field still showing its default is a fallback, not an answer.
-		const empty = this.activeRequirements.filter((req) => {
+		const isEmpty = (req: FieldRequirement) => {
 			const value = this.result.get(req.id);
 			return !value || value === req.defaultValue;
-		});
+		};
 		button.setDisabled(true).setButtonText("Filling…");
 		try {
-			const values = await this.fillFromText!(text, empty);
+			const text = (await navigator.clipboard.readText()).trim();
+			if (!text) {
+				new Notice("The clipboard has no text to fill from.");
+				return;
+			}
+			const values = await this.fillFromText!(text, this.activeRequirements.filter(isEmpty));
 			if (this.settled) return;
-			const filled = empty.filter((req) => values[req.id]);
+			// Re-check: the user may have typed while the model was answering.
+			const filled = this.activeRequirements.filter((req) => values[req.id] && isEmpty(req));
 			for (const req of filled) this.typeIntoField(req.id, values[req.id]);
 			const count = filled.length;
 			new Notice(count ? `Filled ${count} field${count === 1 ? "" : "s"} from the clipboard. Review before submitting.` : "Nothing in the clipboard matched these fields.");
