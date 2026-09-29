@@ -104,7 +104,7 @@ how much they can affect your vault:
 
 ![The Import QuickAdd package modal after pasting a package. The What this package can do callout lists a SCRIPT row for the Weekly review macro's user script, a COMMAND row, and an OVERWRITES row. Below it, the Choices list shows Reading, Weekly review, New book note, and Add to reading list, each set to Import](../Images/package-import-review.png)
 
-- **Runs custom JavaScript** - a user script, or a script-mode condition, that runs arbitrary code.
+- **Runs custom JavaScript** - a user script, a script-mode condition, or an [inline `js quickadd` fence](/docs/InlineScripts/) written into a choice's settings, such as a Capture format. Each runs arbitrary code; open **View code** on a choice to read the code in its settings.
 - **Runs on startup** - a macro set to run automatically every time Obsidian launches, with no interaction.
 - **Adds commands** - choices that register a command in the palette / hotkeys.
 - **Overwrites existing choices or files**, **sends content to an AI provider**, **triggers other Obsidian commands**, and similar.
@@ -133,8 +133,10 @@ image, can't run, so you don't have to open them.
 ### Acknowledge the code before importing {#acknowledgement-gate}
 
 When a package can run code, the **Import package** button stays disabled until
-you have opened **View contents** on each bundled executable file and ticked
-the acknowledgement. Reviewed files are marked so you can track what is left.
+you have opened **View contents** on each bundled executable file and **View
+code** on each choice with JavaScript in its settings, then ticked the
+acknowledgement. The text beside the button says what is left, and reviewed
+files and choices are marked.
 
 ![The Files section of the import modal. Under Added, the bundled script weekly-review.js is marked EXECUTABLE and Reviewed, with its contents expanded and its destination set to Scripts/weekly-review.js. Under Will overwrite, Book.md goes to Templates/Book.md. The acknowledgement checkbox is ticked, so the Import package button is enabled](../Images/package-import-files.png)
 

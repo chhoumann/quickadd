@@ -169,6 +169,66 @@ describe("ImportPackageModal gate flow", () => {
 	});
 });
 
+describe("ImportPackageModal inline code in a choice setting", () => {
+	const format = "- ```js quickadd return app.vault.getName()``` {{VALUE}}";
+	const INLINE_PACKAGE = JSON.stringify({
+		schemaVersion: 1,
+		quickAddVersion: "2.29.0",
+		createdAt: "2026-09-29T00:00:00.000Z",
+		rootChoiceIds: ["c1"],
+		choices: [
+			{
+				choice: {
+					id: "c1",
+					name: "Log vault name",
+					type: "Capture",
+					command: false,
+					captureTo: "Inbox.md",
+					format: { enabled: true, format },
+				},
+				pathHint: ["Log vault name"],
+				parentChoiceId: null,
+			},
+		],
+		assets: [],
+	});
+
+	it("shows the code and counts viewing it toward the review", async () => {
+		const { container, getByText, getByRole, queryByText } = render(ImportPackageModal, {
+			props: { app: fakeApp(), close: () => {} },
+		});
+		const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
+		await fireEvent.input(textarea, { target: { value: INLINE_PACKAGE } });
+		await waitFor(() =>
+			expect(getByText("What this package can do")).toBeTruthy(),
+		);
+
+		const checkbox = getByRole("checkbox") as HTMLInputElement;
+		const importButton = getByText("Import package") as HTMLButtonElement;
+		const reason = () => container.querySelector("#qa-import-reason")?.textContent?.trim();
+		expect(getByText("I have reviewed each script above and trust the source.")).toBeTruthy();
+		expect(checkbox.disabled).toBe(true);
+		expect(reason()).toBe("View 1 script above to import.");
+		expect(importButton.getAttribute("aria-describedby")).toBe("qa-import-reason");
+
+		await fireEvent.click(getByText("View code"));
+		const code = getByRole("region", { name: "Log vault name › capture format" });
+		expect(code.textContent).toBe(format);
+		expect(getByText("capture format")).toBeTruthy();
+		await waitFor(() => expect(checkbox.disabled).toBe(false));
+		expect(getByText("Reviewed")).toBeTruthy();
+
+		// Closing it again keeps the review.
+		await fireEvent.click(getByText("Hide code"));
+		expect(queryByText(format)).toBeNull();
+		expect(checkbox.disabled).toBe(false);
+
+		await fireEvent.click(checkbox);
+		await waitFor(() => expect(importButton.disabled).toBe(false));
+		expect(reason()).toBeUndefined();
+	});
+});
+
 describe("ImportPackageModal after import (#1880)", () => {
 	it("says which script to open, then shows the result with a single Close", async () => {
 		const scrollIntoView = vi.fn();
@@ -183,14 +243,17 @@ describe("ImportPackageModal after import (#1880)", () => {
 			expect(getByText("What this package can do")).toBeTruthy(),
 		);
 
-		expect(container.querySelector("#qa-import-ack-hint")?.textContent?.trim()).toBe(
-			"Open “View contents” on the executable script above to enable this.",
-		);
+		// The reason sits beside the disabled button, not at the end of the review.
+		const reason = () =>
+			container.querySelector(".modal-button-container #qa-import-reason")?.textContent?.trim();
+		expect(reason()).toBe("View 1 script above to import.");
 
 		await fireEvent.click(getByText("View contents"));
 		const checkbox = getByRole("checkbox") as HTMLInputElement;
 		await waitFor(() => expect(checkbox.disabled).toBe(false));
+		expect(reason()).toBe("Confirm the acknowledgement above to import.");
 		await fireEvent.click(checkbox);
+		await waitFor(() => expect(reason()).toBeUndefined());
 		await fireEvent.click(getByText("Import package"));
 
 		const summary = await waitFor(() => getByRole("status"));

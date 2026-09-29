@@ -255,6 +255,7 @@ export function buildPackagePreview(
 			registersCommand: walk.registersCommand,
 			flags,
 			commands: walk.commands,
+			inlineScripts: walk.inlineScripts,
 		};
 	});
 
@@ -453,6 +454,20 @@ function looksMinified(text: string): boolean {
 	return longestLine > 1000 || avgPerLine > 250;
 }
 
+/** What the review shows of some code: capped, and flagged when too dense to read. */
+export function textPreview(text: string): AssetPreviewContent {
+	const truncated = text.length > MAX_PREVIEW_CHARS;
+	const shown = truncated ? text.slice(0, MAX_PREVIEW_CHARS) : text;
+	return {
+		found: true,
+		text: shown,
+		truncated,
+		sizeBytes: byteLength(text),
+		// Scan only the previewed slice — enough to spot minification.
+		looksMinified: looksMinified(shown),
+	};
+}
+
 /**
  * Decode a bundled asset's content for display. Lazy by design — call this only
  * when the user expands a file, never during initial analysis.
@@ -474,17 +489,7 @@ export function decodeAssetPreview(
 	}
 
 	try {
-		const decoded = decodeFromBase64(asset.content);
-		const truncated = decoded.length > MAX_PREVIEW_CHARS;
-		const text = truncated ? decoded.slice(0, MAX_PREVIEW_CHARS) : decoded;
-		return {
-			found: true,
-			text,
-			truncated,
-			sizeBytes: byteLength(decoded),
-			// Scan only the previewed slice — enough to spot minification.
-			looksMinified: looksMinified(text),
-		};
+		return textPreview(decodeFromBase64(asset.content));
 	} catch (error) {
 		return {
 			found: true,
@@ -503,14 +508,22 @@ export function requiresAcknowledgement(preview: PackagePreview): boolean {
 }
 
 /**
- * True when every bundled critical script has been expanded/reviewed at least
- * once. Used to gate the acknowledgement checkbox.
+ * How many scripts are still unopened: bundled files that can run, and choices
+ * with inline code. Zero unlocks the acknowledgement checkbox. The two sets are
+ * kept apart so a crafted choice id can't pass for a file path.
  */
-export function isFullyReviewed(
+export function unreviewedScriptCount(
 	preview: PackagePreview,
 	reviewedScriptPaths: ReadonlySet<string>,
-): boolean {
-	return preview.criticalScriptPaths.every((path) =>
-		reviewedScriptPaths.has(path),
-	);
+	reviewedChoiceIds: ReadonlySet<string>,
+): number {
+	const files = preview.criticalScriptPaths.filter(
+		(path) => !reviewedScriptPaths.has(path),
+	).length;
+	const choices = preview.choices.filter(
+		(choice) =>
+			choice.inlineScripts.length > 0 &&
+			!reviewedChoiceIds.has(choice.choiceId),
+	).length;
+	return files + choices;
 }
