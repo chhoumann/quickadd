@@ -184,25 +184,23 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(await append("second\n\n", "first\n\n")).toBe("first\n\nsecond\n\n");
 	});
 
-	it("starts an empty note with a heading it creates at the bottom, not a blank line", async () => {
-		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+	it("puts a heading it creates at the bottom on the next line, not after a blank line", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				createIfNotFound: true,
+				createIfNotFoundLocation: "bottom",
+			},
+		});
+		const capture = async (note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile("- first", choice, note, createFile())).content;
 
-		const { content: result } = await formatter.formatContentWithFile(
-			"- first",
-			createChoice({
-				insertAfter: {
-					...createChoice().insertAfter,
-					enabled: true,
-					after: "## Log",
-					createIfNotFound: true,
-					createIfNotFoundLocation: "bottom",
-				},
-			}),
-			"",
-			createFile(),
-		);
-
-		expect(result).toBe("## Log\n- first");
+		expect(await capture("")).toBe("## Log\n- first");
+		expect(await capture("# Inbox")).toBe("# Inbox\n## Log\n- first");
+		expect(await capture("# Inbox\n")).toBe("# Inbox\n## Log\n- first");
 	});
 
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
