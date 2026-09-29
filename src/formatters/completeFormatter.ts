@@ -7,7 +7,8 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { RunClocks } from "../types/dateOrigin";
-import { TITLE_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
+import { findDateVariableFormat } from "./helpers/dateTokens";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -69,7 +70,13 @@ export class CompleteFormatter extends Formatter {
 
 		output = await this.replaceInlineJavascriptInString(output);
 		output = await this.replaceMacrosInString(output);
-		output = await this.replaceTemplateInString(output);
+		const outerIncludingText = this.includingText;
+		this.includingText = output;
+		try {
+			output = await this.replaceTemplateInString(output);
+		} finally {
+			this.includingText = outerIncludingText;
+		}
 		// Expand global variables early so injected snippets can be further formatted
 		output = await this.replaceGlobalVarInString(output);
 		return this.formatScalarTokens(output);
@@ -153,6 +160,28 @@ export class CompleteFormatter extends Formatter {
 	 */
 	private get includer(): CompleteFormatter | undefined {
 		return this.templateInclusion?.includer;
+	}
+
+	/** This formatter's text while its `{{TEMPLATE:}}` includes render. */
+	private includingText: string | null = null;
+
+	/**
+	 * Includes render before the including text's `{{VDATE}}`s. So when an
+	 * include's `{{VALUE:<name>}}` reuses one, resolve that VDATE now: it asks
+	 * the date prompt (or takes the prefilled answer) and records its format, as
+	 * a reuse in the including text itself would.
+	 */
+	protected override async resolveIncludingTextDate(variableName: string): Promise<void> {
+		if (!this.includer || findDateVariableFormat(this.variables, variableName) !== undefined) return;
+		for (let includer: CompleteFormatter | undefined = this.includer; includer; includer = includer.includer) {
+			const tokens = [...(includer.includingText ?? "").matchAll(new RegExp(DATE_VARIABLE_REGEX.source, "gi"))];
+			const token = tokens.find((match) => match[1]?.trim() === variableName) ??
+				tokens.find((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
+			if (token) {
+				await includer.replaceDateVariableInString(token[0]);
+				return;
+			}
+		}
 	}
 
 	private defersPropertyExpansion(): boolean {

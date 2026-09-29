@@ -499,6 +499,7 @@ export abstract class ValueFormatter {
 		} = parsed;
 
 		this.warnOnNamedOptionConflict(parsed);
+		await this.resolveIncludingTextDate(variableKey);
 
 		const resolvedKey = resolveExistingVariableKey(
 			this.variables,
@@ -723,6 +724,13 @@ export abstract class ValueFormatter {
 	}
 
 	protected abstract getVariableValue(variableName: string): string;
+
+	/**
+	 * Lets a `{{VALUE:<name>}}` in an included template reuse a
+	 * `{{VDATE:<name>,...}}` of the text that includes it. Only CompleteFormatter
+	 * renders includes.
+	 */
+	protected async resolveIncludingTextDate(_variableName: string): Promise<void> {}
 
 	/** The text a `{{VALUE:<name>}}` token renders for a resolved variable. */
 	protected getValueTokenText(variableName: string): string {
