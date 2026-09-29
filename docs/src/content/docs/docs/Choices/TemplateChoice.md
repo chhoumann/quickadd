@@ -219,6 +219,8 @@ folder. The template's other inputs still appear, including in the
 An update finishes before the next Macro step runs and follows the choice's
 linking, clipboard, and **Open** settings. **Open note** always opens the selected
 note without applying the template, inserting links, or copying links.
+When the choice asks [which day](#date-origin) it is about, it asks after the
+picker, and not at all when it only opens the selected note.
 
 Selecting **Create new note** or an unresolved wikilink target continues with
 normal Template creation. **If a new note's path already exists** handles any

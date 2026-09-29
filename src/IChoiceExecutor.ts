@@ -54,6 +54,12 @@ export interface IChoiceExecutor {
 	 */
 	pickDate?: boolean;
 	/**
+	 * Sets {@link clocks} from the choice's Which day setting, asking when it is
+	 * Ask each time. A Template that searches existing notes calls this after its
+	 * note picker, and not at all when it only opens the selected note.
+	 */
+	resolveDateOrigin?(choice: IChoice): Promise<void>;
+	/**
 	 * Whether this execution may open blocking interactive UI (suggesters/modals)
 	 * for inputs the requirement collector cannot pre-satisfy — e.g. the
 	 * "file already exists" prompt, the folder chooser, or the heading picker.
