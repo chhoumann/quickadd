@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-	captureFailureArtifacts,
 	clearVaultRunLockMarker,
 	createSandboxApi,
 } from "obsidian-e2e";
+import { registerFailureArtifacts } from "obsidian-e2e/vitest";
 import type { ObsidianClient, SandboxApi, PluginHandle, VaultRunLock } from "obsidian-e2e";
 import {
 	acquireQuickAddVaultRunLock,
@@ -158,13 +158,7 @@ afterAll(async () => {
 }, 15_000);
 
 beforeEach((ctx) => {
-	ctx.onTestFailed(async () => {
-		await captureFailureArtifacts(
-			{ id: ctx.task.id, name: ctx.task.name },
-			obsidian,
-			{ plugin: qa, captureOnFailure: true },
-		);
-	});
+	registerFailureArtifacts(ctx, obsidian, { captureOnFailure: true }, qa);
 });
 
 // ---------------------------------------------------------------------------

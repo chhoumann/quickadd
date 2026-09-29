@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-	captureFailureArtifacts,
 	clearVaultRunLockMarker,
 	createSandboxApi,
 } from "obsidian-e2e";
+import { registerFailureArtifacts } from "obsidian-e2e/vitest";
 import type {
 	ObsidianClient,
 	PluginHandle,
@@ -122,15 +122,11 @@ async function resetDailyNote() {
 }
 
 describe("issue 1667: date case transform in Insert after", () => {
-	it("captures under the exact lowercase heading from the CLI and a hotkey", async (ctx) => {
-		ctx.onTestFailed(async () => {
-			await captureFailureArtifacts(
-				{ id: ctx.task.id, name: ctx.task.name },
-				obsidian,
-				{ plugin: qa, captureOnFailure: true },
-			);
-		});
+	beforeEach((ctx) => {
+		registerFailureArtifacts(ctx, obsidian, { captureOnFailure: true }, qa);
+	});
 
+	it("captures under the exact lowercase heading from the CLI and a hotkey", async () => {
 		const expectedCliContent = await resetDailyNote();
 		const outcome = await obsidian.execJson<{
 			ok: boolean;

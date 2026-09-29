@@ -3,10 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
-	captureFailureArtifacts,
 	clearVaultRunLockMarker,
 	createSandboxApi,
 } from "obsidian-e2e";
+import { registerFailureArtifacts } from "obsidian-e2e/vitest";
 import type {
 	ObsidianClient,
 	PluginHandle,
@@ -190,13 +190,7 @@ describe("Capture to Inbox with GPS package", () => {
 
 	beforeEach(async (ctx) => {
 		await seedVaultFile(obsidian, sandbox, INBOX_RELATIVE_PATH, "");
-		ctx.onTestFailed(async () => {
-			await captureFailureArtifacts(
-				{ id: ctx.task.id, name: ctx.task.name },
-				obsidian,
-				{ plugin: qa, captureOnFailure: true },
-			);
-		});
+		registerFailureArtifacts(ctx, obsidian, { captureOnFailure: true }, qa);
 	});
 
 	afterAll(async () => {
