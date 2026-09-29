@@ -24,6 +24,10 @@ It works with Template, Capture, and Macro choices.
 When you run a Macro, the Templates and Captures you added to it share one
 form.
 
+Fields appear in the order the choice uses them: the file name before the note
+content, a Macro's steps in turn, and within each, the order they have in the
+format.
+
 The form stops at the first step that might fill in or skip later answers:
 another Macro, a Multi, a Conditional, a user script, or an AI command.
 Anything after that step is asked later. Another Macro gets its own form.

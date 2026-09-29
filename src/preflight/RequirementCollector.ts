@@ -2,6 +2,7 @@ import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
 import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
+	FIELD_VAR_REGEX_WITH_FILTERS,
 	FIELD_VARIABLE_PREFIX,
 	FILE_REGEX,
 	MATH_VALUE_REGEX,
@@ -102,6 +103,13 @@ export class RequirementCollector extends Formatter {
 	 */
 	private scanningScope: PromptScopeKind = "generic";
 	private scanningSoleValue = false;
+	/**
+	 * Where each field first appears in the string being scanned. Dates, named
+	 * values and files are recorded by the passes below before the formatter
+	 * pass records the rest, so without this the form would list fields by
+	 * token type instead of in the order the format reads (#1876).
+	 */
+	private scanPositions = new Map<string, number>();
 
 	// Entry points -------------------------------------------------------------
 	public async scanString(
@@ -115,6 +123,8 @@ export class RequirementCollector extends Formatter {
 		this.scanningPathContext = pathContext;
 		this.scanningScope = scope;
 		this.scanningSoleValue = valueAnswersWholeScope(scope, input);
+		const known = new Set(this.requirements.keys());
+		this.scanPositions = new Map();
 		try {
 			// Expand global variables first so we can detect inner requirements
 			const expanded = await this.replaceGlobalVarInString(input);
@@ -141,11 +151,42 @@ export class RequirementCollector extends Formatter {
 				}
 			}
 			await this.format(expanded);
+			this.orderNewFieldsByPosition(known, expanded);
 		} finally {
 			this.scanningPathContext = previousContext;
 			this.scanningScope = previousScope;
 			this.scanningSoleValue = previousSoleValue;
 		}
+	}
+
+	/**
+	 * Lists the fields this string added in the order they first appear in it.
+	 * Fields from earlier strings (a file name, an earlier macro step) keep
+	 * their place ahead of them.
+	 */
+	private orderNewFieldsByPosition(known: Set<string>, input: string): void {
+		this.notePosition("value", input.search(NAME_VALUE_REGEX));
+		this.notePosition("mvalue", input.search(MATH_VALUE_REGEX));
+		const fieldTokens = new RegExp(FIELD_VAR_REGEX_WITH_FILTERS.source, "gi");
+		for (const match of input.matchAll(fieldTokens)) {
+			this.notePosition(
+				`${FIELD_VARIABLE_PREFIX}${match[1]}${match[2] ?? ""}`,
+				match.index,
+			);
+		}
+
+		const added = [...this.requirements].filter(([id]) => !known.has(id));
+		const position = (id: string) =>
+			this.scanPositions.get(id) ?? Number.MAX_SAFE_INTEGER;
+		added.sort(([a], [b]) => position(a) - position(b));
+		for (const [id] of added) this.requirements.delete(id);
+		for (const [id, requirement] of added) this.requirements.set(id, requirement);
+	}
+
+	private notePosition(id: string, index: number): void {
+		if (index < 0) return;
+		const seen = this.scanPositions.get(id);
+		if (seen === undefined || index < seen) this.scanPositions.set(id, index);
 	}
 
 	/** Sticky path-context marking: one path occurrence taints the field. */
@@ -233,6 +274,7 @@ export class RequirementCollector extends Formatter {
 			// A VDATE with this name asks first at run time, which matches names
 			// case-insensitively, so this VALUE only reuses the date.
 			const reusedDate = this.findRequirementIgnoringCase(requirementId, "date");
+			this.notePosition(reusedDate?.id ?? requirementId, match.index);
 			if (reusedDate) {
 				this.markScanContext(reusedDate);
 				continue;
@@ -384,6 +426,7 @@ export class RequirementCollector extends Formatter {
 		while ((match = re.exec(input)) !== null) {
 			const variableName = match[1]?.trim();
 			if (!variableName) continue;
+			this.notePosition(variableName, match.index);
 
 			const { defaultValue, optional, withTime } = parseVDateOptions(
 				match[3],
@@ -587,6 +630,7 @@ export class RequirementCollector extends Formatter {
 		while ((match = re.exec(input)) !== null) {
 			const parsed = parseFileToken(match[1] ?? "");
 			if (!parsed) continue;
+			this.notePosition(parsed.variableKey, match.index);
 			this.recordFileRequirement(parsed);
 		}
 	}
