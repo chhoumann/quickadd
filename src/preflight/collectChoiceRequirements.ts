@@ -232,6 +232,65 @@ async function collectForCaptureChoice(
 		choice.captureTo,
 		"captureTarget",
 	);
+
+	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
+	// needs a runtime file pick and, if so, the scope. Keeping the engine and this
+	// collector on the same classification guarantees a preselected pick is honoured
+	// exactly when it was legitimately collected, never silently dropped or hijacked.
+	// The run picks the note before it formats anything else, so the form lists
+	// the picker first too.
+	const captureScope = classifyCaptureTargetScope(
+		{
+			isFolder: (path) => isFolder(app, path),
+			markdownFileExists: (path) =>
+				app.vault.getAbstractFileByPath(
+					markdownFilePathForFolderCandidate(path),
+				) instanceof TFile,
+		},
+		choice.captureTo ?? "",
+		choice.captureToActiveFile,
+	);
+
+	if (captureScope) {
+		const files = captureScopeFiles(app, captureScope);
+
+		const orderedFiles = orderFilesForPicker(
+			files,
+			buildPickerOrderingDeps(app),
+		);
+		const options = orderedFiles.map((file) => file.path);
+		const displayOptions = buildFileDisplayLabels(
+			orderedFiles,
+			(file) => app.metadataCache?.getFileCache(file) ?? null,
+		);
+		const allowCreateTarget =
+			choice.createFileIfItDoesntExist?.enabled ?? false;
+		const captureTargetId = captureTargetKeyFor(choice.id);
+		if (options.length === 0 && allowCreateTarget) {
+			collector.requirements.set(captureTargetId, {
+				id: captureTargetId,
+				label: "Select capture target file",
+				type: "file-picker",
+				source: "collected",
+				options,
+				displayOptions,
+				runtimeOnly: true,
+				placeholder: "Type a new note name in the capture target picker",
+			});
+		} else {
+			collector.requirements.set(captureTargetId, {
+				id: captureTargetId,
+				label: "Select capture target file",
+				type: "dropdown",
+				options,
+				displayOptions,
+				placeholder: options.length
+					? undefined
+					: "No files found in target scope",
+			});
+		}
+	}
+
 	if (choice.propertyCapture?.property.kind === "named") {
 		await scanContentWithTemplateIncludes(
 			app,
@@ -290,62 +349,6 @@ async function collectForCaptureChoice(
 		createWithTemplate.template
 	) {
 		await scanTemplateSource(app, collector, createWithTemplate.template);
-	}
-
-	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
-	// needs a runtime file pick and, if so, the scope. Keeping the engine and this
-	// collector on the same classification guarantees a preselected pick is honoured
-	// exactly when it was legitimately collected, never silently dropped or hijacked.
-	const captureScope = classifyCaptureTargetScope(
-		{
-			isFolder: (path) => isFolder(app, path),
-			markdownFileExists: (path) =>
-				app.vault.getAbstractFileByPath(
-					markdownFilePathForFolderCandidate(path),
-				) instanceof TFile,
-		},
-		choice.captureTo ?? "",
-		choice.captureToActiveFile,
-	);
-
-	if (captureScope) {
-		const files = captureScopeFiles(app, captureScope);
-
-		const orderedFiles = orderFilesForPicker(
-			files,
-			buildPickerOrderingDeps(app),
-		);
-		const options = orderedFiles.map((file) => file.path);
-		const displayOptions = buildFileDisplayLabels(
-			orderedFiles,
-			(file) => app.metadataCache?.getFileCache(file) ?? null,
-		);
-		const allowCreateTarget =
-			choice.createFileIfItDoesntExist?.enabled ?? false;
-		const captureTargetId = captureTargetKeyFor(choice.id);
-		if (options.length === 0 && allowCreateTarget) {
-			collector.requirements.set(captureTargetId, {
-				id: captureTargetId,
-				label: "Select capture target file",
-				type: "file-picker",
-				source: "collected",
-				options,
-				displayOptions,
-				runtimeOnly: true,
-				placeholder: "Type a new note name in the capture target picker",
-			});
-		} else {
-			collector.requirements.set(captureTargetId, {
-				id: captureTargetId,
-				label: "Select capture target file",
-				type: "dropdown",
-				options,
-				displayOptions,
-				placeholder: options.length
-					? undefined
-					: "No files found in target scope",
-			});
-		}
 	}
 
 	if (seedCaptureSelectionAsValue) {

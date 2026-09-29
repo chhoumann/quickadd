@@ -33,9 +33,9 @@ The `due` prompt appears first, even though `attendees` comes first in the text.
 
 1. **Template choices** resolve the template path first, then the folder, then the file name, and finally the template's content. A placeholder in the file name always prompts before anything in the template body.
 2. **Capture choices** resolve the capture target first, then the capture format.
-3. **Within one piece of text** (a file name, a template, a capture format), prompts are grouped by kind, and only inside a kind do they follow the order they appear. The kinds run in this order: plain `{{VALUE}}`/`{{NAME}}` first, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last.
+3. **Within one piece of text** (a file name, a template, a capture format), included templates (`{{TEMPLATE:path}}`) ask their prompts first. The rest is grouped by kind, and only inside a kind do prompts follow the order they appear. The kinds run in this order: plain `{{VALUE}}`/`{{NAME}}` first, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last. Dates come before named values so that a `{{VALUE:due}}` reusing a `{{VDATE:due,...}}` answer is asked once, as a date.
 
-No flag reorders individual prompts. If the sequence bothers you, switch on the [one-page input form](#one-form-instead-of-many-prompts): it lists every input in one form (still in resolution order), and you fill them in whatever order you like.
+No flag reorders individual prompts. If the sequence bothers you, switch on the [one-page input form](#one-form-instead-of-many-prompts): it lists every input in one form, in the order they appear in the text (a Capture's note picker first), and you fill them in whatever order you like.
 
 :::note
 A pick list defined with [`|name:`](/docs/FormatSyntax/#value-name) and its reuses can appear in any order within one piece of text. When a reuse comes before the definition, QuickAdd resolves the definition early so you are still asked only once.
