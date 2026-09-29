@@ -4,6 +4,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { log } from "../logger/logManager";
 
+const reportedAborts = new WeakSet<MacroAbortError>();
+
 interface MacroAbortHandlerOptions {
 	logPrefix: string;
 	noticePrefix?: string;
@@ -24,6 +26,11 @@ export function handleMacroAbort(
 	{ logPrefix, noticePrefix = logPrefix, defaultReason }: MacroAbortHandlerOptions
 ): error is MacroAbortError {
 	if (!(error instanceof MacroAbortError)) return false;
+	// The innermost run reports an abort. The same error then stops each
+	// enclosing run (a conditional branch's macro, the macro around a Capture
+	// or Template step), which must not report it again.
+	if (reportedAborts.has(error)) return true;
+	reportedAborts.add(error);
 
 	const message =
 		typeof error.message === "string" && error.message.trim().length > 0
