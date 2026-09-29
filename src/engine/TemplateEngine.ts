@@ -37,6 +37,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
+import { restoreUserText, restoreUserTextAt } from "../formatters/helpers/userText";
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
 	return (
@@ -63,7 +64,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		if (file.extension !== "md") return;
 		let prepared = null as EditorCursorPlacement | null;
 		await processNote(this.app, file, content => {
-			prepared = prepareTemplateContent(content);
+			const marked = prepareTemplateContent(content);
+			prepared = restoreUserTextAt(marked.content, marked.offsets);
 			return prepared.content;
 		});
 		this.cursorPlacement = prepared;
@@ -255,10 +257,12 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	private async prepareTemplateBody(template: string, path: string, title: string,
 		operation: "createFileWithTemplate" | "overwriteFileWithTemplate") {
 		this.setTemplateDestination(path, title);
+		const markdown = path.toLowerCase().endsWith(".md");
+		// Markdown keeps user text marked until finishTemplateContent, after Templater.
 		const content = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", template, () =>
-				path.toLowerCase().endsWith(".md")
-					? this.formatter.formatTemplateContent(template)
+				markdown
+					? this.formatter.withUserTextProtected(() => this.formatter.formatTemplateContent(template))
 					: this.formatter.formatFileContent(template)));
 		const variables = this.formatter.getAndClearTemplatePropertyVars();
 		log.logMessage(`TemplateEngine.${operation}: Collected ${variables.size} template property variables for ${path}`);
@@ -436,7 +440,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			let formattedTemplateContent: string = await this.formatter.withPromptScope(
 				"noteBody",
 				templateContent,
-				() => this.formatter.formatFileContent(templateContent),
+				() => this.formatter.withUserTextProtected(() =>
+					this.formatter.formatFileContent(templateContent)),
 			);
 			if (file.extension === "md") {
 				formattedTemplateContent = await templaterParseTemplate(
@@ -445,6 +450,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 					file,
 				);
 			}
+			formattedTemplateContent = restoreUserText(formattedTemplateContent);
 			const fileContent: string = await this.app.vault.cachedRead(file);
 			const newFileContent: string =
 				section === "top"

@@ -23,6 +23,7 @@ import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
+import { restoreUserTextAt } from "../formatters/helpers/userText";
 
 export const templateInsertModes = [
 	{
@@ -393,9 +394,11 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", templateContent, () =>
-				this.targetFile.extension === "md"
-					? this.formatter.formatTemplateContent(templateContent)
-					: this.formatter.formatFileContent(templateContent),
+				this.formatter.withUserTextProtected(() =>
+					this.targetFile.extension === "md"
+						? this.formatter.formatTemplateContent(templateContent)
+						: this.formatter.formatFileContent(templateContent),
+				),
 			),
 		);
 		const templatePropertyVars =
@@ -409,7 +412,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 			);
 		}
 
-		const prepared = prepareTemplateContent(formatted);
+		const marked = prepareTemplateContent(formatted);
+		const prepared = restoreUserTextAt(marked.content, marked.offsets);
 		this.cursorPlacement = this.targetFile.extension === "md" && prepared.offsets.length > 0 ? prepared : null;
 		return { formatted: prepared.content, templatePropertyVars };
 	}

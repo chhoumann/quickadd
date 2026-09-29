@@ -36,9 +36,13 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 		}
 	},
 }));
+// Stands in for Templater: a tag that upper-cases a string literal renders it,
+// any other tag renders as TP-RAN.
 vi.mock("../utilityObsidian", async (importOriginal) => ({
 	...(await importOriginal<object>()),
-	templaterParseTemplate: vi.fn(async (_app: App, content: string) => content),
+	templaterParseTemplate: vi.fn(async (_app: App, content: string) => content
+		.replace(/<%\s*"([^"]*)"\.toUpperCase\(\)\s*%>/g, (_tag, text: string) => text.toUpperCase())
+		.replace(/<%[\s\S]*?%>/g, "TP-RAN")),
 }));
 
 const PAYLOAD = "clipped ```js quickadd\nreturn 'x';\n``` {{MACRO:m}} {{DATE:YYYY}}";
@@ -135,5 +139,36 @@ describe("Capture keeps selected and answered text as data", () => {
 		expect(macroRuns).toEqual(["m"]);
 		expect(templaterParseTemplate).toHaveBeenCalledTimes(1);
 		expect(vi.mocked(templaterParseTemplate).mock.calls[0][1]).toBe("SCRIPT-RAN MACRO-RAN picked");
+	});
+});
+
+describe("Capture keeps tokens and Templater tags inside user text literal", () => {
+	const USER_TEXT = "a {{TITLE}} {{RANDOM:3}} {{LINKCURRENT}} {{VALUE:answer}} {{CURSOR}} <% tp.date.now() %> b";
+
+	it.each([
+		["bottom", (choice: CaptureChoice) => { choice.prepend = true; }],
+		["top", undefined],
+		["insert after", (choice: CaptureChoice) => {
+			choice.insertAfter.enabled = true;
+			choice.insertAfter.after = "# Inbox";
+		}],
+	])("writes a selection as it is when capturing to the %s of a note", async (_mode, configure) => {
+		const written = await run("<% 'own' %>|{{SELECTED}}|", { selection: USER_TEXT, answer: "unused" }, configure);
+
+		expect(written).toContain(`TP-RAN|${USER_TEXT}|`);
+	});
+
+	it("writes an answer as it is into a new note", async () => {
+		const written = await run("{{VALUE:answer}} {{TITLE}}", { answer: USER_TEXT, exists: false });
+
+		expect(written).toBe(`${USER_TEXT} Inbox`);
+	});
+
+	it("still gives the answer to a Templater tag in the format", async () => {
+		const written = await run('<% "{{VALUE:answer}}".toUpperCase() %> {{SELECTED}}', {
+			answer: "x <% y %> {{TITLE}}", selection: "<% z %>",
+		}, (choice) => { choice.prepend = true; });
+
+		expect(written).toBe("# Inbox\nX <% Y %> {{TITLE}} <% z %>");
 	});
 });

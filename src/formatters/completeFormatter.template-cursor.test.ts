@@ -136,7 +136,7 @@ describe("Template cursor formatting scope", () => {
 		)).toBe("before{{CURSOR}}after");
 	});
 
-	it("strips markers from paths and properties during a preserved Template render", async () => {
+	it("strips format markers from paths and properties during a preserved Template render", async () => {
 		const { formatter, executor, formatTemplate } = makeHarness({
 			"Snippet.md": "before{{CURSOR}}after",
 		});
@@ -147,8 +147,9 @@ describe("Template cursor formatting scope", () => {
 			expect(await formatter.formatTemplateFilePath("Templates/{{CURSOR}}Seed.md"))
 				.toBe("Templates/Seed.md");
 			expect(await formatter.formatPropertyName("before{{CURSOR}}after")).toBe("beforeafter");
+			// The seeded property value is the note's own text, markers included.
 			expect(await formatter.formatPropertyValue("{{PROPERTY}}"))
-				.toEqual(["beforeafter", "end"]);
+				.toEqual(["before{{CURSOR}}after", "{{cursor}}end"]);
 			return "done";
 		});
 		expect(await formatTemplate("{{CURSOR}}{{VALUE:answer}}"))

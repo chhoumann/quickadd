@@ -78,7 +78,8 @@ export abstract class Formatter extends ValueFormatter {
 		// it every iteration and grow without bound, hanging Obsidian (#1358-class).
 		// A function replacer inserts it literally and is never re-scanned.
 		const regex = new RegExp(SELECTED_REGEX.source, "gi");
-		return input.replace(regex, () => selectedText);
+		const replacement = this.userText(selectedText);
+		return input.replace(regex, () => replacement);
 	}
 
 	protected async replaceClipboardInString(input: string): Promise<string> {
@@ -86,7 +87,8 @@ export abstract class Formatter extends ValueFormatter {
 
 		const clipboardContent = await this.getClipboardContent();
 		const regex = new RegExp(CLIPBOARD_REGEX.source, "gi");
-		return input.replace(regex, () => clipboardContent);
+		const replacement = this.userText(clipboardContent);
+		return input.replace(regex, () => replacement);
 	}
 
 
@@ -259,7 +261,7 @@ export abstract class Formatter extends ValueFormatter {
 					);
 				}
 
-				output += replacement;
+				output += this.userText(replacement);
 			} else {
 				output += match[0];
 			}
@@ -314,9 +316,9 @@ export abstract class Formatter extends ValueFormatter {
 					heuristicEnabled: false,
 					multiFormat: parsed.multiFormat,
 				});
-				output += replacement ?? renderedValue.join(",");
+				output += this.userText(replacement ?? renderedValue.join(","));
 			} else {
-				output += renderedValue;
+				output += this.userText(renderedValue);
 			}
 			lastIndex = regex.lastIndex;
 		}
@@ -396,7 +398,7 @@ export abstract class Formatter extends ValueFormatter {
 
 		while ((match = regex.exec(input)) !== null) {
 			output += input.slice(lastIndex, match.index);
-			output += collectedValue ?? (await this.promptForMathValue());
+			output += this.userText(collectedValue ?? (await this.promptForMathValue()));
 			lastIndex = match.index + match[0].length;
 		}
 
@@ -690,7 +692,7 @@ export abstract class Formatter extends ValueFormatter {
 				raw === undefined ? "" : raw,
 			);
 		}
-		const text = stringifyPropertyTokenValue(raw);
+		const text = this.userText(stringifyPropertyTokenValue(raw));
 		return input.replace(new RegExp(PROPERTY_REGEX.source, "gi"), () => text);
 	}
 }

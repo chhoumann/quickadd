@@ -204,6 +204,15 @@ export abstract class ValueFormatter {
 		return this.value;
 	}
 
+	/**
+	 * Wraps text substituted from an answer, selection, clipboard or picked
+	 * value. CompleteFormatter marks it so later steps leave tokens and
+	 * Templater tags inside it alone (see helpers/userText).
+	 */
+	protected userText(text: string): string {
+		return text;
+	}
+
 	protected replacer(str: string, reg: RegExp, replaceValue: string) {
 		return str.replace(reg, function () {
 			return replaceValue;
@@ -258,12 +267,12 @@ export abstract class ValueFormatter {
 			if (optionsIndex === -1) {
 				this.retainSingleTokenValue(source, offset, offset + token.length,
 					this.hasConcreteVariable("value") ? this.variables.get("value") : this.value);
-				return escapeValueInsideQuotedYamlScalar(
+				return this.userText(escapeValueInsideQuotedYamlScalar(
 					source,
 					offset,
 					offset + token.length,
 					this.value,
-				);
+				));
 			}
 			const rawOptions = inner.slice(optionsIndex);
 			const parsed = parseAnonymousValueOptions(rawOptions, {
@@ -289,16 +298,16 @@ export abstract class ValueFormatter {
 				transformed !== "" &&
 				shouldQuoteTextScalar(source, offset, offset + token.length)
 			) {
-				return quoteYamlDouble(transformed);
+				return this.userText(quoteYamlDouble(transformed));
 			}
 			// Same contract as the named form: a value substituted inside an
 			// author-quoted front matter scalar must be escaped for those quotes.
-			return escapeValueInsideQuotedYamlScalar(
+			return this.userText(escapeValueInsideQuotedYamlScalar(
 				source,
 				offset,
 				offset + token.length,
 				transformed,
-			);
+			));
 		});
 
 		return output;
@@ -712,6 +721,7 @@ export abstract class ValueFormatter {
 			}
 
 			// Replace in output and adjust regex position
+			replacement = this.userText(replacement);
 			const replaceStart = consumeQuotes ? match.index - 1 : match.index;
 			const replaceEnd =
 				match.index + match[0].length + (consumeQuotes ? 1 : 0);

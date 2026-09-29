@@ -1,4 +1,5 @@
 import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
+import { restoreUserText, restoreUserTextInCapture } from "../formatters/helpers/userText";
 import { insertCaptureInEditor, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
 import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
@@ -13,7 +14,7 @@ import {
 import { getActiveMarkdownEditorView } from "src/utils/activeMarkdownEditor";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import invariant from "src/utils/invariant";
-import { readNote, writeNote } from "../utils/noteContent";
+import { processNote, readNote, writeNote } from "../utils/noteContent";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	CANVAS_FILE_EXTENSION_REGEX,
@@ -601,7 +602,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const { action } = options;
 		if (action === "currentLine" || action === "newLineAbove" || action === "newLineBelow") {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
-			const payload = prepareCapture(parsed);
+			const payload = restoreUserTextInCapture(prepareCapture(parsed));
 			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
 				if (this.plugin.settings.showCaptureNotification) {
 					this.showNothingToCaptureNotice(file, { wasNewFile: !options.fileAlreadyExists });
@@ -1141,6 +1142,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				destinationKind: "file",
 			});
 
+			// Answers to the template's prompts stay marked until Templater has run.
+			singleTemplateEngine.setKeepUserTextProtected(true);
 			fileContent = await singleTemplateEngine.run();
 
 			// Get template variables from the template engine's formatter
@@ -1161,21 +1164,25 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				this.choice.createFileIfItDoesntExist.createWithTemplate,
 		});
 
-		// Post-process front matter for template property types if we used a template
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
-			this.templatePropertyVars &&
-			shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
-			await postProcessFrontMatter(this.app, file, this.templatePropertyVars);
-		}
+		try {
+			// Post-process front matter for template property types if we used a template
+			if (this.choice.createFileIfItDoesntExist.createWithTemplate &&
+				this.templatePropertyVars &&
+				shouldPostProcessFrontMatter(file, this.templatePropertyVars)) {
+				await postProcessFrontMatter(this.app, file, this.templatePropertyVars);
+			}
 
-		// Process Templater commands in the template if a template was used
-		if (
-			this.choice.createFileIfItDoesntExist.createWithTemplate &&
-			fileContent
-		) {
-			await overwriteTemplaterOnce(this.app, file);
-		} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
-			await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+			// Process Templater commands in the template if a template was used
+			if (
+				this.choice.createFileIfItDoesntExist.createWithTemplate &&
+				fileContent
+			) {
+				await overwriteTemplaterOnce(this.app, file);
+			} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
+				await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
+			}
+		} finally {
+			if (fileContent) await this.restoreUserTextInNote(file);
 		}
 
 		// Read the file fresh from disk to avoid any potential cached content
@@ -1202,6 +1209,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			cursor: placement.cursor,
 			markerOnly: placement.markerOnly,
 		};
+	}
+
+	private async restoreUserTextInNote(file: TFile): Promise<void> {
+		const content = await this.app.vault.read(file);
+		if (restoreUserText(content) !== content) {
+			await processNote(this.app, file, restoreUserText);
+		}
 	}
 
 	/**

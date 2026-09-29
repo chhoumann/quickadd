@@ -30,6 +30,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		setPromptRunContext() {}
 		setTargetFolderPath(path: string) { setTargetFolderPathMock(path); }
 		getAnonymousValue() { return undefined; }
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(_scope: string, _input: string, work: () => Promise<T>) {
 			return await work();
 		}

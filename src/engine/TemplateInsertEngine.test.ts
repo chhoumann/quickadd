@@ -44,6 +44,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
 		}
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(
 			_scope: string,
 			_input: string,

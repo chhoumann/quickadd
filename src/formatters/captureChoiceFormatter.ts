@@ -14,6 +14,7 @@ import { templaterParseTemplate } from "../utilityObsidian";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";
+import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
 import * as positioning from "./helpers/insertionPositioning";
 import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
@@ -229,7 +230,10 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		this.choice = choice;
 		this.file = file;
 		this.fileContent = fileContent;
-		if (!choice || !file || fileContent === null) return { content: input, captureContent: input, cursor: { kind: "none" } };
+		if (!choice || !file || fileContent === null) {
+			const content = restoreUserText(input);
+			return { content, captureContent: content, cursor: { kind: "none" } };
+		}
 		// Keep {{FOLDER}} pointed at the definitive destination file's folder.
 		this.setTargetFolderPath(parentFolderPath(file.path));
 
@@ -264,7 +268,9 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		let formatted = format
 			? await this.withClipboardImageFallback(async () =>
 				this.withPromptScope("captureText", input, async () =>
-					super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+					this.withUserTextProtected(async () =>
+						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+					),
 				),
 			)
 			: input;
@@ -282,7 +288,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			this.templaterProcessed = true;
 		}
 
-		const payload = prepareCapture(formatted);
+		// User text stays marked until Templater and the {{CURSOR}} search are done.
+		const payload = restoreUserTextInCapture(prepareCapture(formatted));
 		const placement = payload.cursor.kind === "none"
 			? { content: this.fileContent, cursor: payload.cursor }
 			: await this.insertCapture(payload);
@@ -308,12 +315,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return content.length > 0 && !content.endsWith("\n") ? `${content}\n` : content;
 	}
 
+	/** Formats the capture text. User text in the result stays marked until the text is placed. */
 	async formatContentOnly(input: string): Promise<string> {
-		// Process the input with templater (if needed) at this stage
-		// This is the first pass where we want to run any templater code
 		const formatted = await this.withClipboardImageFallback(async () =>
 			this.withPromptScope("captureText", input, async () =>
-				super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+				this.withUserTextProtected(async () =>
+					super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+				),
 			),
 		);
 
