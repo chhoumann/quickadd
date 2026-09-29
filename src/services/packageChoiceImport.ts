@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../utils/uuid";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
