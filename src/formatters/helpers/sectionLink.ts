@@ -59,6 +59,17 @@ function isSetextContentLine(line: string): boolean {
 }
 
 /**
+ * The last line a heading occupies: a setext heading's underline, or an ATX
+ * heading's own line. An ATX line always differs from its text by the `#`
+ * marker; a setext heading's line is its text.
+ */
+export function headingEndLine(lines: string[], heading: SimpleHeading): number {
+	return lines[heading.line]?.trim() === heading.heading
+		? heading.line + 1
+		: heading.line;
+}
+
+/**
  * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
  * headings from raw buffer lines, skipping YAML frontmatter and fenced code
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and

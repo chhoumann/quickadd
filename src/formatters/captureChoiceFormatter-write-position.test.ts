@@ -292,6 +292,24 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(content).toBe("## Log\n```inline```\n- captured\n\n## Next\n- untouched\n");
 	});
 
+	it.each([
+		["## Log\n## Next\n", "## Log\n- captured\n## Next\n"],
+		["## Log\nNext\n---\n", "## Log\n- captured\nNext\n---\n"],
+	])("writes into an empty first section, not under the heading after it: %j", async (note, expected) => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, note, createFile());
+
+		expect(content).toBe(expected);
+	});
+
 	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
 		const choice = createChoice({
 			insertAfter: {

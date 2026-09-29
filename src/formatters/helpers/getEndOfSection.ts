@@ -1,4 +1,4 @@
-import { extractHeadingsFromLines, type SimpleHeading } from "./sectionLink";
+import { extractHeadingsFromLines, headingEndLine, type SimpleHeading } from "./sectionLink";
 
 type Heading = SimpleHeading;
 
@@ -87,23 +87,30 @@ export default function getEndOfSection(
 		endOfSectionLineIdx,
 		(str: string) => str.trim() !== "",
 	);
+	// The section never ends inside its own heading (a setext heading spans its
+	// text and underline) or on the line the next heading starts.
+	const targetEnd = headingEndLine(lines, targetHeading as Heading);
+	const startsHeading = (line: number) =>
+		headings.some((heading) => heading.line === line);
 
 	if (lastNonEmptyLineInSectionIdx !== null) {
 		// Since we're finding the end, it doesn't make sense to go above the target line
-		if (lastNonEmptyLineInSectionIdx < targetLine) {
-			return targetLine;
+		if (lastNonEmptyLineInSectionIdx < targetEnd) {
+			return targetEnd;
 		}
 
-		const lineIsEmpty = lines[lastNonEmptyLineInSectionIdx + 1].trim() === "";
+		const nextLine = lastNonEmptyLineInSectionIdx + 1;
+		const lineIsEmpty = lines[nextLine].trim() === "";
 		if (
-			lastNonEmptyLineInSectionIdx + 1 === lastLineInBodyIdx &&
-			!lineIsEmpty
+			nextLine === lastLineInBodyIdx &&
+			!lineIsEmpty &&
+			!startsHeading(nextLine)
 		) {
 			return endOfSectionLineIdx;
 		}
 
-		if (lastNonEmptyLineInSectionIdx === 0) {
-			return lastNonEmptyLineInSectionIdx + 1;
+		if (lastNonEmptyLineInSectionIdx === 0 && !startsHeading(nextLine)) {
+			return nextLine;
 		}
 
 		return lastNonEmptyLineInSectionIdx;

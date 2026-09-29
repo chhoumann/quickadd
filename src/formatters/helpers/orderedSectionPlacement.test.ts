@@ -140,6 +140,16 @@ describe("computeOrderedSectionInsertIndex", () => {
 				),
 			).toEqual({ mode: "after", line: 3 });
 		});
+		it("appends after a setext sibling's underline, not between it and its text (#1968)", () => {
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "Alpha", "---", "# Next", "body"],
+					"## Zulu",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "after", line: 3 });
+		});
 		it("is case-insensitive", () => {
 			const slot = computeOrderedSectionInsertIndex(
 				lines,
