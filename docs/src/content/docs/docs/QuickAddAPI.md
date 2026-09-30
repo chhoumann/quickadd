@@ -1157,7 +1157,6 @@ module.exports = async (params) => {
     
     const priority = await quickAddApi.suggester(
         ["🔴 High", "🟡 Medium", "🟢 Low"],
-        await quickAddApi.fieldSuggestions.getFieldValues("priority") || 
         ["high", "medium", "low"]
     );
     
