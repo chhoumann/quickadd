@@ -274,6 +274,10 @@ async function collectForCaptureChoice(
 		if (requirement) requirement.runtimeOnly = true;
 	}
 
+	// One entry per line takes several lines, so the one-page form offers a text area.
+	const value = collector.requirements.get("value");
+	if (choice.eachLine && !choice.propertyCapture && value?.type === "text") value.type = "textarea";
+
 	if (!choice.propertyCapture && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(
 			app,

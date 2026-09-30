@@ -159,6 +159,14 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<Toggle bind:checked={choice.task} />
 	{/snippet}
 </SettingItem>
+<SettingItem name="One entry per line" desc={"Writes the format once for each line of {{VALUE}}."}>
+	{#snippet control()}
+		<Toggle
+			checked={choice.eachLine ?? false}
+			onchange={(value) => (choice.eachLine = value)}
+		/>
+	{/snippet}
+</SettingItem>
 {/if}
 
 <LabeledField

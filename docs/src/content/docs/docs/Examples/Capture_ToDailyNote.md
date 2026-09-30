@@ -138,7 +138,7 @@ The `+1` shifts the target date one day forward. Combine with any of the formats
 For non-task formats, end the capture format with `\n` or press Enter at the end of the format field. Formats that use **Task** do not need one; QuickAdd inserts that line break.
 
 **Pasted multiple lines became one task.**
-The **Task** setting wraps the whole capture once. Capture one task at a time, or use an advanced macro or userscript if you need to split pasted lines into separate tasks.
+The **Task** setting wraps the whole capture once. Turn on [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) (QuickAdd 2.30.0 or later) to make each line its own task.
 
 **The heading is not found and capture fails.**
 Enable **Create line if not found** with placement **Top** (or **Bottom**). QuickAdd inserts the heading on first use and places new content after it.

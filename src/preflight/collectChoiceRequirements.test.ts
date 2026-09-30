@@ -168,6 +168,21 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("asks for a One entry per line value in a text area (#1996)", async () => {
+		const choice = (eachLine: boolean, format: string) => ({
+			...createCaptureChoice("Inbox.md"),
+			eachLine,
+			format: { enabled: true, format },
+		}) as ICaptureChoice;
+		const valueType = async (c: ICaptureChoice) =>
+			(await collect(c, createChoiceExecutor())).find((r) => r.id === "value")?.type;
+
+		expect(await valueType(choice(true, "- {{VALUE}}"))).toBe("textarea");
+		expect(await valueType(choice(false, "- {{VALUE}}"))).toBe("text");
+		// An explicit type on the token wins.
+		expect(await valueType(choice(true, "- {{VALUE|type:number}}"))).toBe("number");
+	});
+
 	it("collects requirements from TEMPLATE includes in Capture formats", async () => {
 		templateBodies.set(
 			"Templates/Capture Format.md",

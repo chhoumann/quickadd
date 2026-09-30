@@ -50,6 +50,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	};
 	prepend: boolean;
 	task: boolean;
+	eachLine?: boolean;
 	openFile: boolean;
 	fileOpening: {
 		location: OpenLocation;

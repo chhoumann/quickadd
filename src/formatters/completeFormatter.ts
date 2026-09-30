@@ -88,6 +88,11 @@ export class CompleteFormatter extends Formatter {
 	}
 
 	protected async format(input: string): Promise<string> {
+		return this.formatScalarTokens(await this.expandCodeAndIncludes(input));
+	}
+
+	/** The stage that runs code: inline scripts, macros, included templates, and global snippets. */
+	protected async expandCodeAndIncludes(input: string): Promise<string> {
 		let output: string = input;
 
 		output = await this.replaceInlineJavascriptInString(output);
@@ -101,8 +106,7 @@ export class CompleteFormatter extends Formatter {
 			this.includingText = outerIncludingText;
 		}
 		// Expand global variables early so injected snippets can be further formatted
-		output = await this.replaceGlobalVarInString(output);
-		return this.formatScalarTokens(output);
+		return this.replaceGlobalVarInString(output);
 	}
 
 	protected async formatScalarTokens(input: string): Promise<string> {
@@ -580,7 +584,7 @@ export class CompleteFormatter extends Formatter {
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
-					this.valuePromptContext?.inputTypeOverride,
+					this.valuePromptContext?.inputTypeOverride ?? this.defaultValueInputType,
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const promptOptions = this.buildInputPromptOptions(

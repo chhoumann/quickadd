@@ -61,6 +61,8 @@ export default interface ICaptureChoice extends IChoice {
 	/** Copy a link to the captured file after the capture runs. */
 	copyLinkToClipboard?: boolean;
 	task: boolean;
+	/** Write the format once per non-blank line of {{VALUE}}. Undefined means off. */
+	eachLine?: boolean;
 	insertAfter: {
 		enabled: boolean;
 		after: string;

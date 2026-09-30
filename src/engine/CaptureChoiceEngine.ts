@@ -1043,7 +1043,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		// First format pass...
 		const formatted = await this.collectIfFrontmatter(
-			() => this.formatter.formatContentOnly(content),
+			() => this.formatter.formatContentOnly(content, { eachLine: this.choice.eachLine }),
 		);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 
@@ -1106,7 +1106,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		// where templater would run before the {{value}} placeholder is substituted (Issue #809).
 		const formattedCaptureContent: string =
 			await this.collectIfFrontmatter(() =>
-				this.formatter.formatContentOnly(captureContent),
+				this.formatter.formatContentOnly(captureContent, { eachLine: this.choice.eachLine }),
 			);
 		this.mergeCapturePropertyVars(this.formatter.getAndClearTemplatePropertyVars());
 		if (/{{CURSOR}}/i.test(formattedCaptureContent) && prepareCapture(formattedCaptureContent).cursor.kind === "none") {
