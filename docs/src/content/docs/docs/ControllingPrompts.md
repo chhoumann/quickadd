@@ -97,7 +97,7 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 | One-page input form | `Ctrl/Cmd+Enter` | `Tab` moves between fields |
 | Any optional prompt | | `Ctrl/Cmd+Shift+Enter` skips |
 
-`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** in [settings](/docs/Settings/#notifications).
+`Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** under [Settings → QuickAdd → Advanced](/docs/Settings/#advanced-notifications).
 
 ## Peek at the note {#peek}
 
