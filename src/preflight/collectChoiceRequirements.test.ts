@@ -181,6 +181,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		expect(await valueType(choice(false, "- {{VALUE}}"))).toBe("text");
 		// An explicit type on the token wins.
 		expect(await valueType(choice(true, "- {{VALUE|type:number}}"))).toBe("number");
+		expect(await valueType(choice(true, "- {{VALUE|type:text}}"))).toBe("text");
 	});
 
 	it("collects requirements from TEMPLATE includes in Capture formats", async () => {
@@ -1735,6 +1736,21 @@ describe("collectChoiceRequirements - macro form roster", () => {
 			templateThenCapture.find((requirement) => requirement.id === "value")
 				?.runtimeOnly,
 		).toBe(true);
+	});
+
+	it("gives a Macro's shared value the text area a later One entry per line Capture needs (#1996)", async () => {
+		const format = { enabled: true, format: "- {{VALUE}}" };
+		const first = { ...createCaptureChoice("Inbox.md"), id: "first-cap", name: "First", format } as ICaptureChoice;
+		const lines = { ...createCaptureChoice("Tasks.md"), id: "lines-cap", name: "Lines", format, eachLine: true } as ICaptureChoice;
+
+		const requirements = await collectChoiceRequirements(
+			app,
+			pluginWithChoices() as any,
+			choiceExecutor,
+			createMacroChoice(nestedChoice(first), nestedChoice(lines)),
+		);
+
+		expect(requirements.find((requirement) => requirement.id === "value")?.type).toBe("textarea");
 	});
 
 	it("does not flatten captures inside a nested Macro", async () => {

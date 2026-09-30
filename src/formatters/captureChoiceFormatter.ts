@@ -369,9 +369,13 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		const expanded = await this.expandCodeAndIncludes(input);
 		if (!NAME_VALUE_REGEX.test(expanded)) return this.formatScalarTokens(expanded);
 		const answer = await this.resolveValue(expanded);
-		const lines = answer.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-		// Only blank lines: no entries, so the capture leaves the note as it is.
-		if (lines.length === 0) return "";
+		const lines = answer.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean);
+		if (lines.length === 0) {
+			// An empty answer means the token's default, as it does without this option.
+			const context = this.valuePromptContext;
+			if (!context?.defaultValue || context.optional) return "";
+			lines.push("");
+		}
 
 		const shared = await this.replaceMathValueInString(expanded);
 		// A value passed in by a script, the URI, the CLI, or the one-page form

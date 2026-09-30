@@ -76,6 +76,19 @@ describe("Capture: one entry per line", () => {
 		expect(await createFormatter().formatContentOnly("- [ ] {{VALUE}}\n", { eachLine: true })).toBe("");
 	});
 
+	it("splits on a carriage return alone, as old Mac text and some clipboards send it", async () => {
+		promptMock.mockResolvedValueOnce("first\rsecond");
+
+		expect(await createFormatter().formatContentOnly("- {{VALUE}}\n", { eachLine: true })).toBe("- first\n- second\n");
+	});
+
+	it("writes the token's default for an empty answer, and nothing when the default is optional", async () => {
+		promptMock.mockResolvedValueOnce("").mockResolvedValueOnce(" \n ");
+
+		expect(await createFormatter().formatContentOnly("- {{VALUE|default:Inbox}}\n", { eachLine: true })).toBe("- Inbox\n");
+		expect(await createFormatter().formatContentOnly("- {{VALUE|default:Inbox|optional}}\n", { eachLine: true })).toBe("");
+	});
+
 	it("splits a capture into a Canvas text card, which formats through formatContentWithFile", async () => {
 		promptMock.mockResolvedValueOnce("a\nb");
 		const choice = { eachLine: true, captureToActiveFile: true, insertAfter: { enabled: false }, prepend: false, activeFileWritePosition: "cursor" } as never;

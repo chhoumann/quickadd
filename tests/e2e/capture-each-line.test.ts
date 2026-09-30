@@ -149,4 +149,54 @@ describe("Capture: one entry per line", () => {
 			.toBe(NOTE.replace("- [ ] Draft the press release\n", "- [ ] Draft the press release\n- [ ] Book the venue\nOrder the cake #home macro script\n"));
 		expect(await runs()).toEqual({ macro: 1, script: 1 });
 	});
+
+	it("leaves the note exactly as it was when every line is blank", async () => {
+		const { obsidian, plugin, sandbox } = getContext();
+		const content = "# Launch\n\n## Tasks\n- [ ] Draft the press release";
+		const choices: CaptureChoice[] = [];
+		for (const [name, insertAfter] of [["After line", true], ["Bottom", false]] as const) {
+			const note = await seedVaultFile(obsidian, sandbox, `${name}.md`, content);
+			const choice = new CaptureChoice(`Blank lines ${name}`);
+			choice.captureTo = note;
+			choice.task = true;
+			choice.eachLine = true;
+			choice.onePageInput = "never";
+			choice.insertAfter = { ...choice.insertAfter, enabled: insertAfter, after: "## Tasks", insertAtEnd: true };
+			choices.push(choice);
+		}
+		await plugin.data<QuickAddData>().patch((data) => { data.choices.push(...choices); });
+		await plugin.reload({ waitUntilReady: true });
+
+		for (const choice of choices) {
+			const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ value: "\n   \r\n\t" }) });
+			expect(outcome).toMatchObject({ ok: true, effect: "unchanged" });
+		}
+		expect(await sandbox.read("After line.md")).toBe(content);
+		expect(await sandbox.read("Bottom.md")).toBe(content);
+	});
+
+	it("asks a format-less capture's value in the multi-line prompt, with the one-page form on", async () => {
+		const { obsidian, plugin, sandbox } = getContext();
+		const note = await seedVaultFile(obsidian, sandbox, "Launch.md", NOTE);
+		const choice = new CaptureChoice("Format-less each line");
+		choice.command = true;
+		choice.captureTo = note;
+		choice.task = true;
+		choice.eachLine = true;
+		choice.onePageInput = "always";
+		choice.insertAfter = { ...choice.insertAfter, enabled: true, after: "## Tasks", insertAtEnd: true };
+		await plugin.data<QuickAddData>().patch((data) => { data.choices.push(choice); });
+		await plugin.reload({ waitUntilReady: true });
+		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
+
+		await waitForElement(obsidian, ".modal-container textarea");
+		// The value is the only input, so there is no one-page form to put it in.
+		expect(await obsidian.dev.evalJson<boolean>("[...document.querySelectorAll('.modal-container button')].some((b) => b.textContent === 'Submit')")).toBe(false);
+		await typeInto(".modal-container textarea", "Book the venue\nOrder the cake");
+		await click("Ok");
+
+		await expectNoPrompt(obsidian);
+		await expect.poll(() => sandbox.read("Launch.md"), POLL_OPTS)
+			.toBe(`${NOTE}- [ ] Book the venue\n- [ ] Order the cake\n`);
+	});
 });
