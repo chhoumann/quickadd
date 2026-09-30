@@ -199,7 +199,7 @@ function removeChunkProbeFromRenderedPrompt(renderedPrompt: string): string {
 function assertWithinChunkBudget(count: number): void {
 	if (count > MAX_CHUNKED_PROMPTS) {
 		throw new Error(
-			`QuickAdd would split this chunked AI request into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
+			`This chunked AI request would split into more than ${MAX_CHUNKED_PROMPTS} prompts, which exceeds the safety limit. Increase the chunk size, use a larger chunk separator, or reduce the input text.`
 		);
 	}
 }

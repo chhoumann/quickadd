@@ -36,6 +36,15 @@ function cutRole(reason: DeferralReason): StepRole {
 	return { collect: { kind: "none" }, opaque: reason, deferred: reason };
 }
 
+/**
+ * A type this version doesn't know: written by a newer QuickAdd, or retired.
+ * The run skips such a step with a notice, so it asks for nothing. Typed
+ * `never` so that a new type still has to be handled above.
+ */
+function unknownTypeRole(_type: never, deferred: DeferralReason | null = null): StepRole {
+	return noneRole(deferred);
+}
+
 function roleForResolvedChoice(choice: IChoice | null): StepRole {
 	if (!choice) return noneRole("unresolvableChoice");
 
@@ -54,10 +63,8 @@ function roleForResolvedChoice(choice: IChoice | null): StepRole {
 			return cutRole("nestedMacroGroup");
 		case "Multi":
 			return cutRole("interactivePicker");
-		default: {
-			const _exhaustive: never = choice.type;
-			return _exhaustive;
-		}
+		default:
+			return unknownTypeRole(choice.type, "unresolvableChoice");
 	}
 }
 
@@ -93,9 +100,7 @@ export function classifyStep(
 		case CommandType.Wait:
 		case CommandType.OpenFile:
 			return noneRole();
-		default: {
-			const _exhaustive: never = command.type;
-			return _exhaustive;
-		}
+		default:
+			return unknownTypeRole(command.type);
 	}
 }
