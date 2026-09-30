@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { AIProvider } from "./Provider";
@@ -60,12 +60,6 @@ vi.mock("src/utilityObsidian", () => ({
 
 const { runAIAssistant, Prompt, ChunkedPrompt } = await import("./AIAssistant");
 
-vi.stubGlobal("sleep", async () => {});
-
-afterAll(() => {
-	vi.unstubAllGlobals();
-});
-
 /** Contains every token shape the removed preview used to resolve on screen. */
 const SYSTEM_PROMPT =
 	"You are a helpful assistant. Today is {{DATE}} and the note is {{VALUE:title}}.";
@@ -117,6 +111,8 @@ function systemPromptSentToProvider(): unknown {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	// Obsidian's global sleep(), which the progress notice polls with.
+	vi.stubGlobal("sleep", async () => {});
 	storeState.disableOnlineFeatures = false;
 	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
 	mocks.getModelMaxTokens.mockReturnValue(100000);

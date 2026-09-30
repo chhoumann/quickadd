@@ -71,11 +71,11 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     // Provide navigator clipboard shim for formatter fallback paths
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   it('inserts capture content below frontmatter when metadata cache is empty', async () => {
@@ -96,11 +96,11 @@ describe('CaptureChoiceFormatter frontmatter handling', () => {
 describe('CaptureChoiceFormatter insert after blank lines', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   const createFormatter = () => {
@@ -267,11 +267,11 @@ describe('CaptureChoiceFormatter insert after blank lines', () => {
 describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   const createFormatter = () => {
@@ -494,11 +494,11 @@ describe('CaptureChoiceFormatter insert after end-of-section spacing', () => {
 describe('CaptureChoiceFormatter insert after inline', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   const createFormatter = () => {
@@ -654,11 +654,11 @@ describe('CaptureChoiceFormatter insert after inline', () => {
 describe('CaptureChoiceFormatter append task newline regression (issue #124)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   it('inserts a newline before an appended task when the file does not end with a newline', async () => {
@@ -684,11 +684,11 @@ describe('CaptureChoiceFormatter append task newline regression (issue #124)', (
 describe('CaptureChoiceFormatter #647 frontmatter-aware top insertion', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: {
         readText: vi.fn().mockResolvedValue(''),
       },
-    };
+    });
   });
 
   const makeFormatter = () => {

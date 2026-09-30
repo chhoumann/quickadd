@@ -137,11 +137,11 @@ vi.mock("../utilityObsidian", () => ({
 describe("CaptureChoiceEngine template property types", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("writes a YAML-safe placeholder before post-processing capture frontmatter arrays", async () => {

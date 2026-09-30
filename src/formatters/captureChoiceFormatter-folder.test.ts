@@ -57,9 +57,9 @@ const createFormatter = () => {
 describe("CaptureChoiceFormatter {{FOLDER}} resolves to the destination folder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: { readText: vi.fn().mockResolvedValue("") },
-    };
+    });
   });
 
   it("derives {{FOLDER}} from a destination source path (file not yet created)", async () => {

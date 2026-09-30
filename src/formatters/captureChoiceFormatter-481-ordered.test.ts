@@ -124,9 +124,9 @@ const count = (haystack: string, needle: string) =>
 	haystack.split(needle).length - 1;
 
 beforeEach(() => {
-	(global as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 	installFakeMoment();
 });
 
