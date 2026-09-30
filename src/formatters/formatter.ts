@@ -71,6 +71,11 @@ export abstract class Formatter extends ValueFormatter {
 	 */
 	public dailyNoteTarget: string | null = null;
 
+	/** The formatter whose text an included template's text finally lands in. */
+	private outermostIncluder(): Formatter {
+		return this.templateInclusion?.includer?.outermostIncluder() ?? this;
+	}
+
 	/** {{DAILY}} is a date too: it names the daily note for the run's Which day. */
 	private replaceDailyNoteInString(input: string): string {
 		const clocks = this.runClocks();
@@ -79,10 +84,7 @@ export abstract class Formatter extends ValueFormatter {
 		return input.replace(regex, (_token, link?: string) => {
 			if (link && this.app) return dailyNoteLink(this.app, path, this.getLinkSourcePath() ?? "");
 			if (this.promptScope === "captureTarget") {
-				// An included template's text lands in its includer's target.
-				let owner: Formatter = this;
-				while (owner.templateInclusion?.includer) owner = owner.templateInclusion.includer;
-				owner.dailyNoteTarget = path;
+				this.outermostIncluder().dailyNoteTarget = path;
 			}
 			return path;
 		});
