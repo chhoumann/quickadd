@@ -10,6 +10,9 @@ const wrapAround = (value: number, size: number): number => {
 
 // Gap between the input and the list.
 const LIST_GAP_PX = 4;
+// The narrowest the list gets beside a narrow input, such as the Macro builder's
+// script field on a phone, so a name wraps between words, not between letters.
+const MIN_LIST_WIDTH_PX = 300;
 
 /**
  * Whether the list should open above its input when it fits there. QuickAdd
@@ -30,20 +33,13 @@ function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number):
 /**
  * Place the list against its input, exactly as wide as the input (also past
  * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
- * input is wider). It opens below the input, and above it when the visible
- * viewport has room there and either `prefersAbove` or there is no room below.
- * Horizontally it stays inside the viewport.
+ * input is wider), but at least `MIN_LIST_WIDTH_PX` or the viewport's width.
+ * It opens below the input, and above it when the visible viewport has room
+ * there and either `prefersAbove` or there is no room below. Horizontally it
+ * stays inside the viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
-	listEl.style.maxWidth = "none";
-	listEl.style.width = `${input.width}px`;
-	// Measured at 0,0, the list's rect is its containing block's origin, so the
-	// viewport positions below hold whatever element it is positioned against.
-	listEl.style.left = "0px";
-	listEl.style.top = "0px";
-	const origin = listEl.getBoundingClientRect();
-
 	const doc = inputEl.ownerDocument;
 	const viewport = doc.defaultView?.visualViewport ?? {
 		offsetLeft: 0,
@@ -51,6 +47,15 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 		width: doc.documentElement.clientWidth,
 		height: doc.documentElement.clientHeight,
 	};
+	const width = Math.max(input.width, Math.min(MIN_LIST_WIDTH_PX, viewport.width));
+	listEl.style.maxWidth = "none";
+	listEl.style.width = `${width}px`;
+	// Measured at 0,0, the list's rect is its containing block's origin, so the
+	// viewport positions below hold whatever element it is positioned against.
+	listEl.style.left = "0px";
+	listEl.style.top = "0px";
+	const origin = listEl.getBoundingClientRect();
+
 	const below = input.bottom + LIST_GAP_PX;
 	const above = input.top - LIST_GAP_PX - origin.height;
 	const fitsBelow = below + origin.height <= viewport.offsetTop + viewport.height;
@@ -58,7 +63,7 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const top = fitsAbove && (!fitsBelow || prefersAbove(inputEl, input, origin.height)) ? above : below;
 	const left = Math.max(
 		viewport.offsetLeft,
-		Math.min(input.left, viewport.offsetLeft + viewport.width - input.width),
+		Math.min(input.left, viewport.offsetLeft + viewport.width - width),
 	);
 	listEl.style.left = `${left - origin.left}px`;
 	listEl.style.top = `${top - origin.top}px`;
