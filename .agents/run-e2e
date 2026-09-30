@@ -128,12 +128,15 @@ if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 		echo "${templater_sha256[$file]}  $templater_cache/$file" | sha256sum --check --quiet
 		cp "$templater_cache/$file" "$templater_dir/$file"
 	done
+	# A reused instance may already run a Templater, and enabling a loaded
+	# plugin keeps its code, so unload it first.
 	enabled="$(pnpm run --silent obsidian:e2e -- eval code='(async () => {
 		await app.plugins.loadManifests();
+		await app.plugins.disablePlugin("templater-obsidian");
 		await app.plugins.enablePlugin("templater-obsidian");
 		return app.plugins.plugins["templater-obsidian"]?.manifest.version ?? "missing";
 	})()')"
-	if [[ "$enabled" != *"=> $templater_version"* ]]; then
+	if [[ "$enabled" != "=> $templater_version" ]]; then
 		echo "Could not enable Templater $templater_version: $enabled" >&2
 		exit 1
 	fi
