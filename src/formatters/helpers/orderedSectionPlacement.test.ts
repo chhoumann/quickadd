@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	computeOrderedSectionInsertIndex,
+	maskFencedHeadings,
 	type MomentLike,
 } from "./orderedSectionPlacement";
 import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
@@ -449,5 +450,25 @@ describe("computeOrderedSectionInsertIndex", () => {
 			// older date appends after the whole 06-14 section incl. the code block
 			expect(slot).toEqual({ mode: "after", line: 6 });
 		});
+	});
+});
+
+describe("maskFencedHeadings", () => {
+	it("masks headings in fences and frontmatter, and nothing after a line that opens no fence (#2001)", () => {
+		const masked = maskFencedHeadings([
+			"---",
+			"# yaml comment",
+			"---",
+			"```inline```",
+			"    ```",
+			"## Real",
+			"```md\r",
+			"## Fenced\r",
+			"```\r",
+		]);
+		expect(masked.map((line) => line.startsWith("#"))).toEqual([
+			false, false, false, false, false, true, false, false, false,
+		]);
+		expect(masked[7].trim()).not.toBe("");
 	});
 });

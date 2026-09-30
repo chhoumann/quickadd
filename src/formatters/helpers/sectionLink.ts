@@ -70,6 +70,55 @@ export function headingEndLine(lines: string[], heading: SimpleHeading): number 
 }
 
 /**
+ * For each line, whether it sits in a block that can't hold a heading: the
+ * YAML frontmatter or a fenced code block, delimiters included. This is the
+ * one place that decides what counts as such a block.
+ */
+export function nonHeadingBlockLines(lines: string[]): boolean[] {
+	const blocked = lines.map(() => false);
+	const text = lines.map((line) => line.replace(/\r$/, ""));
+	let i = 0;
+
+	// YAML frontmatter: only when it opens on the very first line and closes.
+	// Without a closing `---`, Obsidian reads the first line as a rule and the
+	// rest as body.
+	if (text.length > 0 && /^---\s*$/.test(text[0])) {
+		let close = 1;
+		while (close < text.length && !/^---\s*$/.test(text[close])) close++;
+		if (close < text.length) {
+			for (let j = 0; j <= close; j++) blocked[j] = true;
+			i = close + 1;
+		}
+	}
+
+	// Fenced code blocks (``` or ~~~, 3+, up to 3 spaces of indentation). An
+	// opening fence may carry an info string (```js); a CLOSING fence must be
+	// bare (only the same marker char, length >= the opener, then optional
+	// whitespace), otherwise a content line like ```js would close the block. A
+	// backtick fence's info string can't contain a backtick: ```inline``` is
+	// inline code (CommonMark, and Obsidian). An unclosed fence runs to the end.
+	let fence: { char: string; length: number } | null = null;
+	for (; i < text.length; i++) {
+		const line = text[i];
+		if (fence) {
+			blocked[i] = true;
+			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+			if (close && close[1][0] === fence.char && close[1].length >= fence.length) {
+				fence = null;
+			}
+			continue;
+		}
+		const open = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+		if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
+			blocked[i] = true;
+			fence = { char: open[1][0], length: open[1].length };
+		}
+	}
+
+	return blocked;
+}
+
+/**
  * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
  * headings from raw buffer lines, skipping YAML frontmatter and fenced code
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
@@ -79,53 +128,11 @@ export function headingEndLine(lines: string[], heading: SimpleHeading): number 
  */
 export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const headings: SimpleHeading[] = [];
-	let inFence = false;
-	let fenceChar = "";
-	let fenceLen = 0;
+	const blocked = nonHeadingBlockLines(lines);
 
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
-
-		// YAML frontmatter: only when it opens on the very first line and closes.
-		// Without a closing `---`, Obsidian reads the first line as a rule and
-		// the rest as body.
-		if (i === 0 && /^---\s*$/.test(line)) {
-			let j = i + 1;
-			while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
-			if (j < lines.length) {
-				i = j; // land on the closing `---`; the loop's ++ steps past it
-				continue;
-			}
-		}
-
-		// Fenced code blocks (``` or ~~~, 3+). An opening fence may carry an info
-		// string (```js); a CLOSING fence must be bare (only the same marker char,
-		// length >= the opener, then optional whitespace) — otherwise a content
-		// line like ```js inside the block would wrongly close it (CommonMark).
-		if (!inFence) {
-			const open = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
-			// A backtick fence's info string can't contain a backtick: a line
-			// like ```inline``` is inline code, not a fence (CommonMark, and
-			// Obsidian).
-			if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
-				inFence = true;
-				fenceChar = open[1][0];
-				fenceLen = open[1].length;
-				continue;
-			}
-		} else {
-			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
-			if (
-				close &&
-				close[1][0] === fenceChar &&
-				close[1].length >= fenceLen
-			) {
-				inFence = false;
-				fenceChar = "";
-				fenceLen = 0;
-			}
-			continue; // inside a fence: never parse headings
-		}
+		if (blocked[i]) continue;
 
 		// ATX heading. Up to 3 spaces of indentation only — a leading tab makes it
 		// an indented code line (CommonMark/Obsidian), not a heading.
@@ -149,9 +156,10 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 				headings.length > 0 &&
 				headings[headings.length - 1].line === i - 1;
 			const prevIsSingleLineParagraph =
-				i < 2 || !isSetextContentLine(lines[i - 2]);
+				i < 2 || blocked[i - 2] || !isSetextContentLine(lines[i - 2]);
 			if (
 				!prevAlreadyHeading &&
+				!blocked[i - 1] &&
 				prevIsSingleLineParagraph &&
 				isSetextContentLine(prev)
 			) {

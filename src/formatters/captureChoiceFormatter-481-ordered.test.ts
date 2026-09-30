@@ -362,6 +362,39 @@ describe("#481 — ordered create-if-not-found placement", () => {
 		);
 	});
 
+	it.each([
+		["an inline-code line", "```inline```"],
+		["a 4-space-indented backticks line", "    ```"],
+		["a tab-indented backticks line", "\t```"],
+	])("finds the existing heading after %s, which opens no fence (#2001)", async (_what, line) => {
+		const choice = createChoice({
+			after: "## 2026-06-16",
+			insertAtEnd: true,
+			orderBy: {
+				by: "date",
+				direction: "desc",
+				dateFormat: "YYYY-MM-DD",
+				unparseable: "bottom",
+			},
+		});
+		const seed = `# Journal\n${line}\n\n## 2026-06-16\n- entry\n`;
+		const out = await runOnce(choice, seed, "- new\n");
+		expect(count(out, "## 2026-06-16")).toBe(1);
+		expect(out).toBe(`# Journal\n${line}\n\n## 2026-06-16\n- entry\n- new\n`);
+	});
+
+	it("still hides a heading in a fence closed by a longer run, like Obsidian (#2001)", async () => {
+		const choice = createChoice({
+			after: "## 2026-06-16",
+			orderBy: { by: "date", direction: "desc", dateFormat: "YYYY-MM-DD", unparseable: "bottom" },
+		});
+		const seed = "# Log\n\n```\n## 2026-06-16\n`````\n\n## 2026-06-14\n- old\n";
+		const out = await runOnce(choice, seed, "- new\n");
+		expect(out).toBe(
+			"# Log\n\n```\n## 2026-06-16\n`````\n\n## 2026-06-16\n- new\n\n## 2026-06-14\n- old\n",
+		);
+	});
+
 	it("ignores a single-line target that only exists inside a code fence (creates the real section)", async () => {
 		// The note's only "## 2026-06-16" is inside a fenced example. A single-line
 		// ordered target must NOT match it (which would insert into the code block);
