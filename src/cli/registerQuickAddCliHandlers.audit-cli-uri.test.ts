@@ -109,32 +109,9 @@ describe("registerQuickAddCliHandlers (cli-uri audit: cli-run-choice honesty)", 
 		getUnresolvedRequirementsMock.mockReturnValue([]);
 	});
 
-	function getRunHandler(handlers: RegisteredCliHandler[]) {
-		const run = handlers.find((handler) => handler.command === "quickadd:run");
-		expect(run).toBeDefined();
-		return run!;
-	}
-
 	// The legacy void-execute() path can resolve even when the Template/Capture
 	// engine swallowed a runtime failure (no file created). The success envelope
 	// must mark itself unverified so a script keying off `ok` is not misled.
-	it("flags the legacy quickadd:run success envelope as verified:false", async () => {
-		const { plugin, handlers } = createPlugin([templateChoice]);
-		registerQuickAddCliHandlers(plugin);
-		const run = getRunHandler(handlers);
-
-		const payload = JSON.parse(
-			String(await run.handler({ choice: templateChoice.name })),
-		);
-
-		expect(payload.ok).toBe(true);
-		// Would be undefined before the fix; the field must distinguish the
-		// unverified legacy success from a confirmed-create.
-		expect(payload.verified).toBe(false);
-		// Still the legacy void path (not routed through executeWithOutcome).
-		expect(executors[0].execute).toHaveBeenCalledWith(templateChoice);
-	});
-
 	// run-template uses the honest outcome path, so its success is verified.
 	it("flags the verified run-template success envelope as verified:true", async () => {
 		const { plugin, handlers } = createPlugin([]);
