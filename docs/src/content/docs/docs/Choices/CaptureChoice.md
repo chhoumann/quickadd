@@ -651,7 +651,7 @@ be a single line; a `\n` target there is rejected with a notice.
 ### Ordered section placement {#ordered-section-placement}
 
 When **Create line if not found** is set to **Ordered** (full label:
-`Ordered (place new section among siblings)`), a missing "Insert after"
+`Ordered among siblings`), a missing "Insert after"
 heading is created at its **sorted position among same-level headings**. This
 is the building block for a reverse-chronological log: each new dated section
 is added above older ones, while a fixed title stays pinned at the top.
