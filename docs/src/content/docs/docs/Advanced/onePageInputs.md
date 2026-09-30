@@ -26,9 +26,9 @@ form.
 
 Fields appear in the order the choice uses them: the day first when
 [Which day](/docs/Choices/TemplateChoice/#date-origin) is **Ask each time**,
-then a Capture's note picker (when it captures to a folder or a tag), the file
-name before the note content, a Macro's steps in turn, and within each, the
-order they have in the format.
+then a Capture's note picker (when it captures to a folder or a tag), a
+Template's template path, folder and file name before the note content, a
+Macro's steps in turn, and within each, the order they have in the format.
 Step-by-step prompts group one text's fields by kind instead; see
 [The order prompts appear in](/docs/ControllingPrompts/#prompt-order).
 

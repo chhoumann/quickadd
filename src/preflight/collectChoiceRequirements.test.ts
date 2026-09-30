@@ -308,6 +308,17 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		expectCollectedFields(requirements, { id: "insertBeforeHeading" });
 	});
 
+	it("lists a Template's folder before its file name and content, as the run asks (#1997)", async () => {
+		templateBodies.set("Templates/Source.md", "{{VALUE:body}}");
+		const templateChoice = createTemplateChoice("Templates/Source.md");
+		templateChoice.fileNameFormat = { enabled: true, format: "{{VALUE:fname}}" };
+		templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: ["Clients/{{VALUE:client}}"] };
+
+		const requirements = await collect(templateChoice, createChoiceExecutor());
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["client", "fname", "body"]);
+	});
+
 	it("collects requirements from TEMPLATE includes in Template file names", async () => {
 		templateBodies.set("Templates/Source.md", "Body");
 		templateBodies.set(
@@ -1015,6 +1026,16 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 		// A dynamic path can't be resolved at preflight, so the body walk is
 		// skipped — getTemplateFile must not be called for a tokenized path.
 		expect(getTemplateFileMock).not.toHaveBeenCalled();
+	});
+
+	it("lists a token in the template path first, as the run resolves the path first (#1997)", async () => {
+		const templateChoice = createTemplateChoice("Templates/{{VALUE:kind}}.md");
+		templateChoice.fileNameFormat = { enabled: true, format: "{{VALUE:fname}}" };
+		templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: ["Clients/{{VALUE:client}}"] };
+
+		const requirements = await collect(templateChoice, createChoiceExecutor());
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["kind", "client", "fname"]);
 	});
 
 	it("still walks the body for a literal (token-free) path", async () => {
