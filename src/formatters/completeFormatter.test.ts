@@ -2018,6 +2018,33 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		);
 	});
 
+	it("keeps an HTML-block heading out while adding a heading Obsidian hasn't indexed yet (#2030)", async () => {
+		// Saved just now: "## Rollout" is new; "## Draft" sits in an HTML block,
+		// which only the (still stale) cache knows about.
+		const value = ["# Project", "## Tasks", "<div>", "## Draft", "</div>", "- b", "## Rollout", "- c"].join("\n");
+		const cache = {
+			headings: [
+				{ heading: "Project", level: 1, line: 0 },
+				{ heading: "Tasks", level: 2, line: 1 },
+			],
+			sections: [
+				{ type: "heading", start: 0, end: 0 },
+				{ type: "heading", start: 1, end: 1 },
+				{ type: "html", start: 2, end: 4 },
+				{ type: "paragraph", start: 5, end: 5 },
+			],
+		};
+		const link = async (cursorLine: number) => {
+			const app = makeSectionApp({
+				view: makeSectionView({ path: "Note.md", cursorLine, value, data: value }),
+				cache,
+			});
+			return new CompleteFormatter(app as any, makePlugin() as any).formatFileContent("{{linksection}}");
+		};
+		await expect(link(5)).resolves.toBe("[[Note#Tasks]]");
+		await expect(link(7)).resolves.toBe("[[Note#Rollout]]");
+	});
+
 	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
 		const value = `${COMMENTED}\n## Rollout\n- c`;
 		const app = makeSectionApp({
