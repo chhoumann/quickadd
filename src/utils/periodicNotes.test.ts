@@ -93,6 +93,11 @@ describe("dailyNotePath", () => {
 		expect(dailyNotePath({ ...settings, folder: "" }, day)).toBe("2026/2026-09-20");
 	});
 
+	it("names the same note for any moment in the day, even with a time in the format", () => {
+		const withTime = { ...settings, format: "YYYY-MM-DD HHmm" };
+		expect(dailyNotePath(withTime, moment("2026-09-20T17:45:00"))).toBe(dailyNotePath(withTime, day));
+	});
+
 	it("refuses a format that gives an empty name", () => {
 		expect(() => dailyNotePath({ ...settings, format: "[ ]" }, day)).toThrow(/empty file name/);
 	});

@@ -63,7 +63,8 @@ export function getDailyNoteSettings(app: App | undefined): DailyNoteSettings {
 
 /** The daily note's vault path, without extension, for the day of `date`. */
 export function dailyNotePath(settings: DailyNoteSettings, date: Moment): string {
-	const name = date.format(settings.format).trim();
+	// The day's start, so any moment in the day names the same note.
+	const name = date.clone().startOf("day").format(settings.format).trim();
 	if (!name) throw new Error(`The daily note format "${settings.format}" gives an empty file name.`);
 	return settings.folder ? `${settings.folder}/${name}` : name;
 }
