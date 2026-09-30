@@ -22,7 +22,6 @@ vi.mock("../gui/InputPrompt", () => ({
 }));
 vi.mock("../quickAddSettingsTab", () => ({ QuickAddSettingsTab: class {} }));
 vi.mock("../main", () => ({ __esModule: true, default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 function createFormatter(variables = new Map<string, unknown>()) {
 	const app = {
