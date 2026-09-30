@@ -62,6 +62,7 @@ convention.
 
 :::note[Off by default]
 This is opt-in. Turn on **Settings → QuickAdd → Advanced → Allow URI x-callback-url**
+(QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab)
 first. It is off by default because the callback link is controlled by whoever
 creates the `obsidian://` link, and the callback can carry your note's vault
 path.

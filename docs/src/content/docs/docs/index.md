@@ -44,7 +44,8 @@ takes about a minute.
 4. Turn on **Create file if it doesn't exist**, so the first capture of the day
    creates today's note instead of stopping with a "Target file missing" notice.
 5. In **Capture format**, enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
-   of one entry.
+   of one entry. (Before QuickAdd 2.30.0, turn on the **Capture format**
+   toggle first.)
 6. Close the settings. Open the command palette (Ctrl/Cmd+P), run
    **QuickAdd: Run**, pick `Add to journal`, and type your entry.
 

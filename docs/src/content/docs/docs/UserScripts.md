@@ -479,7 +479,7 @@ Prompt cancellations already throw `MacroAbortError` and halt macros automatical
 
 **What happens when you call `abort()`:**
 - Macro execution stops immediately
-- QuickAdd shows your message in a notice: "Macro execution aborted: [your message]". A message containing "cancelled by user" counts as a cancellation, so it gets a notice only when **Show input cancellation notifications** (under [**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-notifications)) is on
+- QuickAdd shows your message in a notice: "Macro execution aborted: [your message]". A message containing "cancelled by user" counts as a cancellation, so it gets a notice only when **Show input cancellation notifications** (under [**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-notifications), or the main QuickAdd tab before QuickAdd 2.30.0) is on
 - Remaining commands in the macro are skipped
 - It isn't reported as an error
 

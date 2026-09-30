@@ -41,7 +41,8 @@ Good places to use one:
 
 ## Define a global variable {#define}
 
-1. Open **Settings → QuickAdd → Advanced → Global variables**.
+1. Open **Settings → QuickAdd → Advanced → Global variables**. Before QuickAdd
+   2.30.0, **Global variables** is a section of the main QuickAdd tab.
 2. Add a **name** and a **value**. The value is free text and supports all of
    [format syntax](/docs/FormatSyntax/).
 3. That's it - changes save automatically as you type.

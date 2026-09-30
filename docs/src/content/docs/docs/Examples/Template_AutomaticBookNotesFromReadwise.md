@@ -23,7 +23,7 @@ New to user scripts? See [how to add a script to a macro](/docs/UserScripts/#add
 2. Create the macro that runs the script: in **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (I use `Readwise`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
 3. In the builder, add a **User Script** command: type the name of the script you saved (or click **Browse**) and click **Add**.
 4. Click the cog on the script's step, paste your token into **Readwise access token**, and click the save icon next to it. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.
-5. Create a [Template choice](/docs/Choices/TemplateChoice/) whose **Template path** points at the template you made from the [one below](#template). Set **File name** to `{{MACRO:Readwise::getBooks}}`, so the note is named after the book you pick. Set the remaining options to your liking. The screenshot shows the packaged choice:
+5. Create a [Template choice](/docs/Choices/TemplateChoice/) whose **Template path** points at the template you made from the [one below](#template). Set **File name** to `{{MACRO:Readwise::getBooks}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first), so the note is named after the book you pick. Set the remaining options to your liking. The screenshot shows the packaged choice:
 
 ![The Add Book Notes Template choice: template path Templates/Book Notes.md, file name {{MACRO:Readwise::getBooks}}, new notes in the Books folder, Open on in a new tab, and One-page input override set to Never](../Images/readwise_template_choice.png)
 

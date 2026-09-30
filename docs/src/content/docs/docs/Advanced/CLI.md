@@ -62,7 +62,7 @@ opening them:
 | `position` | `top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`, `newLineBelow`, or `property`, matching **Write position** |
 | `line` | The line for `after` or `before` |
 | `property` | The property a `property` capture writes |
-| `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is off |
+| `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
 | `task` | `true` when the capture is written as a task |
 | `createWithTemplate` | The template for a target file that doesn't exist yet |
 
@@ -70,7 +70,7 @@ opening them:
 | --- | --- |
 | `template` | The template file |
 | `folder` | The folder the note goes in; `<default>` is Obsidian's default location for new notes |
-| `fileName` | The **File name**, or `{{VALUE}}` when it is empty |
+| `fileName` | The **File name**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when the **File name format** toggle is off) |
 
 Formats are shown unexpanded. `<ask>` means QuickAdd asks for that part when the
 choice runs. Macros and Multis have no `writes`.

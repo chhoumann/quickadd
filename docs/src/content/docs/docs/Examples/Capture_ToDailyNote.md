@@ -26,7 +26,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
 
 ## Recipes
 
-Each recipe shows what to change from the base setup.
+Each recipe shows what to change from the base setup. Before QuickAdd 2.30.0, turn on the **Capture format** toggle to type a recipe.
 
 ### Timestamped journal line
 

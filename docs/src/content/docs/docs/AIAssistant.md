@@ -341,7 +341,7 @@ Then use a Macro with two steps:
    - Output variable name: `aiTitle`
    - Use a low temperature if you want more repeatable titles.
 2. **Template** command
-   - File name: `{{VALUE:aiTitle}}`
+   - File name: `{{VALUE:aiTitle}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
    - Template body can also include `{{VALUE:aiTitle}}`.
 
 The same pattern works with Capture choices and User Script commands that run
