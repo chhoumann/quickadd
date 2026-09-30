@@ -116,10 +116,6 @@ vi.mock("./TemplateInsertEngine", () => {
 	return { TemplateInsertEngine: TemplateInsertEngineMock };
 });
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { TFile, TFolder, type App } from "obsidian";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";

@@ -1,7 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App } from "obsidian";
 import { render } from "@testing-library/svelte";
 import ChoiceView from "./ChoiceView.svelte";

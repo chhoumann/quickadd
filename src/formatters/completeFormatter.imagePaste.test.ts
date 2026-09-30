@@ -81,8 +81,6 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
 import { CompleteFormatter } from "./completeFormatter";

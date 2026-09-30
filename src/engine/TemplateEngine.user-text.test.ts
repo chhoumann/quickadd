@@ -7,7 +7,6 @@ import { overwriteTemplaterOnce, templaterParseTemplate } from "../utilityObsidi
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../utilityObsidian", async importOriginal => ({
 	...await importOriginal<typeof UtilityObsidian>(),
 	overwriteTemplaterOnce: vi.fn(),

@@ -145,10 +145,6 @@ vi.mock("./SingleTemplateEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));

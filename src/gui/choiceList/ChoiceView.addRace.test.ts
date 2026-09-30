@@ -1,7 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 // The builder modal, held open: the deferred stands in for the user configuring
 // the brand-new choice while the rest of the app keeps running.
 const { configureChoiceMock } = vi.hoisted(() => ({

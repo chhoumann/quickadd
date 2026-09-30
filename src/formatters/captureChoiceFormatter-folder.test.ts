@@ -40,8 +40,6 @@ vi.mock("../engine/SingleMacroEngine", async () => (await import("../../tests/he
 
 vi.mock("../engine/SingleTemplateEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMockWithConstructor());
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
 const createFormatter = () => {

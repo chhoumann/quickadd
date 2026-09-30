@@ -8,7 +8,6 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 // single-line guard now throws ChoiceAbortError (asserted via rejects.toThrow),
 // so these tests don't inspect reportError (issue #468).
 vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 

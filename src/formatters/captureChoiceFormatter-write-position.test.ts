@@ -6,8 +6,6 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
 vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 

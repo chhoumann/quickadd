@@ -71,10 +71,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 vi.mock("./choiceFileActions", async (importOriginal) => ({
 	...(await importOriginal<typeof ChoiceFileActions>()),
 	openChoiceFile: vi.fn(async () => true),

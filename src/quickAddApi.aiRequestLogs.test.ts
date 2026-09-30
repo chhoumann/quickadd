@@ -19,10 +19,6 @@ vi.mock("./formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 describe("QuickAddApi.ai request logs", () => {
 	let api: ReturnType<typeof QuickAddApi.GetApi>;
 

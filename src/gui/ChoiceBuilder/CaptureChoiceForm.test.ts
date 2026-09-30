@@ -1,7 +1,5 @@
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";

@@ -21,7 +21,6 @@ vi.mock("obsidian", async (importOriginal) => ({
 	stringifyYaml: (value: Record<string, unknown>) => Object.entries(value).map(([key, item]) => `${key}: ${JSON.stringify(item)}\n`).join(""),
 }));
 vi.mock("../main", () => ({ default: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../logger/logManager", () => ({ log: { logError: vi.fn(), logWarning: vi.fn(), logMessage: vi.fn() } }));
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({ default: { Suggest: mocks.picker } }));
 vi.mock("../formatters/captureChoiceFormatter", () => ({

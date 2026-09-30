@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-// FormatPreviewField -> formatter graph pulls obsidian-dataview's CJS require.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App } from "obsidian";
 import { flushSync } from "svelte";
 import type QuickAdd from "../../main";

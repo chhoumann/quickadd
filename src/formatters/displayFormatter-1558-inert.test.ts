@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import type { App } from "obsidian";
 import { FormatDisplayFormatter } from "./formatDisplayFormatter";
 import { FileNameDisplayFormatter } from "./fileNameDisplayFormatter";
@@ -7,16 +7,6 @@ import { describePreviewFailure } from "./previewDiagnostics";
 import type QuickAdd from "../main";
 import { LogManager } from "../logger/logManager";
 import type { ILogger } from "../logger/ilogger";
-
-// The preview never reaches a template in these cases, and SingleTemplateEngine's
-// module graph pulls obsidian-dataview's CJS require.
-vi.mock("../engine/SingleTemplateEngine", () => ({
-	SingleTemplateEngine: class {
-		run(): Promise<string> {
-			return Promise.resolve("");
-		}
-	},
-}));
 
 const app = {
 	workspace: { getActiveFile: () => null },

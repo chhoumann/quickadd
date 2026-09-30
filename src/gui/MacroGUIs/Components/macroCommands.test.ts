@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
-// StandardCommand -> getCommandDisplayName -> src/main pulls obsidian-dataview's
-// CJS require('obsidian'); mock it as the rest of the suite does.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import StandardCommand from "./StandardCommand.svelte";
 import WaitCommand from "./WaitCommand.svelte";
 import ConditionalCommand from "./ConditionalCommand.svelte";
