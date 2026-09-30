@@ -170,7 +170,8 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with
 		await run(choice);
 		await settleNativeCallback();
 		expect(await obsidian.dev.evalJson("app.workspace.activeLeaf.id")).toBe(originalLeafId);
-		const prefix = mode === "appendBottom" ? "Old note\n" : "";
+		// One blank line separates the note from a template appended below it (#1969).
+		const prefix = mode === "appendBottom" ? "Old note\n\n" : "";
 		const suffix = mode === "appendTop" ? "\nOld note" : "";
 		await expectAt(path, `${prefix}ABC<% tp.file.cursor(2) %>D${suffix}`, `BC<% tp.file.cursor(2) %>D${suffix}`);
 		await obsidian.exec("command", { id: "templater-obsidian:jump-to-next-cursor-location" });
