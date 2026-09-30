@@ -53,6 +53,13 @@ export function normalizeImportedChoice(choice: IChoice): void {
 			legacy.fileOpening = createFileOpeningFromLegacy(legacyTab, legacy.openFileInMode);
 		}
 	}
+	// New Captures start with these on (#2007), but a package that leaves them
+	// out has always run with them off.
+	const insertAfter = (choice as IChoice & { insertAfter?: unknown }).insertAfter;
+	if (choice.type === "Capture" && isPlainObject(insertAfter)) {
+		insertAfter.insertAtEnd ??= false;
+		insertAfter.createIfNotFound ??= false;
+	}
 	const defaults =
 		choice.type === "Capture" ? new CaptureChoice(choice.name) :
 		choice.type === "Template" ? new TemplateChoice(choice.name) :

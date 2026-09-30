@@ -624,8 +624,10 @@ X
 A
 ```
 
-With Insert after you can also enable **Insert at end of section** and
-**Consider subsections** - see [below](#consider-subsections--option).
+A new Capture starts with **Insert at end of section** on, so each entry lands
+below the previous one, and **Create line if not found** on at the **Top**. Turn
+**Insert at end of section** off to put the newest entry first. **Consider
+subsections** is covered [below](#consider-subsections--option).
 
 **Create line if not found** creates the target line when it doesn't exist -
 useful when the heading might not be in the note yet. The created line can go
