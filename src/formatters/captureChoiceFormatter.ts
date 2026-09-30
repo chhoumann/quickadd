@@ -8,6 +8,7 @@ import {
 	CREATE_IF_NOT_FOUND_CURSOR,
 	CREATE_IF_NOT_FOUND_ORDERED,
 	CREATE_IF_NOT_FOUND_TOP,
+	NAME_VALUE_REGEX,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import { templaterParseTemplate } from "../utilityObsidian";
@@ -266,10 +267,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async formatCapture(input: string, runTemplater: boolean, format = true): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
 		let formatted = format
-			? await this.withClipboardImageFallback(async () =>
-				this.withPromptScope("captureText", input, async () =>
-					this.withUserTextProtected(async () =>
-						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			? await this.withValueLines(!!this.choice?.eachLine, () =>
+				this.withClipboardImageFallback(async () =>
+					this.withPromptScope("captureText", input, async () =>
+						this.withUserTextProtected(async () =>
+							super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+						),
 					),
 				),
 			)
@@ -315,12 +318,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		return content.length > 0 && !content.endsWith("\n") ? `${content}\n` : content;
 	}
 
-	/** Formats the capture text. User text in the result stays marked until the text is placed. */
-	async formatContentOnly(input: string): Promise<string> {
-		const formatted = await this.withClipboardImageFallback(async () =>
-			this.withPromptScope("captureText", input, async () =>
-				this.withUserTextProtected(async () =>
-					super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+	/**
+	 * Formats the capture text. User text in the result stays marked until the
+	 * text is placed. `eachLine` writes the format once per line of {{VALUE}}.
+	 */
+	async formatContentOnly(input: string, options: { eachLine?: boolean } = {}): Promise<string> {
+		const formatted = await this.withValueLines(options.eachLine ?? false, () =>
+			this.withClipboardImageFallback(async () =>
+				this.withPromptScope("captureText", input, async () =>
+					this.withUserTextProtected(async () =>
+						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+					),
 				),
 			),
 		);
@@ -331,6 +339,63 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (formattedContentIsEmpty) return this.fileContent;
 
 		return formatted;
+	}
+
+	private splitValueLines = false;
+
+	/** Formats the capture text with One entry per line on or off. */
+	private async withValueLines<T>(eachLine: boolean, work: () => Promise<T>): Promise<T> {
+		this.splitValueLines = eachLine;
+		this.defaultValueInputType = eachLine ? "multiline" : undefined;
+		try {
+			return await work();
+		} finally {
+			this.splitValueLines = false;
+			this.defaultValueInputType = undefined;
+		}
+	}
+
+	/**
+	 * One entry per line: scripts, macros, and includes run once, then the
+	 * format's tokens are filled once per line of the {{VALUE}} answer. Every
+	 * other answer is kept by the first line and reused. {{MVALUE}} keeps no
+	 * answer, so it is filled once for all lines.
+	 */
+	protected async format(input: string): Promise<string> {
+		if (!this.splitValueLines) return super.format(input);
+		// Only the capture format itself; anything it formats later is whole.
+		this.splitValueLines = false;
+
+		const expanded = await this.expandCodeAndIncludes(input);
+		if (!NAME_VALUE_REGEX.test(expanded)) return this.formatScalarTokens(expanded);
+		const answer = await this.resolveValue(expanded);
+		const lines = answer.split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean);
+		if (lines.length === 0) {
+			// An empty answer means the token's default, as it does without this option.
+			const context = this.valuePromptContext;
+			if (!context?.defaultValue || context.optional) return "";
+			lines.push("");
+		}
+
+		const shared = await this.replaceMathValueInString(expanded);
+		// A value passed in by a script, the URI, the CLI, or the one-page form
+		// lives in the variables map, where {{VALUE}} reads it first.
+		const seeded = this.hasConcreteVariable("value");
+		const seededValue = this.variables.get("value");
+		const entries: string[] = [];
+		try {
+			for (const line of lines) {
+				this.value = line;
+				if (seeded) this.variables.set("value", line);
+				entries.push(await this.formatScalarTokens(shared));
+			}
+		} finally {
+			this.value = answer;
+			if (seeded) this.variables.set("value", seededValue);
+		}
+		return entries
+			.map((entry, index) => index < entries.length - 1 && !entry.endsWith("\n") ? `${entry}\n` : entry)
+			.join("");
 	}
 
 	private async expandTemplateLinebreaksOnce(template: string): Promise<string> {

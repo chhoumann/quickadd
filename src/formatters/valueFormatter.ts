@@ -64,6 +64,8 @@ export abstract class ValueFormatter {
 	protected value: string;
 	protected variables: Map<string, unknown> = new Map<string, unknown>();
 	protected valuePromptContext?: PromptContext;
+	/** The {{VALUE}} prompt's input type when the token sets none. */
+	protected defaultValueInputType?: ValueInputType;
 	/** Declared prompt scope, restored by withPromptScope across nested formatting. */
 	protected promptScope: PromptScopeKind = "generic";
 	/** Whether an anonymous {{VALUE}} answers the whole of what the scope names. */
@@ -236,13 +238,9 @@ export abstract class ValueFormatter {
 
 	protected abstract promptForValue(header?: string): Promise<string> | string;
 
-	protected async replaceValueInString(input: string): Promise<string> {
-		let output: string = input;
-
-		// Fast path: nothing to do.
-		if (!NAME_VALUE_REGEX.test(output)) return output;
-
-		this.valuePromptContext = this.getValuePromptContext(output);
+	/** Settles the {{VALUE}} answer for `input`'s tokens, asking at most once per run. */
+	protected async resolveValue(input: string): Promise<string> {
+		this.valuePromptContext = this.getValuePromptContext(input);
 
 		// Preserve programmatic VALUE injection via reserved variable name `value`.
 		if (this.hasConcreteVariable("value")) {
@@ -254,6 +252,16 @@ export abstract class ValueFormatter {
 		if (this.value === undefined) {
 			this.value = await this.promptForValue();
 		}
+		return this.value;
+	}
+
+	protected async replaceValueInString(input: string): Promise<string> {
+		let output: string = input;
+
+		// Fast path: nothing to do.
+		if (!NAME_VALUE_REGEX.test(output)) return output;
+
+		await this.resolveValue(output);
 
 		// Replace all occurrences in a single non-recursive pass.
 		// Important: use a replacer function so `$` in user input is treated literally.

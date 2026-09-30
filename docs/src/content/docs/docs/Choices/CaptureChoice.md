@@ -286,6 +286,32 @@ setting.
 
 _Task_ formats your captured text as a task (`- [ ] ...`).
 
+### One entry per line {#one-entry-per-line}
+
+_Requires QuickAdd 2.30.0 or later._
+
+_One entry per line_ writes the capture format once for each line of
+`{{VALUE}}`. Paste, select, or type several lines, and each becomes its own
+entry:
+
+```markdown title="Format (with Task on)"
+{{VALUE}} 📅 {{VDATE:due,YYYY-MM-DD}}
+```
+
+```markdown title="You type three lines and answer "friday""
+- [ ] Book the venue 📅 2026-10-02
+- [ ] Send the invites 📅 2026-10-02
+- [ ] Order the cake 📅 2026-10-02
+```
+
+Good to know:
+
+- Blank lines are skipped and each line is trimmed. If every line is blank, nothing is written, unless `{{VALUE}}` has a `|default:`, which is written once.
+- Every other placeholder is asked once and reused for every line. Macros (`{{MACRO:...}}`), inline scripts, and included templates run once per capture, not once per line. `{{RANDOM:...}}` gives each line its own value.
+- The `{{VALUE}}` prompt opens as a multi-line box, and so does its field in the [one-page input form](/docs/Advanced/onePageInputs/). A `|type:` on the token wins.
+- A multi-line editor selection, or a value passed from a script, the URI, or the CLI, is split the same way.
+- Only the `{{VALUE}}` written in the Capture format splits. A `{{VALUE}}` inside an included `{{TEMPLATE:...}}` is filled once, as a whole.
+
 ### Which day {#date-origin}
 
 Same [Which day](/docs/Choices/TemplateChoice/#date-origin) setting as a

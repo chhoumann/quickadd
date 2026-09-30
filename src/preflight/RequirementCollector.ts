@@ -102,6 +102,8 @@ export class RequirementCollector extends Formatter {
 	 * knows that much.
 	 */
 	private scanningScope: PromptScopeKind = "generic";
+	/** Set while scanning a One entry per line Capture's format: its {{VALUE}} takes several lines. */
+	public valueTakesLines = false;
 	private scanningSoleValue = false;
 	/**
 	 * Where each field first appears in the string being scanned. Dates, named
@@ -480,7 +482,10 @@ export class RequirementCollector extends Formatter {
 	protected async promptForValue(header?: string): Promise<string> {
 		const key = "value";
 		if (!this.requirements.has(key)) {
-			const type = this.inputFieldType(this.valuePromptContext);
+			// A |type: on the token wins over One entry per line.
+			const type = this.valueTakesLines && !this.valuePromptContext?.inputTypeOverride
+				? "textarea"
+				: this.inputFieldType(this.valuePromptContext);
 			const derived = describeValuePrompt(
 				this.scanningScope,
 				this.scanningSoleValue,

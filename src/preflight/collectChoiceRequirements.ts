@@ -260,12 +260,14 @@ async function collectForCaptureChoice(
 	const knownPropertyType = propertyName && !hasTemplatePathSyntax(propertyName)
 		? resolveObsidianPropertyType(app, propertyName, { registeredOnly: true }) : null;
 	if (choice.format?.enabled || choice.propertyCapture) {
+		collector.valueTakesLines = !!choice.eachLine && !choice.propertyCapture;
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,
 			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
 			choice.propertyCapture ? "propertyValue" : "captureText",
 		);
+		collector.valueTakesLines = false;
 	}
 
 	if (choice.propertyCapture && knownPropertyType === null) {
@@ -490,6 +492,8 @@ async function collectForMacroChoice(
 					(existing.optional ?? false) && (requirement.optional ?? false);
 				if (requirement.pathContext) existing.pathContext = true;
 				if (requirement.runtimeOnly) existing.runtimeOnly = true;
+				// A text area also takes one line, so a field several steps share gets the wider input.
+				if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
 				continue;
 			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });
