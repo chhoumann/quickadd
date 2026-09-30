@@ -382,10 +382,17 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 
 		const fileContentLines: string[] = getLinesInString(this.fileContent);
-		// Ordered searches mask YAML and fenced headings without shifting indices; other searches remain unmasked.
-		const searchLines = this.isOrderedCreate()
-			? positioning.maskNonBodyHeadingsForSearch(fileContentLines, this.fileContent)
-			: fileContentLines;
+		// A picked (or typed) heading matches only heading lines, never a
+		// same-text line in the frontmatter, a code fence or a paragraph. A typed
+		// line that isn't a heading keeps the plain search, so a second run finds
+		// the line the first one created. Ordered searches mask YAML and fenced
+		// headings; all keep line indices. Other searches are unmasked.
+		const searchLines =
+			override !== null && positioning.isHeadingLine(override)
+				? positioning.onlyHeadingLines(fileContentLines)
+				: this.isOrderedCreate()
+					? positioning.maskNonBodyHeadingsForSearch(fileContentLines, this.fileContent)
+					: fileContentLines;
 		const { start, end } = positioning.findInsertAfterRange(searchLines, targetLines);
 		const targetNotFound = start === -1;
 		if (targetNotFound) {

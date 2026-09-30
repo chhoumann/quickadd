@@ -151,6 +151,38 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		expect(displayItems).toEqual(["Title", "  Tasks", "    Subtask", "  Notes"]);
 	});
 
+	it("offers only lines Obsidian reads as headings (#1987)", async () => {
+		const suggestSpy = vi.fn(async () => "## Log");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const engine = buildEngine(createChoice());
+
+		await (engine as any).maybeResolveInsertAfterHeading(
+			[
+				"---",
+				"tags: log",
+				"# owner: me",
+				"---",
+				"## Log",
+				"```bash",
+				"# comment",
+				"```",
+				"####### seven",
+				"   ### Indented",
+				"Setext",
+				"======",
+				"## Next",
+			].join("\n"),
+		);
+
+		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
+		// A setext heading's own line is its text, not a line a capture can be
+		// inserted after without splitting the heading from its underline.
+		// Without indentation: the insert-after search compares lines with their
+		// leading whitespace trimmed.
+		expect(items).toEqual(["## Log", "### Indented", "## Next"]);
+		expect(displayItems).toEqual(["  Log", "    Indented", "  Next"]);
+	});
+
 	it("pushes the picked heading line to the formatter as a verbatim override", async () => {
 		(InputSuggester as any).Suggest = vi.fn(async () => "## Tasks");
 		const engine = buildEngine(createChoice());
