@@ -4,7 +4,7 @@
 import { findIllegalFilePathChars } from "../../utils/generatedFilePath";
 
 /** Common variable examples for consistent previews across formatters */
-export const VARIABLE_EXAMPLES: Record<string, string> = {
+const VARIABLE_EXAMPLES: Record<string, string> = {
 	"title": "My Document Title",
 	"name": "Document Name", 
 	"project": "Project Alpha",
@@ -18,7 +18,7 @@ export const VARIABLE_EXAMPLES: Record<string, string> = {
 };
 
 /** Macro descriptions for better preview understanding */
-export const MACRO_DESCRIPTIONS: Record<string, string> = {
+const MACRO_DESCRIPTIONS: Record<string, string> = {
 	"clipboard": "clipboard_content",
 	"date": "formatted_date",
 	"time": "current_time",
@@ -27,7 +27,7 @@ export const MACRO_DESCRIPTIONS: Record<string, string> = {
 };
 
 /** Variable name patterns with their example values */
-export const VARIABLE_PATTERNS: Array<{pattern: RegExp, example: string}> = [
+const VARIABLE_PATTERNS: Array<{pattern: RegExp, example: string}> = [
 	{pattern: /date|time/i, example: "2024-01-15"},
 	{pattern: /title|name/i, example: "Example Title"},
 	{pattern: /tag/i, example: "important"},

@@ -20,7 +20,7 @@ export function isTemplateChoice(
 	);
 }
 
-export function migrateFileExistsBehavior(
+function migrateFileExistsBehavior(
 	choice: LegacyTemplateChoice,
 ): TemplateFileExistsBehavior {
 	if (choice.fileExistsBehavior) {

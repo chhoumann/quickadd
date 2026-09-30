@@ -159,7 +159,7 @@ export function getModesForCategory(
 	return fileExistsModes.filter((mode) => mode.category === category);
 }
 
-export function getCategoryForMode(
+function getCategoryForMode(
 	modeId: FileExistsModeId,
 ): FileExistsModeCategoryId {
 	return getFileExistsMode(modeId).category;

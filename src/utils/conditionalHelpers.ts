@@ -114,7 +114,7 @@ export function normalizeVariableValue(
 	}
 }
 
-export function formatExpectedValueForDisplay(
+function formatExpectedValueForDisplay(
 	condition: VariableCondition
 ): string {
 	if (!requiresExpectedValue(condition.operator)) return "";
@@ -128,7 +128,7 @@ export function formatExpectedValueForDisplay(
 	return raw;
 }
 
-export function describeVariableCondition(
+function describeVariableCondition(
 	condition: VariableCondition
 ): string {
 	const variableLabel = condition.variableName
@@ -143,7 +143,7 @@ export function describeVariableCondition(
 	return `${variableLabel} ${operatorLabel}${expectedLabel}`.trim();
 }
 
-export function describeScriptCondition(condition: ScriptCondition): string {
+function describeScriptCondition(condition: ScriptCondition): string {
 	const exportSuffix = condition.exportName
 		? `::${condition.exportName}`
 		: "";

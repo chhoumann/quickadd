@@ -26,7 +26,7 @@ import { mountSystemPromptLiteralNote } from "./systemPromptLiteralNote";
 export const AI_ASSISTANT_PAGE_NAME = "AI Assistant";
 
 /** "No providers", "1 provider", "2 providers". */
-export function describeProviderCount(count: number): string {
+function describeProviderCount(count: number): string {
 	if (count === 0) return "No providers";
 	return `${count} provider${count === 1 ? "" : "s"}`;
 }

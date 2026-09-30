@@ -297,7 +297,7 @@ const TOOLS_NEED_NO_REASONING_RE =
  * Responses API, but gateways (Azure OpenAI, OpenRouter, LiteLLM, ...) can
  * still serve these models over Chat Completions.
  */
-export function toolReasoningRetryBody(
+function toolReasoningRetryBody(
 	wire: ChatWire,
 	body: Record<string, unknown>,
 	errorText: string,

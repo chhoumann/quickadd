@@ -71,7 +71,7 @@ function parseMode<T extends string>(
  * original paths instead of both claiming `Templates/Meeting.md` and having
  * the whole import refused.
  */
-export function cliAssetDestinations(
+function cliAssetDestinations(
 	conflicts: ReadonlyArray<Pick<AssetConflict, "kind" | "originalPath">>,
 	templateFolderPaths: unknown,
 ): Map<string, string> {

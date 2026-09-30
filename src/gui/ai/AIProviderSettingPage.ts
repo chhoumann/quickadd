@@ -21,7 +21,7 @@ import {
 import { configureProviderSecret } from "./providerSettings";
 import { countModels, describeSyncStatus } from "./syncStatus";
 
-export function describeModelSource(provider: Pick<AIProvider, "modelSource">): string {
+function describeModelSource(provider: Pick<AIProvider, "modelSource">): string {
 	switch (provider.modelSource ?? "providerApi") {
 		case "modelsDev":
 			return "the models.dev directory";

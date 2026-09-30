@@ -108,7 +108,7 @@ export function describeUnknownFieldFilter(
  * its siblings. This is also what a live preview sees for the one keystroke
  * between `|folder` and `|folder:`, so it has to read as "not finished yet".
  */
-export function describeValuelessFieldFilter(
+function describeValuelessFieldFilter(
 	filterKey: string,
 	input: string,
 ): string {

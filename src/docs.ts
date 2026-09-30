@@ -13,7 +13,7 @@ import { log } from "./logger/logManager";
  * Trailing slashes are the canonical form the docs site serves (Astro
  * Starlight); omitting one costs a redirect hop.
  */
-export const DOCS_BASE_URL = "https://quickadd.obsidian.guide";
+const DOCS_BASE_URL = "https://quickadd.obsidian.guide";
 
 export const DOCS_URLS = {
 	gettingStarted: `${DOCS_BASE_URL}/docs/`,

@@ -41,7 +41,7 @@ export function stringifyPropertyTokenValue(value: unknown): string {
 }
 
 /** Variable keys seeded for property Captures. Reserved while that Capture runs. */
-export const PROPERTY_CAPTURE_SEED_KEYS = [
+const PROPERTY_CAPTURE_SEED_KEYS = [
 	"propertyKey",
 	"propertyValue",
 	"list",

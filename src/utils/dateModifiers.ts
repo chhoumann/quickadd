@@ -46,7 +46,7 @@ const UNIT_ALIASES: Record<string, StartOf> = {
 };
 
 /** Human-facing list of the documented units, used in error messages. */
-export const VALID_DATE_SNAP_UNITS = "year, quarter, month, week, isoweek, day";
+const VALID_DATE_SNAP_UNITS = "year, quarter, month, week, isoweek, day";
 
 /**
  * Normalises a user-supplied unit to moment's canonical form, throwing a
