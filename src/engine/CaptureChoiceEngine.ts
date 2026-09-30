@@ -53,6 +53,7 @@ import {
 } from "../types/linkPlacement";
 import {
 	appendToCurrentLine,
+	createNoteAfterTemplaterTrigger,
 	insertOnNewLineAbove,
 	insertOnNewLineBelow,
 	isTemplaterTriggerOnCreateEnabled,
@@ -60,7 +61,6 @@ import {
 	overwriteTemplaterOnce,
 	setMarkdownCursorAtOffset,
 	templaterParseTemplate,
-	waitForTemplaterTriggerOnCreateToComplete,
 } from "../utilityObsidian";
 import { reportError } from "../utils/errorUtils";
 import {
@@ -734,14 +734,14 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				});
 			} else {
 				frontmatter[key] = prepared;
-				file = await this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
+				const create = () => this.createFileWithInput(filePath, serializeCaptureFrontmatter(initialContent, frontmatter), {
 					suppressTemplaterOnCreate: createWithTemplate,
 				});
+				file = createWithTemplate ? await create() : await createNoteAfterTemplaterTrigger(this.app, filePath, create);
 			}
 			args.onCommit();
 			if (!fileAlreadyExists && (createWithTemplate || isTemplaterTriggerOnCreateEnabled(this.app))) {
 				if (createWithTemplate) await overwriteTemplaterOnce(this.app, file);
-				else await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
 				await this.app.fileManager.processFrontMatter(file, (current: Record<string, unknown>) => {
 					current[resolveCapturePropertyKey(current, key)] = plan(current);
 				});
@@ -1183,11 +1183,17 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			this.templatePropertyVars = templateVars;
 		}
 
-		// Create the new file with the (optional) template content
-		const file: TFile = await this.createFileWithInput(filePath, fileContent, {
-			suppressTemplaterOnCreate:
-				this.choice.createFileIfItDoesntExist.createWithTemplate,
+		// Create the new file with the (optional) template content. With a
+		// QuickAdd template, Templater's new-file trigger is suppressed and the
+		// template is rendered below; without one, the trigger may fill the note
+		// first, so the capture is placed once it is done.
+		const createWithTemplate = this.choice.createFileIfItDoesntExist.createWithTemplate;
+		const create = () => this.createFileWithInput(filePath, fileContent, {
+			suppressTemplaterOnCreate: createWithTemplate,
 		});
+		const file: TFile = createWithTemplate
+			? await create()
+			: await createNoteAfterTemplaterTrigger(this.app, filePath, create);
 
 		try {
 			// Post-process front matter for template property types if we used a template
@@ -1198,13 +1204,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			}
 
 			// Process Templater commands in the template if a template was used
-			if (
-				this.choice.createFileIfItDoesntExist.createWithTemplate &&
-				fileContent
-			) {
+			if (createWithTemplate && fileContent) {
 				await overwriteTemplaterOnce(this.app, file);
-			} else if (isTemplaterTriggerOnCreateEnabled(this.app)) {
-				await waitForTemplaterTriggerOnCreateToComplete(this.app, file);
 			}
 		} finally {
 			if (fileContent) await this.restoreUserTextInNote(file);

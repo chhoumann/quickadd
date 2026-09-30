@@ -10,10 +10,6 @@ vi.mock("../formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));

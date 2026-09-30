@@ -3,11 +3,6 @@ import { App } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type QuickAdd from "./main";
 
-// Importing the settings tab transitively pulls in ChoiceView -> the Dataview
-// integration, whose compiled CJS does a bare `require('obsidian')` that the
-// vitest alias can't intercept. Mock it as the sibling settings tests do.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 function makeTab(): QuickAddSettingsTab {
 	const app = new App();
 	const plugin = { app, register: vi.fn() } as unknown as QuickAdd;

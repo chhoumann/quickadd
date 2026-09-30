@@ -148,9 +148,16 @@ async function scanTemplateSource(
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
-	// The template PATH is path context; the template BODY below is content.
+	// The template PATH is path context; the template BODY is content.
 	await collector.scanString(templatePath, true, "templatePath");
+	await scanTemplateBody(app, collector, templatePath);
+}
 
+async function scanTemplateBody(
+	app: App,
+	collector: RequirementCollector,
+	templatePath: string,
+): Promise<void> {
 	if (hasTemplatePathSyntax(templatePath)) {
 		log.logMessage(
 			`Preflight: template path "${templatePath}" uses format syntax; its body's prompts are collected at run time, not in the one-page form.`,
@@ -175,6 +182,23 @@ async function collectForTemplateChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
+	// Scanned in the order the run asks: the template path, the folder, the
+	// file name, then the template's content.
+	if (choice.templatePath) {
+		await collector.scanString(choice.templatePath, true, "templatePath");
+	}
+
+	if (choice.folder?.enabled) {
+		for (const folder of choice.folder.folders ?? []) {
+			await scanContentWithTemplateIncludes(
+				app,
+				collector,
+				folder,
+				"folder",
+			);
+		}
+	}
+
 	// Only the ENABLED format is scanned. The engine resolves a disabled one to
 	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
 	// collecting it would also make the non-interactive CLI guard reject runs the
@@ -191,19 +215,8 @@ async function collectForTemplateChoice(
 		);
 	}
 
-	if (choice.folder?.enabled) {
-		for (const folder of choice.folder.folders ?? []) {
-			await scanContentWithTemplateIncludes(
-				app,
-				collector,
-				folder,
-				"folder",
-			);
-		}
-	}
-
 	if (choice.templatePath) {
-		await scanTemplateSource(app, collector, choice.templatePath);
+		await scanTemplateBody(app, collector, choice.templatePath);
 	}
 
 	const format = choice.fileNameFormat?.enabled

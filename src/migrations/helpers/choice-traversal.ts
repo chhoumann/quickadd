@@ -192,6 +192,14 @@ export function settingsTreeHasUnreadableData(settings: {
 	return unreadable;
 }
 
+/**
+ * Visit `choice` and every choice below it: folder children, and choices its
+ * macro commands (including conditional branches) run as nested choices.
+ */
+export function walkChoiceTree(choice: IChoice, visitor: ChoiceVisitor): void {
+	walkChoice(choice, { onChoice: visitor }, new Set<IChoice>());
+}
+
 export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
 	walkSettings(
 		plugin.settings,

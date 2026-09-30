@@ -59,7 +59,7 @@ vi.mock("../utilityObsidian", () => ({
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	setMarkdownCursorAtOffset: vi.fn(),
 }));
 
@@ -69,10 +69,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 vi.mock("./choiceFileActions", async (importOriginal) => ({

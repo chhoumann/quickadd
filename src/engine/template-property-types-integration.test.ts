@@ -5,7 +5,6 @@ import { log } from "../logger/logManager";
 
 vi.mock("../main", () => ({ default: class { } }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class { } }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 type Properties = Record<string, unknown>;
 async function createProperties(values: Properties, enabled = true) {

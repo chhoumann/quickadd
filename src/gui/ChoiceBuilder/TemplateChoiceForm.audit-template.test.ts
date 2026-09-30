@@ -1,10 +1,6 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { settingItem } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it, vi } from "vitest";
-
-// FormatPreviewField -> FileNameDisplayFormatter and the suggesters reach the
-// formatter/engine graph, which pulls obsidian-dataview's CJS require('obsidian').
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";

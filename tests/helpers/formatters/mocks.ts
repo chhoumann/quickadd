@@ -75,11 +75,6 @@ export const SingleTemplateEngineMock = () => ({
 	},
 });
 
-export const obsidiandataviewMock = () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-});
-
 export const mainMock = () => ({
 	__esModule: true,
 	default: class QuickAdd {

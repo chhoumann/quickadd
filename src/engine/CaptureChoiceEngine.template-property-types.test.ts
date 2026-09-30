@@ -111,16 +111,13 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn().mockReturnValue(null),
-}));
-
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 	default: class {},
 }));
 
 vi.mock("../utilityObsidian", () => ({
 	appendToCurrentLine: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),
 	getMarkdownFilesWithTag: vi.fn().mockResolvedValue([]),
 	insertFileLinkToActiveView: vi.fn(),

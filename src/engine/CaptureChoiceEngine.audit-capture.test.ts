@@ -106,7 +106,7 @@ vi.mock("../utilityObsidian", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	setMarkdownCursorAtOffset: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 }));
 
 vi.mock("three-way-merge", () => ({
@@ -119,7 +119,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 }));
 
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App, Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";

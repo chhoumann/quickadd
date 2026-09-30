@@ -45,11 +45,10 @@ vi.mock("../utilityObsidian", () => ({
 	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 }));
 
 vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {

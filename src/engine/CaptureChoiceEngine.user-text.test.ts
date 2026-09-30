@@ -14,7 +14,6 @@ const { scriptRuns, macroRuns } = vi.hoisted(() => ({
 }));
 
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({ default: class {} }));
 vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	SingleInlineScriptEngine: class {

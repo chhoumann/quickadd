@@ -2,10 +2,6 @@ import { makeProps } from "../../../tests/helpers/settings/commands";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
-// CommandList transitively imports src/main, which pulls obsidian-dataview's CJS
-// require('obsidian'); mock it as the rest of the suite does.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import CommandList from "./CommandList.svelte";
 import { ObsidianCommand } from "../../types/macros/ObsidianCommand";
 import type { ICommand } from "../../types/macros/ICommand";

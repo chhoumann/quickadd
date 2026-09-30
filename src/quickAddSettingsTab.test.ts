@@ -14,11 +14,6 @@ import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import { DOCS_URLS } from "./docs";
 import type QuickAdd from "./main";
 
-// Importing the settings tab transitively pulls in ChoiceView -> the Dataview
-// integration, whose compiled CJS does a bare `require('obsidian')` that the
-// vitest alias can't intercept. Mock it as the choice-list tests do.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 function expectNoPayloadDom(el: HTMLElement): void {
 	expect(el.querySelector("img, script, svg")).toBeNull();
 	expect((globalThis as typeof globalThis & { __qaXss?: number }).__qaXss)

@@ -1,11 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import { collectFieldValuesProcessed } from "./FieldValueCollector";
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: () => null,
-}));
 
 describe("Issue #644 - quoted FIELD values in frontmatter", () => {
 	beforeEach(() => {

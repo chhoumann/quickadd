@@ -2,10 +2,6 @@ import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { collectUnhandledRejections } from "../../../tests/helpers/unhandledRejections";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { Notice, TextComponent, TFile } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";
 import type QuickAdd from "../../main";

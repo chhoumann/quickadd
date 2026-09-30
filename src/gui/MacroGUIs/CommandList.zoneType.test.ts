@@ -20,8 +20,6 @@ import type * as DndAction from "svelte-dnd-action";
 
 const registeredTypes: (string | undefined)[] = [];
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 vi.mock("svelte-dnd-action", async () => {
 	const actual = await vi.importActual<typeof DndAction>("svelte-dnd-action");
 	return {

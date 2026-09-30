@@ -7,7 +7,6 @@ import { templaterParseTemplate } from "../utilityObsidian";
 
 vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
 vi.mock("../main", async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 describe("Templater execution control", () => {
 	it("should prevent double-execution of templater processing", async () => {

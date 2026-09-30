@@ -14,10 +14,6 @@ vi.mock("./formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 const INLINE_CONTENT = `
 Id:: 343434
 

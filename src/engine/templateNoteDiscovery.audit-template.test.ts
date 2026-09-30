@@ -10,10 +10,6 @@ vi.mock("src/gui/TemplateNoteDiscoveryModal", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { type App, type TFile } from "obsidian";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { promptForTemplateNoteDiscovery } from "./promptForTemplateNoteDiscovery";

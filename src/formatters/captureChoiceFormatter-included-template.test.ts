@@ -20,7 +20,6 @@ vi.mock("../gui/InputPrompt", () => ({
 vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
 	default: { Prompt: datePrompt },
 }));
-vi.mock("obsidian-dataview", () => ({ getAPI: () => null }));
 vi.mock("../main", async () =>
 	(await import("../../tests/helpers/formatters/mocks")).mainMock(),
 );

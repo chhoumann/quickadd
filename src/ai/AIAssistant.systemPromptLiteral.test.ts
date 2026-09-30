@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => ({
 
 // Reached transitively from Agent -> CompleteFormatter; its real entry point
 // `require`s "obsidian", which does not exist outside the app.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => storeState },

@@ -41,10 +41,6 @@ vi.mock("./OnePageInputModal", () => ({
 
 vi.mock("src/quickAddSettingsTab", () => ({ QuickAddSettingsTab: class {} }));
 vi.mock("src/main", () => ({ __esModule: true, default: class {} }));
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
-}));
 vi.mock("src/utilityObsidian", async () => {
 	const { TFile: TFileCls } = await import("obsidian");
 	const { getDate } = await import("src/utils/dates");

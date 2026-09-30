@@ -3,9 +3,6 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
 
-// ChoiceListItem -> renderChoiceName/contextMenu reach src/main -> obsidian-dataview.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 // jsdom lacks the Web Animations API that svelte's animate:flip touches when a keyed
 // {#each} removes a row (the cross-zone strip below). Stub it so the reorder doesn't throw.
 beforeAll(() => {

@@ -16,7 +16,6 @@ vi.mock("../gui/InputPrompt", () => ({
 		}
 	},
 }));
-vi.mock("obsidian-dataview", () => ({ getAPI: () => null }));
 vi.mock("../main", async () =>
 	(await import("../../tests/helpers/formatters/mocks")).mainMock(),
 );
