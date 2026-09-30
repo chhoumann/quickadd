@@ -99,7 +99,8 @@ can append to"), write a package file in the vault and import it:
         "command": true,
         "captureTo": "Reading.md",
         "createFileIfItDoesntExist": { "enabled": true },
-        "format": { "enabled": true, "format": "- {{DATE}} {{VALUE:book}}: {{VALUE:thought}}\n" }
+        "format": { "enabled": true, "format": "- {{DATE}} {{VALUE:book}}: {{VALUE:thought}}\n" },
+        "prepend": true
       },
       "pathHint": [],
       "parentChoiceId": null

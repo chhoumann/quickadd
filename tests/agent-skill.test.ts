@@ -8,6 +8,7 @@ import type QuickAdd from "../src/main";
 import type ICaptureChoice from "../src/types/choices/ICaptureChoice";
 import { registerQuickAddCliHandlers } from "../src/cli/registerQuickAddCliHandlers";
 import { applyPackageImport, parseQuickAddPackage } from "../src/services/packageImportService";
+import { getWritePosition } from "../src/engine/captureAction";
 
 // skills/quickadd/SKILL.md is what agents follow. It is prose next to code that
 // changes, so check the parts an agent copies verbatim.
@@ -26,7 +27,7 @@ describe("the QuickAdd agent skill", () => {
 		expect(registered).toEqual(expect.arrayContaining(named));
 	});
 
-	it("shows a package that imports as a complete Capture", async () => {
+	it("shows a package that imports as a complete Capture appending to the bottom", async () => {
 		const example = /## Create a new choice[\s\S]*?```json\n([\s\S]*?)```/.exec(skill)?.[1];
 		const pkg = parseQuickAddPackage(example ?? "");
 
@@ -45,5 +46,7 @@ describe("the QuickAdd agent skill", () => {
 			insertAfter: { enabled: false },
 			newLineCapture: { enabled: false },
 		});
+		// The example is introduced as a log you append to.
+		expect(getWritePosition(capture)).toBe("bottom");
 	});
 });
