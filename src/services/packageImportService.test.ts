@@ -1432,7 +1432,7 @@ describe("applyPackageImport - parent/child trees", () => {
 		});
 
 		const folder = result.updatedChoices[0] as IMultiChoice;
-		expect(folder.choices).toEqual([null, a]);
+		expect(folder.choices).toEqual([null, expect.objectContaining(a)]);
 		expect([...result.overwrittenChoiceIds].sort()).toEqual(["a", "folder"]);
 	});
 
@@ -2182,5 +2182,194 @@ describe.each(["object", "array"] as const)("%s macro import review", (shape) =>
 		const nested = { id: "nested-command", name: "Nested", type: CommandType.NestedChoice, choice: { ...flat, name: "Different" } };
 		const pkg = makePackage({ choices: [makePackageChoice(flat), makePackageChoice(macroChoice([nested]))] });
 		expect(() => parseQuickAddPackage(JSON.stringify(pkg))).toThrow('conflicting definitions for choice "nested"');
+	});
+});
+
+// #1976: import installs choices after the one-time migrations have run, so it
+// must normalize them the way those migrations normalize an older data.json.
+describe("applyPackageImport - choice normalization", () => {
+	it("gives a Capture that leaves out settings the defaults a new Capture has", async () => {
+		const { app } = createFakeApp();
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(
+					makeChoice("log", "Reading log", "Capture", {
+						captureTo: "Reading.md",
+						format: { enabled: true, format: "- {{VALUE}}\n" },
+						insertAfter: { enabled: true, after: "## Log" },
+					} as Partial<ICaptureChoice>),
+				),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			pkg,
+			choiceDecisions: decisions([["log", "import"]]),
+		});
+
+		expect(result.updatedChoices[0]).toMatchObject({
+			captureTo: "Reading.md",
+			captureToActiveFile: false,
+			format: { enabled: true, format: "- {{VALUE}}\n" },
+			insertAfter: { enabled: true, after: "## Log", insertAtEnd: false, createIfNotFound: false },
+			insertBefore: { enabled: false },
+			newLineCapture: { enabled: false, direction: "below" },
+			createFileIfItDoesntExist: { enabled: false, createWithTemplate: false, template: "" },
+			prepend: false,
+			task: false,
+			templater: { afterCapture: "none" },
+		});
+	});
+
+	it("carries an exported Template's legacy file-exists setting over", async () => {
+		const { app } = createFakeApp();
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(
+					makeChoice("old", "Old template", "Template", {
+						templatePath: "Templates/Meeting.md",
+						setFileExistsBehavior: true,
+						fileExistsMode: "Increment the file name",
+					} as Partial<IChoice>),
+				),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			pkg,
+			choiceDecisions: decisions([["old", "import"]]),
+		});
+
+		const template = result.updatedChoices[0] as ITemplateChoice & Record<string, unknown>;
+		expect(template.fileExistsBehavior).toEqual({ kind: "apply", mode: "increment" });
+		expect(template.setFileExistsBehavior).toBeUndefined();
+		expect(template.fileExistsMode).toBeUndefined();
+		expect(template.folder).toMatchObject({ enabled: false, folders: [] });
+	});
+
+	it("normalizes a partial Capture a Macro runs as a nested choice", async () => {
+		const { app } = createFakeApp();
+		const macroChoice = {
+			...makeChoice("macro", "Macro", "Macro"),
+			macro: {
+				id: "macro-def",
+				name: "Macro",
+				commands: [
+					{
+						id: "step",
+						name: "Log",
+						type: CommandType.NestedChoice,
+						choice: makeChoice("step-capture", "Log", "Capture", { captureTo: "Log.md" } as Partial<ICaptureChoice>),
+					} as INestedChoiceCommand,
+				],
+			},
+			runOnStartup: false,
+		} as IMacroChoice;
+
+		const result = await importPackage({
+			app,
+			pkg: makePackage({ choices: [makePackageChoice(macroChoice)] }),
+			choiceDecisions: decisions([["macro", "import"]]),
+		});
+
+		const step = (result.updatedChoices[0] as IMacroChoice).macro.commands[0] as INestedChoiceCommand;
+		expect(step.choice).toMatchObject({
+			captureTo: "Log.md",
+			insertAfter: { enabled: false },
+			createFileIfItDoesntExist: { enabled: false },
+		});
+	});
+
+	it("normalizes partial choices anywhere inside a tree a nested choice embeds", async () => {
+		const { app } = createFakeApp();
+		const deepCapture = makeChoice("deep", "Deep", "Capture", { captureTo: "Deep.md" } as Partial<ICaptureChoice>);
+		const embeddedMacro = {
+			...makeChoice("inner-macro", "Inner", "Macro"),
+			macro: {
+				id: "inner-def",
+				name: "Inner",
+				commands: [{ id: "inner-step", name: "Deep", type: CommandType.NestedChoice, choice: deepCapture } as INestedChoiceCommand],
+			},
+			runOnStartup: false,
+		} as IMacroChoice;
+		const embeddedFolder = makeMulti("embedded-folder", "Embedded", [
+			makeChoice("folder-capture", "In folder", "Capture", { captureTo: "Folder.md" } as Partial<ICaptureChoice>),
+			embeddedMacro,
+		]);
+		const macroChoice = {
+			...makeChoice("macro", "Macro", "Macro"),
+			macro: {
+				id: "macro-def",
+				name: "Macro",
+				commands: [{ id: "step", name: "Pick", type: CommandType.NestedChoice, choice: embeddedFolder } as INestedChoiceCommand],
+			},
+			runOnStartup: false,
+		} as IMacroChoice;
+
+		const result = await importPackage({
+			app,
+			pkg: makePackage({ choices: [makePackageChoice(macroChoice)] }),
+			choiceDecisions: decisions([["macro", "import"]]),
+		});
+
+		const folder = ((result.updatedChoices[0] as IMacroChoice).macro.commands[0] as INestedChoiceCommand).choice as IMultiChoice;
+		const [folderCapture, innerMacro] = folder.choices ?? [];
+		const deep = ((innerMacro as IMacroChoice).macro.commands[0] as INestedChoiceCommand).choice;
+		for (const capture of [folderCapture, deep]) {
+			expect(capture).toMatchObject({ insertAfter: { enabled: false }, createFileIfItDoesntExist: { enabled: false } });
+		}
+	});
+
+	it("converts legacy file-opening settings instead of replacing them with defaults", async () => {
+		const { app } = createFakeApp();
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(
+					makeChoice("legacy", "Legacy", "Template", {
+						templatePath: "Templates/Meeting.md",
+						openFile: true,
+						openFileInNewTab: { enabled: true, direction: "horizontal", focus: false },
+						openFileInMode: "source",
+					} as Partial<IChoice>),
+				),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			pkg,
+			choiceDecisions: decisions([["legacy", "import"]]),
+		});
+
+		expect((result.updatedChoices[0] as ITemplateChoice).fileOpening).toEqual({
+			location: "split",
+			direction: "horizontal",
+			mode: "source",
+			focus: false,
+		});
+	});
+
+	it("normalizes a partial Capture inside an imported folder", async () => {
+		const { app } = createFakeApp();
+		const child = makeChoice("child", "Child", "Capture", { captureTo: "Inbox.md" } as Partial<ICaptureChoice>);
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [child])),
+				makePackageChoice(child, "folder", ["Folder", "Child"]),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			pkg,
+			choiceDecisions: decisions([["folder", "import"], ["child", "import"]]),
+		});
+
+		const imported = (result.updatedChoices[0] as IMultiChoice).choices?.[0] as ICaptureChoice;
+		expect(imported.captureTo).toBe("Inbox.md");
+		expect(imported.insertAfter?.enabled).toBe(false);
+		expect(imported.createFileIfItDoesntExist?.enabled).toBe(false);
 	});
 });
