@@ -294,6 +294,45 @@ describe("extractHeadingsFromLines", () => {
 		).toEqual(["Next"]);
 	});
 
+	// Each row is what Obsidian 1.13.7's metadataCache lists for the note.
+	it.each([
+		["%%|# a|%%|# b", ["b"]],
+		["%% note|# a|%%|# b", ["b"]],
+		["%%|# a|end %%|# b", ["b"]],
+		["%%|# a|x %% y|# b", ["b"]],
+		["text %% c %%|# b", ["b"]],
+		["%% one %%|# b", ["b"]],
+		["%% a %% b %%|# a|%%|# b", ["a"]],
+		["%%%%|# b", ["b"]],
+		["%%|# a|# b", []],
+		["text %%|# a|%%|# b", ["a"]],
+		["- %%|# a|%%|# b", ["a"]],
+		["  %%|# a|  %%|# b", ["b"]],
+		["    %%|# a|    %%|# b", ["a", "b"]],
+		["```|%%|```|# b", ["b"]],
+		["%%|```|%%|# b", ["b"]],
+		["$$|# a|$$|# b", ["b"]],
+		["$$x = 1|# a|$$|# b", ["b"]],
+		["$$|# a|y$$|# b", ["b"]],
+		["$$|# a|y $$ z|# b", []],
+		["$$x$$|# b", ["b"]],
+		["$$$$|# b", []],
+		["$$|# a|# b", []],
+		["text $$|# a|$$|# b", ["a"]],
+		["> $$|# a|> $$|# b", ["a", "b"]],
+		["   $$|# a|   $$|# b", ["b"]],
+		["    $$|# a|    $$|# b", ["a", "b"]],
+		["```|$$|```|# b", ["b"]],
+		["%%|$$|%%|# b", ["b"]],
+		["$|# a|$|# b", ["a", "b"]],
+		["text|$$|# a|$$|# b", ["b"]],
+		["## H|$$|# a|$$|# b", ["H", "b"]],
+		["- item|$$|# a|$$|# b", ["a"]],
+		["- item|%%|# a|%%|# b", ["b"]],
+	])("skips # lines in %% and $$ blocks like Obsidian: %s", (note, expected) => {
+		expect(extractHeadingsFromLines(note.split("|")).map((h) => h.heading)).toEqual(expected);
+	});
+
 	it("handles ~~~ fences too", () => {
 		const lines = ["~~~", "# fenced", "~~~", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([

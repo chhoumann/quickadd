@@ -308,6 +308,24 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(content).toBe(expected);
 	});
 
+	it.each([
+		["a %% comment block", "%%\n# draft idea\n%%"],
+		["a $$ math block", "$$\n# x = 1\n$$"],
+	])("ends a heading's section after %s, not at a # line inside it", async (_what, block) => {
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "## Log", insertAtEnd: true },
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			`## Log\n- first\n\n${block}\n- second\n\n## Next\n`,
+			createFile(),
+		);
+
+		expect(content).toBe(`## Log\n- first\n\n${block}\n- second\n- captured\n\n## Next\n`);
+	});
+
 	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
 		const choice = createChoice({
 			insertAfter: {
