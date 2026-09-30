@@ -44,10 +44,13 @@ no choice fits, and say so.
      on the day. `<ask>` means QuickAdd asks the user for that part, so avoid
      those choices unless the user is at Obsidian to answer.
 
-2. Ask the choice what inputs it needs:
+2. Use the choice's `id` from the list from here on. Names can repeat; ids
+   can't.
+
+   Ask the choice what inputs it needs:
 
    ```bash
-   obsidian quickadd:check choice="Add task" fields
+   obsidian quickadd:check id=<id> fields
    ```
 
    `missing[].id` is the variable name. Note `type`, `options`,
@@ -56,7 +59,7 @@ no choice fits, and say so.
 3. Run it non-interactively with every input, and ask for the outcome:
 
    ```bash
-   obsidian quickadd choice="Add task" vars='{"task":"Review PR","due":"friday"}' verify
+   obsidian quickadd id=<id> vars='{"task":"Review PR","due":"friday"}' verify
    ```
 
    - Date inputs accept natural language (`friday`, `tomorrow`) or `YYYY-MM-DD`.
