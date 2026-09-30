@@ -337,44 +337,104 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		return false;
 	}
 
+	private configureFormatter(linkOptions: NormalizedAppendLinkOptions): void {
+		this.formatter.setLinkToCurrentFileBehavior(
+			linkOptions.enabled && !linkOptions.requireActiveFile
+				? "optional"
+				: "required",
+		);
+		const selectionOverride = this.choice.useSelectionAsCaptureValue;
+		const globalSelectionAsValue =
+			this.plugin.settings.useSelectionAsCaptureValue ?? true;
+		const useSelectionAsCaptureValue =
+			typeof selectionOverride === "boolean"
+				? selectionOverride
+				: globalSelectionAsValue;
+		this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
+	}
+
+	/**
+	 * Where this run writes: a Canvas text card, or a note path (a Canvas file
+	 * card's note, the active note, or the formatted Capture to path). Aborts on a
+	 * target the capture cannot write to.
+	 */
+	private async resolveWriteTarget(
+		action: CaptureAction,
+		isPropertyCapture: boolean,
+	): Promise<
+		| { kind: "canvasText"; canvas: CanvasTextCaptureTarget }
+		| { kind: "note"; filePath: string; isCanvasTriggered: boolean }
+	> {
+		// An active canvas target only exists with Capture to active file, and a
+		// configured one only without it.
+		const canvasTarget =
+			(this.choice.captureToActiveFile
+				? resolveActiveCanvasCaptureTarget(this.app, action)
+				: null) ?? (await this.resolveConfiguredCanvasTarget(action));
+
+		if (canvasTarget?.kind === "text") {
+			if (isPropertyCapture) {
+				throw new ChoiceAbortError("Property capture requires a Markdown note. Canvas text cards do not have note properties.");
+			}
+			return { kind: "canvasText", canvas: canvasTarget };
+		}
+
+		if (
+			!isPropertyCapture &&
+			canvasTarget?.kind === "file" &&
+			this.createsMissingLineTargetAtCursor(action)
+		) {
+			throw new ChoiceAbortError(
+				"Canvas file cards do not support creating missing line targets at cursor. Use top or bottom.",
+			);
+		}
+
+		const filePath =
+			canvasTarget?.kind === "file"
+				? canvasTarget.source === "configured"
+					? canvasTarget.targetFile?.path ?? canvasTarget.targetPath
+					: canvasTarget.targetFile.path
+				: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
+
+		if (
+			!canvasTarget &&
+			!this.choice.captureToActiveFile &&
+			CANVAS_FILE_EXTENSION_REGEX.test(filePath)
+		) {
+			throw new ChoiceAbortError(
+				"Capture to a .canvas file requires a target canvas node id.",
+			);
+		}
+
+		return { kind: "note", filePath, isCanvasTriggered: !!canvasTarget };
+	}
+
+	/** Whether an insert-after/before capture creates its missing line at the cursor. */
+	private createsMissingLineTargetAtCursor(action: CaptureAction): boolean {
+		const target =
+			action === "insertAfter" ? this.choice.insertAfter
+				: action === "insertBefore" ? this.choice.insertBefore
+					: undefined;
+		return !!target?.createIfNotFound && target.createIfNotFoundLocation === "cursor";
+	}
+
 	async run(): Promise<void> {
 		let contentCommitted = false;
 		try {
 			// Reset any pending structured values before starting a new capture run
 			this.capturePropertyVars.clear();
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
-			this.formatter.setLinkToCurrentFileBehavior(
-				linkOptions.enabled && !linkOptions.requireActiveFile
-					? "optional"
-					: "required",
-			);
+			this.configureFormatter(linkOptions);
 			if (!this.validateAppendLinkDestination(linkOptions)) return;
-			const selectionOverride = this.choice.useSelectionAsCaptureValue;
-			const globalSelectionAsValue =
-				this.plugin.settings.useSelectionAsCaptureValue ?? true;
-			const useSelectionAsCaptureValue =
-				typeof selectionOverride === "boolean"
-					? selectionOverride
-					: globalSelectionAsValue;
-			this.formatter.setUseSelectionAsCaptureValue(useSelectionAsCaptureValue);
 
 			const propertyCapture = this.choice.propertyCapture === undefined
 				? undefined
 				: parsePropertyCapture(this.choice.propertyCapture);
 			const action = propertyCapture ? "append" : getCaptureAction(this.choice);
-			const activeCanvasTarget = this.choice.captureToActiveFile
-				? resolveActiveCanvasCaptureTarget(this.app, action)
-				: null;
-			const configuredCanvasTarget =
-				await this.resolveConfiguredCanvasTarget(action);
-			const canvasTarget = activeCanvasTarget ?? configuredCanvasTarget;
-
-			if (canvasTarget?.kind === "text") {
-				if (propertyCapture) {
-					throw new ChoiceAbortError("Property capture requires a Markdown note. Canvas text cards do not have note properties.");
-				}
+			const target = await this.resolveWriteTarget(action, !!propertyCapture);
+			if (target.kind === "canvasText") {
 				await this.handleCanvasTextCapture(
-					canvasTarget,
+					target.canvas,
 					action,
 					linkOptions,
 					() => {
@@ -383,37 +443,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				);
 				return;
 			}
-
-			if (
-				!propertyCapture && canvasTarget?.kind === "file" &&
-				((action === "insertAfter" &&
-					this.choice.insertAfter?.createIfNotFound &&
-					this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
-					(action === "insertBefore" &&
-						this.choice.insertBefore?.createIfNotFound &&
-						this.choice.insertBefore?.createIfNotFoundLocation === "cursor"))
-			) {
-				throw new ChoiceAbortError(
-					"Canvas file cards do not support creating missing line targets at cursor. Use top or bottom.",
-				);
-			}
-
-			const filePath =
-				canvasTarget?.kind === "file"
-					? canvasTarget.source === "configured"
-						? canvasTarget.targetFile?.path ?? canvasTarget.targetPath
-						: canvasTarget.targetFile.path
-					: await this.getFormattedPathToCaptureTo(this.choice.captureToActiveFile);
-
-			if (
-				!canvasTarget &&
-				!this.choice.captureToActiveFile &&
-				CANVAS_FILE_EXTENSION_REGEX.test(filePath)
-			) {
-				throw new ChoiceAbortError(
-					"Capture to a .canvas file requires a target canvas node id.",
-				);
-			}
+			const { filePath, isCanvasTriggered } = target;
 
 			const content = this.getCaptureContent();
 
@@ -433,7 +463,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			if (propertyCapture) {
 				await this.captureToProperty({
 					filePath, fileAlreadyExists, config: propertyCapture, linkOptions,
-					isCanvasTriggered: !!canvasTarget,
+					isCanvasTriggered,
 					onCommit: () => { contentCommitted = true; },
 				});
 				return;
@@ -548,7 +578,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				if (rewriteTarget?.path === file.path) cursor = null;
 			}
 			await this.insertCaptureLink(file, linkOptions, {
-				isCanvasTriggered: !!canvasTarget,
+				isCanvasTriggered,
 				onEditorTextMutation: marked && cursor && !placementSupportsFrontmatter(linkOptions.placement) ? mutation => {
 					if (marked && cursor && mutation.filePath === file.path) cursor = mapEditorCursorPlacement(cursor, mutation);
 				} : undefined,
@@ -836,14 +866,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			);
 		}
 
-		if (
-			(action === "insertAfter" &&
-				this.choice.insertAfter?.createIfNotFound &&
-				this.choice.insertAfter?.createIfNotFoundLocation === "cursor") ||
-			(action === "insertBefore" &&
-				this.choice.insertBefore?.createIfNotFound &&
-				this.choice.insertBefore?.createIfNotFoundLocation === "cursor")
-		) {
+		if (this.createsMissingLineTargetAtCursor(action)) {
 			throw new ChoiceAbortError(
 				"Canvas text cards do not support creating missing line targets at cursor. Use top or bottom.",
 			);
