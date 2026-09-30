@@ -118,9 +118,12 @@ if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
 	mkdir -p "$templater_cache" "$templater_dir"
 	for file in "${!templater_sha256[@]}"; do
 		if [[ ! -f "$templater_cache/$file" ]]; then
-			curl -sSfL -o "$templater_cache/$file.part" \
+			# A download of its own, so a concurrent run in another worktree can't
+			# move or truncate it mid-write.
+			part="$(mktemp "$templater_cache/$file.XXXXXX")"
+			curl -sSfL -o "$part" \
 				"https://github.com/SilentVoid13/Templater/releases/download/$templater_version/$file"
-			mv "$templater_cache/$file.part" "$templater_cache/$file"
+			mv "$part" "$templater_cache/$file"
 		fi
 		echo "${templater_sha256[$file]}  $templater_cache/$file" | sha256sum --check --quiet
 		cp "$templater_cache/$file" "$templater_dir/$file"
