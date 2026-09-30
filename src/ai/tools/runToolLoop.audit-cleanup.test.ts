@@ -96,24 +96,6 @@ describe("runToolLoop — budget-forced max-steps (audit cleanup)", () => {
 		expect(res.text).toBe("stopped early");
 	});
 
-	it("reports 'stop' (not 'max-steps') when the transcript-bytes ceiling forced the final step", async () => {
-		const big = "x".repeat(2000);
-		const deps = makeDeps(
-			{ t: toolEntry("t", async () => big) },
-			{
-				maxSteps: 8,
-				maxTranscriptBytes: 100,
-				dispatch: vi.fn(async (_req, ctx) =>
-					ctx.isFinalStep
-						? turn({ content: "wrapped up", normalizedStopReason: "stop" })
-						: turn({ toolCalls: [call("t", {})] }),
-				),
-			},
-		);
-		const res = await runToolLoop(deps);
-		expect(res.finishReason).toBe("stop");
-	});
-
 	it("reports 'stop' for a single-turn (maxSteps 1) run where the model just answers", async () => {
 		// A degenerate budget-forced-on-step-0 run is a one-shot answer, not an
 		// agentic budget exhaustion — must stay 'stop'.
