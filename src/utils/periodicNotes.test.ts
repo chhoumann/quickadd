@@ -166,6 +166,8 @@ describe("periodicNoteLink", () => {
 		// `)` would end the destination. Obsidian 1.13.7 doesn't decode %23, so `#` is left as its own links leave it.
 		expect(periodicNoteLink(appWith({ linkFormat: "markdown" }), "Journal)/2026 (x)", ""))
 			.toBe("[2026 (x)](Journal%29/2026%20%28x%29.md)");
+		expect(periodicNoteLink(appWith({ linkFormat: "markdown" }), "Journal/2026]W1[\\", ""))
+			.toBe("[2026\\]W1\\[\\\\](Journal/2026%5DW1%5B%5C.md)");
 	});
 });
 

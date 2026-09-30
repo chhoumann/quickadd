@@ -118,7 +118,9 @@ export function periodicNoteLink(app: App, path: string, sourcePath: string): st
 	// Encoded like Obsidian's own links, plus parentheses, which would end the
 	// destination. Obsidian doesn't decode %23, so a `#` stays as Obsidian writes it.
 	const destination = encodeURI(`${path}.md`).replace(/\(/g, "%28").replace(/\)/g, "%29");
-	return `[${path.split("/").pop()}](${destination})`;
+	// Escaped like a Markdown link alias (fileLinks.ts), so `[`, `]` and `\` stay in the label.
+	const label = (path.split("/").pop() ?? path).replace(/[\\[\]]/g, "\\$&");
+	return `[${label}](${destination})`;
 }
 
 /**
