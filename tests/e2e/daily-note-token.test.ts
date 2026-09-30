@@ -124,6 +124,39 @@ describe("{{DAILY}} in native Obsidian", () => {
 		expect(await files()).toEqual(before);
 	});
 
+	it("captures into this week's Periodic Notes note, named from the week's start and filled from its template", async () => {
+		const { obsidian, sandbox } = getContext();
+		await seedVaultFile(obsidian, sandbox, "Weekly template.md", "# {{title}}\nMonday {{monday:MMM D}}\n\n## Log\n");
+		const folder = sandbox.path("Weeks");
+		// QuickAdd only reads Periodic Notes' settings, so a stand-in with the 0.0.17 shape is enough here.
+		await obsidian.dev.evalJson(`(() => {
+			app.plugins.plugins["periodic-notes"] = { settings: {
+				weekly: { enabled: true, folder: ${JSON.stringify(folder)}, format: "gggg.MM.[Wk]w", template: "Weekly template" },
+				monthly: { enabled: false },
+			} };
+			return true;
+		})()`);
+		try {
+			const choice = dailyCapture();
+			choice.captureTo = "{{WEEKLY}}";
+			await saveChoice(choice);
+
+			// Thursday 1 June 2023: the week starts on Sunday 28 May.
+			const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2023-06-01", vars: JSON.stringify({ value: "planned" }) });
+			expect(outcome).toMatchObject({ ok: true, verified: true, effect: "created", file: `${folder}/2023.05.Wk22.md` });
+			await expect.poll(() => read(`${folder}/2023.05.Wk22.md`), { timeout: 10000, interval: 100 })
+				.toBe("# 2023.05.Wk22\nMonday May 29\n\n## Log\n- planned\n");
+
+			const monthlyChoice = dailyCapture();
+			monthlyChoice.captureTo = "{{MONTHLY}}";
+			await saveChoice(monthlyChoice);
+			const monthly = await obsidian.execJson("quickadd:run", { id: monthlyChoice.id, verify: true, vars: JSON.stringify({ value: "x" }) });
+			expect(monthly).toMatchObject({ ok: false, error: expect.stringContaining("{{MONTHLY}} needs the Periodic Notes plugin with monthly notes turned on") });
+		} finally {
+			await obsidian.dev.evalJson(`(() => { delete app.plugins.plugins["periodic-notes"]; return true; })()`);
+		}
+	});
+
 	it("creates the daily note from its template for a target a global snippet names, and for any time of day", async () => {
 		const { obsidian, sandbox } = getContext();
 		const template = await seedVaultFile(obsidian, sandbox, "Snippet template.md", "# {{title}}\n\n## Log\n");
@@ -218,6 +251,32 @@ describe("{{DAILY}} in native Obsidian", () => {
 		} finally {
 			// Saved now: the debounced save of `true` would otherwise reach disk after the restore.
 			await obsidian.dev.evalJsonAsync(`(async () => { app.vault.setConfig('useMarkdownLinks', ${useMarkdownLinks === true}); await app.vault.saveConfig(); return true; })()`);
+		}
+	});
+
+	it("creates this week's note from its template when a global snippet names it and the format writes .md", async () => {
+		const { obsidian, sandbox } = getContext();
+		await seedVaultFile(obsidian, sandbox, "Weekly md template.md", "# {{title}}\n\n## Log\n");
+		const folder = sandbox.path("Weeks md");
+		await obsidian.dev.evalJson(`(() => {
+			app.plugins.plugins["periodic-notes"] = { settings: {
+				weekly: { enabled: true, folder: ${JSON.stringify(folder)}, format: "gggg.MM.[Wk]w[.md]", template: "Weekly md template" },
+			} };
+			return true;
+		})()`);
+		try {
+			const choice = dailyCapture();
+			choice.captureTo = "{{GLOBAL_VAR:This week}}";
+			await saveChoice(choice, { "This week": "{{WEEKLY}}" });
+
+			const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2023-06-01", vars: JSON.stringify({ value: "planned" }) });
+
+			expect(outcome).toMatchObject({ ok: true, effect: "created", file: `${folder}/2023.05.Wk22.md` });
+			// Periodic Notes fills {{title}} with the formatted name, extension included.
+			await expect.poll(() => read(`${folder}/2023.05.Wk22.md`), { timeout: 10000, interval: 100 })
+				.toBe("# 2023.05.Wk22.md\n\n## Log\n- planned\n");
+		} finally {
+			await obsidian.dev.evalJson(`(() => { delete app.plugins.plugins["periodic-notes"]; return true; })()`);
 		}
 	});
 });

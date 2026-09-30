@@ -81,8 +81,8 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 			captureTo,
 			"captureTarget",
 		);
-		// The daily note is a file, even when a folder has its name.
-		if (formattedCaptureTo === this.formatter.dailyNoteTarget) {
+		// A periodic note is a file, even when a folder has its name.
+		if (formattedCaptureTo === this.formatter.periodicNoteTarget?.path) {
 			return this.normalizeCaptureFilePath(`${formattedCaptureTo}.md`);
 		}
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);

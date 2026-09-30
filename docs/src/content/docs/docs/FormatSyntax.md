@@ -64,6 +64,7 @@ text. A Templater tag in the format itself can still use an answer, as in
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
 | [`{{TIME}}`](#time) | The current time, like `14:05` |
 | [`{{DAILY}}`](#daily) | The daily note, like `Journal/2026-07-08` |
+| [`{{WEEKLY}}`](#periodic-notes) | This week's note, like `Weekly/2026-W28` |
 
 **The note you ran QuickAdd from**
 
@@ -258,6 +259,28 @@ Good to know:
 - If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
 - `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
 - If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
+
+### Weekly, monthly, quarterly, and yearly notes: `{{WEEKLY}}` {#periodic-notes}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}` work like
+[`{{DAILY}}`](#daily) for the notes the
+[Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) plugin
+manages, with that plugin's folder, format, and template for each period.
+
+| You write (on Thursday 1 June 2023, weekly format `gggg.MM.[Wk]w`) | You get |
+| --- | --- |
+| `{{WEEKLY}}` | `Weekly/2023.05.Wk22` |
+| `{{MONTHLY}}` | `Monthly/2023-06` |
+| `[[{{QUARTERLY}}]]` or `{{QUARTERLY\|link}}` | A link to `2023-Q2` |
+
+Good to know:
+
+- A note is named from the start of its period, the way Periodic Notes names it. The week of 1 June 2023 starts on 28 May, so it files under May.
+- A missing note is created from the period's template with Periodic Notes' placeholders. In weekly notes, `{{sunday:<format>}}` through `{{saturday:<format>}}` give that day of the week. In all periods, `{{date:<format>}}` is the start of the period.
+- If Periodic Notes doesn't manage the period, the run stops with an error.
+- Periodic Notes 1.0 (beta) isn't supported yet; use the released version, 0.0.17.
 
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 

@@ -53,7 +53,8 @@ Every run finds today's file, and your entry is captured to it.
 For your daily note, write [`{{DAILY}}`](/docs/FormatSyntax/#daily) instead.
 It uses the folder, date format, and template from Obsidian's **Daily notes**
 settings, so the path always matches the note **Open today's daily note**
-opens.
+opens. [`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}`](/docs/FormatSyntax/#periodic-notes)
+do the same for Periodic Notes.
 
 File names are Markdown-first:
 
