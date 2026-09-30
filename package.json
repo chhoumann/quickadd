@@ -52,7 +52,6 @@
 	"dependencies": {
 		"chrono-node": "^2.10.1",
 		"fuse.js": "7",
-		"obsidian-dataview": "^0.5.68",
 		"svelte-dnd-action": "0.9.79",
 		"three-way-merge": "^0.1.0",
 		"zustand": "^5.0.15"
@@ -67,12 +66,10 @@
 	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"@codemirror/language",
 			"esbuild"
 		],
 		"overrides": {
 			"brace-expansion": "5.0.9",
-			"obsidian-calendar-ui>svelte": "^5.56.3",
 			"postcss": "8.5.25"
 		},
 		"patchedDependencies": {

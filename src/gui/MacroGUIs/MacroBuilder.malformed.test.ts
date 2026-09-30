@@ -1,7 +1,5 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { afterEach, describe, expect, it } from "vitest";
 
 import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";

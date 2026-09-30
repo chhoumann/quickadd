@@ -1,9 +1,6 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({

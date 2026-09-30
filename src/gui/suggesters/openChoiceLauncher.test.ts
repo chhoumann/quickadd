@@ -1,7 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App, Notice } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";

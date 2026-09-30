@@ -3,7 +3,6 @@ import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 describe("TemplateEngine title handling", () => {
 	it.each([

@@ -119,7 +119,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 }));
 
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App, Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";

@@ -50,7 +50,6 @@ vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	default: { Prompt: mocks.prompt },
 }));
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn(() => null) }));
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({ default: {} }));
 vi.mock("../gui/MultiSuggester/multiSuggester", () => ({ default: {} }));
 vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({

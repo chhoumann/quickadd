@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 // of MacroChoiceEngine.entry.test.ts and choiceSuggester.test.ts).
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},

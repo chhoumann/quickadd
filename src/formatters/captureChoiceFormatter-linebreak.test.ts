@@ -18,8 +18,6 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 	},
 }));
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { findInlineScriptSpans } from "./formatter";
 

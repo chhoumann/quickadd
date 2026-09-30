@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import { App } from "obsidian";
 import CommandList from "./CommandList.svelte";
 import { createCommandListProps } from "./commandListProps.svelte";

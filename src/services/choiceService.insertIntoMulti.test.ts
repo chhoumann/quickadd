@@ -1,8 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-// choiceService transitively imports the ChoiceBuilders -> formatter/engine graph
-// -> obsidian-dataview's CJS require('obsidian'); mock it like the component suite.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import {
 	addChoiceToTree,

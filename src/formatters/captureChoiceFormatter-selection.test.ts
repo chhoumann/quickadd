@@ -28,8 +28,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 const createFormatter = (
 	selection: string | null,
 	variables?: Map<string, unknown>,

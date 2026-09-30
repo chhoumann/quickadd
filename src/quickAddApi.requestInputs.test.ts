@@ -14,10 +14,6 @@ vi.mock("./formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 let modalReturnValue: Record<string, string> = {};
 
 vi.mock("./preflight/OnePageInputModal", () => {

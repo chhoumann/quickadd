@@ -64,10 +64,6 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 vi.mock("../utilityObsidian", async (importOriginal) => {
 	const actual = await importOriginal<object>();
 	return {
