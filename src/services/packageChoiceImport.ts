@@ -7,6 +7,8 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { isTemplateChoice, normalizeTemplateChoice } from "../migrations/helpers/normalizeTemplateFileExistsBehavior";
+import { coerceLegacyOpenFileInNewTab, createFileOpeningFromLegacy } from "../migrations/helpers/file-opening-legacy";
+import { walkChoiceTree } from "../migrations/helpers/choice-traversal";
 import { CommandType } from "../types/macros/CommandType";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -36,13 +38,21 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 /**
  * Bring an imported Template or Capture to the shape the rest of QuickAdd
  * expects. Import runs after the one-time migrations, so it applies their
- * per-choice conversions itself (legacy file-exists settings), then fills any
- * setting the package leaves out from the defaults a new choice of that type
- * starts with - older exports and hand-written packages omit settings added
- * since. Values the package sets always win.
+ * per-choice conversions itself (legacy file-exists and file-opening settings),
+ * then fills any setting the package leaves out from the defaults a new choice
+ * of that type starts with - older exports and hand-written packages omit
+ * settings added since. Values the package sets always win.
  */
 export function normalizeImportedChoice(choice: IChoice): void {
 	if (isTemplateChoice(choice)) normalizeTemplateChoice(choice);
+	if (choice.type === "Capture" || choice.type === "Template") {
+		// As migrateFileOpeningSettings does for data.json.
+		const legacy = choice as IChoice & { fileOpening?: unknown; openFileInNewTab?: unknown; openFileInMode?: unknown };
+		const legacyTab = coerceLegacyOpenFileInNewTab(legacy.openFileInNewTab);
+		if (!legacy.fileOpening && legacyTab) {
+			legacy.fileOpening = createFileOpeningFromLegacy(legacyTab, legacy.openFileInMode);
+		}
+	}
 	const defaults =
 		choice.type === "Capture" ? new CaptureChoice(choice.name) :
 		choice.type === "Template" ? new TemplateChoice(choice.name) :
@@ -158,7 +168,9 @@ function remapCommands(
 						secretSanitizerOptions,
 					);
 				} else if (isChoiceLike(nested.choice)) {
-					normalizeImportedChoice(nested.choice);
+					// An embedded choice has no flat package entry of its own, so
+					// normalize its whole tree here (a Multi's children, a Macro's steps).
+					walkChoiceTree(nested.choice, normalizeImportedChoice);
 				}
 				break;
 			}

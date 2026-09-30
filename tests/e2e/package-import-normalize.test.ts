@@ -78,3 +78,68 @@ it("keeps an exported Template's Increment the file name setting", async () => {
 	expect(await runOnce()).toMatchObject({ ok: true, effect: "created", file: sandbox.path("notes/Sync Weekly.md") });
 	expect(await runOnce()).toMatchObject({ ok: true, effect: "created", file: sandbox.path("notes/Sync Weekly1.md") });
 });
+
+it("runs a partial Capture that an imported Macro embeds inside another Macro", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await plugin.data<{ choices: IChoice[] }>().patch(() => undefined);
+	const target = await seedVaultFile(obsidian, sandbox, "deep.md", "");
+	const nestedStep = (id: string, choice: Record<string, unknown>) => ({ id, name: String(choice.name), type: "NestedChoice", choice });
+	const packagePath = await seedVaultFile(obsidian, sandbox, "embedded.quickadd.json", JSON.stringify(packageOf({
+		id: "qa-e2e-outer-macro",
+		name: "Outer macro",
+		type: "Macro",
+		command: false,
+		runOnStartup: false,
+		macro: {
+			id: "qa-e2e-outer-def",
+			name: "Outer macro",
+			commands: [nestedStep("qa-e2e-outer-step", {
+				id: "qa-e2e-inner-macro",
+				name: "Inner macro",
+				type: "Macro",
+				command: false,
+				runOnStartup: false,
+				macro: {
+					id: "qa-e2e-inner-def",
+					name: "Inner macro",
+					commands: [nestedStep("qa-e2e-inner-step", {
+						id: "qa-e2e-deep-capture",
+						name: "Deep capture",
+						type: "Capture",
+						captureTo: target,
+						format: { enabled: true, format: "- {{VALUE}}\n" },
+					})],
+				},
+			})],
+		},
+	})));
+
+	const imported = await obsidian.execJson<{ ok: boolean }>("quickadd:package-import", { path: packagePath });
+	expect(imported.ok).toBe(true);
+
+	const run = await obsidian.execJson<RunResult>("quickadd:run", { id: "qa-e2e-outer-macro", "value-value": "Arrakis" });
+	expect(run).toMatchObject({ ok: true });
+	await expect(sandbox.waitForContent("deep.md", (content) => content.includes("- Arrakis"))).resolves.toContain("- Arrakis");
+});
+
+it("keeps an exported choice's legacy open-in-split setting", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await plugin.data<{ choices: IChoice[] }>().patch(() => undefined);
+	const packagePath = await seedVaultFile(obsidian, sandbox, "legacy-open.quickadd.json", JSON.stringify(packageOf({
+		id: "qa-e2e-legacy-open",
+		name: "Legacy open",
+		type: "Capture",
+		command: false,
+		captureTo: sandbox.path("legacy-open.md"),
+		openFile: true,
+		openFileInNewTab: { enabled: true, direction: "horizontal", focus: false },
+		openFileInMode: "source",
+	})));
+
+	await obsidian.execJson("quickadd:package-import", { path: packagePath });
+
+	const fileOpening = await obsidian.dev.evalJson<unknown>(
+		`app.plugins.plugins.quickadd.settings.choices.find((choice) => choice.id === "qa-e2e-legacy-open")?.fileOpening ?? null`,
+	);
+	expect(fileOpening).toEqual({ location: "split", direction: "horizontal", mode: "source", focus: false });
+});
