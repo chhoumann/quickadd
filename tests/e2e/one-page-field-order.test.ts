@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
+import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, waitForElement } from "./uiHelpers";
@@ -120,5 +121,50 @@ describe("one-page form capture target", () => {
 		await expect.poll(() => sandbox.read("inbox/beta.md"), POLL_OPTS)
 			.toBe("- Call Ada 📅 2026-10-02\n# Beta\n");
 		expect(await sandbox.read("inbox/alpha.md")).toBe("# Alpha\n");
+	});
+});
+
+describe("one-page form for a Template choice", () => {
+	it("lists the folder before the file name and the note content, as the run asks (#1997)", async () => {
+		const { obsidian, plugin, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "client-template.md", "{{VALUE:summary|label:Summary}}\n");
+		const choice = new TemplateChoice("Client note");
+		choice.command = true;
+		choice.onePageInput = "always";
+		choice.templatePath = template;
+		choice.fileNameFormat = { enabled: true, format: "{{VALUE:title|label:Note title}}" };
+		choice.folder = { ...choice.folder, enabled: true, folders: [`${sandbox.path("clients")}/{{VALUE:client|label:Client}}`] };
+		await plugin.data<QuickAddData>().patch((data) => {
+			data.onePageInputEnabled = false;
+			data.choices.push(choice);
+		});
+		await plugin.reload({ waitUntilReady: true });
+		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
+
+		await waitForElement(obsidian, FIELD);
+		const labels = await obsidian.dev.evalJson<string[]>(
+			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).filter((field) => field.querySelector("input, textarea")).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
+		);
+		expect(labels).toEqual(["Client", "Note title", "Summary"]);
+
+		for (const [label, text] of [["Client", "Acme"], ["Note title", "Kickoff"], ["Summary", "Went well"]] as const) {
+			expect(await obsidian.dev.evalJson<boolean>(`(() => {
+				const field = Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).find((row) => row.querySelector(".setting-item-name")?.textContent === ${JSON.stringify(label)});
+				const input = field?.querySelector("input, textarea");
+				input?.focus();
+				return Boolean(input);
+			})()`)).toBe(true);
+			await obsidian.exec("dev:cdp", {
+				method: "Input.insertText",
+				params: JSON.stringify({ text }),
+			});
+		}
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll(".modal-container button")].find((button) => button.textContent === "Submit")?.click();
+			return true;
+		})()`);
+		await expectNoPrompt(obsidian);
+		await expect.poll(() => sandbox.read("clients/Acme/Kickoff.md").catch(() => ""), POLL_OPTS)
+			.toBe("Went well\n");
 	});
 });
