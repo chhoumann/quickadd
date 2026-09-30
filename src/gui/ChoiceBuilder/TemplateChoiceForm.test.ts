@@ -116,6 +116,35 @@ describe("TemplateChoiceForm", () => {
 		expect(toggle?.classList.contains("is-disabled")).toBe(false);
 	});
 
+	it("treats an empty file name as the note-title prompt", async () => {
+		const { container, props } = mountForm();
+		const input = settingItem(container, "File name")
+			.closest(".qa-field")
+			?.querySelector("input") as HTMLInputElement;
+		expect(input.value).toBe("");
+
+		input.value = "{{DATE}} {{VALUE}}";
+		await fireEvent.input(input);
+		expect(props.choice.fileNameFormat).toEqual({ enabled: true, format: "{{DATE}} {{VALUE}}" });
+
+		input.value = " ";
+		await fireEvent.input(input);
+		expect(props.choice.fileNameFormat.enabled).toBe(false);
+	});
+
+	it("keeps a leading space typed into an empty file name", async () => {
+		const { container, props } = mountForm();
+		const input = settingItem(container, "File name")
+			.closest(".qa-field")
+			?.querySelector("input") as HTMLInputElement;
+
+		input.value = " ";
+		await fireEvent.input(input);
+		flushSync();
+		expect(input.value).toBe(" ");
+		expect(props.choice.fileNameFormat.enabled).toBe(false);
+	});
+
 	it("opens a legacy choice on its derived mode", () => {
 		const props = createTemplateChoiceFormProps({
 			choice: {

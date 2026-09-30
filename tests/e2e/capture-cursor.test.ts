@@ -82,7 +82,7 @@ async function withLatestCaptureBuilder<T>(expression: string): Promise<T> {
 
 async function typeIntoLatestCaptureFormat(text: string) {
 	const focused = await withLatestCaptureBuilder<boolean>(`(() => {
-		const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+		const input = builder.querySelector('.qa-field textarea');
 		if (!(input instanceof HTMLTextAreaElement)) return false;
 		input.focus();
 		input.select();
@@ -512,7 +512,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 					return true;
 				})()`)).toBe(true);
 				await expect.poll(() => withLatestCaptureBuilder<string | null>(`(() => {
-					const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+					const input = builder.querySelector('.qa-field textarea');
 					return input instanceof HTMLTextAreaElement ? input.value : null;
 				})()`), AUTOSAVE_POLL).toBe("{{CUR");
 				await typeIntoLatestCaptureFormat("{{CUR");

@@ -33,7 +33,7 @@ place. QuickAdd asks for it once and reuses your answer everywhere the name
 appears:
 
 ```markdown
-File name format:  Projects/{{VALUE:project}}
+File name:         Projects/{{VALUE:project}}
 Template body:     # {{VALUE:project}}
 Capture format:    Logged work for {{VALUE:project}}
 ```

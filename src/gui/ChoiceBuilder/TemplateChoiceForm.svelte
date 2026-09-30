@@ -88,6 +88,9 @@ function validateTemplatePath(
 }
 
 // --- File name format ----------------------------------------------------
+// An empty field is the default note-title prompt; `enabled` just mirrors
+// whether there is text, so choices saved with the old toggle keep working.
+const fileName = $derived(choice.fileNameFormat.enabled ? choice.fileNameFormat.format : "");
 const fileNameSuggesters = [
 	(el: HTMLInputElement | HTMLTextAreaElement) =>
 		new FormatSyntaxSuggester(app, el, plugin, "fileName"),
@@ -217,23 +220,22 @@ function onModeChange(value: string) {
 </LabeledField>
 
 <LabeledField
-	name="File name format"
-	desc="Set the file name format. When off, QuickAdd asks for the note title."
-	bodyVisible={choice.fileNameFormat.enabled}
+	name="File name"
+	desc="Leave empty to ask for the note title."
 >
-	{#snippet control()}
-		<Toggle bind:checked={choice.fileNameFormat.enabled} />
-	{/snippet}
 	{#snippet children(id)}
 		<ValidatedInput
 			{id}
-			bind:value={choice.fileNameFormat.format}
-			placeholder="File name format"
+			bind:value={
+				() => fileName,
+				(value) => (choice.fileNameFormat = { enabled: value.trim() !== "", format: value })
+			}
+			placeholder={"{{VALUE}}"}
 			makeSuggesters={fileNameSuggesters}
 		/>
-		<FormatTokenHint value={choice.fileNameFormat.format} />
+		<FormatTokenHint value={fileName} />
 		<FormatPreviewField
-			value={choice.fileNameFormat.format}
+			value={fileName}
 			formatterKind="fileName"
 			targetFolderPath={likelyTargetFolderPath(choice.folder)}
 			{app}

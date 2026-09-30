@@ -31,7 +31,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
    Templates/Inbox Template.md
    ```
 
-3. Turn on **File name format** and set it to:
+3. Set **File name** to:
 
    ```
    {{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}
@@ -40,7 +40,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
    `{{DATE:YYYY-MM-DD-HH-mm-ss}}` becomes the current date and time down to the second, and `{{NAME}}` becomes whatever you type when the choice runs. Together they keep every inbox note uniquely named and in date order.
 4. Set **New note location** to **In a specific folder**, enter `Inbox` in **Folder path**, and click **Add**. Set the remaining options to your liking.
 
-![The Inbox item Template choice, with the template path, file name format, and Inbox folder set](../Images/examples/template-add-inbox-item.png)
+![The Inbox item Template choice, with the template path, file name, and Inbox folder set](../Images/examples/template-add-inbox-item.png)
 
 ## What you get
 
