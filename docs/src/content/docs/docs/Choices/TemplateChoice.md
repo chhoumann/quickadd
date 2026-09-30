@@ -86,7 +86,7 @@ targets first. Choose an existing note to open it unchanged, or choose the
 :::tip[Where the command shows up]
 When a template folder is configured, the same entry also appears in **Run
 QuickAdd** - at the bottom by default, or move it to the top / hide it under
-[Settings → Choice picker](/docs/Settings/#choice-picker) - and it's scriptable
+[Settings → QuickAdd → Advanced](/docs/Settings/#choice-picker) - and it's scriptable
 via [`quickadd:run-template`](/docs/Advanced/CLI/#quickaddrun-template). Make a
 Template choice (below) when you need a fixed location, file-name format,
 linking, or a hotkey.

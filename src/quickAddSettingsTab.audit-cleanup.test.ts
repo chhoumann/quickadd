@@ -9,21 +9,21 @@ function makeTab(): QuickAddSettingsTab {
 	return new QuickAddSettingsTab(app, plugin);
 }
 
+type Node = { desc?: unknown; control?: { key?: string }; items?: Node[] };
+
 function findUriToggleDesc(tab: QuickAddSettingsTab): string {
-	const groups = tab.getSettingDefinitions() as unknown as Array<{
-		items?: Array<{ desc?: unknown; control?: { key?: string } }>;
-	}>;
-
-	for (const group of groups) {
-		for (const item of group.items ?? []) {
-			if (item.control?.key === "enableUriCallbacks") {
-				expect(typeof item.desc).toBe("string");
-				return item.desc as string;
-			}
+	// The toggle lives on the Advanced page, so walk into pages too.
+	const find = (nodes: Node[]): Node | undefined => {
+		for (const node of nodes) {
+			if (node.control?.key === "enableUriCallbacks") return node;
+			const nested = find(node.items ?? []);
+			if (nested) return nested;
 		}
-	}
-
-	throw new Error("Could not find the enableUriCallbacks toggle definition");
+	};
+	const item = find(tab.getSettingDefinitions() as unknown as Node[]);
+	if (!item) throw new Error("Could not find the enableUriCallbacks toggle definition");
+	expect(typeof item.desc).toBe("string");
+	return item.desc as string;
 }
 
 describe("URI x-callback toggle description", () => {

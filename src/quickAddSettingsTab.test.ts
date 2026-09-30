@@ -20,6 +20,23 @@ function expectNoPayloadDom(el: HTMLElement): void {
 		.toBeUndefined();
 }
 
+type Node = {
+	type?: string;
+	heading?: string;
+	name?: unknown;
+	items?: Node[];
+	control?: { key?: string };
+};
+
+/** Every setting row, including those on nested pages. */
+function settingsIn(nodes: Node[]): Node[] {
+	return nodes.flatMap((node) =>
+		node.type === "group" || node.type === "list" || node.type === "page"
+			? [...(node.type === "page" ? [node] : []), ...settingsIn(node.items ?? [])]
+			: [node],
+	);
+}
+
 describe("renderDevelopmentInfo", () => {
 	beforeEach(() => {
 		delete (globalThis as typeof globalThis & { __qaXss?: number }).__qaXss;
@@ -228,32 +245,30 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 
 	it("exposes each section as a group whose control keys are real settings keys", () => {
 		const tab = makeTab();
-		const groups = tab.getSettingDefinitions() as unknown as Array<{
-			type: string;
-			heading?: string;
-			items?: Array<{ name?: unknown; control?: { key?: string } }>;
-		}>;
+		const groups = tab.getSettingDefinitions() as unknown as Node[];
 
-		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): 8 groups
-		// and the template folder list.
-		expect(groups).toHaveLength(9);
+		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): six groups,
+		// the template folder list, and the group holding the Advanced page.
+		expect(groups.map((group) => group.heading)).toEqual([
+			"Choices & packages",
+			"Input",
+			"Template folders",
+			"Notifications",
+			"AI & online",
+			"Appearance",
+			undefined,
+		]);
 
 		const validKeys = new Set(Object.keys(DEFAULT_SETTINGS));
 		const controlKeys: string[] = [];
-
-		for (const group of groups) {
-			expect(group.type).toBe(group.heading === "Template folders" ? "list" : "group");
-			expect(typeof group.heading).toBe("string");
-			expect(Array.isArray(group.items)).toBe(true);
-
-			for (const item of group.items ?? []) {
-				// Every declarative definition must carry a name (search indexing).
-				expect(typeof item.name).toBe("string");
-				const key = item.control?.key;
-				if (key) {
-					controlKeys.push(key);
-					expect(validKeys.has(key)).toBe(true);
-				}
+		for (const item of settingsIn(groups)) {
+			// Every declarative definition must carry a name (search indexing).
+			expect(typeof item.name).toBe("string");
+			const key = item.control?.key;
+			if (key) {
+				controlKeys.push(key);
+				// The AI Assistant page's keys address fields under `ai`.
+				expect(key.startsWith("ai.") ? key.slice(3) in DEFAULT_SETTINGS.ai : validKeys.has(key)).toBe(true);
 			}
 		}
 
@@ -271,6 +286,8 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 				"showInputCancellationNotification",
 				"disableOnlineFeatures",
 				"enableRibbonIcon",
+				"enableUriCallbacks",
+				"templateFolderLauncherRow",
 			]),
 		);
 	});
@@ -303,22 +320,27 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		unsubscribe();
 	});
 
-	it("keeps nested choice search in the choice picker section", () => {
-		const tab = makeTab();
-		const [choicesGroup, choicePickerGroup] = tab.getSettingDefinitions() as unknown as Array<{
-			heading?: string;
-			items?: Array<{ name?: unknown }>;
-		}>;
+	// #2017: settings most vaults never change live on an Advanced page.
+	it("keeps rarely changed settings on the Advanced page", () => {
+		const groups = makeTab().getSettingDefinitions() as unknown as Node[];
+		const advanced = groups.at(-1)?.items?.[0];
+		expect(advanced).toMatchObject({ type: "page", name: "Advanced" });
 
-		expect(choicesGroup.items?.map((item) => item.name)).toEqual([
-			"Choices",
-			"Packages",
-		]);
-		expect(choicePickerGroup.heading).toBe("Choice picker");
-		expect(choicePickerGroup.items?.map((item) => item.name)).toEqual([
-			"Search nested choices",
+		const onPage = settingsIn(advanced?.items ?? []).map((item) => item.name);
+		expect(onPage).toEqual([
 			"“New note from template” in the launcher",
+			"Search nested choices",
+			"Use editor selection as default Capture value",
+			"Name pasted images after the note title",
+			"Persist input prompt drafts",
+			"Date aliases",
+			"Show input cancellation notifications",
+			"Convert string front matter variables to typed properties (Beta)",
+			"Global variables",
+			"Allow URI x-callback-url",
 		]);
+		const onTab = settingsIn(groups.slice(0, -1)).map((item) => item.name);
+		for (const name of onPage) expect(onTab).not.toContain(name);
 	});
 
 	// Issue #1541: the whole plugin used to contain exactly one docs URL, buried

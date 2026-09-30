@@ -61,7 +61,7 @@ comma/bullet-string to List for properties typed as a list.
 List and object handling needs no setting. To *also* convert **string** values
 into typed properties, enable the beta toggle:
 
-1. Open **Settings → QuickAdd**.
+1. Open **Settings → QuickAdd → Advanced**.
 2. Toggle **"Convert string front matter variables to typed properties (Beta)"**.
 
 String conversion is **disabled by default** for safety.

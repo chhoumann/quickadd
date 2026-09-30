@@ -336,7 +336,7 @@ today.
 _Use editor selection as default value_ controls whether selected text in the
 editor is used as `{{VALUE}}` instead of prompting: **Follow global setting**,
 **Use selection**, or **Ignore selection** (the global default lives in
-**Settings → Input**). This does not affect `{{SELECTED}}`.
+[**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-input)). This does not affect `{{SELECTED}}`.
 
 ### Pick where in the note it lands: Write position {#write-position}
 
