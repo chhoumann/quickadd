@@ -165,7 +165,8 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const blocked = nonHeadingBlockLines(lines);
 
 	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
+		// A CRLF line keeps its `\r`; `.` in the ATX pattern would not match it.
+		const line = lines[i].replace(/\r$/, "");
 		if (blocked[i]) continue;
 
 		// ATX heading. Up to 3 spaces of indentation only — a leading tab makes it

@@ -960,10 +960,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const headings = extractHeadingsFromLines(lines).filter(
 			(h) => lines[h.line].trim() !== h.heading,
 		);
-		// Without indentation: the insert-after search compares each note line
-		// with its leading whitespace trimmed, so an indented heading's own line
-		// would never match.
-		const headingLines = headings.map((h) => lines[h.line].trimStart());
+		// Without indentation or a CRLF `\r`: the insert-after search compares
+		// each note line with its leading whitespace trimmed, so an indented
+		// heading's own line would never match.
+		const headingLines = headings.map((h) => lines[h.line].trimStart().replace(/\r$/, ""));
 		const headingDisplay = headings.map(
 			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.heading}`,
 		);

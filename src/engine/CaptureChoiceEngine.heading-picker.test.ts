@@ -183,6 +183,18 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		expect(displayItems).toEqual(["  Log", "    Indented", "  Next"]);
 	});
 
+	it("offers the headings of a CRLF note, without the carriage return (#2022)", async () => {
+		const suggestSpy = vi.fn(async () => "## Log");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const engine = buildEngine(createChoice());
+
+		await (engine as any).maybeResolveInsertAfterHeading("## Log\r\n- first\r\n### Sub\r\n- sub\r\n");
+
+		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
+		expect(items).toEqual(["## Log", "### Sub"]);
+		expect(displayItems).toEqual(["  Log", "    Sub"]);
+	});
+
 	it("pushes the picked heading line to the formatter as a verbatim override", async () => {
 		(InputSuggester as any).Suggest = vi.fn(async () => "## Tasks");
 		const engine = buildEngine(createChoice());

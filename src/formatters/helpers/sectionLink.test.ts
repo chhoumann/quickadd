@@ -339,6 +339,14 @@ describe("extractHeadingsFromLines", () => {
 		expect(extractHeadingsFromLines(note.split("|")).map((h) => h.heading)).toEqual(expected);
 	});
 
+	it("reads ATX headings in CRLF lines, without the carriage return (#2022)", () => {
+		expect(extractHeadingsFromLines(["## Log\r", "- a\r", "### Sub\r", "Title\r", "===\r"])).toEqual([
+			{ heading: "Log", level: 2, line: 0 },
+			{ heading: "Sub", level: 3, line: 2 },
+			{ heading: "Title", level: 1, line: 3 },
+		]);
+	});
+
 	it("handles ~~~ fences too", () => {
 		const lines = ["~~~", "# fenced", "~~~", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([
