@@ -418,6 +418,67 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		return !!target?.createIfNotFound && target.createIfNotFoundLocation === "cursor";
 	}
 
+	/**
+	 * Readies a capture into a note before anything is formatted or written: asks
+	 * for the heading in heading-picker mode, decides whether the capture's front
+	 * matter is collected, and aborts on a missing note that is not to be created.
+	 */
+	private async prepareNoteWrite(filePath: string, fileAlreadyExists: boolean): Promise<void> {
+		// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
+		// target note and feed the picked line to the formatter as an insert-after
+		// override. Runs after the target file is known and before any formatting/write.
+		// Canvas TEXT cards are handled earlier in handleCanvasTextCapture (which resolves
+		// the heading from the card text); a bare .canvas file path here would be a file
+		// card whose underlying note is markdown, so the extension guard is defensive.
+		if (
+			this.isInsertAfterHeadingMode() &&
+			!CANVAS_FILE_EXTENSION_REGEX.test(filePath)
+		) {
+			await this.maybeResolveInsertAfterHeading(
+				await this.readNoteBodyForHeadingPicker(filePath, fileAlreadyExists),
+			);
+		}
+
+		// Collect front matter property types only when the capture content
+		// becomes the file's OWN front matter — i.e. a brand-new file created
+		// from the capture with no template. Captures into an existing file
+		// (append / bottom / insert-after/before / editor insertion), or into a
+		// template's body, place the snippet in the BODY: collecting there would
+		// strand a "[]" placeholder in the body AND write the values to the wrong
+		// note's front matter. Suppress collection for those.
+		const captureBecomesOwnFrontmatter =
+			!fileAlreadyExists &&
+			!!this.choice?.createFileIfItDoesntExist?.enabled &&
+			!this.choice?.createFileIfItDoesntExist?.createWithTemplate &&
+			// A periodic note created from its template has that template's front matter.
+			!this.periodicNoteFor(filePath)?.settings.template;
+		this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
+
+		// |multi only yields a real YAML list when its array can be collected
+		// into the new note's own front matter. In any other capture shape the
+		// array degrades to a comma-joined string; warn instead of silently
+		// writing the wrong shape.
+		if (
+			this.suppressFrontmatterCollection &&
+			// Match the `|multi` flag specifically: a pipe, then `multi`
+			// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
+			// `|multi1`, `|multi-select`, etc. FIELD is included because
+			// {{FIELD:…|multi}} degrades to a comma-joined string in the exact
+			// same way VALUE/FILE do (see formatter.ts replaceFieldVarInString).
+			hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
+		) {
+			log.logWarning(
+				"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
+			);
+		}
+
+		if (!fileAlreadyExists && !this.choice?.createFileIfItDoesntExist?.enabled) {
+			throw new ChoiceAbortError(
+				`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+			);
+		}
+	}
+
 	async run(): Promise<void> {
 		let contentCommitted = false;
 		try {
@@ -469,59 +530,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				return;
 			}
 
-			// "Choose heading when capturing" (After line…): prompt for a heading from the resolved
-			// target note and feed the picked line to the formatter as an insert-after
-			// override. Runs after the target file is known and before any formatting/write.
-			// Canvas TEXT cards are handled earlier in handleCanvasTextCapture (which resolves
-			// the heading from the card text); a bare .canvas file path here would be a file
-			// card whose underlying note is markdown, so the extension guard is defensive.
-			if (
-				this.isInsertAfterHeadingMode() &&
-				!CANVAS_FILE_EXTENSION_REGEX.test(filePath)
-			) {
-				await this.maybeResolveInsertAfterHeading(
-					await this.readNoteBodyForHeadingPicker(filePath, fileAlreadyExists),
-				);
-			}
-
-			// Collect front matter property types only when the capture content
-			// becomes the file's OWN front matter — i.e. a brand-new file created
-			// from the capture with no template. Captures into an existing file
-			// (append / bottom / insert-after/before / editor insertion), or into a
-			// template's body, place the snippet in the BODY: collecting there would
-			// strand a "[]" placeholder in the body AND write the values to the wrong
-			// note's front matter. Suppress collection for those.
-			const captureBecomesOwnFrontmatter =
-				!fileAlreadyExists &&
-				!!this.choice?.createFileIfItDoesntExist?.enabled &&
-				!this.choice?.createFileIfItDoesntExist?.createWithTemplate &&
-				// A periodic note created from its template has that template's front matter.
-				!this.periodicNoteFor(filePath)?.settings.template;
-			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
-
-			// |multi only yields a real YAML list when its array can be collected
-			// into the new note's own front matter. In any other capture shape the
-			// array degrades to a comma-joined string; warn instead of silently
-			// writing the wrong shape.
-			if (
-				this.suppressFrontmatterCollection &&
-				// Match the `|multi` flag specifically: a pipe, then `multi`
-				// terminated by `:`/`|`/`}` or end — excluding `|type:multiline`,
-				// `|multi1`, `|multi-select`, etc. FIELD is included because
-				// {{FIELD:…|multi}} degrades to a comma-joined string in the exact
-				// same way VALUE/FILE do (see formatter.ts replaceFieldVarInString).
-				hasContextualMultiSelectToken(this.choice?.format?.format ?? "")
-			) {
-				log.logWarning(
-					"QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
-				);
-			}
-
-			if (!fileAlreadyExists && !this.choice?.createFileIfItDoesntExist?.enabled) {
-				throw new ChoiceAbortError(
-					`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
-				);
-			}
+			await this.prepareNoteWrite(filePath, fileAlreadyExists);
 
 			const write = fileAlreadyExists
 				? await this.onFileExists(filePath, content, action === "currentLine" || action === "newLineAbove" || action === "newLineBelow")
