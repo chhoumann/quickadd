@@ -1,7 +1,6 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { findDateVariableFormat, type PromptContext } from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -12,8 +11,7 @@ import { getTemplateFile } from "../utils/templateFolderUtils";
 import { DATE_VARIABLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
-import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
-import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { getSuggestionPreview } from "./helpers/previewHelpers";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 
 export class FormatDisplayFormatter extends PreviewFormatter {
@@ -99,17 +97,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
-	protected promptForValue(header?: string): string {
-		return header || this.valuePromptContext?.label || "user input";
-	}
-
-	protected getVariableValue(variableName: string): string {
-		const stored = this.variables.get(variableName);
-		if (typeof stored === "string") return stored;
-		const baseName = getValueVariableBaseName(variableName);
-		return getVariableExample(baseName);
-	}
-
 	protected suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput = false,
@@ -128,29 +115,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		context?: { displayValues?: string[] },
 	): string[] {
 		return [getSuggestionPreview(context?.displayValues ?? suggestedValues)];
-	}
-
-	protected getMacroValue(
-		macroName: string,
-		_context?: { label?: string },
-	) {
-		return getMacroPreview(macroName);
-	}
-
-	protected promptForVariable(
-		variableName: string,
-		context?: PromptContext
-	): Promise<string> {
-		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
-		// the VDATE's example date, as the run prints the one answer.
-		const dateFormat = findDateVariableFormat(
-			this.variables,
-			context?.variableKey ?? variableName,
-		);
-		if (dateFormat) {
-			return Promise.resolve(DateFormatPreviewGenerator.generate(dateFormat));
-		}
-		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
 	/** Resolve included bodies through this preview, never a runtime engine that could execute scripts or prompt. */
@@ -201,13 +165,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		} finally {
 			this.templateInclusion.depth--;
 		}
-	}
-
-	protected async suggestForField(
-		_variableName: string,
-		parsed: { fieldName: string },
-	) {
-		return Promise.resolve(fieldValuePreview(parsed));
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {

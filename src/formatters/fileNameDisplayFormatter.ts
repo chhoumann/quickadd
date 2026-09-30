@@ -1,7 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { findDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, type PromptContext } from "./formatter";
+import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import {
 	describePreviewFailure,
@@ -13,14 +13,13 @@ import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import type { RunClocks } from "../types/dateOrigin";
-import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, fileNameSafeStandIn, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
+import { getSuggestionPreview, fileNameSafeStandIn } from "./helpers/previewHelpers";
 import {
 	describeIllegalFilePathChars,
 	findIllegalFilePathChars,
 	previewGeneratedFilePath,
 } from "../utils/generatedFilePath";
 import { getTemplateFile } from "../utils/templateFolderUtils";
-import { getValueVariableBaseName } from "../utils/valueSyntax";
 
 import type QuickAdd from "../main";
 
@@ -244,21 +243,13 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
-	protected promptForValue(header?: string): string {
-		// The header is a PROMPT header at run time, not part of the name, so an
-		// unusable one degrades to the generic stand-in rather than putting a
-		// character in the preview that the run would never produce.
-		return fileNameSafeStandIn(
-			header || this.valuePromptContext?.label || "user input",
-			"user input",
-		);
-	}
-
-	protected getVariableValue(variableName: string): string {
-		const stored = this.variables.get(variableName);
-		if (typeof stored === "string") return stored;
-		const baseName = getValueVariableBaseName(variableName);
-		return fileNameSafeStandIn(getVariableExample(baseName), "user input");
+	/**
+	 * A prompt header, variable name or macro name is not part of the name at
+	 * run time, so a stand-in built from one that could not be part of a file
+	 * name shows `neutral` instead of a character the run would never produce.
+	 */
+	protected standIn(value: string, neutral: string): string {
+		return fileNameSafeStandIn(value, neutral);
 	}
 
 	protected suggestForValue(
@@ -270,31 +261,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		// run splices in exactly the option that gets picked, so the count would
 		// be text in a file name that no created file can have.
 		return suggestedValues[0] ?? getSuggestionPreview(suggestedValues);
-	}
-
-	protected getMacroValue(
-		macroName: string,
-		_context?: { label?: string },
-	) {
-		return fileNameSafeStandIn(getMacroPreview(macroName), "macro_output");
-	}
-
-	protected async promptForVariable(
-		variableName: string,
-		context?: PromptContext
-	): Promise<string> {
-		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
-		// the VDATE's example date, as the run prints the one answer.
-		const dateFormat = findDateVariableFormat(
-			this.variables,
-			context?.variableKey ?? variableName,
-		);
-		// Shown like the VDATE itself, which this preview doesn't sanitize either.
-		if (dateFormat) return DateFormatPreviewGenerator.generate(dateFormat);
-		return fileNameSafeStandIn(
-			getVariablePromptExample(variableName),
-			"user input",
-		);
 	}
 
 	/** Skip script fences during inclusion: runtime consumes scripts first, while previews must remain inert. */
@@ -388,13 +354,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		this.warn(
 			`Template "${templatePath}" is ${lines.length} lines; a file name is one line, so they are joined with spaces.`,
 		);
-	}
-
-	protected async suggestForField(
-		_variableName: string,
-		parsed: { fieldName: string },
-	): Promise<string> {
-		return fileNameSafeStandIn(fieldValuePreview(parsed), "field_value");
 	}
 
 	protected async replaceDateVariableInString(input: string): Promise<string> {
