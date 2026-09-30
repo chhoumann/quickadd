@@ -1,5 +1,3 @@
-import type { Instance as PopperInstance } from "@popperjs/core";
-import { createPopper } from "@popperjs/core";
 import type { App, ISuggestOwner } from "obsidian";
 import { debounce, Scope } from "obsidian";
 import { log } from "src/logger/logManager";
@@ -10,29 +8,60 @@ const wrapAround = (value: number, size: number): number => {
 	return ((value % size) + size) % size;
 };
 
-// Gap between the input and the list (Popper's offset modifier).
+// Gap between the input and the list.
 const LIST_GAP_PX = 4;
 
-type ListPlacement = "bottom-start" | "top-start";
-
 /**
- * Where to open the list relative to its input. QuickAdd prompts end in an
- * action bar (`.qa-prompt-actions`: Submit, Cancel, Peek) below their inputs
- * (pinned to the bottom of the one-page form), and the list is layered above
- * the modal, so a list that reaches the bar takes the click aimed at Submit.
- * Open it above the input when it fits there; otherwise keep the usual
- * placement below.
+ * Whether the list should open above its input when it fits there. QuickAdd
+ * prompts end in an action bar (`.qa-prompt-actions`: Submit, Cancel, Peek)
+ * below their inputs (pinned to the bottom of the one-page form), and the list
+ * is layered above the modal, so a list that reaches the bar takes the click
+ * aimed at Submit.
  */
-function listPlacement(inputEl: HTMLElement, listEl: HTMLElement): ListPlacement {
+function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number): boolean {
 	const actionsEl = inputEl.closest(".modal")?.querySelector(".qa-prompt-actions");
-	if (!actionsEl) return "bottom-start";
-	const input = inputEl.getBoundingClientRect();
+	if (!actionsEl) return false;
 	const actions = actionsEl.getBoundingClientRect();
-	const listHeight = listEl.getBoundingClientRect().height;
 	const actionsBelowInput = actions.height > 0 && actions.top >= input.bottom;
 	const reachesActions = input.bottom + LIST_GAP_PX + listHeight > actions.top;
-	const fitsAbove = input.top - LIST_GAP_PX - listHeight >= 0;
-	return actionsBelowInput && reachesActions && fitsAbove ? "top-start" : "bottom-start";
+	return actionsBelowInput && reachesActions;
+}
+
+/**
+ * Place the list against its input, exactly as wide as the input (also past
+ * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
+ * input is wider). It opens below the input, and above it when the visible
+ * viewport has room there and either `prefersAbove` or there is no room below.
+ * Horizontally it stays inside the viewport.
+ */
+function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
+	const input = inputEl.getBoundingClientRect();
+	listEl.style.maxWidth = "none";
+	listEl.style.width = `${input.width}px`;
+	// Measured at 0,0, the list's rect is its containing block's origin, so the
+	// viewport positions below hold whatever element it is positioned against.
+	listEl.style.left = "0px";
+	listEl.style.top = "0px";
+	const origin = listEl.getBoundingClientRect();
+
+	const doc = inputEl.ownerDocument;
+	const viewport = doc.defaultView?.visualViewport ?? {
+		offsetLeft: 0,
+		offsetTop: 0,
+		width: doc.documentElement.clientWidth,
+		height: doc.documentElement.clientHeight,
+	};
+	const below = input.bottom + LIST_GAP_PX;
+	const above = input.top - LIST_GAP_PX - origin.height;
+	const fitsBelow = below + origin.height <= viewport.offsetTop + viewport.height;
+	const fitsAbove = above >= viewport.offsetTop;
+	const top = fitsAbove && (!fitsBelow || prefersAbove(inputEl, input, origin.height)) ? above : below;
+	const left = Math.max(
+		viewport.offsetLeft,
+		Math.min(input.left, viewport.offsetLeft + viewport.width - input.width),
+	);
+	listEl.style.left = `${left - origin.left}px`;
+	listEl.style.top = `${top - origin.top}px`;
 }
 
 /**
@@ -235,7 +264,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	protected app: App;
 	protected inputEl: HTMLInputElement | HTMLTextAreaElement;
 
-	private popper: PopperInstance | null = null;
 	private scope: Scope;
 	private suggestEl: HTMLElement;
 	private suggest: Suggest<T>;
@@ -248,6 +276,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	// Global listeners for close-on-anything-else
 	private globalClickListener: (event: MouseEvent) => void;
 	private globalWheelListener: (event: WheelEvent) => void;
+	private globalScrollListener: (event: Event) => void;
 	private globalResizeListener: () => void;
 	private globalBlurListener: () => void;
 	private inputBlurListener: () => void;
@@ -332,6 +361,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// Setup global listeners
 		this.globalClickListener = this.onGlobalClick.bind(this);
 		this.globalWheelListener = this.onGlobalWheel.bind(this);
+		// Keep the list on its input when a scroll moves the input (a scrolled
+		// form); scrolling the list itself moves nothing.
+		this.globalScrollListener = (event: Event) => {
+			if (!this.suggestEl.contains(event.target as Node)) this.reposition();
+		};
 		this.globalResizeListener = this.close.bind(this);
 		this.globalBlurListener = this.close.bind(this);
 	}
@@ -392,8 +426,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		// An async getSuggestions() may resolve after destroy() and reach open();
 		// refuse to re-open a destroyed instance (would spawn an orphaned popup).
 		if (this.destroyed || inputEl.closest("[hidden]")) return;
-		// Always add listeners; if already open just update popper position
-		if (!this.isOpen) {
+		// open() also runs on every keystroke while the list is open, to refresh
+		// it (onInputChanged). The scope and global listeners are added once,
+		// when the list opens, and removed together in close().
+		const opening = !this.isOpen;
+		if (opening) {
 			this.app.keymap.pushScope(this.scope);
 		}
 		this.isOpen = true;
@@ -405,77 +442,24 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		const ownerCompatibleContainer =
 			containerDocument === inputDocument ? container : inputDocument.body;
 		ownerCompatibleContainer.appendChild(this.suggestEl);
+		this.reposition();
+		if (!opening) return;
 
-		// open() runs on every keystroke (onInputChanged re-opens to refresh the
-		// suggestions). If a Popper already exists, reposition it instead of
-		// creating a new one — recreating here would leak a Popper instance, and
-		// the scroll/resize listeners it attaches, on every keystroke. The Popper
-		// (and the global listeners below) are torn down together in close().
-		if (this.popper) {
-			this.reposition();
-			return;
-		}
-
-		this.popper = createPopper(inputEl, this.suggestEl, {
-			placement: listPlacement(inputEl, this.suggestEl),
-			modifiers: [
-				{
-					// The list is exactly as wide as its input, also past the 500px
-					// cap Obsidian puts on `.suggestion-container` (the text prompt's
-					// input is wider).
-					name: "sameWidth",
-					enabled: true,
-					fn: ({ state, instance }) => {
-						state.styles.popper.maxWidth = "none";
-						const targetWidth = `${state.rects.reference.width}px`;
-						if (state.styles.popper.width === targetWidth) {
-							return;
-						}
-						state.styles.popper.width = targetWidth;
-						void instance.update();
-					},
-					phase: "beforeWrite",
-					requires: ["computeStyles"],
-				},
-				{
-					name: "flip",
-					enabled: true,
-				},
-				{
-					name: "preventOverflow",
-					enabled: true,
-				},
-				{
-					name: "offset",
-					enabled: true,
-					options: {
-						offset: [0, LIST_GAP_PX],
-					},
-				},
-			],
-		});
-
-		// Add global listeners (paired with the Popper lifecycle: removed in close()).
-		const activeDocument = inputDocument;
 		const activeWindow = getOwnerWindow(inputEl);
-		activeDocument.addEventListener("pointerdown", this.globalClickListener, true);
-		activeDocument.addEventListener("wheel", this.globalWheelListener, true);
+		inputDocument.addEventListener("pointerdown", this.globalClickListener, true);
+		inputDocument.addEventListener("wheel", this.globalWheelListener, true);
+		inputDocument.addEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.addEventListener("resize", this.globalResizeListener);
 		activeWindow.addEventListener("blur", this.globalBlurListener);
 	}
 
 	/**
-	 * Re-place the open list after its contents changed. The placement is
-	 * re-decided each time because the list's height changes as the user types.
+	 * Re-place the open list after its contents or its input moved. The side
+	 * is re-decided each time because the list's height changes as the user
+	 * types.
 	 */
 	private reposition(): void {
-		if (!this.popper) return;
-		const placement = listPlacement(this.inputEl, this.suggestEl);
-		if (this.popper.state.options.placement === placement) {
-			void this.popper.update();
-		} else {
-			void this.popper.setOptions({ placement });
-		}
+		placeList(this.inputEl, this.suggestEl);
 	}
 
 	close(): void {
@@ -490,12 +474,6 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		this.suggest.close();
 		this.suggest.setSuggestions([]);
 
-		// Destroy Popper instance
-		if (this.popper) {
-			this.popper.destroy();
-			this.popper = null;
-		}
-
 		this.suggestEl.remove();
 
 		// Remove global listeners
@@ -503,6 +481,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		const activeWindow = getOwnerWindow(this.inputEl);
 		activeDocument.removeEventListener("pointerdown", this.globalClickListener, true);
 		activeDocument.removeEventListener("wheel", this.globalWheelListener, true);
+		activeDocument.removeEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.removeEventListener("resize", this.globalResizeListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 

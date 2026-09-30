@@ -1,10 +1,6 @@
 import type { App } from "obsidian";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@popperjs/core", () => ({
-	createPopper: () => ({ destroy: vi.fn(), update: vi.fn(), setOptions: vi.fn(), state: { options: {} } }),
-}));
-
 import { ExclusiveSuggester } from "./exclusiveSuggester";
 import { GenericTextSuggester } from "./genericTextSuggester";
 
