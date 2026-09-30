@@ -394,7 +394,7 @@ const CASES: Case[] = [
 		active: "Origin.md",
 		selections: ["0:0"],
 		notices: [
-			"QuickAdd: (WARNING) QuickAdd: {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
+			"QuickAdd: (WARNING) {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
 			"Captured to bottom of 'Target'",
 		],
 		clipboard: SENTINEL,
