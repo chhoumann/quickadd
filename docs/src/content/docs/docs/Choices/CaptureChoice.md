@@ -22,7 +22,8 @@ stay right where you are. Use it to:
 2. Set **Capture to** to where entries should land, for example
    `Journal/{{DATE}}.md`.
 3. In **Capture format**, describe one entry, for example
-   `- {{DATE:HH:mm}} {{VALUE}}`.
+   `- {{DATE:HH:mm}} {{VALUE}}`. (Before QuickAdd 2.30.0, turn on the
+   **Capture format** toggle first.)
 4. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
 
@@ -219,7 +220,8 @@ is friendlier than the filename.
 _Capture format_ is what actually gets written - think of it as a mini
 template for one entry. Left empty, QuickAdd writes `{{VALUE}}`: whatever
 you type in the prompt (or your editor selection, if selection-as-value is
-enabled).
+enabled). Before QuickAdd 2.30.0, the field has a toggle: it is hidden while
+the toggle is off, and off means `{{VALUE}}` on its own.
 
 All of [format syntax](/docs/FormatSyntax/) works here:
 
@@ -336,7 +338,8 @@ today.
 _Use editor selection as default value_ controls whether selected text in the
 editor is used as `{{VALUE}}` instead of prompting: **Follow global setting**,
 **Use selection**, or **Ignore selection** (the global default lives in
-[**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-input)). This does not affect `{{SELECTED}}`.
+[**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-input), or on the main
+QuickAdd tab before QuickAdd 2.30.0). This does not affect `{{SELECTED}}`.
 
 ### Pick where in the note it lands: Write position {#write-position}
 
@@ -578,9 +581,9 @@ choice.
 :::caution[Deprecated]
 _Run Templater on entire destination file after capture_ is deprecated and will
 be removed in a future release. QuickAdd already runs Templater in what it
-captures, so the option is no longer needed. The builder only shows it on
-choices that already have it on, and a Capture that uses it shows a notice once
-per session. Turn it off.
+captures, so the option is no longer needed. In QuickAdd 2.30.0 or later, the
+builder only shows it on choices that already have it on, and a Capture that
+uses it shows a notice once per session. Turn it off.
 :::
 
 The option executes any `<% %>` anywhere in the destination file, including

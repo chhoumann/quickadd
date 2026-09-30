@@ -37,7 +37,7 @@ Tell QuickAdd where your templates live, so it can suggest them when you configu
 
 ## Advanced {#advanced}
 
-Settings most vaults never change are on the **Advanced** page, the last entry in the QuickAdd tab. Settings search finds them there too.
+Settings most vaults never change are on the **Advanced** page, the last entry in the QuickAdd tab. Settings search finds them there too. The page is new in QuickAdd 2.30.0; earlier versions show these settings on the main tab, under the same section names.
 
 ### Choice picker {#choice-picker}
 

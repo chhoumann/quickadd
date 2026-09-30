@@ -36,7 +36,7 @@ to do each familiar job.
 3. Click the choice name at the top of the settings window. Rename it
    `New book note` and confirm with **Ok**.
 4. Set **Template path** to `Templates/Book.md`.
-5. In **File name**, enter `{{VALUE:title}}`.
+5. In **File name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
 6. Set **New note location** to **In a specific folder**. Enter `Books` in
    **Folder path** and click **Add**.
 7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
@@ -86,7 +86,7 @@ targets first. Choose an existing note to open it unchanged, or choose the
 :::tip[Where the command shows up]
 When a template folder is configured, the same entry also appears in **Run
 QuickAdd** - at the bottom by default, or move it to the top / hide it under
-[Settings → QuickAdd → Advanced](/docs/Settings/#choice-picker) - and it's scriptable
+[Settings → QuickAdd → Advanced](/docs/Settings/#choice-picker) (QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab) - and it's scriptable
 via [`quickadd:run-template`](/docs/Advanced/CLI/#quickaddrun-template). Make a
 Template choice (below) when you need a fixed location, file-name format,
 linking, or a hotkey.
@@ -163,7 +163,8 @@ up-front form.
 
 `{{NAME}}` is a value you enter when invoking the template. Leave **File name**
 empty and QuickAdd asks for the note title when you run the choice, the same as
-writing `{{VALUE}}`.
+writing `{{VALUE}}`. Before QuickAdd 2.30.0, the field is **File name format**,
+with a toggle that hides it while off; off asks for the note title.
 
 A slash in the format creates a folder, so the name can include a path. The
 file is created under [New note location](#new-note-location).
@@ -266,8 +267,8 @@ Pick one of four modes:
   asking which to use. Drag a folder's handle, or focus the handle and press
   ArrowUp / ArrowDown, to change the suggester order. An **Include subfolders**
   toggle (shown only in this mode) lets the suggester offer the selected folders
-  *and* their subfolders. A folder you typed but didn't **Add** is added when
-  you close the builder.
+  *and* their subfolders. In QuickAdd 2.30.0 or later, a folder you typed but
+  didn't **Add** is added when you close the builder; earlier versions drop it.
 - **Same folder as current file** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each

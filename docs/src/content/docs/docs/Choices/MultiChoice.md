@@ -65,4 +65,4 @@ Good to know:
 - Searching from inside a multi only covers that multi's sub-choices. Go back (or open the root picker) to search more broadly.
 
 To limit search to the level you have open, turn off **Settings → QuickAdd →
-Advanced → Search nested choices**.
+Advanced → Search nested choices** (QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab).
