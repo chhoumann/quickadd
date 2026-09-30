@@ -20,7 +20,7 @@ The choice picker is the list you see when you run **QuickAdd: Run**.
 ![The QuickAdd choice picker searching for "new": root choices New person and New meeting note, followed by New book note from the Reading folder and New project from the Projects folder, each nested match labelled with its folder](./Images/choice-picker-nested-search.png)
 
 - **Search nested choices** - find a choice even when it lives inside a folder. When on, searching also matches choices nested in folders and shows their path. A nested match can rank above a same-level one. Turn it off to search only the level you have open.
-- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Bottom* (default) keeps your most-used choice in the first slot, *Top* makes the template row first, and *Hidden* removes it. The row only appears once you have a [template folder](#templates--properties) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
+- **"New note from template" in the launcher** - decide where the "create a note from a template" row sits in the picker, so you can make a note from any template without building a dedicated Template choice. *Bottom* (default) keeps your most-used choice in the first slot, *Top* makes the template row first, and *Hidden* removes it. The row only appears once you have a [template folder](#template-folders) configured. The **New note from template** command is always in the command palette, but it needs a configured folder too - without one it shows a notice and opens these settings.
 
 ## Input {#input}
 
@@ -31,9 +31,12 @@ The choice picker is the list you see when you run **QuickAdd: Run**.
 - **One-page input for choices** - answer all of a choice's questions in one form up front, instead of one prompt after another. Works with Template, Capture, and Macro choices. Each choice can [override this individually](/docs/Advanced/onePageInputs/#per-choice-override). See [One-page Inputs](/docs/Advanced/onePageInputs/) and [Controlling Prompts](/docs/ControllingPrompts/).
 - **Date aliases** - set your own shortcodes for natural-language dates, so typing `tm` in a date prompt means `tomorrow`. Write one per line as `alias = phrase`, for example `tm = tomorrow`. **Reset to defaults** restores the built-in aliases.
 
-## Templates & properties {#templates--properties}
+## Template folders {#template-folders}
 
-- **Template folder paths** - tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Type a folder (autocomplete helps) and press **Add** or Enter; remove one with the trash button on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also removes the **New note from template** launcher row, and the command of the same name will only point you back here until a folder is configured.
+Tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Add a folder with the **+** button next to the heading (on phones, the **Add folder** row below the list) and pick it from the folder list; remove one with the **×** on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also removes the **New note from template** launcher row, and the command of the same name will only point you back here until a folder is configured.
+
+## Properties {#properties}
+
 - **Convert string front matter variables to typed properties (Beta)** - turn text values into real Obsidian property types so front matter reads correctly. List and object values from scripts are **always** written as proper properties (a list value becomes a List property), so templates produce valid front matter without this toggle. Turning it on **also** converts string values: a comma or bullet-list string becomes a List, `"42"` becomes a Number, `"true"` becomes a Checkbox, and so on. Off by default, because the string conversion is a beta heuristic that can have edge cases. See [Template Property Types (Beta)](/docs/TemplatePropertyTypes/).
 
 ## Notifications {#notifications}

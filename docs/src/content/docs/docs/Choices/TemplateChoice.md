@@ -73,7 +73,7 @@ Two things to know about the quoted form:
 ## Run a template without making a choice {#run-without-choice}
 
 If you just want to spin up a note from a template in your
-[template folder](/docs/Settings/#templates--properties) without maintaining a
+[template folder](/docs/Settings/#template-folders) without maintaining a
 Template choice per file, use the **New note from template** command. It lists
 the templates in your configured folder, prompts for the new note's name, and
 creates it in Obsidian's default location.

@@ -147,8 +147,8 @@
     {/each}
   </div>
 
-  <!-- Below the list, matching the sibling "Template folder paths" row and the
-       choices list, which both put their add affordance under what it adds to. -->
+  <!-- Below the list, matching the choices list, which puts its add affordance
+       under what it adds to. -->
   <div class="qa-gv__actions">
     <button class="mod-cta" onclick={addVariable}>Add variable</button>
   </div>
@@ -159,7 +159,6 @@
   /* Keeps "Add variable" right-aligned now that it is the row's only child. */
   .qa-gv__actions { display: flex; justify-content: flex-end; }
   .qa-gv__desc { color: var(--text-muted); font-size: 12px; }
-  /* Mirrors .qa-template-folder-empty, the sibling list's empty state. */
   .qa-gv__empty { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 6px 0; }
   .qa-gv__table { display: grid; gap: 8px; }
   .qa-gv__row { display: grid; grid-template-columns: 180px 1fr 140px; gap: 8px; align-items: start; }
