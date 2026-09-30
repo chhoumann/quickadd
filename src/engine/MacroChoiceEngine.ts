@@ -73,7 +73,7 @@ type ConditionalScriptRunner = () => Promise<unknown>;
 const RETIRED_COMMAND_TYPES = new Map<string, string>([
 	[
 		"InfiniteAIAssistant",
-		'QuickAdd has removed the "Infinite AI Assistant" command type - no released version could ever run one. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() in a user script.',
+		'The "Infinite AI Assistant" command type was removed - no released version could ever run one. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() in a user script.',
 	],
 ]);
 

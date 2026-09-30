@@ -153,6 +153,14 @@ describe("classifyStep", () => {
 		expect(Boolean(role.opaque)).toBe(cutsLaterCaptures);
 	});
 
+	it.each(["SomeFutureThing", "InfiniteAIAssistant"])("asks for nothing at a %s step, which the run skips", (type) => {
+		expect(classifyStep(command(type as CommandType), noChoices())).toEqual({
+			collect: { kind: "none" },
+			opaque: null,
+			deferred: null,
+		});
+	});
+
 	it("covers every CommandType in the table", () => {
 		const covered = new Set(TABLE.map((entry) => entry.type));
 		for (const type of Object.values(CommandType)) {
