@@ -29,7 +29,7 @@ export function createSettingDefinitions(
 	render: SettingsRenderers,
 	isDevBuild: boolean,
 	aiAssistantPage?: SettingDefinitionPage<SettingsKey>,
-	templateFolders?: SettingDefinitionList<SettingsKey>,
+	templateFolders?: SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey>,
 ): SettingDefinitionGroup<SettingsKey>[] {
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{

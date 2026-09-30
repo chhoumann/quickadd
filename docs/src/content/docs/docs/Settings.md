@@ -20,7 +20,7 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 
 ## Template folders {#template-folders}
 
-Tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Add a folder with the **+** button next to the heading (on phones, the **Add folder** row below the list) and pick it from the folder list; remove one with the **×** on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also removes the **New note from template** launcher row, and the command of the same name will only point you back here until a folder is configured.
+Tell QuickAdd where your templates live, so it can suggest them when you configure a choice. Click **Add folder** and pick a folder from the list. Once you have one, add more with the **+** button next to the heading (on phones, the **Add folder** row below the list); remove one with the **×** on its row. Add as many folders as you like. Leaving the list empty suggests every template file in the vault, but it also removes the **New note from template** launcher row, and the command of the same name will only point you back here until a folder is configured.
 
 ## Notifications {#notifications}
 
