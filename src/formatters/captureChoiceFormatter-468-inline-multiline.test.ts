@@ -7,7 +7,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 // formatter can run under jsdom without real Obsidian/Templater. The inline
 // single-line guard now throws ChoiceAbortError (asserted via rejects.toThrow),
 // so these tests don't inspect reportError (issue #468).
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 

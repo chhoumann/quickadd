@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-export const utilityObsidianMock = () => ({
+export const templaterIntegrationMock = () => ({
 	templaterParseTemplate: vi.fn().mockResolvedValue(null),
 });
 

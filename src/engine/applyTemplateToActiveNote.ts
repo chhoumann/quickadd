@@ -11,10 +11,8 @@ import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	getMarkdownEditorViewForFile,
-	jumpToNextTemplaterCursorIfPossible,
-} from "../utilityObsidian";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";

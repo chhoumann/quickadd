@@ -21,13 +21,10 @@ vi.mock("./settingsStore", () => ({
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
-vi.mock("./utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<Record<string, unknown>>();
-	return {
-		...actual,
-		getOpenFileOriginLeaf: vi.fn(() => null),
-	};
-});
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getOpenFileOriginLeaf: vi.fn(() => null),
+}));
 
 const openMock = vi.fn();
 vi.mock("./gui/suggesters/choiceSuggester", () => ({

@@ -81,11 +81,17 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: vi.fn(),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 }));
@@ -109,7 +115,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
-import { insertFileLinkToActiveView } from "../utilityObsidian";
+import { insertFileLinkToActiveView } from "../utils/editorInsertion";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 

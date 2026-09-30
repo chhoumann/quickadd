@@ -48,10 +48,14 @@ vi.mock("./SingleTemplateEngine", () => ({
 		run() { return mocks.template(); }
 	},
 }));
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/vaultQueries", () => ({
 	isFolder: () => false,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: () => null,
 	openFile: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	isTemplaterTriggerOnCreateEnabled: () => mocks.templaterEnabled,
 	createNoteAfterTemplaterTrigger: async (_app: unknown, _path: string, create: () => Promise<unknown>) => {

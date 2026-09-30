@@ -1,6 +1,6 @@
 import { prepareCapture, type CaptureCursor } from "../formatters/helpers/capturePlacement";
 import { restoreUserText, restoreUserTextInCapture } from "../formatters/helpers/userText";
-import { insertCaptureInEditor, setMarkdownCursorsAtOffsets } from "../utils/editorInsertion";
+import { insertCaptureInEditor, setMarkdownCursorsAtOffsets, appendToCurrentLine, insertOnNewLineAbove, insertOnNewLineBelow, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { getAppendLinkDestinationFile } from "../utils/fileLinks";
@@ -52,17 +52,7 @@ import {
 	placementSupportsFrontmatter,
 	type AppendLinkOptions,
 } from "../types/linkPlacement";
-import {
-	appendToCurrentLine,
-	createNoteAfterTemplaterTrigger,
-	insertOnNewLineAbove,
-	insertOnNewLineBelow,
-	isTemplaterTriggerOnCreateEnabled,
-	jumpToNextTemplaterCursorIfPossible,
-	overwriteTemplaterOnce,
-	setMarkdownCursorAtOffset,
-	templaterParseTemplate,
-} from "../utilityObsidian";
+import { createNoteAfterTemplaterTrigger, isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,

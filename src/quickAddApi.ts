@@ -8,7 +8,7 @@ import { isTemplateInsertMode, templateInsertModes, type TemplateInsertModeId } 
 import { getActiveEditorSelection, getActiveMarkdownEditorView } from "./utils/activeMarkdownEditor";
 import { applyInvocationDate } from "./utils/resolveDateOrigin";
 import { handledIfCancelled, reportError } from "./utils/errorUtils";
-import { getDate } from "./utilityObsidian";
+import { getDate } from "./utils/dates";
 import type IChoice from "./types/choices/IChoice";
 import type { InputPromptOptions } from "./types/inputPrompt";
 import { PromptApi } from "./api/promptApi";

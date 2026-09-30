@@ -47,7 +47,7 @@ vi.mock("src/settingsStore", () => ({
 vi.mock("src/quickAddInstance", () => ({
 	getQuickAddInstance: vi.fn(() => ({})),
 }));
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));

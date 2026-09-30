@@ -1,10 +1,6 @@
 import { type App, TFile, TFolder } from "obsidian";
 import { describe, expect, it } from "vitest";
-import {
-	getTemplateFile,
-	isPathWithinTemplateFolders,
-	normalizeTemplateFolderPaths,
-} from "./utilityObsidian";
+import { getTemplateFile, isPathWithinTemplateFolders, normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 
 function file(path: string): TFile {
 	const f = new TFile();

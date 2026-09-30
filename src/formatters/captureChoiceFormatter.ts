@@ -11,7 +11,7 @@ import {
 	NAME_VALUE_REGEX,
 } from "../constants";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { templaterParseTemplate } from "../utilityObsidian";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementResult } from "./helpers/capturePlacement";
 import { CompleteFormatter } from "./completeFormatter";

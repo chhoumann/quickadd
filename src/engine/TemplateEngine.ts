@@ -18,12 +18,8 @@ import type { PromptRunContext } from "../formatters/promptScope";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
-import {
-	getTemplateFile,
-	getTemplater,
-	overwriteTemplaterOnce,
-	templaterParseTemplate,
-} from "../utilityObsidian";
+import { getTemplateFile } from "../utils/templateFolderUtils";
+import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
 	CANVAS_FILE_EXTENSION_REGEX,

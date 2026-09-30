@@ -50,19 +50,24 @@ const {
 	logMessageMock: vi.fn(),
 }));
 
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: getMarkdownFilesInFolderMock,
 	getMarkdownFilesMatchingFilter: getMarkdownFilesMatchingFilterMock,
 	getMarkdownFilesWithTag: getMarkdownFilesWithTagMock,
 	getMarkdownFilesWithProperty: getMarkdownFilesWithPropertyMock,
+	isFolder: isFolderMock,
+}));
+vi.mock("src/utils/userScript", async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	// getUserScriptMock returns the `::`-drilled export; the collector only
 	// reads quickadd.inputs from it, so the settings definition is irrelevant.
 	loadUserScript: async (...args: unknown[]) => {
 		const script: unknown = await getUserScriptMock(...args);
 		return script === undefined ? undefined : { script, settings: undefined };
 	},
+}));
+vi.mock("src/utils/templateFolderUtils", () => ({
 	getTemplateFile: getTemplateFileMock,
-	isFolder: isFolderMock,
 }));
 
 vi.mock("src/logger/logManager", () => ({

@@ -1,14 +1,13 @@
-import type * as UtilityObsidian from "../utilityObsidian";
 import { WorkspaceLeaf, MarkdownView, type EditorPosition, type TFile } from "obsidian";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { templateHarness } from "../../tests/helpers/engines/templateHarness";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
-import { overwriteTemplaterOnce, templaterParseTemplate } from "../utilityObsidian";
+import { overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("../utilityObsidian", async importOriginal => ({
-	...await importOriginal<typeof UtilityObsidian>(),
+vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
+	...(await importOriginal<object>()),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
 }));

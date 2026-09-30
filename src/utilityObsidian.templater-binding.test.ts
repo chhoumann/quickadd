@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { App, TFile } from "obsidian";
-import { isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible, templaterParseTemplate } from "./utilityObsidian";
+import { isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible, templaterParseTemplate } from "./utils/templaterIntegration";
 
 describe("isTemplaterTriggerOnCreateEnabled", () => {
 	it.each([true, false])("reads the current local setting: %s", (enabled) => {

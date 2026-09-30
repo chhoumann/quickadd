@@ -2,7 +2,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../../main";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
-import { getAllFolderPathsInVault } from "../../../utilityObsidian";
+import { getAllFolderPathsInVault } from "../../../utils/vaultQueries";
 import { sortFolderPathsByTree } from "../../../utils/folder-sorting";
 import { FormatSyntaxSuggester } from "../../suggesters/formatSyntaxSuggester";
 import { isCanvasTargetPath, normalizeVaultPath } from "../canvasNodes";

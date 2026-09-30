@@ -1,8 +1,5 @@
 import type { App, TFile } from "obsidian";
-import {
-	getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithProperty, getMarkdownFilesWithTag
-} from "../../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, getMarkdownFilesWithTag } from "../../utils/vaultQueries";
 import { orderFilesForPicker } from "../../utils/fileOrdering";
 import { buildPickerOrderingDeps } from "../../utils/pickerOrderingDeps";
 import { buildFileDisplayLabels } from "../../utils/fileSyntax";

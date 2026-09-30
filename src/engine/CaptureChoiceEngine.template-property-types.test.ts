@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile, TFolder } from "obsidian";
 import { TFile as ObsidianTFile, TFolder as ObsidianTFolder } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
-import { insertOnNewLineBelow } from "../utilityObsidian";
+import { insertOnNewLineBelow } from "../utils/editorInsertion";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 
@@ -115,23 +115,29 @@ vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 	default: class {},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
+	insertFileLinkToActiveView: vi.fn(),
+	insertOnNewLineAbove: vi.fn(),
+	insertOnNewLineBelow: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+	isTemplaterTriggerOnCreateEnabled: vi.fn().mockReturnValue(false),
+	jumpToNextTemplaterCursorIfPossible: vi.fn().mockResolvedValue(undefined),
+	overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
+	templaterParseTemplate: vi.fn(async (_app, content) => content),
+	waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
+	getTemplater: vi.fn(() => ({})),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn().mockResolvedValue([]),
 	getMarkdownFilesWithTag: vi.fn().mockResolvedValue([]),
-	insertFileLinkToActiveView: vi.fn(),
-		insertOnNewLineAbove: vi.fn(),
-		insertOnNewLineBelow: vi.fn(),
-		isTemplaterTriggerOnCreateEnabled: vi.fn().mockReturnValue(false),
-		jumpToNextTemplaterCursorIfPossible: vi.fn().mockResolvedValue(undefined),
-		isFolder: vi.fn().mockReturnValue(false),
-		openExistingFileTab: vi.fn().mockReturnValue(null),
-		openFile: vi.fn(),
-		overwriteTemplaterOnce: vi.fn().mockResolvedValue(undefined),
-		templaterParseTemplate: vi.fn(async (_app, content) => content),
-		waitForFileToStopChanging: vi.fn().mockResolvedValue(undefined),
-		getTemplater: vi.fn(() => ({})),
+	isFolder: vi.fn().mockReturnValue(false),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn().mockReturnValue(null),
+	openFile: vi.fn(),
 }));
 
 describe("CaptureChoiceEngine template property types", () => {

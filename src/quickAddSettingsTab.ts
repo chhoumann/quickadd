@@ -16,10 +16,8 @@ import type { Plain } from "./gui/svelte/persist.svelte";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
 import { settingsStore } from "./settingsStore";
-import {
-	getAllFolderPathsInVault,
-	normalizeTemplateFolderPaths,
-} from "./utilityObsidian";
+import { getAllFolderPathsInVault } from "./utils/vaultQueries";
+import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";

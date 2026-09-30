@@ -4,10 +4,8 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	getMarkdownEditorViewForFile,
-	templaterParseTemplate,
-} from "../utilityObsidian";
+import { getMarkdownEditorViewForFile, insertCaptureInBoundEditor } from "../utils/editorInsertion";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	assignFrontmatterValue,
 	hasUnsafeFrontmatterKey,
@@ -17,7 +15,6 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStartWithResult, type NoteBodyInsertionResult } from "../utils/noteContentInsertion";
-import { insertCaptureInBoundEditor } from "../utils/editorInsertion";
 import { processNote, processNoteFrontMatter } from "../utils/noteContent";
 import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";

@@ -1,16 +1,20 @@
 import { describe, expect, it, vi } from "vitest";
 import type { FieldRequirement } from "./RequirementCollector";
 
-// collectChoiceRequirements imports utilityObsidian + the logger; mock them so
+// collectChoiceRequirements imports the vault and script helpers and the logger; mock them so
 // the pure getUnresolvedRequirements helper can be exercised in isolation.
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
 	getMarkdownFilesWithProperty: vi.fn(() => []),
-	loadUserScript: vi.fn(),
-	getTemplateFile: vi.fn(() => null),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("src/utils/userScript", () => ({
+	loadUserScript: vi.fn(),
+}));
+vi.mock("src/utils/templateFolderUtils", () => ({
+	getTemplateFile: vi.fn(() => null),
 }));
 
 vi.mock("src/logger/logManager", () => ({

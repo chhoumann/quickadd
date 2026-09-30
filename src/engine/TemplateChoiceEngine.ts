@@ -26,11 +26,9 @@ import { promptEngineChoice } from "../interactive/engineChoice";
 import {
 	normalizeAppendLinkOptions,
 } from "../types/linkPlacement";
-import {
-	getAllFolderPathsInVault,
-	jumpToNextTemplaterCursorIfPossible,
-	getMarkdownEditorViewForFile,
-} from "../utilityObsidian";
+import { getAllFolderPathsInVault } from "../utils/vaultQueries";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
 import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,

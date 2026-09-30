@@ -3,7 +3,7 @@ import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plu
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type ICaptureChoice from '../types/choices/ICaptureChoice';
 
-vi.mock('../utilityObsidian', async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock('../utils/templaterIntegration', async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 vi.mock('../gui/InputPrompt', () => ({
   __esModule: true,
