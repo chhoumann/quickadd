@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { POLL_OPTS } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS } from "./uiHelpers";
 
 // Obsidian calls Plugin#onExternalSettingsChange when data.json is newer than
 // the plugin's last write: Sync, another instance on the vault, a hand edit.
@@ -39,12 +39,12 @@ const COUNT_EXTERNAL_CHANGES = `(() => {
 
 const LIVE_STATE = `(() => {
 	const plugin = app.plugins.plugins.quickadd;
-	const choice = plugin.settings.choices.find((c) => c.id === ${JSON.stringify(CHOICE_ID)});
+	const choice = plugin.settings.choices.find((c) => c.id === ${jsLiteral(CHOICE_ID)});
 	return {
 		sameInstance: plugin === window.__qaPluginInstance,
 		externalChanges: window.__qaExternalChanges,
 		choiceName: choice?.name ?? null,
-		command: app.commands.commands[${JSON.stringify(COMMAND_ID)}]?.name ?? null,
+		command: app.commands.commands[${jsLiteral(COMMAND_ID)}]?.name ?? null,
 		showCaptureNotification: plugin.settings.showCaptureNotification,
 	};
 })()`;
@@ -126,7 +126,7 @@ it("merges a choice edited here and a different choice edited elsewhere in the s
 		data.choices.push({ ...syncedChoice("Inbox"), command: false } as IChoice, other);
 	});
 	await expect.poll(() => obsidian.dev.evalJson<number>(
-		`app.plugins.plugins.quickadd.settings.choices.filter((c) => c.id.startsWith(${JSON.stringify(CHOICE_ID)})).length`,
+		`app.plugins.plugins.quickadd.settings.choices.filter((c) => c.id.startsWith(${jsLiteral(CHOICE_ID)})).length`,
 	), POLL_OPTS).toBe(2);
 
 	try {
