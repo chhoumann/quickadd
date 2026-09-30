@@ -361,6 +361,7 @@ function onPromptHeadingToggle(value: boolean) {
 		<Dropdown
 			value={insertAfter.createIfNotFoundLocation || CREATE_IF_NOT_FOUND_TOP}
 			options={createLocationOptions}
+			ariaLabel="Where to create the line"
 			onchange={onCreateLocationChange}
 		/>
 	{/snippet}
@@ -429,6 +430,7 @@ function onPromptHeadingToggle(value: boolean) {
 				<Dropdown
 					value={ordering.unparseable ?? "bottom"}
 					options={unparseableOptions}
+					ariaLabel="Existing unparseable headings"
 					onchange={(value) => {
 						if (insertAfter.orderBy)
 							insertAfter.orderBy.unparseable =
