@@ -31,7 +31,7 @@ vi.mock("../formatters/completeFormatter", () => ({
 	},
 }));
 vi.mock("../utils/templaterRerunDeprecation", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../utils/templaterRerunDeprecation")>()),
+	...(await importOriginal<Record<string, unknown>>()),
 	warnDeprecatedOnce: vi.fn(),
 }));
 vi.mock("../ai/AIAssistant", () => ({
