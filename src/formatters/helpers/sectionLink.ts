@@ -71,8 +71,9 @@ export function headingEndLine(lines: string[], heading: SimpleHeading): number 
 
 /**
  * For each line, whether it sits in a block that can't hold a heading: the
- * YAML frontmatter or a fenced code block, delimiters included. This is the
- * one place that decides what counts as such a block.
+ * YAML frontmatter, a fenced code block, a `%%` comment block or a `$$` math
+ * block, delimiters included. This is the one place that decides what counts
+ * as such a block. HTML blocks are not detected.
  */
 export function nonHeadingBlockLines(lines: string[]): boolean[] {
 	const blocked = lines.map(() => false);
@@ -98,8 +99,14 @@ export function nonHeadingBlockLines(lines: string[]): boolean[] {
 	// backtick fence's info string can't contain a backtick: ```inline``` is
 	// inline code (CommonMark, and Obsidian). An unclosed fence runs to the end.
 	let fence: { char: string; length: number } | null = null;
+	let block: "%%" | "$$" | null = null;
 	for (; i < text.length; i++) {
 		const line = text[i];
+		if (block) {
+			blocked[i] = true;
+			if (closesBlock(block, line)) block = null;
+			continue;
+		}
 		if (fence) {
 			blocked[i] = true;
 			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
@@ -112,10 +119,37 @@ export function nonHeadingBlockLines(lines: string[]): boolean[] {
 		if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
 			blocked[i] = true;
 			fence = { char: open[1][0], length: open[1].length };
+			continue;
+		}
+		// A comment (`%%`) or math (`$$`) block opens on a line that starts with
+		// its marker, up to 3 spaces in, and doesn't close on that line. Right
+		// after a list item, `$$` continues the item instead (`%%` still opens).
+		const marker = line.match(/^ {0,3}(%%|\$\$)(.*)$/);
+		const continuesListItem =
+			i > 0 && /^\s*([-*+]|\d{1,9}[.)])[ \t]/.test(text[i - 1]);
+		if (marker && !(marker[1] === "$$" && continuesListItem)) {
+			const kind = marker[1] as "%%" | "$$";
+			const rest = marker[2];
+			const closedOnLine =
+				kind === "%%"
+					? rest.includes("%%")
+					: rest.trimEnd().length > 2 && rest.trimEnd().endsWith("$$");
+			if (!closedOnLine) {
+				blocked[i] = true;
+				block = kind;
+			}
 		}
 	}
 
 	return blocked;
+}
+
+/**
+ * Obsidian closes a `%%` block at any line holding `%%`, and a `$$` block
+ * only at a line that ends with `$$`. An unclosed block runs to the end.
+ */
+function closesBlock(block: "%%" | "$$", line: string): boolean {
+	return block === "%%" ? line.includes("%%") : line.trimEnd().endsWith("$$");
 }
 
 /**
@@ -124,7 +158,7 @@ export function nonHeadingBlockLines(lines: string[]): boolean[] {
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
  * bounding ATX levels to 1–6. Used for editor text the metadata cache doesn't
  * cover yet, and to check that the cache is current. Unlike Obsidian, it
- * doesn't skip `#` lines inside comments, HTML, or math blocks.
+ * doesn't skip `#` lines inside HTML blocks.
  */
 export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const headings: SimpleHeading[] = [];
