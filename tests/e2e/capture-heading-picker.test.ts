@@ -22,9 +22,9 @@ const CHOICE_ID = "__qa-1987-heading-picker";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 const NOTE = "Picker.md";
 const NOTE_CONTENT =
-	"---\ntags: log\n# owner: me\n---\n## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n####### seven\n## Next\n";
+	"---\ntags: log\n# owner: me\n---\n## Log\n- first entry\n\n```md\n# comment\n## Next\n```\n\n####### seven\n## Next\n";
 const EXPECTED =
-	"---\ntags: log\n# owner: me\n---\n## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n####### seven\n## Next\n- captured";
+	"---\ntags: log\n# owner: me\n---\n## Log\n- first entry\n\n```md\n# comment\n## Next\n```\n\n####### seven\n## Next\n- captured";
 
 let obsidian: ObsidianClient;
 let sandbox: SandboxApi;

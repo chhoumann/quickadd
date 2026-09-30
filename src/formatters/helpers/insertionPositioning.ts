@@ -292,6 +292,20 @@ export function getBodyStartLine(fileContent: string): number {
 		: 0;
 }
 
+export function isHeadingLine(line: string): boolean {
+	return extractHeadingsFromLines([line.replace(/\r$/, "")]).length > 0;
+}
+
+/** Blanks every line that doesn't start a heading, keeping line indices. */
+export function onlyHeadingLines(lines: string[]): string[] {
+	const headingLines = new Set(
+		extractHeadingsFromLines(lines.map((line) => line.replace(/\r$/, ""))).map(
+			(heading) => heading.line,
+		),
+	);
+	return lines.map((line, index) => (headingLines.has(index) ? line : ""));
+}
+
 /**
  * Returns CRLF-stripped lines with frontmatter lines blanked and fenced-code
  * headings neutralized, so the ordered target search never matches a heading

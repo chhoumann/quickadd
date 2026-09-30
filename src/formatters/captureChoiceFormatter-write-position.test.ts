@@ -761,6 +761,44 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(content).toBe("## Log\n   ### Indented\n- captured\n- a\n");
 	});
 
+	it.each([
+		["frontmatter", "---\nnote: |\n  ## Log\n---\n## Log\n- entry\n", "---\nnote: |\n  ## Log\n---\n## Log\n- captured\n- entry\n"],
+		["a code fence", "```md\n## Log\n```\n## Log\n- entry\n", "```md\n## Log\n```\n## Log\n- captured\n- entry\n"],
+		["a plain line", "Log notes: ## Log\n## Log\n- entry\n", "Log notes: ## Log\n## Log\n- captured\n- entry\n"],
+	])("inserts under the picked heading, not a same-text line in %s (#1987)", async (_where, note, expected) => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("## Log");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, note, createFile());
+
+		expect(content).toBe(expected);
+	});
+
+	it("still finds a typed line that isn't a heading, so a second run doesn't duplicate it", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("Tasks:");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true, createIfNotFound: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, "## Log\nTasks:\n- a\n", createFile());
+
+		expect(content).toBe("## Log\nTasks:\n- captured\n- a\n");
+	});
+
+	it("inserts under a picked heading in a CRLF note (#1987)", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("## Log");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, "## Log\r\n- entry\r\n", createFile());
+
+		expect(content).toContain("- captured");
+		expect(content.indexOf("- captured")).toBeLessThan(content.indexOf("- entry"));
+	});
+
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),
