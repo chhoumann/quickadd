@@ -312,6 +312,27 @@ describe("CaptureChoiceForm", () => {
 		expect(props.choice.format.enabled).toBe(false);
 	});
 
+	// #2004 review: a format that starts with whitespace (an indented item) was
+	// erased while it had no other text yet.
+	it("keeps leading whitespace typed into an empty capture format", async () => {
+		const { container, props } = mountForm();
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+
+		textarea.value = "\t";
+		await fireEvent.input(textarea);
+		flushSync();
+		expect(textarea.value).toBe("\t");
+		expect(props.choice.format).toEqual({ enabled: false, format: "\t" });
+
+		textarea.value = "\t- {{VALUE}}";
+		await fireEvent.input(textarea);
+		flushSync();
+		expect(textarea.value).toBe("\t- {{VALUE}}");
+		expect(props.choice.format).toEqual({ enabled: true, format: "\t- {{VALUE}}" });
+	});
+
 	it("shows an old choice's disabled format as empty", () => {
 		const choice = new CaptureChoice("Old");
 		choice.format = { enabled: false, format: "- {{VALUE}}" };

@@ -70,7 +70,7 @@ opening them:
 | --- | --- |
 | `template` | The template file |
 | `folder` | The folder the note goes in; `<default>` is Obsidian's default location for new notes |
-| `fileName` | The **File name format**, or `{{VALUE}}` when it is off |
+| `fileName` | The **File name**, or `{{VALUE}}` when it is empty |
 
 Formats are shown unexpanded. `<ask>` means QuickAdd asks for that part when the
 choice runs. Macros and Multis have no `writes`.

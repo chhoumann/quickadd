@@ -3,7 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { clickAt, POLL_OPTS, typeInto } from "./uiHelpers";
+import { clickAt, insertText, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // #1999: Capture format and File name have no toggle. An empty field means the
 // default ({{VALUE}} on its own, or the note-title prompt), and typing in it
@@ -80,6 +80,40 @@ it("writes the value on its own until a Capture format is typed", async () => {
 		await obsidian.exec("quickadd:run", { choice: choice.name, "value-value": "listed" });
 		await expect.poll(() => sandbox.read("Inbox.md"), POLL_OPTS).toContain("- listed");
 		expect(await sandbox.read("Inbox.md")).not.toContain("- plain");
+	} finally {
+		await closeAll();
+	}
+});
+
+// #2004 review: a format can start with indentation while it has no other text.
+it("keeps a Tab and a space typed first into an empty Capture format", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const choice = new CaptureChoice("Indented format capture");
+	choice.captureTo = await seedVaultFile(obsidian, sandbox, "Indented.md", "");
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	try {
+		await openBuilder(choice.name, "captureChoiceBuilder");
+		const point = await obsidian.dev.evalJson<{ x: number; y: number }>(`(() => {
+			const box = document.querySelector(".captureChoiceBuilder .qa-field textarea");
+			box.scrollIntoView({ block: "center" });
+			const rect = box.getBoundingClientRect();
+			return { x: rect.left + 20, y: rect.top + 10 };
+		})()`);
+		await clickAt(obsidian, point.x, point.y);
+		await pressKey(obsidian, "Tab");
+		await insertText(obsidian, " ");
+		const box = () => obsidian.dev.evalJson<string>(`document.querySelector(".captureChoiceBuilder .qa-field textarea").value`);
+		expect(await box()).toBe("\t ");
+		await insertText(obsidian, "- {{VALUE}}");
+		expect(await box()).toBe("\t - {{VALUE}}");
+		await clickDone("captureChoiceBuilder");
+		expect(await obsidian.dev.evalJson(
+			`app.plugins.plugins.quickadd.settings.choices.find(c => c.id === ${JSON.stringify(choice.id)}).format`,
+		)).toEqual({ enabled: true, format: "\t - {{VALUE}}" });
 	} finally {
 		await closeAll();
 	}
