@@ -8,11 +8,15 @@ import type { QuickAddError } from "./quickAddError";
  * "QuickAdd: (LEVEL)" and the builders' preview shows them under a QuickAdd
  * field, so both drop it. The template cycle/depth reports arrive wrapped as
  * `[QuickAdd: ... ]`, because the same string is also spliced into the output
- * as a placeholder, so they are unwrapped first.
+ * as a placeholder, so they are unwrapped first. A sentence with QuickAdd as
+ * its subject ("QuickAdd could not find a.js") keeps its verb: "Could not find
+ * a.js".
  */
 export function withoutBrandPrefix(message: string): string {
 	const unwrapped = message.replace(/^\[(QuickAdd:[\s\S]*)\]$/i, "$1");
-	return unwrapped.replace(/^QuickAdd:\s*/i, "");
+	if (/^QuickAdd:/i.test(unwrapped)) return unwrapped.replace(/^QuickAdd:\s*/i, "");
+	const rest = unwrapped.replace(/^QuickAdd\s+/, "");
+	return rest === unwrapped ? unwrapped : rest.charAt(0).toUpperCase() + rest.slice(1);
 }
 
 export abstract class QuickAddLogger implements ILogger {
