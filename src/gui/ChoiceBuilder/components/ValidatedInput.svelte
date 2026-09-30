@@ -61,6 +61,9 @@ let {
 } = $props();
 
 let invalid = $state(false);
+// A required field stays neutral until the user has typed in it or left it:
+// flagging a field they haven't reached yet is noise (#2034).
+let touched = $state(false);
 let hintMessage = $state("");
 let hintVariant = $state<HintVariant>("neutral");
 let validateToken = 0;
@@ -84,7 +87,7 @@ function setHint(
 
 async function runValidator(candidate: string): Promise<boolean> {
 	if (required && normalize(candidate).length === 0) {
-		setHint(requiredMessage, true);
+		setHint(touched ? requiredMessage : undefined, touched);
 		return false;
 	}
 	if (!validator) {
@@ -114,6 +117,7 @@ async function runValidator(candidate: string): Promise<boolean> {
 function handleInput(event: Event) {
 	const next = (event.currentTarget as HTMLInputElement | HTMLTextAreaElement)
 		.value;
+	touched = true;
 	value = next;
 	onChange?.(next);
 }
@@ -122,6 +126,7 @@ function handleInput(event: Event) {
 // (mirrors createValidatedInput's runValidator(initialValue) + setRequired()).
 $effect(() => {
 	void required;
+	void touched;
 	const current = value;
 	void runValidator(current);
 });
@@ -156,6 +161,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-describedby={hintId}
 		{value}
 		oninput={handleInput}
+		onblur={() => (touched = true)}
 		use:suggester={attach}
 		use:indentOnTab
 	></textarea>
@@ -173,6 +179,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-describedby={hintId}
 		{value}
 		oninput={handleInput}
+		onblur={() => (touched = true)}
 		use:suggester={attach}
 	/>
 {/if}

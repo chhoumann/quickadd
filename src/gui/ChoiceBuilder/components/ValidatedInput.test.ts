@@ -4,7 +4,8 @@ import { tick } from "svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 
 describe("ValidatedInput", () => {
-	it("shows the required message on an empty value and clears it once filled", async () => {
+	// #2034: an untouched required field is not flagged yet.
+	it("waits until the empty required field is left before showing the message", async () => {
 		const { container } = render(ValidatedInput, {
 			props: {
 				value: "",
@@ -15,13 +16,39 @@ describe("ValidatedInput", () => {
 		await tick();
 		await tick();
 		const hint = container.querySelector(".qa-field-hint") as HTMLElement;
+		const input = container.querySelector("input") as HTMLInputElement;
+		expect(hint.textContent).toBe("");
+		expect(input.getAttribute("aria-invalid")).toBe("false");
+
+		await fireEvent.blur(input);
+		await tick();
+		await tick();
+		expect(hint.textContent).toBe("Insert after text is required");
+		expect(input.getAttribute("aria-invalid")).toBe("true");
+	});
+
+	it("shows the required message once typed text is cleared, and clears it once filled", async () => {
+		const { container } = render(ValidatedInput, {
+			props: {
+				value: "",
+				required: true,
+				requiredMessage: "Insert after text is required",
+			},
+		});
+		const hint = container.querySelector(".qa-field-hint") as HTMLElement;
+		const input = container.querySelector("input") as HTMLInputElement;
+		const type = async (text: string) => {
+			input.value = text;
+			await fireEvent.input(input);
+			await tick();
+			await tick();
+		};
+
+		await type("#");
+		await type("");
 		expect(hint.textContent).toBe("Insert after text is required");
 
-		const input = container.querySelector("input") as HTMLInputElement;
-		input.value = "# Heading";
-		await fireEvent.input(input);
-		await tick();
-		await tick();
+		await type("# Heading");
 		expect(hint.textContent).toBe("");
 		expect(input.getAttribute("aria-invalid")).toBe("false");
 	});
