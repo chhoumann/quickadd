@@ -30,6 +30,10 @@ vi.mock("../formatters/completeFormatter", () => ({
 		constructor() {}
 	},
 }));
+vi.mock("../utils/templaterRerunDeprecation", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../utils/templaterRerunDeprecation")>()),
+	warnDeprecatedOnce: vi.fn(),
+}));
 vi.mock("../ai/AIAssistant", () => ({
 	runAIAssistant: vi.fn(),
 }));
@@ -48,6 +52,10 @@ import { UserScript } from "../types/macros/UserScript";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddApi } from "../quickAddApi";
+import { NestedChoiceCommand } from "../types/macros/QuickCommands/NestedChoiceCommand";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
+import { TEMPLATER_REPLACE_COMMAND_ID, warnDeprecatedOnce } from "../utils/templaterRerunDeprecation";
 
 const createConditionalCommand = (
 	condition: ConditionalCommand["condition"],
@@ -249,3 +257,51 @@ afterAll(() => {
 		expect(executeCommandById).not.toHaveBeenCalled();
 	});
 });
+
+// #2020 review: the Templater re-run notice must see the step before
+// "Replace templates" even when one of them is inside a Conditional branch.
+describe("MacroChoiceEngine Templater re-run notice across branches", () => {
+	const always = {
+		mode: "variable",
+		variableName: "go",
+		operator: "equals",
+		valueType: "string",
+		expectedValue: "yes",
+	} as ConditionalCommand["condition"];
+	const replace = () => new ObsidianCommand("Templater: Replace templates in the active file", TEMPLATER_REPLACE_COMMAND_ID);
+	const warned = () => (warnDeprecatedOnce as ReturnType<typeof vi.fn>).mock.calls.map(([, message]) => message as string);
+
+	beforeEach(() => vi.clearAllMocks());
+
+	it("warns when a branch ends with a Capture and Replace templates follows the Conditional", async () => {
+		const conditional = new ConditionalCommand({
+			condition: always,
+			thenCommands: [new NestedChoiceCommand(new CaptureChoice("Branch capture"))],
+			elseCommands: [],
+		});
+		const { engine } = createEngine([conditional, replace()], { go: "yes" });
+		await engine.run();
+		expect(warned()).toEqual([expect.stringContaining("after 'Branch capture'")]);
+	});
+
+	it("warns when a branch starts with Replace templates after an outer Template step", async () => {
+		const conditional = new ConditionalCommand({
+			condition: always,
+			thenCommands: [replace()],
+			elseCommands: [],
+		});
+		const template = new NestedChoiceCommand(new TemplateChoice("Outer template"));
+		const { engine } = createEngine([template, conditional], { go: "yes" });
+		await engine.run();
+		expect(warned()).toEqual([expect.stringContaining("after 'Outer template'")]);
+	});
+
+	it("does not treat the Conditional itself as the step before", async () => {
+		const conditional = new ConditionalCommand({ condition: always, thenCommands: [], elseCommands: [] });
+		const template = new NestedChoiceCommand(new TemplateChoice("Before the conditional"));
+		const { engine } = createEngine([template, conditional, replace()], { go: "no" });
+		await engine.run();
+		expect(warned()).toEqual([expect.stringContaining("after 'Before the conditional'")]);
+	});
+});
+
