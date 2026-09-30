@@ -215,10 +215,12 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 	{/snippet}
 </SettingItem>
 
-{#if !choice.propertyCapture}
+<!-- Deprecated (#2014): shown only to choices that already have it on, so they
+     can turn it off. -->
+{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
 <SettingItem
-	name="Run Templater on entire destination file after capture"
-	desc="Advanced / legacy: this executes any <% %> anywhere in the destination file (including inside code blocks)."
+	name="Run Templater on entire destination file after capture (deprecated)"
+	desc="Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination file, including inside code blocks."
 >
 	{#snippet control()}
 		<Toggle

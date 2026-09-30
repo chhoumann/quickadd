@@ -277,6 +277,24 @@ describe("CaptureChoiceForm", () => {
 	// "Capture to", the "Capture to active file" toggle, a control-less "File path /
 	// format" — and the input that actually holds it advertised itself as a *file
 	// name* format. One decision, one label, one description, one input.
+	// #2014: the whole-file Templater pass is deprecated. Only a choice that
+	// already has it on still sees the row, so it can turn it off.
+	it("shows the deprecated whole-file Templater option only while it is on", async () => {
+		const { container, props } = mountForm();
+		const rowName = "Run Templater on entire destination file after capture (deprecated)";
+		expect(settingNames(container)).not.toContain(rowName);
+
+		props.choice.templater = { afterCapture: "wholeFile" };
+		flushSync();
+		const toggle = settingItem(container, rowName).querySelector(".checkbox-container") as HTMLElement;
+		expect(toggle.classList.contains("is-enabled")).toBe(true);
+
+		await fireEvent.click(toggle);
+		flushSync();
+		expect(props.choice.templater.afterCapture).toBe("none");
+		expect(settingNames(container)).not.toContain(rowName);
+	});
+
 	it("describes the capture target with a single labelled field", () => {
 		const { container, getByLabelText } = mountForm();
 		const names = settingNames(container);

@@ -46,6 +46,7 @@ import { resolveObsidianPropertyType } from "../utils/obsidianPropertyTypes";
 import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { inheritPropertyValueType } from "../utils/propertyCaptureFormat";
+import { warnDeprecatedOnce } from "../utils/templaterRerunDeprecation";
 import {
 	normalizeAppendLinkOptions,
 	placementSupportsFrontmatter,
@@ -640,7 +641,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const { content: written, merged } = await writeNote(this.app, file, priorContent, newFileContent);
 		options.onCommit();
 		const wholeFileTemplater = this.choice.templater?.afterCapture === "wholeFile";
-		if (wholeFileTemplater) await overwriteTemplaterOnce(this.app, file);
+		if (wholeFileTemplater) {
+			warnDeprecatedOnce(
+				`templater-whole-file:${this.choice.id}`,
+				`'${this.choice.name}' uses "Run Templater on entire destination file after capture", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.`,
+			);
+			await overwriteTemplaterOnce(this.app, file);
+		}
 		const postProcessed = await this.applyCapturePropertyVars(file);
 		// Only a pass that actually rewrote the note invalidates the cursor offsets.
 		const rewritten = (wholeFileTemplater || postProcessed) && await this.app.vault.read(file) !== written;

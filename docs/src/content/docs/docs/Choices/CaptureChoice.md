@@ -575,10 +575,16 @@ choice.
 
 ### Run Templater on the whole file afterwards {#run-templater-on-entire-destination-file-after-capture}
 
-_Run Templater on entire destination file after capture_ is an advanced,
-legacy option: it executes any `<% %>` anywhere in the destination file,
-including inside code blocks. Leave it off unless you specifically need that
-whole-file pass. When that pass changes the note, QuickAdd skips placing the
+:::caution[Deprecated]
+_Run Templater on entire destination file after capture_ is deprecated and will
+be removed in a future release. QuickAdd already runs Templater in what it
+captures, so the option is no longer needed. The builder only shows it on
+choices that already have it on, and a Capture that uses it shows a notice once
+per session. Turn it off.
+:::
+
+The option executes any `<% %>` anywhere in the destination file, including
+inside code blocks. When that pass changes the note, QuickAdd skips placing the
 cursor at `{{CURSOR}}`, since the text under the marker may have moved.
 
 ### Templater and newly created notes {#templater-and-newly-created-files}
