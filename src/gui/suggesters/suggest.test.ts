@@ -327,10 +327,15 @@ describe("TextInputSuggest placement in a prompt", () => {
 	// and an 800px tall viewport.
 	let input: HTMLInputElement;
 	let actions: HTMLElement;
-	let geometry: { input: [top: number, bottom: number]; actionsTop: number; listHeight: number };
+	let geometry: {
+		input: [top: number, bottom: number];
+		actionsTop: number;
+		listHeight: number;
+		inputX?: [left: number, width: number];
+	};
 
-	const box = (top: number, bottom: number) =>
-		({ top, bottom, height: bottom - top, left: 0, right: 300, width: 300, x: 0, y: top }) as DOMRect;
+	const box = (top: number, bottom: number, left = 0, width = 300) =>
+		({ top, bottom, height: bottom - top, left, right: left + width, width, x: left, y: top }) as DOMRect;
 
 	beforeEach(() => {
 		const modal = document.createElement("div");
@@ -344,7 +349,7 @@ describe("TextInputSuggest placement in a prompt", () => {
 		vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(800);
 		vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(1000);
 		vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-			if (this === input) return box(...geometry.input);
+			if (this === input) return box(...geometry.input, ...(geometry.inputX ?? []));
 			if (this === actions) return box(geometry.actionsTop, geometry.actionsTop + 30);
 			// The list's containing block starts at the viewport's origin.
 			if (this.classList.contains("suggestion-container")) {
@@ -378,6 +383,19 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(list().style.width).toBe("300px");
 		// Past the 500px cap Obsidian puts on suggestion lists.
 		expect(list().style.maxWidth).toBe("none");
+	});
+
+	it.each([
+		// A phone's Macro builder script field, 108px wide beside Browse and Add.
+		["a narrow input", 1000, [28, 108], "300px", "28px"],
+		["a narrow input near the right edge", 390, [250, 108], "300px", "90px"],
+		["a narrow input in a viewport narrower than the minimum", 250, [20, 108], "250px", "0px"],
+	] as const)("is at least 300px wide beside %s, inside the viewport", async (_name, viewportWidth, inputX, width, left) => {
+		vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(viewportWidth);
+		geometry = { input: [100, 130], actionsTop: 600, listHeight: 47, inputX: [...inputX] };
+		await openSuggest();
+		expect(list().style.width).toBe(width);
+		expect(list().style.left).toBe(left);
 	});
 
 	// Input 484-514, action bar from 546: 32px below the input, 4px of it the gap.
