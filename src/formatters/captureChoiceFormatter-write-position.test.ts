@@ -326,6 +326,29 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(content).toBe(`## Log\n- first\n\n${block}\n- second\n- captured\n\n## Next\n`);
 	});
 
+	it("includes subsections in a CRLF note's section end (#2022)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+				considerSubsections: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\r\n- first\r\n\r\n### Sub\r\n- sub\r\n\r\n## Next\r\n- untouched\r\n",
+			createFile(),
+		);
+
+		const at = content.indexOf("- captured");
+		expect(at).toBeGreaterThan(content.indexOf("- sub"));
+		expect(at).toBeLessThan(content.indexOf("## Next"));
+	});
+
 	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
 		const choice = createChoice({
 			insertAfter: {
