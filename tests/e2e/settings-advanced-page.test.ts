@@ -35,15 +35,17 @@ it("opens the Advanced page from the QuickAdd tab and saves its settings", async
 			"Allow URI x-callback-url",
 		]));
 
+		const saved = () => obsidian.dev.evalJson<boolean>(
+			"app.plugins.plugins.quickadd.settings.showInputCancellationNotification",
+		);
+		const before = await saved();
 		await obsidian.dev.evalJson(`(() => {
 			[...document.querySelectorAll(".vertical-tab-content .setting-item")]
 				.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Show input cancellation notifications")
 				.querySelector(".checkbox-container").click();
 			return true;
 		})()`);
-		await expect.poll(() => obsidian.dev.evalJson<boolean>(
-			"app.plugins.plugins.quickadd.settings.showInputCancellationNotification",
-		), POLL_OPTS).toBe(true);
+		await expect.poll(saved, POLL_OPTS).toBe(!before);
 	} finally {
 		await obsidian.dev.evalJson(`(() => { app.setting.close(); return true; })()`);
 	}
