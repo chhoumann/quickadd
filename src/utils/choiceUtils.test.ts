@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type IChoice from "src/types/choices/IChoice";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type { ChoiceType } from "src/types/choices/choiceType";
+import { walkChoicesInSettings } from "src/migrations/helpers/choice-traversal";
 import {
 	childChoicesOf,
+	clearEmptyFormatFlag,
 	dedupeChoicesById,
 	defaultIconForChoiceType,
 	flattenChoices,
@@ -434,5 +436,65 @@ describe("treeHasUnreadableChildren (#1566)", () => {
 		expect(
 			treeHasUnreadableChildren([null as unknown as IChoice, choice("Leaf")]),
 		).toBe(false);
+	});
+});
+
+// #2047: 2.29 saved a switched-on toggle with no text; empty now means the default.
+describe("clearEmptyFormatFlag", () => {
+	const capture = (format: unknown) => ({ ...choice("Capture"), type: "Capture", format }) as IChoice & { format: unknown };
+	const template = (fileNameFormat: unknown) => ({ ...choice("Template"), fileNameFormat }) as IChoice & { fileNameFormat: unknown };
+
+	it("turns off a Capture format or File name that is on but has no text, keeping the text", () => {
+		const cases = [
+			[capture({ enabled: true, format: "" }), "format", { enabled: false, format: "" }],
+			[capture({ enabled: true, format: " \n\t" }), "format", { enabled: false, format: " \n\t" }],
+			[capture({ enabled: true }), "format", { enabled: false }],
+			[template({ enabled: true, format: "" }), "fileNameFormat", { enabled: false, format: "" }],
+		] as const;
+		for (const [target, key, expected] of cases) {
+			clearEmptyFormatFlag(target);
+			expect((target as unknown as Record<string, unknown>)[key]).toEqual(expected);
+		}
+	});
+
+	it("leaves a format with text, a switched-off format, and malformed values alone", () => {
+		const kept = [
+			capture({ enabled: true, format: "- {{VALUE}}" }),
+			capture({ enabled: false, format: "hidden {{VALUE}}" }),
+			template({ enabled: true, format: "{{VALUE:title}}" }),
+			capture(null),
+			capture("not an object"),
+			template(undefined),
+		];
+		const before = JSON.stringify(kept);
+		for (const target of kept) clearEmptyFormatFlag(target);
+		expect(JSON.stringify(kept)).toBe(before);
+	});
+
+	it("reaches folder children, macro steps and conditional branches when walked over settings", () => {
+		const inFolder = capture({ enabled: true, format: "" });
+		const inMacro = template({ enabled: true, format: "" });
+		const inBranch = capture({ enabled: true, format: "" });
+		const settings = {
+			choices: [
+				multi("Folder", [inFolder]),
+				{
+					...choice("Macro"),
+					type: "Macro",
+					macro: {
+						id: "m",
+						name: "Macro",
+						commands: [
+							{ id: "n", name: "step", type: "NestedChoice", choice: inMacro },
+							{ id: "c", name: "if", type: "Conditional", thenCommands: [{ id: "t", name: "then", type: "NestedChoice", choice: inBranch }], elseCommands: [] },
+						],
+					},
+				} as IChoice,
+			],
+		};
+		walkChoicesInSettings(settings, clearEmptyFormatFlag);
+		expect(inFolder.format).toEqual({ enabled: false, format: "" });
+		expect(inMacro.fileNameFormat).toEqual({ enabled: false, format: "" });
+		expect(inBranch.format).toEqual({ enabled: false, format: "" });
 	});
 });

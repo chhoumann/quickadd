@@ -16,6 +16,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import {
 	childChoicesOf,
+	clearEmptyFormatFlag,
 	hasUnreadableChildren,
 	isChoiceLike
 } from "../utils/choiceUtils";
@@ -72,6 +73,9 @@ export function normalizeImportedChoice(choice: IChoice): void {
 		if (current === undefined) target[key] = value;
 		else if (isPlainObject(current) && isPlainObject(value)) target[key] = { ...value, ...current };
 	}
+	// As loading data.json does: a package exported by 2.29 or earlier can hold
+	// a switched-on but empty Capture format or File name.
+	clearEmptyFormatFlag(choice);
 }
 
 export function remapChoiceTree(

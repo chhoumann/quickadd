@@ -1,6 +1,9 @@
 import { expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
+import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { CommandType } from "../../src/types/macros/CommandType";
+import type { ICommand } from "../../src/types/macros/ICommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { clickAt, insertText, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
@@ -151,4 +154,52 @@ it("asks for the note title while File name is empty", async () => {
 	} finally {
 		await closeAll();
 	}
+});
+
+// #2047: QuickAdd 2.29.0 and earlier saved `enabled: true` with no text when the
+// toggle was switched on and left empty. The builder now shows that as an empty
+// field, which means the default, so the run must do the same.
+it("runs a legacy choice saved with its toggle on and no text as the default", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const inbox = await seedVaultFile(obsidian, sandbox, "Legacy inbox.md", "# Inbox\n");
+	const template = await seedVaultFile(obsidian, sandbox, "Legacy template.md", "body\n");
+	const capture = new CaptureChoice("Legacy empty format capture");
+	capture.captureTo = inbox;
+	capture.prepend = true;
+	capture.format = { enabled: true, format: "" };
+	const nested = new CaptureChoice("Legacy nested capture");
+	nested.captureTo = inbox;
+	nested.prepend = true;
+	nested.format = { enabled: true, format: "  " };
+	const macro = new MacroChoice("Legacy empty format macro");
+	macro.macro.commands = [{ id: "nested", name: nested.name, type: CommandType.NestedChoice, choice: nested } as ICommand];
+	const templateChoice = new TemplateChoice("Legacy empty file name template");
+	templateChoice.templatePath = template;
+	templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: [sandbox.path("Legacy")] };
+	templateChoice.fileNameFormat = { enabled: true, format: "" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [capture, macro, templateChoice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+	// Loading doesn't rewrite data.json; the next ordinary save stores the fix.
+	const onDisk = await plugin.data<{ choices: IChoice[] }>().read();
+	expect((onDisk.choices[0] as CaptureChoice).format).toEqual({ enabled: true, format: "" });
+
+	const captured = await obsidian.execJson<{ ok: boolean; effect: string }>("quickadd:run", {
+		id: capture.id, verify: true, "value-value": "from the capture",
+	});
+	expect(captured).toMatchObject({ ok: true, effect: "changed" });
+	await obsidian.execJson("quickadd:run", { id: macro.id, "value-value": "from the macro" });
+	await expect.poll(() => sandbox.read("Legacy inbox.md"), POLL_OPTS)
+		.toBe("# Inbox\nfrom the capture\nfrom the macro");
+
+	const created = await obsidian.execJson<{ ok: boolean; file?: string }>("quickadd:run", {
+		id: templateChoice.id, verify: true, "value-value": "Legacy title",
+	});
+	expect(created).toMatchObject({ ok: true, file: `${sandbox.path("Legacy")}/Legacy title.md` });
+
+	// What agents read (quickadd:list) agrees with the run.
+	const listed = await obsidian.execJson<{ choices: { id: string; writes?: Record<string, string> }[] }>("quickadd:list", {});
+	expect(listed.choices.find((c) => c.id === capture.id)?.writes?.format).toBe("{{VALUE}}");
+	expect(listed.choices.find((c) => c.id === templateChoice.id)?.writes?.fileName).toBe("{{VALUE}}");
 });

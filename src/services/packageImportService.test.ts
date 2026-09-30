@@ -2222,6 +2222,35 @@ describe("applyPackageImport - choice normalization", () => {
 		});
 	});
 
+	it("imports a switched-on but empty Capture format or File name as the default (#2047)", async () => {
+		const { app } = createFakeApp();
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(
+					makeChoice("cap", "Old capture", "Capture", {
+						captureTo: "Inbox.md",
+						format: { enabled: true, format: "" },
+					} as Partial<ICaptureChoice>),
+				),
+				makePackageChoice(
+					makeChoice("tpl", "Old template", "Template", {
+						templatePath: "Templates/Note.md",
+						fileNameFormat: { enabled: true, format: "  " },
+					} as Partial<ITemplateChoice>),
+				),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			pkg,
+			choiceDecisions: decisions([["cap", "import"], ["tpl", "import"]]),
+		});
+
+		expect((result.updatedChoices[0] as ICaptureChoice).format).toEqual({ enabled: false, format: "" });
+		expect((result.updatedChoices[1] as ITemplateChoice).fileNameFormat).toEqual({ enabled: false, format: "  " });
+	});
+
 	it("carries an exported Template's legacy file-exists setting over", async () => {
 		const { app } = createFakeApp();
 		const pkg = makePackage({

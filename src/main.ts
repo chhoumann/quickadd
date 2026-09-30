@@ -21,6 +21,7 @@ import { hasTemplateExtension, isPathWithinTemplateFolders, normalizeTemplateFol
 import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
+import { walkChoicesInSettings } from "./migrations/helpers/choice-traversal";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
@@ -35,6 +36,7 @@ import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
 import {
 	childChoicesOf,
+	clearEmptyFormatFlag,
 	dedupeChoicesById,
 	isChoiceLike,
 	resolveChoiceIcon,
@@ -278,6 +280,10 @@ export default class QuickAdd extends Plugin {
 		if (Array.isArray(settings.choices)) {
 			settings.choices = dedupeChoicesById(settings.choices);
 		}
+
+		// Runs every load, not as a one-time migration: QuickAdd 2.29 still saves
+		// this shape, so a downgrade and a later upgrade can bring it back (#2047).
+		walkChoicesInSettings(settings, clearEmptyFormatFlag);
 
 		return settings;
 	}
