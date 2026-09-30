@@ -3,7 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, expectNoPrompt, pressKey, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, expectNoPrompt, jsLiteral, pressKey, waitForElement } from "./uiHelpers";
 
 // #1876: the one-page form lists fields in the order the format reads, not
 // dates first and the capture text last.
@@ -143,13 +143,13 @@ describe("one-page form for a Template choice", () => {
 
 		await waitForElement(obsidian, FIELD);
 		const labels = await obsidian.dev.evalJson<string[]>(
-			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).filter((field) => field.querySelector("input, textarea")).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
+			`Array.from(document.querySelectorAll(${jsLiteral(FIELD)})).filter((field) => field.querySelector("input, textarea")).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
 		);
 		expect(labels).toEqual(["Client", "Note title", "Summary"]);
 
 		for (const [label, text] of [["Client", "Acme"], ["Note title", "Kickoff"], ["Summary", "Went well"]] as const) {
 			expect(await obsidian.dev.evalJson<boolean>(`(() => {
-				const field = Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).find((row) => row.querySelector(".setting-item-name")?.textContent === ${JSON.stringify(label)});
+				const field = Array.from(document.querySelectorAll(${jsLiteral(FIELD)})).find((row) => row.querySelector(".setting-item-name")?.textContent === ${jsLiteral(label)});
 				const input = field?.querySelector("input, textarea");
 				input?.focus();
 				return Boolean(input);
