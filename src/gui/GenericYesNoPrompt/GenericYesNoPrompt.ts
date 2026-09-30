@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
-import { suppressPointerPress } from "../confirmAction";
+import { addArrowKeyNavigation, suppressPointerPress } from "../confirmAction";
 
 /**
  * The yes/no dialog behind the scripting API's `yesNoPrompt`. Walking away from
@@ -79,21 +79,4 @@ export default class GenericYesNoPrompt extends Modal {
 
 		this.resolvePromise(this.input);
 	}
-}
-
-function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
-	buttons.forEach((button) => {
-		button.addEventListener("keydown", (event) => {
-			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-				const currentIndex = buttons.indexOf(button);
-				const nextIndex =
-					(currentIndex +
-						(event.key === "ArrowRight" ? 1 : -1) +
-						buttons.length) %
-					buttons.length;
-				buttons[nextIndex].focus();
-				event.preventDefault();
-			}
-		});
-	});
 }

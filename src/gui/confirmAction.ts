@@ -54,3 +54,21 @@ export function suppressPointerPress(button: HTMLButtonElement): void {
 	button.addEventListener("pointerdown", suppress);
 	button.addEventListener("mousedown", suppress);
 }
+
+/** Left and right arrows move focus between a dialog's buttons, wrapping around. */
+export function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
+	buttons.forEach((button) => {
+		button.addEventListener("keydown", (event) => {
+			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+				const currentIndex = buttons.indexOf(button);
+				const nextIndex =
+					(currentIndex +
+						(event.key === "ArrowRight" ? 1 : -1) +
+						buttons.length) %
+					buttons.length;
+				buttons[nextIndex].focus();
+				event.preventDefault();
+			}
+		});
+	});
+}
