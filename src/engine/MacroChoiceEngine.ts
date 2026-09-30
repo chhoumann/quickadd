@@ -110,6 +110,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
 	public params: ScriptParameters;
 	protected output: unknown;
+	/**
+	 * The last step that ran and was neither a Wait nor a Conditional, for the
+	 * Templater re-run notice. Kept on the engine so it carries across
+	 * Conditional branches, which run through a nested executeCommands.
+	 */
+	private previousStep: ICommand | undefined;
 	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
@@ -241,6 +247,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		this.previousStep = undefined;
 		await this.executeCommands(commands);
 	}
 
@@ -249,8 +256,6 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	protected async executeCommands(commands: ICommand[]) {
-		// Last step that was not a Wait, for the Templater re-run notice.
-		let previousStep: ICommand | undefined;
 		try {
 			for (const [index, command] of commands.entries()) {
 				// A null/undefined entry is corruption, not a command, and the old
@@ -270,14 +275,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
 					? classifyStep(command, (id) => resolveChoiceFromPlugin(this.plugin, id))
 					: null;
-				const rerunAfter = templaterRerunAfter(previousStep, command, (id) => resolveChoiceFromPlugin(this.plugin, id));
+				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => resolveChoiceFromPlugin(this.plugin, id));
 				if (rerunAfter) {
 					warnDeprecatedOnce(
 						`templater-rerun:${this.choice.id}:${command.id}`,
 						`Macro '${this.choice.name}' runs "Templater: Replace templates in the active file" after '${rerunAfter}'. QuickAdd already runs Templater in the notes it creates and captures, so this step is deprecated and can run template code twice. Remove it from the macro.`,
 					);
 				}
-				if (command.type !== CommandType.Wait) previousStep = command;
+				if (command.type !== CommandType.Wait && command.type !== CommandType.Conditional) {
+					this.previousStep = command;
+				}
 				const resumeInputs = role?.collect.kind === "scanChoice" &&
 					isDiscoveryInputBoundary(role.collect.choice, this.choiceExecutor.variables.get("value"));
 				await withPreparedChoiceInputs(this.choiceExecutor, command.id, async () => {
