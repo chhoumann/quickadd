@@ -35,6 +35,15 @@ The `due` prompt appears first, even though `attendees` comes first in the text.
 2. **Capture choices** resolve the capture target first, then the capture format.
 3. **Within one piece of text** (a file name, a template, a capture format), included templates (`{{TEMPLATE:path}}`) ask their prompts first. The rest is grouped by kind, and only inside a kind do prompts follow the order they appear. The kinds run in this order: plain `{{VALUE}}`/`{{NAME}}` first, then dates (`{{VDATE}}`), then named values (`{{VALUE:name}}`), then fields (`{{FIELD}}`) and file pickers (`{{FILE}}`), with the math prompt (`{{MVALUE}}`) last. Dates come before named values so that a `{{VALUE:due}}` reusing a `{{VDATE:due,...}}` answer is asked once, as a date.
 
+To be asked for one value first when prompts come one at a time, make it the plain `{{VALUE}}`, and name its prompt with [`|label:`](/docs/FormatSyntax/#value-label). This format asks for the body before the heading (the one-page form still lists the heading first, in format order):
+
+```markdown
+## {{VALUE:heading}}
+{{VALUE|type:multiline|label:Body}}
+```
+
+In a Capture, a plain `{{VALUE}}` takes your [editor selection](/docs/Choices/CaptureChoice/#use-editor-selection) instead of asking, when text is selected and the Capture uses the selection.
+
 No flag reorders individual prompts. If the sequence bothers you, switch on the [one-page input form](#one-form-instead-of-many-prompts): it lists every input in one form, in the order of the steps above (after the day, when **Which day** asks for one) with each text's fields in the order they appear, and you fill them in whatever order you like.
 
 :::note
