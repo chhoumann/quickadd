@@ -176,9 +176,9 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.macroGetVariables.mockReturnValue(new Map());
 	mocks.getSmartDefaults.mockReturnValue([]);
-	(globalThis as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 });
 
 describe("circular {{title}} re-check after format() (format-file-title-token)", () => {

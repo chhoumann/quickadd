@@ -273,11 +273,10 @@ beforeEach(() => {
 	mocks.getSmartDefaults.mockReturnValue([]);
 	mocks.resolveActiveDefault.mockReturnValue(null);
 
-	// Deterministic clipboard: empty by default. navigator may not exist in
-	// the jsdom-less environment, so define it.
-	(globalThis as any).navigator = {
+	// Deterministic clipboard: empty by default.
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 
 	// Deterministic moment used by the base formatter's VDATE formatting.
 	(globalThis as any).window ??= globalThis;
@@ -1024,9 +1023,9 @@ describe("CompleteFormatter - selection handling", () => {
 
 describe("CompleteFormatter - clipboard handling", () => {
 	it("replaces {{CLIPBOARD}} with clipboard contents", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: { readText: vi.fn().mockResolvedValue("copied!") },
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{CLIPBOARD}}")).resolves.toBe(
 			"copied!",
@@ -1034,11 +1033,11 @@ describe("CompleteFormatter - clipboard handling", () => {
 	});
 
 	it("falls back to empty string when clipboard read rejects", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockRejectedValue(new Error("denied")),
 			},
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("[{{CLIPBOARD}}]")).resolves.toBe("[]");
 	});

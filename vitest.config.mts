@@ -27,18 +27,20 @@ export default defineConfig({
 			"tests/!(e2e|packages)/**/*.{test,spec}.{ts,tsx}",
 		],
 		globals: true,
+		// Undo vi.stubGlobal before every test, so a stubbed navigator or
+		// window property never leaks into the next test.
+		unstubGlobals: true,
 		environment: "jsdom",
 		setupFiles: ["./tests/vitest-setup.ts"],
 		deps: {
 			optimizer: {
-				web: {
+				client: {
 					include: ["obsidian"],
 				},
 			},
 		},
 		coverage: {
 			provider: "v8",
-			all: true,
 			include: ["src/**/*.ts"],
 			exclude: ["src/**/*.test.ts", "src/**/*.d.ts"],
 			reporter: ["text-summary", "json-summary"],

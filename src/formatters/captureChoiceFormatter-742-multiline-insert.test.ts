@@ -64,9 +64,9 @@ const createFormatter = () =>
 	new CaptureChoiceFormatter(createMockApp(), createSelectionFormatterPlugin());
 
 beforeEach(() => {
-	(global as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 });
 
 /**

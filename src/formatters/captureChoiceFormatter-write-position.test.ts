@@ -62,11 +62,11 @@ const createFile = (path = "Test.md"): TFile => {
 describe("CaptureChoiceFormatter write position behavior", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("writes to top for non-active targets when prepend is false", async () => {

@@ -95,9 +95,9 @@ const createFormatter = (activeView: unknown) =>
 	new CaptureChoiceFormatter(createMockApp(activeView), createSelectionFormatterPlugin());
 
 beforeEach(() => {
-	(global as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 });
 
 describe("#1536 — create-if-not-found at cursor without an active editor", () => {

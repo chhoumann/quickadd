@@ -118,11 +118,11 @@ const createFormatter = (
 
 describe("capture linebreak escapes only apply to the format string (issue #527)", () => {
 	beforeEach(() => {
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("preserves literal \\n in selected text through the two-pass capture flow", async () => {
