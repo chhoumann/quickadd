@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
+import { addArrowKeyNavigation } from "./confirmAction";
 
 export type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
 
@@ -140,21 +141,4 @@ function safeStringify(value: unknown): string {
 	} catch {
 		return String(value);
 	}
-}
-
-function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
-	buttons.forEach((button) => {
-		button.addEventListener("keydown", (event) => {
-			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-				const currentIndex = buttons.indexOf(button);
-				const nextIndex =
-					(currentIndex +
-						(event.key === "ArrowRight" ? 1 : -1) +
-						buttons.length) %
-					buttons.length;
-				buttons[nextIndex].focus();
-				event.preventDefault();
-			}
-		});
-	});
 }
