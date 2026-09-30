@@ -6,7 +6,7 @@ import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("global-var-autocomplete");
 
-const FORMAT_INPUTS = JSON.stringify('.captureChoiceBuilder textarea[placeholder="Format"]');
+const FORMAT_INPUTS = JSON.stringify('.captureChoiceBuilder .qa-field textarea');
 
 async function visibleSuggestions(): Promise<string[]> {
 	return getContext().obsidian.dev.evalJson<string[]>(`(() =>
