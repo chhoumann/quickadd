@@ -82,7 +82,7 @@ vi.mock("../gui/GenericWideInputPrompt/GenericWideInputPrompt", () => ({
 }));
 vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
 	__esModule: true,
-	default: { Prompt: vi.fn() },
+	default: { Ask: vi.fn() },
 }));
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({
 	__esModule: true,

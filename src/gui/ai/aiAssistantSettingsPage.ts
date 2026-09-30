@@ -8,7 +8,7 @@ import type {
 import type { AIProvider } from "src/ai/Provider";
 import { settingsStore } from "src/settingsStore";
 import type { SettingsKey } from "../components/settingsDefinitions";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { populateModelDropdown } from "../modelSelect";
 import { ProviderPickerModal } from "../ProviderPickerModal";
 import { AIProviderSettingPage } from "./AIProviderSettingPage";
@@ -106,11 +106,11 @@ async function confirmRemoveProvider(
 	provider: AIProvider | undefined,
 ): Promise<void> {
 	if (!provider?.id) return;
-	const confirmed = await GenericYesNoPrompt.Prompt(
-		app,
-		`Delete ${provider.name.trim() || "this provider"}?`,
-		"Commands that use its models will need another model.",
-	);
+	const confirmed = await confirmAction(app, {
+		title: `Delete ${provider.name.trim() || "this provider"}?`,
+		message: "Commands that use its models will need another model.",
+		action: "Delete",
+	});
 	if (confirmed) removeProvider(provider.id);
 }
 

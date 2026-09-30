@@ -32,8 +32,8 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: (...args: unknown[]) => suggestMock(...args) },
 }));
 
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: (...args: unknown[]) => yesNoPromptMock(...(args as [])) },
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => yesNoPromptMock(...(args as [])),
 }));
 
 vi.mock("./TemplateInsertEngine", async (importOriginal) => {

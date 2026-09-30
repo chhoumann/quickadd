@@ -21,10 +21,8 @@ vi.mock("../gui/MacroGUIs/MacroBuilder", () => ({ MacroBuilder: class {} }));
 vi.mock("../gui/MultiChoiceSettingsModal", () => ({
 	MultiChoiceSettingsModal: class {},
 }));
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: {
-		Prompt: (...args: unknown[]) => mocks.yesNoPrompt(...args),
-	},
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
 }));
 vi.mock("../settingsStore", () => ({
 	settingsStore: { getState: () => ({ choices: [] }) },
@@ -122,7 +120,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 
 			await deleteChoiceWithConfirmation(empty, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			// The whole clause is absent, not merely zero-valued.
 			expect(message).not.toContain("everything inside it");
 			expect(message).toBe("Are you sure you want to delete 'Empty'?");
@@ -134,7 +132,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 
 			await deleteChoiceWithConfirmation(one, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 1 choice.");
 			expect(message).not.toContain("1 choices");
 		});
@@ -145,7 +143,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 
 			await deleteChoiceWithConfirmation(outer, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 2 folders.");
 			expect(message).not.toContain("choices");
 		});

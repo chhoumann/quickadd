@@ -10,7 +10,7 @@ import {
 } from "src/ai/providerConnection";
 import { settingsStore } from "src/settingsStore";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { ModelDirectoryModal } from "../ModelDirectoryModal";
 import {
 	findProvider,
@@ -413,10 +413,10 @@ export class AIProviderSettingPage extends SettingPage {
 				)
 				.addButton((button) => {
 					button.setButtonText("Remove retired").onClick(async () => {
-						const confirmed = await GenericYesNoPrompt.Prompt(
-							this.app,
-							`Remove ${countModels(retiredNames.size)} retired by the provider from ${provider.name}?`,
-						);
+						const confirmed = await confirmAction(this.app, {
+							title: `Remove ${countModels(retiredNames.size)} retired by the provider from ${provider.name}?`,
+							action: "Remove",
+						});
 						if (!confirmed) return;
 						this.edit((p) => ({
 							...p,
@@ -458,10 +458,10 @@ export class AIProviderSettingPage extends SettingPage {
 	}
 
 	private async deleteModel(name: string): Promise<void> {
-		const confirmed = await GenericYesNoPrompt.Prompt(
-			this.app,
-			`Delete ${name}?`,
-		);
+		const confirmed = await confirmAction(this.app, {
+			title: `Delete ${name}?`,
+			action: "Delete",
+		});
 		if (!confirmed) return;
 		// By name: a sync may have replaced the model objects meanwhile.
 		this.edit((p) => ({
@@ -528,11 +528,11 @@ export class AIProviderSettingPage extends SettingPage {
 						.onClick(async () => {
 							const provider = this.provider;
 							if (!provider) return;
-							const confirmed = await GenericYesNoPrompt.Prompt(
-								this.app,
-								`Delete ${provider.name.trim() || "this provider"}?`,
-								"Commands that use its models will need another model.",
-							);
+							const confirmed = await confirmAction(this.app, {
+								title: `Delete ${provider.name.trim() || "this provider"}?`,
+								message: "Commands that use its models will need another model.",
+								action: "Delete",
+							});
 							if (!confirmed) return;
 							removeProvider(this.providerId);
 							this.close();

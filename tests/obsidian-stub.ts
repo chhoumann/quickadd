@@ -718,6 +718,24 @@ export const Modal = class {
 	close() {
 		(this as any).onClose?.();
 		this.containerEl.remove();
+		this.closeCallback?.();
+	}
+
+	closeCallback?: () => unknown;
+
+	setTitle(title: string) {
+		this.titleEl.textContent = title;
+		return this;
+	}
+
+	setContent(content: string) {
+		this.contentEl.textContent = content;
+		return this;
+	}
+
+	setCloseCallback(callback: () => unknown) {
+		this.closeCallback = callback;
+		return this;
 	}
 
 	// Real Obsidian's Modal defines no-op lifecycle hooks, so subclasses may
@@ -725,6 +743,41 @@ export const Modal = class {
 	onOpen() {}
 	onClose() {}
 };
+
+/** Like Obsidian's: a button closes the modal after its handler, unless the handler returns truthy. */
+export class ConfirmationModal extends Modal {
+	buttonContainerEl: HTMLElement;
+
+	constructor(app: any) {
+		super(app);
+		this.buttonContainerEl = document.createElement("div");
+		this.buttonContainerEl.className = "modal-button-container";
+		this.modalEl.appendChild(this.buttonContainerEl);
+	}
+
+	addButton(cb: (button: ButtonComponent & { setInitialFocus(): any; setCancel(): any }) => unknown) {
+		const button = new ButtonComponent(this.buttonContainerEl) as any;
+		let handler: () => unknown = () => undefined;
+		button.onClick = (next: () => unknown) => {
+			handler = next;
+			return button;
+		};
+		button.setInitialFocus = () => button;
+		button.setCancel = () => {
+			button.buttonEl.classList.add("mod-cancel");
+			return button;
+		};
+		button.buttonEl.addEventListener("click", () => {
+			if (!handler()) this.close();
+		});
+		cb(button);
+		return this;
+	}
+
+	addCancelButton(text = "Cancel") {
+		return this.addButton((button) => button.setButtonText(text).setCancel());
+	}
+}
 
 export const Scope = class {
   callbacks = new Map<string, (event: any) => unknown>();
@@ -1096,6 +1149,7 @@ export default {
   WorkspaceLeaf,
   FuzzySuggestModal,
   Modal,
+  ConfirmationModal,
   Menu,
   MenuItem,
   Scope,

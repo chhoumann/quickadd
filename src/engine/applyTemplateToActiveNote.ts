@@ -5,7 +5,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -337,11 +337,12 @@ async function maybeReconcileNoteLocation(
 		// the choice's own file-name preview is where the problem is explained.
 		if (!isCreatableFilePath(targetPath)) return;
 
-		const shouldMove = await GenericYesNoPrompt.Prompt(
-			app,
-			"Move note to match choice settings?",
-			`'${choice.name}' creates notes at '${targetPath}'. Move '${file.path}' there? Links to the note will be updated.`,
-		);
+		const shouldMove = await confirmAction(app, {
+			title: "Move note to match choice settings?",
+			message: `'${choice.name}' creates notes at '${targetPath}'. Move '${file.path}' there? Links to the note will be updated.`,
+			action: "Move",
+			destructive: false,
+		});
 		if (!shouldMove) return;
 
 		const lastSlash = targetPath.lastIndexOf("/");

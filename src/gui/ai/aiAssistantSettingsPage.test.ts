@@ -9,9 +9,7 @@ const mocks = vi.hoisted(() => ({
 	confirm: vi.fn(),
 	picked: null as AIProvider | null,
 }));
-vi.mock("../GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: mocks.confirm },
-}));
+vi.mock("../confirmAction", () => ({ confirmAction: mocks.confirm }));
 vi.mock("../ProviderPickerModal", () => ({
 	ProviderPickerModal: class {
 		waitForClose: Promise<void>;

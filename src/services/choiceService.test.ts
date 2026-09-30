@@ -96,10 +96,8 @@ vi.mock("../gui/MultiChoiceSettingsModal", () => ({
 	},
 }));
 
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: {
-		Prompt: (...args: unknown[]) => mocks.yesNoPrompt(...args),
-	},
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
 }));
 
 vi.mock("../settingsStore", () => ({
@@ -439,7 +437,7 @@ describe("choiceService", () => {
 				createChoice("Template", "b"),
 			];
 			await deleteChoiceWithConfirmation(multi, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("Group");
 			expect(message).toContain("everything inside it: 2 choices.");
 		});
@@ -453,8 +451,8 @@ describe("choiceService", () => {
 			folder.choices = [createChoice("Template", "a")];
 
 			await deleteChoiceWithConfirmation(folder, fakeApp);
-			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete folder");
-			const folderMessage = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete folder");
+			const folderMessage = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(folderMessage).toContain("Deleting this folder");
 			expect(folderMessage).not.toContain("Deleting this choice");
 
@@ -463,7 +461,7 @@ describe("choiceService", () => {
 				createChoice("Template", "Daily note"),
 				fakeApp,
 			);
-			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete choice");
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete choice");
 		});
 
 		it("does not call a nested folder a choice", async () => {
@@ -475,7 +473,7 @@ describe("choiceService", () => {
 
 			await deleteChoiceWithConfirmation(folder, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 2 choices and 1 folder.");
 		});
 
@@ -511,7 +509,7 @@ describe("choiceService", () => {
 			await expect(
 				deleteChoiceWithConfirmation(folder, fakeApp),
 			).resolves.toBe(true);
-			expect(mocks.yesNoPrompt.mock.calls[0][2]).toBe(
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message).toBe(
 				"Are you sure you want to delete 'Journal'?",
 			);
 		});
@@ -520,7 +518,7 @@ describe("choiceService", () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const macro = createChoice("Macro", "MyMacro");
 			await deleteChoiceWithConfirmation(macro, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("MyMacro");
 			expect(message).toContain("macro commands");
 		});
@@ -551,7 +549,7 @@ describe("choiceService", () => {
 			await expect(deleteChoiceWithConfirmation(macro, fakeApp)).resolves.toBe(
 				true,
 			);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("couldn't read this macro's commands");
 			expect(message).toContain("still stored under it in data.json");
 		});
@@ -586,7 +584,7 @@ describe("choiceService", () => {
 			} as unknown as IChoice;
 
 			await deleteChoiceWithConfirmation(macro, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message, label).toContain(
 				"Deleting this choice will also delete its macro commands.",
 			);
@@ -685,7 +683,7 @@ describe("choiceService", () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const choice = createChoice("Template", "Plain");
 			await deleteChoiceWithConfirmation(choice, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toBe("Are you sure you want to delete 'Plain'?");
 		});
 	});
