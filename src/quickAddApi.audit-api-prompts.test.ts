@@ -68,7 +68,9 @@ vi.mock("./settingsStore", () => ({
 		}),
 	},
 }));
-vi.mock("./utilityObsidian", () => ({ getDate: vi.fn() }));
+vi.mock("./utils/dates", () => ({
+	getDate: vi.fn(),
+}));
 vi.mock("./utils/errorUtils", async () => {
 	// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 	const actual = await vi.importActual<typeof import("./utils/errorUtils")>(

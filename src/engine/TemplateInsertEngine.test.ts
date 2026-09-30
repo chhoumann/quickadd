@@ -64,19 +64,16 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-vi.mock("../utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<object>();
-	return {
-		...actual,
-		getTemplater: vi.fn(() => ({})),
-		overwriteTemplaterOnce: vi.fn(),
-		templaterParseTemplate: vi.fn(
+vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getTemplater: vi.fn(() => ({})),
+	overwriteTemplaterOnce: vi.fn(),
+	templaterParseTemplate: vi.fn(
 			async (_app: unknown, content: string) => content,
 		),
-	};
-});
+}));
 
-import { templaterParseTemplate } from "../utilityObsidian";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 import { TFile, TFolder, MarkdownView, type App } from "obsidian";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";

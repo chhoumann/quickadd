@@ -31,21 +31,27 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 	default: class {},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	getMarkdownFilesInFolder: vi.fn(() => []),
-	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesWithTag: vi.fn(() => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	openExistingFileTab: vi.fn(() => null),
-	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn(() => null),
+	openFile: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true }));

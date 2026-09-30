@@ -3,9 +3,9 @@ import { createMockApp, createFile } from "../../tests/helpers/formatters/captur
 import { createCaptureFormatterPlugin } from "../../tests/helpers/formatters/plugin";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
-import { templaterParseTemplate } from "../utilityObsidian";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 vi.mock("../main", async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
 
 describe("Templater execution control", () => {

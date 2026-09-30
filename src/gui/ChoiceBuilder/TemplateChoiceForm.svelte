@@ -16,7 +16,8 @@ import {
 	existingNoteActions,
 } from "../../template/fileExistsPolicy";
 import { log } from "../../logger/logManager";
-import { getAllFolderPathsInVault, getTemplateFile } from "../../utilityObsidian";
+import { getAllFolderPathsInVault } from "../../utils/vaultQueries";
+import { getTemplateFile } from "../../utils/templateFolderUtils";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { sortFolderPathsByTree } from "../../utils/folder-sorting";
 import { ExclusiveSuggester } from "../suggesters/exclusiveSuggester";

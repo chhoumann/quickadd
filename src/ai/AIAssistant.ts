@@ -6,7 +6,7 @@ import { ChoiceAbortError } from "src/errors/ChoiceAbortError";
 import GenericSuggester from "src/gui/GenericSuggester/genericSuggester";
 import type { PromptProvider } from "src/interactive/promptProvider";
 import { settingsStore } from "src/settingsStore";
-import { getMarkdownFilesInFolder } from "src/utilityObsidian";
+import { getMarkdownFilesInFolder } from "src/utils/vaultQueries";
 import invariant from "src/utils/invariant";
 import { isCancellationError } from "src/utils/errorUtils";
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";

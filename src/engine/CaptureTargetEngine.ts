@@ -4,7 +4,7 @@ import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatte
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "../gui/InputSuggester/renderNotePathSuggestion";
 import invariant from "../utils/invariant";

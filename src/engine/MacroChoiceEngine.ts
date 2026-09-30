@@ -20,7 +20,7 @@ import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import { getQuickAddInstance } from "../quickAddInstance";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScript } from "../utilityObsidian";
+import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -41,7 +41,7 @@ import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssi
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
-import { openFile } from "../utilityObsidian";
+import { openFile } from "../utils/fileOpening";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";

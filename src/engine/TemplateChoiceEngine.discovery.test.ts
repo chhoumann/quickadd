@@ -67,14 +67,19 @@ vi.mock("./promptForTemplateNoteDiscovery", async () => {
 	};
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
-	getAllFolderPathsInVault: vi.fn(() => []),
-	getTemplateFile: (app: App, path: string) => app.vault.getAbstractFileByPath(path),
 	templaterParseTemplate: async (_app: App, content: string) => content,
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: insertFileLinkMock,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: openExistingFileTabMock,
 	openFile: openFileMock,
 }));

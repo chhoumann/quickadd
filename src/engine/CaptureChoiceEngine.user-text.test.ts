@@ -4,7 +4,7 @@ import type { App, TFile } from "obsidian";
 import { TFile as ObsidianTFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
-import { templaterParseTemplate } from "../utilityObsidian";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 
 // The real CaptureChoiceFormatter runs here: only the executable steps
 // (inline scripts, macros, Templater) are replaced with recorders.
@@ -37,7 +37,7 @@ vi.mock("../engine/SingleMacroEngine", () => ({
 }));
 // Stands in for Templater: a tag that upper-cases a string literal renders it,
 // any other tag renders as TP-RAN.
-vi.mock("../utilityObsidian", async (importOriginal) => ({
+vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
 	...(await importOriginal<object>()),
 	templaterParseTemplate: vi.fn(async (_app: App, content: string) => content
 		.replace(/<%\s*"([^"]*)"\.toUpperCase\(\)\s*%>/g, (_tag, text: string) => text.toUpperCase())

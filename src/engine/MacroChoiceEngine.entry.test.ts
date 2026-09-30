@@ -26,14 +26,11 @@ const { mockLoadModuleExports, mockInitializeUserScriptSettings, mockSuggest, mo
 		mockInputPrompt: vi.fn(),
 	}));
 
-vi.mock("../utilityObsidian", async () => {
-	const actual = await vi.importActual<Record<string, unknown>>(
-		"../utilityObsidian",
+vi.mock("../utils/userScript", async () => {
+	const actual = await vi.importActual<typeof UserScriptModule>(
+		"../utils/userScript",
 	);
-	const { getUserScriptMemberAccess, selectUserScriptMember } =
-		await vi.importActual<typeof UserScriptModule>(
-			"../utils/userScript",
-		);
+	const { getUserScriptMemberAccess, selectUserScriptMember } = actual;
 
 	return {
 		...actual,

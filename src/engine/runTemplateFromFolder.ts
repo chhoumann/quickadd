@@ -6,7 +6,7 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../types/choices/TemplateChoice";
-import { normalizeTemplateFolderPaths } from "../utilityObsidian";
+import { normalizeTemplateFolderPaths } from "../utils/templateFolderUtils";
 import { isCancellationError, reportError } from "../utils/errorUtils";
 import { openQuickAddSettings } from "../utils/openPluginSettings";
 

@@ -5,7 +5,7 @@ import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
 // Mocks mirror captureChoiceFormatter-linebreak.test.ts so the formatter can run
 // under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 

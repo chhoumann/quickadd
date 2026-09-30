@@ -6,7 +6,7 @@ import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
-import { getUserScript, getUserScriptMemberAccess } from "../utilityObsidian";
+import { getUserScript, getUserScriptMemberAccess } from "../utils/userScript";
 import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";

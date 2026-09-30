@@ -41,7 +41,7 @@ import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistant
 import { settingsStore } from "../../settingsStore";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
-import { getUserScriptMemberAccess } from "../../utilityObsidian";
+import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 import {

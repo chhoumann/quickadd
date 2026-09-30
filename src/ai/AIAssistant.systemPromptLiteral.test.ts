@@ -54,7 +54,7 @@ vi.mock("./aiHelpers", () => ({
 	getModelMaxTokens: mocks.getModelMaxTokens,
 }));
 
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: mocks.getMarkdownFilesInFolder,
 }));
 

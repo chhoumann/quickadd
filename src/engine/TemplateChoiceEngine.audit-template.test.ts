@@ -86,14 +86,20 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: vi.fn(() => null),
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
+	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: insertFileLinkToActiveViewMock,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
-	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 }));
 
 vi.mock("../gui/GenericSuggester/genericSuggester", () => ({

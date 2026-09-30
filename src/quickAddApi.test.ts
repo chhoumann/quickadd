@@ -131,7 +131,7 @@ vi.mock("./settingsStore", () => ({
 	},
 }));
 
-vi.mock("./utilityObsidian", () => ({
+vi.mock("./utils/dates", () => ({
 	getDate: mocks.getDate,
 }));
 

@@ -10,7 +10,7 @@
  * high-risk trio run_choice/apply_template/set_frontmatter is deliberately NOT shipped.
  */
 import { type App, TFile } from "obsidian";
-import { getMarkdownFilesInFolder } from "../../../utilityObsidian";
+import { getMarkdownFilesInFolder } from "../../../utils/vaultQueries";
 import { insertTextAfterPositionInBody } from "../../../formatters/helpers/insertionPositioning";
 import { insertAtNoteBodyStart } from "../../../utils/noteContentInsertion";
 import { processNote } from "../../../utils/noteContent";

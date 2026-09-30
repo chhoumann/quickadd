@@ -27,8 +27,10 @@ vi.mock("../formatters/completeFormatter", () => ({
 		setTemplateInclusionState() {}
 	},
 }));
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templateFolderUtils", () => ({
 	getTemplateFile: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => null),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(),

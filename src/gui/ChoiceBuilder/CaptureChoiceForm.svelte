@@ -2,7 +2,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import { getTemplateFile } from "../../utilityObsidian";
+import { getTemplateFile } from "../../utils/templateFolderUtils";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import SettingItem from "../components/SettingItem.svelte";

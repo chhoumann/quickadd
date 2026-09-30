@@ -5,18 +5,10 @@ import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import {
-	getMarkdownFilesInFolder,
-	getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithProperty,
-	insertOnNewLineBelow,
-	insertFileLinkToActiveView,
-	isFolder,
-	jumpToNextTemplaterCursorIfPossible,
-	openFile,
-	overwriteTemplaterOnce,
-	setMarkdownCursorAtOffset,
-} from "../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
+import { insertOnNewLineBelow, insertFileLinkToActiveView, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
+import { jumpToNextTemplaterCursorIfPossible, overwriteTemplaterOnce } from "../utils/templaterIntegration";
+import { openFile } from "../utils/fileOpening";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -102,26 +94,32 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 	setUseSelectionAsCaptureValueMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	// Editor-insertion helpers return true when the insertion lands; default the mocks
 	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
 	appendToCurrentLine: vi.fn(() => true),
+	insertFileLinkToActiveView: vi.fn(),
+	insertOnNewLineAbove: vi.fn(() => true),
+	insertOnNewLineBelow: vi.fn(() => true),
+	setMarkdownCursorAtOffset: vi.fn(() => true),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithProperty: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
-	insertFileLinkToActiveView: vi.fn(),
-	insertOnNewLineAbove: vi.fn(() => true),
-	insertOnNewLineBelow: vi.fn(() => true),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	openExistingFileTab: vi.fn(() => null),
-	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(() => true),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn(() => null),
+	openFile: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({

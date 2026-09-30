@@ -1,4 +1,4 @@
-import { jumpToNextTemplaterCursorIfPossible } from "../utilityObsidian";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,7 +64,7 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	return { ...actual, TemplateInsertEngine: TemplateInsertEngineMock };
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(

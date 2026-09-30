@@ -21,15 +21,13 @@ import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
-import {
-	getTemplateFile,
-	isFolder,
-	loadUserScript,
-} from "src/utilityObsidian";
+import { getTemplateFile } from "src/utils/templateFolderUtils";
+import { isFolder } from "src/utils/vaultQueries";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
+	loadUserScript,
 	type LoadedUserScript,
 } from "src/utils/userScript";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";

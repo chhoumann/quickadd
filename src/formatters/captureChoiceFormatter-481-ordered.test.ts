@@ -6,7 +6,7 @@ import type { SectionOrdering } from "../types/choices/ICaptureChoice";
 
 // Mocks mirror captureChoiceFormatter-742-multiline-insert.test.ts so the
 // formatter can run under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 

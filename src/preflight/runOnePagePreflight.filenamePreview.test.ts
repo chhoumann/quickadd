@@ -41,17 +41,17 @@ vi.mock("./OnePageInputModal", () => ({
 
 vi.mock("src/quickAddSettingsTab", () => ({ QuickAddSettingsTab: class {} }));
 vi.mock("src/main", () => ({ __esModule: true, default: class {} }));
-vi.mock("src/utilityObsidian", async () => {
+vi.mock("src/utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesWithTag: vi.fn(() => []),
+	isFolder: vi.fn(() => false),
+}));
+vi.mock("src/utils/userScript", () => ({
+	loadUserScript: vi.fn(),
+}));
+vi.mock("src/utils/templateFolderUtils", async () => {
 	const { TFile: TFileCls } = await import("obsidian");
-	const { getDate } = await import("src/utils/dates");
 	return {
-		getMarkdownFilesInFolder: vi.fn(() => []),
-		getMarkdownFilesWithTag: vi.fn(() => []),
-		loadUserScript: vi.fn(),
-		isFolder: vi.fn(() => false),
-		// A configured folder can hold {{DATE:}}, which the requirement scan
-		// resolves through this helper; the preview renders {{DATE}} with it too.
-		getDate,
 		getTemplateFile: vi.fn((app: App, path: string) => {
 			const f = app.vault.getAbstractFileByPath(path);
 			return f instanceof TFileCls ? f : null;

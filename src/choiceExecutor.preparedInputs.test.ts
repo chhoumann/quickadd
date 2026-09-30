@@ -25,7 +25,7 @@ vi.mock("./settingsStore", () => ({
 }));
 vi.mock("./preflight/runOnePagePreflight", () => ({ runOnePagePreflight: vi.fn() }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({ getFocusedPropertyTarget: () => null }));
-vi.mock("./utilityObsidian", async (importOriginal) => ({
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
 	...await importOriginal<Record<string, unknown>>(),
 	getOpenFileOriginLeaf: () => null,
 }));

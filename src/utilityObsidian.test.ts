@@ -7,15 +7,9 @@ import {
 	type WorkspaceParent,
 } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
-import {
-	areSameVaultFilePath,
-	getAllFolderPathsInVault,
-	getUserScript,
-	loadUserScript,
-	normalizeVaultFilePath,
-	getOpenFileOriginLeaf,
-	openFile,
-} from "./utilityObsidian";
+import { areSameVaultFilePath, normalizeVaultFilePath, getOpenFileOriginLeaf, openFile } from "./utils/fileOpening";
+import { getAllFolderPathsInVault } from "./utils/vaultQueries";
+import { getUserScript, loadUserScript } from "./utils/userScript";
 import type { IUserScript } from "./types/macros/IUserScript";
 import { CommandType } from "./types/macros/CommandType";
 import { log } from "./logger/logManager";

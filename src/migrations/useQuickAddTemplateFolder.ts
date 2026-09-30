@@ -1,6 +1,6 @@
 import { log } from "src/logger/logManager";
 import type QuickAdd from "src/main";
-import { normalizeTemplateFolderPaths } from "src/utilityObsidian";
+import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 
 export default {
 	description:
