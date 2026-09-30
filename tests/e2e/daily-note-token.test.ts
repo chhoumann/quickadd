@@ -138,6 +138,16 @@ describe("{{DAILY}} in native Obsidian", () => {
 		await expect.poll(() => read(`${folder}/2031-02-14.md`), { timeout: 10000, interval: 100 })
 			.toBe("# 2031-02-14\n\n## Log\n- from a snippet\n");
 
+		// So does a template included into Capture to.
+		const include = await seedVaultFile(obsidian, sandbox, "Target include.md", "{{DAILY}}");
+		const included = dailyCapture();
+		included.captureTo = `{{TEMPLATE:${include}}}`;
+		await saveChoice(included);
+		const viaInclude = await obsidian.execJson("quickadd:run", { id: included.id, verify: true, date: "2031-02-13", vars: JSON.stringify({ value: "from an include" }) });
+		expect(viaInclude).toMatchObject({ ok: true, effect: "created", file: `${folder}/2031-02-13.md` });
+		await expect.poll(() => read(`${folder}/2031-02-13.md`), { timeout: 10000, interval: 100 })
+			.toBe("# 2031-02-13\n\n## Log\n- from an include\n");
+
 		// A script's Date at 17:45 names the same day's note, which still gets the template.
 		await obsidian.dev.evalJsonAsync(`app.plugins.plugins.quickadd.api.executeChoice(${JSON.stringify(choice.name)}, { value: "late" }, { date: new Date(2031, 1, 15, 17, 45) }).then(() => true)`);
 		await expect.poll(() => read(`${folder}/2031-02-15.md`), { timeout: 10000, interval: 100 })

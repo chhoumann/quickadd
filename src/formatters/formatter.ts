@@ -78,7 +78,12 @@ export abstract class Formatter extends ValueFormatter {
 		const regex = new RegExp(DAILY_NOTE_REGEX.source, "gi");
 		return input.replace(regex, (_token, link?: string) => {
 			if (link && this.app) return dailyNoteLink(this.app, path, this.getLinkSourcePath() ?? "");
-			if (this.promptScope === "captureTarget") this.dailyNoteTarget = path;
+			if (this.promptScope === "captureTarget") {
+				// An included template's text lands in its includer's target.
+				let owner: Formatter = this;
+				while (owner.templateInclusion?.includer) owner = owner.templateInclusion.includer;
+				owner.dailyNoteTarget = path;
+			}
 			return path;
 		});
 	}
