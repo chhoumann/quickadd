@@ -1,6 +1,7 @@
 import {
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
+	DAILY_SYNTAX_SUGGEST_REGEX,
 	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 	DATE_SYNTAX_SUGGEST_REGEX,
 	FIELD_SYNTAX_SUGGEST_REGEX,
@@ -299,6 +300,17 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		expansions: () => [
 			token("{{TIME:A|case:lower}}", "Lowercases formatted text, such as AM to am"),
 		],
+	},
+	{
+		regex: DAILY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{DAILY}}", "The daily note's path, from your Daily notes settings"),
+	},
+	{
+		regex: DAILY_SYNTAX_SUGGEST_REGEX,
+		// A link is content; in a path it would name a file "[[...]]".
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{DAILY|link}}", "A link to the daily note"),
 	},
 
 	// == The note you ran QuickAdd from ==

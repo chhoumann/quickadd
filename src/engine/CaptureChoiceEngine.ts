@@ -91,6 +91,13 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import {
+	DAILY_NOTE_REGEX,
+	dailyNotePath,
+	getDailyNoteSettings,
+	readDailyNoteTemplate,
+	renderDailyNoteTemplate,
+} from "../utils/periodicNotes";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -667,8 +674,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			destination: filePath, destinationKind: "file",
 		});
 
-		let initialContent = file ? await readNote(this.app, file) : "";
 		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
+		let initialContent = file ? await readNote(this.app, file)
+			: createWithTemplate ? "" : await this.dailyNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
 			const template = new SingleTemplateEngine(this.app, this.plugin,
@@ -1083,6 +1091,21 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		};
 	}
 
+	/**
+	 * A daily note that Capture to names with {{DAILY}} and that doesn't exist
+	 * yet is filled from the Daily notes template, the way Obsidian fills it.
+	 * Null when the target isn't the daily note or no template is set.
+	 */
+	private async dailyNoteContent(filePath: string): Promise<string | null> {
+		if (this.choice.captureToActiveFile || !DAILY_NOTE_REGEX.test(this.choice.captureTo ?? "")) return null;
+		const settings = getDailyNoteSettings(this.app);
+		const clocks = this.choiceExecutor.clocks;
+		const day = window.moment(clocks?.date ?? clocks?.now).startOf("day");
+		if (`${dailyNotePath(settings, day)}.md` !== filePath) return null;
+		const template = await readDailyNoteTemplate(this.app, settings);
+		return template === null ? null : renderDailyNoteTemplate(template, settings, day, window.moment(clocks?.now));
+	}
+
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
@@ -1115,7 +1138,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 
 		let fileContent = "";
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+		if (!this.choice.createFileIfItDoesntExist.createWithTemplate) {
+			fileContent = await this.dailyNoteContent(filePath) ?? "";
+		} else {
 			const singleTemplateEngine: SingleTemplateEngine =
 				new SingleTemplateEngine(
 					this.app,

@@ -63,6 +63,7 @@ text. A Templater tag in the format itself can still use an answer, as in
 | [`{{DATE+7}}`](#date) | Seven days from today |
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
 | [`{{TIME}}`](#time) | The current time, like `14:05` |
+| [`{{DAILY}}`](#daily) | The daily note, like `Journal/2026-07-08` |
 
 **The note you ran QuickAdd from**
 
@@ -233,6 +234,30 @@ allowed in file names on Windows or macOS.
 Unlike `{{DATE}}`, `{{TIME}}` takes no `+N` offset. For a time other than "now",
 use `{{DATE:HH:mm}}` with an offset, or ask for one with
 [`{{VDATE:<name>, <format>|time}}`](#vdate).
+
+### The daily note: `{{DAILY}}` {#daily}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{DAILY}}` is the path of the day's daily note, from the folder and date
+format in Obsidian's **Daily notes** settings. Set **Capture to** to
+`{{DAILY}}` and entries land in the note **Open today's daily note** opens,
+even after you change those settings.
+
+| You write | You get (Daily notes folder `Journal`, format `YYYY-MM-DD`) |
+| --- | --- |
+| `{{DAILY}}` | `Journal/2026-07-08` |
+| `{{DAILY\|link}}` | `[[2026-07-08]]` |
+
+When the [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
+plugin manages daily notes, `{{DAILY}}` uses its settings instead.
+
+Good to know:
+
+- The day follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
+- If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
+- `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
+- If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
 
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 
