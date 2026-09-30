@@ -205,6 +205,18 @@ export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const DAILY_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[D]?[A]?[I]?[L]?[Y]?[}]?[}]?$|{{DAILY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
 );
+export const WEEKLY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[W]?[E]?[E]?[K]?[L]?[Y]?[}]?[}]?$|{{WEEKLY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
+);
+export const MONTHLY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[M]?[O]?[N]?[T]?[H]?[L]?[Y]?[}]?[}]?$|{{MONTHLY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
+);
+export const QUARTERLY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[Q]?[U]?[A]?[R]?[T]?[E]?[R]?[L]?[Y]?[}]?[}]?$|{{QUARTERLY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
+);
+export const YEARLY_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[Y]?[E]?[A]?[R]?[L]?[Y]?[}]?[}]?$|{{YEARLY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
+);
 export const RANDOM_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[R]?[A]?[N]?[D]?[O]?[M]?[:]?$|{{RANDOM:[^\n\r}]*}}$/i,
 );

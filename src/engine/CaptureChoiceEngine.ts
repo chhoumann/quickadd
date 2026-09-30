@@ -92,10 +92,11 @@ import {
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import {
-	type DailyNoteSettings,
-	getDailyNoteSettings,
-	readDailyNoteTemplate,
-	renderDailyNoteTemplate,
+	getPeriodicNoteSettings,
+	type Period,
+	type PeriodicNoteSettings,
+	readPeriodicNoteTemplate,
+	renderPeriodicNoteTemplate,
 } from "../utils/periodicNotes";
 
 const DEFAULT_NOTICE_DURATION = 4000;
@@ -463,8 +464,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				!fileAlreadyExists &&
 				!!this.choice?.createFileIfItDoesntExist?.enabled &&
 				!this.choice?.createFileIfItDoesntExist?.createWithTemplate &&
-				// A daily note created from its template has that template's front matter.
-				!this.dailyNoteSettingsFor(filePath)?.template;
+				// A periodic note created from its template has that template's front matter.
+				!this.periodicNoteFor(filePath)?.settings.template;
 			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
 			// |multi only yields a real YAML list when its array can be collected
@@ -677,7 +678,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
 		let initialContent = file ? await readNote(this.app, file)
-			: createWithTemplate ? "" : await this.dailyNoteContent(filePath) ?? "";
+			: createWithTemplate ? "" : await this.periodicNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
 			const template = new SingleTemplateEngine(this.app, this.plugin,
@@ -1116,24 +1117,25 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * The Daily notes settings when the capture creates the daily note that
-	 * Capture to named with {{DAILY}}, or null.
+	 * The period and its settings when the capture creates the periodic note
+	 * ({{DAILY}}, {{WEEKLY}}, ...) that Capture to named, or null.
 	 */
-	private dailyNoteSettingsFor(filePath: string): DailyNoteSettings | null {
+	private periodicNoteFor(filePath: string): { period: Period; settings: PeriodicNoteSettings } | null {
 		if (this.choice.captureToActiveFile || this.choice.createFileIfItDoesntExist.createWithTemplate) return null;
-		const target = this.formatter.dailyNoteTarget;
-		return target !== null && `${target}.md` === filePath ? getDailyNoteSettings(this.app) : null;
+		const target = this.formatter.periodicNoteTarget;
+		if (!target || `${target.path}.md` !== filePath) return null;
+		return { period: target.period, settings: getPeriodicNoteSettings(this.app, target.period) };
 	}
 
-	/** The missing daily note's first content: its template, filled the way Obsidian fills it. */
-	private async dailyNoteContent(filePath: string): Promise<string | null> {
-		const settings = this.dailyNoteSettingsFor(filePath);
-		if (!settings) return null;
-		const template = await readDailyNoteTemplate(this.app, settings);
+	/** The missing periodic note's first content: its template, filled the way its plugin fills it. */
+	private async periodicNoteContent(filePath: string): Promise<string | null> {
+		const note = this.periodicNoteFor(filePath);
+		if (!note) return null;
+		const template = await readPeriodicNoteTemplate(this.app, note.settings, note.period);
 		if (template === null) return null;
 		const clocks = this.choiceExecutor.clocks;
-		const day = window.moment(clocks?.date ?? clocks?.now).startOf("day");
-		return renderDailyNoteTemplate(template, settings, day, window.moment(clocks?.now));
+		return renderPeriodicNoteTemplate(template, note.settings, note.period,
+			window.moment(clocks?.date ?? clocks?.now), window.moment(clocks?.now));
 	}
 
 	private async onCreateFileIfItDoesntExist(
@@ -1169,7 +1171,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		let fileContent = "";
 		if (!this.choice.createFileIfItDoesntExist.createWithTemplate) {
-			fileContent = await this.dailyNoteContent(filePath) ?? "";
+			fileContent = await this.periodicNoteContent(filePath) ?? "";
 		} else {
 			const singleTemplateEngine: SingleTemplateEngine =
 				new SingleTemplateEngine(
