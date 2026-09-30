@@ -84,7 +84,7 @@ const createLocationOptions = $derived(
 				{ value: CREATE_IF_NOT_FOUND_CURSOR, label: "Cursor" },
 				{
 					value: CREATE_IF_NOT_FOUND_ORDERED,
-					label: "Ordered (place new section among siblings)",
+					label: "Ordered among siblings",
 				},
 			],
 );
@@ -101,8 +101,8 @@ const orderDirectionOptions = [
 	{ value: "asc", label: "Oldest / lowest first" },
 ];
 const unparseableOptions = [
-	{ value: "bottom", label: "Sort existing unparseable headings to bottom" },
-	{ value: "top", label: "Sort existing unparseable headings to top" },
+	{ value: "bottom", label: "Sort to bottom" },
+	{ value: "top", label: "Sort to top" },
 ];
 
 // Tracks whether the ordering descriptor is "pinned" — either the user explicitly
