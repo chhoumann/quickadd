@@ -2,7 +2,7 @@ import { Notice, type App } from "obsidian";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import { CaptureChoiceBuilder } from "../gui/ChoiceBuilder/captureChoiceBuilder";
 import { TemplateChoiceBuilder } from "../gui/ChoiceBuilder/templateChoiceBuilder";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import { MacroBuilder } from "../gui/MacroGUIs/MacroBuilder";
 import { MultiChoiceSettingsModal } from "../gui/MultiChoiceSettingsModal";
 import type QuickAdd from "../main";
@@ -299,11 +299,11 @@ export async function deleteChoiceWithConfirmation(
 		.filter(Boolean)
 		.join(" ");
 
-	const userConfirmed = await GenericYesNoPrompt.Prompt(
-		app,
-		`Delete ${choiceNoun(choice.type)}`,
-		body,
-	);
+	const userConfirmed = await confirmAction(app, {
+		title: `Delete ${choiceNoun(choice.type)}`,
+		message: body,
+		action: "Delete",
+	});
 
 	if (!userConfirmed) return false;
 

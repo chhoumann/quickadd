@@ -1,7 +1,7 @@
 import { packageSecretOptionNames } from "./packageAssets";
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import { log } from "../logger/logManager";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -278,11 +278,11 @@ async function defaultConfirmOverwrite(
 	app: App,
 	normalizedPath: string,
 ): Promise<boolean> {
-	return GenericYesNoPrompt.Prompt(
-		app,
-		"Overwrite existing file?",
-		`A file already exists at '${normalizedPath}'. Saving the package will overwrite it. Continue?`,
-	);
+	return confirmAction(app, {
+		title: "Overwrite existing file?",
+		message: `A file already exists at '${normalizedPath}'. Saving the package will overwrite it.`,
+		action: "Overwrite",
+	});
 }
 
 export async function writePackageToVault(

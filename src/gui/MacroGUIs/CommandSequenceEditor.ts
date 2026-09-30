@@ -30,7 +30,7 @@ import {
 } from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
@@ -198,11 +198,11 @@ export class CommandSequenceEditor {
 					throw new Error("command not found");
 				}
 
-				const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
-					this.app,
-					"Are you sure you wish to delete this command?",
-					`If you click yes, you will delete '${command.name}'.`
-				);
+				const promptAnswer = await confirmAction(this.app, {
+					title: `Delete '${command.name}'?`,
+					message: "The command will be removed from this macro.",
+					action: "Delete",
+				});
 				if (!promptAnswer) return;
 
 				const secretsCleared = await clearUserScriptSecretsFromCommand(
