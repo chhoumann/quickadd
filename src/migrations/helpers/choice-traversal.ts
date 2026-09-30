@@ -201,10 +201,19 @@ export function walkChoiceTree(choice: IChoice, visitor: ChoiceVisitor): void {
 }
 
 export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
-	walkSettings(
-		plugin.settings,
-		{ onChoice: visitor },
-	);
+	walkChoicesInSettings(plugin.settings, visitor);
+}
+
+/**
+ * Visit every choice in `settings`: root choices, folder children, choices
+ * macros run as nested steps (conditional branches included), and choices in
+ * pre-consolidation legacy macros.
+ */
+export function walkChoicesInSettings(
+	settings: { choices: IChoice[]; macros?: unknown },
+	visitor: ChoiceVisitor,
+): void {
+	walkSettings(settings, { onChoice: visitor });
 }
 
 /**
