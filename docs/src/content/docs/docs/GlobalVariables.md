@@ -16,7 +16,7 @@ every choice, every time.
 
 For example, define a snippet named `Signature`:
 
-```text title="Settings → QuickAdd → Advanced → Global variables"
+```text title="QuickAdd settings → Global variables"
 Name:  Signature
 Value: Logged by QuickAdd on {{DATE:YYYY-MM-DD}}
 ```
@@ -79,7 +79,7 @@ A snippet's value can contain any QuickAdd placeholder - `{{VALUE:...}}`,
 inserted, those placeholders run just like they would if you'd typed them
 directly.
 
-```text title="Settings → QuickAdd → Advanced → Global variables"
+```text title="QuickAdd settings → Global variables"
 Name:  MyProjects
 Value: {{VALUE:Inbox,Work,Personal,Archive}}
 ```
