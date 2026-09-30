@@ -113,13 +113,15 @@ doesn't exist yet) and import it:
 
 ```bash
 obsidian quickadd:package-preview path=reading-log.quickadd.json
-obsidian quickadd:package-import path=reading-log.quickadd.json
+obsidian quickadd:package-import path=reading-log.quickadd.json choices=import
 ```
 
-- Importing **replaces** any existing choice with the same `id`. Before
-  importing, check the preview: every choice must show `"exists":false`. If one
-  shows `true`, give it a different `id` (and a name that isn't in
-  `quickadd:list`), unless the user asked you to change that choice.
+- Always pass `choices=import`. It only adds new choices: if a choice with the
+  same `id` is already in the vault, the import is refused and nothing
+  changes. Check the preview first; every choice should show `"exists":false`.
+  If one shows `true`, give it a different `id` (and a name that isn't in
+  `quickadd:list`). Use `choices=overwrite` only when the user asked you to
+  change that choice.
 - Settings you leave out get QuickAdd's defaults.
 - Capture: `captureTo`, `format`, `insertAfter: {"enabled": true, "after": "## Log"}`,
   `prepend: true` (append to the bottom), `task: true`.

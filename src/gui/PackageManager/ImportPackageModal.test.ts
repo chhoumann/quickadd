@@ -293,3 +293,38 @@ describe("ImportPackageModal after import (#1880)", () => {
 		expect(close).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("ImportPackageModal choice actions", () => {
+	// Import only ever adds, so it is offered for new choices; Overwrite only
+	// ever replaces, so it is offered for choices already in the vault.
+	it("offers Import only for new choices and Overwrite only for existing ones", async () => {
+		const choice = (id: string, name: string) => ({
+			choice: { id, name, type: "Capture", command: false, captureTo: "Inbox.md" },
+			pathHint: [name],
+			parentChoiceId: null,
+		});
+		const pkg = JSON.stringify({
+			schemaVersion: 1,
+			quickAddVersion: "2.30.0",
+			createdAt: "2026-09-30T00:00:00.000Z",
+			rootChoiceIds: ["mine", "fresh"],
+			choices: [choice("mine", "Already here"), choice("fresh", "Brand new")],
+			assets: [],
+		});
+		settingsStore.setState((s) => ({
+			...s,
+			choices: [{ id: "mine", name: "Already here", type: "Capture", command: false } as never],
+		}));
+
+		const { container, getByLabelText } = render(ImportPackageModal, {
+			props: { app: fakeApp(), close: () => {} },
+		});
+		await fireEvent.input(container.querySelector("textarea") as HTMLTextAreaElement, { target: { value: pkg } });
+
+		const options = (name: string) =>
+			Array.from((getByLabelText(`Action for ${name}`) as HTMLSelectElement).options, (option) => option.value);
+		await waitFor(() => expect(options("Already here")).toEqual(["overwrite", "duplicate", "skip"]));
+		expect(options("Brand new")).toEqual(["import", "duplicate", "skip"]);
+		expect((getByLabelText("Action for Already here") as HTMLSelectElement).value).toBe("overwrite");
+	});
+});
