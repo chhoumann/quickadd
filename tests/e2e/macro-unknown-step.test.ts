@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS } from "./uiHelpers";
 
 // A Macro step QuickAdd can't run (a type from a newer QuickAdd after a
 // downgrade, or the retired Infinite AI Assistant) is skipped with a notice and
@@ -13,7 +13,7 @@ it.each(["SomeFutureThing", "InfiniteAIAssistant"])(
 		const { obsidian, plugin, sandbox } = getContext();
 		const marker = sandbox.path(`ran-${type}.md`);
 		const script = await seedVaultFile(obsidian, sandbox, `after-${type}.js`,
-			`module.exports = async ({ app }) => { await app.vault.create(${JSON.stringify(marker)}, "ran"); };`);
+			`module.exports = async ({ app }) => { await app.vault.create(${jsLiteral(marker)}, "ran"); };`);
 		await plugin.data<{ choices: unknown[] }>().patch((data) => {
 			data.choices = [{
 				id: "qa-e2e-unknown-step",
