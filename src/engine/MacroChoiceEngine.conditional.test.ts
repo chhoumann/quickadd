@@ -43,6 +43,8 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { ConditionalCommand } from "../types/macros/Conditional/ConditionalCommand";
 import { ObsidianCommand } from "../types/macros/ObsidianCommand";
 import type { IMacro } from "../types/macros/IMacro";
+import type { ICommand } from "../types/macros/ICommand";
+import { UserScript } from "../types/macros/UserScript";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddApi } from "../quickAddApi";
@@ -65,7 +67,7 @@ const createConditionalCommand = (
 };
 
 const createEngine = (
-	command: ConditionalCommand,
+	command: ConditionalCommand | ICommand[],
 	variables: Record<string, unknown>
 ) => {
 	const executeCommandById = vi.fn();
@@ -73,6 +75,8 @@ const createEngine = (
 		commands: {
 			executeCommandById,
 		},
+		// No file exists at any path: every user script is missing.
+		vault: { getAbstractFileByPath: () => null },
 	} as unknown as App;
 
 	const plugin = {
@@ -83,7 +87,7 @@ const createEngine = (
 	const macro: IMacro = {
 		name: "Test macro",
 		id: "macro-id",
-		commands: [command],
+		commands: Array.isArray(command) ? command : [command],
 	};
 
 	const choice: IMacroChoice = {
@@ -221,5 +225,27 @@ afterAll(() => {
 
 		expect(executeCommandById).toHaveBeenCalledWith("then-id");
 		expect(executeCommandById).not.toHaveBeenCalledWith("else-id");
+	});
+
+	it("stops the macro when a user script is missing", async () => {
+		const { engine, executeCommandById } = createEngine(
+			[new UserScript("gone", "scripts/gone.js"), new ObsidianCommand("After", "after-id")],
+			{},
+		);
+
+		await expect(engine.run()).rejects.toThrow("QuickAdd could not find scripts/gone.js.");
+		expect(executeCommandById).not.toHaveBeenCalled();
+	});
+
+	it("stops the macro when a conditional's script is missing, running neither branch", async () => {
+		const conditional = createConditionalCommand(
+			{ mode: "script", scriptPath: "scripts/gone.js" },
+			"then-id",
+			"else-id"
+		);
+		const { engine, executeCommandById } = createEngine(conditional, {});
+
+		await expect(engine.run()).rejects.toThrow("QuickAdd could not find scripts/gone.js.");
+		expect(executeCommandById).not.toHaveBeenCalled();
 	});
 });

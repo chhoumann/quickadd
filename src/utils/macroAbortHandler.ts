@@ -37,7 +37,12 @@ export function handleMacroAbort(
 			? error.message
 			: defaultReason;
 
-	log.logMessage(`${logPrefix}: ${message}`);
+	// A bare `abort()` carries the default "Macro execution aborted", which is
+	// the prefix itself; say it once.
+	const withReason = (prefix: string) =>
+		message === prefix ? prefix : `${prefix}: ${message}`;
+
+	log.logMessage(withReason(logPrefix));
 
 	// A genuine user prompt-dismissal is a UserCancelError (a MacroAbortError subclass).
 	// Keep the legacy message-string check as a fallback so a user script that aborts with
@@ -52,7 +57,7 @@ export function handleMacroAbort(
 		!isUserCancellation ||
 		settingsStore.getState().showInputCancellationNotification
 	) {
-		new Notice(`${noticePrefix}: ${message}`);
+		new Notice(withReason(noticePrefix));
 	}
 
 	return true;
