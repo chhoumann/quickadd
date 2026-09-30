@@ -346,6 +346,14 @@ async function collectForCaptureChoice(
 					: "No files found in target scope",
 			});
 		}
+		// The run picks the note before it formats anything, so the form lists
+		// the picker first. It is set after the scans above so that no format
+		// token can merge into this reserved id; move the other fields after it.
+		for (const [id, requirement] of [...collector.requirements]) {
+			if (id === captureTargetId) continue;
+			collector.requirements.delete(id);
+			collector.requirements.set(id, requirement);
+		}
 	}
 
 	if (seedCaptureSelectionAsValue) {

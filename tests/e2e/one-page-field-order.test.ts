@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
-import { createQuickAddE2EHarness } from "./e2eVault";
+import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, waitForElement } from "./uiHelpers";
 
 // #1876: the one-page form lists fields in the order the format reads, not
@@ -69,5 +69,56 @@ describe("one-page form field order", () => {
 		await expectNoPrompt(obsidian);
 		await expect.poll(() => sandbox.read("orders.md").catch(() => ""), POLL_OPTS)
 			.toBe("### 48 mugs for Northwind\n- [ ] Deliver 📅 2026-10-02\n- [ ] Invoice 📅 2026-10-02\n");
+	});
+});
+
+describe("one-page form capture target", () => {
+	it("lists the folder's note picker first, as the run asks for it first (#1947)", async () => {
+		const { obsidian, plugin, sandbox } = getContext();
+		await seedVaultFile(obsidian, sandbox, "inbox/alpha.md", "# Alpha\n");
+		await seedVaultFile(obsidian, sandbox, "inbox/beta.md", "# Beta\n");
+		const choice = new CaptureChoice("Log to inbox note");
+		choice.command = true;
+		choice.onePageInput = "always";
+		choice.captureTo = `${sandbox.path("inbox")}/`;
+		choice.format = { enabled: true, format: "- {{VALUE:what}} 📅 {{VDATE:due,YYYY-MM-DD}}\n" };
+		await plugin.data<QuickAddData>().patch((data) => {
+			data.onePageInputEnabled = false;
+			data.choices.push(choice);
+		});
+		await plugin.reload({ waitUntilReady: true });
+		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
+
+		await waitForElement(obsidian, FIELD);
+		expect(await obsidian.dev.evalJson<string[]>(
+			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
+		)).toEqual(["Select capture target file", "what", "due"]);
+
+		expect(await obsidian.dev.evalJson<boolean>(`(() => {
+			const select = document.querySelectorAll(${JSON.stringify(FIELD)})[0]?.querySelector("select");
+			if (!select) return false;
+			select.value = ${JSON.stringify(sandbox.path("inbox/beta.md"))};
+			select.dispatchEvent(new Event("change"));
+			return select.value === ${JSON.stringify(sandbox.path("inbox/beta.md"))};
+		})()`)).toBe(true);
+		for (const [index, text] of [[1, "Call Ada"], [2, "2026-10-02"]] as const) {
+			expect(await obsidian.dev.evalJson<boolean>(`(() => {
+				const input = document.querySelectorAll(${JSON.stringify(FIELD)})[${index}]?.querySelector("input, textarea");
+				input?.focus();
+				return Boolean(input);
+			})()`)).toBe(true);
+			await obsidian.exec("dev:cdp", {
+				method: "Input.insertText",
+				params: JSON.stringify({ text }),
+			});
+		}
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll(".modal-container button")].find((button) => button.textContent === "Submit")?.click();
+			return true;
+		})()`);
+		await expectNoPrompt(obsidian);
+		await expect.poll(() => sandbox.read("inbox/beta.md"), POLL_OPTS)
+			.toBe("- Call Ada 📅 2026-10-02\n# Beta\n");
+		expect(await sandbox.read("inbox/alpha.md")).toBe("# Alpha\n");
 	});
 });

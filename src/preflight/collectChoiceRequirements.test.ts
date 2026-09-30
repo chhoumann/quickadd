@@ -799,6 +799,31 @@ describe("collectChoiceRequirements - capture targets", () => {
 			.toBe(needsPicker);
 	});
 
+	it("lists the capture target first, as the run asks for it first (#1947)", async () => {
+		isFolderMock.mockReturnValue(true);
+		const choice = createCaptureChoice("Inbox/");
+		choice.format = { enabled: true, format: "- {{VALUE:what}} 📅 {{VDATE:due,YYYY-MM-DD}}" };
+		const requirements = await collect(choice, choiceExecutor);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual([
+			captureTargetKeyFor("capture-choice"), "what", "due",
+		]);
+	});
+
+	it("keeps the capture target out of reach of a format token that reuses its id", async () => {
+		isFolderMock.mockReturnValue(true);
+		const choice = createCaptureChoice("Inbox/");
+		choice.format = { enabled: true, format: `{{VALUE:a,b|name:${captureTargetKeyFor("capture-choice")}}}` };
+		const requirements = await collect(choice, choiceExecutor);
+
+		expect(requirements[0]).toMatchObject({
+			id: captureTargetKeyFor("capture-choice"),
+			type: "dropdown",
+			options: [],
+			placeholder: "No files found in target scope",
+		});
+	});
+
 	it("forces the capture target dropdown for a property:field=value target (issue #466)", async () => {
 		const requirements = await collect(createCaptureChoice("property:type=draft"), choiceExecutor);
 
