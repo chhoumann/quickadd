@@ -19,9 +19,10 @@ Imported the package above? Follow **After importing** in the card, then skip th
 4. Enable **Create file if it doesn't exist**.
 5. Set **Write position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
-7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section, and **Create line if not found** is on with placement **Top**, so the heading is added when a fresh note doesn't have it yet. A new Capture starts with both on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
-8. Leave **Link to captured file** disabled.
-9. Fill in **Capture format** with one of the recipes below.
+7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section.
+8. Make sure **Create line if not found** is on with placement **Top**, so the heading is inserted when a fresh note does not have it yet. A new Capture starts with both on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
+9. Leave **Link to captured file** disabled.
+10. Fill in **Capture format** with one of the recipes below.
 
 ## Recipes
 
@@ -44,6 +45,8 @@ Produces:
 - 18:54 first journal entry
 - 18:55 second journal entry
 ```
+
+Before QuickAdd 2.30.0, end each recipe's format with `\n` (for example `- {{DATE:HH:mm}} {{VALUE}}\n`). Without it, a capture at the end of a section removes the blank line before the next heading.
 
 ### Task line
 
