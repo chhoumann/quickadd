@@ -460,8 +460,25 @@ export class CompleteFormatter extends Formatter {
 		const parsedByLine = new Map(parsed.map((p) => [p.line, key(p)]));
 		const fresh =
 			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
+		if (!fresh) return buildSectionSubpath(parsed, cursor.line);
 
-		return buildSectionSubpath(fresh ? cached : parsed, cursor.line);
+		// A heading added just before the save isn't cached yet (#2030), so add
+		// the parsed headings the cache lacks, except those inside a block
+		// Obsidian doesn't read headings from (an HTML block the parser can't
+		// detect).
+		const cachedLines = new Set(cached.map((c) => c.line));
+		const opaque = (cache.sections ?? []).filter(
+			(section) => section.type === "html" || section.type === "comment" || section.type === "math",
+		);
+		const added = parsed.filter(
+			(p) =>
+				!cachedLines.has(p.line) &&
+				!opaque.some(
+					(section) => section.position.start.line <= p.line && p.line <= section.position.end.line,
+				),
+		);
+		const headings = [...cached, ...added].sort((a, b) => a.line - b.line);
+		return buildSectionSubpath(headings, cursor.line);
 	}
 
 	protected getVariableValue(variableName: string): string {
