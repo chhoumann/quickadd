@@ -63,8 +63,10 @@ export function getDailyNoteSettings(app: App | undefined): DailyNoteSettings {
 
 /** The daily note's vault path, without extension, for the day of `date`. */
 export function dailyNotePath(settings: DailyNoteSettings, date: Moment): string {
-	// The day's start, so any moment in the day names the same note.
-	const name = date.clone().startOf("day").format(settings.format).trim();
+	// The day's start, so any moment in the day names the same note, as
+	// Periodic Notes does. Both plugins store `x.md` for a format ending in
+	// `[.md]`, so the extension is not part of the path.
+	const name = date.clone().startOf("day").format(settings.format).trim().replace(/\.md$/i, "");
 	if (!name) throw new Error(`The daily note format "${settings.format}" gives an empty file name.`);
 	return settings.folder ? `${settings.folder}/${name}` : name;
 }
@@ -78,20 +80,25 @@ export function dailyNoteLink(app: App, path: string, sourcePath: string): strin
 	const file = app.vault.getAbstractFileByPath(`${path}.md`);
 	if (file instanceof TFile) return app.fileManager.generateMarkdownLink(file, sourcePath);
 	if (!usesMarkdownLinks(app)) return `[[${path}]]`;
-	return `[${path.split("/").pop()}](${encodeURI(`${path}.md`)})`;
+	// Encoded like Obsidian's own links, plus parentheses, which would end the
+	// destination. Obsidian doesn't decode %23, so a `#` stays as Obsidian writes it.
+	const destination = encodeURI(`${path}.md`).replace(/\(/g, "%28").replace(/\)/g, "%29");
+	return `[${path.split("/").pop()}](${destination})`;
 }
 
 /**
  * The daily note template's contents, or null when none is set. The two plugins
- * look the template up differently: Daily notes by vault path, Periodic Notes
- * as a link. A template that is set but missing stops the run.
+ * look the template up differently: Daily notes by vault path (with or without
+ * `.md`), Periodic Notes as a link. A template that is set but missing stops
+ * the run.
  */
 export async function readDailyNoteTemplate(app: App, settings: DailyNoteSettings): Promise<string | null> {
 	const { template } = settings;
 	if (!template) return null;
-	const file = settings.source === "daily-notes"
-		? app.vault.getAbstractFileByPath(/\.[^/.]+$/.test(template) ? template : `${template}.md`)
-		: app.metadataCache.getFirstLinkpathDest(template, "");
+	const exact = app.vault.getAbstractFileByPath(template);
+	const file = settings.source === "periodic-notes"
+		? app.metadataCache.getFirstLinkpathDest(template, "")
+		: exact instanceof TFile ? exact : app.vault.getAbstractFileByPath(`${template}.md`);
 	if (!(file instanceof TFile)) {
 		const where = settings.source === "daily-notes" ? "Daily notes" : "Periodic Notes";
 		throw new Error(`The daily note template "${template}" doesn't exist. Fix it in Settings → ${where}.`);

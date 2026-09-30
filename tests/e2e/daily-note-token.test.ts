@@ -32,9 +32,12 @@ afterEach(async () => {
 	await setDailyNotes(original);
 });
 
-async function saveChoice(choice: CaptureChoice) {
+async function saveChoice(choice: CaptureChoice, globalVariables: Record<string, string> = {}) {
 	const { plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[]; globalVariables: Record<string, string> }>().patch((data) => {
+		data.choices.push(choice);
+		data.globalVariables = { ...data.globalVariables, ...globalVariables };
+	});
 	await plugin.reload({ waitUntilReady: true });
 }
 
@@ -119,5 +122,92 @@ describe("{{DAILY}} in native Obsidian", () => {
 
 		expect(outcome).toMatchObject({ ok: false, error: expect.stringContaining("{{DAILY}} needs the Daily notes core plugin") });
 		expect(await files()).toEqual(before);
+	});
+
+	it("creates the daily note from its template for a target a global snippet names, and for any time of day", async () => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "Snippet template.md", "# {{title}}\n\n## Log\n");
+		const folder = sandbox.path("Snippet");
+		await setDailyNotes({ enabled: true, options: { folder, format: "YYYY-MM-DD", template } });
+		const choice = dailyCapture();
+		choice.captureTo = "{{GLOBAL_VAR:Daily target}}";
+		await saveChoice(choice, { "Daily target": "{{DAILY}}" });
+
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2031-02-14", vars: JSON.stringify({ value: "from a snippet" }) });
+		expect(outcome).toMatchObject({ ok: true, effect: "created", file: `${folder}/2031-02-14.md` });
+		await expect.poll(() => read(`${folder}/2031-02-14.md`), { timeout: 10000, interval: 100 })
+			.toBe("# 2031-02-14\n\n## Log\n- from a snippet\n");
+
+		// A script's Date at 17:45 names the same day's note, which still gets the template.
+		await obsidian.dev.evalJsonAsync(`app.plugins.plugins.quickadd.api.executeChoice(${JSON.stringify(choice.name)}, { value: "late" }, { date: new Date(2031, 1, 15, 17, 45) }).then(() => true)`);
+		await expect.poll(() => read(`${folder}/2031-02-15.md`), { timeout: 10000, interval: 100 })
+			.toBe("# 2031-02-15\n\n## Log\n- late\n");
+	});
+
+	it("captures into the daily note even when a folder has the note's name", async () => {
+		const { obsidian, sandbox } = getContext();
+		const folder = sandbox.path("Years");
+		await setDailyNotes({ enabled: true, options: { folder, format: "YYYY", template: "" } });
+		await obsidian.dev.evalJsonAsync(`app.vault.createFolder(${JSON.stringify(`${folder}/2031`)}).then(() => true)`);
+		const choice = dailyCapture();
+		choice.insertAfter.enabled = false;
+		await saveChoice(choice);
+
+		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2031-02-10", vars: JSON.stringify({ value: "not a folder pick" }) });
+
+		expect(outcome).toMatchObject({ ok: true, effect: "created", file: `${folder}/2031.md` });
+	});
+
+	it("writes a capture's front matter into a new daily note's body, as into the same note that already exists", async () => {
+		const { obsidian, sandbox } = getContext();
+		const template = await seedVaultFile(obsidian, sandbox, "Typed template.md", "---\ntype: daily\n---\n## Log\n");
+		const folder = sandbox.path("Typed");
+		await setDailyNotes({ enabled: true, options: { folder, format: "YYYY-MM-DD", template } });
+		await seedVaultFile(obsidian, sandbox, "Typed/2031-02-16.md", "---\ntype: daily\n---\n## Log\n");
+		const choice = dailyCapture();
+		choice.format = { enabled: true, format: "---\ntags: {{VALUE:tags|multi}}\n---\n" };
+		await saveChoice(choice);
+
+		for (const date of ["2031-02-16", "2031-02-17"]) {
+			const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date, vars: JSON.stringify({ tags: ["work", "home"] }) });
+			expect(outcome).toMatchObject({ ok: true });
+		}
+
+		const existing = await read(`${folder}/2031-02-16.md`);
+		expect(existing).toContain("tags: work,home");
+		await expect.poll(() => read(`${folder}/2031-02-17.md`), { timeout: 10000, interval: 100 }).toBe(existing);
+	});
+
+	it("links a missing daily note with parentheses in its folder so the link leads there", async () => {
+		const { obsidian, sandbox } = getContext();
+		const folder = sandbox.path("Days (2031)");
+		await setDailyNotes({ enabled: true, options: { folder, format: "YYYY-MM-DD", template: "" } });
+		await obsidian.dev.evalJsonAsync(`app.vault.createFolder(${JSON.stringify(folder)}).then(() => true)`);
+		const inbox = await seedVaultFile(obsidian, sandbox, "Md inbox.md", "");
+		const choice = new CaptureChoice("Daily markdown link E2E");
+		choice.captureTo = inbox;
+		choice.onePageInput = "never";
+		choice.format = { enabled: true, format: "{{DAILY|link}}" };
+		await saveChoice(choice);
+		const useMarkdownLinks = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('useMarkdownLinks')");
+		await obsidian.dev.evalJson("(() => { app.vault.setConfig('useMarkdownLinks', true); return true; })()");
+		try {
+			await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, date: "2031-02-18" });
+			await expect.poll(() => read(inbox), { timeout: 10000, interval: 100 })
+				.toBe(`[2031-02-18](${encodeURI(folder).replace(/\(/g, "%28").replace(/\)/g, "%29")}/2031-02-18.md)`);
+			// Following the rendered link creates the note in the daily notes folder.
+			const opened = await obsidian.dev.evalJsonAsync<string>(`(async () => {
+				const leaf = app.workspace.getLeaf(false);
+				await leaf.openFile(app.vault.getAbstractFileByPath(${JSON.stringify(inbox)}), { state: { mode: "preview" } });
+				await new Promise((r) => setTimeout(r, 800));
+				leaf.view.containerEl.querySelector(".markdown-preview-view a.internal-link").click();
+				await new Promise((r) => setTimeout(r, 800));
+				return app.workspace.getActiveFile()?.path;
+			})()`);
+			expect(opened).toBe(`${folder}/2031-02-18.md`);
+		} finally {
+			// Saved now: the debounced save of `true` would otherwise reach disk after the restore.
+			await obsidian.dev.evalJsonAsync(`(async () => { app.vault.setConfig('useMarkdownLinks', ${useMarkdownLinks === true}); await app.vault.saveConfig(); return true; })()`);
+		}
 	});
 });

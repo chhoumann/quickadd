@@ -98,6 +98,11 @@ describe("dailyNotePath", () => {
 		expect(dailyNotePath(withTime, moment("2026-09-20T17:45:00"))).toBe(dailyNotePath(withTime, day));
 	});
 
+	it("leaves out an extension the format writes itself, as both plugins do", () => {
+		// Core Daily notes creates `2031-03-04.md` for the format `YYYY-MM-DD[.md]` (Obsidian 1.13.7).
+		expect(dailyNotePath({ ...settings, format: "YYYY-MM-DD[.md]" }, day)).toBe("Journal/2026-09-20");
+	});
+
 	it("refuses a format that gives an empty name", () => {
 		expect(() => dailyNotePath({ ...settings, format: "[ ]" }, day)).toThrow(/empty file name/);
 	});
@@ -113,17 +118,23 @@ describe("dailyNoteLink", () => {
 		expect(dailyNoteLink(appWith({}), "Journal/2026 09/20", "")).toBe("[[Journal/2026 09/20]]");
 		expect(dailyNoteLink(appWith({ linkFormat: "markdown" }), "Journal/2026 09/20", ""))
 			.toBe("[20](Journal/2026%2009/20.md)");
+		// `)` would end the destination. Obsidian 1.13.7 doesn't decode %23, so `#` is left as its own links leave it.
+		expect(dailyNoteLink(appWith({ linkFormat: "markdown" }), "Journal)/2026 (x)", ""))
+			.toBe("[2026 (x)](Journal%29/2026%20%28x%29.md)");
 	});
 });
 
 describe("readDailyNoteTemplate", () => {
-	const files = { "Templates/Daily.md": "core", "Templates/Deep/Periodic.md": "periodic" };
+	const files = { "Templates/Daily.md": "core", "Templates/Deep/Periodic.md": "periodic", "Templates/Daily.v2.md": "dotted" };
 
 	it("reads the Daily notes template by vault path, adding .md", async () => {
 		const settings: DailyNoteSettings = { source: "daily-notes", folder: "", format: "YYYY-MM-DD", template: "Templates/Daily" };
 		await expect(readDailyNoteTemplate(appWith({ files }), settings)).resolves.toBe("core");
 		await expect(readDailyNoteTemplate(appWith({ files }), { ...settings, template: "Daily" })).rejects.toThrow(/"Daily" doesn't exist\. Fix it in Settings → Daily notes/);
 		await expect(readDailyNoteTemplate(appWith({ files }), { ...settings, template: "" })).resolves.toBeNull();
+		await expect(readDailyNoteTemplate(appWith({ files }), { ...settings, template: "Templates/Daily.md" })).resolves.toBe("core");
+		// A dot in the name is not an extension.
+		await expect(readDailyNoteTemplate(appWith({ files }), { ...settings, template: "Templates/Daily.v2" })).resolves.toBe("dotted");
 	});
 
 	it("resolves the Periodic Notes template as a link, like Periodic Notes does", async () => {

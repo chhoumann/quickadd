@@ -92,8 +92,7 @@ import {
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import {
-	DAILY_NOTE_REGEX,
-	dailyNotePath,
+	type DailyNoteSettings,
 	getDailyNoteSettings,
 	readDailyNoteTemplate,
 	renderDailyNoteTemplate,
@@ -463,7 +462,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const captureBecomesOwnFrontmatter =
 				!fileAlreadyExists &&
 				!!this.choice?.createFileIfItDoesntExist?.enabled &&
-				!this.choice?.createFileIfItDoesntExist?.createWithTemplate;
+				!this.choice?.createFileIfItDoesntExist?.createWithTemplate &&
+				// A daily note created from its template has that template's front matter.
+				!this.dailyNoteSettingsFor(filePath)?.template;
 			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
 			// |multi only yields a real YAML list when its array can be collected
@@ -1092,18 +1093,24 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * A daily note that Capture to names with {{DAILY}} and that doesn't exist
-	 * yet is filled from the Daily notes template, the way Obsidian fills it.
-	 * Null when the target isn't the daily note or no template is set.
+	 * The Daily notes settings when the capture creates the daily note that
+	 * Capture to named with {{DAILY}}, or null.
 	 */
+	private dailyNoteSettingsFor(filePath: string): DailyNoteSettings | null {
+		if (this.choice.captureToActiveFile || this.choice.createFileIfItDoesntExist.createWithTemplate) return null;
+		const target = this.formatter.dailyNoteTarget;
+		return target !== null && `${target}.md` === filePath ? getDailyNoteSettings(this.app) : null;
+	}
+
+	/** The missing daily note's first content: its template, filled the way Obsidian fills it. */
 	private async dailyNoteContent(filePath: string): Promise<string | null> {
-		if (this.choice.captureToActiveFile || !DAILY_NOTE_REGEX.test(this.choice.captureTo ?? "")) return null;
-		const settings = getDailyNoteSettings(this.app);
+		const settings = this.dailyNoteSettingsFor(filePath);
+		if (!settings) return null;
+		const template = await readDailyNoteTemplate(this.app, settings);
+		if (template === null) return null;
 		const clocks = this.choiceExecutor.clocks;
 		const day = window.moment(clocks?.date ?? clocks?.now).startOf("day");
-		if (`${dailyNotePath(settings, day)}.md` !== filePath) return null;
-		const template = await readDailyNoteTemplate(this.app, settings);
-		return template === null ? null : renderDailyNoteTemplate(template, settings, day, window.moment(clocks?.now));
+		return renderDailyNoteTemplate(template, settings, day, window.moment(clocks?.now));
 	}
 
 	private async onCreateFileIfItDoesntExist(
