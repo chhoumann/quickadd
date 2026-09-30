@@ -73,6 +73,10 @@ brief that a skill-less agent still needs.
   load the new `main.js` with `pnpm run obsidian:e2e -- --reload <cmd>` (or
   `start:e2e-obsidian`, which always reloads and verifies). If no instance is
   running, `obsidian:e2e` launches one first.
+- Specs that need Templater run only with `OBSIDIAN_E2E_TEMPLATER=1
+  .agents/run-e2e`, which installs a pinned Templater into the isolated vault.
+  A change that touches a Templater path must also pass that run: CI runs no
+  native specs, so a Templater expectation can otherwise go stale unnoticed.
 - Toggle desktop mobile emulation with `pnpm run obsidian:e2e -- dev:mobile on`
   (or `off`). The command returns only after the reloaded app reports the new
   mode, so the next command can run straight away with no sleep. The switch
