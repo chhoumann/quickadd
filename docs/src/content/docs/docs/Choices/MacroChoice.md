@@ -138,7 +138,9 @@ boilerplate JavaScript. Each conditional has:
   `true`/`false`.
 - **Variable comparisons** - test a variable with operators like equals,
   contains, less than, greater than, or a basic truthiness check. The value type
-  (text, number, boolean) controls how the two sides are compared.
+  (text, number, boolean) controls how the two sides are compared. A variable
+  that nothing in the run has set counts as empty: **Is falsy** takes the Then
+  branch, and every other operator takes the Else branch.
 - **Script mode** - point to a JavaScript file in your vault (with an optional
   exported function) that returns a boolean. The script gets the same parameters
   as any user script, including your macro variables and `params.abort`.
