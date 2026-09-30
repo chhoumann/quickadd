@@ -301,7 +301,7 @@ entry:
 
 Good to know:
 
-- Blank lines are skipped and each line is trimmed.
+- Blank lines are skipped and each line is trimmed. If every line is blank, nothing is written.
 - Every other placeholder is asked once and reused for every line. Macros (`{{MACRO:...}}`), inline scripts, and included templates run once per capture, not once per line. `{{RANDOM:...}}` gives each line its own value.
 - The `{{VALUE}}` prompt opens as a multi-line box, and so does its field in the [one-page input form](/docs/Advanced/onePageInputs/). A `|type:` on the token wins.
 - A multi-line editor selection, or a value passed from a script, the URI, or the CLI, is split the same way.

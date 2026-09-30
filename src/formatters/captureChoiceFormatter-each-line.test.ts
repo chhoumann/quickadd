@@ -68,6 +68,23 @@ describe("Capture: one entry per line", () => {
 		expect(await createFormatter().formatContentOnly("* {{VALUE|case:upper}}", { eachLine: true })).toBe("* A\n* B");
 	});
 
+	it("trims a single line too, and writes nothing for only blank lines", async () => {
+		promptMock.mockResolvedValueOnce("\n  Buy milk  \n").mockResolvedValueOnce(" \n\t\n");
+
+		expect(await createFormatter().formatContentOnly("- [ ] {{VALUE}}\n", { eachLine: true })).toBe("- [ ] Buy milk\n");
+		// An empty capture leaves the note as it is.
+		expect(await createFormatter().formatContentOnly("- [ ] {{VALUE}}\n", { eachLine: true })).toBe("");
+	});
+
+	it("splits a capture into a Canvas text card, which formats through formatContentWithFile", async () => {
+		promptMock.mockResolvedValueOnce("a\nb");
+		const choice = { eachLine: true, captureToActiveFile: true, insertAfter: { enabled: false }, prepend: false, activeFileWritePosition: "cursor" } as never;
+
+		const { captureContent } = await createFormatter().formatContentWithFile("- {{VALUE}}\n", choice, "", { path: "Board.canvas" } as never);
+
+		expect(captureContent).toBe("- a\n- b\n");
+	});
+
 	it("gives each line its own {{RANDOM:...}}", async () => {
 		promptMock.mockResolvedValueOnce("a\nb");
 

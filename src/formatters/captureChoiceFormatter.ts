@@ -267,10 +267,12 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private async formatCapture(input: string, runTemplater: boolean, format = true): Promise<CapturePlacementResult & { captureContent: string; markerOnly?: boolean }> {
 		// Declare scope here because formatContentOnly can run before a capture choice is assigned.
 		let formatted = format
-			? await this.withClipboardImageFallback(async () =>
-				this.withPromptScope("captureText", input, async () =>
-					this.withUserTextProtected(async () =>
-						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+			? await this.withValueLines(!!this.choice?.eachLine, () =>
+				this.withClipboardImageFallback(async () =>
+					this.withPromptScope("captureText", input, async () =>
+						this.withUserTextProtected(async () =>
+							super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
+						),
 					),
 				),
 			)
@@ -321,21 +323,15 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	 * text is placed. `eachLine` writes the format once per line of {{VALUE}}.
 	 */
 	async formatContentOnly(input: string, options: { eachLine?: boolean } = {}): Promise<string> {
-		this.splitValueLines = options.eachLine ?? false;
-		this.defaultValueInputType = this.splitValueLines ? "multiline" : undefined;
-		let formatted: string;
-		try {
-			formatted = await this.withClipboardImageFallback(async () =>
+		const formatted = await this.withValueLines(options.eachLine ?? false, () =>
+			this.withClipboardImageFallback(async () =>
 				this.withPromptScope("captureText", input, async () =>
 					this.withUserTextProtected(async () =>
 						super.formatFileContent(await this.expandTemplateLinebreaksOnce(input)),
 					),
 				),
-			);
-		} finally {
-			this.splitValueLines = false;
-			this.defaultValueInputType = undefined;
-		}
+			),
+		);
 
 		// The engine or formatContentWithFile owns Templater execution; running it here would execute twice.
 
@@ -346,6 +342,18 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}
 
 	private splitValueLines = false;
+
+	/** Formats the capture text with One entry per line on or off. */
+	private async withValueLines<T>(eachLine: boolean, work: () => Promise<T>): Promise<T> {
+		this.splitValueLines = eachLine;
+		this.defaultValueInputType = eachLine ? "multiline" : undefined;
+		try {
+			return await work();
+		} finally {
+			this.splitValueLines = false;
+			this.defaultValueInputType = undefined;
+		}
+	}
 
 	/**
 	 * One entry per line: scripts, macros, and includes run once, then the
@@ -362,7 +370,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		if (!NAME_VALUE_REGEX.test(expanded)) return this.formatScalarTokens(expanded);
 		const answer = await this.resolveValue(expanded);
 		const lines = answer.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-		if (lines.length < 2) return this.formatScalarTokens(expanded);
+		// Only blank lines: no entries, so the capture leaves the note as it is.
+		if (lines.length === 0) return "";
 
 		const shared = await this.replaceMathValueInString(expanded);
 		// A value passed in by a script, the URI, the CLI, or the one-page form
