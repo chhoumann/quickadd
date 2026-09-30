@@ -108,6 +108,10 @@ obsidian quickadd:package-preview path=reading-log.quickadd.json
 obsidian quickadd:package-import path=reading-log.quickadd.json
 ```
 
+- Importing **replaces** any existing choice with the same `id`. Before
+  importing, check the preview: every choice must show `"exists":false`. If one
+  shows `true`, give it a different `id` (and a name that isn't in
+  `quickadd:list`), unless the user asked you to change that choice.
 - Settings you leave out get QuickAdd's defaults.
 - Capture: `captureTo`, `format`, `insertAfter: {"enabled": true, "after": "## Log"}`,
   `prepend: true` (append to the bottom), `task: true`.
