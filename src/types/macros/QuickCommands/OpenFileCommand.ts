@@ -1,5 +1,5 @@
 import { CommandType } from "../CommandType";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../../utils/uuid";
 import type { IOpenFileCommand } from "./IOpenFileCommand";
 import { NewTabDirection } from "../../newTabDirection";
 import type { OpenLocation } from "../../fileOpening";

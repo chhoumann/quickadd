@@ -1,5 +1,5 @@
 import { isUnreadableList as isUnreadableChoiceList } from "./persistedContainers";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "./uuid";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type IChoice from "../types/choices/IChoice";
 import type { ChoiceType } from "../types/choices/choiceType";

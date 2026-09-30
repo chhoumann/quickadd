@@ -24,7 +24,7 @@ import {
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
 import type { ICommand } from "../../types/macros/ICommand";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../utils/uuid";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
 import {
 	COMMAND_SETTING_DESC,

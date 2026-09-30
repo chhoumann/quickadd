@@ -1,5 +1,5 @@
 import { isUnreadableList as isUnreadableCommandList } from "./persistedContainers";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "./uuid";
 import type { IMacro } from "../types/macros/IMacro";
 import type { ICommand } from "../types/macros/ICommand";
 

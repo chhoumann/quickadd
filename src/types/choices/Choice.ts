@@ -1,5 +1,5 @@
 import type { ChoiceType } from "./choiceType";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../utils/uuid";
 import type IChoice from "./IChoice";
 import type { DateOrigin } from "../dateOrigin";
 

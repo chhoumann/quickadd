@@ -21,8 +21,8 @@ import { encodeToBase64 } from "../utils/base64";
 
 // Make uuid deterministic so duplicated-id remapping is verifiable.
 const uuidMock = vi.hoisted(() => ({ counter: 0 }));
-vi.mock("uuid", () => ({
-	v4: () => `uuid-${++uuidMock.counter}`,
+vi.mock("../utils/uuid", () => ({
+	uuidv4: () => `uuid-${++uuidMock.counter}`,
 }));
 
 // The realpath/symlink write guard is desktop-only and a no-op against the
