@@ -329,6 +329,12 @@ describe("extractHeadingsFromLines", () => {
 		["## H|$$|# a|$$|# b", ["H", "b"]],
 		["- item|$$|# a|$$|# b", ["a"]],
 		["- item|%%|# a|%%|# b", ["b"]],
+		// A comment or math closed on its own line is paragraph text, so an
+		// underline below it makes a setext heading, as Obsidian lists it.
+		["%% note %%|---|# b", ["%% note %%", "b"]],
+		["$$x$$|===|# b", ["$$x$$", "b"]],
+		["%%|x|%%|---", []],
+		["$$|x|$$|---", []],
 	])("skips # lines in %% and $$ blocks like Obsidian: %s", (note, expected) => {
 		expect(extractHeadingsFromLines(note.split("|")).map((h) => h.heading)).toEqual(expected);
 	});
