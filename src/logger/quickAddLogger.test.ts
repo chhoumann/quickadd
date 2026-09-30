@@ -16,6 +16,16 @@ describe("QuickAddLogger output", () => {
 			"[QuickAdd: Template inclusion cycle: a.md -> a.md]",
 			"Template inclusion cycle: a.md -> a.md",
 		],
+		[
+			"a sentence with QuickAdd as its subject",
+			"QuickAdd could not find Scripts/old.js. If you moved or renamed the script, update its path in the macro.",
+			"Could not find Scripts/old.js. If you moved or renamed the script, update its path in the macro.",
+		],
+		[
+			"a message about something of QuickAdd's",
+			"QuickAdd's settings could not be read",
+			"QuickAdd's settings could not be read",
+		],
 	])("names QuickAdd once for %s", (_name, message, shown) => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		new ConsoleErrorLogger().logWarning(message);
