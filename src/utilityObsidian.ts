@@ -12,7 +12,6 @@
 //   - fileOpening            opening files, workspace-leaf selection, vault paths
 //   - userScript             loading user scripts (.js or ```js note fences)
 //   - vaultQueries           folder/file/tag lookups over the vault
-//   - obsidianCommands       command-registry helpers
 //   - dates                  date helpers ({{DATE}}/{{TIME}} token formatting)
 
 export {
@@ -73,7 +72,5 @@ export {
 	getMarkdownFilesMatchingFilter,
 	getMarkdownFilesWithProperty,
 } from "./utils/vaultQueries";
-
-export { findObsidianCommand, deleteObsidianCommand } from "./utils/obsidianCommands";
 
 export { getDate } from "./utils/dates";

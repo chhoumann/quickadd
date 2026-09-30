@@ -18,7 +18,6 @@ import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
 import {
-	deleteObsidianCommand,
 	hasTemplateExtension,
 	isPathWithinTemplateFolders,
 	normalizeTemplateFolderPaths,
@@ -590,11 +589,8 @@ export default class QuickAdd extends Plugin {
 			}
 		}
 
-		deleteObsidianCommand(this.app, `quickadd:${choiceCommandId(choice.id)}`);
-		deleteObsidianCommand(
-			this.app,
-			`quickadd:${pickDayCommandId(choice.id)}`,
-		);
+		this.removeCommand(choiceCommandId(choice.id));
+		this.removeCommand(pickDayCommandId(choice.id));
 	}
 
 	public getTemplateFiles(): TFile[] {
