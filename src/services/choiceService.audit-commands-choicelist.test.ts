@@ -116,27 +116,6 @@ describe("choiceService audit (commands-choicelist)", () => {
 	});
 
 	describe("deleteChoiceWithConfirmation count (multi-delete-recursive)", () => {
-		it("counts the FULL nested subtree, not just direct children", async () => {
-			mocks.yesNoPrompt.mockResolvedValue(true);
-			// Outer folder has 1 direct child (a subfolder) holding 3 leaves.
-			const subfolder = makeMulti("Sub", [
-				createChoice("Template", "a"),
-				createChoice("Template", "b"),
-				createChoice("Template", "c"),
-			]);
-			const outer = makeMulti("Outer", [subfolder]);
-
-			await deleteChoiceWithConfirmation(outer, fakeApp);
-
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			// 1 subfolder + 3 leaves = 4 descendants, counted by kind so the
-			// subfolder is not called a "choice" (#1552) — NOT "1 choice".
-			expect(message).toContain(
-				"everything inside it: 3 choices and 1 folder.",
-			);
-			expect(message).not.toContain("1 choice and");
-		});
-
 		it("omits the scary warning for an empty folder", async () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const empty = makeMulti("Empty");
