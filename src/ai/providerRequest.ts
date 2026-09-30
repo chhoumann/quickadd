@@ -138,7 +138,7 @@ type OpenAIReqResponse = {
 };
 
 // Non-text blocks may contain tool calls instead of text.
-export interface AnthropicContentBlock {
+interface AnthropicContentBlock {
 	type: string;
 	text?: string;
 	id?: string;
@@ -146,7 +146,7 @@ export interface AnthropicContentBlock {
 	input?: Record<string, unknown>;
 }
 
-export interface AnthropicResponse {
+interface AnthropicResponse {
 	content: AnthropicContentBlock[];
 	id: string;
 	model: string;
@@ -159,7 +159,7 @@ export interface AnthropicResponse {
 
 type GeminiPart = { text?: string } & Record<string, unknown>;
 type GeminiContent = { role: string; parts: GeminiPart[] };
-export interface GeminiResponse {
+interface GeminiResponse {
 	candidates: Array<{
 		content: GeminiContent;
 		finishReason?: string;

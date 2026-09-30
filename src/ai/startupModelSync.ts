@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 
 /** The slice of an Obsidian `Plugin` the scheduler needs. */
-export interface StartupSyncHost {
+interface StartupSyncHost {
 	app: Pick<App, "workspace">;
 	/** Obsidian `Component.register`: runs the callback when the plugin unloads. */
 	register(cleanup: () => void): void;

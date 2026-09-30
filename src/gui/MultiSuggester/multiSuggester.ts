@@ -6,7 +6,7 @@ import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "../SearchableMultiSelect/searchableMultiSelect";
 
-export interface MultiSuggesterOptions {
+interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
 	placeholder?: string;
 	/** Allow typing a value that isn't in the option list (|custom). */

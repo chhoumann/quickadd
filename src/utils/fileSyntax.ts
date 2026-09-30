@@ -281,7 +281,7 @@ export function parseFileToken(
 	};
 }
 
-export type DecodedFileValue =
+type DecodedFileValue =
 	| { kind: "empty" }
 	| { kind: "file"; path: string }
 	| { kind: "custom"; text: string }
@@ -361,7 +361,7 @@ function basenameFor(file: TFile): string {
 	return file.basename || fileLinkNameFromPath(file.path);
 }
 
-export interface FileDisplayInfo {
+interface FileDisplayInfo {
 	primary: string;
 	secondary: string;
 	label: string;

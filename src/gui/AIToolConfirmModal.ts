@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
 
-export type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
+type ToolConfirmOutcome = "allow" | "allow-all" | "deny" | "abort";
 
 /**
  * Confirmation modal for an AI-requested tool call (#714). The model chose the tool

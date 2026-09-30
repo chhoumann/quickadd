@@ -31,7 +31,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { isCancellationError } from "../utils/errorUtils";
 import type { PromptProvider } from "./promptProvider";
 
-export interface PromptRoute<T> {
+interface PromptRoute<T> {
 	/** Ask the connected client. Only called when a provider is attached. */
 	remote(provider: PromptProvider): Promise<T>;
 	/**

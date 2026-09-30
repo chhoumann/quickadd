@@ -35,7 +35,7 @@ import {
 } from "src/utils/fileSyntax";
 import { getFileTokenFiles } from "src/utils/vaultQueries";
 
-export type { FieldType, FieldRequirement, FieldGroup } from "./fieldRequirements";
+export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
 
 /**

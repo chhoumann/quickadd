@@ -1,6 +1,6 @@
 import { prepareFuzzySearch, type SearchMatches } from "obsidian";
 
-export type RankedMatch<T> = { item: T; matches: SearchMatches };
+type RankedMatch<T> = { item: T; matches: SearchMatches };
 
 /**
  * Rank items for a query the way Obsidian's quick switcher does, with its own

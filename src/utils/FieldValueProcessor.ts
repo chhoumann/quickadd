@@ -2,7 +2,7 @@ import { FIELD_VAR_REGEX_WITH_FILTERS } from "../constants";
 import { FieldValueDeduplicator } from "./FieldValueDeduplicator";
 import type { FieldFilter } from "./FieldSuggestionParser";
 
-export interface ProcessedValues {
+interface ProcessedValues {
 	values: string[];
 	hasDefaultValue: boolean;
 	duplicatesRemoved: number;

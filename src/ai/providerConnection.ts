@@ -3,7 +3,7 @@ import { discoverProviderModels } from "./modelDiscoveryService";
 import type { AIProvider } from "./Provider";
 import { resolveProviderApiKey } from "./providerSecrets";
 
-export type ProviderConnectionResult =
+type ProviderConnectionResult =
 	| { ok: true; modelCount: number; apiKeyLinked: boolean }
 	| { ok: false; error: string; apiKeyLinked: boolean };
 

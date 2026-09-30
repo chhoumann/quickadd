@@ -30,7 +30,7 @@ export interface DeferredStep {
 	reason: DeferralReason;
 }
 
-export interface FormRoster {
+interface FormRoster {
 	members: FormRosterEntry[];
 	deferred: DeferredStep[];
 }

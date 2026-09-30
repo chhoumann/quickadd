@@ -1,6 +1,6 @@
 const INLINE_SCRIPT_FENCE_LANG = "js quickadd";
 
-export type InlineScriptSpan = { start: number; end: number; code: string };
+type InlineScriptSpan = { start: number; end: number; code: string };
 
 /**
  * The first complete ```js quickadd fence at or after `from`, with its trimmed

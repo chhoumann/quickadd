@@ -11,7 +11,7 @@ export const DATE_ORIGIN_PRESETS = [
 	"variable",
 ] as const;
 
-export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
+type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 export const DATE_ORIGIN_SETTING_NAME = "Which day";
 export const DATE_ORIGIN_SETTING_DESC =

@@ -7,7 +7,7 @@ export interface SearchableMultiSelectItem<T> {
 	searchText?: string;
 }
 
-export interface SearchableMultiSelectOptions<T> {
+interface SearchableMultiSelectOptions<T> {
 	items: readonly SearchableMultiSelectItem<T>[];
 	isSelected: (item: SearchableMultiSelectItem<T>) => boolean;
 	onToggle: (

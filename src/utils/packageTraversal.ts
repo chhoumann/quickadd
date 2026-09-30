@@ -11,24 +11,24 @@ import { commandListOf, isCommandLike } from "./macroUtils";
 import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
 
-export interface ChoiceCatalogEntry {
+interface ChoiceCatalogEntry {
 	choice: IChoice;
 	parentId: string | null;
 	path: string[];
 }
 
-export interface ChoiceClosureResult {
+interface ChoiceClosureResult {
 	catalog: Map<string, ChoiceCatalogEntry>;
 	choiceIds: string[];
 	missingChoiceIds: string[];
 }
 
-export interface ScriptDependencyCollection {
+interface ScriptDependencyCollection {
 	userScriptPaths: Set<string>;
 	conditionalScriptPaths: Set<string>;
 }
 
-export interface FileDependencyCollection {
+interface FileDependencyCollection {
 	templatePaths: Set<string>;
 	captureTemplatePaths: Set<string>;
 	/**
@@ -189,7 +189,7 @@ function collectDependenciesFromCommands(
 	}
 }
 
-export interface CollectChoiceClosureOptions {
+interface CollectChoiceClosureOptions {
 	excludedChoiceIds?: ReadonlySet<string>;
 }
 
