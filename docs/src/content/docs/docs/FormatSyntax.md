@@ -272,6 +272,11 @@ several VDATEs for one name, the first one's format is used.
 - [ ] Glaze fire 📅 2026-07-10
 ```
 
+A `{{VALUE:due}}` in a template you include with
+[`{{TEMPLATE:path}}`](#template) reuses the date the same way (QuickAdd 2.30.0
+or later). An include asks its prompts first, so step by step the date prompt
+opens when the include needs the date.
+
 A date that a script set, with no VDATE for that name, prints as
 `YYYY-MM-DD`. QuickAdd 1.14.0 to 2.28.0 printed the stored value instead, such
 as `@date:2026-07-10T10:00:00.000Z`.

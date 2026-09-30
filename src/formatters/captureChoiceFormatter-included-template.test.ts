@@ -1,11 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import realMoment from "moment";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MarkdownView, TFile, type App } from "obsidian";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type QuickAdd from "../main";
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
-const { prompt } = vi.hoisted(() => ({
+const { prompt, datePrompt } = vi.hoisted(() => ({
 	prompt: vi.fn<() => Promise<string>>(),
+	datePrompt: vi.fn<(app: unknown, header: string) => Promise<string>>(),
 }));
 
 vi.mock("../gui/InputPrompt", () => ({
@@ -14,6 +16,9 @@ vi.mock("../gui/InputPrompt", () => ({
 			return { Prompt: prompt, PromptWithContext: prompt };
 		}
 	},
+}));
+vi.mock("../gui/VDateInputPrompt/VDateInputPrompt", () => ({
+	default: { Prompt: datePrompt },
 }));
 vi.mock("obsidian-dataview", () => ({ getAPI: () => null }));
 vi.mock("../main", async () =>
@@ -32,7 +37,7 @@ const tfile = (path: string) =>
 	});
 
 /** A Capture whose format includes `Include.md`, the way `{{TEMPLATE:Include.md}}` renders it in Obsidian. */
-function makeCapture(include: string, { selection = "" } = {}) {
+function makeCapture(include: string, { selection = "", globalVariables = {} } = {}) {
 	const files = new Map([
 		["Include.md", tfile("Include.md")],
 		["People/Ann.md", tfile("People/Ann.md")],
@@ -60,7 +65,7 @@ function makeCapture(include: string, { selection = "" } = {}) {
 	} as unknown as App;
 	const plugin = {
 		settings: {
-			globalVariables: {},
+			globalVariables,
 			choices: [],
 			inputPrompt: "single-line",
 			enableTemplatePropertyTypes: false,
@@ -131,5 +136,73 @@ describe("a template included in a Capture format writes like the Capture format
 		expect(await formatter.formatContentOnly("{{TEMPLATE:Include.md}}"))
 			.toBe("![[Assets/clip.png]] from 'Inbox/Target.md'");
 		expect(formatter.consumeCreatedClipboardAttachmentPaths()).toEqual(["Assets/clip.png"]);
+	});
+});
+
+describe("an included template reuses a date of the Capture format (#1950)", () => {
+	const format = "- {{VALUE|label:What happened?}} 📅 {{VDATE:due,DD.MM.YYYY|label:When is it due?}}\n{{TEMPLATE:Include.md}}";
+	const stubMoment = (globalThis as { window: { moment: unknown } }).window.moment;
+
+	beforeEach(() => {
+		prompt.mockReset();
+		datePrompt.mockReset();
+		(globalThis as { window: { moment: unknown } }).window.moment = (input?: string) => realMoment.utc(input);
+	});
+	afterEach(() => {
+		(globalThis as { window: { moment: unknown } }).window.moment = stubMoment;
+	});
+
+	it("asks the VDATE's date prompt for the include's {{VALUE:due}}, step by step", async () => {
+		const { formatter } = makeCapture("(due {{VALUE:due}})");
+		datePrompt.mockResolvedValueOnce("@date:2026-09-30T12:00:00.000Z");
+		prompt.mockResolvedValueOnce("Pay rent");
+
+		expect(await formatter.formatContentOnly(format))
+			.toBe("- Pay rent 📅 30.09.2026\n(due 30.09.2026)");
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(datePrompt.mock.calls[0][1]).toBe("When is it due?");
+		expect(prompt).toHaveBeenCalledTimes(1);
+	});
+
+	it("finds the VDATE in a global variable of a template body", async () => {
+		const { formatter } = makeCapture("(due {{VALUE:due}})", {
+			globalVariables: { due: "{{VDATE:due,DD.MM.YYYY|label:When is it due?}}" },
+		});
+		datePrompt.mockResolvedValueOnce("@date:2026-09-30T12:00:00.000Z");
+
+		// A Template choice's body expands globals after its includes; a Capture format expands them first.
+		expect(await formatter.formatTemplateContent("📅 {{GLOBAL_VAR:due}}\n{{TEMPLATE:Include.md}}"))
+			.toBe("📅 30.09.2026\n(due 30.09.2026)");
+		expect(datePrompt).toHaveBeenCalledTimes(1);
+		expect(prompt).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["two names that differ only by case", "{{VDATE:Due,DD.MM.YYYY}} {{VDATE:DUE,YYYY}}", [["Due", "@date:2026-09-30T12:00:00.000Z"]]],
+		["a given answer under another case", "{{VDATE:Due,DD.MM.YYYY}}", [["due", "@date:2026-09-30T12:00:00.000Z"]]],
+	])("resolves %s the way the same text inline would", async (_, dates, given) => {
+		const run = async (format: string) => {
+			prompt.mockReset();
+			datePrompt.mockReset();
+			prompt.mockResolvedValue("typed");
+			datePrompt.mockResolvedValue("@date:2026-10-02T12:00:00.000Z");
+			const { formatter, executor } = makeCapture("{{VALUE:due}}");
+			for (const [key, value] of given) executor.variables.set(key, value);
+			const output = await formatter.formatContentOnly(format);
+			return { output, prompts: prompt.mock.calls.length, datePrompts: datePrompt.mock.calls.length };
+		};
+
+		expect(await run(`${dates}\n{{TEMPLATE:Include.md}}`)).toEqual(await run(`${dates}\n{{VALUE:due}}`));
+	});
+
+	it("prints a prefilled answer, as from the one-page form, in the VDATE's format", async () => {
+		const { formatter, executor } = makeCapture("(due {{VALUE:due}})");
+		executor.variables.set("value", "Pay rent");
+		executor.variables.set("due", "@date:2026-09-30T12:00:00.000Z");
+
+		expect(await formatter.formatContentOnly(format))
+			.toBe("- Pay rent 📅 30.09.2026\n(due 30.09.2026)");
+		expect(datePrompt).not.toHaveBeenCalled();
+		expect(prompt).not.toHaveBeenCalled();
 	});
 });
