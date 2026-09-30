@@ -200,7 +200,7 @@ while you type, so you can open an existing note instead of creating a duplicate
 | Action | Result |
 | --- | --- |
 | **Open note** | Opens the note unchanged. This is the default. |
-| **Append template to bottom** | Adds the template at the end of the note. |
+| **Append template to bottom** | Adds the template at the end of the note, after one blank line. |
 | **Insert template at top** | Adds the template below the note's frontmatter. |
 | **Replace entire note** | Replaces all content, including frontmatter, with the template. |
 
@@ -446,7 +446,8 @@ already exists:
 These options modify the existing markdown, canvas, or base file:
 
 - **Append to bottom** - adds the template content to the end of the existing
-  file.
+  file, with exactly one blank line between the note and the template, however
+  the note ends. An empty note gets the template with no blank line above it.
 - **Append to top** - adds the template content to the beginning of the existing
   file.
 - **Overwrite file** - replaces the existing file content with the template.
@@ -459,7 +460,8 @@ properties are merged into the existing note instead of inserting a second `---`
 block. Missing or empty properties are filled from the template. If a property
 already contains one value, the note's value wins. Properties that can contain
 multiple values add any template values that are not already present. Canvas and
-base files receive the template content as-is.
+base files can only be overwritten. QuickAdd stops and says so if you append to
+them, because raw template text would break their structure.
 
 :::
 
