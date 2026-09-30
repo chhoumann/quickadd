@@ -54,6 +54,23 @@ describe("createNoteAfterTemplaterTrigger", () => {
 		expect(t.Templater.on_file_creation).toBe(original);
 	});
 
+	it("matches the note by its normalized path, as vault.create stores it", async () => {
+		const done = deferred();
+		const t = fakeTemplater(() => done.promise);
+		vi.useFakeTimers();
+		let finished = false;
+		// A Canvas file card can name its note with a doubled slash.
+		const result = createNoteAfterTemplaterTrigger(t.app, "Inbox//a.md", t.create("Inbox/a.md"))
+			.then((file) => { finished = true; return file; });
+
+		await vi.advanceTimersByTimeAsync(0);
+		expect(finished).toBe(false);
+		done.resolve();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(finished).toBe(true);
+		expect((await result).path).toBe("Inbox/a.md");
+	});
+
 	it("returns as soon as Templater decides to leave the note alone", async () => {
 		const t = fakeTemplater(async () => {});
 		vi.useFakeTimers();

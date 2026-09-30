@@ -1,4 +1,4 @@
-import { MarkdownView, type App, type EventRef, type TFile } from "obsidian";
+import { MarkdownView, normalizePath, type App, type EventRef, type TFile } from "obsidian";
 import { log } from "../logger/logManager";
 import { reportError } from "./errorUtils";
 
@@ -228,9 +228,12 @@ const TEMPLATER_CREATE_WAIT_MS = 5000;
  */
 export async function createNoteAfterTemplaterTrigger(
 	app: App,
-	path: string,
+	requestedPath: string,
 	create: () => Promise<TFile>,
 ): Promise<TFile> {
+	// vault.create stores, and Templater receives, the normalized path; a
+	// Canvas file card can name its note as "Notes//a.md" or "/Notes/a.md".
+	const path = normalizePath(requestedPath);
 	let owner: TemplaterClassLike | undefined;
 	let original: unknown;
 	try {
