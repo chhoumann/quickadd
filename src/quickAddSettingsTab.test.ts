@@ -306,6 +306,19 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		expect(settingsStore.getState().templateFolderPaths).toEqual(["Templates"]);
 	});
 
+	it("shows no template folder as an Add folder row that settings search indexes", () => {
+		settingsStore.setState({ templateFolderPaths: [] });
+		const section = makeTab().getSettingDefinitions().find(
+			(item) => "heading" in item && item.heading === "Template folders",
+		) as SettingDefinitionList;
+
+		// A group: re-rendered in place as a list, it would keep the list's + button.
+		expect(section.type).toBe("group");
+		expect(section.items).toEqual([
+			expect.objectContaining({ name: "Add folder", aliases: ["Template folders"], action: expect.any(Function) }),
+		]);
+	});
+
 	it("rebuilds the tab when the template folders change, and only then", () => {
 		const tab = makeTab();
 		const update = vi.spyOn(tab, "update").mockImplementation(() => {});

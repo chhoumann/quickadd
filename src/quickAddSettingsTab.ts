@@ -2,6 +2,7 @@ import type {
 	App,
 	ButtonComponent,
 	Setting,
+	SettingDefinitionGroup,
 	SettingDefinitionItem,
 	SettingDefinitionList,
 	TextAreaComponent,
@@ -192,16 +193,29 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
 	}
 
-	private templateFoldersList(): SettingDefinitionList<SettingsKey> {
+	private templateFoldersList(): SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey> {
 		const paths = templateFolderPaths();
+		const addFolder = { name: "Add folder", action: () => void this.addTemplateFolder() };
+		// Settings search indexes items, not a list's heading or empty state, so
+		// with no folder the section is an "Add folder" row that search can find.
+		// It is a group, not an empty list: Obsidian re-renders a section in place
+		// when its type and heading stay the same, and would keep the list's +.
+		const aliases = ["Template folders"];
+		if (paths.length === 0) {
+			return {
+				type: "group",
+				heading: "Template folders",
+				items: [{
+					...addFolder,
+					desc: "No folders yet. QuickAdd suggests templates from the whole vault.",
+					aliases,
+				}],
+			};
+		}
 		return {
 			type: "list",
 			heading: "Template folders",
-			emptyState: "No folders yet. QuickAdd suggests templates from the whole vault.",
-			addItem: {
-				name: "Add folder",
-				action: () => void this.addTemplateFolder(),
-			},
+			addItem: addFolder,
 			onDelete: (index) => {
 				settingsStore.setState({
 					templateFolderPaths: templateFolderPaths().filter(
@@ -209,9 +223,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 					),
 				});
 			},
-			// List headings are not indexed by settings search; the alias keeps
-			// "template folder" finding the rows.
-			items: paths.map((folder) => ({ name: folder, aliases: ["Template folder"] })),
+			items: paths.map((folder) => ({ name: folder, aliases })),
 		};
 	}
 
