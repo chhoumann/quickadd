@@ -12,6 +12,7 @@ import {
 	parseFileToken,
 } from "../utils/fileSyntax";
 import { renderStoredFileValue } from "./helpers/fileTokenRendering";
+import { DAILY_NOTE_REGEX, dailyNoteLink, dailyNotePath, getDailyNoteSettings } from "../utils/periodicNotes";
 import type { RunClocks } from "../types/dateOrigin";
 import type { IDateParser } from "../parsers/IDateParser";
 import { log } from "../logger/logManager";
@@ -56,9 +57,36 @@ export abstract class Formatter extends ValueFormatter {
 		this.templateInclusion = state;
 	}
 	protected replaceDateInString(input: string): string {
-		return replaceDateInString(input, {
+		const output = replaceDateInString(input, {
 			clocks: () => this.runClocks(),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
+		});
+		return DAILY_NOTE_REGEX.test(output) ? this.replaceDailyNoteInString(output) : output;
+	}
+
+	/**
+	 * The daily note {{DAILY}} named while formatting a Capture target, so the
+	 * engine can treat that target as the daily note even when the token came
+	 * from a global snippet.
+	 */
+	public dailyNoteTarget: string | null = null;
+
+	/** The formatter whose text an included template's text finally lands in. */
+	private outermostIncluder(): Formatter {
+		return this.templateInclusion?.includer?.outermostIncluder() ?? this;
+	}
+
+	/** {{DAILY}} is a date too: it names the daily note for the run's Which day. */
+	private replaceDailyNoteInString(input: string): string {
+		const clocks = this.runClocks();
+		const path = dailyNotePath(getDailyNoteSettings(this.app), window.moment(clocks?.date ?? clocks?.now));
+		const regex = new RegExp(DAILY_NOTE_REGEX.source, "gi");
+		return input.replace(regex, (_token, link?: string) => {
+			if (link && this.app) return dailyNoteLink(this.app, path, this.getLinkSourcePath() ?? "");
+			if (this.promptScope === "captureTarget") {
+				this.outermostIncluder().dailyNoteTarget = path;
+			}
+			return path;
 		});
 	}
 	protected replaceTimeInString(input: string): string {

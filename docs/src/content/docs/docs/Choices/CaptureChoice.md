@@ -50,6 +50,11 @@ Journal/{{DATE:YYYY-MM-DD - ddd MMM D}}.md
 
 Every run finds today's file, and your entry is captured to it.
 
+For your daily note, write [`{{DAILY}}`](/docs/FormatSyntax/#daily) instead.
+It uses the folder, date format, and template from Obsidian's **Daily notes**
+settings, so the path always matches the note **Open today's daily note**
+opens.
+
 File names are Markdown-first:
 
 - No extension means a Markdown file: `Inbox` targets `Inbox.md`.

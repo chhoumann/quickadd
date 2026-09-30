@@ -91,6 +91,12 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import {
+	type DailyNoteSettings,
+	getDailyNoteSettings,
+	readDailyNoteTemplate,
+	renderDailyNoteTemplate,
+} from "../utils/periodicNotes";
 
 const DEFAULT_NOTICE_DURATION = 4000;
 
@@ -456,7 +462,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const captureBecomesOwnFrontmatter =
 				!fileAlreadyExists &&
 				!!this.choice?.createFileIfItDoesntExist?.enabled &&
-				!this.choice?.createFileIfItDoesntExist?.createWithTemplate;
+				!this.choice?.createFileIfItDoesntExist?.createWithTemplate &&
+				// A daily note created from its template has that template's front matter.
+				!this.dailyNoteSettingsFor(filePath)?.template;
 			this.suppressFrontmatterCollection = !captureBecomesOwnFrontmatter;
 
 			// |multi only yields a real YAML list when its array can be collected
@@ -667,8 +675,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			destination: filePath, destinationKind: "file",
 		});
 
-		let initialContent = file ? await readNote(this.app, file) : "";
 		const createWithTemplate = !file && this.choice.createFileIfItDoesntExist.createWithTemplate;
+		let initialContent = file ? await readNote(this.app, file)
+			: createWithTemplate ? "" : await this.dailyNoteContent(filePath) ?? "";
 		let templateVars = new Map<string, unknown>();
 		if (createWithTemplate) {
 			const template = new SingleTemplateEngine(this.app, this.plugin,
@@ -1106,6 +1115,27 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		};
 	}
 
+	/**
+	 * The Daily notes settings when the capture creates the daily note that
+	 * Capture to named with {{DAILY}}, or null.
+	 */
+	private dailyNoteSettingsFor(filePath: string): DailyNoteSettings | null {
+		if (this.choice.captureToActiveFile || this.choice.createFileIfItDoesntExist.createWithTemplate) return null;
+		const target = this.formatter.dailyNoteTarget;
+		return target !== null && `${target}.md` === filePath ? getDailyNoteSettings(this.app) : null;
+	}
+
+	/** The missing daily note's first content: its template, filled the way Obsidian fills it. */
+	private async dailyNoteContent(filePath: string): Promise<string | null> {
+		const settings = this.dailyNoteSettingsFor(filePath);
+		if (!settings) return null;
+		const template = await readDailyNoteTemplate(this.app, settings);
+		if (template === null) return null;
+		const clocks = this.choiceExecutor.clocks;
+		const day = window.moment(clocks?.date ?? clocks?.now).startOf("day");
+		return renderDailyNoteTemplate(template, settings, day, window.moment(clocks?.now));
+	}
+
 	private async onCreateFileIfItDoesntExist(
 		filePath: string,
 		captureContent: string,
@@ -1138,7 +1168,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 
 		let fileContent = "";
-		if (this.choice.createFileIfItDoesntExist.createWithTemplate) {
+		if (!this.choice.createFileIfItDoesntExist.createWithTemplate) {
+			fileContent = await this.dailyNoteContent(filePath) ?? "";
+		} else {
 			const singleTemplateEngine: SingleTemplateEngine =
 				new SingleTemplateEngine(
 					this.app,

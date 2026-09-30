@@ -15,7 +15,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
 2. Disable **Capture to active file**.
-3. Set **Capture to** to match your vault's daily-note path and date pattern, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
+3. Set **Capture to** to `{{DAILY}}` (QuickAdd 2.30.0 or later). It uses the folder, date format, and template from Obsidian's **Daily notes** settings. On earlier versions, type your daily-note path and date pattern instead, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
 4. Enable **Create file if it doesn't exist**.
 5. Set **Write position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
@@ -124,7 +124,9 @@ This keeps the row attached to the table:
 
 ### Tomorrow's daily note
 
-Change **Capture to** to:
+With **Capture to** set to `{{DAILY}}`, set **Which day** to **Custom…**, one day forward. `{{DAILY}}` follows [Which day](/docs/Choices/TemplateChoice/#date-origin), so the capture targets tomorrow's note and creates it from your daily notes template.
+
+With a typed path, change **Capture to** to:
 
 ```
 Daily/{{DATE:YYYY-MM-DD+1}}.md
@@ -147,4 +149,4 @@ Enable **Create line if not found** with placement **Top** (or **Bottom**). Quic
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
 
 **Capture writes to the wrong file.**
-The date pattern in **Capture to** must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
+Use `{{DAILY}}` in **Capture to**, which reads the path from your Daily notes settings. With a typed path, the date pattern must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
