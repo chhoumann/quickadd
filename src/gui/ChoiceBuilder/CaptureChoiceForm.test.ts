@@ -72,9 +72,9 @@ function selectUnderSetting(
 
 
 
-function mountForm() {
+function mountForm(choice: ICaptureChoice = captureChoice()) {
 	const props = createCaptureChoiceFormProps({
-		choice: captureChoice(),
+		choice,
 		app: new App(),
 		plugin,
 	});
@@ -149,14 +149,14 @@ describe("CaptureChoiceForm", () => {
 		flushSync();
 		const actionDesc = () => settingItem(container, "Action").querySelector(".setting-item-description")?.textContent ?? "";
 		const textarea = () => settingItem(container, "Capture format").closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
 		expect(actionDesc()).toContain("For a list, each line is one item");
 		expect(actionDesc()).toContain("{{PROPERTY}}");
 		expect(actionDesc()).toContain("rejects several lines");
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
 		flushSync();
@@ -166,7 +166,7 @@ describe("CaptureChoiceForm", () => {
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 	});
 
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
@@ -295,41 +295,37 @@ describe("CaptureChoiceForm", () => {
 		expect(input.closest(".qa-field")).toBe(label.closest(".qa-field"));
 	});
 
-	it("hides the capture format field entirely while the format toggle is off", async () => {
+	it("treats an empty capture format as capturing {{VALUE}} on its own", async () => {
 		const { container, props } = mountForm();
-		const field = () =>
-			settingItem(container, "Capture format").closest(".qa-field") as HTMLElement;
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea.value).toBe("");
+		expect(props.choice.format.enabled).toBe(false);
 
-		expect(field().querySelector("textarea")).toBeNull();
-		// With no field to point at there is no dangling <label for>.
-		expect(field().querySelector("label.setting-item-name")).toBeNull();
+		textarea.value = "- {{VALUE}}";
+		await fireEvent.input(textarea);
+		expect(props.choice.format).toEqual({ enabled: true, format: "- {{VALUE}}" });
 
-		const toggle = settingItem(container, "Capture format").querySelector(
-			".checkbox-container",
-		) as HTMLElement;
-		await fireEvent.click(toggle);
-		flushSync();
+		textarea.value = "";
+		await fireEvent.input(textarea);
+		expect(props.choice.format.enabled).toBe(false);
+	});
 
-		expect(props.choice.format.enabled).toBe(true);
-		const textarea = field().querySelector("textarea") as HTMLTextAreaElement;
-		expect(textarea).not.toBeNull();
-		expect(textarea.disabled).toBe(false);
-		expect(
-			(field().querySelector("label.setting-item-name") as HTMLLabelElement)
-				.htmlFor,
-		).toBe(textarea.id);
+	it("shows an old choice's disabled format as empty", () => {
+		const choice = new CaptureChoice("Old");
+		choice.format = { enabled: false, format: "- {{VALUE}}" };
+		const { container } = mountForm(choice);
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea.value).toBe("");
 	});
 
 	// #1875: Tab in the format box indents, but tabbing through the form still
 	// passes it by without editing it.
 	it("indents the capture format on Tab once the field is in use", async () => {
 		const { container, props } = mountForm();
-		await fireEvent.click(
-			settingItem(container, "Capture format").querySelector(
-				".checkbox-container",
-			) as HTMLElement,
-		);
-		flushSync();
 		const textarea = settingItem(container, "Capture format")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;

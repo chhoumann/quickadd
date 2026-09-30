@@ -15,8 +15,9 @@ function inBuilder<T>(expression: string): Promise<T> {
 		const builder = [...document.querySelectorAll(".captureChoiceBuilder")]
 			.filter(el => el.getClientRects().length > 0).at(-1);
 		if (!builder) throw new Error("Capture builder not open");
+		// The control just before the format box.
 		const row = [...builder.querySelectorAll(".setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent === "Capture format");
+			.find(el => el.querySelector(".setting-item-name")?.textContent === "Task");
 		const toggle = row?.querySelector(".checkbox-container");
 		const format = builder.querySelector("textarea");
 		return (${expression});

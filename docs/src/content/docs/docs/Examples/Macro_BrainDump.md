@@ -27,7 +27,7 @@ in the card, then skip to [What you get](#what-you-get).
 2. Set **Capture to** to `Inbox.md` and turn on **Create file if it doesn't
    exist**.
 3. Set **Write position** to **Bottom of file**.
-4. Turn on **Capture format** and enter:
+4. In **Capture format**, enter:
 
    ```text
    - {{VALUE}}

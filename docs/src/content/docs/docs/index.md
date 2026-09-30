@@ -43,7 +43,7 @@ takes about a minute.
 3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
 4. Turn on **Create file if it doesn't exist**, so the first capture of the day
    creates today's note instead of stopping with a "Target file missing" notice.
-5. Turn on **Capture format** and enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
+5. In **Capture format**, enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
    of one entry.
 6. Close the settings. Open the command palette (Ctrl/Cmd+P), run
    **QuickAdd: Run**, pick `Add to journal`, and type your entry.

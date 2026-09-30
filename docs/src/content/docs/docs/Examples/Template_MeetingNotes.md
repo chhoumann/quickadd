@@ -34,7 +34,7 @@ Date: {{DATE:YYYY-MM-DD}}
 1. Open **Settings → QuickAdd** and choose **New choice → Template**.
 2. Click the choice name at the top of the settings window. Rename it `New meeting` and confirm with **Ok**.
 3. Set **Template path** to `Templates/Meeting.md`.
-4. Turn **File name format** on and enter:
+4. In **File name**, enter:
 
    ```text
    {{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}
