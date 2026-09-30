@@ -41,7 +41,7 @@ Date: {{DATE:YYYY-MM-DD}}
    ```
 
 5. Set **New note location** to **In a specific folder**.
-6. Enter `Meetings` in **Folder path** and click **Add**. The folder must appear in the list above the input.
+6. Enter `Meetings` in **Folder path** and click **Add**.
 7. Turn **Open** on.
 8. Set **File opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
 9. Choose **Done** and close Settings.

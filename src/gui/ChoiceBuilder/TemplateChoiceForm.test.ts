@@ -272,4 +272,33 @@ describe("TemplateChoiceForm", () => {
 
 		expect(settingNames(container).at(-1)).toBe("Icon");
 	});
+
+	// #1993: closing the builder used to drop a folder typed but never added.
+	describe("a folder typed without Add", () => {
+		async function typeFolder(mode: string, text: string) {
+			const mounted = mountForm();
+			await fireEvent.change(locationDropdown(mounted.container), { target: { value: "specified" } });
+			flushSync();
+			const input = mounted.container.querySelector<HTMLInputElement>(".qa-folder-path-input")!;
+			await fireEvent.input(input, { target: { value: text } });
+			if (mode !== "specified") {
+				await fireEvent.change(locationDropdown(mounted.container), { target: { value: mode } });
+				flushSync();
+			}
+			mounted.unmount();
+			return mounted.props.choice.folder;
+		}
+
+		it("is added when the builder closes", async () => {
+			expect((await typeFolder("specified", " Meetings ")).folders).toEqual(["Meetings"]);
+		});
+
+		it("is ignored when it is blank", async () => {
+			expect((await typeFolder("specified", "   ")).folders).toEqual([]);
+		});
+
+		it("is left out once another location mode is chosen", async () => {
+			expect((await typeFolder("active-file", "Meetings")).folders).toEqual([]);
+		});
+	});
 });
