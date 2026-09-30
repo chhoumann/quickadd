@@ -17,7 +17,7 @@ function inBuilder<T>(expression: string): Promise<T> {
 		if (!builder) throw new Error("Capture builder not open");
 		// The control just before the format box.
 		const row = [...builder.querySelectorAll(".setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent === "Task");
+			.find(el => el.querySelector(".setting-item-name")?.textContent === "One entry per line");
 		const toggle = row?.querySelector(".checkbox-container");
 		const format = builder.querySelector("textarea");
 		return (${expression});
