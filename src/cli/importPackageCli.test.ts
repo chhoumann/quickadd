@@ -205,6 +205,27 @@ describe("quickadd:package-import", () => {
 		expect((result.choices as Array<{ id: string }>)[0].id).toBe(added[0]);
 	});
 
+	it("refuses choices=import for a choice already in the vault and changes nothing", async () => {
+		const existing = templateChoice({ name: "Mine", templatePath: "Mine.md" });
+		settingsStore.setState({ choices: [existing] });
+		const { app, files } = fakeVault({
+			[PACKAGE_PATH]: pkg(
+				[templateChoice({ name: "Theirs" }), templateChoice({ id: "tpl-2", name: "New one" })],
+				[{ kind: "template", originalPath: "Templates/Meeting.md", contentEncoding: "base64", content: encodeToBase64("new") }],
+			),
+		});
+		const plugin = fakePlugin(app);
+
+		await expect(run(plugin, { path: PACKAGE_PATH, choices: "import" })).rejects.toThrow(
+			'Already in this vault: "Theirs". Import only adds new choices, so choose overwrite, duplicate or skip for it.',
+		);
+
+		expect(settingsStore.getState().choices).toEqual([existing]);
+		expect(files.has("Templates/Meeting.md")).toBe(false);
+		expect(plugin.removeCommandForChoice).not.toHaveBeenCalled();
+		expect(plugin.addCommandForChoice).not.toHaveBeenCalled();
+	});
+
 	it("skips bundled files with files=skip and leaves the vault untouched", async () => {
 		settingsStore.setState({ templateFolderPaths: [] });
 		const { app, files } = fakeVault({

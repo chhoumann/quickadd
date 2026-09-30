@@ -67,8 +67,10 @@ to keep as it is.
 3. QuickAdd analyses the JSON and shows a **review** of exactly what the package
    will add and run before you commit - see [Review what a package can do](#review-what-a-package-can-do).
 4. Under **Choices**, pick an action for each choice:
-   - **Import** adds a new choice only when its ID does not already exist.
-   - **Overwrite** keeps the original ID and replaces the existing choice.
+   - **Import** adds a choice that isn't in your vault yet. It is offered only
+     for those.
+   - **Overwrite** keeps the original ID and replaces the existing choice. It
+     is offered only for choices already in your vault.
      Overwriting a folder keeps the choices inside it that you skipped or
      added yourself.
    - **Duplicate** copies the choice with new IDs so you can keep both versions.
@@ -167,7 +169,10 @@ obsidian quickadd:package-import path=path/to/package.quickadd.json acknowledge=
 ```
 
 Use `choices=import|overwrite|duplicate|skip` and `files=write|overwrite|skip`
-to force one mode for every choice or bundled file.
+to force one mode for every choice or bundled file. `choices=import` never
+replaces a choice: if any of the package's choices is already in your vault,
+the import is refused and nothing changes. Choose `overwrite`, `duplicate`, or
+`skip` for those instead.
 
 ## Check version compatibility {#version-compatibility}
 

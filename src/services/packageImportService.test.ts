@@ -2373,3 +2373,64 @@ describe("applyPackageImport - choice normalization", () => {
 		expect(imported.createFileIfItDoesntExist?.enabled).toBe(false);
 	});
 });
+
+// "Import" adds a choice and never replaces one (the docs' promise); an
+// existing id needs overwrite, duplicate or skip.
+describe("applyPackageImport - import never replaces", () => {
+	it("refuses an import decision, or no decision, for an id already in the vault", async () => {
+		for (const choiceDecisions of [decisions([["dup", "import"]]), []]) {
+			const { app, state } = createFakeApp();
+			const existing: IChoice[] = [makeChoice("dup", "Mine", "Template")];
+			const pkg = makePackage({
+				choices: [makePackageChoice(makeChoice("dup", "Theirs", "Template"))],
+				assets: [packageAsset("template", "templates/theirs.md", encodeToBase64("x"))],
+			});
+
+			await expect(importPackage({ app, existingChoices: existing, pkg, choiceDecisions })).rejects.toThrow(
+				/Already in this vault: "Theirs"/,
+			);
+			expect(existing).toEqual([makeChoice("dup", "Mine", "Template")]);
+			expect(state.writes.size).toBe(0);
+		}
+	});
+
+	it("refuses a nested choice already in the vault even when its folder is new", async () => {
+		const { app } = createFakeApp();
+		const child = makeChoice("child", "Child", "Capture");
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [child])),
+				makePackageChoice(child, "folder", ["Folder", "Child"]),
+			],
+		});
+
+		await expect(importPackage({
+			app,
+			existingChoices: [makeChoice("child", "Mine", "Capture")],
+			pkg,
+			choiceDecisions: decisions([["folder", "import"], ["child", "import"]]),
+		})).rejects.toThrow(/Already in this vault: "Child"/);
+	});
+
+	it("imports a child that exists when its folder is duplicated, since it gets a fresh id", async () => {
+		const { app } = createFakeApp();
+		const child = makeChoice("child", "Child", "Capture");
+		const pkg = makePackage({
+			choices: [
+				makePackageChoice(makeMulti("folder", "Folder", [child])),
+				makePackageChoice(child, "folder", ["Folder", "Child"]),
+			],
+		});
+
+		const result = await importPackage({
+			app,
+			existingChoices: [makeMulti("folder", "Folder", [makeChoice("child", "Mine", "Capture")])],
+			pkg,
+			choiceDecisions: decisions([["folder", "duplicate"], ["child", "import"]]),
+		});
+
+		expect(result.overwrittenChoiceIds).toEqual([]);
+		expect(result.updatedChoices).toHaveLength(2);
+		expect(((result.updatedChoices[0] as IMultiChoice).choices?.[0] as IChoice).name).toBe("Mine");
+	});
+});

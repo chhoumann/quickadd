@@ -37,7 +37,7 @@ export const PACKAGE_IMPORT_FLAGS: CliFlags = {
 	choices: {
 		value: "import|overwrite|duplicate|skip",
 		description:
-			"Mode for every choice (default: overwrite when the id already exists, otherwise import)",
+			"Mode for every choice (default: overwrite when the id already exists, otherwise import). import refuses a package with a choice already in the vault",
 	},
 	files: {
 		value: "write|overwrite|skip",
