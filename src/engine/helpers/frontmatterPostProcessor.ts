@@ -30,7 +30,7 @@ const YAML_FRONTMATTER_EXTENSIONS = ["md"];
 /**
  * Result of validating a structured variable
  */
-export interface ValidationResult {
+interface ValidationResult {
 	isValid: boolean;
 	warnings: string[];
 	errors: string[];

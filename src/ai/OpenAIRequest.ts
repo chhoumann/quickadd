@@ -30,7 +30,7 @@ import {
 } from "./providerErrors";
 
 
-export type { CommonResponse, AnthropicContentBlock, AnthropicResponse, GeminiResponse } from "./providerRequest";
+export type { CommonResponse } from "./providerRequest";
 export { anthropicMaxTokens } from "./providerRequest";
 import { anthropicMaxTokens, dispatchProviderRequest, requestPrompt, type CommonResponse } from "./providerRequest";
 

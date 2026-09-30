@@ -2,7 +2,7 @@ import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 
 const MARKDOWN_FILE_EXTENSION_REGEX = /\.md$/i;
 
-export type UserScriptSecretOptionDetection = {
+type UserScriptSecretOptionDetection = {
 	names: Set<string>;
 	foundSecretOptions: boolean;
 };

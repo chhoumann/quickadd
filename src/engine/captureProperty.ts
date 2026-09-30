@@ -2,7 +2,7 @@ import { getFrontMatterInfo, parseYaml, stringifyYaml } from "obsidian";
 import { PROPERTY_REGEX } from "../constants";
 import type { PropertyCapture } from "../types/choices/ICaptureChoice";
 
-export type CapturePropertyValue = string | number | boolean | string[];
+type CapturePropertyValue = string | number | boolean | string[];
 
 export function validatePropertyName(input: string): string {
 	const key = input.trim();
@@ -47,7 +47,7 @@ const PROPERTY_CAPTURE_SEED_KEYS = [
 	"list",
 ] as const;
 
-export type PropertyCaptureSeedSnapshot = Array<{
+type PropertyCaptureSeedSnapshot = Array<{
 	key: (typeof PROPERTY_CAPTURE_SEED_KEYS)[number];
 	present: boolean;
 	value: unknown;

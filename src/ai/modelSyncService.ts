@@ -8,7 +8,7 @@ import { resolveProviderApiKey } from "./providerSecrets";
 
 const AUTO_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-export interface ProviderSyncOutcome {
+interface ProviderSyncOutcome {
 	provider: string;
 	added: number;
 	updated: number;

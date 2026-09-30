@@ -1,6 +1,6 @@
 import { isReservedWindowsDeviceName } from "./pathValidation";
 
-export type CaseStyle =
+type CaseStyle =
 	| "kebab"
 	| "snake"
 	| "camel"

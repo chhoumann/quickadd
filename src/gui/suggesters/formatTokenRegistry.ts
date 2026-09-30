@@ -84,7 +84,7 @@ export interface FormatTokenSuggestion {
 	isFragment?: boolean;
 }
 
-export interface FormatTokenEntry {
+interface FormatTokenEntry {
 	/** Prefix matcher deciding whether this row is still a candidate. */
 	regex: RegExp;
 	/** The row shown for the token itself. */
@@ -100,7 +100,7 @@ export interface FormatTokenEntry {
 }
 
 /** Vault/settings data the dynamic rows are built from. */
-export interface FormatTokenExpansionData {
+interface FormatTokenExpansionData {
 	templatePaths: readonly string[];
 	macroNames: readonly string[];
 	globalVariableNames: readonly string[];

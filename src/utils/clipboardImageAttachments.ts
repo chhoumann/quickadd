@@ -51,7 +51,7 @@ export function sanitizeClipboardImageStem(stem: string): string {
 		.trim();
 }
 
-export interface ClipboardImageFileNameInput {
+interface ClipboardImageFileNameInput {
 	extension: string;
 	sourcePath: string;
 	now: Date;
@@ -101,7 +101,7 @@ export function droppedImageStem(originalName: string): string | null {
 	return isPortablePathSegment(stem) ? stem : null;
 }
 
-export interface SaveClipboardImageOptions {
+interface SaveClipboardImageOptions {
 	nameAfterNoteTitle?: boolean;
 	now?: Date;
 }

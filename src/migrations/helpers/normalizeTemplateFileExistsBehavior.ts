@@ -1,7 +1,7 @@
 import type { TemplateFileExistsBehavior } from "src/template/fileExistsPolicy";
 import { mapLegacyFileExistsModeToId } from "src/template/fileExistsPolicy";
 
-export type LegacyTemplateChoice = {
+type LegacyTemplateChoice = {
 	type?: string;
 	incrementFileName?: boolean;
 	setFileExistsBehavior?: boolean;

@@ -34,7 +34,7 @@ export class UnsafeVaultPathError extends Error {
 	}
 }
 
-export interface SanitizeVaultPathOptions {
+interface SanitizeVaultPathOptions {
 	/**
 	 * If provided (and non-empty after dropping blank entries), the path must
 	 * resolve under one of these vault-relative folders. Absent / all-blank =>

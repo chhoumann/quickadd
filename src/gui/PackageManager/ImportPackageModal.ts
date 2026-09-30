@@ -5,7 +5,7 @@ import type { ApplyImportResult } from "../../services/packageImportService";
 import ImportPackageModalComponent from "./ImportPackageModal.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 
-export interface ImportPackageModalOptions {
+interface ImportPackageModalOptions {
 	onImported?: (result: ApplyImportResult, previousChoices: IChoice[]) => void;
 }
 

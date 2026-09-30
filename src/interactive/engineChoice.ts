@@ -32,7 +32,7 @@ import type { PromptProvider } from "./promptProvider";
  */
 const HANDLE_PREFIX = "\u0000qa-eng:";
 
-export interface EngineChoiceItem<T> {
+interface EngineChoiceItem<T> {
 	/** The real item. Never crosses the wire — the provider tokenises by index. */
 	value: T;
 	/** What the client shows. Must be a human label, not a fuzzy-search blob. */

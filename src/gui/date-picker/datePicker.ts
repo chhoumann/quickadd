@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 
-export type DatePickerSelectSource = "picker" | "action";
+type DatePickerSelectSource = "picker" | "action";
 
 export interface DatePickerController {
 	setSelectedIso(
@@ -11,7 +11,7 @@ export interface DatePickerController {
 	destroy(): void;
 }
 
-export interface DatePickerOptions {
+interface DatePickerOptions {
 	container: HTMLElement;
 	initialIso?: string;
 	weekStartsOn?: number;

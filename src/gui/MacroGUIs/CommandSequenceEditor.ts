@@ -58,7 +58,7 @@ export interface CommandSequenceEditorConditionalHandlers {
 	editElseBranch?: ConditionalHandler;
 }
 
-export interface CommandSequenceEditorOptions {
+interface CommandSequenceEditorOptions {
 	app: App;
 	plugin: QuickAdd;
 	/**

@@ -25,11 +25,11 @@ import {
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
 
-export type TemplatePickerItem =
+type TemplatePickerItem =
 	| { kind: "choice"; choice: ITemplateChoice }
 	| { kind: "file"; path: string };
 
-export interface ApplyTemplateToNoteParams {
+interface ApplyTemplateToNoteParams {
 	/** Target note; defaults to the active file. */
 	file?: TFile;
 	/** Non-interactive template source; skips the template picker. */

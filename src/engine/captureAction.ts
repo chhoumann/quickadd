@@ -45,7 +45,7 @@ export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
 	return "append";
 }
 
-export type WritePosition =
+type WritePosition =
 	| "property"
 	| "after"
 	| "before"

@@ -3,7 +3,7 @@ import {
 	type FileOpeningSettings,
 } from "../../utils/fileOpeningDefaults";
 
-export type LegacyOpenFileInNewTab = {
+type LegacyOpenFileInNewTab = {
 	enabled?: boolean;
 	direction?: string;
 	focus?: boolean;

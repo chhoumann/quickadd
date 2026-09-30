@@ -84,7 +84,7 @@ interface DiscoveryFormStep {
 	bindings: Map<string, { variable: string; condition: DiscoveryInputCondition | null }>;
 }
 
-export interface DiscoveryFormPlan {
+interface DiscoveryFormPlan {
 	requirements: FieldRequirement[];
 	config: DiscoveryFormConfig;
 	steps: DiscoveryFormStep[];

@@ -1,7 +1,7 @@
 import type { App } from "obsidian";
 import { log } from "../logger/logManager";
 import type { IUserScript } from "../types/macros/IUserScript";
-export { detectUserScriptSecretOptions, type UserScriptSecretOptionDetection } from "./userScriptSecretDetection";
+export { detectUserScriptSecretOptions } from "./userScriptSecretDetection";
 import { macroCommandsValueOf } from "./macroUtils";
 
 const USER_SCRIPT_SECRET_PREFIX = "quickadd-user-script";
@@ -29,7 +29,7 @@ export type UserScriptSettingsDefinition = {
 	options?: Record<string, UserScriptOptionDefinition>;
 };
 
-export type UserScriptSecretRef = {
+type UserScriptSecretRef = {
 	[SECRET_MARKER]: true;
 	secretRef: string;
 };

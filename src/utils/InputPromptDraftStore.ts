@@ -16,7 +16,7 @@ export interface InputPromptDraftKey {
 	scopeId?: string;
 }
 
-export interface ExecutionScope {
+interface ExecutionScope {
 	submittedDraftKeys: Set<string>;
 	failed: boolean;
 }

@@ -1,8 +1,6 @@
 import { describeReplyProblem } from "./promptProtocol";
 import type { PromptSpec, ReplyBody, ReplyOutcome } from "./promptProtocol";
-export type {
-	SuggesterItem, CheckboxItem, FormField, PromptSpec, ReplyBody, ReplyOutcome,
-} from "./promptProtocol";
+export type { FormField, PromptSpec, ReplyBody } from "./promptProtocol";
 
 /**
  * Localhost HTTP bridge that lets an external front end (Raycast, scripts) drive

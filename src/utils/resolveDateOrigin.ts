@@ -4,7 +4,7 @@ import { isPickDateToken } from "../types/dateOriginPresets";
 import { parseNaturalLanguageDate } from "./dateParser";
 import { resolveExistingVariableKey } from "./valueSyntax";
 
-export type DateOriginPlan =
+type DateOriginPlan =
 	| { status: "inherit" }
 	| { status: "set"; date: Date }
 	| { status: "ask"; defaultValue?: string }

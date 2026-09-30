@@ -11,7 +11,7 @@ import {
 	requiresExpectedValue,
 } from "../../utils/conditionalHelpers";
 
-export interface EvaluateConditionContext {
+interface EvaluateConditionContext {
 	variables: Record<string, unknown>;
 	evaluateScriptCondition: (condition: ScriptCondition) => Promise<boolean>;
 }

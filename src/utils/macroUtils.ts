@@ -65,7 +65,7 @@ export function hasCommandList(value: unknown): boolean {
  */
 export { isUnreadableList as isUnreadableCommandList } from "./persistedContainers";
 
-export interface NormalizedCommandList {
+interface NormalizedCommandList {
 	commands: ICommand[];
 	/** False when `commands` is the input array itself, unchanged. */
 	changed: boolean;

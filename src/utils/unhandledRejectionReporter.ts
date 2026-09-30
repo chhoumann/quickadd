@@ -27,7 +27,7 @@ const REPEAT_WINDOW_MS = 10_000;
 /** Bound the dedupe map so a pathological run cannot grow it without limit. */
 const MAX_TRACKED = 50;
 
-export interface UnhandledRejectionReporterHost {
+interface UnhandledRejectionReporterHost {
 	manifest: { id: string };
 	registerDomEvent(
 		el: Window,

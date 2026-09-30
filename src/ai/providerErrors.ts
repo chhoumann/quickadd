@@ -113,7 +113,7 @@ function analyzeTokenBreakdown(message: string): "input" | "output" | null {
 	return null;
 }
 
-export type ProviderErrorKind = "input_context" | "output_budget" | "other";
+type ProviderErrorKind = "input_context" | "output_budget" | "other";
 
 /**
  * Classify a provider/HTTP error. A spelled-out token breakdown (which side
@@ -164,7 +164,7 @@ export function isForcedToolChoiceUnsupportedError(error: unknown): boolean {
 	);
 }
 
-export interface NormalizedProviderError extends Error {
+interface NormalizedProviderError extends Error {
 	status: number;
 	providerCode?: string;
 }

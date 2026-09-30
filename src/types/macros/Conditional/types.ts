@@ -1,5 +1,3 @@
-export type ConditionMode = "variable" | "script";
-
 export type ConditionalOperator =
 	| "equals"
 	| "notEquals"

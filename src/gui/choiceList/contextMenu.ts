@@ -8,7 +8,7 @@ import {
   rootChoicesOf,
 } from "src/utils/choiceUtils";
 
-export type MoveTarget = { id: string; path: string };
+type MoveTarget = { id: string; path: string };
 
 /**
  * Sentinel target id for "Move to: (root)". Passed through the existing `onMove`

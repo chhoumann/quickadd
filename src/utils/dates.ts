@@ -1,6 +1,6 @@
 import { applyDateSnap, type DateSnap } from "./dateModifiers";
 
-export interface GetDateInput {
+interface GetDateInput {
 	format?: string;
 	offset?: number;
 	snap?: DateSnap;

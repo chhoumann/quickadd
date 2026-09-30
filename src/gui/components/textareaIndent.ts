@@ -21,7 +21,7 @@
 const DEFAULT_TAB = "\t";
 const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
 
-export interface IndentEdit {
+interface IndentEdit {
 	/** Region of the current value to replace (applied via one undoable edit). */
 	regionStart: number;
 	regionEnd: number;

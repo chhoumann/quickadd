@@ -11,8 +11,8 @@ import {
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
 
-export type ChoiceVisitor = (choice: IChoice) => void;
-export type CommandVisitor = (command: ICommand) => void;
+type ChoiceVisitor = (choice: IChoice) => void;
+type CommandVisitor = (command: ICommand) => void;
 
 interface Visitors {
 	onChoice?: ChoiceVisitor;

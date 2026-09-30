@@ -1,6 +1,6 @@
-export type YamlRange = [number, number] | null;
+type YamlRange = [number, number] | null;
 
-export interface YamlMatchContext {
+interface YamlMatchContext {
   isInYaml: boolean;
   isQuoted: boolean;
   lineStart: number;
