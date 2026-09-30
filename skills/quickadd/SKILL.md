@@ -82,7 +82,8 @@ exactly that action.
 ## Create a new choice
 
 When the user wants a new repeatable capture or template ("add a reading log I
-can append to"), write a package file in the vault and import it:
+can append to"), write a package to a new file in the vault (pick a name that
+doesn't exist yet) and import it:
 
 ```json
 {
@@ -127,4 +128,5 @@ obsidian quickadd:package-import path=reading-log.quickadd.json
 - Format syntax: `{{VALUE}}`, `{{VALUE:name}}`, `{{VDATE:name,YYYY-MM-DD}}`,
   `{{DATE:YYYY-MM-DD}}`, `{{TIME}}`, `{{LINKCURRENT}}`. Reference:
   https://quickadd.obsidian.guide/docs/FormatSyntax/
-- Run the new choice once with `verify`, then delete the package file.
+- Run the new choice once with `verify`, then delete the package file you
+  created (only that one).
