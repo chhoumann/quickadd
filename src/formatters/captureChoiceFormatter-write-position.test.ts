@@ -291,6 +291,36 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 	});
 
 	it.each([
+		[
+			"# Header one\n## Pre-existing header\nPre-existing text",
+			"# Header one\n## Pre-existing header\nPre-existing text\n## Capture header\nSome capture text",
+		],
+		[
+			"# Header one\n## Pre-existing header\nPre-existing text\n# Header two\n",
+			"# Header one\n## Pre-existing header\nPre-existing text\n## Capture header\nSome capture text\n# Header two\n",
+		],
+	])("keeps a subsection's text with its heading when inserting at the end of the section with subsections (#2029): %j", async (note, expected) => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "# Header one",
+				insertAtEnd: true,
+				considerSubsections: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"## Capture header\nSome capture text",
+			choice,
+			note,
+			createFile(),
+		);
+
+		expect(content).toBe(expected);
+	});
+
+	it.each([
 		["## Log\n## Next\n", "## Log\n- captured\n## Next\n"],
 		["## Log\nNext\n---\n", "## Log\n- captured\nNext\n---\n"],
 	])("writes into an empty first section, not under the heading after it: %j", async (note, expected) => {

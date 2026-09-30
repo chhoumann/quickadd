@@ -393,3 +393,23 @@ test("getEndOfSection - a setext heading's section ends no earlier than its unde
 	).toBe(3);
 	expect(getEndOfSection(["Alpha", "---", "## Next"], 0, false)).toBe(1);
 });
+
+test("getEndOfSection - considering subsections, a section's last line counts when the next heading follows at once (#2029)", () => {
+	const lines = [
+		"# Header one", // target (0)
+		"## Pre-existing header",
+		"Pre-existing text", // result (2)
+		"# Header two",
+		"",
+	];
+	expect(getEndOfSection(lines, 0, true)).toBe(2);
+	// The same when the target heading isn't on the first line.
+	expect(getEndOfSection(["intro", "# A", "text", "# B"], 1, true)).toBe(2);
+	expect(getEndOfSection(["Alpha", "===", "text", "# B"], 0, true)).toBe(2);
+});
+
+test("getEndOfSection - the last section of a note without a final line break ends on its last paragraph", () => {
+	const lines = ["# A", "text", "", "last"];
+	expect(getEndOfSection(lines, 0, false)).toBe(3);
+	expect(getEndOfSection(lines, 0, true)).toBe(3);
+});
