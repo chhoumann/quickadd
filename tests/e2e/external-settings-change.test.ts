@@ -119,6 +119,44 @@ it("keeps an edit made here that was not saved yet when another device's change 
 	}, POLL_OPTS).toEqual({ choice: true, showCaptureNotification: !before.showCaptureNotification });
 });
 
+it("merges a choice edited here and a different choice edited elsewhere in the same second", async () => {
+	const { obsidian, plugin } = getContext();
+	const other = { ...syncedChoice("Journal"), id: `${CHOICE_ID}-other`, command: false } as IChoice;
+	await plugin.data<QuickAddData>().patch((data) => {
+		data.choices.push({ ...syncedChoice("Inbox"), command: false } as IChoice, other);
+	});
+	await expect.poll(() => obsidian.dev.evalJson<number>(
+		`app.plugins.plugins.quickadd.settings.choices.filter((c) => c.id.startsWith(${JSON.stringify(CHOICE_ID)})).length`,
+	), POLL_OPTS).toBe(2);
+
+	try {
+		// Here: turn on Inbox's command from the choice list. Elsewhere, inside
+		// the one-second save debounce: rename Journal.
+		await obsidian.dev.evalJsonAsync(`(async () => {
+			app.setting.open();
+			app.setting.openTabById("quickadd");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			document.querySelector('[aria-label="Command palette: Inbox"]').click();
+			return true;
+		})()`);
+		await plugin.data<QuickAddData>().patch((data) => {
+			data.choices = data.choices.map((c) => (c.id === other.id ? { ...c, name: "Journal (phone)" } : c));
+		});
+
+		const expected = [
+			{ id: CHOICE_ID, name: "Inbox", command: true },
+			{ id: other.id, name: "Journal (phone)", command: false },
+		];
+		const ours = (choices: IChoice[]) => choices
+			.filter((c) => c.id.startsWith(CHOICE_ID))
+			.map(({ id, name, command }) => ({ id, name, command }));
+		await expect.poll(async () => ours((await plugin.data<QuickAddData>().read()).choices), POLL_OPTS).toEqual(expected);
+		expect(ours(await obsidian.dev.evalJson<IChoice[]>("app.plugins.plugins.quickadd.settings.choices"))).toEqual(expected);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(); true");
+	}
+});
+
 it("does not treat its own saves as external changes", async () => {
 	const { obsidian, plugin } = getContext();
 	const before = await plugin.data<QuickAddData>().read();

@@ -34,13 +34,15 @@ const journal: CaptureLike = { ...inbox, id: "journal", name: "Journal", capture
 function openBuilderOn(name: string): (edit: Partial<CaptureLike>) => void {
 	let finish: (choice: IChoice) => void = () => {};
 	let opened: IChoice | undefined;
-	configureChoiceMock.mockImplementation(
-		(choice: IChoice) =>
-			new Promise<IChoice>((resolve) => {
-				opened = JSON.parse(JSON.stringify(choice)) as IChoice;
-				finish = resolve;
-			}),
-	);
+	configureChoiceMock.mockImplementation((choice: IChoice & { openInNewTab?: boolean }) => {
+		// Like the real builders: backfill a missing default on the choice
+		// itself, synchronously, as the builder opens.
+		choice.openInNewTab ??= false;
+		opened = JSON.parse(JSON.stringify(choice)) as IChoice;
+		return new Promise<IChoice>((resolve) => {
+			finish = resolve;
+		});
+	});
 
 	const { getByLabelText } = render(ChoiceView, {
 		props: {
@@ -75,12 +77,12 @@ describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => 
 		const closeBuilder = openBuilderOn("Inbox");
 		await vi.waitFor(() => expect(configureChoiceMock).toHaveBeenCalled());
 
-		// While the builder is open, the other device renames this choice and
-		// changes the other one.
+		// While the builder is open, the other device renames this choice, sets
+		// the field the builder backfilled, and changes the other choice.
 		settingsStore.setState({
 			choices: [
-				{ ...inbox, name: "Inbox (phone)" },
-				{ ...journal, captureTo: "Daily.md" },
+				{ ...inbox, name: "Inbox (phone)", openInNewTab: true } as IChoice,
+				{ ...journal, captureTo: "Daily.md" } as IChoice,
 			],
 		});
 		// Here, only the capture target was edited.
@@ -88,7 +90,7 @@ describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => 
 
 		await vi.waitFor(() =>
 			expect(settingsStore.getState().choices).toEqual([
-				{ ...inbox, name: "Inbox (phone)", captureTo: "Later.md" },
+				{ ...inbox, name: "Inbox (phone)", openInNewTab: true, captureTo: "Later.md" },
 				{ ...journal, captureTo: "Daily.md" },
 			]),
 		);

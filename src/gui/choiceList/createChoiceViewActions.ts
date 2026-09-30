@@ -123,8 +123,12 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 	}
 
 	async function handleConfigureChoice(oldChoice: IChoice) {
-		const opened = snapshot(liveChoice(oldChoice));
-		const edited = await configureChoice(liveChoice(oldChoice), context.app, context.plugin);
+		const live = liveChoice(oldChoice);
+		const closed = configureChoice(live, context.app, context.plugin);
+		// Builders fill in missing defaults on the choice as they open; take the
+		// baseline after that so those defaults don't count as edits below.
+		const opened = snapshot(live);
+		const edited = await closed;
 		if (!edited) return;
 
 		// Settings synced from another device apply while the builder is open.
