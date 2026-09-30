@@ -17,6 +17,9 @@ async function setup(content = "# Daily\n\n## Log\n\nExisting\n") {
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "### {{DATE:YYYY-MM-DD}}\n- {{CURSOR}}after" };
 	choice.insertAfter.enabled = true;
+	// Top of the section, and no heading creation: the defaults before #2007.
+	choice.insertAfter.insertAtEnd = false;
+	choice.insertAfter.createIfNotFound = false;
 	choice.insertAfter.after = "## Log";
 	return { choice, path };
 }
