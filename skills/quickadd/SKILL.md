@@ -64,9 +64,12 @@ no choice fits, and say so.
 
    - Date inputs accept natural language (`friday`, `tomorrow`) or `YYYY-MM-DD`.
    - Multi-line text is fine inside `vars` JSON (`\n`).
-   - Success is `"ok":true` **and** an `effect` of `created` or `changed`;
-     `file` is the note it wrote. `unchanged` means nothing was written - tell
-     the user why rather than retrying.
+   - `"ok":true` means the choice ran. `effect` says what it did: `created` or
+     `changed` (and `file` is the note), `unchanged` (nothing was written - tell
+     the user why rather than retrying), or `unknown` (QuickAdd could not
+     confirm the result, as for every Macro). On `unknown`, look at the note you
+     expected to change. Never re-run a choice just because its result is
+     unconfirmed: it may already have written.
    - `"ok":false` with `missing` lists inputs you still need to pass.
    - `"aborted":true` means QuickAdd needed to ask the user something (for
      example, a note with that name already exists). Tell the user; don't
