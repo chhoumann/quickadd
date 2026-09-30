@@ -77,6 +77,15 @@ function providerMergeKey(provider: Record<string, unknown>): string {
 	return `name:${name}\u0000${endpoint}`;
 }
 
+/** Choices (and a folder's children) carry a unique `id`. */
+function hasChoiceId(value: unknown): value is Record<string, unknown> {
+	return isPlainObject(value) && typeof value.id === "string" && value.id.trim().length > 0;
+}
+
+function choiceMergeKey(choice: Record<string, unknown>): string {
+	return `id:${String(choice.id).trim()}`;
+}
+
 function modelMergeKey(model: Record<string, unknown>): string {
 	return String(model.name ?? "")
 		.trim()
@@ -166,9 +175,10 @@ function threeWayMergeKeyedArray(
  * - If disk is unchanged from base, take local (preserves in-memory edits).
  * - If both changed the same plain object, recurse per key.
  * - Arrays under an `providers` path merge by `AIProvider.id` (fallback:
- *   name+endpoint); arrays under a `models` path merge by `Model.name`.
- *   Path context matters: choice objects also have `name` and must not use
- *   model-name identity.
+ *   name+endpoint); arrays under a `models` path merge by `Model.name`;
+ *   arrays under a `choices` path (the root list and folders' children) merge
+ *   by choice `id`. Path context matters: choice objects also have `name` and
+ *   must not use model-name identity.
  * - Other irreducible array/leaf conflicts prefer local.
  *
  * This is the data-integrity seam for #1749: a background model-sync write must
@@ -210,12 +220,14 @@ export function threeWayMergeSettings<T>(
 		const leaf = path[path.length - 1];
 		const sample = [...localArr, ...diskArr, ...(baseArr ?? [])];
 		// Keyed merges are path-gated. Shape checks alone are not enough:
-		// choices also have `name` and must fall through to prefer-local.
+		// choices also have `name`, and two can share one, so they merge by id.
 		const keyOf = leaf === "providers" && sample.every(isProviderLike)
 			? providerMergeKey
 			: leaf === "models" && sample.every(isModelLike)
 				? modelMergeKey
-				: undefined;
+				: leaf === "choices" && sample.every(hasChoiceId)
+					? choiceMergeKey
+					: undefined;
 		if (keyOf) {
 			return threeWayMergeKeyedArray(baseArr, localArr, diskArr, keyOf, path) as T;
 		}

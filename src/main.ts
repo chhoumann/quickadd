@@ -343,13 +343,7 @@ export default class QuickAdd extends Plugin {
 					plan.shouldReplaceStore &&
 					settingsValuesEqual(this.settings, plan.local)
 				) {
-					this.suppressSettingsSave = true;
-					try {
-						settingsStore.replaceState(plan.toWrite);
-						this.settings = plan.toWrite;
-					} finally {
-						this.suppressSettingsSave = false;
-					}
+					this.publishSettingsFromDisk(plan.toWrite);
 				}
 			};
 
@@ -402,13 +396,7 @@ export default class QuickAdd extends Plugin {
 					storeAtFinalMerge,
 				)
 			) {
-				this.suppressSettingsSave = true;
-				try {
-					settingsStore.replaceState(toWrite);
-					this.settings = toWrite;
-				} finally {
-					this.suppressSettingsSave = false;
-				}
+				this.publishSettingsFromDisk(toWrite);
 			}
 
 			await this.saveData(toWrite);
@@ -417,6 +405,74 @@ export default class QuickAdd extends Plugin {
 
 		this.persistChain = this.persistChain.then(run, run);
 		return this.persistChain;
+	}
+
+	/**
+	 * Obsidian calls this when `data.json` is newer than QuickAdd's last write:
+	 * Sync or another sync tool delivered it, another instance on the same
+	 * vault wrote it, or someone edited it by hand. Apply it now instead of at
+	 * the next reload. Edits made here and not yet saved (the debounced save)
+	 * are three-way merged on top, the same way a save merges (#1749). Queued
+	 * with the saves so the two never interleave.
+	 */
+	async onExternalSettingsChange(): Promise<void> {
+		const run = async () => {
+			let loadedData: unknown;
+			try {
+				loadedData = await this.loadData();
+			} catch (err) {
+				// A sync client can leave a half-written file behind; the next
+				// complete write triggers this again.
+				log.logWarning(`QuickAdd could not read its changed settings: ${String(err)}`);
+				return;
+			}
+			// A missing file is not a request to reset every setting.
+			if (!loadedData) return;
+
+			const base = this.lastPersistedSettings;
+			const disk = this.normalizeLoadedSettings(loadedData);
+			if (base && settingsValuesEqual(disk, base)) return;
+
+			const merged = base
+				? threeWayMergeSettings(base, deepClone(this.settings), disk)
+				: disk;
+			this.lastPersistedSettings = deepClone(disk);
+			if (!settingsValuesEqual(merged, this.settings)) {
+				this.publishSettingsFromDisk(merged);
+			}
+			if (settingsValuesEqual(merged, disk)) {
+				// Everything this instance holds is on disk already.
+				this.requestSave.cancel();
+			} else {
+				// Local edits were merged in; they still need writing.
+				this.requestSave();
+			}
+			log.logMessage("[Settings] Applied settings that changed outside this Obsidian instance.");
+		};
+
+		this.persistChain = this.persistChain.then(run, run);
+		await this.persistChain;
+	}
+
+	/**
+	 * Replace the live settings with values that came from disk, without
+	 * scheduling a save of them, and bring the choice commands in line: the
+	 * choices may have been added, removed or renamed elsewhere.
+	 */
+	private publishSettingsFromDisk(next: QuickAddSettings): void {
+		const previousChoices = this.settings.choices;
+		this.suppressSettingsSave = true;
+		try {
+			settingsStore.replaceState(next);
+			this.settings = next;
+		} finally {
+			this.suppressSettingsSave = false;
+		}
+		if (settingsValuesEqual(previousChoices, next.choices)) return;
+		for (const choice of rootChoicesOf(previousChoices)) {
+			if (isChoiceLike(choice)) this.removeCommandForChoice(choice, { recursive: true });
+		}
+		this.addCommandsForChoices(next.choices);
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {

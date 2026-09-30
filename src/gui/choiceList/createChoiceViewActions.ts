@@ -29,6 +29,7 @@ import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
 import type { ChoiceListActions } from "./choiceListActions";
 import { subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
+import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
 
 interface ChoiceViewContext {
 	app: App;
@@ -123,11 +124,23 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 	async function handleConfigureChoice(oldChoice: IChoice) {
 		const live = liveChoice(oldChoice);
-		const updatedChoice = await configureChoice(live, context.app, context.plugin);
-		if (!updatedChoice) return;
+		const closed = configureChoice(live, context.app, context.plugin);
+		// Builders fill in missing defaults on the choice as they open; take the
+		// baseline after that so those defaults don't count as edits below.
+		const opened = snapshot(live);
+		const edited = await closed;
+		if (!edited) return;
 
+		// Settings synced from another device apply while the builder is open.
+		// Merge so closing the builder only writes what was edited in it.
+		const current = findChoiceById(context.choices, oldChoice.id);
+		if (!current) {
+			new Notice(`QuickAdd: “${opened.name}” was deleted elsewhere, so your changes to it were not saved.`);
+			return;
+		}
+		const updatedChoice = threeWayMergeSettings<IChoice>(opened, edited, snapshot(current));
 		context.choices = context.choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
-		context.commandRegistry.updateCommand(live, updatedChoice);
+		context.commandRegistry.updateCommand(current, updatedChoice);
 		save();
 	}
 
