@@ -73,6 +73,9 @@ function captureChoice(format = "- captured {{CURSOR}}") {
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format };
 	choice.insertAfter.enabled = true;
+	// Top of the section, and no heading creation: the defaults before #2007.
+	choice.insertAfter.insertAtEnd = false;
+	choice.insertAfter.createIfNotFound = false;
 	choice.insertAfter.after = "# Encounters";
 	return choice;
 }

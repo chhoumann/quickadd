@@ -156,6 +156,9 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("User text with real 
 		["insert after", (choice: CaptureChoice) => {
 			choice.prepend = false;
 			choice.insertAfter.enabled = true;
+			// Top of the section, and no heading creation: the defaults before #2007.
+			choice.insertAfter.insertAtEnd = false;
+			choice.insertAfter.createIfNotFound = false;
 			choice.insertAfter.after = "## Log";
 		}],
 		["top", (choice: CaptureChoice) => { choice.prepend = false; }],

@@ -19,8 +19,8 @@ Imported the package above? Follow **After importing** in the card, then skip th
 4. Enable **Create file if it doesn't exist**.
 5. Set **Write position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
-7. Enable **Insert at end of section** so each capture appends at the bottom of the section.
-8. Enable **Create line if not found** and set its placement to **Top** so the heading is inserted when a fresh note does not have it yet.
+7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section.
+8. Make sure **Create line if not found** is on with placement **Top**, so the heading is inserted when a fresh note does not have it yet. A new Capture starts with both on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
 9. Leave **Link to captured file** disabled.
 10. Fill in **Capture format** with one of the recipes below.
 
@@ -35,7 +35,7 @@ Keep **Insert after** set to `## Journal`.
 **Capture format:**
 
 ```
-- {{DATE:HH:mm}} {{VALUE}}\n
+- {{DATE:HH:mm}} {{VALUE}}
 ```
 
 Produces:
@@ -46,7 +46,7 @@ Produces:
 - 18:55 second journal entry
 ```
 
-End non-task formats with `\n` so each capture lands as its own complete line.
+Before QuickAdd 2.30.0, end each recipe's format with `\n` (for example `- {{DATE:HH:mm}} {{VALUE}}\n`). Without it, a capture at the end of a section removes the blank line before the next heading.
 
 ### Task line
 
@@ -85,7 +85,7 @@ Change **Insert after** to the callout opener, for example:
 **Capture format:**
 
 ```
-> {{VALUE}}\n
+> {{VALUE}}
 ```
 
 On first use, **Create line if not found** inserts the callout opener at the position you chose. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
@@ -97,7 +97,7 @@ Change **Insert after** to `## Quotes`.
 **Capture format:**
 
 ```
-> {{VALUE}}\n
+> {{VALUE}}
 ```
 
 Same format as the callout recipe but targeting a regular heading. Produces a blockquote line under the section.
@@ -109,7 +109,7 @@ Use this when the daily note already has a table under a heading and the table i
 **Capture format:**
 
 ```
-| {{DATE:HH:mm}} | {{VALUE}} |\n
+| {{DATE:HH:mm}} | {{VALUE}} |
 ```
 
 This keeps the row attached to the table:
@@ -136,14 +136,11 @@ The `+1` shifts the target date one day forward. Combine with any of the formats
 
 ## Troubleshooting
 
-**Captures run together on one line.**
-For non-task formats, end the capture format with `\n` or press Enter at the end of the format field. Formats that use **Task** do not need one; QuickAdd inserts that line break.
-
 **Pasted multiple lines became one task.**
 The **Task** setting wraps the whole capture once. Turn on [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) (QuickAdd 2.30.0 or later) to make each line its own task.
 
 **The heading is not found and capture fails.**
-Enable **Create line if not found** with placement **Top** (or **Bottom**). QuickAdd inserts the heading on first use and places new content after it.
+Turn on **Create line if not found** with placement **Top** (or **Bottom**). QuickAdd inserts the heading on first use and places new content after it.
 
 **You need to insert above a placeholder.**
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
