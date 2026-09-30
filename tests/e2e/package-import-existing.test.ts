@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // "Import" adds a choice and never replaces one: the CLI refuses it for a
 // choice already in the vault, and the modal only offers it for new choices.
@@ -19,7 +19,7 @@ function packageWith(id: string, name: string, captureTo: string): string {
 }
 
 const choiceById = (id: string) =>
-	`(() => { const c = app.plugins.plugins.quickadd.settings.choices.find((choice) => choice.id === ${JSON.stringify(id)}); return c ? { name: c.name, captureTo: c.captureTo } : null; })()`;
+	`(() => { const c = app.plugins.plugins.quickadd.settings.choices.find((choice) => choice.id === ${jsLiteral(id)}); return c ? { name: c.name, captureTo: c.captureTo } : null; })()`;
 
 it("refuses choices=import for a choice already in the vault and keeps it", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
@@ -65,6 +65,6 @@ it("offers Overwrite, not Import, for a choice already in the vault", async () =
 	} finally {
 		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");
-		await obsidian.dev.evalJson(`app.vault.setConfig('settingsPopoutWindow', ${JSON.stringify(popout)}), true`);
+		await obsidian.dev.evalJson(`app.vault.setConfig('settingsPopoutWindow', ${jsLiteral(popout)}), true`);
 	}
 });
