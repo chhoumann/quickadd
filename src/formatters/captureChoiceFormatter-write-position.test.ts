@@ -246,6 +246,90 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		);
 	});
 
+	it.each([false, true])(
+		"ends a heading's section after its code fence, not at a # line inside it (considerSubsections: %s) (#1968)",
+		async (considerSubsections) => {
+			const choice = createChoice({
+				insertAfter: {
+					...createChoice().insertAfter,
+					enabled: true,
+					after: "## Log",
+					insertAtEnd: true,
+					considerSubsections,
+				},
+			});
+			const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+			const { content } = await formatter.formatContentWithFile(
+				"- captured\n",
+				choice,
+				"## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n- second entry\n\n## Next\n- untouched\n",
+				createFile(),
+			);
+
+			expect(content).toBe(
+				"## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n- second entry\n- captured\n\n## Next\n- untouched\n",
+			);
+		},
+	);
+
+	it("does not read an inline-code line as a fence when ending a heading's section (#1968)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\n```inline```\n\n## Next\n- untouched\n",
+			createFile(),
+		);
+
+		expect(content).toBe("## Log\n```inline```\n- captured\n\n## Next\n- untouched\n");
+	});
+
+	it.each([
+		["## Log\n## Next\n", "## Log\n- captured\n## Next\n"],
+		["## Log\nNext\n---\n", "## Log\n- captured\nNext\n---\n"],
+	])("writes into an empty first section, not under the heading after it: %j", async (note, expected) => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, note, createFile());
+
+		expect(content).toBe(expected);
+	});
+
+	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"---\n## Log\n- first entry\n\n## Next\n- untouched\n",
+			createFile(),
+		);
+
+		expect(content).toBe("---\n## Log\n- first entry\n- captured\n\n## Next\n- untouched\n");
+	});
+
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
 		const formatter = new CaptureChoiceFormatter(
 			createMockApp(),

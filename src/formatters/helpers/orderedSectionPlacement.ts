@@ -1,4 +1,5 @@
-import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
+import getEndOfSection from "./getEndOfSection";
+import { extractHeadingsFromLines } from "./sectionLink";
 import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
 
 /**
@@ -72,10 +73,6 @@ export function maskFencedHeadings(lines: string[]): string[] {
 	}
 
 	return out;
-}
-
-function headingKeyText(line: string): string {
-	return (line.match(/^#+\s+(.*)$/)?.[1] ?? "").trim();
 }
 
 function parseSemver(text: string): ParsedKey {
@@ -156,11 +153,15 @@ export function computeOrderedSectionInsertIndex(
 	bodyStartLine = 0,
 ): OrderedSlot {
 	const masked = maskFencedHeadings(lines);
-	const headings = getMarkdownHeadings(masked).filter(
+	const headings = extractHeadingsFromLines(masked).filter(
 		(heading) => heading.line >= bodyStartLine,
 	);
 	const siblings = headings.filter((heading) => heading.level === level);
-	const newKey = parseKey(headingKeyText(newHeaderFirstLine), ob, moment);
+	const newKey = parseKey(
+		extractHeadingsFromLines([newHeaderFirstLine])[0]?.heading.trim() ?? "",
+		ob,
+		moment,
+	);
 
 	// R1 (preamble pinned): with zero same-level siblings, nest the new section
 	// after the nearest higher-level ancestor's WHOLE section (so an H1 title and
@@ -192,7 +193,7 @@ export function computeOrderedSectionInsertIndex(
 
 	const sink = ob.unparseable ?? "bottom"; // governs EXISTING unparseable siblings
 	for (const sibling of siblings) {
-		const sibKey = parseKey(headingKeyText(masked[sibling.line]), ob, moment);
+		const sibKey = parseKey(sibling.heading.trim(), ob, moment);
 		let shouldPrecede: boolean;
 		if (!sibKey.parsed) {
 			// New key parsed, sibling not: place new ABOVE the sibling iff

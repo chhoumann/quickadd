@@ -56,6 +56,17 @@ describe("computeOrderedSectionInsertIndex", () => {
 			expect(slot).toEqual({ mode: "after", line: 1 });
 		});
 
+		it("pins a setext title's preamble like an ATX one (#1968)", () => {
+			const slot = computeOrderedSectionInsertIndex(
+				["My Daily Log", "===", "A running journal.", ""],
+				"## 2026-06-16",
+				2,
+				ob({ by: "date", dateFormat: "YYYY-MM-DD" }),
+				makeFakeMoment(),
+			);
+			expect(slot).toEqual({ mode: "after", line: 2 });
+		});
+
 		it("falls back to bodyStart when there is no ancestor heading", () => {
 			const lines = ["", "- loose note", ""];
 			const slot = computeOrderedSectionInsertIndex(
@@ -100,6 +111,44 @@ describe("computeOrderedSectionInsertIndex", () => {
 				ob({ by: "lexical", direction: "asc" }),
 			);
 			expect(slot).toEqual({ mode: "before", line: 2 });
+		});
+		it("sorts an indented or setext sibling by its heading text (#1968)", () => {
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "  ## Globex", "- standup"],
+					"## Acme",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "before", line: 2 });
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "Globex", "---", "- standup"],
+					"## Acme",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "before", line: 2 });
+		});
+		it("sorts an indented new heading by its heading text (#1968)", () => {
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "## Alpha", "- standup"],
+					"  ## Zulu",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "after", line: 3 });
+		});
+		it("appends after a setext sibling's underline, not between it and its text (#1968)", () => {
+			expect(
+				computeOrderedSectionInsertIndex(
+					["# Meetings", "", "Alpha", "---", "# Next", "body"],
+					"## Zulu",
+					2,
+					ob({ by: "lexical", direction: "asc" }),
+				),
+			).toEqual({ mode: "after", line: 3 });
 		});
 		it("is case-insensitive", () => {
 			const slot = computeOrderedSectionInsertIndex(

@@ -2,7 +2,8 @@ import { surroundCapture, placeCapture, type CapturePlacementResult } from "./ca
 import { getLinesInString } from "../../utility";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { insertAtNoteBodyStartWithResult } from "../../utils/noteContentInsertion";
-import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
+import getEndOfSection from "./getEndOfSection";
+import { extractHeadingsFromLines } from "./sectionLink";
 import { computeOrderedSectionInsertIndex, maskFencedHeadings, type MomentLike } from "./orderedSectionPlacement";
 import * as positioning from "./insertionPositioning";
 
@@ -21,7 +22,7 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 	};
 
 	const firstLine = targetString.split(/\r?\n/, 1)[0];
-	const level = getMarkdownHeadings([firstLine])[0]?.level ?? 0;
+	const level = extractHeadingsFromLines([firstLine])[0]?.level ?? 0;
 
 	// Reused verbatim so the created block is byte-identical to next-run's search
 	// target (the #742 round-trip invariant that keeps creation idempotent).

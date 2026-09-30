@@ -435,3 +435,16 @@ test("getMarkdownHeadings - correctly ignores Obsidian tags", () => {
 		{ level: 2, text: "Heading with #tag in it", line: 4 },
 	]);
 });
+
+test("getEndOfSection - an empty first section ends at its heading when the next heading follows at once", () => {
+	expect(getEndOfSection(["## Log", "## Next"], 0, false)).toBe(0);
+	// A setext heading spans two lines, so it starts on its text line.
+	expect(getEndOfSection(["## Log", "Next", "---"], 0, false)).toBe(0);
+});
+
+test("getEndOfSection - a setext heading's section ends no earlier than its underline", () => {
+	expect(
+		getEndOfSection(["# Meetings", "", "Alpha", "---", "# Next", "body"], 2, true),
+	).toBe(3);
+	expect(getEndOfSection(["Alpha", "---", "## Next"], 0, false)).toBe(1);
+});

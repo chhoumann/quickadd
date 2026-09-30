@@ -59,6 +59,17 @@ function isSetextContentLine(line: string): boolean {
 }
 
 /**
+ * The last line a heading occupies: a setext heading's underline, or an ATX
+ * heading's own line. An ATX line always differs from its text by the `#`
+ * marker; a setext heading's line is its text.
+ */
+export function headingEndLine(lines: string[], heading: SimpleHeading): number {
+	return lines[heading.line]?.trim() === heading.heading
+		? heading.line + 1
+		: heading.line;
+}
+
+/**
  * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
  * headings from raw buffer lines, skipping YAML frontmatter and fenced code
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
@@ -75,12 +86,16 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i];
 
-		// YAML frontmatter: only when it opens on the very first line.
+		// YAML frontmatter: only when it opens on the very first line and closes.
+		// Without a closing `---`, Obsidian reads the first line as a rule and
+		// the rest as body.
 		if (i === 0 && /^---\s*$/.test(line)) {
 			let j = i + 1;
 			while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
-			i = j; // land on the closing `---` (or EOF); the loop's ++ steps past it
-			continue;
+			if (j < lines.length) {
+				i = j; // land on the closing `---`; the loop's ++ steps past it
+				continue;
+			}
 		}
 
 		// Fenced code blocks (``` or ~~~, 3+). An opening fence may carry an info
@@ -88,8 +103,11 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 		// length >= the opener, then optional whitespace) — otherwise a content
 		// line like ```js inside the block would wrongly close it (CommonMark).
 		if (!inFence) {
-			const open = line.match(/^ {0,3}(`{3,}|~{3,})/);
-			if (open) {
+			const open = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+			// A backtick fence's info string can't contain a backtick: a line
+			// like ```inline``` is inline code, not a fence (CommonMark, and
+			// Obsidian).
+			if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
 				inFence = true;
 				fenceChar = open[1][0];
 				fenceLen = open[1].length;

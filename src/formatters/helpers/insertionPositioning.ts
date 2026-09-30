@@ -1,5 +1,5 @@
 import type { BlankLineAfterMatchMode } from "../../types/choices/ICaptureChoice";
-import { getMarkdownHeadings } from "./getEndOfSection";
+import { extractHeadingsFromLines } from "./sectionLink";
 import { maskFencedHeadings, type OrderedSlot } from "./orderedSectionPlacement";
 import { getBodyStartOffset } from "../../utils/noteContentInsertion";
 
@@ -172,7 +172,8 @@ function stripTrailingWhitespace(line: string): string {
  * getEndOfSection() throws if asked to consider subsections of a non-heading
  * line. Multi-line anchors made non-heading start lines newly matchable
  * (issue #742), so degrade to false when the anchor is not a heading
- * (using getEndOfSection's own heading definition) instead of throwing.
+ * (using getEndOfSection's own heading definition, in context: a `#` line
+ * inside a code fence is not a heading) instead of throwing.
  */
 export function anchorAllowsSubsections(
 	considerSubsections: boolean,
@@ -180,7 +181,7 @@ export function anchorAllowsSubsections(
 	anchorLine: number,
 ): boolean {
 	if (!considerSubsections) return false;
-	return getMarkdownHeadings([lines[anchorLine] ?? ""]).length > 0;
+	return extractHeadingsFromLines(lines).some((heading) => heading.line === anchorLine);
 }
 
 export function shouldSkipBlankLinesAfterMatch(
