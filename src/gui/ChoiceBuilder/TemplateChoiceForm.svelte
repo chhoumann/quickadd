@@ -1,4 +1,5 @@
 <script lang="ts">
+import { onDestroy } from "svelte";
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
@@ -159,6 +160,13 @@ function addFolder() {
 function onFolderInputKeypress(event: KeyboardEvent) {
 	if (event.key === "Enter") addFolder();
 }
+
+// The builder destroys this form before it saves the choice, so a folder typed
+// but never added is kept on close (Done, Escape, or X) instead of dropped
+// (#1993).
+onDestroy(() => {
+	if (folderMode === "specified") addFolder();
+});
 
 // --- File already exists -------------------------------------------------
 const behaviorCategory = $derived(getBehaviorCategory(choice.fileExistsBehavior));

@@ -267,7 +267,8 @@ Pick one of four modes:
   asking which to use. Drag a folder's handle, or focus the handle and press
   ArrowUp / ArrowDown, to change the suggester order. An **Include subfolders**
   toggle (shown only in this mode) lets the suggester offer the selected folders
-  *and* their subfolders.
+  *and* their subfolders. A folder you typed but didn't **Add** is added when
+  you close the builder.
 - **Same folder as current file** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each
