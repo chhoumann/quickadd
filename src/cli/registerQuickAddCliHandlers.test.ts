@@ -7,6 +7,8 @@ import type QuickAdd from "../main";
 import { registerQuickAddCliHandlers } from "./registerQuickAddCliHandlers";
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
 
 const {
 	ChoiceExecutorMock,
@@ -676,6 +678,77 @@ describe("registerQuickAddCliHandlers", () => {
 			templateChoice.id,
 			macroChoice.id,
 		]);
+	});
+
+	it("lists what each Template and Capture writes, from stored settings", async () => {
+		const dailyLog = new CaptureChoice("Daily log");
+		dailyLog.captureTo = "Daily/{{DATE:YYYY-MM-DD}}.md";
+		dailyLog.format = { enabled: true, format: "- {{TIME}} {{VALUE}}\n" };
+		dailyLog.insertAfter.enabled = true;
+		dailyLog.insertAfter.after = "## Log";
+		dailyLog.createFileIfItDoesntExist = { enabled: true, createWithTemplate: true, template: "Templates/Daily.md" };
+		const task = new CaptureChoice("Task");
+		task.captureTo = "Tasks.md";
+		task.prepend = true;
+		task.task = true;
+		const atCursor = new CaptureChoice("Here");
+		atCursor.captureToActiveFile = true;
+		const underHeading = new CaptureChoice("Under a heading");
+		underHeading.captureTo = "Projects/";
+		underHeading.insertAfter.enabled = true;
+		underHeading.insertAfter.promptHeading = true;
+		const status = new CaptureChoice("Status");
+		status.captureToActiveFile = true;
+		status.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		const meeting = new TemplateChoice("Meeting note");
+		meeting.templatePath = "Templates/Meeting.md";
+		meeting.folder.enabled = true;
+		meeting.folder.folders = ["Meetings"];
+		meeting.fileNameFormat = { enabled: true, format: "{{DATE}} {{VALUE:topic}}" };
+		const anywhere = new TemplateChoice("Anywhere");
+		anywhere.templatePath = "Templates/Note.md";
+		anywhere.folder.enabled = true;
+		anywhere.folder.folders = ["Areas", "Projects"];
+		const beside = new TemplateChoice("Beside");
+		beside.templatePath = "Templates/Note.md";
+		beside.folder.enabled = true;
+		beside.folder.createInSameFolderAsActiveFile = true;
+		const { plugin, handlers } = createPlugin([
+			dailyLog, task, atCursor, underHeading, status, meeting, anywhere, beside, macroChoice,
+		]);
+		registerQuickAddCliHandlers(plugin);
+		const list = handlers.find((handler) => handler.command === "quickadd:list");
+
+		const payload = JSON.parse(String(await list!.handler({})));
+
+		expect(payload.choices.map((choice: { writes?: unknown }) => choice.writes)).toEqual([
+			{
+				target: "Daily/{{DATE:YYYY-MM-DD}}.md",
+				position: "after",
+				line: "## Log",
+				format: "- {{TIME}} {{VALUE}}\n",
+				createWithTemplate: "Templates/Daily.md",
+			},
+			{ target: "Tasks.md", position: "bottom", format: "{{VALUE}}", task: true },
+			{ target: "<active file>", position: "cursor", format: "{{VALUE}}" },
+			{ target: "Projects/", position: "after", line: "<ask>", format: "{{VALUE}}" },
+			{ target: "<active file>", position: "property", property: "status", format: "{{VALUE}}" },
+			{ template: "Templates/Meeting.md", folder: "Meetings", fileName: "{{DATE}} {{VALUE:topic}}" },
+			{ template: "Templates/Note.md", folder: "<ask>", fileName: "{{VALUE}}" },
+			{ template: "Templates/Note.md", folder: "<active file's folder>", fileName: "{{VALUE}}" },
+			undefined,
+		]);
+	});
+
+	it("still lists a hand-edited Template whose folder or file-name settings are missing", async () => {
+		const partial = { id: "partial", name: "Partial", type: "Template", command: false, templatePath: "T.md" } as IChoice;
+		const { plugin, handlers } = createPlugin([partial]);
+		registerQuickAddCliHandlers(plugin);
+		const list = handlers.find((handler) => handler.command === "quickadd:list");
+
+		const payload = JSON.parse(String(await list!.handler({})));
+
+		expect(payload.choices[0].writes).toEqual({ template: "T.md", folder: "<default>", fileName: "{{VALUE}}" });
 	});
 
 	it("previews a package and reports its dangerous capabilities", async () => {

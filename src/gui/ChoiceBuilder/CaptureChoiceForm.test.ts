@@ -113,8 +113,10 @@ describe("CaptureChoiceForm", () => {
 		props.choice.insertAfter.enabled = true;
 		props.choice.task = true;
 		flushSync();
+		expect(selectUnderSetting(container, "Write position").value).toBe("after");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
+		expect(selectUnderSetting(container, "Write position").value).toBe("property");
 		expect(settingNames(container)).not.toContain("Insert after");
 		expect(settingNames(container)).not.toContain("Task");
 		expect(settingNames(container)).toContain("Create property if missing");

@@ -44,3 +44,32 @@ export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
 
 	return "append";
 }
+
+export type WritePosition =
+	| "property"
+	| "after"
+	| "before"
+	| "newLineAbove"
+	| "newLineBelow"
+	| "activeTop"
+	| "bottom"
+	| "top";
+
+/**
+ * The write position the choice builder shows for a Capture, resolved from its
+ * stored flags in the builder's precedence order. `top` means the top of the
+ * target file, or the cursor when capturing to the active file.
+ */
+export function getWritePosition(choice: ICaptureChoice): WritePosition {
+	if (choice.propertyCapture) return "property";
+	if (choice.insertAfter?.enabled) return "after";
+	if (choice.insertBefore?.enabled) return "before";
+	if (choice.newLineCapture?.enabled)
+		return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
+	if (choice.captureToActiveFile) {
+		if (choice.activeFileWritePosition === "top") return "activeTop";
+		if (choice.activeFileWritePosition === "bottom" || choice.prepend) return "bottom";
+		return "top";
+	}
+	return choice.prepend ? "bottom" : "top";
+}

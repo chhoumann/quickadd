@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { getCaptureAction } from "./captureAction";
+import { getCaptureAction, getWritePosition } from "./captureAction";
+import { CaptureChoice } from "../types/choices/CaptureChoice";
 
 describe("getCaptureAction", () => {
 	const createChoice = (overrides: Partial<ICaptureChoice> = {}): ICaptureChoice => ({
@@ -137,5 +138,28 @@ describe("getCaptureAction", () => {
 			insertAfter: { enabled: false, after: "", insertAtEnd: false, considerSubsections: false, createIfNotFound: false, createIfNotFoundLocation: "" },
 		});
 		expect(getCaptureAction(choice)).toBe("activeFileTop");
+	});
+});
+
+describe("getWritePosition", () => {
+	const capture = (overrides: Partial<ICaptureChoice>): ICaptureChoice =>
+		Object.assign(new CaptureChoice("Test"), overrides);
+
+	it.each([
+		["legacy prepend on a fixed file", { prepend: true }, "bottom"],
+		["plain fixed file", {}, "top"],
+		["active file with no position", { captureToActiveFile: true }, "top"],
+		["legacy prepend on the active file", { captureToActiveFile: true, prepend: true }, "bottom"],
+		["active file top", { captureToActiveFile: true, activeFileWritePosition: "top" as const }, "activeTop"],
+		["new line above on the active file", { captureToActiveFile: true, newLineCapture: { enabled: true, direction: "above" as const } }, "newLineAbove"],
+		["property capture over everything", { prepend: true, propertyCapture: { property: { kind: "prompt" as const }, action: "set" as const, createIfMissing: true } }, "property"],
+	])("resolves %s", (_label, overrides, expected) => {
+		expect(getWritePosition(capture(overrides))).toBe(expected);
+	});
+
+	it("puts insert-after ahead of a leftover prepend flag", () => {
+		const choice = capture({ prepend: true });
+		choice.insertAfter.enabled = true;
+		expect(getWritePosition(choice)).toBe("after");
 	});
 });
