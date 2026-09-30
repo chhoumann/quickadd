@@ -295,6 +295,22 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).not.toContain(rowName);
 	});
 
+	// #2023: one click targets the daily note through {{DAILY}}.
+	it("fills in the daily note from the Daily note button", async () => {
+		const { container, props } = mountForm();
+		props.choice.createFileIfItDoesntExist = { enabled: false, createWithTemplate: true, template: "T.md" };
+		flushSync();
+		const button = () => [...settingItem(container, "Capture to").querySelectorAll("button")]
+			.find((el) => el.textContent === "Daily note");
+
+		await fireEvent.click(button()!);
+		flushSync();
+
+		expect(props.choice.captureTo).toBe("{{DAILY}}");
+		expect(props.choice.createFileIfItDoesntExist).toEqual({ enabled: true, createWithTemplate: false, template: "T.md" });
+		expect(button()).toBeUndefined();
+	});
+
 	it("describes the capture target with a single labelled field", () => {
 		const { container, getByLabelText } = mountForm();
 		const names = settingNames(container);

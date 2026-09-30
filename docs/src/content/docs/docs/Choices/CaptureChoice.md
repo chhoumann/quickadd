@@ -50,10 +50,13 @@ Journal/{{DATE:YYYY-MM-DD - ddd MMM D}}.md
 
 Every run finds today's file, and your entry is captured to it.
 
-For your daily note, write [`{{DAILY}}`](/docs/FormatSyntax/#daily) instead.
-It uses the folder, date format, and template from Obsidian's **Daily notes**
-settings, so the path always matches the note **Open today's daily note**
-opens. [`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}`](/docs/FormatSyntax/#periodic-notes)
+For your daily note, click **Daily note** next to **Capture to** (QuickAdd
+2.30.0 or later). It writes
+[`{{DAILY}}`](/docs/FormatSyntax/#daily) into the field and turns on **Create
+file if it doesn't exist**. `{{DAILY}}` uses the folder, date format, and
+template from Obsidian's **Daily notes** settings, or from Periodic Notes when
+it manages your daily notes, so the path always matches the note **Open
+today's daily note** opens. [`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}`](/docs/FormatSyntax/#periodic-notes)
 do the same for Periodic Notes.
 
 File names are Markdown-first:

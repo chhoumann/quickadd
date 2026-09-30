@@ -103,6 +103,19 @@ function onCaptureToChange(value: string) {
 	}
 }
 
+const DAILY_NOTE_TARGET = "{{DAILY}}";
+
+// Shortcut for the most common target (#2023): the daily note, created from
+// the daily notes template when it doesn't exist yet.
+function useDailyNote() {
+	onCaptureToChange(DAILY_NOTE_TARGET);
+	choice.createFileIfItDoesntExist = {
+		...choice.createFileIfItDoesntExist,
+		enabled: true,
+		createWithTemplate: false,
+	};
+}
+
 function validateCaptureTo(value: string) {
 	const feedback = getCaptureTargetFeedback(value);
 	if (!feedback) {
@@ -143,6 +156,11 @@ function validateCaptureTo(value: string) {
 		name="Capture to"
 		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
 	>
+		{#snippet control()}
+			{#if (choice.captureTo ?? "").trim() !== DAILY_NOTE_TARGET}
+				<button type="button" onclick={useDailyNote}>Daily note</button>
+			{/if}
+		{/snippet}
 		{#snippet children(id)}
 			<ValidatedInput
 				{id}
