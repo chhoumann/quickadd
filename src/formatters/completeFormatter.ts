@@ -452,14 +452,27 @@ export class CompleteFormatter extends Formatter {
 			line: h.position.start.line,
 		}));
 		// The cache catches up a few ms after a save (longer for big notes), so
-		// only trust it while every cached heading is still at its line, with its
-		// level, in the live parse. A renamed or removed heading would otherwise
-		// be linked.
+		// only trust it while it agrees with the live parse: every cached heading
+		// is still at its line with its level (a renamed or removed heading would
+		// otherwise be linked), and every parsed heading is cached unless it sits
+		// in a block Obsidian doesn't read headings from (an HTML block the parser
+		// can't detect). A heading added just before the save isn't cached yet
+		// (#2030).
 		const key = (h: { heading: string; level: number }) =>
 			`${h.level}:${sanitizeHeadingForSubpath(h.heading)}`;
 		const parsedByLine = new Map(parsed.map((p) => [p.line, key(p)]));
+		const cachedByLine = new Map(cached.map((c) => [c.line, key(c)]));
+		const opaque = (cache?.sections ?? []).filter(
+			(section) => section.type === "html" || section.type === "comment" || section.type === "math",
+		);
+		const inOpaqueBlock = (line: number) =>
+			opaque.some(
+				(section) => section.position.start.line <= line && line <= section.position.end.line,
+			);
 		const fresh =
-			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
+			cache &&
+			cached.every((c) => parsedByLine.get(c.line) === key(c)) &&
+			parsed.every((p) => cachedByLine.get(p.line) === key(p) || inOpaqueBlock(p.line));
 
 		return buildSectionSubpath(fresh ? cached : parsed, cursor.line);
 	}

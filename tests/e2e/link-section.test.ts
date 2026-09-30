@@ -76,6 +76,22 @@ describe("{{linksection}} in native Obsidian", () => {
 		expect(result.link).toContain("Meeting notes#Outcomes]]");
 	});
 
+	// #2030: a heading added and saved is missing from the cache for a few ms.
+	it("links a heading added and saved before Obsidian re-reads it", async () => {
+		await setup("- revisit pricing");
+		const result = await getContext().obsidian.dev.evalJsonAsync<{ stale: boolean; link: string }>(`(async () => {
+			const view = app.workspace.activeLeaf.view;
+			const line = view.editor.getValue().split("\\n").indexOf("- Bob owns the rollout");
+			view.editor.replaceRange("## Rollout\\n", { line, ch: 0 });
+			view.editor.setCursor({ line: line + 1, ch: 0 });
+			await view.save();
+			const stale = !app.metadataCache.getFileCache(view.file).headings.some(h => h.heading === "Rollout");
+			return { stale, link: await app.plugins.plugins.quickadd.api.format("{{linksection}}") };
+		})()`);
+		expect(result.stale).toBe(true);
+		expect(result.link).toContain("Meeting notes#Rollout]]");
+	});
+
 	it("links a just-typed heading before the note is saved", async () => {
 		const { choice, inbox } = await setup("%%\n## Parking lot\n%%");
 		const dirty = await getContext().obsidian.dev.evalJsonAsync<boolean>(`(async () => {
