@@ -25,9 +25,8 @@ const mocks = vi.hoisted(() => ({
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
-	inputPromptPromptWithContext: vi.fn(),
 	inputPromptFactory: vi.fn(),
-	genericInputPromptWithContext: vi.fn(),
+	genericInputPrompt: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
 	multiSuggesterSuggest: vi.fn(),
@@ -103,14 +102,13 @@ vi.mock("../gui/InputPrompt", () => ({
 			mocks.inputPromptFactory(inputTypeOverride);
 			return {
 				Prompt: mocks.inputPromptPrompt,
-				PromptWithContext: mocks.inputPromptPromptWithContext,
 			};
 		}
 	},
 }));
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
-	default: { PromptWithContext: mocks.genericInputPromptWithContext },
+	default: { Prompt: mocks.genericInputPrompt },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -1380,7 +1378,7 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			[],
 			expect.objectContaining({ allowCustomValue: true }),
 		);
-		expect(mocks.genericInputPromptWithContext).not.toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).not.toHaveBeenCalled();
 	});
 
 	it("falls back to a free-form prompt when no values are found", async () => {
@@ -1392,13 +1390,13 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			values: [],
 			hasDefaultValue: false,
 		});
-		mocks.genericInputPromptWithContext.mockResolvedValue("manual");
+		mocks.genericInputPrompt.mockResolvedValue("manual");
 
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{FIELD:status}}")).resolves.toBe(
 			"manual",
 		);
-		expect(mocks.genericInputPromptWithContext).toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).toHaveBeenCalled();
 		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
 	});
 
@@ -1441,9 +1439,9 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			values: [],
 			hasDefaultValue: false,
 		});
-		mocks.genericInputPromptWithContext.mockResolvedValue("B-17");
+		mocks.genericInputPrompt.mockResolvedValue("B-17");
 		await f.formatFolderPath("{{FIELD:budget|label:Budget code}}");
-		expect(mocks.genericInputPromptWithContext.mock.calls.at(-1)?.[1]).toBe(
+		expect(mocks.genericInputPrompt.mock.calls.at(-1)?.[1]).toBe(
 			"Budget code",
 		);
 	});

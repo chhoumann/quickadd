@@ -10,7 +10,6 @@ export const InputPromptMock = () => ({
 		factory() {
 			return {
 				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
 			};
 		}
 	},

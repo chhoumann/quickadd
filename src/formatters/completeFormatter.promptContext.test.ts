@@ -8,7 +8,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
 	prompt: vi.fn(async () => "answer"),
-	promptWithContext: vi.fn(async () => "answer"),
 	suggest: vi.fn(async (..._args: unknown[]) => "true"),
 	datePrompt: vi.fn(async (..._args: unknown[]) => "@date:2026-10-02T00:00:00.000Z"),
 	childScopes: [] as string[],
@@ -38,7 +37,7 @@ vi.mock("obsidian", async () => (await import("../../tests/helpers/formatters/mo
 vi.mock("../gui/InputPrompt", () => ({
 	default: class {
 		factory() {
-			return { Prompt: mocks.prompt, PromptWithContext: mocks.promptWithContext };
+			return { Prompt: mocks.prompt };
 		}
 	},
 }));
@@ -48,7 +47,7 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 }));
 
 vi.mock("../gui/GenericInputPrompt/GenericInputPrompt", () => ({
-	default: { Prompt: mocks.prompt, PromptWithContext: mocks.promptWithContext },
+	default: { Prompt: mocks.prompt },
 }));
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn(() => null) }));
@@ -77,8 +76,7 @@ function makeFormatter() {
 
 /** The (app, header, placeholder, ...) tuple the modal factory was called with. */
 function lastPromptCall() {
-	const call =
-		mocks.prompt.mock.calls.at(-1) ?? mocks.promptWithContext.mock.calls.at(-1);
+	const call = mocks.prompt.mock.calls.at(-1);
 	if (!call) throw new Error("no prompt was opened");
 	const args = call as unknown as unknown[];
 	return {
@@ -98,7 +96,6 @@ beforeEach(() => {
 		isValid: () => true,
 	});
 	mocks.prompt.mockClear();
-	mocks.promptWithContext.mockClear();
 	mocks.suggest.mockClear();
 	mocks.datePrompt.mockClear();
 });

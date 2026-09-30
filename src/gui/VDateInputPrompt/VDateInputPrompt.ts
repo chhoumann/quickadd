@@ -59,7 +59,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		withTime?: boolean
 	) {
 		// Pass the defaultValue to the parent so the input box is pre-filled
-		super(app, header, placeholder, defaultValue ?? "", undefined, undefined, options);
+		super(app, header, placeholder, defaultValue ?? "", undefined, options);
 
 		this.containerEl.addClass("qaDatePrompt");
 		this.withTime = withTime === true;
