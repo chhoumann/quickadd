@@ -735,7 +735,7 @@ Source: {{LINKCURRENT}}
 Source: [[Meeting with Alice]]
 ```
 
-When the append-link setting is **Enabled (skip if no active file)**, this
+When the append-link setting is **Enabled (skip if unavailable)**, this
 placeholder becomes empty instead of erroring when no note is focused.
 
 ### A link to the current section: `{{LINKSECTION}}` {#linksection}
