@@ -19,6 +19,10 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	// Match ranges of the last suggestions, for highlighting.
 	private matchesByItem = new Map<string, SearchMatches>();
 	private lookupSequence = 0;
+	// The field's sorted values, read once per visit to the input (dropped on
+	// blur): sorting a 26,000-value field takes ~70 ms, too long to repeat on
+	// every keystroke. A vault change shows up the next time the input gets focus.
+	private values: Promise<string[]> | undefined;
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
@@ -26,18 +30,19 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 		const parsed = FieldSuggestionParser.parse(fieldInput);
 		this.fieldName = parsed.fieldName;
 		this.filters = parsed.filters;
+		inputEl.addEventListener("blur", () => {
+			this.values = undefined;
+		});
 	}
 
 	async getSuggestions(inputStr: string): Promise<string[]> {
 		const lookup = ++this.lookupSequence;
-		// FieldSuggestionCache already avoids repeated vault scans. Ask it on every
-		// refresh so a metadata event that invalidated the shared cache is visible to
-		// an already-open input instead of being shadowed by a second per-modal cache.
-		const values = await collectFieldValuesProcessed(
+		this.values ??= collectFieldValuesProcessed(
 			this.app,
 			this.fieldName,
 			this.filters,
 		);
+		const values = await this.values;
 
 		// The lookup is async; one that a newer lookup has overtaken must not
 		// replace the newer highlight ranges (the base class discards its items).
