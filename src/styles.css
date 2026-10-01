@@ -2219,6 +2219,15 @@ body:not(.is-mobile)
 	cursor: grabbing;
 }
 
+/* In a right-to-left UI the handle is at the row's left edge, so anchor the pill
+   there and grow it right. The clone lives in <body>, which stays LTR even then, so
+   logical properties can't do this. */
+body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
+	right: auto;
+	left: 0;
+	flex-direction: row;
+}
+
 #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill-label {
 	overflow: hidden;
 	text-overflow: ellipsis;
