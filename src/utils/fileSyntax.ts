@@ -369,6 +369,22 @@ interface FileDisplayInfo {
 	aliases: string[];
 }
 
+/**
+ * The first item one of whose aliases is `name`, ignoring case: an alias names
+ * its note. `aliases` is by index, as buildFileDisplayInfos returns them.
+ */
+export function itemWithAlias<T>(
+	items: readonly T[],
+	aliases: readonly (readonly string[])[],
+	name: string,
+): T | undefined {
+	const wanted = name.trim().toLowerCase();
+	const index = aliases.findIndex((names) =>
+		names.some((alias) => alias.toLowerCase() === wanted),
+	);
+	return index >= 0 ? items[index] : undefined;
+}
+
 export function buildFileDisplayInfos(
 	files: TFile[],
 	metadataCache?: (file: TFile) => CachedMetadata | null,
