@@ -53,7 +53,8 @@ async function getTargetPromptTemplate(
 			targetFile = await GenericSuggester.Suggest(
 				app,
 				basenames,
-				promptTemplates
+				promptTemplates,
+				"Select a prompt template"
 			);
 		}
 	}
