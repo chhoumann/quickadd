@@ -40,7 +40,7 @@ gives you something to trigger.
 ## Set up your first macro {#creating-a-macro}
 
 We'll build a tiny macro with no code: it opens today's daily note and drops
-your cursor at the end, ready to type. Two commands, run as one.
+your cursor at the end, ready to type. Three commands, run as one.
 
 ### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
 
@@ -54,12 +54,16 @@ your cursor at the end, ready to type. Two commands, run as one.
 
 1. In the Macro Builder, add an **Obsidian Command** and pick
    `Daily notes: Open today's daily note`.
-2. Add an **Editor commands** entry and choose **Move cursor to file end**.
-3. Close the builder, then run it: command palette →
+2. Click the clock button (**Add wait command**) to add a **Wait** step of
+   100 ms. The command step doesn't wait for the daily note to open, so without
+   the pause the cursor moves before the note is there. If the cursor still ends
+   up in the wrong note, click the number and wait longer.
+3. Add an **Editor commands** entry and choose **Move cursor to file end**.
+4. Close the builder, then run it: command palette →
    `QuickAdd: Run` → `Open daily note`.
 
 Your daily note opens and the cursor sits at the end of the file, ready for the
-next line - both steps in a single command. Assign the choice a hotkey (the ⚡
+next line - all three steps in a single command. Assign the choice a hotkey (the ⚡
 icon, or Obsidian's Hotkeys settings) once it behaves the way you want.
 
 ## The commands you can add {#command-types}
