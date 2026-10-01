@@ -1,4 +1,4 @@
-import type { CachedMetadata, TFile } from "obsidian";
+import { parseFrontMatterAliases, type CachedMetadata, type TFile } from "obsidian";
 import {
 	FieldSuggestionParser,
 	type FieldFilter,
@@ -365,6 +365,8 @@ interface FileDisplayInfo {
 	primary: string;
 	secondary: string;
 	label: string;
+	/** The note's aliases, which pickers also match. */
+	aliases: string[];
 }
 
 export function buildFileDisplayInfos(
@@ -381,7 +383,8 @@ export function buildFileDisplayInfos(
 		const label = primary === basename
 			? basename
 			: `${primary} (${basename})`;
-		return { file, primary, label };
+		const aliases = parseFrontMatterAliases(metadata?.frontmatter) ?? [];
+		return { file, primary, label, aliases };
 	});
 
 	const counts = new Map<string, number>();
@@ -389,7 +392,7 @@ export function buildFileDisplayInfos(
 		counts.set(label, (counts.get(label) ?? 0) + 1);
 	}
 
-	return baseLabels.map(({ file, primary, label }) => {
+	return baseLabels.map(({ file, primary, label, aliases }) => {
 		const uniqueLabel = (counts.get(label) ?? 0) <= 1
 			? label
 			: `${label} - ${parentLabel(file)}`;
@@ -397,6 +400,7 @@ export function buildFileDisplayInfos(
 			primary,
 			secondary: file.path,
 			label: uniqueLabel,
+			aliases,
 		};
 	});
 }

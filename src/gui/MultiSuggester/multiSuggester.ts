@@ -21,6 +21,8 @@ interface MultiSuggesterOptions {
 	 * any of them. Empty/undefined preselects nothing.
 	 */
 	preselected?: string[];
+	/** Other names each item can be found by, by index (a note's aliases). */
+	aliases?: string[][];
 }
 
 /**
@@ -174,7 +176,7 @@ export default class MultiSuggester extends Modal {
 				key: value,
 				value,
 				label: normalizeDisplayItem(this.displayItems[index] ?? value),
-				searchText: value,
+				searchText: [value, ...(this.opts.aliases?.[index] ?? [])].join(" "),
 			})),
 			...this.customValues.map((value) => ({
 				key: value,

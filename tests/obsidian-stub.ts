@@ -1105,6 +1105,33 @@ export function prepareFuzzySearch(query: string) {
   };
 }
 
+// Obsidian reads `alias` or `aliases`, any case; a string is one alias.
+export function parseFrontMatterAliases(frontmatter: any | null): string[] | null {
+  if (!frontmatter) return null;
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (!/^aliases?$/i.test(key)) continue;
+    const list = (Array.isArray(value) ? value : [value]).filter(
+      (alias): alias is string => typeof alias === "string" && alias.trim().length > 0,
+    );
+    return list.length ? list : null;
+  }
+  return null;
+}
+
+export function sortSearchResults(results: Array<{ match: { score: number } }>): void {
+  results.sort((a, b) => b.match.score - a.match.score);
+}
+
+export function renderMatches(el: HTMLElement, text: string, matches: Array<[number, number]> | null): void {
+  let at = 0;
+  for (const [start, end] of matches ?? []) {
+    if (start > at) el.appendText(text.slice(at, start));
+    el.createSpan({ cls: "suggestion-highlight", text: text.slice(start, end) });
+    at = end;
+  }
+  if (at < text.length) el.appendText(text.slice(at));
+}
+
 // Minimal FileSystemAdapter so the symlink/realpath write guard
 // (src/utils/vaultWriteGuards.ts) can be exercised in a unit test. The guard
 // bails out unless `adapter instanceof FileSystemAdapter`; existing tests pass
@@ -1163,5 +1190,8 @@ export default {
   debounce,
   setIcon,
   prepareFuzzySearch,
+  parseFrontMatterAliases,
+  sortSearchResults,
+  renderMatches,
   Platform,
 };

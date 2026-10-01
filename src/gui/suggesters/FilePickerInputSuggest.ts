@@ -1,4 +1,4 @@
-import type { App, SearchMatches } from "obsidian";
+import { setIcon, type App, type SearchMatches } from "obsidian";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import { dispatchCompletion, renderHighlightRanges } from "./utils";
@@ -8,6 +8,8 @@ export interface FilePickerOption {
 	label: string;
 	path: string;
 	isCustom?: boolean;
+	/** The note's aliases, also matched; a match by one shows it. */
+	aliases?: string[];
 }
 
 const MAX_RESULTS = 200;
@@ -21,6 +23,7 @@ const MAX_RESULTS = 200;
 export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 	// Match ranges of the last suggestions, over "label path", for highlighting.
 	private matchesByOption = new Map<FilePickerOption, SearchMatches>();
+	private aliasByOption = new Map<FilePickerOption, string>();
 
 	constructor(
 		app: App,
@@ -45,9 +48,12 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			trimmed,
 			available,
 			(option) => `${option.label} ${option.path}`,
-			{ limit: MAX_RESULTS },
+			{ limit: MAX_RESULTS, aliases: (option) => option.aliases },
 		);
 		this.matchesByOption = new Map(ranked.map(({ item, matches }) => [item, matches]));
+		this.aliasByOption = new Map(
+			ranked.flatMap(({ item, alias }) => (alias !== undefined ? [[item, alias] as const] : [])),
+		);
 		const matches = ranked.map(({ item }) => item);
 		if (!trimmed || !this.allowCustomInput) return matches;
 
@@ -55,7 +61,8 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		const exactOption = this.getOptions().some(
 			(option) =>
 				option.label.toLocaleLowerCase() === normalized ||
-				option.path.toLocaleLowerCase() === normalized,
+				option.path.toLocaleLowerCase() === normalized ||
+				(option.aliases ?? []).some((alias) => alias.toLocaleLowerCase() === normalized),
 		);
 		const exactCustom = this.isSelected(trimmed);
 		if (exactOption || exactCustom) return matches;
@@ -84,6 +91,18 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			return;
 		}
 		const matches = this.matchesByOption.get(option) ?? [];
+		const alias = this.aliasByOption.get(option);
+		if (alias !== undefined) {
+			// As in the quick switcher: the alias that matched, the note beneath.
+			renderHighlightRanges(primary, alias, matches);
+			path.setText(option.label);
+			el.addClass("mod-complex");
+			text.addClass("suggestion-content");
+			const flair = el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" });
+			flair.setAttribute("aria-label", "Alias");
+			setIcon(flair, "forward");
+			return;
+		}
 		renderHighlightRanges(primary, option.label, matches);
 		renderHighlightRanges(path, option.path, matches, option.label.length + 1);
 	}

@@ -8,7 +8,7 @@ import { FieldSuggestionParser } from "../../utils/FieldSuggestionParser";
 import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
-import { buildFileDisplayLabels, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../../utils/fileSyntax";
+import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../../utils/fileSyntax";
 import { UserCancelError } from "../../errors/UserCancelError";
 import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
@@ -213,10 +213,12 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			return typed ? `${FILE_CUSTOM_PREFIX}${typed}` : "";
 		}
 
-		const displayItems = buildFileDisplayLabels(
+		const infos = buildFileDisplayInfos(
 			files,
 			(file) => app.metadataCache.getFileCache(file),
 		);
+		const displayItems = infos.map((info) => info.label);
+		const aliases = infos.map((info) => info.aliases);
 		const items = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
 
 		if (parsed.multiSelect) {
@@ -228,6 +230,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				: await MultiSuggester.Suggest(app, displayItems, items, {
 						placeholder,
 						allowCustomValue: parsed.allowCustomInput,
+						aliases,
 						...(parsed.optional ? { skippable: true } : {}),
 					});
 			return result.map((item) =>
@@ -255,7 +258,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				files.map((file) => file.basename.toLowerCase()),
 			);
 			const displayLabels = new Set(
-				displayItems.map((label) => label.toLowerCase()),
+				[...displayItems, ...aliases.flat()].map((label) => label.toLowerCase()),
 			);
 			const result = await InputSuggester.Suggest(
 				app,
@@ -263,8 +266,9 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				items,
 				{
 					placeholder,
-					// Typing a real basename (e.g. "Tom", or "tom") should pick that
-					// file, not add a separate, indistinguishable custom row.
+					aliases,
+					// Typing a real basename, label or alias (e.g. "Tom", or "tom")
+					// should pick that file, not add an indistinguishable custom row.
 					valueExists: (typed) =>
 						basenames.has(typed.toLowerCase()) ||
 						displayLabels.has(typed.toLowerCase()),
@@ -284,7 +288,7 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 			items,
 			placeholder,
 			undefined,
-			parsed.optional ? { skippable: true } : undefined,
+			{ aliases, ...(parsed.optional ? { skippable: true } : {}) },
 		);
 		return result ?? "";
 	} catch (error) {

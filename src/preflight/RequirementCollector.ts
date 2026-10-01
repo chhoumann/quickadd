@@ -28,7 +28,7 @@ import { parseVDateOptions } from "src/utils/vdateSyntax";
 import { FieldSuggestionParser } from "src/utils/FieldSuggestionParser";
 import { resolveActiveNoteFieldDefault } from "src/utils/activeNoteFieldDefault";
 import {
-	buildFileDisplayLabels,
+	buildFileDisplayInfos,
 	FILE_PICK_PREFIX,
 	type ParsedFileToken,
 	parseFileToken,
@@ -670,10 +670,11 @@ export class RequirementCollector extends Formatter {
 		// which decodes it back to the file.
 		const files = getFileTokenFiles(this.app, parsed);
 		const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
-		const displayOptions = buildFileDisplayLabels(
+		const infos = buildFileDisplayInfos(
 			files,
 			(file) => this.app.metadataCache.getFileCache(file),
 		);
+		const displayOptions = infos.map((info) => info.label);
 		// The dedicated picker keeps display labels separate from the encoded file
 		// paths, so both single and multi FILE tokens can search inline without the
 		// comma serialization that made multi-select runtime-only. Preserve the
@@ -694,6 +695,7 @@ export class RequirementCollector extends Formatter {
 			source: "collected",
 			options,
 			displayOptions,
+			optionAliases: infos.map((info) => info.aliases),
 			optional: parsed.optional,
 			suggesterConfig: {
 				allowCustomInput,

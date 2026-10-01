@@ -2,7 +2,7 @@ import type { App, TFile } from "obsidian";
 import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, getMarkdownFilesWithTag } from "../../utils/vaultQueries";
 import { orderFilesForPicker } from "../../utils/fileOrdering";
 import { buildPickerOrderingDeps } from "../../utils/pickerOrderingDeps";
-import { buildFileDisplayLabels } from "../../utils/fileSyntax";
+import { buildFileDisplayInfos } from "../../utils/fileSyntax";
 import type { CaptureTargetScope } from "./captureTargetScope";
 
 export function captureScopeFiles(app: App, scope: CaptureTargetScope): TFile[] {
@@ -17,7 +17,9 @@ export function captureScopeFiles(app: App, scope: CaptureTargetScope): TFile[] 
 export function captureCandidates(app: App, files: TFile[]) {
 	const ordered = orderFilesForPicker(files, buildPickerOrderingDeps(app));
 	const paths = ordered.map((file) => file.path);
-	const labels = buildFileDisplayLabels(ordered, (file) => app.metadataCache.getFileCache(file));
+	const infos = buildFileDisplayInfos(ordered, (file) => app.metadataCache.getFileCache(file));
+	const labels = infos.map((info) => info.label);
+	const aliases = infos.map((info) => info.aliases);
 	const search = paths.map((path, index) => `${labels[index] ?? path} ${path}`);
-	return { paths, labels, search };
+	return { paths, labels, aliases, search };
 }
