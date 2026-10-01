@@ -266,6 +266,30 @@ describe("ChoiceView", () => {
 		]);
 	});
 
+	// #2107: narrowing the filter must not lay out the list once per row that
+	// leaves. Svelte's animate measures every row (getBoundingClientRect) when a
+	// keyed list loses one, which took ~400 ms a keystroke at a few hundred rows.
+	it("does not measure the rows when the filter drops some", async () => {
+		const choices = Array.from({ length: 20 }, (_, i) => ({
+			id: `c${i}`,
+			name: i % 2 === 0 ? `Capture ${i}` : `Template ${i}`,
+			type: "Template",
+		})) as unknown as IChoice[];
+		const { container, getByPlaceholderText } = renderChoiceView(choices);
+		const filter = getByPlaceholderText("Filter choices...");
+		await fireEvent.input(filter, { target: { value: "t" } });
+		expect(container.querySelectorAll(".choiceListItem")).toHaveLength(20);
+
+		const measure = vi.spyOn(Element.prototype, "getBoundingClientRect");
+		try {
+			await fireEvent.input(filter, { target: { value: "capture" } });
+			expect(container.querySelectorAll(".choiceListItem")).toHaveLength(10);
+			expect(measure).not.toHaveBeenCalled();
+		} finally {
+			measure.mockRestore();
+		}
+	});
+
 	// Covers the redesign's novel add-into-folder path end-to-end through the
 	// real component DOM (the per-folder "New folder" affordance), which the
 	// Obsidian Menu / builder modal can't be synthetically driven to exercise.

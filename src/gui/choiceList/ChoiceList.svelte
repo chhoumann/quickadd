@@ -4,7 +4,6 @@
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
-    import { flip } from "svelte/animate";
     import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, stripShadow } from "../shared/dndReorder";
     import { refocusDragHandle } from "../shared/refocusDragHandle";
     import { createDragArming } from "../shared/dragArming.svelte";
@@ -78,12 +77,6 @@
     // Resolve once: at the top level there is no incoming rootReorder, so the list's
     // own handler IS the top-level handler; nested lists receive it explicitly.
     const persistRoots = $derived(rootReorder ?? actions.onReorderChoices);
-
-    // flipDurationMs MUST be 0 for a responsive reorder: the library ties its
-    // position-observation interval to it — 0 => 20ms polling (continuous), any value
-    // > 0 => max(flip,100)*1.07 ≈ 107ms+, which felt "batched" (move several rows, then
-    // a jump). We trade the row-glide animation for continuous, predictable reordering.
-    const flipDurationMs = 0;
 
     const isMobile = Platform.isMobile;
 
@@ -190,7 +183,7 @@
 
 <div
         bind:this={listEl}
-        use:dndzone={baseDndOptions({items: renderable, dragDisabled, flipDurationMs, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
+        use:dndzone={baseDndOptions({items: renderable, dragDisabled, dropTargetClasses: nested ? ["qa-folder-droptarget"] : []})}
         onconsider={handleConsider}
         onfinalize={handleSort}
         class="choiceList"
@@ -198,10 +191,12 @@
         class:qa-folder-empty={isEmptyFolder}
         class:qa-empty={renderable.length === 0}>
     {#each stripShadow(renderable) as choice (choice.id)}
-        <!-- Flip wrapper: the dndzone's direct child = the animated/draggable item.
+        <!-- Row wrapper: the dndzone's direct child = the draggable item.
              Must stay margin/padding/border-less (the 2px inter-row margin lives on
-             the inner row). data-choice-id stays on the inner row for tests/menus. -->
-        <div animate:flip={{ duration: flipDurationMs }}>
+             the inner row). data-choice-id stays on the inner row for tests/menus.
+             No animate:flip: the zone's flip is 0 ms, so it would move nothing,
+             and Svelte's animate measures every row whenever a row leaves. -->
+        <div>
             {#if choice.type !== "Multi"}
                 <ChoiceListItem
                         {app}

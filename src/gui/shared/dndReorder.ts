@@ -92,10 +92,10 @@ export function moveById<T extends Reorderable>(
  *    (see the alertToScreenReader calls on keyboard reorder),
  *  - zoneItemTabIndex:-1 keeps rows out of the tab order,
  *  - delayTouchStart gates touch drags (desktop is gated by the dragArmed handle).
- * Per-zone overrides: items, dragDisabled, type, dropTargetClasses, flipDurationMs (kept
- * in sync with animate:flip), resolveLabel (the pill text — defaults to item.name;
- * the macro builder passes getCommandDisplayName, since a command's `.name` differs from
- * its rendered label for Choice/Conditional commands).
+ * Per-zone overrides: items, dragDisabled, type, dropTargetClasses, resolveLabel (the
+ * pill text — defaults to item.name; the macro builder passes getCommandDisplayName,
+ * since a command's `.name` differs from its rendered label for Choice/Conditional
+ * commands).
  */
 export function baseDndOptions<T extends DragItem>(opts: {
 	items: T[];
@@ -103,13 +103,15 @@ export function baseDndOptions<T extends DragItem>(opts: {
 	resolveLabel?: (item: T) => string;
 	type?: string;
 	dropTargetClasses?: string[];
-	flipDurationMs?: number;
 }) {
 	const resolveLabel = opts.resolveLabel ?? ((item: T) => item.name ?? "");
 	return {
 		items: opts.items,
 		dragDisabled: opts.dragDisabled,
-		flipDurationMs: opts.flipDurationMs ?? 0,
+		// 0 keeps the reorder continuous: the library ties its position-observation
+		// interval to it (0 => 20ms polling; any value > 0 => ~107ms+, which felt
+		// "batched"). So the zones skip the row-glide animation.
+		flipDurationMs: 0,
 		morphDisabled: true,
 		useCursorForDetection: true,
 		centreDraggedOnCursor: false,
