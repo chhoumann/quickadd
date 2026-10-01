@@ -60,6 +60,13 @@ describe("GenericCheckboxPrompt header + cancel (audit: prompts-gui-checkbox-pro
 		expect(() => buttonByText(prompt, "Cancel")).not.toThrow();
 	});
 
+	it("puts Cancel before Submit, like QuickAdd's other prompts", () => {
+		const prompt = new GenericCheckboxPrompt(app, ["a"], []);
+		const contentEl = (prompt as unknown as { contentEl: HTMLElement }).contentEl;
+		const labels = Array.from(contentEl.querySelectorAll("button")).map((b) => b.textContent);
+		expect(labels).toEqual(["Cancel", "Submit"]);
+	});
+
 	it("Cancel rejects the promise with a typed cancellation", async () => {
 		const prompt = new GenericCheckboxPrompt(app, ["a", "b"], ["a"]);
 		const promise = prompt.promise;

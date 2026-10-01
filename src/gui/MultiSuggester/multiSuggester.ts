@@ -148,14 +148,9 @@ export default class MultiSuggester extends Modal {
 			customSetting.settingEl.addClass("qa-multi-custom");
 		}
 
+		// Skip, Cancel, Done: the main action last, as in QuickAdd's other prompts.
 		const buttons = new Setting(contentEl);
 		buttons.settingEl.addClass("qa-multi-actions");
-		buttons.addButton((btn) =>
-			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
-		);
-		buttons.addButton((btn) =>
-			btn.setButtonText("Cancel").onClick(() => this.close()),
-		);
 		if (this.opts.skippable) {
 			buttons.addButton((btn) =>
 				btn
@@ -168,6 +163,12 @@ export default class MultiSuggester extends Modal {
 					}),
 			);
 		}
+		buttons.addButton((btn) =>
+			btn.setButtonText("Cancel").onClick(() => this.close()),
+		);
+		buttons.addButton((btn) =>
+			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
+		);
 	}
 
 	private getSearchableItems(): SearchableMultiSelectItem<string>[] {
