@@ -47,6 +47,16 @@ export default class GenericCheckboxPrompt extends Modal {
 		this.picker.focusSearchOnOpen();
 	}
 
+	// Obsidian handles Esc in the modal's scope before the search box sees the
+	// key, so the first Esc clears a search here instead of closing the prompt.
+	override onEscapeKey(evt: KeyboardEvent): void {
+		if (this.picker.clearSearch()) {
+			evt.preventDefault();
+			return;
+		}
+		super.onEscapeKey(evt);
+	}
+
 	private display() {
 		this.contentEl.empty();
 		this.containerEl.addClass(
