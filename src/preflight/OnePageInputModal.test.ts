@@ -508,6 +508,8 @@ describe("OnePageInputModal", () => {
 		expect(["oracle", "Oracle.md", "Oracle.md.", "Some/Path/oracle ", "Board"].map(valueExists))
 			.toEqual([true, true, true, true, true]);
 		expect(valueExists("Niobe")).toBe(false);
+		// Only the last extension goes: "Oracle.base" is a new note.
+		expect(valueExists("Oracle.base")).toBe(false);
 	});
 
 	it("refuses a new note name a note in the folder has, read as the capture reads it", () => {

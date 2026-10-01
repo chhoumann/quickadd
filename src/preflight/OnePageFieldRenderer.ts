@@ -448,7 +448,7 @@ export class OnePageFieldRenderer {
 				return false;
 			}
 			const base = path.replace(/\.(md|canvas)$/i, "");
-			if (names.has(fileBasenameFromPath(base).toLowerCase())) return true;
+			if (names.has(base.slice(base.lastIndexOf("/") + 1).toLowerCase())) return true;
 			return within === "vault" &&
 				[path, `${base}.md`, `${base}.canvas`].some((candidate) => !!this.app.vault.getAbstractFileByPath(candidate));
 		};
