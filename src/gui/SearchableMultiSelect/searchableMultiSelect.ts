@@ -283,9 +283,10 @@ export default class SearchableMultiSelect<T> {
 			).size;
 		const selectedLabel = `${selectedCount} selected`;
 		if (!this.query.trim()) {
-			this.summaryEl.textContent = `${selectedLabel} · ${this.indexedItems.length} options`;
+			const count = this.indexedItems.length;
+			this.summaryEl.textContent = `${selectedLabel} · ${count} ${count === 1 ? "option" : "options"}`;
 			return;
 		}
-		this.summaryEl.textContent = `${selectedLabel} · ${matchCount} matches`;
+		this.summaryEl.textContent = `${selectedLabel} · ${matchCount} ${matchCount === 1 ? "match" : "matches"}`;
 	}
 }
