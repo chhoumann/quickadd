@@ -187,7 +187,8 @@ export default class MultiSuggester extends Modal {
 				key: value,
 				value,
 				label: normalizeDisplayItem(this.displayItems[index] ?? value),
-				searchText: [value, ...(this.opts.aliases?.[index] ?? [])].join(" "),
+				searchText: value,
+				aliases: this.opts.aliases?.[index],
 			})),
 			...this.customValues.map((value) => ({
 				key: value,
