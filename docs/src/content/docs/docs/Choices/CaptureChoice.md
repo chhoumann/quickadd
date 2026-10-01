@@ -21,10 +21,13 @@ stay right where you are. Use it to:
    `Add to journal`.
 2. Set **Capture to** to where entries should land, for example
    `Journal/{{DATE}}.md`.
-3. In **Capture format**, describe one entry, for example
+3. Turn on **Create file if it doesn't exist**, so the first capture of the
+   day creates today's note instead of stopping with a "Target file missing"
+   notice.
+4. In **Capture format**, describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`. (Before QuickAdd 2.30.0, turn on the
    **Capture format** toggle first.)
-4. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
+5. Run it: command palette → `QuickAdd: Run`, pick `Add to journal`,
    type your entry.
 
 You now have this in today's journal note:
