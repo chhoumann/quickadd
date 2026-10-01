@@ -214,6 +214,10 @@ export class DropdownComponent extends BaseComponent {
     return this;
   }
 
+  getValue(): string {
+    return this.selectEl.value;
+  }
+
   onChange(cb: (value: string) => void): this {
     this.selectEl.addEventListener("change", () => cb(this.selectEl.value));
     return this;
