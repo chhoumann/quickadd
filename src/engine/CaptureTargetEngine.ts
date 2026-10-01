@@ -358,8 +358,9 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		nameIsTaken: (value: string) => boolean;
 		restrictToScope?: boolean;
 	}): Promise<string> {
-		const { paths, labels, search } = captureCandidates(this.app, files);
+		const { paths, labels, aliases, search } = captureCandidates(this.app, files);
 		const existingLabels = new Set(labels.map((label) => label.toLowerCase()));
+		const aliasNames = new Set(aliases.flat().map((alias) => alias.toLowerCase()));
 		const nameIsTaken = (value: string) =>
 			existingLabels.has(value.toLowerCase()) || options.nameIsTaken(value);
 		const placeholder = options.allowCreate
@@ -391,9 +392,12 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 				emptyStateText: options.allowCreate ? "Type a note name to create it" : undefined,
 				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
 				searchItems: search,
+				aliases,
 				allowCustomValue: options.allowCreate,
 				customValueLabel: (value) => `Create new note: ${value}`,
-				valueExists: nameIsTaken,
+				// An alias names its note, so typing one picks that note instead of
+				// offering to create a new one.
+				valueExists: (value) => aliasNames.has(value.toLowerCase()) || nameIsTaken(value),
 			}),
 		}));
 		invariant(!!selected && selected.length > 0, "No file selected for capture.");

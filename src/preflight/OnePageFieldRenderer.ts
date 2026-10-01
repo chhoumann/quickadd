@@ -447,6 +447,7 @@ export class OnePageFieldRenderer {
 				value,
 				label: displayValues[index] ?? value,
 				path: decoded.kind === "file" ? decoded.path : value,
+				aliases: req.optionAliases?.[index],
 			};
 		});
 		const optionByValue = new Map(options.map((option) => [option.value, option]));

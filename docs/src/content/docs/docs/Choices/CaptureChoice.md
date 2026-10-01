@@ -221,6 +221,11 @@ its first level-1 heading, then its file name. The selected destination is
 always the real file, so captures write to the same place even when the label
 is friendlier than the filename.
 
+You can also find a note by its `aliases`. A note found that way shows the
+alias with the note's name beneath it, as in Obsidian's quick switcher, and
+typing an alias exactly picks its note instead of offering to create a new one
+(QuickAdd 2.30.0 or later).
+
 ## Shape the entry: Capture format {#capture-format}
 
 _Capture format_ is what actually gets written - think of it as a mini
