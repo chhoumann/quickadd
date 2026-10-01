@@ -153,6 +153,14 @@ export function reportError(
 }
 
 /**
+ * Record that the user has already seen this failure through another surface,
+ * so a {@link reportError} further up does not show it again.
+ */
+export function markErrorReported(err: unknown): void {
+  if (isTrackable(err)) reportedErrors.set(err, Date.now());
+}
+
+/**
  * Report failures while keeping cancellations silent. Returns whether reported.
  */
 export function reportUnlessCancelled(

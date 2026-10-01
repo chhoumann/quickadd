@@ -44,7 +44,9 @@ export function OpenAIRequest(
 	// endpoint than the key belongs to.
 	modelProvider: AIProvider,
 	systemPrompt: string,
-	modelParams: Partial<OpenAIModelParameters> = {}
+	modelParams: Partial<OpenAIModelParameters> = {},
+	// False when the caller's assistant notice shows the failure itself.
+	reportFailure = true,
 ): (prompt: string) => Promise<CommonResponse> {
 	return async function makeRequest(prompt: string): Promise<CommonResponse> {
 		if (settingsStore.getState().disableOnlineFeatures) {
@@ -153,7 +155,7 @@ export function OpenAIRequest(
 				`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 				{ cause: error }
 			);
-			reportError(failure);
+			if (reportFailure) reportError(failure);
 			throw failure;
 		}
 	};
