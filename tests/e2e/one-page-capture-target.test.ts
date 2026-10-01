@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { insertText, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // The one-page form asks for a folder capture's note in a searchable field,
 // which finds notes by alias like the run's picker, instead of a dropdown of
@@ -170,4 +170,36 @@ it("shows the picked note's whole name on a phone", async () => {
 			return true;
 		})()`);
 	}
+});
+
+// Obsidian focused the first focusable element, the picked note's remove
+// button, so typing went nowhere and Enter dropped the note. The form now
+// opens ready for the capture text.
+it("opens a folder capture's form in the first field without a picked note", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const mercury = await seedVaultFile(obsidian, sandbox, "Planets/Mercury.md", "");
+
+	const choice = new CaptureChoice("Focus capture target");
+	choice.command = true;
+	choice.captureTo = `${sandbox.path("Planets")}/`;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await obsidian.command(`quickadd:choice:${choice.id}`).run();
+	await expect.poll(() => obsidian.dev.evalJson<boolean>(
+		'Boolean(document.querySelector(".qa-onepage-file-picker__chip"))',
+	), POLL_OPTS).toBe(true);
+	await expect.poll(() => obsidian.dev.evalJson<string>(
+		'document.activeElement?.closest(".setting-item")?.querySelector(".setting-item-name")?.textContent ?? document.activeElement?.tagName',
+	), POLL_OPTS).toBe("note");
+
+	await insertText(obsidian, "typed straight away");
+	await pressKey(obsidian, "Enter", true);
+	await expect.poll(() => obsidian.dev.evalJsonAsync<string>(
+		`app.vault.adapter.read(${jsLiteral(mercury)})`,
+	), POLL_OPTS).toBe("- typed straight away\n");
 });
