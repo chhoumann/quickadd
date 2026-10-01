@@ -241,7 +241,7 @@ export class OnePageInputModal extends Modal {
 		super.open();
 		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove")) return;
 		const controls = Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
-			.filter((control) => !control.closest("[hidden]"));
+			.filter((control) => !control.closest("[hidden]") && !control.matches(":disabled"));
 		const unpicked = controls.find((control) =>
 			!control.closest(".qa-onepage-file-picker")?.querySelector(".qa-onepage-file-picker__chip"));
 		(unpicked ?? controls[0])?.focus();
