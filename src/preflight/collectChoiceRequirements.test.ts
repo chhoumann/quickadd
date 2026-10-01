@@ -785,7 +785,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		getFileCacheMock.mockReset();
 		getFileCacheMock.mockImplementation((file: { path: string }) => {
 			if (file.path === "Goals/Alpha.md") {
-				return { frontmatter: { title: "Alpha Goal" } };
+				return { frontmatter: { title: "Alpha Goal", aliases: ["First goal"] } };
 			}
 			if (file.path === "Projects/Beta.md") {
 				return { headings: [{ level: 1, heading: "Beta Heading" }] };
@@ -897,7 +897,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 		);
 	});
 
-	it("forces the capture target dropdown for file filter targets", async () => {
+	it("asks for a file filter target's note in a searchable picker that matches aliases", async () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([
 			{ path: "Goals/Alpha.md" } as never,
 			{ path: "Projects/Beta.md" } as never,
@@ -925,6 +925,8 @@ describe("collectChoiceRequirements - capture targets", () => {
 			"Alpha Goal (Alpha)",
 			"Beta Heading (Beta)",
 		]);
+		expect(target?.type).toBe("file-picker");
+		expect(target?.optionAliases).toEqual([["First goal"], []]);
 	});
 
 	it("leaves empty create-enabled capture target scopes to the runtime picker", async () => {

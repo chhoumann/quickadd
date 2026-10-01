@@ -84,7 +84,7 @@ QuickAdd scans the choice for placeholders and turns each one into a field:
 - Nested `{{TEMPLATE:path}}` includes are scanned recursively, so their prompts show up too.
 - `{{VALUE|type:multiline}}` and `{{VALUE:name|type:multiline}}` become textareas.
 - `{{VALUE:name|type:number|min:1|max:10}}` becomes a bounded numeric input, and `{{VALUE:name|type:slider|min:0|max:100|step:5}}` becomes a slider plus numeric input.
-- The capture target file, when you are capturing to a folder or a tag.
+- The capture target file, when you are capturing to a folder or a tag. It is a searchable picker like a [FILE input](#file-ux), and it also finds notes by their aliases.
 - Inputs declared by a user script inside a macro, if the script provides them.
 
 For [property captures](/docs/Choices/CaptureChoice/#property), a plain `VALUE`

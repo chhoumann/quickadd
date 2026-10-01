@@ -3,7 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, expectNoPrompt, jsLiteral, pressKey, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, expectNoPrompt, jsLiteral, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // #1876: the one-page form lists fields in the order the format reads, not
 // dates first and the capture text last.
@@ -95,13 +95,11 @@ describe("one-page form capture target", () => {
 			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
 		)).toEqual(["Select capture target file", "what", "due"]);
 
-		expect(await obsidian.dev.evalJson<boolean>(`(() => {
-			const select = document.querySelectorAll(${JSON.stringify(FIELD)})[0]?.querySelector("select");
-			if (!select) return false;
-			select.value = ${JSON.stringify(sandbox.path("inbox/beta.md"))};
-			select.dispatchEvent(new Event("change"));
-			return select.value === ${JSON.stringify(sandbox.path("inbox/beta.md"))};
-		})()`)).toBe(true);
+		await typeInto(obsidian, ".qa-onepage-file-picker input", "beta");
+		await pressKey(obsidian, "Enter");
+		await expect.poll(() => obsidian.dev.evalJson<string[]>(
+			'Array.from(document.querySelectorAll(".qa-onepage-file-picker__chip"), (chip) => chip.title)',
+		), POLL_OPTS).toEqual([sandbox.path("inbox/beta.md")]);
 		for (const [index, text] of [[1, "Call Ada"], [2, "2026-10-02"]] as const) {
 			expect(await obsidian.dev.evalJson<boolean>(`(() => {
 				const input = document.querySelectorAll(${JSON.stringify(FIELD)})[${index}]?.querySelector("input, textarea");
