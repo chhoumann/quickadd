@@ -361,6 +361,8 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		const { paths, labels, aliases, search } = captureCandidates(this.app, files);
 		const existingLabels = new Set(labels.map((label) => label.toLowerCase()));
 		const aliasNames = new Set(aliases.flat().map((alias) => alias.toLowerCase()));
+		// Each search text ends with its path, where a row's path matches start.
+		const pathOffsets = new Map(paths.map((path, index) => [path, search[index].length - path.length]));
 		const nameIsTaken = (value: string) =>
 			existingLabels.has(value.toLowerCase()) || options.nameIsTaken(value);
 		const placeholder = options.allowCreate
@@ -390,7 +392,10 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 			app: () => InputSuggester.Suggest(this.app, labels, paths, {
 				placeholder,
 				emptyStateText: options.allowCreate ? "Type a note name to create it" : undefined,
-				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
+				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
+					matches,
+					pathOffset: pathOffsets.get(path) ?? 0,
+				}),
 				searchItems: search,
 				aliases,
 				allowCustomValue: options.allowCreate,

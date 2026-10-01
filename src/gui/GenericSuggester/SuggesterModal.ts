@@ -5,7 +5,7 @@ import {
 	setIcon,
 	sortSearchResults,
 } from "obsidian";
-import type { FuzzyMatch, App } from "obsidian";
+import type { FuzzyMatch, App, SearchMatches } from "obsidian";
 import { log } from "src/logger/logManager";
 import {
 	createRenderFallbackWarner,
@@ -16,7 +16,8 @@ import {
 import { promptCancelled } from "../../errors/UserCancelError";
 import { matchWithAliases } from "../suggesters/rankMatches";
 
-export type SuggestRender<T> = (value: T, el: HTMLElement) => void;
+/** `matches` are the query's match ranges in the item's search text. */
+export type SuggestRender<T> = (value: T, el: HTMLElement, matches: SearchMatches) => void;
 
 export type GenericSuggesterOptions = {
 	/**
@@ -169,7 +170,7 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 
 		try {
 			el.empty();
-			this.renderItem(value.item, el);
+			this.renderItem(value.item, el, value.match.matches);
 		} catch (error) {
 			// Fallback to default rendering if custom render throws
 			this.warnRenderItemFailure(error);

@@ -1,6 +1,6 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, TFile, TFolder, type App } from "obsidian";
+import { Notice, prepareFuzzySearch, TFile, TFolder, type App, type SearchMatches } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -834,6 +834,35 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		]);
 		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
+	});
+
+	it("highlights a match in a titled note's file name on its path line", async () => {
+		const file = Object.assign(new TFile(), {
+			path: "People/Thomas Anderson.md",
+			name: "Thomas Anderson.md",
+			basename: "Thomas Anderson",
+			extension: "md",
+		});
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([file]);
+		const suggestSpy = vi.fn(async () => file.path);
+		(InputSuggester as any).Suggest = suggestSpy;
+		const app = createApp() as any;
+		app.vault.getAbstractFileByPath = vi.fn((path: string) => (path === file.path ? file : null));
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { title: "The Matrix" } }));
+
+		await (createCaptureEngine({ choice: createChoice({ captureTo: "People/" }), app }) as any)
+			.selectFileInFolder("People/", false);
+
+		const options = (suggestSpy.mock.calls[0] as unknown as [unknown, unknown, unknown, {
+			searchItems: string[];
+			renderItem: (path: string, el: HTMLElement, matches: SearchMatches) => void;
+		}])[3];
+		const found = prepareFuzzySearch("thomas")(options.searchItems[0]);
+		const el = document.createElement("div");
+		options.renderItem(file.path, el, found?.matches ?? []);
+		expect(el.querySelector(".suggestion-title")?.textContent).toBe("The Matrix");
+		expect(Array.from(el.querySelectorAll(".suggestion-highlight"), (span) => span.textContent))
+			.toEqual(["Thomas"]);
 	});
 
 	it("suppresses folder create rows for values that normalize to existing files", async () => {
