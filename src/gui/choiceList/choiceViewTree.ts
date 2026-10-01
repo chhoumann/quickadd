@@ -41,7 +41,7 @@ export function filterChoices(list: IChoice[], query: string): IChoice[] {
 	// that would only match fuzzily shows up only for its matching choices.
 	const walk = (c: IChoice, all = false): IChoice | null => {
 		if (!isChoiceLike(c)) return null;
-		const name = c.name ?? "";
+		const name = typeof c.name === "string" ? c.name : "";
 		if (c.type !== "Multi") {
 			return all || match(name) ? c : null;
 		}

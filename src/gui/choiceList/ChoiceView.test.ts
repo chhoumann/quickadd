@@ -376,6 +376,22 @@ describe("ChoiceView", () => {
 		expect(container.querySelector(".qa-folder-empty")).toBeNull();
 	});
 
+	// Malformed data.json: a folder whose name isn't a string must not break filtering.
+	it("filters past a folder whose name is not a string", async () => {
+		const choices = [
+			{ id: "bad", name: 42, type: "Multi", collapsed: false, choices: [{ id: "c1", name: "Inbox", type: "Capture" }] },
+		] as unknown as IChoice[];
+		const { container, getByPlaceholderText } = renderChoiceView(choices);
+
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
+			target: { value: "inbox" },
+		});
+
+		const rows = Array.from(container.querySelectorAll("[data-choice-id]"), (row) =>
+			row.getAttribute("data-choice-id"));
+		expect(rows).toEqual(["bad", "c1"]);
+	});
+
 	// #2107: narrowing the filter must not lay out the list once per row that
 	// leaves. Svelte's animate measures every row (getBoundingClientRect) when a
 	// keyed list loses one, which took ~400 ms a keystroke at a few hundred rows.
