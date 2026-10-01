@@ -8,7 +8,7 @@ import { FieldSuggestionParser } from "../../utils/FieldSuggestionParser";
 import { collectFieldValuesProcessedDetailed } from "../../utils/FieldValueCollector";
 import { FieldValueProcessor } from "../../utils/FieldValueProcessor";
 import { resolveActiveNoteFieldDefault } from "../../utils/activeNoteFieldDefault";
-import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, type ParsedFileToken } from "../../utils/fileSyntax";
+import { buildFileDisplayInfos, FILE_CUSTOM_PREFIX, FILE_PICK_PREFIX, itemWithAlias, type ParsedFileToken } from "../../utils/fileSyntax";
 import { UserCancelError } from "../../errors/UserCancelError";
 import { isCancellationError } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
@@ -223,10 +223,13 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 
 		if (parsed.multiSelect) {
 			const result = provider
-				? await provider.suggesterMulti(displayItems, items, {
+				? (await provider.suggesterMulti(displayItems, items, {
 						placeholder,
 						allowCustomInput: parsed.allowCustomInput,
-					})
+					})).map((reply) =>
+						// The client matches titles only; a typed alias names its note.
+						items.includes(reply) ? reply : (itemWithAlias(items, aliases, reply) ?? reply),
+					)
 				: await MultiSuggester.Suggest(app, displayItems, items, {
 						placeholder,
 						allowCustomValue: parsed.allowCustomInput,
@@ -248,9 +251,10 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 				),
 			);
 			if (!result) return "";
-			return items.includes(result)
-				? result
-				: `${FILE_CUSTOM_PREFIX}${result}`;
+			if (items.includes(result)) return result;
+			// The client matches titles only. A typed alias names its note, as in
+			// the in-app picker.
+			return itemWithAlias(items, aliases, result) ?? `${FILE_CUSTOM_PREFIX}${result}`;
 		}
 
 		if (parsed.allowCustomInput) {

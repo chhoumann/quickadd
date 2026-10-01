@@ -17,6 +17,7 @@ import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
+import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
 import { resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
 
@@ -375,6 +376,10 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 					allowCustomInput: options.allowCreate,
 					what: "the capture-target picker",
 				});
+				// The client matches titles only. A typed alias names its note, as in
+				// the in-app picker, so capture into it rather than create a new one.
+				const aliased = paths.includes(reply) ? undefined : itemWithAlias(paths, aliases, reply);
+				if (aliased !== undefined) return aliased;
 				// Folder replies are confined by their caller. Other scopes must
 				// reject existing notes that were not offered by this picker.
 				if (options.restrictToScope && !paths.includes(reply) && nameIsTaken(reply)) {

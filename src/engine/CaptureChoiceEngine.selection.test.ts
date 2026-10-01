@@ -865,6 +865,29 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			.toEqual(["Thomas"]);
 	});
 
+	it("captures into the note whose alias a remote client typed, instead of creating one (#2062)", async () => {
+		const file = Object.assign(new TFile(), {
+			path: "People/Thomas Anderson.md",
+			name: "Thomas Anderson.md",
+			basename: "Thomas Anderson",
+			extension: "md",
+		});
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([file]);
+		const app = createApp() as any;
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { aliases: ["Neo", "The One"] } }));
+		// A Raycast client typed "neo" and chose its "Use custom value" row.
+		const suggester = vi.fn(async () => "neo");
+		const executor = { ...createExecutor(), interactive: true, promptProvider: { suggester } } as unknown as IChoiceExecutor;
+		const choice = createChoice({
+			captureTo: "People/",
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: false, template: "" },
+		});
+
+		await expect((createCaptureEngine({ choice, app, executor }) as any).selectFileInFolder("People/", false))
+			.resolves.toBe("People/Thomas Anderson.md");
+		expect(suggester).toHaveBeenCalledTimes(1);
+	});
+
 	it("suppresses folder create rows for values that normalize to existing files", async () => {
 		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([
 			{ path: "Inbox/Apple.md", basename: "Apple" },
