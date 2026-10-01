@@ -13,11 +13,12 @@ import { chatRequestMock, confirmMock, agentState, makeAgent, turnResponse, tool
 const noticeCalls: Array<{ status: string; msg: string }> = [];
 const makeNoticeHandlerMock = vi.fn((showMessages: boolean) => {
 	if (!showMessages) {
-		return { setMessage: () => {}, hide: () => {} };
+		return { setMessage: () => {}, hide: () => {}, fail: () => {} };
 	}
 	return {
 		setMessage: (status: string, msg: string) => noticeCalls.push({ status, msg }),
 		hide: () => {},
+		fail: (error: unknown) => noticeCalls.push({ status: "dead", msg: (error as Error).message }),
 	};
 });
 vi.mock("src/ai/makeNoticeHandler", () => ({
