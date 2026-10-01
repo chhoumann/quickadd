@@ -92,6 +92,16 @@ export default class GenericCheckboxPrompt extends Modal {
 		const submitButtonContainer: HTMLDivElement = this.contentEl.createDiv(
 			"submitButtonContainer",
 		);
+		// Cancelling rejects (like Esc) so the caller can distinguish it from an
+		// empty submission. Cancel comes first, as in QuickAdd's other prompts.
+		const cancelButton: ButtonComponent = new ButtonComponent(
+			submitButtonContainer
+		);
+
+		cancelButton.setButtonText("Cancel").onClick(() => {
+			this.close();
+		});
+
 		const submitButton: ButtonComponent = new ButtonComponent(
 			submitButtonContainer
 		);
@@ -105,16 +115,5 @@ export default class GenericCheckboxPrompt extends Modal {
 
 				this.close();
 			});
-
-		// Explicit Cancel affordance — without it, Esc was the only way to
-		// dismiss, which is undiscoverable. Cancelling rejects (like Esc) so
-		// the caller can distinguish it from an empty submission.
-		const cancelButton: ButtonComponent = new ButtonComponent(
-			submitButtonContainer
-		);
-
-		cancelButton.setButtonText("Cancel").onClick(() => {
-			this.close();
-		});
 	}
 }
