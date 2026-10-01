@@ -357,6 +357,12 @@ async function collectForCaptureChoice(
 				options,
 				displayOptions,
 				optionAliases,
+				// A typed name is a new note, as in the run's picker. Outside a folder
+				// it must not name any existing note (selectFileFromSet).
+				...(allowCreateTarget ? {
+					suggesterConfig: { allowCustomInput: true },
+					newNoteName: captureScope.kind === "folder" ? "scope" : "vault",
+				} : {}),
 			});
 		}
 		// The run picks the note before it formats anything, so the form lists

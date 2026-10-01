@@ -56,3 +56,70 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	await expect.poll(() => read(thomas), POLL_OPTS).toContain("- from the form");
 	expect(await read(classic)).toBe("");
 });
+
+// With "Create file if it doesn't exist", a name typed in the field is a new
+// note, as in the run's picker, for folder, tag and property scopes. A note's
+// name or alias still picks the note, and outside a folder a name no new note
+// may take is not offered.
+it("creates the note named in the one-page capture target field", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const crew = "---\ntags: [qa-crew]\nqaRole: crew\naliases: [Neo]\n---\n";
+	await seedVaultFile(obsidian, sandbox, "Crew/Thomas Anderson.md", crew);
+	await seedVaultFile(obsidian, sandbox, "Crew/Agent Smith.md", "---\ntitle: Program\ntags: [qa-crew]\nqaRole: crew\n---\n");
+	// Listed first, so it is the field's default and the others stay searchable.
+	await seedVaultFile(obsidian, sandbox, "Crew/Apoc.md", "---\ntags: [qa-crew]\nqaRole: crew\n---\n");
+	// Outside every scope below.
+	await seedVaultFile(obsidian, sandbox, "Elsewhere/Oracle.md", "");
+
+	const choiceFor = (name: string, captureTo: string) => {
+		const choice = new CaptureChoice(name);
+		choice.command = true;
+		choice.captureTo = captureTo;
+		choice.onePageInput = "always";
+		choice.createFileIfItDoesntExist = { ...choice.createFileIfItDoesntExist, enabled: true };
+		choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+		return choice;
+	};
+	const scopes = [
+		// A folder capture creates its new note in the folder, so another
+		// folder's note name is free there, as in the run's picker.
+		{ choice: choiceFor("Folder", `${sandbox.path("Crew")}/`), typed: "Niobe", created: sandbox.path("Crew/Niobe.md"), oracle: ["Use “oracle”"] },
+		{ choice: choiceFor("Tag", "#qa-crew"), typed: sandbox.path("Tank"), created: sandbox.path("Tank.md"), oracle: [] },
+		{ choice: choiceFor("Property", "property:qaRole=crew"), typed: sandbox.path("Dozer"), created: sandbox.path("Dozer.md"), oracle: [] },
+	];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = scopes.map(({ choice }) => choice);
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	const field = ".qa-onepage-file-picker input";
+	const rows = () => obsidian.dev.evalJson<string[]>(
+		'Array.from(document.querySelectorAll(".suggestion-container .suggestion-item .qa-onepage-file-suggestion__label"), (label) => label.textContent)',
+	);
+	for (const { choice, typed, created, oracle } of scopes) {
+		await obsidian.command(`quickadd:choice:${choice.id}`).run();
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(`Boolean(document.querySelector(${jsLiteral(field)}))`), POLL_OPTS).toBe(true);
+
+		// A name or an alias lists the note first, with no row offering a new
+		// note (that row would come first).
+		for (const [query, first] of [["neo", "Neo"], ["agent smith", "Program (Agent Smith)"]]) {
+			await typeInto(obsidian, field, query);
+			await expect.poll(async () => (await rows())[0], POLL_OPTS).toBe(first);
+		}
+		await typeInto(obsidian, field, "oracle");
+		await expect.poll(rows, POLL_OPTS).toEqual(oracle);
+
+		await typeInto(obsidian, field, typed);
+		await expect.poll(async () => (await rows())[0], POLL_OPTS).toBe(`Use “${typed}”`);
+		await pressKey(obsidian, "Enter");
+		await typeInto(obsidian, ".modal-container input[type=text]:not(.qa-onepage-file-picker__input)", `into ${choice.name}`);
+		expect(await obsidian.dev.evalJson<boolean>(`(() => {
+			const submit = Array.from(document.querySelectorAll(".modal-container button")).find((b) => b.textContent.trim() === "Submit");
+			submit?.click();
+			return Boolean(submit);
+		})()`)).toBe(true);
+		await expect.poll(() => obsidian.dev.evalJsonAsync<string | null>(
+			`(async () => (await app.vault.adapter.exists(${jsLiteral(created)})) ? app.vault.adapter.read(${jsLiteral(created)}) : null)()`,
+		), POLL_OPTS).toBe(`- into ${choice.name}\n`);
+	}
+});

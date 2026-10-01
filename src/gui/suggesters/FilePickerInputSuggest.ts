@@ -2,6 +2,7 @@ import { setIcon, type App, type SearchMatches } from "obsidian";
 import { rankMatches } from "./rankMatches";
 import { TextInputSuggest } from "./suggest";
 import { dispatchCompletion, renderHighlightRanges } from "./utils";
+import { fileBasenameFromPath } from "../../utils/fileSyntax";
 
 export interface FilePickerOption {
 	value: string;
@@ -24,6 +25,7 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 	// Match ranges of the last suggestions, over "label path", for highlighting.
 	private matchesByOption = new Map<FilePickerOption, SearchMatches>();
 	private aliasByOption = new Map<FilePickerOption, string>();
+	private namesByOption = new WeakMap<FilePickerOption, string[]>();
 
 	constructor(
 		app: App,
@@ -33,6 +35,8 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		private readonly onSelect: (option: FilePickerOption) => void,
 		private readonly multiSelect: boolean,
 		private readonly allowCustomInput: boolean,
+		/** Names the owner treats as taken, so they aren't offered as a custom value. */
+		private readonly valueExists?: (value: string) => boolean,
 	) {
 		super(app, inputEl);
 		if (multiSelect) inputEl.setAttribute("aria-multiselectable", "true");
@@ -57,15 +61,14 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		const matches = ranked.map(({ item }) => item);
 		if (!trimmed || !this.allowCustomInput) return matches;
 
+		// Typing a file's name, label, path or alias picks that file, not a
+		// custom value with the same name.
 		const normalized = trimmed.toLocaleLowerCase();
-		const exactOption = this.getOptions().some(
-			(option) =>
-				option.label.toLocaleLowerCase() === normalized ||
-				option.path.toLocaleLowerCase() === normalized ||
-				(option.aliases ?? []).some((alias) => alias.toLocaleLowerCase() === normalized),
+		const exactOption = this.getOptions().some((option) =>
+			this.namesOf(option).includes(normalized),
 		);
 		const exactCustom = this.isSelected(trimmed);
-		if (exactOption || exactCustom) return matches;
+		if (exactOption || exactCustom || this.valueExists?.(trimmed)) return matches;
 
 		return [
 			{
@@ -76,6 +79,21 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			},
 			...matches,
 		].slice(0, MAX_RESULTS);
+	}
+
+	/** An option's names in lower case, cached: the custom-value check reads every option per keystroke. */
+	private namesOf(option: FilePickerOption): string[] {
+		let names = this.namesByOption.get(option);
+		if (!names) {
+			names = [
+				option.label,
+				option.path,
+				...(option.isCustom ? [] : [fileBasenameFromPath(option.path)]),
+				...(option.aliases ?? []),
+			].map((name) => name.toLocaleLowerCase());
+			this.namesByOption.set(option, names);
+		}
+		return names;
 	}
 
 	renderSuggestion(option: FilePickerOption, el: HTMLElement): void {

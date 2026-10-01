@@ -929,6 +929,24 @@ describe("collectChoiceRequirements - capture targets", () => {
 		expect(target?.optionAliases).toEqual([["First goal"], []]);
 	});
 
+	it("lets the capture target field take a new note name only when creation is on", async () => {
+		getMarkdownFilesMatchingFilterMock.mockReturnValue([{ path: "Goals/Alpha.md" } as never]);
+		const target = async (choice: ReturnType<typeof createCaptureChoice>) =>
+			(await collect(choice, choiceExecutor)).find(
+				(requirement) => requirement.id === captureTargetKeyFor("capture-choice"),
+			);
+
+		expect(await target(createCaptureChoice("folder:Goals|tag:active"))).not.toHaveProperty("suggesterConfig");
+		// Outside a folder, the new note must not share a name with any note.
+		expect(await target(enableCaptureTargetCreation(createCaptureChoice("folder:Goals|tag:active"))))
+			.toMatchObject({ suggesterConfig: { allowCustomInput: true }, newNoteName: "vault" });
+
+		isFolderMock.mockReturnValue(true);
+		getMarkdownFilesInFolderMock.mockReturnValue([{ path: "Goals/Alpha.md" } as never]);
+		const folderTarget = await target(enableCaptureTargetCreation(createCaptureChoice("Goals/")));
+		expect(folderTarget).toMatchObject({ suggesterConfig: { allowCustomInput: true }, newNoteName: "scope" });
+	});
+
 	it("leaves empty create-enabled capture target scopes to the runtime picker", async () => {
 		const requirements = await collect(
 			enableCaptureTargetCreation(

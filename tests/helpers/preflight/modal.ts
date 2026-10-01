@@ -31,7 +31,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		modalEl = document.createElement("div");
 		contentEl = document.createElement("div");
 		scope = new Scope();
-		constructor(_app: App) {
+		constructor(public app: App) {
 			this.modalEl.appendChild(this.contentEl);
 			this.containerEl.appendChild(this.modalEl);
 		}
