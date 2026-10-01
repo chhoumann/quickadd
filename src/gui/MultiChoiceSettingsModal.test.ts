@@ -82,6 +82,36 @@ describe("MultiChoiceSettingsModal", () => {
 		});
 	});
 
+	it("orders Cancel before Save, like the other QuickAdd dialogs", () => {
+		const modal = new MultiChoiceSettingsModal(
+			appWithSuggestSupport(),
+			multiChoice(),
+		);
+		const buttons = Array.from(
+			modal.containerEl.querySelectorAll<HTMLButtonElement>(".qa-modal-button-row button"),
+		).map((button) => button.textContent);
+
+		expect(buttons).toEqual(["Cancel", "Save"]);
+	});
+
+	it("shows the folder name the empty Placeholder field falls back to", async () => {
+		const modal = new MultiChoiceSettingsModal(
+			appWithSuggestSupport(),
+			multiChoice(),
+		);
+		const [nameInput, placeholderInput] = Array.from(
+			modal.containerEl.querySelectorAll<HTMLInputElement>("input"),
+		);
+
+		expect(placeholderInput.placeholder).toBe("Workflows");
+
+		await fireEvent.input(nameInput, { target: { value: "Daily" } });
+		expect(placeholderInput.placeholder).toBe("Daily");
+
+		await fireEvent.input(nameInput, { target: { value: "  " } });
+		expect(placeholderInput.placeholder).toBe("Workflows");
+	});
+
 	it("clears a blank icon override back to the default", async () => {
 		const modal = new MultiChoiceSettingsModal(
 			appWithSuggestSupport(),

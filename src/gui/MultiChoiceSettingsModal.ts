@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, TextComponent } from "obsidian";
 import { ButtonComponent, Modal, Setting } from "obsidian";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { addChoiceIconSetting } from "./ChoiceBuilder/components/choiceIconSetting";
@@ -36,11 +36,13 @@ export class MultiChoiceSettingsModal extends Modal {
 		this.contentEl.empty();
 		this.titleEl.setText("Edit folder");
 
+		let placeholderText: TextComponent | undefined;
 		new Setting(this.contentEl)
 			.setName("Name")
 			.addText((text) => {
 				text.setValue(this.name).onChange((value) => {
 					this.name = value;
+					placeholderText?.setPlaceholder(value.trim() || this.choice.name);
 				});
 			});
 
@@ -50,7 +52,8 @@ export class MultiChoiceSettingsModal extends Modal {
 				"Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
 			)
 			.addText((text) => {
-				text.setPlaceholder("Defaults to the folder name");
+				placeholderText = text;
+				text.setPlaceholder(this.name);
 				text.setValue(this.placeholder).onChange((value) => {
 					this.placeholder = value;
 				});
@@ -65,15 +68,14 @@ export class MultiChoiceSettingsModal extends Modal {
 			},
 		);
 
-		const buttonRow = this.contentEl.createDiv();
+		const buttonRow = this.contentEl.createDiv("qa-modal-button-row");
+		new ButtonComponent(buttonRow)
+			.setButtonText("Cancel")
+			.onClick(() => this.cancel());
 		new ButtonComponent(buttonRow)
 			.setButtonText("Save")
 			.setCta()
 			.onClick(() => this.submit());
-		new ButtonComponent(buttonRow)
-			.setButtonText("Cancel")
-			.onClick(() => this.cancel());
-		buttonRow.addClass("qa-modal-button-row");
 	}
 
 	private submit() {
