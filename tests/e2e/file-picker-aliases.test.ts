@@ -84,6 +84,11 @@ it("finds notes by alias in the file pickers and uses the note", async () => {
 	await typeInto(obsidian, prompt, "Neo");
 	await expect.poll(async () => (await rows(promptRows))[0], POLL_OPTS)
 		.toEqual({ title: "Neo", note: "Thomas Anderson", alias: true });
+	// Every row bolds the match, as the quick switcher does, not just alias rows.
+	expect(await obsidian.dev.evalJson<string[]>(`
+		Array.from(document.querySelectorAll(${jsLiteral(promptRows)}), (row) =>
+			Array.from(row.querySelectorAll(".suggestion-highlight"), (span) => span.textContent).join("|"))
+	`)).toEqual(["Neo", "Neo"]);
 	await pressKey(obsidian, "Enter");
 	await expect.poll(() => read(thomas), POLL_OPTS).toContain("- captured");
 	expect(await read(`${people}/Neo.md`)).toBeNull();

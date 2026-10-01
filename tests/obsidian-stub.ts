@@ -1122,9 +1122,14 @@ export function sortSearchResults(results: Array<{ match: { score: number } }>):
   results.sort((a, b) => b.match.score - a.match.score);
 }
 
-export function renderMatches(el: HTMLElement, text: string, matches: Array<[number, number]> | null): void {
+// Like Obsidian's: `offset` is added to each range, and ranges outside `text` are dropped.
+export function renderMatches(el: HTMLElement, text: string, matches: Array<[number, number]> | null, offset = 0): void {
   let at = 0;
-  for (const [start, end] of matches ?? []) {
+  for (const [rangeStart, rangeEnd] of matches ?? []) {
+    const start = Math.max(0, rangeStart + offset);
+    const end = rangeEnd + offset;
+    if (end <= 0) continue;
+    if (start >= text.length) break;
     if (start > at) el.appendText(text.slice(at, start));
     el.createSpan({ cls: "suggestion-highlight", text: text.slice(start, end) });
     at = end;

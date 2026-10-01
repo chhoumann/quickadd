@@ -50,7 +50,13 @@ export function installObsidianDomHelpers(window: Window): void {
 		createSpan?: unknown;
 		createEl?: unknown;
 		instanceOf?: unknown;
+		appendText?: unknown;
 	};
+	if (typeof p.appendText !== "function") {
+		p.appendText = function appendText(this: Element, text: string) {
+			this.append(text);
+		};
+	}
 	if (typeof p.instanceOf !== "function") {
 		p.instanceOf = function instanceOf(this: Node, type: { new (): unknown; name: string }) {
 			if (this instanceof type) return true;
