@@ -45,7 +45,8 @@ vi.mock("../ai/aiHelpers", () => ({
 }));
 
 import type { App } from "obsidian";
-import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { MacroChoiceEngine, OBSIDIAN_COMMAND_WAIT_MS } from "./MacroChoiceEngine";
+import { log } from "../logger/logManager";
 import { ConditionalCommand } from "../types/macros/Conditional/ConditionalCommand";
 import { ObsidianCommand } from "../types/macros/ObsidianCommand";
 import { ChoiceCommand } from "../types/macros/ChoiceCommand";
@@ -84,9 +85,17 @@ function createChoiceExecutorStub(
 	return executor;
 }
 
+interface RegistryEntry {
+	id: string;
+	name: string;
+	callback?: () => unknown;
+	checkCallback?: (checking: boolean) => unknown;
+}
+
 interface CreateEngineOptions {
 	commands: ICommand[];
 	registeredCommandIds?: string[];
+	registeredCommands?: Record<string, RegistryEntry>;
 	getChoiceById?: (id: string) => unknown;
 	choiceExecutor?: IChoiceExecutor;
 	variables?: Record<string, unknown>;
@@ -95,15 +104,24 @@ interface CreateEngineOptions {
 function createEngine({
 	commands,
 	registeredCommandIds = [],
+	registeredCommands = {},
 	getChoiceById = vi.fn(),
 	choiceExecutor = createChoiceExecutorStub(),
 	variables = {},
 }: CreateEngineOptions) {
-	const executeCommandById = vi.fn();
-	const commandRegistry: Record<string, { id: string; name: string }> = {};
+	const commandRegistry: Record<string, RegistryEntry> = { ...registeredCommands };
 	for (const id of registeredCommandIds) {
 		commandRegistry[id] = { id, name: id };
 	}
+	// What Obsidian 1.13.7's executeCommandById does: run checkCallback(false)
+	// when there is one, else callback(), and return true either way.
+	const executeCommandById = vi.fn((id: string) => {
+		const entry = commandRegistry[id];
+		if (!entry) return false;
+		if (entry.checkCallback) entry.checkCallback(false);
+		else entry.callback?.();
+		return true;
+	});
 
 	const app = {
 		commands: {
@@ -259,6 +277,93 @@ describe("MacroChoiceEngine audit fixes", () => {
 			await engine.run();
 
 			expect(executeCommandById).toHaveBeenCalledWith("real:cmd");
+		});
+	});
+
+	describe("executeObsidianCommand waiting for the command", () => {
+		const step = (name: string, commandId: string) => {
+			const command = new ObsidianCommand(name, commandId);
+			command.generateId();
+			return command;
+		};
+
+		afterEach(() => {
+			vi.useRealTimers();
+			vi.restoreAllMocks();
+		});
+
+		it("runs the next step only after the promise a command's callback returns settles", async () => {
+			let finish!: () => void;
+			const order: string[] = [];
+			const opensNote = {
+				id: "opens:note",
+				name: "Open note",
+				callback: () => new Promise<void>((resolve) => {
+					finish = () => {
+						order.push("note open");
+						resolve();
+					};
+				}),
+			};
+			const { engine } = createEngine({
+				commands: [step("Open note", "opens:note"), step("Next", "next:step")],
+				registeredCommands: {
+					"opens:note": opensNote,
+					"next:step": { id: "next:step", name: "Next", callback: () => { order.push("next step"); } },
+				},
+			});
+
+			const callback = opensNote.callback;
+			const run = engine.run();
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			expect(order).toEqual([]);
+
+			finish();
+			await run;
+			expect(order).toEqual(["note open", "next step"]);
+			// The registry entry is Obsidian's, so the wrapper must not outlive the call.
+			expect(opensNote.callback).toBe(callback);
+		});
+
+		it("continues after the wait limit when the promise never settles, and says so", async () => {
+			vi.useFakeTimers();
+			const warn = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+			const next = vi.fn();
+			const { engine } = createEngine({
+				commands: [step("Never settles", "never:settles"), step("Next", "next:step")],
+				registeredCommands: {
+					"never:settles": { id: "never:settles", name: "Never settles", callback: () => new Promise(() => {}) },
+					"next:step": { id: "next:step", name: "Next", callback: next },
+				},
+			});
+
+			const run = engine.run();
+			await vi.advanceTimersByTimeAsync(OBSIDIAN_COMMAND_WAIT_MS - 1);
+			expect(next).not.toHaveBeenCalled();
+
+			await vi.advanceTimersByTimeAsync(1);
+			await run;
+			expect(next).toHaveBeenCalledOnce();
+			expect(warn).toHaveBeenCalledWith(
+				"Obsidian command 'Never settles' was still running after 5 seconds. QuickAdd continued the macro without waiting for it.",
+			);
+		});
+
+		it("reports a rejected command and runs the rest of the macro", async () => {
+			const error = vi.spyOn(log, "logError").mockImplementation(() => {});
+			const next = vi.fn();
+			const { engine } = createEngine({
+				commands: [step("Fails", "fails:cmd"), step("Next", "next:step")],
+				registeredCommands: {
+					"fails:cmd": { id: "fails:cmd", name: "Fails", callback: () => Promise.reject(new Error("disk full")) },
+					"next:step": { id: "next:step", name: "Next", callback: next },
+				},
+			});
+
+			await engine.run();
+
+			expect(next).toHaveBeenCalledOnce();
+			expect(String(error.mock.calls[0]?.[0])).toContain("disk full");
 		});
 	});
 });

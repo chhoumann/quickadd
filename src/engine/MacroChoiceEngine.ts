@@ -61,6 +61,26 @@ import { isDiscoveryInputBoundary } from "../preflight/macroFormRoster";
 import { withPreparedChoiceInputs } from "../preflight/preparedChoiceInputs";
 
 type ConditionalScriptRunner = () => Promise<unknown>;
+
+/** The fields of an entry in Obsidian's (private) command registry that a macro uses. */
+type ObsidianCommandEntry = {
+	callback?: (...args: unknown[]) => unknown;
+	checkCallback?: (checking: boolean) => unknown;
+};
+
+/**
+ * The longest a macro waits for an Obsidian command that returns a promise.
+ * In Obsidian 1.13.7 the commands that open or create a note settled within
+ * 110 ms, and within 760 ms with the CPU throttled 6x, so 5 seconds leaves room
+ * for slow devices and large vaults while a command that never settles holds
+ * the macro up only briefly.
+ */
+export const OBSIDIAN_COMMAND_WAIT_MS = 5000;
+
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+	return typeof (value as { then?: unknown } | null | undefined)?.then === "function";
+}
+
 /**
  * Command types QuickAdd used to declare and no longer does. Without this, the
  * generic message would tell a user whose data.json holds one of these that it
@@ -290,7 +310,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				await withPreparedChoiceInputs(this.choiceExecutor, command.id, async () => {
 					switch (command.type) {
 						case CommandType.Obsidian:
-							this.executeObsidianCommand(command as IObsidianCommand);
+							await this.executeObsidianCommand(command as IObsidianCommand);
 							break;
 						case CommandType.UserScript:
 							await this.executeUserScript(command as IUserScript);
@@ -393,21 +413,78 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		if (result) this.output = result.output;
 	}
 
-	protected executeObsidianCommand(command: IObsidianCommand) {
+	protected async executeObsidianCommand(command: IObsidianCommand): Promise<void> {
 		// @ts-ignore
-		const registry = this.app.commands.commands;
+		const registry: Record<string, ObsidianCommandEntry> | undefined = this.app.commands.commands;
+		const entry = registry?.[command.commandId];
 		// When the command registry is available, a missing id means the source
 		// plugin was disabled/uninstalled; executeCommandById would silently no-op,
 		// so surface a clear error instead of letting the macro look successful.
-		if (registry && !registry[command.commandId]) {
+		if (registry && !entry) {
 			log.logError(
 				`Obsidian command '${command.name}' is no longer available.`
 			);
 			return;
 		}
 
-		// @ts-ignore
-		this.app.commands.executeCommandById(command.commandId);
+		// executeCommandById throws away what the command's callback returns.
+		// Commands that open or create a note (Daily notes, Periodic Notes, new
+		// note, unique note) return a promise that settles once the note is open,
+		// and the next step needs that note (#2067). Wrapping the callback for this
+		// one synchronous call captures the promise while the command still runs
+		// through executeCommandById, keeping Obsidian's own handling and any
+		// plugin that hooks it. Obsidian runs checkCallback instead when a command
+		// has one and turns editor callbacks into a checkCallback; those return a
+		// boolean, so there is nothing to wait for.
+		const callback = entry?.checkCallback ? undefined : entry?.callback;
+		let result: unknown;
+		if (entry && callback) {
+			entry.callback = (...args: unknown[]) => (result = callback.apply(entry, args));
+		}
+		try {
+			// @ts-ignore
+			this.app.commands.executeCommandById(command.commandId);
+		} finally {
+			if (entry && callback) entry.callback = callback;
+		}
+
+		if (isPromiseLike(result)) {
+			await this.waitForObsidianCommand(command, result);
+		}
+	}
+
+	/**
+	 * Wait for a command's promise, but never longer than
+	 * OBSIDIAN_COMMAND_WAIT_MS. Some commands settle late or never (one waiting
+	 * on a prompt the user left open), and a stuck step must not stall the rest
+	 * of the macro, so on timeout the macro continues as it always did.
+	 */
+	private async waitForObsidianCommand(
+		command: IObsidianCommand,
+		result: PromiseLike<unknown>,
+	): Promise<void> {
+		let timer: number | undefined;
+		const finished = await Promise.race([
+			Promise.resolve(result).then(
+				() => true,
+				(error: unknown) => {
+					// Once handled here, nothing else reports the rejection. The macro
+					// carries on, as it did when nothing waited.
+					reportError(error, `Obsidian command '${command.name}' failed`);
+					return true;
+				},
+			),
+			new Promise<false>((resolve) => {
+				timer = window.setTimeout(() => resolve(false), OBSIDIAN_COMMAND_WAIT_MS);
+			}),
+		]);
+		window.clearTimeout(timer);
+
+		if (!finished) {
+			log.logWarning(
+				`Obsidian command '${command.name}' was still running after ${OBSIDIAN_COMMAND_WAIT_MS / 1000} seconds. QuickAdd continued the macro without waiting for it.`
+			);
+		}
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {

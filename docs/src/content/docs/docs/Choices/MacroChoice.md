@@ -69,7 +69,7 @@ order.
 
 | Command | What it does |
 | --- | --- |
-| **Obsidian Command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
+| **Obsidian Command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. When a command reports that it has finished, as opening the daily note does, the next step waits for it, for up to 5 seconds. |
 | **Editor commands** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
 | **User Script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a user script command](#add-a-user-script-command). |
 | **Nested Choice** | Run another QuickAdd choice - a template, capture, or another macro - so you can reuse existing work and build modular workflows. |

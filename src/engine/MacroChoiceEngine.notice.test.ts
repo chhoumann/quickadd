@@ -51,7 +51,7 @@ class CancellationTestMacroChoiceEngine extends MacroChoiceEngine {
 		this.abortMessage = abortMessage;
 	}
 
-	protected override executeObsidianCommand(): void {
+	protected override async executeObsidianCommand(): Promise<void> {
 		// A user prompt-dismissal surfaces as UserCancelError in production; other
 		// aborts stay plain MacroAbortError.
 		throw this.abortMessage.toLowerCase().includes("cancelled by user")
@@ -259,7 +259,7 @@ describe("MacroChoiceEngine nested choice propagation", () => {
 		class ObservationMacroChoiceEngine extends MacroChoiceEngine {
 			public obsidianExecutions = 0;
 
-			protected override executeObsidianCommand(): void {
+			protected override async executeObsidianCommand(): Promise<void> {
 				this.obsidianExecutions += 1;
 			}
 		}
