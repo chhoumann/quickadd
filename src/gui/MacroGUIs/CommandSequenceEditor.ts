@@ -281,6 +281,7 @@ export class CommandSequenceEditor {
 
 		const addObsidianCommandFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const obsidianCommand = this.obsidianCommands.find((v) => v.name === value);
 
 			if (!obsidianCommand) {
@@ -319,6 +320,7 @@ export class CommandSequenceEditor {
 		let dropdownComponent: DropdownComponent;
 
 		const addEditorCommandFromDropdown = () => {
+			if (!dropdownComponent.getValue()) return;
 			const Command = editorCommands.get(dropdownComponent.getValue());
 			if (!Command) {
 				log.logError("invalid editor command type");
@@ -426,6 +428,7 @@ export class CommandSequenceEditor {
 
 		const addChoiceFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const choice = this.choices.find((c) => c.name === value);
 			if (!choice) {
 				new Notice(`QuickAdd: No choice named "${value}".`);

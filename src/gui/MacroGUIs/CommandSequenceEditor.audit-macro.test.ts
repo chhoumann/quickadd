@@ -111,6 +111,40 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 		editor.destroy();
 	});
 
+	// #2122: the first-macro walkthrough says "Add an Editor commands entry and
+	// choose ...", so Add is often clicked before anything is chosen.
+	it("does nothing when Add is clicked with nothing chosen", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app: testApp(),
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		editor.render(container);
+
+		const editorCommands = container.querySelector("select");
+		if (!editorCommands) throw new Error("Editor commands dropdown not found");
+		for (const control of [
+			getInputByPlaceholder(container, "Obsidian command"),
+			editorCommands,
+			getInputByPlaceholder(container, "Choice"),
+		]) {
+			getAddButtonFor(control as HTMLInputElement).click();
+		}
+
+		expect(onCommandsChange).not.toHaveBeenCalled();
+		expect(noticeClass.instances).toEqual([]);
+		expect(logError).not.toHaveBeenCalled();
+
+		editor.destroy();
+		logError.mockRestore();
+	});
+
 	it("warns when adding a user-script name that resolves to nothing", async () => {
 		const onCommandsChange = vi.fn();
 		const editor = new CommandSequenceEditor({
