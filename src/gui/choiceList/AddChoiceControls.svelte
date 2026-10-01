@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Menu } from "obsidian";
+	import { Menu, Platform } from "obsidian";
 	import type { ChoiceType } from "../../types/choices/choiceType";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
 	import { DOER_CHOICE_TYPES, defaultChoiceName } from "./choiceTypeMeta";
@@ -39,7 +39,8 @@
 		for (const meta of DOER_CHOICE_TYPES) {
 			menu.addItem((item) =>
 				item
-					.setTitle(`${meta.label} — ${meta.description}`)
+					// A phone's menu rows are one ellipsized line, too narrow for the description.
+					.setTitle(Platform.isPhone ? meta.label : `${meta.label} — ${meta.description}`)
 					.setIcon(meta.iconId)
 					.onClick((clickEvt) => {
 						// Alt/⌥ scaffolds without opening the builder (batch path).
