@@ -47,9 +47,12 @@ async function setUp(choices: unknown[]) {
 	await plugin.data<{
 		choices: unknown[];
 		disableOnlineFeatures: boolean;
+		showInputCancellationNotification: boolean;
 		ai: { providers: unknown[]; showAssistant: boolean };
 	}>().patch((data) => {
 		data.disableOnlineFeatures = false;
+		// Opting in shows "Macro execution aborted: Input cancelled by user".
+		data.showInputCancellationNotification = false;
 		data.ai.showAssistant = true;
 		data.ai.providers = [...data.ai.providers.filter((p) => (p as { id?: string }).id !== LOCAL_PROVIDER.id), LOCAL_PROVIDER];
 		data.choices = choices;
@@ -154,6 +157,63 @@ it("still hands the error to a script that catches it, under one notice", async 
 	}]);
 	try {
 		await runChoice("AI catching script");
+		await settled();
+		expect(await obsidian.dev.evalJson<string>("window.__qaAiCaught")).toMatch(/^Error while making request to QA local/);
+		expect(await obsidian.dev.evalJson("window.__qaAiRun")).toBe("resolved");
+		const notices = await shownNotices();
+		expect(notices).toHaveLength(1);
+		expect(notices[0]).toMatch(/^AI request failed\./);
+	} finally {
+		await obsidian.dev.evalJson("window.__qaNoticeObserver?.disconnect(); delete window.__qaAiRun; delete window.__qaAiCaught; true");
+	}
+});
+
+function scriptMacro(name: string, path: string) {
+	return {
+		id: `qa-e2e-${name}`,
+		name,
+		type: "Macro",
+		command: false,
+		onePageInput: "never",
+		macro: {
+			id: `qa-e2e-${name}-macro`,
+			name,
+			commands: [{ id: `qa-e2e-${name}-step`, name: "script", type: "UserScript", path, settings: {} }],
+		},
+	};
+}
+
+it("shows one notice when an agent's request fails", async () => {
+	const { obsidian, sandbox } = getContext();
+	const script = await seedVaultFile(obsidian, sandbox, "qa-agent-fail.js", `module.exports = async ({ quickAddApi }) => {
+		await quickAddApi.ai.agent({ model: "qa-model" }).generate({ prompt: "Say hi" });
+	};`);
+	await setUp([scriptMacro("agent-failing", script)]);
+	try {
+		await runChoice("agent-failing");
+		await settled();
+		expect(await obsidian.dev.evalJson("window.__qaAiRun")).toBe("rejected");
+		const notices = await shownNotices();
+		expect(notices).toHaveLength(1);
+		expect(notices[0]).toMatch(/^AI request failed\.\s+Error while making request to QA local/);
+	} finally {
+		await obsidian.dev.evalJson("window.__qaNoticeObserver?.disconnect(); delete window.__qaAiRun; true");
+	}
+});
+
+it("still hands an agent's error to a script that catches it, under one notice", async () => {
+	const { obsidian, sandbox } = getContext();
+	const script = await seedVaultFile(obsidian, sandbox, "qa-agent-catch.js", `module.exports = async ({ quickAddApi }) => {
+		try {
+			await quickAddApi.ai.agent({ model: "qa-model" }).generate({ prompt: "Say hi" });
+			window.__qaAiCaught = "no error";
+		} catch (error) {
+			window.__qaAiCaught = error instanceof Error ? error.message : String(error);
+		}
+	};`);
+	await setUp([scriptMacro("agent-catching", script)]);
+	try {
+		await runChoice("agent-catching");
 		await settled();
 		expect(await obsidian.dev.evalJson<string>("window.__qaAiCaught")).toMatch(/^Error while making request to QA local/);
 		expect(await obsidian.dev.evalJson("window.__qaAiRun")).toBe("resolved");

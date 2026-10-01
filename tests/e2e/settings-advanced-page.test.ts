@@ -14,6 +14,16 @@ const rowNames = () => getContext().obsidian.dev.evalJson<string[]>(`(() =>
 
 it("opens the Advanced page from the QuickAdd tab and saves its settings", async () => {
 	const { obsidian } = getContext();
+	const saved = () => obsidian.dev.evalJson<boolean>(
+		"app.plugins.plugins.quickadd.settings.showInputCancellationNotification",
+	);
+	const clickToggle = () => obsidian.dev.evalJson(`(() => {
+		[...document.querySelectorAll(".vertical-tab-content .setting-item")]
+			.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Show input cancellation notifications")
+			.querySelector(".checkbox-container").click();
+		return true;
+	})()`);
+	const original = await saved();
 	try {
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
 		await expect.poll(rowNames, POLL_OPTS).toContain("Advanced");
@@ -35,18 +45,14 @@ it("opens the Advanced page from the QuickAdd tab and saves its settings", async
 			"Allow URI x-callback-url",
 		]));
 
-		const saved = () => obsidian.dev.evalJson<boolean>(
-			"app.plugins.plugins.quickadd.settings.showInputCancellationNotification",
-		);
-		const before = await saved();
-		await obsidian.dev.evalJson(`(() => {
-			[...document.querySelectorAll(".vertical-tab-content .setting-item")]
-				.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Show input cancellation notifications")
-				.querySelector(".checkbox-container").click();
-			return true;
-		})()`);
-		await expect.poll(saved, POLL_OPTS).toBe(!before);
+		await clickToggle();
+		await expect.poll(saved, POLL_OPTS).toBe(!original);
 	} finally {
+		// The toggle saves to data.json, which later specs and runs share: flip it back.
+		if (await saved() !== original) {
+			await clickToggle();
+			await expect.poll(saved, POLL_OPTS).toBe(original);
+		}
 		await obsidian.dev.evalJson(`(() => { app.setting.close(); return true; })()`);
 	}
 });

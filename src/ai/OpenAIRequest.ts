@@ -169,6 +169,8 @@ export async function chatRequest(
 	modelProvider: AIProvider,
 	request: NormalizedChatRequest,
 	afterRequestCallback?: () => void,
+	// False when the caller's assistant notice shows the failure itself.
+	reportFailure = true,
 ): Promise<CommonResponse> {
 	void app; // cursor handling is owned by the caller (Agent) for the whole loop
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -279,7 +281,7 @@ export async function chatRequest(
 			`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 			{ cause: error },
 		);
-		reportError(failure);
+		if (reportFailure) reportError(failure);
 		throw failure;
 	}
 }

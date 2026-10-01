@@ -201,6 +201,7 @@ export class Agent {
 						modelProvider,
 						turnReq,
 						restoreCursor,
+						!pluginSettings.ai.showAssistant,
 					);
 					return toParsed(cr);
 				},
@@ -244,8 +245,7 @@ export class Agent {
 
 			return result;
 		} catch (error) {
-			notice.setMessage("dead", (error as { message?: string })?.message ?? "");
-			window.setTimeout(() => notice.hide(), 5000);
+			notice.fail(error);
 			throw error;
 		}
 	}
