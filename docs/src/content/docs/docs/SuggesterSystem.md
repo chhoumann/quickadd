@@ -37,10 +37,9 @@ Type `#` to search every tag in your vault, then pick one.
 
 ### Search your files: `[[` {#file-search}
 
-Type `[[` to search every file in your vault. Each result is labelled by its
-frontmatter `title` if it has one, then its first level-1 heading, then its file
-name - but whichever label you see, QuickAdd always inserts a link to the real
-file.
+Type `[[` to search every file in your vault. A file shows its name, or the
+alias you matched, with its path beside it. Links to notes that don't exist yet
+are listed too, marked **Unresolved link**.
 
 #### Search a nearby folder: `./` and `../` {#relative-path-navigation}
 
