@@ -80,6 +80,16 @@ export default class MultiSuggester extends Modal {
 		this.picker.focusSearchOnOpen();
 	}
 
+	// Obsidian handles Esc in the modal's scope before the search box sees the
+	// key, so the first Esc clears a search here instead of closing the prompt.
+	override onEscapeKey(evt: KeyboardEvent): void {
+		if (this.picker.clearSearch()) {
+			evt.preventDefault();
+			return;
+		}
+		super.onEscapeKey(evt);
+	}
+
 	private selectValue(value: string): void {
 		if (!this.items.includes(value) && !this.customValues.includes(value)) {
 			this.customValues.push(value);

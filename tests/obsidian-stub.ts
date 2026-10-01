@@ -742,6 +742,13 @@ export const Modal = class {
 	// call super.onOpen()/super.onClose() (ChoiceBuilder.onClose does).
 	onOpen() {}
 	onClose() {}
+
+	// Like Obsidian's: Esc closes the modal unless the event was handled.
+	onEscapeKey(evt: KeyboardEvent) {
+		if (evt.defaultPrevented) return;
+		evt.preventDefault();
+		this.close();
+	}
 };
 
 /** Like Obsidian's: a button closes the modal after its handler, unless the handler returns truthy. */

@@ -89,14 +89,6 @@ export default class SearchableMultiSelect<T> {
 			if (event.key === "ArrowUp") {
 				event.preventDefault();
 				this.renderedRows.at(-1)?.input.focus();
-				return;
-			}
-			if (event.key === "Escape" && this.query) {
-				event.preventDefault();
-				event.stopPropagation();
-				this.query = "";
-				this.searchInputEl.value = "";
-				this.renderList();
 			}
 		});
 
@@ -113,6 +105,19 @@ export default class SearchableMultiSelect<T> {
 		}));
 		this.searchInputEl.disabled = items.length === 0;
 		this.renderList();
+	}
+
+	/**
+	 * Clears a non-empty search and returns true, so the owning modal can spend
+	 * its first Esc on the search. Returns false when there is nothing to clear.
+	 */
+	clearSearch(): boolean {
+		if (!this.query) return false;
+		this.query = "";
+		this.searchInputEl.value = "";
+		this.renderList();
+		this.searchInputEl.focus();
+		return true;
 	}
 
 	focusSearchOnOpen(): void {
