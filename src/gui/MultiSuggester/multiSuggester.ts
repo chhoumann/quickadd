@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
+import { itemWithAlias } from "../../utils/fileSyntax";
 import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "../SearchableMultiSelect/searchableMultiSelect";
@@ -210,20 +211,26 @@ export default class MultiSuggester extends Modal {
 			new Notice("Enter a value to add.");
 			return false;
 		}
+		const value = this.typedValue(trimmed);
 		const alreadySelected =
-			(this.items.includes(trimmed) || this.customValues.includes(trimmed)) &&
-			this.selected.has(trimmed);
+			(this.items.includes(value) || this.customValues.includes(value)) &&
+			this.selected.has(value);
 		if (alreadySelected) {
 			new Notice(`"${trimmed}" is already added.`);
 			return false;
 		}
-		this.selectValue(trimmed);
+		this.selectValue(value);
 		this.draft = "";
 		this.render();
 		// render() rebuilds contentEl, dropping focus from the (now-recreated) custom
 		// input; restore it so adding several values in a row stays fluid.
 		this.focusCustomInput();
 		return true;
+	}
+
+	/** A typed value, or the option one of whose aliases it is: an alias names its note. */
+	private typedValue(typed: string): string {
+		return itemWithAlias(this.items, this.opts.aliases ?? [], typed) ?? typed;
 	}
 
 	private focusCustomInput(): void {
@@ -237,8 +244,7 @@ export default class MultiSuggester extends Modal {
 		// Fold any non-empty, un-"Add"ed draft into the selection so a user who typed a
 		// value and pressed Done (the common submit gesture) doesn't silently lose it.
 		if (this.opts.allowCustomValue && this.draft.trim()) {
-			const trimmed = this.draft.trim();
-			this.selectValue(trimmed);
+			this.selectValue(this.typedValue(this.draft.trim()));
 			this.draft = "";
 		}
 		this.didSubmit = true;
