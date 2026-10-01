@@ -72,4 +72,22 @@ describe("MultiSuggester with aliases", () => {
 			?.click();
 		await expect(suggester.waitForClose).resolves.toEqual([values[0]]);
 	});
+
+	it("checks the note whose alias is typed as a custom value", async () => {
+		const suggester = new MultiSuggester({} as never, labels, values, { aliases, allowCustomValue: true });
+		const custom = suggester.contentEl.querySelector<HTMLInputElement>(".qa-multi-custom-input");
+		if (!custom) throw new Error("custom value field not found");
+		custom.value = "the one";
+		custom.dispatchEvent(new Event("input", { bubbles: true }));
+		custom.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+		// Typed again and folded in on Done: still the note, once.
+		const again = suggester.contentEl.querySelector<HTMLInputElement>(".qa-multi-custom-input");
+		if (!again) throw new Error("custom value field not found");
+		again.value = "NEO";
+		again.dispatchEvent(new Event("input", { bubbles: true }));
+		Array.from(suggester.contentEl.querySelectorAll("button"))
+			.find((button) => button.textContent === "Done")
+			?.click();
+		await expect(suggester.waitForClose).resolves.toEqual([values[0]]);
+	});
 });
