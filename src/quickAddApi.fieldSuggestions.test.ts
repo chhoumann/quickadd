@@ -31,7 +31,7 @@ function createApp(content: string): App {
 	return {
 		vault: {
 			getMarkdownFiles: () => [file],
-			read: vi.fn(async () => content),
+			cachedRead: vi.fn(async () => content),
 		},
 		metadataCache: {
 			getFileCache: vi.fn(() => ({ frontmatter: {} })),
