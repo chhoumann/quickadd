@@ -20,6 +20,7 @@ import type { AIProvider, Model } from "../Provider";
 import { resolveProviderApiKey } from "../providerSecrets";
 import { classifyProviderError } from "../providerErrors";
 import { preventCursorChange } from "../preventCursorChange";
+import { reportError } from "../../utils/errorUtils";
 import {
 	chatRequest,
 	type CommonResponse,
@@ -60,6 +61,10 @@ const statefulRunsInFlight = new WeakSet<object>();
 
 function isAbortError(e: unknown): boolean {
 	return e instanceof MacroAbortError;
+}
+
+function isContextOverflow(e: unknown): boolean {
+	return classifyProviderError(e) === "input_context";
 }
 
 function toParsed(cr: CommonResponse): ParsedChatResult {
@@ -194,23 +199,30 @@ export class Agent {
 				maxSteps,
 				dispatch: async (req, ctx) => {
 					const turnReq = this.buildTurnRequest(req, ctx.isFinalStep, responseFormat);
-					const cr = await chatRequest(
-						this.app,
-						apiKey,
-						model,
-						modelProvider,
-						turnReq,
-						restoreCursor,
-						!pluginSettings.ai.showAssistant,
-					);
-					return toParsed(cr);
+					try {
+						const cr = await chatRequest(
+							this.app,
+							apiKey,
+							model,
+							modelProvider,
+							turnReq,
+							restoreCursor,
+							!pluginSettings.ai.showAssistant,
+						);
+						return toParsed(cr);
+					} catch (error) {
+						// The loop ends a run on a context overflow instead of throwing,
+						// so the notice below never sees that failure: report it here.
+						if (isContextOverflow(error)) reportError(error);
+						throw error;
+					}
 				},
 				getTool: (name) => registry.get(name),
 				confirm: (call, tool) => this.confirm(call, tool),
 				validateArgs: (tool, args) =>
 					validateValue(args, tool.definition.parameters),
 				isAbortError,
-				isContextOverflow: (e) => classifyProviderError(e) === "input_context",
+				isContextOverflow,
 				isOnlineDisabled: () => settingsStore.getState().disableOnlineFeatures,
 				shouldStop: this.buildShouldStop(),
 				onStepFinish: (step) => this.reportStep(notice, step),
