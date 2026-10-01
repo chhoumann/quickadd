@@ -36,8 +36,10 @@ no choice fits, and say so.
      folder, `#tag` a file with that tag, `<active file>` the open note),
      `position` (`top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`,
      `newLineBelow`, `property`), `line` (the heading or line for
-     `after`/`before`), `property`, `format` (the text written), `task`, and
-     `createWithTemplate` (template for a target that doesn't exist yet).
+     `after`/`before`), `property`, `format` (the text written), `task`,
+     `eachLine` (each line of the value becomes its own entry, so a
+     multi-line value writes several entries), and `createWithTemplate`
+     (template for a target that doesn't exist yet).
    - Template: `template`, `folder` (`<default>` is Obsidian's default
      location for new notes), `fileName`.
    - Formats are unexpanded: `{{DATE:...}}` in `target` means the file depends

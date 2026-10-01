@@ -45,7 +45,11 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 			writes.property = property.kind === "named" ? property.format : "<ask>";
 		}
 		writes.format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
-		if (capture.task) writes.task = true;
+		// Task and One entry per line don't apply to a property capture.
+		if (!capture.propertyCapture) {
+			if (capture.task) writes.task = true;
+			if (capture.eachLine) writes.eachLine = true;
+		}
 		const create = capture.createFileIfItDoesntExist;
 		if (create?.enabled && create.createWithTemplate && create.template) writes.createWithTemplate = create.template;
 		return writes;
