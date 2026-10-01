@@ -1,4 +1,4 @@
-import { captureScopeFiles } from "src/engine/helpers/captureCandidates";
+import { captureCandidates, captureScopeFiles } from "src/engine/helpers/captureCandidates";
 import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
@@ -35,9 +35,6 @@ import {
 	classifyCaptureTargetScope,
 	markdownFilePathForFolderCandidate,
 } from "src/engine/helpers/captureTargetScope";
-import { orderFilesForPicker } from "src/utils/fileOrdering";
-import { buildFileDisplayLabels } from "src/utils/fileSyntax";
-import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import { inheritPropertyValueType, untypedPropertyValueVariable } from "src/utils/propertyCaptureFormat";
 import { resolveObsidianPropertyType } from "src/utils/obsidianPropertyTypes";
@@ -322,17 +319,11 @@ async function collectForCaptureChoice(
 	);
 
 	if (captureScope) {
-		const files = captureScopeFiles(app, captureScope);
-
-		const orderedFiles = orderFilesForPicker(
-			files,
-			buildPickerOrderingDeps(app),
-		);
-		const options = orderedFiles.map((file) => file.path);
-		const displayOptions = buildFileDisplayLabels(
-			orderedFiles,
-			(file) => app.metadataCache?.getFileCache(file) ?? null,
-		);
+		const {
+			paths: options,
+			labels: displayOptions,
+			aliases: optionAliases,
+		} = captureCandidates(app, captureScopeFiles(app, captureScope));
 		const allowCreateTarget =
 			choice.createFileIfItDoesntExist?.enabled ?? false;
 		const captureTargetId = captureTargetKeyFor(choice.id);
@@ -347,16 +338,25 @@ async function collectForCaptureChoice(
 				runtimeOnly: true,
 				placeholder: "Type a new note name in the capture target picker",
 			});
-		} else {
+		} else if (options.length === 0) {
 			collector.requirements.set(captureTargetId, {
 				id: captureTargetId,
 				label: "Select capture target file",
 				type: "dropdown",
 				options,
 				displayOptions,
-				placeholder: options.length
-					? undefined
-					: "No files found in target scope",
+				placeholder: "No files found in target scope",
+			});
+		} else {
+			// Searchable, with aliases, like the run's picker. A native dropdown
+			// of every note in scope takes seconds to open in a large folder.
+			collector.requirements.set(captureTargetId, {
+				id: captureTargetId,
+				label: "Select capture target file",
+				type: "file-picker",
+				options,
+				displayOptions,
+				optionAliases,
 			});
 		}
 		// The run picks the note before it formats anything, so the form lists
