@@ -35,8 +35,12 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		private readonly onSelect: (option: FilePickerOption) => void,
 		private readonly multiSelect: boolean,
 		private readonly allowCustomInput: boolean,
-		/** Names the owner treats as taken, so they aren't offered as a custom value. */
-		private readonly valueExists?: (value: string) => boolean,
+		/**
+		 * Set when a custom value names a new note (one-page Capture to): which
+		 * names a note already has, so they aren't offered. The custom row then
+		 * reads "Create new note", as in the run's picker.
+		 */
+		private readonly newNoteExists?: (value: string) => boolean,
 	) {
 		super(app, inputEl);
 		if (multiSelect) inputEl.setAttribute("aria-multiselectable", "true");
@@ -68,15 +72,12 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			this.namesOf(option).includes(normalized),
 		);
 		const exactCustom = this.isSelected(trimmed);
-		if (exactOption || exactCustom || this.valueExists?.(trimmed)) return matches;
+		if (exactOption || exactCustom || this.newNoteExists?.(trimmed)) return matches;
 
 		return [
-			{
-				value: trimmed,
-				label: `Use “${trimmed}”`,
-				path: "Custom value",
-				isCustom: true,
-			},
+			this.newNoteExists
+				? { value: trimmed, label: `Create new note: ${trimmed}`, path: "", isCustom: true }
+				: { value: trimmed, label: `Use “${trimmed}”`, path: "Custom value", isCustom: true },
 			...matches,
 		].slice(0, MAX_RESULTS);
 	}
@@ -102,6 +103,15 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 		const primary = text.createDiv({
 			cls: "qa-onepage-file-suggestion__label",
 		});
+		if (option.isCustom && this.newNoteExists) {
+			// As the run's Capture to picker shows it. A name picked earlier and
+			// removed again comes back as a stored option labelled with the name.
+			primary.setText(`Create new note: ${option.value}`);
+			el.addClass("mod-complex");
+			text.addClass("suggestion-content");
+			setIcon(el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" }), "file-plus");
+			return;
+		}
 		const path = text.createDiv({ cls: "qa-onepage-file-suggestion__path" });
 		if (option.isCustom) {
 			primary.setText(option.label);

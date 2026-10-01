@@ -83,7 +83,7 @@ it("creates the note named in the one-page capture target field", async () => {
 	const scopes = [
 		// A folder capture creates its new note in the folder, so another
 		// folder's note name is free there, as in the run's picker.
-		{ choice: choiceFor("Folder", `${sandbox.path("Crew")}/`), typed: "Niobe", created: sandbox.path("Crew/Niobe.md"), oracle: ["Use “oracle”"] },
+		{ choice: choiceFor("Folder", `${sandbox.path("Crew")}/`), typed: "Niobe", created: sandbox.path("Crew/Niobe.md"), oracle: ["Create new note: oracle"] },
 		{ choice: choiceFor("Tag", "#qa-crew"), typed: sandbox.path("Tank"), created: sandbox.path("Tank.md"), oracle: [] },
 		{ choice: choiceFor("Property", "property:qaRole=crew"), typed: sandbox.path("Dozer"), created: sandbox.path("Dozer.md"), oracle: [] },
 	];
@@ -110,7 +110,7 @@ it("creates the note named in the one-page capture target field", async () => {
 		await expect.poll(rows, POLL_OPTS).toEqual(oracle);
 
 		await typeInto(obsidian, field, typed);
-		await expect.poll(async () => (await rows())[0], POLL_OPTS).toBe(`Use “${typed}”`);
+		await expect.poll(async () => (await rows())[0], POLL_OPTS).toBe(`Create new note: ${typed}`);
 		await pressKey(obsidian, "Enter");
 		await typeInto(obsidian, ".modal-container input[type=text]:not(.qa-onepage-file-picker__input)", `into ${choice.name}`);
 		expect(await obsidian.dev.evalJson<boolean>(`(() => {

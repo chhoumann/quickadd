@@ -71,6 +71,28 @@ describe("FilePickerInputSuggest", () => {
 		withoutCustom.destroy();
 	});
 
+	it("offers a typed new note's name as Create new note, with the file-plus icon", () => {
+		const input = document.createElement("input");
+		const app = {
+			dom: { appContainerEl: document.body },
+			keymap: { pushScope: vi.fn(), popScope: vi.fn() },
+		} as unknown as App;
+		const suggest = new FilePickerInputSuggest(app, input, () => options, () => false, vi.fn(), false, true, () => false);
+		const [created] = suggest.getSuggestions("Niobe");
+		expect(created).toMatchObject({ value: "Niobe", label: "Create new note: Niobe", isCustom: true });
+		const row = document.createElement("div");
+		suggest.renderSuggestion(created, row);
+		expect(row.querySelector(".qa-onepage-file-suggestion__label")?.textContent).toBe("Create new note: Niobe");
+		expect(row.querySelector(".qa-onepage-file-suggestion__path")).toBeNull();
+		expect(row.querySelector(".suggestion-aux .suggestion-flair")).not.toBeNull();
+
+		// A new name picked and removed again is offered from the field's own options.
+		const stored = document.createElement("div");
+		suggest.renderSuggestion({ value: "Niobe", label: "Niobe", path: "New note", isCustom: true }, stored);
+		expect(stored.querySelector(".qa-onepage-file-suggestion__label")?.textContent).toBe("Create new note: Niobe");
+		suggest.destroy();
+	});
+
 	it("picks a file by its name, label, path or alias rather than offering it as a custom value", () => {
 		const titled: FilePickerOption = {
 			value: "People/Thomas Anderson.md",
