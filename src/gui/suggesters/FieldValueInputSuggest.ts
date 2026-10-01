@@ -23,6 +23,9 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 	// blur): sorting a 26,000-value field takes ~70 ms, too long to repeat on
 	// every keystroke. A vault change shows up the next time the input gets focus.
 	private values: Promise<string[]> | undefined;
+	private readonly dropValues = () => {
+		this.values = undefined;
+	};
 
 	constructor(app: App, inputEl: HTMLInputElement, fieldInput: string) {
 		super(app, inputEl);
@@ -30,9 +33,12 @@ export class FieldValueInputSuggest extends TextInputSuggest<string> {
 		const parsed = FieldSuggestionParser.parse(fieldInput);
 		this.fieldName = parsed.fieldName;
 		this.filters = parsed.filters;
-		inputEl.addEventListener("blur", () => {
-			this.values = undefined;
-		});
+		inputEl.addEventListener("blur", this.dropValues);
+	}
+
+	destroy(): void {
+		this.inputEl.removeEventListener("blur", this.dropValues);
+		super.destroy();
 	}
 
 	async getSuggestions(inputStr: string): Promise<string[]> {
