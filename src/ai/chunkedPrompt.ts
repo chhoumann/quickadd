@@ -490,7 +490,8 @@ export async function ChunkedPrompt(
 			model,
 			provider,
 			systemPrompt,
-			modelOptions
+			modelOptions,
+			!settings.showAssistantMessages
 		);
 
 		const promptingMsg = [
@@ -601,8 +602,7 @@ export async function ChunkedPrompt(
 
 		return outputVariables(outputVariable, output);
 	} catch (error) {
-		notice.setMessage("dead", (error as { message: string }).message);
-		window.setTimeout(() => notice.hide(), 5000);
+		notice.fail(error);
 		// No user input in this function - re-throw original error
 		throw error;
 	}
