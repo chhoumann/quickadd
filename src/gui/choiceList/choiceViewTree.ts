@@ -33,16 +33,20 @@ export function filterChoices(list: IChoice[], query: string): IChoice[] {
 	const q = query.trim();
 	if (!q) return list;
 	const match = prepareFuzzySearch(q);
+	const plainQuery = q.toLowerCase();
 
-	// `all` keeps everything: a folder that matches by name while none of its
-	// choices do shows its whole contents, instead of looking empty.
+	// Choices match fuzzily. A folder matches on its own only when its name
+	// contains the query as plain text: then it shows its matching choices, or,
+	// with none, everything inside it (`all`) instead of looking empty. A folder
+	// that would only match fuzzily shows up only for its matching choices.
 	const walk = (c: IChoice, all = false): IChoice | null => {
 		if (!isChoiceLike(c)) return null;
-		const selfMatches = all || !!match(c.name ?? "");
+		const name = c.name ?? "";
 		if (c.type !== "Multi") {
-			return selfMatches ? c : null;
+			return all || match(name) ? c : null;
 		}
 
+		const selfMatches = all || name.toLowerCase().includes(plainQuery);
 		const walkChildren = (keepAll: boolean) => childChoicesOf(c)
 			.map((child) => walk(child, keepAll))
 			.filter((choice): choice is IChoice => choice !== null);

@@ -320,6 +320,62 @@ describe("ChoiceView", () => {
 		expect(rows).toEqual(["f1", "c1"]);
 	});
 
+	// A folder name matches only as plain text, so a loose fuzzy match ("pro" in
+	// "Personal") neither opens the whole folder nor shows it empty.
+	it("shows a folder that only matches fuzzily just for its matching choices", async () => {
+		const choices = [
+			{
+				id: "work",
+				name: "Work",
+				type: "Multi",
+				collapsed: true,
+				choices: [
+					{ id: "task", name: "Work task", type: "Capture" },
+					{
+						id: "projects",
+						name: "Projects",
+						type: "Multi",
+						collapsed: true,
+						choices: [
+							{ id: "idea", name: "Project idea", type: "Capture" },
+							{ id: "budget", name: "Budget", type: "Capture" },
+						],
+					},
+				],
+			},
+			{
+				id: "personal",
+				name: "Personal",
+				type: "Multi",
+				collapsed: true,
+				choices: [
+					{ id: "groceries", name: "Groceries", type: "Capture" },
+					{ id: "book", name: "Book to read", type: "Capture" },
+				],
+			},
+			{
+				id: "paperwork",
+				name: "Paperwork",
+				type: "Multi",
+				collapsed: true,
+				choices: [
+					{ id: "receipts", name: "Receipts", type: "Capture" },
+					{ id: "prompts", name: "Prompt ideas", type: "Capture" },
+				],
+			},
+		] as unknown as IChoice[];
+		const { container, getByPlaceholderText } = renderChoiceView(choices);
+
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
+			target: { value: "pro" },
+		});
+
+		const rows = Array.from(container.querySelectorAll("[data-choice-id]"), (row) =>
+			row.getAttribute("data-choice-id"));
+		expect(rows).toEqual(["work", "projects", "idea", "paperwork", "prompts"]);
+		expect(container.querySelector(".qa-folder-empty")).toBeNull();
+	});
+
 	// #2107: narrowing the filter must not lay out the list once per row that
 	// leaves. Svelte's animate measures every row (getBoundingClientRect) when a
 	// keyed list loses one, which took ~400 ms a keystroke at a few hundred rows.
