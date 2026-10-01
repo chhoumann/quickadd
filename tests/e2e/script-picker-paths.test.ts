@@ -89,6 +89,8 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "Weekly runner", note: runner }]);
 		await typeInto(obsidian, ".prompt .prompt-input", "books");
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "view.js", note: books }]);
+		// The row highlights the match, as the quick switcher does.
+		expect(await texts(".prompt .suggestion-item .suggestion-highlight")).toEqual(["books"]);
 		await pressKey(obsidian, "Enter");
 
 		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress, books]);

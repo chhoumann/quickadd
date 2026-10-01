@@ -522,7 +522,10 @@ export class CommandSequenceEditor {
 			paths,
 			{
 				placeholder: "Select a script (.js file or note with a ```js block)",
-				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
+				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
+					matches,
+					pathOffset: titles[paths.indexOf(path)].primary.length + 1,
+				}),
 				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
 				allowCustomValue: false,
 			}
