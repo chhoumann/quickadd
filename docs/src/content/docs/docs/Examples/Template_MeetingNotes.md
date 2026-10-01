@@ -94,7 +94,7 @@ Imported the package? Open a project note in **Live Preview**, click in the note
    ```
 
 2. Open **Settings → QuickAdd**.
-3. Under **Template folders**, click **+** and choose `Templates`. If the folder is already listed, leave it as it is.
+3. Under **Template folders**, click **Add folder** and choose `Templates`. If you already have a template folder, use **+** instead. If `Templates` is already listed, leave it as it is.
 4. Close Settings.
 5. Create a `Projects` folder and `Projects/Website.md` with:
 
