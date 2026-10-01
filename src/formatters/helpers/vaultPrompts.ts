@@ -223,10 +223,13 @@ export async function suggestForFile({ app, executor, getSourcePath }: VaultProm
 
 		if (parsed.multiSelect) {
 			const result = provider
-				? await provider.suggesterMulti(displayItems, items, {
+				? (await provider.suggesterMulti(displayItems, items, {
 						placeholder,
 						allowCustomInput: parsed.allowCustomInput,
-					})
+					})).map((reply) =>
+						// The client matches titles only; a typed alias names its note.
+						items.includes(reply) ? reply : (itemWithAlias(items, aliases, reply) ?? reply),
+					)
 				: await MultiSuggester.Suggest(app, displayItems, items, {
 						placeholder,
 						allowCustomValue: parsed.allowCustomInput,

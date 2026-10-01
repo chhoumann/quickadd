@@ -24,10 +24,11 @@ const app = {
 
 // A remote client (Raycast) filters by title, so a user who types a note's
 // alias sends it as a custom value.
-function remoteReply(reply: string) {
+function remoteReply(reply: string, token = "People|custom") {
 	const suggester = vi.fn(async () => reply);
-	const executor = { promptProvider: { suggester } } as unknown as IChoiceExecutor;
-	const parsed = parseFileToken("People|custom");
+	const suggesterMulti = vi.fn(async () => [reply]);
+	const executor = { promptProvider: { suggester, suggesterMulti } } as unknown as IChoiceExecutor;
+	const parsed = parseFileToken(token);
 	if (!parsed) throw new Error("token did not parse");
 	return suggestForFile({ app, executor, getSourcePath: () => null }, parsed);
 }
@@ -39,5 +40,12 @@ describe("suggestForFile with a remote client", () => {
 
 	it("keeps any other typed text as a custom value", async () => {
 		await expect(remoteReply("Niobe")).resolves.toBe(`${FILE_CUSTOM_PREFIX}Niobe`);
+	});
+
+	it("picks the note whose alias was typed in a multi-select", async () => {
+		await expect(remoteReply("the one", "People|multi|custom")).resolves
+			.toEqual([`${FILE_PICK_PREFIX}People/Thomas Anderson.md`]);
+		await expect(remoteReply("Niobe", "People|multi|custom")).resolves
+			.toEqual([`${FILE_CUSTOM_PREFIX}Niobe`]);
 	});
 });
