@@ -476,6 +476,12 @@
 	font-size: var(--font-ui-smaller);
 }
 
+/* Bold only, as in the run's picker: the ellipsis hides a cut-off match's
+   text but not its background. */
+.qa-onepage-file-suggestion__text .qa-highlight {
+	background-color: transparent;
+}
+
 .quickAddModal .qa-onepage-slider {
 	display: grid;
 	grid-template-columns: minmax(10rem, 1fr) 5.5rem;

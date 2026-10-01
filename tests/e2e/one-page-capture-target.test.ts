@@ -172,6 +172,49 @@ it("shows the picked note's whole name on a phone", async () => {
 	}
 });
 
+// #2124: a long note name is cut with an ellipsis, which hides a match's text
+// but not its highlight background, leaving a block after the "…".
+it("leaves no highlight showing for a match the ellipsis cuts off", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await seedVaultFile(obsidian, sandbox, "Moons/The note name long enough to run past the end of the field Zebra.md", "");
+	// Listed first, so it is the field's default and the long one stays searchable.
+	await seedVaultFile(obsidian, sandbox, "Moons/Io.md", "");
+
+	const choice = new CaptureChoice("Cut-off match");
+	choice.command = true;
+	choice.captureTo = `${sandbox.path("Moons")}/`;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	try {
+		await obsidian.command(`quickadd:choice:${choice.id}`).run();
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(
+			'Boolean(document.querySelector(".qa-onepage-file-picker input"))',
+		), POLL_OPTS).toBe(true);
+		await typeInto(obsidian, ".qa-onepage-file-picker input", "zebra");
+		await expect.poll(() => obsidian.dev.evalJson(`(() => {
+			const label = [...document.querySelectorAll(".suggestion-container .qa-onepage-file-suggestion__label")]
+				.find((el) => el.textContent.endsWith("Zebra"));
+			const mark = label?.querySelector(".qa-highlight");
+			if (!mark) return null;
+			return {
+				match: mark.textContent,
+				cut: label.scrollWidth > label.clientWidth,
+				background: getComputedStyle(mark).backgroundColor,
+			};
+		})()`), POLL_OPTS).toEqual({ match: "Zebra", cut: true, background: "rgba(0, 0, 0, 0)" });
+	} finally {
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll(".onePageInputModal button")].find((e) => e.textContent === "Cancel")?.click();
+			return true;
+		})()`);
+	}
+});
+
 // Obsidian focused the first focusable element, the picked note's remove
 // button, so typing went nowhere and Enter dropped the note. The form now
 // opens ready for the capture text.
