@@ -148,6 +148,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 }
 </script>
 
+<!-- Paths, tokens and format strings: a spellchecker only underlines them. -->
 {#if inputKind === "textarea"}
 	<textarea
 		class="qa-validated-input-full-width qa-validated-input-margin-8 qa-validated-input-textarea"
@@ -159,6 +160,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-label={ariaLabel}
 		aria-invalid={invalid}
 		aria-describedby={hintId}
+		spellcheck={false}
 		{value}
 		oninput={handleInput}
 		onblur={() => (touched = true)}
@@ -177,6 +179,7 @@ function attach(el: HTMLInputElement | HTMLTextAreaElement): AnySuggest[] {
 		aria-label={ariaLabel}
 		aria-invalid={invalid}
 		aria-describedby={hintId}
+		spellcheck={false}
 		{value}
 		oninput={handleInput}
 		onblur={() => (touched = true)}

@@ -4,6 +4,13 @@ import { tick } from "svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 
 describe("ValidatedInput", () => {
+	// Format strings like {{DATE:HH:mm}} got a red spellcheck underline.
+	it.each(["text", "textarea"] as const)("turns spellcheck off for a %s field", (inputKind) => {
+		const { container } = render(ValidatedInput, { props: { value: "- {{DATE:HH:mm}}", inputKind } });
+		const field = container.querySelector(inputKind === "textarea" ? "textarea" : "input");
+		expect(field?.getAttribute("spellcheck")).toBe("false");
+	});
+
 	// #2034: an untouched required field is not flagged yet.
 	it("waits until the empty required field is left before showing the message", async () => {
 		const { container } = render(ValidatedInput, {
