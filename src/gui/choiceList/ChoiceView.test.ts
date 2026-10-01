@@ -298,6 +298,28 @@ describe("ChoiceView", () => {
 		expect(container.querySelector(".qa-folder-empty")).toBeNull();
 	});
 
+	it("shows only the matching choices of a matching folder when some match", async () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Projects",
+			type: "Multi",
+			collapsed: true,
+			choices: [
+				{ id: "c1", name: "Project idea", type: "Capture" },
+				{ id: "c2", name: "Budget", type: "Capture" },
+			],
+		} as unknown as IChoice;
+		const { container, getByPlaceholderText } = renderChoiceView([folderChoice]);
+
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
+			target: { value: "project" },
+		});
+
+		const rows = Array.from(container.querySelectorAll("[data-choice-id]"), (row) =>
+			row.getAttribute("data-choice-id"));
+		expect(rows).toEqual(["f1", "c1"]);
+	});
+
 	// #2107: narrowing the filter must not lay out the list once per row that
 	// leaves. Svelte's animate measures every row (getBoundingClientRect) when a
 	// keyed list loses one, which took ~400 ms a keystroke at a few hundred rows.

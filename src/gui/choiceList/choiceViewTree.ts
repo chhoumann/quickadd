@@ -34,17 +34,20 @@ export function filterChoices(list: IChoice[], query: string): IChoice[] {
 	if (!q) return list;
 	const match = prepareFuzzySearch(q);
 
-	// A folder that matches by name shows everything under it.
-	const walk = (c: IChoice, inMatchingFolder = false): IChoice | null => {
+	// `all` keeps everything: a folder that matches by name while none of its
+	// choices do shows its whole contents, instead of looking empty.
+	const walk = (c: IChoice, all = false): IChoice | null => {
 		if (!isChoiceLike(c)) return null;
-		const selfMatches = inMatchingFolder || !!match(c.name ?? "");
+		const selfMatches = all || !!match(c.name ?? "");
 		if (c.type !== "Multi") {
 			return selfMatches ? c : null;
 		}
 
-		const filteredChildren = childChoicesOf(c)
-			.map((child) => walk(child, selfMatches))
+		const walkChildren = (keepAll: boolean) => childChoicesOf(c)
+			.map((child) => walk(child, keepAll))
 			.filter((choice): choice is IChoice => choice !== null);
+		let filteredChildren = walkChildren(all);
+		if (selfMatches && filteredChildren.length === 0) filteredChildren = walkChildren(true);
 
 		if (selfMatches || filteredChildren.length > 0) {
 			// Clone the folder, expanded, with the children kept above, to avoid mutating the original
