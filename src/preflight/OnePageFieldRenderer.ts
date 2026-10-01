@@ -486,7 +486,7 @@ export class OnePageFieldRenderer {
 			const option = {
 				value,
 				label: value,
-				path: "Custom value",
+				path: req.newNoteName ? "New note" : "Custom value",
 				isCustom: true,
 			};
 			customOptions.set(value, option);
