@@ -440,6 +440,13 @@
 	cursor: pointer;
 }
 
+/* On phones Obsidian stretches every button in a modal's setting control to
+   full width with 10px padding, which leaves the note's name a few letters. */
+.is-phone .quickAddModal .setting-item-control button.qa-onepage-file-picker__remove {
+	width: 1.4rem;
+	padding: 0;
+}
+
 .quickAddModal .qa-onepage-file-picker__remove:hover,
 .quickAddModal .qa-onepage-file-picker__remove:focus-visible {
 	background: var(--background-modifier-hover);

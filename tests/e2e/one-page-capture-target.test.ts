@@ -123,3 +123,51 @@ it("creates the note named in the one-page capture target field", async () => {
 		), POLL_OPTS).toBe(`- into ${choice.name}\n`);
 	}
 });
+
+// On a phone, Obsidian stretches a modal's setting-control buttons to full
+// width, so the picked note's remove button took the chip and cut its name to
+// a few letters.
+it("shows the picked note's whole name on a phone", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await seedVaultFile(obsidian, sandbox, "Planets/Mercury.md", "");
+
+	const choice = new CaptureChoice("Phone capture target");
+	choice.command = true;
+	choice.captureTo = `${sandbox.path("Planets")}/`;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	try {
+		await obsidian.dev.evalJson(`(() => {
+			window.__qaChipClasses = document.body.className;
+			document.body.classList.remove("is-tablet");
+			document.body.classList.add("is-mobile", "is-phone");
+			return true;
+		})()`);
+		await obsidian.command(`quickadd:choice:${choice.id}`).run();
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(
+			'Boolean(document.querySelector(".qa-onepage-file-picker__chip"))',
+		), POLL_OPTS).toBe(true);
+
+		expect(await obsidian.dev.evalJson(`(() => {
+			const label = document.querySelector(".qa-onepage-file-picker__chip-label");
+			const remove = document.querySelector(".qa-onepage-file-picker__remove");
+			return {
+				name: label.textContent,
+				cut: label.scrollWidth > label.clientWidth,
+				removeWidth: Math.round(remove.getBoundingClientRect().width),
+			};
+		})()`)).toEqual({ name: "Mercury", cut: false, removeWidth: 22 });
+	} finally {
+		await obsidian.dev.evalJson(`(() => {
+			[...document.querySelectorAll(".onePageInputModal button")].find((e) => e.textContent === "Cancel")?.click();
+			if (window.__qaChipClasses !== undefined) document.body.className = window.__qaChipClasses;
+			delete window.__qaChipClasses;
+			return true;
+		})()`);
+	}
+});
