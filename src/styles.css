@@ -1137,6 +1137,20 @@
 	margin-right: 1em;
 }
 
+/* On phones Obsidian makes every input and button in a modal's setting control
+   full width, so the row's input and its Add button split it and the input's
+   placeholder is cut mid-word. Give the input the room and the buttons their
+   own width. */
+.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > .qa-command-sequence-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > button:not(.clickable-icon) {
+	flex: 0 0 auto;
+	width: auto;
+}
+
 /* The command editor renders into its own wrapper, so its last row ("Choices")
    matches Obsidian's modal `.setting-item:last-child { padding-bottom: 0 }` even
    though the Macro builder's own settings follow it. Restore the row padding so
