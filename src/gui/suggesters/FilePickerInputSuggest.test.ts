@@ -71,6 +71,26 @@ describe("FilePickerInputSuggest", () => {
 		withoutCustom.destroy();
 	});
 
+	it("picks a file by its name, label, path or alias rather than offering it as a custom value", () => {
+		const titled: FilePickerOption = {
+			value: "People/Thomas Anderson.md",
+			label: "The Matrix (Thomas Anderson)",
+			path: "People/Thomas Anderson.md",
+			aliases: ["Neo"],
+		};
+		const input = document.createElement("input");
+		const app = {
+			dom: { appContainerEl: document.body },
+			keymap: { pushScope: vi.fn(), popScope: vi.fn() },
+		} as unknown as App;
+		const suggest = new FilePickerInputSuggest(app, input, () => [titled], () => false, vi.fn(), false, true);
+		for (const typed of ["thomas anderson", "The Matrix (Thomas Anderson)", "people/thomas anderson.md", "NEO"]) {
+			expect(suggest.getSuggestions(typed).some((option) => option.isCustom)).toBe(false);
+		}
+		expect(suggest.getSuggestions("Niobe")[0]?.isCustom).toBe(true);
+		suggest.destroy();
+	});
+
 	it("returns the exact encoded path and clears the multi-select search", () => {
 		const { input, onSelect, suggest } = createSuggest(new Set(), false, true);
 		input.value = "Grace";

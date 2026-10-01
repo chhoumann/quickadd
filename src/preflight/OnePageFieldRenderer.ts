@@ -8,7 +8,7 @@ import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
-import { decodeFileValue } from "src/utils/fileSyntax";
+import { decodeFileValue, fileBasenameFromPath } from "src/utils/fileSyntax";
 import type { FieldRequirement } from "./RequirementCollector";
 import { mapMappedSuggesterValue, resolveDropdownInitialValue } from "./suggesterValueMapping";
 
@@ -431,6 +431,14 @@ export class OnePageFieldRenderer {
 		this.host.publish(control);
 	}
 
+	/** Whether a typed name or path names a note already in the vault. */
+	private noteNameExists(): (value: string) => boolean {
+		const names = new Set(
+			this.app.vault.getMarkdownFiles().map((file) => file.basename.toLowerCase()),
+		);
+		return (value) => names.has(fileBasenameFromPath(value).toLowerCase());
+	}
+
 	private renderFilePickerField(
 		req: FieldRequirement,
 		starting: string,
@@ -576,6 +584,7 @@ export class OnePageFieldRenderer {
 				selectOption,
 				multiSelect,
 				allowCustomInput,
+				req.newNoteNameOnly ? this.noteNameExists() : undefined,
 			);
 			this.host.controlFor(req).suggesters.push(suggester);
 		} catch {

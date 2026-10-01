@@ -33,6 +33,8 @@ export interface FieldRequirement {
 	pathContext?: boolean;
 	/** Prompt at runtime instead of the one-page form when the form has no safe widget. */
 	runtimeOnly?: boolean;
+	/** file-picker: a custom value is a new note, so a name any note in the vault has is not offered. */
+	newNoteNameOnly?: boolean;
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
 	optional?: boolean;
 	suggesterConfig?: {
