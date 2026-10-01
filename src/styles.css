@@ -1505,18 +1505,11 @@
 	contain-intrinsic-size: auto var(--input-height);
 }
 
-.qa-searchable-multi-select__option:hover {
+/* The checkbox shows what is selected, as in Obsidian's own lists. The row with
+   keyboard focus is shaded like a hovered one; the checkbox draws its own ring. */
+.qa-searchable-multi-select__option:hover,
+.qa-searchable-multi-select__option:has(:focus-visible) {
 	background: var(--background-modifier-hover);
-}
-
-.qa-searchable-multi-select__option.is-selected {
-	background: var(--background-modifier-hover);
-	box-shadow: inset 3px 0 var(--interactive-accent);
-}
-
-.qa-searchable-multi-select__option:focus-within {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
 }
 
 .qa-searchable-multi-select__option-text {
