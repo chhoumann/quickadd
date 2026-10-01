@@ -64,6 +64,7 @@ opening them:
 | `property` | The property a `property` capture writes |
 | `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
 | `task` | `true` when the capture is written as a task |
+| `eachLine` | `true` when [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) is on: each line of `{{VALUE}}` becomes its own entry (QuickAdd 2.30.0 or later) |
 | `createWithTemplate` | The template for a target file that doesn't exist yet |
 
 | Template key | Meaning |

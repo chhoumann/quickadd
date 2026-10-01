@@ -691,6 +691,7 @@ describe("registerQuickAddCliHandlers", () => {
 		task.captureTo = "Tasks.md";
 		task.prepend = true;
 		task.task = true;
+		task.eachLine = true;
 		const atCursor = new CaptureChoice("Here");
 		atCursor.captureToActiveFile = true;
 		const underHeading = new CaptureChoice("Under a heading");
@@ -700,6 +701,9 @@ describe("registerQuickAddCliHandlers", () => {
 		const status = new CaptureChoice("Status");
 		status.captureToActiveFile = true;
 		status.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
+		// The builder hides Task and One entry per line on a property capture; neither applies.
+		status.task = true;
+		status.eachLine = true;
 		const meeting = new TemplateChoice("Meeting note");
 		meeting.templatePath = "Templates/Meeting.md";
 		meeting.folder.enabled = true;
@@ -729,7 +733,7 @@ describe("registerQuickAddCliHandlers", () => {
 				format: "- {{TIME}} {{VALUE}}\n",
 				createWithTemplate: "Templates/Daily.md",
 			},
-			{ target: "Tasks.md", position: "bottom", format: "{{VALUE}}", task: true },
+			{ target: "Tasks.md", position: "bottom", format: "{{VALUE}}", task: true, eachLine: true },
 			{ target: "<active file>", position: "cursor", format: "{{VALUE}}" },
 			{ target: "Projects/", position: "after", line: "<ask>", format: "{{VALUE}}" },
 			{ target: "<active file>", position: "property", property: "status", format: "{{VALUE}}" },
