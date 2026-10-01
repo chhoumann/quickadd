@@ -37,8 +37,9 @@ Type `#` to search every tag in your vault, then pick one.
 
 ### Search your files: `[[` {#file-search}
 
-Type `[[` to search every file in your vault. Each result shows the file name,
-or the alias you matched, with the file's path beside it.
+Type `[[` to search every file in your vault. A file shows its name, or the
+alias you matched, with its path beside it. Links to notes that don't exist yet
+are listed too, marked **Unresolved link**.
 
 #### Search a nearby folder: `./` and `../` {#relative-path-navigation}
 
