@@ -34,19 +34,20 @@ export function filterChoices(list: IChoice[], query: string): IChoice[] {
 	if (!q) return list;
 	const match = prepareFuzzySearch(q);
 
-	const walk = (c: IChoice): IChoice | null => {
+	// A folder that matches by name shows everything under it.
+	const walk = (c: IChoice, inMatchingFolder = false): IChoice | null => {
 		if (!isChoiceLike(c)) return null;
-		const selfMatches = !!match(c.name ?? "");
+		const selfMatches = inMatchingFolder || !!match(c.name ?? "");
 		if (c.type !== "Multi") {
 			return selfMatches ? c : null;
 		}
 
 		const filteredChildren = childChoicesOf(c)
-			.map((child) => walk(child))
+			.map((child) => walk(child, selfMatches))
 			.filter((choice): choice is IChoice => choice !== null);
 
 		if (selfMatches || filteredChildren.length > 0) {
-			// Clone Multi node expanded with only matching children to avoid mutating original
+			// Clone the folder, expanded, with the children kept above, to avoid mutating the original
 			const expanded: IMultiChoice = {
 				...c,
 				collapsed: false,

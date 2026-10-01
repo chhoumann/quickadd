@@ -266,6 +266,38 @@ describe("ChoiceView", () => {
 		]);
 	});
 
+	// #2123: filtering by a folder's own name showed it with the empty-folder hint,
+	// because none of its choices matched by their own names.
+	it("shows everything under a folder whose name matches the filter", async () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Personal",
+			type: "Multi",
+			collapsed: true,
+			choices: [
+				{ id: "c1", name: "Groceries", type: "Capture" },
+				{
+					id: "f2",
+					name: "Lists",
+					type: "Multi",
+					collapsed: true,
+					choices: [{ id: "c2", name: "Packing", type: "Capture" }],
+				},
+			],
+		} as unknown as IChoice;
+		const other = { id: "c3", name: "Inbox", type: "Capture" } as unknown as IChoice;
+		const { container, getByPlaceholderText } = renderChoiceView([folderChoice, other]);
+
+		await fireEvent.input(getByPlaceholderText("Filter choices..."), {
+			target: { value: "Personal" },
+		});
+
+		const rows = Array.from(container.querySelectorAll("[data-choice-id]"), (row) =>
+			row.getAttribute("data-choice-id"));
+		expect(rows).toEqual(["f1", "c1", "f2", "c2"]);
+		expect(container.querySelector(".qa-folder-empty")).toBeNull();
+	});
+
 	// #2107: narrowing the filter must not lay out the list once per row that
 	// leaves. Svelte's animate measures every row (getBoundingClientRect) when a
 	// keyed list loses one, which took ~400 ms a keystroke at a few hundred rows.
