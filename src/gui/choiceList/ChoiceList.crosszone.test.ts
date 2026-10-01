@@ -1,19 +1,7 @@
 import { actionsSpy } from "../../../tests/helpers/settings/choiceActions";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
 import { SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
-
-// jsdom lacks the Web Animations API that svelte's animate:flip touches when a keyed
-// {#each} removes a row (the cross-zone strip below). Stub it so the reorder doesn't throw.
-beforeAll(() => {
-	const proto = Element.prototype as unknown as {
-		getAnimations?: () => unknown[];
-		animate?: () => unknown;
-	};
-	if (!proto.getAnimations) proto.getAnimations = () => [];
-	if (!proto.animate)
-		proto.animate = () => ({ cancel() {}, finished: Promise.resolve() });
-});
 
 import { App } from "obsidian";
 import ChoiceList from "./ChoiceList.svelte";
