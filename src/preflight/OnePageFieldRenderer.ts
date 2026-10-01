@@ -9,6 +9,7 @@ import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAlia
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
 import { decodeFileValue, fileBasenameFromPath } from "src/utils/fileSyntax";
+import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import type { FieldRequirement } from "./RequirementCollector";
 import { mapMappedSuggesterValue, resolveDropdownInitialValue } from "./suggesterValueMapping";
 
@@ -431,12 +432,26 @@ export class OnePageFieldRenderer {
 		this.host.publish(control);
 	}
 
-	/** Whether a typed name or path names a note already in the vault. */
-	private noteNameExists(): (value: string) => boolean {
-		const names = new Set(
-			this.app.vault.getMarkdownFiles().map((file) => file.basename.toLowerCase()),
-		);
-		return (value) => names.has(fileBasenameFromPath(value).toLowerCase());
+	/**
+	 * Whether a typed name or path names a note the field's notes ("scope") or
+	 * the vault ("vault") already has, read the way the capture reads it
+	 * (CaptureTargetEngine: captureTargetExists, captureTargetAlreadyExists).
+	 */
+	private noteNameExists(within: "scope" | "vault", paths: string[]): (value: string) => boolean {
+		const notePaths = within === "vault" ? this.app.vault.getMarkdownFiles().map((file) => file.path) : paths;
+		const names = new Set(notePaths.map((path) => fileBasenameFromPath(path).toLowerCase()));
+		return (value) => {
+			let path: string;
+			try {
+				path = normalizeGeneratedFilePath(value, "Capture target file path");
+			} catch {
+				return false;
+			}
+			const base = path.replace(/\.(md|canvas)$/i, "");
+			if (names.has(fileBasenameFromPath(base).toLowerCase())) return true;
+			return within === "vault" &&
+				[path, `${base}.md`, `${base}.canvas`].some((candidate) => !!this.app.vault.getAbstractFileByPath(candidate));
+		};
 	}
 
 	private renderFilePickerField(
@@ -584,7 +599,9 @@ export class OnePageFieldRenderer {
 				selectOption,
 				multiSelect,
 				allowCustomInput,
-				req.newNoteNameOnly ? this.noteNameExists() : undefined,
+				req.newNoteName
+					? this.noteNameExists(req.newNoteName, options.map((option) => option.path))
+					: undefined,
 			);
 			this.host.controlFor(req).suggesters.push(suggester);
 		} catch {

@@ -361,7 +361,7 @@ async function collectForCaptureChoice(
 				// it must not name any existing note (selectFileFromSet).
 				...(allowCreateTarget ? {
 					suggesterConfig: { allowCustomInput: true },
-					...(captureScope.kind === "folder" ? {} : { newNoteNameOnly: true }),
+					newNoteName: captureScope.kind === "folder" ? "scope" : "vault",
 				} : {}),
 			});
 		}

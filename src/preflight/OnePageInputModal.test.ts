@@ -26,6 +26,7 @@ const { filePickerSuggesters } = vi.hoisted(() => ({
 			isCustom?: boolean;
 		}) => void;
 		destroy: ReturnType<typeof vi.fn>;
+		valueExists?: (value: string) => boolean;
 	}>,
 }));
 
@@ -116,8 +117,11 @@ vi.mock("src/gui/suggesters/FilePickerInputSuggest", () => ({
 				path: string;
 				isCustom?: boolean;
 			}) => void,
+			_multiSelect: boolean,
+			_allowCustomInput: boolean,
+			valueExists?: (value: string) => boolean,
 		) {
-			filePickerSuggesters.push({ onSelect, destroy: this.destroy });
+			filePickerSuggesters.push({ onSelect, destroy: this.destroy, valueExists });
 		}
 	},
 }));
@@ -483,6 +487,41 @@ describe("OnePageInputModal", () => {
 		await expect(modal.waitForClose).resolves.toEqual({
 			[id]: "@file:People/Ada.md",
 		});
+	});
+
+	it("refuses a new note name a note in the vault has, read as the capture reads it", () => {
+		const note = { path: "Elsewhere/Oracle.md", basename: "Oracle" };
+		const app = {
+			vault: {
+				getMarkdownFiles: () => [note],
+				getAbstractFileByPath: (path: string) => (path === "Board.canvas" ? {} : null),
+			},
+		} as unknown as App;
+		new OnePageInputModal(app, [{
+			id: "target", label: "Select capture target file", type: "file-picker",
+			options: ["Crew/Apoc.md"], displayOptions: ["Apoc"],
+			suggesterConfig: { allowCustomInput: true }, newNoteName: "vault",
+		}], new Map());
+
+		const valueExists = filePickerSuggesters[0]?.valueExists;
+		if (!valueExists) throw new Error("no name check");
+		expect(["oracle", "Oracle.md", "Oracle.md.", "Some/Path/oracle ", "Board"].map(valueExists))
+			.toEqual([true, true, true, true, true]);
+		expect(valueExists("Niobe")).toBe(false);
+	});
+
+	it("refuses a new note name a note in the folder has, read as the capture reads it", () => {
+		new OnePageInputModal({} as App, [{
+			id: "target", label: "Select capture target file", type: "file-picker",
+			options: ["Crew/Apoc.md", "Crew/Ships/Nebuchadnezzar.md"], displayOptions: ["Apoc", "Nebuchadnezzar"],
+			suggesterConfig: { allowCustomInput: true }, newNoteName: "scope",
+		}], new Map());
+
+		const valueExists = filePickerSuggesters[0]?.valueExists;
+		if (!valueExists) throw new Error("no name check");
+		expect(["Apoc.", "apoc.md ", "Ships/Nebuchadnezzar."].map(valueExists)).toEqual([true, true, true]);
+		// Another folder's note name is free: the new note goes in this folder.
+		expect(valueExists("Oracle")).toBe(false);
 	});
 
 	it("keeps multi FILE picks structured and ordered by the source list", () => {
