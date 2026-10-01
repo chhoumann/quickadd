@@ -233,6 +233,20 @@ export class OnePageInputModal extends Modal {
 		);
 	}
 
+	// Obsidian focuses the modal's first focusable element after onOpen. When the
+	// first field is a file picker holding a note, that is the note's remove
+	// button: typing goes nowhere and Enter drops the note. Start at the first
+	// field without a picked note instead, usually the capture text.
+	open() {
+		super.open();
+		if (!this.modalEl.ownerDocument.activeElement?.matches(".qa-onepage-file-picker__remove")) return;
+		const controls = Array.from(this.contentEl.querySelectorAll<HTMLElement>("input, textarea, select"))
+			.filter((control) => !control.closest("[hidden]"));
+		const unpicked = controls.find((control) =>
+			!control.closest(".qa-onepage-file-picker")?.querySelector(".qa-onepage-file-picker__chip"));
+		(unpicked ?? controls[0])?.focus();
+	}
+
 	onOpen() {
 		this.peek.onHostOpened();
 
