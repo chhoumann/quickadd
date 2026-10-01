@@ -95,7 +95,7 @@ not run.
 
 QuickAdd appends these query parameters to your callback link:
 
-- On `x-success`: `status=success`, `effect=<created|changed|unchanged|unknown>` (what the run did to the vault, as the [CLI reports it](/docs/Advanced/CLI/#verified-and-effect)), and - for Template/Capture - `path=<vault-relative path>` and `url=<obsidian://open…>` pointing at the affected note.
+- On `x-success`: `status=success`, `effect=<created|changed|unchanged>` (what the run did to the vault, as the [CLI reports it](/docs/Advanced/CLI/#verified-and-effect)), and - for Template/Capture - `path=<vault-relative path>` and `url=<obsidian://open…>` pointing at the affected note.
 - On `x-error`: `status=error` and a stable `errorCode` (one of `choice-not-found`, `unsupported-choice-type`, `execution-failed`, `execution-aborted`, `bad-callback-url`). The detailed error message stays in Obsidian's log and is never sent to the callback.
 - On `x-cancel`: `status=cancel`.
 
