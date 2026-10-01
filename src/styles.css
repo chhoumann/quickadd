@@ -2194,15 +2194,16 @@ body:not(.is-mobile)
 }
 
 /* The pill: content-width, vertically centred on the grab Y (top:50%) and anchored
-   ~at the cursor (left:100% = clone's right edge ≈ handle; nudged 12px left so the
-   grip lands on the cursor). It extends right; the clone is position:fixed so it's
-   never clipped by the settings panel's overflow. */
+   at the clone's right edge, so the grip, drawn last by row-reverse, sits over the
+   handle. It extends left, over the row: the handle is at the right edge of the
+   row and often of the window too (Settings window, phones). */
 #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 	position: absolute;
-	left: 100%;
+	right: 0;
 	top: 50%;
-	transform: translate(-12px, -50%);
+	transform: translateY(-50%);
 	display: inline-flex;
+	flex-direction: row-reverse;
 	align-items: center;
 	gap: 6px;
 	max-width: 260px;
@@ -2216,6 +2217,15 @@ body:not(.is-mobile)
 	line-height: 1.2;
 	white-space: nowrap;
 	cursor: grabbing;
+}
+
+/* In a right-to-left UI the handle is at the row's left edge, so anchor the pill
+   there and grow it right. The clone lives in <body>, which stays LTR even then, so
+   logical properties can't do this. */
+body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
+	right: auto;
+	left: 0;
+	flex-direction: row;
 }
 
 #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill-label {
