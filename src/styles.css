@@ -1819,20 +1819,18 @@
 	flex: 1;
 }
 
+/* The margin keeps the next row's top rule off the list's border. */
 .qaMultiSuggester .qa-multi-list {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
 	min-height: 0;
+	margin-bottom: var(--size-4-2);
 }
 
 .qaMultiSuggester .qa-multi-custom,
 .qaMultiSuggester .qa-multi-actions {
 	flex: 0 0 auto;
-}
-
-.qaMultiSuggester .qa-multi-custom {
-	margin-top: var(--size-4-2);
 }
 
 /* Priority indicators - subtle left border */
