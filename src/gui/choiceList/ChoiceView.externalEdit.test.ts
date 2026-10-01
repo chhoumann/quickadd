@@ -2,16 +2,19 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-// The builder modal, held open while settings synced from another device land.
-const { configureChoiceMock } = vi.hoisted(() => ({
+// The builder and rename prompt, held open while settings synced from another
+// device land.
+const { configureChoiceMock, promptRenameChoiceMock } = vi.hoisted(() => ({
 	configureChoiceMock: vi.fn(),
+	promptRenameChoiceMock: vi.fn(),
 }));
 vi.mock("../../services/choiceService", async (importOriginal) => ({
 	...(await importOriginal<typeof ChoiceServiceModule>()),
 	configureChoice: configureChoiceMock,
 }));
+vi.mock("../choiceRename", () => ({ promptRenameChoice: promptRenameChoiceMock }));
 
-import { App, Notice } from "obsidian";
+import { App, Menu, Notice } from "obsidian";
 import type * as ChoiceServiceModule from "../../services/choiceService";
 import { fireEvent, render } from "@testing-library/svelte";
 import ChoiceView from "./ChoiceView.svelte";
@@ -31,6 +34,23 @@ const inbox: CaptureLike = {
 };
 const journal: CaptureLike = { ...inbox, id: "journal", name: "Journal", captureTo: "Journal.md" };
 
+function renderChoiceView() {
+	const plugin = { addCommandForChoice: vi.fn(), removeCommandForChoice: vi.fn() };
+	const { getByLabelText } = render(ChoiceView, {
+		props: {
+			app: new App() as never,
+			plugin: plugin as unknown as QuickAdd,
+			choices: settingsStore.getState().choices,
+			// Production wiring: the view saves into the settings store.
+			saveChoices: (next: Plain<IChoice[]>) => {
+				settingsStore.setState({ choices: next as IChoice[] });
+			},
+			openAISettings: vi.fn(),
+		},
+	});
+	return { getByLabelText, plugin };
+}
+
 function openBuilderOn(name: string): (edit: Partial<CaptureLike>) => void {
 	let finish: (choice: IChoice) => void = () => {};
 	let opened: IChoice | undefined;
@@ -44,21 +64,7 @@ function openBuilderOn(name: string): (edit: Partial<CaptureLike>) => void {
 		});
 	});
 
-	const { getByLabelText } = render(ChoiceView, {
-		props: {
-			app: new App() as never,
-			plugin: {
-				addCommandForChoice: vi.fn(),
-				removeCommandForChoice: vi.fn(),
-			} as unknown as QuickAdd,
-			choices: settingsStore.getState().choices,
-			// Production wiring: the view saves into the settings store.
-			saveChoices: (next: Plain<IChoice[]>) => {
-				settingsStore.setState({ choices: next as IChoice[] });
-			},
-			openAISettings: vi.fn(),
-		},
-	});
+	const { getByLabelText } = renderChoiceView();
 	void fireEvent.click(getByLabelText(`Configure ${name}`));
 	return (edit) => finish({ ...(opened as IChoice), ...edit } as IChoice);
 }
@@ -69,6 +75,7 @@ describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => 
 	afterEach(() => {
 		settingsStore.setState(initialState, true);
 		configureChoiceMock.mockReset();
+		promptRenameChoiceMock.mockReset();
 		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
 	});
 
@@ -110,6 +117,31 @@ describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => 
 				"QuickAdd: “Inbox” was deleted elsewhere, so your changes to it were not saved.",
 			),
 		);
+		expect(settingsStore.getState().choices).toEqual([journal]);
+	});
+
+	it("registers no command when a choice is renamed after it was deleted elsewhere", async () => {
+		settingsStore.setState({ choices: [{ ...inbox, command: true }, journal] });
+		let submitRename: (name: string) => void = () => {};
+		promptRenameChoiceMock.mockImplementation(
+			() => new Promise<string>((resolve) => { submitRename = resolve; }),
+		);
+		const { getByLabelText, plugin } = renderChoiceView();
+		await fireEvent.click(getByLabelText("More options for Inbox"));
+		(Menu as unknown as { lastShown: Menu & { items: Array<{ title: string; clickHandler: () => void }> } })
+			.lastShown.items.find((item) => item.title === "Rename")?.clickHandler();
+		await vi.waitFor(() => expect(promptRenameChoiceMock).toHaveBeenCalled());
+
+		settingsStore.setState({ choices: [journal] });
+		submitRename("Renamed");
+
+		const notices = (Notice as unknown as { instances: Array<{ message: string }> }).instances;
+		await vi.waitFor(() =>
+			expect(notices.map((notice) => notice.message)).toContain(
+				"QuickAdd: “Inbox” was deleted elsewhere, so it was not renamed.",
+			),
+		);
+		expect(plugin.addCommandForChoice).not.toHaveBeenCalled();
 		expect(settingsStore.getState().choices).toEqual([journal]);
 	});
 });

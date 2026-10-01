@@ -151,7 +151,11 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		const newName = await promptRenameChoice(context.app, choice.name, choice.type);
 		if (!newName) return;
 
-		const live = liveChoice(choice);
+		const live = findChoiceById(context.choices, choice.id);
+		if (!live) {
+			new Notice(`QuickAdd: “${choice.name}” was deleted elsewhere, so it was not renamed.`);
+			return;
+		}
 		const updatedChoice = { ...live, name: newName };
 		context.choices = context.choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
 		context.commandRegistry.updateCommand(live, updatedChoice);
