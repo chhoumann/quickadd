@@ -176,7 +176,7 @@ describe("getFieldValues frontmatter array safety", () => {
 		return makeApp({
 			vault: {
 				getMarkdownFiles: () => files,
-				read: read ?? (async () => ""),
+				cachedRead: read ?? (async () => ""),
 			},
 			metadataCache: {
 				getFileCache: (file: FakeFile) => ({

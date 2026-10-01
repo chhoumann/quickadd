@@ -188,7 +188,7 @@ async function collectFieldValuesManually(
 			addValues(values, field);
 		}
 		if (filters.inline) {
-			const content = await app.vault.read(file);
+			const content = await app.vault.cachedRead(file);
 			addValues(values, [...InlineFieldParser.getFieldValues(content, fieldName, {
 				includeCodeBlocks: filters.inlineCodeBlocks,
 			})]);

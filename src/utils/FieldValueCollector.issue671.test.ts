@@ -32,7 +32,7 @@ describe("Issue #671 - {{FIELD:tags}} suggestions", () => {
 
 		app.vault.getMarkdownFiles = () => [file];
 		app.metadataCache.getFileCache = () => ({ frontmatter: {} } as any);
-		app.vault.read = vi.fn(async () => `
+		app.vault.cachedRead = vi.fn(async () => `
 Id:: 343434
 \`\`\`ad-note
 Id:: 121212
