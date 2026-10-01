@@ -56,7 +56,8 @@ your cursor at the end, ready to type. Three commands, run as one.
    `Daily notes: Open today's daily note`.
 2. Click the clock button (**Add wait command**) to add a **Wait** step of
    100 ms. The command step doesn't wait for the daily note to open, so without
-   the pause the cursor moves before the note is there.
+   the pause the cursor moves before the note is there. If the cursor still ends
+   up in the wrong note, click the number and wait longer.
 3. Add an **Editor commands** entry and choose **Move cursor to file end**.
 4. Close the builder, then run it: command palette →
    `QuickAdd: Run` → `Open daily note`.
