@@ -104,8 +104,9 @@ export class FilePickerInputSuggest extends TextInputSuggest<FilePickerOption> {
 			cls: "qa-onepage-file-suggestion__label",
 		});
 		if (option.isCustom && this.newNoteExists) {
-			// As the run's Capture to picker shows it.
-			primary.setText(option.label);
+			// As the run's Capture to picker shows it. A name picked earlier and
+			// removed again comes back as a stored option labelled with the name.
+			primary.setText(`Create new note: ${option.value}`);
 			el.addClass("mod-complex");
 			text.addClass("suggestion-content");
 			setIcon(el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" }), "file-plus");

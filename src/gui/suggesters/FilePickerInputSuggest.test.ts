@@ -85,6 +85,11 @@ describe("FilePickerInputSuggest", () => {
 		expect(row.querySelector(".qa-onepage-file-suggestion__label")?.textContent).toBe("Create new note: Niobe");
 		expect(row.querySelector(".qa-onepage-file-suggestion__path")).toBeNull();
 		expect(row.querySelector(".suggestion-aux .suggestion-flair")).not.toBeNull();
+
+		// A new name picked and removed again is offered from the field's own options.
+		const stored = document.createElement("div");
+		suggest.renderSuggestion({ value: "Niobe", label: "Niobe", path: "New note", isCustom: true }, stored);
+		expect(stored.querySelector(".qa-onepage-file-suggestion__label")?.textContent).toBe("Create new note: Niobe");
 		suggest.destroy();
 	});
 
