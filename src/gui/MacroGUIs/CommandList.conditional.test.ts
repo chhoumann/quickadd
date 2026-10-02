@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
+import { tick } from "svelte";
 
 import { App } from "obsidian";
 import CommandList from "./CommandList.svelte";
@@ -66,5 +67,50 @@ describe("CommandList conditional branch persistence", () => {
 		await Promise.resolve();
 
 		expect(saveCommands).not.toHaveBeenCalled();
+	});
+});
+
+// A step added in this session is a class instance, which $state does not
+// proxy, so an in-place edit only shows if the list gets a new object (#2147).
+describe("CommandList conditional label after an edit", () => {
+	function renderWith(handlers: Partial<Parameters<typeof createCommandListProps>[0]>) {
+		const props = createCommandListProps({
+			commands: [new ConditionalCommand()],
+			app: new App() as never,
+			plugin: {} as never,
+			deleteCommand: vi.fn(),
+			saveCommands: vi.fn(),
+			...handlers,
+		});
+		return render(CommandList, { props });
+	}
+
+	it("shows the new condition once its dialog is saved", async () => {
+		const { getByLabelText, container } = renderWith({
+			onConfigureCondition: (command) => {
+				command.condition = { ...command.condition, variableName: "mood" } as typeof command.condition;
+				return true;
+			},
+		});
+
+		await fireEvent.click(getByLabelText("Edit condition for (missing variable) is truthy"));
+		await tick();
+
+		expect(container.querySelector(".conditionalSummary")?.textContent).toBe("$mood is truthy");
+		expect(getByLabelText("Edit then branch for $mood is truthy")).toBeTruthy();
+	});
+
+	it("shows the new branch count once its page is left", async () => {
+		const { getByLabelText, container } = renderWith({
+			onEditThenBranch: (command, onEdited) => {
+				command.thenCommands = [new WaitCommand(100)];
+				onEdited();
+			},
+		});
+
+		await fireEvent.click(getByLabelText("Edit then branch for (missing variable) is truthy"));
+		await tick();
+
+		expect(container.querySelector(".conditionalBranches")?.textContent).toContain("Then: 1");
 	});
 });
