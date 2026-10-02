@@ -96,6 +96,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 /** The control a page was opened from. */
 interface Opener {
 	el: HTMLElement;
+	/** To find a replaced control again; not for a choice's own (names repeat). */
 	label: string | null;
 	/** Obsidian's settings content, which it focuses when a page is left. */
 	content: Element | null;
@@ -106,7 +107,7 @@ function openerOf(el: Element | null): Opener | null {
 	if (!el?.instanceOf(HTMLElement)) return null;
 	return {
 		el,
-		label: el.getAttribute("aria-label"),
+		label: el.closest("[data-choice-id]") ? null : el.getAttribute("aria-label"),
 		content: el.closest(".vertical-tab-content-container"),
 		focusVisible: el.matches(":focus-visible"),
 	};
