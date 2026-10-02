@@ -57,6 +57,7 @@ import { setQuickAddInstance } from "./quickAddInstance";
 import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
 import { scheduleStartupModelSync } from "./ai/startupModelSync";
+import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -152,6 +153,7 @@ export default class QuickAdd extends Plugin {
 		// with nothing but a console line. Now it reports through the same channel as
 		// every other failure (#1576).
 		registerUnhandledRejectionReporter(this);
+		keepFocusedFieldInView(this);
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
