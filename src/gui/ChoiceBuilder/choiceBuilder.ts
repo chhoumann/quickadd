@@ -58,6 +58,8 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 	 * callers never receive a live $state proxy.
 	 */
 	protected result(): IChoice {
+		// A save in place leaves the form mounted, so it commits what it holds.
+		this.formProps?.commitPending?.();
 		const edited = snapshot(this.formProps?.choice ?? this.choice);
 		return { ...edited, name: nameOrFallback(this.name, this.choice.name) };
 	}

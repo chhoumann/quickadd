@@ -1,10 +1,11 @@
 import { afterEach, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
+import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // A choice's settings open as a page of Settings → QuickAdd, like the AI
 // Assistant's pages, instead of a dialog over the settings window. Leaving the
@@ -273,6 +274,27 @@ it("saves the open page to disk when the app goes to the background, and leaves 
 	await rename("Inbox");
 	await leaveSettingsPage(obsidian);
 	await expect.poll(async () => (await onDisk("pages-inbox"))?.name, POLL_OPTS).toBe("Inbox");
+});
+
+it("saves a folder typed without Add when the app goes to the background (#1993)", async () => {
+	const { obsidian, sandbox } = getContext();
+	const template = new TemplateChoice("Book");
+	template.id = "pages-template";
+	template.folder = { ...template.folder, enabled: true, folders: [] };
+	await seed(template);
+	await openSettings();
+	await click('[aria-label="Configure Book"]');
+	const folder = sandbox.path("Books");
+	await typeInto(obsidian, ".templateChoiceBuilder .qa-folder-path-input", folder);
+
+	await goToBackground();
+	await expect.poll(async () => ((await onDisk("pages-template")) as TemplateChoice | null)?.folder.folders, POLL_OPTS)
+		.toEqual([folder]);
+	// The page stays open, with the folder moved from the field into its list.
+	expect(await pageTitles()).toEqual(["Book"]);
+	expect(await obsidian.dev.evalJson<string>(
+		'document.querySelector(".templateChoiceBuilder .qa-folder-path-input").value',
+	)).toBe("");
 });
 
 it("saves the open page when QuickAdd reloads, without errors or later writes", async () => {

@@ -59,10 +59,13 @@ let {
 	choice = $bindable(),
 	app,
 	plugin,
+	commitPending = $bindable(),
 }: {
 	choice: ITemplateChoice;
 	app: App;
 	plugin: QuickAdd;
+	/** Set by the form: adds a folder typed but not added (see ChoiceFormProps). */
+	commitPending?: () => void;
 } = $props();
 
 // Computed once from the stable app/plugin props ($derived satisfies the
@@ -165,12 +168,14 @@ function onFolderInputKeypress(event: KeyboardEvent) {
 	if (event.key === "Enter") addFolder();
 }
 
-// The builder page destroys this form before it saves the choice, so a folder
-// typed but never added is kept when the page is left instead of dropped
-// (#1993).
-onDestroy(() => {
+// A folder typed but never added is kept instead of dropped (#1993): when the
+// builder saves in place (the app going to the background), and when the page
+// is left, which destroys this form before the builder reads the choice.
+function addPendingFolder() {
 	if (folderMode === "specified") addFolder();
-});
+}
+commitPending = addPendingFolder;
+onDestroy(addPendingFolder);
 
 // --- File already exists -------------------------------------------------
 const behaviorCategory = $derived(getBehaviorCategory(choice.fileExistsBehavior));
