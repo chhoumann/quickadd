@@ -96,6 +96,11 @@ describe("one-page form capture target", () => {
 		)).toEqual(["Select capture target file", "what", "due"]);
 
 		await typeInto(obsidian, ".qa-onepage-file-picker input", "beta");
+		// The picker opens focused, so its list is about to open: wait for the
+		// typed search's list before Enter picks from it.
+		await expect.poll(() => obsidian.dev.evalJson<string[]>(
+			'Array.from(document.querySelectorAll(".suggestion-container .qa-onepage-file-suggestion__path"), (path) => path.textContent)',
+		), POLL_OPTS).toEqual([sandbox.path("inbox/beta.md")]);
 		await pressKey(obsidian, "Enter");
 		await expect.poll(() => obsidian.dev.evalJson<string[]>(
 			'Array.from(document.querySelectorAll(".qa-onepage-file-picker__chip"), (chip) => chip.title)',

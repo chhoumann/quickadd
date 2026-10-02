@@ -108,6 +108,10 @@ so typing an existing name selects it instead of offering a duplicate. The
 picker still opens for an empty folder, tag, property, or filtered scope so you
 can create the first note there.
 
+In the [one-page input form](/docs/Advanced/onePageInputs/), this picker starts
+empty, and the form doesn't submit until you choose a note or a new note name
+(QuickAdd 2.30.0 or later; earlier versions picked the first note for you).
+
 ### Capture to a folder {#capturing-to-folders}
 
 Type a folder name (like `CRM/people`) and QuickAdd asks which note in that
