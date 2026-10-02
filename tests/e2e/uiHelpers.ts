@@ -149,3 +149,28 @@ export async function leaveSettingsPage(obsidian: ObsidianClient) {
 	await clickWhenStill(obsidian, ".setting-page-back-button");
 	await expect.poll(() => obsidian.dev.evalJson<number>("app.setting.pageStack.length"), POLL_OPTS).toBe(depth - 1);
 }
+
+/**
+ * The buttons of the quick-command bar on the settings page on top that stray
+ * into its card's padding, as "label: side", or none.
+ */
+export async function quickCommandBarOverflow(obsidian: ObsidianClient): Promise<string[]> {
+	return obsidian.dev.evalJson<string[]>(`(() => {
+		const bar = [...document.querySelectorAll(".qa-builder-page .quickCommandContainer")]
+			.filter((el) => el.getClientRects().length > 0).pop();
+		const card = bar.closest(".setting-items");
+		const style = getComputedStyle(card);
+		const padX = parseFloat(style.getPropertyValue("--setting-items-padding-x"));
+		const padY = parseFloat(style.getPropertyValue("--setting-items-padding-y"));
+		const box = card.getBoundingClientRect();
+		return [...bar.children].flatMap((button) => {
+			const rect = button.getBoundingClientRect();
+			const label = button.getAttribute("aria-label");
+			return [
+				rect.top < box.top + padY - 0.5 ? label + ": top" : null,
+				rect.left < box.left + padX - 0.5 ? label + ": left" : null,
+				rect.right > box.right - padX + 0.5 ? label + ": right" : null,
+			].filter(Boolean);
+		});
+	})()`);
+}

@@ -5,7 +5,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
 
 // A choice's settings open as a page of Settings → QuickAdd, like the AI
 // Assistant's pages, instead of a dialog over the settings window. Leaving the
@@ -153,6 +153,8 @@ it("opens a macro's branch and Choice step as pages over it, and back returns to
 
 	await click('.macroBuilder [aria-label^="Edit then branch"]');
 	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning", "Then: $mood is truthy"]);
+	// With no steps above it, the quick-command bar keeps its card's padding (#2145).
+	expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
 	await click('.conditionalBranchPage [aria-label="Add wait command"]');
 	await leaveSettingsPage(obsidian);
 	expect(await obsidian.dev.evalJson<string>(
