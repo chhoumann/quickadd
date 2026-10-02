@@ -1166,11 +1166,17 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	margin-bottom: var(--setting-items-padding-y);
 }
 
+/* With no steps the list is hidden, and its padding with it. */
+.setting-group .quickAddCommandEditor:has(.quickAddCommandList.is-empty) > .quickCommandContainer {
+	padding-top: var(--setting-items-padding-y);
+}
+
 /* A phone's card is too narrow for the bar's buttons at their own width;
-   they share the row instead. */
+   they share the row instead. The inline padding is a minimum: the buttons
+   grow into the row, and with AI on all six fit at 390px. */
 .is-phone .setting-group .quickAddCommandEditor > .quickCommandContainer > button {
 	flex: 1 1 auto;
-	padding-inline: var(--size-4-2);
+	padding-inline: var(--size-4-1);
 }
 
 .qa-hidden {

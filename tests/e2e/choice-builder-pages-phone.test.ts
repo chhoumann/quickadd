@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, waitForElement } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
 
 // A choice's settings page on a phone: Obsidian's phone settings, where the
 // page fills the screen under a header with the page's title and a back button
@@ -52,8 +52,10 @@ afterAll(async () => {
 async function openMacroPage() {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Phone macro");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch((data) => {
 		data.choices = [macro];
+		// AI on adds the AI Assistant button, the widest quick-command bar.
+		data.disableOnlineFeatures = false;
 	});
 	await plugin.reload({ waitUntilReady: true });
 	// On a phone settings closes with an animation, and opening it before that
@@ -85,11 +87,11 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 		)).toContain("Phone macro");
 		expect(await obsidian.dev.evalJson<boolean>(`(() => {
 			const page = document.querySelector(".macroBuilder");
-			const card = page.querySelector(".setting-items").getBoundingClientRect();
-			return page.scrollWidth <= page.clientWidth &&
-				[...page.querySelectorAll(".quickCommandContainer > button")]
-					.every((button) => button.getBoundingClientRect().right <= card.right);
+			return page.scrollWidth <= page.clientWidth;
 		})()`)).toBe(true);
+		// The quick-command bar keeps its card's padding, with all six buttons
+		// (AI is on) and no steps above it (#2145).
+		expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
 
 		const header = () => obsidian.dev.evalJson<[number, string | null]>(
 			"[app.setting.pageStack.length, app.setting.activeTab?.id ?? null]",
