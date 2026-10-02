@@ -96,6 +96,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 /** The control a page was opened from. */
 interface Opener {
 	el: HTMLElement;
+	label: string | null;
 	/** Obsidian's settings content, which it focuses when a page is left. */
 	content: Element | null;
 	focusVisible: boolean;
@@ -105,6 +106,7 @@ function openerOf(el: Element | null): Opener | null {
 	if (!el?.instanceOf(HTMLElement)) return null;
 	return {
 		el,
+		label: el.getAttribute("aria-label"),
 		content: el.closest(".vertical-tab-content-container"),
 		focusVisible: el.matches(":focus-visible"),
 	};
@@ -118,15 +120,22 @@ function openerOf(el: Element | null): Opener | null {
  * where Obsidian put focus on back: closing settings, switching tabs and
  * search results leave it alone.
  */
-function focusOpenerAfterBack({ el, content, focusVisible }: Opener): void {
+function focusOpenerAfterBack({ el, label, content, focusVisible }: Opener): void {
 	// Obsidian focuses what is below after this page's hide() returns; with
 	// Escape, not before this task's microtasks have run, so wait a task.
 	window.setTimeout(() => {
+		// Adding the first choice swaps the empty list's New choice for the
+		// list's own, so look for the same control by its label.
+		const target = el.isConnected
+			? el
+			: label
+				? content?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(label)}"]`)
+				: null;
 		const active = el.ownerDocument.activeElement;
 		const leftWithBack =
 			active !== null &&
-			(active === content || (active.matches(".setting-item") && active.contains(el)));
-		if (el.isConnected && leftWithBack) el.focus({ focusVisible });
+			(active === content || (active.matches(".setting-item") && !!target && active.contains(target)));
+		if (target && leftWithBack) target.focus({ focusVisible });
 	});
 }
 

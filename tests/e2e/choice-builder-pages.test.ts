@@ -231,6 +231,19 @@ it("comes back from a page where it was: the filter kept and focus on the contro
 	await expect.poll(focusedLabel, POLL_OPTS).toBe("Configure Log");
 });
 
+it("comes back to New choice after adding the first choice (#2150)", async () => {
+	const { obsidian } = getContext();
+	await seed();
+	await openSettings();
+	// The empty list has its own New choice, replaced by the list's once a choice exists.
+	await click(".choiceEmptyActions .qaNewChoiceBtn");
+	await click(".menu-item");
+	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
+	await pressKey(obsidian, "Escape");
+	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("New choice");
+});
+
 it("saves a nested page into its macro when settings is closed over both", async () => {
 	await seed(macroWithBranchAndStep());
 	await openSettings();
