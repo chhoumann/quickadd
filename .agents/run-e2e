@@ -32,6 +32,8 @@ fi
 # source so a stale bundle can't pass or fail a run for code it doesn't hold.
 pnpm run --silent build >/dev/null
 
+# Set before the trap below can read it: an inherited `results` must not be removed.
+results=""
 cleanup() {
 	local status=$?
 	trap - EXIT INT TERM
