@@ -45,10 +45,13 @@ your cursor at the end, ready to type. Three commands, run as one.
 ### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
 
 1. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
-   Builder opens; click its name at the top to rename it `Open daily note`.
-   To reopen the builder later, click the gear on the choice's row.
+   Builder opens as a page of the settings window; set **Name** to
+   `Open daily note`. To reopen the builder later, click the gear on the
+   choice's row (on a phone, **⋮** → **Configure**). Going back saves it.
+   (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top
+   to rename it.)
 
-![The Macro builder](../Images/choices/macro-builder.png)
+![The Macro builder page, with the Commands and Behavior sections](../Images/choices/macro-builder.png)
 
 ### Step 2: Build the macro {#step-2-build-your-macro}
 
@@ -158,7 +161,9 @@ To add one:
    conditional branch editor).
 2. Click the settings icon on the new command to define the condition.
 3. Use the branch buttons to set the commands that run for the **Then** and
-   **Else** outcomes.
+   **Else** outcomes. Each branch opens as a page over the macro; go back to
+   return to it. (Before QuickAdd 2.30.0, a branch opens in a dialog with
+   **Save** and **Cancel**.)
 
 The macro runs the matching branch in order, then continues with the rest of the
 macro. Branch commands share the same variable map as the outer macro, so they

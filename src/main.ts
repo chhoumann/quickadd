@@ -58,6 +58,8 @@ import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
 import { scheduleStartupModelSync } from "./ai/startupModelSync";
 import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
+import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
+import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -122,6 +124,7 @@ export default class QuickAdd extends Plugin {
 		});
 
 		registerCoreCommands(this);
+		registerSaveOnExit(this, () => this.flushPendingSave());
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
@@ -231,9 +234,11 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		// Leave an open choice builder first, so its edits are in the write below.
+		leaveBuilderPages(this.app);
 		// Flush any pending debounced settings write so a just-made change (e.g. a
-		// folder collapse) is never lost on plugin reload / app quit.
-		this.requestSave.run();
+		// folder collapse) is never lost on plugin reload.
+		void this.flushPendingSave();
 		this.unsubscribeSettingsStore?.call(this);
 
 		// Clear the error log to prevent memory leaks
@@ -296,6 +301,12 @@ export default class QuickAdd extends Plugin {
 		this.settings = settings;
 		// Deep-clone so later in-place store edits cannot mutate the merge base.
 		this.lastPersistedSettings = deepClone(settings);
+	}
+
+	/** Start the pending debounced settings write now. Returns the write. */
+	private flushPendingSave(): Promise<void> {
+		this.requestSave.run();
+		return this.persistChain;
 	}
 
 	async saveSettings() {

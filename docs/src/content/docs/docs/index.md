@@ -38,8 +38,9 @@ Let's build a capture that adds a timestamped line to your daily journal. It
 takes about a minute.
 
 1. Open **Settings → QuickAdd**, click **New choice**, and pick **Capture**. Its
-   settings open right away.
-2. Click the name at the top and rename it to `Add to journal`.
+   settings open right away, as a page of the settings window.
+2. Set **Name** to `Add to journal`. (Before QuickAdd 2.30.0, the settings open
+   in a dialog; click the name at the top to rename it.)
 3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
 4. Turn on **Create file if it doesn't exist**, so the first capture of the day
    creates today's note instead of stopping with a "Target file missing" notice.

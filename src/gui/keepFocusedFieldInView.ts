@@ -1,11 +1,13 @@
 import type { Plugin } from "obsidian";
 
 /**
- * On a phone a QuickAdd dialog shrinks to the space above the keyboard
- * (styles.css), which can leave the field being typed in below its scroll
- * area, under a pinned footer. Obsidian's own keyboard scroll measures the
- * document selection, which for an <input> is not the field. Once the keyboard
- * is up, scroll the focused field back into view.
+ * On a phone a QuickAdd dialog shrinks to the space above the keyboard, and a
+ * choice builder's settings page keeps a keyboard-high scroll padding
+ * (styles.css), which can leave the field being typed in under a pinned footer
+ * or the keyboard. Obsidian's own keyboard scroll measures the document
+ * selection, which for an <input> is not the field. Once the keyboard is up,
+ * scroll the focused field back into view. The builder page carries
+ * `.quickAddModal` too (BuilderPage).
  */
 export function keepFocusedFieldInView(plugin: Plugin): void {
 	const onKeyboardShown = () => {

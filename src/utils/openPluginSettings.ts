@@ -1,4 +1,4 @@
-import type { App, SettingTab } from "obsidian";
+import type { App, SettingPage, SettingTab } from "obsidian";
 import { Notice } from "obsidian";
 import { log } from "../logger/logManager";
 
@@ -62,6 +62,47 @@ export function tryOpenSettingsPage(
 		log.logMessage(`QuickAdd: Failed to open settings page: ${error}`);
 		return false;
 	}
+}
+
+interface SettingPageNavigation {
+	openPage?: (page: SettingPage) => void;
+	updatePageTitle?: () => void;
+}
+
+function settingPageNavigation(app: App): SettingPageNavigation | undefined {
+	return (app as unknown as { setting?: SettingPageNavigation }).setting;
+}
+
+/**
+ * Opens `page` over the settings page that is showing, with Obsidian's own
+ * title bar and back navigation. Obsidian has no public API for this:
+ * `openPage` is what it calls when the user opens a page entry (Obsidian
+ * 1.13). Returns false when that is unavailable or throws.
+ */
+export function openSettingPage(app: App, page: SettingPage): boolean {
+	try {
+		const setting = settingPageNavigation(app);
+		if (typeof setting?.openPage !== "function") {
+			log.logMessage("QuickAdd: Obsidian's settings page navigation is unavailable.");
+			return false;
+		}
+		setting.openPage(page);
+		return true;
+	} catch (error) {
+		log.logMessage(`QuickAdd: Failed to open settings page: ${error}`);
+		return false;
+	}
+}
+
+/**
+ * Keep an open page's titles in step with a rename: the page's title bar, and
+ * the settings window's own title, which Obsidian shows as the header on
+ * phones and only sets when a page opens.
+ */
+export function retitleSettingPage(app: App, page: SettingPage, title: string): void {
+	page.title = title;
+	page.titlebarEl.querySelector(".setting-page-title")?.setText(title);
+	settingPageNavigation(app)?.updatePageTitle?.();
 }
 
 /**

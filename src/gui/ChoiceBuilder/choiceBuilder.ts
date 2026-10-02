@@ -1,79 +1,69 @@
-import { type App, Modal } from "obsidian";
-import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import type { App } from "obsidian";
 import type { Component } from "svelte";
-import type { ChoiceFormProps } from "./choiceFormProps.svelte";
-import { snapshot } from "../svelte/persist.svelte";
-import { addAutosaveFooter } from "./components/autosaveFooter";
+import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { snapshot } from "../svelte/persist.svelte";
+import { BuilderPage, nameOrFallback } from "./builderPage";
+import { createChoiceFormProps, type ChoiceFormProps } from "./choiceFormProps.svelte";
 
 /**
- * Thin Modal host for the choice builders. Owns the waitForClose promise and the
- * Svelte mount registry; subclasses implement display() to mount their root form
- * component (CaptureChoiceForm / TemplateChoiceForm) into contentEl. The former
- * imperative Setting helpers + reload() are gone — conditional settings now live
- * in the components' reactive {#if} blocks, which is the fix for issue #1130
- * (the modal no longer tears down/rebuilds on every toggle, preserving scroll
- * position and input focus/caret).
+ * Settings page for the Template and Capture builders: a Name field over the
+ * builder's Svelte form (TemplateChoiceForm / CaptureChoiceForm), whose
+ * conditional settings live in reactive {#if} blocks, so a toggle never
+ * rebuilds the page (#1130). Hands the edited choice to `onSave` when the
+ * page is left.
  */
-export abstract class ChoiceBuilder extends Modal {
-	private resolvePromise: (input: IChoice) => void;
-	public waitForClose: Promise<IChoice>;
-	abstract choice: IChoice;
-	protected svelteElements: MountHandle[] = [];
+export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoice> {
+	private formProps?: ChoiceFormProps<C>;
+	private handle: MountHandle | null = null;
+	/** The Name field's value. Kept here so a rename saves even if the form fails to mount. */
+	private name: string;
 
-	protected constructor(app: App) {
-		super(app);
+	/**
+	 * Subclasses fill in missing fields on `choice` in their constructor, before
+	 * the page renders, so the form reads a fully-shaped object.
+	 */
+	protected constructor(
+		app: App,
+		public readonly choice: C,
+		private readonly plugin: QuickAdd,
+		onSave: (choice: IChoice) => void,
+		private readonly form: Component<ChoiceFormProps<C>>,
+		/** What the form shows, for the card shown if it fails to mount. */
+		private readonly what: string,
+	) {
+		super(app, choice.name, onSave);
+		this.name = choice.name;
+	}
 
-		this.waitForClose = new Promise<IChoice>((resolve) => {
-			this.resolvePromise = resolve;
+	protected render(containerEl: HTMLElement): void {
+		// The form edits a $state copy; edits never write through to `choice`.
+		const props = createChoiceFormProps<C>({
+			choice: this.choice,
+			app: this.app,
+			plugin: this.plugin,
 		});
-
-		this.containerEl.addClass("quickAddModal");
-		this.open();
-		// Installed here, not in display(): display() runs from the subclass
-		// constructor and is re-run by builders that rebuild their content.
-		// After open() so the footer's Done keeps the initial focus.
-		addAutosaveFooter(this, "choice");
-	}
-
-	/**
-	 * Mount the builder's Svelte form into contentEl. Called from the subclass
-	 * constructor (NOT an onOpen() override): super() runs open() before the
-	 * subclass has assigned this.choice, so mounting must happen afterwards.
-	 */
-	protected abstract display(): unknown;
-
-	protected mountForm<C extends IChoice>(
-		component: Component<ChoiceFormProps<C>>,
-		props: ChoiceFormProps<C>,
-		what: string,
-	): ChoiceFormProps<C> | undefined {
-		const handle = mountComponent(this.contentEl, component, props, { what });
-		this.svelteElements.push(handle);
+		this.addNameSetting(containerEl, this.name, this.choice.name, (name) => {
+			this.name = name;
+			props.choice.name = name;
+		});
+		this.handle = mountComponent(containerEl, this.form, props, { what: this.what });
 		// An unseen form must not replace the source choice on close.
-		return handle.ok ? props : undefined;
-	}
-
-	private destroySvelteElements() {
-		this.svelteElements.forEach((handle) => handle.destroy());
-		this.svelteElements = [];
+		if (this.handle.ok) this.formProps = props;
 	}
 
 	/**
-	 * The choice value to resolve at close. Converted (Svelte) builders override
-	 * this to return the form's $state-backed proxy (`this.formProps.choice`) — a
-	 * $state proxy does NOT write through to the original `this.choice`, so the
-	 * original would be unedited (silent data loss, see persist.svelte.ts / #1130).
+	 * snapshot() deep-clones the form's $state copy to a plain object, so
+	 * callers never receive a live $state proxy.
 	 */
-	protected getResultChoice(): IChoice {
-		return this.choice;
+	protected result(): IChoice {
+		const edited = snapshot(this.formProps?.choice ?? this.choice);
+		return { ...edited, name: nameOrFallback(this.name, this.choice.name) };
 	}
 
-	onClose() {
-		super.onClose();
-		this.destroySvelteElements();
-		// snapshot() deep-clones to a plain object, so callers that spread the
-		// result never receive a live $state proxy.
-		this.resolvePromise(snapshot(this.getResultChoice()));
+	protected destroy(): void {
+		this.handle?.destroy();
+		this.handle = null;
 	}
 }

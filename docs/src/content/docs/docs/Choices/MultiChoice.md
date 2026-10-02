@@ -37,10 +37,11 @@ the multi's name is used instead.
 Because [search reaches everything nested under the multi](#searching-nested-choices),
 word the hint for the whole group, not just the top level.
 
-To set it, click the gear on the multi's row to open **Edit folder**, fill in
-**Placeholder**, and click **Save**.
+To set it, click the gear on the multi's row to open its settings page, fill
+in **Placeholder**, and go back. (Before QuickAdd 2.30.0, the gear opens the
+**Edit folder** dialog; click **Save**.)
 
-![The Edit folder modal with Name, Placeholder, and Icon settings](../Images/choices/multi-choice.png)
+![A folder's settings page with Name, Placeholder, and Icon settings](../Images/choices/multi-choice.png)
 
 ## Change a choice's icon {#icons}
 

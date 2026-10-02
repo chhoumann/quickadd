@@ -68,7 +68,6 @@ it.each([
 		await expect.poll(() => field(placeholder), POLL_OPTS).toEqual({ hint: message, invalid: "true" });
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			document.querySelectorAll(".captureChoiceBuilder button").forEach(b => b.textContent?.trim() === "Done" && b.click());
 			app.setting.close();
 			return true;
 		})()`);

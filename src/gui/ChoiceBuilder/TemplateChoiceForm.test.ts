@@ -41,22 +41,23 @@ function mountForm() {
 describe("TemplateChoiceForm", () => {
 	it("reveals the specific-folder controls reactively without remounting (the #1130 fix)", () => {
 		const { container, props } = mountForm();
-		const headerBefore = container.querySelector(".choiceNameHeaderButton");
+		const headerBefore = container.querySelector(".setting-item-heading");
+		expect(headerBefore).not.toBeNull();
 
 		// Default (obsidian-default) mode: no folder list / subfolder control.
 		expect(settingNames(container)).not.toContain("Include subfolders");
 		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
 
 		// Flipping the controlling field updates the {#if} in place — the former
-		// reload() would have torn down and rebuilt the whole modal here. A bare
+		// reload() would have torn down and rebuilt the whole builder here. A bare
 		// `enabled` with no other flag derives to "specified" mode.
 		props.choice.folder.enabled = true;
 		flushSync();
 
 		expect(settingNames(container)).toContain("Include subfolders");
 		expect(container.querySelector(".qa-folder-path-input")).not.toBeNull();
-		// Same header node => no full remount (scroll/caret would survive in-app).
-		expect(container.querySelector(".choiceNameHeaderButton")).toBe(
+		// Same section heading node => no full remount (scroll/caret would survive in-app).
+		expect(container.querySelector(".setting-item-heading")).toBe(
 			headerBefore,
 		);
 	});

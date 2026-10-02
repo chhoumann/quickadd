@@ -34,24 +34,6 @@
 	margin-bottom: 10px;
 }
 
-.choiceNameHeader {
-	text-align: center;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-}
-
-.choiceNameHeader:hover {
-	cursor: pointer;
-}
-
-.choiceNameHeaderIcon {
-	display: inline-flex;
-	align-items: center;
-	opacity: 0.5;
-}
-
 /* Keyboard-operable rename affordance inside a modal <h2> title (#1250). Resets
    the native <button> chrome so it reads as the heading text it replaced. Doubled
    selector (0,2,0) so theme `.modal button` rules can't re-skin the title. */
@@ -72,13 +54,6 @@
 	border-radius: var(--radius-s, 4px);
 }
 
-/* The choice-builder title button also lays out its label + pencil icon. */
-.choiceNameHeaderButton {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-
 .folderInputContainer {
 	display: flex;
 	align-content: center;
@@ -95,8 +70,8 @@
 }
 
 /* Pinned footer: a `.qa-modal-footer` appended to `modalEl`, as a sibling of
-   `.modal-content`, stays in view while the content scrolls. Used by the choice
-   builders' autosave footer (#1545) and the one-page form's actions (#1910).
+   `.modal-content`, stays in view while the content scrolls. Used by the
+   one-page form's actions (#1910).
    Core already lays `.modal` out as a flex column with `.modal-content` as the
    growing item, so moving the scrollport onto the content is all it takes —
    which also pins the absolutely-positioned close button. Core's own
@@ -183,6 +158,21 @@
 	padding-top: min(var(--keyboard-height), var(--safe-area-inset-top));
 }
 
+/* Settings pages run under the keyboard, with room to scroll past it, so a
+   builder page's focused field scrolls into view above the keyboard. */
+.is-phone .setting-page.qa-builder-page {
+	scroll-padding-bottom: calc(var(--keyboard-height) + var(--size-4-4));
+}
+
+/* On a phone the settings header floats over the page: its background is a
+   mask that fades out from 20% of its height, so text scrolled under it shows
+   behind the title and the buttons. A builder page scrolls a field up to the
+   keyboard, which often lands a row name there. Keep the header solid through
+   its own height (100% of the 130%-tall background) and fade below it. */
+.is-phone .modal.mod-settings:has(.qa-builder-page) .modal-header::after {
+	mask: linear-gradient(to bottom, black 77%, transparent);
+}
+
 /* A prompt taller than that space scrolls; its buttons stay in view. */
 .is-phone .quickAddModal .modal-content .qa-prompt-actions {
 	position: sticky;
@@ -193,37 +183,32 @@
 	background: var(--modal-background);
 }
 
-.quickAddModal.qa-choice-builder .qa-builder-footer {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--size-4-2);
+/* Full-width labelled field (LabeledField.svelte): a `.setting-item` row whose
+   field wraps onto its own line under the name. On a phone Obsidian lays rows
+   out as a column, where the field just needs the width. */
+.setting-item.qa-field {
+	flex-wrap: wrap;
 }
 
-.quickAddModal.qa-choice-builder .qa-builder-footer-note {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+.setting-item.qa-field > .qa-field-body {
+	flex: none;
+	width: 100%;
+	min-width: 0;
 }
 
-/* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
-   the name/description, the body carries the field itself. Obsidian zeroes a
-   `.setting-item`'s border-top and padding-top when it is `:first-child` of its
-   parent — which it always is here — so the wrapper takes over the row separator
-   and the group's outer rhythm. The inner row keeps Obsidian's own padding-bottom,
-   and that is what separates the label from the field beneath it. */
-.quickAddModal .qa-field {
-	border-top: var(--border-width) solid var(--background-modifier-border);
-	padding: var(--size-4-4) 0;
+/* Wrapping would let a long description take the whole first line and push
+   the row's control under it. The description takes what the control leaves. */
+body:not(.is-phone) .setting-item.qa-field > .setting-item-info {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
-/* The wrapper also breaks Obsidian's `.setting-item + .setting-item-heading`
-   sibling rule, so restore the group spacing above a following section heading. */
-.quickAddModal .qa-field + .setting-item-heading {
-	margin-top: 0.75em;
+body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
+	flex: 0 0 auto;
 }
 
-/* The last element in the body owns the wrapper's bottom padding. */
-.quickAddModal .qa-field-body > *:last-child {
+/* The last element in the body owns the row's bottom padding. */
+.qa-field-body > *:last-child {
 	margin-bottom: 0;
 }
 
@@ -1174,16 +1159,18 @@
 	width: auto;
 }
 
-/* The command editor renders into its own wrapper, so its last row ("Choices")
-   matches Obsidian's modal `.setting-item:last-child { padding-bottom: 0 }` even
-   though the Macro builder's own settings follow it. Restore the row padding so
-   its description doesn't touch the next divider. Scoped to the Macro builder:
-   in the branch editor the command editor really is last (buttons follow).
-   Selector specificity must beat Obsidian's (0,5,0) rule. */
-.quickAddModal.macroBuilder
-	.macroBuilder__editor
-	> .setting-item:not(.setting-item-heading):last-child {
-	padding-bottom: var(--size-4-4);
+/* The command editor in a settings group card (the Macro and branch pages):
+   the quick-command bar sits inside the card's padding, like the rows. */
+.setting-group .quickAddCommandEditor > .quickCommandContainer {
+	padding: 0 var(--setting-items-padding-x);
+	margin-bottom: var(--setting-items-padding-y);
+}
+
+/* A phone's card is too narrow for the bar's buttons at their own width;
+   they share the row instead. */
+.is-phone .setting-group .quickAddCommandEditor > .quickCommandContainer > button {
+	flex: 1 1 auto;
+	padding-inline: var(--size-4-2);
 }
 
 .qa-hidden {

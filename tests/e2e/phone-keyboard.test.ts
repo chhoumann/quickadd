@@ -13,7 +13,7 @@ const getContext = createQuickAddE2EHarness("phone-keyboard");
 const KEYBOARD = 345;
 
 // Settings shows its tab list instead of a page on a phone, so the macro test
-// emulates the phone once the builder is open.
+// emulates the phone once the builder page is open.
 const emulatePhoneWithKeyboard = () => getContext().obsidian.dev.evalJson(`(() => {
 		window.__qaPhoneClasses = document.body.className;
 		document.body.classList.remove("is-tablet");
@@ -74,7 +74,9 @@ it("keeps the multi-select's Done above the keyboard", async () => {
 	expect(await obsidian.dev.evalJson<boolean>(aboveKeyboard(".qa-multi-actions button.mod-cta"))).toBe(true);
 });
 
-it("brings the macro builder's focused field out from under its footer once the keyboard is up", async () => {
+// A builder is a settings page, which runs under the keyboard: Obsidian pads
+// the page's bottom by the keyboard's height, so the field can always scroll up.
+it("brings the macro page's focused field above the keyboard once it is up", async () => {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Keyboard macro");
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
@@ -84,25 +86,24 @@ it("brings the macro builder's focused field out from under its footer once the 
 	await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
 	await waitForElement(obsidian, '[aria-label="Configure Keyboard macro"]');
 	await obsidian.dev.evalJson(`document.querySelector('[aria-label="Configure Keyboard macro"]').click(), true`);
-	await waitForElement(obsidian, ".macroBuilder .qa-modal-footer");
+	await waitForElement(obsidian, ".macroBuilder .qa-command-sequence-input");
 	await emulatePhoneWithKeyboard();
 
-	const coveredByFooter = `(() => {
-		const modal = document.querySelector(".macroBuilder");
-		const field = [...modal.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script"));
-		// Scrolled into view, the field ends at the footer's top edge, give or take
-		// the fraction of a pixel a whole-pixel scroll position can't express.
-		return field.getBoundingClientRect().bottom > modal.querySelector(".qa-modal-footer").getBoundingClientRect().top + 1;
+	const fieldBottom = `(() => {
+		const field = [...document.querySelectorAll(".macroBuilder input")].find((input) => input.placeholder.startsWith("Start typing script"));
+		return field.getBoundingClientRect().bottom;
 	})()`;
-	// The field sits low in the builder: with the keyboard taking the bottom of
-	// the screen it starts under the footer, as on a phone.
-	expect(await obsidian.dev.evalJson<boolean>(`(() => {
-		const modal = document.querySelector(".macroBuilder");
-		modal.querySelector(".modal-content").scrollTop = 0;
-		[...modal.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script")).focus({ preventScroll: true });
-		return ${coveredByFooter};
-	})()`)).toBe(true);
+	// The field sits low on the page: with the keyboard taking the bottom of the
+	// screen it starts under it, as on a phone.
+	await obsidian.dev.evalJson(`(() => {
+		const page = document.querySelector(".macroBuilder");
+		page.scrollTop = 0;
+		[...page.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script")).focus({ preventScroll: true });
+		return true;
+	})()`);
+	const keyboardTop = await obsidian.dev.evalJson<number>(`innerHeight - ${KEYBOARD}`);
+	expect(await obsidian.dev.evalJson<number>(fieldBottom)).toBeGreaterThan(keyboardTop);
 
 	await obsidian.dev.evalJson('window.dispatchEvent(new Event("keyboardDidShow")), true');
-	expect(await obsidian.dev.evalJson<boolean>(coveredByFooter)).toBe(false);
+	expect(await obsidian.dev.evalJson<number>(fieldBottom)).toBeLessThanOrEqual(keyboardTop);
 });

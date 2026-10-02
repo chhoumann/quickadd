@@ -8,7 +8,7 @@ import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCo
 import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 
 describe("CommandList conditional branch persistence", () => {
-	// Regression: the branch modal mutates the command, but the command rendered by
+	// Regression: the branch page mutates the command, but the command rendered by
 	// CommandList is a $state proxy that does NOT write through to the host's
 	// commandsRef. CommandList must persist the mutation via saveCommands(snapshot).
 	it("persists then-branch edits through saveCommands as a plain snapshot", async () => {
@@ -21,10 +21,11 @@ describe("CommandList conditional branch persistence", () => {
 			plugin: {} as never,
 			deleteCommand: vi.fn(),
 			saveCommands,
-			// Simulate the branch editor mutating the command and reporting "changed".
-			onEditThenBranch: (command) => {
+			// Simulate the branch page being left after an edit: it mutates the
+			// command, then reports it, synchronously (see BuilderPage).
+			onEditThenBranch: (command, onEdited) => {
 				command.thenCommands = [new WaitCommand(100)];
-				return true;
+				onEdited();
 			},
 		});
 
@@ -35,14 +36,14 @@ describe("CommandList conditional branch persistence", () => {
 			getByLabelText("Edit then branch for (missing variable) is truthy"),
 		);
 
-		await vi.waitFor(() => expect(saveCommands).toHaveBeenCalledTimes(1));
+		expect(saveCommands).toHaveBeenCalledTimes(1);
 		const saved = saveCommands.mock.calls[0][0] as Array<{ thenCommands?: unknown[] }>;
 		expect(saved[0].thenCommands).toHaveLength(1);
 		// The persisted payload must be a plain snapshot (no $state Proxy artifacts).
 		expect(JSON.parse(JSON.stringify(saved))).toEqual(saved);
 	});
 
-	it("does NOT save when the branch handler reports no change", async () => {
+	it("does NOT save when the branch page is left without an edit", async () => {
 		const cond = new ConditionalCommand();
 		const saveCommands = vi.fn();
 
@@ -52,7 +53,8 @@ describe("CommandList conditional branch persistence", () => {
 			plugin: {} as never,
 			deleteCommand: vi.fn(),
 			saveCommands,
-			onEditThenBranch: () => false,
+			// A branch page left unedited never calls onEdited.
+			onEditThenBranch: () => {},
 		});
 
 		const { getByLabelText } = render(CommandList, { props });

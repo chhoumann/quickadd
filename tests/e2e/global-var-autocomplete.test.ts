@@ -95,9 +95,6 @@ it("keeps offering defined global variables after the colon in a choice format f
 		await expect.poll(visibleSuggestions, POLL_OPTS).toEqual([]);
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			for (const builder of document.querySelectorAll(".captureChoiceBuilder")) {
-				[...builder.querySelectorAll("button.mod-cta")].find(b => b.textContent?.trim() === "Done")?.click();
-			}
 			app.setting?.close?.();
 			return true;
 		})()`);

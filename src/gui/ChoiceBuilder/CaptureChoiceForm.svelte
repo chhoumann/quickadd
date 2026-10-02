@@ -6,9 +6,9 @@ import { getTemplateFile } from "../../utils/templateFolderUtils";
 import { hasTemplatePathSyntax } from "../../utils/templatePathSyntax";
 import { FormatSyntaxSuggester } from "../suggesters/formatSyntaxSuggester";
 import SettingItem from "../components/SettingItem.svelte";
+import SettingGroup from "../components/SettingGroup.svelte";
 import Toggle from "../components/Toggle.svelte";
 import Dropdown from "../components/Dropdown.svelte";
-import ChoiceNameHeader from "./components/ChoiceNameHeader.svelte";
 import ValidatedInput from "./components/ValidatedInput.svelte";
 import LabeledField from "./components/LabeledField.svelte";
 import FormatPreviewField from "./components/FormatPreviewField.svelte";
@@ -99,148 +99,151 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 }
 </script>
 
-<ChoiceNameHeader bind:name={choice.name} {app} />
+<SettingGroup heading="Location">
+	<CaptureTargetSetting bind:choice {app} {plugin} />
 
-<SettingItem name="Location" heading />
-<CaptureTargetSetting bind:choice {app} {plugin} />
+	{#if !choice.captureToActiveFile}
+		<SettingItem name="Create file if it doesn't exist">
+			{#snippet control()}
+				<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
+			{/snippet}
+		</SettingItem>
 
-{#if !choice.captureToActiveFile}
-	<SettingItem name="Create file if it doesn't exist">
+		{#if choice.createFileIfItDoesntExist.enabled}
+			<LabeledField
+				name="Create file with a template"
+				desc="Path to the template QuickAdd applies to the new file."
+				bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
+			>
+				{#snippet control()}
+					<Toggle
+						bind:checked={choice.createFileIfItDoesntExist.createWithTemplate}
+					/>
+				{/snippet}
+				{#snippet children(id)}
+					<ValidatedInput
+						{id}
+						value={choice.createFileIfItDoesntExist.template}
+						placeholder="Template path"
+						{app}
+						suggestions={templateFilePaths}
+						maxSuggestions={50}
+						validator={validateTemplate}
+						onChange={(value) =>
+							(choice.createFileIfItDoesntExist.template = value.trim())}
+					/>
+				{/snippet}
+			</LabeledField>
+		{/if}
+	{/if}
+</SettingGroup>
+
+<SettingGroup heading="Position">
+	<WritePositionSetting bind:choice {app} {plugin} />
+</SettingGroup>
+
+<SettingGroup heading="Linking">
+	<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
+	<SettingItem
+		name="Copy link to clipboard"
+		desc="Copy a link to the captured file after the Capture choice runs."
+	>
 		{#snippet control()}
-			<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
+			<Toggle
+				checked={choice.copyLinkToClipboard ?? false}
+				onchange={(value) => (choice.copyLinkToClipboard = value)}
+			/>
+		{/snippet}
+	</SettingItem>
+</SettingGroup>
+
+<SettingGroup heading="Content">
+	{#if !choice.propertyCapture}
+	<SettingItem name="Task" desc="Formats the value as a task.">
+		{#snippet control()}
+			<Toggle bind:checked={choice.task} />
+		{/snippet}
+	</SettingItem>
+	<SettingItem name="One entry per line" desc={"Writes the format once for each line of {{VALUE}}."}>
+		{#snippet control()}
+			<Toggle
+				checked={choice.eachLine ?? false}
+				onchange={(value) => (choice.eachLine = value)}
+			/>
+		{/snippet}
+	</SettingItem>
+	{/if}
+
+	<LabeledField
+		name="Capture format"
+		desc={"Leave empty to capture {{VALUE}} on its own - what you type at the prompt, or the current selection."}
+	>
+		{#snippet children(id)}
+			{#key formatSuggestContext}
+				<ValidatedInput
+					{id}
+					inputKind="textarea"
+					bind:value={
+						() => captureFormat,
+						(value) => (choice.format = { enabled: value.trim() !== "", format: value })
+					}
+					placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "{{VALUE}}"}
+					makeSuggesters={formatSuggesters}
+				/>
+			{/key}
+			<FormatTokenHint value={captureFormat} />
+			<FormatPreviewField value={captureFormat} {app} {plugin} />
+		{/snippet}
+	</LabeledField>
+</SettingGroup>
+
+<SettingGroup heading="Behavior">
+	{#if !choice.captureToActiveFile}
+		<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured file." />
+		{#if choice.openFile}
+			<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
+		{/if}
+	{/if}
+
+	<SettingItem
+		name="Use editor selection as default value"
+		desc={"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}."}
+	>
+		{#snippet control()}
+			<Dropdown
+				value={selectionOverride}
+				options={selectionOptions}
+				onchange={onSelectionChange}
+			/>
 		{/snippet}
 	</SettingItem>
 
-	{#if choice.createFileIfItDoesntExist.enabled}
-		<LabeledField
-			name="Create file with a template"
-			desc="Path to the template QuickAdd applies to the new file."
-			bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
-		>
-			{#snippet control()}
-				<Toggle
-					bind:checked={choice.createFileIfItDoesntExist.createWithTemplate}
-				/>
-			{/snippet}
-			{#snippet children(id)}
-				<ValidatedInput
-					{id}
-					value={choice.createFileIfItDoesntExist.template}
-					placeholder="Template path"
-					{app}
-					suggestions={templateFilePaths}
-					maxSuggestions={50}
-					validator={validateTemplate}
-					onChange={(value) =>
-						(choice.createFileIfItDoesntExist.template = value.trim())}
-				/>
-			{/snippet}
-		</LabeledField>
-	{/if}
-{/if}
-
-<SettingItem name="Position" heading />
-<WritePositionSetting bind:choice {app} {plugin} />
-
-<SettingItem name="Linking" heading />
-<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
-<SettingItem
-	name="Copy link to clipboard"
-	desc="Copy a link to the captured file after the Capture choice runs."
->
-	{#snippet control()}
-		<Toggle
-			checked={choice.copyLinkToClipboard ?? false}
-			onchange={(value) => (choice.copyLinkToClipboard = value)}
-		/>
-	{/snippet}
-</SettingItem>
-
-<SettingItem name="Content" heading />
-{#if !choice.propertyCapture}
-<SettingItem name="Task" desc="Formats the value as a task.">
-	{#snippet control()}
-		<Toggle bind:checked={choice.task} />
-	{/snippet}
-</SettingItem>
-<SettingItem name="One entry per line" desc={"Writes the format once for each line of {{VALUE}}."}>
-	{#snippet control()}
-		<Toggle
-			checked={choice.eachLine ?? false}
-			onchange={(value) => (choice.eachLine = value)}
-		/>
-	{/snippet}
-</SettingItem>
-{/if}
-
-<LabeledField
-	name="Capture format"
-	desc={"Leave empty to capture {{VALUE}} on its own - what you type at the prompt, or the current selection."}
->
-	{#snippet children(id)}
-		{#key formatSuggestContext}
-			<ValidatedInput
-				{id}
-				inputKind="textarea"
-				bind:value={
-					() => captureFormat,
-					(value) => (choice.format = { enabled: value.trim() !== "", format: value })
-				}
-				placeholder={choice.propertyCapture?.action === "addToList" ? "One item per line" : "{{VALUE}}"}
-				makeSuggesters={formatSuggesters}
+	<!-- Deprecated (#2014): shown only to choices that already have it on, so they
+	     can turn it off. -->
+	{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
+	<SettingItem
+		name="Run Templater on entire destination file after capture (deprecated)"
+		desc="Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination file, including inside code blocks."
+	>
+		{#snippet control()}
+			<Toggle
+				checked={choice.templater?.afterCapture === "wholeFile"}
+				onchange={onTemplaterAfterCaptureChange}
 			/>
-		{/key}
-		<FormatTokenHint value={captureFormat} />
-		<FormatPreviewField value={captureFormat} {app} {plugin} />
-	{/snippet}
-</LabeledField>
-
-<SettingItem name="Behavior" heading />
-{#if !choice.captureToActiveFile}
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured file." />
-	{#if choice.openFile}
-		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
+		{/snippet}
+	</SettingItem>
 	{/if}
-{/if}
 
-<SettingItem
-	name="Use editor selection as default value"
-	desc={"Controls whether this Capture uses the current editor selection as {{VALUE}}. Does not affect {{SELECTED}}."}
->
-	{#snippet control()}
-		<Dropdown
-			value={selectionOverride}
-			options={selectionOptions}
-			onchange={onSelectionChange}
-		/>
-	{/snippet}
-</SettingItem>
+	<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 
-<!-- Deprecated (#2014): shown only to choices that already have it on, so they
-     can turn it off. -->
-{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
-<SettingItem
-	name="Run Templater on entire destination file after capture (deprecated)"
-	desc="Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination file, including inside code blocks."
->
-	{#snippet control()}
-		<Toggle
-			checked={choice.templater?.afterCapture === "wholeFile"}
-			onchange={onTemplaterAfterCaptureChange}
-		/>
-	{/snippet}
-</SettingItem>
-{/if}
+	<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 
-<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
+	<CommandPaletteSetting
+		bind:command={choice.command}
+		bind:pickDayCommand={choice.pickDayCommand}
+		name={choice.name}
+		dateOrigin={choice.dateOrigin}
+	/>
 
-<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
-
-<CommandPaletteSetting
-	bind:command={choice.command}
-	bind:pickDayCommand={choice.pickDayCommand}
-	name={choice.name}
-	dateOrigin={choice.dateOrigin}
-/>
-
-<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
+	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
+</SettingGroup>

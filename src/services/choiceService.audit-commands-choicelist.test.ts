@@ -18,8 +18,8 @@ vi.mock("../gui/ChoiceBuilder/captureChoiceBuilder", () => ({
 	CaptureChoiceBuilder: class {},
 }));
 vi.mock("../gui/MacroGUIs/MacroBuilder", () => ({ MacroBuilder: class {} }));
-vi.mock("../gui/MultiChoiceSettingsModal", () => ({
-	MultiChoiceSettingsModal: class {},
+vi.mock("../gui/MultiChoiceBuilder", () => ({
+	MultiChoiceBuilder: class {},
 }));
 vi.mock("../gui/confirmAction", () => ({
 	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),

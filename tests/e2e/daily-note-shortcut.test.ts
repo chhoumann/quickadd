@@ -2,7 +2,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { clickAt, POLL_OPTS } from "./uiHelpers";
+import { clickWhenStill, leaveSettingsPage, POLL_OPTS } from "./uiHelpers";
 
 // #2023: the Capture builder's "Daily note" button fills in {{DAILY}} and turns
 // on creating the note, so a capture lands in the note Daily notes opens.
@@ -27,14 +27,13 @@ afterEach(async () => { await dailyNotes(original); });
 
 async function clickButton(label: string) {
 	const { obsidian } = getContext();
-	const point = await obsidian.dev.evalJson<{ x: number; y: number }>(`(() => {
-		const button = [...document.querySelectorAll(".captureChoiceBuilder button")]
-			.find(b => b.textContent?.trim() === ${JSON.stringify(label)});
-		button.scrollIntoView({ block: "center" });
-		const rect = button.getBoundingClientRect();
-		return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+	await obsidian.dev.evalJson(`(() => {
+		[...document.querySelectorAll(".captureChoiceBuilder button")]
+			.find(b => b.textContent?.trim() === ${JSON.stringify(label)})
+			.setAttribute("data-qa-target", "");
+		return true;
 	})()`);
-	await clickAt(obsidian, point.x, point.y);
+	await clickWhenStill(obsidian, ".captureChoiceBuilder button[data-qa-target]");
 }
 
 it("captures into the daily note after one click on Daily note", async () => {
@@ -60,7 +59,7 @@ it("captures into the daily note after one click on Daily note", async () => {
 		), POLL_OPTS).toBe(true);
 
 		await clickButton("Daily note");
-		await clickButton("Done");
+		await leaveSettingsPage(obsidian);
 		await expect.poll(() => obsidian.dev.evalJson(
 			`(({ captureTo, createFileIfItDoesntExist }) => ({ captureTo, createFileIfItDoesntExist }))(app.plugins.plugins.quickadd.settings.choices[0])`,
 		), POLL_OPTS).toEqual({
@@ -74,7 +73,6 @@ it("captures into the daily note after one click on Daily note", async () => {
 			.toBe("- from the shortcut\n## Log\n");
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			document.querySelectorAll(".captureChoiceBuilder button").forEach(b => b.textContent?.trim() === "Done" && b.click());
 			app.setting.close();
 			return true;
 		})()`);

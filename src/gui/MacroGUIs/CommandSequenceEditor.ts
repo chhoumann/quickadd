@@ -50,12 +50,17 @@ import {
 } from "../../utils/macroUtils";
 import DataUnreadable from "../svelte/DataUnreadable.svelte";
 
-type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
+/**
+ * Opens a branch's commands as a page. Mutates the command when the page is
+ * left and then calls `onEdited`, synchronously, so the edit is saved before
+ * the page under it saves (see BuilderPage).
+ */
+type BranchHandler = (command: IConditionalCommand, onEdited: () => void) => void;
 
 export interface CommandSequenceEditorConditionalHandlers {
-	configureCondition?: ConditionalHandler;
-	editThenBranch?: ConditionalHandler;
-	editElseBranch?: ConditionalHandler;
+	configureCondition?: (command: IConditionalCommand) => Promise<boolean>;
+	editThenBranch?: BranchHandler;
+	editElseBranch?: BranchHandler;
 }
 
 interface CommandSequenceEditorOptions {
@@ -98,7 +103,7 @@ export class CommandSequenceEditor {
 		this.plugin = options.plugin;
 		// data.json is untrusted, so the value arrives raw and is made editable
 		// here — the one seam every host that shows a command list goes through
-		// (MacroBuilder, ConditionalBranchEditorModal). Normalizing keeps a
+		// (MacroBuilder, ConditionalBranchEditorPage). Normalizing keeps a
 		// duplicate-id or id-less command under a fresh uuid instead of letting
 		// the keyed {#each} throw and cost the user the whole editor (#1593).
 		// Nothing is persisted by this: the repair reaches disk only with the
@@ -116,7 +121,7 @@ export class CommandSequenceEditor {
 	/**
 	 * @returns whether the editor is fully usable. False means the command list is
 	 * showing a card instead, and the host must not commit `commandsRef` anywhere
-	 * (see ConditionalBranchEditorModal's Save button).
+	 * (see ConditionalBranchEditorPage.result).
 	 */
 	public render(containerEl: HTMLElement): boolean {
 		this.destroy();
@@ -550,7 +555,7 @@ export class CommandSequenceEditor {
 	}
 
 	private addCommand(command: ICommand) {
-		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorModal) track
+		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorPage) track
 		// changes via onCommandsChange, not in-place mutation of the passed array.
 		this.commandsRef = [...this.commandsRef, command];
 		this.emitCommandsChanged();
