@@ -1126,7 +1126,7 @@ Good to know:
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
 - Markdown notes only, unless you add `|type:`.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
-- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
+- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe. A required single picker starts empty, and the form waits for a file before it submits (QuickAdd 2.30.0 or later).
 
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
