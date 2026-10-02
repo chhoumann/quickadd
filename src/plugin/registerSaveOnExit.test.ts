@@ -17,6 +17,8 @@ class OtherPage extends SettingPage {
 	display(): void {}
 }
 
+const listeners: (() => void)[] = [];
+
 function setup() {
 	const saved: string[] = [];
 	const app = new App() as App & {
@@ -42,8 +44,10 @@ function setup() {
 	const plugin = {
 		app,
 		registerEvent: vi.fn(),
-		registerDomEvent: (el: Document, type: string, callback: () => void) =>
-			el.addEventListener(type, callback),
+		registerDomEvent: (el: EventTarget, type: string, callback: (event: Event) => void) => {
+			el.addEventListener(type, callback);
+			listeners.push(() => el.removeEventListener(type, callback));
+		},
 	} as unknown as Plugin;
 	const write = Promise.resolve();
 	const flush = vi.fn(() => write);
@@ -59,6 +63,7 @@ function goToBackground(state: DocumentVisibilityState) {
 describe("registerSaveOnExit", () => {
 	afterEach(() => {
 		delete (document as { visibilityState?: unknown }).visibilityState;
+		while (listeners.length) listeners.pop()?.();
 	});
 
 	it("leaves open builder pages on quit, top first, and has Obsidian wait for the write", () => {
@@ -86,5 +91,23 @@ describe("registerSaveOnExit", () => {
 		goToBackground("visible");
 		expect(saved).toHaveLength(2);
 		expect(flush).toHaveBeenCalledTimes(1);
+	});
+
+	// iOS: the app switcher makes the app inactive while the page stays
+	// visible, and the app can be force-quit from there. Obsidian reports it
+	// as a blur of the window.
+	it("saves open builder pages in place and writes when the window loses focus", () => {
+		const { app, saved, flush } = setup();
+		const field = document.body.appendChild(document.createElement("input"));
+
+		field.dispatchEvent(new FocusEvent("blur"));
+		expect(saved).toEqual([]);
+		expect(flush).not.toHaveBeenCalled();
+
+		window.dispatchEvent(new FocusEvent("blur"));
+		expect(saved).toEqual(["Then", "Macro"]);
+		expect(app.setting.pageStack).toHaveLength(3);
+		expect(flush).toHaveBeenCalledTimes(1);
+		field.remove();
 	});
 });

@@ -22,9 +22,16 @@ export function registerSaveOnExit(
 
 	// A phone can kill the app once it is in the background, with no event
 	// first. Save in place: the user comes back to the same page.
-	plugin.registerDomEvent(document, "visibilitychange", () => {
-		if (document.visibilityState !== "hidden") return;
+	const saveInPlace = () => {
 		saveBuilderPages(plugin.app);
 		void flushPendingSave();
+	};
+	plugin.registerDomEvent(document, "visibilitychange", () => {
+		if (document.visibilityState === "hidden") saveInPlace();
 	});
+	// Opening the iOS app switcher makes the app inactive without hiding the
+	// page, and the app can be force-quit from there. Obsidian reports that as
+	// a blur of the window (and saves its own open notes then). A field's blur
+	// does not bubble here.
+	plugin.registerDomEvent(window, "blur", saveInPlace);
 }
