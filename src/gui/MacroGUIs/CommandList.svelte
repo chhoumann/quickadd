@@ -2,7 +2,7 @@
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
-import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
+import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
@@ -137,6 +137,7 @@ let dragging = $state(false);
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
 	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
+	showDragPillOnStart(e as CustomEvent<DndEvent<ICommand>>, getCommandDisplayName);
 	const items = e.detail.items as ICommand[];
 	placeholderRecovery =
 		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;

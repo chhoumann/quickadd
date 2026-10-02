@@ -4,7 +4,7 @@
     import ChoiceListItem from "./ChoiceListItem.svelte";
     import MultiChoiceListItem from "./MultiChoiceListItem.svelte";
     import { alertToScreenReader, type DndEvent, dndzone, TRIGGERS } from "svelte-dnd-action";
-    import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, stripShadow } from "../shared/dndReorder";
+    import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
     import { refocusDragHandle } from "../shared/refocusDragHandle";
     import { createDragArming } from "../shared/dragArming.svelte";
     import { Platform, type App } from "obsidian";
@@ -105,6 +105,7 @@
     function handleConsider(e: CustomEvent<DndEvent>) {
         if (forceDragDisabled) return; // filtered view: never mutate a derived list
         drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
+        showDragPillOnStart(e as CustomEvent<DndEvent<IChoice>>);
         const items = e.detail.items as IChoice[];
         placeholderRecovery =
             capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
