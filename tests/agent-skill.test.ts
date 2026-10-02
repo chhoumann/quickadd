@@ -28,7 +28,8 @@ describe("the QuickAdd agent skill", () => {
 	});
 
 	it("shows a package that imports as a complete Capture appending to the bottom", async () => {
-		const example = /## Create a new choice[\s\S]*?```json\n([\s\S]*?)```/.exec(skill)?.[1];
+		// \r?\n: a Windows checkout gives the file CRLF line endings.
+		const example = /## Create a new choice[\s\S]*?```json\r?\n([\s\S]*?)```/.exec(skill)?.[1];
 		const pkg = parseQuickAddPackage(example ?? "");
 
 		const result = await applyPackageImport({
