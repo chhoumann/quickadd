@@ -1,8 +1,8 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
-import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, jsLiteral, POLL_OPTS, waitForElement } from "./uiHelpers";
+import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, waitForElement } from "./uiHelpers";
 
 // A choice's settings page on a phone: Obsidian's phone settings, where the
 // page fills the screen under a header with the page's title and a back button
@@ -103,9 +103,11 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 	}
 });
 
-it("keeps the focused field above the keyboard, under a header that stays solid", async () => {
-	const { obsidian } = getContext();
+it("keeps the focused field and its suggestions above the keyboard, under a header that stays solid", async () => {
+	const { obsidian, sandbox } = getContext();
 	try {
+		// A script for the field to suggest.
+		await seedVaultFile(obsidian, sandbox, "phoneScript.js", "module.exports = async () => {};\n");
 		await openMacroPage();
 		await obsidian.dev.evalJson(`(() => {
 			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
@@ -129,6 +131,15 @@ it("keeps the focused field above the keyboard, under a header that stays solid"
 		// Obsidian's header fades out from 20% of its background's height; over
 		// a builder page it stays solid through the header (77% of 130%).
 		expect(placement.headerMask).toContain("77%");
+
+		// The emulated keyboard does not shrink the visual viewport, as on
+		// Android, so the list opens above the field, not under the keyboard.
+		await insertText(obsidian, "phoneScript");
+		await waitForElement(obsidian, ".suggestion-container .suggestion-item");
+		expect(await obsidian.dev.evalJson<boolean>(`(() => {
+			const list = document.querySelector(".suggestion-container").getBoundingClientRect();
+			return list.bottom <= document.activeElement.getBoundingClientRect().top;
+		})()`)).toBe(true);
 	} finally {
 		await obsidian.dev.evalJson(
 			'document.documentElement.style.removeProperty("--keyboard-height"), app.setting.close(), true',
