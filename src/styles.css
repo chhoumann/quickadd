@@ -1490,7 +1490,8 @@
 	width: min(42rem, calc(100vw - var(--size-4-8)));
 	min-width: min(35rem, calc(100vw - var(--size-4-8)));
 	max-width: calc(100vw - var(--size-4-8));
-	max-height: min(80vh, 48rem);
+	/* --dialog-max-height leaves out a phone's keyboard (desktop: 85vh). */
+	max-height: min(80vh, 48rem, var(--dialog-max-height));
 	overflow: hidden;
 }
 

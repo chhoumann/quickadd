@@ -58,11 +58,16 @@ it("keeps the date prompt's field and Ok above the keyboard", async () => {
 	expect(await obsidian.dev.evalJson<boolean>(aboveKeyboard(".qa-prompt-actions-primary button.mod-cta"))).toBe(true);
 });
 
+// Enough options that the dialog is taller than the space above the keyboard.
+// The desktop window is wider than 540px, as a phone is in landscape, so the
+// multi-select's wide-screen height cap applies.
+const OPTIONS = Array.from({ length: 20 }, (_, i) => `Option ${i + 1}`).join(",");
+
 it("keeps the multi-select's Done above the keyboard", async () => {
 	const { obsidian } = getContext();
 	await emulatePhoneWithKeyboard();
 	await obsidian.dev.evalJson(`(() => {
-		app.plugins.plugins.quickadd.api.format("{{VALUE:work,home,urgent|multi}}").catch(() => {});
+		app.plugins.plugins.quickadd.api.format("{{VALUE:${OPTIONS}|multi}}").catch(() => {});
 		return true;
 	})()`);
 	await waitForElement(obsidian, ".qaMultiSuggester .qa-multi-actions");
