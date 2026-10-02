@@ -363,7 +363,7 @@ depend on whether **Capture to active file** is enabled:
 - **New line above cursor** / **New line below cursor** (active file only)
 - **After line…** - insert after a target line you specify, or pick a heading at run time. The workhorse for structured notes - see [Insert after](#insert-after).
 - **Before line…** - see [Insert before](#insert-before)
-- **Bottom of file** - starts the entry on a new line. For a blank line between entries, put one in the format, as in `{{VALUE}}\n\n`.
+- **Bottom of file** - starts the entry on a new line. For a blank line between entries, put one in the format, as in `{{VALUE}}\n\n`. Before QuickAdd 2.30.0, a format ending in `\n` also left a blank line before each new entry.
 - **Property** - set a frontmatter value or add items to a list.
 
 ### Capture into a property {#property}
