@@ -417,6 +417,30 @@ describe("OnePageInputModal", () => {
 		modal.containerEl.remove();
 	});
 
+	it("names an empty note picker that a pending new title reveals", async () => {
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "note", label: "Note", type: "text" },
+			{ id: "FILE:people", label: "Owner", type: "file-picker", options: ["@file:People/Ada.md"], displayOptions: ["Ada"] },
+		], undefined, undefined, {
+			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
+			fieldUsages: new Map(),
+			visibleForNotes: new Map([["FILE:people", [{ noteId: "note", includeExisting: false }]]]),
+		});
+		document.body.appendChild(modal.containerEl);
+		modal.contentEl.querySelector("input")!.value = "Project At";
+		const submitted = vi.fn();
+		void modal.waitForClose.then(submitted);
+		modalButton(modal).click();
+		await Promise.resolve();
+		expect(submitted).not.toHaveBeenCalled();
+		expect(noticeMessages).toEqual(['QuickAdd: Choose a file for "Owner".']);
+		expect(document.activeElement?.getAttribute("aria-label")).toBe("Choose file for Owner");
+		filePickerSuggesters[0].onSelect({ value: "@file:People/Ada.md", label: "Ada", path: "People/Ada.md" });
+		modalButton(modal).click();
+		await expect(modal.waitForClose).resolves.toEqual({ "FILE:people": "@file:People/Ada.md" });
+		modal.containerEl.remove();
+	});
+
 	it("keeps fallback title entry usable when note search cannot be constructed", async () => {
 		noteSuggesterSetup.mockImplementation(() => { throw new Error("Metadata unavailable"); });
 		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {

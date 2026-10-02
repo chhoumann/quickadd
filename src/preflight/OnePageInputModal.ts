@@ -554,20 +554,18 @@ export class OnePageInputModal extends Modal {
 				return;
 			}
 		}
+		// A required single-file picker starts empty, so Submit waits for a pick.
+		// Multi-file pickers may stay empty, as the run's multi-select allows.
+		const needsPick = (req: FieldRequirement) =>
+			req.type === "file-picker" && !req.optional && !req.suggesterConfig?.multiSelect;
 		const revealed = this.requirements.find((req) => previouslyHidden.has(req.id) && this.isFieldVisible(req.id) &&
-			!req.optional && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
+			!req.optional && !needsPick(req) && !(this.result.get(req.id) ?? this.initialValues.get(req.id) ?? req.defaultValue));
 		if (revealed) {
 			this.focusField(revealed.id);
 			return;
 		}
-		// A required single-file picker starts empty, so Submit waits for a pick.
-		// Multi-file pickers may stay empty, as the run's multi-select allows.
 		const unpicked = this.requirements.find((req) =>
-			this.isFieldVisible(req.id) &&
-			req.type === "file-picker" &&
-			!req.optional &&
-			!req.suggesterConfig?.multiSelect &&
-			!this.result.get(req.id));
+			this.isFieldVisible(req.id) && needsPick(req) && !this.result.get(req.id));
 		if (unpicked) {
 			new Notice(`QuickAdd: Choose a file for "${unpicked.label}".`);
 			this.focusField(unpicked.id);
