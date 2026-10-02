@@ -416,11 +416,12 @@
 	font-size: var(--font-ui-small);
 }
 
+/* A long name wraps rather than being cut: the chip is the only place the
+   picked note is named. */
 .quickAddModal .qa-onepage-file-picker__chip-label {
 	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
+	text-align: start;
 }
 
 .quickAddModal .qa-onepage-file-picker__remove {
