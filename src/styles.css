@@ -166,9 +166,31 @@
 	padding-right: var(--safe-area-inset-right);
 }
 
-/* Keep the phone footer's buttons clear of the home indicator. */
+/* Keep the phone footer's buttons clear of the home indicator. While the
+   keyboard is up Obsidian sets the inset to the keyboard's height, which the
+   container below already leaves out. */
 .is-phone .quickAddModal .modal > .qa-modal-footer {
-	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
+	padding-bottom: max(var(--size-4-4), calc(var(--safe-area-inset-bottom) - var(--keyboard-height)));
+}
+
+/* On a phone the keyboard covers the bottom of the screen, so a dialog sits in
+   the space above it, below the status bar, with its buttons and the field
+   being typed in visible. Core's phone height is 100vh minus the top inset;
+   with the keyboard down all three lines change nothing. */
+.is-phone .modal-container.quickAddModal {
+	--dialog-max-height: calc(100vh - var(--keyboard-height) - var(--safe-area-inset-top));
+	bottom: var(--keyboard-height);
+	padding-top: min(var(--keyboard-height), var(--safe-area-inset-top));
+}
+
+/* A prompt taller than that space scrolls; its buttons stay in view. */
+.is-phone .quickAddModal .modal-content .qa-prompt-actions {
+	position: sticky;
+	bottom: calc(-1 * var(--size-4-4));
+	/* Covers the content's bottom padding, so the layout is unchanged. */
+	padding-bottom: var(--size-4-4);
+	margin-bottom: calc(-1 * var(--size-4-4));
+	background: var(--modal-background);
 }
 
 .quickAddModal.qa-choice-builder .qa-builder-footer {
@@ -1469,7 +1491,8 @@
 	width: min(42rem, calc(100vw - var(--size-4-8)));
 	min-width: min(35rem, calc(100vw - var(--size-4-8)));
 	max-width: calc(100vw - var(--size-4-8));
-	max-height: min(80vh, 48rem);
+	/* --dialog-max-height leaves out a phone's keyboard (desktop: 85vh). */
+	max-height: min(80vh, 48rem, var(--dialog-max-height));
 	overflow: hidden;
 }
 
