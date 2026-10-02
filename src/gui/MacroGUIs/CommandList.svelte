@@ -199,8 +199,9 @@ function moveCommand(id: string, direction: -1 | 1) {
 
 function updateCommand(command: ICommand) {
 	// `renderable` for the same reason as moveCommand: replaceById maps over
-	// `item.id`.
-	commands = replaceById(renderable, command);
+	// `item.id`. A copy, so the row re-renders after an edit made in place on a
+	// step added this session: a class instance, which $state does not proxy.
+	commands = replaceById(renderable, { ...command });
 	persist();
 }
 
