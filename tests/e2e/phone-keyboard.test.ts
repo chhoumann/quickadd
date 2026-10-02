@@ -90,7 +90,9 @@ it("brings the macro builder's focused field out from under its footer once the 
 	const coveredByFooter = `(() => {
 		const modal = document.querySelector(".macroBuilder");
 		const field = [...modal.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script"));
-		return field.getBoundingClientRect().bottom > modal.querySelector(".qa-modal-footer").getBoundingClientRect().top;
+		// Scrolled into view, the field ends at the footer's top edge, give or take
+		// the fraction of a pixel a whole-pixel scroll position can't express.
+		return field.getBoundingClientRect().bottom > modal.querySelector(".qa-modal-footer").getBoundingClientRect().top + 1;
 	})()`;
 	// The field sits low in the builder: with the keyboard taking the bottom of
 	// the screen it starts under the footer, as on a phone.
