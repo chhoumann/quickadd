@@ -126,10 +126,13 @@ it("creates the note named in the one-page capture target field", async () => {
 
 // On a phone, Obsidian stretches a modal's setting-control buttons to full
 // width, so the picked note's remove button took the chip and cut its name to
-// a few letters.
+// a few letters (#2106). A name longer than the chip was cut with an ellipsis
+// (#2134); it wraps instead.
+const LONG_NAME = "Mercury, the smallest planet in the solar system and the one that orbits closest to the Sun";
+
 it("shows the picked note's whole name on a phone", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
-	await seedVaultFile(obsidian, sandbox, "Planets/Mercury.md", "");
+	await seedVaultFile(obsidian, sandbox, `Planets/${LONG_NAME}.md`, "");
 
 	const choice = new CaptureChoice("Phone capture target");
 	choice.command = true;
@@ -153,15 +156,24 @@ it("shows the picked note's whole name on a phone", async () => {
 			'Boolean(document.querySelector(".qa-onepage-file-picker__chip"))',
 		), POLL_OPTS).toBe(true);
 
-		expect(await obsidian.dev.evalJson(`(() => {
+		const chip = await obsidian.dev.evalJson<{ name: string; cut: boolean; removeWidth: number; lineStarts: number; lines: number }>(`(() => {
+			// A phone's modal is the screen's width; 440px is an iPhone's.
+			document.querySelector(".onePageInputModal").style.setProperty("--dialog-width", "440px");
 			const label = document.querySelector(".qa-onepage-file-picker__chip-label");
 			const remove = document.querySelector(".qa-onepage-file-picker__remove");
+			const range = document.createRange();
+			range.selectNodeContents(label);
+			const lines = [...range.getClientRects()];
 			return {
 				name: label.textContent,
-				cut: label.scrollWidth > label.clientWidth,
+				cut: label.scrollWidth > label.clientWidth || label.getBoundingClientRect().right > label.closest(".qa-onepage-file-picker").getBoundingClientRect().right,
 				removeWidth: Math.round(remove.getBoundingClientRect().width),
+				lineStarts: new Set(lines.map((line) => Math.round(line.left))).size,
+				lines: new Set(lines.map((line) => Math.round(line.top))).size,
 			};
-		})()`)).toEqual({ name: "Mercury", cut: false, removeWidth: 22 });
+		})()`);
+		expect(chip).toMatchObject({ name: LONG_NAME, cut: false, removeWidth: 22, lineStarts: 1 });
+		expect(chip.lines).toBeGreaterThan(1);
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
 			[...document.querySelectorAll(".onePageInputModal button")].find((e) => e.textContent === "Cancel")?.click();
@@ -203,7 +215,7 @@ it("leaves no highlight showing for a match the ellipsis cuts off", async () => 
 			if (!mark) return null;
 			return {
 				match: mark.textContent,
-				cut: label.scrollWidth > label.clientWidth,
+				cut: label.scrollWidth > label.clientWidth || label.getBoundingClientRect().right > label.closest(".qa-onepage-file-picker").getBoundingClientRect().right,
 				background: getComputedStyle(mark).backgroundColor,
 			};
 		})()`), POLL_OPTS).toEqual({ match: "Zebra", cut: true, background: "rgba(0, 0, 0, 0)" });
