@@ -180,6 +180,70 @@ it("opens a macro's branch and Choice step as pages over it, and back returns to
 	expect(await storedThenCommands()).toHaveLength(1);
 });
 
+/** The aria-label of what has focus, once Obsidian and QuickAdd are done placing it. */
+const focusedLabel = () =>
+	getContext().obsidian.dev.evalJson<string | null>('document.activeElement?.getAttribute("aria-label") ?? null');
+
+/** Focus `selector` and open it with Enter, as a keyboard user does, then leave the page with Escape. */
+async function openAndLeaveWithKeyboard(selector: string, title: string) {
+	const { obsidian } = getContext();
+	const depth = (await pageTitles()).length;
+	expect(await obsidian.dev.evalJson<boolean>(`(() => {
+		const el = [...document.querySelectorAll(${jsLiteral(selector)})].pop();
+		el?.focus();
+		return document.activeElement === el;
+	})()`)).toBe(true);
+	await pressKey(obsidian, "Enter");
+	await expect.poll(async () => (await pageTitles()).at(-1), POLL_OPTS).toBe(title);
+	await pressKey(obsidian, "Escape");
+	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(depth);
+}
+
+it("comes back from a page where it was: the filter kept and focus on the control that opened it (#2150)", async () => {
+	const { obsidian } = getContext();
+	await seed(capture("Inbox", "pages-inbox"), capture("Journal", "pages-journal"), macroWithBranchAndStep());
+	await openSettings();
+
+	await typeInto(obsidian, 'input[placeholder="Filter choices..."]', "Jour");
+	await openAndLeaveWithKeyboard('[aria-label="Configure Journal"]', "Journal");
+	expect(await obsidian.dev.evalJson<string>(
+		'document.querySelector(\'input[placeholder="Filter choices..."]\').value',
+	)).toBe("Jour");
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("Configure Journal");
+
+	// New choice opens the new choice's page; back returns to the button.
+	await click(".qaFilterClearButton");
+	await click(".qaNewChoiceBtn.mod-cta");
+	await click(".menu-item");
+	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
+	await pressKey(obsidian, "Escape");
+	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("New choice");
+
+	// Nested pages return to the macro's button that opened them.
+	await openAndLeaveWithKeyboard('[aria-label="Configure Morning"]', "Morning");
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("Configure Morning");
+	await pressKey(obsidian, "Enter");
+	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning"]);
+	await openAndLeaveWithKeyboard('.macroBuilder [aria-label^="Edit then branch"]', "Then: $mood is truthy");
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("Edit then branch for $mood is truthy");
+	await openAndLeaveWithKeyboard('.macroBuilder [aria-label="Configure Log"]', "Log");
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("Configure Log");
+});
+
+it("comes back to New choice after adding the first choice (#2150)", async () => {
+	const { obsidian } = getContext();
+	await seed();
+	await openSettings();
+	// The empty list has its own New choice, replaced by the list's once a choice exists.
+	await click(".choiceEmptyActions .qaNewChoiceBtn");
+	await click(".menu-item");
+	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
+	await pressKey(obsidian, "Escape");
+	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
+	await expect.poll(focusedLabel, POLL_OPTS).toBe("New choice");
+});
+
 it("saves a nested page into its macro when settings is closed over both", async () => {
 	await seed(macroWithBranchAndStep());
 	await openSettings();
