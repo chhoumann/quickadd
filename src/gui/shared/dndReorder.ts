@@ -1,4 +1,4 @@
-import { SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
+import { type DndEvent, SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
 import { transformDragPill } from "./dragPill";
 
 /** Anything svelte-dnd-action can reorder in QuickAdd: it has a stable string id. */
@@ -79,6 +79,27 @@ export function moveById<T extends Reorderable>(
 	return next;
 }
 
+const nameLabel = (item: DragItem) => item.name ?? "";
+
+/**
+ * Turn the library's drag clone into the pill as a drag starts. The library
+ * does it once the zone renders the shadow item, which stripShadow leaves out,
+ * so a touch drag, which starts after the long-press without moving, showed
+ * the whole dragged row over the next one until the finger moved (#2136).
+ * Call from a zone's consider handler with the zone's resolveLabel.
+ */
+export function showDragPillOnStart<T extends DragItem>(
+	event: CustomEvent<DndEvent<T>>,
+	resolveLabel: (item: T) => string = nameLabel,
+): void {
+	if (event.detail.info.trigger !== TRIGGERS.DRAG_STARTED) return;
+	const dragged = event.detail.items.find((item) => item.id === SHADOW_PLACEHOLDER_ITEM_ID);
+	const zone = event.currentTarget as HTMLElement | null;
+	const clone = zone?.ownerDocument.getElementById("dnd-action-dragged-el");
+	if (!dragged || !clone) return;
+	transformDragPill(clone, resolveLabel(dragged), dragged.type === "Multi");
+}
+
 /**
  * Shared svelte-dnd-action options for QuickAdd's two drag zones (choices view + macro
  * builder). These options are COUPLED and must move together (see dragPill.ts):
@@ -104,7 +125,7 @@ export function baseDndOptions<T extends DragItem>(opts: {
 	type?: string;
 	dropTargetClasses?: string[];
 }) {
-	const resolveLabel = opts.resolveLabel ?? ((item: T) => item.name ?? "");
+	const resolveLabel = opts.resolveLabel ?? nameLabel;
 	return {
 		items: opts.items,
 		dragDisabled: opts.dragDisabled,
