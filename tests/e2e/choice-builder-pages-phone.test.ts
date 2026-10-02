@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
+import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
@@ -50,10 +51,14 @@ afterAll(async () => {
 }, 60_000);
 
 async function openMacroPage() {
+	await openChoicePage(new MacroChoice("Phone macro"));
+	await waitForElement(getContext().obsidian, ".macroBuilder .qa-command-sequence-input");
+}
+
+async function openChoicePage(choice: IChoice) {
 	const { obsidian, plugin } = getContext();
-	const macro = new MacroChoice("Phone macro");
 	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch((data) => {
-		data.choices = [macro];
+		data.choices = [choice];
 		// AI on adds the AI Assistant button, the widest quick-command bar.
 		data.disableOnlineFeatures = false;
 	});
@@ -66,14 +71,17 @@ async function openMacroPage() {
 	), { message: "settings closed", timeoutMs: 10_000 });
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
 	// A phone row has no gear: its menu has Configure.
-	await clickWhenStill(obsidian, '[aria-label="More options for Phone macro"]');
+	await clickWhenStill(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`);
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
 		const item = [...document.querySelectorAll(".menu-item")].find((el) => el.textContent.trim() === "Configure");
 		item?.setAttribute("data-qa-configure", "");
 		return Boolean(item);
 	})()`), { message: "the row menu's Configure", timeoutMs: 10_000 });
 	await clickWhenStill(obsidian, ".menu-item[data-qa-configure]");
-	await waitForElement(obsidian, ".macroBuilder .qa-command-sequence-input");
+	await expect.poll(
+		() => obsidian.dev.evalJson<string[]>("app.setting.pageStack.map((entry) => entry.page.title)"),
+		POLL_OPTS,
+	).toEqual([choice.name]);
 }
 
 it("fits the page to the phone and goes back to the QuickAdd tab, then the tab list", async () => {
@@ -146,5 +154,25 @@ it("keeps the focused field and its suggestions above the keyboard, under a head
 		await obsidian.dev.evalJson(
 			'document.documentElement.style.removeProperty("--keyboard-height"), app.setting.close(), true',
 		);
+	}
+});
+
+it("lines up the toggles on the right edge of their card (#2146)", async () => {
+	const { obsidian } = getContext();
+	try {
+		await openChoicePage(new CaptureChoice("Phone capture"));
+		// Rows whose only control is a toggle, with the toggle short of the edge.
+		expect(await obsidian.dev.evalJson<string[]>(`(() => {
+			const page = document.querySelector(".qa-builder-page");
+			return [...page.querySelectorAll(".setting-item")].flatMap((row) => {
+				const toggle = row.querySelector(":scope > .setting-item-control > .checkbox-container:only-child");
+				if (!toggle) return [];
+				const edge = row.getBoundingClientRect().right - parseFloat(getComputedStyle(row).paddingRight);
+				const short = edge - toggle.getBoundingClientRect().right;
+				return short > 0.5 ? [row.querySelector(".setting-item-name").textContent + ": " + Math.round(short) + "px"] : [];
+			});
+		})()`)).toEqual([]);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
 	}
 });
