@@ -16,6 +16,7 @@ import { openSettingPage, retitleSettingPage } from "../../utils/openPluginSetti
  */
 export abstract class BuilderPage<T> extends SettingPage {
 	private rendered = false;
+	private opener: Opener | null = null;
 
 	protected constructor(
 		protected readonly app: App,
@@ -31,6 +32,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 
 	/** Open over the settings page that is showing. False if Obsidian can't. */
 	open(): boolean {
+		this.opener = openerOf(activeDocument.activeElement);
 		if (openSettingPage(this.app, this)) return true;
 		new Notice(`QuickAdd: Couldn't open the settings for “${this.title}”.`);
 		return false;
@@ -53,6 +55,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 		this.destroy();
 		super.hide();
 		this.onSave(this.result());
+		if (this.opener) focusOpenerAfterBack(this.opener);
 	}
 
 	/** Save what the page holds now, and stay open. */
@@ -88,6 +91,43 @@ export abstract class BuilderPage<T> extends SettingPage {
 			});
 		});
 	}
+}
+
+/** The control a page was opened from. */
+interface Opener {
+	el: HTMLElement;
+	/** Obsidian's settings content, which it focuses when a page is left. */
+	content: Element | null;
+	focusVisible: boolean;
+}
+
+function openerOf(el: Element | null): Opener | null {
+	if (!el?.instanceOf(HTMLElement)) return null;
+	return {
+		el,
+		content: el.closest(".vertical-tab-content-container"),
+		focusVisible: el.matches(":focus-visible"),
+	};
+}
+
+/**
+ * Back from a page focuses the settings content, or the row the page was
+ * opened from, which for a choice is the whole choice list. Give focus to the
+ * control that opened the page instead (the gear, New choice, a macro's
+ * button), as a dialog did, so a keyboard user carries on from there. Only
+ * where Obsidian put focus on back: closing settings, switching tabs and
+ * search results leave it alone.
+ */
+function focusOpenerAfterBack({ el, content, focusVisible }: Opener): void {
+	// Obsidian focuses what is below after this page's hide() returns; with
+	// Escape, not before this task's microtasks have run, so wait a task.
+	window.setTimeout(() => {
+		const active = el.ownerDocument.activeElement;
+		const leftWithBack =
+			active !== null &&
+			(active === content || (active.matches(".setting-item") && active.contains(el)));
+		if (el.isConnected && leftWithBack) el.focus({ focusVisible });
+	});
 }
 
 /** The name to save from a Name field: trimmed, or `fallback` when empty. */
