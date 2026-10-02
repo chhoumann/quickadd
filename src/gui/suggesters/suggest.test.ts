@@ -466,6 +466,21 @@ describe("TextInputSuggest placement in a prompt", () => {
 		}
 	});
 
+	it("moves above when the keyboard comes up under an open list", async () => {
+		actions.remove();
+		geometry = { input: [400, 430], actionsTop: 0, listHeight: 100 };
+		await openSuggest();
+		expect(side()).toBe("below");
+
+		document.documentElement.style.setProperty("--keyboard-height", "345px");
+		try {
+			window.dispatchEvent(new Event("keyboardDidShow"));
+			expect(side()).toBe("above");
+		} finally {
+			document.documentElement.style.removeProperty("--keyboard-height");
+		}
+	});
+
 	it("stays below with the keyboard down", async () => {
 		actions.remove();
 		geometry = { input: [400, 430], actionsTop: 0, listHeight: 100 };

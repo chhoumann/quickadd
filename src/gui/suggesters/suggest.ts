@@ -293,6 +293,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private globalWheelListener: (event: WheelEvent) => void;
 	private globalScrollListener: (event: Event) => void;
 	private globalResizeListener: () => void;
+	private globalKeyboardListener: () => void;
 	private globalBlurListener: () => void;
 	private inputBlurListener: () => void;
 
@@ -382,6 +383,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			if (!this.suggestEl.contains(event.target as Node)) this.reposition();
 		};
 		this.globalResizeListener = this.close.bind(this);
+		// A list opened as its field took focus was placed before the keyboard
+		// came up; the keyboard does not always resize or scroll anything.
+		this.globalKeyboardListener = this.reposition.bind(this);
 		this.globalBlurListener = this.close.bind(this);
 	}
 
@@ -465,6 +469,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		inputDocument.addEventListener("wheel", this.globalWheelListener, true);
 		inputDocument.addEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.addEventListener("resize", this.globalResizeListener);
+		activeWindow.addEventListener("keyboardDidShow", this.globalKeyboardListener);
 		activeWindow.addEventListener("blur", this.globalBlurListener);
 	}
 
@@ -498,6 +503,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeDocument.removeEventListener("wheel", this.globalWheelListener, true);
 		activeDocument.removeEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.removeEventListener("resize", this.globalResizeListener);
+		activeWindow.removeEventListener("keyboardDidShow", this.globalKeyboardListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
 		// Intentionally keep this instance registered in instanceMap. close()
