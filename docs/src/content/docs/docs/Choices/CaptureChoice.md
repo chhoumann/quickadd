@@ -12,13 +12,14 @@ stay right where you are. Use it to:
 - Log work under the right heading of a project note
 - Save interesting links for later reading
 
-![The QuickAdd Capture builder, showing the Location and Position sections](../Images/choices/capture-builder.png)
+![The QuickAdd Capture builder page, showing the Name field and the Location, Position, and Linking sections](../Images/choices/capture-builder.png)
 
 ## Set up your first capture {#set-up}
 
 1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The
-   Capture builder opens; click its name at the top to rename it
-   `Add to journal`.
+   Capture builder opens as a page of the settings window; set **Name** to
+   `Add to journal`. (Before QuickAdd 2.30.0, the builder is a dialog; click
+   its name at the top to rename it.)
 2. Set **Capture to** to where entries should land, for example
    `Journal/{{DATE}}.md`.
 3. Turn on **Create file if it doesn't exist**, so the first capture of the

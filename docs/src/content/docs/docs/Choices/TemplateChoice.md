@@ -16,7 +16,7 @@ templates come from the Templater plugin, see
 [Coming from Templater](/docs/ComingFromTemplater/) for the QuickAdd-native way
 to do each familiar job.
 
-![The QuickAdd Template builder, showing the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
+![The QuickAdd Template builder page, showing the Name field and the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
 
 ## Set up your first template choice {#set-up}
 
@@ -33,15 +33,17 @@ to do each familiar job.
    ```
 
 2. Open **Settings → QuickAdd** and choose **New choice → Template**.
-3. Click the choice name at the top of the settings window. Rename it
-   `New book note` and confirm with **Ok**.
+3. The choice's settings open as a page of the settings window. Set **Name**
+   to `New book note`. (Before QuickAdd 2.30.0, they open in a dialog; click
+   the name at the top to rename it.)
 4. Set **Template path** to `Templates/Book.md`.
 5. In **File name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
 6. Set **New note location** to **In a specific folder**. Enter `Books` in
    **Folder path** and click **Add**.
 7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
    and **View mode** to **Live Preview**.
-8. Choose **Done** and close Settings.
+8. Close Settings. Leaving the page saves it. (Before QuickAdd 2.30.0, choose
+   **Done** first.)
 9. Run **QuickAdd: Run** from the command palette and pick `New book note`.
    Enter `Dune` for **title** and confirm with **Ok**.
 

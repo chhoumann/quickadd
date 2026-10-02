@@ -6,9 +6,9 @@ import { POLL_OPTS, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("macro-builder-layout");
 
-// #2128: on a phone Obsidian makes every input and button in a modal's setting
-// row full width, so a row's input and its Add button split it and the
-// placeholders were cut mid-word.
+// #2128: on a phone Obsidian makes every input and button in a setting row full
+// width, so a row's input and its Add button split it and the placeholders were
+// cut mid-word.
 it("gives the macro builder's inputs the row on a phone", async () => {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Phone layout macro");
@@ -45,12 +45,11 @@ it("gives the macro builder's inputs the row on a phone", async () => {
 		await obsidian.dev.evalJson(`(() => {
 			if (window.__qaPhoneClasses !== undefined) document.body.className = window.__qaPhoneClasses;
 			delete window.__qaPhoneClasses;
-			[...document.querySelectorAll(".macroBuilder button")].find((b) => b.textContent.trim() === "Done")?.click();
 			app.setting.close();
 			return true;
 		})()`);
 		await expect.poll(() => obsidian.dev.evalJson<number>(
-			'document.querySelectorAll(".modal-container").length',
+			'document.querySelectorAll(".macroBuilder").length',
 		), POLL_OPTS).toBe(0);
 	}
 });

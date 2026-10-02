@@ -171,7 +171,8 @@ describe("CaptureChoiceForm", () => {
 
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
-		const headerBefore = container.querySelector(".choiceNameHeaderButton");
+		const headerBefore = container.querySelector(".setting-item-heading");
+		expect(headerBefore).not.toBeNull();
 		expect(settingNames(container)).not.toContain("Insert after");
 
 		const select = selectUnderSetting(container, "Write position");
@@ -186,7 +187,7 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).not.toContain("Insert after");
 
 		// No full remount across all those conditional changes (#1130).
-		expect(container.querySelector(".choiceNameHeaderButton")).toBe(
+		expect(container.querySelector(".setting-item-heading")).toBe(
 			headerBefore,
 		);
 	});

@@ -6,7 +6,7 @@ import { CommandType } from "../../src/types/macros/CommandType";
 import type { ICommand } from "../../src/types/macros/ICommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { clickAt, insertText, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { clickAt, insertText, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // #1999: Capture format and File name have no toggle. An empty field means the
 // default ({{VALUE}} on its own, or the note-title prompt), and typing in it
@@ -36,28 +36,16 @@ function field(builderClass: string, label: string) {
 	})()`);
 }
 
-async function clickDone(builderClass: string) {
+async function leaveBuilder(builderClass: string) {
 	const { obsidian } = getContext();
-	const point = await obsidian.dev.evalJson<{ x: number; y: number }>(`(() => {
-		const button = [...document.querySelectorAll(".${builderClass} button")]
-			.find(b => b.textContent?.trim() === "Done");
-		const rect = button.getBoundingClientRect();
-		return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-	})()`);
-	await clickAt(obsidian, point.x, point.y);
+	await leaveSettingsPage(obsidian);
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
 		`Boolean(document.querySelector(".${builderClass}"))`,
 	), POLL_OPTS).toBe(false);
 }
 
 async function closeAll() {
-	await getContext().obsidian.dev.evalJson(`(() => {
-		for (const button of document.querySelectorAll(".quickAddModal button")) {
-			if (button.textContent?.trim() === "Done") button.click();
-		}
-		app.setting.close();
-		return true;
-	})()`);
+	await getContext().obsidian.dev.evalJson("app.setting.close(), true");
 }
 
 it("writes the value on its own until a Capture format is typed", async () => {
@@ -78,7 +66,7 @@ it("writes the value on its own until a Capture format is typed", async () => {
 		await openBuilder(choice.name, "captureChoiceBuilder");
 		expect(await field("captureChoiceBuilder", "Capture format")).toEqual({ value: "", hasToggle: false });
 		await typeInto(obsidian, ".captureChoiceBuilder .qa-field textarea", "- {{VALUE}}");
-		await clickDone("captureChoiceBuilder");
+		await leaveBuilder("captureChoiceBuilder");
 
 		await obsidian.exec("quickadd:run", { choice: choice.name, "value-value": "listed" });
 		await expect.poll(() => sandbox.read("Inbox.md"), POLL_OPTS).toContain("- listed");
@@ -113,7 +101,7 @@ it("keeps a Tab and a space typed first into an empty Capture format", async () 
 		expect(await box()).toBe("\t ");
 		await insertText(obsidian, "- {{VALUE}}");
 		expect(await box()).toBe("\t - {{VALUE}}");
-		await clickDone("captureChoiceBuilder");
+		await leaveBuilder("captureChoiceBuilder");
 		expect(await obsidian.dev.evalJson(
 			`app.plugins.plugins.quickadd.settings.choices.find(c => c.id === ${JSON.stringify(choice.id)}).format`,
 		)).toEqual({ enabled: true, format: "\t - {{VALUE}}" });
@@ -138,14 +126,14 @@ it("asks for the note title while File name is empty", async () => {
 		await openBuilder(choice.name, "templateChoiceBuilder");
 		expect(await field("templateChoiceBuilder", "File name")).toEqual({ value: "", hasToggle: false });
 		await typeInto(obsidian, ".templateChoiceBuilder .qa-field input[placeholder='{{VALUE}}']", "Log {{VALUE:topic}}");
-		await clickDone("templateChoiceBuilder");
+		await leaveBuilder("templateChoiceBuilder");
 		await obsidian.exec("quickadd:run", { choice: choice.name, "value-topic": "one" });
 		await expect.poll(() => sandbox.read("Notes/Log one.md").then(() => true, () => false), POLL_OPTS).toBe(true);
 
 		// Clearing the field returns to the note-title prompt.
 		await openBuilder(choice.name, "templateChoiceBuilder");
 		await typeInto(obsidian, ".templateChoiceBuilder .qa-field input[placeholder='{{VALUE}}']", "");
-		await clickDone("templateChoiceBuilder");
+		await leaveBuilder("templateChoiceBuilder");
 		expect(await obsidian.dev.evalJson(
 			`app.plugins.plugins.quickadd.settings.choices.find(c => c.id === ${JSON.stringify(choice.id)}).fileNameFormat`,
 		)).toEqual({ enabled: false, format: "" });

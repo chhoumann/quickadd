@@ -204,45 +204,36 @@ function updateCommand(command: ICommand) {
 	persist();
 }
 
-// The conditional handlers open a modal that MUTATES the passed command (its
-// condition / then- / else-commands). Because `command` is a $state proxy, that
-// mutation does NOT write through to the host's commandsRef — so we must persist it
-// here via the same snapshot path as every other edit (updateCommand -> saveCommands).
+// The conditional handlers open a modal or page that MUTATES the passed command
+// (its condition / then- / else-commands). Because `command` is a $state proxy,
+// that mutation does NOT write through to the host's commandsRef - so we must
+// persist it here via the same snapshot path as every other edit
+// (updateCommand -> saveCommands).
 async function configureConditionalCommand(command: IConditionalCommand) {
 	if (await onConfigureCondition?.(command)) updateCommand(command);
 }
 
-async function editConditionalThen(command: IConditionalCommand) {
-	if (await onEditThenBranch?.(command)) updateCommand(command);
+function editConditionalThen(command: IConditionalCommand) {
+	onEditThenBranch?.(command, () => updateCommand(command));
 }
 
-async function editConditionalElse(command: IConditionalCommand) {
-	if (await onEditElseBranch?.(command)) updateCommand(command);
+function editConditionalElse(command: IConditionalCommand) {
+	onEditElseBranch?.(command, () => updateCommand(command));
 }
 
-async function configureChoice(command: INestedChoiceCommand) {
-	const newChoice = await getChoiceBuilder(command.choice)?.waitForClose;
-	if (!newChoice) return;
-
-	// Immutable update (avoids mutating host-owned $state from this component).
-	const updated: INestedChoiceCommand = {
-		...command,
-		choice: newChoice,
-		name: newChoice.name,
+// The step's choice, as a page over the macro. Saved into the list when the page
+// is left, synchronously, so it is in before the macro page saves (BuilderPage).
+function configureChoice(command: INestedChoiceCommand) {
+	const onSave = (newChoice: IChoice) => {
+		// Immutable update (avoids mutating host-owned $state from this component).
+		const updated: INestedChoiceCommand = { ...command, choice: newChoice, name: newChoice.name };
+		updateCommand(updated);
 	};
-	updateCommand(updated);
-}
-
-function getChoiceBuilder(choice: IChoice) {
-	switch (choice.type) {
-		case "Template":
-			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
-		case "Capture":
-			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
-		case "Macro":
-		case "Multi":
-		default:
-			break;
+	const choice = command.choice;
+	if (choice.type === "Template") {
+		new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave).open();
+	} else if (choice.type === "Capture") {
+		new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave).open();
 	}
 }
 

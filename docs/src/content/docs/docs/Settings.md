@@ -10,7 +10,7 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 
 ![The Choices & packages section of QuickAdd settings: a filterable list of choices with Projects and Reading folders, row actions shown on hover for Add to journal, the New folder and New choice buttons, and the Export package… and Import package… buttons](./Images/settings-choices-and-packages.png)
 
-- **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
+- **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. Click the gear on a choice's row (on a phone, **⋮** → **Configure**) to open its settings as a page of this window; going back or closing Settings saves them (QuickAdd 2.30.0 or later; earlier versions open a dialog). See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
 - **Packages** - share a set of choices with someone else, or bring theirs in. Use **Export package…** to bundle your choices into a file, and **Import package…** to add someone else's. See [Share QuickAdd Packages](/docs/Choices/Packages/).
 
 ## Input {#input}

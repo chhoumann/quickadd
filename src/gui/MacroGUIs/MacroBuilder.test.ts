@@ -15,8 +15,24 @@ vi.mock("./CommandSequenceEditor", () => ({
 
 import { App } from "obsidian";
 import type QuickAdd from "../../main";
+import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import { MacroBuilder } from "./MacroBuilder";
+
+const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
+
+/** The builder page, displayed as Obsidian displays it when it opens. */
+function openPage(choice: IMacroChoice, onSave: (choice: IMacroChoice) => void = () => {}) {
+	const page = new MacroBuilder(new App(), plugin, choice, [], onSave);
+	page.display();
+	return page;
+}
+
+/** The rows of the page's last settings group, Behavior. */
+function behaviorRows(page: MacroBuilder): Element[] {
+	const groups = Array.from(page.containerEl.children);
+	return Array.from(groups.at(-1)?.lastElementChild?.children ?? []);
+}
 
 describe("MacroBuilder", () => {
 	afterEach(() => {
@@ -24,47 +40,34 @@ describe("MacroBuilder", () => {
 	});
 
 	it("keeps the optional icon override after macro behavior settings", () => {
-		const choice = new MacroChoice("Macro under test");
-		const modal = new MacroBuilder(
-			new App(),
-			{ settings: { choices: [] } } as unknown as QuickAdd,
-			choice,
-			[],
-		);
-		const children = Array.from(modal.contentEl.children);
+		const page = openPage(new MacroChoice("Macro under test"));
+		const rows = behaviorRows(page);
 
-		expect(modal.contentEl.textContent).toContain("Which day");
-		expect(modal.contentEl.textContent).toContain("Ask each time");
-		expect(children.at(-3)?.textContent).toContain("Run on startup");
-		expect(children.at(-2)?.textContent).toContain("Add to command palette");
-		expect(children.at(-1)?.textContent).toContain("Icon");
-		expect(children.at(-1)?.textContent).toContain(
-			"Lucide/Obsidian icon id",
-		);
+		expect(page.containerEl.textContent).toContain("Which day");
+		expect(page.containerEl.textContent).toContain("Ask each time");
+		expect(rows.at(-3)?.textContent).toContain("Run on startup");
+		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
+		expect(rows.at(-1)?.textContent).toContain("Icon");
+		expect(rows.at(-1)?.textContent).toContain("Lucide/Obsidian icon id");
 	});
 
 	it("offers the pick-a-day command only once the macro is a command", () => {
 		const choice = new MacroChoice("Macro under test");
-		const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
-		const off = new MacroBuilder(new App(), plugin, choice, []);
-		expect(off.contentEl.textContent).not.toContain("(pick a day)");
+		expect(openPage(choice).containerEl.textContent).not.toContain("(pick a day)");
 
 		choice.command = true;
-		const on = new MacroBuilder(new App(), plugin, choice, []);
-		expect(on.contentEl.textContent).toContain(
+		expect(openPage(choice).containerEl.textContent).toContain(
 			'Also add "Macro under test (pick a day)"',
 		);
 
 		choice.dateOrigin = { kind: "ask" };
-		const ask = new MacroBuilder(new App(), plugin, choice, []);
-		expect(ask.contentEl.textContent).not.toContain("(pick a day)");
+		expect(openPage(choice).containerEl.textContent).not.toContain("(pick a day)");
 	});
 
 	it("edits and restores the macro one-page input override", () => {
 		const choice = new MacroChoice("Macro under test");
-		const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
-		const modal = new MacroBuilder(new App(), plugin, choice, []);
-		const select = modal.contentEl.querySelector<HTMLSelectElement>("select");
+		const page = openPage(choice);
+		const select = page.containerEl.querySelector<HTMLSelectElement>("select");
 		if (!select) throw new Error("Missing one-page input dropdown");
 		expect(Array.from(select.options, (option) => option.text)).toEqual([
 			"Follow global setting",
@@ -77,98 +80,71 @@ describe("MacroBuilder", () => {
 			select.value = value;
 			select.dispatchEvent(new Event("change"));
 			expect(choice.onePageInput).toBe(value || undefined);
-			const reopened = new MacroBuilder(new App(), plugin, choice, []);
-			expect(reopened.contentEl.querySelector("select")?.value).toBe(value);
+			const reopened = openPage(choice);
+			expect(reopened.containerEl.querySelector("select")?.value).toBe(value);
 		}
 	});
 
 	it("shows the ask picker default and keeps icon last", () => {
 		const choice = new MacroChoice("Macro under test");
 		choice.dateOrigin = { kind: "ask", defaultValue: "last week" };
-		const modal = new MacroBuilder(
-			new App(),
-			{ settings: { choices: [] } } as unknown as QuickAdd,
-			choice,
-			[],
-		);
-		const children = Array.from(modal.contentEl.children);
+		const page = openPage(choice);
+		const rows = behaviorRows(page);
 
-		expect(modal.contentEl.textContent).toContain("Picker starts on");
-		expect(modal.contentEl.textContent).toContain("Last week");
-		expect(children.at(-2)?.textContent).toContain("Add to command palette");
-		expect(children.at(-1)?.textContent).toContain("Icon");
+		expect(page.containerEl.textContent).toContain("Picker starts on");
+		expect(page.containerEl.textContent).toContain("Last week");
+		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
+		expect(rows.at(-1)?.textContent).toContain("Icon");
 	});
 
 	it("shows a custom offset only for unmatched relatives", () => {
 		const choice = new MacroChoice("Macro under test");
 		choice.dateOrigin = { kind: "relative", offset: -3, unit: "days" };
-		const modal = new MacroBuilder(
-			new App(),
-			{ settings: { choices: [] } } as unknown as QuickAdd,
-			choice,
-			[],
-		);
+		const page = openPage(choice);
 
-		expect(modal.contentEl.textContent).toContain("How far from today");
-		expect(modal.contentEl.textContent).toContain("Custom…");
+		expect(page.containerEl.textContent).toContain("How far from today");
+		expect(page.containerEl.textContent).toContain("Custom…");
 	});
 
-	// #1545: the builder autosaves on close but never said so, and had no
-	// completion affordance at all.
-	it("pins one autosave footer that survives a content rebuild", () => {
-		const modal = new MacroBuilder(
-			new App(),
-			{ settings: { choices: [] } } as unknown as QuickAdd,
-			new MacroChoice("Macro under test"),
-			[],
-		);
+	it("renames the choice and its macro from the Name field and retitles the page", () => {
+		const choice = new MacroChoice("Macro under test");
+		const page = openPage(choice);
+		const name = page.containerEl.querySelector<HTMLInputElement>("input");
+		if (!name) throw new Error("Missing Name field");
+		expect(name.value).toBe("Macro under test");
 
-		const footers = () =>
-			Array.from(modal.modalEl.querySelectorAll(".qa-builder-footer"));
-		expect(footers()).toHaveLength(1);
-		expect(footers()[0].textContent).toContain(
-			"Changes to this macro are saved automatically",
-		);
-		// Outside modal-content, so it stays put while the settings scroll.
-		expect(modal.contentEl.querySelector(".qa-builder-footer")).toBeNull();
+		name.value = "Renamed macro";
+		name.dispatchEvent(new Event("input"));
 
-		// reload() empties contentEl and re-runs display(); the footer is neither
-		// dropped nor duplicated.
-		(modal as unknown as { reload: () => void }).reload();
-		expect(footers()).toHaveLength(1);
-
-		const done = footers()[0].querySelector("button") as HTMLButtonElement;
-		const close = vi.spyOn(modal, "close").mockImplementation(() => {});
-		done.click();
-		expect(close).toHaveBeenCalledTimes(1);
+		expect(choice.name).toBe("Renamed macro");
+		expect(choice.macro.name).toBe("Renamed macro");
+		expect(page.title).toBe("Renamed macro");
 	});
 
-	// The Template and Capture builders' title (ChoiceNameHeader.svelte) shows a
-	// pencil next to the name; the Macro builder's title must match it.
-	it("renders the title like ChoiceNameHeader, with a pencil rename icon", () => {
-		const modal = new MacroBuilder(
-			new App(),
-			{ settings: { choices: [] } } as unknown as QuickAdd,
-			new MacroChoice("Macro under test"),
-			[],
-		);
+	it("saves when the page is left, keeping the old name for an empty one", () => {
+		const choice = new MacroChoice("Macro under test");
+		const onSave = vi.fn();
+		const page = openPage(choice, onSave);
+		const name = page.containerEl.querySelector<HTMLInputElement>("input");
+		if (!name) throw new Error("Missing Name field");
 
-		const heading = modal.contentEl.querySelector("h2");
-		expect(heading?.classList.contains("choiceNameHeader")).toBe(true);
+		name.value = "  ";
+		name.dispatchEvent(new Event("input"));
+		expect(page.title).toBe("Macro under test");
+		expect(onSave).not.toHaveBeenCalled();
 
-		const button = heading?.querySelector("button.qa-rename-title-button");
-		expect(button?.classList.contains("choiceNameHeaderButton")).toBe(true);
-		expect(button?.getAttribute("aria-label")).toBe("Rename Macro under test");
-		expect(
-			button?.querySelector(".choiceNameHeaderText")?.textContent,
-		).toBe("Macro under test");
+		page.hide();
+		expect(onSave).toHaveBeenCalledTimes(1);
+		expect(onSave.mock.calls[0][0]).toMatchObject({
+			name: "Macro under test",
+			macro: { name: "Macro under test" },
+		});
+	});
 
-		const icon = button?.querySelector(".choiceNameHeaderIcon");
-		expect(icon?.getAttribute("aria-hidden")).toBe("true");
-		const svg = icon?.querySelector("svg");
-		expect(svg?.getAttribute("data-icon")).toBe("pencil");
-		expect(svg?.getAttribute("width")).toBe("16");
-		// The icon is decorative: the button's visible text is still just the name.
-		expect(button?.textContent).toBe("Macro under test");
+	it("renders once, so coming back from a page over it keeps its content", () => {
+		const page = openPage(new MacroChoice("Macro under test"));
+		const first = page.containerEl.firstElementChild;
+		page.display();
+		expect(page.containerEl.firstElementChild).toBe(first);
 	});
 });

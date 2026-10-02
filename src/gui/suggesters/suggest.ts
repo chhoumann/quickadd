@@ -35,8 +35,8 @@ function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number):
  * the 500px cap Obsidian puts on `.suggestion-container`; the text prompt's
  * input is wider), but at least `MIN_LIST_WIDTH_PX` or the viewport's width.
  * It opens below the input, and above it when the visible viewport has room
- * there and either `prefersAbove` or there is no room below. Horizontally it
- * stays inside the viewport.
+ * there and either `prefersAbove` or there is no room below (above the
+ * on-screen keyboard on a phone). Horizontally it stays inside the viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
@@ -56,9 +56,19 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	listEl.style.top = "0px";
 	const origin = listEl.getBoundingClientRect();
 
+	// On a phone the on-screen keyboard covers the bottom of the screen without
+	// always shrinking the visual viewport (Android leaves it full height).
+	// Obsidian lays its own UI out above `100vh - var(--keyboard-height)`.
+	const keyboardHeight =
+		parseFloat(getComputedStyle(doc.documentElement).getPropertyValue("--keyboard-height")) || 0;
+	const visibleBottom = Math.min(
+		viewport.offsetTop + viewport.height,
+		doc.documentElement.clientHeight - keyboardHeight,
+	);
+
 	const below = input.bottom + LIST_GAP_PX;
 	const above = input.top - LIST_GAP_PX - origin.height;
-	const fitsBelow = below + origin.height <= viewport.offsetTop + viewport.height;
+	const fitsBelow = below + origin.height <= visibleBottom;
 	const fitsAbove = above >= viewport.offsetTop;
 	const top = fitsAbove && (!fitsBelow || prefersAbove(inputEl, input, origin.height)) ? above : below;
 	const left = Math.max(
@@ -283,6 +293,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private globalWheelListener: (event: WheelEvent) => void;
 	private globalScrollListener: (event: Event) => void;
 	private globalResizeListener: () => void;
+	private globalKeyboardListener: () => void;
 	private globalBlurListener: () => void;
 	private inputBlurListener: () => void;
 
@@ -372,6 +383,9 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			if (!this.suggestEl.contains(event.target as Node)) this.reposition();
 		};
 		this.globalResizeListener = this.close.bind(this);
+		// A list opened as its field took focus was placed before the keyboard
+		// came up; the keyboard does not always resize or scroll anything.
+		this.globalKeyboardListener = this.reposition.bind(this);
 		this.globalBlurListener = this.close.bind(this);
 	}
 
@@ -455,6 +469,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		inputDocument.addEventListener("wheel", this.globalWheelListener, true);
 		inputDocument.addEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.addEventListener("resize", this.globalResizeListener);
+		activeWindow.addEventListener("keyboardDidShow", this.globalKeyboardListener);
 		activeWindow.addEventListener("blur", this.globalBlurListener);
 	}
 
@@ -488,6 +503,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		activeDocument.removeEventListener("wheel", this.globalWheelListener, true);
 		activeDocument.removeEventListener("scroll", this.globalScrollListener, true);
 		activeWindow.removeEventListener("resize", this.globalResizeListener);
+		activeWindow.removeEventListener("keyboardDidShow", this.globalKeyboardListener);
 		activeWindow.removeEventListener("blur", this.globalBlurListener);
 
 		// Intentionally keep this instance registered in instanceMap. close()

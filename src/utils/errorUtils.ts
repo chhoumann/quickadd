@@ -60,7 +60,7 @@ export function isCancellationError(error: unknown): boolean {
  */
 const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
 	"no input given.", // GenericSuggester, InputSuggester, GenericCheckboxPrompt, MultiSuggester
-	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal, MultiChoiceSettingsModal
+	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal
 	"cancelled", // OnePageInputModal
 ]);
 

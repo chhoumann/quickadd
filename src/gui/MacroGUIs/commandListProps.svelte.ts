@@ -24,8 +24,9 @@ export interface CommandListProps {
 	// Return true when the command was changed so CommandList persists it (the
 	// handler mutates the command; CommandList snapshots+saves — see CommandList.svelte).
 	onConfigureCondition?: (command: IConditionalCommand) => boolean | Promise<boolean>;
-	onEditThenBranch?: (command: IConditionalCommand) => boolean | Promise<boolean>;
-	onEditElseBranch?: (command: IConditionalCommand) => boolean | Promise<boolean>;
+	// Branch pages mutate the command when left, then call onEdited.
+	onEditThenBranch?: (command: IConditionalCommand, onEdited: () => void) => void;
+	onEditElseBranch?: (command: IConditionalCommand, onEdited: () => void) => void;
 }
 
 /**

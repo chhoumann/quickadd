@@ -53,7 +53,6 @@ it("keeps the names of the ordered placement rows on one line", async () => {
 		});
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			document.querySelectorAll(".captureChoiceBuilder button").forEach(b => b.textContent?.trim() === "Done" && b.click());
 			app.setting.close();
 			return true;
 		})()`);

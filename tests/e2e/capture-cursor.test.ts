@@ -59,11 +59,6 @@ async function state(path: string) {
 
 async function closeCaptureBuilders() {
 	await getContext().obsidian.dev.evalJson(`(() => {
-		for (const builder of [...document.querySelectorAll(".captureChoiceBuilder")]) {
-			const done = [...builder.querySelectorAll("button.mod-cta")]
-				.find(button => button.textContent?.trim() === "Done");
-			done?.click();
-		}
 		app.setting?.close?.();
 		return true;
 	})()`);

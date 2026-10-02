@@ -47,9 +47,6 @@ it("keeps the format's line breaks in the Capture format preview", async () => {
 		});
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			for (const builder of document.querySelectorAll(".captureChoiceBuilder")) {
-				[...builder.querySelectorAll("button.mod-cta")].find(b => b.textContent?.trim() === "Done")?.click();
-			}
 			app.setting?.close?.();
 			return true;
 		})()`);

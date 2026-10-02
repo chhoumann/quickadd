@@ -9,6 +9,7 @@ import {
 	testProviderConnection,
 } from "src/ai/providerConnection";
 import { settingsStore } from "src/settingsStore";
+import { retitleSettingPage } from "src/utils/openPluginSettings";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { confirmAction } from "../confirmAction";
 import { ModelDirectoryModal } from "../ModelDirectoryModal";
@@ -154,19 +155,6 @@ export class AIProviderSettingPage extends SettingPage {
 		if (this.connectionResultEl) setStatusLine(this.connectionResultEl, "");
 	}
 
-	/**
-	 * Keep the page's titles in step with a rename: the inline title here, and
-	 * the settings window's own title, which Obsidian shows as the header on
-	 * phones and only sets when a page opens.
-	 */
-	private retitle(title: string): void {
-		this.title = title;
-		this.titlebarEl.querySelector(".setting-page-title")?.setText(title);
-		(
-			this.app as unknown as { setting?: { updatePageTitle?: () => void } }
-		).setting?.updatePageTitle?.();
-	}
-
 	/** Leave this page for the one that opened it (the AI Assistant page). */
 	private close(): void {
 		const setting = (
@@ -190,7 +178,7 @@ export class AIProviderSettingPage extends SettingPage {
 				.addText((text) => {
 					text.setValue(provider.name).onChange((value) => {
 						this.edit((p) => ({ ...p, name: value }));
-						this.retitle(value.trim() || "Untitled provider");
+						retitleSettingPage(this.app, this, value.trim() || "Untitled provider");
 					});
 				});
 		});

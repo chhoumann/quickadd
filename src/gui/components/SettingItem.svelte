@@ -16,6 +16,7 @@ let {
 	labelFor = undefined,
 	control = undefined,
 	children = undefined,
+	body = undefined,
 }: {
 	name?: string;
 	/** Plain-text description (matches Obsidian `setDesc(string)` = textContent). */
@@ -33,10 +34,24 @@ let {
 	control?: Snippet | undefined;
 	/** Alias for `control` so the row can be used with default slot content. */
 	children?: Snippet | undefined;
+	/**
+	 * A full-width field on its own line under the name (see LabeledField).
+	 * Inside the row, so a settings page's Tab and arrow keys treat it as part
+	 * of the row, as they do a control.
+	 */
+	body?: Snippet | undefined;
 } = $props();
 </script>
 
-<div class="setting-item" class:setting-item-heading={heading}>
+<!-- tabindex -1, as Obsidian's own rows: a settings page focuses rows on Tab
+     and the arrow keys. Never 0 or more, so not a stop for the browser's Tab. -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div
+	class="setting-item"
+	class:setting-item-heading={heading}
+	class:qa-field={body !== undefined}
+	tabindex={heading ? undefined : -1}
+>
 	<div class="setting-item-info">
 		{#if name}
 			{#if labelFor}
@@ -50,4 +65,5 @@ let {
 	<div class="setting-item-control">
 		{@render (control ?? children)?.()}
 	</div>
+	{#if body}<div class="qa-field-body">{@render body()}</div>{/if}
 </div>

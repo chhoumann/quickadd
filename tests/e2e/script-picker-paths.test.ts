@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 
 // #941/#942: two `view.js` files in different folders were identical "view" rows
 // in both script pickers, and picking the second one from the inline typeahead
@@ -94,18 +94,18 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await pressKey(obsidian, "Enter");
 
 		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress, books]);
-		// Closing the builder saves through a debounce; wait for it on disk so the
-		// harness's data restore can't race it. Click Done rather than pressing
+		// Leaving the builder saves through a debounce; wait for it on disk so the
+		// harness's data restore can't race it. Click back rather than pressing
 		// Escape: focus returns to the typeahead after Browse, and an Escape there
-		// doesn't always reach the builder.
-		expect(await click(".macroBuilder button", "Done")).toBe(true);
+		// leaves the field first.
+		await leaveSettingsPage(obsidian);
 		await expect.poll(() => obsidian.dev.evalJsonAsync<unknown>(`(async () => {
 			const p = app.plugins.plugins.quickadd;
 			const data = JSON.parse(await app.vault.adapter.read(p.manifest.dir + "/data.json"));
 			return data.choices[0].macro.commands.map((c) => c.path);
 		})()`), POLL_OPTS).toEqual([progress, books]);
 	} finally {
-		await obsidian.dev.evalJson(`(() => { document.querySelectorAll(".macroBuilder").forEach((builder) => Array.from(builder.querySelectorAll("button")).find((button) => button.textContent.trim() === "Done")?.click()); app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
+		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
 	}
 
 	await obsidian.dev.evalJson("(() => { window.__qaScriptPickerRuns = []; return true; })()");

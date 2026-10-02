@@ -2,43 +2,59 @@ import { describe, expect, it, vi, afterEach } from "vitest";
 
 vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
-// The builder and rename prompt, held open while settings synced from another
-// device land.
-const { configureChoiceMock, promptRenameChoiceMock } = vi.hoisted(() => ({
-	configureChoiceMock: vi.fn(),
+// The rename prompt, held open while settings synced from another device land.
+const { promptRenameChoiceMock } = vi.hoisted(() => ({
 	promptRenameChoiceMock: vi.fn(),
-}));
-vi.mock("../../services/choiceService", async (importOriginal) => ({
-	...(await importOriginal<typeof ChoiceServiceModule>()),
-	configureChoice: configureChoiceMock,
 }));
 vi.mock("../choiceRename", () => ({ promptRenameChoice: promptRenameChoiceMock }));
 
-import { App, Menu, Notice } from "obsidian";
-import type * as ChoiceServiceModule from "../../services/choiceService";
+import { App, Menu, Notice, type SettingPage } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import ChoiceView from "./ChoiceView.svelte";
 import { settingsStore } from "../../settingsStore";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
+import type { BuilderPage } from "../ChoiceBuilder/builderPage";
+import { CaptureChoice } from "../../types/choices/CaptureChoice";
 
-type CaptureLike = IChoice & { captureTo: string };
+type CaptureLike = IChoice & { captureTo: string; activeFileWritePosition?: string };
 
+// A full Capture choice, so the builder's form mounts, saved before
+// activeFileWritePosition existed: the builder fills it in as it opens.
 const inbox: CaptureLike = {
+	...JSON.parse(JSON.stringify(new CaptureChoice("Inbox"))),
 	id: "inbox",
-	name: "Inbox",
-	type: "Capture",
-	command: false,
 	captureTo: "Inbox.md",
 };
+delete inbox.activeFileWritePosition;
 const journal: CaptureLike = { ...inbox, id: "journal", name: "Journal", captureTo: "Journal.md" };
 
+const notices = () =>
+	(Notice as unknown as { instances: Array<{ message: string }> }).instances.map(
+		(notice) => notice.message,
+	);
+const DELETED = "QuickAdd: “Inbox” was deleted elsewhere, so your changes to it were not saved.";
+
 function renderChoiceView() {
-	const plugin = { addCommandForChoice: vi.fn(), removeCommandForChoice: vi.fn() };
+	const plugin = {
+		addCommandForChoice: vi.fn(),
+		removeCommandForChoice: vi.fn(),
+		getTemplateFiles: () => [],
+		settings: { choices: [] },
+	};
+	// Obsidian's settings window: opening a page displays it.
+	let page: BuilderPage<IChoice> | undefined;
+	const app = new App() as App & { setting: { openPage: (opened: SettingPage) => void } };
+	app.setting = {
+		openPage: (opened) => {
+			page = opened as BuilderPage<IChoice>;
+			opened.display();
+		},
+	};
 	const { getByLabelText } = render(ChoiceView, {
 		props: {
-			app: new App() as never,
+			app: app as never,
 			plugin: plugin as unknown as QuickAdd,
 			choices: settingsStore.getState().choices,
 			// Production wiring: the view saves into the settings store.
@@ -48,75 +64,89 @@ function renderChoiceView() {
 			openAISettings: vi.fn(),
 		},
 	});
-	return { getByLabelText, plugin };
+	return { getByLabelText, plugin, page: () => page };
 }
 
-function openBuilderOn(name: string): (edit: Partial<CaptureLike>) => void {
-	let finish: (choice: IChoice) => void = () => {};
-	let opened: IChoice | undefined;
-	configureChoiceMock.mockImplementation((choice: IChoice & { openInNewTab?: boolean }) => {
-		// Like the real builders: backfill a missing default on the choice
-		// itself, synchronously, as the builder opens.
-		choice.openInNewTab ??= false;
-		opened = JSON.parse(JSON.stringify(choice)) as IChoice;
-		return new Promise<IChoice>((resolve) => {
-			finish = resolve;
-		});
-	});
-
-	const { getByLabelText } = renderChoiceView();
-	void fireEvent.click(getByLabelText(`Configure ${name}`));
-	return (edit) => finish({ ...(opened as IChoice), ...edit } as IChoice);
+/** Open the builder page for `name` and return it with its Name field. */
+async function openBuilderOn(name: string) {
+	const view = renderChoiceView();
+	await fireEvent.click(view.getByLabelText(`Configure ${name}`));
+	const page = view.page();
+	if (!page) throw new Error("No builder page opened");
+	const nameField = page.containerEl.querySelector<HTMLInputElement>("input");
+	if (!nameField) throw new Error("Missing Name field");
+	const rename = (value: string) => fireEvent.input(nameField, { target: { value } });
+	return { page, rename, plugin: view.plugin };
 }
+
+const stored = (id: string) =>
+	settingsStore.getState().choices.find((choice) => choice.id === id) as CaptureLike | undefined;
 
 describe("ChoiceView builder and settings synced from elsewhere (#2003)", () => {
 	const initialState = settingsStore.getState();
 
 	afterEach(() => {
 		settingsStore.setState(initialState, true);
-		configureChoiceMock.mockReset();
 		promptRenameChoiceMock.mockReset();
 		(Notice as unknown as { instances: unknown[] }).instances.length = 0;
 	});
 
-	it("keeps another device's edit to the same choice when its builder closes", async () => {
+	it("keeps another device's edit to the same choice when its builder is left", async () => {
 		settingsStore.setState({ choices: [inbox, journal] });
-		const closeBuilder = openBuilderOn("Inbox");
-		await vi.waitFor(() => expect(configureChoiceMock).toHaveBeenCalled());
+		const { page, rename } = await openBuilderOn("Inbox");
 
-		// While the builder is open, the other device renames this choice, sets
-		// the field the builder backfilled, and changes the other choice.
+		// While the builder is open, the other device changes the capture target,
+		// sets the field the builder backfilled, and changes the other choice.
 		settingsStore.setState({
 			choices: [
-				{ ...inbox, name: "Inbox (phone)", openInNewTab: true } as IChoice,
+				{ ...inbox, captureTo: "Phone.md", activeFileWritePosition: "top" } as IChoice,
 				{ ...journal, captureTo: "Daily.md" } as IChoice,
 			],
 		});
-		// Here, only the capture target was edited.
-		closeBuilder({ captureTo: "Later.md" });
+		// Here, only the name was edited.
+		await rename("Inbox (here)");
+		expect(page.containerEl.querySelector(".qaMountFailed")).toBeNull();
+		page.hide();
 
-		await vi.waitFor(() =>
-			expect(settingsStore.getState().choices).toEqual([
-				{ ...inbox, name: "Inbox (phone)", openInNewTab: true, captureTo: "Later.md" },
-				{ ...journal, captureTo: "Daily.md" },
-			]),
-		);
+		expect(stored("inbox")).toMatchObject({
+			name: "Inbox (here)",
+			captureTo: "Phone.md",
+			activeFileWritePosition: "top",
+		});
+		expect(stored("journal")).toMatchObject({ captureTo: "Daily.md" });
 	});
 
-	it("says so instead of saving when the choice was deleted elsewhere", async () => {
+	it("saves in place when the app goes to the background, and again when left", async () => {
 		settingsStore.setState({ choices: [inbox, journal] });
-		const closeBuilder = openBuilderOn("Inbox");
-		await vi.waitFor(() => expect(configureChoiceMock).toHaveBeenCalled());
+		const { page, rename } = await openBuilderOn("Inbox");
+
+		await rename("Checkpoint");
+		page.save();
+		expect(stored("inbox")?.name).toBe("Checkpoint");
+
+		// After the checkpoint another device edits the choice, and here the
+		// name goes back to what it was: both land, and the revert is an edit.
+		settingsStore.setState({
+			choices: [{ ...stored("inbox"), captureTo: "Phone.md" } as IChoice, journal],
+		});
+		await rename("Inbox");
+		page.hide();
+
+		expect(stored("inbox")).toMatchObject({ name: "Inbox", captureTo: "Phone.md" });
+		expect(notices()).not.toContain(DELETED);
+	});
+
+	it("says once that the choice was deleted elsewhere, and does not bring it back", async () => {
+		settingsStore.setState({ choices: [inbox, journal] });
+		const { page, rename } = await openBuilderOn("Inbox");
+		await rename("Edited");
 
 		settingsStore.setState({ choices: [journal] });
-		closeBuilder({ captureTo: "Later.md" });
+		page.save();
+		page.save();
+		page.hide();
 
-		const notices = (Notice as unknown as { instances: Array<{ message: string }> }).instances;
-		await vi.waitFor(() =>
-			expect(notices.map((notice) => notice.message)).toContain(
-				"QuickAdd: “Inbox” was deleted elsewhere, so your changes to it were not saved.",
-			),
-		);
+		expect(notices().filter((message) => message === DELETED)).toHaveLength(1);
 		expect(settingsStore.getState().choices).toEqual([journal]);
 	});
 
