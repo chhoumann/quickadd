@@ -7,7 +7,7 @@ package: meeting-notes
 
 Create a dated meeting note, answer one question, and start typing under **Notes**. Then use the same `{{CURSOR}}` marker to add an update to an existing project note.
 
-These examples require QuickAdd 2.27.0 or later, and the package above QuickAdd 2.30.0 or later. They use QuickAdd's own templates, so you do not need Templater.
+These examples require QuickAdd 2.27.0 or later, and the package above needs QuickAdd 2.30.0 or later. They use QuickAdd's own templates, so you do not need Templater.
 
 ## Create the meeting template
 
