@@ -102,13 +102,21 @@ const everyChoiceIsCommand = commandNote !== "";
 // The import screen asks you to open each bundled file that can run before you
 // acknowledge it. In these packages that is exactly the scripts;
 // tests/examplePackages.test.ts fails if a template ever needs review too.
+// Before 2.30.0 the import screen also asked for any file that is not a note,
+// such as a .base, so readers on an older version get that step too.
+const olderAlsoReviewed = templates.filter((asset) => !/\.md$/i.test(asset.originalPath));
+const olderNote = olderAlsoReviewed.length === 0
+	? ""
+	: ` Before QuickAdd 2.30.0, the import screen also marks ${joinList(
+			olderAlsoReviewed.map((asset) => `\`${asset.originalPath}\``),
+		)} as **Executable**: open ${olderAlsoReviewed.length === 1 ? "it" : "each one"} with **View contents** and tick the acknowledgement before **Import package**.`;
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
-	if (scripts.length === 0) return `${lead} Click **Import package**.`;
+	if (scripts.length === 0) return `${lead} Click **Import package**.${olderNote}`;
 	const one = scripts.length === 1;
 	return `${lead} Under **Files**, open **View contents** on ${
 		one ? "the file" : "each file"
-	} marked **Executable** to read it. If you trust ${one ? "it" : "them"}, tick the acknowledgement, then click **Import package**.`;
+	} marked **Executable** to read it. If you trust ${one ? "it" : "them"}, tick the acknowledgement, then click **Import package**.${olderNote}`;
 })();
 
 /**
