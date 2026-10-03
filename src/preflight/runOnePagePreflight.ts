@@ -24,6 +24,7 @@ import { dateOriginForPick } from "src/types/dateOriginPresets";
 import { planDateOrigin } from "src/utils/resolveDateOrigin";
 import { buildDiscoveryFormPlan, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { hasActivePreparedChoiceInputs } from "./preparedChoiceInputs";
+import { createFillFromText } from "./createFillFromText";
 
 /**
  * The clocks the run will format `{{DATE}}` with, resolved from the choice's
@@ -232,6 +233,7 @@ export async function runOnePagePreflight(
 				choiceExecutor.variables,
 				computePreview,
 				discoveryPlan?.config,
+				createFillFromText(app, plugin, choiceExecutor, choice),
 			);
 			values = await modal.waitForClose;
 		}
