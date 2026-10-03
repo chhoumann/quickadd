@@ -1748,6 +1748,37 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	gap: 0.5rem;
 }
 
+/* The calendar button sits inside the date text box. The box reserves the
+   button's size plus its inset on both sides, so text never runs under it. */
+.qa-date-field {
+	--qa-date-toggle-size: calc(var(--icon-size) + var(--size-4-2));
+	position: relative;
+}
+
+.is-mobile .qa-date-field {
+	--qa-date-toggle-size: calc(var(--icon-size) + var(--size-4-5));
+}
+
+.qa-date-field > input[type="text"] {
+	width: 100%;
+	padding-inline-end: calc(var(--qa-date-toggle-size) + 2 * var(--size-4-1));
+}
+
+.qa-date-field .qa-date-field__calendar {
+	position: absolute;
+	inset-block-start: 50%;
+	inset-inline-end: var(--size-4-1);
+	transform: translateY(-50%);
+	width: var(--qa-date-toggle-size);
+	height: var(--qa-date-toggle-size);
+	padding: 0;
+}
+
+.qa-date-field .qa-date-field__calendar[aria-pressed="true"] {
+	color: var(--text-accent);
+	background-color: hsla(var(--interactive-accent-hsl), 0.1);
+}
+
 .qa-date-picker {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 6px;

@@ -86,6 +86,7 @@ vi.mock("obsidian", async () => {
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
 	createDatePicker: () => ({ setSelectedIso: vi.fn(), destroy: vi.fn() }),
+	attachCalendarToggle: () => () => undefined,
 }));
 
 const { fieldSuggestConstructorArgs } = vi.hoisted(() => ({
@@ -1020,7 +1021,9 @@ describe("OnePageInputModal", () => {
 
 			const container = row?.querySelector(".qa-date-input");
 			const children = Array.from(container?.children ?? []);
-			const inputIndex = children.findIndex((el) => el.tagName === "INPUT");
+			const inputIndex = children.findIndex((el) =>
+				el.matches(".qa-date-field:has(> input)"),
+			);
 			const previewIndex = children.findIndex((el) =>
 				el.classList.contains("qa-date-preview-text"),
 			);

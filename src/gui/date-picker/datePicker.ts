@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { settingsStore } from "../../settingsStore";
 
 type DatePickerSelectSource = "picker" | "action";
 
@@ -369,4 +370,36 @@ export const createDatePicker = (
 			root.remove();
 		},
 	};
+};
+
+/**
+ * Adds a calendar button to `field`, the `.qa-date-field` wrapper around a date
+ * text box, that shows or hides the calendar in `pickerHost`. The choice is a
+ * setting, so every date field follows it. Returns the unsubscribe.
+ */
+export const attachCalendarToggle = (
+	field: HTMLElement,
+	pickerHost: HTMLElement,
+): (() => void) => {
+	const button = field.createEl("button", {
+		cls: "qa-date-field__calendar clickable-icon",
+	});
+	button.type = "button";
+	button.tabIndex = -1;
+	setIcon(button, "calendar");
+	// Leaves focus in the text box, so typing a date carries on after a click.
+	button.addEventListener("mousedown", (event) => event.preventDefault());
+	button.addEventListener("click", () => {
+		settingsStore.setState({
+			showDateCalendar: !settingsStore.getState().showDateCalendar,
+		});
+	});
+
+	const apply = (shown: boolean) => {
+		pickerHost.toggle(shown);
+		button.setAttr("aria-label", shown ? "Hide calendar" : "Show calendar");
+		button.setAttr("aria-pressed", String(shown));
+	};
+	apply(settingsStore.getState().showDateCalendar);
+	return settingsStore.subscribe((settings) => apply(settings.showDateCalendar));
 };

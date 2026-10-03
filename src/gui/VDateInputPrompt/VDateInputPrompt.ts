@@ -2,7 +2,11 @@ import type { App, Debouncer } from "obsidian";
 import { Notice, TextComponent, debounce } from "obsidian";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import type { InputPromptOptions } from "../../types/inputPrompt";
-import { createDatePicker, type DatePickerController } from "../date-picker/datePicker";
+import {
+	attachCalendarToggle,
+	createDatePicker,
+	type DatePickerController,
+} from "../date-picker/datePicker";
 import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { settingsStore } from "../../settingsStore";
@@ -22,8 +26,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	private isOpen = true;
 	private defaultValue: string | undefined;
 	private withTime: boolean;
+	private dateFieldEl: HTMLElement;
 	private pickerHostEl: HTMLElement;
 	private datePicker?: DatePickerController;
+	private unsubscribeCalendarToggle?: () => void;
 	private selectedIso?: string;
 	private lastPickerDisplayValue?: string;
 	private static readonly PREVIEW_PLACEHOLDER = "Preview will appear here";
@@ -110,7 +116,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 		container.addClass("qa-date-input");
 
 		// Create TextComponent directly to avoid duplicate onChange listeners
-		const textComponent = new TextComponent(container);
+		this.dateFieldEl = container.createDiv({ cls: "qa-date-field" });
+		const textComponent = new TextComponent(this.dateFieldEl);
 		
 		textComponent.inputEl.addClass("qa-vdate-input");
 		textComponent
@@ -150,6 +157,10 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				else this.clearPickerSelection();
 			},
 		});
+		this.unsubscribeCalendarToggle = attachCalendarToggle(
+			this.dateFieldEl,
+			this.pickerHostEl,
+		);
 	}
 
 	private createPreviewElement(container: HTMLElement) {
@@ -352,6 +363,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 		// Cancel any pending debounced calls
 		this.updatePreviewDebounced.cancel();
+		this.unsubscribeCalendarToggle?.();
 
 		// If input is empty and we have a default, use the default.
 		// Never for optional prompts (incl. Skip): empty is the answer.
