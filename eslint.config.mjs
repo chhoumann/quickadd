@@ -84,6 +84,7 @@ export default [
             '@typescript-eslint/prefer-promise-reject-errors': 'error',
             '@typescript-eslint/unbound-method': 'error',
             'no-useless-escape': 'error',
+            '@typescript-eslint/no-deprecated': 'error',
         },
     },
     {
@@ -118,6 +119,14 @@ export default [
                     message: 'No regex lookbehind: iOS before 16.4 cannot parse it, and Obsidian runs on iOS 15.6, so QuickAdd would not load at all.',
                 },
             ],
+        },
+    },
+    {
+        // execCommand("insertText") is the only edit to an input or textarea
+        // that the browser's own undo (Ctrl/Cmd+Z) can take back.
+        files: ['src/gui/components/textareaIndent.ts', 'src/gui/imagePasteHandler.ts'],
+        rules: {
+            '@typescript-eslint/no-deprecated': ['error', { allow: [{ from: 'lib', name: 'execCommand' }] }],
         },
     },
     {

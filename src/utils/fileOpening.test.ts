@@ -23,6 +23,10 @@ function makeApp(resolved: unknown): { app: App; leaf: MockLeaf } {
 			getLeaf: () => leaf,
 			setActiveLeaf: vi.fn(),
 			iterateRootLeaves: () => {},
+			// Obsidian's own getActiveViewOfType reads `activeLeaf`.
+			getActiveViewOfType(this: { activeLeaf?: WorkspaceLeaf | null }) {
+				return this.activeLeaf ? { leaf: this.activeLeaf } : null;
+			},
 		},
 	} as unknown as App;
 	return { app, leaf };

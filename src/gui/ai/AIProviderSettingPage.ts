@@ -512,7 +512,8 @@ export class AIProviderSettingPage extends SettingPage {
 				.addButton((button) => {
 					button
 						.setButtonText("Delete")
-						.setWarning()
+						.setDestructive()
+						.setCta()
 						.onClick(async () => {
 							const provider = this.provider;
 							if (!provider) return;

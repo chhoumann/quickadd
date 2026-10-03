@@ -91,6 +91,10 @@ function createApp({
 			getRightLeaf: vi.fn(() => rightSidebarLeaf),
 			iterateRootLeaves,
 			setActiveLeaf,
+			// Obsidian's own getActiveViewOfType reads `activeLeaf`.
+			getActiveViewOfType(this: { activeLeaf?: WorkspaceLeaf | null }) {
+				return this.activeLeaf ? { leaf: this.activeLeaf } : null;
+			},
 		},
 		vault: {
 			getAbstractFileByPath: vi.fn(),
