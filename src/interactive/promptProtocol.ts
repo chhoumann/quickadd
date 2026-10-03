@@ -34,6 +34,14 @@ export interface FormField {
 	optional?: boolean;
 	numericConfig?: { min?: number; max?: number; step?: number };
 	suggesterConfig?: { allowCustomInput?: boolean; multiSelect?: boolean };
+	/**
+	 * Set to `"file"` on a `suggester` field that picks notes (a Capture target,
+	 * `{{FILE:...}}`), and absent on every other field. QuickAdd's own form starts
+	 * a note picker empty unless it has a `defaultValue`, and does not submit while
+	 * a required single-note picker (not `optional`, not `multiSelect`) has no
+	 * pick. Other suggester lists have no such rule.
+	 */
+	picker?: "file";
 }
 
 /**

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { RemotePromptProvider } from "./promptProvider";
 import type { FieldRequirement } from "../preflight/RequirementCollector";
 import type { interactivePromptServer } from "./interactivePromptServer";
+import type { FormField } from "./promptProtocol";
 import { promptCancelled } from "../errors/UserCancelError";
 
 type ServerLike = typeof interactivePromptServer;
@@ -136,6 +137,41 @@ describe("RemotePromptProvider form marshaling", () => {
 				},
 			],
 		});
+	});
+
+	it("marks note pickers with picker: file and leaves other suggester lists unmarked", async () => {
+		let sentSpec: unknown;
+		const server = {
+			emitPrompt: vi.fn(async (_id: string, spec: unknown) => {
+				sentSpec = spec;
+				return {};
+			}),
+		} as unknown as ServerLike;
+		const provider = new RemotePromptProvider("s", server);
+
+		await provider.requestInputs([
+			{
+				id: "target",
+				label: "Select capture target file",
+				type: "file-picker",
+				options: ["@file:Inbox.md"],
+			},
+			{
+				id: "mood",
+				label: "Mood",
+				type: "suggester",
+				options: ["good", "bad"],
+				suggesterConfig: { allowCustomInput: true },
+			},
+		]);
+
+		// The wire is JSON, so compare what a client actually receives.
+		const [target, mood] = (
+			JSON.parse(JSON.stringify(sentSpec)) as { fields: FormField[] }
+		).fields;
+		expect(target).toMatchObject({ type: "suggester", picker: "file" });
+		expect(mood.type).toBe("suggester");
+		expect(mood).not.toHaveProperty("picker");
 	});
 });
 

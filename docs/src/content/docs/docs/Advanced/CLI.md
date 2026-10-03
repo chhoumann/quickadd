@@ -313,7 +313,16 @@ string, `confirm` → boolean, `checkbox` → string array, `info` →
 acknowledgement, `form` → an object mapping each field's `id` to its value.
 Ordinary and date fields use strings (dates use the `@date:ISO` format), while
 multi-select fields use string arrays. Use the array form for multi-selects so
-values containing commas remain unambiguous. The run's outcome arrives as the
+values containing commas remain unambiguous.
+
+A `form` field that picks notes (a Capture target, a `{{FILE:...}}` field) has
+`"type":"suggester"` like any other pick list, plus `"picker":"file"` (QuickAdd
+2.31.0 and later); other fields omit `picker`. QuickAdd's own form starts a note
+picker empty unless the field has a `defaultValue`, and does not submit while a
+required single-note picker (not `optional`, not `multiSelect`) has no pick.
+Other pick lists have no such rule.
+
+The run's outcome arrives as the
 `done`/`error` poll event: `done` carries the same `verified` and `effect` keys
 described under [Knowing whether anything actually landed](#verified-and-effect).
 
