@@ -170,6 +170,7 @@
    keyboard, which often lands a row name there. Keep the header solid through
    its own height (100% of the 130%-tall background) and fade below it. The
    page's exact path keeps the check to three levels of the settings window. */
+/* stylelint-disable-next-line selector-pseudo-class-disallowed-list -- only :has() styles the header from the page under it; the child path bounds the check */
 .is-phone .modal.mod-settings:has(> .modal-content > .vertical-tab-content-container > .qa-builder-page) .modal-header::after {
 	mask: linear-gradient(to bottom, black 77%, transparent);
 }
@@ -267,6 +268,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	margin: -1px;
 	padding: 0;
 	overflow: hidden;
+	/* stylelint-disable-next-line plugin/no-unsupported-browser-features -- inset() is fully supported; the partial support is for url() references to SVG files */
 	clip-path: inset(50%);
 	white-space: nowrap;
 	border: 0;
@@ -1170,6 +1172,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 }
 
 /* With no steps the list is hidden, and its padding with it. */
+/* stylelint-disable-next-line selector-pseudo-class-disallowed-list -- the empty state is on the Svelte list under .commandList; the child path bounds the check */
 .setting-group .quickAddCommandEditor:has(> .commandList > .quickAddCommandList.is-empty) > .quickCommandContainer {
 	padding-top: var(--setting-items-padding-y);
 }
@@ -1270,9 +1273,11 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	   and crush the row's name column, so padding and width are !important. The
 	   old <div>/<span> faux-buttons were never touch-sized, so this restores
 	   parity. */
+	/* stylelint-disable-next-line declaration-no-important -- core's phone button padding wins otherwise (see above) */
 	padding: var(--qa-icon-button-padding, 0) !important;
 	min-width: 0;
 	min-height: 0;
+	/* stylelint-disable-next-line declaration-no-important -- core's full-width setting buttons win otherwise (see above) */
 	width: auto !important;
 	height: auto;
 }
@@ -1558,6 +1563,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 /* The checkbox shows what is selected, as in Obsidian's own lists. The row with
    keyboard focus is shaded like a hovered one; the checkbox draws its own ring. */
 .qa-searchable-multi-select__option:hover,
+/* stylelint-disable-next-line selector-pseudo-class-disallowed-list -- shade only for keyboard focus, which :focus-within can't tell from a click; one child deep */
 .qa-searchable-multi-select__option:has(> :focus-visible) {
 	background: var(--background-modifier-hover);
 }
@@ -2145,6 +2151,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
    column and making folder rows taller than leaf rows. Matching force, tightly
    scoped to the one affected element. */
 body.is-mobile .multiChoiceListItemName {
+	/* stylelint-disable-next-line declaration-no-important -- core's phone button padding wins otherwise (see above) */
 	padding: 0 !important;
 	height: auto;
 	min-height: 0;
@@ -2159,11 +2166,13 @@ body.is-mobile .multiChoiceListItemName {
    layout, where inline would squeeze them. In the settings window the
    control still grows next to a short name, so the toggle goes to its end,
    as on Obsidian's own toggle rows. */
+/* stylelint-disable-next-line selector-pseudo-class-disallowed-list -- a row whose only control is a toggle; the child path bounds the check */
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) {
 	flex-direction: row;
 	align-items: center;
 }
 
+/* stylelint-disable-next-line selector-pseudo-class-disallowed-list -- as above */
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) > .setting-item-control {
 	width: auto;
 	margin-top: 0;
@@ -2258,7 +2267,9 @@ body:not(.is-mobile)
 /* The library copies the row's background and border onto the clone as inline
    styles, which only !important overrides. */
 #dnd-action-dragged-el.qa-drag-clone {
+	/* stylelint-disable-next-line declaration-no-important -- overrides the library's inline style (see above) */
 	background: transparent !important;
+	/* stylelint-disable-next-line declaration-no-important -- overrides the library's inline style (see above) */
 	border: none !important;
 	box-shadow: none;
 	overflow: visible;
@@ -2324,6 +2335,7 @@ body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 /* The library sets the clone's transition inline too. */
 @media (prefers-reduced-motion: reduce) {
 	#dnd-action-dragged-el.qa-drag-clone {
+		/* stylelint-disable-next-line declaration-no-important -- overrides the library's inline style */
 		transition: none !important;
 	}
 }
@@ -2726,5 +2738,6 @@ textarea.is-valid {
    is a flex row. Hidden rows and fields have to stay hidden whatever display
    core, a theme or this file gives them, so this is !important. */
 .quickAddModal [hidden] {
+	/* stylelint-disable-next-line declaration-no-important -- hidden has to win over any display rule (see above) */
 	display: none !important;
 }
