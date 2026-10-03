@@ -66,9 +66,10 @@ before building or delete that file first.
 ```bash
 git clone -q -c advice.detachedHead=false --depth 1 --branch v1 \
   https://github.com/obsidianmd/obsidian-workflows /tmp/obsidian-workflows
+set -o pipefail
 env GITHUB_WORKSPACE="$PWD" GITHUB_STEP_SUMMARY=/dev/null INPUT_TYPE=plugin \
   INPUT_MODE=pr INPUT_BUILD=false INPUT_LINT=true INPUT_SCANNER-LINT=true \
-  node /tmp/obsidian-workflows/dist/index.js | grep '^::warning'
+  node /tmp/obsidian-workflows/dist/index.js | awk '/^::warning/'
 ```
 
 ### End-to-end tests
