@@ -71,6 +71,7 @@ Good to know:
 - `|label:` works on `{{VALUE}}` placeholders, [`{{VDATE:...}}`](/docs/FormatSyntax/#vdate-label) dates, [`{{FIELD:...}}`](/docs/FormatSyntax/#field-label) suggestions, and [`{{FILE:...}}`](/docs/FormatSyntax/#file) pickers. It names the prompt: it titles a text or date prompt in place of the variable name, names the field in the one-page form, and becomes a pick list's placeholder. The variable name still identifies the answer for reuse. A FIELD label also titles the text prompt you get when the property has no values yet.
 - `|type:multiline` upgrades a single placeholder to the large text box and overrides the global **Use multi-line input prompt** setting. There is no reverse flag: with the global setting on, every plain text prompt is already multi-line.
 - `|type:` flags only work on single-value placeholders. A pick list ignores them.
+- Date prompts and the one-page form's date fields have a calendar button at the end of the text box. It hides or shows the calendar, and every later date prompt opens the same way.
 
 ## Make a prompt skippable {#optional-prompts}
 
