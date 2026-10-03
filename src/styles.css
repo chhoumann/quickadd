@@ -70,13 +70,13 @@
 }
 
 /* Pinned footer: a `.qa-modal-footer` appended to `modalEl`, as a sibling of
-   `.modal-content`, stays in view while the content scrolls. Used by the
-   one-page form's actions (#1910).
+   `.modal-content`, stays in view while the content scrolls; `modalEl` gets
+   `.qa-has-modal-footer` with it. Used by the one-page form's actions (#1910).
    Core already lays `.modal` out as a flex column with `.modal-content` as the
    growing item, so moving the scrollport onto the content is all it takes —
    which also pins the absolutely-positioned close button. Core's own
    `.mod-scrollable-content` dialogs do the same. */
-.quickAddModal .modal:has(> .qa-modal-footer) {
+.quickAddModal .modal.qa-has-modal-footer {
 	overflow: hidden;
 	/* A scrollport clips ink overflow at its padding box, and full-width fields
 	   are exactly as wide as it — so a focus or validity ring, which paints
@@ -88,7 +88,7 @@
 	padding-bottom: 0;
 }
 
-.quickAddModal .modal:has(> .qa-modal-footer) > .modal-content {
+.quickAddModal .modal.qa-has-modal-footer > .modal-content {
 	overflow-y: auto;
 	padding-inline: var(--size-4-4);
 	/* Inside the scrollport, so a ring on the last field survives, and content
@@ -117,7 +117,7 @@
    content has a scrollbar. A form that fits stays symmetric, as core's
    dialogs are. */
 @supports (animation-timeline: scroll()) and (timeline-scope: --qa-modal-content) {
-	.quickAddModal .modal:has(> .qa-modal-footer) {
+	.quickAddModal .modal.qa-has-modal-footer {
 		timeline-scope: --qa-modal-content;
 	}
 
@@ -136,7 +136,7 @@
 
 /* Core gives the phone modal only its safe-area insets; the padding-inline: 0
    above would otherwise drop them. */
-.is-phone .quickAddModal .modal:has(> .qa-modal-footer) {
+.is-phone .quickAddModal .modal.qa-has-modal-footer {
 	padding-left: var(--safe-area-inset-left);
 	padding-right: var(--safe-area-inset-right);
 }
@@ -168,8 +168,9 @@
    mask that fades out from 20% of its height, so text scrolled under it shows
    behind the title and the buttons. A builder page scrolls a field up to the
    keyboard, which often lands a row name there. Keep the header solid through
-   its own height (100% of the 130%-tall background) and fade below it. */
-.is-phone .modal.mod-settings:has(.qa-builder-page) .modal-header::after {
+   its own height (100% of the 130%-tall background) and fade below it. The
+   page's exact path keeps the check to three levels of the settings window. */
+.is-phone .modal.mod-settings:has(> .modal-content > .vertical-tab-content-container > .qa-builder-page) .modal-header::after {
 	mask: linear-gradient(to bottom, black 77%, transparent);
 }
 
@@ -256,7 +257,9 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 /* Text that only assistive tech reads: unlike `display:none` /
    `visibility:hidden` it stays in the accessibility tree. No deprecated
    `clip: rect()` fallback - `clip-path` has been supported since Chrome 55, and
-   the plugin's minAppVersion (1.13.0) is far past that. */
+   the plugin's minAppVersion (1.13.0) is far past that. Browser data lists it
+   as partly supported only for url() references to SVG files; inset() is
+   fully supported. */
 .qa-visually-hidden {
 	position: absolute;
 	width: 1px;
@@ -1149,12 +1152,12 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
    full width, so the row's input and its Add button split it and the input's
    placeholder is cut mid-word. Give the input the room and the buttons their
    own width. */
-.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > .qa-command-sequence-input {
+.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input {
 	flex: 1 1 auto;
 	min-width: 0;
 }
 
-.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > button:not(.clickable-icon) {
+.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input ~ button:not(.clickable-icon) {
 	flex: 0 0 auto;
 	width: auto;
 }
@@ -1167,7 +1170,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 }
 
 /* With no steps the list is hidden, and its padding with it. */
-.setting-group .quickAddCommandEditor:has(.quickAddCommandList.is-empty) > .quickCommandContainer {
+.setting-group .quickAddCommandEditor:has(> .commandList > .quickAddCommandList.is-empty) > .quickCommandContainer {
 	padding-top: var(--setting-items-padding-y);
 }
 
@@ -1259,16 +1262,19 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	font: inherit;
 	line-height: inherit;
 	border-radius: var(--radius-s, 4px);
-	/* Keep icon buttons compact. !important defeats Obsidian's mobile touch-target
-	   button sizing (.is-mobile settings rule, padding:10px -> 40px boxes) which is
-	   higher-specificity than this class and would otherwise inflate every icon and
-	   crush the row's name column. The old <div>/<span> faux-buttons were never
-	   touch-sized, so this restores parity. */
+	/* Keep icon buttons compact. Core sizes a button in a setting's control for
+	   touch, above this selector's specificity: `.is-phone .modal
+	   .setting-item-control button` pads it 10px (40px boxes), and
+	   `.setting-item:not(...) .setting-item-control button:not(.clickable-icon)`
+	   (phones, narrow settings) makes it full width. That would inflate every icon
+	   and crush the row's name column, so padding and width are !important. The
+	   old <div>/<span> faux-buttons were never touch-sized, so this restores
+	   parity. */
 	padding: var(--qa-icon-button-padding, 0) !important;
-	min-width: 0 !important;
-	min-height: 0 !important;
+	min-width: 0;
+	min-height: 0;
 	width: auto !important;
-	height: auto !important;
+	height: auto;
 }
 
 .qa-icon-button.qa-icon-button:hover {
@@ -1552,7 +1558,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 /* The checkbox shows what is selected, as in Obsidian's own lists. The row with
    keyboard focus is shaded like a hovered one; the checkbox draws its own ring. */
 .qa-searchable-multi-select__option:hover,
-.qa-searchable-multi-select__option:has(:focus-visible) {
+.qa-searchable-multi-select__option:has(> :focus-visible) {
 	background: var(--background-modifier-hover);
 }
 
@@ -1693,6 +1699,13 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
    for the row still wraps instead of being cut off at the list's edge. */
 .qa-text-input-suggest {
 	overflow-wrap: anywhere;
+}
+
+/* The list is as wide as its input (see placeList in suggest.ts), past core's
+   cap on `.suggestion-container`, and on a phone `.is-mobile
+   .suggestion-container`'s. */
+.suggestion-container.qa-text-input-suggest {
+	max-width: none;
 }
 
 /* Core suggestion item - sleek, compact, information-dense */
@@ -2126,15 +2139,15 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	--icon-size: 17px;
 }
 
-/* Obsidian's mobile button chrome forces inline padding (10px) and a 40px
-   height onto the folder-name <button> hard enough that the component reset in
-   MultiChoiceListItem.svelte loses on phones, shifting the chevron 10px off
-   the shared icon column and making folder rows taller than leaf rows.
-   Matching force, tightly scoped to the one affected element. */
+/* Core's phone settings pad the folder-name <button> 10px (`.is-phone .modal
+   .setting-item-control button`), above the component reset in
+   MultiChoiceListItem.svelte, shifting the chevron 10px off the shared icon
+   column and making folder rows taller than leaf rows. Matching force, tightly
+   scoped to the one affected element. */
 body.is-mobile .multiChoiceListItemName {
 	padding: 0 !important;
-	height: auto !important;
-	min-height: 0 !important;
+	height: auto;
+	min-height: 0;
 }
 
 /* On phones Obsidian stacks modal .setting-items vertically. Right for the
@@ -2242,6 +2255,8 @@ body:not(.is-mobile)
    svelte-dnd-action upgrade or row-layout change (handle must stay the rightmost row
    element). If the lib renames the id, these rules simply stop applying (the pill falls
    back to the full-row clone — degraded, not broken). */
+/* The library copies the row's background and border onto the clone as inline
+   styles, which only !important overrides. */
 #dnd-action-dragged-el.qa-drag-clone {
 	background: transparent !important;
 	border: none !important;
@@ -2306,6 +2321,7 @@ body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 	border-style: dashed;
 }
 
+/* The library sets the clone's transition inline too. */
 @media (prefers-reduced-motion: reduce) {
 	#dnd-action-dragged-el.qa-drag-clone {
 		transition: none !important;
@@ -2706,6 +2722,9 @@ textarea.is-valid {
 	min-width: 0;
 }
 
+/* Any display rule beats the user agent's `[hidden]` rule, and `.setting-item`
+   is a flex row. Hidden rows and fields have to stay hidden whatever display
+   core, a theme or this file gives them, so this is !important. */
 .quickAddModal [hidden] {
 	display: none !important;
 }
