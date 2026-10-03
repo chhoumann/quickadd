@@ -26,6 +26,12 @@ function createApp(overrides: Record<string, unknown> = {}): App {
 		},
 		...overrides,
 	};
+	// Obsidian's own getActiveViewOfType reads `activeLeaf`.
+	Object.assign(app.workspace, {
+		getActiveViewOfType(this: { activeLeaf?: { view?: unknown } | null }) {
+			return this.activeLeaf?.view ?? null;
+		},
+	});
 
 	return app as unknown as App;
 }

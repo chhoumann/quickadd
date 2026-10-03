@@ -1,4 +1,5 @@
 import type { App, TAbstractFile, TFile } from "obsidian";
+import { View } from "obsidian";
 import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
@@ -39,7 +40,7 @@ type WorkspaceLeafLike = {
 
 type WorkspaceLike = {
 	getMostRecentLeaf?: () => WorkspaceLeafLike | null;
-	activeLeaf?: WorkspaceLeafLike | null;
+	getActiveViewOfType: (type: typeof View) => CanvasViewLike | null;
 	getActiveFile?: () => TFile | null;
 };
 
@@ -168,9 +169,9 @@ function isTFileLike(file: TAbstractFile | null): file is TFile {
 }
 
 function getActiveCanvasView(app: CanvasAppLike): CanvasViewLike | null {
-	const preferredLeaf =
-		app.workspace.activeLeaf ?? app.workspace.getMostRecentLeaf?.() ?? null;
-	const activeView = preferredLeaf?.view;
+	const activeView =
+		app.workspace.getActiveViewOfType(View) ??
+		app.workspace.getMostRecentLeaf?.()?.view;
 	if (!activeView || activeView.getViewType?.() !== "canvas") return null;
 	return activeView;
 }
