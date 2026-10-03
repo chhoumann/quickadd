@@ -43,12 +43,6 @@ const folders = choices.filter((choice) => choice.type === "Multi");
 const runnable = choices.filter((choice) => choice.type !== "Multi");
 const scripts = manifest.assets.filter((asset) => /\.js$/i.test(asset.originalPath));
 const templates = manifest.assets.filter((asset) => !/\.js$/i.test(asset.originalPath));
-// The import screen marks every bundled file that is not a note as Executable
-// and asks the reader to open and acknowledge each one, because QuickAdd's
-// script loader can run any such file (see isExecutableBundledAsset in
-// src/services/packagePreview.ts).
-const reviewed = manifest.assets.filter((asset) => !/\.md$/i.test(asset.originalPath));
-const reviewedNonScripts = reviewed.filter((asset) => !/\.js$/i.test(asset.originalPath));
 // `quickAddVersion` is the version the package was verified against (see
 // docs/packages/README.md), so it doubles as the minimum the reader needs.
 const requires = [
@@ -105,19 +99,24 @@ const commandNote = (() => {
 })();
 const everyChoiceIsCommand = commandNote !== "";
 
+// The import screen asks you to open each bundled file that can run before you
+// acknowledge it. In these packages that is exactly the scripts;
+// tests/examplePackages.test.ts fails if a template ever needs review too.
+// Before 2.30.0 the import screen also asked for any file that is not a note,
+// such as a .base, so readers on an older version get that step too.
+const olderAlsoReviewed = templates.filter((asset) => !/\.md$/i.test(asset.originalPath));
+const olderNote = olderAlsoReviewed.length === 0
+	? ""
+	: ` Before QuickAdd 2.30.0, the import screen also marks ${joinList(
+			olderAlsoReviewed.map((asset) => `\`${asset.originalPath}\``),
+		)} as **Executable**: open ${olderAlsoReviewed.length === 1 ? "it" : "each one"} with **View contents** and tick the acknowledgement.`;
 const pasteStep = (() => {
 	const lead = "Paste the package and review the choices and files it adds.";
-	if (reviewed.length === 0) return `${lead} Click **Import package**.`;
-	const one = reviewed.length === 1;
-	const gate = `Under **Files**, open **View contents** on ${
+	if (scripts.length === 0) return `${lead}${olderNote} Click **Import package**.`;
+	const one = scripts.length === 1;
+	return `${lead} Under **Files**, open **View contents** on ${
 		one ? "the file" : "each file"
-	} marked **Executable** to read it. If you trust ${one ? "it" : "them"}, tick the acknowledgement, then click **Import package**.`;
-	if (reviewedNonScripts.length === 0) return `${lead} ${gate}`;
-	const flagged = joinList(reviewedNonScripts.map((asset) => `\`${asset.originalPath}\``));
-	const alongsideScripts = reviewedNonScripts.length < reviewed.length;
-	return `${lead} ${gate} QuickAdd marks ${flagged} as **Executable**${
-		alongsideScripts ? " too" : ""
-	} because it treats every file that is not a Markdown note as runnable.`;
+	} marked **Executable** to read it. If you trust ${one ? "it" : "them"}, tick the acknowledgement.${olderNote} Then click **Import package**.`;
 })();
 
 /**
