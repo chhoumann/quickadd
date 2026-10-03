@@ -16,6 +16,20 @@ const LEADING_BLANK_LINE = /^[^\S\r\n]*\r?\n/;
 /** A leading line break, i.e. "this text already begins on a line of its own". */
 const LEADING_LINE_BREAK = /^\r?\n/;
 
+const BLOCKQUOTE_LINE = /^[ \t]*>/;
+
+/**
+ * A line break that leaves a blank line between `above` and `below` when the
+ * last line of `above` and the first line of `below` are both blockquote lines,
+ * otherwise "". Without it Markdown joins the two into one blockquote, and a
+ * created callout opener no longer renders as a callout.
+ */
+export function blockquoteSeparator(above: string, below: string): string {
+	const lastAbove = above.replace(/\n$/, "").split("\n").pop() ?? "";
+	const firstBelow = below.split("\n", 1)[0];
+	return BLOCKQUOTE_LINE.test(lastAbove) && BLOCKQUOTE_LINE.test(firstBelow) ? "\n" : "";
+}
+
 /**
  * Offset at which the note body begins — immediately after the YAML frontmatter
  * block when present, otherwise 0.
@@ -98,10 +112,14 @@ function getBodyInsertOffset(content: string, text: string): number {
  * "top" insert, but passes `body + "\n"` so an applied template block always ends on its
  * own line (leaving a blank-line separation when the body already ends in a newline).
  * Capture callers pass the payload as-is for tight single-snippet insertion.
+ *
+ * `separateBlockquotes` adds a {@link blockquoteSeparator} below the payload, for
+ * a line Create line if not found adds above a blockquote.
  */
 export function insertAtNoteBodyStartWithResult(
 	content: string,
 	text: string,
+	{ separateBlockquotes = false } = {},
 ): NoteBodyInsertionResult {
 	// Inserting nothing leaves the note untouched (defensive: capture callers
 	// already drop empty payloads upstream, but keep the helper safe in isolation).
@@ -126,12 +144,13 @@ export function insertAtNoteBodyStartWithResult(
 			: "";
 	const trailingSeparator =
 		rest.length > 0 && !text.endsWith("\n") ? "\n" : "";
+	const blankLine = separateBlockquotes ? blockquoteSeparator(text, rest) : "";
 
 	const insertedStartOffset = head.length + leadingSeparator.length;
 	const insertedEndOffset = insertedStartOffset + text.length;
 
 	return {
-		content: `${head}${leadingSeparator}${text}${trailingSeparator}${rest}`,
+		content: `${head}${leadingSeparator}${text}${trailingSeparator}${blankLine}${rest}`,
 		insertedStartOffset,
 		insertedEndOffset,
 	};

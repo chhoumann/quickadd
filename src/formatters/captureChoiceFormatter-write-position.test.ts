@@ -201,6 +201,69 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(await capture("# Inbox\n")).toBe("# Inbox\n## Log\n- first");
 	});
 
+	describe("a created line next to a blockquote (#2163)", () => {
+		const capture = async (location: "top" | "bottom", after: string, format: string, note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin()).formatContentWithFile(
+				format,
+				createChoice({
+					insertAfter: {
+						...createChoice().insertAfter,
+						enabled: true,
+						after,
+						insertAtEnd: true,
+						createIfNotFound: true,
+						createIfNotFoundLocation: location,
+					},
+				}),
+				note,
+				createFile(),
+			)).content;
+		const CALLOUT = "> [!info]- Captured today";
+
+		it("Bottom: separates a created callout from the blockquote above it", async () => {
+			expect(await capture("bottom", CALLOUT, "> first", "# Log\n\n> An existing quote\n")).toBe(
+				"# Log\n\n> An existing quote\n\n> [!info]- Captured today\n> first",
+			);
+			expect(await capture("bottom", CALLOUT, "> first", "# Log\n\n> An existing quote")).toBe(
+				"# Log\n\n> An existing quote\n\n> [!info]- Captured today\n> first",
+			);
+		});
+
+		it("Bottom: a second run appends inside the created callout", async () => {
+			const once = await capture("bottom", CALLOUT, "> first", "# Log\n\n> An existing quote\n");
+			expect(await capture("bottom", CALLOUT, "> second", once)).toBe(
+				"# Log\n\n> An existing quote\n\n> [!info]- Captured today\n> first\n> second",
+			);
+		});
+
+		it("Bottom: still adds no blank line above a created heading or after a blank line", async () => {
+			expect(await capture("bottom", "## Quotes", "> first", "# Log\n\n> An existing quote\n")).toBe(
+				"# Log\n\n> An existing quote\n## Quotes\n> first",
+			);
+			expect(await capture("bottom", CALLOUT, "> first", "> An existing quote\n\n")).toBe(
+				"> An existing quote\n\n> [!info]- Captured today\n> first",
+			);
+			expect(await capture("bottom", CALLOUT, "> first", "# Log\nA paragraph\n")).toBe(
+				"# Log\nA paragraph\n> [!info]- Captured today\n> first",
+			);
+		});
+
+		it("Top: separates a created block ending in a blockquote line from the blockquote below it", async () => {
+			expect(await capture("top", "## Quotes", "> first quote", "> [!info]- Captured today\n> a callout line\n")).toBe(
+				"## Quotes\n> first quote\n\n> [!info]- Captured today\n> a callout line\n",
+			);
+			expect(await capture("top", "## Quotes", "> first quote\n", "---\ntags: log\n---\n\n> an existing quote\n")).toBe(
+				"---\ntags: log\n---\n\n## Quotes\n> first quote\n\n> an existing quote\n",
+			);
+		});
+
+		it("Top: still adds no blank line when the created block doesn't end in a blockquote line", async () => {
+			expect(await capture("top", "## Log", "- first", "> An existing quote\n")).toBe(
+				"## Log\n- first\n> An existing quote\n",
+			);
+		});
+	});
+
 	it("ends a callout at the next heading or the end of the note when inserting at the end of its section (#1926)", async () => {
 		const choice = createChoice({
 			insertAfter: {

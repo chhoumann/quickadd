@@ -17,7 +17,7 @@ import { prepareCapture, surroundCapture, placeCapture, type CapturePlacementRes
 import { CompleteFormatter } from "./completeFormatter";
 import { restoreUserText, restoreUserTextInCapture } from "./helpers/userText";
 import * as positioning from "./helpers/insertionPositioning";
-import { insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
+import { blockquoteSeparator, insertAtNoteBodyStartWithResult } from "../utils/noteContentInsertion";
 import { parentFolderPath } from "../utils/pathUtils";
 import {
 	buildImageEmbedLink,
@@ -663,7 +663,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		});
 	}
 
-	/** All create modes share placement and errors; each keeps its cursor insertion semantics. */
+	/**
+	 * All create modes share placement and errors; each keeps its cursor insertion
+	 * semantics. Top and Bottom add a blank line only where the created block and
+	 * the note would put two blockquote lines next to each other.
+	 */
 	private createMissingTarget({ payload, location, rawTarget, insertAtCursor }: {
 		payload: CapturePlacementResult;
 		location: string | undefined;
@@ -672,9 +676,11 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	}): CapturePlacementResult {
 		switch (location) {
 			case CREATE_IF_NOT_FOUND_TOP:
-				return this.insertAtNoteBodyStartTracking(payload);
-			case CREATE_IF_NOT_FOUND_BOTTOM:
-				return surroundCapture(payload, this.withLastLineEnded());
+				return this.insertAtNoteBodyStartTracking(payload, true);
+			case CREATE_IF_NOT_FOUND_BOTTOM: {
+				const note = this.withLastLineEnded();
+				return surroundCapture(payload, note + blockquoteSeparator(note, payload.content));
+			}
 			case CREATE_IF_NOT_FOUND_CURSOR: {
 				const view = getActiveMarkdownEditorView(this.app);
 				if (!view) throw new ChoiceAbortError(
@@ -691,8 +697,8 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		}
 	}
 
-	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult): CapturePlacementResult {
-		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content);
+	private insertAtNoteBodyStartTracking(payload: CapturePlacementResult, separateBlockquotes = false): CapturePlacementResult {
+		const result = insertAtNoteBodyStartWithResult(this.fileContent, payload.content, { separateBlockquotes });
 		return placeCapture(payload, result.content,
 			result.insertedStartOffset === null || payload.cursor.kind === "none"
 				? null : result.insertedStartOffset + payload.cursor.value);

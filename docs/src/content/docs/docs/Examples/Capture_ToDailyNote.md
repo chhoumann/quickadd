@@ -90,7 +90,7 @@ Change **Insert after** to the callout opener, for example:
 > {{VALUE}}
 ```
 
-Change the **Create line if not found** placement to **Top**, so on first use the callout opener goes at the top of the note. At **Bottom**, a callout opener added right after another quoted line joins that blockquote and no longer renders as a callout. To have the callout below the note's title, put the opener line in your daily notes template instead. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
+Change the **Create line if not found** placement to **Top**, so on first use the callout opener goes at the top of the note. At **Bottom**, the opener lands inside the section of the heading above it, such as `## Quotes`, and the next capture to that heading goes into the callout. Before QuickAdd 2.31.0, an opener added right after a quoted line also joined that blockquote and didn't render as a callout. To have the callout below the note's title, put the opener line in your daily notes template instead. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
 
 ### Quote
 

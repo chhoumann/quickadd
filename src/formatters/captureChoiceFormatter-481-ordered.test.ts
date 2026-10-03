@@ -155,6 +155,17 @@ describe("#481 — ordered create-if-not-found placement", () => {
 		expect(out).toBe("---\ndate: 2026-07-25\n---\n\n## Log\n- entry\nSome text\n");
 	});
 
+	it("separates a section created at the body start from a blockquote below it (#2163)", async () => {
+		const choice = createChoice({ after: "## 2026-01-02" });
+		expect(await runOnce(choice, "> existing quote\n", "> first\n")).toBe(
+			"## 2026-01-02\n> first\n\n> existing quote\n",
+		);
+		const callout = createChoice({ after: "> [!info]- Captured today" });
+		expect(await runOnce(callout, "> existing quote\n", "> first\n")).toBe(
+			"> [!info]- Captured today\n> first\n\n> existing quote\n",
+		);
+	});
+
 	it("never places a created section inside a frontmatter-only note's YAML", async () => {
 		const choice = createChoice({
 			after: "## Log",
