@@ -990,13 +990,16 @@ export function normalizePath(p: string): string {
   return p.replace(/\\/g, '/').replace(/\/+/g, '/');
 }
 
-// Minimal debounce for tests: execute immediately.
+// Minimal debounce for tests: execute immediately, so nothing is ever pending.
 export function debounce<T extends (...args: any[]) => any>(
   fn: T,
   _wait: number,
   _resetTimer?: boolean,
-): T {
-  return fn;
+): T & { cancel(): void; run(): void } {
+  return Object.assign((...args: Parameters<T>) => fn(...args), {
+    cancel() {},
+    run() {},
+  }) as T & { cancel(): void; run(): void };
 }
 
 // Standalone setIcon (used by ObsidianIcon.svelte and choiceBuilder.ts).

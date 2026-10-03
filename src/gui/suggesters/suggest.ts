@@ -1,5 +1,5 @@
 import type { App, ISuggestOwner } from "obsidian";
-import { debounce, Scope } from "obsidian";
+import { debounce, Scope, type Debouncer } from "obsidian";
 import { log } from "src/logger/logManager";
 import { createOwnedElement, getOwnerDocument, getOwnerWindow } from "src/utils/activeWindow";
 import { renderExactHighlight } from "./utils";
@@ -177,12 +177,6 @@ class Suggest<T> {
 				}
 			});
 		}
-		scope.register([], "Enter", (event) => {
-			if (!event.isComposing && this.isOpen) {
-				this.useSelectedItem(event);
-				return false;
-			}
-		});
 	}
 
 	private findSuggestionItem(target: EventTarget | null): HTMLDivElement | null {
@@ -304,6 +298,8 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private isOpen = false;
 	private destroyed = false;
 	private currentQuery = "";
+	// The input text the shown list was built for.
+	private listQuery: string | null = null;
 
 	// Global listeners for close-on-anything-else
 	private globalClickListener: (event: MouseEvent) => void;
@@ -315,7 +311,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 	private inputBlurListener: () => void;
 
 	// Debounced input handler and bound event listeners
-	private debouncedOnInputChanged: (event?: Event) => void;
+	private debouncedOnInputChanged: Debouncer<[event?: Event], Promise<void>>;
 	private inputEventListener: (event: Event) => void;
 	private focusEventListener: () => void;
 
@@ -368,6 +364,11 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 		);
 
 		this.scope.register([], "Escape", this.close.bind(this));
+		this.scope.register([], "Enter", (event) => {
+			if (event.isComposing || !this.suggest.getIsOpen()) return;
+			void this.useSelectedItem(event);
+			return false;
+		});
 
 		// Shorter debounce for snappier UX
 		this.debouncedOnInputChanged = debounce(this.onInputChanged.bind(this), 50);
@@ -445,6 +446,7 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 				return;
 			}
 			this.suggest.setSuggestions(suggestions);
+			this.listQuery = inputStr;
 			if (keepOpen && this.isOpen) {
 				// A multi-select pick refreshes the open list in place, but the list's
 				// height and the input's position (a new chip row) can both change.
@@ -456,6 +458,20 @@ export abstract class TextInputSuggest<T> implements ISuggestOwner<T> {
 			log.logError(error as Error);
 			if (!keepOpen) this.close();
 		}
+	}
+
+	/**
+	 * Enter picks from the list, but the list follows the text a debounce
+	 * later. A fast typist's Enter can land in between: build the list for the
+	 * text first, so Enter never picks a row the text no longer matches.
+	 */
+	private async useSelectedItem(event: KeyboardEvent): Promise<void> {
+		if (this.inputEl.value !== this.listQuery) {
+			this.debouncedOnInputChanged.cancel();
+			await this.onInputChanged();
+			if (this.inputEl.value !== this.listQuery || !this.suggest.getIsOpen()) return;
+		}
+		this.suggest.useSelectedItem(event);
 	}
 
 	open(container: HTMLElement, inputEl: HTMLElement): void {

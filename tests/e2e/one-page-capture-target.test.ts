@@ -332,6 +332,45 @@ it("waits for a pick in a required {{FILE}} field", async () => {
 	await expect.poll(() => sandbox.read("moons-log.md"), POLL_OPTS).toBe("- Europa seen\n");
 });
 
+// The list follows the typed text a debounce later, and Enter used to pick from
+// the list as it was: a fast typist's Enter took the top note of the list from
+// before the search (#2142).
+it("picks the note typed when Enter comes before the list follows the text", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await seedVaultFile(obsidian, sandbox, "Outer/Mars.md", "");
+	await seedVaultFile(obsidian, sandbox, "Outer/Saturn.md", "");
+
+	const choice = new CaptureChoice("Fast capture target");
+	choice.command = true;
+	choice.captureTo = `${sandbox.path("Outer")}/`;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await obsidian.command(`quickadd:choice:${choice.id}`).run();
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(SUGGESTED), POLL_OPTS).toHaveLength(2);
+	const [, typed] = await obsidian.dev.evalJson<string[]>(SUGGESTED);
+	// Each native key through the CLI takes longer than the list's debounce, so
+	// type the second note and press Enter in one task, then look again once a
+	// pending refresh would have run.
+	expect(await obsidian.dev.evalJsonAsync(`(async () => {
+		const input = document.querySelector(".qa-onepage-file-picker input");
+		input.focus();
+		document.execCommand("insertText", false, ${jsLiteral(typed)});
+		const enter = new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true, cancelable: true });
+		input.dispatchEvent(enter);
+		await sleep(300);
+		return {
+			handled: enter.defaultPrevented,
+			picked: Array.from(document.querySelectorAll(".qa-onepage-file-picker__chip-label"), (chip) => chip.textContent),
+			listOpen: Boolean(document.querySelector(".suggestion-container")),
+		};
+	})()`)).toEqual({ handled: true, picked: [typed], listOpen: false });
+});
+
 // A note passed with the run still decides the target: the form asks only
 // for the rest.
 it("captures into a note passed with the run without asking for one", async () => {
