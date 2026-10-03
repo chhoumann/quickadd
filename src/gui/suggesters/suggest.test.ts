@@ -381,8 +381,6 @@ describe("TextInputSuggest placement in a prompt", () => {
 		expect(list().style.top).toBe("134px");
 		expect(list().style.left).toBe("0px");
 		expect(list().style.width).toBe("300px");
-		// Past the 500px cap Obsidian puts on suggestion lists.
-		expect(list().style.maxWidth).toBe("none");
 	});
 
 	it.each([

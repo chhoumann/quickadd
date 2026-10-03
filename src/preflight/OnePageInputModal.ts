@@ -211,6 +211,7 @@ export class OnePageInputModal extends Modal {
 
 		// A sibling of the fields rather than their last row, so Submit stays in
 		// view however long the form is (#1910).
+		this.modalEl.addClass("qa-has-modal-footer");
 		const buttonBar = this.modalEl.createDiv({
 			cls: "qa-prompt-actions qa-modal-footer",
 		});

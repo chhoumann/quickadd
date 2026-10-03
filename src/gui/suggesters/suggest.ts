@@ -50,13 +50,9 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 		height: doc.documentElement.clientHeight,
 	};
 	const width = Math.max(input.width, Math.min(MIN_LIST_WIDTH_PX, viewport.width));
-	listEl.style.maxWidth = "none";
-	listEl.style.maxHeight = "";
-	listEl.style.width = `${width}px`;
 	// Measured at 0,0, the list's rect is its containing block's origin, so the
 	// viewport positions below hold whatever element it is positioned against.
-	listEl.style.left = "0px";
-	listEl.style.top = "0px";
+	listEl.setCssStyles({ maxHeight: "", width: `${width}px`, left: "0px", top: "0px" });
 	const origin = listEl.getBoundingClientRect();
 
 	// On a phone the on-screen keyboard covers the bottom of the screen without
@@ -86,14 +82,16 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 		? !fitsBelow || prefersAbove(inputEl, input, origin.height)
 		: !fitsBelow && roomAbove > roomBelow;
 	const height = Math.min(origin.height, placeAbove ? roomAbove : roomBelow);
-	if (height < origin.height) listEl.style.maxHeight = `${height}px`;
 	const top = placeAbove ? input.top - LIST_GAP_PX - height : input.bottom + LIST_GAP_PX;
 	const left = Math.max(
 		viewport.offsetLeft,
 		Math.min(input.left, viewport.offsetLeft + viewport.width - width),
 	);
-	listEl.style.left = `${left - origin.left}px`;
-	listEl.style.top = `${top - origin.top}px`;
+	listEl.setCssStyles({
+		maxHeight: height < origin.height ? `${height}px` : "",
+		left: `${left - origin.left}px`,
+		top: `${top - origin.top}px`,
+	});
 }
 
 /**

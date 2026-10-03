@@ -30,7 +30,7 @@
 </script>
 
 <section class="qa-import-ack">
-	<label class="qa-import-ack-label">
+	<label class="qa-import-ack-label" class:is-disabled={!fullyReviewed}>
 		<input
 			id="qa-import-ack-checkbox"
 			type="checkbox"
@@ -56,7 +56,7 @@
 		cursor: var(--cursor);
 	}
 
-	.qa-import-ack-label:has(input:disabled) {
+	.qa-import-ack-label.is-disabled {
 		cursor: not-allowed;
 		color: var(--text-muted);
 	}

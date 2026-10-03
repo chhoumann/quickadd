@@ -148,7 +148,7 @@
 			if (!buildResult) return;
 
 			const serialized = JSON.stringify(buildResult.pkg, null, 2);
-			await copyToClipboard(serialized);
+			await navigator.clipboard.writeText(serialized);
 
 			new Notice(
 				`Copied package (${buildResult.pkg.choices.length} choice${
@@ -213,26 +213,6 @@
 			new Notice(`Save failed: ${message}`);
 		} finally {
 			actionInProgress = null;
-		}
-	}
-
-	async function copyToClipboard(text: string) {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(text);
-			return;
-		}
-
-		const textarea = document.body.createEl("textarea");
-		textarea.value = text;
-		textarea.setAttribute("readonly", "true");
-		textarea.style.position = "fixed";
-		textarea.style.opacity = "0";
-		textarea.focus();
-		textarea.select();
-		const successful = document.execCommand("copy");
-		document.body.removeChild(textarea);
-		if (!successful) {
-			throw new Error("Clipboard copy is not supported in this environment.");
 		}
 	}
 </script>
