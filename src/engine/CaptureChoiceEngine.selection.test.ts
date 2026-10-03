@@ -1,6 +1,6 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, prepareFuzzySearch, TFile, TFolder, type App, type SearchMatches } from "obsidian";
+import { Notice, prepareFuzzySearch, TFile, TFolder, View, type App, type SearchMatches } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
@@ -147,6 +147,16 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
+/**
+ * Like Obsidian's: `View` gets the active leaf's view (a canvas in some tests);
+ * a MarkdownView lookup gets `markdownView`.
+ */
+function activeViewOfType(markdownView: unknown = null) {
+	return vi.fn(function (this: { activeLeaf?: { view?: unknown } | null }, type: unknown) {
+		return type === View ? this.activeLeaf?.view ?? null : markdownView;
+	});
+}
+
 const createApp = () => {
 	const app = {
 		vault: {
@@ -164,7 +174,7 @@ const createApp = () => {
 		},
 		workspace: {
 			getActiveFile: vi.fn(() => null),
-			getActiveViewOfType: vi.fn(() => null),
+			getActiveViewOfType: activeViewOfType(),
 			getLeavesOfType: vi.fn(() => []),
 		},
 		fileManager: {
@@ -1575,7 +1585,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			},
 		};
 		app.workspace.getActiveFile = vi.fn(() => canvasFile);
-		app.workspace.getActiveViewOfType = vi.fn(() => null);
+		app.workspace.getActiveViewOfType = activeViewOfType();
 		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
 			path === "Folder/Note.md" ? linkedFile : null,
 		);
@@ -1630,7 +1640,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			},
 		};
 		app.workspace.getActiveFile = vi.fn(() => canvasFile);
-		app.workspace.getActiveViewOfType = vi.fn(() => null);
+		app.workspace.getActiveViewOfType = activeViewOfType();
 		app.vault.read = vi.fn(async () => "existing");
 		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
 			path === "Folder/Note.md" ? linkedFile : null,
@@ -1729,7 +1739,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			basename: "Map",
 			extension: "canvas",
 		}));
-		app.workspace.getActiveViewOfType = vi.fn(() => null);
+		app.workspace.getActiveViewOfType = activeViewOfType();
 
 		const engine = createCaptureEngine({ choice: createChoice({
 				appendLink: true,
@@ -1778,7 +1788,7 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 			},
 		};
 		app.workspace.getActiveFile = vi.fn(() => canvasFile);
-		app.workspace.getActiveViewOfType = vi.fn(() => ({ editor: {} }));
+		app.workspace.getActiveViewOfType = activeViewOfType({ editor: {} });
 		app.vault.getAbstractFileByPath = vi.fn((path: string) =>
 			path === "Clipboard image.png" ? attachmentFile : null,
 		);
