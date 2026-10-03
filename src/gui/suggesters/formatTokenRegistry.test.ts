@@ -177,6 +177,15 @@ describe("format token autocomplete context gating", () => {
 		});
 	}
 
+	it("offers a periodic note's |link where a link is content, and only its path in a Capture target", async () => {
+		for (const period of ["DAILY", "WEEKLY", "MONTHLY", "QUARTERLY", "YEARLY"]) {
+			const typed = `{{${period.toLowerCase()}|`;
+			expect(await suggestInserts(typed, { context: "noteContent" })).toContain(`{{${period}|link}}`);
+			expect(await suggestInserts(`{{${period.slice(0, 3)}`, { context: "captureTarget" })).toContain(`{{${period}}}`);
+			expect(await suggestInserts(`{{${period.slice(0, 3)}`, { context: "captureTarget" })).not.toContain(`{{${period}|link}}`);
+		}
+	});
+
 	it("keeps {{FOLDERCURRENT}} where it does resolve", async () => {
 		expect(await suggestInserts("{{", { context: "captureTarget" })).toContain(
 			"{{FOLDERCURRENT}}",

@@ -2,8 +2,8 @@ import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import type * as ChoiceFileActions from "./choiceFileActions";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { formatContentWithFileMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
-	formatContentWithFileMock: vi.fn(),
+const { insertFormattedContentMock, getCaptureInsertionEndOffsetMock } = vi.hoisted(() => ({
+	insertFormattedContentMock: vi.fn(),
 	getCaptureInsertionEndOffsetMock: vi.fn(),
 }));
 
@@ -26,10 +26,10 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(content: string, ...args: unknown[]) {
+		async insertFormattedContent(content: string, ...args: unknown[]) {
 			const value = getCaptureInsertionEndOffsetMock();
 			return {
-				content: await formatContentWithFileMock(content, ...args), captureContent: content,
+				content: await insertFormattedContentMock(content, ...args), captureContent: content,
 				cursor: typeof value === "number" ? { kind: "offset", source: "defaultEnd", value } : { kind: "none" },
 			};
 		}
@@ -45,22 +45,28 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 	},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
+	setMarkdownCursorAtOffset: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	openExistingFileTab: vi.fn(() => null),
-	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn(() => null),
+	openFile: vi.fn(),
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -69,10 +75,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 vi.mock("./choiceFileActions", async (importOriginal) => ({
@@ -85,7 +87,7 @@ import { TFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { setMarkdownCursorAtOffset } from "../utilityObsidian";
+import { setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 
 const createCaptureChoice = (): ICaptureChoice => ({
 	name: "Test Capture Choice",
@@ -183,7 +185,7 @@ const createEngine = ({
 		choiceExecutor,
 	);
 
-	formatContentWithFileMock.mockResolvedValue(formattedFileContent);
+	insertFormattedContentMock.mockResolvedValue(formattedFileContent);
 	getCaptureInsertionEndOffsetMock.mockReturnValue(formattedFileContent.length);
 
 	return { engine, disk, file, choiceExecutor };
@@ -191,7 +193,7 @@ const createEngine = ({
 
 describe("CaptureChoiceEngine concurrent-edit merge", () => {
 	beforeEach(() => {
-		formatContentWithFileMock.mockReset();
+		insertFormattedContentMock.mockReset();
 		getCaptureInsertionEndOffsetMock.mockReset();
 		vi.mocked(setMarkdownCursorAtOffset).mockClear();
 	});

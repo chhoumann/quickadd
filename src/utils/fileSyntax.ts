@@ -1,4 +1,4 @@
-import type { CachedMetadata, TFile } from "obsidian";
+import { parseFrontMatterAliases, type CachedMetadata, type TFile } from "obsidian";
 import {
 	FieldSuggestionParser,
 	type FieldFilter,
@@ -281,7 +281,7 @@ export function parseFileToken(
 	};
 }
 
-export type DecodedFileValue =
+type DecodedFileValue =
 	| { kind: "empty" }
 	| { kind: "file"; path: string }
 	| { kind: "custom"; text: string }
@@ -361,10 +361,28 @@ function basenameFor(file: TFile): string {
 	return file.basename || fileLinkNameFromPath(file.path);
 }
 
-export interface FileDisplayInfo {
+interface FileDisplayInfo {
 	primary: string;
 	secondary: string;
 	label: string;
+	/** The note's aliases, which pickers also match. */
+	aliases: string[];
+}
+
+/**
+ * The first item one of whose aliases is `name`, ignoring case: an alias names
+ * its note. `aliases` is by index, as buildFileDisplayInfos returns them.
+ */
+export function itemWithAlias<T>(
+	items: readonly T[],
+	aliases: readonly (readonly string[])[],
+	name: string,
+): T | undefined {
+	const wanted = name.trim().toLowerCase();
+	const index = aliases.findIndex((names) =>
+		names.some((alias) => alias.toLowerCase() === wanted),
+	);
+	return index >= 0 ? items[index] : undefined;
 }
 
 export function buildFileDisplayInfos(
@@ -381,7 +399,8 @@ export function buildFileDisplayInfos(
 		const label = primary === basename
 			? basename
 			: `${primary} (${basename})`;
-		return { file, primary, label };
+		const aliases = parseFrontMatterAliases(metadata?.frontmatter) ?? [];
+		return { file, primary, label, aliases };
 	});
 
 	const counts = new Map<string, number>();
@@ -389,7 +408,7 @@ export function buildFileDisplayInfos(
 		counts.set(label, (counts.get(label) ?? 0) + 1);
 	}
 
-	return baseLabels.map(({ file, primary, label }) => {
+	return baseLabels.map(({ file, primary, label, aliases }) => {
 		const uniqueLabel = (counts.get(label) ?? 0) <= 1
 			? label
 			: `${label} - ${parentLabel(file)}`;
@@ -397,6 +416,7 @@ export function buildFileDisplayInfos(
 			primary,
 			secondary: file.path,
 			label: uniqueLabel,
+			aliases,
 		};
 	});
 }

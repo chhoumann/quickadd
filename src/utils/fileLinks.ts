@@ -26,7 +26,7 @@ type FileLinkTextOptions = {
 	alias?: string;
 };
 
-function usesMarkdownLinks(app: App): boolean {
+export function usesMarkdownLinks(app: App): boolean {
 	// vault.getConfig is the de-facto (untyped) plugin API for editor settings.
 	// Inferring the mode from a generated link's shape instead would misdetect
 	// markdown-link vaults whose note basename starts with "[".

@@ -1,9 +1,6 @@
 import { actionsSpy } from "../../../tests/helpers/settings/choiceActions";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
-
-// ChoiceListItem -> renderChoiceName/contextMenu reach src/main -> obsidian-dataview.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { App } from "obsidian";
 import ChoiceList from "./ChoiceList.svelte";

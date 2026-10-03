@@ -214,6 +214,10 @@ export class DropdownComponent extends BaseComponent {
     return this;
   }
 
+  getValue(): string {
+    return this.selectEl.value;
+  }
+
   onChange(cb: (value: string) => void): this {
     this.selectEl.addEventListener("change", () => cb(this.selectEl.value));
     return this;
@@ -718,13 +722,73 @@ export const Modal = class {
 	close() {
 		(this as any).onClose?.();
 		this.containerEl.remove();
+		this.closeCallback?.();
+	}
+
+	closeCallback?: () => unknown;
+
+	setTitle(title: string) {
+		this.titleEl.textContent = title;
+		return this;
+	}
+
+	setContent(content: string) {
+		this.contentEl.textContent = content;
+		return this;
+	}
+
+	setCloseCallback(callback: () => unknown) {
+		this.closeCallback = callback;
+		return this;
 	}
 
 	// Real Obsidian's Modal defines no-op lifecycle hooks, so subclasses may
 	// call super.onOpen()/super.onClose() (ChoiceBuilder.onClose does).
 	onOpen() {}
 	onClose() {}
+
+	// Like Obsidian's: Esc closes the modal unless the event was handled.
+	onEscapeKey(evt: KeyboardEvent) {
+		if (evt.defaultPrevented) return;
+		evt.preventDefault();
+		this.close();
+	}
 };
+
+/** Like Obsidian's: a button closes the modal after its handler, unless the handler returns truthy. */
+export class ConfirmationModal extends Modal {
+	buttonContainerEl: HTMLElement;
+
+	constructor(app: any) {
+		super(app);
+		this.buttonContainerEl = document.createElement("div");
+		this.buttonContainerEl.className = "modal-button-container";
+		this.modalEl.appendChild(this.buttonContainerEl);
+	}
+
+	addButton(cb: (button: ButtonComponent & { setInitialFocus(): any; setCancel(): any }) => unknown) {
+		const button = new ButtonComponent(this.buttonContainerEl) as any;
+		let handler: () => unknown = () => undefined;
+		button.onClick = (next: () => unknown) => {
+			handler = next;
+			return button;
+		};
+		button.setInitialFocus = () => button;
+		button.setCancel = () => {
+			button.buttonEl.classList.add("mod-cancel");
+			return button;
+		};
+		button.buttonEl.addEventListener("click", () => {
+			if (!handler()) this.close();
+		});
+		cb(button);
+		return this;
+	}
+
+	addCancelButton(text = "Cancel") {
+		return this.addButton((button) => button.setButtonText(text).setCancel());
+	}
+}
 
 export const Scope = class {
   callbacks = new Map<string, (event: any) => unknown>();
@@ -1052,6 +1116,38 @@ export function prepareFuzzySearch(query: string) {
   };
 }
 
+// Obsidian reads `alias` or `aliases`, any case; a string is one alias.
+export function parseFrontMatterAliases(frontmatter: any | null): string[] | null {
+  if (!frontmatter) return null;
+  for (const [key, value] of Object.entries(frontmatter)) {
+    if (!/^aliases?$/i.test(key)) continue;
+    const list = (Array.isArray(value) ? value : [value]).filter(
+      (alias): alias is string => typeof alias === "string" && alias.trim().length > 0,
+    );
+    return list.length ? list : null;
+  }
+  return null;
+}
+
+export function sortSearchResults(results: Array<{ match: { score: number } }>): void {
+  results.sort((a, b) => b.match.score - a.match.score);
+}
+
+// Like Obsidian's: `offset` is added to each range, and ranges outside `text` are dropped.
+export function renderMatches(el: HTMLElement, text: string, matches: Array<[number, number]> | null, offset = 0): void {
+  let at = 0;
+  for (const [rangeStart, rangeEnd] of matches ?? []) {
+    const start = Math.max(0, rangeStart + offset);
+    const end = rangeEnd + offset;
+    if (end <= 0) continue;
+    if (start >= text.length) break;
+    if (start > at) el.appendText(text.slice(at, start));
+    el.createSpan({ cls: "suggestion-highlight", text: text.slice(start, end) });
+    at = end;
+  }
+  if (at < text.length) el.appendText(text.slice(at));
+}
+
 // Minimal FileSystemAdapter so the symlink/realpath write guard
 // (src/utils/vaultWriteGuards.ts) can be exercised in a unit test. The guard
 // bails out unless `adapter instanceof FileSystemAdapter`; existing tests pass
@@ -1096,6 +1192,7 @@ export default {
   WorkspaceLeaf,
   FuzzySuggestModal,
   Modal,
+  ConfirmationModal,
   Menu,
   MenuItem,
   Scope,
@@ -1109,5 +1206,8 @@ export default {
   debounce,
   setIcon,
   prepareFuzzySearch,
+  parseFrontMatterAliases,
+  sortSearchResults,
+  renderMatches,
   Platform,
 };

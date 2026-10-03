@@ -4,9 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
-
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
@@ -64,11 +62,11 @@ const createFile = (path = "Test.md"): TFile => {
 describe("CaptureChoiceFormatter write position behavior", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("writes to top for non-active targets when prepend is false", async () => {
@@ -201,6 +199,204 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 		expect(await capture("")).toBe("## Log\n- first");
 		expect(await capture("# Inbox")).toBe("# Inbox\n## Log\n- first");
 		expect(await capture("# Inbox\n")).toBe("# Inbox\n## Log\n- first");
+	});
+
+	it("ends a callout at the next heading or the end of the note when inserting at the end of its section (#1926)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "> [!info]- Captured today",
+				insertAtEnd: true,
+			},
+		});
+		const capture = async (note: string) =>
+			(await new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin())
+				.formatContentWithFile("> two\n", choice, note, createFile())).content;
+
+		expect(await capture("> [!info]- Captured today\n> one\n## Journal\n- entry\n")).toBe(
+			"> [!info]- Captured today\n> one\n> two\n## Journal\n- entry\n",
+		);
+		expect(await capture("## Journal\n> [!info]- Captured today\n> one")).toBe(
+			"## Journal\n> [!info]- Captured today\n> one\n> two\n",
+		);
+	});
+
+	it("inserts after a code fence below a non-heading line, not at a # line inside it (#1926)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "Setup steps:",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- run the tests\n",
+			choice,
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n\n## Next\n",
+			createFile(),
+		);
+
+		expect(content).toBe(
+			"Setup steps:\n```bash\n# install deps\npnpm install\n```\n- run the tests\n\n## Next\n",
+		);
+	});
+
+	it.each([false, true])(
+		"ends a heading's section after its code fence, not at a # line inside it (considerSubsections: %s) (#1968)",
+		async (considerSubsections) => {
+			const choice = createChoice({
+				insertAfter: {
+					...createChoice().insertAfter,
+					enabled: true,
+					after: "## Log",
+					insertAtEnd: true,
+					considerSubsections,
+				},
+			});
+			const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+			const { content } = await formatter.formatContentWithFile(
+				"- captured\n",
+				choice,
+				"## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n- second entry\n\n## Next\n- untouched\n",
+				createFile(),
+			);
+
+			expect(content).toBe(
+				"## Log\n- first entry\n\n```bash\n# comment\necho hi\n```\n\n- second entry\n- captured\n\n## Next\n- untouched\n",
+			);
+		},
+	);
+
+	it("does not read an inline-code line as a fence when ending a heading's section (#1968)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\n```inline```\n\n## Next\n- untouched\n",
+			createFile(),
+		);
+
+		expect(content).toBe("## Log\n```inline```\n- captured\n\n## Next\n- untouched\n");
+	});
+
+	it.each([
+		[
+			"# Header one\n## Pre-existing header\nPre-existing text",
+			"# Header one\n## Pre-existing header\nPre-existing text\n## Capture header\nSome capture text",
+		],
+		[
+			"# Header one\n## Pre-existing header\nPre-existing text\n# Header two\n",
+			"# Header one\n## Pre-existing header\nPre-existing text\n## Capture header\nSome capture text\n# Header two\n",
+		],
+	])("keeps a subsection's text with its heading when inserting at the end of the section with subsections (#2029): %j", async (note, expected) => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "# Header one",
+				insertAtEnd: true,
+				considerSubsections: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"## Capture header\nSome capture text",
+			choice,
+			note,
+			createFile(),
+		);
+
+		expect(content).toBe(expected);
+	});
+
+	it.each([
+		["## Log\n## Next\n", "## Log\n- captured\n## Next\n"],
+		["## Log\nNext\n---\n", "## Log\n- captured\nNext\n---\n"],
+	])("writes into an empty first section, not under the heading after it: %j", async (note, expected) => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, note, createFile());
+
+		expect(content).toBe(expected);
+	});
+
+	it.each([
+		["a %% comment block", "%%\n# draft idea\n%%"],
+		["a $$ math block", "$$\n# x = 1\n$$"],
+	])("ends a heading's section after %s, not at a # line inside it", async (_what, block) => {
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "## Log", insertAtEnd: true },
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			`## Log\n- first\n\n${block}\n- second\n\n## Next\n`,
+			createFile(),
+		);
+
+		expect(content).toBe(`## Log\n- first\n\n${block}\n- second\n- captured\n\n## Next\n`);
+	});
+
+	it("includes subsections in a CRLF note's section end (#2022)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+				considerSubsections: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\r\n- first\r\n\r\n### Sub\r\n- sub\r\n\r\n## Next\r\n- untouched\r\n",
+			createFile(),
+		);
+
+		const at = content.indexOf("- captured");
+		expect(at).toBeGreaterThan(content.indexOf("- sub"));
+		expect(at).toBeLessThan(content.indexOf("## Next"));
+	});
+
+	it("finds the section end when a note opens with a rule and no frontmatter (#1968)", async () => {
+		const choice = createChoice({
+			insertAfter: {
+				...createChoice().insertAfter,
+				enabled: true,
+				after: "## Log",
+				insertAtEnd: true,
+			},
+		});
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"---\n## Log\n- first entry\n\n## Next\n- untouched\n",
+			createFile(),
+		);
+
+		expect(content).toBe("---\n## Log\n- first entry\n- captured\n\n## Next\n- untouched\n");
 	});
 
 	it("writes to bottom for active-file targets when mode is bottom", async () => {
@@ -618,6 +814,60 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 
 		expect(result).toBe("# Title\nbody\n## Tasks\nCAPTURE\n");
 		expect(cursor.kind === "offset" ? cursor.value : null).toBe(result.length);
+	});
+
+	it("inserts under an indented heading picked at runtime (#1987)", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("### Indented");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile(
+			"- captured\n",
+			choice,
+			"## Log\n   ### Indented\n- a\n",
+			createFile(),
+		);
+
+		expect(content).toBe("## Log\n   ### Indented\n- captured\n- a\n");
+	});
+
+	it.each([
+		["frontmatter", "---\nnote: |\n  ## Log\n---\n## Log\n- entry\n", "---\nnote: |\n  ## Log\n---\n## Log\n- captured\n- entry\n"],
+		["a code fence", "```md\n## Log\n```\n## Log\n- entry\n", "```md\n## Log\n```\n## Log\n- captured\n- entry\n"],
+		["a plain line", "Log notes: ## Log\n## Log\n- entry\n", "Log notes: ## Log\n## Log\n- captured\n- entry\n"],
+	])("inserts under the picked heading, not a same-text line in %s (#1987)", async (_where, note, expected) => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("## Log");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, note, createFile());
+
+		expect(content).toBe(expected);
+	});
+
+	it("still finds a typed line that isn't a heading, so a second run doesn't duplicate it", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("Tasks:");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true, createIfNotFound: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, "## Log\nTasks:\n- a\n", createFile());
+
+		expect(content).toBe("## Log\nTasks:\n- captured\n- a\n");
+	});
+
+	it("inserts under a picked heading in a CRLF note (#1987)", async () => {
+		const formatter = new CaptureChoiceFormatter(createMockApp(), createCaptureFormatterPlugin());
+		formatter.setInsertAfterTargetOverride("## Log");
+		const choice = createChoice({
+			insertAfter: { ...createChoice().insertAfter, enabled: true, after: "", promptHeading: true },
+		});
+		const { content } = await formatter.formatContentWithFile("- captured\n", choice, "## Log\r\n- entry\r\n", createFile());
+
+		expect(content).toContain("- captured");
+		expect(content.indexOf("- captured")).toBeLessThan(content.indexOf("- entry"));
 	});
 
 	it("inserts under the FIRST occurrence when the note has duplicate heading text (#738)", async () => {

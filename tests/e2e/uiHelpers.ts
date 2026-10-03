@@ -93,8 +93,10 @@ export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape"
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
 	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	// A real Enter also types "\r", which is what makes a focused button click.
+	const text = key === "Enter" && !modified ? { text: "\r" } : {};
 	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
-		["Input.dispatchKeyEvent", { type: "keyDown", ...event }],
+		["Input.dispatchKeyEvent", { type: "keyDown", ...event, ...text }],
 		["Input.dispatchKeyEvent", { type: "keyUp", ...event }],
 	]);
 }
@@ -116,4 +118,61 @@ export async function expectNoPrompt(obsidian: ObsidianClient) {
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(
 		'Boolean(document.querySelector(".modal-container, .prompt"))',
 	), POLL_OPTS).toBe(false);
+}
+
+/**
+ * A real click in the middle of the visible element matching `selector`, once
+ * it stops moving: a settings page slides in when it opens or is returned to.
+ */
+export async function clickWhenStill(obsidian: ObsidianClient, selector: string) {
+	let last = "";
+	const point = await obsidian.waitFor(async () => {
+		const rect = await obsidian.dev.evalJson<{ x: number; y: number } | null>(`(() => {
+			const el = [...document.querySelectorAll(${jsLiteral(selector)})].find((el) => el.getClientRects().length > 0);
+			if (!el) return null;
+			el.scrollIntoView({ block: "nearest" });
+			const rect = el.getBoundingClientRect();
+			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+		})()`);
+		const key = JSON.stringify(rect);
+		const settled = rect !== null && key === last;
+		last = key;
+		return settled ? rect : false;
+	}, { message: `${selector} visible and still`, timeoutMs: 10_000, intervalMs: 100 });
+	await clickAt(obsidian, point.x, point.y);
+}
+
+/**
+ * Leave the settings page on top with a real click on its back button, as a
+ * user does. Leaving a choice builder's page saves it.
+ */
+export async function leaveSettingsPage(obsidian: ObsidianClient) {
+	const depth = await obsidian.dev.evalJson<number>("app.setting.pageStack.length");
+	await clickWhenStill(obsidian, ".setting-page-back-button");
+	await expect.poll(() => obsidian.dev.evalJson<number>("app.setting.pageStack.length"), POLL_OPTS).toBe(depth - 1);
+}
+
+/**
+ * The buttons of the quick-command bar on the settings page on top that stray
+ * into its card's padding, as "label: side", or none.
+ */
+export async function quickCommandBarOverflow(obsidian: ObsidianClient): Promise<string[]> {
+	return obsidian.dev.evalJson<string[]>(`(() => {
+		const bar = [...document.querySelectorAll(".qa-builder-page .quickCommandContainer")]
+			.filter((el) => el.getClientRects().length > 0).pop();
+		const card = bar.closest(".setting-items");
+		const style = getComputedStyle(card);
+		const padX = parseFloat(style.getPropertyValue("--setting-items-padding-x"));
+		const padY = parseFloat(style.getPropertyValue("--setting-items-padding-y"));
+		const box = card.getBoundingClientRect();
+		return [...bar.children].flatMap((button) => {
+			const rect = button.getBoundingClientRect();
+			const label = button.getAttribute("aria-label");
+			return [
+				rect.top < box.top + padY - 0.5 ? label + ": top" : null,
+				rect.left < box.left + padX - 0.5 ? label + ": left" : null,
+				rect.right > box.right - padX + 0.5 ? label + ": right" : null,
+			].filter(Boolean);
+		});
+	})()`);
 }

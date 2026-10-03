@@ -29,6 +29,8 @@ import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
 import type { ChoiceListActions } from "./choiceListActions";
 import { subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
+import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
+import { settingsStore } from "../../settingsStore";
 
 interface ChoiceViewContext {
 	app: App;
@@ -69,7 +71,8 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			await handleRenameChoice(newChoice);
 		} else if (!skipConfigure) {
 			try {
-				await handleConfigureChoice(newChoice);
+				// The builder opens over this list, which shows it again when left.
+				if (handleConfigureChoice(newChoice)) return;
 			} catch (err) {
 				log.logError(
 					`Failed to configure the new choice: ${err instanceof Error ? err.message : String(err)}`,
@@ -121,16 +124,35 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		save();
 	}
 
-	async function handleConfigureChoice(oldChoice: IChoice) {
-		const live = liveChoice(oldChoice);
-		const updatedChoice = await configureChoice(live, context.app, context.plugin);
-		if (!updatedChoice) return;
-
-		context.choices = context.choices.map((choice) => updateChoiceHelper(choice, updatedChoice));
-		context.commandRegistry.updateCommand(live, updatedChoice);
-		save();
+	/** Opens the builder page. Returns false if it could not open. */
+	function handleConfigureChoice(oldChoice: IChoice): boolean {
+		// A builder saves each time the app goes to the background and once more
+		// when it is left; say a deletion elsewhere once.
+		let toldDeleted = false;
+		return configureChoice(liveChoice(oldChoice), context.app, context.plugin, (edited, base) =>
+			// Obsidian logs and swallows a throw from a page's hide(); say it.
+			reportingHandler(`Couldn't save the ${choiceNoun(base.type)} “${base.name}”`, () => {
+				if (saveBuilderEdits(base, edited) || toldDeleted) return;
+				toldDeleted = true;
+				new Notice(`QuickAdd: “${base.name}” was deleted elsewhere, so your changes to it were not saved.`);
+			})(),
+		);
 	}
 
+	// The builder is a settings page, and Obsidian tears this view down while it
+	// is open, so this reads and writes the store rather than the view's copy.
+	// Settings synced from another device apply while the builder is open, so
+	// merge: a save only writes what was edited since the last one. Returns
+	// false, saving nothing, if the choice was deleted elsewhere.
+	function saveBuilderEdits(base: IChoice, edited: IChoice): boolean {
+		const choices = settingsStore.getState().choices;
+		const current = findChoiceById(choices, base.id);
+		if (!current) return false;
+		const updatedChoice = threeWayMergeSettings<IChoice>(base, edited, snapshot(current));
+		context.saveChoices(snapshot(choices.map((choice) => updateChoiceHelper(choice, updatedChoice))));
+		context.commandRegistry.updateCommand(current, updatedChoice);
+		return true;
+	}
 
 	async function handleRenameChoice(choice: IChoice) {
 		if (!choice) return;
@@ -138,7 +160,11 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		const newName = await promptRenameChoice(context.app, choice.name, choice.type);
 		if (!newName) return;
 
-		const live = liveChoice(choice);
+		const live = findChoiceById(context.choices, choice.id);
+		if (!live) {
+			new Notice(`QuickAdd: “${choice.name}” was deleted elsewhere, so it was not renamed.`);
+			return;
+		}
 		const updatedChoice = { ...live, name: newName };
 		context.choices = context.choices.map((entry) => updateChoiceHelper(entry, updatedChoice));
 		context.commandRegistry.updateCommand(live, updatedChoice);

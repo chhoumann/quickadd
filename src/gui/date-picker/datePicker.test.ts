@@ -37,6 +37,19 @@ describe("extractTimeFromIso", () => {
 		expect(extractTimeFromIso(undefined)).toBeNull();
 	});
 
+	it("reads a zoned ISO in local time and an offset-less one as written", () => {
+		const originalTz = process.env.TZ;
+		process.env.TZ = "Europe/Copenhagen"; // UTC+2 in September
+		try {
+			expect(extractTimeFromIso("2026-09-30T13:00:00.000Z")).toEqual({ hour: 15, minute: 0 });
+			expect(extractTimeFromIso("2026-09-30T13:00:00+05:00")).toEqual({ hour: 10, minute: 0 });
+			expect(extractTimeFromIso("2026-09-30T13:00:00")).toEqual({ hour: 13, minute: 0 });
+		} finally {
+			if (originalTz === undefined) delete process.env.TZ;
+			else process.env.TZ = originalTz;
+		}
+	});
+
 	it("rejects out-of-range hours/minutes", () => {
 		expect(extractTimeFromIso("2025-12-25T99:99")).toBeNull();
 		expect(extractTimeFromIso("2025-12-25T24:00")).toBeNull();

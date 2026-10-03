@@ -1,7 +1,7 @@
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "src/constants";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 
-export type CaptureTargetKey = string & {
+type CaptureTargetKey = string & {
 	readonly __captureTargetKey: unique symbol;
 };
 

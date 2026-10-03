@@ -33,7 +33,7 @@ export type CaptureTargetScope =
 	| { kind: "property"; field: string; value?: string; filter: FieldFilter }
 	| { kind: "tag"; tag: string };
 
-export interface CaptureTargetScopeDeps {
+interface CaptureTargetScopeDeps {
 	/** Whether the given vault-relative path is an existing folder. */
 	isFolder(path: string): boolean;
 	/**

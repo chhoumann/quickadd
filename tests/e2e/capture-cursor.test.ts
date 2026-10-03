@@ -17,6 +17,9 @@ async function setup(content = "# Daily\n\n## Log\n\nExisting\n") {
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "### {{DATE:YYYY-MM-DD}}\n- {{CURSOR}}after" };
 	choice.insertAfter.enabled = true;
+	// Top of the section, and no heading creation: the defaults before #2007.
+	choice.insertAfter.insertAtEnd = false;
+	choice.insertAfter.createIfNotFound = false;
 	choice.insertAfter.after = "## Log";
 	return { choice, path };
 }
@@ -56,11 +59,6 @@ async function state(path: string) {
 
 async function closeCaptureBuilders() {
 	await getContext().obsidian.dev.evalJson(`(() => {
-		for (const builder of [...document.querySelectorAll(".captureChoiceBuilder")]) {
-			const done = [...builder.querySelectorAll("button.mod-cta")]
-				.find(button => button.textContent?.trim() === "Done");
-			done?.click();
-		}
 		app.setting?.close?.();
 		return true;
 	})()`);
@@ -82,7 +80,7 @@ async function withLatestCaptureBuilder<T>(expression: string): Promise<T> {
 
 async function typeIntoLatestCaptureFormat(text: string) {
 	const focused = await withLatestCaptureBuilder<boolean>(`(() => {
-		const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+		const input = builder.querySelector('.qa-field textarea');
 		if (!(input instanceof HTMLTextAreaElement)) return false;
 		input.focus();
 		input.select();
@@ -512,7 +510,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 					return true;
 				})()`)).toBe(true);
 				await expect.poll(() => withLatestCaptureBuilder<string | null>(`(() => {
-					const input = builder.querySelector('textarea[placeholder="Format"], textarea[placeholder="One item per line"]');
+					const input = builder.querySelector('.qa-field textarea');
 					return input instanceof HTMLTextAreaElement ? input.value : null;
 				})()`), AUTOSAVE_POLL).toBe("{{CUR");
 				await typeIntoLatestCaptureFormat("{{CUR");

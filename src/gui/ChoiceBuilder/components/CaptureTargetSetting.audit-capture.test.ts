@@ -1,9 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
-import { render } from "@testing-library/svelte";
+import { fireEvent, render } from "@testing-library/svelte";
 import { tick } from "svelte";
 import type QuickAdd from "../../../main";
 import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
@@ -63,7 +61,7 @@ async function settle() {
 }
 
 describe("CaptureTargetSetting canvas node id required validation (audit)", () => {
-	it("marks the canvas node id field invalid when the target is a .canvas path and the id is empty", async () => {
+	it("marks the canvas node id field invalid when the target is a .canvas path and the id is left empty", async () => {
 		const { container } = render(CaptureTargetSetting, {
 			props: {
 				choice: captureChoice({
@@ -80,7 +78,11 @@ describe("CaptureTargetSetting canvas node id required validation (audit)", () =
 		const input = nodeIdInput(container);
 		expect(input).not.toBeNull();
 		// Empty + required => invalid, surfacing the misconfiguration in the builder
-		// instead of only at run time.
+		// instead of only at run time - once the field has been left empty, not
+		// the moment it appears (#2034).
+		expect(input?.getAttribute("aria-invalid")).toBe("false");
+		await fireEvent.blur(input!);
+		await settle();
 		expect(input?.getAttribute("aria-invalid")).toBe("true");
 	});
 

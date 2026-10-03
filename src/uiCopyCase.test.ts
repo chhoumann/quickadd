@@ -89,15 +89,20 @@ describe("settings tab copy", () => {
 			choices: vi.fn(),
 			packages: vi.fn(),
 			dateAliases: vi.fn(),
-			templateFolders: vi.fn(),
 			globalVariables: vi.fn(),
 			developmentInfo: vi.fn(),
 		}, true);
 
+		// Pages (Advanced) hold their own groups; check their copy too.
+		type Node = { heading?: string; name?: string; desc?: unknown; items?: Node[] };
+		const all: Node[] = [];
+		const walk = (nodes: Node[]) => nodes.forEach((node) => { all.push(node); walk(node.items ?? []); });
+		walk(groups as Node[]);
+		const items = all.filter((node) => node.name);
 		return {
-			headings: groups.flatMap((group) => group.heading ? [group.heading] : []),
-			names: groups.flatMap((group) => (group.items ?? []).flatMap((item) => item.name ? [item.name] : [])),
-			descs: groups.flatMap((group) => (group.items ?? []).flatMap((item) => typeof item.desc === "string" ? [item.desc] : [])),
+			headings: all.flatMap((node) => node.heading ? [node.heading] : []),
+			names: items.map((item) => item.name as string),
+			descs: items.flatMap((item) => typeof item.desc === "string" ? [item.desc] : []),
 		};
 	}
 

@@ -1,5 +1,5 @@
 import { DATE_REGEX, DATE_REGEX_FORMATTED, TIME_REGEX, TIME_REGEX_FORMATTED, DATE_VARIABLE_REGEX, NUMBER_REGEX } from "../../constants";
-import { getDate } from "../../utilityObsidian";
+import { getDate } from "../../utils/dates";
 import type { RunClocks } from "../../types/dateOrigin";
 import type { IDateParser } from "../../parsers/IDateParser";
 import type { PromptContext } from "../formatter";

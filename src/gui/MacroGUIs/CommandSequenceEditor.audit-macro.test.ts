@@ -2,11 +2,7 @@ import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { collectUnhandledRejections } from "../../../tests/helpers/unhandledRejections";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
-import { Notice, TextComponent, TFile } from "obsidian";
+import { Notice, prepareFuzzySearch, TextComponent, TFile } from "obsidian";
 import { fireEvent } from "@testing-library/svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
@@ -113,6 +109,40 @@ describe("CommandSequenceEditor silent-add feedback", () => {
 		).toBe(true);
 
 		editor.destroy();
+	});
+
+	// #2122: the first-macro walkthrough says "Add an Editor commands entry and
+	// choose ...", so Add is often clicked before anything is chosen.
+	it("does nothing when Add is clicked with nothing chosen", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const onCommandsChange = vi.fn();
+		const editor = new CommandSequenceEditor({
+			app: testApp(),
+			plugin: { settings: { choices: [] } } as unknown as QuickAdd,
+			commands: [],
+			choices: [],
+			onCommandsChange,
+		});
+		const container = document.createElement("div");
+		document.body.appendChild(container);
+		editor.render(container);
+
+		const editorCommands = container.querySelector("select");
+		if (!editorCommands) throw new Error("Editor commands dropdown not found");
+		for (const control of [
+			getInputByPlaceholder(container, "Obsidian command"),
+			editorCommands,
+			getInputByPlaceholder(container, "Choice"),
+		]) {
+			getAddButtonFor(control as HTMLInputElement).click();
+		}
+
+		expect(onCommandsChange).not.toHaveBeenCalled();
+		expect(noticeClass.instances).toEqual([]);
+		expect(logError).not.toHaveBeenCalled();
+
+		editor.destroy();
+		logError.mockRestore();
 	});
 
 	it("warns when adding a user-script name that resolves to nothing", async () => {
@@ -238,15 +268,16 @@ describe("CommandSequenceEditor script picker (Browse)", () => {
 	// Picking one must save that file, named by its path.
 	it("tells same-named scripts apart by path", async () => {
 		const app = testApp();
-		app.vault.getFiles = () =>
-			["bins/views/books/view.js", "bins/views/progress-bar/view.js"].map((path) => {
-				const file = new TFile();
-				file.path = path;
-				file.name = "view.js";
-				file.basename = "view";
-				file.extension = "js";
-				return file;
-			});
+		const files = ["bins/views/books/view.js", "bins/views/progress-bar/view.js"].map((path) => {
+			const file = new TFile();
+			file.path = path;
+			file.name = "view.js";
+			file.basename = "view";
+			file.extension = "js";
+			return file;
+		});
+		app.vault.getFiles = () => files;
+		app.vault.getAbstractFileByPath = (path: string) => files.find((file) => file.path === path) ?? null;
 		let picker: InputSuggester | undefined;
 		vi.spyOn(InputSuggester, "Suggest").mockImplementation((...args) => {
 			picker = new InputSuggester(...args);
@@ -283,6 +314,13 @@ describe("CommandSequenceEditor script picker (Browse)", () => {
 		expect(matches.map((match) => match.item)).toEqual([
 			"bins/views/progress-bar/view.js",
 		]);
+		// The row highlights the match, here in its path. The test stub's modal
+		// doesn't fuzzy-match, so match the row's search text with the scorer.
+		const found = prepareFuzzySearch("progress")(picker.getItemText(matches[0].item));
+		const row = document.createElement("div");
+		picker.renderSuggestion({ item: matches[0].item, match: found ?? { score: 0, matches: [] } }, row);
+		expect(Array.from(row.querySelectorAll(".suggestion-note .suggestion-highlight"), (span) => span.textContent))
+			.toEqual(["progress"]);
 
 		picker.selectSuggestion(matches[0], new MouseEvent("click"));
 		await vi.waitFor(() => expect(onCommandsChange).toHaveBeenCalled());

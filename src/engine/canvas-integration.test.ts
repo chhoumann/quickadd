@@ -9,7 +9,6 @@ import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 
 vi.mock("../main", () => ({ default: class {} }));
 vi.mock("../quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 describe('Canvas Template Integration', () => {
 	describe('Regex patterns for canvas support', () => {

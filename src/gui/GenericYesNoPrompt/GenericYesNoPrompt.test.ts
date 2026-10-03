@@ -46,22 +46,9 @@ describe("GenericYesNoPrompt", () => {
 			await expect(answer).resolves.toBeNull();
 		});
 
-		it("Prompt resolves false when the dialog is dismissed", async () => {
-			const answer = GenericYesNoPrompt.Prompt(
-				{} as App,
-				"Confirm",
-				"Continue?",
-			);
-			dismiss();
-			await expect(answer).resolves.toBe(false);
-		});
-
-		it.each([
-			["Ask", () => GenericYesNoPrompt.Ask({} as App, "Confirm")],
-			["Prompt", () => GenericYesNoPrompt.Prompt({} as App, "Confirm")],
-		])("%s never rejects on dismissal", async (_name, open) => {
+		it("Ask never rejects on dismissal", async () => {
 			const onRejected = vi.fn();
-			const answer = open().catch(onRejected);
+			const answer = GenericYesNoPrompt.Ask({} as App, "Confirm").catch(onRejected);
 			dismiss();
 			await answer;
 			expect(onRejected).not.toHaveBeenCalled();
@@ -76,7 +63,7 @@ describe("GenericYesNoPrompt", () => {
 	])(
 		"prevents prompt button %s %s from reaching the editor before click submit",
 		async (buttonText, eventName, expectedAnswer) => {
-			const waitForClose = GenericYesNoPrompt.Prompt(
+			const waitForClose = GenericYesNoPrompt.Ask(
 				{} as App,
 				"Confirm",
 				"Continue?",

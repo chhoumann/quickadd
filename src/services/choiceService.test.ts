@@ -8,15 +8,34 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 
 // --- Hoisted mock state -----------------------------------------------------
 
-const mocks = vi.hoisted(() => ({
-	templateBuilder: vi.fn(),
-	captureBuilder: vi.fn(),
-	macroBuilder: vi.fn(),
-	multiModal: vi.fn(),
-	yesNoPrompt: vi.fn(),
-	storeChoices: [] as IChoice[],
-	logError: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+	const state = {
+		/** Every builder page constructed: its kind, constructor args and onSave. */
+		builders: [] as Array<{ kind: string; args: unknown[]; onSave: (choice: unknown) => void }>,
+		/** What open() reports: whether Obsidian opened the page. */
+		opens: true,
+		yesNoPrompt: vi.fn(),
+		storeChoices: [] as IChoice[],
+		logError: vi.fn(),
+		/**
+		 * A builder page class that records its args and the `onSave` at
+		 * `onSaveAt`. Like the real builders, it fills in a missing field on the
+		 * choice (`backfilled`) as it is constructed.
+		 */
+		fakeBuilderPage: (kind: string, onSaveAt: number) =>
+			class {
+				constructor(...args: unknown[]) {
+					const choice = args[kind === "Macro" ? 2 : 1] as { backfilled?: boolean };
+					choice.backfilled ??= true;
+					state.builders.push({ kind, args, onSave: args[onSaveAt] as (choice: unknown) => void });
+				}
+				open() {
+					return state.opens;
+				}
+			},
+	};
+	return state;
+});
 
 // The real GuiLogger turns every logError into a 15s Notice, which would make
 // "did we log?" assertions indistinguishable from "did we notify?".
@@ -28,78 +47,24 @@ vi.mock("../logger/logManager", () => ({
 	},
 }));
 
-// Mock the GUI builders so importing the module does not pull in the full
-// Obsidian/Svelte stack. Each constructor records its args and exposes a
-// resolvable `waitForClose`.
+// Mock the builder pages so importing the module does not pull in the full
+// Obsidian/Svelte stack. Each records its constructor args and the `onSave`
+// it was given; `open()` reports whether Obsidian opened it.
 vi.mock("../gui/ChoiceBuilder/templateChoiceBuilder", () => ({
-	TemplateChoiceBuilder: class {
-		app: unknown;
-		choice: unknown;
-		plugin: unknown;
-		waitForClose: Promise<IChoice | undefined>;
-		constructor(app: unknown, choice: unknown, plugin: unknown) {
-			this.app = app;
-			this.choice = choice;
-			this.plugin = plugin;
-			this.waitForClose = mocks.templateBuilder(app, choice, plugin);
-		}
-	},
+	TemplateChoiceBuilder: mocks.fakeBuilderPage("Template", 3),
 }));
-
 vi.mock("../gui/ChoiceBuilder/captureChoiceBuilder", () => ({
-	CaptureChoiceBuilder: class {
-		app: unknown;
-		choice: unknown;
-		plugin: unknown;
-		waitForClose: Promise<IChoice | undefined>;
-		constructor(app: unknown, choice: unknown, plugin: unknown) {
-			this.app = app;
-			this.choice = choice;
-			this.plugin = plugin;
-			this.waitForClose = mocks.captureBuilder(app, choice, plugin);
-		}
-	},
+	CaptureChoiceBuilder: mocks.fakeBuilderPage("Capture", 3),
 }));
-
 vi.mock("../gui/MacroGUIs/MacroBuilder", () => ({
-	MacroBuilder: class {
-		app: unknown;
-		plugin: unknown;
-		choice: unknown;
-		choices: unknown;
-		waitForClose: Promise<IChoice | undefined>;
-		constructor(
-			app: unknown,
-			plugin: unknown,
-			choice: unknown,
-			choices: unknown,
-		) {
-			this.app = app;
-			this.plugin = plugin;
-			this.choice = choice;
-			this.choices = choices;
-			this.waitForClose = mocks.macroBuilder(app, plugin, choice, choices);
-		}
-	},
+	MacroBuilder: mocks.fakeBuilderPage("Macro", 4),
+}));
+vi.mock("../gui/MultiChoiceBuilder", () => ({
+	MultiChoiceBuilder: mocks.fakeBuilderPage("Multi", 2),
 }));
 
-vi.mock("../gui/MultiChoiceSettingsModal", () => ({
-	MultiChoiceSettingsModal: class {
-		app: unknown;
-		choice: unknown;
-		waitForClose: Promise<IChoice | undefined>;
-		constructor(app: unknown, choice: unknown) {
-			this.app = app;
-			this.choice = choice;
-			this.waitForClose = mocks.multiModal(app, choice);
-		}
-	},
-}));
-
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: {
-		Prompt: (...args: unknown[]) => mocks.yesNoPrompt(...args),
-	},
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
 }));
 
 vi.mock("../settingsStore", () => ({
@@ -132,10 +97,8 @@ const fakeApp = { name: "fake-app" } as unknown as App;
 
 describe("choiceService", () => {
 	beforeEach(() => {
-		mocks.templateBuilder.mockReset();
-		mocks.captureBuilder.mockReset();
-		mocks.macroBuilder.mockReset();
-		mocks.multiModal.mockReset();
+		mocks.builders.length = 0;
+		mocks.opens = true;
 		mocks.yesNoPrompt.mockReset();
 		mocks.logError.mockReset();
 		mocks.storeChoices = [];
@@ -365,53 +328,37 @@ describe("choiceService", () => {
 	});
 
 	describe("getChoiceBuilder", () => {
-		it("returns a TemplateChoiceBuilder for Template choices", () => {
-			mocks.templateBuilder.mockReturnValue(Promise.resolve(undefined));
-			const choice = createChoice("Template", "T");
+		const onSave = () => {};
+
+		it.each(["Template", "Capture"] as const)("builds the %s builder page", (type) => {
+			const choice = createChoice(type, "T");
 			const plugin = {} as unknown as QuickAdd;
-			const builder = getChoiceBuilder(choice, fakeApp, plugin);
-			expect(builder).toBeDefined();
-			expect(mocks.templateBuilder).toHaveBeenCalledWith(
-				fakeApp,
-				choice,
-				plugin,
-			);
+			getChoiceBuilder(choice, fakeApp, plugin, onSave);
+			expect(mocks.builders.at(-1)).toMatchObject({
+				kind: type,
+				args: [fakeApp, choice, plugin, onSave],
+			});
 		});
 
-		it("returns a CaptureChoiceBuilder for Capture choices", () => {
-			mocks.captureBuilder.mockReturnValue(Promise.resolve(undefined));
-			const choice = createChoice("Capture", "C");
-			const plugin = {} as unknown as QuickAdd;
-			const builder = getChoiceBuilder(choice, fakeApp, plugin);
-			expect(builder).toBeDefined();
-			expect(mocks.captureBuilder).toHaveBeenCalledWith(
-				fakeApp,
-				choice,
-				plugin,
-			);
-		});
-
-		it("returns a MacroBuilder for Macro choices and passes the store's choices", () => {
-			mocks.macroBuilder.mockReturnValue(Promise.resolve(undefined));
+		it("builds the Macro builder page with the store's choices", () => {
 			const storeChoice = createChoice("Template", "Stored");
 			mocks.storeChoices = [storeChoice];
 			const choice = createChoice("Macro", "M");
 			const plugin = {} as unknown as QuickAdd;
-			const builder = getChoiceBuilder(choice, fakeApp, plugin);
-			expect(builder).toBeDefined();
-			expect(mocks.macroBuilder).toHaveBeenCalledWith(
-				fakeApp,
-				plugin,
-				choice,
-				[storeChoice],
-			);
+			getChoiceBuilder(choice, fakeApp, plugin, onSave);
+			expect(mocks.builders.at(-1)).toMatchObject({
+				kind: "Macro",
+				args: [fakeApp, plugin, choice, [storeChoice], onSave],
+			});
 		});
 
-		it("returns undefined for Multi choices", () => {
+		it("builds the folder page for Multi choices", () => {
 			const choice = createChoice("Multi", "Mu");
-			const plugin = {} as unknown as QuickAdd;
-			const builder = getChoiceBuilder(choice, fakeApp, plugin);
-			expect(builder).toBeUndefined();
+			getChoiceBuilder(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+			expect(mocks.builders.at(-1)).toMatchObject({
+				kind: "Multi",
+				args: [fakeApp, choice, onSave],
+			});
 		});
 	});
 
@@ -439,7 +386,7 @@ describe("choiceService", () => {
 				createChoice("Template", "b"),
 			];
 			await deleteChoiceWithConfirmation(multi, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("Group");
 			expect(message).toContain("everything inside it: 2 choices.");
 		});
@@ -453,8 +400,8 @@ describe("choiceService", () => {
 			folder.choices = [createChoice("Template", "a")];
 
 			await deleteChoiceWithConfirmation(folder, fakeApp);
-			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete folder");
-			const folderMessage = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete folder");
+			const folderMessage = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(folderMessage).toContain("Deleting this folder");
 			expect(folderMessage).not.toContain("Deleting this choice");
 
@@ -463,7 +410,7 @@ describe("choiceService", () => {
 				createChoice("Template", "Daily note"),
 				fakeApp,
 			);
-			expect(mocks.yesNoPrompt.mock.calls[0][1]).toBe("Delete choice");
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { title: string }).title).toBe("Delete choice");
 		});
 
 		it("does not call a nested folder a choice", async () => {
@@ -475,7 +422,7 @@ describe("choiceService", () => {
 
 			await deleteChoiceWithConfirmation(folder, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 2 choices and 1 folder.");
 		});
 
@@ -511,7 +458,7 @@ describe("choiceService", () => {
 			await expect(
 				deleteChoiceWithConfirmation(folder, fakeApp),
 			).resolves.toBe(true);
-			expect(mocks.yesNoPrompt.mock.calls[0][2]).toBe(
+			expect((mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message).toBe(
 				"Are you sure you want to delete 'Journal'?",
 			);
 		});
@@ -520,7 +467,7 @@ describe("choiceService", () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const macro = createChoice("Macro", "MyMacro");
 			await deleteChoiceWithConfirmation(macro, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("MyMacro");
 			expect(message).toContain("macro commands");
 		});
@@ -551,7 +498,7 @@ describe("choiceService", () => {
 			await expect(deleteChoiceWithConfirmation(macro, fakeApp)).resolves.toBe(
 				true,
 			);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("couldn't read this macro's commands");
 			expect(message).toContain("still stored under it in data.json");
 		});
@@ -586,7 +533,7 @@ describe("choiceService", () => {
 			} as unknown as IChoice;
 
 			await deleteChoiceWithConfirmation(macro, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message, label).toContain(
 				"Deleting this choice will also delete its macro commands.",
 			);
@@ -685,48 +632,34 @@ describe("choiceService", () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const choice = createChoice("Template", "Plain");
 			await deleteChoiceWithConfirmation(choice, fakeApp);
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toBe("Are you sure you want to delete 'Plain'?");
 		});
 	});
 
 	describe("configureChoice", () => {
-		it("opens MultiChoiceSettingsModal for Multi choices and returns its result", async () => {
-			const updated = createChoice("Multi", "Updated");
-			mocks.multiModal.mockReturnValue(Promise.resolve(updated));
-			const choice = createChoice("Multi", "Group");
+		it("opens the builder page and reports whether it opened", () => {
 			const plugin = {} as unknown as QuickAdd;
-			const result = await configureChoice(choice, fakeApp, plugin);
-			expect(result).toBe(updated);
-			expect(mocks.multiModal).toHaveBeenCalledWith(fakeApp, choice);
+			expect(configureChoice(createChoice("Template", "T"), fakeApp, plugin, vi.fn())).toBe(true);
+			mocks.opens = false;
+			expect(configureChoice(createChoice("Capture", "C"), fakeApp, plugin, vi.fn())).toBe(false);
 		});
 
-		it("returns undefined when the Multi modal rejects", async () => {
-			mocks.multiModal.mockReturnValue(Promise.reject(new Error("closed")));
-			const choice = createChoice("Multi", "Group");
-			const plugin = {} as unknown as QuickAdd;
-			const result = await configureChoice(choice, fakeApp, plugin);
-			expect(result).toBeUndefined();
-		});
-
-		it("delegates to the builder for non-Multi choices and returns its result", async () => {
-			const updated = createChoice("Template", "Edited");
-			mocks.templateBuilder.mockReturnValue(Promise.resolve(updated));
+		it("hands each save the previous save as its base, starting after the builder's backfill", () => {
+			const onSave = vi.fn();
 			const choice = createChoice("Template", "T");
-			const plugin = {} as unknown as QuickAdd;
-			const result = await configureChoice(choice, fakeApp, plugin);
-			expect(result).toBe(updated);
-		});
+			configureChoice(choice, fakeApp, {} as unknown as QuickAdd, onSave);
+			const save = mocks.builders.at(-1)!.onSave;
 
-		it("propagates a rejected builder waitForClose for non-Multi choices", async () => {
-			mocks.captureBuilder.mockReturnValue(
-				Promise.reject(new Error("builder failed")),
-			);
-			const choice = createChoice("Capture", "C");
-			const plugin = {} as unknown as QuickAdd;
-			await expect(
-				configureChoice(choice, fakeApp, plugin),
-			).rejects.toThrow("builder failed");
+			save({ ...choice, name: "First" });
+			save({ ...choice, name: "Second" });
+
+			const [first, second] = onSave.mock.calls;
+			// The builder's backfill is in the base, so it is not an edit.
+			expect(first[1]).toMatchObject({ name: "T", backfilled: true });
+			expect(first[0]).toMatchObject({ name: "First" });
+			expect(second[1]).toEqual(first[0]);
+			expect(second[0]).toMatchObject({ name: "Second" });
 		});
 	});
 

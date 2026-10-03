@@ -1,6 +1,11 @@
 export interface InputPromptOptions {
 	cursorAtEnd?: boolean;
 	/**
+	 * The note the answer is written into. File suggestions link relative to
+	 * it, and a cancelled draft is kept for that note only.
+	 */
+	linkSourcePath?: string;
+	/**
 	 * Offer Peek so the user can read or select from the open note and come
 	 * back to the same draft. Opt in only for prompts that sit on the vault
 	 * (choice runs, `quickAddApi.inputPrompt`). Nested settings/builder

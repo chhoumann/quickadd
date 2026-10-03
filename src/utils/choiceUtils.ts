@@ -1,7 +1,9 @@
 import { isUnreadableList as isUnreadableChoiceList } from "./persistedContainers";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "./uuid";
 import type IMultiChoice from "src/types/choices/IMultiChoice";
 import type IChoice from "../types/choices/IChoice";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
 
 function isMultiChoice(choice: IChoice): choice is IMultiChoice {
@@ -201,6 +203,25 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 	};
 
 	return walk(choices);
+}
+
+/**
+ * An empty Capture format or File name means the default: `{{VALUE}}` on its
+ * own, or the note-title prompt (#2004). QuickAdd 2.29 and earlier saved
+ * `enabled: true` with no text when that field's toggle was switched on and left
+ * empty, which the builder now shows as the default but the run read as "write
+ * nothing" (#2047). Clear the flag so the run agrees; the text is kept, as the
+ * builder keeps it. The result is the shape 2.29 saves with the toggle off.
+ */
+export function clearEmptyFormatFlag(choice: IChoice): void {
+	const field: unknown =
+		choice.type === "Capture" ? (choice as ICaptureChoice).format :
+		choice.type === "Template" ? (choice as ITemplateChoice).fileNameFormat :
+		undefined;
+	if (!field || typeof field !== "object") return;
+	const format = field as { enabled?: unknown; format?: unknown };
+	const text = typeof format.format === "string" ? format.format : "";
+	if (format.enabled === true && text.trim() === "") format.enabled = false;
 }
 
 export interface RepairedChoiceId {

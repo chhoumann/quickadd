@@ -1,5 +1,11 @@
-import { FuzzySuggestModal } from "obsidian";
-import type { FuzzyMatch, App } from "obsidian";
+import {
+	FuzzySuggestModal,
+	prepareFuzzySearch,
+	renderMatches,
+	setIcon,
+	sortSearchResults,
+} from "obsidian";
+import type { FuzzyMatch, App, SearchMatches } from "obsidian";
 import { log } from "src/logger/logManager";
 import {
 	createRenderFallbackWarner,
@@ -8,8 +14,10 @@ import {
 	normalizeQuery,
 } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
+import { matchWithAliases } from "../suggesters/rankMatches";
 
-export type SuggestRender<T> = (value: T, el: HTMLElement) => void;
+/** `matches` are the query's match ranges in the item's search text. */
+export type SuggestRender<T> = (value: T, el: HTMLElement, matches: SearchMatches) => void;
 
 export type GenericSuggesterOptions = {
 	/**
@@ -18,6 +26,11 @@ export type GenericSuggesterOptions = {
 	 * {{VALUE:a,b,c|optional}} tokens).
 	 */
 	skippable?: boolean;
+	/**
+	 * Other names each item can be found by, by index (a note's aliases). A row
+	 * found by one shows that name, the way Obsidian's quick switcher does.
+	 */
+	aliases?: string[][];
 };
 
 export class SuggesterModal<T> extends FuzzySuggestModal<T> {
@@ -29,6 +42,11 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 	private renderItem?: SuggestRender<T>;
 	protected displayItems: string[];
 	protected items: T[];
+	// getItemText runs once per item per keystroke, so finding an item's index
+	// with items.indexOf made every keystroke quadratic in the list's length.
+	private indexByItem = new Map<T, number>();
+	private aliases?: string[][];
+	private aliasByMatch = new WeakMap<FuzzyMatch<T>, string>();
 	private warnedOnEmptyDisplay = false;
 	private warnRenderItemFailure = createRenderFallbackWarner(
 		"Custom renderItem threw an error; falling back to default rendering",
@@ -81,6 +99,15 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 				return normalizeDisplayItem(displayItem ?? item);
 			});
 		}
+
+		this.items.forEach((item, index) => {
+			if (!this.indexByItem.has(item)) this.indexByItem.set(item, index);
+		});
+		this.aliases = options?.aliases;
+	}
+
+	protected indexOfItem(item: T): number {
+		return this.indexByItem.get(item) ?? -1;
 	}
 
 	/**
@@ -93,7 +120,7 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 	}
 
 	getItemText(item: T): string {
-		const index = this.items.indexOf(item);
+		const index = this.indexOfItem(item);
 		const displayItem = index >= 0 ? this.displayItems[index] : undefined;
 		return normalizeDisplayItem(displayItem ?? item);
 	}
@@ -104,7 +131,20 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 
 	getSuggestions(query: string): FuzzyMatch<T>[] {
 		const safeQuery = normalizeQuery(query);
-		return super.getSuggestions(safeQuery);
+		if (!this.aliases || !safeQuery.trim()) return super.getSuggestions(safeQuery);
+
+		// One row per item, found by its text or any of its aliases.
+		const search = prepareFuzzySearch(safeQuery.trim());
+		const results: FuzzyMatch<T>[] = [];
+		this.items.forEach((item, index) => {
+			const found = matchWithAliases(search, this.getItemText(item), this.aliases?.[index]);
+			if (!found) return;
+			const result = { item, match: found.result };
+			if (found.alias !== undefined) this.aliasByMatch.set(result, found.alias);
+			results.push(result);
+		});
+		sortSearchResults(results);
+		return results;
 	}
 
 	selectSuggestion(
@@ -116,6 +156,12 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 	}
 
 	renderSuggestion(value: FuzzyMatch<T>, el: HTMLElement): void {
+		const alias = this.aliasByMatch.get(value);
+		if (alias !== undefined) {
+			this.renderAliasSuggestion(value, alias, el);
+			return;
+		}
+
 		if (!this.renderItem) {
 			// default rendering with fuzzy highlights
 			super.renderSuggestion(value, el);
@@ -124,13 +170,26 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 
 		try {
 			el.empty();
-			this.renderItem(value.item, el);
+			this.renderItem(value.item, el, value.match.matches);
 		} catch (error) {
 			// Fallback to default rendering if custom render throws
 			this.warnRenderItemFailure(error);
 			el.empty();
 			super.renderSuggestion(value, el);
 		}
+	}
+
+	/** The alias that matched, with the item's own name beneath, as in the quick switcher. */
+	private renderAliasSuggestion(value: FuzzyMatch<T>, alias: string, el: HTMLElement): void {
+		el.empty();
+		el.addClass("mod-complex");
+		const content = el.createDiv({ cls: "suggestion-content" });
+		renderMatches(content.createDiv({ cls: "suggestion-title" }), alias, value.match.matches);
+		const index = this.indexOfItem(value.item);
+		content.createDiv({ cls: "suggestion-note", text: this.displayItems[index] ?? "" });
+		const flair = el.createDiv({ cls: "suggestion-aux" }).createSpan({ cls: "suggestion-flair" });
+		flair.setAttribute("aria-label", "Alias");
+		setIcon(flair, "forward");
 	}
 
 	protected renderDefaultSuggestion(value: FuzzyMatch<T>, el: HTMLElement): void {

@@ -14,8 +14,10 @@ import { QA_INTERNAL_DATE_ORIGIN } from "src/constants";
 import { buildDiscoveryFormPlan, resolveDiscoveryFieldRequirement, storeDiscoveryFormAnswers } from "./discoveryFormPlan";
 import { getPreparedTemplateNoteSelection, withPreparedChoiceInputs } from "./preparedChoiceInputs";
 
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/templateFolderUtils", () => ({
 	getTemplateFile: (_app: App, path: string) => ({ path }),
+}));
+vi.mock("src/utils/vaultQueries", () => ({
 	isFolder: () => false,
 }));
 vi.mock("src/logger/logManager", () => ({ log: { logMessage: vi.fn(), logWarning: vi.fn() } }));

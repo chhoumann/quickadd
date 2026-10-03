@@ -4,7 +4,7 @@ import type { CaptureChoiceFormatter } from "../formatters/captureChoiceFormatte
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import { BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX, MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
-import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "../gui/InputSuggester/renderNotePathSuggestion";
 import invariant from "../utils/invariant";
@@ -17,6 +17,7 @@ import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
+import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
 import { resolveCaptureTarget as resolveCaptureTargetFromString, type CaptureTargetResolution } from "./helpers/captureTargetResolution";
 
@@ -81,6 +82,10 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 			captureTo,
 			"captureTarget",
 		);
+		// A periodic note is a file, even when a folder has its name.
+		if (formattedCaptureTo === this.formatter.periodicNoteTarget?.path) {
+			return this.normalizeCaptureFilePath(`${formattedCaptureTo}.md`);
+		}
 		const resolution = this.resolveCaptureTarget(formattedCaptureTo);
 
 		switch (resolution.kind) {
@@ -354,8 +359,11 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		nameIsTaken: (value: string) => boolean;
 		restrictToScope?: boolean;
 	}): Promise<string> {
-		const { paths, labels, search } = captureCandidates(this.app, files);
+		const { paths, labels, aliases, search } = captureCandidates(this.app, files);
 		const existingLabels = new Set(labels.map((label) => label.toLowerCase()));
+		const aliasNames = new Set(aliases.flat().map((alias) => alias.toLowerCase()));
+		// Each search text ends with its path, where a row's path matches start.
+		const pathOffsets = new Map(paths.map((path, index) => [path, search[index].length - path.length]));
 		const nameIsTaken = (value: string) =>
 			existingLabels.has(value.toLowerCase()) || options.nameIsTaken(value);
 		const placeholder = options.allowCreate
@@ -368,6 +376,10 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 					allowCustomInput: options.allowCreate,
 					what: "the capture-target picker",
 				});
+				// The client matches titles only. A typed alias names its note, as in
+				// the in-app picker, so capture into it rather than create a new one.
+				const aliased = paths.includes(reply) ? undefined : itemWithAlias(paths, aliases, reply);
+				if (aliased !== undefined) return aliased;
 				// Folder replies are confined by their caller. Other scopes must
 				// reject existing notes that were not offered by this picker.
 				if (options.restrictToScope && !paths.includes(reply) && nameIsTaken(reply)) {
@@ -385,11 +397,17 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 			app: () => InputSuggester.Suggest(this.app, labels, paths, {
 				placeholder,
 				emptyStateText: options.allowCreate ? "Type a note name to create it" : undefined,
-				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
+				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
+					matches,
+					pathOffset: pathOffsets.get(path) ?? 0,
+				}),
 				searchItems: search,
+				aliases,
 				allowCustomValue: options.allowCreate,
 				customValueLabel: (value) => `Create new note: ${value}`,
-				valueExists: nameIsTaken,
+				// An alias names its note, so typing one picks that note instead of
+				// offering to create a new one.
+				valueExists: (value) => aliasNames.has(value.toLowerCase()) || nameIsTaken(value),
 			}),
 		}));
 		invariant(!!selected && selected.length > 0, "No file selected for capture.");
@@ -453,20 +471,6 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		return this.normalizeMarkdownFilePath("", path);
 	}
 
-	/**
-	 * For "Choose heading when capturing": prompt the user with a dropdown of the
-	 * destination's headings and set the picked line as the formatter's insert-after
-	 * override. The items are byte-exact heading LINES from `content` (so the formatter's
-	 * literal search and create-if-not-found round-trip exactly, the #742 invariant),
-	 * parsed with the same `getMarkdownHeadings` the inserter uses (so what is offered can
-	 * never desync from what is matched). `allowCustomValue` lets the user type a NEW heading
-	 * only when "Create line if not found" is enabled — otherwise the override path can only
-	 * match an existing line and would abort after the user already typed one (the picker must
-	 * never offer to create a heading the engine cannot create). `content` is the
-	 * destination's current text — a note body, or a Canvas text card's text. A no-op unless
-	 * the choice is in heading mode. Cancelling aborts the capture cleanly (UserCancelError),
-	 * before any write.
-	 */
 	/**
 	 * Abort a runtime capture-target file picker on a non-interactive run (CLI
 	 * without `ui`) instead of hanging on an unanswerable suggester. Reached when a

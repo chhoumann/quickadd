@@ -1,3 +1,5 @@
+import { setIcon } from "obsidian";
+
 export interface SearchableMultiSelectItem<T> {
 	/** Selection identity. Rows with the same key share selected state. */
 	key: string;
@@ -5,9 +7,14 @@ export interface SearchableMultiSelectItem<T> {
 	label: string;
 	/** Extra text used for filtering without adding it to the visible label. */
 	searchText?: string;
+	/**
+	 * Other names the item is found by (a note's aliases). A row found only by
+	 * one shows that name over its label, as Obsidian's quick switcher does.
+	 */
+	aliases?: readonly string[];
 }
 
-export interface SearchableMultiSelectOptions<T> {
+interface SearchableMultiSelectOptions<T> {
 	items: readonly SearchableMultiSelectItem<T>[];
 	isSelected: (item: SearchableMultiSelectItem<T>) => boolean;
 	onToggle: (
@@ -23,6 +30,12 @@ interface IndexedItem<T> {
 	item: SearchableMultiSelectItem<T>;
 	index: number;
 	searchableText: string;
+	searchableAliases: string[];
+}
+
+interface MatchedItem<T> extends IndexedItem<T> {
+	/** The alias that matched, when the item's own text did not. */
+	alias?: string;
 }
 
 interface RenderedRow<T> {
@@ -89,14 +102,6 @@ export default class SearchableMultiSelect<T> {
 			if (event.key === "ArrowUp") {
 				event.preventDefault();
 				this.renderedRows.at(-1)?.input.focus();
-				return;
-			}
-			if (event.key === "Escape" && this.query) {
-				event.preventDefault();
-				event.stopPropagation();
-				this.query = "";
-				this.searchInputEl.value = "";
-				this.renderList();
 			}
 		});
 
@@ -110,9 +115,23 @@ export default class SearchableMultiSelect<T> {
 			searchableText: normalizeSearchText(
 				`${item.label} ${item.searchText ?? ""}`,
 			),
+			searchableAliases: (item.aliases ?? []).map(normalizeSearchText),
 		}));
 		this.searchInputEl.disabled = items.length === 0;
 		this.renderList();
+	}
+
+	/**
+	 * Clears a non-empty search and returns true, so the owning modal can spend
+	 * its first Esc on the search. Returns false when there is nothing to clear.
+	 */
+	clearSearch(): boolean {
+		if (!this.query) return false;
+		this.query = "";
+		this.searchInputEl.value = "";
+		this.renderList();
+		this.searchInputEl.focus();
+		return true;
 	}
 
 	focusSearchOnOpen(): void {
@@ -128,20 +147,29 @@ export default class SearchableMultiSelect<T> {
 		this.updateSummary();
 	}
 
-	private getMatchingItems(): IndexedItem<T>[] {
+	/** Items whose own text, or else one of whose aliases, has every query word. */
+	private getMatchingItems(): MatchedItem<T>[] {
 		const tokens = normalizeSearchText(this.query.trim())
 			.split(/\s+/)
 			.filter(Boolean);
 		if (tokens.length === 0) return this.indexedItems;
-		return this.indexedItems.filter(({ searchableText }) =>
-			tokens.every((token) => searchableText.includes(token)),
-		);
+		const hasTokens = (text: string) => tokens.every((token) => text.includes(token));
+		const matches: MatchedItem<T>[] = [];
+		for (const indexed of this.indexedItems) {
+			if (hasTokens(indexed.searchableText)) {
+				matches.push(indexed);
+				continue;
+			}
+			const at = indexed.searchableAliases.findIndex(hasTokens);
+			if (at >= 0) matches.push({ ...indexed, alias: indexed.item.aliases?.[at] });
+		}
+		return matches;
 	}
 
-	private getVisibleItems(matches: IndexedItem<T>[]): IndexedItem<T>[] {
+	private getVisibleItems(matches: MatchedItem<T>[]): MatchedItem<T>[] {
 		if (matches.length <= MAX_VISIBLE_OPTIONS) return matches;
-		const selected: IndexedItem<T>[] = [];
-		const unselected: IndexedItem<T>[] = [];
+		const selected: MatchedItem<T>[] = [];
+		const unselected: MatchedItem<T>[] = [];
 		for (const indexed of matches) {
 			(this.options.isSelected(indexed.item) ? selected : unselected).push(
 				indexed,
@@ -177,10 +205,18 @@ export default class SearchableMultiSelect<T> {
 		this.updateSummary(matches.length);
 	}
 
-	private renderRow(indexed: IndexedItem<T>): void {
-		const { item, index } = indexed;
+	private renderRow(indexed: MatchedItem<T>): void {
+		const { item, index, alias } = indexed;
 		const row = this.listEl.createEl("label", { cls: "qa-searchable-multi-select__option" });
-		row.createSpan({ cls: "qa-searchable-multi-select__option-label", text: item.label });
+		const text = row.createSpan({ cls: "qa-searchable-multi-select__option-text" });
+		text.createSpan({ cls: "qa-searchable-multi-select__option-label", text: alias ?? item.label });
+		if (alias !== undefined) {
+			// As in the quick switcher: the alias that matched, the item beneath.
+			text.createSpan({ cls: "qa-searchable-multi-select__option-note", text: item.label });
+			const flair = row.createSpan({ cls: "qa-searchable-multi-select__option-flair" });
+			flair.setAttribute("aria-label", "Alias");
+			setIcon(flair, "forward");
+		}
 		const input = row.createEl("input", { type: "checkbox" });
 		input.name = `qa-multi-select-${this.instanceId}`;
 		input.id = `qa-multi-select-${this.instanceId}-${index}`;
@@ -247,9 +283,10 @@ export default class SearchableMultiSelect<T> {
 			).size;
 		const selectedLabel = `${selectedCount} selected`;
 		if (!this.query.trim()) {
-			this.summaryEl.textContent = `${selectedLabel} · ${this.indexedItems.length} options`;
+			const count = this.indexedItems.length;
+			this.summaryEl.textContent = `${selectedLabel} · ${count} ${count === 1 ? "option" : "options"}`;
 			return;
 		}
-		this.summaryEl.textContent = `${selectedLabel} · ${matchCount} matches`;
+		this.summaryEl.textContent = `${selectedLabel} · ${matchCount} ${matchCount === 1 ? "match" : "matches"}`;
 	}
 }

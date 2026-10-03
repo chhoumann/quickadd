@@ -131,3 +131,28 @@ describe("CaptureChoice.Load", () => {
 		expect(loaded.insertAfter.orderBy).toBeUndefined();
 	});
 });
+
+// #2007: most After-line captures append to the section and create a missing
+// heading, so new Captures start that way. Saved choices keep their values.
+describe("CaptureChoice After line defaults", () => {
+	it("starts a new Capture appending to the section and creating a missing heading at the top", () => {
+		const { insertAfter } = new CaptureChoice("New");
+
+		expect(insertAfter).toMatchObject({
+			enabled: false,
+			insertAtEnd: true,
+			createIfNotFound: true,
+			createIfNotFoundLocation: "top",
+		});
+	});
+
+	it("leaves a saved choice's After line settings as they were", () => {
+		const saved = JSON.parse(JSON.stringify(new CaptureChoice("Saved")));
+		saved.insertAfter = { enabled: true, after: "## Log", insertAtEnd: false, createIfNotFound: false };
+
+		const loaded = CaptureChoice.Load(saved);
+
+		expect(loaded.insertAfter.insertAtEnd).toBe(false);
+		expect(loaded.insertAfter.createIfNotFound).toBe(false);
+	});
+});

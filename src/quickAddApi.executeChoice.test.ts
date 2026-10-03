@@ -19,10 +19,6 @@ vi.mock("./formatters/completeFormatter", () => ({
 	CompleteFormatter: class CompleteFormatterMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 describe("QuickAddApi.executeChoice", () => {
 	const app = {} as App;
 	let plugin: QuickAdd & { getChoiceByName: ReturnType<typeof vi.fn>; };

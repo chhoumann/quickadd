@@ -31,25 +31,30 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 	default: class {},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	getMarkdownFilesInFolder: vi.fn(() => []),
-	getMarkdownFilesWithTag: vi.fn(() => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesWithTag: vi.fn(() => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	openExistingFileTab: vi.fn(() => null),
-	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn(() => null),
+	openFile: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({ default: vi.fn(() => ({})), __esModule: true }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
 vi.mock("./SingleTemplateEngine", () => ({
 	SingleTemplateEngine: class {
@@ -150,6 +155,50 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		expect(items).toEqual(["# Title", "## Tasks", "### Subtask", "## Notes"]);
 		// display is indented by heading level (level 1 → no indent).
 		expect(displayItems).toEqual(["Title", "  Tasks", "    Subtask", "  Notes"]);
+	});
+
+	it("offers only lines Obsidian reads as headings (#1987)", async () => {
+		const suggestSpy = vi.fn(async () => "## Log");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const engine = buildEngine(createChoice());
+
+		await (engine as any).maybeResolveInsertAfterHeading(
+			[
+				"---",
+				"tags: log",
+				"# owner: me",
+				"---",
+				"## Log",
+				"```bash",
+				"# comment",
+				"```",
+				"####### seven",
+				"   ### Indented",
+				"Setext",
+				"======",
+				"## Next",
+			].join("\n"),
+		);
+
+		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
+		// A setext heading's own line is its text, not a line a capture can be
+		// inserted after without splitting the heading from its underline.
+		// Without indentation: the insert-after search compares lines with their
+		// leading whitespace trimmed.
+		expect(items).toEqual(["## Log", "### Indented", "## Next"]);
+		expect(displayItems).toEqual(["  Log", "    Indented", "  Next"]);
+	});
+
+	it("offers the headings of a CRLF note, without the carriage return (#2022)", async () => {
+		const suggestSpy = vi.fn(async () => "## Log");
+		(InputSuggester as any).Suggest = suggestSpy;
+		const engine = buildEngine(createChoice());
+
+		await (engine as any).maybeResolveInsertAfterHeading("## Log\r\n- first\r\n### Sub\r\n- sub\r\n");
+
+		const [, displayItems, items] = suggestSpy.mock.calls[0] as unknown[];
+		expect(items).toEqual(["## Log", "### Sub"]);
+		expect(displayItems).toEqual(["  Log", "    Sub"]);
 	});
 
 	it("pushes the picked heading line to the formatter as a verbatim override", async () => {

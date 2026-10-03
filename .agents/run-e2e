@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
+# Builds main.js and runs the native E2E suite in this worktree's isolated
+# Obsidian instance. Arguments go to Vitest (a spec path, `-t <name>`).
+#
+# OBSIDIAN_E2E_TEMPLATER=1 also runs the Templater-only specs, against the
+# Templater release pinned below. Run it that way for any change that touches
+# a Templater path: CI runs no native specs, so nothing else catches those.
 set -euo pipefail
+
+# The start-environment parsing below needs bash 4 (associative arrays,
+# `[[ -v ]]`). macOS ships bash 3.2 as /bin/bash; Homebrew's bash on PATH works.
+if ((BASH_VERSINFO[0] < 4)); then
+	echo "run-e2e needs bash 4 or newer; this is bash $BASH_VERSION. On macOS: brew install bash" >&2
+	exit 1
+fi
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly REPO_ROOT="$(dirname -- "$SCRIPT_DIR")"
@@ -19,9 +32,12 @@ fi
 # source so a stale bundle can't pass or fail a run for code it doesn't hold.
 pnpm run --silent build >/dev/null
 
+# Set before the trap below can read it: an inherited `results` must not be removed.
+results=""
 cleanup() {
 	local status=$?
 	trap - EXIT INT TERM
+	rm -f -- "${results:-}"
 	if ! HOME="$ORIGINAL_HOME" pnpm run --silent stop:e2e-obsidian; then
 		echo "Failed to stop the isolated Obsidian E2E instance." >&2
 		if ((status == 0)); then status=1; fi
@@ -81,14 +97,22 @@ done
 }
 vault_path="${start_env[OBSIDIAN_E2E_VAULT_PATH]}"
 obsidian_home="${start_env[OBSIDIAN_E2E_OBSIDIAN_HOME]}"
-expected_vault_root="$(realpath -e -- "$REPO_ROOT/.obsidian-e2e-vaults")"
-profile_root="$(realpath -e -- /tmp/quickadd-obsidian-e2e)"
-if [[ ! -d "$vault_path" || "$(realpath -e -- "$vault_path")" != "$vault_path" || \
+# The physical path of an existing directory, or nothing (`realpath -e` is
+# GNU-only). The printed paths must already be physical, so a `..` or a link
+# can't point the run elsewhere. Only the profile root is resolved first: on
+# macOS /tmp is a link to /private/tmp, and the runner prints the /tmp form.
+physical_dir() { (cd -P -- "$1" 2>/dev/null && pwd -P) || true; }
+readonly PROFILE_ROOT=/tmp/quickadd-obsidian-e2e
+expected_vault_root="$(physical_dir "$REPO_ROOT/.obsidian-e2e-vaults")"
+profile_root="$(physical_dir "$PROFILE_ROOT")"
+if [[ -z "$expected_vault_root" || -z "$profile_root" || \
+	"$(physical_dir "$vault_path")" != "$vault_path" || \
 	"$(dirname -- "$vault_path")" != "$expected_vault_root" || \
-	! -d "$obsidian_home" || "$(realpath -e -- "$obsidian_home")" != "$obsidian_home" || \
+	"$obsidian_home" != "$PROFILE_ROOT"/* || \
+	"$(physical_dir "$obsidian_home")" != "$profile_root${obsidian_home#"$PROFILE_ROOT"}" || \
 	"$(basename -- "$obsidian_home")" != "home" || \
-	"$(dirname -- "$(dirname -- "$obsidian_home")")" != "$profile_root" ]]; then
-	echo "Start environment paths are not canonical isolated E2E paths." >&2
+	"$(dirname -- "$(dirname -- "$obsidian_home")")" != "$PROFILE_ROOT" ]]; then
+	echo "Start environment paths are not canonical isolated E2E paths: vault $vault_path, home $obsidian_home." >&2
 	exit 1
 fi
 for name in "${!start_env[@]}"; do
@@ -97,6 +121,53 @@ for name in "${!start_env[@]}"; do
 done
 
 export HOME="$OBSIDIAN_E2E_OBSIDIAN_HOME"
+
+if [[ "${OBSIDIAN_E2E_TEMPLATER:-}" == "1" ]]; then
+	# The runner resets community-plugins.json on every start, so install the
+	# pinned release into the isolated vault and enable it in the running app.
+	templater_version="2.25.1"
+	declare -A templater_sha256=(
+		[main.js]=eb86d9282694ce1f099154c320286fdd89473e60dc2441ee310f3ac331333e94
+		[manifest.json]=b99280d2c4ab2cd22ad010c12faeedf255bcf385d127d973b89f85deb27d23fd
+		[styles.css]=67a6dd2d1d6dedca1287c334ca884ec4196433f71ca47388a0bd3eac14cf8b5f
+	)
+	templater_cache="$ORIGINAL_HOME/.cache/quickadd-templater/$templater_version"
+	templater_dir="$vault_path/.obsidian/plugins/templater-obsidian"
+	mkdir -p "$templater_cache" "$templater_dir"
+	for file in "${!templater_sha256[@]}"; do
+		if [[ ! -f "$templater_cache/$file" ]]; then
+			# A download of its own, so a concurrent run in another worktree can't
+			# move or truncate it mid-write.
+			part="$(mktemp "$templater_cache/$file.XXXXXX")"
+			curl -sSfL -o "$part" \
+				"https://github.com/SilentVoid13/Templater/releases/download/$templater_version/$file"
+			mv "$part" "$templater_cache/$file"
+		fi
+		# `-` for stdin: macOS's sha256sum needs an operand.
+		echo "${templater_sha256[$file]}  $templater_cache/$file" | sha256sum --check --quiet -
+		cp "$templater_cache/$file" "$templater_dir/$file"
+	done
+	# A reused instance may already run a Templater, and enabling a loaded
+	# plugin keeps its code, so unload it first.
+	enabled="$(pnpm run --silent obsidian:e2e -- eval code='(async () => {
+		await app.plugins.loadManifests();
+		await app.plugins.disablePlugin("templater-obsidian");
+		await app.plugins.enablePlugin("templater-obsidian");
+		return app.plugins.plugins["templater-obsidian"]?.manifest.version ?? "missing";
+	})()')"
+	if [[ "$enabled" != "=> $templater_version" ]]; then
+		echo "Could not enable Templater $templater_version: $enabled" >&2
+		exit 1
+	fi
+fi
+
 # No `--`: pnpm passes it through, and Vitest ignores everything after it, so
 # file and `-t` filters would silently run the whole suite.
-pnpm run test:e2e "$@"
+# Vitest also exits 0 when a `-t` filter matches no test, so count what ran.
+results="$(mktemp)"
+pnpm run test:e2e "$@" --reporter=default --reporter=json --outputFile.json="$results"
+ran="$(node -e 'const r = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); process.stdout.write(String(r.numPassedTests + r.numFailedTests));' "$results")"
+if ((ran == 0)); then
+	echo "No spec ran: the arguments matched no test ($*)." >&2
+	exit 1
+fi

@@ -141,7 +141,7 @@ function quoteChars(chars: readonly string[]): string {
  * The normalized path plus the reasons the strict entry point would have
  * rejected it. See {@link previewGeneratedFilePath}.
  */
-export type GeneratedFilePathPreview = {
+type GeneratedFilePathPreview = {
 	path: string;
 	problems: string[];
 };

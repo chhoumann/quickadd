@@ -1,4 +1,4 @@
-export type ParsedMacroToken = {
+type ParsedMacroToken = {
 	macroName: string;
 	label?: string;
 };

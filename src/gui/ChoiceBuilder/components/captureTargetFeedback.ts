@@ -2,7 +2,7 @@ import type { FieldFilter } from "../../../utils/FieldSuggestionParser";
 import { parseCaptureFileFilterTarget } from "../../../utils/captureFileFilterTarget";
 import { parsePropertyTarget } from "../../../utils/propertyTarget";
 
-export type CaptureTargetFeedback = {
+type CaptureTargetFeedback = {
 	recognized: true;
 	valid: boolean;
 	variant: "success" | "error";

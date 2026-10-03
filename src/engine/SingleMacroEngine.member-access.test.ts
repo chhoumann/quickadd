@@ -40,9 +40,9 @@ vi.mock("./MacroChoiceEngine", () => ({
 	}),
 }));
 
-vi.mock("../utilityObsidian", async () => {
+vi.mock("../utils/userScript", async () => {
 	const actual = await vi.importActual<Record<string, unknown>>(
-		"../utilityObsidian",
+		"../utils/userScript",
 	);
 
 	return {

@@ -1,4 +1,5 @@
-import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
+import getEndOfSection from "./getEndOfSection";
+import { extractHeadingsFromLines, nonHeadingBlockLines } from "./sectionLink";
 import type { SectionOrdering } from "../../types/choices/ICaptureChoice";
 
 /**
@@ -28,54 +29,22 @@ export type MomentLike = (
 type ParsedKey = { value: number | string; parsed: boolean };
 
 /**
- * Neutralize heading-like lines INSIDE fenced code blocks (``` / ~~~) so a `## x`
- * in a code sample is never mistaken for a sibling heading, while preserving line
- * indices AND non-blankness. Only the leading `#` run of a fenced heading-like
- * line is replaced (with a zero-width sentinel that `String.trim()` does not
- * strip), so the line stays non-blank: `getEndOfSection`'s blank-trimming still
- * spans a code block at a section's tail instead of cutting the section short.
- * Mirrors CommonMark loosely: an opening fence may carry an info string; a closing
- * fence is the same marker char, at least as long, with nothing after it. An
- * unclosed fence runs to EOF. Non-heading lines (incl. the fence markers) are kept
- * verbatim — they are already non-blank and non-heading.
+ * Neutralize heading-like lines inside the frontmatter and fenced code blocks
+ * so a `## x` in a code sample is never mistaken for a sibling heading, while
+ * preserving line indices AND non-blankness. Only the leading `#` run is
+ * replaced (with a zero-width sentinel that `String.trim()` does not strip), so
+ * the line stays non-blank: `getEndOfSection`'s blank-trimming still spans a
+ * code block at a section's tail instead of cutting the section short. Which
+ * lines count as inside a block is decided by `nonHeadingBlockLines`, the rule
+ * the heading parser uses.
  */
-const FENCED_HEADING_SENTINEL = "​"; // zero-width space: non-blank to trim(), never a heading
+const FENCED_HEADING_SENTINEL = "\u200b"; // zero-width space: non-blank to trim(), never a heading
 
 export function maskFencedHeadings(lines: string[]): string[] {
-	const out = lines.slice();
-	let inFence = false;
-	let fenceChar = "";
-	let fenceLen = 0;
-
-	for (let i = 0; i < lines.length; i++) {
-		const match = lines[i].match(/^(\s*)(`{3,}|~{3,})/);
-		if (!inFence) {
-			if (match) {
-				inFence = true;
-				fenceChar = match[2][0];
-				fenceLen = match[2].length;
-			}
-			continue;
-		}
-
-		// Inside a fence: neutralize only heading-like lines.
-		out[i] = lines[i].replace(/^(\s*)#+(\s)/, `$1${FENCED_HEADING_SENTINEL}$2`);
-
-		if (match && match[2][0] === fenceChar && match[2].length >= fenceLen) {
-			const afterMarker = lines[i].slice(match[1].length + match[2].length);
-			if (afterMarker.trim() === "") {
-				inFence = false;
-				fenceChar = "";
-				fenceLen = 0;
-			}
-		}
-	}
-
-	return out;
-}
-
-function headingKeyText(line: string): string {
-	return (line.match(/^#+\s+(.*)$/)?.[1] ?? "").trim();
+	const blocked = nonHeadingBlockLines(lines);
+	return lines.map((line, i) =>
+		blocked[i] ? line.replace(/^(\s*)#+(\s)/, `$1${FENCED_HEADING_SENTINEL}$2`) : line,
+	);
 }
 
 function parseSemver(text: string): ParsedKey {
@@ -156,11 +125,15 @@ export function computeOrderedSectionInsertIndex(
 	bodyStartLine = 0,
 ): OrderedSlot {
 	const masked = maskFencedHeadings(lines);
-	const headings = getMarkdownHeadings(masked).filter(
+	const headings = extractHeadingsFromLines(masked).filter(
 		(heading) => heading.line >= bodyStartLine,
 	);
 	const siblings = headings.filter((heading) => heading.level === level);
-	const newKey = parseKey(headingKeyText(newHeaderFirstLine), ob, moment);
+	const newKey = parseKey(
+		extractHeadingsFromLines([newHeaderFirstLine])[0]?.heading.trim() ?? "",
+		ob,
+		moment,
+	);
 
 	// R1 (preamble pinned): with zero same-level siblings, nest the new section
 	// after the nearest higher-level ancestor's WHOLE section (so an H1 title and
@@ -192,7 +165,7 @@ export function computeOrderedSectionInsertIndex(
 
 	const sink = ob.unparseable ?? "bottom"; // governs EXISTING unparseable siblings
 	for (const sibling of siblings) {
-		const sibKey = parseKey(headingKeyText(masked[sibling.line]), ob, moment);
+		const sibKey = parseKey(sibling.heading.trim(), ob, moment);
 		let shouldPrecede: boolean;
 		if (!sibKey.parsed) {
 			// New key parsed, sibling not: place new ABOVE the sibling iff

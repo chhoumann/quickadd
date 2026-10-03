@@ -27,12 +27,6 @@ afterEach(closeOpenPrompts);
 
 async function pick(selector: string, typed: string, expected: string) {
 	const { obsidian } = getContext();
-	// A single picker preselects its first file and hides picked files from
-	// its suggestions, so clear it before searching.
-	await obsidian.dev.evalJson(`document.querySelector(${JSON.stringify(selector)})
-		?.closest(".qa-onepage-file-picker")
-		?.querySelectorAll(".qa-onepage-file-picker__remove")
-		.forEach((button) => button.click())`);
 	await typeInto(obsidian, selector, typed);
 	// A suggestion reads as the file name followed by its path.
 	await expect.poll(() => obsidian.dev.evalJson<boolean>(

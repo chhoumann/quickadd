@@ -84,12 +84,17 @@ describe("OnePageInputModal preflight-suggesters audit", () => {
 			let settled = false;
 			void modal.waitForClose.then(() => (settled = true));
 
+			document.body.append(modal.containerEl);
+			findSubmit(modal).focus();
 			findSubmit(modal).click();
 			await Promise.resolve();
 
 			expect(settled).toBe(false);
 			expect(noticeMessages).toHaveLength(1);
 			expect(noticeMessages[0]).toContain("Due date");
+			// Focus goes to the field to fix.
+			expect(document.activeElement).toBe(dateInput);
+			modal.containerEl.remove();
 		});
 
 		it("submits once the parse error is cleared (blocking is specific to the error)", async () => {

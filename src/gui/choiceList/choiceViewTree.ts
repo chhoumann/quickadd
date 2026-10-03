@@ -33,20 +33,28 @@ export function filterChoices(list: IChoice[], query: string): IChoice[] {
 	const q = query.trim();
 	if (!q) return list;
 	const match = prepareFuzzySearch(q);
+	const plainQuery = q.toLowerCase();
 
-	const walk = (c: IChoice): IChoice | null => {
+	// Choices match fuzzily. A folder matches on its own only when its name
+	// contains the query as plain text: then it shows its matching choices, or,
+	// with none, everything inside it (`all`) instead of looking empty. A folder
+	// that would only match fuzzily shows up only for its matching choices.
+	const walk = (c: IChoice, all = false): IChoice | null => {
 		if (!isChoiceLike(c)) return null;
-		const selfMatches = !!match(c.name ?? "");
+		const name = typeof c.name === "string" ? c.name : "";
 		if (c.type !== "Multi") {
-			return selfMatches ? c : null;
+			return all || match(name) ? c : null;
 		}
 
-		const filteredChildren = childChoicesOf(c)
-			.map((child) => walk(child))
+		const selfMatches = all || name.toLowerCase().includes(plainQuery);
+		const walkChildren = (keepAll: boolean) => childChoicesOf(c)
+			.map((child) => walk(child, keepAll))
 			.filter((choice): choice is IChoice => choice !== null);
+		let filteredChildren = walkChildren(all);
+		if (selfMatches && filteredChildren.length === 0) filteredChildren = walkChildren(true);
 
 		if (selfMatches || filteredChildren.length > 0) {
-			// Clone Multi node expanded with only matching children to avoid mutating original
+			// Clone the folder, expanded, with the children kept above, to avoid mutating the original
 			const expanded: IMultiChoice = {
 				...c,
 				collapsed: false,

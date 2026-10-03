@@ -1,4 +1,4 @@
-import { SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
+import { type DndEvent, SHADOW_ITEM_MARKER_PROPERTY_NAME, SHADOW_PLACEHOLDER_ITEM_ID, TRIGGERS } from "svelte-dnd-action";
 import { transformDragPill } from "./dragPill";
 
 /** Anything svelte-dnd-action can reorder in QuickAdd: it has a stable string id. */
@@ -79,6 +79,27 @@ export function moveById<T extends Reorderable>(
 	return next;
 }
 
+const nameLabel = (item: DragItem) => item.name ?? "";
+
+/**
+ * Turn the library's drag clone into the pill as a drag starts. The library
+ * does it once the zone renders the shadow item, which stripShadow leaves out,
+ * so a touch drag, which starts after the long-press without moving, showed
+ * the whole dragged row over the next one until the finger moved (#2136).
+ * Call from a zone's consider handler with the zone's resolveLabel.
+ */
+export function showDragPillOnStart<T extends DragItem>(
+	event: CustomEvent<DndEvent<T>>,
+	resolveLabel: (item: T) => string = nameLabel,
+): void {
+	if (event.detail.info.trigger !== TRIGGERS.DRAG_STARTED) return;
+	const dragged = event.detail.items.find((item) => item.id === SHADOW_PLACEHOLDER_ITEM_ID);
+	const zone = event.currentTarget as HTMLElement | null;
+	const clone = zone?.ownerDocument.getElementById("dnd-action-dragged-el");
+	if (!dragged || !clone) return;
+	transformDragPill(clone, resolveLabel(dragged), dragged.type === "Multi");
+}
+
 /**
  * Shared svelte-dnd-action options for QuickAdd's two drag zones (choices view + macro
  * builder). These options are COUPLED and must move together (see dragPill.ts):
@@ -92,10 +113,10 @@ export function moveById<T extends Reorderable>(
  *    (see the alertToScreenReader calls on keyboard reorder),
  *  - zoneItemTabIndex:-1 keeps rows out of the tab order,
  *  - delayTouchStart gates touch drags (desktop is gated by the dragArmed handle).
- * Per-zone overrides: items, dragDisabled, type, dropTargetClasses, flipDurationMs (kept
- * in sync with animate:flip), resolveLabel (the pill text — defaults to item.name;
- * the macro builder passes getCommandDisplayName, since a command's `.name` differs from
- * its rendered label for Choice/Conditional commands).
+ * Per-zone overrides: items, dragDisabled, type, dropTargetClasses, resolveLabel (the
+ * pill text — defaults to item.name; the macro builder passes getCommandDisplayName,
+ * since a command's `.name` differs from its rendered label for Choice/Conditional
+ * commands).
  */
 export function baseDndOptions<T extends DragItem>(opts: {
 	items: T[];
@@ -103,13 +124,15 @@ export function baseDndOptions<T extends DragItem>(opts: {
 	resolveLabel?: (item: T) => string;
 	type?: string;
 	dropTargetClasses?: string[];
-	flipDurationMs?: number;
 }) {
-	const resolveLabel = opts.resolveLabel ?? ((item: T) => item.name ?? "");
+	const resolveLabel = opts.resolveLabel ?? nameLabel;
 	return {
 		items: opts.items,
 		dragDisabled: opts.dragDisabled,
-		flipDurationMs: opts.flipDurationMs ?? 0,
+		// 0 keeps the reorder continuous: the library ties its position-observation
+		// interval to it (0 => 20ms polling; any value > 0 => ~107ms+, which felt
+		// "batched"). So the zones skip the row-glide animation.
+		flipDurationMs: 0,
 		morphDisabled: true,
 		useCursorForDetection: true,
 		centreDraggedOnCursor: false,

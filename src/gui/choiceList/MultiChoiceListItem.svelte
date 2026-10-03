@@ -8,7 +8,7 @@
     import { untrack } from "svelte";
 	import { Component, Platform, type App } from "obsidian";
     import type IChoice from "src/types/choices/IChoice";
-    import { showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
+    import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
     import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
     import type { ChoiceListActions } from "./choiceListActions";
@@ -70,21 +70,12 @@
 		return () => cmp.unload();
 	});
 
-    const menuActions = () => ({
-        onRename: () => actions.onRenameChoice(choice),
-        onToggle: () => actions.onToggleCommand(choice),
-        onConfigure: () => actions.onConfigureChoice(choice),
-        onDuplicate: () => actions.onDuplicateChoice(choice),
-        onDelete: () => actions.onDeleteChoice(choice),
-        onMove: (targetId: string) => actions.onMoveChoice(choice, targetId),
-    });
-
     function onContextMenu(evt: MouseEvent) {
-        showChoiceContextMenu(app, evt, choice, roots, menuActions());
+        showChoiceContextMenu(app, evt, choice, roots, choiceMenuActions(choice, actions));
     }
 
     function openMenu(anchor: HTMLElement) {
-        showChoiceContextMenuAtElement(app, anchor, choice, roots, menuActions());
+        showChoiceContextMenuAtElement(app, anchor, choice, roots, choiceMenuActions(choice, actions));
     }
 
     // Nested children reordered: write the new order back to this Multi choice (the

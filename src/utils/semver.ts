@@ -4,7 +4,7 @@
  * and build metadata suffixes (e.g., "2.7.0-beta.1", "2.7.0+123").
  */
 
-export interface ParsedVersion {
+interface ParsedVersion {
 	major: number;
 	minor: number;
 	patch: number;

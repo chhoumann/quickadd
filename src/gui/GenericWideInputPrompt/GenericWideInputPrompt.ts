@@ -18,28 +18,6 @@ export default class GenericWideInputPrompt extends TextPromptModal<TextAreaComp
 			header,
 			placeholder,
 			value,
-			undefined,
-			description,
-			options,
-		);
-		return newPromptModal.waitForClose;
-	}
-
-	public static PromptWithContext(
-		app: App,
-		header: string,
-		placeholder?: string,
-		value?: string,
-		linkSourcePath?: string,
-		description?: string,
-		options?: InputPromptOptions,
-	): Promise<string> {
-		const newPromptModal = new GenericWideInputPrompt(
-			app,
-			header,
-			placeholder,
-			value,
-			linkSourcePath,
 			description,
 			options,
 		);

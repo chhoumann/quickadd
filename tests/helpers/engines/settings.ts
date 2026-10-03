@@ -22,7 +22,6 @@ export const engineSettingsMock = () => {
 			providers: [],
 		},
 		migrations: {
-			migrateToMacroIDFromEmbeddedMacro: true,
 			useQuickAddTemplateFolder: false,
 			incrementFileNameSettingMoveToDefaultBehavior: false,
 			consolidateFileExistsBehavior: false,

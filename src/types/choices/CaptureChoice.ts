@@ -50,6 +50,7 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 	};
 	prepend: boolean;
 	task: boolean;
+	eachLine?: boolean;
 	openFile: boolean;
 	fileOpening: {
 		location: OpenLocation;
@@ -76,12 +77,15 @@ export class CaptureChoice extends Choice implements ICaptureChoice {
 			template: "",
 		};
 		this.format = { enabled: false, format: "" };
+		// Only read once "After line…" is picked. Most After-line captures append
+		// to the section and create a missing heading, so new ones start that way
+		// (#2007). Load() never backfills these, so saved choices keep theirs.
 		this.insertAfter = {
 			enabled: false,
 			after: "",
-			insertAtEnd: false,
+			insertAtEnd: true,
 			considerSubsections: false,
-			createIfNotFound: false,
+			createIfNotFound: true,
 			createIfNotFoundLocation: "top",
 			inline: false,
 			replaceExisting: false,

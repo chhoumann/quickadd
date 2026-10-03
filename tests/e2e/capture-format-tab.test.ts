@@ -15,8 +15,9 @@ function inBuilder<T>(expression: string): Promise<T> {
 		const builder = [...document.querySelectorAll(".captureChoiceBuilder")]
 			.filter(el => el.getClientRects().length > 0).at(-1);
 		if (!builder) throw new Error("Capture builder not open");
+		// The control just before the format box.
 		const row = [...builder.querySelectorAll(".setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent === "Capture format");
+			.find(el => el.querySelector(".setting-item-name")?.textContent === "One entry per line");
 		const toggle = row?.querySelector(".checkbox-container");
 		const format = builder.querySelector("textarea");
 		return (${expression});
@@ -54,8 +55,11 @@ it("indents the Capture format on Tab without trapping keyboard navigation", asy
 		})()`);
 		await expect.poll(() => inBuilder<boolean>("Boolean(format)"), POLL_OPTS).toBe(true);
 
-		// Tabbing through the form stops at the box and then moves on, unedited.
+		// Tabbing through the page stops at the box's row, then the box, then
+		// moves on, unedited: the settings window's own Tab order.
 		await inBuilder("(toggle.focus(), true)");
+		await pressTab();
+		expect(await inBuilder<boolean>("document.activeElement === format.closest('.setting-item')")).toBe(true);
 		await pressTab();
 		expect(await focusIsFormat()).toBe(true);
 		await pressTab();
@@ -86,9 +90,6 @@ it("indents the Capture format on Tab without trapping keyboard navigation", asy
 		), POLL_OPTS).toBe(`${FORMAT}\t- detail`);
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			for (const builder of document.querySelectorAll(".captureChoiceBuilder")) {
-				[...builder.querySelectorAll("button.mod-cta")].find(b => b.textContent?.trim() === "Done")?.click();
-			}
 			app.setting.close();
 			return true;
 		})()`);

@@ -28,7 +28,7 @@ You run the choice, type `Buy milk`, and QuickAdd adds `- [ ] Buy milk` as a new
 
 ## Add a date to the card
 
-Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Enable **Capture format** and set the format to add one:
+Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Set **Capture format** to add one (before QuickAdd 2.30.0, turn on the **Capture format** toggle first):
 
 - Use today's date automatically:
 
@@ -39,7 +39,7 @@ Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Enable **Capture 
 - Get asked which date to use each time:
 
   ```
-  {{VALUE}} @{{{VDATE:DATE,gggg-MM-DD}}}
+  {{VALUE}} @{{{VDATE:DATE,YYYY-MM-DD}}}
   ```
 
   You can type an exact date or a natural-language date such as `tomorrow`.

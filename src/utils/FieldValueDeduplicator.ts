@@ -1,4 +1,4 @@
-export interface DeduplicationResult {
+interface DeduplicationResult {
 	values: string[];
 	duplicatesRemoved: number;
 }

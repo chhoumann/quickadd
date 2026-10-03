@@ -31,7 +31,7 @@ export function getOpenNoteEditorView(app: App, file: TFile): MarkdownView | nul
 }
 
 /** Saves unsaved editor text so disk-based reads and writes see what the user sees. */
-export async function flushNote(app: App, file: TFile): Promise<void> {
+async function flushNote(app: App, file: TFile): Promise<void> {
 	const view = getOpenNoteEditorView(app, file);
 	if (view) await saveView(view);
 }

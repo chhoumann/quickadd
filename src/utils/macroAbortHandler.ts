@@ -4,6 +4,8 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { log } from "../logger/logManager";
 
+const reportedAborts = new WeakSet<MacroAbortError>();
+
 interface MacroAbortHandlerOptions {
 	logPrefix: string;
 	noticePrefix?: string;
@@ -24,13 +26,23 @@ export function handleMacroAbort(
 	{ logPrefix, noticePrefix = logPrefix, defaultReason }: MacroAbortHandlerOptions
 ): error is MacroAbortError {
 	if (!(error instanceof MacroAbortError)) return false;
+	// The innermost run reports an abort. The same error then stops each
+	// enclosing run (a conditional branch's macro, the macro around a Capture
+	// or Template step), which must not report it again.
+	if (reportedAborts.has(error)) return true;
+	reportedAborts.add(error);
 
 	const message =
 		typeof error.message === "string" && error.message.trim().length > 0
 			? error.message
 			: defaultReason;
 
-	log.logMessage(`${logPrefix}: ${message}`);
+	// A bare `abort()` carries the default "Macro execution aborted", which is
+	// the prefix itself; say it once.
+	const withReason = (prefix: string) =>
+		message === prefix ? prefix : `${prefix}: ${message}`;
+
+	log.logMessage(withReason(logPrefix));
 
 	// A genuine user prompt-dismissal is a UserCancelError (a MacroAbortError subclass).
 	// Keep the legacy message-string check as a fallback so a user script that aborts with
@@ -45,7 +57,7 @@ export function handleMacroAbort(
 		!isUserCancellation ||
 		settingsStore.getState().showInputCancellationNotification
 	) {
-		new Notice(`${noticePrefix}: ${message}`);
+		new Notice(withReason(noticePrefix));
 	}
 
 	return true;

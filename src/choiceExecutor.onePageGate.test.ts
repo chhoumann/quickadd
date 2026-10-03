@@ -10,7 +10,6 @@ import type IChoice from "./types/choices/IChoice";
 // choiceExecutor.preload.test.ts).
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -36,13 +35,10 @@ vi.mock("./engine/TemplateChoiceEngine", () => ({
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
-vi.mock("./utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<Record<string, unknown>>();
-	return {
-		...actual,
-		getOpenFileOriginLeaf: vi.fn(() => null),
-	};
-});
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getOpenFileOriginLeaf: vi.fn(() => null),
+}));
 
 const runOnePagePreflight = vi.fn<(...args: unknown[]) => Promise<unknown>>(
 	async () => true,

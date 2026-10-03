@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // choiceExecutor.onePageGate.test.ts).
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -22,13 +21,10 @@ vi.mock("./settingsStore", () => ({
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
-vi.mock("./utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<Record<string, unknown>>();
-	return {
-		...actual,
-		getOpenFileOriginLeaf: vi.fn(() => null),
-	};
-});
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getOpenFileOriginLeaf: vi.fn(() => null),
+}));
 
 const openMock = vi.fn();
 vi.mock("./gui/suggesters/choiceSuggester", () => ({

@@ -1,7 +1,5 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { afterEach, describe, expect, it } from "vitest";
 
 import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
@@ -24,8 +22,10 @@ function openBuilder(macro: unknown) {
 		{ settings: { choices: [] } } as unknown as QuickAdd,
 		choice,
 		[],
+		() => {},
 	);
-	return { modal, choice, el: modal.contentEl };
+	modal.display();
+	return { modal, choice, el: modal.containerEl };
 }
 
 const addControls = (el: HTMLElement) => el.querySelectorAll("button").length;
@@ -34,9 +34,9 @@ const rows = (el: HTMLElement) =>
 
 /**
  * `choice.macro` is as untrusted as `macro.commands` (#1593). The shape that
- * mattered most was `macro: null`: `display()` runs from the CONSTRUCTOR, before
- * `open()`, so a throw there took the modal with it and clicking "Configure" did
- * nothing whatsoever - no card, no notice, nothing.
+ * mattered most was `macro: null`: a throw while the builder rendered took it
+ * with it, and clicking "Configure" did nothing whatsoever - no card, no
+ * notice, nothing.
  */
 describe("MacroBuilder over a malformed macro object (#1593)", () => {
 	afterEach(() => {
@@ -54,7 +54,7 @@ describe("MacroBuilder over a malformed macro object (#1593)", () => {
 		expect(el.querySelector(".qaMountFailed")).toBeNull();
 		expect(addControls(el)).toBeGreaterThan(0);
 		expect(rows(el)).toBe(0);
-		// The rest of the modal is there too.
+		// The rest of the page is there too.
 		expect(el.textContent).toContain("Run on startup");
 	});
 
@@ -126,27 +126,28 @@ describe("MacroBuilder over a malformed macro object (#1593)", () => {
 			"QuickAdd couldn't read this macro's commands",
 		);
 		expect(rows(el)).toBe(0);
-		// Only the rename button in the header; nothing that writes commands.
+		// Nothing that writes commands.
 		expect(el.querySelector(".quickCommandContainer")).toBeNull();
 	});
 
-	it("leaves an unreadable macro byte-identical after open and close", () => {
+	it("leaves an unreadable macro byte-identical after open and leave", () => {
 		const macro = "not a macro";
 		const { modal, choice } = openBuilder(macro);
 		const before = JSON.stringify(choice);
 
-		modal.onClose();
+		modal.hide();
 
 		expect(JSON.stringify(choice)).toBe(before);
 	});
 
 	it("still renames the choice when the macro object is missing", () => {
-		const { modal, choice } = openBuilder(null);
-		const button = modal.contentEl.querySelector<HTMLButtonElement>(
-			".qa-rename-title-button",
-		);
+		const { el, choice } = openBuilder(null);
+		const name = el.querySelector<HTMLInputElement>("input");
+		if (!name) throw new Error("Missing Name field");
 
-		expect(button).not.toBeNull();
-		expect(choice.name).toBe("Macro under test");
+		name.value = "Renamed";
+		name.dispatchEvent(new Event("input"));
+
+		expect(choice.name).toBe("Renamed");
 	});
 });

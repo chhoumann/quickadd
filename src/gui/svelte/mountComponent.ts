@@ -25,9 +25,9 @@ export interface MountHandle {
  * (the default) and ChoicesUnavailable (the settings choice list, which adds
  * data.json recovery instructions).
  */
-export type MountFallbackComponent = Component<{ what: string; detail: string }>;
+type MountFallbackComponent = Component<{ what: string; detail: string }>;
 
-export interface MountOptions {
+interface MountOptions {
 	/**
 	 * Noun phrase naming what could not be displayed ("the command list"), used in
 	 * both the reported error and the fallback card. Defaults to a generic phrase:

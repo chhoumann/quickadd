@@ -41,6 +41,8 @@ type Options = {
 	 * vault paths.
 	 */
 	searchItems: string[];
+	/** Other names each item can be found by, by index (a note's aliases). */
+	aliases: string[][];
 };
 
 /**
@@ -106,7 +108,7 @@ export default class InputSuggester extends SuggesterModal<string> {
 	getItemText(item: string): string {
 		if (item === this.inputEl.value) return item;
 
-		const index = this.items.indexOf(item);
+		const index = this.indexOfItem(item);
 		const searchItem = index >= 0 ? this.searchItems[index] : undefined;
 		return normalizeDisplayItem(searchItem ?? item);
 	}

@@ -1,9 +1,8 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, findDateVariableFormat, rememberDateVariableFormat, findInlineScriptSpans, hasUnterminatedInlineScriptFence, renderStoredDateVariable, type PromptContext } from "./formatter";
+import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
-import { snappedExampleDate } from "./helpers/snappedExampleDate";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -14,14 +13,13 @@ import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
 import type { RunClocks } from "../types/dateOrigin";
-import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, fileNameSafeStandIn, getCurrentFileLinkToSectionPreview, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
+import { getSuggestionPreview, fileNameSafeStandIn } from "./helpers/previewHelpers";
 import {
 	describeIllegalFilePathChars,
 	findIllegalFilePathChars,
 	previewGeneratedFilePath,
 } from "../utils/generatedFilePath";
 import { getTemplateFile } from "../utils/templateFolderUtils";
-import { getValueVariableBaseName } from "../utils/valueSyntax";
 
 import type QuickAdd from "../main";
 
@@ -245,21 +243,13 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
 
-	protected promptForValue(header?: string): string {
-		// The header is a PROMPT header at run time, not part of the name, so an
-		// unusable one degrades to the generic stand-in rather than putting a
-		// character in the preview that the run would never produce.
-		return fileNameSafeStandIn(
-			header || this.valuePromptContext?.label || "user input",
-			"user input",
-		);
-	}
-
-	protected getVariableValue(variableName: string): string {
-		const stored = this.variables.get(variableName);
-		if (typeof stored === "string") return stored;
-		const baseName = getValueVariableBaseName(variableName);
-		return fileNameSafeStandIn(getVariableExample(baseName), "user input");
+	/**
+	 * A prompt header, variable name or macro name is not part of the name at
+	 * run time, so a stand-in built from one that could not be part of a file
+	 * name shows `neutral` instead of a character the run would never produce.
+	 */
+	protected standIn(value: string, neutral: string): string {
+		return fileNameSafeStandIn(value, neutral);
 	}
 
 	protected suggestForValue(
@@ -271,31 +261,6 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		// run splices in exactly the option that gets picked, so the count would
 		// be text in a file name that no created file can have.
 		return suggestedValues[0] ?? getSuggestionPreview(suggestedValues);
-	}
-
-	protected getMacroValue(
-		macroName: string,
-		_context?: { label?: string },
-	) {
-		return fileNameSafeStandIn(getMacroPreview(macroName), "macro_output");
-	}
-
-	protected async promptForVariable(
-		variableName: string,
-		context?: PromptContext
-	): Promise<string> {
-		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
-		// the VDATE's example date, as the run prints the one answer.
-		const dateFormat = findDateVariableFormat(
-			this.variables,
-			context?.variableKey ?? variableName,
-		);
-		// Shown like the VDATE itself, which this preview doesn't sanitize either.
-		if (dateFormat) return DateFormatPreviewGenerator.generate(dateFormat);
-		return fileNameSafeStandIn(
-			getVariablePromptExample(variableName),
-			"user input",
-		);
 	}
 
 	/** Skip script fences during inclusion: runtime consumes scripts first, while previews must remain inert. */
@@ -391,94 +356,28 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		);
 	}
 
-	protected getCurrentFileLinkToSection(): string | null {
-		// Only reachable for an INCLUDED body (the file-name pass leaves links
-		// literal, as the run does). Mirrors FormatDisplayFormatter's static
-		// example so the two previews describe the token the same way.
-		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
-		return getCurrentFileLinkToSectionPreview(
-			this.app.workspace.getActiveFile(),
-		);
-	}
-
-	protected async suggestForField(
-		_variableName: string,
-		parsed: { fieldName: string },
-	): Promise<string> {
-		return fileNameSafeStandIn(fieldValuePreview(parsed), "field_value");
-	}
-
 	protected async replaceDateVariableInString(input: string): Promise<string> {
-		let output: string = input;
-
 		// The date only. FormatDisplayFormatter appends " (default: X)" /
 		// " (optional)" hints about the token; this row is a FILE NAME, and the
 		// run splices in the formatted date and nothing else - so a hint here
-		// asserted a name that could never be created, which is the whole point
-		// of #1563/#1578. The hints survive where they are true: on the body
-		// preview, and in the run's own prompt placeholder ("Enter value for due
-		// (default: tomorrow)"). Like the body preview, this renders the current
-		// date WITHOUT applying |startof:/|endof: snap - snap is only resolved in
-		// the real CompleteFormatter pass, and snapping only the file-name
-		// preview would diverge from the body preview.
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
-			const cleanVariableName = variableName?.trim();
+		// asserted a name that could never be created (#1563/#1578). The hints
+		// survive where they are true: on the body preview, and in the run's own
+		// prompt placeholder ("Enter value for due (default: tomorrow)").
+		return input.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
+			// Only a NAMELESS token stays literal, which is what the run does with it.
+			const name = variableName?.trim();
+			if (!name) return match;
 
-			// Only a NAMELESS token stays literal, which is what the run does with
-			// it too. A token that names no FORMAT is complete and working - the
-			// run supplies YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time - so
-			// echoing it back promised a name with a token in it (#1589).
-			if (!cleanVariableName) {
-				return match;
-			}
-
-			const { options, error } = parseVDateOptionsForPreview(rawOptions);
 			// A unit that never resolves is an authoring mistake the run aborts on,
 			// so it belongs on the diagnostics channel (held back until the field is
 			// idle) rather than being swallowed. The options still come back usable,
 			// so the TEXT does not flicker while the unit is being typed.
+			const { options, error } = parseVDateOptionsForPreview(rawOptions);
 			if (error) this.reportProblem(error);
-			const { withTime, snap, caseStyle } = options;
-			const cleanDateFormat =
-				dateFormat?.trim() || defaultDateVariableFormat(withTime);
-			rememberDateVariableFormat(this.variables, cleanVariableName, cleanDateFormat);
 
-			// An ANSWERED date wins over the example. The one-page input form
-			// seeds the user's real picks into this formatter before computing the
-			// preview (runOnePagePreflight.computePreview), so without this the row
-			// showed today's date beside the date they had just chosen (#1590).
-			const stored = renderStoredDateVariable(
-				this.variables.get(cleanVariableName),
-				cleanDateFormat,
-				snap,
-				this.dateParser,
-			);
-			if (stored) return this.applyCaseOption(stored.text, caseStyle, match);
-
-			// Nothing answered: a realistic example from the current date, snapped
-			// the way the run snaps it. #1595 deliberately left snap out of this
-			// preview, on the grounds that snapping only the file-name row would
-			// split it from the body row - both rows do it now, so that reason is
-			// gone, and the alternative was worse: the ANSWERED branch above snaps
-			// (it is the run's own renderer), and {{DATE:...|startof:month}} in the
-			// very same pass has always snapped, so the row contradicted itself
-			// depending on which token you used. Inside the try, because the snap
-			// needs moment and a throw here would redden the row per keystroke.
-			try {
-				return this.applyCaseOption(
-					DateFormatPreviewGenerator.generate(
-						cleanDateFormat,
-						snappedExampleDate(snap),
-					),
-					caseStyle,
-					match,
-				);
-			} catch {
-				return `[${cleanDateFormat}]`;
-			}
+			const date = this.previewDateVariable(match, name, dateFormat, options);
+			return date.text ?? `[${date.format}]`;
 		});
-
-		return output;
 	}
 
 	protected replaceRandomInString(input: string): string {

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import realMoment from "moment";
 import type QuickAdd from "../../main";
 import { setQuickAddInstance } from "../../quickAddInstance";
 import { settingsStore } from "../../settingsStore";
@@ -12,6 +13,7 @@ interface PromptInternals {
 	currentInput: string;
 	previewEl: HTMLElement;
 	inputComponent: { inputEl: HTMLInputElement };
+	transformInputOnSubmit(input: string): string;
 }
 
 describe("VDateInputPrompt restored-draft preview", () => {
@@ -72,6 +74,38 @@ describe("VDateInputPrompt restored-draft preview", () => {
 		expect(state.inputComponent.inputEl.value).toBe("zzzz not a real date");
 		expect(state.currentInput).toBe("zzzz not a real date");
 		expect(state.previewEl.classList.contains("is-error")).toBe(true);
+	});
+
+	it("shows a kept submitted date as the date, and submits that exact date again", () => {
+		// A cancelled run keeps what this prompt submitted: `@date:<ISO>`.
+		draftStore.set(draftKey, "@date:2026-09-30T10:00:00.000Z");
+		const stubMoment = window.moment;
+		window.moment = ((input?: string) => realMoment.utc(input)) as typeof window.moment;
+		try {
+			const state = construct("");
+
+			expect(state.inputComponent.inputEl.value).toBe("2026-09-30");
+			expect(state.previewEl.textContent).toBe("2026-09-30");
+			expect(state.transformInputOnSubmit(state.inputComponent.inputEl.value))
+				.toBe("@date:2026-09-30T10:00:00.000Z");
+		} finally {
+			window.moment = stubMoment;
+		}
+	});
+
+	it("leaves a kept @date: value that isn't a date in the field as it is", () => {
+		draftStore.set(draftKey, "@date:not-a-date-with-details");
+		const stubMoment = window.moment;
+		window.moment = ((input?: string) => realMoment.utc(input)) as typeof window.moment;
+		try {
+			const state = construct("");
+
+			expect(state.inputComponent.inputEl.value).toBe("@date:not-a-date-with-details");
+			expect(state.transformInputOnSubmit(state.inputComponent.inputEl.value))
+				.toBe("@date:not-a-date-with-details");
+		} finally {
+			window.moment = stubMoment;
+		}
 	});
 
 	it("keeps the no-draft default path: preview reflects the defaultValue", () => {

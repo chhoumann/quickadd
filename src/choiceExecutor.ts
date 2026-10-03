@@ -19,7 +19,7 @@ import { MacroAbortError } from "./errors/MacroAbortError";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
 import { isCancellationError, reportError } from "./utils/errorUtils";
-import { getOpenFileOriginLeaf } from "./utilityObsidian";
+import { getOpenFileOriginLeaf } from "./utils/fileOpening";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
 import {
@@ -38,7 +38,7 @@ import { log } from "./logger/logManager";
 import type { ICommand } from "./types/macros/ICommand";
 import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
-import { isTemplateChoice } from "./preflight/macroCommandRole";
+import { isTemplateChoice } from "./types/choices/choiceType";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
 
 export class ChoiceExecutor implements IChoiceExecutor {

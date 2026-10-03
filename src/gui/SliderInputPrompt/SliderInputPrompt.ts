@@ -28,28 +28,6 @@ export default class SliderInputPrompt extends GenericInputPrompt {
 			header,
 			placeholder,
 			value,
-			undefined,
-			description,
-			options,
-		);
-		return modal.waitForClose;
-	}
-
-	public static PromptWithContext(
-		app: App,
-		header: string,
-		placeholder?: string,
-		value?: string,
-		linkSourcePath?: string,
-		description?: string,
-		options?: InputPromptOptions,
-	): Promise<string> {
-		const modal = new SliderInputPrompt(
-			app,
-			header,
-			placeholder,
-			value,
-			linkSourcePath,
 			description,
 			options,
 		);

@@ -44,3 +44,38 @@ export function getCaptureAction(choice: ICaptureChoice): CaptureAction {
 
 	return "append";
 }
+
+type WritePosition =
+	| "property"
+	| "after"
+	| "before"
+	| "newLineAbove"
+	| "newLineBelow"
+	| "activeTop"
+	| "bottom"
+	| "top";
+
+/**
+ * Where a Capture writes, for the choice builder's Write position dropdown and
+ * `quickadd:list`. This MUST mirror the runtime's precedence so both show what
+ * actually runs, even for flag combinations the builder never produces (a
+ * hand-edited or imported choice): the editor-side actions come from
+ * `getCaptureAction`, everything else from `CaptureChoiceFormatter.insertCapture`,
+ * which puts a bottom write ahead of a line target. `top` means the top of the
+ * target file, or the cursor when capturing to the active file.
+ */
+export function getWritePosition(choice: ICaptureChoice): WritePosition {
+	if (choice.propertyCapture) return "property";
+	const lineTarget = !!choice.insertAfter?.enabled || !!choice.insertBefore?.enabled;
+	if (choice.captureToActiveFile && !lineTarget) {
+		if (choice.newLineCapture?.enabled)
+			return choice.newLineCapture.direction === "above" ? "newLineAbove" : "newLineBelow";
+		if (choice.activeFileWritePosition === "top") return "activeTop";
+		if (choice.activeFileWritePosition === "bottom" || choice.prepend) return "bottom";
+		return "top";
+	}
+	if (choice.prepend || (choice.captureToActiveFile && choice.activeFileWritePosition === "bottom")) return "bottom";
+	if (choice.insertAfter?.enabled) return "after";
+	if (choice.insertBefore?.enabled) return "before";
+	return "top";
+}

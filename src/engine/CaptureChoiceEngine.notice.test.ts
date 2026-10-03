@@ -28,7 +28,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		async formatContentOnly(content: string) {
 			return content;
 		}
-		async formatContentWithFile(content: string) {
+		async insertFormattedContent(content: string) {
 			return { content: "", captureContent: content, cursor: { kind: "none" } };
 		}
 		async formatFileName(name: string) {
@@ -52,16 +52,22 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
 	getTemplater: vi.fn(() => ({})),
@@ -78,10 +84,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 import { TFile, type App } from "obsidian";

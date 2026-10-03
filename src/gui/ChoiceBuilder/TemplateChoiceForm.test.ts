@@ -1,10 +1,6 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it, vi } from "vitest";
-
-// FormatPreviewField -> FileNameDisplayFormatter and the suggesters reach the
-// formatter/engine graph, which pulls obsidian-dataview's CJS require('obsidian').
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
@@ -45,22 +41,23 @@ function mountForm() {
 describe("TemplateChoiceForm", () => {
 	it("reveals the specific-folder controls reactively without remounting (the #1130 fix)", () => {
 		const { container, props } = mountForm();
-		const headerBefore = container.querySelector(".choiceNameHeaderButton");
+		const headerBefore = container.querySelector(".setting-item-heading");
+		expect(headerBefore).not.toBeNull();
 
 		// Default (obsidian-default) mode: no folder list / subfolder control.
 		expect(settingNames(container)).not.toContain("Include subfolders");
 		expect(container.querySelector(".qa-folder-path-input")).toBeNull();
 
 		// Flipping the controlling field updates the {#if} in place — the former
-		// reload() would have torn down and rebuilt the whole modal here. A bare
+		// reload() would have torn down and rebuilt the whole builder here. A bare
 		// `enabled` with no other flag derives to "specified" mode.
 		props.choice.folder.enabled = true;
 		flushSync();
 
 		expect(settingNames(container)).toContain("Include subfolders");
 		expect(container.querySelector(".qa-folder-path-input")).not.toBeNull();
-		// Same header node => no full remount (scroll/caret would survive in-app).
-		expect(container.querySelector(".choiceNameHeaderButton")).toBe(
+		// Same section heading node => no full remount (scroll/caret would survive in-app).
+		expect(container.querySelector(".setting-item-heading")).toBe(
 			headerBefore,
 		);
 	});
@@ -118,6 +115,35 @@ describe("TemplateChoiceForm", () => {
 		flushSync();
 
 		expect(toggle?.classList.contains("is-disabled")).toBe(false);
+	});
+
+	it("treats an empty file name as the note-title prompt", async () => {
+		const { container, props } = mountForm();
+		const input = settingItem(container, "File name")
+			.closest(".qa-field")
+			?.querySelector("input") as HTMLInputElement;
+		expect(input.value).toBe("");
+
+		input.value = "{{DATE}} {{VALUE}}";
+		await fireEvent.input(input);
+		expect(props.choice.fileNameFormat).toEqual({ enabled: true, format: "{{DATE}} {{VALUE}}" });
+
+		input.value = " ";
+		await fireEvent.input(input);
+		expect(props.choice.fileNameFormat.enabled).toBe(false);
+	});
+
+	it("keeps a leading space typed into an empty file name", async () => {
+		const { container, props } = mountForm();
+		const input = settingItem(container, "File name")
+			.closest(".qa-field")
+			?.querySelector("input") as HTMLInputElement;
+
+		input.value = " ";
+		await fireEvent.input(input);
+		flushSync();
+		expect(input.value).toBe(" ");
+		expect(props.choice.fileNameFormat.enabled).toBe(false);
 	});
 
 	it("opens a legacy choice on its derived mode", () => {
@@ -271,5 +297,34 @@ describe("TemplateChoiceForm", () => {
 		const { container } = mountForm();
 
 		expect(settingNames(container).at(-1)).toBe("Icon");
+	});
+
+	// #1993: closing the builder used to drop a folder typed but never added.
+	describe("a folder typed without Add", () => {
+		async function typeFolder(mode: string, text: string) {
+			const mounted = mountForm();
+			await fireEvent.change(locationDropdown(mounted.container), { target: { value: "specified" } });
+			flushSync();
+			const input = mounted.container.querySelector<HTMLInputElement>(".qa-folder-path-input")!;
+			await fireEvent.input(input, { target: { value: text } });
+			if (mode !== "specified") {
+				await fireEvent.change(locationDropdown(mounted.container), { target: { value: mode } });
+				flushSync();
+			}
+			mounted.unmount();
+			return mounted.props.choice.folder;
+		}
+
+		it("is added when the builder closes", async () => {
+			expect((await typeFolder("specified", " Meetings ")).folders).toEqual(["Meetings"]);
+		});
+
+		it("is ignored when it is blank", async () => {
+			expect((await typeFolder("specified", "   ")).folders).toEqual([]);
+		});
+
+		it("is left out once another location mode is chosen", async () => {
+			expect((await typeFolder("active-file", "Meetings")).folders).toEqual([]);
+		});
 	});
 });

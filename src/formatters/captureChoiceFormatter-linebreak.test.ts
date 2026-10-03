@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 const inlineScriptCalls = vi.hoisted(() => [] as string[]);
 
@@ -17,8 +17,6 @@ vi.mock("../engine/SingleInlineScriptEngine", () => ({
 		}
 	},
 }));
-
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 import { findInlineScriptSpans } from "./formatter";
@@ -120,11 +118,11 @@ const createFormatter = (
 
 describe("capture linebreak escapes only apply to the format string (issue #527)", () => {
 	beforeEach(() => {
-		(global as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockResolvedValue(""),
 			},
-		};
+		});
 	});
 
 	it("preserves literal \\n in selected text through the two-pass capture flow", async () => {

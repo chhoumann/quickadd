@@ -3,6 +3,7 @@ import type { App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
+import { isCaptureChoice, isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { VALUE_SYNTAX } from "src/constants";
@@ -11,7 +12,7 @@ import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryE
 import { getExistingNoteAction } from "src/template/fileExistsPolicy";
 import { commandListOf, isCommandLike } from "src/utils/macroUtils";
 import { getActiveEditorSelection } from "src/utils/activeMarkdownEditor";
-import { classifyStep, isCaptureChoice, isTemplateChoice } from "./macroCommandRole";
+import { classifyStep } from "./macroCommandRole";
 import { buildFormRoster, type FormRosterEntry } from "./macroFormRoster";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "./collectChoiceRequirements";
 import type { FieldGroup, FieldRequirement } from "./RequirementCollector";
@@ -83,14 +84,10 @@ interface DiscoveryFormStep {
 	bindings: Map<string, { variable: string; condition: DiscoveryInputCondition | null }>;
 }
 
-export interface DiscoveryFormPlan {
+interface DiscoveryFormPlan {
 	requirements: FieldRequirement[];
 	config: DiscoveryFormConfig;
 	steps: DiscoveryFormStep[];
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
 }
 
 function needsDiscovery(choice: IChoice, executor: IChoiceExecutor): choice is ITemplateChoice {

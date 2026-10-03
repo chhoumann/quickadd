@@ -1,6 +1,6 @@
 import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 
-export interface AIRequestLogEntry {
+interface AIRequestLogEntry {
 	id: string;
 	createdAt: number;
 	provider: string;

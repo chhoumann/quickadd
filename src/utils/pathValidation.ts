@@ -9,7 +9,7 @@ export const INVALID_FOLDER_CONTROL_CHARS_REGEX = new RegExp(
 export const INVALID_FOLDER_CHARS_REGEX = /[\\/:*?"<>|]/u;
 export const INVALID_FOLDER_TRAILING_CHARS_REGEX = /[. ]$/u;
 
-export const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
+const RESERVED_WINDOWS_DEVICE_NAMES = new Set([
 	"CON",
 	"PRN",
 	"AUX",

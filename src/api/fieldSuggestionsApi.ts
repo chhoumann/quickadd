@@ -64,7 +64,7 @@ export function createFieldSuggestionsApi(app: App) {
 					// One unreadable file must not abort the whole call;
 					// skip it (mirrors FieldValueCollector).
 					try {
-						const content = await app.vault.read(file);
+						const content = await app.vault.cachedRead(file);
 						const inlineValues = InlineFieldParser.getFieldValues(
 							content,
 							fieldName,

@@ -3,32 +3,27 @@ import { App } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import type QuickAdd from "./main";
 
-// Importing the settings tab transitively pulls in ChoiceView -> the Dataview
-// integration, whose compiled CJS does a bare `require('obsidian')` that the
-// vitest alias can't intercept. Mock it as the sibling settings tests do.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 function makeTab(): QuickAddSettingsTab {
 	const app = new App();
 	const plugin = { app, register: vi.fn() } as unknown as QuickAdd;
 	return new QuickAddSettingsTab(app, plugin);
 }
 
+type Node = { desc?: unknown; control?: { key?: string }; items?: Node[] };
+
 function findUriToggleDesc(tab: QuickAddSettingsTab): string {
-	const groups = tab.getSettingDefinitions() as unknown as Array<{
-		items?: Array<{ desc?: unknown; control?: { key?: string } }>;
-	}>;
-
-	for (const group of groups) {
-		for (const item of group.items ?? []) {
-			if (item.control?.key === "enableUriCallbacks") {
-				expect(typeof item.desc).toBe("string");
-				return item.desc as string;
-			}
+	// The toggle lives on the Advanced page, so walk into pages too.
+	const find = (nodes: Node[]): Node | undefined => {
+		for (const node of nodes) {
+			if (node.control?.key === "enableUriCallbacks") return node;
+			const nested = find(node.items ?? []);
+			if (nested) return nested;
 		}
-	}
-
-	throw new Error("Could not find the enableUriCallbacks toggle definition");
+	};
+	const item = find(tab.getSettingDefinitions() as unknown as Node[]);
+	if (!item) throw new Error("Could not find the enableUriCallbacks toggle definition");
+	expect(typeof item.desc).toBe("string");
+	return item.desc as string;
 }
 
 describe("URI x-callback toggle description", () => {

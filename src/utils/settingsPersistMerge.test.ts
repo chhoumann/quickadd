@@ -246,7 +246,7 @@ describe("threeWayMergeSettings", () => {
 		).toBe(true);
 	});
 
-	it("does not name-merge choices arrays (duplicate display names must survive)", () => {
+	it("merges choices by id, not name (duplicate display names must survive)", () => {
 		// Regression: isModelLike used to match any `{ name }` object, so choices
 		// were keyed by display name and a second "Journal" was dropped.
 		const base = {
@@ -266,10 +266,47 @@ describe("threeWayMergeSettings", () => {
 		});
 
 		const merged = threeWayMergeSettings(base, local, disk);
-		// Irreducible choices[] conflict prefers local (documented policy).
-		expect(merged.choices).toEqual(local.choices);
-		expect(merged.choices).toHaveLength(2);
-		expect(merged.choices.map((c) => c.id)).toEqual(["1", "2"]);
+		// The local edit and the choice added on disk both survive.
+		expect(merged.choices).toEqual([...local.choices, disk.choices[2]]);
+	});
+
+	it("merges edits to different choices, including inside folders", () => {
+		type Choice = { id: string; name: string; type: string; command?: boolean; choices?: Choice[] };
+		const child: Choice = { id: "c", name: "Child", type: "Capture", command: false };
+		const base: { choices: Choice[] } = {
+			choices: [
+				{ id: "a", name: "A", type: "Capture", command: false },
+				{ id: "f", name: "Folder", type: "Multi", choices: [child] },
+			],
+		};
+		const local = deepClone(base);
+		local.choices[0] = { ...local.choices[0], command: true };
+		const disk = deepClone(base);
+		disk.choices[1].choices = [{ ...child, name: "Renamed on phone" }];
+
+		const merged = threeWayMergeSettings(base, local, disk);
+		expect(merged.choices).toEqual([
+			{ id: "a", name: "A", type: "Capture", command: true },
+			{ id: "f", name: "Folder", type: "Multi", choices: [{ ...child, name: "Renamed on phone" }] },
+		]);
+	});
+
+	it("keeps a choice deleted here deleted, and one deleted elsewhere gone", () => {
+		const base = {
+			choices: [
+				{ id: "a", name: "A" },
+				{ id: "b", name: "B" },
+				{ id: "c", name: "C" },
+			],
+		};
+		const local = { choices: [base.choices[1], { ...base.choices[2], name: "C edited" }] };
+		const disk = { choices: [base.choices[0], { ...base.choices[1], name: "B edited" }] };
+
+		// "a" deleted here; "c" deleted on disk but edited here, so it stays.
+		expect(threeWayMergeSettings(base, local, disk).choices).toEqual([
+			{ id: "b", name: "B edited" },
+			{ id: "c", name: "C edited" },
+		]);
 	});
 
 	it("still preserves disk choices when local only changed ai (the #1749 shape)", () => {

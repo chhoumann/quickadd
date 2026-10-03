@@ -1,18 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { App, TFile } from "obsidian";
+import { restoreUserText } from "./helpers/userText";
 
 vi.mock("obsidian", () => ({
 	MarkdownView: class {},
 	normalizePath: (path: string) => path.replace(/\\/g, "/").replace(/\/+/g, "/"),
 }));
 
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 vi.mock("../gui/InputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).InputPromptMock());
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
 	__esModule: true,
-	default: { PromptWithContext: vi.fn().mockResolvedValue("") },
+	default: { Prompt: vi.fn().mockResolvedValue("") },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
@@ -56,8 +57,6 @@ vi.mock("../engine/SingleTemplateEngine", () => ({
 		setPromptRunContext() {}
 	},
 }));
-
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 vi.mock("../logger/logManager", async () => (await import("../../tests/helpers/formatters/mocks")).logManagerMock());
 
@@ -227,7 +226,8 @@ describe("CaptureChoiceFormatter clipboard image support", () => {
 
 		const result = await formatter.formatContentOnly("A {{clipboard}} B");
 
-		expect(result).toBe("A {{clipboard}} B");
+		// The engine restores the text once it has placed it.
+		expect(restoreUserText(result)).toBe("A {{clipboard}} B");
 	});
 
 	it("keeps image fallback disabled for file name formatting", async () => {

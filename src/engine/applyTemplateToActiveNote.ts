@@ -5,16 +5,14 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 } from "../constants";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	getMarkdownEditorViewForFile,
-	jumpToNextTemplaterCursorIfPossible,
-} from "../utilityObsidian";
+import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { flattenChoices } from "../utils/choiceUtils";
 import { isCreatableFilePath } from "./assertCreatableFilePath";
 import { isCancellationError, reportError } from "../utils/errorUtils";
@@ -25,11 +23,11 @@ import {
 	type TemplateInsertModeId,
 } from "./TemplateInsertEngine";
 
-export type TemplatePickerItem =
+type TemplatePickerItem =
 	| { kind: "choice"; choice: ITemplateChoice }
 	| { kind: "file"; path: string };
 
-export interface ApplyTemplateToNoteParams {
+interface ApplyTemplateToNoteParams {
 	/** Target note; defaults to the active file. */
 	file?: TFile;
 	/** Non-interactive template source; skips the template picker. */
@@ -337,11 +335,12 @@ async function maybeReconcileNoteLocation(
 		// the choice's own file-name preview is where the problem is explained.
 		if (!isCreatableFilePath(targetPath)) return;
 
-		const shouldMove = await GenericYesNoPrompt.Prompt(
-			app,
-			"Move note to match choice settings?",
-			`'${choice.name}' creates notes at '${targetPath}'. Move '${file.path}' there? Links to the note will be updated.`,
-		);
+		const shouldMove = await confirmAction(app, {
+			title: "Move note to match choice settings?",
+			message: `'${choice.name}' creates notes at '${targetPath}'. Move '${file.path}' there? Links to the note will be updated.`,
+			action: "Move",
+			destructive: false,
+		});
 		if (!shouldMove) return;
 
 		const lastSlash = targetPath.lastIndexOf("/");

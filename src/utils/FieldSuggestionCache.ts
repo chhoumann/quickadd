@@ -11,7 +11,6 @@ export class FieldSuggestionCache {
 	private cache: Map<string, CacheEntry> = new Map();
 	private readonly TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
 	private readonly MAX_CACHE_ENTRIES = 100; // Maximum number of cache entries
-	private readonly MAX_VALUES_PER_ENTRY = 1000; // Maximum values per field
 	private cleanupInterval: number | null = null;
 	private revision = 0;
 
@@ -90,12 +89,6 @@ export class FieldSuggestionCache {
 	set(fieldName: string, values: Set<string>, cacheKey?: string): void {
 		const key = this.makeKey(fieldName, cacheKey);
 
-		const limitedValues = new Set<string>();
-		for (const value of values) {
-			if (limitedValues.size >= this.MAX_VALUES_PER_ENTRY) break;
-			limitedValues.add(value);
-		}
-
 		// Check if we need to evict old entries
 		if (this.cache.size >= this.MAX_CACHE_ENTRIES && !this.cache.has(key)) {
 			this.evictOldestEntries(1);
@@ -103,7 +96,7 @@ export class FieldSuggestionCache {
 
 		this.cache.set(key, {
 			fieldName,
-			values: limitedValues,
+			values: new Set(values),
 			timestamp: Date.now(),
 		});
 	}

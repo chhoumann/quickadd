@@ -2,7 +2,7 @@ import type { App } from "obsidian";
 import { TFile, TFolder } from "obsidian";
 import { MARKDOWN_FILE_EXTENSION_REGEX } from "../constants";
 import { log } from "../logger/logManager";
-import { withTemplaterFileCreationSuppressed } from "../utilityObsidian";
+import { withTemplaterFileCreationSuppressed } from "../utils/templaterIntegration";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 
 export abstract class QuickAddEngine {

@@ -30,7 +30,7 @@ fills in the placeholders and merges the frontmatter for you.
    [Smart behaviors](#smart-behaviors)):
    - **Insert at cursor**: inserts the template at the cursor. Only offered when the note is open in the active editor.
    - **Insert at top**: inserts the template below the note's frontmatter, or at the very top if there is none.
-   - **Append to bottom**: adds the template content to the end of the note.
+   - **Append to bottom**: adds the template content to the end of the note, after exactly one blank line.
    - **Replace note content**: replaces the entire note with the template.
 
 The template runs through the full QuickAdd

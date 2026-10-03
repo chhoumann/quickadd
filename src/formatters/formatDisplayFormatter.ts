@@ -1,7 +1,6 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
-import { defaultDateVariableFormat, findDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable, type PromptContext } from "./formatter";
 import {
 	describePreviewFailure,
 	PreviewDiagnostics,
@@ -12,10 +11,8 @@ import { getTemplateFile } from "../utils/templateFolderUtils";
 import { DATE_VARIABLE_REGEX } from "../constants";
 import type { IDateParser } from "../parsers/IDateParser";
 import { NLDParser } from "../parsers/NLDParser";
-import { getVariableExample, getMacroPreview, getVariablePromptExample, getSuggestionPreview, fieldValuePreview, getCurrentFileLinkToSectionPreview, DateFormatPreviewGenerator } from "./helpers/previewHelpers";
-import { getValueVariableBaseName } from "../utils/valueSyntax";
+import { getSuggestionPreview } from "./helpers/previewHelpers";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
-import { snappedExampleDate } from "./helpers/snappedExampleDate";
 
 export class FormatDisplayFormatter extends PreviewFormatter {
 	constructor(
@@ -100,24 +97,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 	protected async replaceGlobalVarInString(input: string): Promise<string> {
 		return expandGlobalVariables(input, this.plugin?.settings?.globalVariables);
 	}
-	protected promptForValue(header?: string): string {
-		return header || this.valuePromptContext?.label || "user input";
-	}
-
-	protected getVariableValue(variableName: string): string {
-		const stored = this.variables.get(variableName);
-		if (typeof stored === "string") return stored;
-		const baseName = getValueVariableBaseName(variableName);
-		return getVariableExample(baseName);
-	}
-
-	protected getCurrentFileLinkToSection(): string | null {
-		if (!this.app) return getCurrentFileLinkToSectionPreview(null);
-		return getCurrentFileLinkToSectionPreview(
-			this.app.workspace.getActiveFile(),
-		);
-	}
-
 	protected suggestForValue(
 		suggestedValues: string[],
 		allowCustomInput = false,
@@ -136,29 +115,6 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		context?: { displayValues?: string[] },
 	): string[] {
 		return [getSuggestionPreview(context?.displayValues ?? suggestedValues)];
-	}
-
-	protected getMacroValue(
-		macroName: string,
-		_context?: { label?: string },
-	) {
-		return getMacroPreview(macroName);
-	}
-
-	protected promptForVariable(
-		variableName: string,
-		context?: PromptContext
-	): Promise<string> {
-		// A {{VALUE:<name>}} reuse of an unanswered {{VDATE:<name>,...}} shows
-		// the VDATE's example date, as the run prints the one answer.
-		const dateFormat = findDateVariableFormat(
-			this.variables,
-			context?.variableKey ?? variableName,
-		);
-		if (dateFormat) {
-			return Promise.resolve(DateFormatPreviewGenerator.generate(dateFormat));
-		}
-		return Promise.resolve(getVariablePromptExample(variableName));
 	}
 
 	/** Resolve included bodies through this preview, never a runtime engine that could execute scripts or prompt. */
@@ -211,85 +167,26 @@ export class FormatDisplayFormatter extends PreviewFormatter {
 		}
 	}
 
-	protected async suggestForField(
-		_variableName: string,
-		parsed: { fieldName: string },
-	) {
-		return Promise.resolve(fieldValuePreview(parsed));
-	}
-
 	protected async replaceDateVariableInString(input: string): Promise<string> {
-		let output: string = input;
-		
-		// For preview, show helpful format examples instead of failing
-		output = output.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
-			const cleanVariableName = variableName?.trim();
+		return input.replace(new RegExp(DATE_VARIABLE_REGEX.source, 'gi'), (match, variableName, dateFormat, rawOptions) => {
 			const { options, error } = parseVDateOptionsForPreview(rawOptions);
 			// Reported, not swallowed: a unit that never resolves aborts the run.
 			// The options still come back usable, so the preview TEXT stays stable
 			// while the unit is half-typed.
 			if (error) this.reportProblem(error);
-			const {
-				defaultValue: cleanDefaultValue,
-				optional,
-				withTime,
-				snap,
-				caseStyle,
-			} = options;
-			// Only a NAMELESS token stays literal, as the run leaves it. A token
-			// that names no FORMAT is complete and working: the run supplies
-			// YYYY-MM-DD, or YYYY-MM-DD HH:mm under |time (#1589).
-			const cleanDateFormat =
-				dateFormat?.trim() || defaultDateVariableFormat(withTime);
+			// Only a NAMELESS token stays literal, as the run leaves it.
+			const name = variableName?.trim();
+			if (!name) return match;
 
-			if (!cleanVariableName) {
-				return match; // Return original if incomplete
-			}
-			rememberDateVariableFormat(this.variables, cleanVariableName, cleanDateFormat);
+			const date = this.previewDateVariable(match, name, dateFormat, options);
+			if (date.answered) return date.text;
 
-			// An ANSWERED date wins over the example, resolved through the run's
-			// own renderer so a seeded @date:ISO renders exactly as it will.
-			const stored = renderStoredDateVariable(
-				this.variables.get(cleanVariableName),
-				cleanDateFormat,
-				snap,
-				this.dateParser,
-			);
-			if (stored) return this.applyCaseOption(stored.text, caseStyle, match);
-
-			// Generate a preview using current date with the specified format,
-			// snapped the way the run snaps it - matching both the ANSWERED branch
-			// above and {{DATE:...|startof:}}, which has always snapped in this
-			// same pass. Inside the try: the snap needs moment.
-			let formattedExample: string;
-
-			try {
-				// Try to generate a realistic preview using the format
-				formattedExample = this.applyCaseOption(
-					DateFormatPreviewGenerator.generate(
-						cleanDateFormat,
-						snappedExampleDate(snap),
-					),
-					caseStyle,
-					match,
-				);
-			} catch {
-				// Fallback to showing the format pattern
-				formattedExample = `[${cleanDateFormat} format]`;
-			}
-
-			// If there's a default value, indicate it in the preview
-			if (cleanDefaultValue) {
-				formattedExample += ` (default: ${cleanDefaultValue})`;
-			}
-			if (optional) {
-				formattedExample += ` (optional)`;
-			}
-
-			return formattedExample;
+			// Hints about the prompt belong on the example, not on an answer.
+			let preview = date.text ?? `[${date.format} format]`;
+			if (options.defaultValue) preview += ` (default: ${options.defaultValue})`;
+			if (options.optional) preview += ` (optional)`;
+			return preview;
 		});
-		
-		return output;
 	}
 
 	protected replaceRandomInString(input: string): string {

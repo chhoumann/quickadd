@@ -131,7 +131,7 @@ vi.mock("./settingsStore", () => ({
 	},
 }));
 
-vi.mock("./utilityObsidian", () => ({
+vi.mock("./utils/dates", () => ({
 	getDate: mocks.getDate,
 }));
 
@@ -1263,7 +1263,7 @@ describe("fieldSuggestions.getFieldValues", () => {
 		return makeApp({
 			vault: {
 				getMarkdownFiles: () => files,
-				read: async (file: FakeFile) => contentByPath[file.path] ?? "",
+				cachedRead: async (file: FakeFile) => contentByPath[file.path] ?? "",
 			},
 			metadataCache: {
 				getFileCache: (file: FakeFile) => ({
@@ -1320,7 +1320,7 @@ describe("fieldSuggestions.getFieldValues", () => {
 		const app = makeApp({
 			vault: {
 				getMarkdownFiles: () => [{ path: "a.md" }],
-				read: readSpy,
+				cachedRead: readSpy,
 			},
 			metadataCache: { getFileCache: () => ({ frontmatter: {} }) },
 		});

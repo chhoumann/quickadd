@@ -1,7 +1,7 @@
 import type { TemplateFileExistsBehavior } from "src/template/fileExistsPolicy";
 import { mapLegacyFileExistsModeToId } from "src/template/fileExistsPolicy";
 
-export type LegacyTemplateChoice = {
+type LegacyTemplateChoice = {
 	type?: string;
 	incrementFileName?: boolean;
 	setFileExistsBehavior?: boolean;
@@ -20,7 +20,7 @@ export function isTemplateChoice(
 	);
 }
 
-export function migrateFileExistsBehavior(
+function migrateFileExistsBehavior(
 	choice: LegacyTemplateChoice,
 ): TemplateFileExistsBehavior {
 	if (choice.fileExistsBehavior) {

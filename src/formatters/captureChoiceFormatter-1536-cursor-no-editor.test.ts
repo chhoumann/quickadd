@@ -6,7 +6,7 @@ import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 
 // Mocks mirror captureChoiceFormatter-742-multiline-insert.test.ts so the
 // formatter can run under jsdom without real Obsidian/Templater.
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 vi.mock("../gui/InputPrompt", async () => (await import("../../tests/helpers/formatters/mocks")).InputPromptMock());
 vi.mock("../gui/InputSuggester/inputSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).inputSuggesterMock());
 vi.mock("../gui/GenericSuggester/genericSuggester", async () => (await import("../../tests/helpers/formatters/mocks")).genericSuggesterMock());
@@ -16,7 +16,6 @@ vi.mock("../gui/MathModal", async () => (await import("../../tests/helpers/forma
 vi.mock("../engine/SingleInlineScriptEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleInlineScriptEngineMock());
 vi.mock("../engine/SingleMacroEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleMacroEngineMock());
 vi.mock("../engine/SingleTemplateEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMock());
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 vi.mock("../main", async () => (await import("../../tests/helpers/formatters/mocks")).mainMock());
 
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
@@ -96,9 +95,9 @@ const createFormatter = (activeView: unknown) =>
 	new CaptureChoiceFormatter(createMockApp(activeView), createSelectionFormatterPlugin());
 
 beforeEach(() => {
-	(global as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 });
 
 describe("#1536 — create-if-not-found at cursor without an active editor", () => {

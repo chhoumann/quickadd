@@ -1,11 +1,8 @@
 import type { App, TFile } from "obsidian";
-import {
-	getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithProperty, getMarkdownFilesWithTag
-} from "../../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, getMarkdownFilesWithTag } from "../../utils/vaultQueries";
 import { orderFilesForPicker } from "../../utils/fileOrdering";
 import { buildPickerOrderingDeps } from "../../utils/pickerOrderingDeps";
-import { buildFileDisplayLabels } from "../../utils/fileSyntax";
+import { buildFileDisplayInfos } from "../../utils/fileSyntax";
 import type { CaptureTargetScope } from "./captureTargetScope";
 
 export function captureScopeFiles(app: App, scope: CaptureTargetScope): TFile[] {
@@ -20,7 +17,11 @@ export function captureScopeFiles(app: App, scope: CaptureTargetScope): TFile[] 
 export function captureCandidates(app: App, files: TFile[]) {
 	const ordered = orderFilesForPicker(files, buildPickerOrderingDeps(app));
 	const paths = ordered.map((file) => file.path);
-	const labels = buildFileDisplayLabels(ordered, (file) => app.metadataCache.getFileCache(file));
-	const search = paths.map((path, index) => `${labels[index] ?? path} ${path}`);
-	return { paths, labels, search };
+	const infos = buildFileDisplayInfos(ordered, (file) => app.metadataCache.getFileCache(file));
+	const labels = infos.map((info) => info.label);
+	const aliases = infos.map((info) => info.aliases);
+	// Search what a row shows, its title and its path, so every match can be
+	// highlighted. The path holds the rest of the label (file name, folder).
+	const search = paths.map((path, index) => `${infos[index]?.primary ?? path} ${path}`);
+	return { paths, labels, aliases, search };
 }

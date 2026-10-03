@@ -47,6 +47,35 @@ obsidian vault=dev quickadd:list type=Capture
 obsidian vault=dev quickadd:list commands
 ```
 
+Each Template and Capture carries a `writes` object that says what it writes,
+read from its settings. You (or an agent) can tell choices apart without
+opening them:
+
+```json
+{"name":"Daily log","type":"Capture","writes":{"target":"Daily/{{DATE:YYYY-MM-DD}}.md","position":"after","line":"## Log","format":"- {{TIME}} {{VALUE}}\n","createWithTemplate":"Templates/Daily.md"}}
+{"name":"Meeting note","type":"Template","writes":{"template":"Templates/Meeting.md","folder":"Meetings","fileName":"{{DATE}} {{VALUE:topic}}"}}
+```
+
+| Capture key | Meaning |
+| --- | --- |
+| `target` | The **Capture to** value, or `<active file>` |
+| `position` | `top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`, `newLineBelow`, or `property`, matching **Write position** |
+| `line` | The line for `after` or `before` |
+| `property` | The property a `property` capture writes |
+| `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
+| `task` | `true` when the capture is written as a task |
+| `eachLine` | `true` when [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) is on: each line of `{{VALUE}}` becomes its own entry (QuickAdd 2.30.0 or later) |
+| `createWithTemplate` | The template for a target file that doesn't exist yet |
+
+| Template key | Meaning |
+| --- | --- |
+| `template` | The template file |
+| `folder` | The folder the note goes in; `<default>` is Obsidian's default location for new notes |
+| `fileName` | The **File name**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when the **File name format** toggle is off) |
+
+Formats are shown unexpanded. `<ask>` means QuickAdd asks for that part when the
+choice runs. Macros and Multis have no `writes`.
+
 ### See what a choice still needs: `quickadd:check` {#quickaddcheck}
 
 Check which inputs are still missing before a non-interactive run:
@@ -122,6 +151,24 @@ obsidian vault=dev quickadd:ai-test-connection provider=openai
   provider IDs you can use.
 - The output never contains the key. This command needs QuickAdd 2.28.0 or
   later.
+
+## Let an AI agent write through your choices {#agents}
+
+Coding agents such as Claude Code and Codex can edit your vault's files
+directly, but then they copy your conventions by hand and sometimes miss one.
+QuickAdd ships an [agent skill](https://github.com/chhoumann/quickadd/tree/master/skills/quickadd)
+that tells an agent to list your choices, check their inputs, and run them
+with `verify` instead. It can also create a new choice for you by importing a
+package.
+
+Install it into your vault:
+
+```bash
+npx skills add chhoumann/quickadd
+```
+
+Or copy `skills/quickadd/SKILL.md` into your agent's skills folder, such as
+`.claude/skills/quickadd/` in your vault.
 
 ## Pass variables to a choice {#passing-variables}
 

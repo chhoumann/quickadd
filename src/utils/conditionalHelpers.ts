@@ -6,8 +6,6 @@ import type {
 	VariableCondition,
 } from "../types/macros/Conditional/types";
 
-export const DEFAULT_CONDITIONAL_VALUE_TYPE: ConditionalValueType = "string";
-
 const OPERATORS_REQUIRING_EXPECTED: ConditionalOperator[] = [
 	"equals",
 	"notEquals",
@@ -116,7 +114,7 @@ export function normalizeVariableValue(
 	}
 }
 
-export function formatExpectedValueForDisplay(
+function formatExpectedValueForDisplay(
 	condition: VariableCondition
 ): string {
 	if (!requiresExpectedValue(condition.operator)) return "";
@@ -130,7 +128,7 @@ export function formatExpectedValueForDisplay(
 	return raw;
 }
 
-export function describeVariableCondition(
+function describeVariableCondition(
 	condition: VariableCondition
 ): string {
 	const variableLabel = condition.variableName
@@ -145,7 +143,7 @@ export function describeVariableCondition(
 	return `${variableLabel} ${operatorLabel}${expectedLabel}`.trim();
 }
 
-export function describeScriptCondition(condition: ScriptCondition): string {
+function describeScriptCondition(condition: ScriptCondition): string {
 	const exportSuffix = condition.exportName
 		? `::${condition.exportName}`
 		: "";

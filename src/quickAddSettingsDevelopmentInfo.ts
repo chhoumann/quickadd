@@ -1,6 +1,6 @@
 import { createOwnedElement, createOwnedTextNode } from "./utils/activeWindow";
 
-export type DevelopmentInfo = {
+type DevelopmentInfo = {
 	branch: string | null;
 	commit: string | null;
 	dirty: boolean | null;

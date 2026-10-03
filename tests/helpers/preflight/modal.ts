@@ -31,7 +31,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		modalEl = document.createElement("div");
 		contentEl = document.createElement("div");
 		scope = new Scope();
-		constructor(_app: App) {
+		constructor(public app: App) {
 			this.modalEl.appendChild(this.contentEl);
 			this.containerEl.appendChild(this.modalEl);
 		}
@@ -40,7 +40,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		}
 		close() {}
 	}
-	const { ButtonComponent, DropdownComponent, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent } =
+	const { ButtonComponent, DropdownComponent, Platform, Setting: BaseSetting, TextAreaComponent, TextComponent: BaseTextComponent } =
 		await vi.importActual<typeof Obsidian>("obsidian");
 	class Setting extends BaseSetting {
 		constructor(container: HTMLElement) {
@@ -57,7 +57,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 	}
 
 	return {
-		ButtonComponent, DropdownComponent, Modal, Setting, TextAreaComponent, TextComponent, Scope,
+		ButtonComponent, DropdownComponent, Modal, Platform, Setting, TextAreaComponent, TextComponent, Scope,
 		Notice: class { constructor(message: string) { noticeMessages?.push(message); } },
 		debounce: <T extends (...args: unknown[]) => unknown>(fn: T): T => fn,
 	};

@@ -21,7 +21,6 @@ vi.mock("obsidian", async (importOriginal) => ({
 	stringifyYaml: (value: Record<string, unknown>) => Object.entries(value).map(([key, item]) => `${key}: ${JSON.stringify(item)}\n`).join(""),
 }));
 vi.mock("../main", () => ({ default: class {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("../logger/logManager", () => ({ log: { logError: vi.fn(), logWarning: vi.fn(), logMessage: vi.fn() } }));
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({ default: { Suggest: mocks.picker } }));
 vi.mock("../formatters/captureChoiceFormatter", () => ({
@@ -49,13 +48,21 @@ vi.mock("./SingleTemplateEngine", () => ({
 		run() { return mocks.template(); }
 	},
 }));
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/vaultQueries", () => ({
 	isFolder: () => false,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: () => null,
 	openFile: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	isTemplaterTriggerOnCreateEnabled: () => mocks.templaterEnabled,
-	waitForTemplaterTriggerOnCreateToComplete: mocks.afterCreate,
+	createNoteAfterTemplaterTrigger: async (_app: unknown, _path: string, create: () => Promise<unknown>) => {
+		const file = await create();
+		await mocks.afterCreate();
+		return file;
+	},
 	withTemplaterFileCreationSuppressed: async (_app: unknown, _path: string, work: () => Promise<unknown>) => await work(),
 }));
 

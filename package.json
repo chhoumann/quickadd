@@ -1,6 +1,6 @@
 {
 	"name": "quickadd",
-	"version": "2.29.0",
+	"version": "2.30.0",
 	"description": "Quickly add new pages or content to your vault.",
 	"main": "main.js",
 	"scripts": {
@@ -26,11 +26,10 @@
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
 		"@testing-library/jest-dom": "^7.0.1",
 		"@testing-library/svelte": "^5.4.2",
-		"@testing-library/user-event": "^14.6.7",
 		"@types/node": "^26.6.1",
 		"@typescript-eslint/eslint-plugin": "^8.70.0",
 		"@typescript-eslint/parser": "^8.70.0",
-		"@vitest/coverage-v8": "4.1.11",
+		"@vitest/coverage-v8": "5.0.2",
 		"esbuild": "^0.28.2",
 		"esbuild-svelte": "^0.9.5",
 		"eslint": "10",
@@ -39,7 +38,7 @@
 		"jsdom": "30",
 		"moment": "2.31.0",
 		"obsidian": "1.13.1",
-		"obsidian-e2e": "^0.12.0",
+		"obsidian-e2e": "^0.12.1",
 		"svelte": "^5",
 		"svelte-check": "^4",
 		"svelte-eslint-parser": "^1.8.1",
@@ -47,17 +46,14 @@
 		"tslib": "^2.8.1",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.0",
-		"vitest": "^4.1.11",
+		"vitest": "^5.0.2",
 		"yaml": "2.9.1"
 	},
 	"dependencies": {
-		"@popperjs/core": "^2.11.8",
 		"chrono-node": "^2.10.1",
 		"fuse.js": "7",
-		"obsidian-dataview": "^0.5.68",
 		"svelte-dnd-action": "0.9.79",
 		"three-way-merge": "^0.1.0",
-		"uuid": "14",
 		"zustand": "^5.0.15"
 	},
 	"repository": {
@@ -65,17 +61,15 @@
 		"url": "https://github.com/chhoumann/quickadd.git"
 	},
 	"engines": {
-		"node": "^20.19.0 || >=22.12.0"
+		"node": ">=22.12.0"
 	},
 	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
 	"pnpm": {
 		"onlyBuiltDependencies": [
-			"@codemirror/language",
 			"esbuild"
 		],
 		"overrides": {
 			"brace-expansion": "5.0.9",
-			"obsidian-calendar-ui>svelte": "^5.56.3",
 			"postcss": "8.5.25"
 		},
 		"patchedDependencies": {

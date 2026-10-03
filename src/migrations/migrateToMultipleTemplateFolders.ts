@@ -1,5 +1,5 @@
 import type QuickAdd from "src/main";
-import { normalizeTemplateFolderPaths } from "src/utilityObsidian";
+import { normalizeTemplateFolderPaths } from "src/utils/templateFolderUtils";
 
 /**
  * Fold the legacy single `templateFolderPath` string into the multi-folder

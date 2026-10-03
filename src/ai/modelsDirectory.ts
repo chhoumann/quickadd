@@ -264,12 +264,6 @@ export async function enrichModelsWithDirectoryMetadata(
   });
 }
 
-export function dedupeModels(existing: Model[], incoming: Model[]): Model[] {
-  const existingNames = new Set(existing.map((m) => m.name));
-  const filtered = incoming.filter((m) => !existingNames.has(m.name));
-  return existing.concat(filtered);
-}
-
 /**
  * Sync merge: append models the provider doesn't have yet AND refresh the
  * metadata (context window, output cap, sampling support) of the ones it does.

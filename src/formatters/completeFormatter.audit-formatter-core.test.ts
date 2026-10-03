@@ -22,9 +22,8 @@ const mocks = vi.hoisted(() => ({
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
-	inputPromptPromptWithContext: vi.fn(),
 	inputPromptFactory: vi.fn(),
-	genericInputPromptWithContext: vi.fn(),
+	genericInputPrompt: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
 	multiSuggesterSuggest: vi.fn(),
@@ -72,14 +71,13 @@ vi.mock("../gui/InputPrompt", () => ({
 			mocks.inputPromptFactory(inputTypeOverride);
 			return {
 				Prompt: mocks.inputPromptPrompt,
-				PromptWithContext: mocks.inputPromptPromptWithContext,
 			};
 		}
 	},
 }));
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
-	default: { PromptWithContext: mocks.genericInputPromptWithContext },
+	default: { Prompt: mocks.genericInputPrompt },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -178,9 +176,9 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	mocks.macroGetVariables.mockReturnValue(new Map());
 	mocks.getSmartDefaults.mockReturnValue([]);
-	(globalThis as any).navigator = {
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 });
 
 describe("circular {{title}} re-check after format() (format-file-title-token)", () => {

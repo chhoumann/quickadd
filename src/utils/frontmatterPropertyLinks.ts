@@ -156,28 +156,6 @@ function normalizePropertyKey(propertyKey: string): string {
 	return propertyKey.trim().toLowerCase();
 }
 
-export async function appendLinkToConfiguredFrontmatterProperty(
-	app: App,
-	targetFile: TFile,
-	propertyKey: string,
-	fileToLink: TFile,
-	frontmatterHandling: FrontmatterHandling = DEFAULT_FRONTMATTER_HANDLING,
-): Promise<void> {
-	const linkText = app.fileManager.generateMarkdownLink(
-		fileToLink,
-		targetFile.path,
-	);
-
-	await processNoteFrontMatter(app, targetFile, (frontmatter) => {
-		appendConfiguredFrontmatterPropertyLinkValue(
-			frontmatter,
-			propertyKey,
-			linkText,
-			frontmatterHandling,
-		);
-	});
-}
-
 export async function appendLinkToFrontmatterProperty(
 	app: App,
 	target: FrontmatterPropertyTarget,

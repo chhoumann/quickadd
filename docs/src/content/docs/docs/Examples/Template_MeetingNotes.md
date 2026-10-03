@@ -34,14 +34,14 @@ Date: {{DATE:YYYY-MM-DD}}
 1. Open **Settings → QuickAdd** and choose **New choice → Template**.
 2. Click the choice name at the top of the settings window. Rename it `New meeting` and confirm with **Ok**.
 3. Set **Template path** to `Templates/Meeting.md`.
-4. Turn **File name format** on and enter:
+4. In **File name**, enter (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
 
    ```text
    {{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}
    ```
 
 5. Set **New note location** to **In a specific folder**.
-6. Enter `Meetings` in **Folder path** and click **Add**. The folder must appear in the list above the input.
+6. Enter `Meetings` in **Folder path** and click **Add**.
 7. Turn **Open** on.
 8. Set **File opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
 9. Choose **Done** and close Settings.
@@ -94,7 +94,7 @@ Imported the package? Open a project note in **Live Preview**, click in the note
    ```
 
 2. Open **Settings → QuickAdd**.
-3. Under **Templates & properties → Template folder paths**, enter `Templates` and click **Add**. If the folder is already listed, leave it as it is.
+3. Under **Template folders**, click **Add folder** (or **+**, once you have a folder) and choose `Templates`. If `Templates` is already listed, leave it as it is. Before QuickAdd 2.30.0, the setting is **Template folder paths** under **Templates & properties**: enter `Templates` and click **Add**.
 4. Close Settings.
 5. Create a `Projects` folder and `Projects/Website.md` with:
 

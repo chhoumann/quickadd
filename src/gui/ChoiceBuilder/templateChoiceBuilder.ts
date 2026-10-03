@@ -5,24 +5,17 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import { ChoiceBuilder } from "./choiceBuilder";
 import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
-import {
-	createTemplateChoiceFormProps,
-	type TemplateChoiceFormProps,
-} from "./templateChoiceFormProps.svelte";
 
-export class TemplateChoiceBuilder extends ChoiceBuilder {
-	choice: ITemplateChoice;
-	private formProps?: TemplateChoiceFormProps;
-
+export class TemplateChoiceBuilder extends ChoiceBuilder<ITemplateChoice> {
 	constructor(
 		app: App,
 		choice: ITemplateChoice,
-		private plugin: QuickAdd,
+		plugin: QuickAdd,
+		onSave: (choice: IChoice) => void,
 	) {
-		super(app);
-		this.choice = choice;
+		super(app, choice, plugin, onSave, TemplateChoiceForm, "this template choice's settings");
+		this.containerEl.addClass("templateChoiceBuilder");
 		this.normalizeChoice();
-		this.display();
 	}
 
 	/**
@@ -55,22 +48,5 @@ export class TemplateChoiceBuilder extends ChoiceBuilder {
 		// chooseFromSubfolders (2023) postdates the folder config itself, so
 		// choices saved before it existed legitimately lack it (#1497).
 		this.choice.folder.chooseFromSubfolders ??= false;
-	}
-
-	protected display() {
-		this.containerEl.addClass("templateChoiceBuilder");
-		this.formProps = this.mountForm(
-			TemplateChoiceForm,
-			createTemplateChoiceFormProps({
-				choice: this.choice,
-				app: this.app,
-				plugin: this.plugin,
-			}),
-			"this template choice's settings",
-		);
-	}
-
-	protected getResultChoice(): IChoice {
-		return this.formProps?.choice ?? this.choice;
 	}
 }

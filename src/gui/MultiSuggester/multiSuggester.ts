@@ -2,11 +2,12 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting } from "obsidian";
 import { normalizeDisplayItem } from "../suggesters/utils";
 import { promptCancelled } from "../../errors/UserCancelError";
+import { itemWithAlias } from "../../utils/fileSyntax";
 import SearchableMultiSelect, {
 	type SearchableMultiSelectItem,
 } from "../SearchableMultiSelect/searchableMultiSelect";
 
-export interface MultiSuggesterOptions {
+interface MultiSuggesterOptions {
 	/** Modal title / prompt header. */
 	placeholder?: string;
 	/** Allow typing a value that isn't in the option list (|custom). */
@@ -21,6 +22,8 @@ export interface MultiSuggesterOptions {
 	 * any of them. Empty/undefined preselects nothing.
 	 */
 	preselected?: string[];
+	/** Other names each item can be found by, by index (a note's aliases). */
+	aliases?: string[][];
 }
 
 /**
@@ -76,6 +79,16 @@ export default class MultiSuggester extends Modal {
 		this.render();
 		this.open();
 		this.picker.focusSearchOnOpen();
+	}
+
+	// Obsidian handles Esc in the modal's scope before the search box sees the
+	// key, so the first Esc clears a search here instead of closing the prompt.
+	override onEscapeKey(evt: KeyboardEvent): void {
+		if (this.picker.clearSearch()) {
+			evt.preventDefault();
+			return;
+		}
+		super.onEscapeKey(evt);
 	}
 
 	private selectValue(value: string): void {
@@ -146,14 +159,9 @@ export default class MultiSuggester extends Modal {
 			customSetting.settingEl.addClass("qa-multi-custom");
 		}
 
+		// Skip, Cancel, Done: the main action last, as in QuickAdd's other prompts.
 		const buttons = new Setting(contentEl);
 		buttons.settingEl.addClass("qa-multi-actions");
-		buttons.addButton((btn) =>
-			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
-		);
-		buttons.addButton((btn) =>
-			btn.setButtonText("Cancel").onClick(() => this.close()),
-		);
 		if (this.opts.skippable) {
 			buttons.addButton((btn) =>
 				btn
@@ -166,6 +174,12 @@ export default class MultiSuggester extends Modal {
 					}),
 			);
 		}
+		buttons.addButton((btn) =>
+			btn.setButtonText("Cancel").onClick(() => this.close()),
+		);
+		buttons.addButton((btn) =>
+			btn.setButtonText("Done").setCta().onClick(() => this.submit()),
+		);
 	}
 
 	private getSearchableItems(): SearchableMultiSelectItem<string>[] {
@@ -175,6 +189,7 @@ export default class MultiSuggester extends Modal {
 				value,
 				label: normalizeDisplayItem(this.displayItems[index] ?? value),
 				searchText: value,
+				aliases: this.opts.aliases?.[index],
 			})),
 			...this.customValues.map((value) => ({
 				key: value,
@@ -196,20 +211,26 @@ export default class MultiSuggester extends Modal {
 			new Notice("Enter a value to add.");
 			return false;
 		}
+		const value = this.typedValue(trimmed);
 		const alreadySelected =
-			(this.items.includes(trimmed) || this.customValues.includes(trimmed)) &&
-			this.selected.has(trimmed);
+			(this.items.includes(value) || this.customValues.includes(value)) &&
+			this.selected.has(value);
 		if (alreadySelected) {
 			new Notice(`"${trimmed}" is already added.`);
 			return false;
 		}
-		this.selectValue(trimmed);
+		this.selectValue(value);
 		this.draft = "";
 		this.render();
 		// render() rebuilds contentEl, dropping focus from the (now-recreated) custom
 		// input; restore it so adding several values in a row stays fluid.
 		this.focusCustomInput();
 		return true;
+	}
+
+	/** A typed value, or the option one of whose aliases it is: an alias names its note. */
+	private typedValue(typed: string): string {
+		return itemWithAlias(this.items, this.opts.aliases ?? [], typed) ?? typed;
 	}
 
 	private focusCustomInput(): void {
@@ -223,8 +244,7 @@ export default class MultiSuggester extends Modal {
 		// Fold any non-empty, un-"Add"ed draft into the selection so a user who typed a
 		// value and pressed Done (the common submit gesture) doesn't silently lose it.
 		if (this.opts.allowCustomValue && this.draft.trim()) {
-			const trimmed = this.draft.trim();
-			this.selectValue(trimmed);
+			this.selectValue(this.typedValue(this.draft.trim()));
 			this.draft = "";
 		}
 		this.didSubmit = true;

@@ -41,7 +41,7 @@ views:
 2. Create a Capture choice.
 3. Enable **Capture to active file**.
 4. Set **Write position** to **Top of file (after frontmatter)**.
-5. In **Capture format**, reference your `.base` template with an explicit file
+5. (Before QuickAdd 2.30.0, turn on the **Capture format** toggle first.) In **Capture format**, reference your `.base` template with an explicit file
    extension:
 
 Example:

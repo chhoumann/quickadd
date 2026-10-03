@@ -4,10 +4,8 @@ import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import {
-	getMarkdownEditorViewForFile,
-	templaterParseTemplate,
-} from "../utilityObsidian";
+import { getMarkdownEditorViewForFile, insertCaptureInBoundEditor } from "../utils/editorInsertion";
+import { templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	assignFrontmatterValue,
 	hasUnsafeFrontmatterKey,
@@ -17,12 +15,12 @@ import { TemplatePropertyCollector } from "../utils/TemplatePropertyCollector";
 import { coerceYamlValue } from "../utils/yamlValues";
 import { parentFolderPath } from "../utils/pathUtils";
 import { insertAtNoteBodyStartWithResult, type NoteBodyInsertionResult } from "../utils/noteContentInsertion";
-import { insertCaptureInBoundEditor } from "../utils/editorInsertion";
 import { processNote, processNoteFrontMatter } from "../utils/noteContent";
 import { prepareTemplateContent } from "../utils/templateCursorPlacement";
 import { TemplateEngine } from "./TemplateEngine";
 import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { isSetLikeObsidianProperty } from "../utils/obsidianPropertyTypes";
+import { restoreUserTextAt } from "../formatters/helpers/userText";
 
 export const templateInsertModes = [
 	{
@@ -73,8 +71,16 @@ export function splitTemplateFrontmatter(content: string): {
 	};
 }
 
+/** Blank lines (spaces and tabs allowed) at the end of a note. */
+const TRAILING_BLANK_LINES = /(?:\r?\n[^\S\r\n]*)+$/;
+/** Blank lines at the start of a template body. */
+const LEADING_BLANK_LINES = /^(?:[^\S\r\n]*\r?\n)+/;
+
 /**
- * Inserts a template body into existing note content. "top" is
+ * Inserts a template body into existing note content. "bottom" leaves exactly
+ * one blank line between the note and the template, however the note ends, and
+ * none above the template in an empty note (#1958). Callers drop the body's own
+ * leading blank lines first (see insertTemplateIntoFile). "top" is
  * frontmatter-aware: the body lands below the note's frontmatter block, including
  * the blank line that separates that block from the body (issue #1538).
  *
@@ -91,8 +97,10 @@ export function insertBodyIntoNoteContent(
 	position: "top" | "bottom",
 ): NoteBodyInsertionResult {
 	if (position === "bottom") {
-		const content = `${noteContent}\n${body}`;
-		return { content, insertedStartOffset: noteContent.length + 1, insertedEndOffset: content.length };
+		const note = noteContent.replace(TRAILING_BLANK_LINES, "");
+		const head = note.trim() ? `${note}\n\n` : "";
+		const content = head + body;
+		return { content, insertedStartOffset: head.length, insertedEndOffset: content.length };
 	}
 
 	return insertAtNoteBodyStartWithResult(noteContent, `${body}\n`);
@@ -316,17 +324,23 @@ export class TemplateInsertEngine extends TemplateEngine {
 	): Promise<TFile> {
 		const { formatted, templatePropertyVars } =
 			await this.formatTemplateForTargetFile();
-		const { frontmatterYaml, body } = splitTemplateFrontmatter(formatted);
+		const split = splitTemplateFrontmatter(formatted);
+		const { frontmatterYaml } = split;
+		// At the bottom, the one blank line above the template replaces the
+		// template's own leading blank lines, such as the one after its frontmatter.
+		const body = position === "bottom" ? split.body.replace(LEADING_BLANK_LINES, "") : split.body;
 
 		const cursor = this.cursorPlacement;
 		if (body.trim().length > 0 || cursor) {
 			await processNote(this.app, this.targetFile, (noteContent) => {
 				const inserted = insertBodyIntoNoteContent(noteContent, body, position);
 				if (cursor && inserted.insertedStartOffset !== null) {
-					const start = inserted.insertedStartOffset - (formatted.length - body.length);
+					const blockStart = inserted.insertedStartOffset;
+					const start = blockStart - (formatted.length - body.length);
 					this.cursorPlacement = {
 						content: inserted.content,
-						offsets: cursor.offsets.map(offset => start + offset),
+						// A cursor in a dropped blank line goes to the start of the template.
+						offsets: cursor.offsets.map(offset => Math.max(blockStart, start + offset)),
 					};
 				}
 				return inserted.content;
@@ -393,9 +407,11 @@ export class TemplateInsertEngine extends TemplateEngine {
 
 		let formatted = await this.formatter.withTemplatePropertyCollection(() =>
 			this.formatter.withPromptScope("noteBody", templateContent, () =>
-				this.targetFile.extension === "md"
-					? this.formatter.formatTemplateContent(templateContent)
-					: this.formatter.formatFileContent(templateContent),
+				this.formatter.withUserTextProtected(() =>
+					this.targetFile.extension === "md"
+						? this.formatter.formatTemplateContent(templateContent)
+						: this.formatter.formatFileContent(templateContent),
+				),
 			),
 		);
 		const templatePropertyVars =
@@ -409,7 +425,8 @@ export class TemplateInsertEngine extends TemplateEngine {
 			);
 		}
 
-		const prepared = prepareTemplateContent(formatted);
+		const marked = prepareTemplateContent(formatted);
+		const prepared = restoreUserTextAt(marked.content, marked.offsets);
 		this.cursorPlacement = this.targetFile.extension === "md" && prepared.offsets.length > 0 ? prepared : null;
 		return { formatted: prepared.content, templatePropertyVars };
 	}

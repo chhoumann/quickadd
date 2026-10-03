@@ -82,6 +82,42 @@ describe("attachImagePasteHandler image drop", () => {
 		expect(input.value).not.toContain("Clipboard image");
 	});
 
+	it.each([
+		["holiday.jpeg", "image/jpeg", "holiday.jpg"],
+		["portrait.jpeg", "image/png", "portrait.png"],
+		["photos/summer.png", "image/png", "summer.png"],
+		["C:\\Users\\me\\winter.png", "image/png", "winter.png"],
+	])("names dropped %s (%s) %s", async (name, mimeType, expected) => {
+		const { app, getAvailablePathForAttachment } = makeApp();
+		const input = makeInput();
+		const handle = attachImagePasteHandler(app, input, {});
+
+		dispatchDrag(input, "drop", makeDropData([makeFile(name, mimeType)]));
+		await flushSaves(handle);
+
+		expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+			expected,
+			undefined,
+		);
+	});
+
+	it.each(["CON.png", "bad:name.png", ".hidden.png", "photo..png"])(
+		"falls back to the clipboard timestamp name for dropped %s",
+		async (name) => {
+			const { app, getAvailablePathForAttachment } = makeApp();
+			const input = makeInput();
+			const handle = attachImagePasteHandler(app, input, {});
+
+			dispatchDrag(input, "drop", makeDropData([makeFile(name, "image/png")]));
+			await flushSaves(handle);
+
+			expect(getAvailablePathForAttachment).toHaveBeenCalledWith(
+				expect.stringMatching(/^Clipboard image \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.\d{2}\.png$/),
+				undefined,
+			);
+		},
+	);
+
 	it("keeps the dropped filename when destination-title naming is on", async () => {
 		settingsStore.setState({ namePastedImagesAfterNoteTitle: true });
 		try {

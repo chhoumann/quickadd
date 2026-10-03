@@ -12,7 +12,7 @@ You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
 In the format fields of a choice's settings (such as **Capture format**,
-**Capture to**, **File name format**, and the insert after/before targets), type
+**Capture to**, **File name**, and the insert after/before targets), type
 `{{` to get a list of placeholders, then keep typing to filter it. Template
 files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
 an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
@@ -32,6 +32,11 @@ asks you for a value, and if you answer `Standup moved to Wednesday`, it inserts
 ```
 
 You describe the shape once; QuickAdd fills in the blanks every run.
+
+Answers, selected text, clipboard contents and `value-` URI parameters are
+inserted as written. A placeholder or Templater `<% %>` tag inside them stays
+text. A Templater tag in the format itself can still use an answer, as in
+`<% "{{VALUE:title}}".toUpperCase() %>`.
 
 ## Quick reference {#quick-reference}
 
@@ -58,6 +63,8 @@ You describe the shape once; QuickAdd fills in the blanks every run.
 | [`{{DATE+7}}`](#date) | Seven days from today |
 | [`{{DATE:YYYY-MM\|startof:week}}`](#date-snap) | The week's starting month, for weekly notes |
 | [`{{TIME}}`](#time) | The current time, like `14:05` |
+| [`{{DAILY}}`](#daily) | The daily note, like `Journal/2026-07-08` |
+| [`{{WEEKLY}}`](#periodic-notes) | This week's note, like `Weekly/2026-W28` |
 
 **The note you ran QuickAdd from**
 
@@ -229,6 +236,52 @@ Unlike `{{DATE}}`, `{{TIME}}` takes no `+N` offset. For a time other than "now",
 use `{{DATE:HH:mm}}` with an offset, or ask for one with
 [`{{VDATE:<name>, <format>|time}}`](#vdate).
 
+### The daily note: `{{DAILY}}` {#daily}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{DAILY}}` is the path of the day's daily note, from the folder and date
+format in Obsidian's **Daily notes** settings. Set **Capture to** to
+`{{DAILY}}` and entries land in the note **Open today's daily note** opens,
+even after you change those settings.
+
+| You write | You get (Daily notes folder `Journal`, format `YYYY-MM-DD`) |
+| --- | --- |
+| `{{DAILY}}` | `Journal/2026-07-08` |
+| `{{DAILY\|link}}` | `[[2026-07-08]]` |
+
+When the [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)
+plugin manages daily notes, `{{DAILY}}` uses its settings instead.
+
+Good to know:
+
+- The day follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
+- If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
+- `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
+- If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
+
+### Weekly, monthly, quarterly, and yearly notes: `{{WEEKLY}}` {#periodic-notes}
+
+_Requires QuickAdd 2.30.0 or later._
+
+`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}` work like
+[`{{DAILY}}`](#daily) for the notes the
+[Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) plugin
+manages, with that plugin's folder, format, and template for each period.
+
+| You write (on Thursday 1 June 2023, weekly format `gggg.MM.[Wk]w`) | You get |
+| --- | --- |
+| `{{WEEKLY}}` | `Weekly/2023.05.Wk22` |
+| `{{MONTHLY}}` | `Monthly/2023-06` |
+| `[[{{QUARTERLY}}]]` or `{{QUARTERLY\|link}}` | A link to `2023-Q2` |
+
+Good to know:
+
+- A note is named from the start of its period, the way Periodic Notes names it. The week of 1 June 2023 starts on 28 May, so it files under May.
+- A missing note is created from the period's template with Periodic Notes' placeholders. In weekly notes, `{{sunday:<format>}}` through `{{saturday:<format>}}` give that day of the week. In all periods, `{{date:<format>}}` is the start of the period.
+- If Periodic Notes doesn't manage the period, the run stops with an error.
+- Periodic Notes 1.0 (beta) isn't supported yet; use the released version, 0.0.17.
+
 ### Ask for a date: `{{VDATE:<name>, <format>}}` {#vdate}
 
 `{{VDATE:due,YYYY-MM-DD}}` opens a date prompt and inserts your answer in the
@@ -266,6 +319,11 @@ several VDATEs for one name, the first one's format is used.
 - [ ] Throw and trim 📅 2026-07-10
 - [ ] Glaze fire 📅 2026-07-10
 ```
+
+A `{{VALUE:due}}` in a template you include with
+[`{{TEMPLATE:path}}`](#template) reuses the date the same way (QuickAdd 2.30.0
+or later). An include asks its prompts first, so step by step the date prompt
+opens when the include needs the date.
 
 A date that a script set, with no VDATE for that name, prints as
 `YYYY-MM-DD`. QuickAdd 1.14.0 to 2.28.0 printed the stored value instead, such
@@ -677,7 +735,7 @@ Source: {{LINKCURRENT}}
 Source: [[Meeting with Alice]]
 ```
 
-When the append-link setting is **Enabled (skip if no active file)**, this
+When the append-link setting is **Enabled (skip if unavailable)**, this
 placeholder becomes empty instead of erroring when no note is focused.
 
 ### A link to the current section: `{{LINKSECTION}}` {#linksection}
@@ -699,7 +757,7 @@ The active note's file name, without the extension: `Notes from
 {{FILENAMECURRENT}}`. Honors the same required/optional behavior as
 `{{LINKCURRENT}}` - when optional and no note is active, it becomes empty.
 
-In a Template [File name format](/docs/Choices/TemplateChoice/#optional),
+In a Template [File name](/docs/Choices/TemplateChoice/#optional),
 `{{FILENAMECURRENT}}/{{VALUE}}` creates the new note under a folder named after
 the active note.
 
@@ -1026,6 +1084,9 @@ The picker labels each note by its frontmatter `title` if present, then its
 first level-1 heading, then its file name - but always inserts based on the
 actual file, so friendly labels never change what you get.
 
+You can also find a note by its `aliases`: the row shows the alias with the
+note's name beneath it, and still inserts the note (QuickAdd 2.30.0 or later).
+
 Output modes:
 
 | You write | You get |
@@ -1065,7 +1126,7 @@ Good to know:
 - Repeated `|tag:` filters are AND filters. Exclusions remove any matching file.
 - Markdown notes only, unless you add `|type:`.
 - `|link` and `|path` insert characters that aren't valid in file names; in the **file name** field, use the default mode.
-- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe.
+- In a one-page input form, single and multi FILE pickers appear inline. Search matches the friendly title, file name, and full path. Selected files remain exact path-backed values internally, so commas in file names or labels are safe. A required single picker starts empty, and the form waits for a file before it submits (QuickAdd 2.30.0 or later).
 
 FILE multi-selects support `|format:yaml`, `|format:markdown`,
 `|format:inline`, `|format:spaced`, and `|format:auto`. The format composes with `|link` and
