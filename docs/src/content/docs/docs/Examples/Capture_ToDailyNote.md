@@ -11,12 +11,14 @@ Every recipe starts from the same base Capture choice; you only change the **Cap
 
 ## Base setup
 
+The package above needs QuickAdd 2.30.0 or later. On an earlier version, the package writes its captures to a note named `{{DAILY}}.md`, so build the capture by hand with the base setup below instead.
+
 Imported the package above? Follow **After importing** in the card, then skip the base setup below. [Recipes](#recipes) explains what each imported capture does and how to add more.
 
-1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Daily entry`).
+1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens as a page of the settings window; set **Name** to `Daily entry`. (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top to rename it.)
 2. Disable **Capture to active file**.
 3. Click **Daily note** next to **Capture to** (QuickAdd 2.30.0 or later). It fills in `{{DAILY}}`, which uses the folder, date format, and template from Obsidian's **Daily notes** settings, or from Periodic Notes when it manages your daily notes. On earlier versions, type your daily-note path and date pattern instead, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
-4. Make sure **Create file if it doesn't exist** is on. The **Daily note** button turns it on; on earlier versions, turn it on yourself.
+4. Make sure **Create file if it doesn't exist** is on. The **Daily note** button turns it on. On earlier versions, turn it on yourself; to start a new note from your daily-note template, also turn on **Create file with a template** and pick the template.
 5. Set **Write position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
 7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section.
