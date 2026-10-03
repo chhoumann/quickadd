@@ -76,14 +76,14 @@ A [Capture choice](/docs/Choices/CaptureChoice/) whose format is `{{TEMPLATE:Tem
 
 ### Today's daily note
 
-Appending to today's note is a Capture choice with a date-formatted target path - the file doesn't have to exist beforehand:
+Appending to today's note is a Capture choice that targets the daily note - the file doesn't have to exist beforehand:
 
-- **Capture to**: `Daily/{{DATE}}.md`
-- **Create file if it doesn't exist**, with your daily template
+- **Capture to**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
+- **Create file if it doesn't exist**, with **Create file with a template** set to your daily template, so QuickAdd fills in its tokens
 - **Insert after**: `## Log`, with **Create line if not found**
 - **Capture format**: `- {{VALUE}}`
 
-Say today is 2026-07-06: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
+Say today is 2026-07-06 and your daily notes live in `Daily`: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. Before QuickAdd 2.30.0, set **Capture to** to a date-formatted path such as `Daily/{{DATE}}.md` instead. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
 
 ## Templates chosen by folder
 
@@ -115,7 +115,7 @@ Named values are shared across an entire run. `{{VALUE:topic}}` in the file name
 
 That sharing spans [Macro choice](/docs/Choices/MacroChoice/) steps too. A classic two-step flow - log a task in today's daily note and create its note - is a macro of two choices sharing one name:
 
-1. A Capture choice into `Daily/{{DATE}}.md` with the format `- [ ] [[{{VALUE:task}}]]`
+1. A Capture choice into `{{DAILY}}` (before QuickAdd 2.30.0, `Daily/{{DATE}}.md`) with the format `- [ ] [[{{VALUE:task}}]]`
 2. A Template choice with file name format `{{VALUE:task}}` creating the note in your `Tasks` folder
 
 You type the task name once. Scripts join the same pool: anything a script assigns to `params.variables.task` is what `{{VALUE:task}}` resolves to in later steps - see the [scripting guide](/docs/Advanced/ScriptingGuide/).
