@@ -1,6 +1,6 @@
 import { ensureObsidianDomPolyfills, modalButton } from "../../tests/helpers/preflight/modal";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { App } from "obsidian";
+import { Platform, type App } from "obsidian";
 import type { FieldRequirement } from "./RequirementCollector";
 import { OnePageInputModal } from "./OnePageInputModal";
 import { UserCancelError } from "../errors/UserCancelError";
@@ -74,9 +74,14 @@ vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
 	},
 }));
 
+const { noticeMessages } = vi.hoisted(() => ({ noticeMessages: [] as string[] }));
+
 vi.mock("obsidian", async () => {
 	const { modalObsidianStub } = await import("../../tests/helpers/preflight/modal");
-	return modalObsidianStub();
+	return {
+		...(await modalObsidianStub()),
+		Notice: class { constructor(message: string) { noticeMessages.push(message); } },
+	};
 });
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
@@ -144,6 +149,7 @@ describe("OnePageInputModal", () => {
 	beforeEach(() => {
 		ensureObsidianDomPolyfills();
 		filePickerSuggesters.length = 0;
+		noticeMessages.length = 0;
 		noteSelections.length = 0;
 		noteSuggesterSetup.mockReset();
 		attachImagePasteHandlerMock.mockClear();
@@ -411,6 +417,30 @@ describe("OnePageInputModal", () => {
 		modal.containerEl.remove();
 	});
 
+	it("names an empty note picker that a pending new title reveals", async () => {
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "note", label: "Note", type: "text" },
+			{ id: "FILE:people", label: "Owner", type: "file-picker", options: ["@file:People/Ada.md"], displayOptions: ["Ada"] },
+		], undefined, undefined, {
+			notes: [{ id: "note", choice: new TemplateChoice("Project"), group: { id: "project", label: "Project" } }],
+			fieldUsages: new Map(),
+			visibleForNotes: new Map([["FILE:people", [{ noteId: "note", includeExisting: false }]]]),
+		});
+		document.body.appendChild(modal.containerEl);
+		modal.contentEl.querySelector("input")!.value = "Project At";
+		const submitted = vi.fn();
+		void modal.waitForClose.then(submitted);
+		modalButton(modal).click();
+		await Promise.resolve();
+		expect(submitted).not.toHaveBeenCalled();
+		expect(noticeMessages).toEqual(['QuickAdd: Choose a file for "Owner".']);
+		expect(document.activeElement?.getAttribute("aria-label")).toBe("Choose file for Owner");
+		filePickerSuggesters[0].onSelect({ value: "@file:People/Ada.md", label: "Ada", path: "People/Ada.md" });
+		modalButton(modal).click();
+		await expect(modal.waitForClose).resolves.toEqual({ "FILE:people": "@file:People/Ada.md" });
+		modal.containerEl.remove();
+	});
+
 	it("keeps fallback title entry usable when note search cannot be constructed", async () => {
 		noteSuggesterSetup.mockImplementation(() => { throw new Error("Metadata unavailable"); });
 		const modal = new OnePageInputModal({} as App, [{ id: "note", label: "Note", type: "text" }], undefined, undefined, {
@@ -455,37 +485,115 @@ describe("OnePageInputModal", () => {
 		await expect(modal.waitForClose).resolves.toEqual({ [id]: "#BF616A" });
 	});
 
-	it("shows and submits the first FILE option by default", async () => {
+	describe("single FILE picker", () => {
 		const id = "FILE:people";
-		const requirements: FieldRequirement[] = [
-			{
-				id,
-				label: "Related person",
-				type: "file-picker",
-				options: ["@file:People/Ada.md", "@file:People/Grace.md"],
-				displayOptions: ["Ada", "Grace"],
-				suggesterConfig: { multiSelect: false, allowCustomInput: false },
-			},
-		];
+		const person = (extra: Partial<FieldRequirement> = {}): FieldRequirement => ({
+			id,
+			label: "Related person",
+			type: "file-picker",
+			options: ["@file:People/Ada.md", "@file:People/Grace.md"],
+			displayOptions: ["Ada", "Grace"],
+			suggesterConfig: { multiSelect: false, allowCustomInput: false },
+			...extra,
+		});
+		const chips = (modal: OnePageInputModal) =>
+			Array.from(modal.contentEl.querySelectorAll(".qa-onepage-file-picker__chip-label"), (el) => el.textContent);
+		const settledWith = (modal: OnePageInputModal) => {
+			const state: { values?: Record<string, string> } = {};
+			void modal.waitForClose.then((values) => { state.values = values; }, () => {});
+			return state;
+		};
 
-		const modal = new OnePageInputModal({} as App, requirements, new Map());
-		const contentEl = modal.contentEl;
-		expect(
-			contentEl.querySelector(".qa-onepage-file-picker__chip-label")
-				?.textContent,
-		).toBe("Ada");
-		expect(modal.fileSelections.get(id)).toEqual(["@file:People/Ada.md"]);
-		expect(
-			contentEl.querySelector(".qa-onepage-file-picker__input")?.getAttribute(
-				"aria-label",
-			),
-		).toBe("Choose file for Related person");
+		it("starts empty and refuses Submit until a file is picked", async () => {
+			const modal = new OnePageInputModal({} as App, [person(), { id: "body", label: "Body", type: "text" }], new Map());
+			document.body.append(modal.containerEl);
+			try {
+				const picker = modal.contentEl.querySelector<HTMLInputElement>(".qa-onepage-file-picker__input");
+				expect(picker?.getAttribute("aria-label")).toBe("Choose file for Related person");
+				expect(chips(modal)).toEqual([]);
+				expect(modal.fileSelections.get(id)).toEqual([]);
 
-		const submitButton = modalButton(modal);
-		submitButton.click();
+				const state = settledWith(modal);
+				modal.onOpen();
+				modal.contentEl.querySelector<HTMLInputElement>("input:not(.qa-onepage-file-picker__input)")?.focus();
+				modalButton(modal).click();
+				(modal as unknown as { scope: { trigger(mods: string[], key: string): void } }).scope.trigger(["Mod"], "Enter");
+				await Promise.resolve();
+				expect(state.values).toBeUndefined();
+				expect(noticeMessages).toEqual([
+					'QuickAdd: Choose a file for "Related person".',
+					'QuickAdd: Choose a file for "Related person".',
+				]);
+				expect(document.activeElement).toBe(picker);
 
-		await expect(modal.waitForClose).resolves.toEqual({
-			[id]: "@file:People/Ada.md",
+				filePickerSuggesters[0].onSelect({ value: "@file:People/Grace.md", label: "Grace", path: "People/Grace.md" });
+				expect(chips(modal)).toEqual(["Grace"]);
+				modalButton(modal).click();
+				await expect(modal.waitForClose).resolves.toEqual({ [id]: "@file:People/Grace.md", body: "" });
+			} finally {
+				modal.containerEl.remove();
+			}
+		});
+
+		it("on a phone, scrolls to the empty picker without raising the keyboard", () => {
+			const modal = new OnePageInputModal({} as App, [person(), { id: "body", label: "Body", type: "text" }], new Map());
+			document.body.append(modal.containerEl);
+			const scrolled: Element[] = [];
+			const scrollIntoView = vi.fn(function (this: Element) { scrolled.push(this); });
+			Object.assign(HTMLElement.prototype, { scrollIntoView });
+			Platform.isPhone = true;
+			try {
+				modalButton(modal).focus();
+				modalButton(modal).click();
+				expect(noticeMessages).toEqual(['QuickAdd: Choose a file for "Related person".']);
+				expect(scrolled).toEqual([modal.contentEl.querySelector(".qa-onepage-file-picker-setting")]);
+				expect(document.activeElement).toBe(modalButton(modal));
+			} finally {
+				Platform.isPhone = false;
+				delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
+				modal.containerEl.remove();
+			}
+		});
+
+		it("accepts a typed value as the pick where custom input is allowed", async () => {
+			const modal = new OnePageInputModal({} as App, [person({ suggesterConfig: { allowCustomInput: true } })], new Map());
+			filePickerSuggesters[0].onSelect({ value: "Niobe", label: "Create new note: Niobe", path: "", isCustom: true });
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "Niobe" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it.each([
+			{ name: "a provided file", initial: "@file:People/Grace.md", chip: "Grace" },
+			{ name: "a provided custom value", initial: "@filecustom:Niobe", chip: "Niobe", custom: true },
+		])("keeps $name picked from the start", async ({ initial, chip, custom }) => {
+			const req = person(custom ? { suggesterConfig: { allowCustomInput: true } } : {});
+			const modal = new OnePageInputModal({} as App, [req], new Map([[id, initial]]));
+			expect(chips(modal)).toEqual([chip]);
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: custom ? "Niobe" : initial });
+		});
+
+		it("keeps a default value picked from the start", async () => {
+			const modal = new OnePageInputModal({} as App, [person({ defaultValue: "@file:People/Grace.md" })], new Map());
+			expect(chips(modal)).toEqual(["Grace"]);
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "@file:People/Grace.md" });
+		});
+
+		it("leaves an optional picker empty and submits it empty, like its Skip", async () => {
+			const modal = new OnePageInputModal({} as App, [person({ optional: true })], new Map());
+			expect(chips(modal)).toEqual([]);
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
+		});
+
+		it("submits a required multi picker with no picks, as the run's multi-select does", async () => {
+			const modal = new OnePageInputModal({} as App, [person({ suggesterConfig: { multiSelect: true } })], new Map());
+			modalButton(modal).click();
+			await expect(modal.waitForClose).resolves.toEqual({ [id]: "" });
+			expect(noticeMessages).toEqual([]);
 		});
 	});
 

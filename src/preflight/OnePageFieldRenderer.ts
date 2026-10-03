@@ -493,6 +493,9 @@ export class OnePageFieldRenderer {
 			return option;
 		};
 
+		// Only a provided value starts picked. The first file is not picked for
+		// the user: an untouched Submit would capture into a note they never
+		// chose, so a required picker blocks Submit until it has a pick.
 		if (starting && optionByValue.has(starting)) {
 			selected.add(starting);
 		} else if (starting && allowCustomInput) {
@@ -501,10 +504,6 @@ export class OnePageFieldRenderer {
 				decoded.kind === "custom" ? decoded.text : starting;
 			addCustomOption(customValue);
 			selected.add(customValue);
-		} else if (!multiSelect && options.length > 0) {
-			// Preserve the former dropdown's untouched-submit behavior. The first
-			// file stays selected by default, but is now visible and removable.
-			selected.add(options[0].value);
 		}
 
 		const container = setting.controlEl.createDiv({

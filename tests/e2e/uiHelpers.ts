@@ -93,8 +93,10 @@ export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape"
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
 	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	// A real Enter also types "\r", which is what makes a focused button click.
+	const text = key === "Enter" && !modified ? { text: "\r" } : {};
 	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
-		["Input.dispatchKeyEvent", { type: "keyDown", ...event }],
+		["Input.dispatchKeyEvent", { type: "keyDown", ...event, ...text }],
 		["Input.dispatchKeyEvent", { type: "keyUp", ...event }],
 	]);
 }

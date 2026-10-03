@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { afterEach, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
@@ -8,6 +8,16 @@ import { insertText, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelper
 // which finds notes by alias like the run's picker, instead of a dropdown of
 // every note in the folder.
 const getContext = createQuickAddE2EHarness("one-page-capture-target");
+
+// A failed test must not leave its form open for the next one.
+afterEach(async () => {
+	await getContext().obsidian.dev.evalJson(`(() => {
+		for (const modal of document.querySelectorAll(".onePageInputModal")) {
+			[...modal.querySelectorAll("button")].find((button) => button.textContent === "Cancel")?.click();
+		}
+		return true;
+	})()`);
+});
 
 it("picks the one-page capture target by searching, aliases included", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
@@ -66,8 +76,6 @@ it("creates the note named in the one-page capture target field", async () => {
 	const crew = "---\ntags: [qa-crew]\nqaRole: crew\naliases: [Neo]\n---\n";
 	await seedVaultFile(obsidian, sandbox, "Crew/Thomas Anderson.md", crew);
 	await seedVaultFile(obsidian, sandbox, "Crew/Agent Smith.md", "---\ntitle: Program\ntags: [qa-crew]\nqaRole: crew\n---\n");
-	// Listed first, so it is the field's default and the others stay searchable.
-	await seedVaultFile(obsidian, sandbox, "Crew/Apoc.md", "---\ntags: [qa-crew]\nqaRole: crew\n---\n");
 	// Outside every scope below.
 	await seedVaultFile(obsidian, sandbox, "Elsewhere/Oracle.md", "");
 
@@ -153,6 +161,14 @@ it("shows the picked note's whole name on a phone", async () => {
 		})()`);
 		await obsidian.command(`quickadd:choice:${choice.id}`).run();
 		await expect.poll(() => obsidian.dev.evalJson<boolean>(
+			'Boolean(document.querySelector(".qa-onepage-file-picker input"))',
+		), POLL_OPTS).toBe(true);
+		await typeInto(obsidian, ".qa-onepage-file-picker input", "mercury");
+		await expect.poll(() => obsidian.dev.evalJson<number>(
+			'document.querySelectorAll(".suggestion-container .suggestion-item").length',
+		), POLL_OPTS).toBe(1);
+		await pressKey(obsidian, "Enter");
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(
 			'Boolean(document.querySelector(".qa-onepage-file-picker__chip"))',
 		), POLL_OPTS).toBe(true);
 
@@ -189,8 +205,6 @@ it("shows the picked note's whole name on a phone", async () => {
 it("leaves no highlight showing for a match the ellipsis cuts off", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	await seedVaultFile(obsidian, sandbox, "Moons/The note name long enough to run past the end of the field Zebra.md", "");
-	// Listed first, so it is the field's default and the long one stays searchable.
-	await seedVaultFile(obsidian, sandbox, "Moons/Io.md", "");
 
 	const choice = new CaptureChoice("Cut-off match");
 	choice.command = true;
@@ -227,16 +241,27 @@ it("leaves no highlight showing for a match the ellipsis cuts off", async () => 
 	}
 });
 
-// Obsidian focused the first focusable element, the picked note's remove
-// button, so typing went nowhere and Enter dropped the note. The form now
-// opens ready for the capture text.
-it("opens a folder capture's form in the first field without a picked note", async () => {
-	const { obsidian, plugin, sandbox } = getContext();
-	const mercury = await seedVaultFile(obsidian, sandbox, "Planets/Mercury.md", "");
+const SUBMIT_CLICK = `(() => {
+	const submit = Array.from(document.querySelectorAll(".modal-container button")).find((b) => b.textContent.trim() === "Submit");
+	submit?.click();
+	return Boolean(submit);
+})()`;
 
-	const choice = new CaptureChoice("Focus capture target");
+const SUGGESTED = 'Array.from(document.querySelectorAll(".suggestion-container .qa-onepage-file-suggestion__label"), (label) => label.textContent)';
+
+const FOCUSED_FIELD = 'document.activeElement?.closest(".setting-item")?.querySelector(".setting-item-name")?.textContent ?? document.activeElement?.tagName';
+
+// The form used to open with the first note already picked, so a Submit
+// without a look captured into it. A required picker now starts empty, the
+// form opens in it, and Submit waits until it has a note.
+it("opens a folder capture's form in its empty note picker and waits for a pick", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const mercury = await seedVaultFile(obsidian, sandbox, "Inner/Mercury.md", "");
+	const venus = await seedVaultFile(obsidian, sandbox, "Inner/Venus.md", "");
+
+	const choice = new CaptureChoice("Empty capture target");
 	choice.command = true;
-	choice.captureTo = `${sandbox.path("Planets")}/`;
+	choice.captureTo = `${sandbox.path("Inner")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
@@ -244,17 +269,95 @@ it("opens a folder capture's form in the first field without a picked note", asy
 	});
 	await plugin.reload({ waitUntilReady: true });
 
+	await obsidian.dev.evalJson('(() => { document.querySelectorAll(".notice").forEach((notice) => notice.remove()); return true; })()');
 	await obsidian.command(`quickadd:choice:${choice.id}`).run();
-	await expect.poll(() => obsidian.dev.evalJson<boolean>(
-		'Boolean(document.querySelector(".qa-onepage-file-picker__chip"))',
-	), POLL_OPTS).toBe(true);
-	await expect.poll(() => obsidian.dev.evalJson<string>(
-		'document.activeElement?.closest(".setting-item")?.querySelector(".setting-item-name")?.textContent ?? document.activeElement?.tagName',
-	), POLL_OPTS).toBe("note");
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("Select capture target file");
+	expect(await obsidian.dev.evalJson<number>('document.querySelectorAll(".qa-onepage-file-picker__chip").length')).toBe(0);
 
-	await insertText(obsidian, "typed straight away");
+	await typeInto(obsidian, ".modal-container input[type=text]:not(.qa-onepage-file-picker__input)", "for Venus");
+	// Neither Mod+Enter nor Submit gets past the empty picker. Each says
+	// which field needs a note and goes back to it.
+	await pressKey(obsidian, "Enter", true);
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("Select capture target file");
+	await typeInto(obsidian, ".modal-container input[type=text]:not(.qa-onepage-file-picker__input)", "for Venus");
+	expect(await obsidian.dev.evalJson<boolean>(SUBMIT_CLICK)).toBe(true);
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("Select capture target file");
+	expect(await obsidian.dev.evalJson<string[]>(
+		'Array.from(document.querySelectorAll(".notice"), (notice) => notice.textContent)',
+	)).toEqual(Array(2).fill('QuickAdd: Choose a file for "Select capture target file".'));
+	expect(await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".onePageInputModal"))')).toBe(true);
+	expect([await sandbox.read("Inner/Mercury.md"), await sandbox.read("Inner/Venus.md")]).toEqual(["", ""]);
+
+	await typeInto(obsidian, ".qa-onepage-file-picker input", "venus");
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(SUGGESTED), POLL_OPTS).toEqual(["Venus"]);
+	await pressKey(obsidian, "Enter");
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(
+		'Array.from(document.querySelectorAll(".qa-onepage-file-picker__chip-label"), (chip) => chip.textContent)',
+	), POLL_OPTS).toEqual(["Venus"]);
 	await pressKey(obsidian, "Enter", true);
 	await expect.poll(() => obsidian.dev.evalJsonAsync<string>(
-		`app.vault.adapter.read(${jsLiteral(mercury)})`,
-	), POLL_OPTS).toBe("- typed straight away\n");
+		`app.vault.adapter.read(${jsLiteral(venus)})`,
+	), POLL_OPTS).toBe("- for Venus\n");
+	expect(await obsidian.dev.evalJsonAsync<string>(`app.vault.adapter.read(${jsLiteral(mercury)})`)).toBe("");
+});
+
+it("waits for a pick in a required {{FILE}} field", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await seedVaultFile(obsidian, sandbox, "Galilean/Io.md", "");
+	await seedVaultFile(obsidian, sandbox, "Galilean/Europa.md", "");
+	const log = await seedVaultFile(obsidian, sandbox, "moons-log.md", "");
+
+	const choice = new CaptureChoice("Required FILE");
+	choice.command = true;
+	choice.captureTo = log;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: `- {{FILE:${sandbox.path("Galilean")}|label:Moon}} {{VALUE:note}}\n` };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await obsidian.command(`quickadd:choice:${choice.id}`).run();
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("Moon");
+	expect(await obsidian.dev.evalJson<number>('document.querySelectorAll(".qa-onepage-file-picker__chip").length')).toBe(0);
+	await typeInto(obsidian, ".modal-container input[type=text]:not(.qa-onepage-file-picker__input)", "seen");
+	expect(await obsidian.dev.evalJson<boolean>(SUBMIT_CLICK)).toBe(true);
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("Moon");
+	expect(await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".onePageInputModal"))')).toBe(true);
+
+	await typeInto(obsidian, ".qa-onepage-file-picker input", "europa");
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(SUGGESTED), POLL_OPTS).toEqual(["Europa"]);
+	await pressKey(obsidian, "Enter");
+	expect(await obsidian.dev.evalJson<boolean>(SUBMIT_CLICK)).toBe(true);
+	await expect.poll(() => sandbox.read("moons-log.md"), POLL_OPTS).toBe("- Europa seen\n");
+});
+
+// A note passed with the run still decides the target: the form asks only
+// for the rest.
+it("captures into a note passed with the run without asking for one", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await seedVaultFile(obsidian, sandbox, "Passed/Mercury.md", "");
+	await seedVaultFile(obsidian, sandbox, "Passed/Venus.md", "");
+
+	const choice = new CaptureChoice("Passed capture target");
+	choice.command = true;
+	choice.captureTo = `${sandbox.path("Passed")}/`;
+	choice.onePageInput = "always";
+	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [choice];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	const run = obsidian.execText("quickadd:run", {
+		id: choice.id,
+		ui: true,
+		"value-__qa.captureTargetFilePath": sandbox.path("Passed/Venus.md"),
+	});
+	await expect.poll(() => obsidian.dev.evalJson<string>(FOCUSED_FIELD), POLL_OPTS).toBe("note");
+	expect(await obsidian.dev.evalJson<number>('document.querySelectorAll(".qa-onepage-file-picker").length')).toBe(0);
+	await insertText(obsidian, "passed in");
+	await pressKey(obsidian, "Enter", true);
+	expect(JSON.parse(await run)).toMatchObject({ ok: true });
+	expect([await sandbox.read("Passed/Mercury.md"), await sandbox.read("Passed/Venus.md")]).toEqual(["", "- passed in\n"]);
 });

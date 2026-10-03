@@ -2143,7 +2143,9 @@ body.is-mobile .multiChoiceListItemName {
    toggles inline on the same device. Restore the native inline layout for
    rows whose ONLY control is a checkbox - :only-child keeps mixed rows
    (e.g. toggle + dropdown in the insert-after fields) on the stacked
-   layout, where inline would squeeze them. */
+   layout, where inline would squeeze them. In the settings window the
+   control still grows next to a short name, so the toggle goes to its end,
+   as on Obsidian's own toggle rows. */
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) {
 	flex-direction: row;
 	align-items: center;
@@ -2152,6 +2154,7 @@ body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .check
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) > .setting-item-control {
 	width: auto;
 	margin-top: 0;
+	justify-content: flex-end;
 }
 
 /* Reveal the per-row actions on intent (hover / keyboard focus in the row).

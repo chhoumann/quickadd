@@ -56,7 +56,14 @@ const AI_KEY_PREFIX = "ai.";
 
 export class QuickAddSettingsTab extends PluginSettingTab {
 	public plugin: QuickAdd;
-	private choiceViewHandle: MountHandle | null = null;
+	/**
+	 * The choice list, kept mounted while the tab is shown. Obsidian tears the
+	 * tab down when a settings page opens over it (a choice's settings) and
+	 * renders it again when the page is left. Mounting the list again took
+	 * ~300 ms with 300 choices, and cleared its filter and the control that
+	 * opened the page, so the new row gets the same list instead.
+	 */
+	private choiceView: { el: HTMLElement; handle: MountHandle } | null = null;
 	private globalVariablesViewHandle: MountHandle | null = null;
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
@@ -260,8 +267,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	}
 
 	private destroySettingViews(): void {
-		this.choiceViewHandle?.destroy();
-		this.choiceViewHandle = null;
+		this.choiceView?.handle.destroy();
+		this.choiceView = null;
 		this.globalVariablesViewHandle?.destroy();
 		this.globalVariablesViewHandle = null;
 		// Safety net for the Packages subscription: the render cleanup already
@@ -294,49 +301,63 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private mountView(
 		setting: Setting,
-		key: "choiceViewHandle" | "globalVariablesViewHandle",
 		mount: (target: HTMLElement) => MountHandle,
 	): () => void {
 		this.prepareFullWidthSetting(setting);
-		this[key]?.destroy();
+		this.globalVariablesViewHandle?.destroy();
 		const handle = mount(setting.controlEl);
-		this[key] = handle;
+		this.globalVariablesViewHandle = handle;
 		// A stale row cleanup must never destroy or clear its replacement.
 		return () => {
 			handle.destroy();
-			if (this[key] === handle) this[key] = null;
+			if (this.globalVariablesViewHandle === handle) this.globalVariablesViewHandle = null;
 		};
 	}
 
 	private renderChoicesView(setting: Setting): () => void {
-		return this.mountView(setting, "choiceViewHandle", (target) =>
-			mountComponent(
-				target,
-				ChoiceView,
-				{
-					app: this.app,
-					plugin: this.plugin,
-					choices: settingsStore.getState().choices,
-					// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
-					// the call site is a COMPILE error here — this is the real persistence sink
-					// that must never receive a live Svelte $state proxy. Plain<T> is assignable
-					// to T, so setState still accepts it.
-					saveChoices: (choices: Plain<IChoice[]>) => {
-						settingsStore.setState({ choices });
-					},
-					openAISettings: () => this.openAIAssistantPage(),
+		this.prepareFullWidthSetting(setting);
+		if (!this.choiceView) {
+			const el = createDiv();
+			const handle = this.mountChoiceView(el);
+			// A failed mount shows its card; try again on the next render.
+			if (!handle.ok) {
+				setting.controlEl.appendChild(el);
+				return () => handle.destroy();
+			}
+			this.choiceView = { el, handle };
+		}
+		const { el } = this.choiceView;
+		setting.controlEl.appendChild(el);
+		return () => el.remove();
+	}
+
+	private mountChoiceView(target: HTMLElement): MountHandle {
+		return mountComponent(
+			target,
+			ChoiceView,
+			{
+				app: this.app,
+				plugin: this.plugin,
+				choices: settingsStore.getState().choices,
+				// Typed Plain<IChoice[]> (not IChoice[]) so a forgotten $state.snapshot at
+				// the call site is a COMPILE error here — this is the real persistence sink
+				// that must never receive a live Svelte $state proxy. Plain<T> is assignable
+				// to T, so setState still accepts it.
+				saveChoices: (choices: Plain<IChoice[]>) => {
+					settingsStore.setState({ choices });
 				},
-				// The choice list is the one view whose failure has a recovery story worth
-				// spelling out (the data.json advice in ChoicesUnavailable), and the same
-				// card the view itself shows when the tree is unreadable — so a mount
-				// failure and a render failure look identical to the user.
-				{ what: "your choices", fallbackComponent: ChoicesUnavailable },
-			),
+				openAISettings: () => this.openAIAssistantPage(),
+			},
+			// The choice list is the one view whose failure has a recovery story worth
+			// spelling out (the data.json advice in ChoicesUnavailable), and the same
+			// card the view itself shows when the tree is unreadable — so a mount
+			// failure and a render failure look identical to the user.
+			{ what: "your choices", fallbackComponent: ChoicesUnavailable },
 		);
 	}
 
 	private renderGlobalVariablesView(setting: Setting): () => void {
-		return this.mountView(setting, "globalVariablesViewHandle", (target) =>
+		return this.mountView(setting, (target) =>
 			mountComponent(
 				target,
 				GlobalVariablesView,
