@@ -90,11 +90,11 @@ Change **Insert after** to the callout opener, for example:
 > {{VALUE}}
 ```
 
-On first use, **Create line if not found** inserts the callout opener at the position you chose. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
+On first use, **Create line if not found** inserts the callout opener at the top of the note. Keep that placement at **Top**: at **Bottom**, a callout opener added right after another quoted line joins that blockquote and no longer renders as a callout. To have the callout below the note's title, put the opener line in your daily notes template instead. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
 
 ### Quote
 
-Change **Insert after** to `## Quotes`.
+Change **Insert after** to `## Quotes`, and set the **Create line if not found** placement to **Bottom**, so a new `## Quotes` section goes at the end of the note instead of above its title.
 
 **Capture format:**
 
