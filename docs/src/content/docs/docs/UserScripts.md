@@ -40,7 +40,8 @@ A user script can live in either of two places inside your vault:
 
 The note form is handy on mobile, where Obsidian can't open `.js` files at all.
 QuickAdd doesn't run scripts from files with any other extension, such as
-`.cjs` or `.txt`; rename those so they end in `.js`.
+`.cjs` or `.txt`; rename those so they end in `.js`. In QuickAdd 2.30.0 or
+later, a macro step that points at such a file stops the macro with a notice.
 
 :::caution[Where scripts can live]
 A user script must sit inside your Obsidian vault, but **not** in the
@@ -1192,7 +1193,7 @@ For complete working examples, see:
 ## Troubleshooting {#troubleshooting}
 
 **Script not loading:**
-- If QuickAdd says it "could not find" the script, the file was moved, renamed, or deleted, and the macro stops at that step. Update the script's path in the macro
+- If QuickAdd says it "could not find" the script, the file was moved, renamed, or deleted, and the macro stops at that step (QuickAdd 2.30.0 or later; earlier versions show two errors and run the rest of the macro). Update the script's path in the macro
 - Check the file path in your macro configuration
 - Ensure the script exports a valid module
 - Check console for syntax errors

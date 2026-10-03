@@ -48,8 +48,8 @@ obsidian vault=dev quickadd:list commands
 ```
 
 Each Template and Capture carries a `writes` object that says what it writes,
-read from its settings. You (or an agent) can tell choices apart without
-opening them:
+read from its settings (QuickAdd 2.30.0 or later). You (or an agent) can tell
+choices apart without opening them:
 
 ```json
 {"name":"Daily log","type":"Capture","writes":{"target":"Daily/{{DATE:YYYY-MM-DD}}.md","position":"after","line":"## Log","format":"- {{TIME}} {{VALUE}}\n","createWithTemplate":"Templates/Daily.md"}}
@@ -169,6 +169,9 @@ npx skills add chhoumann/quickadd
 
 Or copy `skills/quickadd/SKILL.md` into your agent's skills folder, such as
 `.claude/skills/quickadd/` in your vault.
+
+The skill needs QuickAdd 2.30.0 or later: it picks a choice by the `writes`
+object that [`quickadd:list`](#quickaddlist) shows.
 
 ## Pass variables to a choice {#passing-variables}
 
