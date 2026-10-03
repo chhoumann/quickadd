@@ -1,5 +1,5 @@
 import type { App, WorkspaceLeaf, WorkspaceParent } from "obsidian";
-import { FileView, normalizePath, TFile } from "obsidian";
+import { FileView, normalizePath, TFile, View } from "obsidian";
 import type {
 	OpenLocation as FileOpenLocation,
 	OpenFileOptions as FileOpenOptions,
@@ -59,6 +59,14 @@ export function getOpenFileOriginLeaf(app: App): WorkspaceLeaf | null {
 	// `getMostRecentLeaf()` already returns the active main-area leaf, superseding
 	// the deprecated `workspace.activeLeaf` that used to be the final fallback.
 	return rootLeaf ?? workspace.getMostRecentLeaf?.() ?? null;
+}
+
+/**
+ * The focused leaf, which can be in a sidebar: what `workspace.activeLeaf`
+ * holds, read through the API Obsidian recommends instead of that field.
+ */
+function getFocusedLeaf(app: App): WorkspaceLeaf | null {
+	return app.workspace.getActiveViewOfType(View)?.leaf ?? null;
 }
 
 function getRootLeaves(app: App): WorkspaceLeaf[] {
@@ -200,7 +208,7 @@ export async function openFile(
 	}
 
 	const openOriginLeaf = originLeaf ?? getOpenFileOriginLeaf(app);
-	const activeLeaf = !focus ? app.workspace.activeLeaf : null;
+	const activeLeaf = !focus ? getFocusedLeaf(app) : null;
 	const leaf = resolveLeafForOpenFileLocation(
 		app,
 		location,
@@ -208,7 +216,7 @@ export async function openFile(
 		openOriginLeaf,
 	);
 	if (!leaf) throw new Error("Could not obtain a workspace leaf.");
-	if (activeLeaf && app.workspace.activeLeaf !== activeLeaf) {
+	if (activeLeaf && getFocusedLeaf(app) !== activeLeaf) {
 		app.workspace.setActiveLeaf(activeLeaf, { focus: false });
 	}
 
@@ -273,9 +281,10 @@ export function openExistingFileTab(
 	focus = true,
 ): WorkspaceLeaf | null {
 	let leaf: WorkspaceLeaf | undefined = undefined;
+	const focusedLeaf = getFocusedLeaf(app);
 
 	app.workspace.iterateRootLeaves((m_leaf: WorkspaceLeaf) => {
-		if (leaf && leaf === app.workspace.activeLeaf) return;
+		if (leaf && leaf === focusedLeaf) return;
 		const view = m_leaf.view;
 		if (view instanceof FileView) {
 			if (view.file) {

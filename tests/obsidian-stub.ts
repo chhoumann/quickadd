@@ -596,7 +596,11 @@ export class MarkdownView {
   file?: any;
 }
 
-export class FileView {
+export class View {
+  leaf: any;
+}
+
+export class FileView extends View {
   file?: any;
 }
 
@@ -1193,6 +1197,7 @@ export default {
   TFile,
   TFolder,
   MarkdownView,
+  View,
   FileView,
   WorkspaceLeaf,
   FuzzySuggestModal,
