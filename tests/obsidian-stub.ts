@@ -609,6 +609,7 @@ export class WorkspaceLeaf {
 
 export class FuzzySuggestModal<T = unknown> {
   app: any;
+  modalEl: HTMLElement;
   inputEl: HTMLInputElement;
   limit?: number;
   emptyStateText?: string;
@@ -619,6 +620,7 @@ export class FuzzySuggestModal<T = unknown> {
 
   constructor(app: any) {
     this.app = app;
+    this.modalEl = document.createElement("div");
     this.inputEl = document.createElement("input");
     this.chooser = { values: [], selectedItem: 0 };
   }

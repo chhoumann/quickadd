@@ -83,6 +83,11 @@ export default [
             '@typescript-eslint/no-unnecessary-type-assertion': 'error',
             '@typescript-eslint/prefer-promise-reject-errors': 'error',
             '@typescript-eslint/unbound-method': 'error',
+            // Obsidian's plugin review reports both. Obsidian's components are
+            // thenable (`then()` chains), so returning one where `void` is
+            // expected counts as a misused promise too.
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-misused-promises': 'error',
             'no-useless-escape': 'error',
         },
     },

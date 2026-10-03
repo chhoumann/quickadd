@@ -244,6 +244,8 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		options?: ChoiceSuggesterOptions
 	) {
 		super(plugin.app);
+		// `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
+		this.modalEl.addClass("qa-choice-suggester");
 		// Initialize here (not as a field initializer) so the `plugin` parameter
 		// property is already assigned; a field initializer runs before it.
 		this.choiceExecutor =
@@ -286,12 +288,6 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						: [...this.choices, row];
 			}
 		}
-	}
-
-	/** `qa-choice-suggester` is a stable hook for user CSS snippets (see SuggesterModal). */
-	onOpen(): void {
-		super.onOpen();
-		this.modalEl.addClass("qa-choice-suggester");
 	}
 
 	onClose(): void {
