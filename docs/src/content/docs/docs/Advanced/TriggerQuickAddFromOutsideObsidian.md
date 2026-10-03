@@ -1,12 +1,12 @@
 ---
 title: Trigger QuickAdd from outside Obsidian
-description: "Launch QuickAdd choices from launchers, shortcuts, and schedulers using the obsidian://quickadd URI or the Obsidian CLI, no extra plugins"
+description: "Launch QuickAdd choices from launchers, desktop and phone shortcuts, and schedulers using the obsidian://quickadd URI or the Obsidian CLI, no extra plugins"
 slug: docs/Advanced/TriggerQuickAddFromOutsideObsidian
 ---
 
-You can run a QuickAdd choice from a launcher, a script, a scheduled job, or a
-link in a note - without opening Obsidian and clicking around, and without any
-extra plugins. There are two built-in ways in:
+You can run a QuickAdd choice from a launcher, a phone shortcut, a script, a
+scheduled job, or a link in a note - without opening Obsidian and clicking
+around, and without any extra plugins. There are two built-in ways in:
 
 - The `obsidian://quickadd` link, for anything that can open a URL.
 - The Obsidian CLI, for anything that runs a shell command, like a scheduled job.
@@ -93,6 +93,51 @@ Name=Daily log
 Exec=/home/alice/bin/quickadd-daily-log
 Terminal=false
 ```
+
+## Trigger from your phone {#phone-shortcuts}
+
+The same link works on iPhone, iPad, and Android. Opening it starts Obsidian
+if it isn't running, waits for your vault to load, and runs the choice.
+
+:::caution[Let your phone sync first]
+If your phone hasn't synced since you last opened Obsidian, a capture to
+today's daily note can create a second copy of that note that later replaces
+the one from your computer. See
+[Watch out for sync services](/docs/Advanced/ObsidianUri/#important-sync-service-limitations).
+:::
+
+To capture by voice, let your phone turn speech into text and pass the text in
+as a value. QuickAdd does not record or transcribe audio.
+
+:::tip[Just adding text to a note?]
+Obsidian for iOS can add text to a note without waiting for your vault to
+load, through its own Shortcuts capture action and Quick Capture widgets.
+Use QuickAdd when you need what a Capture choice adds, like inserting under a
+heading or shaping the entry with QuickAdd's format syntax.
+:::
+
+### iPhone and iPad {#ios}
+
+In the Shortcuts app, create a shortcut with these actions:
+
+1. **Dictate Text**. Use **Ask for Input** instead if you want to type.
+2. **URL Encode**, which encodes the text from step 1.
+3. **URL**, with this link. Replace `URL Encoded Text` with the variable from
+   step 2:
+
+   ```text
+   obsidian://quickadd?choice=Daily%20log&value-entry=URL Encoded Text
+   ```
+
+4. **Open URLs**.
+
+Run the shortcut from the Home Screen, the Action button, Back Tap, or by
+saying its name to Siri.
+
+### Android {#android}
+
+Any automation app that can open a link can run a choice, for example Tasker
+or MacroDroid. URL-encode the text you pass in, then open the link.
 
 ## Run QuickAdd on a schedule {#run-quickadd-on-a-schedule}
 
