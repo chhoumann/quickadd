@@ -157,6 +157,47 @@ it("keeps the focused field and its suggestions above the keyboard, under a head
 	}
 });
 
+it("keeps a field's suggestions under the settings header, with its back and close buttons", async () => {
+	const { obsidian } = getContext();
+	try {
+		await openMacroPage();
+		// The Obsidian command field a little under the header, with the keyboard
+		// up: its list has room neither above nor below for all 240px of it.
+		await obsidian.dev.evalJson(`(() => {
+			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
+			const page = document.querySelector(".qa-builder-page");
+			const header = document.querySelector(".modal.mod-settings .modal-header").getBoundingClientRect();
+			const field = [...page.querySelectorAll("input")].find((input) => input.placeholder === "Obsidian command");
+			page.scrollTop += field.getBoundingClientRect().top - (header.bottom + 180);
+			field.focus({ preventScroll: true });
+			window.dispatchEvent(new Event("keyboardDidShow"));
+			return true;
+		})()`);
+		await waitForElement(obsidian, ".suggestion-container .suggestion-item");
+
+		expect(await obsidian.dev.evalJson<Record<string, unknown>>(`(() => {
+			const list = document.querySelector(".suggestion-container").getBoundingClientRect();
+			const field = document.activeElement.getBoundingClientRect();
+			const header = document.querySelector(".modal.mod-settings .modal-header").getBoundingClientRect();
+			const onTop = (selector) => {
+				const rect = document.querySelector(".modal.mod-settings " + selector).getBoundingClientRect();
+				return Boolean(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)?.closest(selector));
+			};
+			return {
+				underHeader: list.top >= header.bottom,
+				aboveKeyboard: list.bottom <= innerHeight - ${KEYBOARD},
+				offField: list.bottom <= field.top || list.top >= field.bottom,
+				back: onTop(".modal-setting-back-button"),
+				close: onTop(".modal-header-button"),
+			};
+		})()`)).toEqual({ underHeader: true, aboveKeyboard: true, offField: true, back: true, close: true });
+	} finally {
+		await obsidian.dev.evalJson(
+			'document.documentElement.style.removeProperty("--keyboard-height"), app.setting.close(), true',
+		);
+	}
+});
+
 it("lines up the toggles on the right edge of their card (#2146)", async () => {
 	const { obsidian } = getContext();
 	try {
