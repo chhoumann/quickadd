@@ -122,11 +122,11 @@ In the Shortcuts app, create a shortcut with these actions:
 
 1. **Dictate Text**. Use **Ask for Input** instead if you want to type.
 2. **URL Encode**, which encodes the text from step 1.
-3. **URL**, with this link. Replace `URL Encoded Text` with the variable from
+3. **URL**, with this link, followed by the **URL Encoded Text** variable from
    step 2:
 
    ```text
-   obsidian://quickadd?choice=Daily%20log&value-entry=URL Encoded Text
+   obsidian://quickadd?vault=My%20Vault&choice=Daily%20log&value-entry=
    ```
 
 4. **Open URLs**.
