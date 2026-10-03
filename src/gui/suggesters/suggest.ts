@@ -36,7 +36,9 @@ function prefersAbove(inputEl: HTMLElement, input: DOMRect, listHeight: number):
  * input is wider), but at least `MIN_LIST_WIDTH_PX` or the viewport's width.
  * It opens below the input, and above it when the visible viewport has room
  * there and either `prefersAbove` or there is no room below (above the
- * on-screen keyboard on a phone). Horizontally it stays inside the viewport.
+ * on-screen keyboard on a phone). When neither side holds the whole list, it
+ * takes the roomier side, shortened to fit. Horizontally it stays inside the
+ * viewport.
  */
 function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	const input = inputEl.getBoundingClientRect();
@@ -49,6 +51,7 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 	};
 	const width = Math.max(input.width, Math.min(MIN_LIST_WIDTH_PX, viewport.width));
 	listEl.style.maxWidth = "none";
+	listEl.style.maxHeight = "";
 	listEl.style.width = `${width}px`;
 	// Measured at 0,0, the list's rect is its containing block's origin, so the
 	// viewport positions below hold whatever element it is positioned against.
@@ -65,12 +68,26 @@ function placeList(inputEl: HTMLElement, listEl: HTMLElement): void {
 		viewport.offsetTop + viewport.height,
 		doc.documentElement.clientHeight - keyboardHeight,
 	);
+	// The top of a phone's screen is the status bar. On a phone, a settings page
+	// scrolls under the settings header, which holds the back and close buttons.
+	const safeAreaTop =
+		parseFloat(getComputedStyle(doc.body).getPropertyValue("--safe-area-inset-top")) || 0;
+	const settingsHeader = inputEl.closest(".modal.mod-settings")?.querySelector(".modal-header");
+	const visibleTop = Math.max(
+		viewport.offsetTop + safeAreaTop,
+		settingsHeader?.getBoundingClientRect().bottom ?? 0,
+	);
 
-	const below = input.bottom + LIST_GAP_PX;
-	const above = input.top - LIST_GAP_PX - origin.height;
-	const fitsBelow = below + origin.height <= visibleBottom;
-	const fitsAbove = above >= viewport.offsetTop;
-	const top = fitsAbove && (!fitsBelow || prefersAbove(inputEl, input, origin.height)) ? above : below;
+	const roomBelow = visibleBottom - input.bottom - LIST_GAP_PX;
+	const roomAbove = input.top - LIST_GAP_PX - visibleTop;
+	const fitsBelow = origin.height <= roomBelow;
+	const fitsAbove = origin.height <= roomAbove;
+	const placeAbove = fitsAbove
+		? !fitsBelow || prefersAbove(inputEl, input, origin.height)
+		: !fitsBelow && roomAbove > roomBelow;
+	const height = Math.min(origin.height, placeAbove ? roomAbove : roomBelow);
+	if (height < origin.height) listEl.style.maxHeight = `${height}px`;
+	const top = placeAbove ? input.top - LIST_GAP_PX - height : input.bottom + LIST_GAP_PX;
 	const left = Math.max(
 		viewport.offsetLeft,
 		Math.min(input.left, viewport.offsetLeft + viewport.width - width),
