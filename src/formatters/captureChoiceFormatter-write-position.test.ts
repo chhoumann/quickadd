@@ -246,6 +246,9 @@ describe("CaptureChoiceFormatter write position behavior", () => {
 			expect(await capture("bottom", CALLOUT, "> first", "# Log\nA paragraph\n")).toBe(
 				"# Log\nA paragraph\n> [!info]- Captured today\n> first",
 			);
+			expect(await capture("bottom", CALLOUT, "> first", "Code:\n\n    > sample\n")).toBe(
+				"Code:\n\n    > sample\n> [!info]- Captured today\n> first",
+			);
 		});
 
 		it("Top: separates a created block ending in a blockquote line from the blockquote below it", async () => {

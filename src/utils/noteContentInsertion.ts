@@ -16,7 +16,8 @@ const LEADING_BLANK_LINE = /^[^\S\r\n]*\r?\n/;
 /** A leading line break, i.e. "this text already begins on a line of its own". */
 const LEADING_LINE_BREAK = /^\r?\n/;
 
-const BLOCKQUOTE_LINE = /^[ \t]*>/;
+/** Markdown allows up to three spaces before `>`; more makes an indented code line. */
+const BLOCKQUOTE_LINE = /^ {0,3}>/;
 
 /**
  * A line break that leaves a blank line between `above` and `below` when the
