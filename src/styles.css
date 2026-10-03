@@ -1689,23 +1689,22 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	gap: 0.5rem;
 }
 
-.suggestion-container {
+/* QuickAdd's own list only: core and other plugins use `.suggestion-container`
+   too. It opens over a modal, so it sits above the modal layer.
+   The list is as wide as its input (see placeList in suggest.ts), past core's
+   cap on `.suggestion-container`, and on a phone `.is-mobile
+   .suggestion-container`'s. */
+.suggestion-container.qa-text-input-suggest {
 	background-color: var(--modal-background);
 	z-index: 100000;
 	overflow-y: auto;
+	max-width: none;
 }
 
 /* A path wraps after its slashes (see TextInputSuggest); a single name too long
    for the row still wraps instead of being cut off at the list's edge. */
 .qa-text-input-suggest {
 	overflow-wrap: anywhere;
-}
-
-/* The list is as wide as its input (see placeList in suggest.ts), past core's
-   cap on `.suggestion-container`, and on a phone `.is-mobile
-   .suggestion-container`'s. */
-.suggestion-container.qa-text-input-suggest {
-	max-width: none;
 }
 
 /* Core suggestion item - sleek, compact, information-dense */
