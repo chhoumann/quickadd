@@ -290,6 +290,7 @@ export class RemotePromptProvider implements PromptProvider {
 						multiSelect: field.suggesterConfig.multiSelect,
 					}
 				: undefined,
+			picker: field.type === "file-picker" ? "file" : undefined,
 		}));
 
 		const answer = await this.server.emitPrompt(this.sessionId, {
