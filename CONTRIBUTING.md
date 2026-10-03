@@ -50,16 +50,18 @@ Keep pull requests narrow. Include generated files such as `main.js` and
 ### Obsidian's plugin review
 
 Obsidian reviews each release with ESLint (`eslint-plugin-obsidianmd`) and
-Stylelint. `pnpm run lint` fails on the review's checks that QuickAdd passes:
-floating promises, deprecated APIs, static inline styles, `new Function`,
-`!important`, `:has()`, and CSS that Obsidian 1.13.0's Electron lacks. A kept
-exception needs a lint comment or config entry that says why.
+Stylelint. `pnpm run lint` fails on the review's code checks that QuickAdd
+passes: floating promises, deprecated APIs, static inline styles, and
+`new Function`. A kept exception needs a lint comment or config entry that says
+why.
 
-To see the full review, run Obsidian's own
-[workflow action](https://github.com/obsidianmd/obsidian-workflows) on your
-checkout. It also lists findings QuickAdd accepts, such as `no-unsafe-*` and
-the command IDs that hotkeys depend on. A built `styles.css` at the root is
-linted as well, so run it before building or delete that file first.
+The CSS checks (`!important`, `:has()`, and CSS that Obsidian 1.13.0's Electron
+lacks) and the full review run only in Obsidian's own
+[workflow action](https://github.com/obsidianmd/obsidian-workflows). Run it on
+your checkout when you change `src/styles.css` or a component's styles. It also
+lists findings QuickAdd accepts, such as `no-unsafe-*` and the command IDs that
+hotkeys depend on. A built `styles.css` at the root is linted as well, so run it
+before building or delete that file first.
 
 ```bash
 git clone -q -c advice.detachedHead=false --depth 1 --branch v1 \
