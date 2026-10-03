@@ -22,7 +22,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
 5. Set **Write position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
 7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section.
-8. Make sure **Create line if not found** is on with placement **Top**, so the heading is inserted when a fresh note does not have it yet. A new Capture starts with both on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
+8. Make sure **Create line if not found** is on, and set its placement to **Bottom**, so a note that lacks the heading gets it at the end instead of above its title. A new Capture starts with **Insert at end of section** and **Create line if not found** on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
 9. Leave **Link to captured file** disabled.
 10. Fill in **Capture format** with one of the recipes below.
 
@@ -90,11 +90,11 @@ Change **Insert after** to the callout opener, for example:
 > {{VALUE}}
 ```
 
-On first use, **Create line if not found** inserts the callout opener at the top of the note. Keep that placement at **Top**: at **Bottom**, a callout opener added right after another quoted line joins that blockquote and no longer renders as a callout. To have the callout below the note's title, put the opener line in your daily notes template instead. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
+Change the **Create line if not found** placement to **Top**, so on first use the callout opener goes at the top of the note. At **Bottom**, a callout opener added right after another quoted line joins that blockquote and no longer renders as a callout. To have the callout below the note's title, put the opener line in your daily notes template instead. Each subsequent capture appends before the next blank line or heading, so keep the callout as one contiguous quoted block. The `>` prefix is required to keep the entry inside the callout block.
 
 ### Quote
 
-Change **Insert after** to `## Quotes`, and set the **Create line if not found** placement to **Bottom**, so a new `## Quotes` section goes at the end of the note instead of above its title.
+Change **Insert after** to `## Quotes`.
 
 **Capture format:**
 
@@ -142,7 +142,7 @@ The `+1` shifts the target date one day forward. Combine with any of the formats
 The **Task** setting wraps the whole capture once. Turn on [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) (QuickAdd 2.30.0 or later) to make each line its own task.
 
 **The heading is not found and capture fails.**
-Turn on **Create line if not found** with placement **Top** (or **Bottom**). QuickAdd inserts the heading on first use and places new content after it.
+Turn on **Create line if not found** with placement **Bottom** (or **Top**). QuickAdd inserts the heading on first use and places new content after it.
 
 **You need to insert above a placeholder.**
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
