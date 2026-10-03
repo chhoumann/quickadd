@@ -656,6 +656,12 @@ sorted among same-level headings; see
 [Ordered section placement](#ordered-section-placement) for
 reverse-chronological logs and changelogs.
 
+At the **Top** or **Bottom**, the created lines sit right against the note's
+content, with no blank line between them. In QuickAdd 2.31.0 or later, the
+exception is two blockquote lines that would touch, such as a created callout
+opener right below a quote: QuickAdd puts one blank line between them, so the
+callout renders on its own instead of joining the quote.
+
 The target may span several lines: type `\n` in the **Insert after** field to
 match a multi-line anchor (the preview shows it expanded). **Inline
 insertion** is the exception - it inserts on the same line, so its target must

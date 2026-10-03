@@ -28,7 +28,7 @@ export function insertOrderedCapture({ capture, targetString, fileContent, inser
 	// target (the #742 round-trip invariant that keeps creation idempotent).
 	const payload = surroundCapture(capture, `${targetString}\n`);
 	const atBodyStart = () => {
-		const result = insertAtNoteBodyStartWithResult(fileContent, payload.content);
+		const result = insertAtNoteBodyStartWithResult(fileContent, payload.content, { separateBlockquotes: true });
 		return placeCapture(payload, result.content, result.insertedStartOffset === null || payload.cursor.kind === "none"
 			? null : result.insertedStartOffset + payload.cursor.value);
 	};
