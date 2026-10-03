@@ -139,6 +139,8 @@ export const createDatePicker = (
 		? extractTimeFromIso(options.initialIso) ?? { hour: 0, minute: 0 }
 		: null;
 
+	// The text field next to the calendar is the keyboard path, so every
+	// calendar control stays out of the tab order and Tab moves to the next field.
 	const root = options.container.createDiv({ cls: "qa-date-picker" });
 
 	const header = root.createDiv({ cls: "qa-date-picker__header" });
@@ -147,6 +149,7 @@ export const createDatePicker = (
 	});
 	setIcon(prevBtn, "chevron-left");
 	prevBtn.type = "button";
+	prevBtn.tabIndex = -1;
 	prevBtn.setAttr("aria-label", "Previous month");
 
 	const label = header.createDiv({ cls: "qa-date-picker__label" });
@@ -156,6 +159,7 @@ export const createDatePicker = (
 	});
 	setIcon(nextBtn, "chevron-right");
 	nextBtn.type = "button";
+	nextBtn.tabIndex = -1;
 	nextBtn.setAttr("aria-label", "Next month");
 
 	const weekdayRow = root.createDiv({ cls: "qa-date-picker__weekdays" });
@@ -172,12 +176,14 @@ export const createDatePicker = (
 		text: "Today",
 	});
 	todayBtn.type = "button";
+	todayBtn.tabIndex = -1;
 
 	const clearBtn = actions.createEl("button", {
 		cls: "qa-date-picker__action",
 		text: "Clear",
 	});
 	clearBtn.type = "button";
+	clearBtn.tabIndex = -1;
 
 	let timeInput: HTMLInputElement | undefined;
 	if (withTime) {
@@ -191,6 +197,7 @@ export const createDatePicker = (
 			attr: { "aria-label": "Time" },
 		});
 		timeInput.type = "time";
+		timeInput.tabIndex = -1;
 		if (currentTime) {
 			timeInput.value = `${pad(currentTime.hour)}:${pad(currentTime.minute)}`;
 		}
@@ -303,6 +310,7 @@ export const createDatePicker = (
 				text: String(date.getDate()),
 			});
 			dayBtn.type = "button";
+			dayBtn.tabIndex = -1;
 			dayBtn.setAttr("aria-label", ariaFormatter.format(date));
 
 			if (isOutside) dayBtn.addClass("is-outside");
