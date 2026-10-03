@@ -25,6 +25,8 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 
 	constructor(app: App, choice: ITemplateChoice, candidates: DiscoveryCandidate[]) {
 		super(app);
+		// `qa-suggester` is a stable hook for user CSS snippets (see SuggesterModal).
+		this.modalEl.addClass("qa-suggester");
 		this.rows = candidates.map(candidate => ({ kind: "candidate", candidate }));
 		this.action = existingNoteActionVerb(choice.existingNoteAction);
 		this.promise = new Promise<DiscoveryRow>((resolve, reject) => {
@@ -35,12 +37,6 @@ export class TemplateNoteDiscoveryModal extends FuzzySuggestModal<DiscoveryRow> 
 			: createTemplateNoteSelection(row.title));
 		this.setPlaceholder(`Search notes or create ${choice.name}`);
 		this.open();
-	}
-
-	/** `qa-suggester` is a stable hook for user CSS snippets (see SuggesterModal). */
-	onOpen(): void {
-		super.onOpen();
-		this.modalEl.addClass("qa-suggester");
 	}
 
 	getItems(): DiscoveryRow[] { return this.rows; }

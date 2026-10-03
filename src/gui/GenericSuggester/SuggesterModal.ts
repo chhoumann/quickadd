@@ -60,6 +60,9 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 		options?: GenericSuggesterOptions,
 	) {
 		super(app);
+		// `qa-suggester` is a stable hook for user CSS snippets; core styles every
+		// picker as `.prompt`, so without it a snippet can't tell QuickAdd's apart.
+		this.modalEl.addClass("qa-suggester");
 
 		this.renderItem = renderItem;
 		this.items = items;
@@ -108,15 +111,6 @@ export class SuggesterModal<T> extends FuzzySuggestModal<T> {
 
 	protected indexOfItem(item: T): number {
 		return this.indexByItem.get(item) ?? -1;
-	}
-
-	/**
-	 * `qa-suggester` is a stable hook for user CSS snippets; core styles every
-	 * picker as `.prompt`, so without it a snippet can't tell QuickAdd's apart.
-	 */
-	onOpen(): void {
-		super.onOpen();
-		this.modalEl.addClass("qa-suggester");
 	}
 
 	getItemText(item: T): string {

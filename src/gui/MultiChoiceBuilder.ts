@@ -34,7 +34,9 @@ export class MultiChoiceBuilder extends BuilderPage<IMultiChoice> {
 					"Shown in the choice picker search box when this folder opens. Leave blank to use the folder name.",
 				)
 				.addText((text) => {
-					setPlaceholderHint = (hint) => text.setPlaceholder(hint);
+					setPlaceholderHint = (hint) => {
+						text.setPlaceholder(hint);
+					};
 					text.setPlaceholder(this.name);
 					text.setValue(this.placeholder).onChange((value) => {
 						this.placeholder = value;
