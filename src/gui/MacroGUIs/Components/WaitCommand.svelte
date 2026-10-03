@@ -74,6 +74,7 @@
     font-size: inherit;
     padding: 0;
     width: var(--qa-wait-input-width, 2ch);
+    /* stylelint-disable-next-line plugin/no-unsupported-browser-features -- Chromium supports line and style; its partial support is text-decoration-skip */
     text-decoration: underline dotted;
     background-color: transparent;
 }

@@ -5,6 +5,9 @@
 // ignores those comments and still lists the line.
 export default {
 	plugins: ["stylelint-no-unsupported-browser-features"],
+	// Component styles get the same rules. The review only reads .css files,
+	// but :has() and !important cost the same in a component.
+	overrides: [{ files: ["**/*.svelte"], customSyntax: "postcss-html" }],
 	reportDescriptionlessDisables: true,
 	reportNeedlessDisables: true,
 	rules: {

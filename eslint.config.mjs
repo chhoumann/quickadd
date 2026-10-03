@@ -128,7 +128,7 @@ export default [
                 ...[
                     'AssignmentExpression[left.object.type="MemberExpression"][left.object.computed=false][left.object.property.name="style"][right.type="Literal"]',
                     'CallExpression[callee.property.name="setProperty"][callee.object.property.name="style"][arguments.1.type="Literal"]',
-                    'CallExpression[callee.property.name="setAttribute"][arguments.0.value="style"]',
+                    'CallExpression[callee.property.name="setAttribute"][arguments.0.value="style"][arguments.1.type="Literal"]',
                     'CallExpression[callee.property.name=/^setCss(Props|Styles)$/] > ObjectExpression > Property[key.type="Literal"][key.value=/^(?!--)/]',
                 ].map((selector) => ({
                     selector,
@@ -159,10 +159,19 @@ export default [
     },
     {
         // Obsidian's plugin review reports code built from a string at run time.
-        files: ['src/**/*.ts'],
+        files: ['src/**/*.ts', 'src/**/*.svelte'],
         ignores: ['src/**/*.test.ts'],
         rules: {
             'no-new-func': 'error',
+            'no-implied-eval': 'error',
+        },
+    },
+    {
+        // The type-aware version also catches a string held in a variable.
+        files: ['src/**/*.ts'],
+        ignores: ['src/**/*.test.ts'],
+        rules: {
+            'no-implied-eval': 'off',
             '@typescript-eslint/no-implied-eval': 'error',
         },
     },
