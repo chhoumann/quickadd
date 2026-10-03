@@ -1,4 +1,5 @@
 import { builtinModules } from "node:module";
+import { readFileSync } from "node:fs";
 import esbuild from "esbuild";
 import esbuildSvelte from "esbuild-svelte";
 import process from "process";
@@ -81,5 +82,13 @@ if (!prod) {
 
 	await context.watch();
 } else {
-	esbuild.build(options).catch(() => process.exit(1));
+	await esbuild.build(options).catch(() => process.exit(1));
+	// iOS before 16.4 can't parse a regex lookbehind, and Obsidian supports iOS
+	// 15.6: one in the bundle, from our code or a dependency, stops QuickAdd
+	// from loading there at all.
+	const bundle = readFileSync("main.js", "utf8");
+	if (/\(\?<[=!]/.test(bundle)) {
+		console.error("main.js contains a regex lookbehind, which iOS before 16.4 can't parse.");
+		process.exit(1);
+	}
 }

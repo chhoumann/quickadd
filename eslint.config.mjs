@@ -113,6 +113,10 @@ export default [
                     selector: 'CallExpression[callee.type="MemberExpression"][callee.property.name="setDynamicTooltip"]',
                     message: 'Slider values are shown inline; setDynamicTooltip has no effect.',
                 },
+                {
+                    selector: 'Literal[regex.pattern=/\\(\\?<[=!]/]',
+                    message: 'No regex lookbehind: iOS before 16.4 cannot parse it, and Obsidian runs on iOS 15.6, so QuickAdd would not load at all.',
+                },
             ],
         },
     },

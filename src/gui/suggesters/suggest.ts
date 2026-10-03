@@ -112,7 +112,9 @@ function allowBreaksAfterSlashes(row: HTMLElement): void {
 			node.nodeType === Node.TEXT_NODE && Boolean(node.nodeValue?.includes("/")),
 		);
 	for (const text of texts) {
-		const parts = (text.nodeValue ?? "").split(/(?<=\/)/);
+		// Each slash ends a part. No lookbehind: iOS before 16.4 can't parse one,
+		// and a regex it can't parse stops QuickAdd from loading at all.
+		const parts = (text.nodeValue ?? "").match(/[^/]*\/|[^/]+$/g) ?? [];
 		text.replaceWith(
 			...parts.flatMap((part) =>
 				part.endsWith("/") ? [part, createOwnedElement(row, "wbr")] : [part],
