@@ -610,7 +610,7 @@
 	"assets": [],
 	"install": {
 		"requires": [
-			"either the **Daily notes** core plugin turned on or Periodic Notes managing your daily notes"
+			"the **Daily notes** core plugin, or Periodic Notes 0.0.17, managing your daily notes (Periodic Notes 1.0 beta isn't supported)"
 		],
 		"afterImport": [
 			"Each capture writes to [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. A missing note is created from your daily notes template.",
