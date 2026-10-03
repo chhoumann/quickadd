@@ -84,6 +84,18 @@ Check which inputs are still missing before a non-interactive run:
 obsidian vault=dev quickadd:check choice="Daily log"
 ```
 
+### Suggest links and tags: `quickadd:suggest` {#quickaddsuggest}
+
+List what Obsidian's own `[[` link or `#` tag suggester offers, so another app can complete links and tags the way the editor does:
+
+```bash
+obsidian vault=dev quickadd:suggest kind=links
+obsidian vault=dev quickadd:suggest kind=tags
+```
+
+- `kind=links` returns one item per linkable file and per alias, newest first, with files in Obsidian's **Excluded files** list last. `text` is what goes inside `[[...]]` (`Plan`, `Projects/Meeting` when two notes share a name, `Plan|Big Plan` for an alias), `path` is the file, and `alias` is set on alias items.
+- `kind=tags` returns `{"tag":"work","count":3}` items, most used first, without the `#`.
+
 ### Create a note from a template: `quickadd:run-template` {#quickaddrun-template}
 
 Create a new note from a template file, with no dedicated Template choice

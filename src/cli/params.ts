@@ -28,6 +28,9 @@ export const LIST_FLAGS: CliFlags = {
 	type: { value: "<Template|Capture|Macro|Multi>", description: "Filter by choice type" },
 	commands: { description: "Only include command-enabled choices" },
 };
+export const SUGGEST_FLAGS: CliFlags = {
+	kind: { value: "<links|tags>", description: "Which suggestions to list" },
+};
 export const RUN_TEMPLATE_FLAGS: CliFlags = {
 	path: { value: "<vault-path>", description: "Path to a template file in the vault" },
 	vars: VARS_FLAG,
