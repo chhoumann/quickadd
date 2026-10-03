@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 
-export const utilityObsidianMock = () => ({
+export const templaterIntegrationMock = () => ({
 	templaterParseTemplate: vi.fn().mockResolvedValue(null),
 });
 
@@ -10,7 +10,6 @@ export const InputPromptMock = () => ({
 		factory() {
 			return {
 				Prompt: vi.fn().mockResolvedValue(""),
-				PromptWithContext: vi.fn().mockResolvedValue(""),
 			};
 		}
 	},
@@ -74,11 +73,6 @@ export const SingleTemplateEngineMock = () => ({
 		}
 		setLinkToCurrentFileBehavior() {}
 	},
-});
-
-export const obsidiandataviewMock = () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
 });
 
 export const mainMock = () => ({

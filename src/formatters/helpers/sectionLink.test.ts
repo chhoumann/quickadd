@@ -281,6 +281,72 @@ describe("extractHeadingsFromLines", () => {
 		]);
 	});
 
+	it("does not open a backtick fence whose info string has a backtick, as Obsidian does (#1968)", () => {
+		expect(
+			extractHeadingsFromLines(["## Log", "```inline```", "", "## Next"]).map((h) => h.heading),
+		).toEqual(["Log", "Next"]);
+		expect(
+			extractHeadingsFromLines(["```js `x`", "# heading", "## Next"]).map((h) => h.heading),
+		).toEqual(["heading", "Next"]);
+		// A tilde fence's info string may hold backticks.
+		expect(
+			extractHeadingsFromLines(["~~~ a`b", "# in fence", "~~~", "## Next"]).map((h) => h.heading),
+		).toEqual(["Next"]);
+	});
+
+	// Each row is what Obsidian 1.13.7's metadataCache lists for the note.
+	it.each([
+		["%%|# a|%%|# b", ["b"]],
+		["%% note|# a|%%|# b", ["b"]],
+		["%%|# a|end %%|# b", ["b"]],
+		["%%|# a|x %% y|# b", ["b"]],
+		["text %% c %%|# b", ["b"]],
+		["%% one %%|# b", ["b"]],
+		["%% a %% b %%|# a|%%|# b", ["a"]],
+		["%%%%|# b", ["b"]],
+		["%%|# a|# b", []],
+		["text %%|# a|%%|# b", ["a"]],
+		["- %%|# a|%%|# b", ["a"]],
+		["  %%|# a|  %%|# b", ["b"]],
+		["    %%|# a|    %%|# b", ["a", "b"]],
+		["```|%%|```|# b", ["b"]],
+		["%%|```|%%|# b", ["b"]],
+		["$$|# a|$$|# b", ["b"]],
+		["$$x = 1|# a|$$|# b", ["b"]],
+		["$$|# a|y$$|# b", ["b"]],
+		["$$|# a|y $$ z|# b", []],
+		["$$x$$|# b", ["b"]],
+		["$$$$|# b", []],
+		["$$|# a|# b", []],
+		["text $$|# a|$$|# b", ["a"]],
+		["> $$|# a|> $$|# b", ["a", "b"]],
+		["   $$|# a|   $$|# b", ["b"]],
+		["    $$|# a|    $$|# b", ["a", "b"]],
+		["```|$$|```|# b", ["b"]],
+		["%%|$$|%%|# b", ["b"]],
+		["$|# a|$|# b", ["a", "b"]],
+		["text|$$|# a|$$|# b", ["b"]],
+		["## H|$$|# a|$$|# b", ["H", "b"]],
+		["- item|$$|# a|$$|# b", ["a"]],
+		["- item|%%|# a|%%|# b", ["b"]],
+		// A comment or math closed on its own line is paragraph text, so an
+		// underline below it makes a setext heading, as Obsidian lists it.
+		["%% note %%|---|# b", ["%% note %%", "b"]],
+		["$$x$$|===|# b", ["$$x$$", "b"]],
+		["%%|x|%%|---", []],
+		["$$|x|$$|---", []],
+	])("skips # lines in %% and $$ blocks like Obsidian: %s", (note, expected) => {
+		expect(extractHeadingsFromLines(note.split("|")).map((h) => h.heading)).toEqual(expected);
+	});
+
+	it("reads ATX headings in CRLF lines, without the carriage return (#2022)", () => {
+		expect(extractHeadingsFromLines(["## Log\r", "- a\r", "### Sub\r", "Title\r", "===\r"])).toEqual([
+			{ heading: "Log", level: 2, line: 0 },
+			{ heading: "Sub", level: 3, line: 2 },
+			{ heading: "Title", level: 1, line: 3 },
+		]);
+	});
+
 	it("handles ~~~ fences too", () => {
 		const lines = ["~~~", "# fenced", "~~~", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([
@@ -303,6 +369,12 @@ describe("extractHeadingsFromLines", () => {
 		const lines = ["---", "title: x", "# not a heading", "---", "# Real"];
 		expect(extractHeadingsFromLines(lines)).toEqual([
 			{ heading: "Real", level: 1, line: 4 },
+		]);
+	});
+
+	it("reads an unclosed leading --- as a rule, not frontmatter, as Obsidian does (#1968)", () => {
+		expect(extractHeadingsFromLines(["---", "## A", "- x"])).toEqual([
+			{ heading: "A", level: 2, line: 1 },
 		]);
 	});
 

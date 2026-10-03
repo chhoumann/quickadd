@@ -112,9 +112,10 @@
 						onchange={(event) =>
 							onChoiceModeChange(conflict.choiceId, event)}
 					>
-						<option value="import">Import</option>
 						{#if conflict.exists}
 							<option value="overwrite">Overwrite</option>
+						{:else}
+							<option value="import">Import</option>
 						{/if}
 						<option value="duplicate">Duplicate</option>
 						<option value="skip">Skip</option>

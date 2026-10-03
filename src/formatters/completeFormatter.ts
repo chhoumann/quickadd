@@ -1,4 +1,5 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
+import { protectUserText, restoreUserText } from "./helpers/userText";
 import { promptForVariable, suggestForValue, suggestForValueMulti, type PromptRuntime } from "./helpers/valuePrompts";
 import { suggestForField, suggestForFile } from "./helpers/vaultPrompts";
 import { expandGlobalVariables } from "./helpers/globalVariables";
@@ -7,7 +8,8 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { RunClocks } from "../types/dateOrigin";
-import { TITLE_REGEX } from "../constants";
+import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
+import { findDateVariableFormat } from "./helpers/dateTokens";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputPrompt from "../gui/InputPrompt";
 import { MathModal } from "../gui/MathModal";
@@ -46,6 +48,8 @@ export class CompleteFormatter extends Formatter {
 	 */
 	private contentValuePromptsAcceptImagePaste = false;
 	private preserveTemplateCursorMarkers = false;
+	/** See {@link withUserTextProtected}. */
+	private keepUserTextProtected = false;
 
 	constructor(
 		protected app: App,
@@ -60,19 +64,49 @@ export class CompleteFormatter extends Formatter {
 		}
 	}
 
+	protected userText(text: string): string {
+		return protectUserText(text);
+	}
+
+	/**
+	 * Content formatted inside `work` keeps answers and other user text marked,
+	 * for a caller that runs Templater and finds `{{CURSOR}}` markers before it
+	 * calls restoreUserText. Every other result is restored before it is returned.
+	 */
+	async withUserTextProtected<T>(work: () => Promise<T>): Promise<T> {
+		const previous = this.keepUserTextProtected;
+		this.keepUserTextProtected = true;
+		try {
+			return await work();
+		} finally {
+			this.keepUserTextProtected = previous;
+		}
+	}
+
 	protected runClocks(): RunClocks | undefined {
 		return this.choiceExecutor?.clocks ?? this.clocks;
 	}
 
 	protected async format(input: string): Promise<string> {
+		return this.formatScalarTokens(await this.expandCodeAndIncludes(input));
+	}
+
+	/** The stage that runs code: inline scripts, macros, included templates, and global snippets. */
+	protected async expandCodeAndIncludes(input: string): Promise<string> {
 		let output: string = input;
 
 		output = await this.replaceInlineJavascriptInString(output);
 		output = await this.replaceMacrosInString(output);
-		output = await this.replaceTemplateInString(output);
+		const outerIncludingText = this.includingText;
+		// Globals expand after the includes render, but a VDATE inside one still counts.
+		this.includingText = await this.replaceGlobalVarInString(output);
+		try {
+			output = await this.replaceTemplateInString(output);
+		} finally {
+			this.includingText = outerIncludingText;
+		}
 		// Expand global variables early so injected snippets can be further formatted
-		output = await this.replaceGlobalVarInString(output);
-		return this.formatScalarTokens(output);
+		return this.replaceGlobalVarInString(output);
 	}
 
 	protected async formatScalarTokens(input: string): Promise<string> {
@@ -134,7 +168,7 @@ export class CompleteFormatter extends Formatter {
 			folder: true,
 			activeFolder: "path",
 		});
-		return output;
+		return restoreUserText(output);
 	}
 
 	/**
@@ -155,6 +189,29 @@ export class CompleteFormatter extends Formatter {
 		return this.templateInclusion?.includer;
 	}
 
+	/** This formatter's text while its `{{TEMPLATE:}}` includes render. */
+	private includingText: string | null = null;
+
+	/**
+	 * Includes render before the including text's `{{VDATE}}`s. So when an
+	 * include's `{{VALUE:<name>}}` reuses one, resolve that VDATE now: it asks
+	 * the date prompt (or takes the prefilled answer) and records its format, as
+	 * a reuse in the including text itself would.
+	 */
+	protected override async resolveIncludingTextDate(variableName: string): Promise<void> {
+		if (!this.includer || findDateVariableFormat(this.variables, variableName) !== undefined) return;
+		for (let includer: CompleteFormatter | undefined = this.includer; includer; includer = includer.includer) {
+			// Every VDATE a named VALUE could match, in order, as the including
+			// text's own VDATE phase would resolve them before its VALUEs.
+			const sameName = [...(includer.includingText ?? "").matchAll(new RegExp(DATE_VARIABLE_REGEX.source, "gi"))]
+				.filter((match) => match[1]?.trim().toLowerCase() === variableName.toLowerCase());
+			if (sameName.length > 0) {
+				await includer.replaceDateVariableInString(sameName.map((match) => match[0]).join(""));
+				return;
+			}
+		}
+	}
+
 	private defersPropertyExpansion(): boolean {
 		return this.includer?.defersPropertyExpansion() ?? this.skipPropertyExpansion;
 	}
@@ -165,9 +222,9 @@ export class CompleteFormatter extends Formatter {
 
 	async formatPropertyName(input: string): Promise<string> {
 		return await this.withPromptScope("propertyName", input, async () =>
-			this.replaceCurrentFileTokensInString(await this.format(input), {
+			restoreUserText(this.replaceCurrentFileTokensInString(await this.format(input), {
 				links: true, fileName: true, folder: true, activeFolder: "content", title: true,
-			}),
+			})),
 		);
 	}
 
@@ -193,11 +250,8 @@ export class CompleteFormatter extends Formatter {
 				return this.replacePropertyInString(output);
 			}),
 		);
-		if (typeof value === "string") return stripCursorMarkers(value);
-		if (Array.isArray(value)) {
-			return value.map((item: unknown) => typeof item === "string" ? stripCursorMarkers(item) : item);
-		}
-		return value;
+		// A value that is not the formatted text is the token's own value, kept as data.
+		return typeof value === "string" ? restoreUserText(stripCursorMarkers(value)) : value;
 	}
 
 	async formatTemplateContent(input: string): Promise<string> {
@@ -234,7 +288,8 @@ export class CompleteFormatter extends Formatter {
 			title: true,
 		});
 
-		return output;
+		// An included template's text is restored by the formatter that includes it.
+		return this.keepUserTextProtected || this.includer ? output : restoreUserText(output);
 	}
 
 	async formatFolderPath(folderName: string): Promise<string> {
@@ -261,7 +316,7 @@ export class CompleteFormatter extends Formatter {
 			activeFolder: "path",
 		});
 		// Empty folder tokens can leave leading slashes; remove them to keep the remaining path vault-relative.
-		return resolved.replace(/^\/+/, "");
+		return restoreUserText(resolved).replace(/^\/+/, "");
 	}
 
 	/** Resolve source paths once, without executable tokens or inclusions.
@@ -292,7 +347,7 @@ export class CompleteFormatter extends Formatter {
 		// Trim so the suffix the engine reads for the extension matches the path
 		// getTemplateFile ultimately resolves (which trims) — otherwise a token
 		// that leaves trailing whitespace could split the two.
-		return output.trim();
+		return restoreUserText(output).trim();
 	}
 
 	/**
@@ -311,7 +366,7 @@ export class CompleteFormatter extends Formatter {
 			fileName: true,
 			title: true,
 		});
-		return output;
+		return restoreUserText(output);
 	}
 
 	// CaptureChoiceFormatter overrides this with the capture destination.
@@ -405,8 +460,25 @@ export class CompleteFormatter extends Formatter {
 		const parsedByLine = new Map(parsed.map((p) => [p.line, key(p)]));
 		const fresh =
 			cache && cached.every((c) => parsedByLine.get(c.line) === key(c));
+		if (!fresh) return buildSectionSubpath(parsed, cursor.line);
 
-		return buildSectionSubpath(fresh ? cached : parsed, cursor.line);
+		// A heading added just before the save isn't cached yet (#2030), so add
+		// the parsed headings the cache lacks, except those inside a block
+		// Obsidian doesn't read headings from (an HTML block the parser can't
+		// detect).
+		const cachedLines = new Set(cached.map((c) => c.line));
+		const opaque = (cache.sections ?? []).filter(
+			(section) => section.type === "html" || section.type === "comment" || section.type === "math",
+		);
+		const added = parsed.filter(
+			(p) =>
+				!cachedLines.has(p.line) &&
+				!opaque.some(
+					(section) => section.position.start.line <= p.line && p.line <= section.position.end.line,
+				),
+		);
+		const headings = [...cached, ...added].sort((a, b) => a.line - b.line);
+		return buildSectionSubpath(headings, cursor.line);
 	}
 
 	protected getVariableValue(variableName: string): string {
@@ -529,7 +601,7 @@ export class CompleteFormatter extends Formatter {
 			try {
 				const linkSourcePath = this.getLinkSourcePath();
 				const promptFactory = new InputPrompt().factory(
-					this.valuePromptContext?.inputTypeOverride,
+					this.valuePromptContext?.inputTypeOverride ?? this.defaultValueInputType,
 				);
 				const defaultValue = this.valuePromptContext?.defaultValue;
 				const promptOptions = this.buildInputPromptOptions(
@@ -539,26 +611,14 @@ export class CompleteFormatter extends Formatter {
 				);
 				const placeholder =
 					this.valuePromptContext?.placeholder ?? prompt.placeholder;
-				if (linkSourcePath) {
-					this.value = await promptFactory.PromptWithContext(
-						this.app,
-						prompt.title,
-						placeholder,
-						defaultValue,
-						linkSourcePath,
-						undefined,
-						promptOptions,
-					);
-				} else {
-					this.value = await promptFactory.Prompt(
-						this.app,
-						prompt.title,
-						placeholder,
-						defaultValue,
-						undefined,
-						promptOptions,
-					);
-				}
+				this.value = await promptFactory.Prompt(
+					this.app,
+					prompt.title,
+					placeholder,
+					defaultValue,
+					undefined,
+					{ ...promptOptions, linkSourcePath: linkSourcePath || undefined },
+				);
 			} catch (error) {
 				if (isCancellationError(error)) {
 					throw new UserCancelError("Input cancelled by user");

@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 // of MacroChoiceEngine.entry.test.ts and choiceSuggester.test.ts).
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({
 	DEFAULT_SETTINGS: {},
@@ -21,13 +20,10 @@ vi.mock("./engine/runTemplateFromFolder", () => ({
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
-vi.mock("./utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<Record<string, unknown>>();
-	return {
-		...actual,
-		getOpenFileOriginLeaf: vi.fn(() => null),
-	};
-});
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getOpenFileOriginLeaf: vi.fn(() => null),
+}));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
 

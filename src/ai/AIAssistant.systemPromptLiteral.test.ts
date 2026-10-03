@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TFile } from "obsidian";
 import type { App } from "obsidian";
 import type { AIProvider } from "./Provider";
@@ -37,7 +37,6 @@ const mocks = vi.hoisted(() => ({
 
 // Reached transitively from Agent -> CompleteFormatter; its real entry point
 // `require`s "obsidian", which does not exist outside the app.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 vi.mock("src/settingsStore", () => ({
 	settingsStore: { getState: () => storeState },
@@ -55,17 +54,11 @@ vi.mock("./aiHelpers", () => ({
 	getModelMaxTokens: mocks.getModelMaxTokens,
 }));
 
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: mocks.getMarkdownFilesInFolder,
 }));
 
 const { runAIAssistant, Prompt, ChunkedPrompt } = await import("./AIAssistant");
-
-vi.stubGlobal("sleep", async () => {});
-
-afterAll(() => {
-	vi.unstubAllGlobals();
-});
 
 /** Contains every token shape the removed preview used to resolve on screen. */
 const SYSTEM_PROMPT =
@@ -118,6 +111,8 @@ function systemPromptSentToProvider(): unknown {
 
 beforeEach(() => {
 	vi.clearAllMocks();
+	// Obsidian's global sleep(), which the progress notice polls with.
+	vi.stubGlobal("sleep", async () => {});
 	storeState.disableOnlineFeatures = false;
 	mocks.openAIRequest.mockReturnValue(mocks.makeRequest);
 	mocks.getModelMaxTokens.mockReturnValue(100000);

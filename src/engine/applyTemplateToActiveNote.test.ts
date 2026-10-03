@@ -1,4 +1,4 @@
-import { jumpToNextTemplaterCursorIfPossible } from "../utilityObsidian";
+import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,8 +32,8 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 	default: { Suggest: (...args: unknown[]) => suggestMock(...args) },
 }));
 
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: (...args: unknown[]) => yesNoPromptMock(...(args as [])) },
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => yesNoPromptMock(...(args as [])),
 }));
 
 vi.mock("./TemplateInsertEngine", async (importOriginal) => {
@@ -64,16 +64,12 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 	return { ...actual, TemplateInsertEngine: TemplateInsertEngineMock };
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
 	getTemplater: vi.fn(() => ({})),
 	templaterParseTemplate: vi.fn(
 		async (_app: unknown, content: string) => content,
 	),
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 import { TFile, type App } from "obsidian";

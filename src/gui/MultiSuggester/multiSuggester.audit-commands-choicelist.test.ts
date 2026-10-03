@@ -56,6 +56,15 @@ describe("MultiSuggester audit (commands-choicelist)", () => {
 		await expect(suggester.waitForClose).resolves.toEqual(["Typed"]);
 	});
 
+	it.each([
+		[false, ["Cancel", "Done"]],
+		[true, ["Skip", "Cancel", "Done"]],
+	])("ends the actions with Done, like QuickAdd's other prompts (skippable: %s)", (skippable, labels) => {
+		const suggester = new MultiSuggester({} as never, ["A"], ["A"], { skippable });
+		const actions = suggester.contentEl.querySelector(".qa-multi-actions");
+		expect(Array.from(actions?.querySelectorAll("button") ?? []).map((b) => b.textContent)).toEqual(labels);
+	});
+
 	it("commits a custom value on Enter in the custom field", async () => {
 		const suggester = new MultiSuggester(
 			{} as never,

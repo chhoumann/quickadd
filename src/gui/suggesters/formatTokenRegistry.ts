@@ -1,6 +1,7 @@
 import {
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
+	DAILY_SYNTAX_SUGGEST_REGEX,
 	DATE_FORMAT_SYNTAX_SUGGEST_REGEX,
 	DATE_SYNTAX_SUGGEST_REGEX,
 	FIELD_SYNTAX_SUGGEST_REGEX,
@@ -13,8 +14,10 @@ import {
 	LINKSECTION_SYNTAX_SUGGEST_REGEX,
 	MACRO_SYNTAX_SUGGEST_REGEX,
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
+	MONTHLY_SYNTAX_SUGGEST_REGEX,
 	NAME_SYNTAX_SUGGEST_REGEX,
 	PROPERTY_SYNTAX_SUGGEST_REGEX,
+	QUARTERLY_SYNTAX_SUGGEST_REGEX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
 	SELECTED_SYNTAX_SUGGEST_REGEX,
 	TEMPLATE_SYNTAX_SUGGEST_REGEX,
@@ -24,6 +27,8 @@ import {
 	VALUE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_DATE_SYNTAX_SUGGEST_REGEX,
 	VARIABLE_SYNTAX_SUGGEST_REGEX,
+	WEEKLY_SYNTAX_SUGGEST_REGEX,
+	YEARLY_SYNTAX_SUGGEST_REGEX,
 } from "../../constants";
 
 /**
@@ -79,7 +84,7 @@ export interface FormatTokenSuggestion {
 	isFragment?: boolean;
 }
 
-export interface FormatTokenEntry {
+interface FormatTokenEntry {
 	/** Prefix matcher deciding whether this row is still a candidate. */
 	regex: RegExp;
 	/** The row shown for the token itself. */
@@ -95,7 +100,7 @@ export interface FormatTokenEntry {
 }
 
 /** Vault/settings data the dynamic rows are built from. */
-export interface FormatTokenExpansionData {
+interface FormatTokenExpansionData {
 	templatePaths: readonly string[];
 	macroNames: readonly string[];
 	globalVariableNames: readonly string[];
@@ -134,7 +139,7 @@ function token(
  * behaviour change; previously the list mixed "{{date}}" with "{{DATE:}}" and
  * left users guessing whether the difference meant anything (#1542).
  */
-export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
+const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 	// == Ask for input ==
 	{
 		regex: VALUE_SYNTAX_SUGGEST_REGEX,
@@ -299,6 +304,57 @@ export const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		expansions: () => [
 			token("{{TIME:A|case:lower}}", "Lowercases formatted text, such as AM to am"),
 		],
+	},
+	{
+		regex: DAILY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{DAILY}}", "The daily note's path, from your Daily notes settings"),
+	},
+	{
+		regex: DAILY_SYNTAX_SUGGEST_REGEX,
+		// A link is content; in a path it would name a file "[[...]]".
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{DAILY|link}}", "A link to the daily note"),
+	},
+	{
+		regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{WEEKLY}}", "This week's note, from your Periodic Notes settings"),
+	},
+	{
+		regex: WEEKLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{WEEKLY|link}}", "A link to this week's note"),
+	},
+	{
+		regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{MONTHLY}}", "This month's note, from your Periodic Notes settings"),
+	},
+	{
+		regex: MONTHLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{MONTHLY|link}}", "A link to this month's note"),
+	},
+	{
+		regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{QUARTERLY}}", "This quarter's note, from your Periodic Notes settings"),
+	},
+	{
+		regex: QUARTERLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{QUARTERLY|link}}", "A link to this quarter's note"),
+	},
+	{
+		regex: YEARLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{YEARLY}}", "This year's note, from your Periodic Notes settings"),
+	},
+	{
+		regex: YEARLY_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{YEARLY|link}}", "A link to this year's note"),
 	},
 
 	// == The note you ran QuickAdd from ==

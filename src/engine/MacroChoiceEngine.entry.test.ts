@@ -26,14 +26,11 @@ const { mockLoadModuleExports, mockInitializeUserScriptSettings, mockSuggest, mo
 		mockInputPrompt: vi.fn(),
 	}));
 
-vi.mock("../utilityObsidian", async () => {
-	const actual = await vi.importActual<Record<string, unknown>>(
-		"../utilityObsidian",
+vi.mock("../utils/userScript", async () => {
+	const actual = await vi.importActual<typeof UserScriptModule>(
+		"../utils/userScript",
 	);
-	const { getUserScriptMemberAccess, selectUserScriptMember } =
-		await vi.importActual<typeof UserScriptModule>(
-			"../utils/userScript",
-		);
+	const { getUserScriptMemberAccess, selectUserScriptMember } = actual;
 
 	return {
 		...actual,
@@ -82,7 +79,7 @@ vi.mock("../gui/GenericWideInputPrompt/GenericWideInputPrompt", () => ({
 }));
 vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
 	__esModule: true,
-	default: { Prompt: vi.fn() },
+	default: { Ask: vi.fn() },
 }));
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({
 	__esModule: true,
@@ -922,5 +919,56 @@ describe("QuickAddApi prompt cancellation", () => {
 		await expect(QuickAddApi.inputPrompt(app, "Enter value")).rejects.toBe(
 			failure,
 		);
+	});
+});
+
+describe("params.abort in a user script", () => {
+	it("stops the macro at that step and reports the abort to the run", async () => {
+		mockLoadModuleExports.mockReset();
+		mockGetApi.mockImplementation(() => ({}));
+		const laterScript = vi.fn();
+		mockLoadModuleExports.mockImplementation((command: IUserScript) =>
+			Promise.resolve(
+				command.path === "validate.js"
+					? (params: { abort: (message?: string) => never }) =>
+							params.abort("Validation failed: missing title")
+					: laterScript,
+			),
+		);
+		const script = (id: string, path: string): IUserScript => ({
+			id,
+			name: id,
+			type: CommandType.UserScript,
+			path,
+			settings: {},
+		});
+		const signalAbort = vi.fn();
+		const choiceExecutor: IChoiceExecutor = {
+			...createChoiceExecutor(),
+			execute: vi.fn(),
+			variables: new Map<string, unknown>(),
+			signalAbort,
+		};
+		const macroChoice: IMacroChoice = {
+			id: "macro-abort",
+			name: "Validated macro",
+			type: "Macro",
+			command: false,
+			runOnStartup: false,
+			macro: {
+				id: "macro-abort",
+				name: "Validated macro",
+				commands: [script("validate", "validate.js"), script("write", "write.js")],
+			} as IMacro,
+		};
+
+		const engine = new MacroChoiceEngine({} as App, {} as unknown as QuickAdd, macroChoice, choiceExecutor, choiceExecutor.variables);
+		await expect(engine.run()).resolves.toBeUndefined();
+
+		expect(laterScript).not.toHaveBeenCalled();
+		expect(signalAbort).toHaveBeenCalledTimes(1);
+		const [error] = signalAbort.mock.calls[0] as [unknown];
+		expect(error).toBeInstanceOf(MacroAbortError);
+		expect((error as Error).message).toBe("Validation failed: missing title");
 	});
 });

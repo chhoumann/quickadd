@@ -1,8 +1,6 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
-
 import type QuickAdd from "../../main";
 import { CommandSequenceEditor } from "./CommandSequenceEditor";
 import { log } from "../../logger/logManager";

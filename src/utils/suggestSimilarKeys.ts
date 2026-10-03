@@ -38,7 +38,7 @@ function commonPrefixLength(a: string, b: string): number {
  * Bounded by `max` so a long input exits before filling the matrix - every
  * caller here only cares whether the distance is small.
  */
-export function damerauLevenshtein(a: string, b: string, max: number): number {
+function damerauLevenshtein(a: string, b: string, max: number): number {
 	if (a === b) return 0;
 	if (Math.abs(a.length - b.length) > max) return max + 1;
 	if (a.length > MAX_COMPARABLE_LENGTH || b.length > MAX_COMPARABLE_LENGTH) {

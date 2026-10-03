@@ -62,7 +62,7 @@ export function emptyFolderNoticeText(folder: IChoice): string {
  * settings tree already uses for this exact state ("Empty — add a choice or drag
  * one here.", ChoiceList.svelte), so the two surfaces name it the same way.
  */
-export const EMPTY_FOLDER_FLAIR = "Empty";
+const EMPTY_FOLDER_FLAIR = "Empty";
 
 /**
  * The same marker for a folder the picker cannot drill into because its contents
@@ -70,7 +70,7 @@ export const EMPTY_FOLDER_FLAIR = "Empty";
  * contradict the settings list, which says the contents are still in data.json
  * (#1566).
  */
-export const UNREADABLE_FOLDER_FLAIR = "Unreadable";
+const UNREADABLE_FOLDER_FLAIR = "Unreadable";
 
 /** The trailing marker for a folder row that cannot be opened, or "" for one that can. */
 export function folderFlairFor(choice: IChoice): string {

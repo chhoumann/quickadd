@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// runOnePagePreflight transitively imports src/main and obsidian-dataview; mock
+// runOnePagePreflight transitively imports src/main; mock
 // the heavy deps so we can import the pure exported helper under test.
 vi.mock("src/quickAddSettingsTab", () => ({
 	QuickAddSettingsTab: class {},
@@ -9,11 +9,6 @@ vi.mock("src/quickAddSettingsTab", () => ({
 vi.mock("src/main", () => ({
 	__esModule: true,
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
 }));
 
 import { splitMultiSelectLabels } from "./runOnePagePreflight";

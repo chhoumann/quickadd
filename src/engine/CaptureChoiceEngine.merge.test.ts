@@ -45,22 +45,28 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 	},
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
+	setMarkdownCursorAtOffset: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
-	openExistingFileTab: vi.fn(() => null),
-	openFile: vi.fn(),
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
+	openExistingFileTab: vi.fn(() => null),
+	openFile: vi.fn(),
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -69,10 +75,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 vi.mock("./choiceFileActions", async (importOriginal) => ({
@@ -85,7 +87,7 @@ import { TFile } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
-import { setMarkdownCursorAtOffset } from "../utilityObsidian";
+import { setMarkdownCursorAtOffset } from "../utils/editorInsertion";
 
 const createCaptureChoice = (): ICaptureChoice => ({
 	name: "Test Capture Choice",

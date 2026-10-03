@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import { Menu as ObsidianMenu } from "obsidian";
 import type IChoice from "src/types/choices/IChoice";
+import type { ChoiceListActions } from "./choiceListActions";
 import {
   childChoicesOf,
   hasUnreadableChildren,
@@ -8,7 +9,7 @@ import {
   rootChoicesOf,
 } from "src/utils/choiceUtils";
 
-export type MoveTarget = { id: string; path: string };
+type MoveTarget = { id: string; path: string };
 
 /**
  * Sentinel target id for "Move to: (root)". Passed through the existing `onMove`
@@ -91,6 +92,18 @@ function isInvalidTarget(moving: IChoice, target: IChoice): boolean {
     if (ids.has(target.id)) return true;
   }
   return false;
+}
+
+/** The row menu's callbacks for `choice`, bound to the choice list's actions. */
+export function choiceMenuActions(choice: IChoice, actions: ChoiceListActions): MenuActions {
+  return {
+    onRename: () => actions.onRenameChoice(choice),
+    onToggle: () => actions.onToggleCommand(choice),
+    onConfigure: () => actions.onConfigureChoice(choice),
+    onDuplicate: () => actions.onDuplicateChoice(choice),
+    onDelete: () => actions.onDeleteChoice(choice),
+    onMove: (targetId: string) => actions.onMoveChoice(choice, targetId),
+  };
 }
 
 type MenuActions = {

@@ -209,7 +209,7 @@ export function scopeShowsDestination(scope: PromptScopeKind): boolean {
 	return scope !== "templatePath" && scope !== "generic";
 }
 
-export interface ValuePromptCopy {
+interface ValuePromptCopy {
 	/** Modal title, or undefined to keep the caller's fallback. */
 	title?: string;
 	/** Input placeholder, or undefined for none. */

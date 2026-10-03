@@ -59,55 +59,115 @@ function isSetextContentLine(line: string): boolean {
 }
 
 /**
+ * The last line a heading occupies: a setext heading's underline, or an ATX
+ * heading's own line. An ATX line always differs from its text by the `#`
+ * marker; a setext heading's line is its text.
+ */
+export function headingEndLine(lines: string[], heading: SimpleHeading): number {
+	return lines[heading.line]?.trim() === heading.heading
+		? heading.line + 1
+		: heading.line;
+}
+
+/**
+ * For each line, whether it sits in a block that can't hold a heading: the
+ * YAML frontmatter, a fenced code block, a `%%` comment block or a `$$` math
+ * block, delimiters included. This is the one place that decides what counts
+ * as such a block. HTML blocks are not detected.
+ */
+export function nonHeadingBlockLines(lines: string[]): boolean[] {
+	const blocked = lines.map(() => false);
+	const text = lines.map((line) => line.replace(/\r$/, ""));
+	let i = 0;
+
+	// YAML frontmatter: only when it opens on the very first line and closes.
+	// Without a closing `---`, Obsidian reads the first line as a rule and the
+	// rest as body.
+	if (text.length > 0 && /^---\s*$/.test(text[0])) {
+		let close = 1;
+		while (close < text.length && !/^---\s*$/.test(text[close])) close++;
+		if (close < text.length) {
+			for (let j = 0; j <= close; j++) blocked[j] = true;
+			i = close + 1;
+		}
+	}
+
+	// Fenced code blocks (``` or ~~~, 3+, up to 3 spaces of indentation). An
+	// opening fence may carry an info string (```js); a CLOSING fence must be
+	// bare (only the same marker char, length >= the opener, then optional
+	// whitespace), otherwise a content line like ```js would close the block. A
+	// backtick fence's info string can't contain a backtick: ```inline``` is
+	// inline code (CommonMark, and Obsidian). An unclosed fence runs to the end.
+	let fence: { char: string; length: number } | null = null;
+	let block: "%%" | "$$" | null = null;
+	for (; i < text.length; i++) {
+		const line = text[i];
+		if (block) {
+			blocked[i] = true;
+			if (closesBlock(block, line)) block = null;
+			continue;
+		}
+		if (fence) {
+			blocked[i] = true;
+			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
+			if (close && close[1][0] === fence.char && close[1].length >= fence.length) {
+				fence = null;
+			}
+			continue;
+		}
+		const open = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+		if (open && !(open[1][0] === "`" && open[2].includes("`"))) {
+			blocked[i] = true;
+			fence = { char: open[1][0], length: open[1].length };
+			continue;
+		}
+		// A comment (`%%`) or math (`$$`) block opens on a line that starts with
+		// its marker, up to 3 spaces in, and doesn't close on that line. Right
+		// after a list item, `$$` continues the item instead (`%%` still opens).
+		const marker = line.match(/^ {0,3}(%%|\$\$)(.*)$/);
+		const continuesListItem =
+			i > 0 && /^\s*([-*+]|\d{1,9}[.)])[ \t]/.test(text[i - 1]);
+		if (marker && !(marker[1] === "$$" && continuesListItem)) {
+			const kind = marker[1] as "%%" | "$$";
+			const rest = marker[2];
+			const closedOnLine =
+				kind === "%%"
+					? rest.includes("%%")
+					: rest.trimEnd().length > 2 && rest.trimEnd().endsWith("$$");
+			if (!closedOnLine) {
+				blocked[i] = true;
+				block = kind;
+			}
+		}
+	}
+
+	return blocked;
+}
+
+/**
+ * Obsidian closes a `%%` block at any line holding `%%`, and a `$$` block
+ * only at a line that ends with `$$`. An unclosed block runs to the end.
+ */
+function closesBlock(block: "%%" | "$$", line: string): boolean {
+	return block === "%%" ? line.includes("%%") : line.trimEnd().endsWith("$$");
+}
+
+/**
  * Extracts ATX (`# Heading`) and setext (`Heading` underlined by `===`/`---`)
  * headings from raw buffer lines, skipping YAML frontmatter and fenced code
  * blocks (a `# foo` line inside a ``` fence is NOT a heading in Obsidian) and
  * bounding ATX levels to 1–6. Used for editor text the metadata cache doesn't
  * cover yet, and to check that the cache is current. Unlike Obsidian, it
- * doesn't skip `#` lines inside comments, HTML, or math blocks.
+ * doesn't skip `#` lines inside HTML blocks.
  */
 export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 	const headings: SimpleHeading[] = [];
-	let inFence = false;
-	let fenceChar = "";
-	let fenceLen = 0;
+	const blocked = nonHeadingBlockLines(lines);
 
 	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-
-		// YAML frontmatter: only when it opens on the very first line.
-		if (i === 0 && /^---\s*$/.test(line)) {
-			let j = i + 1;
-			while (j < lines.length && !/^---\s*$/.test(lines[j])) j++;
-			i = j; // land on the closing `---` (or EOF); the loop's ++ steps past it
-			continue;
-		}
-
-		// Fenced code blocks (``` or ~~~, 3+). An opening fence may carry an info
-		// string (```js); a CLOSING fence must be bare (only the same marker char,
-		// length >= the opener, then optional whitespace) — otherwise a content
-		// line like ```js inside the block would wrongly close it (CommonMark).
-		if (!inFence) {
-			const open = line.match(/^ {0,3}(`{3,}|~{3,})/);
-			if (open) {
-				inFence = true;
-				fenceChar = open[1][0];
-				fenceLen = open[1].length;
-				continue;
-			}
-		} else {
-			const close = line.match(/^ {0,3}(`{3,}|~{3,})\s*$/);
-			if (
-				close &&
-				close[1][0] === fenceChar &&
-				close[1].length >= fenceLen
-			) {
-				inFence = false;
-				fenceChar = "";
-				fenceLen = 0;
-			}
-			continue; // inside a fence: never parse headings
-		}
+		// A CRLF line keeps its `\r`; `.` in the ATX pattern would not match it.
+		const line = lines[i].replace(/\r$/, "");
+		if (blocked[i]) continue;
 
 		// ATX heading. Up to 3 spaces of indentation only — a leading tab makes it
 		// an indented code line (CommonMark/Obsidian), not a heading.
@@ -131,9 +191,10 @@ export function extractHeadingsFromLines(lines: string[]): SimpleHeading[] {
 				headings.length > 0 &&
 				headings[headings.length - 1].line === i - 1;
 			const prevIsSingleLineParagraph =
-				i < 2 || !isSetextContentLine(lines[i - 2]);
+				i < 2 || blocked[i - 2] || !isSetextContentLine(lines[i - 2]);
 			if (
 				!prevAlreadyHeading &&
+				!blocked[i - 1] &&
 				prevIsSingleLineParagraph &&
 				isSetextContentLine(prev)
 			) {

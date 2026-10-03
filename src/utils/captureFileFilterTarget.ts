@@ -4,7 +4,7 @@ import {
 } from "./FieldSuggestionParser";
 import { parsePipeKeyValue, splitPipeParts } from "./pipeSyntax";
 
-export interface CaptureFileFilterTarget {
+interface CaptureFileFilterTarget {
 	filter: FieldFilter;
 	multiSelect: boolean;
 }

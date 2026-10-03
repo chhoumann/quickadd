@@ -1,5 +1,6 @@
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
+import { isCaptureChoice, isTemplateChoice } from "src/types/choices/choiceType";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import { CommandType } from "src/types/macros/CommandType";
 import type { IChoiceCommand } from "src/types/macros/IChoiceCommand";
@@ -35,12 +36,13 @@ function cutRole(reason: DeferralReason): StepRole {
 	return { collect: { kind: "none" }, opaque: reason, deferred: reason };
 }
 
-export function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-export function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
+/**
+ * A type this version doesn't know: written by a newer QuickAdd, or retired.
+ * The run skips such a step with a notice, so it asks for nothing. Typed
+ * `never` so that a new type still has to be handled above.
+ */
+function unknownTypeRole(_type: never, deferred: DeferralReason | null = null): StepRole {
+	return noneRole(deferred);
 }
 
 function roleForResolvedChoice(choice: IChoice | null): StepRole {
@@ -61,10 +63,8 @@ function roleForResolvedChoice(choice: IChoice | null): StepRole {
 			return cutRole("nestedMacroGroup");
 		case "Multi":
 			return cutRole("interactivePicker");
-		default: {
-			const _exhaustive: never = choice.type;
-			return _exhaustive;
-		}
+		default:
+			return unknownTypeRole(choice.type, "unresolvableChoice");
 	}
 }
 
@@ -100,9 +100,7 @@ export function classifyStep(
 		case CommandType.Wait:
 		case CommandType.OpenFile:
 			return noneRole();
-		default: {
-			const _exhaustive: never = command.type;
-			return _exhaustive;
-		}
+		default:
+			return unknownTypeRole(command.type);
 	}
 }

@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import getEndOfSection, { getMarkdownHeadings } from "./getEndOfSection";
+import getEndOfSection from "./getEndOfSection";
 
 test("getEndOfSection - find the end of a section", () => {
 	const lines = [
@@ -162,6 +162,42 @@ test("getEndOfSection - target isn't heading", () => {
 
 	const result = getEndOfSection(lines, targetLine, false);
 	expect(result).toBe(5);
+});
+
+test("getEndOfSection - target isn't heading, a heading ends the block before any blank line (#1926)", () => {
+	const lines = [
+		"> [!info]- Captured today", // target (0)
+		"> one", // result (1)
+		"## Journal",
+		"- entry",
+		"",
+	];
+
+	expect(getEndOfSection(lines, 0, false)).toBe(1);
+});
+
+test("getEndOfSection - target isn't heading, the block runs to the end of a note without a final line break (#1926)", () => {
+	const lines = [
+		"## Journal",
+		"> [!info]- Captured today", // target (1)
+		"> one", // result (2)
+	];
+
+	expect(getEndOfSection(lines, 1, false)).toBe(2);
+});
+
+test("getEndOfSection - target isn't heading, a # line inside a code fence doesn't end the block (#1926)", () => {
+	const lines = [
+		"Setup steps:", // target (0)
+		"```bash",
+		"# install deps",
+		"pnpm install",
+		"```", // result (4)
+		"",
+		"## Next",
+	];
+
+	expect(getEndOfSection(lines, 0, false)).toBe(4);
 });
 
 test("getEndOfSection - target is heading, should not consider subsections", () => {
@@ -345,57 +381,35 @@ test("getEndOfSection - target heading with only subsections, should not conside
 	expect(result).toBe(2);
 });
 
+test("getEndOfSection - an empty first section ends at its heading when the next heading follows at once", () => {
+	expect(getEndOfSection(["## Log", "## Next"], 0, false)).toBe(0);
+	// A setext heading spans two lines, so it starts on its text line.
+	expect(getEndOfSection(["## Log", "Next", "---"], 0, false)).toBe(0);
+});
 
-test("getMarkdownHeadings - correctly identifies headings", () => {
+test("getEndOfSection - a setext heading's section ends no earlier than its underline", () => {
+	expect(
+		getEndOfSection(["# Meetings", "", "Alpha", "---", "# Next", "body"], 2, true),
+	).toBe(3);
+	expect(getEndOfSection(["Alpha", "---", "## Next"], 0, false)).toBe(1);
+});
+
+test("getEndOfSection - considering subsections, a section's last line counts when the next heading follows at once (#2029)", () => {
 	const lines = [
-		"# Heading 1",
-		"## Heading 2",
-		"### Heading 3",
-		"#### Heading 4",
-		"##### Heading 5",
-		"###### Heading 6",
-		"Normal text",
-		"#Not a heading",
-		"# Heading with #hash in text",
-		"##Invalid heading",
+		"# Header one", // target (0)
+		"## Pre-existing header",
+		"Pre-existing text", // result (2)
+		"# Header two",
 		"",
-		"  # Heading with leading spaces",
 	];
-
-	const result = getMarkdownHeadings(lines);
-
-	expect(result).toEqual([
-		{ level: 1, text: "Heading 1", line: 0 },
-		{ level: 2, text: "Heading 2", line: 1 },
-		{ level: 3, text: "Heading 3", line: 2 },
-		{ level: 4, text: "Heading 4", line: 3 },
-		{ level: 5, text: "Heading 5", line: 4 },
-		{ level: 6, text: "Heading 6", line: 5 },
-		{ level: 1, text: "Heading with #hash in text", line: 8 },
-	]);
+	expect(getEndOfSection(lines, 0, true)).toBe(2);
+	// The same when the target heading isn't on the first line.
+	expect(getEndOfSection(["intro", "# A", "text", "# B"], 1, true)).toBe(2);
+	expect(getEndOfSection(["Alpha", "===", "text", "# B"], 0, true)).toBe(2);
 });
 
-test("getMarkdownHeadings - handles empty input", () => {
-	const lines: string[] = [];
-
-	const result = getMarkdownHeadings(lines);
-
-	expect(result).toEqual([]);
-});
-
-test("getMarkdownHeadings - correctly ignores Obsidian tags", () => {
-	const lines = [
-		"# Real Heading",
-		"#tag",
-		"#anothertag",
-		"Text with #inline_tag",
-		"## Heading with #tag in it",
-	];
-
-	const result = getMarkdownHeadings(lines);
-
-	expect(result).toEqual([
-		{ level: 1, text: "Real Heading", line: 0 },
-		{ level: 2, text: "Heading with #tag in it", line: 4 },
-	]);
+test("getEndOfSection - the last section of a note without a final line break ends on its last paragraph", () => {
+	const lines = ["# A", "text", "", "last"];
+	expect(getEndOfSection(lines, 0, false)).toBe(3);
+	expect(getEndOfSection(lines, 0, true)).toBe(3);
 });

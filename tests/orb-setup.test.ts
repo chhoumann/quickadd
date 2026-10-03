@@ -113,8 +113,10 @@ exit 0
 		expect(fs.readFileSync(log, "utf8")).not.toContain("test:e2e");
 	});
 
-	it("passes its arguments to Vitest as filters", () => {
-		const instanceName = `orb-args-test-${process.pid}-${Date.now()}`;
+	// Runs run-e2e against a mock pnpm whose start prints this instance's paths
+	// and whose Vitest run reports `ran` passed tests.
+	function runWithMockVitest(name: string, args: string[], ran: number) {
+		const instanceName = `${name}-${process.pid}-${Date.now()}`;
 		const initialRoot = prepareProfileRoot();
 		const home = path.join(profileRoot, instanceName, "home");
 		fs.mkdirSync(home, { recursive: true });
@@ -131,19 +133,38 @@ if [[ "$*" == *"start:e2e-obsidian"* ]]; then
 		echo "export \${prefix}_E2E_OBSIDIAN_HOME='${home}'"
 	done
 fi
+if [[ "$*" == *"test:e2e"* ]]; then
+	for arg in "$@"; do
+		[[ "$arg" == --outputFile.json=* ]] && echo '{"numPassedTests":${ran},"numFailedTests":0}' > "\${arg#--outputFile.json=}"
+	done
+fi
+exit 0
 `, { mode: 0o755 });
 
 		try {
-			const result = spawnSync(runE2E, ["tests/e2e/field-label.test.ts", "-t", "label"], {
+			const result = spawnSync(runE2E, args, {
 				env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
 				encoding: "utf8",
 			});
-			expect(result.status, result.stderr).toBe(0);
-			expect(fs.readFileSync(log, "utf8")).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label\n");
+			return { result, calls: fs.readFileSync(log, "utf8") };
 		} finally {
 			fs.rmSync(vault, { recursive: true, force: true });
 			cleanProfileInstance(instanceName, initialRoot);
 		}
+	}
+
+	it("passes its arguments to Vitest as filters", () => {
+		const { result, calls } = runWithMockVitest("orb-args-test", ["tests/e2e/field-label.test.ts", "-t", "label"], 1);
+		expect(result.status, result.stderr).toBe(0);
+		expect(calls).toContain("\nrun test:e2e tests/e2e/field-label.test.ts -t label --reporter=default --reporter=json --outputFile.json=");
+	});
+
+	// Vitest exits 0 when a -t filter matches no test.
+	it("fails when its arguments match no test", () => {
+		const { result, calls } = runWithMockVitest("orb-no-spec-test", ["tests/e2e/field-label.test.ts", "-t", "no such test"], 0);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("No spec ran");
+		expect(calls).toContain("stop:e2e-obsidian");
 	});
 
 	it("rejects rather than evaluates unexpected start output", () => {

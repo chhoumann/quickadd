@@ -479,9 +479,9 @@ Prompt cancellations already throw `MacroAbortError` and halt macros automatical
 
 **What happens when you call `abort()`:**
 - Macro execution stops immediately
-- A message is logged: "Macro execution aborted: [your message]"
+- QuickAdd shows your message in a notice: "Macro execution aborted: [your message]". A message containing "cancelled by user" counts as a cancellation, so it gets a notice only when **Show input cancellation notifications** (under [**Settings → QuickAdd → Advanced**](/docs/Settings/#advanced-notifications), or the main QuickAdd tab before QuickAdd 2.30.0) is on
 - Remaining commands in the macro are skipped
-- No error is thrown to the user
+- It isn't reported as an error
 
 **QuickAdd API methods that can be cancelled:**
 - `inputPrompt()`
@@ -489,6 +489,8 @@ Prompt cancellations already throw `MacroAbortError` and halt macros automatical
 - `yesNoPrompt()`
 - `suggester()`
 - `checkboxPrompt()`
+- `datePrompt()`
+- `requestInputs()`
 
 Each of these now rejects with `MacroAbortError("Input cancelled by user")` when the user presses Escape or closes the dialog. If you do nothing, the macro will automatically stop (matching user expectations). If you want to handle cancellation in your script, wrap the call in `try/catch` and intercept the error before it reaches the macro engine.
 
@@ -1190,6 +1192,7 @@ For complete working examples, see:
 ## Troubleshooting {#troubleshooting}
 
 **Script not loading:**
+- If QuickAdd says it "could not find" the script, the file was moved, renamed, or deleted, and the macro stops at that step. Update the script's path in the macro
 - Check the file path in your macro configuration
 - Ensure the script exports a valid module
 - Check console for syntax errors

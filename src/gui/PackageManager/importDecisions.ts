@@ -20,7 +20,7 @@ import type {
  */
 
 export type AssetConflict = PackageAnalysis["assetConflicts"][number];
-export type ChoiceConflict = PackageAnalysis["choiceConflicts"][number];
+type ChoiceConflict = PackageAnalysis["choiceConflicts"][number];
 
 export interface AssetDecisionState {
 	mode: AssetImportMode;
@@ -177,7 +177,7 @@ export function setAssetMode(
 	return next;
 }
 
-export interface SetAssetPathResult {
+interface SetAssetPathResult {
 	decisions: AssetDecisions;
 	/** The path whose existence should be reconciled asynchronously. */
 	effectivePath: string;

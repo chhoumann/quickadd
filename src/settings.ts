@@ -93,7 +93,6 @@ export interface QuickAddSettings {
 		confirmToolCalls: "never" | "destructive" | "always";
 	};
 	migrations: {
-		migrateToMacroIDFromEmbeddedMacro: boolean;
 		useQuickAddTemplateFolder: boolean;
 		incrementFileNameSettingMoveToDefaultBehavior: boolean;
 		consolidateFileExistsBehavior: boolean;
@@ -141,15 +140,9 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		providers: DefaultProviders,
 		confirmToolCalls: "destructive",
 	},
+	// Older data.json files may still hold a migrateToMacroIDFromEmbeddedMacro
+	// flag from a removed migration. Nothing reads it; loading keeps it as is.
 	migrations: {
-		/**
-			* @deprecated kept for backward compatibility; always true, ignored.
-			* The migration this flag once gated was a no-op (the data model moved
-			* back to embedded macros) and its file was removed. The key stays so
-			* old data.json files keep parsing; it is excluded from the runner via
-			* Omit in src/migrations/Migrations.ts.
-			*/
-		migrateToMacroIDFromEmbeddedMacro: true,
 		useQuickAddTemplateFolder: false,
 		incrementFileNameSettingMoveToDefaultBehavior: false,
 		consolidateFileExistsBehavior: false,

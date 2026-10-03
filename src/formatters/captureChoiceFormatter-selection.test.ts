@@ -14,7 +14,6 @@ vi.mock("../gui/InputPrompt", () => ({
 		factory() {
 			return {
 				Prompt: promptMock,
-				PromptWithContext: promptMock,
 			} as any;
 		}
 	},
@@ -28,8 +27,6 @@ vi.mock("../main", () => ({
 	__esModule: true,
 	default: class QuickAddMock {},
 }));
-
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
 
 const createFormatter = (
 	selection: string | null,

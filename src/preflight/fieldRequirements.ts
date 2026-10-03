@@ -22,6 +22,7 @@ export interface FieldRequirement {
 	sliderConfig?: SliderConfig;
 	options?: string[]; // for dropdowns and suggesters
 	displayOptions?: string[]; // visible labels for mapped VALUE lists
+	optionAliases?: string[][]; // file-picker: each option's note aliases, also matched
 	// Additional metadata
 	dateFormat?: string; // for VDATE
 	withTime?: boolean; // VDATE |time/|datetime: render a date AND time picker
@@ -32,6 +33,11 @@ export interface FieldRequirement {
 	pathContext?: boolean;
 	/** Prompt at runtime instead of the one-page form when the form has no safe widget. */
 	runtimeOnly?: boolean;
+	/**
+	 * file-picker: a custom value names a new note, so a name a note in the
+	 * field ("scope") or anywhere in the vault ("vault") has is not offered.
+	 */
+	newNoteName?: "scope" | "vault";
 	/** True only when EVERY scanned occurrence of the variable is |optional. */
 	optional?: boolean;
 	suggesterConfig?: {

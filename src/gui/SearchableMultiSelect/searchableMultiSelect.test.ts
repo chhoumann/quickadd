@@ -45,6 +45,23 @@ function search(container: HTMLElement, value: string): void {
 }
 
 describe("SearchableMultiSelect", () => {
+	it("counts one option and one match in the singular", () => {
+		const summary = (container: HTMLElement) =>
+			container.querySelector(".qa-searchable-multi-select__summary")?.textContent;
+		const { container: one } = createPicker([{ key: "alpha", value: "a", label: "Alpha" }]);
+		expect(summary(one)).toBe("0 selected · 1 option");
+
+		const { container } = createPicker([
+			{ key: "alpha", value: "a", label: "Alpha" },
+			{ key: "beta", value: "b", label: "Beta" },
+		]);
+		expect(summary(container)).toBe("0 selected · 2 options");
+		search(container, "alpha");
+		expect(summary(container)).toBe("0 selected · 1 match");
+		search(container, "a");
+		expect(summary(container)).toBe("0 selected · 2 matches");
+	});
+
 	it("keeps selected state while filtering and restores it when the filter clears", () => {
 		const { container, selected } = createPicker(
 			[

@@ -2,7 +2,7 @@
 import type { ICommand } from "../../types/macros/ICommand";
 import { Platform } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
-import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, stripShadow } from "../shared/dndReorder";
+import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
 import { createDragArming } from "../shared/dragArming.svelte";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
@@ -21,7 +21,7 @@ import UserScriptCommand from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { log } from "../../logger/logManager";
-import { loadUserScript } from "src/utilityObsidian";
+import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
@@ -137,6 +137,7 @@ let dragging = $state(false);
 function handleConsider(e: CustomEvent<DndEvent>) {
 	drag.markStarted(); // a genuine drag is underway (see the arming failsafe)
 	dragging = e.detail.info.trigger !== TRIGGERS.DRAG_STOPPED;
+	showDragPillOnStart(e as CustomEvent<DndEvent<ICommand>>, getCommandDisplayName);
 	const items = e.detail.items as ICommand[];
 	placeholderRecovery =
 		capturePlaceholderRecovery(items, e.detail.info.id) ?? placeholderRecovery;
@@ -198,55 +199,54 @@ function moveCommand(id: string, direction: -1 | 1) {
 
 function updateCommand(command: ICommand) {
 	// `renderable` for the same reason as moveCommand: replaceById maps over
-	// `item.id`.
-	commands = replaceById(renderable, command);
+	// `item.id`. A copy, so the row re-renders after an edit made in place on a
+	// step added this session: a class instance, which $state does not proxy.
+	commands = replaceById(renderable, { ...command });
 	persist();
 }
 
-// The conditional handlers open a modal that MUTATES the passed command (its
-// condition / then- / else-commands). Because `command` is a $state proxy, that
-// mutation does NOT write through to the host's commandsRef — so we must persist it
-// here via the same snapshot path as every other edit (updateCommand -> saveCommands).
+// The conditional handlers open a modal or page that MUTATES the passed command
+// (its condition / then- / else-commands). Because `command` is a $state proxy,
+// that mutation does NOT write through to the host's commandsRef - so we must
+// persist it here via the same snapshot path as every other edit
+// (updateCommand -> saveCommands).
 async function configureConditionalCommand(command: IConditionalCommand) {
 	if (await onConfigureCondition?.(command)) updateCommand(command);
 }
 
-async function editConditionalThen(command: IConditionalCommand) {
-	if (await onEditThenBranch?.(command)) updateCommand(command);
+function editConditionalThen(command: IConditionalCommand) {
+	onEditThenBranch?.(command, () => updateCommand(command));
 }
 
-async function editConditionalElse(command: IConditionalCommand) {
-	if (await onEditElseBranch?.(command)) updateCommand(command);
+function editConditionalElse(command: IConditionalCommand) {
+	onEditElseBranch?.(command, () => updateCommand(command));
 }
 
-async function configureChoice(command: INestedChoiceCommand) {
-	const newChoice = await getChoiceBuilder(command.choice)?.waitForClose;
-	if (!newChoice) return;
-
-	// Immutable update (avoids mutating host-owned $state from this component).
-	const updated: INestedChoiceCommand = {
-		...command,
-		choice: newChoice,
-		name: newChoice.name,
+// The step's choice, as a page over the macro. Saved into the list when the page
+// is left, synchronously, so it is in before the macro page saves (BuilderPage).
+function configureChoice(command: INestedChoiceCommand) {
+	const onSave = (newChoice: IChoice) => {
+		// Immutable update (avoids mutating host-owned $state from this component).
+		const updated: INestedChoiceCommand = { ...command, choice: newChoice, name: newChoice.name };
+		updateCommand(updated);
 	};
-	updateCommand(updated);
-}
-
-function getChoiceBuilder(choice: IChoice) {
-	switch (choice.type) {
-		case "Template":
-			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin);
-		case "Capture":
-			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin);
-		case "Macro":
-		case "Multi":
-		default:
-			break;
+	const choice = command.choice;
+	if (choice.type === "Template") {
+		new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave).open();
+	} else if (choice.type === "Capture") {
+		new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave).open();
 	}
 }
 
 async function configureScript(command: IUserScript) {
-	const loaded = await loadUserScript(command, app);
+	let loaded: Awaited<ReturnType<typeof loadUserScript>>;
+	try {
+		loaded = await loadUserScript(command, app);
+	} catch (error) {
+		// Already reported, e.g. "could not find" for a moved script.
+		if (isUserScriptLoadError(error)) return;
+		throw error;
+	}
 	if (!loaded?.script) {
 		log.logWarning(`${command.name} could not be loaded.`);
 		return;

@@ -1,4 +1,4 @@
-import { captureScopeFiles } from "src/engine/helpers/captureCandidates";
+import { captureCandidates, captureScopeFiles } from "src/engine/helpers/captureCandidates";
 import { getQuickAddScriptInputs, toFieldRequirement } from "./scriptInputRequirements";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import type { App } from "obsidian";
@@ -15,20 +15,19 @@ import { dateOriginForPick } from "src/types/dateOriginPresets";
 import type QuickAdd from "src/main";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type IChoice from "src/types/choices/IChoice";
+import { isMacroChoice, isTemplateChoice } from "src/types/choices/choiceType";
 import type IMacroChoice from "src/types/choices/IMacroChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 import type { IUserScript } from "src/types/macros/IUserScript";
 import { shouldLeaveTemplateTitleForDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
-import {
-	getTemplateFile,
-	isFolder,
-	loadUserScript,
-} from "src/utilityObsidian";
+import { getTemplateFile } from "src/utils/templateFolderUtils";
+import { isFolder } from "src/utils/vaultQueries";
 import { log } from "src/logger/logManager";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
+	loadUserScript,
 	type LoadedUserScript,
 } from "src/utils/userScript";
 import { hasTemplatePathSyntax } from "src/utils/templatePathSyntax";
@@ -36,9 +35,6 @@ import {
 	classifyCaptureTargetScope,
 	markdownFilePathForFolderCandidate,
 } from "src/engine/helpers/captureTargetScope";
-import { orderFilesForPicker } from "src/utils/fileOrdering";
-import { buildFileDisplayLabels } from "src/utils/fileSyntax";
-import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { resolveExistingVariableKey } from "src/utils/valueSyntax";
 import { inheritPropertyValueType, untypedPropertyValueVariable } from "src/utils/propertyCaptureFormat";
 import { resolveObsidianPropertyType } from "src/utils/obsidianPropertyTypes";
@@ -54,7 +50,6 @@ import {
 	resolveCaptureTargetVariableKey,
 	unscopedAliasSatisfiesSoleCaptureTarget,
 } from "./captureTargetKey";
-import { isTemplateChoice } from "./macroCommandRole";
 import {
 	buildFormRoster,
 	type DeferredStep,
@@ -148,9 +143,16 @@ async function scanTemplateSource(
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
-	// The template PATH is path context; the template BODY below is content.
+	// The template PATH is path context; the template BODY is content.
 	await collector.scanString(templatePath, true, "templatePath");
+	await scanTemplateBody(app, collector, templatePath);
+}
 
+async function scanTemplateBody(
+	app: App,
+	collector: RequirementCollector,
+	templatePath: string,
+): Promise<void> {
 	if (hasTemplatePathSyntax(templatePath)) {
 		log.logMessage(
 			`Preflight: template path "${templatePath}" uses format syntax; its body's prompts are collected at run time, not in the one-page form.`,
@@ -175,6 +177,23 @@ async function collectForTemplateChoice(
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 
+	// Scanned in the order the run asks: the template path, the folder, the
+	// file name, then the template's content.
+	if (choice.templatePath) {
+		await collector.scanString(choice.templatePath, true, "templatePath");
+	}
+
+	if (choice.folder?.enabled) {
+		for (const folder of choice.folder.folders ?? []) {
+			await scanContentWithTemplateIncludes(
+				app,
+				collector,
+				folder,
+				"folder",
+			);
+		}
+	}
+
 	// Only the ENABLED format is scanned. The engine resolves a disabled one to
 	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
 	// collecting it would also make the non-interactive CLI guard reject runs the
@@ -191,19 +210,8 @@ async function collectForTemplateChoice(
 		);
 	}
 
-	if (choice.folder?.enabled) {
-		for (const folder of choice.folder.folders ?? []) {
-			await scanContentWithTemplateIncludes(
-				app,
-				collector,
-				folder,
-				"folder",
-			);
-		}
-	}
-
 	if (choice.templatePath) {
-		await scanTemplateSource(app, collector, choice.templatePath);
+		await scanTemplateBody(app, collector, choice.templatePath);
 	}
 
 	const format = choice.fileNameFormat?.enabled
@@ -247,12 +255,14 @@ async function collectForCaptureChoice(
 	const knownPropertyType = propertyName && !hasTemplatePathSyntax(propertyName)
 		? resolveObsidianPropertyType(app, propertyName, { registeredOnly: true }) : null;
 	if (choice.format?.enabled || choice.propertyCapture) {
+		collector.valueTakesLines = !!choice.eachLine && !choice.propertyCapture;
 		await scanContentWithTemplateIncludes(
 			app,
 			collector,
 			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
 			choice.propertyCapture ? "propertyValue" : "captureText",
 		);
+		collector.valueTakesLines = false;
 	}
 
 	if (choice.propertyCapture && knownPropertyType === null) {
@@ -309,17 +319,11 @@ async function collectForCaptureChoice(
 	);
 
 	if (captureScope) {
-		const files = captureScopeFiles(app, captureScope);
-
-		const orderedFiles = orderFilesForPicker(
-			files,
-			buildPickerOrderingDeps(app),
-		);
-		const options = orderedFiles.map((file) => file.path);
-		const displayOptions = buildFileDisplayLabels(
-			orderedFiles,
-			(file) => app.metadataCache?.getFileCache(file) ?? null,
-		);
+		const {
+			paths: options,
+			labels: displayOptions,
+			aliases: optionAliases,
+		} = captureCandidates(app, captureScopeFiles(app, captureScope));
 		const allowCreateTarget =
 			choice.createFileIfItDoesntExist?.enabled ?? false;
 		const captureTargetId = captureTargetKeyFor(choice.id);
@@ -334,17 +338,40 @@ async function collectForCaptureChoice(
 				runtimeOnly: true,
 				placeholder: "Type a new note name in the capture target picker",
 			});
-		} else {
+		} else if (options.length === 0) {
 			collector.requirements.set(captureTargetId, {
 				id: captureTargetId,
 				label: "Select capture target file",
 				type: "dropdown",
 				options,
 				displayOptions,
-				placeholder: options.length
-					? undefined
-					: "No files found in target scope",
+				placeholder: "No files found in target scope",
 			});
+		} else {
+			// Searchable, with aliases, like the run's picker. A native dropdown
+			// of every note in scope takes seconds to open in a large folder.
+			collector.requirements.set(captureTargetId, {
+				id: captureTargetId,
+				label: "Select capture target file",
+				type: "file-picker",
+				options,
+				displayOptions,
+				optionAliases,
+				// A typed name is a new note, as in the run's picker. Outside a folder
+				// it must not name any existing note (selectFileFromSet).
+				...(allowCreateTarget ? {
+					suggesterConfig: { allowCustomInput: true },
+					newNoteName: captureScope.kind === "folder" ? "scope" : "vault",
+				} : {}),
+			});
+		}
+		// The run picks the note before it formats anything, so the form lists
+		// the picker first. It is set after the scans above so that no format
+		// token can merge into this reserved id; move the other fields after it.
+		for (const [id, requirement] of [...collector.requirements]) {
+			if (id === captureTargetId) continue;
+			collector.requirements.delete(id);
+			collector.requirements.set(id, requirement);
 		}
 	}
 
@@ -417,10 +444,6 @@ async function collectUserScriptRequirements(
 	return requirements;
 }
 
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
-}
-
 async function collectForMacroChoice(
 	app: App,
 	plugin: QuickAdd,
@@ -473,6 +496,8 @@ async function collectForMacroChoice(
 					(existing.optional ?? false) && (requirement.optional ?? false);
 				if (requirement.pathContext) existing.pathContext = true;
 				if (requirement.runtimeOnly) existing.runtimeOnly = true;
+				// A text area also takes one line, so a field several steps share gets the wider input.
+				if (existing.type === "text" && requirement.type === "textarea") existing.type = "textarea";
 				continue;
 			}
 			merged.set(requirement.id, { ...requirement, group: entry.group });

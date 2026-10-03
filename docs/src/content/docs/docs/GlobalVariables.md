@@ -16,7 +16,7 @@ every choice, every time.
 
 For example, define a snippet named `Signature`:
 
-```text title="Settings → QuickAdd → Global variables"
+```text title="QuickAdd settings → Global variables"
 Name:  Signature
 Value: Logged by QuickAdd on {{DATE:YYYY-MM-DD}}
 ```
@@ -41,7 +41,8 @@ Good places to use one:
 
 ## Define a global variable {#define}
 
-1. Open **Settings → QuickAdd → Global variables**.
+1. Open **Settings → QuickAdd → Advanced → Global variables**. Before QuickAdd
+   2.30.0, **Global variables** is a section of the main QuickAdd tab.
 2. Add a **name** and a **value**. The value is free text and supports all of
    [format syntax](/docs/FormatSyntax/).
 3. That's it - changes save automatically as you type.
@@ -50,7 +51,7 @@ Good places to use one:
 
 :::tip
 In the format fields of a choice's settings, such as **Capture format** or
-**File name format**, type `{{glob` to get suggestions for the variables you've
+**File name**, type `{{glob` to get suggestions for the variables you've
 defined, then pick one to insert it. Use descriptive names,
 and avoid two names that differ only by case.
 :::
@@ -62,7 +63,7 @@ value. It works everywhere QuickAdd formats text:
 
 | Where | Which fields |
 | --- | --- |
-| **Template choice** | File name format, folder paths, template content |
+| **Template choice** | File name, folder paths, template content |
 | **Capture choice** | Target path, content formatting |
 | **Macros** | Inline formatting strings |
 
@@ -78,7 +79,7 @@ A snippet's value can contain any QuickAdd placeholder - `{{VALUE:...}}`,
 inserted, those placeholders run just like they would if you'd typed them
 directly.
 
-```text title="Settings → QuickAdd → Global variables"
+```text title="QuickAdd settings → Global variables"
 Name:  MyProjects
 Value: {{VALUE:Inbox,Work,Personal,Archive}}
 ```

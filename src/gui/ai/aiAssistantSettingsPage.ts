@@ -7,12 +7,10 @@ import type {
 } from "obsidian";
 import type { AIProvider } from "src/ai/Provider";
 import { settingsStore } from "src/settingsStore";
-import { getAllFolderPathsInVault } from "src/utilityObsidian";
 import type { SettingsKey } from "../components/settingsDefinitions";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { populateModelDropdown } from "../modelSelect";
 import { ProviderPickerModal } from "../ProviderPickerModal";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { AIProviderSettingPage } from "./AIProviderSettingPage";
 import {
 	providerEntryNames,
@@ -26,7 +24,7 @@ import { mountSystemPromptLiteralNote } from "./systemPromptLiteralNote";
 export const AI_ASSISTANT_PAGE_NAME = "AI Assistant";
 
 /** "No providers", "1 provider", "2 providers". */
-export function describeProviderCount(count: number): string {
+function describeProviderCount(count: number): string {
 	if (count === 0) return "No providers";
 	return `${count} provider${count === 1 ? "" : "s"}`;
 }
@@ -60,7 +58,7 @@ export function createAIAssistantPage(app: App): SettingDefinitionPage<SettingsK
 		desc: "Providers, models, and defaults for AI commands.",
 		displayValue: () => describeProviderCount(storedProviders().length),
 		visible: () => !settingsStore.getState().disableOnlineFeatures,
-		items: [createProvidersList(app), createDefaultsGroup(app)],
+		items: [createProvidersList(app), createDefaultsGroup()],
 	};
 }
 
@@ -108,15 +106,15 @@ async function confirmRemoveProvider(
 	provider: AIProvider | undefined,
 ): Promise<void> {
 	if (!provider?.id) return;
-	const confirmed = await GenericYesNoPrompt.Prompt(
-		app,
-		`Delete ${provider.name.trim() || "this provider"}?`,
-		"Commands that use its models will need another model.",
-	);
+	const confirmed = await confirmAction(app, {
+		title: `Delete ${provider.name.trim() || "this provider"}?`,
+		message: "Commands that use its models will need another model.",
+		action: "Delete",
+	});
 	if (confirmed) removeProvider(provider.id);
 }
 
-function createDefaultsGroup(app: App): SettingDefinitionGroup<SettingsKey> {
+function createDefaultsGroup(): SettingDefinitionGroup<SettingsKey> {
 	return {
 		type: "group",
 		heading: "Defaults",
@@ -132,7 +130,11 @@ function createDefaultsGroup(app: App): SettingDefinitionGroup<SettingsKey> {
 			{
 				name: "Prompt template folder",
 				desc: "The folder QuickAdd reads prompt templates from.",
-				render: (setting) => renderPromptTemplateFolder(app, setting),
+				control: {
+					type: "folder",
+					key: "ai.promptTemplatesFolderPath",
+					placeholder: "prompts/",
+				},
 			},
 			{
 				name: "Show assistant",
@@ -190,22 +192,6 @@ function renderDefaultModel(setting: Setting): () => void {
 		});
 	});
 	return () => unsubscribe();
-}
-
-function renderPromptTemplateFolder(app: App, setting: Setting): () => void {
-	let suggester: GenericTextSuggester | undefined;
-	setting.addText((text) => {
-		text
-			.setPlaceholder("prompts/")
-			.setValue(settingsStore.getState().ai.promptTemplatesFolderPath)
-			.onChange((value) => updateAISettings({ promptTemplatesFolderPath: value }));
-		suggester = new GenericTextSuggester(
-			app,
-			text.inputEl,
-			getAllFolderPathsInVault(app),
-		);
-	});
-	return () => suggester?.destroy();
 }
 
 function renderDefaultSystemPrompt(setting: Setting): void {

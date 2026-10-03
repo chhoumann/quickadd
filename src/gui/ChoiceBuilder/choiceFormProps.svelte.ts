@@ -7,6 +7,11 @@ export interface ChoiceFormProps<C extends IChoice> {
 	choice: C;
 	app: App;
 	plugin: QuickAdd;
+	/**
+	 * Set by a form that holds input not yet in `choice` (the Template form's
+	 * folder field): writes it into `choice`, leaving the form mounted.
+	 */
+	commitPending?: () => void;
 }
 
 /** Detach live proxies and class instances before making the editable form state.
@@ -15,6 +20,8 @@ export interface ChoiceFormProps<C extends IChoice> {
 export function createChoiceFormProps<C extends IChoice>(
 	initial: ChoiceFormProps<C>,
 ): ChoiceFormProps<C> {
-	const props = $state({ ...initial, choice: snapshot(initial.choice) });
+	// `commitPending` is declared so the form's binding can write it back:
+	// Svelte only writes a bindable prop to a key the props object has.
+	const props = $state({ ...initial, commitPending: undefined, choice: snapshot(initial.choice) });
 	return props;
 }

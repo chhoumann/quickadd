@@ -392,11 +392,11 @@ describe("Template cursor markers in native Obsidian", () => {
 			await typeInto(obsidian, ".modal input", "Planning");
 			await pressKey(obsidian, "Enter");
 			if (rename) {
-				await waitForElement(obsidian, ".qaYesNoPrompt button");
+				await waitForElement(obsidian, ".mod-confirmation .modal-button-container button");
 				expect(await obsidian.dev.evalJson<boolean>(`(() => {
-					const yes = Array.from(document.querySelectorAll(".qaYesNoPrompt button")).find(button => button.textContent.trim() === "Yes");
-					if (!(yes instanceof HTMLButtonElement)) return false;
-					yes.click();
+					const move = Array.from(document.querySelectorAll(".mod-confirmation .modal-button-container button")).find(button => button.textContent.trim() === "Move");
+					if (!(move instanceof HTMLButtonElement)) return false;
+					move.click();
 					return true;
 				})()`)).toBe(true);
 			}

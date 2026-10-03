@@ -13,7 +13,6 @@ import {
 	entriesForContext,
 } from "./formatTokenRegistry";
 
-export type { FormatSuggestContext } from "./formatTokenRegistry";
 
 const CASE_FRAGMENT_REGEX =
 	/^\{\{(VALUE|NAME|DATE|TIME|VDATE)([^\n\r}]*)\|case:([a-z-]*)$/i;

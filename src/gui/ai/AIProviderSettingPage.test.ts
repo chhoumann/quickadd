@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock("src/ai/modelDiscoveryService", () => ({ discoverProviderModels: mocks.discover }));
 vi.mock("../GenericInputPrompt/GenericInputPrompt", () => ({ default: { Prompt: mocks.input } }));
-vi.mock("../GenericYesNoPrompt/GenericYesNoPrompt", () => ({ default: { Prompt: mocks.confirm } }));
+vi.mock("../confirmAction", () => ({ confirmAction: mocks.confirm }));
 
 import { AIProviderSettingPage } from "./AIProviderSettingPage";
 

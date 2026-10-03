@@ -30,24 +30,25 @@ describe("evaluateCondition", () => {
 		expect(result).toBe(true);
 	});
 
-	it("handles missing variables as false", async () => {
-		const condition: VariableCondition = {
-			mode: "variable",
-			variableName: "status",
-			operator: "equals",
-			valueType: "string",
-			expectedValue: "ready",
-		};
-
+	it("treats a variable nothing has set as empty: only is falsy holds, with no warning", async () => {
 		const warnSpy = vi.spyOn(log, "logWarning").mockImplementation(() => {});
+		const operators = [
+			"equals", "notEquals", "lessThan", "lessThanOrEqual", "greaterThan",
+			"greaterThanOrEqual", "contains", "notContains", "isTruthy", "isFalsy",
+		] as const;
+		const results: string[] = [];
+		for (const valueType of ["string", "number", "boolean"] as const) {
+			for (const operator of operators) {
+				const holds = await evaluateCondition(
+					{ mode: "variable", variableName: "status", operator, valueType, expectedValue: "5" },
+					{ variables: {}, evaluateScriptCondition: noopScriptEvaluator },
+				);
+				if (holds) results.push(`${valueType} ${operator}`);
+			}
+		}
 
-		const result = await evaluateCondition(condition, {
-			variables: {},
-			evaluateScriptCondition: noopScriptEvaluator,
-		});
-
-		expect(result).toBe(false);
-		expect(warnSpy).toHaveBeenCalled();
+		expect(results).toEqual(["string isFalsy", "number isFalsy", "boolean isFalsy"]);
+		expect(warnSpy).not.toHaveBeenCalled();
 		warnSpy.mockRestore();
 	});
 

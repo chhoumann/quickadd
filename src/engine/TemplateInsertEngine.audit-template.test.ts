@@ -35,21 +35,14 @@ vi.mock("../formatters/completeFormatter", () => {
 	return { CompleteFormatter: CompleteFormatterMock };
 });
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
-vi.mock("../utilityObsidian", async (importOriginal) => {
-	const actual = await importOriginal<object>();
-	return {
-		...actual,
-		getTemplater: vi.fn(() => ({})),
-		overwriteTemplaterOnce: vi.fn(),
-		templaterParseTemplate: vi.fn(
+vi.mock("../utils/templaterIntegration", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getTemplater: vi.fn(() => ({})),
+	overwriteTemplaterOnce: vi.fn(),
+	templaterParseTemplate: vi.fn(
 			async (_app: unknown, content: string) => content,
 		),
-	};
-});
+}));
 
 import { TFile, type App } from "obsidian";
 import type QuickAdd from "../main";

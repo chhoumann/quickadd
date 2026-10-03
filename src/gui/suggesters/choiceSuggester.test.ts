@@ -2,10 +2,6 @@ import { createChoiceExecutor } from "../../../tests/helpers/createChoiceExecuto
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Notice, prepareFuzzySearch } from "obsidian";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 // Spy on the engine entry while keeping hasConfiguredTemplateFolders real (the
 // constructor's injection gate depends on it).
 vi.mock("../../engine/runTemplateFromFolder", async (importOriginal) => {

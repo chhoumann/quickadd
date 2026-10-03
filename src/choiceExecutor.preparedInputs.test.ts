@@ -18,7 +18,6 @@ import { UserCancelError } from "./errors/UserCancelError";
 
 vi.mock("./gui/choiceList/ChoiceView.svelte", () => ({}));
 vi.mock("./gui/GlobalVariables/GlobalVariablesView.svelte", () => ({}));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 vi.mock("./main", () => ({ __esModule: true, default: class QuickAddMock {} }));
 vi.mock("./quickAddSettingsTab", () => ({ DEFAULT_SETTINGS: {}, QuickAddSettingsTab: class {} }));
 vi.mock("./settingsStore", () => ({
@@ -26,7 +25,7 @@ vi.mock("./settingsStore", () => ({
 }));
 vi.mock("./preflight/runOnePagePreflight", () => ({ runOnePagePreflight: vi.fn() }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({ getFocusedPropertyTarget: () => null }));
-vi.mock("./utilityObsidian", async (importOriginal) => ({
+vi.mock("./utils/fileOpening", async (importOriginal) => ({
 	...await importOriginal<Record<string, unknown>>(),
 	getOpenFileOriginLeaf: () => null,
 }));

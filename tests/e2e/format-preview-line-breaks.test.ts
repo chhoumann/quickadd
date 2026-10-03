@@ -32,7 +32,7 @@ it("keeps the format's line breaks in the Capture format preview", async () => {
 
 		// Rendered lines, counted by the distinct tops of the preview text's boxes.
 		await expect.poll(() => obsidian.dev.evalJson<{ text: string; lines: number } | null>(`(() => {
-			const format = [...document.querySelectorAll('.captureChoiceBuilder textarea[placeholder="Format"]')]
+			const format = [...document.querySelectorAll('.captureChoiceBuilder .qa-field textarea')]
 				.find(el => el.getClientRects().length > 0);
 			const value = [...document.querySelectorAll(".captureChoiceBuilder .qa-preview-value")]
 				.find(el => format && (format.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING));
@@ -47,9 +47,6 @@ it("keeps the format's line breaks in the Capture format preview", async () => {
 		});
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			for (const builder of document.querySelectorAll(".captureChoiceBuilder")) {
-				[...builder.querySelectorAll("button.mod-cta")].find(b => b.textContent?.trim() === "Done")?.click();
-			}
 			app.setting?.close?.();
 			return true;
 		})()`);

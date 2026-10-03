@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
 	type AppendLinkOptions,
 	type LinkPlacement,
-	isAppendLinkEnabled,
 	isAppendLinkOptions,
 	normalizeAppendLinkOptions,
 	placementSupportsEmbed,
@@ -149,21 +148,6 @@ describe("LinkPlacement", () => {
 			expect(normalizeAppendLinkOptions(options).frontmatterHandling).toBe(
 				"alwaysAppend",
 			);
-		});
-	});
-
-	describe("isAppendLinkEnabled", () => {
-		it("should return enabled value from AppendLinkOptions", () => {
-			const enabledOptions: AppendLinkOptions = linkOptions({ placement: "endOfLine" });
-			const disabledOptions: AppendLinkOptions = linkOptions({ enabled: false });
-
-			expect(isAppendLinkEnabled(enabledOptions)).toBe(true);
-			expect(isAppendLinkEnabled(disabledOptions)).toBe(false);
-		});
-
-		it("should return boolean value directly", () => {
-			expect(isAppendLinkEnabled(true)).toBe(true);
-			expect(isAppendLinkEnabled(false)).toBe(false);
 		});
 	});
 

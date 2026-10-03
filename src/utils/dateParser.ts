@@ -4,7 +4,7 @@ import { settingsStore } from "../settingsStore";
 import type { DateAliasMap } from "./dateAliases";
 import { normalizeDateInput } from "./dateAliases";
 
-export interface ParsedDate {
+interface ParsedDate {
 	isValid: boolean;
 	isoString?: string;
 	formatted?: string;

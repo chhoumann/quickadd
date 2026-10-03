@@ -34,24 +34,6 @@
 	margin-bottom: 10px;
 }
 
-.choiceNameHeader {
-	text-align: center;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-}
-
-.choiceNameHeader:hover {
-	cursor: pointer;
-}
-
-.choiceNameHeaderIcon {
-	display: inline-flex;
-	align-items: center;
-	opacity: 0.5;
-}
-
 /* Keyboard-operable rename affordance inside a modal <h2> title (#1250). Resets
    the native <button> chrome so it reads as the heading text it replaced. Doubled
    selector (0,2,0) so theme `.modal button` rules can't re-skin the title. */
@@ -72,13 +54,6 @@
 	border-radius: var(--radius-s, 4px);
 }
 
-/* The choice-builder title button also lays out its label + pencil icon. */
-.choiceNameHeaderButton {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-}
-
 .folderInputContainer {
 	display: flex;
 	align-content: center;
@@ -95,8 +70,8 @@
 }
 
 /* Pinned footer: a `.qa-modal-footer` appended to `modalEl`, as a sibling of
-   `.modal-content`, stays in view while the content scrolls. Used by the choice
-   builders' autosave footer (#1545) and the one-page form's actions (#1910).
+   `.modal-content`, stays in view while the content scrolls. Used by the
+   one-page form's actions (#1910).
    Core already lays `.modal` out as a flex column with `.modal-content` as the
    growing item, so moving the scrollport onto the content is all it takes —
    which also pins the absolutely-positioned close button. Core's own
@@ -166,42 +141,74 @@
 	padding-right: var(--safe-area-inset-right);
 }
 
-/* Keep the phone footer's buttons clear of the home indicator. */
+/* Keep the phone footer's buttons clear of the home indicator. While the
+   keyboard is up Obsidian sets the inset to the keyboard's height, which the
+   container below already leaves out. */
 .is-phone .quickAddModal .modal > .qa-modal-footer {
-	padding-bottom: max(var(--size-4-4), var(--safe-area-inset-bottom));
+	padding-bottom: max(var(--size-4-4), calc(var(--safe-area-inset-bottom) - var(--keyboard-height)));
 }
 
-.quickAddModal.qa-choice-builder .qa-builder-footer {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--size-4-2);
+/* On a phone the keyboard covers the bottom of the screen, so a dialog sits in
+   the space above it, below the status bar, with its buttons and the field
+   being typed in visible. Core's phone height is 100vh minus the top inset;
+   with the keyboard down all three lines change nothing. */
+.is-phone .modal-container.quickAddModal {
+	--dialog-max-height: calc(100vh - var(--keyboard-height) - var(--safe-area-inset-top));
+	bottom: var(--keyboard-height);
+	padding-top: min(var(--keyboard-height), var(--safe-area-inset-top));
 }
 
-.quickAddModal.qa-choice-builder .qa-builder-footer-note {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
+/* Settings pages run under the keyboard, with room to scroll past it, so a
+   builder page's focused field scrolls into view above the keyboard. */
+.is-phone .setting-page.qa-builder-page {
+	scroll-padding-bottom: calc(var(--keyboard-height) + var(--size-4-4));
 }
 
-/* Full-width labelled field (LabeledField.svelte): the `.setting-item` carries
-   the name/description, the body carries the field itself. Obsidian zeroes a
-   `.setting-item`'s border-top and padding-top when it is `:first-child` of its
-   parent — which it always is here — so the wrapper takes over the row separator
-   and the group's outer rhythm. The inner row keeps Obsidian's own padding-bottom,
-   and that is what separates the label from the field beneath it. */
-.quickAddModal .qa-field {
-	border-top: var(--border-width) solid var(--background-modifier-border);
-	padding: var(--size-4-4) 0;
+/* On a phone the settings header floats over the page: its background is a
+   mask that fades out from 20% of its height, so text scrolled under it shows
+   behind the title and the buttons. A builder page scrolls a field up to the
+   keyboard, which often lands a row name there. Keep the header solid through
+   its own height (100% of the 130%-tall background) and fade below it. */
+.is-phone .modal.mod-settings:has(.qa-builder-page) .modal-header::after {
+	mask: linear-gradient(to bottom, black 77%, transparent);
 }
 
-/* The wrapper also breaks Obsidian's `.setting-item + .setting-item-heading`
-   sibling rule, so restore the group spacing above a following section heading. */
-.quickAddModal .qa-field + .setting-item-heading {
-	margin-top: 0.75em;
+/* A prompt taller than that space scrolls; its buttons stay in view. */
+.is-phone .quickAddModal .modal-content .qa-prompt-actions {
+	position: sticky;
+	bottom: calc(-1 * var(--size-4-4));
+	/* Covers the content's bottom padding, so the layout is unchanged. */
+	padding-bottom: var(--size-4-4);
+	margin-bottom: calc(-1 * var(--size-4-4));
+	background: var(--modal-background);
 }
 
-/* The last element in the body owns the wrapper's bottom padding. */
-.quickAddModal .qa-field-body > *:last-child {
+/* Full-width labelled field (LabeledField.svelte): a `.setting-item` row whose
+   field wraps onto its own line under the name. On a phone Obsidian lays rows
+   out as a column, where the field just needs the width. */
+.setting-item.qa-field {
+	flex-wrap: wrap;
+}
+
+.setting-item.qa-field > .qa-field-body {
+	flex: none;
+	width: 100%;
+	min-width: 0;
+}
+
+/* Wrapping would let a long description take the whole first line and push
+   the row's control under it. The description takes what the control leaves. */
+body:not(.is-phone) .setting-item.qa-field > .setting-item-info {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
+	flex: 0 0 auto;
+}
+
+/* The last element in the body owns the row's bottom padding. */
+.qa-field-body > *:last-child {
 	margin-bottom: 0;
 }
 
@@ -416,11 +423,12 @@
 	font-size: var(--font-ui-small);
 }
 
+/* A long name wraps rather than being cut: the chip is the only place the
+   picked note is named. */
 .quickAddModal .qa-onepage-file-picker__chip-label {
 	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
+	text-align: start;
 }
 
 .quickAddModal .qa-onepage-file-picker__remove {
@@ -438,6 +446,13 @@
 	font-size: 1rem;
 	line-height: 1;
 	cursor: pointer;
+}
+
+/* On phones Obsidian stretches every button in a modal's setting control to
+   full width with 10px padding, which leaves the note's name a few letters. */
+.is-phone .quickAddModal .setting-item-control button.qa-onepage-file-picker__remove {
+	width: 1.4rem;
+	padding: 0;
 }
 
 .quickAddModal .qa-onepage-file-picker__remove:hover,
@@ -467,6 +482,12 @@
 .qa-onepage-file-suggestion__path {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
+}
+
+/* Bold only, as in the run's picker: the ellipsis hides a cut-off match's
+   text but not its background. */
+.qa-onepage-file-suggestion__text .qa-highlight {
+	background-color: transparent;
 }
 
 .quickAddModal .qa-onepage-slider {
@@ -938,87 +959,6 @@
 	white-space: nowrap;
 }
 
-/* Multi-folder list for the "Template folder paths" setting. The setting row
-   stacks vertically so the label/description sit above a full-width list, which
-   keeps long paths readable and scales to many folders without crowding the
-   narrow control column. */
-.qa-template-folders-setting {
-	display: block;
-}
-
-.qa-template-folders-setting .setting-item-control {
-	margin-top: 12px;
-	justify-content: flex-start;
-}
-
-.qa-template-folders {
-	width: 100%;
-}
-
-.qa-template-folder-list {
-	max-height: 300px;
-	overflow-y: auto;
-}
-
-.qa-template-folder-row {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 6px 4px;
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.qa-template-folder-name {
-	/* flex + min-width:0 let the name shrink so the ellipsis triggers instead of
-	   pushing the remove control off the row. */
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.qa-template-folder-empty {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	padding: 6px 4px;
-}
-
-.qa-template-folder-input-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-top: 12px;
-}
-
-.qa-template-folder-input {
-	flex: 1 1 auto;
-}
-
-/* Mobile: comfortable touch targets and full-path readability (no hover there).
-   Grow the remove control to the 44px tap-target minimum, let long paths wrap
-   instead of truncating behind an unreachable tooltip, and stack the input above
-   a full-width Add button so the path field gets the whole row. */
-.is-mobile .qa-template-folder-row {
-	min-height: 44px;
-}
-
-.is-mobile .qa-template-folder-row .clickable-icon {
-	width: 44px;
-	height: 44px;
-}
-
-.is-mobile .qa-template-folder-name {
-	white-space: normal;
-	overflow-wrap: anywhere;
-}
-
-.is-mobile .qa-template-folder-input-row {
-	flex-direction: column;
-	align-items: stretch;
-}
-
 .quickAddModal .qa-modal-title,
 .quickAddModal .qa-clickable-modal-title,
 .qa-modal-title,
@@ -1205,16 +1145,38 @@
 	margin-right: 1em;
 }
 
-/* The command editor renders into its own wrapper, so its last row ("Choices")
-   matches Obsidian's modal `.setting-item:last-child { padding-bottom: 0 }` even
-   though the Macro builder's own settings follow it. Restore the row padding so
-   its description doesn't touch the next divider. Scoped to the Macro builder:
-   in the branch editor the command editor really is last (buttons follow).
-   Selector specificity must beat Obsidian's (0,5,0) rule. */
-.quickAddModal.macroBuilder
-	.macroBuilder__editor
-	> .setting-item:not(.setting-item-heading):last-child {
-	padding-bottom: var(--size-4-4);
+/* On phones Obsidian makes every input and button in a modal's setting control
+   full width, so the row's input and its Add button split it and the input's
+   placeholder is cut mid-word. Give the input the room and the buttons their
+   own width. */
+.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > .qa-command-sequence-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.is-phone .quickAddModal .setting-item-control:has(> .qa-command-sequence-input) > button:not(.clickable-icon) {
+	flex: 0 0 auto;
+	width: auto;
+}
+
+/* The command editor in a settings group card (the Macro and branch pages):
+   the quick-command bar sits inside the card's padding, like the rows. */
+.setting-group .quickAddCommandEditor > .quickCommandContainer {
+	padding: 0 var(--setting-items-padding-x);
+	margin-bottom: var(--setting-items-padding-y);
+}
+
+/* With no steps the list is hidden, and its padding with it. */
+.setting-group .quickAddCommandEditor:has(.quickAddCommandList.is-empty) > .quickCommandContainer {
+	padding-top: var(--setting-items-padding-y);
+}
+
+/* A phone's card is too narrow for the bar's buttons at their own width;
+   they share the row instead. The inline padding is a minimum: the buttons
+   grow into the row, and with AI on all six fit at 390px. */
+.is-phone .setting-group .quickAddCommandEditor > .quickCommandContainer > button {
+	flex: 1 1 auto;
+	padding-inline: var(--size-4-1);
 }
 
 .qa-hidden {
@@ -1522,7 +1484,8 @@
 	width: min(42rem, calc(100vw - var(--size-4-8)));
 	min-width: min(35rem, calc(100vw - var(--size-4-8)));
 	max-width: calc(100vw - var(--size-4-8));
-	max-height: min(80vh, 48rem);
+	/* --dialog-max-height leaves out a phone's keyboard (desktop: 85vh). */
+	max-height: min(80vh, 48rem, var(--dialog-max-height));
 	overflow: hidden;
 }
 
@@ -1586,24 +1549,41 @@
 	contain-intrinsic-size: auto var(--input-height);
 }
 
-.qa-searchable-multi-select__option:hover {
+/* The checkbox shows what is selected, as in Obsidian's own lists. The row with
+   keyboard focus is shaded like a hovered one; the checkbox draws its own ring. */
+.qa-searchable-multi-select__option:hover,
+.qa-searchable-multi-select__option:has(:focus-visible) {
 	background: var(--background-modifier-hover);
 }
 
-.qa-searchable-multi-select__option.is-selected {
-	background: var(--background-modifier-hover);
-	box-shadow: inset 3px 0 var(--interactive-accent);
-}
-
-.qa-searchable-multi-select__option:focus-within {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
+.qa-searchable-multi-select__option-text {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	gap: 0.125rem;
+	min-width: 0;
 }
 
 .qa-searchable-multi-select__option-label {
 	min-width: 0;
 	overflow-wrap: anywhere;
 	line-height: var(--line-height-tight);
+}
+
+.qa-searchable-multi-select__option-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	overflow-wrap: anywhere;
+}
+
+.qa-searchable-multi-select__option-flair {
+	display: flex;
+	flex: 0 0 auto;
+	margin-top: 2px;
+	color: var(--text-muted);
+	opacity: var(--icon-opacity);
+	--icon-size: var(--icon-s);
+	--icon-stroke: var(--icon-s-stroke-width);
 }
 
 .qa-searchable-multi-select__option input[type="checkbox"] {
@@ -1870,20 +1850,18 @@
 	flex: 1;
 }
 
+/* The margin keeps the next row's top rule off the list's border. */
 .qaMultiSuggester .qa-multi-list {
 	display: flex;
 	flex: 1 1 auto;
 	flex-direction: column;
 	min-height: 0;
+	margin-bottom: var(--size-4-2);
 }
 
 .qaMultiSuggester .qa-multi-custom,
 .qaMultiSuggester .qa-multi-actions {
 	flex: 0 0 auto;
-}
-
-.qaMultiSuggester .qa-multi-custom {
-	margin-top: var(--size-4-2);
 }
 
 /* Priority indicators - subtle left border */
@@ -2165,7 +2143,9 @@ body.is-mobile .multiChoiceListItemName {
    toggles inline on the same device. Restore the native inline layout for
    rows whose ONLY control is a checkbox - :only-child keeps mixed rows
    (e.g. toggle + dropdown in the insert-after fields) on the stacked
-   layout, where inline would squeeze them. */
+   layout, where inline would squeeze them. In the settings window the
+   control still grows next to a short name, so the toggle goes to its end,
+   as on Obsidian's own toggle rows. */
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) {
 	flex-direction: row;
 	align-items: center;
@@ -2174,6 +2154,7 @@ body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .check
 body.is-mobile .quickAddModal .setting-item:has(> .setting-item-control > .checkbox-container:only-child) > .setting-item-control {
 	width: auto;
 	margin-top: 0;
+	justify-content: flex-end;
 }
 
 /* Reveal the per-row actions on intent (hover / keyboard focus in the row).
@@ -2275,15 +2256,16 @@ body:not(.is-mobile)
 }
 
 /* The pill: content-width, vertically centred on the grab Y (top:50%) and anchored
-   ~at the cursor (left:100% = clone's right edge ≈ handle; nudged 12px left so the
-   grip lands on the cursor). It extends right; the clone is position:fixed so it's
-   never clipped by the settings panel's overflow. */
+   at the clone's right edge, so the grip, drawn last by row-reverse, sits over the
+   handle. It extends left, over the row: the handle is at the right edge of the
+   row and often of the window too (Settings window, phones). */
 #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 	position: absolute;
-	left: 100%;
+	right: 0;
 	top: 50%;
-	transform: translate(-12px, -50%);
+	transform: translateY(-50%);
 	display: inline-flex;
+	flex-direction: row-reverse;
 	align-items: center;
 	gap: 6px;
 	max-width: 260px;
@@ -2297,6 +2279,15 @@ body:not(.is-mobile)
 	line-height: 1.2;
 	white-space: nowrap;
 	cursor: grabbing;
+}
+
+/* In a right-to-left UI the handle is at the row's left edge, so anchor the pill
+   there and grow it right. The clone lives in <body>, which stays LTR even then, so
+   logical properties can't do this. */
+body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
+	right: auto;
+	left: 0;
+	flex-direction: row;
 }
 
 #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill-label {

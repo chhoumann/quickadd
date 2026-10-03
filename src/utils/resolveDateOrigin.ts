@@ -4,7 +4,7 @@ import { isPickDateToken } from "../types/dateOriginPresets";
 import { parseNaturalLanguageDate } from "./dateParser";
 import { resolveExistingVariableKey } from "./valueSyntax";
 
-export type DateOriginPlan =
+type DateOriginPlan =
 	| { status: "inherit" }
 	| { status: "set"; date: Date }
 	| { status: "ask"; defaultValue?: string }
@@ -96,10 +96,6 @@ export function planDateOrigin(input: {
 		};
 	}
 	return { status: "set", date };
-}
-
-export function parseDateOriginInput(input: string): Date | undefined {
-	return dateFromStoredValue(input);
 }
 
 export function applyInvocationDate(

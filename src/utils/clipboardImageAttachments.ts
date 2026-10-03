@@ -51,7 +51,7 @@ export function sanitizeClipboardImageStem(stem: string): string {
 		.trim();
 }
 
-export interface ClipboardImageFileNameInput {
+interface ClipboardImageFileNameInput {
 	extension: string;
 	sourcePath: string;
 	now: Date;
@@ -101,24 +101,7 @@ export function droppedImageStem(originalName: string): string | null {
 	return isPortablePathSegment(stem) ? stem : null;
 }
 
-export function droppedImageFilename(
-	originalName: string,
-	mimeType: string,
-	now: Date,
-): string {
-	if (!isSupportedImageMime(mimeType)) {
-		throw new Error(`Unsupported image type: ${mimeType}`);
-	}
-
-	const stem = droppedImageStem(originalName);
-	if (stem === null) {
-		return clipboardImageFilename(mimeType, now);
-	}
-
-	return `${stem}.${IMAGE_CLIPBOARD_MIME_EXTENSIONS[mimeType]}`;
-}
-
-export interface SaveClipboardImageOptions {
+interface SaveClipboardImageOptions {
 	nameAfterNoteTitle?: boolean;
 	now?: Date;
 }

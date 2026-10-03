@@ -1,5 +1,4 @@
 import type { App, TFile } from "obsidian";
-import { DataviewIntegration } from "./DataviewIntegration";
 import { FieldSuggestionFileFilter } from "./FieldSuggestionFileFilter";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import type { FieldFilter } from "./FieldSuggestionParser";
@@ -80,25 +79,6 @@ export async function collectFieldValuesRaw(
 	if (normalizedFieldName === "tags" || normalizedFieldName === "tag") {
 		const tagValues = await collectTagValues(app, filters);
 		if (tagValues.size > 0) return tagValues;
-	}
-
-	// Try Dataview when allowed; fall back to manual collection. Dataview's query
-	// builder can't express exclude-file, but getFieldValuesWithFilter now applies
-	// it by dropping excluded files' rows, so the Dataview path is kept (with its
-	// richer value parsing — comma-splitting, link/file objects) even when an
-	// exclude-file filter is present. Only the inline path still bypasses Dataview
-	// (inline fields aren't in Dataview's metadata).
-	try {
-		if (!filters.inline && DataviewIntegration.isAvailable(app)) {
-			const dvValues = await DataviewIntegration.getFieldValuesWithFilter(
-				app,
-				fieldName,
-				filters,
-			);
-			if (dvValues.size > 0) return dvValues;
-		}
-	} catch {
-		// ignore and fall back
 	}
 
 	return await collectFieldValuesManually(app, fieldName, filters);
@@ -208,7 +188,7 @@ async function collectFieldValuesManually(
 			addValues(values, field);
 		}
 		if (filters.inline) {
-			const content = await app.vault.read(file);
+			const content = await app.vault.cachedRead(file);
 			addValues(values, [...InlineFieldParser.getFieldValues(content, fieldName, {
 				includeCodeBlocks: filters.inlineCodeBlocks,
 			})]);

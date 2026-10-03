@@ -30,17 +30,18 @@ import {
 } from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
 import InputSuggester from "../InputSuggester/inputSuggester";
 import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
+import { buildFileDisplayInfos } from "../../utils/fileSyntax";
 import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { settingsStore } from "../../settingsStore";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
-import { getUserScriptMemberAccess } from "../../utilityObsidian";
+import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 import {
@@ -49,15 +50,20 @@ import {
 } from "../../utils/macroUtils";
 import DataUnreadable from "../svelte/DataUnreadable.svelte";
 
-type ConditionalHandler = (command: IConditionalCommand) => Promise<boolean>;
+/**
+ * Opens a branch's commands as a page. Mutates the command when the page is
+ * left and then calls `onEdited`, synchronously, so the edit is saved before
+ * the page under it saves (see BuilderPage).
+ */
+type BranchHandler = (command: IConditionalCommand, onEdited: () => void) => void;
 
 export interface CommandSequenceEditorConditionalHandlers {
-	configureCondition?: ConditionalHandler;
-	editThenBranch?: ConditionalHandler;
-	editElseBranch?: ConditionalHandler;
+	configureCondition?: (command: IConditionalCommand) => Promise<boolean>;
+	editThenBranch?: BranchHandler;
+	editElseBranch?: BranchHandler;
 }
 
-export interface CommandSequenceEditorOptions {
+interface CommandSequenceEditorOptions {
 	app: App;
 	plugin: QuickAdd;
 	/**
@@ -97,7 +103,7 @@ export class CommandSequenceEditor {
 		this.plugin = options.plugin;
 		// data.json is untrusted, so the value arrives raw and is made editable
 		// here — the one seam every host that shows a command list goes through
-		// (MacroBuilder, ConditionalBranchEditorModal). Normalizing keeps a
+		// (MacroBuilder, ConditionalBranchEditorPage). Normalizing keeps a
 		// duplicate-id or id-less command under a fresh uuid instead of letting
 		// the keyed {#each} throw and cost the user the whole editor (#1593).
 		// Nothing is persisted by this: the repair reaches disk only with the
@@ -115,7 +121,7 @@ export class CommandSequenceEditor {
 	/**
 	 * @returns whether the editor is fully usable. False means the command list is
 	 * showing a card instead, and the host must not commit `commandsRef` anywhere
-	 * (see ConditionalBranchEditorModal's Save button).
+	 * (see ConditionalBranchEditorPage.result).
 	 */
 	public render(containerEl: HTMLElement): boolean {
 		this.destroy();
@@ -197,11 +203,11 @@ export class CommandSequenceEditor {
 					throw new Error("command not found");
 				}
 
-				const promptAnswer: boolean = await GenericYesNoPrompt.Prompt(
-					this.app,
-					"Are you sure you wish to delete this command?",
-					`If you click yes, you will delete '${command.name}'.`
-				);
+				const promptAnswer = await confirmAction(this.app, {
+					title: `Delete '${command.name}'?`,
+					message: "The command will be removed from this macro.",
+					action: "Delete",
+				});
 				if (!promptAnswer) return;
 
 				const secretsCleared = await clearUserScriptSecretsFromCommand(
@@ -280,6 +286,7 @@ export class CommandSequenceEditor {
 
 		const addObsidianCommandFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const obsidianCommand = this.obsidianCommands.find((v) => v.name === value);
 
 			if (!obsidianCommand) {
@@ -318,6 +325,7 @@ export class CommandSequenceEditor {
 		let dropdownComponent: DropdownComponent;
 
 		const addEditorCommandFromDropdown = () => {
+			if (!dropdownComponent.getValue()) return;
 			const Command = editorCommands.get(dropdownComponent.getValue());
 			if (!Command) {
 				log.logError("invalid editor command type");
@@ -425,6 +433,7 @@ export class CommandSequenceEditor {
 
 		const addChoiceFromInput = () => {
 			const value: string = input.getValue();
+			if (!value.trim()) return;
 			const choice = this.choices.find((c) => c.name === value);
 			if (!choice) {
 				new Notice(`QuickAdd: No choice named "${value}".`);
@@ -506,18 +515,26 @@ export class CommandSequenceEditor {
 		}
 
 		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
-		// Rows show the name with the full path beneath it, and search matches the
-		// path, so same-named scripts in different folders can be told apart.
+		// Rows show the name (a note's title or heading) with the full path beneath
+		// it, and search matches both, so same-named scripts in different folders
+		// can be told apart and a note is found by the name its row shows.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
 		const labels = candidateLabels(this.scriptCandidates);
+		const titles = buildFileDisplayInfos(
+			this.scriptCandidates.map((c) => c.file),
+			(file) => this.app.metadataCache.getFileCache(file),
+		);
 		const selectedPath = await InputSuggester.Suggest(
 			this.app,
 			labels,
 			paths,
 			{
 				placeholder: "Select a script (.js file or note with a ```js block)",
-				renderItem: (path, el) => renderNotePathSuggestion(el, path, this.app),
-				searchItems: paths,
+				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
+					matches,
+					pathOffset: titles[paths.indexOf(path)].primary.length + 1,
+				}),
+				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
 				allowCustomValue: false,
 			}
 		);
@@ -538,7 +555,7 @@ export class CommandSequenceEditor {
 	}
 
 	private addCommand(command: ICommand) {
-		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorModal) track
+		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorPage) track
 		// changes via onCommandsChange, not in-place mutation of the passed array.
 		this.commandsRef = [...this.commandsRef, command];
 		this.emitCommandsChanged();

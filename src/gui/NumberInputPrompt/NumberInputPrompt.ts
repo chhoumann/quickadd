@@ -14,7 +14,7 @@ import { normalizeNumericValue } from "../../utils/valueSyntax";
  * raw-inline, which Obsidian already infers as a Number.
  *
  * Mirrors {@link GenericWideInputPrompt}: each prompt class owns a static
- * `Prompt`/`PromptWithContext` that constructs ITS OWN type, because the base
+ * `Prompt` that constructs ITS OWN type, because the base
  * `GenericInputPrompt.Prompt` hardcodes `new GenericInputPrompt`.
  */
 export default class NumberInputPrompt extends GenericInputPrompt {
@@ -34,28 +34,6 @@ export default class NumberInputPrompt extends GenericInputPrompt {
 			header,
 			placeholder,
 			value,
-			undefined,
-			description,
-			options,
-		);
-		return modal.waitForClose;
-	}
-
-	public static PromptWithContext(
-		app: App,
-		header: string,
-		placeholder?: string,
-		value?: string,
-		linkSourcePath?: string,
-		description?: string,
-		options?: InputPromptOptions,
-	): Promise<string> {
-		const modal = new NumberInputPrompt(
-			app,
-			header,
-			placeholder,
-			value,
-			linkSourcePath,
 			description,
 			options,
 		);

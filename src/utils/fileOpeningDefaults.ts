@@ -7,7 +7,7 @@ export type FileOpeningSettings = {
 	focus: boolean;
 };
 
-export const DEFAULT_FILE_OPENING: FileOpeningSettings = {
+const DEFAULT_FILE_OPENING: FileOpeningSettings = {
 	location: "tab",
 	direction: "vertical",
 	mode: "default",

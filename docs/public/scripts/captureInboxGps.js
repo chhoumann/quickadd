@@ -40,7 +40,10 @@ async function start(params, settings) {
 
 	const existing = params.app.vault.getAbstractFileByPath(inboxPath);
 	if (existing instanceof TFile) {
-		await params.app.vault.append(existing, line);
+		// Other captures and the editor leave the last line unterminated.
+		await params.app.vault.process(existing, (data) =>
+			data === "" || data.endsWith("\n") ? data + line : `${data}\n${line}`,
+		);
 	} else if (existing) {
 		new Notice(`QuickAdd: ${inboxPath} is a folder, not a note`);
 		return;

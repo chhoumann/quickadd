@@ -2,9 +2,10 @@ import { Notice, type App } from "obsidian";
 import type { ChoiceType } from "src/types/choices/choiceType";
 import { CaptureChoiceBuilder } from "../gui/ChoiceBuilder/captureChoiceBuilder";
 import { TemplateChoiceBuilder } from "../gui/ChoiceBuilder/templateChoiceBuilder";
-import GenericYesNoPrompt from "../gui/GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../gui/confirmAction";
 import { MacroBuilder } from "../gui/MacroGUIs/MacroBuilder";
-import { MultiChoiceSettingsModal } from "../gui/MultiChoiceSettingsModal";
+import { MultiChoiceBuilder } from "../gui/MultiChoiceBuilder";
+import { snapshot } from "../gui/svelte/persist.svelte";
 import type QuickAdd from "../main";
 import { settingsStore } from "../settingsStore";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
@@ -201,36 +202,33 @@ async function buildSecretOptionNamesByPath(
 }
 
 /**
- * Get the appropriate builder for a choice
+ * The builder page for a choice, not yet open. It hands the edited choice to
+ * `onSave` when it saves.
  */
 export function getChoiceBuilder(
 	choice: IChoice,
 	app: App,
 	plugin: QuickAdd,
-): TemplateChoiceBuilder | CaptureChoiceBuilder | MacroBuilder | undefined {
-	type Builder =
-		| TemplateChoiceBuilder
-		| CaptureChoiceBuilder
-		| MacroBuilder
-		| undefined;
-
-	const builderFactory: Record<ChoiceType, () => Builder> = {
-		Template: () =>
-			new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin),
-		Capture: () =>
-			new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin),
-		Macro: () =>
-			new MacroBuilder(
+	onSave: (choice: IChoice) => void,
+): { open(): boolean } {
+	switch (choice.type) {
+		case "Template":
+			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave);
+		case "Capture":
+			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave);
+		case "Macro":
+			return new MacroBuilder(
 				app,
 				plugin,
 				choice as IMacroChoice,
 				settingsStore.getState().choices,
-			),
-		Multi: () => undefined,
-	};
-
-	const creator = builderFactory[choice.type];
-	return typeof creator === "function" ? creator() : undefined;
+				onSave,
+			);
+		case "Multi":
+			return new MultiChoiceBuilder(app, choice as IMultiChoice, onSave);
+		default:
+			throw new Error("Invalid choice type");
+	}
 }
 
 /**
@@ -299,11 +297,11 @@ export async function deleteChoiceWithConfirmation(
 		.filter(Boolean)
 		.join(" ");
 
-	const userConfirmed = await GenericYesNoPrompt.Prompt(
-		app,
-		`Delete ${choiceNoun(choice.type)}`,
-		body,
-	);
+	const userConfirmed = await confirmAction(app, {
+		title: `Delete ${choiceNoun(choice.type)}`,
+		message: body,
+		action: "Delete",
+	});
 
 	if (!userConfirmed) return false;
 
@@ -324,30 +322,25 @@ export async function deleteChoiceWithConfirmation(
 }
 
 /**
- * Configure a choice through its builder
+ * Open a choice's builder as a page of Settings → QuickAdd. Each time it
+ * saves (when it is left, and when the app goes to the background), `onSave`
+ * gets the edited choice and the choice as of the previous save, or as the
+ * builder opened it: after it filled in missing fields, so those don't count
+ * as edits. Returns false if the page could not open.
  */
-export async function configureChoice(
+export function configureChoice(
 	choice: IChoice,
 	app: App,
 	plugin: QuickAdd,
-): Promise<IChoice | undefined> {
-	if (choice.type === "Multi") {
-		try {
-			return await new MultiChoiceSettingsModal(
-				app,
-				choice as IMultiChoice,
-			).waitForClose;
-		} catch {
-			return undefined;
-		}
-	}
-
-	const builder = getChoiceBuilder(choice, app, plugin);
-	if (!builder) {
-		throw new Error("Invalid choice type");
-	}
-
-	return await builder.waitForClose;
+	onSave: (edited: IChoice, base: IChoice) => void,
+): boolean {
+	const builder = getChoiceBuilder(choice, app, plugin, (edited) => {
+		const saved = snapshot(edited);
+		onSave(saved, base);
+		base = saved;
+	});
+	let base: IChoice = snapshot(choice);
+	return builder.open();
 }
 
 /**

@@ -16,7 +16,7 @@ import {
 import { previewSelection } from "./peekText";
 import { hasVisiblePrompt } from "./visiblePrompts";
 
-export type PromptPeekHandle = {
+type PromptPeekHandle = {
 	title: string;
 	resume: () => void;
 	cancel: () => void;

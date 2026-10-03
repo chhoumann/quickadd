@@ -1,6 +1,6 @@
 import type { CommandType } from "./CommandType";
 import type { ICommand } from "./ICommand";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../utils/uuid";
 
 export abstract class Command implements ICommand {
 	name: string;

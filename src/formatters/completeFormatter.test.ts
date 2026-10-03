@@ -25,9 +25,8 @@ const mocks = vi.hoisted(() => ({
 	inlineRunAndGetOutput: vi.fn(),
 	inlineParamsVariables: {} as Record<string, unknown>,
 	inputPromptPrompt: vi.fn(),
-	inputPromptPromptWithContext: vi.fn(),
 	inputPromptFactory: vi.fn(),
-	genericInputPromptWithContext: vi.fn(),
+	genericInputPrompt: vi.fn(),
 	inputSuggesterSuggest: vi.fn(),
 	genericSuggesterSuggest: vi.fn(),
 	multiSuggesterSuggest: vi.fn(),
@@ -103,14 +102,13 @@ vi.mock("../gui/InputPrompt", () => ({
 			mocks.inputPromptFactory(inputTypeOverride);
 			return {
 				Prompt: mocks.inputPromptPrompt,
-				PromptWithContext: mocks.inputPromptPromptWithContext,
 			};
 		}
 	},
 }));
 
 vi.mock("src/gui/GenericInputPrompt/GenericInputPrompt", () => ({
-	default: { PromptWithContext: mocks.genericInputPromptWithContext },
+	default: { Prompt: mocks.genericInputPrompt },
 }));
 
 vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
@@ -275,11 +273,10 @@ beforeEach(() => {
 	mocks.getSmartDefaults.mockReturnValue([]);
 	mocks.resolveActiveDefault.mockReturnValue(null);
 
-	// Deterministic clipboard: empty by default. navigator may not exist in
-	// the jsdom-less environment, so define it.
-	(globalThis as any).navigator = {
+	// Deterministic clipboard: empty by default.
+	vi.stubGlobal("navigator", {
 		clipboard: { readText: vi.fn().mockResolvedValue("") },
-	};
+	});
 
 	// Deterministic moment used by the base formatter's VDATE formatting.
 	(globalThis as any).window ??= globalThis;
@@ -1026,9 +1023,9 @@ describe("CompleteFormatter - selection handling", () => {
 
 describe("CompleteFormatter - clipboard handling", () => {
 	it("replaces {{CLIPBOARD}} with clipboard contents", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: { readText: vi.fn().mockResolvedValue("copied!") },
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{CLIPBOARD}}")).resolves.toBe(
 			"copied!",
@@ -1036,11 +1033,11 @@ describe("CompleteFormatter - clipboard handling", () => {
 	});
 
 	it("falls back to empty string when clipboard read rejects", async () => {
-		(globalThis as any).navigator = {
+		vi.stubGlobal("navigator", {
 			clipboard: {
 				readText: vi.fn().mockRejectedValue(new Error("denied")),
 			},
-		};
+		});
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("[{{CLIPBOARD}}]")).resolves.toBe("[]");
 	});
@@ -1380,7 +1377,7 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			[],
 			expect.objectContaining({ allowCustomValue: true }),
 		);
-		expect(mocks.genericInputPromptWithContext).not.toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).not.toHaveBeenCalled();
 	});
 
 	it("falls back to a free-form prompt when no values are found", async () => {
@@ -1392,13 +1389,13 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			values: [],
 			hasDefaultValue: false,
 		});
-		mocks.genericInputPromptWithContext.mockResolvedValue("manual");
+		mocks.genericInputPrompt.mockResolvedValue("manual");
 
 		const f = defaultFormatter();
 		await expect(f.formatFolderPath("{{FIELD:status}}")).resolves.toBe(
 			"manual",
 		);
-		expect(mocks.genericInputPromptWithContext).toHaveBeenCalled();
+		expect(mocks.genericInputPrompt).toHaveBeenCalled();
 		expect(mocks.inputSuggesterSuggest).not.toHaveBeenCalled();
 	});
 
@@ -1441,9 +1438,9 @@ describe("CompleteFormatter - field suggestion (suggestForField)", () => {
 			values: [],
 			hasDefaultValue: false,
 		});
-		mocks.genericInputPromptWithContext.mockResolvedValue("B-17");
+		mocks.genericInputPrompt.mockResolvedValue("B-17");
 		await f.formatFolderPath("{{FIELD:budget|label:Budget code}}");
-		expect(mocks.genericInputPromptWithContext.mock.calls.at(-1)?.[1]).toBe(
+		expect(mocks.genericInputPrompt.mock.calls.at(-1)?.[1]).toBe(
 			"Budget code",
 		);
 	});
@@ -1835,7 +1832,10 @@ function makeSectionApp(opts: {
 	activeFile?: { basename: string; path: string } | null;
 	view?: ReturnType<typeof makeSectionView> | undefined;
 	/** Obsidian's metadata cache for the note (null = not indexed). */
-	cache?: { headings?: { heading: string; level: number; line: number }[] } | null;
+	cache?: {
+		headings?: { heading: string; level: number; line: number }[];
+		sections?: { type: string; start: number; end: number }[];
+	} | null;
 }) {
 	const activeFile =
 		opts.activeFile === undefined
@@ -1861,6 +1861,10 @@ function makeSectionApp(opts: {
 								heading: h.heading,
 								level: h.level,
 								position: { start: { line: h.line } },
+							})),
+							sections: opts.cache.sections?.map((s) => ({
+								type: s.type,
+								position: { start: { line: s.start }, end: { line: s.end } },
 							})),
 						}
 					: null,
@@ -1975,6 +1979,70 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
 			"[[Note#B#X]]",
 		);
+	});
+
+	it("parses a just-saved note with a heading Obsidian hasn't indexed yet (#2030)", async () => {
+		// "## Rollout" was typed and saved; the cache still reflects the text
+		// before it, and every heading it does have is still in place.
+		const value = `${COMMENTED}\n## Rollout\n- c`;
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 8, value, data: value }),
+			cache: COMMENTED_CACHE,
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Rollout]]",
+		);
+	});
+
+	it("keeps Obsidian's headings when the only extra parsed heading is in an HTML block", async () => {
+		const value = ["# Project", "## Tasks", "<div>", "## Draft", "</div>", "- b"].join("\n");
+		const app = makeSectionApp({
+			view: makeSectionView({ path: "Note.md", cursorLine: 5, value, data: value }),
+			cache: {
+				headings: [
+					{ heading: "Project", level: 1, line: 0 },
+					{ heading: "Tasks", level: 2, line: 1 },
+				],
+				sections: [
+					{ type: "heading", start: 0, end: 0 },
+					{ type: "heading", start: 1, end: 1 },
+					{ type: "html", start: 2, end: 4 },
+					{ type: "paragraph", start: 5, end: 5 },
+				],
+			},
+		});
+		const f = new CompleteFormatter(app as any, makePlugin() as any);
+		await expect(f.formatFileContent("{{linksection}}")).resolves.toBe(
+			"[[Note#Tasks]]",
+		);
+	});
+
+	it("keeps an HTML-block heading out while adding a heading Obsidian hasn't indexed yet (#2030)", async () => {
+		// Saved just now: "## Rollout" is new; "## Draft" sits in an HTML block,
+		// which only the (still stale) cache knows about.
+		const value = ["# Project", "## Tasks", "<div>", "## Draft", "</div>", "- b", "## Rollout", "- c"].join("\n");
+		const cache = {
+			headings: [
+				{ heading: "Project", level: 1, line: 0 },
+				{ heading: "Tasks", level: 2, line: 1 },
+			],
+			sections: [
+				{ type: "heading", start: 0, end: 0 },
+				{ type: "heading", start: 1, end: 1 },
+				{ type: "html", start: 2, end: 4 },
+				{ type: "paragraph", start: 5, end: 5 },
+			],
+		};
+		const link = async (cursorLine: number) => {
+			const app = makeSectionApp({
+				view: makeSectionView({ path: "Note.md", cursorLine, value, data: value }),
+				cache,
+			});
+			return new CompleteFormatter(app as any, makePlugin() as any).formatFileContent("{{linksection}}");
+		};
+		await expect(link(5)).resolves.toBe("[[Note#Tasks]]");
+		await expect(link(7)).resolves.toBe("[[Note#Rollout]]");
 	});
 
 	it("parses unsaved text, which Obsidian's headings don't cover yet", async () => {
@@ -2383,10 +2451,10 @@ describe("property value formatting", () => {
 	});
 
 	it.each([
-		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "beforeafter" },
-		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["beforeafter", "{{VALUE}}"] },
-		{ format: "Added\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbeforeafter\n{{DATE}}" },
-	])("strips cursor markers after expanding $format from $value", async ({ format, value, expected }) => {
+		{ format: "{{PROPERTY}}", value: "before{{CURSOR}}after", expected: "before{{CURSOR}}after" },
+		{ format: "{{PROPERTY}}", value: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"], expected: ["before{{cursor}}after", "{{CURSOR}}{{VALUE}}"] },
+		{ format: "Added{{CURSOR}}\n{{PROPERTY}}", value: ["before{{CURSOR}}after", "{{cursor}}{{DATE}}"], expected: "Added\nbefore{{CURSOR}}after\n{{cursor}}{{DATE}}" },
+	])("keeps cursor markers in the property value as text when expanding $format", async ({ format, value, expected }) => {
 		const executor = createChoiceExecutor();
 		const originalValue = structuredClone(value);
 		executor.variables.set("propertyValue", value);
@@ -2396,9 +2464,9 @@ describe("property value formatting", () => {
 		expect(formatter.consumePropertyTokenExpanded()).toBe(true);
 	});
 
-	it("strips cursor markers from retained VALUE lists without changing native types", async () => {
+	it("keeps retained VALUE lists as they are, cursor markers included", async () => {
 		const value = ["before{{CURSOR}}after", false, 0];
-		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["beforeafter", false, 0]);
+		expect(await formatterWithValue(value).formatPropertyValue("{{VALUE:input}}")).toEqual(["before{{CURSOR}}after", false, 0]);
 		expect(value).toEqual(["before{{CURSOR}}after", false, 0]);
 	});
 

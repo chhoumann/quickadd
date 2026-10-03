@@ -1,3 +1,4 @@
+import { withoutBrandPrefix } from "../logger/quickAddLogger";
 import { isCancellationError } from "../utils/errorUtils";
 
 export type PreviewDiagnosticSeverity = "warning" | "error";
@@ -40,7 +41,7 @@ export class PreviewDiagnostics {
 		message: string,
 		kind?: PreviewDiagnosticKind,
 	): void {
-		const cleaned = stripBrandPrefix(message).trim();
+		const cleaned = withoutBrandPrefix(message).trim();
 		if (!cleaned) return;
 		const key = `${severity} ${cleaned}`;
 		if (this.seen.has(key)) return;
@@ -55,22 +56,6 @@ export class PreviewDiagnostics {
 	get hasError(): boolean {
 		return this.entries.some((entry) => entry.severity === "error");
 	}
-}
-
-/**
- * These messages were written for a Notice, where `GuiLogger` prepends
- * "QuickAdd: (Warning) " (quickAddLogger.ts) - so most of them also open with a
- * literal "QuickAdd: " that reads as a stutter there and as pure noise inline
- * under a QuickAdd settings field.
- *
- * The template cycle/depth reports arrive wrapped as `[QuickAdd: ... ]` because
- * the same string is ALSO spliced into the output as a placeholder. Unwrap those
- * first, or the preview shows the identical bracketed sentence twice, twenty
- * pixels apart.
- */
-function stripBrandPrefix(message: string): string {
-	const unwrapped = message.replace(/^\[(QuickAdd:[\s\S]*)\]$/i, "$1");
-	return unwrapped.replace(/^QuickAdd:\s*/i, "");
 }
 
 /**

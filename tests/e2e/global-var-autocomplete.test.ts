@@ -6,7 +6,7 @@ import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("global-var-autocomplete");
 
-const FORMAT_INPUTS = JSON.stringify('.captureChoiceBuilder textarea[placeholder="Format"]');
+const FORMAT_INPUTS = JSON.stringify('.captureChoiceBuilder .qa-field textarea');
 
 async function visibleSuggestions(): Promise<string[]> {
 	return getContext().obsidian.dev.evalJson<string[]>(`(() =>
@@ -95,9 +95,6 @@ it("keeps offering defined global variables after the colon in a choice format f
 		await expect.poll(visibleSuggestions, POLL_OPTS).toEqual([]);
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			for (const builder of document.querySelectorAll(".captureChoiceBuilder")) {
-				[...builder.querySelectorAll("button.mod-cta")].find(b => b.textContent?.trim() === "Done")?.click();
-			}
 			app.setting?.close?.();
 			return true;
 		})()`);

@@ -31,3 +31,32 @@ for (const { name, create } of factories) {
 		});
 	});
 }
+
+describe("suggesters with aliases", () => {
+	const labels = ["Thomas Anderson", "Neo Classic"];
+	const values = ["@file:People/Thomas Anderson.md", "@file:People/Neo Classic.md"];
+	const aliases = [["Neo", "The One"], []];
+
+	for (const { name, create } of [
+		{ name: "fixed", create: () => new GenericSuggester(new App(), labels, values, undefined, { aliases }) },
+		{ name: "custom", create: () => new InputSuggester(new App(), labels, values, { aliases, allowCustomValue: false }) },
+	]) {
+		it(`${name}: finds a note by its alias and shows the alias over the note's name`, () => {
+			const prompt = create();
+			const [first, second] = prompt.getSuggestions("neo");
+			expect([first?.item, second?.item]).toEqual(values);
+
+			const el = document.createElement("div");
+			prompt.renderSuggestion(first, el);
+			expect(el.querySelector(".suggestion-title")?.textContent).toBe("Neo");
+			expect(el.querySelector(".suggestion-title .suggestion-highlight")?.textContent).toBe("Neo");
+			expect(el.querySelector(".suggestion-note")?.textContent).toBe("Thomas Anderson");
+			expect(el.querySelector(".suggestion-flair")?.getAttribute("aria-label")).toBe("Alias");
+
+			const own = document.createElement("div");
+			prompt.renderSuggestion(second, own);
+			expect(own.querySelector(".suggestion-flair")).toBeNull();
+			expect(own.textContent).toBe("Neo Classic");
+		});
+	}
+});

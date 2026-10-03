@@ -1,7 +1,7 @@
 /**
  * Built-in `system` tools (#714): small, always-safe utilities. Read-only.
  */
-import { getDate } from "../../../utilityObsidian";
+import { getDate } from "../../../utils/dates";
 import { applyGroupOptions, defineTool, type BuiltinGroupOptions, type ToolSetMap } from "./shared";
 
 export function createSystemTools(options: BuiltinGroupOptions = {}): ToolSetMap {

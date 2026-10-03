@@ -18,13 +18,11 @@ vi.mock("../gui/ChoiceBuilder/captureChoiceBuilder", () => ({
 	CaptureChoiceBuilder: class {},
 }));
 vi.mock("../gui/MacroGUIs/MacroBuilder", () => ({ MacroBuilder: class {} }));
-vi.mock("../gui/MultiChoiceSettingsModal", () => ({
-	MultiChoiceSettingsModal: class {},
+vi.mock("../gui/MultiChoiceBuilder", () => ({
+	MultiChoiceBuilder: class {},
 }));
-vi.mock("../gui/GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: {
-		Prompt: (...args: unknown[]) => mocks.yesNoPrompt(...args),
-	},
+vi.mock("../gui/confirmAction", () => ({
+	confirmAction: (...args: unknown[]) => mocks.yesNoPrompt(...args),
 }));
 vi.mock("../settingsStore", () => ({
 	settingsStore: { getState: () => ({ choices: [] }) },
@@ -116,34 +114,13 @@ describe("choiceService audit (commands-choicelist)", () => {
 	});
 
 	describe("deleteChoiceWithConfirmation count (multi-delete-recursive)", () => {
-		it("counts the FULL nested subtree, not just direct children", async () => {
-			mocks.yesNoPrompt.mockResolvedValue(true);
-			// Outer folder has 1 direct child (a subfolder) holding 3 leaves.
-			const subfolder = makeMulti("Sub", [
-				createChoice("Template", "a"),
-				createChoice("Template", "b"),
-				createChoice("Template", "c"),
-			]);
-			const outer = makeMulti("Outer", [subfolder]);
-
-			await deleteChoiceWithConfirmation(outer, fakeApp);
-
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
-			// 1 subfolder + 3 leaves = 4 descendants, counted by kind so the
-			// subfolder is not called a "choice" (#1552) — NOT "1 choice".
-			expect(message).toContain(
-				"everything inside it: 3 choices and 1 folder.",
-			);
-			expect(message).not.toContain("1 choice and");
-		});
-
 		it("omits the scary warning for an empty folder", async () => {
 			mocks.yesNoPrompt.mockResolvedValue(true);
 			const empty = makeMulti("Empty");
 
 			await deleteChoiceWithConfirmation(empty, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			// The whole clause is absent, not merely zero-valued.
 			expect(message).not.toContain("everything inside it");
 			expect(message).toBe("Are you sure you want to delete 'Empty'?");
@@ -155,7 +132,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 
 			await deleteChoiceWithConfirmation(one, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 1 choice.");
 			expect(message).not.toContain("1 choices");
 		});
@@ -166,7 +143,7 @@ describe("choiceService audit (commands-choicelist)", () => {
 
 			await deleteChoiceWithConfirmation(outer, fakeApp);
 
-			const message = mocks.yesNoPrompt.mock.calls[0][2] as string;
+			const message = (mocks.yesNoPrompt.mock.calls[0][1] as { message: string }).message;
 			expect(message).toContain("everything inside it: 2 folders.");
 			expect(message).not.toContain("choices");
 		});

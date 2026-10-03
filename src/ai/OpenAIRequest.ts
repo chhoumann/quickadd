@@ -30,7 +30,7 @@ import {
 } from "./providerErrors";
 
 
-export type { CommonResponse, AnthropicContentBlock, AnthropicResponse, GeminiResponse } from "./providerRequest";
+export type { CommonResponse } from "./providerRequest";
 export { anthropicMaxTokens } from "./providerRequest";
 import { anthropicMaxTokens, dispatchProviderRequest, requestPrompt, type CommonResponse } from "./providerRequest";
 
@@ -44,7 +44,9 @@ export function OpenAIRequest(
 	// endpoint than the key belongs to.
 	modelProvider: AIProvider,
 	systemPrompt: string,
-	modelParams: Partial<OpenAIModelParameters> = {}
+	modelParams: Partial<OpenAIModelParameters> = {},
+	// False when the caller's assistant notice shows the failure itself.
+	reportFailure = true,
 ): (prompt: string) => Promise<CommonResponse> {
 	return async function makeRequest(prompt: string): Promise<CommonResponse> {
 		if (settingsStore.getState().disableOnlineFeatures) {
@@ -153,7 +155,7 @@ export function OpenAIRequest(
 				`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 				{ cause: error }
 			);
-			reportError(failure);
+			if (reportFailure) reportError(failure);
 			throw failure;
 		}
 	};
@@ -167,6 +169,8 @@ export async function chatRequest(
 	modelProvider: AIProvider,
 	request: NormalizedChatRequest,
 	afterRequestCallback?: () => void,
+	// False when the caller's assistant notice shows the failure itself.
+	reportFailure = true,
 ): Promise<CommonResponse> {
 	void app; // cursor handling is owned by the caller (Agent) for the whole loop
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -277,7 +281,7 @@ export async function chatRequest(
 			`Error while making request to ${modelProvider.name}: ${errorMessage}${guidance}`,
 			{ cause: error },
 		);
-		reportError(failure);
+		if (reportFailure) reportError(failure);
 		throw failure;
 	}
 }
@@ -297,7 +301,7 @@ const TOOLS_NEED_NO_REASONING_RE =
  * Responses API, but gateways (Azure OpenAI, OpenRouter, LiteLLM, ...) can
  * still serve these models over Chat Completions.
  */
-export function toolReasoningRetryBody(
+function toolReasoningRetryBody(
 	wire: ChatWire,
 	body: Record<string, unknown>,
 	errorText: string,

@@ -22,7 +22,7 @@ export interface CallbackTargets {
 }
 
 /** The x-callback-url-related fields read off the incoming obsidian:// params. */
-export interface RawCallbackParams {
+interface RawCallbackParams {
 	"x-success"?: string;
 	"x-error"?: string;
 	"x-cancel"?: string;

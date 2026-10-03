@@ -60,7 +60,7 @@ export function isCancellationError(error: unknown): boolean {
  */
 const LEGACY_CANCELLATION_SENTINELS: ReadonlySet<string> = new Set([
 	"no input given.", // GenericSuggester, InputSuggester, GenericCheckboxPrompt, MultiSuggester
-	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal, MultiChoiceSettingsModal
+	"No input given.", // GenericInputPrompt, GenericWideInputPrompt, MathModal
 	"cancelled", // OnePageInputModal
 ]);
 
@@ -153,6 +153,14 @@ export function reportError(
 }
 
 /**
+ * Record that the user has already seen this failure through another surface,
+ * so a {@link reportError} further up does not show it again.
+ */
+export function markErrorReported(err: unknown): void {
+  if (isTrackable(err)) reportedErrors.set(err, Date.now());
+}
+
+/**
  * Report failures while keeping cancellations silent. Returns whether reported.
  */
 export function reportUnlessCancelled(
@@ -230,20 +238,4 @@ export function handledIfCancelled<T>(promise: Promise<T>): Promise<T> {
     throw error;
   });
   return result;
-}
-
-/**
- * Return the result, or report an asynchronous failure and return undefined.
- */
-export async function withAsyncErrorHandling<T>(
-  fn: () => Promise<T>,
-  contextMessage?: string,
-  level: ErrorLevel = ErrorLevelEnum.Error
-): Promise<T | undefined> {
-  try {
-    return await fn();
-  } catch (err) {
-    reportError(err, contextMessage, level);
-    return undefined;
-  }
 }

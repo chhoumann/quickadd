@@ -1,5 +1,5 @@
 import { isUnreadableList as isUnreadableCommandList } from "./persistedContainers";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "./uuid";
 import type { IMacro } from "../types/macros/IMacro";
 import type { ICommand } from "../types/macros/ICommand";
 
@@ -65,7 +65,7 @@ export function hasCommandList(value: unknown): boolean {
  */
 export { isUnreadableList as isUnreadableCommandList } from "./persistedContainers";
 
-export interface NormalizedCommandList {
+interface NormalizedCommandList {
 	commands: ICommand[];
 	/** False when `commands` is the input array itself, unchanged. */
 	changed: boolean;

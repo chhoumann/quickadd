@@ -1,6 +1,6 @@
 import { setIcon } from "obsidian";
 
-export type DatePickerSelectSource = "picker" | "action";
+type DatePickerSelectSource = "picker" | "action";
 
 export interface DatePickerController {
 	setSelectedIso(
@@ -11,7 +11,7 @@ export interface DatePickerController {
 	destroy(): void;
 }
 
-export interface DatePickerOptions {
+interface DatePickerOptions {
 	container: HTMLElement;
 	initialIso?: string;
 	weekStartsOn?: number;
@@ -99,11 +99,20 @@ export const toIsoFromParts = (
 	return `${dateKey}T${pad(time.hour)}:${pad(time.minute)}:00`;
 };
 
-/** Reads HH:mm out of a `...THH:mm` or `... HH:mm` ISO; null when absent. */
+/**
+ * Reads the local wall-clock HH:mm of a `...THH:mm` or `... HH:mm` ISO; null
+ * when absent. A zoned ISO (`Z` or `±hh:mm`, e.g. a typed date stored with
+ * `toISOString()`) is converted to local time, like the note text formats it.
+ */
 export const extractTimeFromIso = (iso?: string): TimeParts | null => {
 	if (!iso) return null;
 	const match = /[T ](\d{2}):(\d{2})/.exec(iso);
 	if (!match) return null;
+	if (/(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso)) {
+		const date = new Date(iso);
+		if (Number.isNaN(date.getTime())) return null;
+		return { hour: date.getHours(), minute: date.getMinutes() };
+	}
 	const hour = Number.parseInt(match[1], 10);
 	const minute = Number.parseInt(match[2], 10);
 	if (Number.isNaN(hour) || Number.isNaN(minute)) return null;

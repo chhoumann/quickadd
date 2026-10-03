@@ -1,6 +1,6 @@
 import type { ICommand } from "./ICommand";
 import type { IMacro } from "./IMacro";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../utils/uuid";
 
 export class QuickAddMacro implements IMacro {
 	id: string;

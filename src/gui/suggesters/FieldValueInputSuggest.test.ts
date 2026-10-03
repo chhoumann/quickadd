@@ -16,10 +16,10 @@ describe("FieldValueInputSuggest", () => {
 		mocks.collectFieldValuesProcessed.mockReset();
 	});
 
-	it("observes shared cache invalidation while the input remains open", async () => {
+	it("reads the values once while the input has focus and again after it regains focus", async () => {
 		mocks.collectFieldValuesProcessed
 			.mockResolvedValueOnce(["ValueA"])
-			.mockResolvedValueOnce(["ValueD"]);
+			.mockResolvedValueOnce(["ValueA", "ValueD"]);
 		const input = document.createElement("input");
 		document.body.appendChild(input);
 		const app = {
@@ -28,8 +28,15 @@ describe("FieldValueInputSuggest", () => {
 		} as unknown as App;
 		const suggest = new FieldValueInputSuggest(app, input, "status");
 
+		input.focus();
 		await expect(suggest.getSuggestions("")).resolves.toEqual(["ValueA"]);
-		await expect(suggest.getSuggestions("")).resolves.toEqual(["ValueD"]);
+		await expect(suggest.getSuggestions("v")).resolves.toEqual(["ValueA"]);
+		await expect(suggest.getSuggestions("va")).resolves.toEqual(["ValueA"]);
+		expect(mocks.collectFieldValuesProcessed).toHaveBeenCalledTimes(1);
+
+		input.blur();
+		input.focus();
+		await expect(suggest.getSuggestions("")).resolves.toEqual(["ValueA", "ValueD"]);
 		expect(mocks.collectFieldValuesProcessed).toHaveBeenCalledTimes(2);
 
 		suggest.destroy();
@@ -52,6 +59,8 @@ describe("FieldValueInputSuggest", () => {
 
 		input.value = "a";
 		const old = suggest.onInputChanged();
+		input.blur();
+		input.focus();
 		input.value = "b";
 		await suggest.onInputChanged();
 		resolveOld(["alpha", "beta"]);

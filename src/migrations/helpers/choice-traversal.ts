@@ -1,7 +1,6 @@
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
-import type IMacroChoice from "../../types/choices/IMacroChoice";
-import type { MultiChoice } from "../../types/choices/MultiChoice";
+import { isMacroChoice, isMultiChoice } from "../../types/choices/choiceType";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { CommandType } from "../../types/macros/CommandType";
 import type { ICommand } from "../../types/macros/ICommand";
@@ -12,8 +11,8 @@ import {
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
 
-export type ChoiceVisitor = (choice: IChoice) => void;
-export type CommandVisitor = (command: ICommand) => void;
+type ChoiceVisitor = (choice: IChoice) => void;
+type CommandVisitor = (command: ICommand) => void;
 
 interface Visitors {
 	onChoice?: ChoiceVisitor;
@@ -25,14 +24,6 @@ interface Visitors {
 	 * (or skips) differently.
 	 */
 	onUnreadable?: () => void;
-}
-
-function isMultiChoice(choice: IChoice): choice is MultiChoice {
-	return choice.type === "Multi";
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
 }
 
 function walkChoice(
@@ -201,11 +192,28 @@ export function settingsTreeHasUnreadableData(settings: {
 	return unreadable;
 }
 
+/**
+ * Visit `choice` and every choice below it: folder children, and choices its
+ * macro commands (including conditional branches) run as nested choices.
+ */
+export function walkChoiceTree(choice: IChoice, visitor: ChoiceVisitor): void {
+	walkChoice(choice, { onChoice: visitor }, new Set<IChoice>());
+}
+
 export function walkAllChoices(plugin: QuickAdd, visitor: ChoiceVisitor): void {
-	walkSettings(
-		plugin.settings,
-		{ onChoice: visitor },
-	);
+	walkChoicesInSettings(plugin.settings, visitor);
+}
+
+/**
+ * Visit every choice in `settings`: root choices, folder children, choices
+ * macros run as nested steps (conditional branches included), and choices in
+ * pre-consolidation legacy macros.
+ */
+export function walkChoicesInSettings(
+	settings: { choices: IChoice[]; macros?: unknown },
+	visitor: ChoiceVisitor,
+): void {
+	walkSettings(settings, { onChoice: visitor });
 }
 
 /**

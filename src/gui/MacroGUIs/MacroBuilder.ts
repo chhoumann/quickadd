@@ -1,7 +1,6 @@
 import type { IMacro } from "../../types/macros/IMacro";
 import type { App } from "obsidian";
-import { Modal, Setting, setIcon } from "obsidian";
-import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
+import { Setting, SettingGroup } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import type QuickAdd from "../../main";
@@ -11,9 +10,10 @@ import {
 } from "./CommandSequenceEditor";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsModal";
-import { ConditionalBranchEditorModal } from "./ConditionalBranchEditorModal";
+import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
+import { getConditionSummary } from "../../utils/conditionalHelpers";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
-import { addAutosaveFooter } from "../ChoiceBuilder/components/autosaveFooter";
+import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
 import {
 	childChoicesOf,
 	isChoiceLike,
@@ -24,7 +24,7 @@ import {
 	macroCommandsValueOf,
 } from "../../utils/macroUtils";
 import type { ICommand } from "../../types/macros/ICommand";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../../utils/uuid";
 import { DATE_ORIGIN_UNITS, isDateOriginUnit } from "../../types/dateOrigin";
 import {
 	COMMAND_SETTING_DESC,
@@ -71,104 +71,68 @@ export function getChoicesAsList(nestedChoices: IChoice[]): IChoice[] {
 	return arr;
 }
 
-export class MacroBuilder extends Modal {
+export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	public choice: IMacroChoice;
 	public macro: IMacro;
-	public waitForClose: Promise<IMacroChoice>;
 	private readonly choices: IChoice[] = [];
 	private commandEditor: CommandSequenceEditor | null = null;
-	private resolvePromise: (choice: IMacroChoice) => void;
 	private plugin: QuickAdd;
+	private readonly openedName: string;
+	private pickDaySetting: Setting | null = null;
 
-	constructor(app: App, plugin: QuickAdd, choice: IMacroChoice, choices: IChoice[]) {
-		super(app);
+	constructor(
+		app: App,
+		plugin: QuickAdd,
+		choice: IMacroChoice,
+		choices: IChoice[],
+		onSave: (choice: IMacroChoice) => void,
+	) {
+		super(app, choice.name, onSave);
 		this.choice = choice;
 		this.macro = choice.macro;
+		this.openedName = choice.name;
 		this.choices = getChoicesAsList(choices);
 		this.plugin = plugin;
-
-		this.waitForClose = new Promise<IMacroChoice>(
-			(resolve) => {
-				this.resolvePromise = resolve;
-			}
-		);
-
-		this.display();
-		this.open();
-		// Installed here, not in display(): reload() re-runs display(), which
-		// empties contentEl. The footer lives on modalEl and survives that.
-		// After open() so the footer's Done, not the title, gets initial focus.
-		addAutosaveFooter(this, "macro");
+		this.containerEl.addClass("macroBuilder");
 	}
 
-	onClose() {
-		super.onClose();
-		this.resolvePromise(this.choice);
+	protected result(): IMacroChoice {
+		const name = nameOrFallback(this.choice.name, this.openedName);
+		this.choice.name = name;
+		if (isMacroObject(this.macro)) this.macro.name = name;
+		return this.choice;
+	}
+
+	protected destroy(): void {
 		this.commandEditor?.destroy();
 		this.commandEditor = null;
 	}
 
-	protected display() {
-		this.containerEl.addClass("quickAddModal", "macroBuilder");
-		this.contentEl.empty();
-		this.addCenteredHeader(this.choice.name);
-		this.addCommandEditor();
-		this.addOnePageInputSetting();
-		this.addDateOriginSetting();
-		this.addRunOnStartupSetting();
-		this.addCommandPaletteSettings();
-		this.addIconSetting();
+	protected render(containerEl: HTMLElement) {
+		this.addNameSetting(containerEl, this.choice.name, this.openedName, (name) => {
+			// Keep choice name and macro name in sync. The macro object can be
+			// missing from a hand-edited data.json; renaming the choice still has
+			// to work, so only sync a macro that is there.
+			this.choice.name = name;
+			if (isMacroObject(this.macro)) this.macro.name = name;
+			this.pickDaySetting?.setName(pickDaySettingName(name.trim() || this.openedName));
+		});
+		this.addCommandEditor(this.addGroup(containerEl, "Commands"));
+		const behavior = this.addGroup(containerEl, "Behavior");
+		this.addOnePageInputSetting(behavior);
+		this.addDateOriginSetting(behavior);
+		this.addRunOnStartupSetting(behavior);
+		this.addCommandPaletteSettings(behavior);
+		this.addIconSetting(behavior);
 	}
 
-	protected addCenteredHeader(header: string): void {
-		// Same markup and classes as ChoiceNameHeader.svelte, the title of the
-		// Template and Capture builders, so the Macro builder also shows the pencil
-		// that signals "click to rename".
-		const headerEl = this.contentEl.createEl("h2", { cls: "choiceNameHeader" });
-
-		// Rename affordance is a real <button> (keyboard operable: Enter/Space) inside
-		// the heading, so the <h2> keeps its heading role for screen readers (#1250).
-		const renameButton = headerEl.createEl("button", {
-			cls: ["choiceNameHeaderButton", "qa-rename-title-button"],
-			attr: { type: "button", "aria-label": `Rename ${header}` },
-		});
-		renameButton.createSpan({ cls: "choiceNameHeaderText", text: header });
-		const iconEl = renameButton.createSpan({
-			cls: "choiceNameHeaderIcon",
-			attr: { "aria-hidden": "true" },
-		});
-		setIcon(iconEl, "pencil");
-		// ChoiceNameHeader renders the pencil at 16px (ObsidianIcon size={16}).
-		const iconSvg = iconEl.querySelector("svg");
-		iconSvg?.setAttribute("width", "16");
-		iconSvg?.setAttribute("height", "16");
-
-		renameButton.addEventListener("click", () => {
-			void (async () => {
-				try {
-					const newName: string = await GenericInputPrompt.Prompt(
-						this.app,
-						`Update name for ${this.choice.name}`,
-						this.choice.name,
-						this.choice.name
-					);
-					if (!newName) return;
-
-					// Keep choice name and macro name in sync. The macro object can
-					// be missing from a hand-edited data.json; renaming the choice
-					// still has to work, so only sync a macro that is there.
-					this.choice.name = newName;
-					if (isMacroObject(this.macro)) this.macro.name = newName;
-					this.reload();
-				} catch {
-					// Prompt cancelled (Esc/Cancel) — keep the current name.
-				}
-			})();
-		});
+	/** An Obsidian setting group; returns the element its settings go in. */
+	private addGroup(containerEl: HTMLElement, heading: string): HTMLElement {
+		return new SettingGroup(containerEl).setHeading(heading).listEl;
 	}
 
-	private addOnePageInputSetting(): void {
-		new Setting(this.contentEl)
+	private addOnePageInputSetting(parent: HTMLElement): void {
+		new Setting(parent)
 			.setName("One-page input override")
 			.addDropdown((dropdown) => {
 				dropdown
@@ -183,11 +147,11 @@ export class MacroBuilder extends Modal {
 			});
 	}
 
-	private addDateOriginSetting(): void {
+	private addDateOriginSetting(parent: HTMLElement): void {
 		const current = this.choice.dateOrigin;
 		const preset = dateOriginToPreset(current);
 
-		new Setting(this.contentEl)
+		new Setting(parent)
 			.setName(DATE_ORIGIN_SETTING_NAME)
 			.setDesc(DATE_ORIGIN_SETTING_DESC)
 			.addDropdown((dropdown) => {
@@ -208,7 +172,7 @@ export class MacroBuilder extends Modal {
 		if (preset === "ask") {
 			const defaultValue =
 				current?.kind === "ask" ? current.defaultValue : undefined;
-			new Setting(this.contentEl)
+			new Setting(parent)
 				.setName(ASK_DEFAULT_SETTING_NAME)
 				.setDesc(ASK_DEFAULT_SETTING_DESC)
 				.addDropdown((dropdown) => {
@@ -226,7 +190,7 @@ export class MacroBuilder extends Modal {
 		}
 
 		if (preset === "custom" && current?.kind === "relative") {
-			new Setting(this.contentEl)
+			new Setting(parent)
 				.setName(CUSTOM_OFFSET_SETTING_NAME)
 				.setDesc(CUSTOM_OFFSET_SETTING_DESC)
 				.addText((text) => {
@@ -259,7 +223,7 @@ export class MacroBuilder extends Modal {
 
 		if (preset === "variable") {
 			const name = current?.kind === "variable" ? current.name : "";
-			new Setting(this.contentEl)
+			new Setting(parent)
 				.setName(VARIABLE_SETTING_NAME)
 				.setDesc(VARIABLE_SETTING_DESC)
 				.addText((text) => {
@@ -272,8 +236,8 @@ export class MacroBuilder extends Modal {
 		}
 	}
 
-	private addCommandPaletteSettings(): void {
-		new Setting(this.contentEl)
+	private addCommandPaletteSettings(parent: HTMLElement): void {
+		new Setting(parent)
 			.setName(COMMAND_SETTING_NAME)
 			.setDesc(COMMAND_SETTING_DESC)
 			.addToggle((toggle) => {
@@ -283,11 +247,12 @@ export class MacroBuilder extends Modal {
 				});
 			});
 
+		this.pickDaySetting = null;
 		if (
 			this.choice.command &&
 			canOfferPickDayCommand(this.choice.dateOrigin)
 		) {
-			new Setting(this.contentEl)
+			this.pickDaySetting = new Setting(parent)
 				.setName(pickDaySettingName(this.choice.name))
 				.setDesc(PICK_DAY_SETTING_DESC)
 				.addToggle((toggle) => {
@@ -300,8 +265,8 @@ export class MacroBuilder extends Modal {
 		}
 	}
 
-	private addRunOnStartupSetting(): void {
-		new Setting(this.contentEl)
+	private addRunOnStartupSetting(parent: HTMLElement): void {
+		new Setting(parent)
 			.setName("Run on startup")
 			.setDesc("Execute this macro when Obsidian starts")
 			.addToggle(toggle => toggle
@@ -312,25 +277,25 @@ export class MacroBuilder extends Modal {
 			);
 	}
 
-	private addIconSetting(): void {
-		addChoiceIconSetting(this.app, this.contentEl, this.choice, (icon) => {
+	private addIconSetting(parent: HTMLElement): void {
+		addChoiceIconSetting(this.app, parent, this.choice, (icon) => {
 			this.choice.icon = icon;
 		});
 	}
 
+	/** Re-render the page, for settings that add or remove rows. */
 	private reload() {
-		this.commandEditor?.destroy();
-		this.commandEditor = null;
-		this.display();
+		this.destroy();
+		this.containerEl.empty();
+		this.render(this.containerEl);
 	}
 
 	/**
 	 * The value to show as this macro's command list.
 	 *
 	 * `choice.macro` is untrusted too, and a Macro choice whose `macro` key is
-	 * missing entirely used to make "Configure" do nothing at all: `display()`
-	 * runs from the constructor, before `open()`, so the throw took the modal with
-	 * it.
+	 * missing entirely used to make "Configure" do nothing at all: the builder
+	 * threw while it rendered.
 	 *
 	 * Three cases, and `macro` being an ARRAY is the one worth naming: `[]` and
 	 * `[{...}]` are both objects, but writing `macro.commands` onto an Array sets
@@ -358,8 +323,8 @@ export class MacroBuilder extends Modal {
 		this.macro.commands = commands;
 	}
 
-	private addCommandEditor() {
-		const editorContainer = this.contentEl.createDiv("macroBuilder__editor");
+	private addCommandEditor(parent: HTMLElement) {
+		const editorContainer = parent.createDiv("macroBuilder__editor");
 		this.commandEditor = new CommandSequenceEditor({
 			app: this.app,
 			plugin: this.plugin,
@@ -378,10 +343,10 @@ export class MacroBuilder extends Modal {
 		return {
 			configureCondition: (command) =>
 				this.configureConditionalCondition(command),
-			editThenBranch: (command) =>
-				this.configureConditionalBranch(command, "then"),
-			editElseBranch: (command) =>
-				this.configureConditionalBranch(command, "else"),
+			editThenBranch: (command, onEdited) =>
+				this.openBranchPage(command, "then", onEdited),
+			editElseBranch: (command, onEdited) =>
+				this.openBranchPage(command, "else", onEdited),
 		};
 	}
 
@@ -393,29 +358,29 @@ export class MacroBuilder extends Modal {
 		return result !== null;
 	}
 
-	private async configureConditionalBranch(
+	/**
+	 * A branch's commands, as a page over this one. Its edits land on the
+	 * command when the page is left, and `onEdited` saves them into this
+	 * macro's list before anything below hears about it.
+	 */
+	private openBranchPage(
 		command: IConditionalCommand,
-		branch: "then" | "else"
-	): Promise<boolean> {
-		const title = branch === "then" ? "Then branch" : "Else branch";
-		const modal = new ConditionalBranchEditorModal({
+		branch: "then" | "else",
+		onEdited: () => void,
+	): void {
+		new ConditionalBranchEditorPage({
 			app: this.app,
 			plugin: this.plugin,
 			choices: this.choices,
-			title: `Edit ${title} commands`,
+			title: `${branch === "then" ? "Then" : "Else"}: ${getConditionSummary(command.condition)}`,
 			commands: branch === "then" ? command.thenCommands : command.elseCommands,
 			conditionalHandlers: this.buildConditionalHandlers(),
-		});
-
-		const updatedCommands = await modal.waitForClose;
-		if (!updatedCommands) return false;
-
-		if (branch === "then") {
-			command.thenCommands = updatedCommands;
-		} else {
-			command.elseCommands = updatedCommands;
-		}
-
-		return true;
+			onSave: (commands) => {
+				if (!commands) return;
+				if (branch === "then") command.thenCommands = commands;
+				else command.elseCommands = commands;
+				onEdited();
+			},
+		}).open();
 	}
 }

@@ -47,6 +47,16 @@ export default class GenericCheckboxPrompt extends Modal {
 		this.picker.focusSearchOnOpen();
 	}
 
+	// Obsidian handles Esc in the modal's scope before the search box sees the
+	// key, so the first Esc clears a search here instead of closing the prompt.
+	override onEscapeKey(evt: KeyboardEvent): void {
+		if (this.picker.clearSearch()) {
+			evt.preventDefault();
+			return;
+		}
+		super.onEscapeKey(evt);
+	}
+
 	private display() {
 		this.contentEl.empty();
 		this.containerEl.addClass(
@@ -92,6 +102,16 @@ export default class GenericCheckboxPrompt extends Modal {
 		const submitButtonContainer: HTMLDivElement = this.contentEl.createDiv(
 			"submitButtonContainer",
 		);
+		// Cancelling rejects (like Esc) so the caller can distinguish it from an
+		// empty submission. Cancel comes first, as in QuickAdd's other prompts.
+		const cancelButton: ButtonComponent = new ButtonComponent(
+			submitButtonContainer
+		);
+
+		cancelButton.setButtonText("Cancel").onClick(() => {
+			this.close();
+		});
+
 		const submitButton: ButtonComponent = new ButtonComponent(
 			submitButtonContainer
 		);
@@ -105,16 +125,5 @@ export default class GenericCheckboxPrompt extends Modal {
 
 				this.close();
 			});
-
-		// Explicit Cancel affordance — without it, Esc was the only way to
-		// dismiss, which is undiscoverable. Cancelling rejects (like Esc) so
-		// the caller can distinguish it from an empty submission.
-		const cancelButton: ButtonComponent = new ButtonComponent(
-			submitButtonContainer
-		);
-
-		cancelButton.setButtonText("Cancel").onClick(() => {
-			this.close();
-		});
 	}
 }

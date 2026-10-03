@@ -17,15 +17,11 @@ import { openQuickAddSettings } from "./utils/openPluginSettings";
 import { StartupMacroEngine } from "./engine/StartupMacroEngine";
 import { ChoiceExecutor } from "./choiceExecutor";
 import type IChoice from "./types/choices/IChoice";
-import {
-	deleteObsidianCommand,
-	hasTemplateExtension,
-	isPathWithinTemplateFolders,
-	normalizeTemplateFolderPaths,
-} from "./utilityObsidian";
+import { hasTemplateExtension, isPathWithinTemplateFolders, normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { openChoiceLauncher } from "./gui/suggesters/openChoiceLauncher";
 import { QuickAddApi } from "./quickAddApi";
 import migrate from "./migrations/migrate";
+import { walkChoicesInSettings } from "./migrations/helpers/choice-traversal";
 import { settingsStore } from "./settingsStore";
 import { UpdateModal } from "./gui/UpdateModal/UpdateModal";
 import { FieldSuggestionCache } from "./utils/FieldSuggestionCache";
@@ -40,6 +36,7 @@ import { interactivePromptServer } from "./interactive/interactivePromptServer";
 import { parseSemver } from "./utils/semver";
 import {
 	childChoicesOf,
+	clearEmptyFormatFlag,
 	dedupeChoicesById,
 	isChoiceLike,
 	resolveChoiceIcon,
@@ -60,6 +57,9 @@ import { setQuickAddInstance } from "./quickAddInstance";
 import { registerQuickAddUri } from "./uri/registerQuickAddUri";
 import { registerCoreCommands } from "./plugin/registerCoreCommands";
 import { scheduleStartupModelSync } from "./ai/startupModelSync";
+import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
+import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
+import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -124,6 +124,7 @@ export default class QuickAdd extends Plugin {
 		});
 
 		registerCoreCommands(this);
+		registerSaveOnExit(this, () => this.flushPendingSave());
 
 		// Start automatic cleanup for field suggestion cache
 		const cache = FieldSuggestionCache.getInstance();
@@ -155,6 +156,7 @@ export default class QuickAdd extends Plugin {
 		// with nothing but a console line. Now it reports through the same channel as
 		// every other failure (#1576).
 		registerUnhandledRejectionReporter(this);
+		keepFocusedFieldInView(this);
 
 		if (this.settings.enableRibbonIcon) {
 			this.addRibbonIcon("file-plus", "QuickAdd", () => {
@@ -232,9 +234,11 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		// Leave an open choice builder first, so its edits are in the write below.
+		leaveBuilderPages(this.app);
 		// Flush any pending debounced settings write so a just-made change (e.g. a
-		// folder collapse) is never lost on plugin reload / app quit.
-		this.requestSave.run();
+		// folder collapse) is never lost on plugin reload.
+		void this.flushPendingSave();
 		this.unsubscribeSettingsStore?.call(this);
 
 		// Clear the error log to prevent memory leaks
@@ -284,6 +288,10 @@ export default class QuickAdd extends Plugin {
 			settings.choices = dedupeChoicesById(settings.choices);
 		}
 
+		// Runs every load, not as a one-time migration: QuickAdd 2.29 still saves
+		// this shape, so a downgrade and a later upgrade can bring it back (#2047).
+		walkChoicesInSettings(settings, clearEmptyFormatFlag);
+
 		return settings;
 	}
 
@@ -293,6 +301,12 @@ export default class QuickAdd extends Plugin {
 		this.settings = settings;
 		// Deep-clone so later in-place store edits cannot mutate the merge base.
 		this.lastPersistedSettings = deepClone(settings);
+	}
+
+	/** Start the pending debounced settings write now. Returns the write. */
+	private flushPendingSave(): Promise<void> {
+		this.requestSave.run();
+		return this.persistChain;
 	}
 
 	async saveSettings() {
@@ -344,13 +358,7 @@ export default class QuickAdd extends Plugin {
 					plan.shouldReplaceStore &&
 					settingsValuesEqual(this.settings, plan.local)
 				) {
-					this.suppressSettingsSave = true;
-					try {
-						settingsStore.replaceState(plan.toWrite);
-						this.settings = plan.toWrite;
-					} finally {
-						this.suppressSettingsSave = false;
-					}
+					this.publishSettingsFromDisk(plan.toWrite);
 				}
 			};
 
@@ -403,13 +411,7 @@ export default class QuickAdd extends Plugin {
 					storeAtFinalMerge,
 				)
 			) {
-				this.suppressSettingsSave = true;
-				try {
-					settingsStore.replaceState(toWrite);
-					this.settings = toWrite;
-				} finally {
-					this.suppressSettingsSave = false;
-				}
+				this.publishSettingsFromDisk(toWrite);
 			}
 
 			await this.saveData(toWrite);
@@ -418,6 +420,74 @@ export default class QuickAdd extends Plugin {
 
 		this.persistChain = this.persistChain.then(run, run);
 		return this.persistChain;
+	}
+
+	/**
+	 * Obsidian calls this when `data.json` is newer than QuickAdd's last write:
+	 * Sync or another sync tool delivered it, another instance on the same
+	 * vault wrote it, or someone edited it by hand. Apply it now instead of at
+	 * the next reload. Edits made here and not yet saved (the debounced save)
+	 * are three-way merged on top, the same way a save merges (#1749). Queued
+	 * with the saves so the two never interleave.
+	 */
+	async onExternalSettingsChange(): Promise<void> {
+		const run = async () => {
+			let loadedData: unknown;
+			try {
+				loadedData = await this.loadData();
+			} catch (err) {
+				// A sync client can leave a half-written file behind; the next
+				// complete write triggers this again.
+				log.logWarning(`QuickAdd could not read its changed settings: ${String(err)}`);
+				return;
+			}
+			// A missing file is not a request to reset every setting.
+			if (!loadedData) return;
+
+			const base = this.lastPersistedSettings;
+			const disk = this.normalizeLoadedSettings(loadedData);
+			if (base && settingsValuesEqual(disk, base)) return;
+
+			const merged = base
+				? threeWayMergeSettings(base, deepClone(this.settings), disk)
+				: disk;
+			this.lastPersistedSettings = deepClone(disk);
+			if (!settingsValuesEqual(merged, this.settings)) {
+				this.publishSettingsFromDisk(merged);
+			}
+			if (settingsValuesEqual(merged, disk)) {
+				// Everything this instance holds is on disk already.
+				this.requestSave.cancel();
+			} else {
+				// Local edits were merged in; they still need writing.
+				this.requestSave();
+			}
+			log.logMessage("[Settings] Applied settings that changed outside this Obsidian instance.");
+		};
+
+		this.persistChain = this.persistChain.then(run, run);
+		await this.persistChain;
+	}
+
+	/**
+	 * Replace the live settings with values that came from disk, without
+	 * scheduling a save of them, and bring the choice commands in line: the
+	 * choices may have been added, removed or renamed elsewhere.
+	 */
+	private publishSettingsFromDisk(next: QuickAddSettings): void {
+		const previousChoices = this.settings.choices;
+		this.suppressSettingsSave = true;
+		try {
+			settingsStore.replaceState(next);
+			this.settings = next;
+		} finally {
+			this.suppressSettingsSave = false;
+		}
+		if (settingsValuesEqual(previousChoices, next.choices)) return;
+		for (const choice of rootChoicesOf(previousChoices)) {
+			if (isChoiceLike(choice)) this.removeCommandForChoice(choice, { recursive: true });
+		}
+		this.addCommandsForChoices(next.choices);
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {
@@ -590,11 +660,8 @@ export default class QuickAdd extends Plugin {
 			}
 		}
 
-		deleteObsidianCommand(this.app, `quickadd:${choiceCommandId(choice.id)}`);
-		deleteObsidianCommand(
-			this.app,
-			`quickadd:${pickDayCommandId(choice.id)}`,
-		);
+		this.removeCommand(choiceCommandId(choice.id));
+		this.removeCommand(pickDayCommandId(choice.id));
 	}
 
 	public getTemplateFiles(): TFile[] {

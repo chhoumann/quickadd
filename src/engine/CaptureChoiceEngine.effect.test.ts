@@ -56,21 +56,27 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: vi.fn(),
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	overwriteTemplaterOnce: vi.fn(),
 	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
 	getTemplater: vi.fn(() => ({})),
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(async () => {}),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
 	withTemplaterFileCreationSuppressed: vi.fn(async (_app: unknown, _p: string, run: () => unknown) => await run()),
 }));
 
@@ -79,7 +85,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 	default: class InputSuggesterMock {},
 }));
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App } from "obsidian";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";

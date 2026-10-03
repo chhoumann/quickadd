@@ -30,6 +30,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		setPromptRunContext() {}
 		setTargetFolderPath(path: string) { setTargetFolderPathMock(path); }
 		getAnonymousValue() { return undefined; }
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(_scope: string, _input: string, work: () => Promise<T>) {
 			return await work();
 		}
@@ -64,14 +67,19 @@ vi.mock("./promptForTemplateNoteDiscovery", async () => {
 	};
 });
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
-	getAllFolderPathsInVault: vi.fn(() => []),
-	getTemplateFile: (app: App, path: string) => app.vault.getAbstractFileByPath(path),
 	templaterParseTemplate: async (_app: App, content: string) => content,
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: insertFileLinkMock,
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: openExistingFileTabMock,
 	openFile: openFileMock,
 }));
@@ -89,10 +97,6 @@ vi.mock("../gui/GenericSuggester/genericSuggester", () => ({
 
 vi.mock("../main", () => ({
 	default: class QuickAddMock {},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 import { TFile, type App } from "obsidian";
@@ -315,7 +319,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 	});
 
 	it.each([
-		["appendBottom", "---\nstatus: active\n---\nOriginal body\nUpdate"],
+		["appendBottom", "---\nstatus: active\n---\nOriginal body\n\nUpdate"],
 		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],
 		["overwrite", "Update"],
 	] as const)("applies %s to the selected file without creating or rerouting a note", async (action, expected) => {

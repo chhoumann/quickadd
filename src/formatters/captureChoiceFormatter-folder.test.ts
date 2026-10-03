@@ -1,7 +1,7 @@
 import { createTFile, createMockApp } from "../../tests/helpers/formatters/captureFixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../utilityObsidian", async () => (await import("../../tests/helpers/formatters/mocks")).utilityObsidianMock());
+vi.mock("../utils/templaterIntegration", async () => (await import("../../tests/helpers/formatters/mocks")).templaterIntegrationMock());
 
 vi.mock("../gui/InputPrompt", () => ({
   __esModule: true,
@@ -40,8 +40,6 @@ vi.mock("../engine/SingleMacroEngine", async () => (await import("../../tests/he
 
 vi.mock("../engine/SingleTemplateEngine", async () => (await import("../../tests/helpers/formatters/mocks")).SingleTemplateEngineMockWithConstructor());
 
-vi.mock("obsidian-dataview", async () => (await import("../../tests/helpers/formatters/mocks")).obsidiandataviewMock());
-
 import { CaptureChoiceFormatter } from "./captureChoiceFormatter";
 
 const createFormatter = () => {
@@ -59,9 +57,9 @@ const createFormatter = () => {
 describe("CaptureChoiceFormatter {{FOLDER}} resolves to the destination folder", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    (global as any).navigator = {
+    vi.stubGlobal("navigator", {
       clipboard: { readText: vi.fn().mockResolvedValue("") },
-    };
+    });
   });
 
   it("derives {{FOLDER}} from a destination source path (file not yet created)", async () => {

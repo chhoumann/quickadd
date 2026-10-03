@@ -7,7 +7,7 @@ import globals from 'globals';
 export default [
     {
         // Global ignores: a standalone object with only `ignores` applies repo-wide in flat config.
-        ignores: ['node_modules/**', 'dist/**', 'docs/**', '.audit/**', 'main.js', '**/*.d.ts'],
+        ignores: ['node_modules/**', 'dist/**', 'docs/**', '.audit/**', '.obsidian-e2e-vaults/**', 'main.js', '**/*.d.ts'],
     },
     {
         files: ['**/*.ts'],

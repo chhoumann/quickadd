@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
-import { v4 as uuidv4 } from "uuid";
+import { uuidv4 } from "../utils/uuid";
 import type { AIProvider } from "../ai/Provider";
 import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
 import { log } from "../logger/logManager";
@@ -314,8 +314,24 @@ export async function applyPackageImport(
 		idMap.set(entry.choice.id, newId);
 	}
 
-	const updatedChoices = deepClone(existingChoices);
+	// "Import" adds a choice; it never replaces one. A choice already in the
+	// vault needs an explicit overwrite, duplicate or skip. Checked before
+	// anything is written, so a refused import changes nothing.
 	const existingIds = new Set(flattenChoices(existingChoices).map((c) => c.id));
+	const wouldReplace = pkg.choices.filter((entry) =>
+		importableChoiceIds.has(entry.choice.id) &&
+		(choiceDecisionMap.get(entry.choice.id) ?? "import") === "import" &&
+		idMap.get(entry.choice.id) === entry.choice.id &&
+		existingIds.has(entry.choice.id),
+	);
+	if (wouldReplace.length > 0) {
+		const names = wouldReplace.map((entry) => `"${entry.choice.name}"`).join(", ");
+		throw new Error(
+			`Already in this vault: ${names}. Import only adds new choices, so choose overwrite, duplicate or skip for ${wouldReplace.length === 1 ? "it" : "them"}.`,
+		);
+	}
+
+	const updatedChoices = deepClone(existingChoices);
 	const addedChoiceIds: string[] = [];
 	const overwrittenChoiceIds: string[] = [];
 	const skippedChoiceIds: string[] = [];

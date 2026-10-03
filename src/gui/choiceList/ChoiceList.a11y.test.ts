@@ -1,9 +1,7 @@
 import { actionsSpy } from "../../../tests/helpers/settings/choiceActions";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render } from "@testing-library/svelte";
-
-// ChoiceListItem -> renderChoiceName/contextMenu reach src/main -> obsidian-dataview.
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { App, Menu } from "obsidian";
 // Runtime "obsidian" is aliased to the test stub (vitest.config.mts); tsc/svelte-check

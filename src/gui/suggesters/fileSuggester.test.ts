@@ -6,15 +6,6 @@ import { FileIndex } from './FileIndex';
 import { FileSuggester } from './fileSuggester';
 import { renderExactHighlight } from './utils';
 
-vi.mock("@popperjs/core", () => ({
-    createPopper: (_reference: Element, _popper: HTMLElement, options: { placement: string }) => ({
-        update: vi.fn(),
-        setOptions: vi.fn(),
-        destroy: vi.fn(),
-        state: { options: { placement: options.placement } },
-    }),
-}));
-
 beforeEach(() => {
     HTMLElement.prototype.scrollIntoView ??= vi.fn();
 });
@@ -656,15 +647,18 @@ describe('FileSuggester DOM XSS safety', () => {
                 suggest: { setSuggestions(values: unknown[]): void };
             }).suggest;
 
+            const scrollAdds = () => addSpy.mock.calls.filter(([type]) => type === 'scroll').length;
             suggest.setSuggestions(makeRows(1));
             suggester.open(document.body, inputEl);
+            const scrollAddsWhenOpened = scrollAdds();
             suggest.setSuggestions(makeRows(2));
             suggester.open(document.body, inputEl);
             suggest.setSuggestions(makeRows(3));
             suggester.open(document.body, inputEl);
 
-            const scrollAdds = addSpy.mock.calls.filter(([type]) => type === 'scroll').length;
-            expect(scrollAdds).toBe(1);
+            // The list's own scroll listener plus the tooltip's, and no more per refresh.
+            expect(scrollAddsWhenOpened).toBe(2);
+            expect(scrollAdds()).toBe(scrollAddsWhenOpened);
 
             const suggestion = popoutDocument.querySelector<HTMLElement>('.suggestion-item')!;
             expect(suggestion).not.toBeNull();
@@ -680,10 +674,10 @@ describe('FileSuggester DOM XSS safety', () => {
 
             suggester.close();
             const scrollRemoves = removeSpy.mock.calls.filter(([type]) => type === 'scroll').length;
-            expect(scrollRemoves).toBe(1);
+            expect(scrollRemoves).toBe(2);
 
             suggester.destroy();
-            expect(removeSpy.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(1);
+            expect(removeSpy.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(2);
         } finally {
             addSpy.mockRestore();
             removeSpy.mockRestore();

@@ -95,3 +95,35 @@ describe("rankMatches", () => {
 		).toEqual(["Ada", "Notes"]);
 	});
 });
+
+describe("rankMatches with aliases", () => {
+	const notes = [
+		{ label: "Thomas Anderson", aliases: ["Neo", "The One"] },
+		{ label: "Neo Classic", aliases: [] },
+		{ label: "Trinity", aliases: ["Trinidad"] },
+	];
+	const rank = (query: string) =>
+		rankMatches(query, notes, (note) => note.label, {
+			limit: 200,
+			aliases: (note) => note.aliases,
+		}).map(({ item, alias, matches }) => ({ label: item.label, alias, matches }));
+
+	it("finds an item by an alias and says which alias matched", () => {
+		expect(rank("the one")).toEqual([
+			{ label: "Thomas Anderson", alias: "The One", matches: [[0, 7]] },
+		]);
+	});
+
+	it("ranks each item once, by whichever of its names scores best", () => {
+		expect(rank("neo")).toEqual([
+			{ label: "Thomas Anderson", alias: "Neo", matches: [[0, 3]] },
+			{ label: "Neo Classic", alias: undefined, matches: [[0, 3]] },
+		]);
+	});
+
+	it("keeps the item's own text when it scores as well as an alias", () => {
+		expect(rank("trin")).toEqual([
+			{ label: "Trinity", alias: undefined, matches: [[0, 4]] },
+		]);
+	});
+});

@@ -4,7 +4,7 @@ import Fuse from "fuse.js";
 import { createIndexedFile } from "./fileMetadata";
 import { calculateFileScore, SearchWeights } from "./fileSearchRanking";
 import type { SearchWeightsConfig } from "./fileSearchRanking";
-export { SearchWeights, type SearchWeightsConfig } from "./fileSearchRanking";
+export { SearchWeights } from "./fileSearchRanking";
 import { normalizeForSearch } from "./utils";
 
 export interface IndexedFile {

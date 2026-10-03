@@ -1,22 +1,14 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Notice, TFile, TFolder, type App } from "obsidian";
+import { Notice, prepareFuzzySearch, TFile, TFolder, type App, type SearchMatches } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";
 import { CaptureChoiceEngine } from "./CaptureChoiceEngine";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import {
-	getMarkdownFilesInFolder,
-	getMarkdownFilesMatchingFilter,
-	getMarkdownFilesWithProperty,
-	insertOnNewLineBelow,
-	insertFileLinkToActiveView,
-	isFolder,
-	jumpToNextTemplaterCursorIfPossible,
-	openFile,
-	overwriteTemplaterOnce,
-	setMarkdownCursorAtOffset,
-} from "../utilityObsidian";
+import { getMarkdownFilesInFolder, getMarkdownFilesMatchingFilter, getMarkdownFilesWithProperty, isFolder } from "../utils/vaultQueries";
+import { insertOnNewLineBelow, insertFileLinkToActiveView, setMarkdownCursorAtOffset } from "../utils/editorInsertion";
+import { jumpToNextTemplaterCursorIfPossible, overwriteTemplaterOnce } from "../utils/templaterIntegration";
+import { openFile } from "../utils/fileOpening";
 import { QA_INTERNAL_CAPTURE_TARGET_FILE_PATH } from "../constants";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { MacroAbortError } from "../errors/MacroAbortError";
@@ -102,26 +94,32 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 	setUseSelectionAsCaptureValueMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	// Editor-insertion helpers return true when the insertion lands; default the mocks
 	// to "inserted" so capture-to-active-file paths proceed to the cosmetic/openFile steps.
 	appendToCurrentLine: vi.fn(() => true),
+	insertFileLinkToActiveView: vi.fn(),
+	insertOnNewLineAbove: vi.fn(() => true),
+	insertOnNewLineBelow: vi.fn(() => true),
+	setMarkdownCursorAtOffset: vi.fn(() => true),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 	getMarkdownFilesMatchingFilter: vi.fn(() => []),
 	getMarkdownFilesWithProperty: vi.fn(() => []),
 	getMarkdownFilesWithTag: vi.fn(() => []),
-	insertFileLinkToActiveView: vi.fn(),
-	insertOnNewLineAbove: vi.fn(() => true),
-	insertOnNewLineBelow: vi.fn(() => true),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+	overwriteTemplaterOnce: vi.fn(),
+	templaterParseTemplate: vi.fn(async (_app, content) => content),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
-	overwriteTemplaterOnce: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(() => true),
-	templaterParseTemplate: vi.fn(async (_app, content) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({
@@ -143,10 +141,6 @@ vi.mock("./SingleTemplateEngine", () => ({
 			return new Map();
 		}
 	},
-}));
-
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
 }));
 
 vi.mock("../main", () => ({
@@ -840,6 +834,58 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		]);
 		expect(options.allowCustomValue).toBe(true);
 		expect(options.customValueLabel("New")).toBe("Create new note: New");
+	});
+
+	it("highlights a match in a titled note's file name on its path line", async () => {
+		const file = Object.assign(new TFile(), {
+			path: "People/Thomas Anderson.md",
+			name: "Thomas Anderson.md",
+			basename: "Thomas Anderson",
+			extension: "md",
+		});
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([file]);
+		const suggestSpy = vi.fn(async () => file.path);
+		(InputSuggester as any).Suggest = suggestSpy;
+		const app = createApp() as any;
+		app.vault.getAbstractFileByPath = vi.fn((path: string) => (path === file.path ? file : null));
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { title: "The Matrix" } }));
+
+		await (createCaptureEngine({ choice: createChoice({ captureTo: "People/" }), app }) as any)
+			.selectFileInFolder("People/", false);
+
+		const options = (suggestSpy.mock.calls[0] as unknown as [unknown, unknown, unknown, {
+			searchItems: string[];
+			renderItem: (path: string, el: HTMLElement, matches: SearchMatches) => void;
+		}])[3];
+		const found = prepareFuzzySearch("thomas")(options.searchItems[0]);
+		const el = document.createElement("div");
+		options.renderItem(file.path, el, found?.matches ?? []);
+		expect(el.querySelector(".suggestion-title")?.textContent).toBe("The Matrix");
+		expect(Array.from(el.querySelectorAll(".suggestion-highlight"), (span) => span.textContent))
+			.toEqual(["Thomas"]);
+	});
+
+	it("captures into the note whose alias a remote client typed, instead of creating one (#2062)", async () => {
+		const file = Object.assign(new TFile(), {
+			path: "People/Thomas Anderson.md",
+			name: "Thomas Anderson.md",
+			basename: "Thomas Anderson",
+			extension: "md",
+		});
+		vi.mocked(getMarkdownFilesInFolder).mockReturnValue([file]);
+		const app = createApp() as any;
+		app.metadataCache.getFileCache = vi.fn(() => ({ frontmatter: { aliases: ["Neo", "The One"] } }));
+		// A Raycast client typed "neo" and chose its "Use custom value" row.
+		const suggester = vi.fn(async () => "neo");
+		const executor = { ...createExecutor(), interactive: true, promptProvider: { suggester } } as unknown as IChoiceExecutor;
+		const choice = createChoice({
+			captureTo: "People/",
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: false, template: "" },
+		});
+
+		await expect((createCaptureEngine({ choice, app, executor }) as any).selectFileInFolder("People/", false))
+			.resolves.toBe("People/Thomas Anderson.md");
+		expect(suggester).toHaveBeenCalledTimes(1);
 	});
 
 	it("suppresses folder create rows for values that normalize to existing files", async () => {

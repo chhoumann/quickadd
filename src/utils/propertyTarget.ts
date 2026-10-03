@@ -16,7 +16,7 @@ import { FieldSuggestionParser, type FieldFilter } from "./FieldSuggestionParser
  * `|` is RESERVED for the pipe-filter grammar (parsed by {@link FieldSuggestionParser},
  * exactly as `{{FILE:}}` does), so a literal `|` cannot appear in a property value.
  */
-export interface PropertyTarget {
+interface PropertyTarget {
 	/** Frontmatter field name (case-insensitively matched at query time). May be "" when malformed. */
 	field: string;
 	/** Target value; `undefined` means presence mode (match any value, incl. empty). */

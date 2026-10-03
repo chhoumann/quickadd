@@ -1,7 +1,5 @@
 import type IChoice from "../types/choices/IChoice";
-import type IMacroChoice from "../types/choices/IMacroChoice";
-import type IMultiChoice from "../types/choices/IMultiChoice";
-import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type { ICommand } from "../types/macros/ICommand";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
@@ -13,24 +11,24 @@ import { commandListOf, isCommandLike } from "./macroUtils";
 import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
 
-export interface ChoiceCatalogEntry {
+interface ChoiceCatalogEntry {
 	choice: IChoice;
 	parentId: string | null;
 	path: string[];
 }
 
-export interface ChoiceClosureResult {
+interface ChoiceClosureResult {
 	catalog: Map<string, ChoiceCatalogEntry>;
 	choiceIds: string[];
 	missingChoiceIds: string[];
 }
 
-export interface ScriptDependencyCollection {
+interface ScriptDependencyCollection {
 	userScriptPaths: Set<string>;
 	conditionalScriptPaths: Set<string>;
 }
 
-export interface FileDependencyCollection {
+interface FileDependencyCollection {
 	templatePaths: Set<string>;
 	captureTemplatePaths: Set<string>;
 	/**
@@ -42,22 +40,6 @@ export interface FileDependencyCollection {
 }
 
 const EMPTY_SET = new Set<string>();
-
-function isMultiChoice(choice: IChoice): choice is IMultiChoice {
-	return choice.type === "Multi";
-}
-
-function isMacroChoice(choice: IChoice): choice is IMacroChoice {
-	return choice.type === "Macro";
-}
-
-function isTemplateChoice(choice: IChoice): choice is ITemplateChoice {
-	return choice.type === "Template";
-}
-
-function isCaptureChoice(choice: IChoice): choice is ICaptureChoice {
-	return choice.type === "Capture";
-}
 
 function shouldIncludeChoice(
 	choice: IChoice | null | undefined,
@@ -207,7 +189,7 @@ function collectDependenciesFromCommands(
 	}
 }
 
-export interface CollectChoiceClosureOptions {
+interface CollectChoiceClosureOptions {
 	excludedChoiceIds?: ReadonlySet<string>;
 }
 

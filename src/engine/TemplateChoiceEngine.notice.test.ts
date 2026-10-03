@@ -53,6 +53,9 @@ vi.mock("../formatters/completeFormatter", () => {
 		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
 			return await work();
 		}
+		async withUserTextProtected<T>(work: () => Promise<T>) {
+			return await work();
+		}
 		async withPromptScope<T>(
 			_scope: string,
 			_input: string,
@@ -78,11 +81,17 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/templaterIntegration", () => ({
 	getTemplater: vi.fn(() => ({})),
 	overwriteTemplaterOnce: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
+}));
+vi.mock("../utils/editorInsertion", () => ({
 	insertFileLinkToActiveView: vi.fn(),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
 }));
@@ -97,10 +106,6 @@ vi.mock("../main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
-
 import { TFile, TFolder, type App } from "obsidian";
 import { Notice } from "obsidian";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
@@ -110,7 +115,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
-import { insertFileLinkToActiveView } from "../utilityObsidian";
+import { insertFileLinkToActiveView } from "../utils/editorInsertion";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 

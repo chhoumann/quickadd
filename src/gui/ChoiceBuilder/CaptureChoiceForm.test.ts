@@ -1,7 +1,5 @@
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it, vi } from "vitest";
-
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
+import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
@@ -74,9 +72,9 @@ function selectUnderSetting(
 
 
 
-function mountForm() {
+function mountForm(choice: ICaptureChoice = captureChoice()) {
 	const props = createCaptureChoiceFormProps({
-		choice: captureChoice(),
+		choice,
 		app: new App(),
 		plugin,
 	});
@@ -113,8 +111,10 @@ describe("CaptureChoiceForm", () => {
 		props.choice.insertAfter.enabled = true;
 		props.choice.task = true;
 		flushSync();
+		expect(selectUnderSetting(container, "Write position").value).toBe("after");
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
+		expect(selectUnderSetting(container, "Write position").value).toBe("property");
 		expect(settingNames(container)).not.toContain("Insert after");
 		expect(settingNames(container)).not.toContain("Task");
 		expect(settingNames(container)).toContain("Create property if missing");
@@ -149,14 +149,14 @@ describe("CaptureChoiceForm", () => {
 		flushSync();
 		const actionDesc = () => settingItem(container, "Action").querySelector(".setting-item-description")?.textContent ?? "";
 		const textarea = () => settingItem(container, "Capture format").closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
 		flushSync();
 		expect(actionDesc()).toContain("For a list, each line is one item");
 		expect(actionDesc()).toContain("{{PROPERTY}}");
 		expect(actionDesc()).toContain("rejects several lines");
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
 		flushSync();
@@ -166,12 +166,13 @@ describe("CaptureChoiceForm", () => {
 
 		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
 		flushSync();
-		expect(textarea().placeholder).toBe("Format");
+		expect(textarea().placeholder).toBe("{{VALUE}}");
 	});
 
 	it("reveals insert-after / insert-before fields by write position, mutually exclusive, without remounting", async () => {
 		const { container } = mountForm();
-		const headerBefore = container.querySelector(".choiceNameHeaderButton");
+		const headerBefore = container.querySelector(".setting-item-heading");
+		expect(headerBefore).not.toBeNull();
 		expect(settingNames(container)).not.toContain("Insert after");
 
 		const select = selectUnderSetting(container, "Write position");
@@ -186,7 +187,7 @@ describe("CaptureChoiceForm", () => {
 		expect(settingNames(container)).not.toContain("Insert after");
 
 		// No full remount across all those conditional changes (#1130).
-		expect(container.querySelector(".choiceNameHeaderButton")).toBe(
+		expect(container.querySelector(".setting-item-heading")).toBe(
 			headerBefore,
 		);
 	});
@@ -277,6 +278,40 @@ describe("CaptureChoiceForm", () => {
 	// "Capture to", the "Capture to active file" toggle, a control-less "File path /
 	// format" — and the input that actually holds it advertised itself as a *file
 	// name* format. One decision, one label, one description, one input.
+	// #2014: the whole-file Templater pass is deprecated. Only a choice that
+	// already has it on still sees the row, so it can turn it off.
+	it("shows the deprecated whole-file Templater option only while it is on", async () => {
+		const { container, props } = mountForm();
+		const rowName = "Run Templater on entire destination file after capture (deprecated)";
+		expect(settingNames(container)).not.toContain(rowName);
+
+		props.choice.templater = { afterCapture: "wholeFile" };
+		flushSync();
+		const toggle = settingItem(container, rowName).querySelector(".checkbox-container") as HTMLElement;
+		expect(toggle.classList.contains("is-enabled")).toBe(true);
+
+		await fireEvent.click(toggle);
+		flushSync();
+		expect(props.choice.templater.afterCapture).toBe("none");
+		expect(settingNames(container)).not.toContain(rowName);
+	});
+
+	// #2023: one click targets the daily note through {{DAILY}}.
+	it("fills in the daily note from the Daily note button", async () => {
+		const { container, props } = mountForm();
+		props.choice.createFileIfItDoesntExist = { enabled: false, createWithTemplate: true, template: "T.md" };
+		flushSync();
+		const button = () => [...settingItem(container, "Capture to").querySelectorAll("button")]
+			.find((el) => el.textContent === "Daily note");
+
+		await fireEvent.click(button()!);
+		flushSync();
+
+		expect(props.choice.captureTo).toBe("{{DAILY}}");
+		expect(props.choice.createFileIfItDoesntExist).toEqual({ enabled: true, createWithTemplate: false, template: "T.md" });
+		expect(button()).toBeUndefined();
+	});
+
 	it("describes the capture target with a single labelled field", () => {
 		const { container, getByLabelText } = mountForm();
 		const names = settingNames(container);
@@ -295,41 +330,58 @@ describe("CaptureChoiceForm", () => {
 		expect(input.closest(".qa-field")).toBe(label.closest(".qa-field"));
 	});
 
-	it("hides the capture format field entirely while the format toggle is off", async () => {
+	it("treats an empty capture format as capturing {{VALUE}} on its own", async () => {
 		const { container, props } = mountForm();
-		const field = () =>
-			settingItem(container, "Capture format").closest(".qa-field") as HTMLElement;
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea.value).toBe("");
+		expect(props.choice.format.enabled).toBe(false);
 
-		expect(field().querySelector("textarea")).toBeNull();
-		// With no field to point at there is no dangling <label for>.
-		expect(field().querySelector("label.setting-item-name")).toBeNull();
+		textarea.value = "- {{VALUE}}";
+		await fireEvent.input(textarea);
+		expect(props.choice.format).toEqual({ enabled: true, format: "- {{VALUE}}" });
 
-		const toggle = settingItem(container, "Capture format").querySelector(
-			".checkbox-container",
-		) as HTMLElement;
-		await fireEvent.click(toggle);
+		textarea.value = "";
+		await fireEvent.input(textarea);
+		expect(props.choice.format.enabled).toBe(false);
+	});
+
+	// #2004 review: a format that starts with whitespace (an indented item) was
+	// erased while it had no other text yet.
+	it("keeps leading whitespace typed into an empty capture format", async () => {
+		const { container, props } = mountForm();
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+
+		textarea.value = "\t";
+		await fireEvent.input(textarea);
 		flushSync();
+		expect(textarea.value).toBe("\t");
+		expect(props.choice.format).toEqual({ enabled: false, format: "\t" });
 
-		expect(props.choice.format.enabled).toBe(true);
-		const textarea = field().querySelector("textarea") as HTMLTextAreaElement;
-		expect(textarea).not.toBeNull();
-		expect(textarea.disabled).toBe(false);
-		expect(
-			(field().querySelector("label.setting-item-name") as HTMLLabelElement)
-				.htmlFor,
-		).toBe(textarea.id);
+		textarea.value = "\t- {{VALUE}}";
+		await fireEvent.input(textarea);
+		flushSync();
+		expect(textarea.value).toBe("\t- {{VALUE}}");
+		expect(props.choice.format).toEqual({ enabled: true, format: "\t- {{VALUE}}" });
+	});
+
+	it("shows an old choice's disabled format as empty", () => {
+		const choice = new CaptureChoice("Old");
+		choice.format = { enabled: false, format: "- {{VALUE}}" };
+		const { container } = mountForm(choice);
+		const textarea = settingItem(container, "Capture format")
+			.closest(".qa-field")
+			?.querySelector("textarea") as HTMLTextAreaElement;
+		expect(textarea.value).toBe("");
 	});
 
 	// #1875: Tab in the format box indents, but tabbing through the form still
 	// passes it by without editing it.
 	it("indents the capture format on Tab once the field is in use", async () => {
 		const { container, props } = mountForm();
-		await fireEvent.click(
-			settingItem(container, "Capture format").querySelector(
-				".checkbox-container",
-			) as HTMLElement,
-		);
-		flushSync();
 		const textarea = settingItem(container, "Capture format")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;

@@ -1,5 +1,6 @@
 import { executeMacroAI, pickMacroModel } from "./macroAI";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
+import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { App, WorkspaceLeaf } from "obsidian";
 import * as obsidian from "obsidian";
@@ -19,7 +20,7 @@ import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import { getQuickAddInstance } from "../quickAddInstance";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import { getUserScript } from "../utilityObsidian";
+import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -40,7 +41,7 @@ import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssi
 import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
-import { openFile } from "../utilityObsidian";
+import { openFile } from "../utils/fileOpening";
 import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
@@ -72,7 +73,7 @@ type ConditionalScriptRunner = () => Promise<unknown>;
 const RETIRED_COMMAND_TYPES = new Map<string, string>([
 	[
 		"InfiniteAIAssistant",
-		'QuickAdd has removed the "Infinite AI Assistant" command type - no released version could ever run one. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() in a user script.',
+		'The "Infinite AI Assistant" command type was removed - no released version could ever run one. Delete the step from the macro. For chunked AI prompts, use quickAddApi.ai.chunkedPrompt() in a user script.',
 	],
 ]);
 
@@ -109,6 +110,12 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	public choice: IMacroChoice;
 	public params: ScriptParameters;
 	protected output: unknown;
+	/**
+	 * The last step that ran and was neither a Wait nor a Conditional, for the
+	 * Templater re-run notice. Kept on the engine so it carries across
+	 * Conditional branches, which run through a nested executeCommands.
+	 */
+	private previousStep: ICommand | undefined;
 	protected macro: IMacro;
 	protected choiceExecutor: IChoiceExecutor;
 	protected readonly plugin: QuickAdd;
@@ -240,6 +247,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
+		this.previousStep = undefined;
 		await this.executeCommands(commands);
 	}
 
@@ -267,6 +275,16 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				const role = command.type === CommandType.Choice || command.type === CommandType.NestedChoice
 					? classifyStep(command, (id) => resolveChoiceFromPlugin(this.plugin, id))
 					: null;
+				const rerunAfter = templaterRerunAfter(this.previousStep, command, (id) => resolveChoiceFromPlugin(this.plugin, id));
+				if (rerunAfter) {
+					warnDeprecatedOnce(
+						`templater-rerun:${this.choice.id}:${command.id}`,
+						`Macro '${this.choice.name}' runs "Templater: Replace templates in the active file" after '${rerunAfter}'. QuickAdd already runs Templater in the notes it creates and captures, so this step is deprecated and can run template code twice. Remove it from the macro.`,
+					);
+				}
+				if (command.type !== CommandType.Wait && command.type !== CommandType.Conditional) {
+					this.previousStep = command;
+				}
 				const resumeInputs = role?.collect.kind === "scanChoice" &&
 					isDiscoveryInputBoundary(role.collect.choice, this.choiceExecutor.variables.get("value"));
 				await withPreparedChoiceInputs(this.choiceExecutor, command.id, async () => {

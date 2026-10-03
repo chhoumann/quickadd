@@ -9,9 +9,7 @@ const mocks = vi.hoisted(() => ({
 	confirm: vi.fn(),
 	picked: null as AIProvider | null,
 }));
-vi.mock("../GenericYesNoPrompt/GenericYesNoPrompt", () => ({
-	default: { Prompt: mocks.confirm },
-}));
+vi.mock("../confirmAction", () => ({ confirmAction: mocks.confirm }));
 vi.mock("../ProviderPickerModal", () => ({
 	ProviderPickerModal: class {
 		waitForClose: Promise<void>;
@@ -146,6 +144,7 @@ describe("AI Assistant settings page", () => {
 		expect(visible()).toBe(false);
 		const defaults = page.items![1] as unknown as { items: Array<{ name: string; control?: { key: string } }> };
 		expect(defaults.items.filter((item) => item.control).map((item) => [item.name, item.control?.key])).toEqual([
+			["Prompt template folder", "ai.promptTemplatesFolderPath"],
 			["Show assistant", "ai.showAssistant"],
 			["Confirm AI tool calls", "ai.confirmToolCalls"],
 		]);

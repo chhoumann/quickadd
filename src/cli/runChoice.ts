@@ -7,7 +7,7 @@ import { RemotePromptProvider } from "../interactive/promptProvider";
 import type QuickAdd from "../main";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "../preflight/collectChoiceRequirements";
 import type IChoice from "../types/choices/IChoice";
-import { getTemplateFile } from "../utilityObsidian";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import { executeChoice } from "./executeChoice";
 import {

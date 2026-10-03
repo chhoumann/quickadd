@@ -32,7 +32,6 @@ const HELP = `
 const docs=()=>{const ds=[document];const w=app.setting.popout&&app.setting.popout.win;if(w&&!w.closed)ds.push(w.document);return ds;};
 const q=(sel)=>docs().flatMap((d)=>Array.from(d.querySelectorAll(sel)));
 const lastBy=(l)=>{const e=q('[aria-label="'+l+'"]');return e[e.length-1]||null;};
-const btnByText=(t)=>q('.modal-container button').filter((b)=>b.textContent.trim()===t);
 const pressEscapeIn=(d)=>{const W=d.defaultView||window;d.body.dispatchEvent(new W.KeyboardEvent('keydown',{key:'Escape',code:'Escape',keyCode:27,which:27,bubbles:true}));};
 const clickLast=(sel)=>{const e=q(sel);if(!e.length)return 'missing '+sel;e[e.length-1].click();return 'ok';};
 `;
@@ -123,8 +122,8 @@ describe("conditional command branch persistence (regression for the runes rewri
 		await closeAllModals();
 
 		// Drive the real settings GUI: configure the macro -> edit Then branch ->
-		// add a Wait command -> Save -> close the macro builder. Each click waits
-		// for its target first, so the popout's async materialization is covered.
+		// add a Wait command -> back -> back. Each click waits for its target
+		// first, so the popout's async materialization is covered.
 		await sev(`app.setting.open(); return '';`);
 		await waitUi(
 			"settings UI rendered (main window or popout)",
@@ -145,18 +144,18 @@ describe("conditional command branch persistence (regression for the runes rewri
 		);
 		expect(await sev(`return clickLast('[aria-label^="Edit then branch"]');`)).toBe("ok");
 
-		await waitUi("branch editor open", `!!lastBy('Add wait command')`);
-		expect(await sev(`return clickLast('[aria-label="Add wait command"]');`)).toBe("ok");
+		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add wait command"]')[0]`);
+		expect(await sev(`return clickLast('.conditionalBranchPage [aria-label="Add wait command"]');`)).toBe("ok");
 
-		await waitUi("wait command staged", `btnByText('Save').length > 0`);
-		expect(await sev(`const s=btnByText('Save'); s[s.length-1].click(); return 'ok';`)).toBe("ok");
-		await waitUi("branch editor closed", `btnByText('Save').length === 0`);
+		await waitUi("wait command staged", `q('.conditionalBranchPage .quickAddCommandListItem').length === 1`);
+		// Back to the macro: the branch page hands its commands to the macro.
+		expect(await sev(`return clickLast('.setting-page-back-button');`)).toBe("ok");
+		await waitUi("macro shows the then-branch command", `q('.conditionalBranches')[0]?.textContent.includes('Then: 1')`);
 
-		// Close the macro builder (Escape in its window). Its onClose resolves
-		// waitForClose, which is the ONLY path that commits the configured choice
-		// to the settings store and schedules the debounced disk save.
-		await sev(`const b=q('.macroBuilder')[0]; if(b) pressEscapeIn(b.ownerDocument); return '';`);
-		await waitUi("macro builder closed", `q('.macroBuilder').length === 0`);
+		// Back to the choice list: leaving the macro page saves the choice and
+		// schedules the debounced disk save.
+		expect(await sev(`return clickLast('.setting-page-back-button');`)).toBe("ok");
+		await waitUi("macro builder left", `q('.macroBuilder').length === 0`);
 
 		// Assert the added command persisted to data.json on disk. Poll: the
 		// settings store flushes through a 1s debounce after the builder closes.

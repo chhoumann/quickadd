@@ -44,18 +44,19 @@ vi.mock("src/main", () => ({
 	default: class QuickAddMock {},
 }));
 
-vi.mock("obsidian-dataview", () => ({
-	__esModule: true,
-	getAPI: vi.fn().mockReturnValue(null),
+vi.mock("src/utils/vaultQueries", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	getMarkdownFilesInFolder: vi.fn(() => []),
+	getMarkdownFilesWithTag: vi.fn(() => []),
+	isFolder: vi.fn(() => false),
 }));
-
-vi.mock("src/utilityObsidian", async () => {
+vi.mock("src/utils/userScript", async (importOriginal) => ({
+	...(await importOriginal<object>()),
+	loadUserScript: vi.fn(),
+}));
+vi.mock("src/utils/templateFolderUtils", async () => {
 	const { TFile } = await import("obsidian");
 	return {
-		getMarkdownFilesInFolder: vi.fn(() => []),
-		getMarkdownFilesWithTag: vi.fn(() => []),
-		loadUserScript: vi.fn(),
-		isFolder: vi.fn(() => false),
 		// Faithful to the real resolver: trim, strip a leading slash, append .md
 		// only when no template extension is present, then resolve to a TFile.
 		getTemplateFile: vi.fn((app: App, path: string) => {

@@ -1,13 +1,12 @@
 import type { App } from "obsidian";
 import { ButtonComponent, Modal } from "obsidian";
+import { addArrowKeyNavigation, suppressPointerPress } from "../confirmAction";
 
 /**
- * A yes/no dialog. Walking away from it is an answer, not an error: dismissing
- * the dialog (Esc, the close button, clicking outside) never rejects.
- *
- * Use {@link GenericYesNoPrompt.Prompt} for confirmations, where a dismissal is
- * simply "no". Use {@link GenericYesNoPrompt.Ask} only where a dismissal has to
- * be told apart from an explicit "No".
+ * The yes/no dialog behind the scripting API's `yesNoPrompt`. Walking away from
+ * it is an answer, not an error: dismissing the dialog (Esc, the close button,
+ * clicking outside) never rejects. QuickAdd's own confirmations use
+ * `confirmAction` (Obsidian's confirmation dialog) instead.
  */
 export default class GenericYesNoPrompt extends Modal {
 	private resolvePromise: (input: boolean | null) => void;
@@ -27,18 +26,6 @@ export default class GenericYesNoPrompt extends Modal {
 	): Promise<boolean | null> {
 		const newPromptModal = new GenericYesNoPrompt(app, header, text);
 		return newPromptModal.waitForClose;
-	}
-
-	/**
-	 * Ask for confirmation. Only an explicit "Yes" confirms, so dismissing the
-	 * dialog counts as "No". Never rejects.
-	 */
-	public static async Prompt(
-		app: App,
-		header: string,
-		text?: string
-	): Promise<boolean> {
-		return (await GenericYesNoPrompt.Ask(app, header, text)) === true;
 	}
 
 	private constructor(
@@ -92,31 +79,4 @@ export default class GenericYesNoPrompt extends Modal {
 
 		this.resolvePromise(this.input);
 	}
-}
-
-function suppressPointerPress(button: HTMLButtonElement): void {
-	const suppress = (event: MouseEvent | PointerEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-	};
-
-	button.addEventListener("pointerdown", suppress);
-	button.addEventListener("mousedown", suppress);
-}
-
-function addArrowKeyNavigation(buttons: HTMLButtonElement[]): void {
-	buttons.forEach((button) => {
-		button.addEventListener("keydown", (event) => {
-			if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-				const currentIndex = buttons.indexOf(button);
-				const nextIndex =
-					(currentIndex +
-						(event.key === "ArrowRight" ? 1 : -1) +
-						buttons.length) %
-					buttons.length;
-				buttons[nextIndex].focus();
-				event.preventDefault();
-			}
-		});
-	});
 }

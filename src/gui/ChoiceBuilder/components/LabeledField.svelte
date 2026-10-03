@@ -5,7 +5,8 @@ import SettingItem from "../../components/SettingItem.svelte";
 /**
  * A full-width field with a real label: an Obsidian `.setting-item` row carrying
  * the name, description and (optionally) the toggle that enables the field, with
- * the field itself on its own line beneath — `<label for>`-bound to the name.
+ * the field itself on its own line beneath, in the same row, `<label for>`-bound
+ * to the name.
  *
  * The builders used to hand-assemble this shape from three unrelated siblings: a
  * control-less SettingItem for the label, a preview row, and a bare full-width
@@ -38,9 +39,12 @@ let {
 const fieldId = $props.id();
 </script>
 
-<div class="qa-field">
-	<SettingItem {name} {desc} {control} labelFor={bodyVisible ? fieldId : undefined} />
-	{#if bodyVisible}
-		<div class="qa-field-body">{@render children(fieldId)}</div>
-	{/if}
-</div>
+{#snippet field()}{@render children(fieldId)}{/snippet}
+
+<SettingItem
+	{name}
+	{desc}
+	{control}
+	labelFor={bodyVisible ? fieldId : undefined}
+	body={bodyVisible ? field : undefined}
+/>

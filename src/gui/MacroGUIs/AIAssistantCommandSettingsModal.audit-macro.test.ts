@@ -1,9 +1,6 @@
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: vi.fn(),
-}));
 vi.mock("src/settingsStore", () => ({
 	settingsStore: {
 		getState: () => ({
@@ -28,7 +25,7 @@ vi.mock("src/settingsStore", () => ({
 vi.mock("src/quickAddInstance", () => ({
 	getQuickAddInstance: vi.fn(() => ({})),
 }));
-vi.mock("src/utilityObsidian", () => ({
+vi.mock("src/utils/vaultQueries", () => ({
 	getMarkdownFilesInFolder: vi.fn(() => []),
 }));
 vi.mock("src/ai/tokenEstimator", () => ({

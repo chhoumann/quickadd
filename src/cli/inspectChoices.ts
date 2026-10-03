@@ -3,6 +3,10 @@ import { ChoiceExecutor } from "../choiceExecutor";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
+import type ICaptureChoice from "../types/choices/ICaptureChoice";
+import type ITemplateChoice from "../types/choices/ITemplateChoice";
+import { getWritePosition } from "../engine/captureAction";
+import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
 import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
@@ -16,8 +20,57 @@ interface CliChoiceSummary {
 	command: boolean;
 	path: string;
 	runnable: boolean;
+	writes?: Record<string, string | boolean>;
 }
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
+
+/**
+ * What a Template or Capture writes, read from its stored settings with the
+ * same rules the choice builder and engines use, so a caller (a person or an
+ * agent) can pick the right choice without opening it. Formats stay
+ * unexpanded; `<ask>` marks a part QuickAdd asks for at run time.
+ */
+function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
+	if (choice.type === "Capture") {
+		const capture = choice as ICaptureChoice;
+		const position = getWritePosition(capture);
+		const writes: Record<string, string | boolean> = {
+			target: capture.captureToActiveFile ? "<active file>" : capture.captureTo,
+			position: position === "activeTop" ? "top" : position === "top" && capture.captureToActiveFile ? "cursor" : position,
+		};
+		if (position === "after") writes.line = capture.insertAfter.promptHeading ? "<ask>" : capture.insertAfter.after;
+		if (position === "before") writes.line = capture.insertBefore?.before ?? "";
+		if (capture.propertyCapture) {
+			const property = capture.propertyCapture.property;
+			writes.property = property.kind === "named" ? property.format : "<ask>";
+		}
+		writes.format = capture.format?.enabled ? capture.format.format : "{{VALUE}}";
+		// Task and One entry per line don't apply to a property capture.
+		if (!capture.propertyCapture) {
+			if (capture.task) writes.task = true;
+			if (capture.eachLine) writes.eachLine = true;
+		}
+		const create = capture.createFileIfItDoesntExist;
+		if (create?.enabled && create.createWithTemplate && create.template) writes.createWithTemplate = create.template;
+		return writes;
+	}
+	if (choice.type === "Template") {
+		const template = choice as ITemplateChoice;
+		// A list must not fail on one hand-edited choice, so read defensively.
+		const folder = template.folder ?? { enabled: false, folders: [] };
+		const mode = deriveFolderMode(folder);
+		return {
+			template: template.templatePath,
+			folder:
+				mode === "obsidian-default" ? "<default>" :
+				mode === "active-file" ? "<active file's folder>" :
+				mode === "specified" && folder.folders?.length === 1 && !folder.chooseFromSubfolders ? folder.folders[0] :
+				"<ask>",
+			fileName: template.fileNameFormat?.enabled ? template.fileNameFormat.format : "{{VALUE}}",
+		};
+	}
+	return undefined;
+}
 
 function flattenChoices(
 	choices: IChoice[],
@@ -37,6 +90,7 @@ function flattenChoices(
 			command: choice.command,
 			path,
 			runnable: !isMulti,
+			writes: describeWrites(choice),
 		});
 
 		if (isMulti) {

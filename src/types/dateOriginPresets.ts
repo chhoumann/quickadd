@@ -11,7 +11,7 @@ export const DATE_ORIGIN_PRESETS = [
 	"variable",
 ] as const;
 
-export type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
+type DateOriginPreset = (typeof DATE_ORIGIN_PRESETS)[number];
 
 export const DATE_ORIGIN_SETTING_NAME = "Which day";
 export const DATE_ORIGIN_SETTING_DESC =
@@ -29,7 +29,7 @@ export const VARIABLE_SETTING_NAME = "Variable name";
 export const VARIABLE_SETTING_DESC =
 	"A VDATE or script value that already has the day.";
 
-export const NAMED_RELATIVE_PRESETS = [
+const NAMED_RELATIVE_PRESETS = [
 	{ id: "yesterday", label: "Yesterday", offset: -1, unit: "days" },
 	{ id: "last-week", label: "Last week", offset: -1, unit: "weeks" },
 	{ id: "next-week", label: "Next week", offset: 1, unit: "weeks" },

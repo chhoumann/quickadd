@@ -9,8 +9,9 @@ import {
 	testProviderConnection,
 } from "src/ai/providerConnection";
 import { settingsStore } from "src/settingsStore";
+import { retitleSettingPage } from "src/utils/openPluginSettings";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
-import GenericYesNoPrompt from "../GenericYesNoPrompt/GenericYesNoPrompt";
+import { confirmAction } from "../confirmAction";
 import { ModelDirectoryModal } from "../ModelDirectoryModal";
 import {
 	findProvider,
@@ -21,7 +22,7 @@ import {
 import { configureProviderSecret } from "./providerSettings";
 import { countModels, describeSyncStatus } from "./syncStatus";
 
-export function describeModelSource(provider: Pick<AIProvider, "modelSource">): string {
+function describeModelSource(provider: Pick<AIProvider, "modelSource">): string {
 	switch (provider.modelSource ?? "providerApi") {
 		case "modelsDev":
 			return "the models.dev directory";
@@ -154,19 +155,6 @@ export class AIProviderSettingPage extends SettingPage {
 		if (this.connectionResultEl) setStatusLine(this.connectionResultEl, "");
 	}
 
-	/**
-	 * Keep the page's titles in step with a rename: the inline title here, and
-	 * the settings window's own title, which Obsidian shows as the header on
-	 * phones and only sets when a page opens.
-	 */
-	private retitle(title: string): void {
-		this.title = title;
-		this.titlebarEl.querySelector(".setting-page-title")?.setText(title);
-		(
-			this.app as unknown as { setting?: { updatePageTitle?: () => void } }
-		).setting?.updatePageTitle?.();
-	}
-
 	/** Leave this page for the one that opened it (the AI Assistant page). */
 	private close(): void {
 		const setting = (
@@ -190,7 +178,7 @@ export class AIProviderSettingPage extends SettingPage {
 				.addText((text) => {
 					text.setValue(provider.name).onChange((value) => {
 						this.edit((p) => ({ ...p, name: value }));
-						this.retitle(value.trim() || "Untitled provider");
+						retitleSettingPage(this.app, this, value.trim() || "Untitled provider");
 					});
 				});
 		});
@@ -413,10 +401,10 @@ export class AIProviderSettingPage extends SettingPage {
 				)
 				.addButton((button) => {
 					button.setButtonText("Remove retired").onClick(async () => {
-						const confirmed = await GenericYesNoPrompt.Prompt(
-							this.app,
-							`Remove ${countModels(retiredNames.size)} retired by the provider from ${provider.name}?`,
-						);
+						const confirmed = await confirmAction(this.app, {
+							title: `Remove ${countModels(retiredNames.size)} retired by the provider from ${provider.name}?`,
+							action: "Remove",
+						});
 						if (!confirmed) return;
 						this.edit((p) => ({
 							...p,
@@ -458,10 +446,10 @@ export class AIProviderSettingPage extends SettingPage {
 	}
 
 	private async deleteModel(name: string): Promise<void> {
-		const confirmed = await GenericYesNoPrompt.Prompt(
-			this.app,
-			`Delete ${name}?`,
-		);
+		const confirmed = await confirmAction(this.app, {
+			title: `Delete ${name}?`,
+			action: "Delete",
+		});
 		if (!confirmed) return;
 		// By name: a sync may have replaced the model objects meanwhile.
 		this.edit((p) => ({
@@ -528,11 +516,11 @@ export class AIProviderSettingPage extends SettingPage {
 						.onClick(async () => {
 							const provider = this.provider;
 							if (!provider) return;
-							const confirmed = await GenericYesNoPrompt.Prompt(
-								this.app,
-								`Delete ${provider.name.trim() || "this provider"}?`,
-								"Commands that use its models will need another model.",
-							);
+							const confirmed = await confirmAction(this.app, {
+								title: `Delete ${provider.name.trim() || "this provider"}?`,
+								message: "Commands that use its models will need another model.",
+								action: "Delete",
+							});
 							if (!confirmed) return;
 							removeProvider(this.providerId);
 							this.close();

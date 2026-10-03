@@ -1,6 +1,6 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { insertOnNewLineBelow } from "../utilityObsidian";
+import { insertOnNewLineBelow } from "../utils/editorInsertion";
 
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
@@ -91,22 +91,28 @@ vi.mock("../utils/fileLinks", () => ({
 	getAppendLinkDestinationFile: getAppendLinkDestinationFileMock,
 }));
 
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	getMarkdownFilesInFolder: vi.fn(async () => []),
-	getMarkdownFilesWithTag: vi.fn(async () => []),
 	insertFileLinkToActiveView: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
+	setMarkdownCursorAtOffset: vi.fn(),
+}));
+vi.mock("../utils/vaultQueries", () => ({
+	getMarkdownFilesInFolder: vi.fn(async () => []),
+	getMarkdownFilesWithTag: vi.fn(async () => []),
 	isFolder: vi.fn(() => false),
+}));
+vi.mock("../utils/templaterIntegration", () => ({
 	isTemplaterTriggerOnCreateEnabled: vi.fn(() => false),
 	jumpToNextTemplaterCursorIfPossible: vi.fn(),
+	overwriteTemplaterOnce: vi.fn(),
+	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
+	createNoteAfterTemplaterTrigger: vi.fn(async (_app: unknown, _path: string, create: () => Promise<unknown>) => create()),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: vi.fn(() => null),
 	openFile: vi.fn(),
-	overwriteTemplaterOnce: vi.fn(),
-	setMarkdownCursorAtOffset: vi.fn(),
-	templaterParseTemplate: vi.fn(async (_app: unknown, content: string) => content),
-	waitForTemplaterTriggerOnCreateToComplete: vi.fn(),
 }));
 
 vi.mock("three-way-merge", () => ({
@@ -119,7 +125,6 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 }));
 
 vi.mock("../main", () => ({ default: class QuickAddMock {} }));
-vi.mock("obsidian-dataview", () => ({ getAPI: vi.fn() }));
 
 import { TFile, type App, Notice } from "obsidian";
 import InputSuggester from "src/gui/InputSuggester/inputSuggester";

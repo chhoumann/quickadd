@@ -3,10 +3,6 @@ import { App } from "obsidian";
 import { FieldSuggestionCache } from "./FieldSuggestionCache";
 import { collectFieldValuesProcessed } from "./FieldValueCollector";
 
-vi.mock("obsidian-dataview", () => ({
-	getAPI: () => null,
-}));
-
 describe("Issue #671 - {{FIELD:tags}} suggestions", () => {
 	beforeEach(() => {
 		FieldSuggestionCache.getInstance().clear();
@@ -36,7 +32,7 @@ describe("Issue #671 - {{FIELD:tags}} suggestions", () => {
 
 		app.vault.getMarkdownFiles = () => [file];
 		app.metadataCache.getFileCache = () => ({ frontmatter: {} } as any);
-		app.vault.read = vi.fn(async () => `
+		app.vault.cachedRead = vi.fn(async () => `
 Id:: 343434
 \`\`\`ad-note
 Id:: 121212

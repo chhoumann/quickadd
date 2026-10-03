@@ -45,9 +45,11 @@ vi.mock("../formatters/completeFormatter", () => ({
 		setPromptRunContext = setPromptRunContextMock;
 	},
 }));
-vi.mock("../utilityObsidian", () => ({
+vi.mock("../utils/userScript", () => ({
 	getUserScript: vi.fn(),
 	loadUserScript: vi.fn(),
+}));
+vi.mock("../utils/fileOpening", () => ({
 	openFile: vi.fn(),
 }));
 vi.mock("../quickAddInstance", () => ({

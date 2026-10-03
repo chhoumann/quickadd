@@ -3,7 +3,7 @@ import { ButtonComponent, Modal, Setting, TextAreaComponent, debounce } from "ob
 import { mountSystemPromptLiteralNote } from "../ai/systemPromptLiteralNote";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
-import { getMarkdownFilesInFolder } from "src/utilityObsidian";
+import { getMarkdownFilesInFolder } from "src/utils/vaultQueries";
 import { settingsStore } from "src/settingsStore";
 import GenericInputPrompt from "../GenericInputPrompt/GenericInputPrompt";
 import { estimateTokenCount } from "src/ai/tokenEstimator";

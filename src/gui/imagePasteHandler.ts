@@ -32,7 +32,7 @@ type TransferDecision =
 
 type ImageIntakeChannel = "paste" | "drop";
 
-export interface ImagePasteOptions {
+interface ImagePasteOptions {
 	/**
 	 * Note path the inserted link will live in when known (capture
 	 * destination). "" (default) resolves attachment placement against the
@@ -53,7 +53,7 @@ export interface ImagePasteHandle {
 	detach(): void;
 }
 
-export type ImageIngestResult =
+type ImageIngestResult =
 	| { ok: true; inserted: string }
 	| { ok: false; reason: "no-active-prompt" | "no-images" | "busy" };
 
