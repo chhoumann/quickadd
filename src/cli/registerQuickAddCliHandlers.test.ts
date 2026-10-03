@@ -199,6 +199,7 @@ describe("registerQuickAddCliHandlers", () => {
 			"quickadd:run-template",
 			"quickadd:list",
 			"quickadd:check",
+			"quickadd:suggest",
 			"quickadd:package-preview",
 			"quickadd:package-import",
 			"quickadd:interactive",
