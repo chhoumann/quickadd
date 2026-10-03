@@ -812,6 +812,8 @@ describe('FileSuggester DOM XSS safety', () => {
             (suggester as unknown as {
                 suggest: { setSuggestions(values: unknown[]): void };
             }).suggest.setSuggestions(suggestions.map(({ item }) => item));
+            // The list is the input's own, so Enter picks from it as it is.
+            (suggester as unknown as { listQuery: string }).listQuery = inputEl.value;
             suggester.open(document.body, inputEl);
 
             const scope = (suggester as unknown as {

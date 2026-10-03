@@ -555,3 +555,27 @@ describe("TextInputSuggest focus", () => {
 		suggest.destroy();
 	});
 });
+
+describe("TextInputSuggest Enter", () => {
+	afterEach(() => {
+		document.body.replaceChildren();
+	});
+
+	it("picks from the typed text's list when Enter beats the debounced refresh (#2142)", async () => {
+		const input = document.createElement("input");
+		document.body.appendChild(input);
+		const suggest = new GenericTextSuggester(createApp(), input, ["alpha", "beta"]);
+		input.focus();
+		await suggest.onInputChanged();
+		expect(Array.from(document.querySelectorAll(".suggestion-item"), (row) => row.textContent)).toEqual(["alpha", "beta"]);
+
+		// Typed, but the list has not followed yet: its refresh is still pending.
+		input.value = "bet";
+		const scope = (suggest as unknown as { scope: { trigger: (key: string) => unknown } }).scope;
+		expect(scope.trigger("Enter")).toBe(false);
+
+		await vi.waitFor(() => expect(input.value).toBe("beta"));
+		expect(input.getAttribute("aria-expanded")).toBe("false");
+		suggest.destroy();
+	});
+});
