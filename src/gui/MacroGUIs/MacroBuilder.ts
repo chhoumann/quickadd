@@ -91,7 +91,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		this.choice = choice;
 		this.macro = choice.macro;
 		this.openedName = choice.name;
-		this.choices = getChoicesAsList(choices);
+		this.choices = getChoicesAsList(choices).filter((c) => c.id !== choice.id);
 		this.plugin = plugin;
 		this.containerEl.addClass("macroBuilder");
 	}

@@ -1,7 +1,13 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 
+const { editorChoices } = vi.hoisted(() => ({ editorChoices: { names: [] as string[] } }));
+
 vi.mock("./CommandSequenceEditor", () => ({
 	CommandSequenceEditor: class {
+		constructor(options: { choices: { name: string }[] }) {
+			editorChoices.names = options.choices.map((choice) => choice.name);
+		}
+
 		render(parent: HTMLElement) {
 			const editor = document.createElement("div");
 			editor.className = "quickAddCommandEditor";
@@ -49,6 +55,13 @@ describe("MacroBuilder", () => {
 		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
 		expect(rows.at(-1)?.textContent).toContain("Icon");
 		expect(rows.at(-1)?.textContent).toContain("Lucide/Obsidian icon id");
+	});
+
+	it("leaves the macro out of the choices its steps can run", () => {
+		const choice = new MacroChoice("Macro under test");
+		new MacroBuilder(new App(), plugin, choice, [choice, new MacroChoice("Other")], () => {}).display();
+
+		expect(editorChoices.names).toEqual(["Other"]);
 	});
 
 	it("offers the pick-a-day command only once the macro is a command", () => {

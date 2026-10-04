@@ -64,6 +64,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
+	private readonly runningChoices: IChoice[] = [];
 	private macroOnePageInput: IChoice["onePageInput"];
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
@@ -134,7 +135,27 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		}
 	}
 
-	async execute(choice: IChoice): Promise<void> {
+	async guardReentry<T>(choice: IChoice, run: () => Promise<T>): Promise<T> {
+		const start = this.runningChoices.findIndex((c) => c.id === choice.id);
+		if (start !== -1) {
+			const cycle = [...this.runningChoices.slice(start), choice]
+				.map((c) => c.name)
+				.join(" -> ");
+			throw new Error(`${choice.type} "${choice.name}" calls itself: ${cycle}`);
+		}
+		this.runningChoices.push(choice);
+		try {
+			return await run();
+		} finally {
+			this.runningChoices.pop();
+		}
+	}
+
+	execute(choice: IChoice): Promise<void> {
+		return this.guardReentry(choice, () => this.runChoice(choice));
+	}
+
+	private async runChoice(choice: IChoice): Promise<void> {
 		this.pendingAbort = null;
 		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
 		// another choice through this same executor) transparent to the outcome slot of an
@@ -223,7 +244,13 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	 * recording success (and without aborting/throwing) hit a swallowed-failure branch,
 	 * which is reported as `error` — never silently as success.
 	 */
-	async executeWithOutcome(
+	executeWithOutcome(
+		choice: ITemplateChoice | ICaptureChoice,
+	): Promise<ChoiceOutcome> {
+		return this.guardReentry(choice, () => this.runChoiceWithOutcome(choice));
+	}
+
+	private async runChoiceWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
 		this.pendingAbort = null;

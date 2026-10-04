@@ -141,6 +141,16 @@ export class SingleMacroEngine {
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
+		return this.choiceExecutor.guardReentry(macroChoice, () =>
+			this.runMacro(macroChoice, memberAccess, context),
+		);
+	}
+
+	private async runMacro(
+		macroChoice: IMacroChoice,
+		memberAccess: string[] | undefined,
+		context?: { label?: string },
+	): Promise<string> {
 		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
 			this.app,

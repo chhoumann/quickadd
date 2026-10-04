@@ -14,6 +14,14 @@ import type { LoadedUserScript } from "./utils/userScript";
 
 export interface IChoiceExecutor {
 	execute(choice: IChoice): Promise<void>;
+	/**
+	 * Runs `run` with `choice` marked as running, and throws instead when the
+	 * choice is already running further up, so a macro that reaches itself (a
+	 * Choice or NestedChoice step, or a `{{MACRO:}}`) fails with the cycle
+	 * rather than recursing forever. {@link execute} goes through this; callers
+	 * that run a choice's engine directly must too.
+	 */
+	guardReentry<T>(choice: IChoice, run: () => Promise<T>): Promise<T>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
