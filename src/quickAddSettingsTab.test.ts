@@ -247,10 +247,11 @@ describe("QuickAddSettingsTab declarative bridge", () => {
 		const tab = makeTab();
 		const groups = tab.getSettingDefinitions() as unknown as Node[];
 
-		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): six groups,
+		// Non-dev build (vitest defines __IS_DEV_BUILD__ = false): seven groups,
 		// the template folder list, and the group holding the Advanced page.
 		expect(groups.map((group) => group.heading)).toEqual([
 			"Choices & packages",
+			"Run log",
 			"Input",
 			"Template folders",
 			"Notifications",

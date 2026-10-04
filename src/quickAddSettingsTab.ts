@@ -16,6 +16,7 @@ import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import type { Plain } from "./gui/svelte/persist.svelte";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
+import RunLogView from "./gui/RunLog/RunLogView.svelte";
 import { settingsStore } from "./settingsStore";
 import { getAllFolderPathsInVault } from "./utils/vaultQueries";
 import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
@@ -65,7 +66,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	 * opened the page, so the new row gets the same list instead.
 	 */
 	private choiceView: { el: HTMLElement; handle: MountHandle } | null = null;
-	private globalVariablesViewHandle: MountHandle | null = null;
+	/** The Svelte views mounted in rows other than the choice list, by row. */
+	private readonly mountedViews = new Map<string, MountHandle>();
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
 
@@ -198,6 +200,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			packages: (setting) => this.renderPackages(setting),
 			dateAliases: (setting) => this.renderDateAliases(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
+			runLog: (setting) => this.renderRunLogView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
 		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList(), this.v2SettingsGroup());
 	}
@@ -313,8 +316,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private destroySettingViews(): void {
 		this.choiceView?.handle.destroy();
 		this.choiceView = null;
-		this.globalVariablesViewHandle?.destroy();
-		this.globalVariablesViewHandle = null;
+		for (const handle of this.mountedViews.values()) handle.destroy();
+		this.mountedViews.clear();
 		// Safety net for the Packages subscription: the render cleanup already
 		// unsubscribes, but this row outlives no view of its own, so a missed
 		// cleanup would leak a listener for the plugin's lifetime.
@@ -345,16 +348,17 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private mountView(
 		setting: Setting,
+		row: string,
 		mount: (target: HTMLElement) => MountHandle,
 	): () => void {
 		this.prepareFullWidthSetting(setting);
-		this.globalVariablesViewHandle?.destroy();
+		this.mountedViews.get(row)?.destroy();
 		const handle = mount(setting.controlEl);
-		this.globalVariablesViewHandle = handle;
+		this.mountedViews.set(row, handle);
 		// A stale row cleanup must never destroy or clear its replacement.
 		return () => {
 			handle.destroy();
-			if (this.globalVariablesViewHandle === handle) this.globalVariablesViewHandle = null;
+			if (this.mountedViews.get(row) === handle) this.mountedViews.delete(row);
 		};
 	}
 
@@ -400,8 +404,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		);
 	}
 
+	private renderRunLogView(setting: Setting): () => void {
+		return this.mountView(setting, "runLog", (target) =>
+			mountComponent(target, RunLogView, { app: this.app }, { what: "the run log" }),
+		);
+	}
+
 	private renderGlobalVariablesView(setting: Setting): () => void {
-		return this.mountView(setting, (target) =>
+		return this.mountView(setting, "globalVariables", (target) =>
 			mountComponent(
 				target,
 				GlobalVariablesView,

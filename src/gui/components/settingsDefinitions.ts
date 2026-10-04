@@ -21,6 +21,7 @@ type SettingsRenderers = Record<
 	| "packages"
 	| "dateAliases"
 	| "globalVariables"
+	| "runLog"
 	| "developmentInfo",
 	(setting: Setting) => void | (() => void)
 >;
@@ -61,6 +62,11 @@ export function createSettingDefinitions(
 					render: render.packages,
 				},
 			],
+		},
+		{
+			type: "group",
+			heading: "Run log",
+			items: [{ name: "Run log", render: render.runLog }],
 		},
 		{
 			type: "group",
