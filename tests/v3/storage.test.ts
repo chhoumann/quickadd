@@ -258,6 +258,15 @@ describe("the lowered view of stored actions", () => {
 		expect(loadAndSave(disk)).toEqual(disk);
 	});
 
+	it("ignores entries a QuickAdd 2 device saved that no migration can read, and still saves", () => {
+		const disk = JSON.parse(JSON.stringify(migrateSettingsV2({ ...migrated, choices: FIXTURE.slice(0, 1) })));
+		const added = new CaptureChoice("Added on a 2.x device");
+		disk.choices = [{}, { id: "no-type" }, null, { id: "odd", type: "Teleport" }, FIXTURE[0], added];
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id, added.id]);
+		expect(loadAndSave(disk).actions.map((node: { id: string }) => node.id)).toEqual([FIXTURE[0].id, added.id]);
+	});
+
 	it("keeps a choice a QuickAdd 2 device added inside an existing folder", () => {
 		const folder = new MultiChoice("Logs");
 		const child = new CaptureChoice("Old entry");

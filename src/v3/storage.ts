@@ -54,7 +54,7 @@ function withAddedChoices(lowered: IChoice[], saved: unknown, ids: ReadonlySet<s
 	if (!Array.isArray(saved)) return lowered;
 	const result = [...lowered];
 	for (const choice of saved) {
-		if (!isChoiceLike(choice)) continue;
+		if (!isMigratableChoice(choice)) continue;
 		if (!ids.has(choice.id)) {
 			result.push(choice);
 			continue;
@@ -122,6 +122,13 @@ export function isReadableAction(value: unknown): value is ActionNode {
 		return false;
 	}
 }
+
+/** A saved choice the migration can read; anything else would throw on the next save. */
+function isMigratableChoice(value: unknown): value is IChoice {
+	return isChoiceLike(value) && typeof value.id === "string" && CHOICE_TYPES.has(value.type);
+}
+
+const CHOICE_TYPES = new Set<unknown>(["Template", "Capture", "Macro", "Multi"]);
 
 /**
  * The list with repeated ids healed the way dedupeChoicesById heals choices: a
