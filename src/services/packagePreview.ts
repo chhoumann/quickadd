@@ -13,7 +13,7 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { hasTemplateExtension } from "../utils/templateFolderUtils";
+import { hasTemplateExtension, resolveTemplatePath } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
@@ -112,6 +112,17 @@ const MAX_INCLUDE_ROUNDS = 10;
  * to the choice(s) whose template pulls them in, so the preview can name where
  * a missing or bundled include comes from.
  */
+/**
+ * The key a bundled asset is matched under. Usages of templates are recorded
+ * through the template resolver, so a template asset is keyed the same way;
+ * its displayed `originalPath` keeps the package's own spelling.
+ */
+function assetKey(asset: QuickAddPackage["assets"][number]): string {
+	return asset.kind === "template" || asset.kind === "capture-template"
+		? resolveTemplatePath(asset.originalPath)
+		: asset.originalPath;
+}
+
 function collectPackageUsages(
 	pkg: QuickAddPackage,
 	choiceWalks: ReturnType<typeof walkPackage>["choiceWalks"],
@@ -127,7 +138,7 @@ function collectPackageUsages(
 		for (const usage of walk.usages) addUsage(usage);
 	}
 
-	const assetsByPath = new Map(pkg.assets.map((asset) => [asset.originalPath, asset]));
+	const assetsByPath = new Map(pkg.assets.map((asset) => [assetKey(asset), asset]));
 	const scanned = new Set<string>();
 	let frontier = Array.from(usagesByPath.keys());
 	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
@@ -212,7 +223,7 @@ export function buildPackagePreview(
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);
 	}
 
-	const bundledPaths = new Set(pkg.assets.map((asset) => asset.originalPath));
+	const bundledPaths = new Set(pkg.assets.map(assetKey));
 
 	const runnableCodeByPath = new Map(
 		pkg.assets.map((asset) => [
@@ -223,8 +234,9 @@ export function buildPackagePreview(
 
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
-		const usages = usagesByPath.get(asset.originalPath) ?? [];
-		const executable = referencedAsScript.has(asset.originalPath);
+		const key = assetKey(asset);
+		const usages = usagesByPath.get(key) ?? [];
+		const executable = referencedAsScript.has(key);
 		const requiresReview =
 			executable || runnableCodeByPath.get(asset.originalPath) != null;
 		return {
@@ -233,7 +245,7 @@ export function buildPackagePreview(
 			bundled: true,
 			executable,
 			requiresReview,
-			exists: existsByPath.has(asset.originalPath),
+			exists: existsByPath.has(key) || existsByPath.has(asset.originalPath),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
 			referencedBy: usages,

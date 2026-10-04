@@ -16,6 +16,7 @@ import { normalizePath } from 'obsidian';
  */
 export function normalizeVaultPathSeparators(path: string): string {
   return (path ?? '')
+    .replace(/^\s+(?=[\\/])/, '')
     .replace(/[\\/]+/g, '/')
     .replace(/^\/|\/$/g, '')
     .trimEnd()

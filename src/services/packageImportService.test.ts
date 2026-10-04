@@ -695,6 +695,30 @@ describe("existence probes stay inside the vault boundary", () => {
 		expect(preview.orphanAssets).toEqual([]);
 	});
 
+	it("matches a legacy package whose choice and asset both use backslash paths", async () => {
+		const { app } = createFakeApp();
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: "Templates\\Daily.md",
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+			assets: [
+				{
+					kind: "template",
+					originalPath: "Templates\\Daily.md",
+					contentEncoding: "base64",
+					content: "",
+				},
+			],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+	});
+
 	it("still probes in-vault config-dir references (no over-rejection)", async () => {
 		const inVaultDotDir = ".obsidian/snippets/x.md";
 		const { app, adapter } = createFakeApp([inVaultDotDir]);
