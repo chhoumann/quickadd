@@ -147,7 +147,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		try {
 			return await run();
 		} finally {
-			this.runningChoices.pop();
+			this.runningChoices.splice(this.runningChoices.lastIndexOf(choice), 1);
 		}
 	}
 

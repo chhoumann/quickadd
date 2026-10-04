@@ -156,4 +156,32 @@ describe("ChoiceExecutor re-entry guard", () => {
 
 		expect(ran).toEqual(["a", "b", "c", "c", "b", "c"]);
 	});
+
+	it("keeps overlapping runs on one executor independent", async () => {
+		const gates = new Map<string, () => void>();
+		const gate = (name: string) => new Promise<void>((resolve) => gates.set(name, resolve));
+		const started = (name: string) => vi.waitFor(() => expect(gates.has(name)).toBe(true));
+		const a = macro("A", [script("a", () => gate("a"))]);
+		const b = macro("B", [script("b", () => gate("b"))]);
+		choices = [a, b];
+		const executor = new ChoiceExecutor(app, plugin);
+
+		const aRun = executor.execute(a);
+		await started("a");
+		const bRun = executor.execute(b);
+		await started("b");
+		gates.get("a")!();
+		await aRun;
+
+		await expect(executor.execute(b)).rejects.toThrow('Macro "B" calls itself');
+		gates.delete("a");
+		const aAgain = executor.execute(a);
+		await started("a");
+		gates.get("a")!();
+		await expect(aAgain).resolves.toBeUndefined();
+
+		gates.get("b")!();
+		await bRun;
+		expect(ran).toEqual(["a", "b", "a"]);
+	});
 });
