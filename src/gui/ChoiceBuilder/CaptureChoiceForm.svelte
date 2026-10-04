@@ -21,6 +21,7 @@ import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
 import RibbonSetting from "./components/RibbonSetting.svelte";
 import StepsSection from "./components/StepsSection.svelte";
+import InputsSection from "./components/InputsSection.svelte";
 import type { Step } from "../../v3/model";
 import CaptureTargetSetting from "./components/CaptureTargetSetting.svelte";
 import WritePositionSetting from "./components/WritePositionSetting.svelte";
@@ -254,5 +255,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>
+
+<InputsSection {choice} {app} />
 
 <StepsSection {choice} {onAddStep} />

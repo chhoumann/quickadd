@@ -46,6 +46,7 @@ import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
 import RibbonSetting from "./components/RibbonSetting.svelte";
 import StepsSection from "./components/StepsSection.svelte";
+import InputsSection from "./components/InputsSection.svelte";
 import type { Step } from "../../v3/model";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
@@ -418,5 +419,7 @@ function onModeChange(value: string) {
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>
+
+<InputsSection {choice} {app} />
 
 <StepsSection {choice} {onAddStep} />

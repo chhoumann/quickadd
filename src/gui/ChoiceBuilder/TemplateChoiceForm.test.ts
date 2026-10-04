@@ -293,10 +293,13 @@ describe("TemplateChoiceForm", () => {
 		).toHaveAttribute("data-icon", "file-text");
 	});
 
-	it("keeps the optional icon override last, above the steps", () => {
+	it("keeps the optional icon override last, above the inputs and the steps", async () => {
 		const { container } = mountForm();
+		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
 
-		expect(settingNames(container).slice(-2)).toEqual(["Icon", "Steps"]);
+		const names = settingNames(container);
+		expect(names.slice(names.indexOf("Inputs") - 1, names.indexOf("Inputs") + 1)).toEqual(["Icon", "Inputs"]);
+		expect(names.at(-1)).toBe("Steps");
 	});
 
 	// #1993: closing the builder used to drop a folder typed but never added.

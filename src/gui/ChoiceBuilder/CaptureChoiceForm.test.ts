@@ -254,10 +254,13 @@ describe("CaptureChoiceForm", () => {
 		).toHaveAttribute("data-icon", "inbox");
 	});
 
-	it("keeps the optional icon override last, above the steps", () => {
+	it("keeps the optional icon override last, above the inputs and the steps", async () => {
 		const { container } = mountForm();
+		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
 
-		expect(settingNames(container).slice(-2)).toEqual(["Icon", "Steps"]);
+		const names = settingNames(container);
+		expect(names.slice(names.indexOf("Inputs") - 1, names.indexOf("Inputs") + 1)).toEqual(["Icon", "Inputs"]);
+		expect(names.at(-1)).toBe("Steps");
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
