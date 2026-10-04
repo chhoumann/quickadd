@@ -452,7 +452,7 @@ function migrateCommand(command: ICommand, host: IChoice, notes: Notes): Step[] 
 			return [{
 				...base,
 				type: "open",
-				note: open.filePath,
+				note: isRunNote(open.filePath) ? RUN_NOTE : open.filePath,
 				location: options.location ?? "tab",
 				direction: options.direction ?? "vertical",
 				mode: "default",
@@ -526,6 +526,11 @@ function readList(value: unknown, what: string): unknown[] {
 	}
 	if (isUnreadableList(value)) throw new Error(`Cannot migrate an unreadable ${what}.`);
 	return [];
+}
+
+/** An Open file path that is the run note, written in any case. */
+function isRunNote(path: unknown): boolean {
+	return typeof path === "string" && path.trim().toUpperCase() === RUN_NOTE;
 }
 
 function isObject(value: unknown): boolean {

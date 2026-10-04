@@ -218,9 +218,8 @@ function lowerStep(step: Step): ICommand {
 		case "ai":
 			return { ...step, type: CommandType.AIAssistant } as ICommand;
 		case "open":
-			// The run note is only known to the v3 engines; a v2 command would
-			// open a file named {{NOTE}}.
-			if (step.mode !== "default" || step.note === RUN_NOTE) break;
+			// The v2 command formats its path, so {{NOTE}} opens the run note.
+			if (step.mode !== "default") break;
 			return {
 				...base,
 				type: CommandType.OpenFile,
