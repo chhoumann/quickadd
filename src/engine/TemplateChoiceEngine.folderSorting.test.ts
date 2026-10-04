@@ -108,6 +108,9 @@ function createEngine(
 		},
 		vault: {
 			getAllLoadedFiles: vi.fn(() => folders.map(createFolder)),
+			getAbstractFileByPath: vi.fn((path: string) =>
+				folders.includes(path) ? createFolder(path) : null,
+			),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
@@ -299,6 +302,14 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			expect(Notice.instances.slice(noticesBefore)).toEqual([]);
 		},
 	);
+
+	it("keeps the vault's spelling of an existing folder whose name starts with a space", async () => {
+		const engine = createEngine(createChoice({ folders: [" Work"] }), [" Work"]);
+
+		await engine.run();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith(" Work");
+	});
 
 	it("creates in the vault root when the configured folder is empty", async () => {
 		const noticesBefore = Notice.instances.length;

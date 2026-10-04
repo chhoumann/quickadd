@@ -1,4 +1,4 @@
-import { Notice } from "obsidian";
+import { Notice, TFolder } from "obsidian";
 import { QuickAddEngine } from "./QuickAddEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
@@ -191,12 +191,15 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		raw: string,
 		context: FolderSelectionContext,
 	): Promise<FolderSelection> {
-		const normalized = normalizeVaultPath(raw);
-		const isEmpty = normalized.length === 0;
+		const key = normalizeVaultPath(raw);
+		const isEmpty = key.length === 0;
 
+		// Normalization is for matching only. An existing folder keeps the spelling
+		// Obsidian owns, so a name that starts with a space is not written elsewhere.
+		const normalized = context.canonicalByNormalized.get(key) ?? key;
 		const exists = isEmpty
 			? false
-			: context.canonicalByNormalized.has(normalized) ||
+			: context.canonicalByNormalized.has(key) ||
 			(await this.app.vault.adapter.exists(normalized));
 
 		const isAllowed =
@@ -379,7 +382,14 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			}
 			items.push(path);
 			displayItems.push(label ?? path);
-			canonicalByNormalized.set(normalized, path);
+			// A folder the vault knows keeps its own spelling (a name may start with a
+			// space); anything else is stored normalized so a typed path is used as-is.
+			canonicalByNormalized.set(
+				normalized,
+				this.app.vault.getAbstractFileByPath(path) instanceof TFolder
+					? path
+					: normalized,
+			);
 			if (label) displayByNormalized.set(normalized, label);
 		};
 
