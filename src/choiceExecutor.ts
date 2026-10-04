@@ -117,8 +117,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		this.lastResult = result;
 		if (result.status === "success" && result.file) {
 			this.runNote = result.file;
-			this.lastWrite = { ...result, file: result.file };
 			this.notesRecorded++;
+			// The notice and the log describe the run's last write; a later step
+			// that left its note alone does not take its place.
+			if (result.effect !== "unchanged" || this.lastWrite === null || this.lastWrite.effect === "unchanged") {
+				this.lastWrite = { ...result, file: result.file };
+			}
 		}
 	}
 

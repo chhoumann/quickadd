@@ -43,6 +43,9 @@ vi.mock("./engine/CaptureChoiceEngine", () => ({
 			const target = this.choice.captureTo;
 			if (target === "throw") throw new Error("boom");
 			if (target === "cancel") return this.executor.signalAbort?.(new UserCancelError("Input cancelled by user"));
+			if (target.startsWith("unchanged:")) {
+				return this.executor.recordExecutionResult?.({ status: "success", file: fileAt(target.slice("unchanged:".length)), effect: "unchanged" });
+			}
 			this.executor.recordExecutionResult?.(
 				target === "fail"
 					? { status: "error", reason: "failed" }
@@ -100,6 +103,16 @@ describe("ChoiceExecutor result notice", () => {
 	it("shows one notice for a macro, for its last write, and none for the runs nested in it", async () => {
 		await new ChoiceExecutor(app, plugin).execute(macro("M", [nested(capture("a.md")), nested(capture("b.md"))]));
 		expect(notices()).toEqual(["M: added to 'b'OpenUndo"]);
+	});
+
+	it("describes the run's last write, not a later step that left its note alone", async () => {
+		await new ChoiceExecutor(app, plugin).execute(macro("M", [nested(capture("a.md")), nested(capture("unchanged:b.md"))]));
+		expect(notices()).toEqual(["M: added to 'a'OpenUndo"]);
+	});
+
+	it("still says when a run had nothing to add", async () => {
+		await new ChoiceExecutor(app, plugin).execute(capture("unchanged:b.md"));
+		expect(notices()).toEqual(["Capture unchanged:b.md: nothing to add to 'b'Open"]);
 	});
 
 	it("shows nothing when the run recorded no success", async () => {
