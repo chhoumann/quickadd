@@ -529,6 +529,21 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(preview.files[0]?.exists).toBe(false);
 		expect(preview.summary.overwritesFiles).toBe(0);
 	});
+
+	it("does not let a refused asset borrow the existence of a file a choice references", async () => {
+		const pkg = makePackage(
+			[templateChoice("t1", "Note", "Templates/A.md")],
+			[asset("template", "/Templates/A.md", "# new")],
+		);
+		const { app } = fakeApp({ "Templates/A.md": "# existing" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		// The choice reuses the vault file; the absolute asset is refused, not an overwrite.
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
 });
 
 // --- Import -----------------------------------------------------------------

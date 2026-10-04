@@ -265,9 +265,10 @@ export function buildPackagePreview(
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
 		const keys = assetKeys(asset);
-		const usages = bundledPaths.has(keys[0])
-			? keys.flatMap((key) => usagesByPath.get(key) ?? [])
-			: [];
+		// Only an asset import will write can cover a usage or overwrite a file;
+		// a refused one must not borrow an existence probe made for a reference.
+		const writable = bundledPaths.has(keys[0]);
+		const usages = writable ? keys.flatMap((key) => usagesByPath.get(key) ?? []) : [];
 		const executable = keys.some((key) => referencedAsScript.has(key));
 		const requiresReview =
 			executable || runnableCodeByPath.get(asset.originalPath) != null;
@@ -277,7 +278,9 @@ export function buildPackagePreview(
 			bundled: true,
 			executable,
 			requiresReview,
-			exists: keys.some((key) => existsByPath.has(key)) || existsByPath.has(asset.originalPath),
+			exists:
+				writable &&
+				(keys.some((key) => existsByPath.has(key)) || existsByPath.has(asset.originalPath)),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
 			referencedBy: usages,
