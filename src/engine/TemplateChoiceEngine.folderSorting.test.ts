@@ -303,6 +303,18 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		},
 	);
 
+	it("lists subfolders of a configured root written with backslashes", async () => {
+		const engine = createEngine(
+			createChoice({ folders: ["out\\nested\\"], chooseFromSubfolders: true }),
+			["out/nested", "out/nested/a", "other"],
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+		expect(getSuggestedItems()).toEqual(["out/nested", "out/nested/a"]);
+	});
+
 	it("keeps the vault's spelling of an existing folder whose name starts with a space", async () => {
 		const engine = createEngine(createChoice({ folders: [" Work"] }), [" Work"]);
 

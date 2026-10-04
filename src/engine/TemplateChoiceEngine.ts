@@ -668,9 +668,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	// the order or conditions here, update that helper (and its 16-combo test) so
 	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {
-		const folders: string[] = await this.formatFolderPaths([
-			...this.choice.folder.folders,
-		]);
+		// Configured folders are matched against vault paths below (subfolder
+		// ordering, allowed roots), so they are canonicalized before any of that,
+		// not only when a selection is resolved.
+		const folders: string[] = (
+			await this.formatFolderPaths([...this.choice.folder.folders])
+		).map((folder) => this.canonicalFolderPath(folder));
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
 		const config = this.choice.folder;

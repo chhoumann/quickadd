@@ -360,6 +360,17 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		new Notice(folderNotAllowedMessage(roots));
 	}
 
+	/**
+	 * A folder the vault knows keeps its own spelling (a name may start with a
+	 * space). Anything else is normalized, so a typed `out\nested/` matches
+	 * `out/nested` and is created under that name.
+	 */
+	protected canonicalFolderPath(path: string): string {
+		return this.app.vault.getAbstractFileByPath(path) instanceof TFolder
+			? path
+			: normalizeVaultPath(path);
+	}
+
 	private buildFolderSuggestions(
 		folders: string[],
 		topItems: Array<{ path: string; label: string }>,
@@ -382,14 +393,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			}
 			items.push(path);
 			displayItems.push(label ?? path);
-			// A folder the vault knows keeps its own spelling (a name may start with a
-			// space); anything else is stored normalized so a typed path is used as-is.
-			canonicalByNormalized.set(
-				normalized,
-				this.app.vault.getAbstractFileByPath(path) instanceof TFolder
-					? path
-					: normalized,
-			);
+			canonicalByNormalized.set(normalized, this.canonicalFolderPath(path));
 			if (label) displayByNormalized.set(normalized, label);
 		};
 
