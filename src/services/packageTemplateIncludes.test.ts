@@ -488,6 +488,19 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Templates/Dashboard.base");
 		expect(preview.missingReferences).toEqual([]);
 	});
+
+	it("warns about the file a backslash-spelled asset will overwrite", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("user-script", "Scripts\\helper.js", "module.exports = () => 1;")],
+		);
+		const { app } = fakeApp({ "Scripts/helper.js": "module.exports = () => 0;" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.files[0]?.exists).toBe(true);
+		expect(preview.summary.overwritesFiles).toBe(1);
+	});
 });
 
 // --- Import -----------------------------------------------------------------
@@ -588,7 +601,7 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			elseCommands: [],
 		};
 		const pkg = makePackage(
-			[macroChoice("m1", "Legacy", [userScript("s1", "Scripts\\run.js"), check])],
+			[macroChoice("m1", "Legacy", [userScript("s1", "Scripts\\run.js"), check, userScript("s2", " Scripts\\keep.js")])],
 			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
 		);
 
@@ -600,13 +613,16 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
 		});
 
-		const [script, cond] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
+		const [script, cond, unbundled] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
 			IUserScript,
 			{ condition: { scriptPath: string } },
+			IUserScript,
 		];
 		expect(script.path).toBe("Scripts/run.js");
 		expect(script.name).toBe("Scripts/run.js");
 		expect(cond.condition.scriptPath).toBe("Scripts/check.js");
+		// A leading space names a real vault folder; only separators change.
+		expect(unbundled.path).toBe(" Scripts/keep.js");
 	});
 
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {

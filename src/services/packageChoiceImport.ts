@@ -1,5 +1,5 @@
 import { uuidv4 } from "../utils/uuid";
-import { normalizeVaultPath } from "../utils/pathUtils";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
@@ -430,17 +430,19 @@ export function applyAssetPathOverrides(
 /**
  * Where an imported script step should point, or undefined to leave it: its
  * bundled asset's destination, found by the step's own spelling or by the
- * normalized path, else the normalized path itself. The script loader resolves
- * vault paths with forward slashes only, and the preview matches references
- * the same way, so a step spelled `Scripts\\run.js` must not survive import.
+ * normalized path, else its own path with separators normalized. The script
+ * loader resolves vault paths with forward slashes only, so a step spelled
+ * `Scripts\\run.js` must not survive import; an unbundled step keeps its
+ * leading whitespace, which names a real vault folder.
  */
 function scriptPathReplacement(
 	path: string,
 	pathOverrides: Map<string, string>,
 ): string | undefined {
-	const normalized = normalizeVaultPath(path);
 	const replacement =
-		pathOverrides.get(path) ?? pathOverrides.get(normalized) ?? normalized;
+		pathOverrides.get(path) ??
+		pathOverrides.get(normalizeVaultPath(path)) ??
+		normalizeVaultPathSeparators(path);
 	return replacement === path ? undefined : replacement;
 }
 

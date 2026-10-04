@@ -178,8 +178,14 @@ export async function analysePackagePreview(
 	existingChoices: IChoice[],
 	pkg: QuickAddPackage,
 ): Promise<PackagePreview> {
+	// An asset is probed under its own spelling and under the path import will
+	// write it to, so a backslash-spelled asset still warns about the file it
+	// overwrites.
 	const candidatePaths = new Set<string>([
-		...pkg.assets.map((asset) => asset.originalPath),
+		...pkg.assets.flatMap((asset) => [
+			asset.originalPath,
+			normalizeVaultPath(asset.originalPath),
+		]),
 		...collectReferencedAssetPaths(pkg),
 	]);
 
