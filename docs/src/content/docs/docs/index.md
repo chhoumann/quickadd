@@ -59,7 +59,7 @@ takes about a minute.
 QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` at the bottom
 of today's journal note, without opening it.
 
-![Running QuickAdd: Run from the command palette, picking Add to journal, typing "Standup moved to Wednesday", and the timestamped line appearing at the top of today's journal note](./Images/getting-started-add-to-journal.gif)
+![Running QuickAdd: Run from the command palette, picking Add to journal, typing "Standup moved to Wednesday", and the timestamped line appearing in today's journal note](./Images/getting-started-add-to-journal.gif)
 
 Under the choice's name, the settings list and the launcher now show what it
 does: *Adds a line at the bottom of Journal/{date}*.
