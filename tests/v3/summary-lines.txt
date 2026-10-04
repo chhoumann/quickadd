@@ -128,6 +128,10 @@ fixture | Macro with every step
     Runs 'Toggle', paste in the editor, runs lib.js::build, runs 'Top of note', runs 'fx-missing', waits 250 ms, asks AI for {summary}, opens {date} log.md, opens Inbox.md, opens Board.md, creates {date} {Topic} from Note, opens it, runs 'Templater: Replace templates in the active file', adds a line at the top of Inbox, runs Templater on it, links it here, if kind equals task then adds a task at the top of Inbox, otherwise waits 10 ms, runs 'Nested macro' (runs inner.js), asks which of 'Option A' to run, runs 'Tomorrow's note' (creates {date} {Topic} from Note), runs 'Inner name' (creates {date} {Topic} from Note), skips a step this version cannot read
 fixture | Array-valued macro
     Runs a.js
+fixture | Old keys
+    Adds a line at the top of Inbox
+fixture | Old nested choice
+    Adds a line at the cursor in the current note, waits 10 ms
 fixture | Macro holding one template
     Creates {date} {Topic} from Note
 fixture | Folder / Child capture

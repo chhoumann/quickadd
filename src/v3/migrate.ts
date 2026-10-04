@@ -1,7 +1,7 @@
 import { getWritePosition } from "../engine/captureAction";
 import { buildOpenFileOptions } from "../engine/helpers/openFileOptions";
 import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
-import { walkChoiceTree } from "../migrations/helpers/choice-traversal";
+import { walkAllCommandsInSettings, walkChoiceTree } from "../migrations/helpers/choice-traversal";
 import { normalizeImportedChoice } from "../services/packageChoiceImport";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
@@ -50,6 +50,7 @@ export interface MigrationNote {
 		| "templaterRerun"
 		| "wholeFileTemplater"
 		| "unknownCommand"
+		| "unknownKey"
 		| "danglingRunAction";
 	detail: string;
 }
@@ -64,9 +65,64 @@ type Notes = MigrationNote[];
  */
 export function migrateChoice(choice: IChoice): { node: ActionNode; notes: Notes } {
 	const copy = structuredClone(choice);
+	identifyNestedChoices(copy);
 	walkChoiceTree(copy, normalizeImportedChoice);
 	const notes: Notes = [];
 	return { node: migrateNode(copy, notes), notes };
+}
+
+/**
+ * Old versions saved some nested choices without an id. Normalizing would give
+ * them a random one, so name them after their step instead: migration must
+ * give the same result on every device.
+ */
+export function identifyNestedChoices(choice: IChoice): void {
+	walkAllCommandsInSettings({ choices: [choice] }, (command) => {
+		const nested = (command as INestedChoiceCommand).choice;
+		if (command.type === CommandType.NestedChoice && isObject(nested) && typeof nested.id !== "string") {
+			nested.id = `${command.id}:choice`;
+		}
+	});
+}
+
+const CHOICE_KEYS = ["id", "name", "type", "command", "dateOrigin", "pickDayCommand", "onePageInput", "icon"];
+// openFileInNewTab and openFileInMode are the pre-fileOpening settings, which
+// normalizing converts; they are dropped, not unknown.
+const WRITE_KEYS = [...CHOICE_KEYS, "appendLink", "copyLinkToClipboard", "openFile", "fileOpening", "openFileInNewTab", "openFileInMode"];
+const COMMAND_KEYS = ["id", "name", "type"];
+
+/**
+ * The keys a v2 choice of each type holds. Migration drops any other key, such
+ * as a setting an older QuickAdd wrote and no longer reads, and lists it in the
+ * report; the data.v2.json snapshot keeps it.
+ */
+export const V2_CHOICE_KEYS: Record<string, ReadonlySet<string>> = {
+	Template: new Set([...WRITE_KEYS, "templatePath", "folder", "fileNameFormat", "discoverExistingNotesBeforeCreate", "existingNoteAction", "fileExistsBehavior"]),
+	Capture: new Set([
+		...WRITE_KEYS, "propertyCapture", "captureTo", "captureToActiveFile", "captureToCanvasNodeId", "activeFileWritePosition",
+		"createFileIfItDoesntExist", "format", "useSelectionAsCaptureValue", "prepend", "task", "eachLine", "insertAfter",
+		"insertBefore", "newLineCapture", "templater",
+	]),
+	Macro: new Set([...CHOICE_KEYS, "macro", "runOnStartup"]),
+	Multi: new Set([...CHOICE_KEYS, "choices", "collapsed", "placeholder"]),
+};
+
+/** The same for macro commands. An AI step keeps every key, so it is not listed. */
+export const V2_COMMAND_KEYS: Record<string, ReadonlySet<string>> = {
+	[CommandType.Obsidian]: new Set([...COMMAND_KEYS, "commandId"]),
+	[CommandType.EditorCommand]: new Set([...COMMAND_KEYS, "editorCommandType"]),
+	[CommandType.UserScript]: new Set([...COMMAND_KEYS, "path", "settings"]),
+	[CommandType.Choice]: new Set([...COMMAND_KEYS, "choiceId"]),
+	[CommandType.Wait]: new Set([...COMMAND_KEYS, "time"]),
+	[CommandType.OpenFile]: new Set([...COMMAND_KEYS, "filePath", "openInNewTab", "direction", "location", "focus"]),
+	[CommandType.Conditional]: new Set([...COMMAND_KEYS, "condition", "thenCommands", "elseCommands"]),
+	[CommandType.NestedChoice]: new Set([...COMMAND_KEYS, "choice"]),
+};
+
+function noteUnknownKeys(value: object, known: ReadonlySet<string> | undefined, host: IChoice, where: string, notes: Notes) {
+	if (!known) return;
+	const unknown = Object.keys(value).filter((key) => !known.has(key));
+	if (unknown.length > 0) note(notes, host, "unknownKey", `${where} ${unknown.map((key) => `'${key}'`).join(", ")}`);
 }
 
 /**
@@ -162,6 +218,7 @@ export function buildReport(settings: { choices?: unknown }): MigrationReport {
 }
 
 function migrateNode(choice: IChoice, notes: Notes): ActionNode {
+	noteUnknownKeys(choice, V2_CHOICE_KEYS[choice.type], choice, "dropped unknown", notes);
 	switch (choice.type) {
 		case "Multi":
 			return migrateFolder(choice as IMultiChoice, notes);
@@ -366,6 +423,7 @@ function migrateCommand(command: ICommand, host: IChoice, notes: Notes): Step[] 
 		return [{ id: "", type: "unknown", raw: command }];
 	}
 	const base = withoutUndefined({ id: command.id, name: command.name });
+	noteUnknownKeys(command, V2_COMMAND_KEYS[command.type], host, `step ${String(command.id)} dropped unknown`, notes);
 	switch (command.type) {
 		case CommandType.Obsidian:
 			return [{ ...base, type: "runCommand", command: { kind: "obsidian", commandId: (command as IObsidianCommand).commandId } }];
@@ -440,7 +498,7 @@ function migrateNested(command: INestedChoiceCommand, host: IChoice, notes: Note
 		own.length > 0 ? `its own ${own.join(", ")}` :
 		nested.command ? "its own command setting" :
 		"a step name that differs from the choice name";
-	note(notes, host, "keptNested", `'${nested.name}' (${nested.id}) because of ${reason}`);
+	note(notes, host, "keptNested", `'${nested.name ?? ""}' (${nested.id}) because of ${reason}`);
 	return [withoutUndefined({
 		id: command.id,
 		name: command.name,

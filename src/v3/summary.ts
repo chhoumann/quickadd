@@ -55,7 +55,9 @@ function describeStep(step: Step, nameOf: (id: string) => string | undefined): s
 
 function describeInline(node: ActionNode, nameOf: (id: string) => string | undefined): string {
 	if (node.kind === "folder") return `asks which of ${node.items.map((item) => `'${item.name}'`).join(", ")} to run`;
-	return `runs '${node.name}' (${describeSteps(node.steps, nameOf)})`;
+	const steps = describeSteps(node.steps, nameOf);
+	// Old versions saved some nested choices without a name.
+	return node.name ? `runs '${node.name}' (${steps})` : steps;
 }
 
 function describeCreate(step: CreateNoteStep): string {

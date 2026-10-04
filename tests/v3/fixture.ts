@@ -151,6 +151,25 @@ export const FIXTURE: IChoice[] = [
 		macro: [{ id: "c-array-script", name: "script", type: "UserScript", path: "scripts/a.js", settings: {} }],
 	} as unknown as IChoice,
 
+	// Shapes found in a real multi-year data.json: settings an older version
+	// wrote, and a nested choice saved without an id or a name.
+	capture("fx-old-keys", "Old keys", { focusExistingFileTab: true, insertion: { enabled: false } }),
+	{
+		id: "fx-old-macro",
+		name: "Old nested choice",
+		type: "Macro",
+		command: true,
+		runOnStartup: false,
+		macro: {
+			id: "fx-old-macro-macro",
+			name: "x",
+			commands: [
+				{ id: "c-old-nested", type: "NestedChoice", choice: { type: "Capture", command: true, captureTo: "", captureToActiveFile: true, format: { enabled: true, format: "{{VALUE}}" } } },
+				{ id: "c-old-wait", name: "Wait", type: "Wait", time: 10, delay: 5 },
+			],
+		},
+	} as unknown as IChoice,
+
 	{
 		id: "fx-macro-only-nested",
 		name: "Macro holding one template",

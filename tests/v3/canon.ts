@@ -15,20 +15,31 @@ import type { INestedChoiceCommand } from "../../src/types/macros/QuickCommands/
 import type { IOpenFileCommand } from "../../src/types/macros/QuickCommands/IOpenFileCommand";
 import { normalizeFileOpening } from "../../src/utils/fileOpeningDefaults";
 import { macroCommandsValueOf } from "../../src/utils/macroUtils";
+import { V2_CHOICE_KEYS, V2_COMMAND_KEYS, identifyNestedChoices } from "../../src/v3/migrate";
 
 /**
  * A v2 choice with only the differences the v3 migration is allowed to make:
  * the drops in the model draft (section 2.6), plus the flag folds and empty
  * lists that turned up while building it. Each rule is numbered after the
- * draft; rules 6 and 7 are additions.
+ * draft; rules 6 to 9 are additions.
  */
 export function canon(choice: IChoice): IChoice {
 	const copy = structuredClone(choice);
+	// 9. A nested choice saved without an id is named after its step.
+	identifyNestedChoices(copy);
 	walkChoiceTree(copy, normalizeImportedChoice);
 	return canonNode(copy);
 }
 
+/** 8. Keys no v2 choice or command of that type holds. */
+function withoutUnknownKeys<T extends object>(value: T, known: ReadonlySet<string> | undefined): T {
+	if (!known) return value;
+	for (const key of Object.keys(value)) if (!known.has(key)) delete (value as Record<string, unknown>)[key];
+	return value;
+}
+
 function canonNode(choice: IChoice): IChoice {
+	withoutUnknownKeys(choice, V2_CHOICE_KEYS[choice.type]);
 	switch (choice.type) {
 		case "Multi": {
 			const multi = choice as IMultiChoice;
@@ -89,6 +100,7 @@ function canonWrite(choice: ITemplateChoice | ICaptureChoice): IChoice {
 
 function canonCommands(value: unknown): ICommand[] {
 	return (Array.isArray(value) ? value : []).filter(Boolean).map((command: ICommand) => {
+		withoutUnknownKeys(command, V2_COMMAND_KEYS[command.type]);
 		switch (command.type) {
 			case "NestedChoice": {
 				const nested = command as INestedChoiceCommand;
