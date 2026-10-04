@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../../src/settings";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { jsLiteral, POLL_OPTS, waitForElement } from "./uiHelpers";
@@ -18,8 +18,21 @@ const REMOVE_SNAPSHOTS = `(async () => {
 	return true;
 })()`;
 
+// Written straight to disk below, past the harness's data patching, so the
+// harness does not roll it back: keep what was there and put it back the same
+// way. The harness's own data writes would make the written file its baseline.
+let dataBeforeTest: string | undefined;
+
+beforeEach(async () => {
+	dataBeforeTest = await getContext().obsidian.dev.evalJsonAsync<string>(`(async () => {
+		const dir = app.plugins.plugins.quickadd.manifest.dir;
+		return await app.vault.adapter.read(dir + "/data.json");
+	})()`);
+});
+
 afterEach(async () => {
 	await getContext().obsidian.dev.evalJsonAsync(REMOVE_SNAPSHOTS);
+	if (dataBeforeTest !== undefined) await loadDataJson(dataBeforeTest);
 });
 
 /** Turn QuickAdd off, write data.json as another QuickAdd would have, turn it on. */
