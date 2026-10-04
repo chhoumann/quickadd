@@ -16,9 +16,10 @@ import { normalizePath } from 'obsidian';
  */
 export function normalizeVaultPathSeparators(path: string): string {
   return (path ?? '')
-    .trimEnd()
     .replace(/[\\/]+/g, '/')
     .replace(/^\/|\/$/g, '')
+    .trimEnd()
+    .replace(/\/$/, '')
     .normalize('NFC');
 }
 

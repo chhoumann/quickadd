@@ -230,6 +230,22 @@ describe("template note discovery", () => {
 		);
 	});
 
+	it.each(["Templates\\Project", "/Templates/Project.md/"])(
+		"excludes the template source when its path is written as %j",
+		(templatePath) => {
+			const template = file("Templates/Project.md");
+			const alice = file("Existing/Alice.md");
+			const built = testExports.buildDiscoveryCandidates(
+				app([template, alice]),
+				choice({ templatePath }),
+			);
+
+			const paths = built.candidates.map((candidate) => candidate.renderPath);
+			expect(paths).toContain("Existing/Alice.md");
+			expect(paths).not.toContain("Templates/Project.md");
+		},
+	);
+
 	it("returns a tagged existing-file result when an existing row is selected", async () => {
 		const alice = file("People/Alice.md");
 		inputSuggestMock.mockImplementation(async (_app, _choice, candidates: DiscoveryCandidate[]) => decodeTemplateNoteSelection(candidates[0].item));

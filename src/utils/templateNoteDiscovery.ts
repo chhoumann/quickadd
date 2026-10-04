@@ -3,6 +3,7 @@ import { orderFilesForPicker } from "src/utils/fileOrdering";
 import { buildPickerOrderingDeps } from "src/utils/pickerOrderingDeps";
 import { normalizeGeneratedFilePath } from "src/utils/generatedFilePath";
 import { escapesVaultBoundary } from "src/utils/vaultPathBoundary";
+import { resolveTemplatePath } from "src/utils/templateFolderUtils";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
 
 const EXISTING_PREFIX = "@quickadd-existing-note:";
@@ -73,9 +74,9 @@ function isLiteralMarkdownPath(path: string): boolean {
 function templatePathExclusions(choice: ITemplateChoice): Set<string> {
 	if (!isLiteralMarkdownPath(choice.templatePath)) return new Set();
 
-	const normalized = normalizeVaultPath(choice.templatePath);
-	const markdownPath = /\.md$/i.test(normalized) ? normalized : `${normalized}.md`;
-	return new Set([markdownPath.toLowerCase()]);
+	// The same resolution the template engine applies, so a source written as
+	// `Templates\\Daily` is excluded from the picker like `Templates/Daily.md`.
+	return new Set([resolveTemplatePath(choice.templatePath).toLowerCase()]);
 }
 
 function addPathKeys(keys: Set<string>, path: string, basename: string): void {

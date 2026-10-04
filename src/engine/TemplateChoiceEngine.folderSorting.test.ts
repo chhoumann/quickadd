@@ -286,7 +286,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		]);
 	});
 
-	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested", "out/nested/ "])(
+	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested", "out/nested/ ", "out/nested /"])(
 		"creates in the configured folder written as %s, not the vault root",
 		async (configured) => {
 			const noticesBefore = Notice.instances.length;

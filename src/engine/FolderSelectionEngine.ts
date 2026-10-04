@@ -299,10 +299,11 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	}
 
 	private validateFolderPath(path: string): void {
-		const trimmed = path.trim();
-		if (!trimmed) return;
+		if (!path) return;
 
-		const segments = trimmed.split("/");
+		// The path is validated as given: trimming here would hide a forbidden
+		// trailing space on the last segment from the check below.
+		const segments = path.split("/");
 		for (const segment of segments) {
 			this.validateFolderSegment(segment);
 		}
