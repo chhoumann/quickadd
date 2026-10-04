@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { ObsidianCommand } from "../../src/types/macros/ObsidianCommand";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { V2_CHOICE_KEYS, migrateSettingsV2 } from "../../src/v3/migrate";
@@ -34,6 +35,13 @@ describe("the lowered view of stored actions", () => {
 		const saved = actionsFromChoices({ ...migrated, ...loaded }) as { actions: { id: string; name: string }[] };
 		expect(saved.actions.find((action) => action.id === "fx-top")?.name).toBe("Renamed");
 		expect(saved).not.toHaveProperty("choices");
+	});
+
+	it("saves choices the builder made, class instances with methods included", () => {
+		const macro = new MacroChoice("Run a command");
+		macro.macro.commands = [new ObsidianCommand("Toggle bold", "editor:toggle-bold")];
+		const saved = actionsFromChoices({ ...migrated, choices: [macro] }) as { actions: { steps: unknown[] }[] };
+		expect(saved.actions[0].steps).toMatchObject([{ type: "runCommand", command: { kind: "obsidian", commandId: "editor:toggle-bold" } }]);
 	});
 
 	it("keeps choices a QuickAdd 2 device saved next to the actions, once each", () => {

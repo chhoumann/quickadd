@@ -66,7 +66,9 @@ type Notes = MigrationNote[];
  * applies), so data.json from any 2.x version migrates the same way.
  */
 export function migrateChoice(choice: IChoice): { node: ActionNode; notes: Notes } {
-	const copy = structuredClone(choice);
+	// A copy of what data.json would hold. Choices the builder made are class
+	// instances, and some hold functions that structuredClone cannot copy.
+	const copy = JSON.parse(JSON.stringify(choice)) as IChoice;
 	identifyNestedChoices(copy);
 	walkChoiceTree(copy, normalizeImportedChoice);
 	const notes: Notes = [];
