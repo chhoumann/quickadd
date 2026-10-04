@@ -1,4 +1,5 @@
 import {
+	ACTION_SYNTAX_SUGGEST_REGEX,
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
 	DAILY_SYNTAX_SUGGEST_REGEX,
@@ -441,9 +442,14 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 			),
 	},
 	{
+		regex: ACTION_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{ACTION:}}", "Runs another choice and inserts its result"),
+	},
+	{
 		regex: MACRO_SYNTAX_SUGGEST_REGEX,
 		contexts: ALL,
-		suggestion: token("{{MACRO:}}", "Whatever a macro returns"),
+		suggestion: token("{{MACRO:}}", "Runs another choice and inserts its result"),
 		expansions: ({ macroNames }) => [
 			...macroNames.map((name) => token(`{{MACRO:${name}}}`, `Runs your "${name}" macro`)),
 			token("{{MACRO:MyMacro|label:Label}}", "Word the macro's own prompt yourself"),

@@ -40,6 +40,8 @@ describe("preview stand-ins", () => {
 		["{{VALUE:due: x}}", "due: x_value", "user input"],
 		["{{MACRO:clipboard}}", "clipboard_content", "clipboard_content"],
 		["{{MACRO:a:b}}", "a:b_output", "macro_output"],
+		["{{ACTION:clipboard}}", "clipboard_content", "clipboard_content"],
+		["{{action:a:b}}", "a:b_output", "macro_output"],
 		["{{FIELD:status}}", "status_field_value", "status_field_value"],
 		["{{FIELD:a:b}}", "a:b_field_value", "field_value"],
 		["{{NOTE}} {{NOTE|link}} {{NOTE|name}} {{NOTE|folder}}", "note note note note_folder", "note note note note_folder"],

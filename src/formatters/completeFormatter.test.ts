@@ -357,6 +357,13 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(mocks.macroRunAndGetOutput).toHaveBeenCalled();
 	});
 
+	it.each(["{{ACTION:doThing}}", "{{action:doThing}}"])("replaces %s like {{MACRO:doThing}}", async (input) => {
+		mocks.macroRunAndGetOutput.mockResolvedValue("ACTION_OUT");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath(`a ${input} b`)).resolves.toBe("a ACTION_OUT b");
+		expect(mocks.macroRunAndGetOutput).toHaveBeenCalledWith("doThing", undefined, expect.anything());
+	});
+
 	it("inserts a macro's output as text instead of expanding macro tokens in it", async () => {
 		mocks.macroRunAndGetOutput.mockResolvedValue("{{MACRO:again}}");
 		const f = defaultFormatter();

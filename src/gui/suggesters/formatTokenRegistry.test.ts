@@ -263,6 +263,13 @@ describe("format token insertion", () => {
 		expect(macro.value.slice(0, macro.caret)).toBe("Note {{MACRO:");
 	});
 
+	it("offers {{ACTION:}}, the name {{MACRO:}} goes by now", async () => {
+		const action = await accept("Note {{act", "{{ACTION:}}");
+		expect(action.value).toBe("Note {{ACTION:}}");
+		expect(action.value.slice(0, action.caret)).toBe("Note {{ACTION:");
+		expect(await suggestInserts("{{mac")).not.toContain("{{ACTION:}}");
+	});
+
 	it("leaves the caret after a token that needs no further input", async () => {
 		const { value, caret } = await accept("Note {{dat", "{{DATE}}");
 		expect(value).toBe("Note {{DATE}}");
