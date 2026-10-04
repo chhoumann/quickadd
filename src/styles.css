@@ -1674,9 +1674,12 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 }
 
 /* A command row with a second line, e.g. a script step's file. */
+/* Name over the one-line detail of a step (a script's file). */
 .quickAddCommandText {
 	display: flex;
+	flex: 1 1 auto;
 	flex-direction: column;
+	min-width: 0;
 }
 
 .quickAddCommandDetail {

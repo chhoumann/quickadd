@@ -29,8 +29,8 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel quickAddCommandText">
-        <span>{command.name}</span>
+    <span class="quickAddCommandText">
+        <span class="quickAddCommandLabel">{command.name}</span>
         {#if fileState === "ok"}
             <span class="quickAddCommandDetail" title={command.path}>{command.path}</span>
         {:else if fileState === "none"}
