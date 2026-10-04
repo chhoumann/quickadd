@@ -38,6 +38,8 @@ vi.mock("./utils/userScript", async (importOriginal) => ({
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
 const { SingleMacroEngine } = await import("./engine/SingleMacroEngine");
+const { StartupMacroEngine } = await import("./engine/StartupMacroEngine");
+const { log } = await import("./logger/logManager");
 
 let choices: IChoice[] = [];
 const app = { workspace: { getActiveFile: () => null } } as never;
@@ -181,6 +183,21 @@ describe("ChoiceExecutor re-entry guard", () => {
 
 		await expect(dispatched).rejects.toThrow('Macro "A" calls itself: A -> A');
 		expect(ran).toEqual(["a"]);
+	});
+
+	it("stops a startup macro that reaches itself before its prefix runs twice", async () => {
+		const a = macro("A", [script("a"), runs(a_placeholder())]);
+		function a_placeholder(): IMacroChoice { return { id: "A", name: "A" } as IMacroChoice; }
+		a.runOnStartup = true;
+		choices = [a];
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+
+		await new StartupMacroEngine(app, plugin, choices, new ChoiceExecutor(app, plugin)).run();
+
+		expect(ran).toEqual(["a"]);
+		expect(logError).toHaveBeenCalledTimes(1);
+		expect(String(logError.mock.calls[0][0])).toContain('Macro "A" calls itself: A -> A');
+		logError.mockRestore();
 	});
 
 	it("keeps overlapping runs on one executor independent", async () => {

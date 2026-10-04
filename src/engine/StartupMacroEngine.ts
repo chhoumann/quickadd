@@ -24,13 +24,18 @@ export class StartupMacroEngine {
 			// dependency, etc.) must not stop the rest from running. Report the
 			// failure naming the macro and continue to the next one.
 			try {
-				await new MacroChoiceEngine(
-					this.app,
-					this.plugin,
-					choice,
-					this.choiceExecutor,
-					new Map()
-				).run();
+				// Through the executor's re-entry guard, so the root is already on
+				// the running stack before its first command: a startup macro that
+				// reaches itself stops at once instead of running its prefix twice.
+				await this.choiceExecutor.guardReentry(choice, () =>
+					new MacroChoiceEngine(
+						this.app,
+						this.plugin,
+						choice,
+						this.choiceExecutor,
+						new Map()
+					).run(),
+				);
 			} catch (error) {
 				reportError(
 					error,
