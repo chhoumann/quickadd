@@ -76,7 +76,7 @@ describe("adding a step to a choice", () => {
 		loaded.choices = [withStep(loaded.choices[0], step)];
 
 		const [action] = (actionsFromChoices(loaded) as { actions: Action[] }).actions;
-		expect(action).toMatchObject({ id: choice.id, show: { ribbon: true }, provenance: { migratedFrom: "Macro" } });
+		expect(action).toMatchObject({ id: choice.id, show: { ribbon: true }, provenance: { migratedFrom: "Capture" } });
 		expect(action.steps.map((entry) => entry.type)).toEqual(["addToNote", "link", "open", "runScript"]);
 		expect(action.steps.map((entry) => entry.id)).toEqual([choice.id, `${choice.id}:link`, `${choice.id}:open`, step.id]);
 		expect(action.steps[0]).toMatchObject({ name: "Log", captureTo: "Log.md" });

@@ -5,7 +5,7 @@ import { uuidv4 } from "../utils/uuid";
 import { settingsValuesEqual, threeWayMergeSettings } from "../utils/settingsPersistMerge";
 import { lowerNode } from "./lower";
 import { migrateChoice, migrateSettingsV2 } from "./migrate";
-import type { Action, ActionNode } from "./model";
+import type { Action, ActionNode, Step } from "./model";
 
 /*
  * QuickAdd 3 stores `actions` in data.json. In memory the plugin holds those
@@ -109,8 +109,12 @@ function withChoiceEdits(actions: ActionNode[], choices: IChoice[]): ActionNode[
 	const readable = actions.filter(isReadableAction);
 	const lowered = lowerActions(readable);
 	if (settingsValuesEqual(edited, lowered)) return actions;
-	const roundTrip = migrateSettingsV2({ choices: lowered }).actions;
-	const migrated = migrateSettingsV2({ choices: edited }).actions;
+	// Provenance says what the one-time migration found; a save does not
+	// restamp it, so a Template or Capture that became a sequence keeps saying
+	// so and goes back to its compact form when the extra steps go, while a
+	// QuickAdd 2 macro stays a macro. A new choice carries none.
+	const roundTrip = withoutProvenance(migrateSettingsV2({ choices: lowered }).actions);
+	const migrated = withoutProvenance(migrateSettingsV2({ choices: edited }).actions);
 	const merged = threeWayMergeSettings(roundTrip, migrated, readable, ["actions"]);
 	// Entries this build cannot read stay where they were.
 	const result = [...merged];
@@ -185,6 +189,25 @@ export function isActionNode(value: unknown): value is ActionNode {
 	if (!isRecord(value) || typeof value.id !== "string") return false;
 	if (value.kind === "folder") return Array.isArray(value.items) && value.items.every(isActionNode);
 	return value.kind === "action" && Array.isArray(value.steps) && isRecord(value.show);
+}
+
+function withoutProvenance(nodes: ActionNode[]): ActionNode[] {
+	return nodes.map((node) => {
+		if (node.kind === "folder") return { ...node, items: withoutProvenance(node.items) };
+		const action: Action = { ...node, steps: stepsWithoutProvenance(node.steps) };
+		delete action.provenance;
+		return action;
+	});
+}
+
+function stepsWithoutProvenance(steps: Step[]): Step[] {
+	return steps.map((step) => {
+		if (step.type === "inlineAction") return { ...step, node: withoutProvenance([step.node])[0] ?? step.node };
+		if (step.type === "if") {
+			return { ...step, thenSteps: stepsWithoutProvenance(step.thenSteps), elseSteps: stepsWithoutProvenance(step.elseSteps) };
+		}
+		return step;
+	});
 }
 
 function lowerActions(actions: ActionNode[]): IChoice[] {

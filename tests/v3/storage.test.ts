@@ -10,6 +10,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { V2_CHOICE_KEYS, migrateSettingsV2 } from "../../src/v3/migrate";
 import type { ActionNode, Step } from "../../src/v3/model";
 import { actionsFromChoices, choicesFromActions } from "../../src/v3/storage";
+import { newStep, withStep } from "../../src/v3/addStep";
 import { CommandType } from "../../src/types/macros/CommandType";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import type IMultiChoice from "../../src/types/choices/IMultiChoice";
@@ -272,6 +273,36 @@ describe("the lowered view of stored actions", () => {
 		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id, added.id]);
 		const saved = loadAndSave(disk);
 		expect(saved.actions.map((node: { id: string }) => node.id)).toEqual([folder.id, FIXTURE[0].id, added.id]);
+	});
+
+	it("lets a Template or Capture that became a sequence go back to its compact form", () => {
+		const capture = new CaptureChoice("Log");
+		capture.captureTo = "Log.md";
+		const disk = stored([capture]);
+		expect(disk.actions[0].provenance).toEqual({ migratedFrom: "Capture" });
+
+		const asSequence = loadAndSave(disk, (choices) => {
+			choices[0] = withStep(choices[0], newStep("wait"));
+		});
+		expect(asSequence.actions[0].steps.map((step: { type: string }) => step.type)).toEqual(["addToNote", "wait"]);
+		expect(asSequence.actions[0].provenance).toEqual({ migratedFrom: "Capture" });
+
+		const compactAgain = loadAndSave(asSequence, (choices) => {
+			(choices[0] as IMacroChoice).macro.commands.pop();
+		});
+		expect(compactAgain.actions[0].steps.map((step: { type: string }) => step.type)).toEqual(["addToNote"]);
+		expect((choicesFromActions(compactAgain) as Loaded).choices[0]?.type).toBe("Capture");
+	});
+
+	it("keeps a QuickAdd 2 macro a macro, and gives a new choice no provenance", () => {
+		const macro = new MacroChoice("Wrapped");
+		macro.macro.commands = [{ id: "n", name: "Inner", type: CommandType.NestedChoice, choice: new CaptureChoice("Inner") } as ICommand];
+		const disk = stored([macro]);
+		expect((choicesFromActions(loadAndSave(disk)) as Loaded).choices[0]?.type).toBe("Macro");
+
+		const saved = loadAndSave(disk, (choices) => { choices.push(new CaptureChoice("New")); });
+		expect(saved.actions[1].provenance).toBeUndefined();
+		expect(saved.actions[0].provenance).toEqual({ migratedFrom: "Macro" });
 	});
 
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
