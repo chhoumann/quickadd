@@ -35,23 +35,28 @@ export interface WriteGroup {
 	next: number;
 }
 
+/**
+ * Reads the write at `start` with the follow-ups migration derived from the
+ * same v2 choice, which carry the write's id with a suffix. A step on the run
+ * note under any other id is the user's own and stays a step of its own.
+ */
 export function readWriteGroup(steps: Step[], start: number): WriteGroup | null {
 	const write = steps[start];
 	if (write?.type !== "createNote" && write?.type !== "addToNote") return null;
 	const group: WriteGroup = { write, next: start + 1 };
 	const at = () => steps[group.next];
 	const step = at();
-	if (write.type === "addToNote" && step?.type === "templater" && step.note === RUN_NOTE) {
+	if (write.type === "addToNote" && step?.type === "templater" && step.note === RUN_NOTE && step.id === `${write.id}:templater`) {
 		group.templater = step;
 		group.next++;
 	}
 	const link = at();
-	if (link?.type === "link" && link.link === RUN_NOTE) {
+	if (link?.type === "link" && link.link === RUN_NOTE && link.id === `${write.id}:link`) {
 		group.link = link;
 		group.next++;
 	}
 	const open = at();
-	if (open?.type === "open" && open.note === RUN_NOTE) {
+	if (open?.type === "open" && open.note === RUN_NOTE && open.id === `${write.id}:open`) {
 		group.open = open;
 		group.next++;
 	}
@@ -213,7 +218,9 @@ function lowerStep(step: Step): ICommand {
 		case "ai":
 			return { ...step, type: CommandType.AIAssistant } as ICommand;
 		case "open":
-			if (step.mode !== "default") break;
+			// The run note is only known to the v3 engines; a v2 command would
+			// open a file named {{NOTE}}.
+			if (step.mode !== "default" || step.note === RUN_NOTE) break;
 			return {
 				...base,
 				type: CommandType.OpenFile,
