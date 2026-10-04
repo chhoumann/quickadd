@@ -205,7 +205,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["bottom of an existing note", async (a) => { await note(a); a.choice.prepend = true; }, {
@@ -216,7 +216,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading, top of its section", async (a) => {
@@ -230,7 +230,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading, end of its section", async (a) => {
@@ -244,7 +244,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a missing heading, created at the bottom", async (a) => {
@@ -258,7 +258,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Missing'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a missing heading, not created", async (a) => {
@@ -286,7 +286,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' before '## Next'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a task at the bottom", async (a) => { await note(a); a.choice.prepend = true; a.choice.task = true; a.choice.format.format = "Do it"; }, {
@@ -297,7 +297,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["an empty value", async (a) => { await note(a); a.choice.format.format = "{{VALUE}}"; a.vars.value = ""; }, {
@@ -308,7 +308,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Nothing to capture — 'Target' unchanged"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["only a cursor marker", async (a) => { await note(a); a.choice.format.format = "{{CURSOR}}"; }, {
@@ -319,7 +319,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Nothing to capture — 'Target' unchanged"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["opening the note at the cursor marker", async (a) => {
@@ -335,7 +335,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["opening the note with two cursor markers", async (a) => {
@@ -351,7 +351,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["copying a link to the captured note", async (a) => { await note(a); a.choice.copyLinkToClipboard = true; }, {
@@ -362,7 +362,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to top of 'Target'", "Copied link to 'Target' to clipboard."],
+		notices: ["Copied link to 'Target' to clipboard."],
 		clipboard: "[[Target]]",
 	}],
 	["appending a link to the active note", async (a) => { await note(a); a.choice.appendLink = true; }, {
@@ -373,7 +373,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:10"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["one entry per line", async (a) => {
@@ -390,7 +390,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a |multi value into an existing note", async (a) => {
@@ -408,7 +408,6 @@ const CASES: Case[] = [
 		selections: ["0:0"],
 		notices: [
 			"QuickAdd: (WARNING) {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
-			"Captured to bottom of 'Target'",
 		],
 		clipboard: SENTINEL,
 	}],
@@ -439,7 +438,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a new note from a template", async (a) => {
@@ -456,7 +455,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a new note whose capture is its front matter", async (a) => {
@@ -472,7 +471,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a missing note without creation", async (a) => { a.choice.captureTo = a.path("Missing.md"); }, {
@@ -547,7 +546,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to '2031-02-10'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["an existing daily note", async (a) => {
@@ -564,7 +563,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of '2031-02-10'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -581,7 +580,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:9"],
-		notices: ["Captured to current line in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["on a new line above the cursor", async (a) => {
@@ -596,7 +595,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:5"],
-		notices: ["Captured on a new line above cursor in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["on a new line below the cursor", async (a) => {
@@ -611,7 +610,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["4:5"],
-		notices: ["Captured on a new line below cursor in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["top of the active note", async (a) => {
@@ -626,7 +625,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["4:2"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["bottom of the active note", async (a) => {
@@ -641,7 +640,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading in the active note", async (a) => {
@@ -656,7 +655,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a cursor marker at the cursor in the active note", async (a) => {
@@ -671,7 +670,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:7"],
-		notices: ["Captured to current line in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a cursor marker and a link in the same active note", async (a) => {
@@ -688,7 +687,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -706,7 +705,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	// Canvas cards.
@@ -722,7 +721,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Board'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading in a Canvas text card", async (a) => {
@@ -737,7 +736,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Board' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a Canvas text card, opening the canvas", async (a) => {
@@ -754,7 +753,7 @@ const CASES: Case[] = [
 		},
 		active: "Board.canvas",
 		selections: null,
-		notices: ["Captured to bottom of 'Board'", "Copied link to 'Board' to clipboard."],
+		notices: ["Copied link to 'Board' to clipboard."],
 		clipboard: "[[Board.canvas]]",
 	}],
 	["a Canvas text card, creating a missing heading at the cursor", async (a) => {
@@ -786,7 +785,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Card note'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a Canvas file card, creating a missing heading at the cursor", async (a) => {
@@ -832,7 +831,7 @@ const CASES: Case[] = [
 		},
 		active: "Board.canvas",
 		selections: null,
-		notices: ["Captured to bottom of 'Board'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["the selected file card of the active canvas", async (a) => {
@@ -850,7 +849,7 @@ const CASES: Case[] = [
 		},
 		active: "Card note.md",
 		selections: null,
-		notices: ["Captured to bottom of 'Card note'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -869,7 +868,6 @@ const CASES: Case[] = [
 		active: "Board.canvas",
 		selections: null,
 		notices: [
-			"Captured to bottom of 'Board'",
 			"Canvas capture skipped link insertion because no Markdown editor is focused.",
 		],
 		clipboard: SENTINEL,
@@ -888,7 +886,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'status' in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["adding to a list property", async (a) => {
@@ -903,7 +901,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'tags' in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a property on a new note", async (a) => {
@@ -919,7 +917,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'status' in 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a property on a missing note without creation", async (a) => {
@@ -968,7 +966,7 @@ const TEMPLATER_CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created 'Created' — nothing to capture (no content)"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["Templater over the whole note after the capture", async (a) => {
@@ -986,7 +984,6 @@ const TEMPLATER_CASES: Case[] = [
 		selections: ["0:0"],
 		notices: [
 			"QuickAdd: (WARNING) 'Characterization' uses \"Run Templater on entire destination file after capture\", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.",
-			"Captured to bottom of 'Target'",
 		],
 		clipboard: SENTINEL,
 	}],

@@ -109,13 +109,24 @@ async function visibleNotices() {
 	return getContext().obsidian.dev.evalJson<string[]>(`(() =>
 		[...document.querySelectorAll(".notice")]
 			.filter(notice => notice.getClientRects().length > 0)
-			.map(notice => notice.textContent?.trim() ?? "")
+			.map(notice => {
+				const text = notice.cloneNode(true);
+				text.querySelectorAll("button").forEach(button => button.remove());
+				return text.textContent?.trim() ?? "";
+			})
 	)()`);
 }
 
 async function expectOneNothingToCaptureNotice() {
 	await expect.poll(() => visibleNotices(), AUTOSAVE_POLL).toHaveLength(1);
 	expect(await visibleNotices()).toEqual([expect.stringMatching(/nothing to capture/i)]);
+}
+
+async function runFromCommand(choice: CaptureChoice) {
+	await getContext().obsidian.dev.evalJson(`(() => {
+		app.commands.executeCommandById(${JSON.stringify(`quickadd:choice:${choice.id}`)});
+		return true;
+	})()`);
 }
 
 async function run(choice: CaptureChoice) {
@@ -433,7 +444,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 		expect(await obsidian.dev.evalJson(`app.vault.getAbstractFileByPath(${JSON.stringify(path)}).stat.mtime`)).toBe(before);
 	});
 
-	it.each(["note", "editor", "canvas"] as const)("shows a nothing-to-capture notice for marker-only %s captures", async mode => {
+	it.each(["note", "editor", "canvas"] as const)("says there is nothing to add for marker-only %s captures", async mode => {
 		const { choice, path } = await setup("Original");
 		const { obsidian, sandbox } = getContext();
 		await enableCaptureNotices();
@@ -457,7 +468,11 @@ describe("Capture cursor markers in native Obsidian", () => {
 		const before = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
 		await clearNotices();
 		expect(await run(choice)).toMatchObject({ file: targetPath, effect: "unchanged" });
-		await expectOneNothingToCaptureNotice();
+		// A run that reports its outcome to its caller shows no notice.
+		expect(await visibleNotices()).toEqual([]);
+		await runFromCommand(choice);
+		const name = targetPath.replace(/^.*\//, "").replace(/\.(md|canvas)$/, "");
+		await expect.poll(() => visibleNotices(), AUTOSAVE_POLL).toEqual([`Cursor capture: nothing to add to '${name}'`]);
 		const after = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
 		expect(after).toBe(before);
 		expect(after).not.toMatch(/{{CURSOR}}/i);
