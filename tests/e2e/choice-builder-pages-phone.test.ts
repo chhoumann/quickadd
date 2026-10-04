@@ -65,12 +65,18 @@ async function openChoicePage(choice: IChoice) {
 	}));
 	await plugin.reload({ waitUntilReady: true });
 	// On a phone settings closes with an animation, and opening it before that
-	// ends does nothing.
+	// ends does nothing. Settings can also come up with the QuickAdd tab active
+	// but not shown, so open it until its content is there.
 	await obsidian.dev.evalJson("app.setting.close(), true");
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(
 		'!document.querySelector(".modal.mod-settings")',
 	), { message: "settings closed", timeoutMs: 10_000 });
-	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
+	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
+		if (document.querySelector(".modal.mod-settings .vertical-tab-content-container > *")) return true;
+		if (!document.querySelector(".modal.mod-settings")) app.setting.open();
+		app.setting.openTabById("quickadd");
+		return false;
+	})()`), { message: "the QuickAdd settings tab shown", timeoutMs: 10_000, intervalMs: 500 });
 	// A phone row has no gear: its menu has Configure.
 	await clickWhenStill(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`);
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
