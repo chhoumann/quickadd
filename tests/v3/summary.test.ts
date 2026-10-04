@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { migrateChoice } from "../../src/v3/migrate";
-import type { ActionNode } from "../../src/v3/model";
+import type { Action, ActionNode, Step } from "../../src/v3/model";
 import { render, summarize } from "../../src/v3/summary";
 import { FIXTURE } from "./fixture";
 import { packageChoices } from "./packages";
@@ -9,6 +9,18 @@ describe("summary line", () => {
 	it("renders placeholders as short names", () => {
 		expect(render("{{DATE:YYYY-MM-DD}} {{VALUE:Meeting|optional}} {{VALUE}} {{TIME}} {{VDATE:due,YYYY}} {{DAILY}}"))
 			.toBe("{date} {Meeting} {value} {time} {due} today's daily note");
+	});
+
+	const action = (steps: Step[]): Action => ({ kind: "action", id: "a", name: "A", steps, show: { command: false } });
+
+	it("says an action without steps has none yet", () => {
+		expect(summarize(action([]))).toBe("No steps yet");
+	});
+
+	it("names the script, or says a script when none is picked yet", () => {
+		const script = (path: string): Step => ({ type: "runScript", id: "s", path, settings: {} });
+		expect(summarize(action([script("Scripts/clip.js::run")]))).toBe("Runs clip.js::run");
+		expect(summarize(action([script("")]))).toBe("Runs a script");
 	});
 
 	it("matches the reviewed lines for every package and fixture action", async () => {

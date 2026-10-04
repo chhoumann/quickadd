@@ -8,7 +8,7 @@ import { RUN_NOTE } from "./model";
  */
 export function summarize(action: Action, nameOf: (id: string) => string | undefined = () => undefined): string {
 	const line = describeSteps(action.steps, nameOf);
-	return line ? line.charAt(0).toUpperCase() + line.slice(1) : "Does nothing";
+	return line ? line.charAt(0).toUpperCase() + line.slice(1) : "No steps yet";
 }
 
 function describeSteps(steps: Step[], nameOf: (id: string) => string | undefined): string {
@@ -32,7 +32,7 @@ function describeStep(step: Step, nameOf: (id: string) => string | undefined): s
 				? `runs ${step.name ? `'${step.name}'` : step.command.commandId}`
 				: `${step.command.editorCommandType.toLowerCase()} in the editor`;
 		case "runScript":
-			return `runs ${basename(step.path)}`;
+			return step.path.trim() ? `runs ${basename(step.path)}` : "runs a script";
 		case "ai":
 			return `asks AI${step.outputVariableName ? ` for {${step.outputVariableName}}` : ""}`;
 		case "if": {
