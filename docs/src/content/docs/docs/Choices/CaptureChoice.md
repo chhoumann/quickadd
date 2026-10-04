@@ -627,6 +627,32 @@ Property captures prepare the property value before creating the file. After a
 new-file Templater pass, QuickAdd applies the property update to the resulting
 frontmatter so the template does not discard the capture.
 
+## See what it asks for: Inputs {#inputs}
+
+The **Inputs** group, above **Steps**, lists what the capture asks for when it
+runs, in the order it first appears: in **Capture to**, then in the capture
+format, then in the template a missing note is created with. Each row shows the
+input's name, its kind (*value*, *date*, *field*, *file*, *math*, or *pick* for
+the note you pick from a folder or tag), and where it is defined. An empty
+capture format still asks for `{{VALUE}}`, so it is listed too.
+
+Two controls change how a value, date, or file input is asked for, without
+editing the placeholder:
+
+- **Label** - the title of its prompt, and of its field in the one-page form.
+  Leave it empty to keep the placeholder's own, shown greyed out in the field.
+- **Optional** - whether you can leave it empty. It starts as the placeholder
+  says, with `|optional` or without.
+
+Both save as soon as you change them. A run that is given the value up front,
+from the CLI or a URI, isn't affected. Rename the placeholder and the input
+asks as the placeholder says again.
+
+An input from the template file reads *Defined in* and the file's name. Click
+the name to open the file, and change the placeholder there.
+
+A capture nested inside a macro lists its inputs without the controls.
+
 ## Do more afterwards: Add a step {#steps}
 
 The last group in the builder, **Steps**, lists what the capture does, one line

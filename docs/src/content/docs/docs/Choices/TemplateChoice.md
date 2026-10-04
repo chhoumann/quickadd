@@ -492,6 +492,32 @@ nothing** from the prompt:
 - **Do nothing** - leaves the existing file unchanged and opens it
   automatically. This does not require the separate **Open** setting.
 
+## See what it asks for: Inputs {#inputs}
+
+The **Inputs** group, above **Steps**, lists what the template choice asks for
+when it runs, in the order it first appears: in the file name, then in the
+folders, then in the template file. Each row shows the input's name, its kind
+(*value*, *date*, *field*, *file*, or *math*), and where it is defined. With no
+file name format, QuickAdd asks for the note's title, which is listed as the
+*value* defined in the file name.
+
+Two controls change how a value, date, or file input is asked for, without
+editing the placeholder:
+
+- **Label** - the title of its prompt, and of its field in the one-page form.
+  Leave it empty to keep the placeholder's own, shown greyed out in the field.
+- **Optional** - whether you can leave it empty. It starts as the placeholder
+  says, with `|optional` or without.
+
+Both save as soon as you change them. A run that is given the value up front,
+from the CLI or a URI, isn't affected. Rename the placeholder and the input
+asks as the placeholder says again.
+
+An input from the template file reads *Defined in* and the file's name. Click
+the name to open the file, and change the placeholder there.
+
+A template choice nested inside a macro lists its inputs without the controls.
+
 ## Do more afterwards: Add a step {#steps}
 
 The last group in the builder, **Steps**, lists what the template choice does,
