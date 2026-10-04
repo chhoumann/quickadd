@@ -33,7 +33,12 @@ export class RunLog {
 	/** Reads the log from `path`; later changes are written there. */
 	async load(adapter: Adapter, path: string): Promise<void> {
 		this.storage = { adapter, path };
-		if (!(await adapter.exists(path))) return;
+		// Another vault's log must not carry over through a reload.
+		this.entries = [];
+		if (!(await adapter.exists(path))) {
+			this.changed();
+			return;
+		}
 		try {
 			const stored: unknown = JSON.parse(await adapter.read(path));
 			if (Array.isArray(stored)) this.entries = (stored as RunLogEntry[]).slice(-RUN_LOG_LIMIT);

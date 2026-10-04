@@ -74,6 +74,18 @@ describe("RunLog", () => {
 		expect(JSON.parse(written[1]!)).toHaveLength(2);
 	});
 
+	it("starts empty when the file is absent, even after another log was loaded", async () => {
+		const log = new RunLog();
+		await log.load(fakeAdapter(), PATH);
+		log.append(entry(1));
+		expect(log.list()).toHaveLength(1);
+
+		const empty = fakeAdapter();
+		empty.exists = vi.fn(async () => false);
+		await log.load(empty, PATH);
+		expect(log.list()).toEqual([]);
+	});
+
 	it("writes at most once a second", async () => {
 		const adapter = fakeAdapter();
 		const log = new RunLog();
