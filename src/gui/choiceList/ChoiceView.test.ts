@@ -448,6 +448,23 @@ describe("ChoiceView", () => {
 		]);
 	});
 
+	it("says what each row does under its name", () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Inbox", type: "Capture", captureTo: "Inbox.md" }],
+		} as unknown as IChoice;
+
+		const { container } = renderChoiceView([folderChoice]);
+
+		const summaryOf = (id: string) =>
+			container.querySelector(`[data-choice-id="${id}"] .choiceListItemSummary`)?.textContent;
+		expect(summaryOf("f1")).toBe("1 choice");
+		expect(summaryOf("c1")).toBe("Adds a line at the top of Inbox");
+	});
+
 	// Issue #1541: the first-run empty state is the one place a brand-new user is
 	// guaranteed to look, so it carries the plugin's most prominent docs link.
 	it("links the documentation from the empty state", () => {
