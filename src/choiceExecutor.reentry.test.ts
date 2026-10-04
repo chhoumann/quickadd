@@ -157,6 +157,32 @@ describe("ChoiceExecutor re-entry guard", () => {
 		expect(ran).toEqual(["a", "b", "c", "c", "b", "c"]);
 	});
 
+	it("refuses a macro whose Obsidian-command step runs its own registered command", async () => {
+		const a = macro("A", [
+			script("a"),
+			{ id: "cmd", name: "QuickAdd: A", type: CommandType.Obsidian, commandId: "quickadd:choice:A" } as ICommand,
+		]);
+		choices = [a];
+		let dispatched: Promise<void> | undefined;
+		const commandApp = {
+			...(app as object),
+			commands: {
+				commands: { "quickadd:choice:A": {} },
+				// What main.ts does for a registered choice: a fresh executor per run.
+				executeCommandById: () => {
+					dispatched = new ChoiceExecutor(commandApp, plugin).execute(a);
+					dispatched.catch(() => undefined);
+					return true;
+				},
+			},
+		} as never;
+
+		await new ChoiceExecutor(commandApp, plugin).execute(a);
+
+		await expect(dispatched).rejects.toThrow('Macro "A" calls itself: A -> A');
+		expect(ran).toEqual(["a"]);
+	});
+
 	it("keeps overlapping runs on one executor independent", async () => {
 		const gates = new Map<string, () => void>();
 		const gate = (name: string) => new Promise<void>((resolve) => gates.set(name, resolve));

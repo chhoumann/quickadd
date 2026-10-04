@@ -1,4 +1,5 @@
 import { executeMacroAI, pickMacroModel } from "./macroAI";
+import { withDispatchChain } from "./dispatchChain";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -406,8 +407,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		// @ts-ignore
-		this.app.commands.executeCommandById(command.commandId);
+		withDispatchChain(this.choiceExecutor.activeChoices, () =>
+			// @ts-ignore
+			this.app.commands.executeCommandById(command.commandId),
+		);
 	}
 
 	protected async executeChoice(command: IChoiceCommand) {

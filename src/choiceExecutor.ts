@@ -1,4 +1,5 @@
 import { Notice, type App, type WorkspaceLeaf } from "obsidian";
+import { currentDispatchChain } from "./engine/dispatchChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -64,12 +65,18 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
-	private readonly runningChoices: IChoice[] = [];
+	private readonly runningChoices: IChoice[];
 	private macroOnePageInput: IChoice["onePageInput"];
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
-	constructor(private app: App, private plugin: QuickAdd) {}
+	constructor(private app: App, private plugin: QuickAdd) {
+		this.runningChoices = [...currentDispatchChain()];
+	}
+
+	get activeChoices(): readonly IChoice[] {
+		return this.runningChoices;
+	}
 
 	signalAbort(error: MacroAbortError) {
 		this.pendingAbort = error;

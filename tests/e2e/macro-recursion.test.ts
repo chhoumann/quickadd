@@ -87,6 +87,28 @@ it("stops a capture whose {{MACRO:}} runs the capture again", async () => {
 	expect(await sandbox.read("loop-capture.md").catch(() => null)).toBeNull();
 });
 
+it("stops a macro whose Obsidian-command step runs its own registered command", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const script = await seedCounter(obsidian, sandbox);
+	const macro = new MacroChoice("Command loop");
+	macro.command = true;
+	macro.macro.commands = [
+		countStep(script),
+		{ id: "self-command", name: "QuickAdd: Command loop", type: "Obsidian", commandId: `quickadd:choice:${macro.id}` } as ICommand,
+	];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [macro];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await reset(obsidian);
+	await obsidian.dev.evalJson(`(() => { app.commands.executeCommandById(${jsLiteral(`quickadd:choice:${macro.id}`)}); return true; })()`);
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(notices), POLL_OPTS).toEqual([
+		'QuickAdd: (ERROR) Could not run "Command loop": Macro "Command loop" calls itself: Command loop -> Command loop',
+	]);
+	expect(await obsidian.dev.evalJson<number>(`window[${jsLiteral(COUNTER)}]`)).toBe(1);
+});
+
 it("still runs a macro that runs another macro twice", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	const script = await seedCounter(obsidian, sandbox);

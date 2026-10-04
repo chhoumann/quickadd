@@ -22,6 +22,8 @@ export interface IChoiceExecutor {
 	 * that run a choice's engine directly must too.
 	 */
 	guardReentry<T>(choice: IChoice, run: () => Promise<T>): Promise<T>;
+	/** Choices currently running in this executor, outermost first. */
+	readonly activeChoices: readonly IChoice[];
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
