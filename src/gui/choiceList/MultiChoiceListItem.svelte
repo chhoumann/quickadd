@@ -218,6 +218,7 @@
                             targetFolderId={choice.id}
                             targetFolderName={choice.name}
                             onAddChoice={actions.onAddChoice}
+                            onAddFolder={actions.onAddFolder}
                         />
                     </div>
                 {/if}

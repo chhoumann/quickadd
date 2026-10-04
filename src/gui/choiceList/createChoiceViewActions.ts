@@ -3,7 +3,6 @@ import { tick } from "svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
-import type { ChoiceType } from "../../types/choices/choiceType";
 import {
 	type CommandRegistry,
 	configureChoice,
@@ -26,7 +25,8 @@ import { reportingHandler } from "../../utils/errorUtils";
 import { type Plain, snapshot } from "../svelte/persist.svelte";
 import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
-import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
+import { FOLDER_NAME, type Preset } from "./presets";
+import { uniqueChoiceName } from "./uniqueChoiceName";
 import type { ChoiceListActions } from "./choiceListActions";
 import { subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
 import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
@@ -49,27 +49,14 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 	}
 
 	async function addChoiceToList(
-		_name: string,
-		type: ChoiceType,
+		preset: Preset,
 		targetFolderId?: string,
 		skipConfigure = false,
 	): Promise<void> {
-		const name = uniqueDefaultChoiceName(type, context.choices);
-		const newChoice = createChoice(type, name);
-		context.choices = addChoiceToTree(context.choices, newChoice, targetFolderId);
-
-		// A root-level add while a filter is active would otherwise look like
-		// nothing happened (the auto-named choice may not match the filter).
-		if (!targetFolderId && context.filterQuery.trim().length > 0) {
-			context.filterQuery = "";
-		}
-
-		// Persist before opening any editor: an external store write can arrive while
-		// it is open. Cancellation keeps the saved default-named choice.
-		save();
-		if (type === "Multi") {
-			await handleRenameChoice(newChoice);
-		} else if (!skipConfigure) {
+		const newChoice = preset.create();
+		newChoice.name = uniqueChoiceName(preset.name, context.choices);
+		insert(newChoice, targetFolderId);
+		if (!skipConfigure) {
 			try {
 				// The builder opens over this list, which shows it again when left.
 				if (handleConfigureChoice(newChoice)) return;
@@ -81,6 +68,27 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			}
 		}
 		await revealChoice(newChoice.id);
+	}
+
+	async function addFolderToList(targetFolderId?: string): Promise<void> {
+		const folder = createChoice("Multi", uniqueChoiceName(FOLDER_NAME, context.choices));
+		insert(folder, targetFolderId);
+		await handleRenameChoice(folder);
+		await revealChoice(folder.id);
+	}
+
+	function insert(newChoice: IChoice, targetFolderId?: string) {
+		context.choices = addChoiceToTree(context.choices, newChoice, targetFolderId);
+
+		// A root-level add while a filter is active would otherwise look like
+		// nothing happened (the auto-named choice may not match the filter).
+		if (!targetFolderId && context.filterQuery.trim().length > 0) {
+			context.filterQuery = "";
+		}
+
+		// Persist before opening any editor: an external store write can arrive while
+		// it is open. Cancellation keeps the saved default-named choice.
+		save();
 	}
 
 	// Scroll a just-added row into view so the add never "looks like nothing
@@ -288,14 +296,8 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			"Couldn't save that folder's contents",
 			handleCommitFolder,
 		),
-		// Same noun rule, from the type being added rather than an existing row.
-		onAddChoice: (name, type, targetFolderId, skipConfigure) =>
-			reportingHandler(`Couldn't add that ${choiceNoun(type)}`, addChoiceToList)(
-				name,
-				type,
-				targetFolderId,
-				skipConfigure,
-			),
+		onAddChoice: reportingHandler("Couldn't add that choice", addChoiceToList),
+		onAddFolder: reportingHandler("Couldn't add that folder", addFolderToList),
 	};
 
 }

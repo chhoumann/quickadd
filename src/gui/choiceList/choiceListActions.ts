@@ -1,5 +1,5 @@
-import type { ChoiceType } from "../../types/choices/choiceType";
 import type IChoice from "../../types/choices/IChoice";
+import type { Preset } from "./presets";
 
 /**
  * The single callback-prop bag threaded (by reference) through the recursive
@@ -37,15 +37,13 @@ export interface ChoiceListActions {
 	 */
 	onCommitFolder: (folderId: string, children: IChoice[]) => void;
 	/**
-	 * Add a new choice. `targetFolderId` inserts it into that folder (root when
-	 * omitted); `skipConfigure` suppresses the post-add builder. Threaded from the
-	 * top-level ChoiceView handler so it persists the whole root tree (the same
-	 * invariant as `onReorderChoices`/`rootReorder`), never an ancestor override.
+	 * Add a new choice made from `preset`. `targetFolderId` inserts it into that
+	 * folder (root when omitted); `skipConfigure` suppresses the post-add builder.
+	 * Threaded from the top-level ChoiceView handler so it persists the whole root
+	 * tree (the same invariant as `onReorderChoices`/`rootReorder`), never an
+	 * ancestor override.
 	 */
-	onAddChoice: (
-		name: string,
-		type: ChoiceType,
-		targetFolderId?: string,
-		skipConfigure?: boolean,
-	) => void;
+	onAddChoice: (preset: Preset, targetFolderId?: string, skipConfigure?: boolean) => void;
+	/** Add a folder, into `targetFolderId` or the root, then rename it. */
+	onAddFolder: (targetFolderId?: string) => void;
 }

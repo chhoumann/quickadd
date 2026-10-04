@@ -1,27 +1,23 @@
 <script lang="ts">
 	import { Menu, Platform } from "obsidian";
-	import type { ChoiceType } from "../../types/choices/choiceType";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
-	import { DOER_CHOICE_TYPES, defaultChoiceName } from "./choiceTypeMeta";
+	import { PRESETS, type Preset } from "./presets";
 
 	let {
 		onAddChoice,
+		onAddFolder,
 		targetFolderId = undefined,
 		targetFolderName = undefined,
 		compact = false,
 		fill = false,
 	}: {
 		/**
-		 * Add a choice. `targetFolderId` inserts it into that folder (root when
-		 * omitted); `skipConfigure` suppresses the post-add builder (used by
-		 * Alt-click and always for folders).
+		 * Add a choice made from a preset. `targetFolderId` inserts it into that
+		 * folder (root when omitted); `skipConfigure` suppresses the post-add
+		 * builder (Alt-click).
 		 */
-		onAddChoice: (
-			name: string,
-			type: ChoiceType,
-			targetFolderId?: string,
-			skipConfigure?: boolean,
-		) => void;
+		onAddChoice: (preset: Preset, targetFolderId?: string, skipConfigure?: boolean) => void;
+		onAddFolder: (targetFolderId?: string) => void;
 		/** When set, both actions add into this folder. */
 		targetFolderId?: string;
 		/** Folder name, used in the per-folder tooltip ("Add choice to {name}"). */
@@ -36,22 +32,17 @@
 
 	function openNewChoiceMenu(evt: MouseEvent) {
 		const menu = new Menu();
-		for (const meta of DOER_CHOICE_TYPES) {
+		for (const preset of PRESETS) {
 			menu.addItem((item) =>
 				item
 					// A phone's menu rows are one ellipsized line, too narrow for the description.
-					.setTitle(Platform.isPhone ? meta.label : `${meta.label} — ${meta.description}`)
-					.setIcon(meta.iconId)
+					.setTitle(Platform.isPhone ? preset.label : `${preset.label} - ${preset.description}`)
+					.setIcon(preset.iconId)
 					.onClick((clickEvt) => {
 						// Alt/⌥ scaffolds without opening the builder (batch path).
 						const skip =
 							(clickEvt as MouseEvent | KeyboardEvent).altKey === true;
-						onAddChoice(
-							defaultChoiceName(meta.type),
-							meta.type,
-							targetFolderId,
-							skip,
-						);
+						onAddChoice(preset, targetFolderId, skip);
 					}),
 			);
 		}
@@ -84,8 +75,8 @@
 	}
 
 	function addFolder() {
-		// Folders never open a builder — a fresh folder is immediately useful.
-		onAddChoice(defaultChoiceName("Multi"), "Multi", targetFolderId, true);
+		// Folders never open a builder - a fresh folder is immediately useful.
+		onAddFolder(targetFolderId);
 	}
 
 	// Per-folder (compact) controls read as "Add choice"/"Add folder" text links;

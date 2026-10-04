@@ -124,7 +124,7 @@
 				>
 			</p>
 			<div class="choiceEmptyActions">
-				<AddChoiceControls onAddChoice={actions.onAddChoice} />
+				<AddChoiceControls onAddChoice={actions.onAddChoice} onAddFolder={actions.onAddFolder} />
 			</div>
 			{#if !disableOnlineFeatures}
 				<!-- The bottom bar (and its AI icon) only renders once choices exist,
@@ -210,7 +210,7 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={actions.onAddChoice} fill={isMobile} />
+			<AddChoiceControls onAddChoice={actions.onAddChoice} onAddFolder={actions.onAddFolder} fill={isMobile} />
 		</div>
 	{/if}
 	{#snippet failed(error)}
