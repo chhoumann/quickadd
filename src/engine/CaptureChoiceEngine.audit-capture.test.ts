@@ -352,6 +352,7 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
 		const choice = createCaptureChoice();
 		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(captureFile);
 		const engine = buildRunEngine(choice, app);
 		// The link lands in the captured note itself.
 		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
@@ -372,6 +373,7 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 		insertFormattedContentMock.mockResolvedValue("existing body");
 		const choice = createCaptureChoice();
 		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(captureFile);
 		const engine = buildRunEngine(choice, app);
 		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
 			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\n[[Test]]");
@@ -384,6 +386,28 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 			file: captureFile,
 			effect: "changed",
 			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\n[[Test]]" },
+		});
+	});
+
+	it("keeps the snapshot as written when the link went into another note", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(createTestFile("Daily/Other.md"));
+		const engine = buildRunEngine(choice, app);
+		// Someone else edits the captured note while the link goes into the other one.
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\nnew line\ntheir edit");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toMatchObject({
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line" },
 		});
 	});
 

@@ -527,10 +527,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	}
 
 	/**
-	 * The link may have gone into the captured note itself. Undo compares the
-	 * note with what the run left, so the recorded write (the same object the
+	 * When the link went into the captured note itself: Undo compares the note
+	 * with what the run left, so the recorded write (the same object the
 	 * outcome holds) takes the text as it is after the link, and a run that had
-	 * nothing to add but did add its link changed the note after all.
+	 * nothing to add but did add its link changed the note after all. A link
+	 * that went elsewhere leaves the snapshot as written, so an edit someone
+	 * else makes to the note meanwhile is not taken for the capture's.
 	 */
 	private async recordNoteAfterLink(
 		file: TFile,
@@ -538,13 +540,21 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		write: NoteWrite | undefined,
 		linkOptions: AppendLinkOptions,
 	): Promise<void> {
-		if (!write || !linkOptions.enabled) return;
+		if (!write || !linkOptions.enabled || this.linkDestination(linkOptions)?.path !== file.path) return;
 		const after = await readNote(this.app, file);
 		if (effect === "unchanged" && after !== write.after) {
 			this.outcome.success(file, "changed", { ...write, after });
 			return;
 		}
 		write.after = after;
+	}
+
+	/** The note the capture link goes into, as insertChoiceFileLink chooses it. */
+	private linkDestination(linkOptions: AppendLinkOptions): TFile | null {
+		if (linkOptions.destination?.type === "specifiedFile") return getAppendLinkDestinationFile(this.app, linkOptions.destination);
+		const property = this.choiceExecutor.focusedProperty;
+		if (property && !placementSupportsFrontmatter(linkOptions.placement)) return property.file;
+		return this.app.workspace.getActiveFile();
 	}
 
 	private async commitCapture(write: CaptureWriteResult, options: {
