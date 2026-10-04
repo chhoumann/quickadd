@@ -62,8 +62,17 @@ export function templatePickerItemLabel(item: TemplatePickerItem): string {
 		: `Template: ${item.path}`;
 }
 
-function normalizeTemplatePathForComparison(path: string): string {
-	return resolveTemplatePath(path).toLowerCase();
+/**
+ * A configured template setting is typed input, so it is resolved the way the
+ * engine resolves it. A discovered vault file is identity and is only
+ * case-folded, so ` Foo.md` and `Foo.md` stay distinct.
+ */
+function configuredTemplateKey(templatePath: string): string {
+	return resolveTemplatePath(templatePath).toLowerCase();
+}
+
+function vaultTemplateKey(path: string): string {
+	return path.toLowerCase();
 }
 
 /**
@@ -82,9 +91,7 @@ export function buildTemplatePickerItems(
 	);
 
 	const coveredPaths = new Set(
-		templateChoices.map((choice) =>
-			normalizeTemplatePathForComparison(choice.templatePath),
-		),
+		templateChoices.map((choice) => configuredTemplateKey(choice.templatePath)),
 	);
 
 	const items: TemplatePickerItem[] = templateChoices.map((choice) => ({
@@ -94,7 +101,7 @@ export function buildTemplatePickerItems(
 
 	for (const path of templateFilePaths) {
 		if (!isMarkdownTemplatePath(path)) continue;
-		if (coveredPaths.has(normalizeTemplatePathForComparison(path))) continue;
+		if (coveredPaths.has(vaultTemplateKey(path))) continue;
 		items.push({ kind: "file", path });
 	}
 

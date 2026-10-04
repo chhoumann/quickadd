@@ -187,6 +187,19 @@ describe("buildTemplatePickerItems", () => {
 		},
 	);
 
+	it("keeps a vault file whose name starts with a space distinct from a choice path", () => {
+		const choices: IChoice[] = [makeTemplateChoice("Meeting", "templates/meeting.md")];
+		const items = buildTemplatePickerItems(choices, [
+			"templates/meeting.md",
+			" templates/meeting.md",
+		]);
+
+		expect(items).toEqual([
+			{ kind: "choice", choice: choices[0] },
+			{ kind: "file", path: " templates/meeting.md" },
+		]);
+	});
+
 	it("dedupes template files against choice template paths without extension", () => {
 		const choices: IChoice[] = [
 			makeTemplateChoice("Meeting", "templates/meeting"),
