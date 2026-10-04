@@ -1,11 +1,11 @@
 import { settingsStore } from "../settingsStore";
-import { findAction } from "./actionTree";
+import { findAction, owningActionId } from "./actionTree";
 import type { InputOverride } from "./model";
 
 /** What the builder changed about the input `name` of the action `actionId`. */
 export function actionInputOverride(actionId: string | undefined, name: string): InputOverride | undefined {
 	if (actionId === undefined) return undefined;
-	return findAction(settingsStore.getState().actions, actionId)?.inputs?.[name];
+	return findAction(settingsStore.getState().actions, owningActionId(actionId))?.inputs?.[name];
 }
 
 /**

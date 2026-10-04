@@ -25,3 +25,8 @@ export function findAction(actions: readonly ActionNode[] | undefined, id: strin
 export function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/** The action a lowered choice belongs to: a sequence's write runs as `<action id>:choice` (lower.ts). */
+export function owningActionId(choiceId: string): string {
+	return choiceId.endsWith(":choice") ? choiceId.slice(0, -":choice".length) : choiceId;
+}

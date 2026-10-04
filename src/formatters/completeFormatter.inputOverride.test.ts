@@ -78,6 +78,14 @@ describe("an action's input override at prompt time", () => {
 		expect(promptCall(mocks.datePrompt.mock.calls).title).toBe("When is it due?");
 	});
 
+	it("applies to the write of a sequence, which runs as the action's nested choice", async () => {
+		withOverrides({ Title: { label: "What happened?" } });
+
+		await formatterFor("log:choice").formatFileContent("- {{VALUE:Title}}");
+
+		expect(promptCall(mocks.prompt.mock.calls).title).toBe("What happened?");
+	});
+
 	it("leaves another choice's prompts as their placeholders say", async () => {
 		withOverrides({ Title: { label: "What happened?" } });
 
