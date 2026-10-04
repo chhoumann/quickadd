@@ -89,6 +89,8 @@ interface Session {
 	attachTimer: number | null;
 	/** Aborts the run if an attached client stops polling (disconnect/crash). */
 	pollWatchdog: number | null;
+	/** Aborts the run if a client that hung up mid-poll does not poll again. */
+	disconnectGrace: number | null;
 }
 
 const LONG_POLL_MS = 25_000;
@@ -103,6 +105,13 @@ const ATTACH_TIMEOUT_MS = 30_000;
  * executor and leak the session forever.
  */
 const POLL_TIMEOUT_MS = 75_000;
+/**
+ * A client that closes its parked poll is gone or reconnecting. Raycast closes
+ * the socket on Escape and never polls again; a live client re-polls within
+ * milliseconds. Waiting out the 75s watchdog would leave the run going for over
+ * a minute after the user dismissed it.
+ */
+const DISCONNECT_GRACE_MS = 3_000;
 /** Bound concurrent sessions so a runaway caller can't exhaust memory. */
 const MAX_SESSIONS = 32;
 
@@ -227,6 +236,7 @@ class InteractivePromptServer {
 			attached: false,
 			attachTimer: null,
 			pollWatchdog: null,
+			disconnectGrace: null,
 		};
 		session.attachTimer = window.setTimeout(() => {
 			if (!session.attached && !session.finished) {
@@ -281,6 +291,10 @@ class InteractivePromptServer {
 		if (session.pollWatchdog) {
 			window.clearTimeout(session.pollWatchdog);
 			session.pollWatchdog = null;
+		}
+		if (session.disconnectGrace) {
+			window.clearTimeout(session.disconnectGrace);
+			session.disconnectGrace = null;
 		}
 		for (const [, pending] of session.pending) {
 			pending.reject(new ChoiceAbortError(SESSION_ENDED_REASON));
@@ -362,7 +376,11 @@ class InteractivePromptServer {
 
 	private clearSessionTimers(session: Session): void {
 		for (const timer of [
-			session.waiterTimer, session.cleanupTimer, session.attachTimer, session.pollWatchdog,
+			session.waiterTimer,
+			session.cleanupTimer,
+			session.attachTimer,
+			session.pollWatchdog,
+			session.disconnectGrace,
 		]) {
 			if (timer) window.clearTimeout(timer);
 		}
@@ -557,12 +575,14 @@ class InteractivePromptServer {
 		// polling the run stays alive; if it goes silent, abort so a pending
 		// prompt doesn't hang the executor and leak the session.
 		if (session.pollWatchdog) window.clearTimeout(session.pollWatchdog);
-		session.pollWatchdog = window.setTimeout(() => {
-			this.finish(session.id, {
-				kind: "error",
-				error: "Interactive client disconnected.",
-			});
-		}, POLL_TIMEOUT_MS);
+		session.pollWatchdog = window.setTimeout(
+			() => this.finishDisconnected(session),
+			POLL_TIMEOUT_MS,
+		);
+		if (session.disconnectGrace) {
+			window.clearTimeout(session.disconnectGrace);
+			session.disconnectGrace = null;
+		}
 		const queued = session.queue.shift();
 		if (queued) {
 			this.send(res, 200, queued);
@@ -592,6 +612,18 @@ class InteractivePromptServer {
 			if (session.waiterTimer) window.clearTimeout(session.waiterTimer);
 			session.waiter = null;
 			session.waiterTimer = null;
+			if (session.disconnectGrace) window.clearTimeout(session.disconnectGrace);
+			session.disconnectGrace = window.setTimeout(
+				() => this.finishDisconnected(session),
+				DISCONNECT_GRACE_MS,
+			);
+		});
+	}
+
+	private finishDisconnected(session: Session): void {
+		this.finish(session.id, {
+			kind: "error",
+			error: "Interactive client disconnected.",
 		});
 	}
 

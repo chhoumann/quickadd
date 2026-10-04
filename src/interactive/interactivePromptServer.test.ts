@@ -119,6 +119,106 @@ describe("interactivePromptServer long-poll waiter", () => {
 		await vi.advanceTimersByTimeAsync(60_000);
 		expect(srv.sessions.has(s.id)).toBe(false);
 	});
+
+	// Raycast closes the in-flight poll socket on Escape and never polls again.
+	// Waiting for the 75s watchdog left the run going in Obsidian for over a minute
+	// after the user had dismissed it.
+	it("aborts the run shortly after the client hangs up its parked poll", async () => {
+		vi.useFakeTimers();
+		const s = interactivePromptServer.createSession();
+		const srv = interactivePromptServer as unknown as {
+			handlePoll(session: unknown, res: unknown): void;
+			sessions: Map<string, { finished: boolean }>;
+		};
+		const session = srv.sessions.get(s.id);
+
+		// The client collects the prompt, parks its next poll, then hangs up on it
+		// without answering.
+		srv.handlePoll(session, fakeRes().res);
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "confirm",
+			header: "Proceed?",
+		});
+		const rejected = expect(prompt).rejects.toThrow(/ended/i);
+		const parked = fakeRes();
+		srv.handlePoll(session, parked.res);
+		expect(parked.events).toHaveLength(0);
+		parked.close();
+
+		await vi.advanceTimersByTimeAsync(3_000 + 10);
+		expect(srv.sessions.get(s.id)?.finished).toBe(true);
+		await rejected;
+		// The terminal event a reconnecting client would collect is the disconnect error.
+		const late = fakeRes();
+		srv.handlePoll(session, late.res);
+		expect(late.events).toEqual([
+			{ kind: "error", error: "Interactive client disconnected." },
+		]);
+
+		await vi.advanceTimersByTimeAsync(60_000);
+		expect(srv.sessions.has(s.id)).toBe(false);
+	});
+
+	it("keeps the run alive when a new poll arrives within the grace", async () => {
+		vi.useFakeTimers();
+		const s = interactivePromptServer.createSession();
+		const srv = interactivePromptServer as unknown as {
+			handlePoll(session: unknown, res: unknown): void;
+			sessions: Map<string, { finished: boolean }>;
+		};
+		const session = srv.sessions.get(s.id);
+
+		const first = fakeRes();
+		srv.handlePoll(session, first.res);
+		first.close();
+
+		// StrictMode's double mount, or a client re-polling after an answered poll.
+		await vi.advanceTimersByTimeAsync(1_000);
+		const second = fakeRes();
+		srv.handlePoll(session, second.res);
+
+		await vi.advanceTimersByTimeAsync(3_000 + 10);
+		expect(srv.sessions.get(s.id)?.finished).toBe(false);
+
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "confirm",
+			header: "Proceed?",
+		});
+		expect(second.events).toHaveLength(1);
+		expect((second.events[0] as { kind: string }).kind).toBe("prompt");
+
+		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		await expect(prompt).resolves.toBe(true);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
+
+	// Node fires "close" on every response, answered ones included. Only a poll the
+	// client hung up on while parked means the client left.
+	it("does not start a grace when an answered poll's socket closes", async () => {
+		vi.useFakeTimers();
+		const s = interactivePromptServer.createSession();
+		const srv = interactivePromptServer as unknown as {
+			handlePoll(session: unknown, res: unknown): void;
+			sessions: Map<string, { finished: boolean }>;
+		};
+		const session = srv.sessions.get(s.id);
+
+		const answered = fakeRes();
+		srv.handlePoll(session, answered.res);
+		const prompt = interactivePromptServer.emitPrompt(s.id, {
+			type: "confirm",
+			header: "Proceed?",
+		});
+		expect(answered.events).toHaveLength(1);
+		answered.close();
+
+		await vi.advanceTimersByTimeAsync(3_000 + 10);
+		expect(srv.sessions.get(s.id)?.finished).toBe(false);
+
+		interactivePromptServer.submitReply(s.id, pendingRequestId(s.id), true);
+		await expect(prompt).resolves.toBe(true);
+		interactivePromptServer.finish(s.id, { kind: "done", result: {} });
+	});
 });
 
 describe("interactivePromptServer session multiplexing", () => {
