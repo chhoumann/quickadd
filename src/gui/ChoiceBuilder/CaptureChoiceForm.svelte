@@ -19,6 +19,7 @@ import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
+import RibbonSetting from "./components/RibbonSetting.svelte";
 import CaptureTargetSetting from "./components/CaptureTargetSetting.svelte";
 import WritePositionSetting from "./components/WritePositionSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
@@ -244,6 +245,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		name={choice.name}
 		dateOrigin={choice.dateOrigin}
 	/>
+
+	<RibbonSetting choiceId={choice.id} />
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>

@@ -62,6 +62,7 @@ import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 import { actionsFromChoices, choicesFromActions } from "./v3/storage";
 import type { StoredSettings } from "./v3/storage";
+import type { ActionNode } from "./v3/model";
 import { showMigrationReportOnce } from "./gui/MigrationReportModal";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
@@ -90,6 +91,9 @@ export default class QuickAdd extends Plugin {
 	 * instance holds may be written over them.
 	 */
 	private savingStopped = false;
+	/** The ribbon icons of actions shown in the ribbon, and what they were made from. */
+	private actionRibbonIcons: { name: string; el: HTMLElement }[] = [];
+	private actionRibbonKey = "[]";
 	/** Serialize persist calls so overlapping debounced/immediate saves cannot race. */
 	private persistChain: Promise<void> = Promise.resolve();
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
@@ -148,6 +152,8 @@ export default class QuickAdd extends Plugin {
 		settingsStore.replaceState(this.settings);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
+			// Edits in the builder and settings synced from elsewhere both land here.
+			this.refreshActionRibbon();
 			if (!this.suppressSettingsSave) {
 				this.requestSave();
 			}
@@ -217,6 +223,7 @@ export default class QuickAdd extends Plugin {
 
 		// After the migrations, so commands come from the migrated choices.
 		this.addCommandsForChoices(this.settings.choices);
+		this.refreshActionRibbon();
 
 		const registerCli = () => {
 			try {
@@ -549,6 +556,39 @@ export default class QuickAdd extends Plugin {
 			if (isChoiceLike(choice)) this.removeCommandForChoice(choice, { recursive: true });
 		}
 		this.addCommandsForChoices(next.choices);
+	}
+
+	/**
+	 * A ribbon icon for each action shown in the ribbon, with the name and
+	 * icon of its choice, that runs it. Rebuilt whenever that list changes.
+	 */
+	private refreshActionRibbon(): void {
+		const items: { id: string; name: string; icon: string }[] = [];
+		const walk = (nodes: unknown) => {
+			if (!Array.isArray(nodes)) return;
+			for (const node of nodes as ActionNode[]) {
+				if (node?.kind === "folder") walk(node.items);
+				if (node?.kind !== "action" || !node.show?.ribbon) continue;
+				const choice = this.getChoice("id", node.id);
+				if (choice) items.push({ id: choice.id, name: choice.name, icon: resolveChoiceIcon(choice) });
+			}
+		};
+		walk(this.settings.actions);
+		const key = JSON.stringify(items);
+		if (key === this.actionRibbonKey) return;
+		this.actionRibbonKey = key;
+
+		// Obsidian has no public way to remove a ribbon icon; this is what it
+		// runs itself for a plugin's icons when the plugin unloads.
+		const ribbon = this.app.workspace.leftRibbon as unknown as { removeRibbonAction?: (id: string) => void };
+		for (const { name, el } of this.actionRibbonIcons) {
+			ribbon.removeRibbonAction?.(`${this.manifest.id}:${name}`);
+			el.detach();
+		}
+		this.actionRibbonIcons = items.map(({ id, name, icon }) => ({
+			name,
+			el: this.addRibbonIcon(icon, name, () => this.runRegisteredChoice(id, name)),
+		}));
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {

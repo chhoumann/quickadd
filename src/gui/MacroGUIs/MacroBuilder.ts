@@ -14,6 +14,7 @@ import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { getConditionSummary } from "../../utils/conditionalHelpers";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
+import { RIBBON_SETTING_NAME, actionInRibbon, setActionInRibbon } from "../ChoiceBuilder/actionRibbon";
 import {
 	childChoicesOf,
 	isChoiceLike,
@@ -123,6 +124,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		this.addDateOriginSetting(behavior);
 		this.addRunOnStartupSetting(behavior);
 		this.addCommandPaletteSettings(behavior);
+		this.addRibbonSetting(behavior);
 		this.addIconSetting(behavior);
 	}
 
@@ -263,6 +265,19 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 						});
 				});
 		}
+	}
+
+	/** Saves when flipped: the ribbon is no setting of the choice (see RibbonSetting.svelte). */
+	private addRibbonSetting(parent: HTMLElement): void {
+		const inRibbon = actionInRibbon(this.choice.id);
+		if (inRibbon === null) return;
+		new Setting(parent)
+			.setName(RIBBON_SETTING_NAME)
+			.addToggle((toggle) => {
+				toggle.setValue(inRibbon).onChange((value) => {
+					setActionInRibbon(this.choice.id, value);
+				});
+			});
 	}
 
 	private addRunOnStartupSetting(parent: HTMLElement): void {

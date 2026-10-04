@@ -44,6 +44,7 @@ import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
+import RibbonSetting from "./components/RibbonSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
@@ -408,6 +409,8 @@ function onModeChange(value: string) {
 		name={choice.name}
 		dateOrigin={choice.dateOrigin}
 	/>
+
+	<RibbonSetting choiceId={choice.id} />
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>
