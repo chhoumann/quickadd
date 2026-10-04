@@ -99,14 +99,18 @@ type NodeVm = {
 /**
  * `new Function` reports a syntax error without its position. On desktop, Node's
  * `vm` compiles the same source and starts the error stack with `<filename>:<line>`.
+ * The two parsers differ in places: `vm` accepts a leading shebang line and
+ * `new Function` does not. The line is only trusted when `vm` failed with the
+ * same message, so it never points at a different error than the one reported.
  * Mobile has no `require`, so the error there names the file but not the line.
  */
-function getSyntaxErrorLine(source: string): number | undefined {
+function getSyntaxErrorLine(source: string, message: string): number | undefined {
 	const vm = window.require?.("vm") as NodeVm | undefined;
 	try {
 		vm?.compileFunction(source, USER_SCRIPT_PARAMETERS, { filename: "user-script" });
 	} catch (error) {
-		const line = (error as Error).stack?.match(/^user-script:(\d+)\n/)?.[1];
+		if (!(error instanceof Error) || error.message !== message) return undefined;
+		const line = error.stack?.match(/^user-script:(\d+)\n/)?.[1];
 		if (line) return Number(line);
 	}
 	return undefined;
@@ -300,7 +304,7 @@ export async function loadUserScript(
 					syntaxErrorMessage(
 						command.path,
 						error.message,
-						getSyntaxErrorLine(scriptSource),
+						getSyntaxErrorLine(scriptSource, error.message),
 					),
 					options,
 				);

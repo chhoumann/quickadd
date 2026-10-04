@@ -439,6 +439,18 @@ describe("getUserScript", () => {
 				"Scripts/broken.md because it has a syntax error on line 5:",
 			);
 		});
+
+		it("reports only the error new Function hit, even when vm parses further", async () => {
+			const error = await withDesktopRequire(() =>
+				loadError(
+					"Scripts/shebang.js",
+					["#!/usr/bin/env node", "", source].join("\n"),
+				),
+			);
+
+			expect((error as Error).message).toContain("Invalid or unexpected token");
+			expect((error as Error).message).not.toContain("on line 3");
+		});
 	});
 
 	it("resolves ::member access for a note-based script", async () => {
