@@ -434,38 +434,32 @@ export abstract class Formatter extends ValueFormatter {
 		return output;
 	}
 
+	/**
+	 * Expands every `{{MACRO:...}}` once, left to right. A macro's output is
+	 * inserted as text, not rescanned for macro tokens: a macro that returned
+	 * `{{MACRO:A}}` would otherwise run again under this formatter's own chain,
+	 * outside the re-entry guard, forever.
+	 */
 	protected async replaceMacrosInString(input: string): Promise<string> {
-		let output: string = input;
+		const regex = new RegExp(MACRO_REGEX.source, "gi");
+		let output = "";
+		let lastIndex = 0;
+		let match: RegExpExecArray | null;
 
-		while (MACRO_REGEX.test(output)) {
-			const exec = MACRO_REGEX.exec(output);
-			if (!exec) continue;
-			if (!exec[1]) {
-				// Empty macro name (e.g. {{MACRO:}}): consume the token so the
-				// loop terminates instead of re-testing the unchanged string forever.
-				output = this.replacer(output, MACRO_REGEX, "");
-				continue;
-			}
-
-			const parsed = parseMacroToken(exec[1]);
-			if (!parsed) {
-				output = this.replacer(output, MACRO_REGEX, "");
-				continue;
-			}
-
-			const { macroName, label } = parsed;
+		while ((match = regex.exec(input)) !== null) {
+			output += input.slice(lastIndex, match.index);
+			lastIndex = match.index + match[0].length;
+			// An empty ({{MACRO:}}) or unparseable token is dropped.
+			const parsed = match[1] ? parseMacroToken(match[1]) : null;
+			if (!parsed) continue;
 			const macroOutput = await this.getMacroValue(
-				macroName,
-				label ? { label } : undefined,
+				parsed.macroName,
+				parsed.label ? { label: parsed.label } : undefined,
 			);
-
-			output = this.replacer(
-				output,
-				MACRO_REGEX,
-				macroOutput ? macroOutput.toString() : "",
-			);
+			output += macroOutput ? macroOutput.toString() : "";
 		}
 
+		output += input.slice(lastIndex);
 		return output;
 	}
 

@@ -263,6 +263,7 @@ export class QuickAddApi {
 						templatePath,
 						mode: options?.mode,
 						choiceExecutor,
+						chain,
 					});
 				} finally {
 					restoreVariables(choiceExecutor.variables, snapshot);
