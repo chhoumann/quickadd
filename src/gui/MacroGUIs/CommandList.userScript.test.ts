@@ -82,6 +82,17 @@ describe("CommandList script step file", () => {
 		expect(queryByLabelText("Configure moved")).toBeNull();
 	});
 
+	it("says a file that exists but is not a script cannot be one, and offers to choose another", () => {
+		const { getByText, getByRole, queryByLabelText } = renderList(
+			new UserScript("notes", "scripts/notes.txt"),
+			appWithFiles("scripts/notes.txt"),
+		);
+
+		getByText("Not a script: scripts/notes.txt");
+		getByRole("button", { name: "Choose file for notes" });
+		expect(queryByLabelText("Configure notes")).toBeNull();
+	});
+
 	it("shows the file of a step whose file exists, with its settings button", () => {
 		const { getByText, getByRole, queryByText } = renderList(
 			new UserScript("hello", "scripts/hello.js"),

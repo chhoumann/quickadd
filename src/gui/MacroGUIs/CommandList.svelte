@@ -17,7 +17,7 @@ import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import type IChoice from "../../types/choices/IChoice";
-import UserScriptCommand from "./Components/UserScriptCommand.svelte";
+import UserScriptCommand, { type ScriptFileState } from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { pickUserScript } from "./pickUserScript";
@@ -240,9 +240,12 @@ function configureChoice(command: INestedChoiceCommand) {
 	}
 }
 
-function scriptFileState(command: IUserScript): "ok" | "none" | "missing" {
+function scriptFileState(command: IUserScript): ScriptFileState {
 	if (!command.path) return "none";
-	return app.vault.getAbstractFileByPath(command.path) instanceof TFile ? "ok" : "missing";
+	if (!(app.vault.getAbstractFileByPath(command.path) instanceof TFile)) return "missing";
+	// Code runs only from .js files and notes (loadUserScript); anything else
+	// exists but cannot be a script step's file.
+	return /\.(js|md)$/i.test(command.path) ? "ok" : "unusable";
 }
 
 /**

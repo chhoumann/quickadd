@@ -1,3 +1,8 @@
+<script module lang="ts">
+    /** Whether `command.path` names a file a script step can run. */
+    export type ScriptFileState = "ok" | "none" | "missing" | "unusable";
+</script>
+
 <script lang="ts">
     import IconButton from "../../components/IconButton.svelte";
     import DragHandle from "../../components/DragHandle.svelte";
@@ -16,8 +21,7 @@
         onMoveDown,
     }: {
         command: IUserScript;
-        /** Whether `command.path` names a file in the vault. */
-        fileState: "ok" | "none" | "missing";
+        fileState: ScriptFileState;
         startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
@@ -35,6 +39,8 @@
             <span class="quickAddCommandDetail" title={command.path}>{command.path}</span>
         {:else if fileState === "none"}
             <span class="quickAddCommandDetail">No file chosen</span>
+        {:else if fileState === "unusable"}
+            <span class="quickAddCommandDetail is-warning" title={command.path}>Not a script: {command.path}</span>
         {:else}
             <span class="quickAddCommandDetail is-warning" title={command.path}>Can't find {command.path}</span>
         {/if}
