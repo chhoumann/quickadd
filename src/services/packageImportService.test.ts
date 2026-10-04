@@ -275,6 +275,33 @@ describe("parseQuickAddPackage", () => {
 		);
 	});
 
+	it("rejects assets whose paths differ only by separator spelling", () => {
+		// Import keys its path overrides and the preview its matching by the
+		// normalized path, so these two would share one key and a reference to
+		// the first could be rewritten to the second's destination.
+		const bad = makePackage({
+			assets: [
+				packageAsset("template", "Templates\\Part.md", encodeToBase64("one")),
+				packageAsset("template", "Templates/Part.md", encodeToBase64("two")),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
+	it("rejects assets whose paths differ only by surrounding whitespace", () => {
+		const bad = makePackage({
+			assets: [
+				packageAsset("template", " Templates/Part.md ", encodeToBase64("one")),
+				packageAsset("template", "Templates/Part.md", encodeToBase64("two")),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
 	it("rejects duplicate EMPTY asset paths (falsy path must still fail closed)", () => {
 		// isPackageAsset accepts originalPath: "" (string), so two empty paths must not
 		// slip the duplicate gate via a truthiness check on the returned path.
@@ -664,13 +691,82 @@ describe("existence probes stay inside the vault boundary", () => {
 		const preview = await analysePackagePreview(app, [], pkg);
 
 		expect(adapter.exists).not.toHaveBeenCalledWith(escaping);
+		expect(adapter.exists).not.toHaveBeenCalledWith(`${escaping}.md`);
 		// Honest preview: an out-of-vault reference is "missing", never silently
-		// reported as a present/reused vault file.
-		expect(preview.missingReferences.map((m) => m.path)).toContain(escaping);
+		// reported as a present/reused vault file. The preview names the path the
+		// way the template engine would resolve it.
+		expect(preview.missingReferences.map((m) => m.path)).toContain(`${escaping}.md`);
+	});
+
+	it("matches a bundled asset to a choice whose template setting is written loosely", async () => {
+		const { app } = createFakeApp();
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: "Templates\\daily",
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+			assets: [
+				{
+					kind: "template",
+					originalPath: "Templates/daily.md",
+					contentEncoding: "base64",
+					content: "",
+				},
+			],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+	});
+
+	it("matches a legacy package whose choice and asset both use backslash paths", async () => {
+		const { app } = createFakeApp();
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: "Templates\\Daily.md",
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+			assets: [
+				{
+					kind: "template",
+					originalPath: "Templates\\Daily.md",
+					contentEncoding: "base64",
+					content: "",
+				},
+			],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+	});
+
+	it("does not let an extensionless bundled asset cover a usage the engine resolves with .md", async () => {
+		const { app } = createFakeApp();
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: "Templates/foo",
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+			assets: [
+				{ kind: "template", originalPath: "Templates/foo", contentEncoding: "base64", content: "" },
+			],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.missingReferences.map((m) => m.path)).toEqual(["Templates/foo.md"]);
+		expect(preview.orphanAssets).toEqual(["Templates/foo"]);
 	});
 
 	it("still probes in-vault config-dir references (no over-rejection)", async () => {
-		const inVaultDotDir = ".obsidian/snippets/x.js";
+		const inVaultDotDir = ".obsidian/snippets/x.md";
 		const { app, adapter } = createFakeApp([inVaultDotDir]);
 		const templateChoice = makeChoice("t", "T", "Template", {
 			templatePath: inVaultDotDir,

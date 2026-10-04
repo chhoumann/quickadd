@@ -1,5 +1,42 @@
 import { normalizePath } from 'obsidian';
 
+/**
+ * Canonical vault-relative form of a user-supplied path: trimmed, backslashes
+ * converted to '/', repeated slashes collapsed, leading and trailing slashes
+ * removed, NFC (the form Obsidian stores vault paths in). A blank path, or one
+ * of only slashes, yields '' - the vault root.
+ */
+/**
+ * Separator normalization: backslashes to slashes, repeated and edge slashes
+ * removed, NFC. Unlike {@link normalizeVaultPath} it keeps leading whitespace,
+ * so a folder whose name starts with a space keeps its identity; trailing
+ * whitespace is dropped because no vault name can end in it. Use this wherever
+ * a path IS something (a root, a destination); use the trimming form for
+ * matching typed input against it.
+ */
+/** Paths come from settings and packages, where a malformed value may not be a string; treat those as empty. */
+function asPathString(path: unknown): string {
+  return typeof path === 'string' ? path : '';
+}
+
+export function normalizeVaultPathSeparators(path: string): string {
+  return asPathString(path)
+    .replace(/^\s+(?=[\\/])/, '')
+    .replace(/[\\/]+/g, '/')
+    .replace(/^\/|\/$/g, '')
+    .trimEnd()
+    .replace(/\/$/, '')
+    .normalize('NFC');
+}
+
+export function normalizeVaultPath(path: string): string {
+  return asPathString(path)
+    .trim()
+    .replace(/[\\/]+/g, '/')
+    .replace(/^\/|\/$/g, '')
+    .normalize('NFC');
+}
+
 export function basenameWithoutMdOrCanvas(path: string): string {
   const normalized = normalizePath(path);
   const base = normalized.split('/').pop() ?? '';

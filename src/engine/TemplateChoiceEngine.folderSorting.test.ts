@@ -42,6 +42,7 @@ vi.mock("../main", () => ({
 }));
 
 import { TFile, TFolder, type App } from "obsidian";
+import { Notice } from "../../tests/obsidian-stub";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -107,6 +108,9 @@ function createEngine(
 		},
 		vault: {
 			getAllLoadedFiles: vi.fn(() => folders.map(createFolder)),
+			getAbstractFileByPath: vi.fn((path: string) =>
+				folders.includes(path) ? createFolder(path) : null,
+			),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
@@ -280,6 +284,98 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			"LiteratureNotes/1_Articles",
 			"LiteratureNotes/2_Books",
 		]);
+	});
+
+	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested", "out/nested/ ", "out/nested /", " /out/nested/"])(
+		"creates in the configured folder written as %s, not the vault root",
+		async (configured) => {
+			const noticesBefore = Notice.instances.length;
+			const engine = createEngine(
+				createChoice({ folders: [configured] }),
+				["out/nested"],
+			);
+
+			await engine.run();
+
+			expect(inputSuggestMock).not.toHaveBeenCalled();
+			expect(setTargetFolderPath).toHaveBeenCalledWith("out/nested");
+			expect(Notice.instances.slice(noticesBefore)).toEqual([]);
+		},
+	);
+
+	it("keeps a leading-space root's subfolders in the chooser and creates new ones under it", async () => {
+		inputSuggestMock.mockImplementationOnce(async () => " Work/new");
+		const engine = createEngine(
+			createChoice({ folders: [" Work"], chooseFromSubfolders: true }),
+			[" Work", " Work/sub", "Work"],
+		);
+
+		await engine.run();
+
+		expect(getSuggestedItems()).toEqual([" Work", " Work/sub"]);
+		expect(setTargetFolderPath).toHaveBeenCalledWith(" Work/new");
+		expect(engine["app"].vault.createFolder).toHaveBeenCalledWith(" Work/new");
+	});
+
+	it("treats a whitespace-padded separator-only answer as the vault root", async () => {
+		inputSuggestMock.mockImplementationOnce(async () => " / ");
+		const engine = createEngine(
+			createChoice({ folders: [], chooseWhenCreatingNote: true }),
+			["A", "B"],
+		);
+
+		await engine.run();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("");
+		expect(engine["app"].vault.createFolder).not.toHaveBeenCalled();
+	});
+
+	it("refuses a custom folder outside a leading-space root even when only the space differs", async () => {
+		const noticesBefore = Notice.instances.length;
+		inputSuggestMock.mockImplementationOnce(async () => "Work/new");
+		const engine = createEngine(
+			createChoice({ folders: [" Work"], chooseFromSubfolders: true }),
+			[" Work", " Work/sub"],
+		);
+
+		await engine.run();
+
+		expect(Notice.instances.slice(noticesBefore).length).toBeGreaterThan(0);
+		expect(setTargetFolderPath).not.toHaveBeenCalledWith("Work/new");
+		expect(engine["app"].vault.createFolder).not.toHaveBeenCalledWith("Work/new");
+	});
+
+	it("lists subfolders of a configured root written with backslashes", async () => {
+		const engine = createEngine(
+			createChoice({ folders: ["out\\nested\\"], chooseFromSubfolders: true }),
+			["out/nested", "out/nested/a", "other"],
+		);
+
+		await engine.run();
+
+		expect(inputSuggestMock).toHaveBeenCalledTimes(1);
+		expect(getSuggestedItems()).toEqual(["out/nested", "out/nested/a"]);
+	});
+
+	it.each([" Work", " Work/", " Work\\"])(
+		"keeps the vault's spelling of an existing folder whose name starts with a space, configured as %j",
+		async (configured) => {
+			const engine = createEngine(createChoice({ folders: [configured] }), [" Work"]);
+
+			await engine.run();
+
+			expect(setTargetFolderPath).toHaveBeenCalledWith(" Work");
+		},
+	);
+
+	it("creates in the vault root when the configured folder is empty", async () => {
+		const noticesBefore = Notice.instances.length;
+		const engine = createEngine(createChoice({ folders: [""] }), []);
+
+		await engine.run();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("");
+		expect(Notice.instances.slice(noticesBefore)).toEqual([]);
 	});
 
 	it("uses the active file's folder when specified mode has no configured folders", async () => {

@@ -211,6 +211,24 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("follows a TEMPLATE include written with backslashes", async () => {
+		templateBodies.set(
+			"Templates/Capture Format.md",
+			"Included value: {{VALUE:includedValue}}",
+		);
+		const captureChoice = {
+			...createCaptureChoice("Inbox.md"),
+			format: {
+				enabled: true,
+				format: "{{TEMPLATE:Templates\\Capture Format.md}}",
+			},
+		} as ICaptureChoice;
+
+		const requirements = await collect(captureChoice, createChoiceExecutor());
+
+		expectCollectedFields(requirements, { id: "includedValue" });
+	});
+
 	it("does not recurse into TEMPLATE includes introduced by global variables", async () => {
 		templateBodies.set(
 			"Templates/From Global.md",

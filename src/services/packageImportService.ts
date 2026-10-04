@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import { uuidv4 } from "../utils/uuid";
 import type { AIProvider } from "../ai/Provider";
 import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
@@ -18,7 +19,7 @@ import { ensureParentFolders } from "../utils/ensureParentFolders";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { rewriteTemplateIncludes } from "../utils/templateIncludes";
-import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { escapesVaultBoundary, isWritableAssetDestination } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
 import {
@@ -177,8 +178,16 @@ export async function analysePackagePreview(
 	existingChoices: IChoice[],
 	pkg: QuickAddPackage,
 ): Promise<PackagePreview> {
+	// An asset import can write is probed under its own spelling and under the
+	// path it will be written to, so a backslash-spelled asset still warns about
+	// the file it overwrites. One import refuses (absolute, hidden) is never
+	// written, so it is not probed and cannot show as an overwrite.
 	const candidatePaths = new Set<string>([
-		...pkg.assets.map((asset) => asset.originalPath),
+		...pkg.assets.flatMap((asset) =>
+			isWritableAssetDestination(asset.originalPath)
+				? [asset.originalPath, normalizeVaultPath(asset.originalPath)]
+				: [],
+		),
 		...collectReferencedAssetPaths(pkg),
 	]);
 
@@ -371,12 +380,14 @@ export async function applyPackageImport(
 		);
 		return { asset, destinationPath };
 	});
-	const assetPathOverrides = new Map(
-		resolvedAssetDestinations.map(({ asset, destinationPath }) => [
-			asset.originalPath,
-			destinationPath,
-		]),
-	);
+	// Keyed by the package's spelling and by the normalized path, because the
+	// include scanner and the template resolver look up normalized keys while
+	// script steps look up the raw path.
+	const assetPathOverrides = new Map<string, string>();
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		assetPathOverrides.set(asset.originalPath, destinationPath);
+		assetPathOverrides.set(normalizeVaultPath(asset.originalPath), destinationPath);
+	}
 	for (const choice of preparedChoices.values()) {
 		applyAssetPathOverrides(choice, assetPathOverrides);
 	}
@@ -570,7 +581,7 @@ export async function applyPackageImport(
 
 	for (const { asset, destinationPath } of plannedWrites) {
 		await ensureParentFolders(app, destinationPath);
-		const content = importedAssetContent(asset, assetPathOverrides);
+		const content = importedAssetContent(asset, destinationPath, assetPathOverrides);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
 	}
@@ -596,16 +607,19 @@ export async function applyPackageImport(
  */
 function importedAssetContent(
 	asset: QuickAddPackage["assets"][number],
+	destinationPath: string,
 	pathOverrides: ReadonlyMap<string, string>,
 ): string {
 	const content = decodeFromBase64(asset.content);
 	const isTemplateKind =
 		asset.kind === "template" || asset.kind === "capture-template";
-	if (!isTemplateKind || !hasTemplateExtension(asset.originalPath)) {
+	// Classified by the path written, so a spelling such as `Parent.md/`
+	// cannot hide the extension the formatter will see.
+	if (!isTemplateKind || !hasTemplateExtension(destinationPath)) {
 		return content;
 	}
 	if (
-		MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath) &&
+		MARKDOWN_FILE_EXTENSION_REGEX.test(destinationPath) &&
 		extractScriptFromMarkdown(content).code
 	) {
 		return content;

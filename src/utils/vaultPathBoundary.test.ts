@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { escapesVaultBoundary } from "./vaultPathBoundary";
+import { escapesVaultBoundary, isWritableAssetDestination } from "./vaultPathBoundary";
 
 describe("escapesVaultBoundary", () => {
 	it("rejects POSIX-absolute paths", () => {
@@ -60,5 +60,18 @@ describe("escapesVaultBoundary", () => {
 	it("does not treat an empty path as an escape", () => {
 		expect(escapesVaultBoundary("")).toBe(false);
 		expect(escapesVaultBoundary("   ")).toBe(false);
+	});
+});
+
+describe("isWritableAssetDestination", () => {
+	it("matches what import writes: in-vault, no traversal, no hidden segment", () => {
+		expect(isWritableAssetDestination("templates/Note.md")).toBe(true);
+		expect(isWritableAssetDestination("Templates\\Sub\\Note.md")).toBe(true);
+		expect(isWritableAssetDestination("notes/..%2fevil.md")).toBe(true);
+		expect(isWritableAssetDestination("")).toBe(false);
+		expect(isWritableAssetDestination("/templates/Note.md")).toBe(false);
+		expect(isWritableAssetDestination("templates/../Note.md")).toBe(false);
+		expect(isWritableAssetDestination(".obsidian/snippet.md")).toBe(false);
+		expect(isWritableAssetDestination("templates/.hidden/Note.md")).toBe(false);
 	});
 });

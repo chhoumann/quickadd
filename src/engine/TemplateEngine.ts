@@ -19,7 +19,7 @@ import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
-import { getTemplateFile } from "../utils/templateFolderUtils";
+import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
 import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
@@ -169,6 +169,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	}
 
 	protected getTemplateExtension(templatePath: string): string {
+		templatePath = resolveTemplatePath(templatePath);
 		if (CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
 			return ".canvas";
 		}

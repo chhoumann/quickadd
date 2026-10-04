@@ -1,4 +1,5 @@
 import type { App, TFile } from "obsidian";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import { Notice } from "obsidian";
 import {
 	BASE_FILE_EXTENSION_REGEX,
@@ -51,6 +52,7 @@ export function isNoteEffectivelyEmpty(content: string): boolean {
  * paths default to markdown, matching template content resolution.
  */
 export function isMarkdownTemplatePath(path: string): boolean {
+	path = resolveTemplatePath(path);
 	return (
 		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
 		!BASE_FILE_EXTENSION_REGEX.test(path)
@@ -63,9 +65,17 @@ export function templatePickerItemLabel(item: TemplatePickerItem): string {
 		: `Template: ${item.path}`;
 }
 
-function normalizeTemplatePathForComparison(path: string): string {
-	const stripped = path.replace(/^\/+/, "").toLowerCase();
-	return /\.(md|canvas|base)$/.test(stripped) ? stripped : `${stripped}.md`;
+/**
+ * A configured template setting is typed input, so it is resolved the way the
+ * engine resolves it. A discovered vault file is identity and is only
+ * case-folded, so ` Foo.md` and `Foo.md` stay distinct.
+ */
+function configuredTemplateKey(templatePath: string): string {
+	return resolveTemplatePath(templatePath).toLowerCase();
+}
+
+function vaultTemplateKey(path: string): string {
+	return path.toLowerCase();
 }
 
 /**
@@ -84,9 +94,7 @@ export function buildTemplatePickerItems(
 	);
 
 	const coveredPaths = new Set(
-		templateChoices.map((choice) =>
-			normalizeTemplatePathForComparison(choice.templatePath),
-		),
+		templateChoices.map((choice) => configuredTemplateKey(choice.templatePath)),
 	);
 
 	const items: TemplatePickerItem[] = templateChoices.map((choice) => ({
@@ -96,7 +104,7 @@ export function buildTemplatePickerItems(
 
 	for (const path of templateFilePaths) {
 		if (!isMarkdownTemplatePath(path)) continue;
-		if (coveredPaths.has(normalizeTemplatePathForComparison(path))) continue;
+		if (coveredPaths.has(vaultTemplateKey(path))) continue;
 		items.push({ kind: "file", path });
 	}
 

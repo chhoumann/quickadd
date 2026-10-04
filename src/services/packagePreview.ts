@@ -13,6 +13,8 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
+import { isWritableAssetDestination } from "../utils/vaultPathBoundary";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
@@ -106,6 +108,41 @@ export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
 const MAX_INCLUDE_ROUNDS = 10;
 
 /**
+ * The key a bundled asset is matched under: the path import will write it to,
+ * whatever kind the package claims (kinds are untrusted). Import normalizes
+ * separators but never adds an extension, so an asset is keyed by its
+ * normalized path only. Template usages are recorded through the template
+ * resolver, which does add `.md`, so an extensionless asset such as
+ * `Templates/foo` correctly fails to cover a usage of `Templates/foo.md`: the
+ * choice would not find it after import either. The displayed `originalPath`
+ * keeps the package's own spelling.
+ */
+function assetKey(asset: QuickAddPackage["assets"][number]): string {
+	return normalizeVaultPath(asset.originalPath);
+}
+
+/**
+ * Every key a writable asset satisfies a usage under: its matching key and, when
+ * different, its exact spelling with separators normalized. Import rewrites a
+ * step whose spelling equals the asset's (leading whitespace included) to the
+ * asset's destination, so the preview must count that step as covered too.
+ */
+function assetKeys(asset: QuickAddPackage["assets"][number]): string[] {
+	const matching = assetKey(asset);
+	const identity = normalizeVaultPathSeparators(asset.originalPath);
+	return identity === matching ? [matching] : [matching, identity];
+}
+
+/**
+ * Assets import will actually write. One it refuses (absolute, traversing, or
+ * in a hidden/config directory) must not satisfy any reference, or the preview
+ * would hide a package that fails on confirm; it is listed as an orphan instead.
+ */
+function writableAssets(pkg: QuickAddPackage): QuickAddPackage["assets"] {
+	return pkg.assets.filter((asset) => isWritableAssetDestination(asset.originalPath));
+}
+
+/**
  * Usage sites indexed by referenced path: the command-graph references from
  * the walk, plus every `{{TEMPLATE:...}}` include found inside a bundled note
  * that some choice uses as a template (transitively). Includes are attributed
@@ -127,7 +164,9 @@ function collectPackageUsages(
 		for (const usage of walk.usages) addUsage(usage);
 	}
 
-	const assetsByPath = new Map(pkg.assets.map((asset) => [asset.originalPath, asset]));
+	const assetsByPath = new Map(
+		writableAssets(pkg).flatMap((asset) => assetKeys(asset).map((key) => [key, asset] as const)),
+	);
 	const scanned = new Set<string>();
 	let frontier = Array.from(usagesByPath.keys());
 	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
@@ -212,19 +251,25 @@ export function buildPackagePreview(
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);
 	}
 
-	const bundledPaths = new Set(pkg.assets.map((asset) => asset.originalPath));
+	const bundledPaths = new Set(writableAssets(pkg).flatMap(assetKeys));
 
+	// Classified by the path import writes, so a spelling such as
+	// `Scripts/run.js/` cannot hide an extension from the review gate.
 	const runnableCodeByPath = new Map(
 		pkg.assets.map((asset) => [
 			asset.originalPath,
-			bundledRunnableCode(asset.originalPath, asset.content),
+			bundledRunnableCode(assetKey(asset), asset.content),
 		]),
 	);
 
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
-		const usages = usagesByPath.get(asset.originalPath) ?? [];
-		const executable = referencedAsScript.has(asset.originalPath);
+		const keys = assetKeys(asset);
+		// Only an asset import will write can cover a usage or overwrite a file;
+		// a refused one must not borrow an existence probe made for a reference.
+		const writable = bundledPaths.has(keys[0]);
+		const usages = writable ? keys.flatMap((key) => usagesByPath.get(key) ?? []) : [];
+		const executable = keys.some((key) => referencedAsScript.has(key));
 		const requiresReview =
 			executable || runnableCodeByPath.get(asset.originalPath) != null;
 		return {
@@ -233,7 +278,9 @@ export function buildPackagePreview(
 			bundled: true,
 			executable,
 			requiresReview,
-			exists: existsByPath.has(asset.originalPath),
+			exists:
+				writable &&
+				(keys.some((key) => existsByPath.has(key)) || existsByPath.has(asset.originalPath)),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
 			referencedBy: usages,

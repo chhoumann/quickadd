@@ -488,6 +488,62 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Templates/Dashboard.base");
 		expect(preview.missingReferences).toEqual([]);
 	});
+
+	it("warns about the file a backslash-spelled asset will overwrite", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("user-script", "Scripts\\helper.js", "module.exports = () => 1;")],
+		);
+		const { app } = fakeApp({ "Scripts/helper.js": "module.exports = () => 0;" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.files[0]?.exists).toBe(true);
+		expect(preview.summary.overwritesFiles).toBe(1);
+	});
+
+	it("does not mistake an unrelated vault file for the target of an asset import will refuse", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("user-script", "/Scripts/helper.js", "module.exports = () => 1;")],
+		);
+		const { app } = fakeApp({ "Scripts/helper.js": "module.exports = () => 0;" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(app.vault.adapter.exists).not.toHaveBeenCalledWith("Scripts/helper.js");
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
+
+	it("does not report an asset import will refuse as overwriting the hidden file it names", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("template", ".obsidian/snippet.md", "# new")],
+		);
+		const { app } = fakeApp({ ".obsidian/snippet.md": "# old" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(app.vault.adapter.exists).not.toHaveBeenCalledWith(".obsidian/snippet.md");
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
+
+	it("does not let a refused asset borrow the existence of a file a choice references", async () => {
+		const pkg = makePackage(
+			[templateChoice("t1", "Note", "Templates/A.md")],
+			[asset("template", "/Templates/A.md", "# new")],
+		);
+		const { app } = fakeApp({ "Templates/A.md": "# existing" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		// The choice reuses the vault file; the absolute asset is refused, not an overwrite.
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
 });
 
 // --- Import -----------------------------------------------------------------
@@ -547,6 +603,127 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		const importedCapture = result.updatedChoices[1] as ICaptureChoice;
 		expect(importedCapture.format.format).toBe("{{TEMPLATE:My Templates/Section.md}}\n");
 		expect(importedCapture.createFileIfItDoesntExist.template).toBe("My Templates/MOC.md");
+	});
+
+	it("rewrites an include written with backslashes when its asset is redirected", async () => {
+		const { app, files } = fakeApp();
+		const legacy = makePackage(
+			[templateChoice("t2", "Legacy", "Templates\\Parent.md")],
+			[
+				asset("template", "Templates\\Parent.md", "# Parent\n{{TEMPLATE:Templates\\Part.md}}\n"),
+				asset("template", "Templates\\Part.md", "part"),
+			],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: legacy,
+			choiceDecisions: [{ choiceId: "t2", mode: "import" }],
+			assetDecisions: legacy.assets.map((a) => ({
+				originalPath: a.originalPath,
+				destinationPath: redirected(a.originalPath.replace(/\\/g, "/")),
+				mode: "write" as const,
+			})),
+		});
+
+		expect(files.get("My Templates/Parent.md")).toBe(
+			"# Parent\n{{TEMPLATE:My Templates/Part.md}}\n",
+		);
+		expect((result.updatedChoices[0] as ITemplateChoice).templatePath).toBe("My Templates/Parent.md");
+	});
+
+	it("rewrites includes in a template whose spelling hides its extension behind a trailing slash", async () => {
+		const { app, files } = fakeApp();
+		const legacy = makePackage(
+			[templateChoice("t2", "Legacy", "Templates/Parent.md")],
+			[
+				asset("template", "Templates/Parent.md/", "# Parent\n{{TEMPLATE:Templates/Part.md}}\n"),
+				asset("template", "Templates/Part.md", "part"),
+			],
+		);
+
+		await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: legacy,
+			choiceDecisions: [{ choiceId: "t2", mode: "import" }],
+			assetDecisions: [
+				{ originalPath: "Templates/Parent.md/", destinationPath: "Templates/Parent.md", mode: "write" as const },
+				{ originalPath: "Templates/Part.md", destinationPath: "My Templates/Part.md", mode: "write" as const },
+			],
+		});
+
+		expect(files.get("Templates/Parent.md")).toBe("# Parent\n{{TEMPLATE:My Templates/Part.md}}\n");
+	});
+
+	it("normalizes script step paths on import, bundled or not, so the loader can resolve them", async () => {
+		const { app } = fakeApp();
+		const check = {
+			id: "cond",
+			name: "Check",
+			type: CommandType.Conditional,
+			condition: { mode: "script", scriptPath: "Scripts\\check.js" },
+			thenCommands: [],
+			elseCommands: [],
+		};
+		const pkg = makePackage(
+			[
+				macroChoice("m1", "Legacy", [
+					userScript("s1", "Scripts\\run.js"),
+					check,
+					userScript("s2", " Scripts\\keep.js"),
+					userScript("s3", " Scripts/run.js"),
+				]),
+			],
+			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [{ choiceId: "m1", mode: "import" }],
+			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
+		});
+
+		const [script, cond, unbundled, spaced] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
+			IUserScript,
+			{ condition: { scriptPath: string } },
+			IUserScript,
+			IUserScript,
+		];
+		expect(script.path).toBe("Scripts/run.js");
+		expect(script.name).toBe("Scripts/run.js");
+		expect(cond.condition.scriptPath).toBe("Scripts/check.js");
+		// A leading space names a real vault folder; only separators change.
+		expect(unbundled.path).toBe(" Scripts/keep.js");
+		// ...and never folds into the bundled "Scripts/run.js".
+		expect(spaced.path).toBe(" Scripts/run.js");
+	});
+
+	it("leaves malformed non-string paths alone instead of aborting the import", async () => {
+		const { app } = fakeApp();
+		const broken = { ...userScript("s1", "Scripts/run.js"), path: 7 as unknown as string };
+		const pkg = makePackage(
+			[
+				macroChoice("m1", "Broken", [broken]),
+				{ ...templateChoice("t1", "Odd", "Templates/T.md"), templatePath: 7 as unknown as string } as ITemplateChoice,
+			],
+			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [{ choiceId: "m1", mode: "import" }, { choiceId: "t1", mode: "import" }],
+			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
+		});
+
+		const [macro, template] = result.updatedChoices as [IMacroChoice, ITemplateChoice];
+		expect((macro.macro.commands[0] as IUserScript).path).toBe(7);
+		expect(template.templatePath).toBe(7);
 	});
 
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {

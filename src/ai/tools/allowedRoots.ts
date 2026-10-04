@@ -29,18 +29,11 @@
  * forgetting — confinement (the gap this module closes for the workspace group).
  */
 
-/**
- * Canonicalize a user/config-supplied vault-relative root: trim, backslash→'/',
- * collapse repeated slashes, strip leading/trailing slashes, then NFC so it
- * compares equal to an NFC-normalized path.
- */
+import { normalizeVaultPath } from "../../utils/pathUtils";
+
+/** Canonicalize a user/config-supplied root the way every vault path is. */
 export function normalizeRoot(root: string): string {
-	return (root ?? "")
-		.trim()
-		.replace(/\\/g, "/")
-		.replace(/\/+/g, "/")
-		.replace(/^\/+|\/+$/g, "")
-		.normalize("NFC");
+	return normalizeVaultPath(root);
 }
 
 /**

@@ -1,5 +1,5 @@
-import { normalizePath } from "obsidian";
 import { commandListOf, macroCommandsValueOf } from "../utils/macroUtils";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
@@ -96,8 +96,10 @@ function findDuplicateAssetPath(
 ): string | null {
 	const seen = new Set<string>();
 	for (const asset of assets) {
-		// Compare normalized destinations, matching the writer; path confinement is checked separately.
-		const key = normalizePath(asset.originalPath ?? "");
+		// Compare normalized paths, the key import's overrides and the preview's
+		// matching use, so two spellings of one path cannot split a reference
+		// from its asset; path confinement is checked separately.
+		const key = normalizeVaultPath(asset.originalPath ?? "");
 		if (seen.has(key)) return asset.originalPath;
 		seen.add(key);
 	}

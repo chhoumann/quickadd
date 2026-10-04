@@ -6,6 +6,7 @@ import {
 	INVALID_FOLDER_CHARS_REGEX, INVALID_FOLDER_CONTROL_CHARS_REGEX,
 	INVALID_FOLDER_TRAILING_CHARS_REGEX, isReservedWindowsDeviceName
 } from "../utils/pathValidation";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { routePrompt, type PromptRoutingContext } from "../interactive/routePrompt";
@@ -62,7 +63,6 @@ type FolderSelectionContext = FolderSuggestions & {
 type FolderSelection = {
 	raw: string;
 	normalized: string;
-	resolved: string;
 	exists: boolean;
 	isAllowed: boolean;
 	isEmpty: boolean;
@@ -96,7 +96,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 		const context = this.buildFolderSelectionContext(folders, options);
 		const selection = await this.promptUntilAllowed(context, options.executor);
-		return selection.isEmpty ? "" : selection.resolved;
+		return selection.isEmpty ? "" : selection.normalized;
 	}
 
 	private buildFolderSelectionContext(
@@ -105,7 +105,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	): FolderSelectionContext {
 		const allowCreate = options.allowCreate ?? false;
 		const allowedRoots =
-			options.allowedRoots?.map((root) => this.normalizeFolderPath(root)) ?? [];
+			options.allowedRoots?.map((root) => normalizeVaultPathSeparators(root)) ?? [];
 
 		const suggestions = this.buildFolderSuggestions(
 			folders, options.topItems ?? [],
@@ -191,25 +191,27 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		raw: string,
 		context: FolderSelectionContext,
 	): Promise<FolderSelection> {
-		const normalized = this.normalizeFolderPath(raw);
-		const isEmpty = normalized.length === 0;
-		const canonical = context.canonicalByNormalized.get(normalized);
-		const resolved = canonical ?? normalized;
+		const key = normalizeVaultPath(raw);
+		const isEmpty = key.length === 0;
 
+		// Trimming is for matching only. An existing folder keeps the spelling
+		// Obsidian owns, and a new one keeps the name as typed (minus separators),
+		// so a name that starts with a space is never written elsewhere.
+		const normalized =
+			context.canonicalByNormalized.get(key) ?? normalizeVaultPathSeparators(raw);
 		const exists = isEmpty
 			? false
-			: canonical !== undefined ||
-			(await this.app.vault.adapter.exists(resolved));
+			: context.canonicalByNormalized.has(key) ||
+			(await this.app.vault.adapter.exists(normalized));
 
 		const isAllowed =
 			context.allowedRoots.length === 0
 				? true
-				: this.isPathAllowed(isEmpty ? "" : resolved, context.allowedRoots);
+				: this.isPathAllowed(normalized, context.allowedRoots);
 
 		return {
 			raw,
 			normalized,
-			resolved,
 			exists,
 			isAllowed,
 			isEmpty,
@@ -249,7 +251,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			if (selection.isEmpty) return selection;
 
 			try {
-				this.validateFolderPath(selection.resolved);
+				this.validateFolderPath(selection.normalized);
 			} catch (error) {
 				if (error instanceof InvalidFolderPathError) {
 					lastRejection = error.message;
@@ -267,7 +269,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 	private async ensureFolderExists(selection: FolderSelection): Promise<void> {
 		if (selection.isEmpty || selection.exists) return;
-		await this.createFolder(selection.resolved);
+		await this.createFolder(selection.normalized);
 	}
 
 	private async handleSingleSelection(
@@ -282,31 +284,26 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			throw new MacroAbortError("Selected folder not allowed.");
 		}
 
-		if (selection.resolved) {
-			try {
-				this.validateFolderPath(selection.resolved);
-			} catch (error) {
-				if (error instanceof InvalidFolderPathError) {
-					new Notice(error.message);
-					return "";
-				}
-				throw error;
+		try {
+			this.validateFolderPath(selection.normalized);
+		} catch (error) {
+			if (error instanceof InvalidFolderPathError) {
+				new Notice(error.message);
+				return "";
 			}
+			throw error;
 		}
 
 		await this.ensureFolderExists(selection);
-		return selection.resolved;
-	}
-
-	private normalizeFolderPath(path: string): string {
-		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+		return selection.normalized;
 	}
 
 	private validateFolderPath(path: string): void {
-		const trimmed = path.trim();
-		if (!trimmed) return;
+		if (!path) return;
 
-		const segments = trimmed.split("/");
+		// The path is validated as given: trimming here would hide a forbidden
+		// trailing space on the last segment from the check below.
+		const segments = path.split("/");
 		for (const segment of segments) {
 			this.validateFolderSegment(segment);
 		}
@@ -353,7 +350,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
-		const normalizedPath = this.normalizeFolderPath(path);
+		const normalizedPath = normalizeVaultPathSeparators(path);
 		for (const root of roots) {
 			if (!root) return true;
 			if (normalizedPath === root) return true;
@@ -364,6 +361,17 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 	private showFolderNotAllowedNotice(roots: string[]): void {
 		new Notice(folderNotAllowedMessage(roots));
+	}
+
+	/**
+	 * The folder a configured or typed path stands for: separators are cleaned,
+	 * the name is not. ` Work/` is the vault's ` Work`, `out\nested/` is
+	 * `out/nested`, and a new ` Work/new` is created under ` Work` rather than
+	 * as `Work/new`. Trimming belongs to matching (see resolveSelection), never
+	 * to identity.
+	 */
+	protected canonicalFolderPath(path: string): string {
+		return normalizeVaultPathSeparators(path);
 	}
 
 	private buildFolderSuggestions(
@@ -377,18 +385,18 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const displayByNormalized = new Map<string, string>();
 
 		const addItem = (path: string, label?: string) => {
-			const normalized = this.normalizeFolderPath(path);
+			const normalized = normalizeVaultPath(path);
 			if (canonicalByNormalized.has(normalized)) return;
 			if (
 				allowedRoots &&
 				allowedRoots.length > 0 &&
-				!this.isPathAllowed(normalized, allowedRoots)
+				!this.isPathAllowed(path, allowedRoots)
 			) {
 				return;
 			}
 			items.push(path);
 			displayItems.push(label ?? path);
-			canonicalByNormalized.set(normalized, path);
+			canonicalByNormalized.set(normalized, this.canonicalFolderPath(path));
 			if (label) displayByNormalized.set(normalized, label);
 		};
 
@@ -411,7 +419,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	): void {
 		el.empty();
 		el.classList.add("mod-complex");
-		const normalized = this.normalizeFolderPath(item);
+		const normalized = normalizeVaultPath(item);
 		const display = displayByNormalized.get(normalized);
 		const displayPath = item || "/";
 		const isExisting = existing.has(normalized);

@@ -415,6 +415,62 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		);
 	});
 
+	it("matches a mislabeled script by the path import writes, not the package's spelling", () => {
+		const m = macro("m1", "Sneaky", [userScript("c1", "run", "Scripts\\run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Sneaky"])],
+			[asset("template", "Scripts\\run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
+		expect(
+			preview.capabilityRows.some((r) => r.flag === "mislabeled-executable"),
+		).toBe(true);
+	});
+
+	it("does not let a bundled script cover a step whose path differs by leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", "Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import leaves the step at " Scripts/run.js", a different vault file.
+		expect(preview.missingReferences.map((r) => r.path)).toEqual([" Scripts/run.js"]);
+		expect(preview.orphanAssets).toEqual(["Scripts/run.js"]);
+	});
+
+	it("gates a bundled script whose spelling hides its extension behind a trailing slash", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("user-script", "Scripts/run.js/", "module.exports = () => 1;")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import writes Scripts/run.js, which an existing macro may already run.
+		expect(preview.files[0]?.requiresReview).toBe(true);
+		expect(preview.criticalScriptPaths).toEqual(["Scripts/run.js/"]);
+	});
+
+	it("matches a step to a bundled script spelled with the same leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", " Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import rewrites the step to the asset's destination, so it is covered.
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
+	});
+
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
 		const m = macro("m1", "Needs script", [
 			userScript("c1", "run", "scripts/absent.js"),
@@ -549,6 +605,24 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		// disk and any existing macro pointing at this path will run it.
 		expect(requiresAcknowledgement(preview)).toBe(true);
 		expect(preview.criticalScriptPaths).toContain("scripts/unused.js");
+	});
+
+	// Import refuses these destinations, so the preview must show the break.
+	it.each([
+		["an absolute path", "/templates/Note.md", "templates/Note.md"],
+		["a config directory", ".obsidian/templates/Note.md", ".obsidian/templates/Note.md"],
+	])("does not let an asset at %s satisfy a reference", (_, assetPath, templatePath) => {
+		const tmpl = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			templatePath,
+		} as unknown as ITemplateChoice;
+		const pkg = makePackage([pkgChoice(tmpl, ["Note"])], [asset("template", assetPath)]);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences.map((r) => r.path)).toEqual([templatePath]);
+		expect(preview.orphanAssets).toEqual([assetPath]);
 	});
 
 	it("treats an orphan bundled script as critical and review-required", () => {

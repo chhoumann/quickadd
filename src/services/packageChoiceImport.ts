@@ -1,4 +1,6 @@
 import { uuidv4 } from "../utils/uuid";
+import { normalizeVaultPathSeparators } from "../utils/pathUtils";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -380,7 +382,9 @@ export function applyAssetPathOverrides(
 		}
 		case "Template": {
 			const templateChoice = choice as ITemplateChoice;
-			const replacement = pathOverrides.get(templateChoice.templatePath);
+			const replacement =
+				pathOverrides.get(resolveTemplatePath(templateChoice.templatePath)) ??
+				pathOverrides.get(templateChoice.templatePath);
 			if (replacement) {
 				templateChoice.templatePath = replacement;
 			}
@@ -390,7 +394,9 @@ export function applyAssetPathOverrides(
 			const captureChoice = choice as ICaptureChoice;
 			const templatePath = captureChoice.createFileIfItDoesntExist?.template;
 			if (templatePath) {
-				const replacement = pathOverrides.get(templatePath);
+				const replacement =
+					pathOverrides.get(resolveTemplatePath(templatePath)) ??
+					pathOverrides.get(templatePath);
 				if (replacement) {
 					captureChoice.createFileIfItDoesntExist = {
 						...captureChoice.createFileIfItDoesntExist,
@@ -421,6 +427,23 @@ export function applyAssetPathOverrides(
 	}
 }
 
+/**
+ * Where an imported script step should point, or undefined to leave it: its
+ * bundled asset's destination, found by the step's own spelling or by its
+ * separator-normalized form, else that form itself. A script path is an
+ * identity: the loader resolves it with forward slashes only, so
+ * `Scripts\\run.js` must not survive import, while leading whitespace names a
+ * real vault folder and is never folded into a different asset's path.
+ */
+function scriptPathReplacement(
+	path: string,
+	pathOverrides: Map<string, string>,
+): string | undefined {
+	const identity = normalizeVaultPathSeparators(path);
+	const replacement = pathOverrides.get(path) ?? pathOverrides.get(identity) ?? identity;
+	return replacement === path ? undefined : replacement;
+}
+
 function applyOverridesToCommands(
 	commands: unknown,
 	pathOverrides: Map<string, string>,
@@ -431,7 +454,7 @@ function applyOverridesToCommands(
 		switch (command.type) {
 			case CommandType.UserScript: {
 				const userScript = command as IUserScript;
-				const replacement = pathOverrides.get(userScript.path);
+				const replacement = scriptPathReplacement(userScript.path, pathOverrides);
 				if (replacement) {
 					// Note-backed scripts use the vault path as their command name
 					// (and member selector, `path::member`); keep it in sync when the
@@ -453,8 +476,9 @@ function applyOverridesToCommands(
 					conditional.condition.mode === "script" &&
 					conditional.condition.scriptPath
 				) {
-					const replacement = pathOverrides.get(
+					const replacement = scriptPathReplacement(
 						conditional.condition.scriptPath,
+						pathOverrides,
 					);
 					if (replacement) {
 						conditional.condition = {
