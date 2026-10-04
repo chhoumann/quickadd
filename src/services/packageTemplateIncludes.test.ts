@@ -635,6 +635,30 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect(spaced.path).toBe(" Scripts/run.js");
 	});
 
+	it("leaves malformed non-string paths alone instead of aborting the import", async () => {
+		const { app } = fakeApp();
+		const broken = { ...userScript("s1", "Scripts/run.js"), path: 7 as unknown as string };
+		const pkg = makePackage(
+			[
+				macroChoice("m1", "Broken", [broken]),
+				{ ...templateChoice("t1", "Odd", "Templates/T.md"), templatePath: 7 as unknown as string } as ITemplateChoice,
+			],
+			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [{ choiceId: "m1", mode: "import" }, { choiceId: "t1", mode: "import" }],
+			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
+		});
+
+		const [macro, template] = result.updatedChoices as [IMacroChoice, ITemplateChoice];
+		expect((macro.macro.commands[0] as IUserScript).path).toBe(7);
+		expect(template.templatePath).toBe(7);
+	});
+
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {
 		const { app, files } = fakeApp({ "Templates/Dashboard.base": "existing" });
 

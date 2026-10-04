@@ -14,8 +14,13 @@ import { normalizePath } from 'obsidian';
  * a path IS something (a root, a destination); use the trimming form for
  * matching typed input against it.
  */
+/** Paths come from settings and packages, where a malformed value may not be a string; treat those as empty. */
+function asPathString(path: unknown): string {
+  return typeof path === 'string' ? path : '';
+}
+
 export function normalizeVaultPathSeparators(path: string): string {
-  return (path ?? '')
+  return asPathString(path)
     .replace(/^\s+(?=[\\/])/, '')
     .replace(/[\\/]+/g, '/')
     .replace(/^\/|\/$/g, '')
@@ -25,7 +30,7 @@ export function normalizeVaultPathSeparators(path: string): string {
 }
 
 export function normalizeVaultPath(path: string): string {
-  return (path ?? '')
+  return asPathString(path)
     .trim()
     .replace(/[\\/]+/g, '/')
     .replace(/^\/|\/$/g, '')
