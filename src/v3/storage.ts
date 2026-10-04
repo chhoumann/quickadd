@@ -57,13 +57,19 @@ function withAddedChoices(lowered: IChoice[], saved: unknown, ids: ReadonlySet<s
 	if (!Array.isArray(saved)) return lowered;
 	const result = [...lowered];
 	for (const choice of saved) {
-		if (!isMigratableChoice(choice)) continue;
+		// A folder is read child by child below, so one damaged child does not
+		// cost the choices saved beside it.
+		const folderItems = isChoiceLike(choice) && choice.type === "Multi" && typeof choice.id === "string"
+			? (choice as IMultiChoice).choices
+			: undefined;
+		const migratable = isMigratableChoice(choice);
+		if (!migratable && !Array.isArray(folderItems)) continue;
 		if (!ids.has(choice.id)) {
-			result.push(choice);
+			result.push(migratable ? choice : { ...choice, choices: withAddedChoices([], folderItems, ids) } as IChoice);
 			continue;
 		}
 		if (choice.type !== "Multi") continue;
-		const items = (choice as IMultiChoice).choices;
+		const items = folderItems;
 		if (!Array.isArray(items)) continue;
 		const folder = result.find((entry) => entry.id === choice.id);
 		if (folder === undefined) {

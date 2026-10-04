@@ -311,6 +311,24 @@ describe("the lowered view of stored actions", () => {
 		expect(updateAction(unreadable, "x", (action) => action)).toBe(unreadable);
 	});
 
+	it("keeps the readable children a QuickAdd 2 device saved in a folder beside one it cannot read", () => {
+		const folder = new MultiChoice("Logs");
+		const child = new CaptureChoice("Old entry");
+		folder.choices = [child];
+		const disk = JSON.parse(JSON.stringify(migrateSettingsV2({ ...migrated, choices: [folder] })));
+		const added = new CaptureChoice("Added on a 2.x device");
+		const bad = { id: "odd", type: "Teleport", name: "Odd" };
+		disk.choices = [{ ...JSON.parse(JSON.stringify(folder)), choices: [child, bad, added] }];
+		const newFolder = { ...JSON.parse(JSON.stringify(new MultiChoice("New folder"))), choices: [bad, new CaptureChoice("Good child")] };
+		disk.choices.push(newFolder);
+
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as { choices: IMultiChoice[] };
+		expect(loaded.choices.map((choice) => choice.name)).toEqual(["Logs", "New folder"]);
+		expect(loaded.choices[0]?.choices?.map((choice) => choice.name)).toEqual(["Old entry", "Added on a 2.x device"]);
+		expect(loaded.choices[1]?.choices?.map((choice) => choice.name)).toEqual(["Good child"]);
+		expect(() => loadAndSave(disk)).not.toThrow();
+	});
+
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
 		const good = stored(FIXTURE.slice(0, 1)).actions as ActionNode[];
 		const folder = { kind: "folder", id: "f", name: "Damaged", command: false, items: [null] };
