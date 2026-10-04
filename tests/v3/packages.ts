@@ -8,16 +8,24 @@ import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 
 const packagesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../docs/public/packages");
 
-/** Every choice entry of every docs package, normalized the way import normalizes it. */
+/**
+ * The root choices of every docs package, normalized the way import normalizes
+ * them. A package lists a folder's children flat as well as inline; import
+ * installs the folder with them inline, so the flat copies are left out here
+ * too, or every child would appear twice under one id.
+ */
 export function packageChoices(): { pkg: string; choice: IChoice }[] {
 	return readdirSync(packagesDir)
 		.filter((file) => file.endsWith(".quickadd.json"))
 		.sort()
 		.flatMap((file) => {
 			const pkg = JSON.parse(readFileSync(path.join(packagesDir, file), "utf8")) as QuickAddPackage;
-			return pkg.choices.map(({ choice }) => {
-				walkChoiceTree(choice, normalizeImportedChoice);
-				return { pkg: file.replace(".quickadd.json", ""), choice };
-			});
+			const ids = new Set(pkg.choices.map(({ choice }) => choice.id));
+			return pkg.choices
+				.filter(({ parentChoiceId }) => !parentChoiceId || !ids.has(parentChoiceId))
+				.map(({ choice }) => {
+					walkChoiceTree(choice, normalizeImportedChoice);
+					return { pkg: file.replace(".quickadd.json", ""), choice };
+				});
 		});
 }

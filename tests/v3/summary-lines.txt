@@ -20,16 +20,6 @@ daily-note-captures | Daily note / Quote
     Adds a line under ## Quotes in today's daily note
 daily-note-captures | Daily note / Callout
     Adds a line under > [!info]- Captured today in today's daily note
-daily-note-captures | Journal entry
-    Adds a line under ## Journal in today's daily note
-daily-note-captures | Task
-    Adds a task under ## Tasks in today's daily note
-daily-note-captures | Task with due date
-    Adds a task under ## Tasks in today's daily note
-daily-note-captures | Quote
-    Adds a line under ## Quotes in today's daily note
-daily-note-captures | Callout
-    Adds a line under > [!info]- Captured today in today's daily note
 inbox-item | Inbox item
     Creates Inbox/{date} {name} from Inbox Template, opens it
 kanban-task | Add task to board
