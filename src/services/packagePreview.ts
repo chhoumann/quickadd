@@ -13,7 +13,7 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { normalizeVaultPath } from "../utils/pathUtils";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { isWritableAssetDestination } from "../utils/vaultPathBoundary";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
@@ -122,6 +122,18 @@ function assetKey(asset: QuickAddPackage["assets"][number]): string {
 }
 
 /**
+ * Every key a writable asset satisfies a usage under: its matching key and, when
+ * different, its exact spelling with separators normalized. Import rewrites a
+ * step whose spelling equals the asset's (leading whitespace included) to the
+ * asset's destination, so the preview must count that step as covered too.
+ */
+function assetKeys(asset: QuickAddPackage["assets"][number]): string[] {
+	const matching = assetKey(asset);
+	const identity = normalizeVaultPathSeparators(asset.originalPath);
+	return identity === matching ? [matching] : [matching, identity];
+}
+
+/**
  * Assets import will actually write. One it refuses (absolute, traversing, or
  * in a hidden/config directory) must not satisfy any reference, or the preview
  * would hide a package that fails on confirm; it is listed as an orphan instead.
@@ -152,7 +164,9 @@ function collectPackageUsages(
 		for (const usage of walk.usages) addUsage(usage);
 	}
 
-	const assetsByPath = new Map(writableAssets(pkg).map((asset) => [assetKey(asset), asset]));
+	const assetsByPath = new Map(
+		writableAssets(pkg).flatMap((asset) => assetKeys(asset).map((key) => [key, asset] as const)),
+	);
 	const scanned = new Set<string>();
 	let frontier = Array.from(usagesByPath.keys());
 	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
@@ -237,7 +251,7 @@ export function buildPackagePreview(
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);
 	}
 
-	const bundledPaths = new Set(writableAssets(pkg).map(assetKey));
+	const bundledPaths = new Set(writableAssets(pkg).flatMap(assetKeys));
 
 	// Classified by the path import writes, so a spelling such as
 	// `Scripts/run.js/` cannot hide an extension from the review gate.
@@ -250,9 +264,11 @@ export function buildPackagePreview(
 
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
-		const key = assetKey(asset);
-		const usages = bundledPaths.has(key) ? usagesByPath.get(key) ?? [] : [];
-		const executable = referencedAsScript.has(key);
+		const keys = assetKeys(asset);
+		const usages = bundledPaths.has(keys[0])
+			? keys.flatMap((key) => usagesByPath.get(key) ?? [])
+			: [];
+		const executable = keys.some((key) => referencedAsScript.has(key));
 		const requiresReview =
 			executable || runnableCodeByPath.get(asset.originalPath) != null;
 		return {
@@ -261,7 +277,7 @@ export function buildPackagePreview(
 			bundled: true,
 			executable,
 			requiresReview,
-			exists: existsByPath.has(key) || existsByPath.has(asset.originalPath),
+			exists: keys.some((key) => existsByPath.has(key)) || existsByPath.has(asset.originalPath),
 			sizeBytes: estimateBytesFromBase64(asset.content),
 			orphan: usages.length === 0,
 			referencedBy: usages,

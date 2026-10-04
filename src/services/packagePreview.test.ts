@@ -457,6 +457,20 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		expect(preview.criticalScriptPaths).toEqual(["Scripts/run.js/"]);
 	});
 
+	it("matches a step to a bundled script spelled with the same leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", " Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import rewrites the step to the asset's destination, so it is covered.
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
+	});
+
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
 		const m = macro("m1", "Needs script", [
 			userScript("c1", "run", "scripts/absent.js"),
