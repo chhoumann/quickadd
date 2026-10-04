@@ -60,10 +60,10 @@
 				</li>
 			{/each}
 		</ul>
+		<div class="qa-run-log-actions">
+			<button onclick={() => runLog.clear()}>Clear</button>
+		</div>
 	{/if}
-	<div class="qa-run-log-actions">
-		<button disabled={entries.length === 0} onclick={() => runLog.clear()}>Clear</button>
-	</div>
 </div>
 
 <style>

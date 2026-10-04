@@ -114,8 +114,8 @@
 			<ObsidianIcon iconId="folder-plus" size={28} />
 			<div class="choiceEmptyTitle">No choices yet</div>
 			<p class="choiceEmptyBody">
-				A choice is an action QuickAdd can run: create a note, capture
-				text, or run a macro. Group them with folders.
+				A choice is something QuickAdd runs for you: create a note, add
+				to one, or run a sequence of steps. Group them with folders.
 				<!-- The one place a brand-new user is guaranteed to look, so it
 				     carries the plugin's only prominent docs link (#1541). -->
 				<a
