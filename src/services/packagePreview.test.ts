@@ -551,6 +551,24 @@ describe("buildPackagePreview - files manifest, overwrites, orphans, captures", 
 		expect(preview.criticalScriptPaths).toContain("scripts/unused.js");
 	});
 
+	it("does not let an asset at an absolute path satisfy a relative reference", () => {
+		const tmpl = {
+			id: "t1",
+			name: "Note",
+			type: "Template",
+			command: false,
+			templatePath: "templates/Note.md",
+		} as unknown as ITemplateChoice;
+		const pkg = makePackage(
+			[pkgChoice(tmpl, ["Note"])],
+			[asset("template", "/templates/Note.md")],
+		);
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import refuses the absolute destination, so the preview must show the break.
+		expect(preview.missingReferences.map((r) => r.path)).toEqual(["templates/Note.md"]);
+		expect(preview.orphanAssets).toEqual(["/templates/Note.md"]);
+	});
+
 	it("treats an orphan bundled script as critical and review-required", () => {
 		const m = macro("m1", "Empty", []);
 		const pkg = makePackage(

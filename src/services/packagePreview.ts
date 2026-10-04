@@ -14,6 +14,7 @@ import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
 import { normalizeVaultPath } from "../utils/pathUtils";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
@@ -123,7 +124,10 @@ const MAX_INCLUDE_ROUNDS = 10;
  * keeps the package's own spelling.
  */
 function assetKey(asset: QuickAddPackage["assets"][number]): string {
-	return asset.kind === "template" || asset.kind === "capture-template"
+	const isTemplate = asset.kind === "template" || asset.kind === "capture-template";
+	// A path import refuses (absolute or traversing) must not satisfy a valid
+	// reference, or the preview would hide a package that fails on confirm.
+	return isTemplate && !escapesVaultBoundary(asset.originalPath)
 		? normalizeVaultPath(asset.originalPath)
 		: asset.originalPath;
 }
