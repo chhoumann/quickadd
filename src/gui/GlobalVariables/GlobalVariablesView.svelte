@@ -87,6 +87,7 @@
   function debouncedPersist(it: GV) {
     if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
     debounceTimer = window.setTimeout(() => {
+      debounceTimer = undefined;
       persistToSettings();
     }, 200);
   }
@@ -100,7 +101,11 @@
     });
     loadFromSettings();
     return () => {
-      if (debounceTimer !== undefined) window.clearTimeout(debounceTimer);
+      // Closing Settings right after typing must not drop the edit: write it now.
+      if (debounceTimer !== undefined) {
+        window.clearTimeout(debounceTimer);
+        persistToSettings();
+      }
       unsubscribe();
     };
   });
