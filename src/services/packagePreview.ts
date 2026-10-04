@@ -13,7 +13,8 @@ import type {
 import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
-import { hasTemplateExtension, resolveTemplatePath } from "../utils/templateFolderUtils";
+import { normalizeVaultPath } from "../utils/pathUtils";
+import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
 import { walkPackage } from "./packagePreviewWalk";
@@ -113,13 +114,17 @@ const MAX_INCLUDE_ROUNDS = 10;
  * a missing or bundled include comes from.
  */
 /**
- * The key a bundled asset is matched under. Usages of templates are recorded
- * through the template resolver, so a template asset is keyed the same way;
- * its displayed `originalPath` keeps the package's own spelling.
+ * The key a bundled asset is matched under: the path import will write it to.
+ * Import normalizes separators but never adds an extension, so a template
+ * asset is keyed by its normalized path only. Usages are recorded through the
+ * template resolver, which does add `.md`, so an extensionless asset such as
+ * `Templates/foo` correctly fails to cover a usage of `Templates/foo.md`: the
+ * choice would not find it after import either. The displayed `originalPath`
+ * keeps the package's own spelling.
  */
 function assetKey(asset: QuickAddPackage["assets"][number]): string {
 	return asset.kind === "template" || asset.kind === "capture-template"
-		? resolveTemplatePath(asset.originalPath)
+		? normalizeVaultPath(asset.originalPath)
 		: asset.originalPath;
 }
 

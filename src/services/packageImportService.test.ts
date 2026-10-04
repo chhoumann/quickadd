@@ -719,6 +719,25 @@ describe("existence probes stay inside the vault boundary", () => {
 		expect(preview.orphanAssets).toEqual([]);
 	});
 
+	it("does not let an extensionless bundled asset cover a usage the engine resolves with .md", async () => {
+		const { app } = createFakeApp();
+		const templateChoice = makeChoice("t", "T", "Template", {
+			templatePath: "Templates/foo",
+		} as Partial<IChoice>);
+		const pkg = makePackage({
+			rootChoiceIds: ["t"],
+			choices: [makePackageChoice(templateChoice)],
+			assets: [
+				{ kind: "template", originalPath: "Templates/foo", contentEncoding: "base64", content: "" },
+			],
+		});
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(preview.missingReferences.map((m) => m.path)).toEqual(["Templates/foo.md"]);
+		expect(preview.orphanAssets).toEqual(["Templates/foo"]);
+	});
+
 	it("still probes in-vault config-dir references (no over-rejection)", async () => {
 		const inVaultDotDir = ".obsidian/snippets/x.md";
 		const { app, adapter } = createFakeApp([inVaultDotDir]);
