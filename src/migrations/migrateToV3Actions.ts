@@ -65,6 +65,8 @@ const migrateToV3Actions: Migration = {
 	description: "Store choices as QuickAdd 3 actions",
 	migrate: async (plugin, context): Promise<MigrationResult | void> => {
 		const settings = plugin.settings;
+		// data.json already stores actions (the flag was lost): nothing to move.
+		if (Array.isArray(settings.actions)) return;
 		const pending = Object.keys(DEFAULT_SETTINGS.migrations).filter(
 			(key) => key !== "migrateToV3Actions" && !settings.migrations[key as keyof typeof settings.migrations],
 		);

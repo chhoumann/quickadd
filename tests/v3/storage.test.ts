@@ -311,6 +311,14 @@ describe("the lowered view of stored actions", () => {
 		expect(updateAction(unreadable, "x", (action) => action)).toBe(unreadable);
 	});
 
+	it("saves to the actions data.json holds whatever the migration flag says", () => {
+		const disk = stored([new CaptureChoice("Inbox")]);
+		const loaded = choicesFromActions({ ...disk, migrations: { migrateToV3Actions: false } }) as Loaded;
+		const saved = JSON.parse(JSON.stringify(actionsFromChoices(loaded)));
+		expect(saved).not.toHaveProperty("choices");
+		expect(saved.actions).toEqual(disk.actions);
+	});
+
 	it("keeps the readable children a QuickAdd 2 device saved in a folder beside one it cannot read", () => {
 		const folder = new MultiChoice("Logs");
 		const child = new CaptureChoice("Old entry");

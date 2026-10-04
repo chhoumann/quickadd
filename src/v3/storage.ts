@@ -92,7 +92,9 @@ function withAddedChoices(lowered: IChoice[], saved: unknown, ids: ReadonlySet<s
 export function actionsFromChoices<S extends { choices: unknown; actions?: ActionNode[]; migrations: { migrateToV3Actions?: boolean } }>(
 	settings: S,
 ): object {
-	if (!settings.migrations?.migrateToV3Actions) return settings;
+	// A data.json that holds actions is a QuickAdd 3 store whatever the flag
+	// says: a damaged `migrations` value is reset to its defaults on load.
+	if (!settings.migrations?.migrateToV3Actions && !Array.isArray(settings.actions)) return settings;
 	const { choices, actions, ...rest } = settings;
 	if (!Array.isArray(choices)) return { ...rest, actions: choices };
 	// An unreadable action list is written back as found, the choices next to it.

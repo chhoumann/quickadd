@@ -3,8 +3,9 @@ import type QuickAdd from "src/main";
 import { DEFAULT_SETTINGS } from "src/settings";
 import { settingsStore } from "src/settingsStore";
 import type IChoice from "src/types/choices/IChoice";
+import type { Action } from "src/v3/model";
 import { lowerNode } from "src/v3/lower";
-import { migrateChoice } from "src/v3/migrate";
+import { migrateChoice, migrateSettingsV2 } from "src/v3/migrate";
 import migrate from "./migrate";
 
 vi.mock("src/logger/logManager", () => ({
@@ -163,6 +164,19 @@ describe("migrateToV3Actions", () => {
 		vi.restoreAllMocks();
 
 		expect(plugin.settings.migrations.migrateToV3Actions).toBe(false);
+		expect(adapter.writeBinary).not.toHaveBeenCalled();
+	});
+
+	it("takes a data.json that already stores actions as migrated, keeping what the actions hold", async () => {
+		const { plugin, adapter } = makePlugin({ [`${DIR}/data.json`]: encode("{}") });
+		const actions = structuredClone(migrateSettingsV2({ choices: [capture] }).actions) as Action[];
+		actions[0].show.ribbon = true;
+		plugin.settings.actions = structuredClone(actions);
+		plugin.settings.choices = actions.map(lowerNode);
+		await migrate(plugin);
+
+		expect(plugin.settings.migrations.migrateToV3Actions).toBe(true);
+		expect(plugin.settings.actions).toEqual(actions);
 		expect(adapter.writeBinary).not.toHaveBeenCalled();
 	});
 
