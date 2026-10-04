@@ -125,3 +125,11 @@ export const PRESETS: Preset[] = [
 		},
 	},
 ];
+
+/**
+ * What the empty list's "Start with three choices" adds, in this order. They
+ * run on an empty vault; the template presets need a template file first.
+ */
+export const STARTER_PRESETS: Preset[] = ["log", "task", "addToNote"].flatMap((id) =>
+	PRESETS.filter((preset) => preset.id === id),
+);

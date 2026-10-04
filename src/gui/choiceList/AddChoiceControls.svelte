@@ -10,6 +10,7 @@
 		targetFolderName = undefined,
 		compact = false,
 		fill = false,
+		primary = true,
 	}: {
 		/**
 		 * Add a choice made from a preset. `targetFolderId` inserts it into that
@@ -26,6 +27,8 @@
 		compact?: boolean;
 		/** Stretch the two buttons to fill the container (touch-friendly on mobile). */
 		fill?: boolean;
+		/** Accent "New choice" as the view's call to action. */
+		primary?: boolean;
 	} = $props();
 
 	let menuOpen = $state(false);
@@ -111,7 +114,7 @@
 	<button
 		type="button"
 		class="qaNewChoiceBtn"
-		class:mod-cta={!compact}
+		class:mod-cta={!compact && primary}
 		aria-haspopup="menu"
 		aria-expanded={menuOpen}
 		aria-label={newChoiceLabel}

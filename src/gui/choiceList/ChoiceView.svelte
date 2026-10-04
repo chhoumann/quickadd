@@ -12,6 +12,7 @@
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import ChoicesUnavailable from "./ChoicesUnavailable.svelte";
+	import { STARTER_PRESETS } from "./presets";
 	import { type Plain } from "../svelte/persist.svelte";
 
 	import { createChoiceViewActions } from "./createChoiceViewActions";
@@ -106,8 +107,9 @@
 		`QuickAdd could not render the choice list: ${error instanceof Error ? error.message : String(error)}`,
 	)}>
 	{#if choices.length === 0 && filterQuery.trim().length === 0}
-		<!-- First-run / empty state: the hero is the single focal CTA (the top-bar
-		     add controls are not rendered here, so there's no duplicate). -->
+		<!-- First-run / empty state: "Start with three choices" is its one call to
+		     action, so New choice is a plain button here (the top-bar add controls
+		     are not rendered, so there's no duplicate). -->
 		<div class="choiceEmptyState">
 			<ObsidianIcon iconId="folder-plus" size={28} />
 			<div class="choiceEmptyTitle">No choices yet</div>
@@ -123,8 +125,16 @@
 					rel="noopener noreferrer">Learn more</a
 				>
 			</p>
+			<button
+				type="button"
+				class="mod-cta qaStarterChoicesBtn"
+				aria-label="Start with three choices"
+				onclick={() => actions.onAddPresets(STARTER_PRESETS)}
+			>
+				Start with three choices
+			</button>
 			<div class="choiceEmptyActions">
-				<AddChoiceControls onAddChoice={actions.onAddChoice} onAddFolder={actions.onAddFolder} />
+				<AddChoiceControls onAddChoice={actions.onAddChoice} onAddFolder={actions.onAddFolder} primary={false} />
 			</div>
 			{#if !disableOnlineFeatures}
 				<!-- The bottom bar (and its AI icon) only renders once choices exist,
@@ -276,6 +286,10 @@
 	.choiceEmptyBody {
 		margin: 0;
 		max-width: 42ch;
+	}
+
+	.qaStarterChoicesBtn {
+		margin-top: 0.5rem;
 	}
 
 	.choiceEmptyActions {

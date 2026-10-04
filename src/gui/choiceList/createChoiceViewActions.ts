@@ -45,10 +45,20 @@ interface ChoiceViewContext {
 }
 
 /** Access live component state after every await, so intervening store writes survive. */
-export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListActions {
+export function createChoiceViewActions(
+	context: ChoiceViewContext,
+): ChoiceListActions & { onAddPresets: (presets: Preset[]) => void } {
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
+	}
+
+	function choiceFromPreset(preset: Preset): IChoice {
+		const newChoice = preset.create();
+		newChoice.name = uniqueChoiceName(preset.name, context.choices);
+		// The outcome's icon, not the type's, so the list and launcher read by it.
+		newChoice.icon = preset.iconId;
+		return newChoice;
 	}
 
 	async function addChoiceToList(
@@ -56,10 +66,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		targetFolderId?: string,
 		skipConfigure = false,
 	): Promise<void> {
-		const newChoice = preset.create();
-		newChoice.name = uniqueChoiceName(preset.name, context.choices);
-		// The outcome's icon, not the type's, so the list and launcher read by it.
-		newChoice.icon = preset.iconId;
+		const newChoice = choiceFromPreset(preset);
 		insert(newChoice, targetFolderId);
 		if (!skipConfigure) {
 			try {
@@ -73,6 +80,14 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			}
 		}
 		await revealChoice(newChoice.id);
+	}
+
+	// Several root-level choices at once, saved once, with no builder.
+	function addPresetsToList(presets: Preset[]): void {
+		for (const preset of presets) {
+			context.choices = addChoiceToTree(context.choices, choiceFromPreset(preset));
+		}
+		save();
 	}
 
 	async function addFolderToList(targetFolderId?: string): Promise<void> {
@@ -329,6 +344,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 		),
 		onAddChoice: reportingHandler("Couldn't add that choice", addChoiceToList),
 		onAddFolder: reportingHandler("Couldn't add that folder", addFolderToList),
+		onAddPresets: reportingHandler("Couldn't add those choices", addPresetsToList),
 	};
 
 }
