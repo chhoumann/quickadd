@@ -18,7 +18,6 @@ import { processNote, readNote, writeNote } from "../utils/noteContent";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import {
 	CANVAS_FILE_EXTENSION_REGEX,
-	CREATE_IF_NOT_FOUND_ORDERED,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 	VALUE_SYNTAX,
 } from "../constants";
@@ -58,7 +57,7 @@ import {
 	ChoiceOutcomeRecorder,
 	failureReason,
 } from "./choiceOutcomeRecorder";
-import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import type { ChoiceEffect, NoteWrite } from "../types/ChoiceOutcome";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
@@ -142,10 +141,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 	// suppressed in that case so collected containers aren't stranded as "[]"
 	// placeholders (and written to the wrong note's front matter). See run().
 	private suppressFrontmatterCollection = false;
-	// Set when the "Choose heading when capturing" picker resolves a heading. Holds the heading
-	// TEXT (without '#' markers) for the success notice; the verbatim line goes to the
-	// formatter override. Null when not in heading mode.
-	private resolvedInsertAfterHeading: string | null = null;
 	private readonly outcome: ChoiceOutcomeRecorder;
 
 	constructor(
@@ -167,106 +162,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			draftScopeId: choice.id,
 			choiceName: choice.name,
 		});
-	}
-
-	/**
-	 * For ordered captures (the "ordered" create-if-not-found location), copy the
-	 * formatter's resolved insert-after heading (e.g. `## 2026-06-16`) so the
-	 * success notice names the real heading instead of the raw `{{DATE:…}}` token.
-	 * Called after the format pass; a no-op for every other capture (so existing
-	 * insert-after notice behaviour is unchanged).
-	 */
-	private captureResolvedOrderedHeading(): void {
-		if (
-			this.choice.insertAfter?.enabled &&
-			this.choice.insertAfter.createIfNotFoundLocation ===
-				CREATE_IF_NOT_FOUND_ORDERED
-		) {
-			const resolved = this.formatter.getResolvedInsertAfterHeading();
-			if (resolved) this.resolvedInsertAfterHeading = resolved;
-		}
-	}
-
-	private showSuccessNotice(
-		file: TFile,
-		{ wasNewFile, action }: { wasNewFile: boolean; action: CaptureAction },
-	) {
-		const fileName = `'${file.basename}'`;
-
-		if (wasNewFile) {
-			new Notice(
-				`Created and captured to ${fileName}`,
-				DEFAULT_NOTICE_DURATION,
-			);
-			return;
-		}
-
-		const shouldAppendToBottom =
-			this.choice.prepend ||
-			(this.choice.captureToActiveFile &&
-				this.choice.activeFileWritePosition === "bottom");
-
-		let msg = "";
-		switch (action) {
-			case "currentLine":
-				msg = `Captured to current line in ${fileName}`;
-				break;
-			case "newLineAbove":
-				msg = `Captured on a new line above cursor in ${fileName}`;
-				break;
-			case "newLineBelow":
-				msg = `Captured on a new line below cursor in ${fileName}`;
-				break;
-			case "activeFileTop":
-				msg = `Captured to top of ${fileName}`;
-				break;
-			case "prepend":
-			case "append":
-				msg = shouldAppendToBottom
-					? `Captured to bottom of ${fileName}`
-					: `Captured to top of ${fileName}`;
-				break;
-			case "insertAfter": {
-				const heading =
-					this.resolvedInsertAfterHeading ?? this.choice.insertAfter.after;
-				msg = heading
-					? `Captured to ${fileName} under '${heading}'`
-					: `Captured to ${fileName}`;
-				break;
-			}
-			case "insertBefore": {
-				const heading = this.choice.insertBefore?.before;
-				msg = heading
-					? `Captured to ${fileName} before '${heading}'`
-					: `Captured to ${fileName}`;
-				break;
-			}
-			default:
-				msg = `Captured to ${fileName}`;
-				break;
-		}
-
-		new Notice(msg, DEFAULT_NOTICE_DURATION);
-	}
-
-	/**
-	 * Shown instead of the success notice when the formatted capture payload is
-	 * empty/whitespace-only: the file is unchanged (the formatter returns it as-is,
-	 * and editor insertion replaces the selection with an empty string), so a
-	 * confident "Captured to …" would be misleading. `wasNewFile` keeps the "note
-	 * created" fact honest when create-if-not-found still made an empty file.
-	 */
-	private showNothingToCaptureNotice(
-		file: TFile,
-		{ wasNewFile }: { wasNewFile: boolean },
-	) {
-		const fileName = `'${file.basename}'`;
-		new Notice(
-			wasNewFile
-				? `Created ${fileName} — nothing to capture (no content)`
-				: `Nothing to capture — ${fileName} unchanged`,
-			DEFAULT_NOTICE_DURATION,
-		);
 	}
 
 	private hasActiveMarkdownCaptureContext(): boolean {
@@ -537,20 +432,16 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			}
 			if (write.markerOnly) {
 				contentCommitted = !fileAlreadyExists;
-				if (this.plugin.settings.showCaptureNotification) {
-					this.showNothingToCaptureNotice(write.file, { wasNewFile: !fileAlreadyExists });
-				}
 				this.outcome.success(write.file, fileAlreadyExists ? "unchanged" : "created");
 				return;
 			}
-			this.captureResolvedOrderedHeading();
 			const committed = await this.commitCapture(write, {
 				action, fileAlreadyExists,
 				onCommit: () => { contentCommitted = true; },
 			});
 			if (!committed) return;
 			await this.finishCapture(write.file, {
-				...committed, action, wasNewFile: !fileAlreadyExists, linkOptions, isCanvasTriggered,
+				...committed, linkOptions, isCanvasTriggered,
 			});
 		} catch (err) {
 			if (!contentCommitted) {
@@ -583,38 +474,22 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 	/**
 	 * Everything after the capture is written, for a note and a Canvas text card:
-	 * record the outcome, tell the user, copy and insert the link, open the file
+	 * record the outcome, copy and insert the link, open the file
 	 * and place the cursor. `cursor` is where a `{{CURSOR}}` marker (`marked`) or
 	 * the insertion left it, or null.
 	 */
 	private async finishCapture(file: TFile, result: {
 		effect: ChoiceEffect;
-		captureIsNoOp: boolean;
+		write?: NoteWrite;
 		cursor: EditorCursorPlacement | null;
 		marked: boolean;
-		action: CaptureAction;
-		wasNewFile: boolean;
 		linkOptions: NormalizedAppendLinkOptions;
 		isCanvasTriggered: boolean;
 	}): Promise<void> {
-		const { captureIsNoOp, marked, action, wasNewFile, linkOptions, isCanvasTriggered } = result;
+		const { marked, linkOptions, isCanvasTriggered } = result;
 		let cursor = result.cursor;
 		// Commit success before links/navigation so later failures cannot invite duplicate writes.
-		this.outcome.success(file, result.effect);
-
-		// Show success notification
-		if (this.plugin.settings.showCaptureNotification) {
-			if (captureIsNoOp) {
-				this.showNothingToCaptureNotice(file, {
-					wasNewFile,
-				});
-			} else {
-				this.showSuccessNotice(file, {
-					wasNewFile,
-					action,
-				});
-			}
-		}
+		this.outcome.success(file, result.effect, result.write);
 
 		await this.copyCapturedFileLinkToClipboard(file);
 
@@ -655,9 +530,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		onCommit: () => void;
 	}): Promise<{
 		effect: ChoiceEffect;
-		captureIsNoOp: boolean;
 		cursor: EditorCursorPlacement | null;
 		marked: boolean;
+		write?: NoteWrite;
 	} | null> {
 		const { file, captureContent, newFileContent, priorContent, cursor: placement } = write;
 		let captureIsNoOp = isCaptureContentEmpty(captureContent);
@@ -666,9 +541,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			const parsed = captureIsNoOp ? captureContent : await templaterParseTemplate(this.app, captureContent, file);
 			const payload = restoreUserTextInCapture(prepareCapture(parsed));
 			if (payload.cursor.kind === "none" && /{{CURSOR}}/i.test(parsed)) {
-				if (this.plugin.settings.showCaptureNotification) {
-					this.showNothingToCaptureNotice(file, { wasNewFile: !options.fileAlreadyExists });
-				}
 				this.outcome.success(file, "unchanged");
 				return null;
 			}
@@ -687,10 +559,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				}
 			}
 			options.onCommit();
-			return { effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor, marked };
+			return { effect: captureIsNoOp ? "unchanged" : "changed", cursor, marked };
 		}
 
-		const { content: written, merged } = await writeNote(this.app, file, priorContent, newFileContent);
+		const { content: written, merged, before } = await writeNote(this.app, file, priorContent, newFileContent);
 		options.onCommit();
 		const wholeFileTemplater = this.choice.templater?.afterCapture === "wholeFile";
 		if (wholeFileTemplater) {
@@ -701,13 +573,17 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			await overwriteTemplaterOnce(this.app, file);
 		}
 		const postProcessed = await this.applyCapturePropertyVars(file);
+		const after = wholeFileTemplater || postProcessed ? await this.app.vault.read(file) : written;
 		// Only a pass that actually rewrote the note invalidates the cursor offsets.
-		const rewritten = (wholeFileTemplater || postProcessed) && await this.app.vault.read(file) !== written;
+		const rewritten = after !== written;
 		const effect: ChoiceEffect = !options.fileAlreadyExists ? "created"
 			: newFileContent !== priorContent || rewritten ? "changed" : "unchanged";
 		const cursor = !merged && !rewritten && placement.kind === "offset"
 			? { offsets: [placement.value], content: newFileContent } : null;
-		return { effect, captureIsNoOp, cursor, marked: placement.kind === "offset" && placement.source === "marker" };
+		return {
+			effect, cursor, marked: placement.kind === "offset" && placement.source === "marker",
+			write: { path: file.path, before: options.fileAlreadyExists ? before : null, after },
+		};
 	}
 
 	private async captureToProperty(args: {
@@ -809,10 +685,11 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				});
 			}
 			const persistedContent = await this.app.vault.read(file);
-			this.outcome.success(file, !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed");
-			if (this.plugin.settings.showCaptureNotification) {
-				new Notice(`Captured to '${key}' in '${file.basename}'`, DEFAULT_NOTICE_DURATION);
-			}
+			this.outcome.success(
+				file,
+				!fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed",
+				{ path: file.path, before: fileAlreadyExists ? priorContent : null, after: persistedContent },
+			);
 			await this.copyCapturedFileLinkToClipboard(file);
 			await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
 			if (this.choice.openFile) {
@@ -917,13 +794,9 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 
 		if (markerOnly) {
-			if (this.plugin.settings.showCaptureNotification) {
-				this.showNothingToCaptureNotice(file, { wasNewFile: false });
-			}
 			this.outcome.success(file, "unchanged");
 			return;
 		}
-		this.captureResolvedOrderedHeading();
 
 		// An empty/whitespace capture leaves the card text unchanged (the formatter
 		// returns existingText as-is) — surface a no-op notice instead of a false
@@ -940,8 +813,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		markContentCommitted();
 
 		await this.finishCapture(file, {
-			effect: captureIsNoOp ? "unchanged" : "changed", captureIsNoOp, cursor: null, marked: false,
-			action, wasNewFile: false, linkOptions, isCanvasTriggered: true,
+			effect: captureIsNoOp ? "unchanged" : "changed", cursor: null, marked: false,
+			linkOptions, isCanvasTriggered: true,
 		});
 	}
 
@@ -1007,7 +880,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		const headingDisplay = headings.map(
 			(h) => `${"  ".repeat(Math.max(0, h.level - 1))}${h.heading}`,
 		);
-		const headingTexts = headings.map((h) => h.heading);
 
 		const placeholder = "Choose a heading to insert under";
 		const chosen = String(
@@ -1051,12 +923,6 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		);
 
 		this.formatter.setInsertAfterTargetOverride(chosen);
-
-		// Notice copy: show the heading TEXT (no '#') for a picked heading; fall back to
-		// the raw typed value for a custom entry.
-		const pickedIndex = headingLines.indexOf(chosen);
-		this.resolvedInsertAfterHeading =
-			pickedIndex >= 0 ? headingTexts[pickedIndex] : chosen;
 	}
 
 	/**

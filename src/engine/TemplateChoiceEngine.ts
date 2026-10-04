@@ -1,6 +1,6 @@
 import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
 import type { App, WorkspaceLeaf } from "obsidian";
-import { Notice, TFile } from "obsidian";
+import { TFile } from "obsidian";
 import invariant from "src/utils/invariant";
 import { VALUE_SYNTAX } from "../constants";
 import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
@@ -150,7 +150,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
-			let createdNew = false;
 			// What this run did to its target note (#1615). Derived from the file-exists
 			// resolution the engine actually performed rather than from a byte compare,
 			// which is exact for the two answers an automation acts on: "createNew"
@@ -159,10 +158,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// inferred: it always writes, so `changed` can in principle over-report a
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
+			// The target's content before this run wrote to it, for Undo; null for a new note.
+			let before: string | null = null;
 			if (selectedUpdate) {
 				if (!isMarkdownTemplatePath(templatePath)) {
 					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
 				}
+				before = await this.app.vault.read(selectedUpdate.file);
 				createdFile = await this.applyExistingFileUpdate(
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
 				);
@@ -195,6 +197,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
+				}
+				if (mode.resolutionKind === "modifyExisting" && existingFile) {
+					before = await this.app.vault.read(existingFile);
 				}
 
 				({ createdFile, shouldAutoOpen } = await this.applyFileExistsMode(
@@ -234,13 +239,14 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					);
 					return;
 				}
-				createdNew = true;
 			}
 
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.outcome.success(createdFile, effect);
+			this.outcome.success(createdFile, effect, effect === "unchanged" ? undefined : {
+				path: createdFile.path, before, after: await this.app.vault.read(createdFile),
+			});
 			const cursorBeforeLink = this.cursorPlacement;
 
 			if (linkOptions.enabled && createdFile) {
@@ -288,15 +294,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
 					this.placeCursor(createdFile, cursorBeforeLink);
 				}
-			} else if (
-				createdNew &&
-				!linkOptions.enabled &&
-				!this.choice.copyLinkToClipboard
-			) {
-				// The note was created but nothing else surfaces it (not opened, no
-				// link appended, not copied to clipboard). Confirm the creation so
-				// the run isn't silent — mirroring Capture's success notice.
-				new Notice(`Created '${createdFile.basename}'.`);
 			}
 		} catch (err) {
 			if (
@@ -492,24 +489,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					async (path) => await this.app.vault.adapter.exists(path),
 				);
 
-				const createdFile = await this.createFileWithTemplate(
-					nextFilePath,
-					templatePath,
-				);
-
-				// A collision forced a different name. If the file won't be opened,
-				// the user otherwise gets no signal which name was actually used and
-				// may re-run, accumulating "Plan (1)", "Plan (2)", … clutter.
-				if (
-					createdFile &&
-					nextFilePath !== targetFilePath &&
-					!this.choice.openFile
-				) {
-					new Notice(`Created '${createdFile.basename}'.`);
-				}
-
 				return {
-					createdFile,
+					createdFile: await this.createFileWithTemplate(nextFilePath, templatePath),
 					shouldAutoOpen: false,
 				};
 			}

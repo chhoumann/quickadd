@@ -1688,11 +1688,11 @@ describe("CaptureChoiceEngine capture target resolution", () => {
 		await engine.run();
 
 		expect(app.vault.modify).toHaveBeenCalledWith(linkedFile, "updated");
-		expect(executor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: linkedFile,
 			effect: "changed",
-		});
+		}));
 		expect(insertFileLinkToActiveView).toHaveBeenCalledWith(
 			app,
 			linkedFile,

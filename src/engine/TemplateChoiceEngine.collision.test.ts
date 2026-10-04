@@ -183,6 +183,7 @@ const createEngine = () => {
 		},
 		vault: {
 			getRoot: vi.fn(() => ({ path: "" })),
+			read: vi.fn(async () => ""),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},

@@ -897,6 +897,12 @@ export class Notice {
     Notice.instances.push({ message, timeout, messageEl: this.messageEl });
   }
 
+  setMessage(message: string) {
+    this.messageEl.textContent = message;
+    this.message = message;
+    return this;
+  }
+
   hide() {}
 }
 

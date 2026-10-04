@@ -73,9 +73,6 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 		getAndClearTemplatePropertyVars() {
 			return new Map();
 		}
-		getResolvedInsertAfterHeading() {
-			return null;
-		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];
 		}
@@ -292,11 +289,15 @@ describe("CaptureChoiceEngine heading picker create affordance gating", () => {
 	});
 });
 
+const recordedOutcome = (engine: CaptureChoiceEngine) =>
+	vi.mocked((engine as unknown as { choiceExecutor: IChoiceExecutor }).choiceExecutor.recordExecutionResult!)
+		.mock.calls.at(-1)?.[0];
+
 // ---------------------------------------------------------------------------
 // Finding: capture-empty-content-no-op — an empty/whitespace capture must not
-// show a confident "Captured to …" notice.
+// report a write. The executor's result notice reads the recorded effect.
 // ---------------------------------------------------------------------------
-describe("CaptureChoiceEngine empty-capture no-op notice", () => {
+describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 	beforeEach(() => {
 		noticeClass.instances.length = 0;
 		formatContentOnlyMock.mockReset();
@@ -307,7 +308,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		getAppendLinkDestinationFileMock.mockReset();
 	});
 
-	it("shows a 'nothing to capture' notice (not 'Captured to') when the payload is empty", async () => {
+	it("records an unchanged run with nothing to undo when the payload is empty", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		// Empty payload: first pass resolves to "", and the with-file pass returns
@@ -318,13 +319,11 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances).toHaveLength(1);
-		const message = noticeClass.instances[0]!.message;
-		expect(message).toMatch(/nothing to capture/i);
-		expect(message).not.toMatch(/^Captured to/);
+		expect(recordedOutcome(engine)).toEqual({ status: "success", file: captureFile, effect: "unchanged" });
+		expect(noticeClass.instances).toHaveLength(0);
 	});
 
-	it("still shows the normal success notice when the payload is non-empty", async () => {
+	it("records the write a non-empty capture made, for Undo", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		formatContentOnlyMock.mockResolvedValue("new line");
@@ -333,10 +332,13 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances).toHaveLength(1);
-		const message = noticeClass.instances[0]!.message;
-		expect(message).toMatch(/Captured to/);
-		expect(message).not.toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: captureFile,
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line" },
+		});
+		expect(noticeClass.instances).toHaveLength(0);
 	});
 
 	it("treats a whitespace-only payload as a no-op", async () => {
@@ -349,7 +351,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toMatchObject({ status: "success", effect: "unchanged" });
 	});
 
 	// Codex re-review: an empty payload on an editor-insertion action must NOT
@@ -374,7 +376,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		await engine.run();
 
 		expect(insertOnNewLineBelowMock).not.toHaveBeenCalled();
-		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toMatchObject({ status: "success", effect: "unchanged" });
 	});
 
 	it("still inserts into the editor on a non-empty newLine capture", async () => {

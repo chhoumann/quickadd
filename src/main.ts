@@ -64,6 +64,7 @@ import { actionsFromChoices, choicesFromActions } from "./v3/storage";
 import type { StoredSettings } from "./v3/storage";
 import type { ActionNode } from "./v3/model";
 import { showMigrationReportOnce } from "./gui/MigrationReportModal";
+import { runLog } from "./runLog";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -150,6 +151,7 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.replaceState(this.settings);
+		await runLog.load(this.app.vault.adapter, `${this.manifest.dir}/run-log.json`);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
 			// Edits in the builder and settings synced from elsewhere both land here.
@@ -278,6 +280,7 @@ export default class QuickAdd extends Plugin {
 		// Flush any pending debounced settings write so a just-made change (e.g. a
 		// folder collapse) is never lost on plugin reload.
 		void this.flushPendingSave();
+		void runLog.flush();
 		this.unsubscribeSettingsStore?.call(this);
 
 		// Clear the error log to prevent memory leaks

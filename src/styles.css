@@ -2808,3 +2808,9 @@ textarea.is-valid {
 .quickAddModal [hidden] {
 	display: none !important;
 }
+
+.qa-result-notice-actions {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}

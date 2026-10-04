@@ -388,11 +388,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		await engine.run();
 
 		expect(disk.content).toBe("");
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
 	});
@@ -410,11 +410,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 
 		expect(disk.content).toBe("");
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 	});
 
 	it("appends the captured file link to a specified destination without an active editor", async () => {
@@ -425,11 +425,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		await engine.run();
 
 		expect(disk.content).toBe("");
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 		expect(appendFileLinkToDestinationFileMock).toHaveBeenCalledWith(
 			app,
 			captureFile,

@@ -208,8 +208,6 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		await (engine as any).maybeResolveInsertAfterHeading(HEADING_NOTE);
 
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## Tasks");
-		// Notice copy uses the heading TEXT (no '#').
-		expect((engine as any).resolvedInsertAfterHeading).toBe("Tasks");
 	});
 
 	it("does nothing when promptHeading is off (plain 'After line…')", async () => {
@@ -249,7 +247,6 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		);
 
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## Card Heading");
-		expect((engine as any).resolvedInsertAfterHeading).toBe("Card Heading");
 	});
 
 	it("lets the user type a heading when the content has no headings (custom value)", async () => {
@@ -263,8 +260,6 @@ describe("CaptureChoiceEngine 'Under heading…' runtime picker (#738)", () => {
 		await (engine as any).maybeResolveInsertAfterHeading("just body text\nmore");
 
 		expect(setInsertAfterTargetOverrideMock).toHaveBeenCalledWith("## New Heading");
-		// Custom value isn't a known heading line → notice falls back to the raw value.
-		expect((engine as any).resolvedInsertAfterHeading).toBe("## New Heading");
 	});
 
 	it("aborts (without opening the picker) on a non-interactive run", async () => {

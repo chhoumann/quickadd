@@ -170,6 +170,7 @@ function buildEngine(
 			getAbstractFileByPath: vi.fn((path: string) => files.get(path) ?? null),
 			getFiles: vi.fn(() => [...files.values()]),
 			cachedRead: vi.fn(async (target: TFile) => contents.get(target.path) ?? ""),
+			read: vi.fn(async (target: TFile) => contents.get(target.path) ?? ""),
 			createFolder: vi.fn(),
 			create: vi.fn(async () => created),
 			modify: vi.fn(async (target: TFile, content: string) => { contents.set(target.path, content); }),
@@ -354,6 +355,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		expect(choiceExecutor.variables.has("value")).toBe(false);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
 			status: "success", file: existing, effect: "changed",
+			write: { path: existing.path, before: "---\nstatus: active\n---\nOriginal body", after: expected },
 		});
 		expect(insertFileLinkMock).toHaveBeenCalledTimes(1);
 		expect(copyFileLinkMock).toHaveBeenCalledExactlyOnceWith(existing);

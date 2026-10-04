@@ -54,8 +54,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 	private templaterProcessed = false;
 	/** A picked heading is a verbatim file line: skip token and escape expansion when matching it. */
 	private insertAfterTargetOverride: string | null = null;
-	/** Resolved insert-after heading for the success notice; null until the token-driven block path resolves. */
-	private lastResolvedInsertAfterHeading: string | null = null;
 	/** Expand format-template escapes once, before substitution, so captured backslashes remain literal. */
 	private linebreaksProcessed = false;
 
@@ -93,11 +91,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 		*/
 	public setInsertAfterTargetOverride(target: string | null): void {
 		this.insertAfterTargetOverride = target;
-	}
-
-	/** Resolved heading for this run, including leading # characters; null when no heading was resolved. */
-	public getResolvedInsertAfterHeading(): string | null {
-		return this.lastResolvedInsertAfterHeading;
 	}
 
 	public consumeCreatedClipboardAttachmentPaths(): string[] {
@@ -428,16 +421,6 @@ export class CaptureChoiceFormatter extends CompleteFormatter {
 			(await this.formatLocationString(
 				await this.expandFormatTemplateEscapes(this.choice.insertAfter.after),
 			));
-
-		// Record the resolved heading for the success notice (ordered captures show
-		// '## 2026-06-16' instead of the raw token). Token-driven path only; the
-		// promptHeading override sets its own notice text in the engine.
-		if (override === null) {
-			const firstLine = targetString.split("\n", 1)[0];
-			this.lastResolvedInsertAfterHeading = /^#+\s+\S/.test(firstLine)
-				? firstLine.trim()
-				: null;
-		}
 
 		const targetLines = positioning.toTargetLines(targetString);
 		if (positioning.isBlankTarget(targetLines)) {

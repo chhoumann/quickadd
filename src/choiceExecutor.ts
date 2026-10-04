@@ -20,6 +20,9 @@ import { MacroAbortError } from "./errors/MacroAbortError";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
 import { isCancellationError, reportError } from "./utils/errorUtils";
+import { failureReason } from "./engine/choiceOutcomeRecorder";
+import { showResultNotice } from "./gui/resultNotice";
+import { runLog } from "./runLog";
 import { getOpenFileOriginLeaf } from "./utils/fileOpening";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
@@ -41,6 +44,21 @@ import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import { isTemplateChoice } from "./types/choices/choiceType";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
+
+type RunWrite = Extract<ChoiceOutcome, { status: "success" }> & { file: TFile };
+/** A run's result for the log; a bare success recorded nothing. */
+type RunResult = ChoiceOutcome | { status: "success"; effect?: undefined; file?: undefined };
+
+/** The outcome of a run that threw, or stopped with an abort signal. */
+function outcomeOfThrow(error: unknown): ChoiceOutcome {
+	if (error instanceof UserCancelError || isCancellationError(error)) {
+		return { status: "cancelled", cancelKind: "user" };
+	}
+	if (error instanceof MacroAbortError) {
+		return { status: "cancelled", cancelKind: "aborted", reason: error.message };
+	}
+	return { status: "error", reason: failureReason(error) };
+}
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, LoadedUserScript>();
@@ -65,6 +83,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public runNote: TFile | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
+	/** The latest result any choice of the outermost run recorded. */
+	private lastResult: ChoiceOutcome | null = null;
+	/** The latest success with a note in the outermost run: what made the run note. */
+	private lastWrite: RunWrite | null = null;
+	private runStartedAt = 0;
 	private executionDepth = 0;
 	/**
 	 * Ancestry of a run started without one: the dispatching run's chain when
@@ -89,12 +112,19 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	recordExecutionResult(result: ChoiceOutcome) {
 		this.pendingResult = result;
-		if (result.status === "success" && result.file) this.runNote = result.file;
+		this.lastResult = result;
+		if (result.status === "success" && result.file) {
+			this.runNote = result.file;
+			this.lastWrite = { ...result, file: result.file };
+		}
 	}
 
 	private beginExecutionContext(): void {
 		if (this.executionDepth === 0) {
 			this.runNote = null;
+			this.lastResult = null;
+			this.lastWrite = null;
+			this.runStartedAt = Date.now();
 			this.focusedProperty =
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
@@ -133,6 +163,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.clocks = undefined;
 			this.pickDate = false;
 			this.runNote = null;
+			this.lastResult = null;
+			this.lastWrite = null;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
@@ -155,6 +187,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
 		// choice's recorded result never leaks into the outer choice's reported outcome.
 		const savedResult = this.pendingResult;
+		this.pendingResult = null;
+		const outermost = this.executionDepth === 0;
+		let thrown: { error: unknown } | null = null;
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
@@ -199,11 +234,53 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
+			thrown = { error };
 			throw error;
 		} finally {
+			if (outermost) this.finishRun(choice, thrown ? outcomeOfThrow(thrown.error) : this.settledOutcome(choice));
 			this.pendingResult = savedResult;
 			this.endExecutionContext();
 		}
+	}
+
+	/**
+	 * What an outermost execute() did. A Template or Capture records its own result; a
+	 * Macro or folder succeeds unless the last choice it ran failed. Null is a success
+	 * that recorded nothing, such as a macro of scripts.
+	 */
+	private settledOutcome(choice: IChoice): ChoiceOutcome | null {
+		if (this.pendingAbort) return outcomeOfThrow(this.pendingAbort);
+		if (choice.type === "Template" || choice.type === "Capture") {
+			// Nothing recorded and no abort: the engine swallowed a failure.
+			return this.pendingResult ?? { status: "error" };
+		}
+		return this.lastResult?.status === "error" ? this.lastResult : null;
+	}
+
+	/**
+	 * Logs an outermost execute() and, when it wrote a note, says what it did and where.
+	 * The outcome-returning entry point (URI callbacks, the CLI) reports to its caller
+	 * instead, so it only logs.
+	 */
+	private finishRun(choice: IChoice, outcome: ChoiceOutcome | null): void {
+		const write = !outcome || outcome.status === "success" ? this.lastWrite : null;
+		this.logRun(choice, write ?? outcome ?? { status: "success" });
+		if (write && settingsStore.getState().showCaptureNotification) {
+			showResultNotice(this.app, choice.name, write);
+		}
+	}
+
+	private logRun(choice: IChoice, result: RunResult): void {
+		runLog.append({
+			at: new Date().toISOString(),
+			choiceId: choice.id,
+			choiceName: choice.name,
+			status: result.status,
+			...(result.status === "success"
+				? { effect: result.effect, path: result.file?.path }
+				: { reason: result.reason }),
+			durationMs: Date.now() - this.runStartedAt,
+		});
 	}
 
 	async executeWithFocusedProperty(
@@ -239,6 +316,15 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	 * which is reported as `error` — never silently as success.
 	 */
 	async executeWithOutcome(
+		choice: ITemplateChoice | ICaptureChoice,
+	): Promise<ChoiceOutcome> {
+		const outermost = this.executionDepth === 0;
+		const outcome = await this.runWithOutcome(choice);
+		if (outermost) this.logRun(choice, outcome);
+		return outcome;
+	}
+
+	private async runWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
 		const chain = enterChoice(choice, this.dispatchAncestry);

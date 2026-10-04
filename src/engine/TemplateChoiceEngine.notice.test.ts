@@ -163,6 +163,7 @@ const createEngine = (
 		},
 		vault: {
 			getRoot: vi.fn(() => ({ path: "" })),
+			read: vi.fn(async () => ""),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
@@ -518,11 +519,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 
 		await engine.run();
 
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: createdFile,
 			effect: "created",
-		});
+		}));
 	});
 
 	/**
@@ -630,11 +631,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		store.commitExecutionScope(draftScope);
 
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(createdFile);
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: createdFile,
 			effect: "created",
-		});
+		}));
 		expect(store.get(draftKey)).toBeUndefined();
 	});
 
@@ -676,11 +677,11 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 				destination: { type: "activeFile" },
 			}),
 		);
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: createdFile,
 			effect: "created",
-		});
+		}));
 	});
 });
 
