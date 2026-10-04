@@ -12,6 +12,7 @@
 #   node .agents/capture/ai-demo-stub.mjs &
 #   pnpm exec obsidian-e2e provision --root /tmp/qa-capture --vault Notes \
 #     --data .agents/capture/ai-demo-data.json
+#   rm /tmp/qa-capture/Notes/.obsidian/core-plugins.json   # the defaults, command palette included
 #   # add AI prompts/Summarize.md and the note, launch and prepare as in
 #   # README.md, store any value as the "local-demo-api-key" secret, then:
 #   obsidian-e2e capture record ai.webm --cursor -- .agents/capture/record-ai-summarize-macro.sh

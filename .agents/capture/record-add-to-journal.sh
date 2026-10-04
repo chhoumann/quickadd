@@ -6,6 +6,7 @@
 #
 #   pnpm exec obsidian-e2e provision --root /tmp/qa-capture --vault Notes \
 #     --data .agents/capture/journal-data.json
+#   rm /tmp/qa-capture/Notes/.obsidian/core-plugins.json   # the defaults, command palette included
 #   mkdir -p /tmp/qa-capture/Notes/{Areas,Journal,Meetings,People,Projects,Templates}
 #   printf -- '- 08:10 Morning run along the harbour, 5 km\n- 08:45 Coffee and weekly planning\n' \
 #     > "/tmp/qa-capture/Notes/Journal/$(date +%F).md"

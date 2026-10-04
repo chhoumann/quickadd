@@ -15,7 +15,9 @@ a test suite or required workflow: copy a script, change it, run it.
 # A throwaway capture vault with the plugin build linked and the demo fixture.
 pnpm exec obsidian-e2e provision --root /tmp/qa-capture --vault Notes \
   --data .agents/capture/demo-data.json
-rm /tmp/qa-capture/Notes/.obsidian/core-plugins.json   # [] disables the command palette
+# provision writes core-plugins.json as [], which turns the command palette off;
+# removing the file brings Obsidian's defaults back, palette included.
+rm /tmp/qa-capture/Notes/.obsidian/core-plugins.json
 printf '# Inbox\n\n- Buy oat milk\n' > /tmp/qa-capture/Notes/Inbox.md
 
 # A dedicated instance (never the E2E test instance) on CDP port 9333, DPR 2.
