@@ -319,6 +319,29 @@ describe("TemplateChoiceEngine note discovery", () => {
 		expect(dateOrder).toBeLessThan(formatFileContentMock.mock.invocationCallOrder[0]);
 	});
 
+	it("records as the note's before-text what it held when the write happened, not when the run started", async () => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: existing });
+		const { engine, choiceExecutor, files, contents } = buildEngine(choice({
+			existingNoteAction: "appendBottom",
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+		}));
+		files.set(existing.path, existing);
+		contents.set(existing.path, "Original body");
+		// An edit lands while the template's prompts are open.
+		formatFileContentMock.mockImplementation(async () => {
+			contents.set(existing.path, "Edited meanwhile");
+			return "Update";
+		});
+
+		await engine.run();
+
+		expect(contents.get(existing.path)).toBe("Edited meanwhile\n\nUpdate");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+			write: { path: existing.path, before: "Edited meanwhile", after: "Edited meanwhile\n\nUpdate" },
+		}));
+	});
+
 	it.each([
 		["appendBottom", "---\nstatus: active\n---\nOriginal body\n\nUpdate"],
 		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],

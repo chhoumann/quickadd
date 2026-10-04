@@ -333,6 +333,7 @@ export class TemplateInsertEngine extends TemplateEngine {
 		const cursor = this.cursorPlacement;
 		if (body.trim().length > 0 || cursor) {
 			await processNote(this.app, this.targetFile, (noteContent) => {
+				this.writtenBefore = noteContent;
 				const inserted = insertBodyIntoNoteContent(noteContent, body, position);
 				if (cursor && inserted.insertedStartOffset !== null) {
 					const blockStart = inserted.insertedStartOffset;

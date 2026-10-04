@@ -158,13 +158,12 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// inferred: it always writes, so `changed` can in principle over-report a
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
-			// The target's content before this run wrote to it, for Undo; null for a new note.
-			let before: string | null = null;
+			// The content before this run's write is read at the write (writtenBefore).
+			this.writtenBefore = null;
 			if (selectedUpdate) {
 				if (!isMarkdownTemplatePath(templatePath)) {
 					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
 				}
-				before = await this.app.vault.read(selectedUpdate.file);
 				createdFile = await this.applyExistingFileUpdate(
 					selectedUpdate.mode, selectedUpdate.file, templatePath, linkOptions,
 				);
@@ -197,9 +196,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 						`'${targetFilePath}' already exists but could not be resolved as a markdown, canvas, or base file.`,
 					);
 					return;
-				}
-				if (mode.resolutionKind === "modifyExisting" && existingFile) {
-					before = await this.app.vault.read(existingFile);
 				}
 
 				({ createdFile, shouldAutoOpen } = await this.applyFileExistsMode(
@@ -245,7 +241,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
 			this.outcome.success(createdFile, effect, effect === "unchanged" ? undefined : {
-				path: createdFile.path, before, after: await this.app.vault.read(createdFile),
+				path: createdFile.path, before: this.writtenBefore, after: await this.app.vault.read(createdFile),
 			});
 			const cursorBeforeLink = this.cursorPlacement;
 
@@ -582,6 +578,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const file = await this.withAnonymousValueForInsertEngine(() =>
 			insertEngine.apply()
 		);
+		this.writtenBefore = insertEngine.writeBefore;
 		this.cursorPlacement = insertEngine.getCursorPlacement();
 		return file;
 	}

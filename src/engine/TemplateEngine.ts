@@ -390,6 +390,18 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 
 
+	/**
+	 * What the note held right before this engine last wrote to it, read at
+	 * the moment of the write so an edit made while a prompt was open is not
+	 * undone with the run; null for a note the run created.
+	 */
+	protected writtenBefore: string | null = null;
+
+	/** The note's text right before this engine's last write; null for a created note. */
+	get writeBefore(): string | null {
+		return this.writtenBefore;
+	}
+
 	protected async overwriteFileWithTemplate(
 		file: TFile,
 		resolvedTemplatePath: string
@@ -404,7 +416,10 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 				await this.prepareTemplateBody(templateContent, file.path,
 					file.basename, "overwriteFileWithTemplate");
 
-			await processNote(this.app, file, () => formattedTemplateContent);
+			await processNote(this.app, file, (content) => {
+				this.writtenBefore = content;
+				return formattedTemplateContent;
+			});
 
 			let rendered = false;
 			try {
@@ -459,6 +474,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			}
 			formattedTemplateContent = restoreUserText(formattedTemplateContent);
 			const fileContent: string = await this.app.vault.cachedRead(file);
+			this.writtenBefore = fileContent;
 			const newFileContent: string =
 				section === "top"
 					? `${formattedTemplateContent}\n${fileContent}`
