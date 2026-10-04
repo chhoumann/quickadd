@@ -35,6 +35,7 @@ vi.mock("src/gui/promptPeek/stylePeekButton", () => ({
 
 vi.mock("src/gui/date-picker/datePicker", () => ({
 	createDatePicker: () => ({ setSelectedIso: vi.fn() }),
+	attachCalendarToggle: () => () => undefined,
 }));
 
 vi.mock("src/gui/suggesters/FieldValueInputSuggest", () => ({

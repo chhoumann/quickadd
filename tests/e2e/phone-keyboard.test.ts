@@ -2,7 +2,7 @@ import { afterEach, expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { jsLiteral, POLL_OPTS, waitForElement } from "./uiHelpers";
+import { jsLiteral, POLL_OPTS, showCalendar, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("phone-keyboard");
 
@@ -53,7 +53,7 @@ it("keeps the date prompt's field and Ok above the keyboard", async () => {
 		app.plugins.plugins.quickadd.api.format("{{VDATE:due,YYYY-MM-DD}}").catch(() => {});
 		return true;
 	})()`);
-	await waitForElement(obsidian, ".qaDatePrompt .qa-date-picker");
+	await showCalendar(obsidian, ".qaDatePrompt");
 	expect(await obsidian.dev.evalJson<boolean>(aboveKeyboard(".qa-vdate-input"))).toBe(true);
 	expect(await obsidian.dev.evalJson<boolean>(aboveKeyboard(".qa-prompt-actions-primary button.mod-cta"))).toBe(true);
 });

@@ -1,6 +1,6 @@
 import { DropdownComponent, Setting, TextAreaComponent, TextComponent, type App } from "obsidian";
 import { FIELD_VARIABLE_PREFIX } from "src/constants";
-import { createDatePicker } from "src/gui/date-picker/datePicker";
+import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/datePicker";
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { FilePickerInputSuggest, type FilePickerOption } from "src/gui/suggesters/FilePickerInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
@@ -202,7 +202,8 @@ export class OnePageFieldRenderer {
 				const container = setting.controlEl.createDiv({
 					cls: "qa-date-input",
 				});
-				const input = new TextComponent(container);
+				const field = container.createDiv({ cls: "qa-date-field" });
+				const input = new TextComponent(field);
 				const placeholder =
 					"Enter a date (e.g., 'today', 'next friday', '2025-12-25')";
 
@@ -237,6 +238,7 @@ export class OnePageFieldRenderer {
 				});
 
 				control.dispose.push(() => datePicker.destroy());
+				control.dispose.push(attachCalendarToggle(field, pickerContainer));
 
 				const aliasEntries = getOrderedDateAliases(
 					settingsStore.getState().dateAliases,

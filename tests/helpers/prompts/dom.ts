@@ -8,3 +8,6 @@ HTMLElement.prototype.setAttr ??= function (name, value) {
 	if (value === null || value === false) this.removeAttribute(name);
 	else this.setAttribute(name, String(value));
 };
+HTMLElement.prototype.toggle ??= function (show) {
+	this.hidden = !show;
+};
