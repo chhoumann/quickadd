@@ -417,6 +417,12 @@ more command that asks which day before it runs, so you can have one hotkey
 for today's note and another for any other day, from the same choice. Your
 main hotkey keeps using Which day.
 
+## Put it in the ribbon: Show in ribbon {#show-in-ribbon}
+
+**Show in ribbon** adds an icon to Obsidian's ribbon that runs the template
+choice. The icon and its tooltip are the choice's icon and name. The setting
+saves as soon as you flip it. A choice nested inside a macro doesn't have it.
+
 ## When the note already exists {#file-already-exists-behavior}
 
 **If the target file already exists** decides what QuickAdd does when a note with
@@ -485,3 +491,25 @@ nothing** from the prompt:
 
 - **Do nothing** - leaves the existing file unchanged and opens it
   automatically. This does not require the separate **Open** setting.
+
+## Do more afterwards: Add a step {#steps}
+
+The last group in the builder, **Steps**, lists what the template choice does,
+one line per step, for example *Creates {title}*, *Links it here*, and *Opens
+it*. The list follows the settings as you change them.
+
+**Add a step** adds something to do after the template choice:
+
+- **Run a script** - a script step with no file yet. Click **Choose file** on
+  it to pick the script.
+- **Open a note** - an **Open File** step. Set the note in its settings.
+- **Wait** - a pause of 100 ms.
+
+Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
+QuickAdd saves the template choice, makes it the macro's first step as a
+**Nested Choice**, adds the new step after it, and opens the Macro builder. The
+choice keeps its name, its command, and its hotkey. To change the template
+choice's settings later, use the gear on its step in the macro.
+
+A template choice that is already a step inside a macro lists its steps but has
+no **Add a step** button.

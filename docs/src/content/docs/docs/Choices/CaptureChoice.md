@@ -592,6 +592,12 @@ day)"** registers a second command that asks which day first. One hotkey
 captures to today, the other to whichever day you pick, from the same
 choice.
 
+### Put it in the ribbon: Show in ribbon {#show-in-ribbon}
+
+**Show in ribbon** adds an icon to Obsidian's ribbon that runs the capture. The
+icon and its tooltip are the choice's icon and name. The setting saves as soon
+as you flip it. A choice nested inside a macro doesn't have it.
+
 ### Run Templater on the whole file afterwards {#run-templater-on-entire-destination-file-after-capture}
 
 :::caution[Deprecated]
@@ -620,6 +626,28 @@ content instead.
 Property captures prepare the property value before creating the file. After a
 new-file Templater pass, QuickAdd applies the property update to the resulting
 frontmatter so the template does not discard the capture.
+
+## Do more afterwards: Add a step {#steps}
+
+The last group in the builder, **Steps**, lists what the capture does, one line
+per step, for example *Adds a line at the bottom of Inbox* and *Opens it*. The
+list follows the settings as you change them.
+
+**Add a step** adds something to do after the capture:
+
+- **Run a script** - a script step with no file yet. Click **Choose file** on
+  it to pick the script.
+- **Open a note** - an **Open File** step. Set the note in its settings.
+- **Wait** - a pause of 100 ms.
+
+Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
+QuickAdd saves the capture, makes it the macro's first step as a **Nested
+Choice**, adds the new step after it, and opens the Macro builder. The choice
+keeps its name, its command, and its hotkey. To change the capture's settings
+later, use the gear on its step in the macro.
+
+A capture that is already a step inside a macro lists its steps but has no
+**Add a step** button.
 
 ## Insert after {#insert-after}
 

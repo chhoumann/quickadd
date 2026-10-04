@@ -37,6 +37,10 @@ gives you something to trigger.
 - **Commands** - the individual steps (Obsidian commands, scripts, AI prompts, and more).
 - **Variables** - data that one command sets and a later command reads, all within a single run.
 
+A Capture or Template choice can grow into a macro: **Add a step** at the
+bottom of its settings turns it into a macro that runs it first. See [Do more
+afterwards](/docs/Choices/CaptureChoice/#steps) on the Capture page.
+
 ## Set up your first macro {#creating-a-macro}
 
 We'll build a tiny macro with no code: it opens today's daily note and drops
@@ -326,6 +330,11 @@ choice list. Once it is on, and Which day isn't **Ask each time**, **Also add
 the macro runs. See
 [Command palette](/docs/Choices/TemplateChoice/#command-palette) on the
 Template page.
+
+### Show in ribbon {#show-in-ribbon}
+
+**Show in ribbon** adds an icon to Obsidian's ribbon that runs the macro, with
+the choice's icon and name. It saves as soon as you flip it.
 
 ## Practical examples {#practical-examples}
 
