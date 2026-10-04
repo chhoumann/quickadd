@@ -108,13 +108,6 @@ export function collectReferencedAssetPaths(pkg: QuickAddPackage): string[] {
 const MAX_INCLUDE_ROUNDS = 10;
 
 /**
- * Usage sites indexed by referenced path: the command-graph references from
- * the walk, plus every `{{TEMPLATE:...}}` include found inside a bundled note
- * that some choice uses as a template (transitively). Includes are attributed
- * to the choice(s) whose template pulls them in, so the preview can name where
- * a missing or bundled include comes from.
- */
-/**
  * The key a bundled asset is matched under: the path import will write it to,
  * whatever kind the package claims (kinds are untrusted). Import normalizes
  * separators but never adds an extension, so an asset is keyed by its
@@ -137,6 +130,13 @@ function writableAssets(pkg: QuickAddPackage): QuickAddPackage["assets"] {
 	return pkg.assets.filter((asset) => isWritableAssetDestination(asset.originalPath));
 }
 
+/**
+ * Usage sites indexed by referenced path: the command-graph references from
+ * the walk, plus every `{{TEMPLATE:...}}` include found inside a bundled note
+ * that some choice uses as a template (transitively). Includes are attributed
+ * to the choice(s) whose template pulls them in, so the preview can name where
+ * a missing or bundled include comes from.
+ */
 function collectPackageUsages(
 	pkg: QuickAddPackage,
 	choiceWalks: ReturnType<typeof walkPackage>["choiceWalks"],

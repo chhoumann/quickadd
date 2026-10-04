@@ -577,6 +577,38 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect((result.updatedChoices[0] as ITemplateChoice).templatePath).toBe("My Templates/Parent.md");
 	});
 
+	it("normalizes script step paths on import, bundled or not, so the loader can resolve them", async () => {
+		const { app } = fakeApp();
+		const check = {
+			id: "cond",
+			name: "Check",
+			type: CommandType.Conditional,
+			condition: { mode: "script", scriptPath: "Scripts\\check.js" },
+			thenCommands: [],
+			elseCommands: [],
+		};
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [userScript("s1", "Scripts\\run.js"), check])],
+			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg,
+			choiceDecisions: [{ choiceId: "m1", mode: "import" }],
+			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
+		});
+
+		const [script, cond] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
+			IUserScript,
+			{ condition: { scriptPath: string } },
+		];
+		expect(script.path).toBe("Scripts/run.js");
+		expect(script.name).toBe("Scripts/run.js");
+		expect(cond.condition.scriptPath).toBe("Scripts/check.js");
+	});
+
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {
 		const { app, files } = fakeApp({ "Templates/Dashboard.base": "existing" });
 

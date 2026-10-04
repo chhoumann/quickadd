@@ -1,4 +1,5 @@
 import { uuidv4 } from "../utils/uuid";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
@@ -426,6 +427,23 @@ export function applyAssetPathOverrides(
 	}
 }
 
+/**
+ * Where an imported script step should point, or undefined to leave it: its
+ * bundled asset's destination, found by the step's own spelling or by the
+ * normalized path, else the normalized path itself. The script loader resolves
+ * vault paths with forward slashes only, and the preview matches references
+ * the same way, so a step spelled `Scripts\\run.js` must not survive import.
+ */
+function scriptPathReplacement(
+	path: string,
+	pathOverrides: Map<string, string>,
+): string | undefined {
+	const normalized = normalizeVaultPath(path);
+	const replacement =
+		pathOverrides.get(path) ?? pathOverrides.get(normalized) ?? normalized;
+	return replacement === path ? undefined : replacement;
+}
+
 function applyOverridesToCommands(
 	commands: unknown,
 	pathOverrides: Map<string, string>,
@@ -436,7 +454,7 @@ function applyOverridesToCommands(
 		switch (command.type) {
 			case CommandType.UserScript: {
 				const userScript = command as IUserScript;
-				const replacement = pathOverrides.get(userScript.path);
+				const replacement = scriptPathReplacement(userScript.path, pathOverrides);
 				if (replacement) {
 					// Note-backed scripts use the vault path as their command name
 					// (and member selector, `path::member`); keep it in sync when the
@@ -458,8 +476,9 @@ function applyOverridesToCommands(
 					conditional.condition.mode === "script" &&
 					conditional.condition.scriptPath
 				) {
-					const replacement = pathOverrides.get(
+					const replacement = scriptPathReplacement(
 						conditional.condition.scriptPath,
+						pathOverrides,
 					);
 					if (replacement) {
 						conditional.condition = {
