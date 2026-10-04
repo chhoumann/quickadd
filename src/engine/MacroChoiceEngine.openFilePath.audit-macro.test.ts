@@ -1,4 +1,5 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
+import { log } from "../logger/logManager";
 import { describe, expect, it, vi, beforeEach, afterEach, afterAll } from "vitest";
 
 const { formatFileNameMock, openFileMock, setPromptRunContextMock } =
@@ -156,6 +157,18 @@ describe("MacroChoiceEngine executeOpenFile path validation", () => {
 
 		expect(openFileMock).toHaveBeenCalledTimes(1);
 		expect(openFileMock.mock.calls[0][1]).toBe(file);
+	});
+
+	it("refuses to open {{NOTE}} when nothing in the run has written a note yet", async () => {
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+		const { engine } = createEngine("{{NOTE}}", {});
+
+		await engine.run();
+
+		expect(String(logError.mock.calls[0]?.[0])).toContain("nothing in this run has created or written a note yet");
+		expect(formatFileNameMock).not.toHaveBeenCalled();
+		expect(openFileMock).not.toHaveBeenCalled();
+		logError.mockRestore();
 	});
 
 	it("still rejects an actual '..' traversal segment", async () => {

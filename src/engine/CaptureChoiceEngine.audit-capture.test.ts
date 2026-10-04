@@ -361,6 +361,20 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 		});
 	});
 
+	it("refuses a capture to {{NOTE}} when nothing in the run has written a note yet", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		const choice = createCaptureChoice();
+		choice.captureTo = "{{NOTE}}";
+		const engine = buildRunEngine(choice, app);
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toMatchObject({ status: "error", reason: expect.stringContaining("nothing in this run has created or written a note yet") });
+		expect(insertFormattedContentMock).not.toHaveBeenCalled();
+	});
+
 	it("treats a whitespace-only payload as a no-op", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");

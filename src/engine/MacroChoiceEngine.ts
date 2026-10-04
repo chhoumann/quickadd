@@ -20,6 +20,7 @@ import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
 import { getQuickAddInstance } from "../quickAddInstance";
+import { isRunNoteToken } from "./CaptureTargetEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
@@ -644,6 +645,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeOpenFile(command: IOpenFileCommand) {
+		if (isRunNoteToken(command.filePath) && !this.choiceExecutor.runNote) {
+			log.logError("Open file: nothing in this run has created or written a note yet, so {{NOTE}} has no note to open.");
+			return;
+		}
 		try {
 			const formatter = new CompleteFormatter(
 				this.app,

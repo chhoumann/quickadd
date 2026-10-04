@@ -45,6 +45,12 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 
 			return activeFile.path;
 		}
+		// The run note is the note an earlier step ended on; with none, {{NOTE}}
+		// would be an empty target, which opens the vault-wide picker and asks
+		// the user to decide what the run should have decided.
+		if (isRunNoteToken(this.choice.captureTo) && !this.choiceExecutor?.runNote) {
+			throw new Error("Capture to {{NOTE}}: nothing in this run has created or written a note yet.");
+		}
 
 		// A preselected capture target (the trusted one-page preflight pick, or a
 		// non-interactive CLI `value-__qa.captureTargetFilePath`) is honoured ONLY
@@ -486,4 +492,9 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		}
 	}
 
+}
+
+/** A configured path that is the run note token, in any case and spacing. */
+export function isRunNoteToken(path: unknown): boolean {
+	return typeof path === "string" && path.trim().toUpperCase() === "{{NOTE}}";
 }
