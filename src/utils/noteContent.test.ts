@@ -282,7 +282,7 @@ describe("writeNote", () => {
 	it("writes the new text when the note still matches the base", async () => {
 		const { app, file, state } = setup({ disk: "a\nb\n" });
 
-		await expect(writeNote(app, file, "a\nb\n", "a\nb\nc\n")).resolves.toEqual({ content: "a\nb\nc\n", merged: false });
+		await expect(writeNote(app, file, "a\nb\n", "a\nb\nc\n")).resolves.toEqual({ content: "a\nb\nc\n", merged: false, before: "a\nb\n" });
 		expect(state.disk).toBe("a\nb\nc\n");
 	});
 
@@ -290,7 +290,7 @@ describe("writeNote", () => {
 		const { app, file, state } = setup({ disk: "a edited\nb\n" });
 
 		await expect(writeNote(app, file, "a\nb\n", "a\nb\nc\n"))
-			.resolves.toEqual({ content: "a edited\nb\nc\n", merged: true });
+			.resolves.toEqual({ content: "a edited\nb\nc\n", merged: true, before: "a edited\nb\n" });
 		expect(state.disk).toBe("a edited\nb\nc\n");
 	});
 
@@ -298,7 +298,7 @@ describe("writeNote", () => {
 		const { app, file, editor } = setup({ disk: "a\nb\n", editor: "a typed\nb\n", unsaved: true });
 
 		await expect(writeNote(app, file, "a\nb\n", "a\nb\nc\n"))
-			.resolves.toEqual({ content: "a typed\nb\nc\n", merged: true });
+			.resolves.toEqual({ content: "a typed\nb\nc\n", merged: true, before: "a typed\nb\n" });
 		expect(editor?.value).toBe("a typed\nb\nc\n");
 	});
 
