@@ -49,6 +49,12 @@ describe("normalizeTemplateFolderPaths", () => {
 		expect(normalizeTemplateFolderPaths(["b", "a", "b"])).toEqual(["b", "a"]);
 	});
 
+	it("converts backslashes and collapses repeated slashes", () => {
+		expect(
+			normalizeTemplateFolderPaths(["Meta\\Templates\\", "Meta//Templates"]),
+		).toEqual(["Meta/Templates"]);
+	});
+
 	it("ignores non-string entries", () => {
 		expect(
 			normalizeTemplateFolderPaths(["templates", 5, null, { x: 1 }]),
@@ -94,6 +100,16 @@ describe("getTemplateFile", () => {
 		const app = appWith([file("Templates/Daily.md")]);
 		expect(getTemplateFile(app, "/Templates/Daily")?.path).toBe(
 			"Templates/Daily.md",
+		);
+	});
+
+	it("resolves a path written with backslashes", () => {
+		const app = appWith([file("Meta/Templates/Daily.md")]);
+		expect(getTemplateFile(app, "Meta\\Templates\\Daily")?.path).toBe(
+			"Meta/Templates/Daily.md",
+		);
+		expect(getTemplateFile(app, "\\Meta\\Templates\\Daily.md")?.path).toBe(
+			"Meta/Templates/Daily.md",
 		);
 	});
 

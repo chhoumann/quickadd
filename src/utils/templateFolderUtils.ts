@@ -5,6 +5,7 @@ import {
 	CANVAS_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
 } from "../constants";
+import { normalizeVaultPath } from "./pathUtils";
 
 /**
  * Whether a path already carries a template extension the engine can read
@@ -22,26 +23,26 @@ export function hasTemplateExtension(path: string): boolean {
 
 /**
  * Resolve a template path to its vault file exactly the way the template engine
- * does at run time: strip a leading slash, append `.md` when no template
- * extension is present, then look the file up. Returns null when nothing
- * resolves.
+ * does at run time: normalize it as a vault path (backslashes and stray
+ * slashes), append `.md` when no template extension is present, then look the
+ * file up. Returns null when nothing resolves.
  *
  * Single source of truth shared by engine execution, choice-builder validation,
  * and preflight scanning so the three never drift (they previously each had
  * their own near-copy, and the preflight copy skipped the leading-slash strip).
  */
 export function getTemplateFile(app: App, templatePath: string): TFile | null {
-	const stripped = templatePath.trim().replace(/^\/+/, "");
-	if (!stripped) return null;
-	const resolved = hasTemplateExtension(stripped) ? stripped : `${stripped}.md`;
+	const normalized = normalizeVaultPath(templatePath);
+	if (!normalized) return null;
+	const resolved = hasTemplateExtension(normalized) ? normalized : `${normalized}.md`;
 	const file = app.vault.getAbstractFileByPath(resolved);
 	return file instanceof TFile ? file : null;
 }
 
 /**
  * Canonical, order-preserving normalization for the configured template folder
- * list: trims each entry, strips leading/trailing slashes, drops blanks and
- * non-strings, and de-duplicates. Non-array input yields an empty list. Used by
+ * list: normalizes each entry as a vault path, drops blanks and non-strings,
+ * and de-duplicates. Non-array input yields an empty list. Used by
  * both the suggestion query and the package-import default so they never desync.
  */
 export function normalizeTemplateFolderPaths(paths: unknown): string[] {
@@ -50,7 +51,7 @@ export function normalizeTemplateFolderPaths(paths: unknown): string[] {
 	const normalized: string[] = [];
 	for (const path of paths) {
 		if (typeof path !== "string") continue;
-		const folder = path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+		const folder = normalizeVaultPath(path);
 		if (!folder || seen.has(folder)) continue;
 		seen.add(folder);
 		normalized.push(folder);

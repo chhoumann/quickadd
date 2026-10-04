@@ -17,6 +17,8 @@
  * reader has not vetted yet.
  */
 
+import { normalizeVaultPath } from "./pathUtils";
+
 const TOKEN_PREFIX = "{{TEMPLATE:";
 const TOKEN_PREFIX_REGEX = /{{TEMPLATE:/gi;
 const INCLUDE_EXTENSION_REGEX = /\.(?:md|canvas|base)$/i;
@@ -28,15 +30,6 @@ interface IncludeToken {
 	end: number;
 	/** The path as the formatter resolves it: trimmed, no leading slash. */
 	path: string;
-}
-
-/**
- * Normalize a captured path exactly the way getTemplateFile does before the
- * vault lookup, so `{{TEMPLATE: /Templates/X.md}}` and `Templates/X.md` name
- * the same bundled asset.
- */
-function normalizeIncludePath(raw: string): string {
-	return raw.trim().replace(/^\/+/, "");
 }
 
 function scanTemplateIncludes(content: string): IncludeToken[] {
@@ -62,7 +55,9 @@ function scanTemplateIncludes(content: string): IncludeToken[] {
 			tokens.push({
 				start,
 				end: terminator + 2,
-				path: normalizeIncludePath(rawPath),
+				// Normalized the way getTemplateFile does before the vault lookup, so
+				// `{{TEMPLATE: /Templates/X.md}}` and `Templates/X.md` name one asset.
+				path: normalizeVaultPath(rawPath),
 			});
 			searchFrom = terminator + 2;
 		} else {

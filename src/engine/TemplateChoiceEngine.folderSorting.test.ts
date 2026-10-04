@@ -42,6 +42,7 @@ vi.mock("../main", () => ({
 }));
 
 import { TFile, TFolder, type App } from "obsidian";
+import { Notice } from "../../tests/obsidian-stub";
 import { TemplateChoiceEngine } from "./TemplateChoiceEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -280,6 +281,33 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 			"LiteratureNotes/1_Articles",
 			"LiteratureNotes/2_Books",
 		]);
+	});
+
+	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested"])(
+		"creates in the configured folder written as %s, not the vault root",
+		async (configured) => {
+			const noticesBefore = Notice.instances.length;
+			const engine = createEngine(
+				createChoice({ folders: [configured] }),
+				["out/nested"],
+			);
+
+			await engine.run();
+
+			expect(inputSuggestMock).not.toHaveBeenCalled();
+			expect(setTargetFolderPath).toHaveBeenCalledWith("out/nested");
+			expect(Notice.instances.slice(noticesBefore)).toEqual([]);
+		},
+	);
+
+	it("creates in the vault root when the configured folder is empty", async () => {
+		const noticesBefore = Notice.instances.length;
+		const engine = createEngine(createChoice({ folders: [""] }), []);
+
+		await engine.run();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("");
+		expect(Notice.instances.slice(noticesBefore)).toEqual([]);
 	});
 
 	it("uses the active file's folder when specified mode has no configured folders", async () => {

@@ -6,6 +6,7 @@ import {
 	INVALID_FOLDER_CHARS_REGEX, INVALID_FOLDER_CONTROL_CHARS_REGEX,
 	INVALID_FOLDER_TRAILING_CHARS_REGEX, isReservedWindowsDeviceName
 } from "../utils/pathValidation";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { routePrompt, type PromptRoutingContext } from "../interactive/routePrompt";
@@ -62,7 +63,6 @@ type FolderSelectionContext = FolderSuggestions & {
 type FolderSelection = {
 	raw: string;
 	normalized: string;
-	resolved: string;
 	exists: boolean;
 	isAllowed: boolean;
 	isEmpty: boolean;
@@ -96,7 +96,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 		const context = this.buildFolderSelectionContext(folders, options);
 		const selection = await this.promptUntilAllowed(context, options.executor);
-		return selection.isEmpty ? "" : selection.resolved;
+		return selection.normalized;
 	}
 
 	private buildFolderSelectionContext(
@@ -105,7 +105,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	): FolderSelectionContext {
 		const allowCreate = options.allowCreate ?? false;
 		const allowedRoots =
-			options.allowedRoots?.map((root) => this.normalizeFolderPath(root)) ?? [];
+			options.allowedRoots?.map((root) => normalizeVaultPath(root)) ?? [];
 
 		const suggestions = this.buildFolderSuggestions(
 			folders, options.topItems ?? [],
@@ -191,25 +191,22 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		raw: string,
 		context: FolderSelectionContext,
 	): Promise<FolderSelection> {
-		const normalized = this.normalizeFolderPath(raw);
+		const normalized = normalizeVaultPath(raw);
 		const isEmpty = normalized.length === 0;
-		const canonical = context.canonicalByNormalized.get(normalized);
-		const resolved = canonical ?? normalized;
 
 		const exists = isEmpty
 			? false
-			: canonical !== undefined ||
-			(await this.app.vault.adapter.exists(resolved));
+			: context.canonicalByNormalized.has(normalized) ||
+			(await this.app.vault.adapter.exists(normalized));
 
 		const isAllowed =
 			context.allowedRoots.length === 0
 				? true
-				: this.isPathAllowed(isEmpty ? "" : resolved, context.allowedRoots);
+				: this.isPathAllowed(normalized, context.allowedRoots);
 
 		return {
 			raw,
 			normalized,
-			resolved,
 			exists,
 			isAllowed,
 			isEmpty,
@@ -249,7 +246,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			if (selection.isEmpty) return selection;
 
 			try {
-				this.validateFolderPath(selection.resolved);
+				this.validateFolderPath(selection.normalized);
 			} catch (error) {
 				if (error instanceof InvalidFolderPathError) {
 					lastRejection = error.message;
@@ -267,7 +264,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 	private async ensureFolderExists(selection: FolderSelection): Promise<void> {
 		if (selection.isEmpty || selection.exists) return;
-		await this.createFolder(selection.resolved);
+		await this.createFolder(selection.normalized);
 	}
 
 	private async handleSingleSelection(
@@ -282,24 +279,18 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			throw new MacroAbortError("Selected folder not allowed.");
 		}
 
-		if (selection.resolved) {
-			try {
-				this.validateFolderPath(selection.resolved);
-			} catch (error) {
-				if (error instanceof InvalidFolderPathError) {
-					new Notice(error.message);
-					return "";
-				}
-				throw error;
+		try {
+			this.validateFolderPath(selection.normalized);
+		} catch (error) {
+			if (error instanceof InvalidFolderPathError) {
+				new Notice(error.message);
+				return "";
 			}
+			throw error;
 		}
 
 		await this.ensureFolderExists(selection);
-		return selection.resolved;
-	}
-
-	private normalizeFolderPath(path: string): string {
-		return path.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+		return selection.normalized;
 	}
 
 	private validateFolderPath(path: string): void {
@@ -353,7 +344,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
-		const normalizedPath = this.normalizeFolderPath(path);
+		const normalizedPath = normalizeVaultPath(path);
 		for (const root of roots) {
 			if (!root) return true;
 			if (normalizedPath === root) return true;
@@ -377,7 +368,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const displayByNormalized = new Map<string, string>();
 
 		const addItem = (path: string, label?: string) => {
-			const normalized = this.normalizeFolderPath(path);
+			const normalized = normalizeVaultPath(path);
 			if (canonicalByNormalized.has(normalized)) return;
 			if (
 				allowedRoots &&
@@ -411,7 +402,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	): void {
 		el.empty();
 		el.classList.add("mod-complex");
-		const normalized = this.normalizeFolderPath(item);
+		const normalized = normalizeVaultPath(item);
 		const display = displayByNormalized.get(normalized);
 		const displayPath = item || "/";
 		const isExisting = existing.has(normalized);
