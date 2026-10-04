@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { delimiter } from "node:path";
 import type IChoice from "../../src/types/choices/IChoice";
 import { legacyTypeOf, lowerNode } from "../../src/v3/lower";
 import { buildReport, migrateChoice, migrateSettingsV2 } from "../../src/v3/migrate";
@@ -151,7 +152,7 @@ describe("report", () => {
  * Real configs that must never be committed, e.g. a maintainer's own
  * data.json: QUICKADD_V3_EXTRA_CONFIGS=/path/a/data.json:/path/b/data.json.
  */
-const extraConfigs = (process.env.QUICKADD_V3_EXTRA_CONFIGS ?? "").split(":").filter(Boolean);
+const extraConfigs = (process.env.QUICKADD_V3_EXTRA_CONFIGS ?? "").split(delimiter).filter(Boolean);
 
 describe.skipIf(extraConfigs.length === 0)("extra configs", () => {
 	for (const file of extraConfigs) {

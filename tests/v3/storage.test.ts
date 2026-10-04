@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { delimiter } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
@@ -18,7 +19,7 @@ import { FIXTURE } from "./fixture";
 import { packageChoices } from "./packages";
 
 const migrated = { migrations: { migrateToV3Actions: true } };
-const extraConfigs = (process.env.QUICKADD_V3_EXTRA_CONFIGS ?? "").split(":").filter(Boolean);
+const extraConfigs = (process.env.QUICKADD_V3_EXTRA_CONFIGS ?? "").split(delimiter).filter(Boolean);
 const configs: [string, IChoice[]][] = [
 	["packages and fixture", [...FIXTURE, ...packageChoices().map(({ choice }) => choice)]],
 	...extraConfigs.map((file): [string, IChoice[]] => [file, JSON.parse(readFileSync(file, "utf8")).choices]),
