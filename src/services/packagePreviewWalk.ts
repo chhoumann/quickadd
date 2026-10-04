@@ -1,4 +1,5 @@
 import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type IChoice from "../types/choices/IChoice";
 import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
@@ -197,7 +198,7 @@ function collectChoice(
 		if (choice.templatePath) {
 			walk.usages.push({
 				choiceId: walk.choiceId,
-				path: choice.templatePath,
+				path: resolveTemplatePath(choice.templatePath),
 				asScript: false,
 				impliedKind: "template",
 				breadcrumb: joinCrumb([...crumbs, "template"]),
@@ -218,7 +219,7 @@ function collectChoice(
 		) {
 			walk.usages.push({
 				choiceId: walk.choiceId,
-				path: createCfg.template,
+				path: resolveTemplatePath(createCfg.template),
 				asScript: false,
 				impliedKind: "capture-template",
 				breadcrumb: joinCrumb([...crumbs, "new-file template"]),

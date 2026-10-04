@@ -366,8 +366,11 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	 * `out/nested` and is created under that name.
 	 */
 	protected canonicalFolderPath(path: string): string {
-		return this.app.vault.getAbstractFileByPath(path) instanceof TFolder
-			? path
+		// Probe with separators cleaned but the name untouched, so ` Work/` still
+		// finds the vault's ` Work` before the trim would turn it into `Work`.
+		const spelled = path.replace(/[\\/]+/g, "/").replace(/^\/|\/$/g, "");
+		return this.app.vault.getAbstractFileByPath(spelled) instanceof TFolder
+			? spelled
 			: normalizeVaultPath(path);
 	}
 

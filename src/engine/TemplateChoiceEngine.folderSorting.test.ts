@@ -315,13 +315,16 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		expect(getSuggestedItems()).toEqual(["out/nested", "out/nested/a"]);
 	});
 
-	it("keeps the vault's spelling of an existing folder whose name starts with a space", async () => {
-		const engine = createEngine(createChoice({ folders: [" Work"] }), [" Work"]);
+	it.each([" Work", " Work/", " Work\\"])(
+		"keeps the vault's spelling of an existing folder whose name starts with a space, configured as %j",
+		async (configured) => {
+			const engine = createEngine(createChoice({ folders: [configured] }), [" Work"]);
 
-		await engine.run();
+			await engine.run();
 
-		expect(setTargetFolderPath).toHaveBeenCalledWith(" Work");
-	});
+			expect(setTargetFolderPath).toHaveBeenCalledWith(" Work");
+		},
+	);
 
 	it("creates in the vault root when the configured folder is empty", async () => {
 		const noticesBefore = Notice.instances.length;

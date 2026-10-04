@@ -1,4 +1,5 @@
 import { expandGlobalVariables } from "src/formatters/helpers/globalVariables";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import type { App } from "obsidian";
 import {
 	DATE_VARIABLE_REGEX,
@@ -234,7 +235,7 @@ export class RequirementCollector extends Formatter {
 			let m: RegExpExecArray | null;
 			while ((m = re.exec(output)) !== null) {
 				const path = m[1];
-				if (path) this.templatesToScan.add(path);
+				if (path) this.templatesToScan.add(normalizeVaultPath(path));
 			}
 		}
 
