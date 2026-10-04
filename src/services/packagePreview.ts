@@ -14,7 +14,7 @@ import { decodeFromBase64 } from "../utils/base64";
 import { flattenChoices } from "../utils/choiceUtils";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
 import { normalizeVaultPath } from "../utils/pathUtils";
-import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { isWritableAssetDestination } from "../utils/vaultPathBoundary";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
 import { flagSeverity } from "./packagePreviewFlags";
@@ -124,12 +124,18 @@ const MAX_INCLUDE_ROUNDS = 10;
  * keeps the package's own spelling.
  */
 function assetKey(asset: QuickAddPackage["assets"][number]): string {
-	const isTemplate = asset.kind === "template" || asset.kind === "capture-template";
-	// A path import refuses (absolute or traversing) must not satisfy a valid
-	// reference, or the preview would hide a package that fails on confirm.
-	return isTemplate && !escapesVaultBoundary(asset.originalPath)
+	return asset.kind === "template" || asset.kind === "capture-template"
 		? normalizeVaultPath(asset.originalPath)
 		: asset.originalPath;
+}
+
+/**
+ * Assets import will actually write. One it refuses (absolute, traversing, or
+ * in a hidden/config directory) must not satisfy any reference, or the preview
+ * would hide a package that fails on confirm; it is listed as an orphan instead.
+ */
+function writableAssets(pkg: QuickAddPackage): QuickAddPackage["assets"] {
+	return pkg.assets.filter((asset) => isWritableAssetDestination(asset.originalPath));
 }
 
 function collectPackageUsages(
@@ -147,7 +153,7 @@ function collectPackageUsages(
 		for (const usage of walk.usages) addUsage(usage);
 	}
 
-	const assetsByPath = new Map(pkg.assets.map((asset) => [assetKey(asset), asset]));
+	const assetsByPath = new Map(writableAssets(pkg).map((asset) => [assetKey(asset), asset]));
 	const scanned = new Set<string>();
 	let frontier = Array.from(usagesByPath.keys());
 	for (let round = 0; round < MAX_INCLUDE_ROUNDS && frontier.length > 0; round++) {
@@ -232,7 +238,7 @@ export function buildPackagePreview(
 		if (usages.some((u) => u.asScript)) referencedAsScript.add(path);
 	}
 
-	const bundledPaths = new Set(pkg.assets.map(assetKey));
+	const bundledPaths = new Set(writableAssets(pkg).map(assetKey));
 
 	const runnableCodeByPath = new Map(
 		pkg.assets.map((asset) => [
@@ -244,7 +250,7 @@ export function buildPackagePreview(
 	// Files manifest (one per bundled asset).
 	const files: PreviewFile[] = pkg.assets.map((asset) => {
 		const key = assetKey(asset);
-		const usages = usagesByPath.get(key) ?? [];
+		const usages = bundledPaths.has(key) ? usagesByPath.get(key) ?? [] : [];
 		const executable = referencedAsScript.has(key);
 		const requiresReview =
 			executable || runnableCodeByPath.get(asset.originalPath) != null;

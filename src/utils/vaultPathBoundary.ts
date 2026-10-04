@@ -24,7 +24,7 @@
 // These primitives are intentionally NOT exported: each is only safe in the
 // fixed order escapesVaultBoundary applies them (e.g. hasTraversalSegment must
 // run on a backslash-normalized string). Exporting them invites a caller to use
-// one in isolation and silently reopen a bypass. Export only escapesVaultBoundary.
+// one in isolation and silently reopen a bypass. Export only the composed checks.
 
 /** Trim and convert backslashes to '/'. Does NOT resolve '.'/'..' or strip
  * slashes, so absolute/traversal markers survive for the checks below. */
@@ -68,4 +68,17 @@ export function escapesVaultBoundary(rawPath: string): boolean {
 	const slashed = toSlashedPath(rawPath);
 	if (!slashed) return false;
 	return isAbsoluteVaultPath(slashed) || hasTraversalSegment(slashed);
+}
+
+/**
+ * Would import write an asset where it asks to? Mirrors the import service's
+ * `validateAssetDestination` without throwing: in-vault, no traversal, and no
+ * hidden/config segment (a lone "..%" name stays a literal filename, as there).
+ */
+export function isWritableAssetDestination(rawPath: string): boolean {
+	const slashed = toSlashedPath(rawPath);
+	if (!slashed || escapesVaultBoundary(slashed)) return false;
+	return !slashed
+		.split("/")
+		.some((segment) => segment.startsWith(".") && !segment.startsWith("..%"));
 }
