@@ -83,6 +83,12 @@ text. A Templater tag in the format itself can still use an answer, as in
 | [`{{TITLE}}`](#title) | The new note's file name |
 | [`{{FOLDER}}`](#folder) | The folder the new note lands in |
 
+**The note this run wrote**
+
+| Placeholder | What you get |
+| --- | --- |
+| [`{{NOTE}}`](#note) | Its path, like `Notes/Idea.md` |
+
 **Other content**
 
 | Placeholder | What it inserts |
@@ -860,6 +866,20 @@ to. Handy as the note's top heading:
 ```markdown
 # {{TITLE}}
 ```
+
+## The note this run wrote
+
+### The note a step wrote: `{{NOTE}}` {#note}
+
+The note the run last created or added to, for the steps after it. In a macro
+whose first step captures to a note, an Open file step with the path
+`{{NOTE}}` opens that note, and a Capture to `{{NOTE}}` adds to it again.
+Scripts get the same note as `params.note`.
+
+`{{NOTE}}` is the note's path with its extension. `{{NOTE|link}}` is a link to
+it, `{{NOTE|name}}` its file name without the extension, and
+`{{NOTE|folder}}` its folder. Before the run writes a note, every form is
+empty.
 
 ## Pull data from your vault
 
