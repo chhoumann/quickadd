@@ -76,6 +76,27 @@ file shares that name) - or, for a note, type its vault path
 (e.g. `Scripts/my-script.md`). For a specific export, append a member expression
 such as `my-script::start` (or `Scripts/my-script.md::start`).
 
+### The script step {#script-step}
+
+In the macro, a script step shows its name and, under it, the path of the file
+it runs. When the step has no usable file, that line says why instead:
+
+- **No file chosen** - the step has no file yet. A macro made from the
+  **Run a script** [preset](/docs/Choices/Presets/) starts this way.
+- **Can't find** followed by the path - the file was moved, renamed, or
+  deleted.
+- **Not a script:** followed by the path - the file exists but is not a `.js`
+  file or a note.
+
+In each case the step offers **Choose file**, which opens the script picker.
+Once the file is found, the step has a gear instead. It opens the script's
+settings: first **Script file**, with the path and a **Change** button, then
+the script's own [options](#configurable-options), if it has any.
+
+Changing the file starts the step over. It takes the new script's name, and
+the settings you set for the old script are cleared, including any secrets it
+kept in Obsidian's secret storage. Picking the same file again changes nothing.
+
 ### Keep a script in a note, for mobile {#scripts-in-a-note-code-block}
 
 Write your script in a ` ```js ` code block inside any note; QuickAdd runs the

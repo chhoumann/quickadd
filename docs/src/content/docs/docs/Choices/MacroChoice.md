@@ -117,6 +117,14 @@ If the script exports more than one function and you don't name one, QuickAdd
 asks which export to run. You can also set an output variable name so later
 commands can reuse the result.
 
+A script step shows the file it runs under its name. A macro made from the
+**Run a script** [preset](/docs/Choices/Presets/) starts with a step that has
+no file yet: it says **No file chosen** and offers **Choose file**, which opens
+the same script picker as **Browse**. Once the step has a file, its gear opens
+the script's settings, starting with **Script file** and a **Change** button.
+See [The script step](/docs/UserScripts/#script-step) for what each state means
+and what changing the file resets.
+
 :::caution[Where to keep scripts]
 Keep the script inside your vault, but **not** inside `.obsidian` or any folder
 whose name starts with a dot. Obsidian may exclude hidden folders from its file

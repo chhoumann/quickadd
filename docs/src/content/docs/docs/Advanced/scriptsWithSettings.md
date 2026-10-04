@@ -9,8 +9,9 @@ anyone can set it up - an API key, a folder path, an on/off toggle - without
 editing the JavaScript. You write the script once and expose the parts that
 should change; everyone else fills in a form.
 
-Any script with settings gets a gear (⚙️) button next to its name in a macro.
-Click it to open that script's settings menu. For a real-world example, see the
+A script step in a macro has a gear (⚙️) button once its file is found.
+Click it to open the script's settings: **Script file** first, then the fields
+the script defines. For a real-world example, see the
 [Movies](/docs/Examples/Macro_MovieAndSeriesScript/) macro.
 
 ## Add settings to a script {#creating-a-script-with-settings}
