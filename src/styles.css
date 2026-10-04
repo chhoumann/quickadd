@@ -1657,6 +1657,9 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	flex: 1 1 auto;
 	align-items: center;
 	justify-content: space-between;
+	/* The same rhythm as a choice row, so a two-line step does not crowd its neighbours. */
+	min-height: 32px;
+	padding: 3px 0;
 }
 
 /* Action buttons + drag handle group on a macro command row (#1250). */
