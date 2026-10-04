@@ -46,10 +46,7 @@ import {
 	aiPageSignature,
 	createAIAssistantPage,
 } from "./gui/ai/aiAssistantSettingsPage";
-import {
-	openQuickAddSettings,
-	tryOpenSettingsPage,
-} from "./utils/openPluginSettings";
+import { openQuickAddSettings, tryOpenSettingsPage, closeSettings, tryOpenPluginSettings } from "./utils/openPluginSettings";
 import { storedProviders } from "./gui/ai/aiSettingsState";
 import { isCancellationError } from "./utils/errorUtils";
 import { confirmAction } from "./gui/confirmAction";
@@ -226,6 +223,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 						if (!confirmed) return;
 						await this.plugin.restoreV2Snapshot();
 						await plugins.disablePluginAndSave(id);
+						// The tab is gone with the plugin; an empty pane would be left behind.
+						closeSettings(this.app);
 						new Notice("QuickAdd restored its QuickAdd 2 settings and turned itself off.");
 					})(),
 				},
@@ -241,6 +240,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 						await this.plugin.restoreV2Snapshot();
 						await plugins.disablePlugin(id);
 						await plugins.enablePlugin(id);
+						// The new instance registers its own tab; show it where this one was.
+						tryOpenPluginSettings(this.app, id);
 					})(),
 				},
 			],
