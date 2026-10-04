@@ -415,6 +415,22 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		);
 	});
 
+	it("matches a mislabeled script by the path import writes, not the package's spelling", () => {
+		const m = macro("m1", "Sneaky", [userScript("c1", "run", "Scripts\\run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Sneaky"])],
+			[asset("template", "Scripts\\run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		expect(preview.missingReferences).toEqual([]);
+		expect(preview.orphanAssets).toEqual([]);
+		expect(preview.files[0]?.executable).toBe(true);
+		expect(
+			preview.capabilityRows.some((r) => r.flag === "mislabeled-executable"),
+		).toBe(true);
+	});
+
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
 		const m = macro("m1", "Needs script", [
 			userScript("c1", "run", "scripts/absent.js"),
