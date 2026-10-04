@@ -25,6 +25,9 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	const thomas = await seedVaultFile(obsidian, sandbox, "People/Thomas Anderson.md",
 		"---\naliases: [Neo, The One]\n---\n");
 	const classic = await seedVaultFile(obsidian, sandbox, "People/Neo Classic.md", "");
+	// The picker reads aliases from the metadata cache, which indexes a new note later.
+	await obsidian.metadata.waitForFrontmatter<{ aliases: string[] }>(thomas,
+		(frontmatter) => Array.isArray(frontmatter.aliases) && frontmatter.aliases.includes("The One"));
 
 	const choice = new CaptureChoice("One-page capture target");
 	choice.command = true;
