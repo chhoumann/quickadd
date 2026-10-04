@@ -604,6 +604,30 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect((result.updatedChoices[0] as ITemplateChoice).templatePath).toBe("My Templates/Parent.md");
 	});
 
+	it("rewrites includes in a template whose spelling hides its extension behind a trailing slash", async () => {
+		const { app, files } = fakeApp();
+		const legacy = makePackage(
+			[templateChoice("t2", "Legacy", "Templates/Parent.md")],
+			[
+				asset("template", "Templates/Parent.md/", "# Parent\n{{TEMPLATE:Templates/Part.md}}\n"),
+				asset("template", "Templates/Part.md", "part"),
+			],
+		);
+
+		await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: legacy,
+			choiceDecisions: [{ choiceId: "t2", mode: "import" }],
+			assetDecisions: [
+				{ originalPath: "Templates/Parent.md/", destinationPath: "Templates/Parent.md", mode: "write" as const },
+				{ originalPath: "Templates/Part.md", destinationPath: "My Templates/Part.md", mode: "write" as const },
+			],
+		});
+
+		expect(files.get("Templates/Parent.md")).toBe("# Parent\n{{TEMPLATE:My Templates/Part.md}}\n");
+	});
+
 	it("normalizes script step paths on import, bundled or not, so the loader can resolve them", async () => {
 		const { app } = fakeApp();
 		const check = {

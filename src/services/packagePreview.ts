@@ -239,10 +239,12 @@ export function buildPackagePreview(
 
 	const bundledPaths = new Set(writableAssets(pkg).map(assetKey));
 
+	// Classified by the path import writes, so a spelling such as
+	// `Scripts/run.js/` cannot hide an extension from the review gate.
 	const runnableCodeByPath = new Map(
 		pkg.assets.map((asset) => [
 			asset.originalPath,
-			bundledRunnableCode(asset.originalPath, asset.content),
+			bundledRunnableCode(assetKey(asset), asset.content),
 		]),
 	);
 

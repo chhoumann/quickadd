@@ -581,7 +581,7 @@ export async function applyPackageImport(
 
 	for (const { asset, destinationPath } of plannedWrites) {
 		await ensureParentFolders(app, destinationPath);
-		const content = importedAssetContent(asset, assetPathOverrides);
+		const content = importedAssetContent(asset, destinationPath, assetPathOverrides);
 		await app.vault.adapter.write(destinationPath, content);
 		writtenAssets.push(destinationPath);
 	}
@@ -607,16 +607,19 @@ export async function applyPackageImport(
  */
 function importedAssetContent(
 	asset: QuickAddPackage["assets"][number],
+	destinationPath: string,
 	pathOverrides: ReadonlyMap<string, string>,
 ): string {
 	const content = decodeFromBase64(asset.content);
 	const isTemplateKind =
 		asset.kind === "template" || asset.kind === "capture-template";
-	if (!isTemplateKind || !hasTemplateExtension(asset.originalPath)) {
+	// Classified by the path written, so a spelling such as `Parent.md/`
+	// cannot hide the extension the formatter will see.
+	if (!isTemplateKind || !hasTemplateExtension(destinationPath)) {
 		return content;
 	}
 	if (
-		MARKDOWN_FILE_EXTENSION_REGEX.test(asset.originalPath) &&
+		MARKDOWN_FILE_EXTENSION_REGEX.test(destinationPath) &&
 		extractScriptFromMarkdown(content).code
 	) {
 		return content;

@@ -444,6 +444,19 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		expect(preview.orphanAssets).toEqual(["Scripts/run.js"]);
 	});
 
+	it("gates a bundled script whose spelling hides its extension behind a trailing slash", () => {
+		const m = macro("m1", "Empty", []);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Empty"])],
+			[asset("user-script", "Scripts/run.js/", "module.exports = () => 1;")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import writes Scripts/run.js, which an existing macro may already run.
+		expect(preview.files[0]?.requiresReview).toBe(true);
+		expect(preview.criticalScriptPaths).toEqual(["Scripts/run.js/"]);
+	});
+
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
 		const m = macro("m1", "Needs script", [
 			userScript("c1", "run", "scripts/absent.js"),
