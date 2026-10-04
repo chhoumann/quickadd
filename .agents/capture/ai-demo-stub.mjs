@@ -8,8 +8,8 @@ http.createServer((req, res) => {
 	req.on("end", () => {
 		console.log(req.method, req.url);
 		res.setHeader("Content-Type", "application/json");
-		if (req.url.endsWith("/models")) return res.end(JSON.stringify({ data: [{ id: "gpt-6-luna", object: "model" }] }));
-		const model = (() => { try { return JSON.parse(body).model; } catch { return "gpt-6-luna"; } })();
+		if (req.url.endsWith("/models")) return res.end(JSON.stringify({ data: [{ id: "demo", object: "model" }] }));
+		const model = (() => { try { return JSON.parse(body).model; } catch { return "demo"; } })();
 		setTimeout(() => res.end(JSON.stringify({
 			id: "chatcmpl-demo", object: "chat.completion", created: Math.floor(Date.now() / 1000), model,
 			choices: [{ index: 0, message: { role: "assistant", content: reply }, finish_reason: "stop" }],

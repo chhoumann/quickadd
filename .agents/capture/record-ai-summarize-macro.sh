@@ -13,7 +13,7 @@
 #   pnpm exec obsidian-e2e provision --root /tmp/qa-capture --vault Notes \
 #     --data .agents/capture/ai-demo-data.json
 #   # add AI prompts/Summarize.md and the note, launch and prepare as in
-#   # README.md, store any value as the "openai-api-key" secret, then:
+#   # README.md, store any value as the "local-demo-api-key" secret, then:
 #   obsidian-e2e capture record ai.webm --cursor -- .agents/capture/record-ai-summarize-macro.sh
 set -euo pipefail
 
