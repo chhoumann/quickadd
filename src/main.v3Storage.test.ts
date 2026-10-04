@@ -136,4 +136,19 @@ describe("QuickAdd on stored actions", () => {
 		await plugin.saveSettings();
 		expect(disk()).toBe(before);
 	});
+
+	it("keeps saving when the restore could not write the snapshot back", async () => {
+		const { plugin, disk, files } = pluginOn(v3File);
+		await plugin.loadSettings();
+		plugin.settings.v3Migration = { migratedIn: "3.0.0", snapshot: "data.v2.json" };
+		files["plugin/data.v2.json"] = new TextEncoder().encode('{"choices":[]}').buffer;
+		const writeBinary = plugin.app.vault.adapter.writeBinary as ReturnType<typeof vi.fn>;
+		writeBinary.mockRejectedValueOnce(new Error("disk full"));
+
+		await expect(plugin.restoreV2Snapshot()).rejects.toThrow("disk full");
+
+		plugin.settings.choices[0].name = "Still saved";
+		await plugin.saveSettings();
+		expect(JSON.stringify(disk())).toContain("Still saved");
+	});
 });

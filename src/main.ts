@@ -533,7 +533,13 @@ export default class QuickAdd extends Plugin {
 		this.requestSave.cancel();
 		// A save already running finishes first; whether it failed does not matter.
 		await this.persistChain.catch(() => undefined);
-		await adapter.writeBinary(`${this.manifest.dir}/data.json`, bytes);
+		try {
+			await adapter.writeBinary(`${this.manifest.dir}/data.json`, bytes);
+		} catch (error) {
+			// Nothing was restored, so this instance keeps saving as before.
+			this.savingStopped = false;
+			throw error;
+		}
 	}
 
 	/**
