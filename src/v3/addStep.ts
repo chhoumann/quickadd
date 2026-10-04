@@ -2,13 +2,14 @@ import type IChoice from "../types/choices/IChoice";
 import { uuidv4 } from "../utils/uuid";
 import { legacyTypeOf, lowerNode } from "./lower";
 import { migrateChoice } from "./migrate";
-import type { Action, Step } from "./model";
+import { type Action, RUN_NOTE, type Step } from "./model";
 
 export type NewStepKind = "runScript" | "open" | "wait";
 
 /**
  * A step as the macro builder adds the matching command, migrated: a script
- * with no file yet, an open of a note still to choose, a short wait.
+ * with no file yet, an open of the run note (the note the write ended on,
+ * which is what a step added to a Template or Capture is for), a short wait.
  */
 export function newStep(kind: NewStepKind): Step {
 	const id = uuidv4();
@@ -16,7 +17,7 @@ export function newStep(kind: NewStepKind): Step {
 		case "runScript":
 			return { id, name: "Script", type: "runScript", path: "", settings: {} };
 		case "open":
-			return { id, name: "Open file", type: "open", note: "", location: "reuse", direction: "vertical", mode: "default", focus: true };
+			return { id, name: "Open the note", type: "open", note: RUN_NOTE, location: "reuse", direction: "vertical", mode: "default", focus: true };
 		case "wait":
 			return { id, name: "Wait", type: "wait", time: 100 };
 	}

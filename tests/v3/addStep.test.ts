@@ -93,10 +93,10 @@ describe("adding a step to a choice", () => {
 		expect(converted.macro.commands[1]).toMatchObject({ type: CommandType.Wait, time: 100 });
 	});
 
-	it("opens a note from the new step as an Open file command", () => {
+	it("opens the run note from the new step, as an Open file command on {{NOTE}}", () => {
 		const step = newStep("open");
 		const converted = withStep(capture(), step) as IMacroChoice;
-		expect(converted.macro.commands[1]).toMatchObject({ id: step.id, type: CommandType.OpenFile, filePath: "" });
+		expect(converted.macro.commands[1]).toMatchObject({ id: step.id, type: CommandType.OpenFile, filePath: "{{NOTE}}" });
 	});
 
 	it("gives every new step its own id", () => {
