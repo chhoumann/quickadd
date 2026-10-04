@@ -2431,6 +2431,15 @@ body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 	margin: 0;
 }
 
+/* The breadcrumb and the summary stay on one line, so a long summary cannot
+   make its row taller than its neighbours. */
+.quickadd-choice-suggestion .suggestion-note {
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* Empty folders (#1554). A folder with no choices in it cannot be drilled into,
    so its row is de-emphasised and labelled before the click instead of only
    answering with a notice after it — Obsidian's own dim-but-still-clickable
