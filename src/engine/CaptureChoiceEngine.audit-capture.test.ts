@@ -341,6 +341,26 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 		expect(noticeClass.instances).toHaveLength(0);
 	});
 
+	it("records, as what the run left, the note after a link was added to it as well", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		const engine = buildRunEngine(choice, app);
+		// The link lands in the captured note itself.
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\nnew line\n[[Test]]");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toMatchObject({
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line\n[[Test]]" },
+		});
+	});
+
 	it("treats a whitespace-only payload as a no-op", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");

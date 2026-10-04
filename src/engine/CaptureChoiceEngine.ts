@@ -507,6 +507,10 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				if (marked && cursor && mutation.filePath === file.path) cursor = mapEditorCursorPlacement(cursor, mutation);
 			} : undefined,
 		});
+		// The link may have gone into the captured note itself; Undo compares the
+		// note with what the run left, so the recorded write (the same object the
+		// outcome holds) takes the text as it is after the link.
+		if (result.write && linkOptions.enabled) result.write.after = await readNote(this.app, file);
 
 		let focus = normalizeFileOpening(this.choice.fileOpening).focus ?? true;
 		if (this.choice.openFile) {
