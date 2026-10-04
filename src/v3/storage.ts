@@ -173,7 +173,9 @@ const CHOICE_TYPES = new Set<unknown>(["Template", "Capture", "Macro", "Multi"])
  */
 function dedupeActionsById(nodes: unknown[]): unknown[] {
 	const firstById = new Map<string, unknown>();
-	const walk = (list: unknown[]): unknown[] => {
+	// Inside a folder kept under a fresh id, a repeated id is the copy's own
+	// and gets a fresh id too, so the folder keeps its items.
+	const walk = (list: unknown[], copied = false): unknown[] => {
 		const out: unknown[] = [];
 		for (const entry of list) {
 			if (!isActionNode(entry)) {
@@ -182,12 +184,14 @@ function dedupeActionsById(nodes: unknown[]): unknown[] {
 			}
 			let node: ActionNode = entry;
 			const prior = firstById.get(node.id);
+			let fresh = false;
 			if (prior) {
-				if (JSON.stringify(node) === JSON.stringify(prior)) continue;
+				if (!copied && JSON.stringify(node) === JSON.stringify(prior)) continue;
 				node = { ...node, id: uuidv4() };
+				fresh = true;
 			}
 			firstById.set(node.id, node);
-			if (node.kind === "folder") node = { ...node, items: walk(node.items) as ActionNode[] };
+			if (node.kind === "folder") node = { ...node, items: walk(node.items, copied || fresh) as ActionNode[] };
 			out.push(node);
 		}
 		return out;

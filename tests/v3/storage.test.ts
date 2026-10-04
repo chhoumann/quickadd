@@ -241,6 +241,22 @@ describe("the lowered view of stored actions", () => {
 		expect(saved.actions[1].name).toBe("Renamed");
 	});
 
+	it("keeps the items of a repeated folder kept under a fresh id, under fresh ids of their own", () => {
+		const folder = new MultiChoice("Projects");
+		folder.id = "f";
+		const child = new CaptureChoice("Log");
+		child.id = "c";
+		folder.choices = [child];
+		const copy = Object.assign(new MultiChoice("Projects (copy)"), { id: "f", choices: [child] });
+		const disk = stored([folder, copy]);
+
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as { choices: IMultiChoice[] };
+		expect(loaded.choices.map((choice) => choice.name)).toEqual(["Projects", "Projects (copy)"]);
+		expect(loaded.choices[1]?.choices?.map((choice) => choice.name)).toEqual(["Log"]);
+		expect(loaded.choices[1]?.choices?.[0]?.id).not.toBe("c");
+		expect(loadAndSave(disk).actions.map((node: { name: string }) => node.name)).toEqual(["Projects", "Projects (copy)"]);
+	});
+
 	it("loads the actions it can read and keeps an entry it cannot read where it was", () => {
 		const good = stored(FIXTURE.slice(0, 2)).actions as ActionNode[];
 		const disk = { ...migrated, actions: [null, good[0], { id: "half", kind: "action" }, good[1]] };
