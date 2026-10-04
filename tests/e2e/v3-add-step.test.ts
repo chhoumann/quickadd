@@ -81,8 +81,9 @@ it("adds a script to a capture, which then runs the capture and the script", asy
 		.toEqual(["Log"]);
 	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([["Log"], ["Script", "No file chosen"]]);
 	// The write keeps the capture's id once it is the first step of a sequence.
-	await expect.poll(async () => (await stepIds())?.[0], POLL_OPTS).toBe(capture.id);
-	const [, scriptId] = (await stepIds())!;
+	await expect.poll(async () => (await stepIds())?.length, POLL_OPTS).toBe(2);
+	const [writeId, scriptId] = (await stepIds())!;
+	expect(writeId).toBe(capture.id);
 
 	await clickWhenStill(obsidian, '[aria-label="Choose file for Script"]');
 	await waitForElement(obsidian, ".prompt .prompt-input");
