@@ -40,12 +40,15 @@ export function choicesFromActions(data: unknown): unknown {
 	// A QuickAdd 2 device on the same synced vault keeps `actions` and saves
 	// the choices it adds next to them, at the root or inside a folder. Keep
 	// those, so the next save moves them into `actions`.
+	// Every id the actions hold, readable or not: a QuickAdd 2 copy of an
+	// action this build cannot read is not an addition.
 	const ids = new Set<string>();
-	const collect = (node: ActionNode) => {
-		ids.add(node.id);
-		if (node.kind === "folder") node.items.forEach(collect);
+	const collect = (node: unknown) => {
+		if (!isRecord(node)) return;
+		if (typeof node.id === "string") ids.add(node.id);
+		if (Array.isArray(node.items)) node.items.forEach(collect);
 	};
-	readable.forEach(collect);
+	actions.forEach(collect);
 	return { ...rest, actions, choices: withAddedChoices(lowered, rest.choices, ids) };
 }
 

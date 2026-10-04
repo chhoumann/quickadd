@@ -249,6 +249,16 @@ describe("the lowered view of stored actions", () => {
 		expect(saved.actions[1].name).toBe("Renamed");
 	});
 
+	it("does not take a QuickAdd 2 copy of an action it cannot read for an addition", () => {
+		const [damaged, good] = stored(FIXTURE.slice(0, 2)).actions as ActionNode[];
+		const unreadable = { ...damaged, steps: [{ id: "s", type: "teleport" }] };
+		const disk = { ...migrated, actions: [unreadable, good], choices: [JSON.parse(JSON.stringify(FIXTURE[0]))] };
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([good.id]);
+		const saved = loadAndSave(disk);
+		expect(saved.actions.map((node: { id: string }) => node.id)).toEqual([unreadable.id, good.id]);
+	});
+
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
 		const good = stored(FIXTURE.slice(0, 1)).actions as ActionNode[];
 		const folder = { kind: "folder", id: "f", name: "Damaged", command: false, items: [null] };
