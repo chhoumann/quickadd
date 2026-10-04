@@ -8,7 +8,16 @@ import { RUN_NOTE } from "./model";
  */
 export function summarize(action: Action, nameOf: (id: string) => string | undefined = () => undefined): string {
 	const line = describeSteps(action.steps, nameOf);
-	return line ? line.charAt(0).toUpperCase() + line.slice(1) : "No steps yet";
+	return line ? capitalize(line) : "No steps yet";
+}
+
+/** What one step does, as a line of its own: "Opens it". */
+export function describeStepLine(step: Step, nameOf: (id: string) => string | undefined = () => undefined): string {
+	return capitalize(describeStep(step, nameOf));
+}
+
+function capitalize(line: string): string {
+	return line.charAt(0).toUpperCase() + line.slice(1);
 }
 
 function describeSteps(steps: Step[], nameOf: (id: string) => string | undefined): string {

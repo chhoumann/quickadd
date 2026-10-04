@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { migrateChoice } from "../../src/v3/migrate";
 import type { Action, ActionNode, Step } from "../../src/v3/model";
-import { render, summarize } from "../../src/v3/summary";
+import { describeStepLine, render, summarize } from "../../src/v3/summary";
 import { FIXTURE } from "./fixture";
 import { packageChoices } from "./packages";
 
@@ -21,6 +21,12 @@ describe("summary line", () => {
 		const script = (path: string): Step => ({ type: "runScript", id: "s", path, settings: {} });
 		expect(summarize(action([script("Scripts/clip.js::run")]))).toBe("Runs clip.js::run");
 		expect(summarize(action([script("")]))).toBe("Runs a script");
+	});
+
+	it("says what one step does as a line of its own", () => {
+		expect(describeStepLine({ type: "open", id: "o", note: "{{NOTE}}", location: "tab", direction: "vertical", mode: "default", focus: true }))
+			.toBe("Opens it");
+		expect(describeStepLine({ type: "runScript", id: "s", path: "", settings: {} })).toBe("Runs a script");
 	});
 
 	it("matches the reviewed lines for every package and fixture action", async () => {
