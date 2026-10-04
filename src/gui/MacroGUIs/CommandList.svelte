@@ -279,7 +279,9 @@ async function configureScript(command: IUserScript) {
 		app,
 		command,
 		scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
-		() => persist(),
+		// updateCommand, not a bare persist: the row shows the step's name and
+		// file, which the modal can change.
+		() => updateCommand(command),
 	).open();
 }
 

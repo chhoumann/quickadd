@@ -5,8 +5,14 @@ import CommandList from "./CommandList.svelte";
 import { createCommandListProps } from "./commandListProps.svelte";
 import { UserScript } from "../../types/macros/UserScript";
 import { pickUserScript } from "./pickUserScript";
+import { loadUserScript } from "../../utils/userScript";
 
 vi.mock("./pickUserScript", () => ({ pickUserScript: vi.fn() }));
+vi.mock("../../utils/userScript", async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	loadUserScript: vi.fn(),
+}));
+vi.mock("../../quickAddInstance", () => ({ getQuickAddInstance: vi.fn(() => ({})) }));
 
 function appWithFiles(...paths: string[]) {
 	const app = new App();
@@ -84,5 +90,30 @@ describe("CommandList script step file", () => {
 		getByText("scripts/hello.js");
 		getByRole("button", { name: "Configure hello" });
 		expect(queryByText("Choose file")).toBeNull();
+	});
+
+	it("shows the file changed from the script's settings", async () => {
+		vi.mocked(loadUserScript).mockResolvedValue({ script: () => {}, settings: {} } as never);
+		vi.mocked(pickUserScript).mockResolvedValue({ name: "other", path: "scripts/other.js" });
+		const { getByRole, findByText, saveCommands } = renderList(
+			new UserScript("hello", "scripts/hello.js"),
+			appWithFiles("scripts/hello.js", "scripts/other.js"),
+		);
+
+		await fireEvent.click(getByRole("button", { name: "Configure hello" }));
+		const change = await vi.waitFor(() => {
+			const button = Array.from(document.querySelectorAll("button")).find(
+				(b) => b.textContent === "Change",
+			);
+			if (!button) throw new Error("Change button not found");
+			return button;
+		});
+		await fireEvent.click(change);
+
+		await findByText("scripts/other.js");
+		getByRole("button", { name: "Configure other" });
+		expect(saveCommands.mock.lastCall?.[0]).toEqual([
+			expect.objectContaining({ name: "other", path: "scripts/other.js" }),
+		]);
 	});
 });

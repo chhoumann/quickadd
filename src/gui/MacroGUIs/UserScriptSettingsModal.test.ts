@@ -4,6 +4,9 @@ import { CommandType } from "../../types/macros/CommandType";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { createUserScriptSecretRef } from "../../utils/userScriptSecrets";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
+import { pickUserScript } from "./pickUserScript";
+
+vi.mock("./pickUserScript", () => ({ pickUserScript: vi.fn() }));
 
 vi.mock("../../quickAddInstance", () => ({
 	getQuickAddInstance: vi.fn(() => ({})),
@@ -175,5 +178,63 @@ describe("UserScriptSettingsModal secret settings", () => {
 			.toBeNull();
 		expect(command.settings["API Key"]).toBeUndefined();
 		expect(onCommandChange).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("UserScriptSettingsModal script file", () => {
+	afterEach(() => {
+		document.body.innerHTML = "";
+		vi.mocked(pickUserScript).mockReset();
+	});
+
+	function scriptFileSetting(modal: UserScriptSettingsModal) {
+		const setting = modal.contentEl.firstElementChild;
+		if (!setting) throw new Error("No setting rendered");
+		return setting;
+	}
+
+	it("shows the script's file first, even for a script without options", () => {
+		const modal = new UserScriptSettingsModal(new App(), createCommand(), {});
+
+		expect(scriptFileSetting(modal).textContent).toContain("Script file");
+		expect(scriptFileSetting(modal).textContent).toContain("scripts/script.js");
+	});
+
+	it("changes the file through the save callback and closes", async () => {
+		vi.mocked(pickUserScript).mockResolvedValue({ name: "other", path: "scripts/other.js" });
+		const command = createCommand();
+		const onCommandChange = vi.fn(() => {
+			expect(command).toMatchObject({ name: "other", path: "scripts/other.js" });
+		});
+		const modal = new UserScriptSettingsModal(new App(), command, createSettings(), onCommandChange);
+		modal.open();
+		await flushPromises();
+		const close = vi.spyOn(modal, "close");
+
+		const change = Array.from(scriptFileSetting(modal).querySelectorAll("button"))
+			.find((button) => button.textContent === "Change");
+		change?.click();
+		await flushPromises();
+
+		expect(onCommandChange).toHaveBeenCalledTimes(1);
+		expect(command).toMatchObject({ name: "other", path: "scripts/other.js" });
+		expect(close).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves the step alone when no file is picked", async () => {
+		vi.mocked(pickUserScript).mockResolvedValue(null);
+		const command = createCommand();
+		const onCommandChange = vi.fn();
+		const modal = new UserScriptSettingsModal(new App(), command, {}, onCommandChange);
+		const close = vi.spyOn(modal, "close");
+
+		const change = Array.from(scriptFileSetting(modal).querySelectorAll("button"))
+			.find((button) => button.textContent === "Change");
+		change?.click();
+		await flushPromises();
+
+		expect(onCommandChange).not.toHaveBeenCalled();
+		expect(command.path).toBe("scripts/script.js");
+		expect(close).not.toHaveBeenCalled();
 	});
 });
