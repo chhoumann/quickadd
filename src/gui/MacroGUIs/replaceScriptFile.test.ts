@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { App } from "obsidian";
+import { App, Notice } from "obsidian";
 import { UserScript } from "../../types/macros/UserScript";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 import { replaceScriptFile } from "./replaceScriptFile";
@@ -14,17 +14,19 @@ describe("replaceScriptFile", () => {
 		const command = new UserScript("old::helper", "scripts/old.js");
 		command.settings = { token: { secretRef: "qa-secret" }, mode: "fast" };
 
-		expect(await replaceScriptFile(new App(), command, { name: "new", path: "scripts/new.js" })).toBe(true);
+		await replaceScriptFile(new App(), command, { name: "new", path: "scripts/new.js" });
 		expect(command).toMatchObject({ name: "new", path: "scripts/new.js", settings: {} });
 		expect(cleared).toHaveBeenCalledWith(expect.anything(), command);
 	});
 
-	it("leaves the step as it was when its secrets cannot be cleared", async () => {
+	it("still replaces the file when its secrets cannot all be cleared, and says so", async () => {
 		cleared.mockResolvedValueOnce(false);
 		const command = new UserScript("old", "scripts/old.js");
 		command.settings = { token: { secretRef: "qa-secret" } };
 
-		expect(await replaceScriptFile(new App(), command, { name: "new", path: "scripts/new.js" })).toBe(false);
-		expect(command).toMatchObject({ name: "old", path: "scripts/old.js", settings: { token: { secretRef: "qa-secret" } } });
+		await replaceScriptFile(new App(), command, { name: "new", path: "scripts/new.js" });
+		expect(command).toMatchObject({ name: "new", path: "scripts/new.js", settings: {} });
+		const notices = (Notice as unknown as { instances: { message: string }[] }).instances;
+		expect(notices.at(-1)?.message).toContain("secrets");
 	});
 });

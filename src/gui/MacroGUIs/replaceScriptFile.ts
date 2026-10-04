@@ -8,20 +8,19 @@ import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets
  * over: the new script need not declare them, and a stored secret must never
  * reach a script it was not entered for. The step takes the picked file's name,
  * as a newly added script does; a `::member` suffix is dropped with the old
- * file. Returns false, after a notice, when the stored secrets could not be
- * cleared; the step is then left as it was.
+ * file. The stored secrets are removed first; if that fails partway, the
+ * references are dropped all the same, since a reference that no longer
+ * resolves is worse than an entry left behind in secret storage.
  */
 export async function replaceScriptFile(
 	app: App,
 	command: IUserScript,
 	picked: { name: string; path: string },
-): Promise<boolean> {
+): Promise<void> {
 	if (!(await clearUserScriptSecretsFromCommand(app, command))) {
-		new Notice("Could not clear the script's secrets. The file was not changed.");
-		return false;
+		new Notice("QuickAdd: Not all of the script's stored secrets could be removed from secret storage.");
 	}
 	command.name = picked.name;
 	command.path = picked.path;
 	command.settings = {};
-	return true;
 }

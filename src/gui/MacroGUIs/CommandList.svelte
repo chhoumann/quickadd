@@ -254,7 +254,7 @@ async function chooseScriptFile(command: IUserScript) {
 	const picked = await pickUserScript(app);
 	if (!picked) return;
 	const updated: IUserScript = { ...command };
-	if (!(await replaceScriptFile(app, updated, picked))) return;
+	await replaceScriptFile(app, updated, picked);
 	updateCommand(updated);
 }
 

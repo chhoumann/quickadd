@@ -93,6 +93,7 @@ function formatTitlePart(value: unknown): string {
 export class UserScriptSettingsModal extends Modal {
 	/** One per `type: "format"` option; a script may declare several. */
 	private previewHandles: FormatPreviewHandle[] = [];
+	private secretMigration: Promise<void> = Promise.resolve();
 
 	constructor(
 		app: App,
@@ -110,7 +111,7 @@ export class UserScriptSettingsModal extends Modal {
 		// Initialize default values for settings
 		initializeUserScriptSettings(this.command.settings, this.settings);
 		this.display();
-		void this.migrateSecretSettings();
+		this.secretMigration = this.migrateSecretSettings();
 	}
 
 	protected display() {
@@ -198,7 +199,11 @@ export class UserScriptSettingsModal extends Modal {
 					reportingHandler("Couldn't choose that script", async () => {
 						const picked = await pickUserScript(this.app);
 						if (!picked) return;
-						if (!(await replaceScriptFile(this.app, this.command, picked))) return;
+						// The migration writes the old script's secret references
+						// into the settings when it finishes; let it finish first,
+						// so the replacement below leaves none of them behind.
+						await this.secretMigration;
+						await replaceScriptFile(this.app, this.command, picked);
 						this.onCommandChange?.();
 						// The settings shown are the old script's; Configure
 						// opens the new one's.
