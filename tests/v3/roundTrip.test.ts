@@ -110,11 +110,11 @@ describe("report", () => {
 		const report = buildReport({ choices: FIXTURE });
 		const kinds = (kind: string) => report.notes.filter((note) => note.kind === kind).map((note) => `${note.choiceId}: ${note.detail}`);
 		expect(kinds("keptNested")).toEqual([
-			"fx-macro: 'Nested macro' (fx-nested-macro) because of a nested Macro",
-			"fx-macro: 'Pick one' (fx-nested-multi) because of a nested Multi",
-			"fx-macro: 'Tomorrow's note' (fx-nested-dated) because of its own dateOrigin",
-			"fx-macro: 'Inner name' (fx-nested-renamed) because of a step name that differs from the choice name",
-			"fx-old-macro: '' (c-old-nested:choice) because of its own command setting",
+			"fx-macro: 'Nested macro' because of a nested Macro",
+			"fx-macro: 'Pick one' because of a nested Multi",
+			"fx-macro: 'Tomorrow's note' because of its own dateOrigin",
+			"fx-macro: 'Inner name' because of a step name that differs from the choice name",
+			"fx-old-macro: an unnamed choice because of its own command setting",
 		]);
 		expect(kinds("templaterRerun")).toEqual(["fx-macro: step c-rerun runs Templater again after a write"]);
 		expect(kinds("danglingRunAction")).toEqual(["fx-macro: step c-dangling runs missing fx-missing"]);

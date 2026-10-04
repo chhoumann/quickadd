@@ -497,7 +497,7 @@ function migrateNested(command: INestedChoiceCommand, host: IChoice, notes: Note
 		!nested.command &&
 		command.name === nested.name;
 	if (inlinable) {
-		note(notes, host, "inlined", `'${nested.name}' (${nested.id})`);
+		note(notes, host, "inlined", `'${nested.name}'`);
 		return writeGroup(nested as ITemplateChoice | ICaptureChoice, nested.id, nested.name, notes);
 	}
 	const reason =
@@ -505,7 +505,7 @@ function migrateNested(command: INestedChoiceCommand, host: IChoice, notes: Note
 		own.length > 0 ? `its own ${own.join(", ")}` :
 		nested.command ? "its own command setting" :
 		"a step name that differs from the choice name";
-	note(notes, host, "keptNested", `'${nested.name ?? ""}' (${nested.id}) because of ${reason}`);
+	note(notes, host, "keptNested", `${nested.name ? `'${nested.name}'` : "an unnamed choice"} because of ${reason}`);
 	return [withoutUndefined({
 		id: command.id,
 		name: command.name,

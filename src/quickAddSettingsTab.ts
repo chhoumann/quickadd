@@ -86,13 +86,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		// Declarative definitions are a snapshot: Obsidian re-renders from them
 		// until update() rebuilds them. Rebuild when the AI page's provider
-		// entries or the template folder list change (the way Obsidian's own
-		// Keychain tab follows its secrets), but not on every store write:
-		// update() re-renders the page on screen.
+		// entries, the template folder list or the QuickAdd 2 copy change (the
+		// way Obsidian's own Keychain tab follows its secrets), but not on every
+		// store write: update() re-renders the page on screen.
 		const definitionsSignature = (state: QuickAddSettings): string =>
 			JSON.stringify([
 				aiPageSignature(storedProviders(state)),
 				normalizeTemplateFolderPaths(state.templateFolderPaths),
+				state.v3Migration?.snapshot,
 			]);
 		let signature = definitionsSignature(settingsStore.getState());
 		plugin.register(
