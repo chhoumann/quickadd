@@ -275,6 +275,33 @@ describe("parseQuickAddPackage", () => {
 		);
 	});
 
+	it("rejects assets whose paths differ only by separator spelling", () => {
+		// Import keys its path overrides and the preview its matching by the
+		// normalized path, so these two would share one key and a reference to
+		// the first could be rewritten to the second's destination.
+		const bad = makePackage({
+			assets: [
+				packageAsset("template", "Templates\\Part.md", encodeToBase64("one")),
+				packageAsset("template", "Templates/Part.md", encodeToBase64("two")),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
+	it("rejects assets whose paths differ only by surrounding whitespace", () => {
+		const bad = makePackage({
+			assets: [
+				packageAsset("template", " Templates/Part.md ", encodeToBase64("one")),
+				packageAsset("template", "Templates/Part.md", encodeToBase64("two")),
+			],
+		});
+		expect(() => parseQuickAddPackage(JSON.stringify(bad))).toThrow(
+			/duplicate asset path/i,
+		);
+	});
+
 	it("rejects duplicate EMPTY asset paths (falsy path must still fail closed)", () => {
 		// isPackageAsset accepts originalPath: "" (string), so two empty paths must not
 		// slip the duplicate gate via a truthiness check on the returned path.
