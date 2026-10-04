@@ -19,7 +19,7 @@ import { ensureParentFolders } from "../utils/ensureParentFolders";
 import { extractScriptFromMarkdown } from "../utils/extractScriptFromMarkdown";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { rewriteTemplateIncludes } from "../utils/templateIncludes";
-import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import { escapesVaultBoundary, isWritableAssetDestination } from "../utils/vaultPathBoundary";
 import { assertWriteStaysInVault } from "../utils/vaultWriteGuards";
 import { packageSecretOptionNames } from "./packageAssets";
 import {
@@ -178,14 +178,16 @@ export async function analysePackagePreview(
 	existingChoices: IChoice[],
 	pkg: QuickAddPackage,
 ): Promise<PackagePreview> {
-	// An asset is probed under its own spelling and under the path import will
-	// write it to, so a backslash-spelled asset still warns about the file it
-	// overwrites.
+	// An asset is probed under its own spelling and, when import can write it,
+	// under the path it will be written to, so a backslash-spelled asset still
+	// warns about the file it overwrites while a rejected one (absolute, hidden)
+	// is not mistaken for an unrelated in-vault file.
 	const candidatePaths = new Set<string>([
-		...pkg.assets.flatMap((asset) => [
-			asset.originalPath,
-			normalizeVaultPath(asset.originalPath),
-		]),
+		...pkg.assets.flatMap((asset) =>
+			isWritableAssetDestination(asset.originalPath)
+				? [asset.originalPath, normalizeVaultPath(asset.originalPath)]
+				: [asset.originalPath],
+		),
 		...collectReferencedAssetPaths(pkg),
 	]);
 

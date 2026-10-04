@@ -501,6 +501,20 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(preview.files[0]?.exists).toBe(true);
 		expect(preview.summary.overwritesFiles).toBe(1);
 	});
+
+	it("does not mistake an unrelated vault file for the target of an asset import will refuse", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("user-script", "/Scripts/helper.js", "module.exports = () => 1;")],
+		);
+		const { app } = fakeApp({ "Scripts/helper.js": "module.exports = () => 0;" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(app.vault.adapter.exists).not.toHaveBeenCalledWith("Scripts/helper.js");
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
 });
 
 // --- Import -----------------------------------------------------------------
