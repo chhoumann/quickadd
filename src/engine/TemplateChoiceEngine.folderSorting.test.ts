@@ -303,6 +303,35 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		},
 	);
 
+	it("keeps a leading-space root's subfolders in the chooser and creates new ones under it", async () => {
+		inputSuggestMock.mockImplementationOnce(async () => " Work/new");
+		const engine = createEngine(
+			createChoice({ folders: [" Work"], chooseFromSubfolders: true }),
+			[" Work", " Work/sub", "Work"],
+		);
+
+		await engine.run();
+
+		expect(getSuggestedItems()).toEqual([" Work", " Work/sub"]);
+		expect(setTargetFolderPath).toHaveBeenCalledWith(" Work/new");
+		expect(engine["app"].vault.createFolder).toHaveBeenCalledWith(" Work/new");
+	});
+
+	it("refuses a custom folder outside a leading-space root even when only the space differs", async () => {
+		const noticesBefore = Notice.instances.length;
+		inputSuggestMock.mockImplementationOnce(async () => "Work/new");
+		const engine = createEngine(
+			createChoice({ folders: [" Work"], chooseFromSubfolders: true }),
+			[" Work", " Work/sub"],
+		);
+
+		await engine.run();
+
+		expect(Notice.instances.slice(noticesBefore).length).toBeGreaterThan(0);
+		expect(setTargetFolderPath).not.toHaveBeenCalledWith("Work/new");
+		expect(engine["app"].vault.createFolder).not.toHaveBeenCalledWith("Work/new");
+	});
+
 	it("lists subfolders of a configured root written with backslashes", async () => {
 		const engine = createEngine(
 			createChoice({ folders: ["out\\nested\\"], chooseFromSubfolders: true }),

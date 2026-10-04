@@ -1,4 +1,4 @@
-import { Notice, TFolder } from "obsidian";
+import { Notice } from "obsidian";
 import { QuickAddEngine } from "./QuickAddEngine";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import InputSuggester from "../gui/InputSuggester/inputSuggester";
@@ -6,7 +6,7 @@ import {
 	INVALID_FOLDER_CHARS_REGEX, INVALID_FOLDER_CONTROL_CHARS_REGEX,
 	INVALID_FOLDER_TRAILING_CHARS_REGEX, isReservedWindowsDeviceName
 } from "../utils/pathValidation";
-import { normalizeVaultPath } from "../utils/pathUtils";
+import { normalizeVaultPath, normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { routePrompt, type PromptRoutingContext } from "../interactive/routePrompt";
@@ -105,7 +105,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	): FolderSelectionContext {
 		const allowCreate = options.allowCreate ?? false;
 		const allowedRoots =
-			options.allowedRoots?.map((root) => normalizeVaultPath(root)) ?? [];
+			options.allowedRoots?.map((root) => normalizeVaultPathSeparators(root)) ?? [];
 
 		const suggestions = this.buildFolderSuggestions(
 			folders, options.topItems ?? [],
@@ -194,9 +194,11 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 		const key = normalizeVaultPath(raw);
 		const isEmpty = key.length === 0;
 
-		// Normalization is for matching only. An existing folder keeps the spelling
-		// Obsidian owns, so a name that starts with a space is not written elsewhere.
-		const normalized = context.canonicalByNormalized.get(key) ?? key;
+		// Trimming is for matching only. An existing folder keeps the spelling
+		// Obsidian owns, and a new one keeps the name as typed (minus separators),
+		// so a name that starts with a space is never written elsewhere.
+		const normalized =
+			context.canonicalByNormalized.get(key) ?? normalizeVaultPathSeparators(raw);
 		const exists = isEmpty
 			? false
 			: context.canonicalByNormalized.has(key) ||
@@ -347,7 +349,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	}
 
 	private isPathAllowed(path: string, roots: string[]): boolean {
-		const normalizedPath = normalizeVaultPath(path);
+		const normalizedPath = normalizeVaultPathSeparators(path);
 		for (const root of roots) {
 			if (!root) return true;
 			if (normalizedPath === root) return true;
@@ -361,17 +363,14 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 	}
 
 	/**
-	 * A folder the vault knows keeps its own spelling (a name may start with a
-	 * space). Anything else is normalized, so a typed `out\nested/` matches
-	 * `out/nested` and is created under that name.
+	 * The folder a configured or typed path stands for: separators are cleaned,
+	 * the name is not. ` Work/` is the vault's ` Work`, `out\nested/` is
+	 * `out/nested`, and a new ` Work/new` is created under ` Work` rather than
+	 * as `Work/new`. Trimming belongs to matching (see resolveSelection), never
+	 * to identity.
 	 */
 	protected canonicalFolderPath(path: string): string {
-		// Probe with separators cleaned but the name untouched, so ` Work/` still
-		// finds the vault's ` Work` before the trim would turn it into `Work`.
-		const spelled = path.replace(/[\\/]+/g, "/").replace(/^\/|\/$/g, "");
-		return this.app.vault.getAbstractFileByPath(spelled) instanceof TFolder
-			? spelled
-			: normalizeVaultPath(path);
+		return normalizeVaultPathSeparators(path);
 	}
 
 	private buildFolderSuggestions(
@@ -390,7 +389,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 			if (
 				allowedRoots &&
 				allowedRoots.length > 0 &&
-				!this.isPathAllowed(normalized, allowedRoots)
+				!this.isPathAllowed(path, allowedRoots)
 			) {
 				return;
 			}
