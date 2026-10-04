@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
 import { normalizePath } from "obsidian";
+import { normalizeVaultPath } from "../utils/pathUtils";
 import { uuidv4 } from "../utils/uuid";
 import type { AIProvider } from "../ai/Provider";
 import { pinAiCommandModelRefs } from "../ai/modelRefPinning";
@@ -371,12 +372,14 @@ export async function applyPackageImport(
 		);
 		return { asset, destinationPath };
 	});
-	const assetPathOverrides = new Map(
-		resolvedAssetDestinations.map(({ asset, destinationPath }) => [
-			asset.originalPath,
-			destinationPath,
-		]),
-	);
+	// Keyed by the package's spelling and by the normalized path, because the
+	// include scanner and the template resolver look up normalized keys while
+	// script steps look up the raw path.
+	const assetPathOverrides = new Map<string, string>();
+	for (const { asset, destinationPath } of resolvedAssetDestinations) {
+		assetPathOverrides.set(asset.originalPath, destinationPath);
+		assetPathOverrides.set(normalizeVaultPath(asset.originalPath), destinationPath);
+	}
 	for (const choice of preparedChoices.values()) {
 		applyAssetPathOverrides(choice, assetPathOverrides);
 	}

@@ -549,6 +549,34 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect(importedCapture.createFileIfItDoesntExist.template).toBe("My Templates/MOC.md");
 	});
 
+	it("rewrites an include written with backslashes when its asset is redirected", async () => {
+		const { app, files } = fakeApp();
+		const legacy = makePackage(
+			[templateChoice("t2", "Legacy", "Templates\\Parent.md")],
+			[
+				asset("template", "Templates\\Parent.md", "# Parent\n{{TEMPLATE:Templates\\Part.md}}\n"),
+				asset("template", "Templates\\Part.md", "part"),
+			],
+		);
+
+		const result = await applyPackageImport({
+			app,
+			existingChoices: [],
+			pkg: legacy,
+			choiceDecisions: [{ choiceId: "t2", mode: "import" }],
+			assetDecisions: legacy.assets.map((a) => ({
+				originalPath: a.originalPath,
+				destinationPath: redirected(a.originalPath.replace(/\\/g, "/")),
+				mode: "write" as const,
+			})),
+		});
+
+		expect(files.get("My Templates/Parent.md")).toBe(
+			"# Parent\n{{TEMPLATE:My Templates/Part.md}}\n",
+		);
+		expect((result.updatedChoices[0] as ITemplateChoice).templatePath).toBe("My Templates/Parent.md");
+	});
+
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {
 		const { app, files } = fakeApp({ "Templates/Dashboard.base": "existing" });
 
