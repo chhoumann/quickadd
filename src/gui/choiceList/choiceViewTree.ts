@@ -98,3 +98,19 @@ export function updateChoiceHelper(oldChoice: IChoice, newChoice: IChoice): ICho
 
 	return oldChoice;
 }
+
+/**
+ * The tree with the choice of `replacement`'s id swapped for it whole, keys
+ * the old one had and it lacks included: for a choice whose type changed,
+ * which updateChoiceHelper's merge would leave the old type's settings on.
+ */
+export function replaceChoiceHelper(oldChoice: IChoice, replacement: IChoice): IChoice {
+	if (!isChoiceLike(oldChoice)) return oldChoice;
+	if (oldChoice.id === replacement.id) return replacement;
+	if (!hasChildChoices(oldChoice)) return oldChoice;
+	const updated: IMultiChoice = {
+		...(oldChoice as IMultiChoice),
+		choices: childChoicesOf(oldChoice).map((child) => replaceChoiceHelper(child, replacement)),
+	};
+	return updated;
+}
