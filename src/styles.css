@@ -1673,6 +1673,25 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	min-width: 0;
 }
 
+/* A command row with a second line, e.g. a script step's file. */
+.quickAddCommandText {
+	display: flex;
+	flex-direction: column;
+}
+
+.quickAddCommandDetail {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.3;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.quickAddCommandDetail.is-warning {
+	color: var(--text-warning);
+}
+
 .quickCommandContainer {
 	display: flex;
 	justify-content: flex-end;

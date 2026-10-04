@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
-import { Platform } from "obsidian";
+import { Platform, TFile } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
 import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
@@ -20,6 +20,8 @@ import type IChoice from "../../types/choices/IChoice";
 import UserScriptCommand from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
+import { pickUserScript } from "./pickUserScript";
+import { reportingHandler } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
@@ -238,6 +240,23 @@ function configureChoice(command: INestedChoiceCommand) {
 	}
 }
 
+function scriptFileState(command: IUserScript): "ok" | "none" | "missing" {
+	if (!command.path) return "none";
+	return app.vault.getAbstractFileByPath(command.path) instanceof TFile ? "ok" : "missing";
+}
+
+/**
+ * Point a script step at a file the user picks. The step takes the picked
+ * file's name, as a newly added script does; a `::member` suffix on the old
+ * name is dropped, since the new file need not export that member.
+ */
+async function chooseScriptFile(command: IUserScript) {
+	const picked = await pickUserScript(app);
+	if (!picked) return;
+	const updated: IUserScript = { ...command, name: picked.name, path: picked.path };
+	updateCommand(updated);
+}
+
 async function configureScript(command: IUserScript) {
 	let loaded: Awaited<ReturnType<typeof loadUserScript>>;
 	try {
@@ -326,7 +345,9 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				{dragDisabled}
 				{startDrag}
 				onDeleteCommand={deleteCommand}
+				fileState={scriptFileState(asUserScript(command))}
 				onConfigureScript={configureScript}
+				onChooseFile={reportingHandler("Couldn't choose that script", chooseScriptFile)}
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
