@@ -90,7 +90,7 @@ outgoing links for this note.
 - Start linking this note to related ideas.
 ````
 
-3. Create a **Template** choice (see [the Template choice docs](/docs/Choices/TemplateChoice/)) with settings like these:
+3. Create a **Template** choice with **New choice** → **New note from a template** (see [the Template choice docs](/docs/Choices/TemplateChoice/)), with settings like these:
 
 - **Template Path**: `Templates/MOC Link Dashboard.md`
 - **File name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)

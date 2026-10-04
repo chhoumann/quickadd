@@ -42,8 +42,8 @@ The inline properties are removed from the body of the note after migration.
 Imported the package above? The script and the **Migrate Dataview properties** macro are already in place, set to migrate only `Reference, Related`; skip to [Configuration](#configuration) to pick your properties.
 
 1. Save the script (`migrateDataviewToFrontmatter.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
-2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it - I named mine `Migrate Properties`.
-3. Add the user script to the macro's command list.
+2. In **Settings → QuickAdd**, click **New choice** → **Run a script**. The Macro Builder opens with one script step; set **Name** - I named mine `Migrate Properties`.
+3. On the script step, click **Choose file** and pick `migrateDataviewToFrontmatter.js`.
 4. Click the cog ⚙ icon next to the script command to configure its settings (see Configuration below).
 
 You can download the script here: <a href="/scripts/migrateDataviewToFrontmatter.js" download>migrateDataviewToFrontmatter.js</a>

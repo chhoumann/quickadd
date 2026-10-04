@@ -16,7 +16,7 @@ You end up with one QuickAdd command that drops whatever you type onto a Kanban 
 
 Imported the package above? Follow **After importing** in the card, then skip the manual setup below and read [What you get](#what-you-get).
 
-1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens; click its name at the top to rename it (for example, `Add to board`).
+1. In **Settings → QuickAdd**, click **New choice** → **Add to a note**. The Capture builder opens; set **Name** (for example, `Add to board`).
 2. Set **Capture to** to your Kanban board file.
 3. Enable the **Task** toggle (in the **Content** section). This wraps your text in `- [ ]` so Kanban reads it as a card.
 4. Set **Write position** to **After line…**.

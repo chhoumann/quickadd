@@ -8,14 +8,15 @@ A Multi is a **folder for your other choices**. Group related choices under one
 entry in the QuickAdd picker, then open it to see what's inside - handy once your
 picker grows past a handful of items. In the settings list, a Multi is the entry
 you can fold and unfold. Create one with **New folder** in **Settings →
-QuickAdd**.
+QuickAdd**. Under its name, the settings list and the picker show how many
+choices it holds.
 
 ![The QuickAdd choice list with a Journal folder unfolded, showing two choices nested inside it](../Images/choices/multi-choice-list.png)
 
 ## Put choices inside a multi {#add-choices}
 
-To create a new choice inside a multi, unfold it and click its **Add choice**
-link. To move an existing choice in, **drag it in**. Make sure the multi is
+To create a new choice inside a multi, unfold it, click its **Add choice**
+link, and pick a [preset](/docs/Choices/Presets/). To move an existing choice in, **drag it in**. Make sure the multi is
 unfolded (as in the screenshot above), then grab the drag handle (⠿) at the
 right end of the choice's row - it appears when you hover the row - and drop
 the choice onto the rows under the multi. When it works, the choice appears

@@ -32,7 +32,8 @@ to do each familiar job.
    Started {{DATE}}
    ```
 
-2. Open **Settings → QuickAdd** and choose **New choice → Template**.
+2. Open **Settings → QuickAdd** and choose **New choice → New note from a
+   template**.
 3. The choice's settings open as a page of the settings window. Set **Name**
    to `New book note`. (Before QuickAdd 2.30.0, they open in a dialog; click
    the name at the top to rename it.)

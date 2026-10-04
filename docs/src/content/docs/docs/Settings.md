@@ -10,7 +10,7 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 
 ![The Choices & packages section of QuickAdd settings: a filterable list of choices with Projects and Reading folders, row actions shown on hover for Add to journal, the New folder and New choice buttons, and the Export package… and Import package… buttons](./Images/settings-choices-and-packages.png)
 
-- **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. Click the gear on a choice's row (on a phone, **⋮** → **Configure**) to open its settings as a page of this window; going back or closing Settings saves them (QuickAdd 2.30.0 or later; earlier versions open a dialog). See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
+- **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. **New choice** offers [presets](/docs/Choices/Presets/) by outcome, such as **Log with a timestamp** or **Run a script**, and **New folder** adds a folder. Under each choice's name, a one-line summary says what it does, for example *Adds a line under ## Log in today's daily note*; a folder shows how many choices it holds. Click the gear on a choice's row (on a phone, **⋮** → **Configure**) to open its settings as a page of this window; going back or closing Settings saves them (QuickAdd 2.30.0 or later; earlier versions open a dialog). See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
 - **Packages** - share a set of choices with someone else, or bring theirs in. Use **Export package…** to bundle your choices into a file, and **Import package…** to add someone else's. See [Share QuickAdd Packages](/docs/Choices/Packages/).
 
 ## Input {#input}
@@ -41,7 +41,7 @@ Settings most vaults never change are on the **Advanced** page, the last entry i
 
 ### Choice picker {#choice-picker}
 
-The choice picker is the list you see when you run **QuickAdd: Run**.
+The choice picker is the list you see when you run **QuickAdd: Run**. Each choice shows the same one-line summary under its name as in the settings list.
 
 ![The QuickAdd choice picker searching for "new": root choices New person and New meeting note, followed by New book note from the Reading folder and New project from the Projects folder, each nested match labelled with its folder](./Images/choice-picker-nested-search.png)
 
@@ -74,6 +74,7 @@ The choice picker is the list you see when you run **QuickAdd: Run**.
 ## Choice icons {#choice-icons}
 
 - **Automatic choice icons** - QuickAdd gives each choice type a default [Lucide](https://lucide.dev) icon: `file-text` for Template, `pencil` for Capture, `terminal` for Macro, and `folder` for Multi. These show in the QuickAdd launcher, inside Multi choice pickers, and on registered commands in the command palette and mobile editing toolbar.
+- **Preset icons** - a choice made from a [preset](/docs/Choices/Presets/) starts with that preset's icon, for example `clock` for **Log with a timestamp**, instead of its type's default.
 - **Override a choice's icon** - give a single choice its own icon. Open the choice's configuration and set **Icon** to any Lucide icon id (for example `star`); leave it empty to fall back to the choice type default. Icons take the active Obsidian theme's color; QuickAdd does not set per-choice icon colors.
 
 _Choice icons introduced in QuickAdd 2.14.0._

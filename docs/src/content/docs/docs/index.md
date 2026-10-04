@@ -32,13 +32,19 @@ Most workflows start with either a Template choice or a Capture choice. Add a
 Macro choice when you need scripting, multiple steps, or data from another
 plugin or API.
 
+You don't pick the type directly. **New choice** in the settings list offers
+[presets](/docs/Choices/Presets/) named after what you want to happen, such as
+**Log with a timestamp** or **Run a script**. Each one creates a choice of the
+right type, already set up.
+
 ## First workflow
 
 Let's build a capture that adds a timestamped line to your daily journal. It
 takes about a minute.
 
-1. Open **Settings → QuickAdd**, click **New choice**, and pick **Capture**. Its
-   settings open right away, as a page of the settings window.
+1. Open **Settings → QuickAdd**, click **New choice**, and pick **Add to a
+   note**. It creates a Capture choice and opens its settings right away, as a
+   page of the settings window.
 2. Set **Name** to `Add to journal`. (Before QuickAdd 2.30.0, the settings open
    in a dialog; click the name at the top to rename it.)
 3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
@@ -50,10 +56,13 @@ takes about a minute.
 6. Close the settings. Open the command palette (Ctrl/Cmd+P), run
    **QuickAdd: Run**, pick `Add to journal`, and type your entry.
 
-QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` to the top of
-today's journal note, without opening it.
+QuickAdd writes a line like `- 09:42 Standup moved to Wednesday` at the bottom
+of today's journal note, without opening it.
 
 ![Running QuickAdd: Run from the command palette, picking Add to journal, typing "Standup moved to Wednesday", and the timestamped line appearing at the top of today's journal note](./Images/getting-started-add-to-journal.gif)
+
+Under the choice's name, the settings list and the launcher now show what it
+does: *Adds a line at the bottom of Journal/{date}*.
 
 Once it works the way you want, click the ⚡ icon next to the choice to add it
 to the command palette, then give it a hotkey in Obsidian's **Settings →

@@ -44,8 +44,8 @@ your cursor at the end, ready to type. Three commands, run as one.
 
 ### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
 
-1. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
-   Builder opens as a page of the settings window; set **Name** to
+1. In **Settings → QuickAdd**, click **New choice** → **Run a sequence of
+   steps**. The Macro Builder opens as a page of the settings window; set **Name** to
    `Open daily note`. To reopen the builder later, click the gear on the
    choice's row (on a phone, **⋮** → **Configure**). Going back saves it.
    (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top

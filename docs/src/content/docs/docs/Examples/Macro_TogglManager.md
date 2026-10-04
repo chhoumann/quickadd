@@ -19,8 +19,8 @@ You can find the script <a href="/scripts/togglManager.js" download>here</a>.
 Imported the package above? The script and the **Toggl manager** macro are already in place. Connect the Toggl plugin as described under **After importing** in the card if you have not yet, then skip to [Configuration](#configuration) to set up your own menu.
 
 1. Save the script (`togglManager.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
-2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine ``⏳ Toggl Manager``.
-3. Add the user script to the command list.
+2. In **Settings → QuickAdd**, click **New choice** → **Run a script**. The Macro Builder opens with one script step; set **Name** - you decide what to name it. I named mine ``⏳ Toggl Manager``.
+3. On the script step, click **Choose file** and pick `togglManager.js`.
 
 Your Macro should look like this:
 

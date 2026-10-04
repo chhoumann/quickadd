@@ -22,8 +22,7 @@ dump entry** Capture, and `scripts/brainDump.js`. Follow **After importing**
 in the card, then skip to [What you get](#what-you-get).
 
 1. Create the Capture. In **Settings → QuickAdd**, click **New choice** →
-   **Capture**. Click its name at the top of the settings window and rename it
-   `Brain dump entry`.
+   **Add to a note**, and set **Name** to `Brain dump entry`.
 2. Set **Capture to** to `Inbox.md` and turn on **Create file if it doesn't
    exist**.
 3. Set **Write position** to **Bottom of file**.
@@ -39,9 +38,8 @@ in the card, then skip to [What you get](#what-you-get).
 6. <a href="/scripts/brainDump.js" download>Download brainDump.js</a> and save
    it in your vault. QuickAdd doesn't list scripts in `.obsidian` or in other
    folders whose names start with a dot.
-7. Click **New choice** → **Macro** and rename it `Brain dump`. In the Macro
-   builder, type `brainDump` in the **User scripts** box, pick the script, and
-   click **Add**.
+7. Click **New choice** → **Run a script** and set **Name** to `Brain dump`.
+   On the script step, click **Choose file** and pick `brainDump.js`.
 8. Turn **Add to command palette** on and click **Done**.
 
 ## What you get

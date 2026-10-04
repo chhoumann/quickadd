@@ -16,7 +16,7 @@ stay right where you are. Use it to:
 
 ## Set up your first capture {#set-up}
 
-1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The
+1. In **Settings → QuickAdd**, click **New choice** → **Add to a note**. The
    Capture builder opens as a page of the settings window; set **Name** to
    `Add to journal`. (Before QuickAdd 2.30.0, the builder is a dialog; click
    its name at the top to rename it.)

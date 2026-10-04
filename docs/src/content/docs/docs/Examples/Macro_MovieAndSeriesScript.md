@@ -29,8 +29,8 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
 
 1. Save the script (`movies.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. In **Settings → QuickAdd**, click **New choice** → **Macro**. This is what activates the macro. The Macro Builder opens; click its name at the top to rename it - you decide what to call it. I named mine `🎬 Movie`.
-4. Add the user script to the command list.
+3. In **Settings → QuickAdd**, click **New choice** → **Run a script**. This is what activates the macro. The Macro Builder opens with one script step; set **Name** - you decide what to call it. I named mine `🎬 Movie`.
+4. On the script step, click **Choose file** and pick `movies.js`.
 5. Add a Template command to the macro. This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
     2. Set **File name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.

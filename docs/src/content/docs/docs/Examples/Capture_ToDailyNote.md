@@ -15,7 +15,7 @@ The package above needs QuickAdd 2.30.0 or later. On an earlier version, the pac
 
 Imported the package above? Follow **After importing** in the card, then skip the base setup below. [Recipes](#recipes) explains what each imported capture does and how to add more.
 
-1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens as a page of the settings window; set **Name** to `Daily entry`. (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top to rename it.)
+1. In **Settings → QuickAdd**, click **New choice** → **Log with a timestamp**. The Capture builder opens as a page of the settings window; set **Name** to `Daily entry`. The preset already does steps 2 to 8 below, with `## Log` as the heading, so check them and change the heading to your own. (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top to rename it.)
 2. Disable **Capture to active file**.
 3. Click **Daily note** next to **Capture to** (QuickAdd 2.30.0 or later). It fills in `{{DAILY}}`, which uses the folder, date format, and template from Obsidian's **Daily notes** settings, or from Periodic Notes when it manages your daily notes. On earlier versions, type your daily-note path and date pattern instead, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
 4. Make sure **Create file if it doesn't exist** is on. The **Daily note** button turns it on. On earlier versions, turn it on yourself; to start a new note from your daily-note template, also turn on **Create file with a template** and pick the template.

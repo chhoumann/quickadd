@@ -18,8 +18,8 @@ Imported the package above? The script and the **Add location from address** mac
 
 1. Grab the script from [this page](/scripts/getLongLatFromAddress.js). You can either click the download link, or copy the file contents and save them as `getLongLatFromAddress.js`. The `.js` extension is essential.
 2. Save the file anywhere in your vault, except `.obsidian` or another hidden folder (one whose name starts with a dot). For a fuller walkthrough, see [how to add a script to a macro](/docs/UserScripts/#adding-scripts-to-macros).
-3. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (I call mine `Mapper`). If you close the builder, click the gear (Configure) button on the choice in the list to reopen it. See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
-4. In the Macro Builder, place your cursor in the **User scripts** field to bring up a suggester, pick `getLongLatFromAddress.js` (or click **Browse** to select the file), and click **Add**. It should appear as the first command.
+3. In **Settings → QuickAdd**, click **New choice** → **Run a script**. The Macro Builder opens with one script step; set **Name** (I call mine `Mapper`). If you close the builder, click the gear (Configure) button on the choice in the list to reopen it. See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+4. On the script step, click **Choose file** and pick `getLongLatFromAddress.js`. The step now shows the file's path.
 5. Close the QuickAdd settings.
 
 ## What you get

@@ -29,7 +29,7 @@ Good fits:
 
 Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
 
-1. Create a Capture choice.
+1. Create a Capture choice: **New choice** → **Add to a note**.
 2. Enable **Capture to active file**.
 3. Open a Canvas file.
 4. Select exactly one supported card.
@@ -49,7 +49,7 @@ selected, or the selected card is unsupported.
 
 ## Capture to a specific card
 
-1. Create a Capture choice.
+1. Create a Capture choice: **New choice** → **Add to a note**.
 2. Turn off **Capture to active file**.
 3. Set **Capture to** to a `.canvas` file.
 4. Choose **Target canvas node**.
