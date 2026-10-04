@@ -160,6 +160,15 @@ describe("QuickAdd on stored actions", () => {
 		expect(disk()).toBe(before);
 	});
 
+	it("treats a damaged migrations value as absent, and still saves", async () => {
+		const { plugin, disk } = pluginOn({ ...v3File, migrations: null });
+		await plugin.loadSettings();
+		expect(plugin.settings.migrations).toMatchObject({ migrateToV3Actions: expect.any(Boolean) });
+		plugin.settings.choices[0].name = "Still saved";
+		await plugin.saveSettings();
+		expect(JSON.stringify(disk())).toContain("Still saved");
+	});
+
 	it("keeps saving when the restore could not write the snapshot back", async () => {
 		const { plugin, disk, files } = pluginOn(v3File);
 		await plugin.loadSettings();

@@ -325,6 +325,14 @@ export default class QuickAdd extends Plugin {
 			settings.announceUpdates = settings.announceUpdates ? "all" : "none";
 		}
 
+		// A damaged `migrations` value (null, a list) would make every migration
+		// read and every save throw; treat it as absent, so the migrations run
+		// as they do for a fresh install.
+		const migrations: unknown = settings.migrations;
+		if (typeof migrations !== "object" || migrations === null || Array.isArray(migrations)) {
+			settings.migrations = { ...DEFAULT_SETTINGS.migrations };
+		}
+
 		// Heal duplicate choice ids (#1451): a repeated id makes the settings tab's
 		// keyed {#each} throw each_key_duplicate and render blank (commands keep
 		// working, so it looks like "corrupted data"). Cheap and idempotent, so it
