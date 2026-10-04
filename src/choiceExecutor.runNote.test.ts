@@ -68,10 +68,11 @@ const plugin = { app, settings: { choices: [] } } as never;
 
 let seen: (string | null)[] = [];
 
-function readsRunNote(executor: IChoiceExecutor, name: string): ICommand {
+function readsRunNote(executor: IChoiceExecutor, name: string, then?: () => Promise<void>): ICommand {
 	const path = `${name}.js`;
-	scripts.set(path, () => {
+	scripts.set(path, async () => {
 		seen.push(executor.runNote?.path ?? null);
+		await then?.();
 	});
 	return { id: `${name}-step`, name, type: CommandType.UserScript, path, settings: {} } as IUserScript;
 }
@@ -130,6 +131,21 @@ describe("ChoiceExecutor run note", () => {
 			nested(macro("Inner", [readsRunNote(executor, "inner")])),
 		]));
 		expect(seen).toEqual(["a.md"]);
+	});
+
+	it("tells what note a run ended on without touching the run note", async () => {
+		const executor = new ChoiceExecutor(app, plugin);
+		await executor.execute(macro("Outer", [
+			nested(capture("a.md")),
+			readsRunNote(executor, "step", async () => {
+				const wrote = await executor.noteEndedOn(() => executor.execute(capture("b.md")));
+				const same = await executor.noteEndedOn(() => executor.execute(capture("b.md")));
+				const none = await executor.noteEndedOn(() => executor.execute(macro("Scripts", [readsRunNote(executor, "inner")])));
+				seen.push(wrote?.path ?? null, same?.path ?? null, none?.path ?? null, executor.runNote?.path ?? null);
+			}),
+		]));
+		// The step saw a.md; the inner script saw b.md; then: wrote, same note again, none, and the run note untouched.
+		expect(seen).toEqual(["a.md", "b.md", "b.md", "b.md", null, "b.md"]);
 	});
 
 	it("starts empty for every outermost run and is cleared when it ends", async () => {

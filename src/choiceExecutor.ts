@@ -81,6 +81,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public clocks?: RunClocks;
 	public pickDate = false;
 	public runNote: TFile | null = null;
+	/** How many times a run has recorded the note it ended on; noteEndedOn reads it. */
+	private notesRecorded = 0;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	/** The latest result any choice of the outermost run recorded. */
@@ -116,7 +118,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		if (result.status === "success" && result.file) {
 			this.runNote = result.file;
 			this.lastWrite = { ...result, file: result.file };
+			this.notesRecorded++;
 		}
+	}
+
+	async noteEndedOn(run: () => Promise<void>): Promise<TFile | null> {
+		const seen = this.notesRecorded;
+		await run();
+		return this.notesRecorded === seen ? null : this.runNote;
 	}
 
 	private beginExecutionContext(): void {

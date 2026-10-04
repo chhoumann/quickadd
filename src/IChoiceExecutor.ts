@@ -110,6 +110,12 @@ export interface IChoiceExecutor {
 	 */
 	runNote?: TFile | null;
 	/**
+	 * Runs `run` and gives the note it ended on: the run note once `run` has
+	 * recorded one, null when it recorded none. The run note itself is left as
+	 * it is throughout, so `{{NOTE}}` inside `run` still sees the outer note.
+	 */
+	noteEndedOn?(run: () => Promise<void>): Promise<TFile | null>;
+	/**
 	 * Records the structured outcome of the current execution so an orchestrator
 	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can
 	 * report success/failure/cancel to an external caller. Optional — engines call it

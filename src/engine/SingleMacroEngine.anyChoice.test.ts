@@ -36,8 +36,15 @@ describe("SingleMacroEngine on a choice that is not a macro", () => {
 		vi.clearAllMocks();
 		vi.spyOn(log, "logError").mockImplementation(() => {});
 		executor = createChoiceExecutor();
+		let recorded = 0;
+		executor.noteEndedOn = async (run) => {
+			const seen = recorded;
+			await run();
+			return recorded === seen ? null : executor.runNote ?? null;
+		};
 		vi.mocked(executor.execute).mockImplementation((ran: IChoice) => {
 			executor.runNote = { path: `notes/${ran.name}.md` } as TFile;
+			recorded++;
 			return Promise.resolve();
 		});
 	});
@@ -68,6 +75,19 @@ describe("SingleMacroEngine on a choice that is not a macro", () => {
 
 		await expect(engine([choice("Open inbox", "Capture")]).runAndGetOutput("Open inbox")).resolves.toBe("");
 		expect(executor.runNote).toBe(earlier);
+	});
+
+	it("leaves the run note in place while the choice runs, so {{NOTE}} inside it sees the outer note", async () => {
+		const earlier = { path: "notes/Earlier.md" } as TFile;
+		executor.runNote = earlier;
+		let seenInside: TFile | null | undefined;
+		vi.mocked(executor.execute).mockImplementation(() => {
+			seenInside = executor.runNote;
+			return Promise.resolve();
+		});
+
+		await engine([choice("Append", "Capture")]).runAndGetOutput("Append");
+		expect(seenInside).toBe(earlier);
 	});
 
 	it("refuses export access on it", async () => {

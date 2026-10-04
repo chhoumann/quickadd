@@ -1,4 +1,4 @@
-import type { App, TFile } from "obsidian";
+import type { App } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
@@ -19,8 +19,6 @@ import {
 	isCommandLike,
 } from "../utils/macroUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
-
-const runNoteOf = (executor: IChoiceExecutor): TFile | null => executor.runNote ?? null;
 
 // Member names that QuickAdd itself treats as conventions/metadata rather than entrypoints:
 // `settings` (consumed by initializeUserScriptSettings), `entry` (the object-export entrypoint
@@ -144,15 +142,11 @@ export class SingleMacroEngine {
 			}
 			// Through the executor, as a Choice step runs it: a folder opens its
 			// picker. The result is the note the choice itself ended on, not one
-			// an earlier step left: the run note is cleared for it and given back
-			// when it wrote none.
-			const outer = runNoteOf(this.choiceExecutor);
-			this.choiceExecutor.runNote = null;
-			await this.choiceExecutor.execute(choice, ancestry);
+			// an earlier step left.
+			const run = () => this.choiceExecutor.execute(choice, ancestry);
+			const note = this.choiceExecutor.noteEndedOn ? await this.choiceExecutor.noteEndedOn(run) : (await run(), null);
 			this.ensureNotAborted();
-			const own = runNoteOf(this.choiceExecutor);
-			if (!own) this.choiceExecutor.runNote = outer;
-			return own?.path ?? "";
+			return note?.path ?? "";
 		}
 		const macroChoice = choice as IMacroChoice;
 
