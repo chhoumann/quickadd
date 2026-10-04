@@ -17,6 +17,8 @@ export async function replaceScriptFile(
 	command: IUserScript,
 	picked: { name: string; path: string },
 ): Promise<void> {
+	// The same file again changes nothing, and must not cost the step its settings.
+	if (picked.path === command.path) return;
 	if (!(await clearUserScriptSecretsFromCommand(app, command))) {
 		new Notice("QuickAdd: Not all of the script's stored secrets could be removed from secret storage.");
 	}
