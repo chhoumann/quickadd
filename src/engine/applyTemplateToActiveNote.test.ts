@@ -176,6 +176,17 @@ describe("buildTemplatePickerItems", () => {
 		expect(items).toEqual([{ kind: "choice", choice: nested }]);
 	});
 
+	it.each(["templates\\meeting", "/templates/meeting.md/"])(
+		"dedupes a template file against a choice path written as %j",
+		(templatePath) => {
+			const choices: IChoice[] = [makeTemplateChoice("Meeting", templatePath)];
+			const items = buildTemplatePickerItems(choices, ["templates/meeting.md"]);
+
+			expect(items).toHaveLength(1);
+			expect(items[0]).toMatchObject({ kind: "choice" });
+		},
+	);
+
 	it("dedupes template files against choice template paths without extension", () => {
 		const choices: IChoice[] = [
 			makeTemplateChoice("Meeting", "templates/meeting"),

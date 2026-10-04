@@ -63,8 +63,7 @@ export function templatePickerItemLabel(item: TemplatePickerItem): string {
 }
 
 function normalizeTemplatePathForComparison(path: string): string {
-	const stripped = path.replace(/^\/+/, "").toLowerCase();
-	return /\.(md|canvas|base)$/.test(stripped) ? stripped : `${stripped}.md`;
+	return resolveTemplatePath(path).toLowerCase();
 }
 
 /**
