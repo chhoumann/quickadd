@@ -79,7 +79,7 @@ export class RequirementCollector extends Formatter {
 	 */
 	constructor(
 		protected app: App | undefined,
-		private plugin?: QuickAdd,
+		private plugin?: Pick<QuickAdd, "settings">,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super(app);

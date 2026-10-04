@@ -8,6 +8,8 @@ import {
 	scanTemplateBody,
 } from "../preflight/collectChoiceRequirements";
 import { type FieldRequirement, RequirementCollector } from "../preflight/RequirementCollector";
+import type QuickAdd from "../main";
+import type { QuickAddSettings } from "../settings";
 import type { Action, AddToNoteStep, CreateNoteStep } from "./model";
 
 export type InputKind = "value" | "date" | "field" | "file" | "math" | "pick";
@@ -42,8 +44,10 @@ export async function listInputs(
 	action: Action,
 	readTemplate: ReadTemplate,
 	isFolder: (path: string) => boolean = () => false,
+	settings?: Pick<QuickAddSettings, "globalVariables" | "inputPrompt">,
 ): Promise<ActionInput[]> {
-	const collector = new RequirementCollector(undefined);
+	// The settings are what a global variable expands from.
+	const collector = new RequirementCollector(undefined, settings && { settings: settings as QuickAdd["settings"] });
 	const inputs: ActionInput[] = [];
 	let lastScript: number | undefined;
 	const aiOutputs = new Map<string, number>();

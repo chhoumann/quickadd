@@ -37,6 +37,19 @@ describe("listInputs", () => {
 		]);
 	});
 
+	it("reads what a global variable holds, from the settings it is given", async () => {
+		const capture = new CaptureChoice("Project log");
+		capture.captureTo = "Log.md";
+		capture.format = { enabled: true, format: "{{GLOBAL_VAR:Projects}}" };
+		const settings = { globalVariables: { Projects: "- {{VALUE:project}}" }, inputPrompt: "single-line" as const };
+
+		const inputs = await listInputs(actionOf(capture), noTemplates, undefined, settings);
+
+		expect(inputs.map(({ name, definedIn }) => ({ name, definedIn }))).toEqual([
+			{ name: "project", definedIn: { step: 0, where: "format" } },
+		]);
+	});
+
 	it("lists the note a Capture to a folder asks to pick", async () => {
 		const capture = new CaptureChoice("Inbox");
 		capture.id = "inbox";

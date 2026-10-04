@@ -6,6 +6,7 @@ import { getTemplateFile } from "../../../utils/templateFolderUtils";
 import { isFolder } from "../../../utils/vaultQueries";
 import { type ActionInput, listInputs } from "../../../v3/inputs";
 import { migrateChoice } from "../../../v3/migrate";
+import { settingsStore } from "../../../settingsStore";
 import type { InputOverride } from "../../../v3/model";
 import SettingGroup from "../../components/SettingGroup.svelte";
 import Toggle from "../../components/Toggle.svelte";
@@ -34,7 +35,7 @@ $effect(() => {
 	}
 	if (node.kind !== "action") return;
 	let current = true;
-	void listInputs(node, readTemplate, (path) => isFolder(app, path)).then(
+	void listInputs(node, readTemplate, (path) => isFolder(app, path), settingsStore.getState()).then(
 		(list) => {
 			if (current) inputs = list;
 		},
