@@ -193,6 +193,43 @@ describe("the lowered view of stored actions", () => {
 		expect(loadAndSave(disk)).toEqual(disk);
 	});
 
+	it("loads the actions it can read and keeps an entry it cannot read where it was", () => {
+		const good = stored(FIXTURE.slice(0, 2)).actions as ActionNode[];
+		const disk = { ...migrated, actions: [null, good[0], { id: "half", kind: "action" }, good[1]] };
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id, FIXTURE[1].id]);
+
+		expect(loadAndSave(disk)).toEqual(disk);
+		const saved = loadAndSave(disk, (choices) => { choices[0].name = "Renamed"; });
+		expect(saved.actions.map((node: { id?: string } | null) => node?.id ?? node)).toEqual([null, FIXTURE[0].id, "half", FIXTURE[1].id]);
+		expect(saved.actions[1].name).toBe("Renamed");
+	});
+
+	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
+		const good = stored(FIXTURE.slice(0, 1)).actions as ActionNode[];
+		const folder = { kind: "folder", id: "f", name: "Damaged", command: false, items: [null] };
+		const disk = { ...migrated, actions: [folder, good[0]] };
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id]);
+		expect(loadAndSave(disk)).toEqual(disk);
+	});
+
+	it("keeps a choice a QuickAdd 2 device added inside an existing folder", () => {
+		const folder = new MultiChoice("Logs");
+		const child = new CaptureChoice("Old entry");
+		folder.choices = [child];
+		const disk = JSON.parse(JSON.stringify(migrateSettingsV2({ ...migrated, choices: [folder] })));
+		const added = new CaptureChoice("Added on a 2.x device");
+		disk.choices = [{ ...JSON.parse(JSON.stringify(folder)), choices: [child, added] }];
+
+		const loaded = choicesFromActions(disk) as { choices: IMultiChoice[] };
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([folder.id]);
+		expect(loaded.choices[0]?.choices?.map((choice) => choice.id)).toEqual([child.id, added.id]);
+		const saved = loadAndSave(disk);
+		expect(saved.choices).toBeUndefined();
+		expect(saved.actions[0].items.map((node: { id: string }) => node.id)).toEqual([child.id, added.id]);
+	});
+
 	it("saves choices until they were migrated", () => {
 		const settings = { migrations: { migrateToV3Actions: false }, choices: FIXTURE };
 		expect(actionsFromChoices(settings)).toBe(settings);
