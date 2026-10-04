@@ -38,6 +38,7 @@ vi.mock("./utils/userScript", async (importOriginal) => ({
 }));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
+const { CaptureChoice } = await import("./types/choices/CaptureChoice");
 const { StartupMacroEngine } = await import("./engine/StartupMacroEngine");
 const { log } = await import("./logger/logManager");
 const { default: ChoiceSuggester } = await import("./gui/suggesters/choiceSuggester");
@@ -146,6 +147,38 @@ describe("ChoiceExecutor re-entry guard", () => {
 			'Macro "A" calls itself: A -> A',
 		);
 		expect(ran).toEqual(["a"]);
+	});
+
+	it("runs {{ACTION:}} and {{action:}} as it runs {{MACRO:}}", async () => {
+		const b = macro("B", [script("b", () => "out")]);
+		let formatted = "";
+		const a = macro("A", [
+			script("a", async ({ quickAddApi }) => {
+				formatted = await quickAddApi.format("{{ACTION:B}} {{action:B}} {{MACRO:B}}");
+			}),
+		]);
+		choices = [a, b];
+
+		await new ChoiceExecutor(app, plugin).execute(a);
+
+		expect(formatted).toBe("out out out");
+		expect(ran).toEqual(["a", "b", "b", "b"]);
+	});
+
+	it("refuses a Capture that reaches itself through {{ACTION:}}", async () => {
+		const capture = new CaptureChoice("Self");
+		capture.captureTo = "{{ACTION:Self}}";
+		choices = [capture];
+
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+
+		// The Capture reports its own failure rather than throwing.
+		await new ChoiceExecutor(app, plugin).execute(capture);
+
+		expect(logError.mock.calls.map((call) => String(call[0]))).toEqual([
+			'Error: Error running capture choice "Self": Capture "Self" calls itself: Self -> Self',
+		]);
+		logError.mockRestore();
 	});
 
 	it("refuses a script that runs the macro it is part of", async () => {
