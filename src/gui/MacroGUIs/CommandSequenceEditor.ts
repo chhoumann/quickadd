@@ -31,10 +31,7 @@ import {
 import { UserScript } from "../../types/macros/UserScript";
 import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
 import { confirmAction } from "../confirmAction";
-import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
-import InputSuggester from "../InputSuggester/inputSuggester";
-import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
-import { buildFileDisplayInfos } from "../../utils/fileSyntax";
+import { pickUserScript } from "./pickUserScript";
 import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
@@ -378,7 +375,7 @@ export class CommandSequenceEditor {
 			if (resolved.isMarkdown) {
 				const reason = await noteScriptError(this.app, resolved.file);
 				if (reason) {
-					new Notice(`QuickAdd: "${resolved.file.path}" — ${reason}`);
+					new Notice(`QuickAdd: "${resolved.file.path}" - ${reason}`);
 					return;
 				}
 			}
@@ -409,8 +406,8 @@ export class CommandSequenceEditor {
 					// Obsidian drops the click handler's promise: without this, pressing
 					// Escape in the picker is an unhandled rejection.
 					.onClick(reportingHandler("Couldn't add that script", async () => {
-						const script = await this.showScriptPicker();
-						if (script) this.addCommand(script);
+						const script = await pickUserScript(this.app);
+						if (script) this.addCommand(new UserScript(script.name, script.path));
 					}))
 			)
 			.addButton((button) => {
@@ -504,54 +501,6 @@ export class CommandSequenceEditor {
 			.setIcon(icon)
 			.setTooltip(tooltip)
 			.onClick(() => this.addCommand(create()));
-	}
-
-	private async showScriptPicker(): Promise<UserScript | null> {
-		// Refresh so scripts/notes created while this editor is open are listed.
-		this.loadScriptCandidates();
-		if (this.scriptCandidates.length === 0) {
-			showNoScriptsFoundNotice(this.app);
-			return null;
-		}
-
-		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
-		// Rows show the name (a note's title or heading) with the full path beneath
-		// it, and search matches both, so same-named scripts in different folders
-		// can be told apart and a note is found by the name its row shows.
-		const paths = this.scriptCandidates.map((c) => c.file.path);
-		const labels = candidateLabels(this.scriptCandidates);
-		const titles = buildFileDisplayInfos(
-			this.scriptCandidates.map((c) => c.file),
-			(file) => this.app.metadataCache.getFileCache(file),
-		);
-		const selectedPath = await InputSuggester.Suggest(
-			this.app,
-			labels,
-			paths,
-			{
-				placeholder: "Select a script (.js file or note with a ```js block)",
-				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
-					matches,
-					pathOffset: titles[paths.indexOf(path)].primary.length + 1,
-				}),
-				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
-				allowCustomValue: false,
-			}
-		);
-
-		const index = paths.indexOf(selectedPath);
-		if (index === -1) return null;
-		const candidate = this.scriptCandidates[index];
-
-		if (candidate.isMarkdown) {
-			const reason = await noteScriptError(this.app, candidate.file);
-			if (reason) {
-				new Notice(`QuickAdd: "${candidate.file.path}" — ${reason}`);
-				return null;
-			}
-		}
-
-		return new UserScript(labels[index], candidate.file.path);
 	}
 
 	private addCommand(command: ICommand) {
