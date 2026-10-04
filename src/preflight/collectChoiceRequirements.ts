@@ -69,13 +69,18 @@ interface CollectChoiceRequirementsOptions {
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }
 
-async function readTemplate(app: App, path: string): Promise<string> {
-	const file = getTemplateFile(app, path);
-	return file ? await app.vault.cachedRead(file) : "";
+/** A template's text by the path a choice or a {{TEMPLATE:}} names it with, or null when there is none. */
+export type ReadTemplate = (path: string) => Promise<string | null>;
+
+function vaultTemplateReader(app: App): ReadTemplate {
+	return async (path) => {
+		const file = getTemplateFile(app, path);
+		return file ? await app.vault.cachedRead(file) : null;
+	};
 }
 
-async function scanContentWithTemplateIncludes(
-	app: App,
+export async function scanContentWithTemplateIncludes(
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	content: string,
 	scope: PromptScopeKind = "generic",
@@ -114,9 +119,9 @@ async function scanContentWithTemplateIncludes(
 		templateStack.add(ref);
 		try {
 			await scanContentWithTemplateIncludes(
-				app,
+				readTemplate,
 				collector,
-				await readTemplate(app, ref),
+				(await readTemplate(ref)) ?? "",
 				scope,
 				templateStack,
 				depth + 1,
@@ -139,17 +144,17 @@ async function scanContentWithTemplateIncludes(
  *  - Otherwise walks the literal template body (and nested {{TEMPLATE:}}).
  */
 async function scanTemplateSource(
-	app: App,
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
 	// The template PATH is path context; the template BODY is content.
 	await collector.scanString(templatePath, true, "templatePath");
-	await scanTemplateBody(app, collector, templatePath);
+	await scanTemplateBody(readTemplate, collector, templatePath);
 }
 
-async function scanTemplateBody(
-	app: App,
+export async function scanTemplateBody(
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
@@ -161,9 +166,9 @@ async function scanTemplateBody(
 	}
 
 	await scanContentWithTemplateIncludes(
-		app,
+		readTemplate,
 		collector,
-		await readTemplate(app, templatePath),
+		(await readTemplate(templatePath)) ?? "",
 		"noteBody",
 		new Set([templatePath]),
 	);
@@ -176,6 +181,7 @@ async function collectForTemplateChoice(
 	choice: ITemplateChoice,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const readTemplate = vaultTemplateReader(app);
 
 	// Scanned in the order the run asks: the template path, the folder, the
 	// file name, then the template's content.
@@ -186,7 +192,7 @@ async function collectForTemplateChoice(
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
 			await scanContentWithTemplateIncludes(
-				app,
+				readTemplate,
 				collector,
 				folder,
 				"folder",
@@ -203,7 +209,7 @@ async function collectForTemplateChoice(
 	// counterpart to seedCaptureSelectionAsValue); tracked separately.
 	if (choice.fileNameFormat?.enabled) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.fileNameFormat.format,
 			"noteTitle",
@@ -211,7 +217,7 @@ async function collectForTemplateChoice(
 	}
 
 	if (choice.templatePath) {
-		await scanTemplateBody(app, collector, choice.templatePath);
+		await scanTemplateBody(readTemplate, collector, choice.templatePath);
 	}
 
 	const format = choice.fileNameFormat?.enabled
@@ -233,16 +239,17 @@ async function collectForCaptureChoice(
 	seedCaptureSelectionAsValue: boolean,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const readTemplate = vaultTemplateReader(app);
 
 	await scanContentWithTemplateIncludes(
-		app,
+		readTemplate,
 		collector,
 		choice.captureTo,
 		"captureTarget",
 	);
 	if (choice.propertyCapture?.property.kind === "named") {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.propertyCapture.property.format,
 			"propertyName",
@@ -257,7 +264,7 @@ async function collectForCaptureChoice(
 	if (choice.format?.enabled || choice.propertyCapture) {
 		collector.valueTakesLines = !!choice.eachLine && !choice.propertyCapture;
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
 			choice.propertyCapture ? "propertyValue" : "captureText",
@@ -273,7 +280,7 @@ async function collectForCaptureChoice(
 
 	if (!choice.propertyCapture && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.insertAfter.after,
 			"lineTarget",
@@ -282,7 +289,7 @@ async function collectForCaptureChoice(
 
 	if (!choice.propertyCapture && choice.insertBefore?.enabled) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.insertBefore.before,
 			"lineTarget",
@@ -299,7 +306,7 @@ async function collectForCaptureChoice(
 		createWithTemplate.createWithTemplate &&
 		createWithTemplate.template
 	) {
-		await scanTemplateSource(app, collector, createWithTemplate.template);
+		await scanTemplateSource(readTemplate, collector, createWithTemplate.template);
 	}
 
 	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
