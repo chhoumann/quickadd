@@ -81,6 +81,42 @@ function missingModuleMessage(path: string, moduleName: string | undefined): str
 	return `QuickAdd could not load ${path} because it could not find ${missing}. Check that the required file or package exists, and that the capitalization in require(...) matches the file name exactly.`;
 }
 
+function syntaxErrorMessage(
+	path: string,
+	message: string,
+	line: number | undefined,
+): string {
+	const where = line === undefined ? "" : ` on line ${line}`;
+	return `QuickAdd could not load ${path} because it has a syntax error${where}: ${message}. Fix the script and run it again.`;
+}
+
+const USER_SCRIPT_PARAMETERS = ["require", "module", "exports"];
+
+type NodeVm = {
+	compileFunction(code: string, params: string[], options: { filename: string }): unknown;
+};
+
+/**
+ * `new Function` reports a syntax error without its position. On desktop, Node's
+ * `vm` compiles the same source and starts the error stack with `<filename>:<line>`.
+ * The two parsers differ in places: `vm` accepts a leading shebang line and
+ * `new Function` does not, so a shebang script gets no line, and the line is
+ * only trusted when `vm` failed with the same message as `new Function`.
+ * Mobile has no `require`, so the error there names the file but not the line.
+ */
+function getSyntaxErrorLine(source: string, message: string): number | undefined {
+	if (source.startsWith("#!")) return undefined;
+	const vm = window.require?.("vm") as NodeVm | undefined;
+	try {
+		vm?.compileFunction(source, USER_SCRIPT_PARAMETERS, { filename: "user-script" });
+	} catch (error) {
+		if (!(error instanceof Error) || error.message !== message) return undefined;
+		const line = error.stack?.match(/^user-script:(\d+)\n/)?.[1];
+		if (line) return Number(line);
+	}
+	return undefined;
+}
+
 function getMissingModuleName(error: unknown): string | undefined {
 	if (!isMissingModuleError(error)) return undefined;
 
@@ -260,9 +296,25 @@ export async function loadUserScript(
 			);
 		}
 
+		let fn: (...args: unknown[]) => unknown;
 		try {
-			const fn = new Function("require", "module", "exports", scriptSource);
+			fn = new Function(...USER_SCRIPT_PARAMETERS, scriptSource) as typeof fn;
+		} catch (error) {
+			if (error instanceof SyntaxError) {
+				reportAndThrowUserScriptLoadError(
+					syntaxErrorMessage(
+						command.path,
+						error.message,
+						getSyntaxErrorLine(scriptSource, error.message),
+					),
+					options,
+				);
+			}
 
+			throw error;
+		}
+
+		try {
 			fn(req, mod, exp);
 		} catch (error) {
 			if (isMissingModuleError(error)) {

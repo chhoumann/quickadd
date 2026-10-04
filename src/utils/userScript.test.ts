@@ -1,6 +1,7 @@
+import * as vm from "node:vm";
 import { Notice, type App, TFile } from "obsidian";
 import { describe, expect, it, vi } from "vitest";
-import { getUserScript, loadUserScript } from "./userScript";
+import { getUserScript, isUserScriptLoadError, loadUserScript } from "./userScript";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
@@ -377,6 +378,88 @@ describe("getUserScript", () => {
 				previousRequire;
 			logError.mockRestore();
 		}
+	});
+
+	describe("a script with a syntax error", () => {
+		const source = [
+			"module.exports = async (params) => {",
+			"\tconst x = ;",
+			"};",
+		].join("\n");
+
+		async function loadError(path: string, content: string): Promise<unknown> {
+			const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+			try {
+				return await getUserScript(
+					createUserScriptCommand({ path }),
+					createUserScriptApp(content, path),
+				).then(
+					() => undefined,
+					(error: unknown) => error,
+				);
+			} finally {
+				expect(logError).toHaveBeenCalledTimes(1);
+				logError.mockRestore();
+			}
+		}
+
+		function withDesktopRequire<T>(run: () => Promise<T>): Promise<T> {
+			const host = window as unknown as { require?: (id: string) => unknown };
+			const previous = host.require;
+			host.require = (id) => (id === "vm" ? vm : undefined);
+			return run().finally(() => {
+				host.require = previous;
+			});
+		}
+
+		it("names the file and the original error", async () => {
+			const error = await loadError("Scripts/broken.js", source);
+
+			expect(isUserScriptLoadError(error)).toBe(true);
+			expect((error as Error).message).toBe(
+				"QuickAdd could not load Scripts/broken.js because it has a syntax error: Unexpected token ';'. Fix the script and run it again.",
+			);
+		});
+
+		it("names the line on desktop, counted from the top of the file or note", async () => {
+			const jsError = await withDesktopRequire(() =>
+				loadError("Scripts/broken.js", source),
+			);
+			expect((jsError as Error).message).toBe(
+				"QuickAdd could not load Scripts/broken.js because it has a syntax error on line 2: Unexpected token ';'. Fix the script and run it again.",
+			);
+
+			const noteError = await withDesktopRequire(() =>
+				loadError(
+					"Scripts/broken.md",
+					["# Broken", "", "```js", source, "```"].join("\n"),
+				),
+			);
+			expect((noteError as Error).message).toContain(
+				"Scripts/broken.md because it has a syntax error on line 5:",
+			);
+		});
+
+		it("reports only the error new Function hit, even when vm parses further", async () => {
+			const error = await withDesktopRequire(() =>
+				loadError(
+					"Scripts/shebang.js",
+					["#!/usr/bin/env node", "", source].join("\n"),
+				),
+			);
+
+			expect((error as Error).message).toContain("Invalid or unexpected token");
+			expect((error as Error).message).not.toContain("on line");
+
+			const sameMessage = await withDesktopRequire(() =>
+				loadError(
+					"Scripts/shebang.js",
+					["#!/usr/bin/env node", "", "const x = @;"].join("\n"),
+				),
+			);
+			expect((sameMessage as Error).message).toContain("Invalid or unexpected token");
+			expect((sameMessage as Error).message).not.toContain("on line");
+		});
 	});
 
 	it("resolves ::member access for a note-based script", async () => {
