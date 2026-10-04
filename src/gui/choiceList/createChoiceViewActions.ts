@@ -55,6 +55,8 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 	): Promise<void> {
 		const newChoice = preset.create();
 		newChoice.name = uniqueChoiceName(preset.name, context.choices);
+		// The outcome's icon, not the type's, so the list and launcher read by it.
+		newChoice.icon = preset.iconId;
 		insert(newChoice, targetFolderId);
 		if (!skipConfigure) {
 			try {

@@ -11,7 +11,6 @@ const EXPECTED: Record<string, string> = {
 	task: "Adds a task under ## Tasks in today's daily note",
 	newNote: "Creates {title}",
 	linkedNote: "Creates {title}, links it here, opens it",
-	script: "Runs a script",
 	sequence: "No steps yet",
 };
 

@@ -3,7 +3,6 @@ import type IChoice from "../../types/choices/IChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
-import { UserScript } from "../../types/macros/UserScript";
 
 /** A starting point offered by the "New choice" menu: a configured choice. */
 export interface Preset {
@@ -98,18 +97,6 @@ export const PRESETS: Preset[] = [
 				requireActiveFile: false,
 			});
 			choice.openFile = true;
-			return choice;
-		},
-	},
-	{
-		id: "script",
-		label: "Run a script",
-		description: "A JavaScript file from your vault.",
-		iconId: "code",
-		name: "Script",
-		create() {
-			const choice = new MacroChoice(this.name);
-			choice.macro.commands.push(new UserScript("Script", ""));
 			return choice;
 		},
 	},

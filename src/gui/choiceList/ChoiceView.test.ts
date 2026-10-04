@@ -484,7 +484,7 @@ describe("ChoiceView", () => {
 			type: string;
 			captureTo: string;
 		}>;
-		expect(saved).toMatchObject({ name: "Log", type: "Capture", captureTo: "{{DAILY}}" });
+		expect(saved).toMatchObject({ name: "Log", type: "Capture", captureTo: "{{DAILY}}", icon: "clock" });
 		await vi.waitFor(() =>
 			expect(
 				container.querySelector(`[data-choice-id="${saved.id}"] .choiceListItemSummary`)?.textContent,
