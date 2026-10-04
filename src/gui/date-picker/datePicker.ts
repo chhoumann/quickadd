@@ -397,8 +397,8 @@ export const attachCalendarToggle = (
 
 	const apply = (shown: boolean) => {
 		pickerHost.toggle(shown);
+		button.toggleClass("is-shown", shown);
 		button.setAttr("aria-label", shown ? "Hide calendar" : "Show calendar");
-		button.setAttr("aria-pressed", String(shown));
 	};
 	apply(settingsStore.getState().showDateCalendar);
 	return settingsStore.subscribe((settings) => apply(settings.showDateCalendar));

@@ -1,7 +1,7 @@
 import { expect, it } from "vitest";
 import type { ObsidianClient } from "obsidian-e2e";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickAt, DESCRIBE_ELEMENT, insertText, POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { clickAt, DESCRIBE_ELEMENT, insertText, POLL_OPTS, pressKey, showCalendar, waitForElement } from "./uiHelpers";
 
 const getContext = createQuickAddE2EHarness("date-picker-layout");
 
@@ -62,7 +62,7 @@ it("tabs from a form's date field past the calendar to the next field", async ()
 			]).catch(() => undefined);
 			return true;
 		})()`);
-		await waitForElement(obsidian, ".onePageInputModal .qa-date-picker");
+		await showCalendar(obsidian, ".onePageInputModal");
 		const stops = await tabTo(obsidian, 'input "Next field"');
 		expect(stops.filter((stop) => stop.startsWith("calendar "))).toEqual([]);
 		expect(stops.at(-1)).toBe('input "Next field"');
@@ -81,7 +81,7 @@ it("tabs from the date prompt past the calendar to its actions", async () => {
 			void app.plugins.plugins.quickadd.api.datePrompt('due date').catch(() => undefined);
 			return true;
 		})()`);
-		await waitForElement(obsidian, ".qaDatePrompt .qa-date-picker");
+		await showCalendar(obsidian, ".qaDatePrompt");
 		const stops = await tabTo(obsidian, 'button.mod-cta "Ok"');
 		expect(stops.filter((stop) => stop.startsWith("calendar "))).toEqual([]);
 		expect(stops.at(-1)).toBe('button.mod-cta "Ok"');
@@ -120,7 +120,7 @@ it("hides the calendar from the date field and remembers it for the next date pr
 			]).catch(() => undefined);
 			return true;
 		})()`);
-		await waitForElement(obsidian, ".onePageInputModal .qa-date-picker");
+		await showCalendar(obsidian, ".onePageInputModal");
 		await clickCalendarToggle(obsidian);
 		expect(await obsidian.dev.evalJson(CALENDAR_STATE)).toEqual({ shown: false, label: "Show calendar", setting: false, typing: true });
 		await obsidian.dev.evalJson(`(() => {
@@ -134,7 +134,7 @@ it("hides the calendar from the date field and remembers it for the next date pr
 		expect(await obsidian.dev.evalJson(CALENDAR_STATE)).toEqual({ shown: true, label: "Hide calendar", setting: true, typing: true });
 	} finally {
 		await obsidian.dev.evalJson(`(() => {
-			document.querySelector('.qa-date-field__calendar[aria-pressed="false"]')?.click();
+			document.querySelector('.qa-date-field__calendar:not(.is-shown)')?.click();
 			[...document.querySelectorAll('.onePageInputModal button, .qaDatePrompt button')].find(e => e.textContent === 'Cancel')?.click();
 			return true;
 		})()`);
@@ -188,7 +188,7 @@ it.each(["is-phone", "is-tablet"])("keeps the calendar month readable under %s h
 			]).catch(() => undefined);
 			return true;
 		})()`);
-		await waitForElement(obsidian, ".qa-date-picker__header");
+		await showCalendar(obsidian, ".onePageInputModal");
 		const layout = await obsidian.dev.evalJson<{
 			labelWidth: number;
 			labelFits: boolean;
@@ -242,7 +242,7 @@ it("spaces the date prompt's actions from the preview like the preview from the 
 			void app.plugins.plugins.quickadd.api.datePrompt('due date').catch(() => undefined);
 			return true;
 		})()`);
-		await waitForElement(obsidian, ".qaDatePrompt .vdate-preview-container");
+		await showCalendar(obsidian, ".qaDatePrompt");
 		const gaps = await obsidian.dev.evalJson<{ calendarToPreview: number; previewToActions: number }>(`(() => {
 			const prompt = document.querySelector('.qaDatePrompt');
 			const rect = (selector) => prompt.querySelector(selector).getBoundingClientRect();

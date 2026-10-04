@@ -30,6 +30,18 @@ export async function waitForElement(obsidian: ObsidianClient, selector: string)
 }
 
 /**
+ * Shows the calendar of the date field inside `scope`. The calendar button in a
+ * date field hides it for every later date prompt, so a vault may start hidden.
+ */
+export async function showCalendar(obsidian: ObsidianClient, scope: string) {
+	await waitForElement(obsidian, `${scope} .qa-date-field__calendar`);
+	await obsidian.dev.evalJson(
+		`document.querySelector(${jsLiteral(`${scope} .qa-date-field__calendar:not(.is-shown)`)})?.click() ?? true`,
+	);
+	await waitForElement(obsidian, `${scope} .qa-date-picker`);
+}
+
+/**
  * Page source for `describe(element)`, a short label such as
  * `button.mod-cta "Submit"`, for failure messages that name what is on top or
  * what has focus.

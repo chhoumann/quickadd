@@ -1774,7 +1774,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	padding: 0;
 }
 
-.qa-date-field .qa-date-field__calendar[aria-pressed="true"] {
+.qa-date-field .qa-date-field__calendar.is-shown {
 	color: var(--text-accent);
 	background-color: hsla(var(--interactive-accent-hsl), 0.1);
 }
