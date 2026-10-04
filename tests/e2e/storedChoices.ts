@@ -37,6 +37,9 @@ export function withStoredChoices<T extends object>(edit: (data: T) => void): (d
 export async function useLoadedStepIds(obsidian: ObsidianClient, macro: IMacroChoice): Promise<void> {
 	const ids = await obsidian.dev.evalJson<string[]>(`app.plugins.plugins.quickadd.settings.choices
 		.find((choice) => choice.id === ${JSON.stringify(macro.id)}).macro.commands.map((command) => command.id)`);
+	if (ids.length !== macro.macro.commands.length) {
+		throw new Error(`QuickAdd loaded ${ids.length} steps for '${macro.name}', the test macro has ${macro.macro.commands.length}.`);
+	}
 	macro.macro.commands.forEach((command, index) => {
 		command.id = ids[index];
 	});

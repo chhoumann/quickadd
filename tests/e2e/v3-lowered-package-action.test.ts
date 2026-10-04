@@ -23,8 +23,9 @@ const pkg = JSON.parse(readFileSync(
 	path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../docs/public/packages/daily-note-captures.quickadd.json"),
 	"utf8",
 )) as QuickAddPackage;
-const folder = pkg.choices.find(({ choice }) => choice.type === "Multi")?.choice as IMultiChoice;
-const journal = folder.choices?.find((choice) => choice.name === "Journal entry") as IChoice;
+const folder = pkg.choices.find(({ choice }) => choice.type === "Multi")?.choice as IMultiChoice | undefined;
+const journal = folder?.choices?.find((choice) => choice.name === "Journal entry");
+if (!journal) throw new Error("The daily-note-captures package has no 'Journal entry' choice in its folder.");
 walkChoiceTree(journal, normalizeImportedChoice);
 
 let dailyNotesBefore: unknown;
