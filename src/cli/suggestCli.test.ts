@@ -67,10 +67,24 @@ describe("quickadd:suggest kind=links", () => {
 			},
 		} as unknown as App;
 
-		expect(obsidianSuggestSource(app).linkCandidates()).toEqual([
-			{ path: "Notes/A.md", mtime: 7, linktext: "Notes/A.md@", alias: undefined, excluded: true },
+		expect(obsidianSuggestSource(app).linkCandidates("Notes/B.md")).toEqual([
+			{ path: "Notes/A.md", mtime: 7, linktext: "Notes/A.md@Notes/B.md", alias: undefined, excluded: true },
 		]);
-		expect(obsidianSuggestSource({ metadataCache: {} } as unknown as App).linkCandidates()).toBeNull();
+		expect(obsidianSuggestSource({ metadataCache: {} } as unknown as App).linkCandidates("")).toBeNull();
+	});
+
+	it("passes the containing note on to the link text, and the vault root without one", () => {
+		const seen: string[] = [];
+		const src: SuggestSource = {
+			linkCandidates: (sourcePath) => {
+				seen.push(sourcePath);
+				return [];
+			},
+			tagCounts: () => ({}),
+		};
+		suggest(src, { kind: "links", source: "Daily/2026-10-04.md" });
+		suggest(src, { kind: "links" });
+		expect(seen).toEqual(["Daily/2026-10-04.md", ""]);
 	});
 });
 

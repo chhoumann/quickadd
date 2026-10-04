@@ -11,8 +11,11 @@ export interface LinkCandidate {
 }
 
 export interface SuggestSource {
-	/** null when this Obsidian has no `getLinkSuggestions`. */
-	linkCandidates(): LinkCandidate[] | null;
+	/**
+	 * null when this Obsidian has no `getLinkSuggestions`. `sourcePath` is the note
+	 * the link will be inserted in; it decides the text under the relative link format.
+	 */
+	linkCandidates(sourcePath: string): LinkCandidate[] | null;
 	/** Counts keyed by `#tag`. */
 	tagCounts(): Record<string, number>;
 }
@@ -27,14 +30,14 @@ interface MetadataCacheInternals {
 export function obsidianSuggestSource(app: App): SuggestSource {
 	const cache = app.metadataCache as unknown as MetadataCacheInternals;
 	return {
-		linkCandidates: () =>
+		linkCandidates: (sourcePath) =>
 			cache.getLinkSuggestions?.().flatMap(({ file, alias }) =>
 				// Entries without a file are unresolved link targets; there is no file to link to.
 				file
 					? [{
 						path: file.path,
 						mtime: file.stat.mtime,
-						linktext: cache.fileToLinktext(file, ""),
+						linktext: cache.fileToLinktext(file, sourcePath),
 						alias,
 						excluded: cache.isUserIgnored(file.path),
 					}]
@@ -48,7 +51,8 @@ type SuggestResult = { ok: boolean; [key: string]: unknown };
 
 export function suggestHandler(source: SuggestSource, params: CliData): SuggestResult {
 	if (params.kind === "links") {
-		const candidates = source.linkCandidates();
+		const sourcePath = typeof params.source === "string" ? params.source : "";
+		const candidates = source.linkCandidates(sourcePath);
 		if (!candidates) {
 			return { ok: false, error: "This Obsidian version has no link suggestions API; update Obsidian." };
 		}

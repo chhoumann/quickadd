@@ -30,6 +30,7 @@ export const LIST_FLAGS: CliFlags = {
 };
 export const SUGGEST_FLAGS: CliFlags = {
 	kind: { value: "<links|tags>", description: "Which suggestions to list" },
+	source: { value: "<vault-path>", description: "Note the link will be inserted in (link text follows the vault's link format from there)" },
 };
 export const RUN_TEMPLATE_FLAGS: CliFlags = {
 	path: { value: "<vault-path>", description: "Path to a template file in the vault" },
