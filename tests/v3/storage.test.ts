@@ -235,6 +235,20 @@ describe("the lowered view of stored actions", () => {
 		expect(saved.actions[1].name).toBe("Renamed");
 	});
 
+	it.each([
+		["a null step", [null]],
+		["a step from a newer QuickAdd", [{ id: "s", type: "teleport", to: "elsewhere" }]],
+	])("keeps an action with %s as it is, and out of the choices", (_, steps) => {
+		const [damaged, good] = stored(FIXTURE.slice(0, 2)).actions as ActionNode[];
+		const disk = { ...migrated, actions: [{ ...damaged, steps }, good] };
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([good.id]);
+		expect(loadAndSave(disk)).toEqual(disk);
+		const saved = loadAndSave(disk, (choices) => { choices[0].name = "Renamed"; });
+		expect(saved.actions[0]).toEqual(JSON.parse(JSON.stringify(disk.actions[0])));
+		expect(saved.actions[1].name).toBe("Renamed");
+	});
+
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
 		const good = stored(FIXTURE.slice(0, 1)).actions as ActionNode[];
 		const folder = { kind: "folder", id: "f", name: "Damaged", command: false, items: [null] };

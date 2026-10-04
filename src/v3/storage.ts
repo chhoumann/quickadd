@@ -35,7 +35,7 @@ export function choicesFromActions(data: unknown): unknown {
 	// dedupeChoicesById heals the choices, so the actions and the choices they
 	// lower to keep agreeing and the next save still merges them by id.
 	const actions = dedupeActionsById(stored);
-	const readable = actions.filter(isActionNode);
+	const readable = actions.filter(isReadableAction);
 	const lowered = lowerActions(readable);
 	// A QuickAdd 2 device on the same synced vault keeps `actions` and saves
 	// the choices it adds next to them, at the root or inside a folder. Keep
@@ -94,7 +94,7 @@ export function actionsFromChoices<S extends { choices: unknown; actions?: Actio
 function withChoiceEdits(actions: ActionNode[], choices: IChoice[]): ActionNode[] {
 	// JSON: choices the builder made are class instances, some holding functions.
 	const edited = JSON.parse(JSON.stringify(choices)) as IChoice[];
-	const readable = actions.filter(isActionNode);
+	const readable = actions.filter(isReadableAction);
 	const lowered = lowerActions(readable);
 	if (settingsValuesEqual(edited, lowered)) return actions;
 	const roundTrip = migrateSettingsV2({ choices: lowered }).actions;
@@ -103,9 +103,24 @@ function withChoiceEdits(actions: ActionNode[], choices: IChoice[]): ActionNode[
 	// Entries this build cannot read stay where they were.
 	const result = [...merged];
 	actions.forEach((node, index) => {
-		if (!isActionNode(node)) result.splice(Math.min(index, result.length), 0, node);
+		if (!isReadableAction(node)) result.splice(Math.min(index, result.length), 0, node);
 	});
 	return result;
+}
+
+/**
+ * Whether this build can lower `value` to a choice. The shape is checked
+ * first; then lowering is tried, because a step this build does not know, or
+ * a damaged one, shows only there. Anything else is kept verbatim and not shown.
+ */
+export function isReadableAction(value: unknown): value is ActionNode {
+	if (!isActionNode(value)) return false;
+	try {
+		lowerNode(value);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -137,10 +152,7 @@ function dedupeActionsById(nodes: unknown[]): unknown[] {
 	return walk(nodes);
 }
 
-/**
- * Whether this build can lower `value`: an action with its steps and `show`,
- * or a folder whose every item it can lower. Anything else is kept verbatim.
- */
+/** The shape of an action with its steps and `show`, or of a folder whose every item has it. */
 export function isActionNode(value: unknown): value is ActionNode {
 	if (!isRecord(value) || typeof value.id !== "string") return false;
 	if (value.kind === "folder") return Array.isArray(value.items) && value.items.every(isActionNode);
