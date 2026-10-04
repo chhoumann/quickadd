@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type { Component } from "svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
+import type { Step } from "../../v3/model";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
 import { snapshot } from "../svelte/persist.svelte";
 import { BuilderPage, nameOrFallback } from "./builderPage";
@@ -32,6 +33,8 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 		private readonly form: Component<ChoiceFormProps<C>>,
 		/** What the form shows, for the card shown if it fails to mount. */
 		private readonly what: string,
+		/** Takes the choice on once it saved, to add a step to it (see ChoiceFormProps). */
+		private readonly onAddStep?: (step: Step) => void,
 	) {
 		super(app, choice.name, onSave);
 		this.name = choice.name;
@@ -43,6 +46,7 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 			choice: this.choice,
 			app: this.app,
 			plugin: this.plugin,
+			onAddStep: this.onAddStep && ((step) => this.handOff(step)),
 		});
 		this.addNameSetting(containerEl, this.name, this.choice.name, (name) => {
 			this.name = name;
@@ -51,6 +55,13 @@ export abstract class ChoiceBuilder<C extends IChoice> extends BuilderPage<IChoi
 		this.handle = mountComponent(containerEl, this.form, props, { what: this.what });
 		// An unseen form must not replace the source choice on close.
 		if (this.handle.ok) this.formProps = props;
+	}
+
+	/** Save, then hand the saved choice on to `onAddStep`, which turns it into a Macro. */
+	private handOff(step: Step): void {
+		this.save();
+		this.handedOff = true;
+		this.onAddStep?.(step);
 	}
 
 	/**

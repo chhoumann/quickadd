@@ -28,9 +28,12 @@ import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 import { FOLDER_NAME, type Preset } from "./presets";
 import { uniqueChoiceName } from "./uniqueChoiceName";
 import type { ChoiceListActions } from "./choiceListActions";
-import { subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
+import { replaceChoiceHelper, subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
 import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
 import { settingsStore } from "../../settingsStore";
+import { withStep } from "../../v3/addStep";
+import type { Step } from "../../v3/model";
+import { backOutOfBuilderPages } from "../ChoiceBuilder/builderPage";
 
 interface ChoiceViewContext {
 	app: App;
@@ -136,17 +139,43 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 	/** Opens the builder page. Returns false if it could not open. */
 	function handleConfigureChoice(oldChoice: IChoice): boolean {
+		return openBuilder(liveChoice(oldChoice));
+	}
+
+	function openBuilder(choice: IChoice): boolean {
 		// A builder saves each time the app goes to the background and once more
 		// when it is left; say a deletion elsewhere once.
 		let toldDeleted = false;
-		return configureChoice(liveChoice(oldChoice), context.app, context.plugin, (edited, base) =>
-			// Obsidian logs and swallows a throw from a page's hide(); say it.
-			reportingHandler(`Couldn't save the ${choiceNoun(base.type)} “${base.name}”`, () => {
-				if (saveBuilderEdits(base, edited) || toldDeleted) return;
-				toldDeleted = true;
-				new Notice(`QuickAdd: “${base.name}” was deleted elsewhere, so your changes to it were not saved.`);
-			})(),
+		return configureChoice(
+			choice,
+			context.app,
+			context.plugin,
+			(edited, base) =>
+				// Obsidian logs and swallows a throw from a page's hide(); say it.
+				reportingHandler(`Couldn't save the ${choiceNoun(base.type)} “${base.name}”`, () => {
+					if (saveBuilderEdits(base, edited) || toldDeleted) return;
+					toldDeleted = true;
+					new Notice(`QuickAdd: “${base.name}” was deleted elsewhere, so your changes to it were not saved.`);
+				})(),
+			{ onAddStep: reportingHandler("Couldn't add that step", (step: Step) => addStepToChoice(choice.id, step)) },
 		);
+	}
+
+	// The Template or Capture builder saved before handing the choice over. It
+	// becomes a Macro, which replaces it whole (a merge would keep the old
+	// type's settings on it), and the macro builder takes over from the page.
+	function addStepToChoice(id: string, step: Step): void {
+		const choices = settingsStore.getState().choices;
+		const current = findChoiceById(choices, id);
+		if (!current) {
+			new Notice("QuickAdd: That choice was deleted elsewhere, so no step was added.");
+			return;
+		}
+		const converted = withStep(current, step);
+		context.saveChoices(snapshot(choices.map((choice) => replaceChoiceHelper(choice, converted))));
+		context.commandRegistry.updateCommand(current, converted);
+		backOutOfBuilderPages(context.app);
+		openBuilder(converted);
 	}
 
 	// The builder is a settings page, and Obsidian tears this view down while it
