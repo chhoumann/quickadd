@@ -126,6 +126,23 @@ describe("Capture property writes", () => {
 		expect(mocks.picker).not.toHaveBeenCalled();
 	});
 
+	it("records, as what the run left, the note after its link went into it as well", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		const link = vi.spyOn(CaptureChoiceEngine.prototype as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink")
+			.mockImplementation(async () => test.overwrite(`${test.read()}[[Inbox]]\n`));
+		try {
+			await test.run();
+		} finally {
+			link.mockRestore();
+		}
+		expect(test.read()).toMatch(/\[\[Inbox\]\]\n$/);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			effect: "changed",
+			write: { path: test.file.path, before: "---\nstatus: active\n---\nBody\n", after: test.read() },
+		}));
+	});
+
 	it("uses the active Markdown file without requiring an editor insertion", async () => {
 		const test = fixture("Body\n");
 		test.choice.captureToActiveFile = true;

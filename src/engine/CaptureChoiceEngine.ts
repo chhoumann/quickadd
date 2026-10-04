@@ -432,7 +432,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			}
 			if (write.markerOnly) {
 				contentCommitted = !fileAlreadyExists;
-				this.outcome.success(write.file, fileAlreadyExists ? "unchanged" : "created");
+				if (fileAlreadyExists) this.outcome.success(write.file, "unchanged");
+				else this.outcome.success(write.file, "created", { path: write.file.path, before: null, after: await readNote(this.app, write.file) });
 				return;
 			}
 			const committed = await this.commitCapture(write, {
@@ -507,10 +508,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				if (marked && cursor && mutation.filePath === file.path) cursor = mapEditorCursorPlacement(cursor, mutation);
 			} : undefined,
 		});
-		// The link may have gone into the captured note itself; Undo compares the
-		// note with what the run left, so the recorded write (the same object the
-		// outcome holds) takes the text as it is after the link.
-		if (result.write && linkOptions.enabled) result.write.after = await readNote(this.app, file);
+		await this.recordNoteAfterLink(file, result.effect, result.write, linkOptions);
 
 		let focus = normalizeFileOpening(this.choice.fileOpening).focus ?? true;
 		if (this.choice.openFile) {
@@ -526,6 +524,27 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				else setMarkdownCursorsAtOffsets(this.app, file, cursor.offsets, cursor.content);
 			}
 		}
+	}
+
+	/**
+	 * The link may have gone into the captured note itself. Undo compares the
+	 * note with what the run left, so the recorded write (the same object the
+	 * outcome holds) takes the text as it is after the link, and a run that had
+	 * nothing to add but did add its link changed the note after all.
+	 */
+	private async recordNoteAfterLink(
+		file: TFile,
+		effect: ChoiceEffect,
+		write: NoteWrite | undefined,
+		linkOptions: AppendLinkOptions,
+	): Promise<void> {
+		if (!write || !linkOptions.enabled) return;
+		const after = await readNote(this.app, file);
+		if (effect === "unchanged" && after !== write.after) {
+			this.outcome.success(file, "changed", { ...write, after });
+			return;
+		}
+		write.after = after;
 	}
 
 	private async commitCapture(write: CaptureWriteResult, options: {
@@ -689,13 +708,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				});
 			}
 			const persistedContent = await this.app.vault.read(file);
-			this.outcome.success(
-				file,
-				!fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed",
-				{ path: file.path, before: fileAlreadyExists ? priorContent : null, after: persistedContent },
-			);
+			const effect: ChoiceEffect = !fileAlreadyExists ? "created" : persistedContent === priorContent ? "unchanged" : "changed";
+			const write: NoteWrite = { path: file.path, before: fileAlreadyExists ? priorContent : null, after: persistedContent };
+			this.outcome.success(file, effect, write);
 			await this.copyCapturedFileLinkToClipboard(file);
 			await this.insertCaptureLink(file, linkOptions, { isCanvasTriggered: args.isCanvasTriggered });
+			await this.recordNoteAfterLink(file, effect, write, linkOptions);
 			if (this.choice.openFile) {
 				await openChoiceFile({
 					app: this.app, file, opening: this.choice.fileOpening, originLeaf: this.originLeaf,

@@ -65,10 +65,14 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 			return formatContentOnlyMock(content);
 		}
 		async insertFormattedContent(...args: unknown[]) {
-			return { content: await insertFormattedContentMock(...(args as [])), captureContent: args[0], cursor: { kind: "none" } };
+			const result: unknown = await insertFormattedContentMock(...(args as []));
+			return typeof result === "string" ? { content: result, captureContent: args[0], cursor: { kind: "none" } } : result;
 		}
 		async formatFileName(name: string) {
 			return name;
+		}
+		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
+			return work();
 		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
@@ -358,6 +362,53 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 
 		expect(recordedOutcome(engine)).toMatchObject({
 			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line\n[[Test]]" },
+		});
+	});
+
+	it("reports a run that had nothing to add but put its link in the note as changed, with the link to undo", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("");
+		insertFormattedContentMock.mockResolvedValue("existing body");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		const engine = buildRunEngine(choice, app);
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\n[[Test]]");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: captureFile,
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\n[[Test]]" },
+		});
+	});
+
+	it("records the note a marker-only capture created, so Undo can take it back", async () => {
+		const newFile = createTestFile("Daily/New.md");
+		const app = createRunApp(newFile, "template body");
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(null);
+		(app.vault.create as ReturnType<typeof vi.fn>).mockResolvedValue(newFile);
+		(app.vault as unknown as { createFolder: unknown }).createFolder = vi.fn(async () => {});
+		formatContentOnlyMock.mockResolvedValue("typed");
+		// The with-file pass finds the user typed {{CURSOR}} literally: nothing to place.
+		insertFormattedContentMock.mockResolvedValue({ content: "template body", captureContent: "", cursor: { kind: "none" }, markerOnly: true } as never);
+		const engine = buildRunEngine(createCaptureChoice({
+			captureTo: "Daily/New.md",
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: false, template: "" },
+		}), app);
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: newFile,
+			effect: "created",
+			write: { path: "Daily/New.md", before: null, after: "template body" },
 		});
 	});
 
