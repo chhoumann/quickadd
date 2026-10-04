@@ -1,3 +1,4 @@
+import type { TFile } from "obsidian";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
@@ -102,6 +103,12 @@ export interface IChoiceExecutor {
 	 * unaffected; absent/undefined means "no trigger-derived default".
 	 */
 	triggerContext?: QuickAddTriggerContext | null;
+	/**
+	 * The run note, `{{NOTE}}`: the note this outermost run last created or
+	 * wrote to, or null before its first write. A nested choice runs through
+	 * the same executor, so a macro sees the note its nested Capture wrote.
+	 */
+	runNote?: TFile | null;
 	/**
 	 * Records the structured outcome of the current execution so an orchestrator
 	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can

@@ -1,4 +1,4 @@
-import { Notice, type App, type WorkspaceLeaf } from "obsidian";
+import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
@@ -62,6 +62,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;
 	public pickDate = false;
+	public runNote: TFile | null = null;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
@@ -88,10 +89,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	recordExecutionResult(result: ChoiceOutcome) {
 		this.pendingResult = result;
+		if (result.status === "success" && result.file) this.runNote = result.file;
 	}
 
 	private beginExecutionContext(): void {
 		if (this.executionDepth === 0) {
+			this.runNote = null;
 			this.focusedProperty =
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
@@ -129,6 +132,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.triggerContext = null;
 			this.clocks = undefined;
 			this.pickDate = false;
+			this.runNote = null;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
