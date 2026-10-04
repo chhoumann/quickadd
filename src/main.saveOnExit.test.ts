@@ -1,29 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import type * as Obsidian from "obsidian";
-
-// Obsidian's debounce: the call waits, run() makes a waiting call now.
-vi.mock("obsidian", async (importOriginal) => ({
-	...(await importOriginal<typeof Obsidian>()),
-	debounce: <A extends unknown[]>(fn: (...args: A) => void) => {
-		let pending: A | null = null;
-		const debounced = (...args: A) => {
-			pending = args;
-			return debounced;
-		};
-		debounced.run = () => {
-			if (!pending) return;
-			const args = pending;
-			pending = null;
-			fn(...args);
-		};
-		debounced.cancel = () => {
-			pending = null;
-			return debounced;
-		};
-		return debounced;
-	},
-}));
-
 import QuickAdd from "./main";
 
 describe("QuickAdd's pending settings write", () => {
