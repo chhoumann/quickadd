@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
+import { lowerNode } from "../../src/v3/lower";
+import { migrateChoice } from "../../src/v3/migrate";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 
 /**
@@ -49,7 +51,17 @@ const canvasJson = (nodes: Record<string, unknown>[]) =>
 let caseNumber = 0;
 let dir = "";
 
-async function arrangeAndRun(arrange: Case[1]): Promise<() => Promise<Observation>> {
+/**
+ * How the case's choice reaches data.json: as built, or migrated to a v3 action
+ * and lowered back to the v2 choice the engines run. Both must observe the same.
+ */
+type Mode = (choice: IChoice) => IChoice;
+const MODES: [string, Mode][] = [
+	["v2", (choice) => choice],
+	["v3 migrated and lowered", (choice) => lowerNode(migrateChoice(choice).node)],
+];
+
+async function arrangeAndRun(arrange: Case[1], mode: Mode): Promise<() => Promise<Observation>> {
 	const { obsidian, plugin, sandbox } = getContext();
 	// Each case works in its own folder, deleted afterwards, so a file name is unique
 	// in the vault and links to it stay short.
@@ -88,7 +100,7 @@ async function arrangeAndRun(arrange: Case[1]): Promise<() => Promise<Observatio
 	await arrange(a);
 
 	await plugin.data<{ choices: IChoice[]; showCaptureNotification: boolean }>().patch((data) => {
-		data.choices.push(choice);
+		data.choices.push(mode(choice));
 		data.showCaptureNotification = true;
 	});
 	await plugin.reload({ waitUntilReady: true });
@@ -979,21 +991,21 @@ const TEMPLATER_CASES: Case[] = [
 	}],
 ];
 
-const check = async (_name: string, arrange: Case[1], expected: Observation) => {
-	const observe = await arrangeAndRun(arrange);
+const check = (mode: Mode) => async (_name: string, arrange: Case[1], expected: Observation) => {
+	const observe = await arrangeAndRun(arrange, mode);
 	await expect.poll(observe, { timeout: 5_000, interval: 250 }).toEqual(expected);
 };
 
-describe("Capture run characterization", () => {
-	it.each(CASES)("%s", check);
+describe.each(MODES)("Capture run characterization (%s)", (_mode, mode) => {
+	it.each(CASES)("%s", check(mode));
 });
 
-describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Capture run characterization with Templater", () => {
+describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1").each(MODES)("Capture run characterization with Templater (%s)", (_mode, mode) => {
 	beforeAll(async () => {
 		expect(await getContext().obsidian.dev.evalJson(
 			`Boolean(app.plugins.plugins["templater-obsidian"]?.templater)`,
 		)).toBe(true);
 	});
 
-	it.each(TEMPLATER_CASES)("%s", check);
+	it.each(TEMPLATER_CASES)("%s", check(mode));
 });
