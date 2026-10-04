@@ -498,6 +498,7 @@ function migrateNested(command: INestedChoiceCommand, host: IChoice, notes: Note
 		command.name === nested.name;
 	if (inlinable) {
 		note(notes, host, "inlined", `'${nested.name}'`);
+		noteUnknownKeys(nested, V2_CHOICE_KEYS[nested.type], nested, "", notes);
 		return writeGroup(nested as ITemplateChoice | ICaptureChoice, nested.id, nested.name, notes);
 	}
 	const reason =

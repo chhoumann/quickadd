@@ -122,7 +122,9 @@ describe("report", () => {
 		expect(kinds("unknownKey")).toEqual([
 			"fx-old-keys: 'focusExistingFileTab', 'insertion'",
 			"fx-old-macro: step c-old-wait: 'delay'",
+			"fx-only-template: 'insertion'",
 		]);
+		expect(report.notes.find((note) => note.choiceId === "fx-only-template")?.nodeId).toBe("fx-macro-only-nested");
 		expect(kinds("writePositionConflict").map((line) => line.split(":")[0])).toEqual([
 			"fx-bottom-and-after", "fx-all-switches", "fx-active-top-and-prepend", "fx-active-after", "fx-property",
 		]);

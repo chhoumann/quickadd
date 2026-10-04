@@ -176,7 +176,7 @@ export const FIXTURE: IChoice[] = [
 		type: "Macro",
 		command: true,
 		runOnStartup: false,
-		macro: { id: "fx-macro-only-nested-macro", name: "x", commands: [nested("c-only", template("fx-only-template", "Only template", { command: false }))] },
+		macro: { id: "fx-macro-only-nested-macro", name: "x", commands: [nested("c-only", template("fx-only-template", "Only template", { command: false, insertion: { enabled: false } }))] },
 	} as unknown as IChoice,
 
 	{
