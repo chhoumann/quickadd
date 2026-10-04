@@ -286,7 +286,7 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		]);
 	});
 
-	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested"])(
+	it.each(["out/nested/", "out\\nested", "out\\nested\\", "out//nested", "out/nested/ "])(
 		"creates in the configured folder written as %s, not the vault root",
 		async (configured) => {
 			const noticesBefore = Notice.instances.length;
@@ -315,6 +315,19 @@ describe("TemplateChoiceEngine folder suggestions", () => {
 		expect(getSuggestedItems()).toEqual([" Work", " Work/sub"]);
 		expect(setTargetFolderPath).toHaveBeenCalledWith(" Work/new");
 		expect(engine["app"].vault.createFolder).toHaveBeenCalledWith(" Work/new");
+	});
+
+	it("treats a whitespace-padded separator-only answer as the vault root", async () => {
+		inputSuggestMock.mockImplementationOnce(async () => " / ");
+		const engine = createEngine(
+			createChoice({ folders: [], chooseWhenCreatingNote: true }),
+			["A", "B"],
+		);
+
+		await engine.run();
+
+		expect(setTargetFolderPath).toHaveBeenCalledWith("");
+		expect(engine["app"].vault.createFolder).not.toHaveBeenCalled();
 	});
 
 	it("refuses a custom folder outside a leading-space root even when only the space differs", async () => {

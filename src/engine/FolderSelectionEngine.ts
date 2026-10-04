@@ -96,7 +96,7 @@ export abstract class FolderSelectionEngine extends QuickAddEngine {
 
 		const context = this.buildFolderSelectionContext(folders, options);
 		const selection = await this.promptUntilAllowed(context, options.executor);
-		return selection.normalized;
+		return selection.isEmpty ? "" : selection.normalized;
 	}
 
 	private buildFolderSelectionContext(

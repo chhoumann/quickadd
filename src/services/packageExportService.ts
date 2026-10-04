@@ -23,6 +23,7 @@ import {
 } from "../utils/packageTraversal";
 import { hasTemplateExtension } from "../utils/templateFolderUtils";
 import { collectTemplateIncludePaths } from "../utils/templateIncludes";
+import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import {
 	stripUserScriptSecretRefsFromChoice
 } from "../utils/userScriptSecrets";
@@ -207,6 +208,13 @@ async function encodeAssets(
 	const missingAssets: MissingAsset[] = [];
 
 	for (const { path, kind } of descriptors) {
+		// Same boundary rule as import and preview: a path that leaves the vault
+		// is reported missing and never reaches the adapter.
+		if (escapesVaultBoundary(path)) {
+			missingAssets.push({ path, kind });
+			log.logWarning(`QuickAdd export skipped ${kind} outside the vault: ${path}`);
+			continue;
+		}
 		try {
 			const exists = await app.vault.adapter.exists(path);
 			if (!exists) {

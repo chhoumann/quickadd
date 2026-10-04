@@ -7,14 +7,16 @@ import { normalizePath } from 'obsidian';
  * of only slashes, yields '' - the vault root.
  */
 /**
- * Separator normalization only: backslashes to slashes, repeated and edge
- * slashes removed, NFC. Unlike {@link normalizeVaultPath} it never trims, so a
- * folder whose name starts with a space keeps its identity. Use this wherever
+ * Separator normalization: backslashes to slashes, repeated and edge slashes
+ * removed, NFC. Unlike {@link normalizeVaultPath} it keeps leading whitespace,
+ * so a folder whose name starts with a space keeps its identity; trailing
+ * whitespace is dropped because no vault name can end in it. Use this wherever
  * a path IS something (a root, a destination); use the trimming form for
  * matching typed input against it.
  */
 export function normalizeVaultPathSeparators(path: string): string {
   return (path ?? '')
+    .trimEnd()
     .replace(/[\\/]+/g, '/')
     .replace(/^\/|\/$/g, '')
     .normalize('NFC');

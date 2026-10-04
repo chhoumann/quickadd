@@ -274,6 +274,21 @@ describe("buildPackage", () => {
 		]);
 	});
 
+	it("never reads a template path that leaves the vault, even written with backslashes", async () => {
+		const template = makeTemplateChoice("t1", "Leak", "..\\outside\\secret.md");
+		const { app } = makeFakeApp({ existsImpl: () => true, readImpl: () => "secret" });
+
+		const result = await buildPackage(
+			app as never,
+			buildOptions({ choices: [template], rootChoiceIds: ["t1"] }),
+		);
+
+		expect(result.pkg.assets).toEqual([]);
+		expect(result.missingAssets).toEqual([{ path: "../outside/secret.md", kind: "template" }]);
+		expect(app.vault.adapter.exists).not.toHaveBeenCalled();
+		expect(app.vault.adapter.read).not.toHaveBeenCalled();
+	});
+
 	it("defaults createdAt to the current time when not provided", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2026-03-15T08:00:00.000Z"));
