@@ -5,8 +5,6 @@ import { createPreparedChoiceInputState } from "src/preflight/preparedChoiceInpu
 export function createChoiceExecutor(): IChoiceExecutor {
 	return {
 		execute: vi.fn(),
-		guardReentry: (_choice, run) => run(),
-		activeChoices: [],
 		prepareMacroInputs: vi.fn(),
 		preparedInputs: createPreparedChoiceInputState(),
 		variables: new Map(),

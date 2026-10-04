@@ -37,7 +37,6 @@ vi.mock("./utils/userScript", async (importOriginal) => ({
 }));
 
 const { ChoiceExecutor } = await import("./choiceExecutor");
-const { SingleMacroEngine } = await import("./engine/SingleMacroEngine");
 const { StartupMacroEngine } = await import("./engine/StartupMacroEngine");
 const { log } = await import("./logger/logManager");
 
@@ -50,17 +49,25 @@ const plugin = {
 		if (!choice) throw new Error(`Choice ${id} not found`);
 		return choice;
 	},
+	getChoiceByName: (name: string) => choices.find((c) => c.name === name),
 } as never;
 
 let ran: string[] = [];
 
-function script(name: string, body?: () => unknown): ICommand {
+type ScriptParams = {
+	quickAddApi: {
+		format(input: string): Promise<string>;
+		executeChoice(name: string): Promise<void>;
+	};
+};
+
+function script(name: string, body?: (params: ScriptParams) => unknown): ICommand {
 	const path = `${name}.js`;
-	scripts.set(path, async () => {
+	scripts.set(path, async (params) => {
 		ran.push(name);
 		// Stops an unguarded cycle so a failing run ends instead of hanging.
 		if (ran.length > 50) throw new Error("runaway recursion");
-		return body?.();
+		return body?.(params as ScriptParams);
 	});
 	return { id: `${name}-step`, name, type: CommandType.UserScript, path, settings: {} } as IUserScript;
 }
@@ -129,17 +136,22 @@ describe("ChoiceExecutor re-entry guard", () => {
 	});
 
 	it("refuses a {{MACRO:}} that runs the macro it is part of", async () => {
-		const executor = new ChoiceExecutor(app, plugin);
-		const a = macro("A");
-		// What CompleteFormatter.getMacroValue does for {{MACRO:A}}.
-		a.macro.commands = [
-			script("a", () =>
-				new SingleMacroEngine(app, plugin, choices, executor).runAndGetOutput("A"),
-			),
-		];
+		const a = macro("A", [script("a", ({ quickAddApi }) => quickAddApi.format("{{MACRO:A}}"))]);
 		choices = [a];
 
-		await expect(executor.execute(a)).rejects.toThrow('Macro "A" calls itself: A -> A');
+		await expect(new ChoiceExecutor(app, plugin).execute(a)).rejects.toThrow(
+			'Macro "A" calls itself: A -> A',
+		);
+		expect(ran).toEqual(["a"]);
+	});
+
+	it("refuses a script that runs the macro it is part of", async () => {
+		const a = macro("A", [script("a", ({ quickAddApi }) => quickAddApi.executeChoice("A"))]);
+		choices = [a];
+
+		await expect(new ChoiceExecutor(app, plugin).execute(a)).rejects.toThrow(
+			'Macro "A" calls itself: A -> A',
+		);
 		expect(ran).toEqual(["a"]);
 	});
 
@@ -200,31 +212,33 @@ describe("ChoiceExecutor re-entry guard", () => {
 		logError.mockRestore();
 	});
 
-	it("keeps overlapping runs on one executor independent", async () => {
-		const gates = new Map<string, () => void>();
-		const gate = (name: string) => new Promise<void>((resolve) => gates.set(name, resolve));
-		const started = (name: string) => vi.waitFor(() => expect(gates.has(name)).toBe(true));
-		const a = macro("A", [script("a", () => gate("a"))]);
-		const b = macro("B", [script("b", () => gate("b"))]);
-		choices = [a, b];
-		const executor = new ChoiceExecutor(app, plugin);
+	it("does not mistake a choice a script started alongside for an ancestor", async () => {
+		// The sibling B run holds until A has run B as its own step.
+		let releaseB!: () => void;
+		const bHeld = new Promise<void>((resolve) => (releaseB = resolve));
+		let bStarted!: () => void;
+		const bRunning = new Promise<void>((resolve) => (bStarted = resolve));
+		let bCalls = 0;
+		const b = macro("B", [
+			script("b", () => {
+				if (++bCalls > 1) return;
+				bStarted();
+				return bHeld;
+			}),
+		]);
+		const a = macro("A", [script("a", () => bRunning), runs(b)]);
+		const m = macro("M", [
+			script("m", ({ quickAddApi }) =>
+				Promise.all([
+					quickAddApi.executeChoice("A").finally(releaseB),
+					quickAddApi.executeChoice("B"),
+				]),
+			),
+		]);
+		choices = [m, a, b];
 
-		const aRun = executor.execute(a);
-		await started("a");
-		const bRun = executor.execute(b);
-		await started("b");
-		gates.get("a")!();
-		await aRun;
+		await new ChoiceExecutor(app, plugin).execute(m);
 
-		await expect(executor.execute(b)).rejects.toThrow('Macro "B" calls itself');
-		gates.delete("a");
-		const aAgain = executor.execute(a);
-		await started("a");
-		gates.get("a")!();
-		await expect(aAgain).resolves.toBeUndefined();
-
-		gates.get("b")!();
-		await bRun;
-		expect(ran).toEqual(["a", "b", "a"]);
+		expect([...ran].sort()).toEqual(["a", "b", "b", "m"]);
 	});
 });

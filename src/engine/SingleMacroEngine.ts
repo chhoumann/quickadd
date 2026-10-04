@@ -11,6 +11,7 @@ import { flattenChoices } from "../utils/choiceUtils";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
+import { enterChoice, type ChoiceChain } from "./choiceChain";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import {
 	commandListOf,
@@ -98,6 +99,7 @@ export class SingleMacroEngine {
 	public async runAndGetOutput(
 		macroName: string,
 		context?: { label?: string },
+		ancestry: ChoiceChain = [],
 	): Promise<string> {
 		this.emittedConflictNotice = false;
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
@@ -141,16 +143,6 @@ export class SingleMacroEngine {
 			throw new Error(`macro '${macroName}' does not exist.`);
 		}
 
-		return this.choiceExecutor.guardReentry(macroChoice, () =>
-			this.runMacro(macroChoice, memberAccess, context),
-		);
-	}
-
-	private async runMacro(
-		macroChoice: IMacroChoice,
-		memberAccess: string[] | undefined,
-		context?: { label?: string },
-	): Promise<string> {
 		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
 			this.app,
@@ -160,6 +152,8 @@ export class SingleMacroEngine {
 			this.variables,
 			undefined,
 			context?.label,
+			null,
+			enterChoice(macroChoice, ancestry),
 		);
 
 		if (memberAccess?.length) {

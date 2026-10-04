@@ -11,19 +11,15 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import type { LoadedUserScript } from "./utils/userScript";
+import type { ChoiceChain } from "./engine/choiceChain";
 
 export interface IChoiceExecutor {
-	execute(choice: IChoice): Promise<void>;
 	/**
-	 * Runs `run` with `choice` marked as running, and throws instead when the
-	 * choice is already running further up, so a macro that reaches itself (a
-	 * Choice or NestedChoice step, or a `{{MACRO:}}`) fails with the cycle
-	 * rather than recursing forever. {@link execute} goes through this; callers
-	 * that run a choice's engine directly must too.
+	 * Runs `choice`. A run started from inside another passes that run's chain
+	 * as `ancestry`, and the call fails with the cycle when `choice` is already
+	 * in it.
 	 */
-	guardReentry<T>(choice: IChoice, run: () => Promise<T>): Promise<T>;
-	/** Choices currently running in this executor, outermost first. */
-	readonly activeChoices: readonly IChoice[];
+	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**

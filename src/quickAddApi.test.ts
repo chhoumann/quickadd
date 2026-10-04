@@ -975,7 +975,7 @@ describe("executeChoice", () => {
 		await api.executeChoice("MyChoice", { foo: "bar" });
 
 		expect(plugin.getChoiceByName).toHaveBeenCalledWith("MyChoice");
-		expect(executor.execute).toHaveBeenCalledWith(choice);
+		expect(executor.execute).toHaveBeenCalledWith(choice, undefined);
 		// Variables are cleared after execution.
 		expect(executor.variables.size).toBe(0);
 	});

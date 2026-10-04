@@ -7,6 +7,7 @@ import { findNextInlineScript, inlineScriptRescanFrom } from "./helpers/inlineSc
 import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "../engine/choiceChain";
 import type { RunClocks } from "../types/dateOrigin";
 import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import { findDateVariableFormat } from "./helpers/dateTokens";
@@ -50,6 +51,8 @@ export class CompleteFormatter extends Formatter {
 	private preserveTemplateCursorMarkers = false;
 	/** See {@link withUserTextProtected}. */
 	private keepUserTextProtected = false;
+	/** The run this formatter formats for; its `{{MACRO:}}`s and inline scripts run inside it. */
+	public choiceChain: ChoiceChain = [];
 
 	constructor(
 		protected app: App,
@@ -768,7 +771,7 @@ export class CompleteFormatter extends Formatter {
 			this.variables,
 		);
 		const macroOutput =
-			(await macroEngine.runAndGetOutput(macroName, context)) ?? "";
+			(await macroEngine.runAndGetOutput(macroName, context, this.choiceChain)) ?? "";
 
 		// Copy variables from macro execution
 		macroEngine.getVariables().forEach((value, key) => {
@@ -800,6 +803,7 @@ export class CompleteFormatter extends Formatter {
 		// templates ({{TEMPLATE:...}}), which render via this child engine's own
 		// formatter.
 		childEngine.setTargetFolderPath(this.targetFolderPath);
+		childEngine.choiceChain = this.choiceChain;
 		if (this.preserveTemplateCursorMarkers && this.promptScope === "noteBody") {
 			childEngine.setPreserveCursorMarkers(true);
 		}
@@ -862,6 +866,7 @@ export class CompleteFormatter extends Formatter {
 					//@ts-ignore
 					this.choiceExecutor,
 					this.variables,
+					this.choiceChain,
 				);
 				const outVal: unknown = await executor.runAndGetOutput(code);
 

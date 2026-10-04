@@ -1,5 +1,5 @@
 import { executeMacroAI, pickMacroModel } from "./macroAI";
-import { withDispatchChain } from "./dispatchChain";
+import { withDispatchChain, type ChoiceChain } from "./choiceChain";
 import { resolveChoiceFromPlugin } from "src/utils/resolveChoiceFromPlugin";
 import { templaterRerunAfter, warnDeprecatedOnce } from "src/utils/templaterRerunDeprecation";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -133,7 +133,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 		const params = {
 			app,
-			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor),
+			quickAddApi: QuickAddApi.GetApi(app, plugin, choiceExecutor, this.chain),
 			obsidian,
 			abort: (message?: string) => {
 				throw new MacroAbortError(message);
@@ -199,6 +199,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		preloadedUserScripts?: Map<string, LoadedUserScript>,
 		promptLabel?: string,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		/** This run's {@link ChoiceChain}; a macro run on its own is the whole chain. */
+		protected readonly chain: ChoiceChain = [choice],
 	) {
 		super(app);
 		this.choice = choice;
@@ -407,7 +409,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		withDispatchChain(this.choiceExecutor.activeChoices, () =>
+		withDispatchChain(this.chain, () =>
 			// @ts-ignore
 			this.app.commands.executeCommandById(command.commandId),
 		);
@@ -431,7 +433,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(targetChoice);
+		await this.choiceExecutor.execute(targetChoice, this.chain);
 		const abort = this.choiceExecutor.consumeAbortSignal?.();
 		if (abort) {
 			throw abort;
@@ -445,7 +447,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			return;
 		}
 
-		await this.choiceExecutor.execute(choice);
+		await this.choiceExecutor.execute(choice, this.chain);
 		const abort = this.choiceExecutor.consumeAbortSignal?.();
 		if (abort) {
 			throw abort;
@@ -501,7 +503,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeAIAssistant(command: IAIAssistantCommand) {
-		return executeMacroAI(this.app, this.choice, this.choiceExecutor, command,
+		return executeMacroAI(this.app, this.choice, this.choiceExecutor, this.chain, command,
 			() => this.pickModelInteractively());
 	}
 
@@ -652,6 +654,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 				choiceName: this.choice?.name,
 				draftScopeId: `${this.choice?.id ?? "macro"}#openFile:${command.id}`,
 			});
+			formatter.choiceChain = this.chain;
 
 			const resolvedPath = await formatter.formatFileName(
 				command.filePath,

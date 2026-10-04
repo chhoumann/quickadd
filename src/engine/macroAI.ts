@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "./choiceChain";
 import type { IAIAssistantCommand } from "../types/macros/QuickCommands/IAIAssistantCommand";
 import { runAIAssistant } from "../ai/AIAssistant";
 import { resolveProviderApiKey } from "../ai/providerSecrets";
@@ -15,7 +16,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 
 export async function executeMacroAI(
-	app: App, choice: IMacroChoice, executor: IChoiceExecutor,
+	app: App, choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
 	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
@@ -60,6 +61,7 @@ export async function executeMacroAI(
 		choiceName: choice?.name,
 		draftScopeId: `${choice?.id ?? "macro"}#aiAssistant:${command.id}`,
 	});
+	formatter.choiceChain = chain;
 
 	const apiKey = await resolveProviderApiKey(app, modelProvider);
 

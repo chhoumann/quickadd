@@ -109,6 +109,43 @@ it("stops a macro whose Obsidian-command step runs its own registered command", 
 	expect(await obsidian.dev.evalJson<number>(`window[${jsLiteral(COUNTER)}]`)).toBe(1);
 });
 
+it("runs two choices a script starts side by side, one running the other as a step", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const runsOfB = "__qaRunsOfB";
+	const releaseB = "__qaReleaseB";
+	// The run of B started by the script holds until A, which runs B as a step, is done.
+	const bScript = await seedVaultFile(obsidian, sandbox, "side-b.js", `module.exports = async () => {
+		window[${jsLiteral(runsOfB)}] = (window[${jsLiteral(runsOfB)}] ?? 0) + 1;
+		if (window[${jsLiteral(runsOfB)}] === 1) await new Promise((resolve) => { window[${jsLiteral(releaseB)}] = resolve; });
+	};`);
+	const aScript = await seedVaultFile(obsidian, sandbox, "side-a.js", `module.exports = async () => {
+		for (let i = 0; i < 200 && !window[${jsLiteral(releaseB)}]; i++) await new Promise((r) => setTimeout(r, 10));
+	};`);
+	const mScript = await seedVaultFile(obsidian, sandbox, "side-m.js", `module.exports = async ({ quickAddApi }) => {
+		await Promise.all([
+			quickAddApi.executeChoice("Side A").finally(() => window[${jsLiteral(releaseB)}]?.()),
+			quickAddApi.executeChoice("Side B"),
+		]);
+	};`);
+	const b = new MacroChoice("Side B");
+	b.macro.commands = [{ id: "b", name: "b", type: "UserScript", path: bScript, settings: {} } as ICommand];
+	const a = new MacroChoice("Side A");
+	a.macro.commands = [{ id: "a", name: "a", type: "UserScript", path: aScript, settings: {} } as ICommand, runStep(b)];
+	const m = new MacroChoice("Side by side");
+	m.macro.commands = [{ id: "m", name: "m", type: "UserScript", path: mScript, settings: {} } as ICommand];
+	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		data.choices = [m, a, b];
+	});
+	await plugin.reload({ waitUntilReady: true });
+
+	await reset(obsidian);
+	await obsidian.dev.evalJson(`(() => { delete window[${jsLiteral(runsOfB)}]; delete window[${jsLiteral(releaseB)}]; return true; })()`);
+	const run = await obsidian.execJson<{ ok: boolean; error?: string }>("quickadd:run", { id: m.id });
+	expect(run).toMatchObject({ ok: true });
+	expect(await obsidian.dev.evalJson<number>(`window[${jsLiteral(runsOfB)}]`)).toBe(2);
+	expect(await obsidian.dev.evalJson<string[]>(notices)).toEqual([]);
+});
+
 it("still runs a macro that runs another macro twice", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	const script = await seedCounter(obsidian, sandbox);

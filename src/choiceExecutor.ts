@@ -1,5 +1,5 @@
 import { Notice, type App, type WorkspaceLeaf } from "obsidian";
-import { currentDispatchChain } from "./engine/dispatchChain";
+import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
@@ -65,18 +65,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
 	private executionDepth = 0;
-	private readonly runningChoices: IChoice[];
+	/**
+	 * Ancestry of a run started without one: the dispatching run's chain when
+	 * this executor was built inside a command dispatch, otherwise empty.
+	 */
+	private readonly dispatchAncestry = currentDispatchChain();
 	private macroOnePageInput: IChoice["onePageInput"];
 	private focusedPropertyOverride: FrontmatterPropertyTarget | null | undefined;
 	private triggerContextOverride: QuickAddTriggerContext | null | undefined;
 
-	constructor(private app: App, private plugin: QuickAdd) {
-		this.runningChoices = [...currentDispatchChain()];
-	}
-
-	get activeChoices(): readonly IChoice[] {
-		return this.runningChoices;
-	}
+	constructor(private app: App, private plugin: QuickAdd) {}
 
 	signalAbort(error: MacroAbortError) {
 		this.pendingAbort = error;
@@ -142,27 +140,11 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		}
 	}
 
-	async guardReentry<T>(choice: IChoice, run: () => Promise<T>): Promise<T> {
-		const start = this.runningChoices.findIndex((c) => c.id === choice.id);
-		if (start !== -1) {
-			const cycle = [...this.runningChoices.slice(start), choice]
-				.map((c) => c.name)
-				.join(" -> ");
-			throw new Error(`${choice.type} "${choice.name}" calls itself: ${cycle}`);
-		}
-		this.runningChoices.push(choice);
-		try {
-			return await run();
-		} finally {
-			this.runningChoices.splice(this.runningChoices.lastIndexOf(choice), 1);
-		}
-	}
-
-	execute(choice: IChoice): Promise<void> {
-		return this.guardReentry(choice, () => this.runChoice(choice));
-	}
-
-	private async runChoice(choice: IChoice): Promise<void> {
+	async execute(
+		choice: IChoice,
+		ancestry: ChoiceChain = this.dispatchAncestry,
+	): Promise<void> {
+		const chain = enterChoice(choice, ancestry);
 		this.pendingAbort = null;
 		// Keep a nested execute() (e.g. a {{MACRO}} in a Template/Capture body that runs
 		// another choice through this same executor) transparent to the outcome slot of an
@@ -182,17 +164,17 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					case "Template": {
 						const templateChoice: ITemplateChoice =
 							choice as ITemplateChoice;
-						await this.onChooseTemplateType(templateChoice, originLeaf);
+						await this.onChooseTemplateType(templateChoice, originLeaf, chain);
 						break;
 					}
 					case "Capture": {
 						const captureChoice: ICaptureChoice = choice as ICaptureChoice;
-						await this.onChooseCaptureType(captureChoice, originLeaf);
+						await this.onChooseCaptureType(captureChoice, originLeaf, chain);
 						break;
 					}
 					case "Macro": {
 						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						await this.onChooseMacroType(macroChoice, originLeaf);
+						await this.onChooseMacroType(macroChoice, originLeaf, chain);
 						break;
 					}
 					case "Multi": {
@@ -251,15 +233,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	 * recording success (and without aborting/throwing) hit a swallowed-failure branch,
 	 * which is reported as `error` — never silently as success.
 	 */
-	executeWithOutcome(
+	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
-		return this.guardReentry(choice, () => this.runChoiceWithOutcome(choice));
-	}
-
-	private async runChoiceWithOutcome(
-		choice: ITemplateChoice | ICaptureChoice,
-	): Promise<ChoiceOutcome> {
+		const chain = enterChoice(choice, this.dispatchAncestry);
 		this.pendingAbort = null;
 		this.pendingResult = null;
 		this.beginExecutionContext();
@@ -272,9 +249,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				await this.applyDateOrigin(choice);
 
 				if (choice.type === "Template") {
-					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf);
+					await this.onChooseTemplateType(choice as ITemplateChoice, originLeaf, chain);
 				} else {
-					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf);
+					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
 				}
 
 				if (this.pendingAbort) {
@@ -444,6 +421,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	private async onChooseTemplateType(
 		templateChoice: ITemplateChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	): Promise<void> {
 		await new TemplateChoiceEngine(
 			this.app,
@@ -451,12 +429,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			templateChoice,
 			this,
 			originLeaf,
+			chain,
 		).run();
 	}
 
 	private async onChooseCaptureType(
 		captureChoice: ICaptureChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	) {
 		await new CaptureChoiceEngine(
 			this.app,
@@ -464,12 +444,14 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			captureChoice,
 			this,
 			originLeaf,
+			chain,
 		).run();
 	}
 
 	private async onChooseMacroType(
 		macroChoice: IMacroChoice,
 		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
 	) {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
@@ -480,6 +462,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.preloadedUserScripts,
 			undefined,
 			originLeaf,
+			chain,
 		);
 		const previousOverride = this.macroOnePageInput;
 		this.macroOnePageInput = macroChoice.onePageInput ?? previousOverride;

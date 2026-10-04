@@ -795,7 +795,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 				command,
 			),
 		).rejects.toThrow(MacroAbortError);
-		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice);
+		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice, [macroChoice]);
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 	});
 
@@ -830,7 +830,7 @@ describe("MacroChoiceEngine choice command cancellation", () => {
 				) => Promise<void>;
 			}).executeNestedChoice(command),
 		).rejects.toThrow(MacroAbortError);
-		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice);
+		expect(choiceExecutor.execute).toHaveBeenCalledWith(choice, [macroChoice]);
 		expect(choiceExecutor.consumeAbortSignal).toHaveBeenCalledTimes(1);
 	});
 });
