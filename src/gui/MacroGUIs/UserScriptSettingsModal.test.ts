@@ -6,10 +6,11 @@ import { createUserScriptSecretRef } from "../../utils/userScriptSecrets";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { pickUserScript } from "./pickUserScript";
 import { migrateUserScriptSecretSettings } from "../../utils/userScriptSecrets";
+import type * as UserScriptSecretsModule from "../../utils/userScriptSecrets";
 
 vi.mock("./pickUserScript", () => ({ pickUserScript: vi.fn() }));
 vi.mock("../../utils/userScriptSecrets", async (importOriginal) => {
-	const actual = await importOriginal<typeof import("../../utils/userScriptSecrets")>();
+	const actual = await importOriginal<typeof UserScriptSecretsModule>();
 	return { ...actual, migrateUserScriptSecretSettings: vi.fn(actual.migrateUserScriptSecretSettings) };
 });
 
