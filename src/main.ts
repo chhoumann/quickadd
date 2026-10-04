@@ -61,6 +61,7 @@ import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 import { actionsFromChoices, choicesFromActions } from "./v3/storage";
+import { showMigrationReportOnce } from "./gui/MigrationReportModal";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -258,6 +259,7 @@ export default class QuickAdd extends Plugin {
 		});
 
 		this.announceUpdate();
+		this.app.workspace.onLayoutReady(() => void showMigrationReportOnce(this));
 	}
 
 	onunload() {

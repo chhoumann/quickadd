@@ -39,6 +39,8 @@ import { summarize } from "./summary";
 
 /** Something the migration decided for one choice that a person should be able to see. */
 export interface MigrationNote {
+	/** The action or folder whose row the note belongs under. */
+	nodeId?: string;
 	choiceId: string;
 	choiceName: string;
 	kind:
@@ -68,7 +70,10 @@ export function migrateChoice(choice: IChoice): { node: ActionNode; notes: Notes
 	identifyNestedChoices(copy);
 	walkChoiceTree(copy, normalizeImportedChoice);
 	const notes: Notes = [];
-	return { node: migrateNode(copy, notes), notes };
+	const node = migrateNode(copy, notes);
+	// A folder's children stamped theirs already.
+	for (const entry of notes) entry.nodeId ??= node.id;
+	return { node, notes };
 }
 
 /**
@@ -122,7 +127,7 @@ export const V2_COMMAND_KEYS: Record<string, ReadonlySet<string>> = {
 function noteUnknownKeys(value: object, known: ReadonlySet<string> | undefined, host: IChoice, where: string, notes: Notes) {
 	if (!known) return;
 	const unknown = Object.keys(value).filter((key) => !known.has(key));
-	if (unknown.length > 0) note(notes, host, "unknownKey", `${where} ${unknown.map((key) => `'${key}'`).join(", ")}`);
+	if (unknown.length > 0) note(notes, host, "unknownKey", `${where}${unknown.map((key) => `'${key}'`).join(", ")}`);
 }
 
 /**
@@ -199,7 +204,7 @@ export function buildReport(settings: { choices?: unknown }): MigrationReport {
 	const dangling = (steps: Step[], host: ActionNode) => {
 		for (const step of steps) {
 			if (step.type === "runAction" && !names.has(step.actionId)) {
-				notes.push({ choiceId: host.id, choiceName: host.name, kind: "danglingRunAction", detail: `step ${step.id} runs missing ${step.actionId}` });
+				notes.push({ nodeId: host.id, choiceId: host.id, choiceName: host.name, kind: "danglingRunAction", detail: `step ${step.id} runs missing ${step.actionId}` });
 			}
 			if (step.type === "if") {
 				dangling(step.thenSteps, host);
@@ -218,7 +223,7 @@ export function buildReport(settings: { choices?: unknown }): MigrationReport {
 }
 
 function migrateNode(choice: IChoice, notes: Notes): ActionNode {
-	noteUnknownKeys(choice, V2_CHOICE_KEYS[choice.type], choice, "dropped unknown", notes);
+	noteUnknownKeys(choice, V2_CHOICE_KEYS[choice.type], choice, "", notes);
 	switch (choice.type) {
 		case "Multi":
 			return migrateFolder(choice as IMultiChoice, notes);
@@ -423,7 +428,7 @@ function migrateCommand(command: ICommand, host: IChoice, notes: Notes): Step[] 
 		return [{ id: "", type: "unknown", raw: command }];
 	}
 	const base = withoutUndefined({ id: command.id, name: command.name });
-	noteUnknownKeys(command, V2_COMMAND_KEYS[command.type], host, `step ${String(command.id)} dropped unknown`, notes);
+	noteUnknownKeys(command, V2_COMMAND_KEYS[command.type], host, `step ${String(command.id)}: `, notes);
 	switch (command.type) {
 		case CommandType.Obsidian:
 			return [{ ...base, type: "runCommand", command: { kind: "obsidian", commandId: (command as IObsidianCommand).commandId } }];

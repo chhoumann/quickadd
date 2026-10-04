@@ -51,6 +51,7 @@ import {
 } from "./utils/openPluginSettings";
 import { storedProviders } from "./gui/ai/aiSettingsState";
 import { isCancellationError } from "./utils/errorUtils";
+import { confirmAction } from "./gui/confirmAction";
 
 const AI_KEY_PREFIX = "ai.";
 
@@ -197,7 +198,49 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			dateAliases: (setting) => this.renderDateAliases(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
-		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
+		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList(), this.v2SettingsGroup());
+	}
+
+	/** Undo or redo the QuickAdd 3 migration from the copy of data.json taken before it. */
+	private v2SettingsGroup(): SettingDefinitionGroup<SettingsKey> | undefined {
+		const snapshot = settingsStore.getState().v3Migration?.snapshot;
+		if (!snapshot) return undefined;
+		const id = this.plugin.manifest.id;
+		const plugins = this.app.plugins;
+		return {
+			type: "group",
+			heading: "QuickAdd 2 settings",
+			items: [
+				{
+					name: "Restore QuickAdd 2 settings",
+					action: () => void (async () => {
+						const confirmed = await confirmAction(this.app, {
+							title: "Restore QuickAdd 2 settings?",
+							message: `QuickAdd replaces its settings with the copy in ${snapshot} from before the upgrade and turns itself off. Every change since the upgrade is lost. Install QuickAdd 2 to use the restored settings.`,
+							action: "Restore and turn off",
+						});
+						if (!confirmed) return;
+						await this.plugin.restoreV2Snapshot();
+						await plugins.disablePluginAndSave(id);
+						new Notice("QuickAdd restored its QuickAdd 2 settings and turned itself off.");
+					})(),
+				},
+				{
+					name: "Migrate again from QuickAdd 2 settings",
+					action: () => void (async () => {
+						const confirmed = await confirmAction(this.app, {
+							title: "Migrate again?",
+							message: `QuickAdd replaces its settings with the copy in ${snapshot} from before the upgrade and migrates them again. Every change since the upgrade is lost.`,
+							action: "Migrate again",
+						});
+						if (!confirmed) return;
+						await this.plugin.restoreV2Snapshot();
+						await plugins.disablePlugin(id);
+						await plugins.enablePlugin(id);
+					})(),
+				},
+			],
+		};
 	}
 
 	private templateFoldersList(): SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey> {

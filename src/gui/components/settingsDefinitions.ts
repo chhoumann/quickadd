@@ -30,6 +30,7 @@ export function createSettingDefinitions(
 	isDevBuild: boolean,
 	aiAssistantPage?: SettingDefinitionPage<SettingsKey>,
 	templateFolders?: SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey>,
+	v2Settings?: SettingDefinitionGroup<SettingsKey>,
 ): SettingDefinitionGroup<SettingsKey>[] {
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{
@@ -134,7 +135,7 @@ export function createSettingDefinitions(
 		},
 		{
 			type: "group",
-			items: [advancedPage(render)],
+			items: [advancedPage(render, v2Settings)],
 		},
 	];
 	if (isDevBuild) {
@@ -157,7 +158,10 @@ export function createSettingDefinitions(
  * Settings most vaults never change (#2017), kept one level down so the main
  * tab stays short. Settings search still finds them.
  */
-function advancedPage(render: SettingsRenderers): SettingDefinitionPage<SettingsKey> {
+function advancedPage(
+	render: SettingsRenderers,
+	v2Settings?: SettingDefinitionGroup<SettingsKey>,
+): SettingDefinitionPage<SettingsKey> {
 	return {
 		type: "page",
 		name: "Advanced",
@@ -266,6 +270,7 @@ function advancedPage(render: SettingsRenderers): SettingDefinitionPage<Settings
 					},
 				],
 			},
+			...(v2Settings ? [v2Settings] : []),
 		],
 	};
 }

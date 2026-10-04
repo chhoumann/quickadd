@@ -10,6 +10,7 @@ declare module "obsidian" {
 			};
 			enablePlugin: (id: string) => Promise<void>;
 			disablePlugin: (id: string) => Promise<void>;
+			disablePluginAndSave: (id: string) => Promise<void>;
 		};
 		internalPlugins: {
 			plugins: {

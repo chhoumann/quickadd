@@ -120,8 +120,8 @@ describe("report", () => {
 		expect(kinds("danglingRunAction")).toEqual(["fx-macro: step c-dangling runs missing fx-missing"]);
 		expect(kinds("unknownCommand")).toEqual(["fx-macro: step c-future has unknown type 'FutureStep'"]);
 		expect(kinds("unknownKey")).toEqual([
-			"fx-old-keys: dropped unknown 'focusExistingFileTab', 'insertion'",
-			"fx-old-macro: step c-old-wait dropped unknown 'delay'",
+			"fx-old-keys: 'focusExistingFileTab', 'insertion'",
+			"fx-old-macro: step c-old-wait: 'delay'",
 		]);
 		expect(kinds("writePositionConflict").map((line) => line.split(":")[0])).toEqual([
 			"fx-bottom-and-after", "fx-all-switches", "fx-active-top-and-prepend", "fx-active-after", "fx-property",
