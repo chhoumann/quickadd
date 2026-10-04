@@ -194,6 +194,35 @@ describe("the lowered view of stored actions", () => {
 		expect(loadAndSave(disk)).toEqual(disk);
 	});
 
+	it("keeps the choices a QuickAdd 2 device saved next to an unreadable action list, and writes both back", () => {
+		const disk = { ...migrated, actions: { 0: { id: "x" } }, choices: [JSON.parse(JSON.stringify(FIXTURE[0]))] };
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id]);
+
+		expect(loadAndSave(disk)).toEqual(disk);
+		const saved = loadAndSave(disk, (choices) => { choices[0].name = "Renamed"; });
+		expect(saved.actions).toEqual(disk.actions);
+		expect(saved.choices[0].name).toBe("Renamed");
+	});
+
+	it("heals a repeated action id in the actions as in the choices, so a save keeps what only the action holds", () => {
+		const [first, second] = stored(FIXTURE.slice(0, 2)).actions as (ActionNode & { show: { ribbon?: boolean } })[];
+		first.show.ribbon = true;
+		const collision = { ...second, id: first.id };
+		const copy = JSON.parse(JSON.stringify(first));
+		const disk = { ...migrated, actions: [first, collision, copy] };
+
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded & { actions: ActionNode[] };
+		expect(loaded.choices).toHaveLength(2);
+		expect(new Set(loaded.choices.map((choice) => choice.id)).size).toBe(2);
+		expect(loaded.actions.map((node) => node.id)).toEqual(loaded.choices.map((choice) => choice.id));
+
+		const saved = loadAndSave(disk, (choices) => { choices[1].name = "Renamed"; });
+		expect(saved.actions).toHaveLength(2);
+		expect(saved.actions[0].show.ribbon).toBe(true);
+		expect(saved.actions[1].name).toBe("Renamed");
+	});
+
 	it("loads the actions it can read and keeps an entry it cannot read where it was", () => {
 		const good = stored(FIXTURE.slice(0, 2)).actions as ActionNode[];
 		const disk = { ...migrated, actions: [null, good[0], { id: "half", kind: "action" }, good[1]] };

@@ -1,6 +1,7 @@
 import type IChoice from "../types/choices/IChoice";
 import type IMultiChoice from "../types/choices/IMultiChoice";
 import { isChoiceLike } from "../utils/choiceUtils";
+import { uuidv4 } from "../utils/uuid";
 import { settingsValuesEqual, threeWayMergeSettings } from "../utils/settingsPersistMerge";
 import { lowerNode } from "./lower";
 import { migrateSettingsV2 } from "./migrate";
@@ -21,14 +22,19 @@ export type StoredSettings = Record<string, unknown>;
 /** Raw data.json as the plugin holds it in memory: the actions, and the choices they lower to. */
 export function choicesFromActions(data: unknown): unknown {
 	if (!isRecord(data) || !("actions" in data)) return data;
-	const { actions, ...rest } = data;
-	if (!Array.isArray(actions)) {
-		// Kept as is, so a save writes it back instead of an empty list.
-		return { ...rest, choices: actions };
+	const { actions: stored, ...rest } = data;
+	if (!Array.isArray(stored)) {
+		// Kept as is, so a save writes it back instead of an empty list. Choices
+		// a QuickAdd 2 device saved next to it stay the choices, and both are
+		// written back (actionsFromChoices) until someone repairs the file.
+		return Array.isArray(rest.choices) ? { ...rest, actions: stored, choices: rest.choices } : { ...rest, choices: stored };
 	}
 	// An entry this build cannot read is left out of the choices and kept in
 	// `actions`, so one damaged action neither stops the plugin from loading
-	// nor gets dropped by the next save.
+	// nor gets dropped by the next save. Repeated ids are healed here, as
+	// dedupeChoicesById heals the choices, so the actions and the choices they
+	// lower to keep agreeing and the next save still merges them by id.
+	const actions = dedupeActionsById(stored);
 	const readable = actions.filter(isActionNode);
 	const lowered = lowerActions(readable);
 	// A QuickAdd 2 device on the same synced vault keeps `actions` and saves
@@ -71,6 +77,8 @@ export function actionsFromChoices<S extends { choices: unknown; actions?: Actio
 	if (!settings.migrations.migrateToV3Actions) return settings;
 	const { choices, actions, ...rest } = settings;
 	if (!Array.isArray(choices)) return { ...rest, actions: choices };
+	// An unreadable action list is written back as found, the choices next to it.
+	if (actions !== undefined && !Array.isArray(actions)) return { ...rest, actions, choices };
 	return { ...rest, actions: withChoiceEdits(actions ?? [], choices as IChoice[]) };
 }
 
@@ -98,6 +106,35 @@ function withChoiceEdits(actions: ActionNode[], choices: IChoice[]): ActionNode[
 		if (!isActionNode(node)) result.splice(Math.min(index, result.length), 0, node);
 	});
 	return result;
+}
+
+/**
+ * The list with repeated ids healed the way dedupeChoicesById heals choices: a
+ * repeat equal to the first occurrence is dropped, a differing one keeps its
+ * data under a fresh id. Entries this build cannot read are kept verbatim.
+ */
+function dedupeActionsById(nodes: unknown[]): unknown[] {
+	const firstById = new Map<string, unknown>();
+	const walk = (list: unknown[]): unknown[] => {
+		const out: unknown[] = [];
+		for (const entry of list) {
+			if (!isActionNode(entry)) {
+				out.push(entry);
+				continue;
+			}
+			let node: ActionNode = entry;
+			const prior = firstById.get(node.id);
+			if (prior) {
+				if (JSON.stringify(node) === JSON.stringify(prior)) continue;
+				node = { ...node, id: uuidv4() };
+			}
+			firstById.set(node.id, node);
+			if (node.kind === "folder") node = { ...node, items: walk(node.items) as ActionNode[] };
+			out.push(node);
+		}
+		return out;
+	};
+	return walk(nodes);
 }
 
 /**
