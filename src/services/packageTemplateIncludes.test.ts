@@ -601,7 +601,14 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			elseCommands: [],
 		};
 		const pkg = makePackage(
-			[macroChoice("m1", "Legacy", [userScript("s1", "Scripts\\run.js"), check, userScript("s2", " Scripts\\keep.js")])],
+			[
+				macroChoice("m1", "Legacy", [
+					userScript("s1", "Scripts\\run.js"),
+					check,
+					userScript("s2", " Scripts\\keep.js"),
+					userScript("s3", " Scripts/run.js"),
+				]),
+			],
 			[asset("user-script", "Scripts/run.js", "module.exports = () => 1;")],
 		);
 
@@ -613,9 +620,10 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			assetDecisions: [{ originalPath: "Scripts/run.js", destinationPath: "Scripts/run.js", mode: "write" as const }],
 		});
 
-		const [script, cond, unbundled] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
+		const [script, cond, unbundled, spaced] = (result.updatedChoices[0] as IMacroChoice).macro.commands as [
 			IUserScript,
 			{ condition: { scriptPath: string } },
+			IUserScript,
 			IUserScript,
 		];
 		expect(script.path).toBe("Scripts/run.js");
@@ -623,6 +631,8 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 		expect(cond.condition.scriptPath).toBe("Scripts/check.js");
 		// A leading space names a real vault folder; only separators change.
 		expect(unbundled.path).toBe(" Scripts/keep.js");
+		// ...and never folds into the bundled "Scripts/run.js".
+		expect(spaced.path).toBe(" Scripts/run.js");
 	});
 
 	it("leaves includes alone when the included file keeps its path or is skipped", async () => {

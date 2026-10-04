@@ -431,6 +431,19 @@ describe("buildPackagePreview - safety must-fixes", () => {
 		).toBe(true);
 	});
 
+	it("does not let a bundled script cover a step whose path differs by leading whitespace", () => {
+		const m = macro("m1", "Spaced", [userScript("c1", "run", " Scripts/run.js")]);
+		const pkg = makePackage(
+			[pkgChoice(m, ["Spaced"])],
+			[asset("user-script", "Scripts/run.js")],
+		);
+
+		const preview = buildPackagePreview(NO_EXISTING, pkg, NONE);
+		// Import leaves the step at " Scripts/run.js", a different vault file.
+		expect(preview.missingReferences.map((r) => r.path)).toEqual([" Scripts/run.js"]);
+		expect(preview.orphanAssets).toEqual(["Scripts/run.js"]);
+	});
+
 	it("reports a referenced-but-unbundled script as a missing reference, not a file", () => {
 		const m = macro("m1", "Needs script", [
 			userScript("c1", "run", "scripts/absent.js"),

@@ -1,5 +1,5 @@
 import { inlineScriptBodies } from "../formatters/helpers/inlineScriptSpans";
-import { normalizeVaultPath } from "../utils/pathUtils";
+import { normalizeVaultPathSeparators } from "../utils/pathUtils";
 import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type IChoice from "../types/choices/IChoice";
 import { isCaptureChoice, isMacroChoice, isMultiChoice, isTemplateChoice } from "../types/choices/choiceType";
@@ -283,11 +283,11 @@ function collectCommands(
 					scriptPath: script.path,
 				});
 				if (script.path) {
-					// Keyed like the bundled asset: the path import writes and
-					// rewrites the command to.
+					// A script path is an identity: separators are normalized, as
+					// import does, but whitespace is kept because it names a folder.
 					walk.usages.push({
 						choiceId: walk.choiceId,
-						path: normalizeVaultPath(script.path),
+						path: normalizeVaultPathSeparators(script.path),
 						asScript: true,
 						impliedKind: "user-script",
 						breadcrumb: joinCrumb(commandCrumbs),
@@ -318,7 +318,7 @@ function collectCommands(
 					walk.flags.add("conditional-script");
 					walk.usages.push({
 						choiceId: walk.choiceId,
-						path: normalizeVaultPath(scriptPath),
+						path: normalizeVaultPathSeparators(scriptPath),
 						asScript: true,
 						impliedKind: "conditional-script",
 						breadcrumb: joinCrumb(commandCrumbs),
