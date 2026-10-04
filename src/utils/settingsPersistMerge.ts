@@ -243,6 +243,9 @@ export function threeWayMergeSettings<T>(
 			: leaf === "models" && sample.every(isModelLike)
 				? modelMergeKey
 				: ID_KEYED_LISTS.has(leaf) &&
+						// A script's `settings` are its own data; a list named like one of
+						// ours in there keeps its order and is not merged by id.
+						!path.includes("settings") &&
 						sample.every(hasChoiceId) &&
 						[localArr, diskArr, baseArr ?? []].every(hasUniqueIds)
 					? choiceMergeKey
