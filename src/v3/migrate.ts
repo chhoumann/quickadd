@@ -115,6 +115,12 @@ export function buildReport(settings: { choices?: unknown }): MigrationReport {
 	const { nodes, notes } = migrateChoiceList(settings.choices);
 	const rows: MigrationReport["rows"] = [];
 	const counts = new Map<string, number>();
+	const names = new Map<string, string>();
+	const index = (node: ActionNode) => {
+		names.set(node.id, node.name);
+		if (node.kind === "folder") node.items.forEach(index);
+	};
+	nodes.forEach(index);
 	const visit = (node: ActionNode, parents: string[]) => {
 		const path = [...parents, node.name].join(" / ");
 		counts.set(node.name, (counts.get(node.name) ?? 0) + 1);
@@ -129,15 +135,14 @@ export function buildReport(settings: { choices?: unknown }): MigrationReport {
 			name: node.name,
 			kind: "action",
 			migratedFrom: node.provenance?.migratedFrom,
-			summary: summarize(node),
+			summary: summarize(node, (id) => names.get(id)),
 			steps: node.steps.length,
 		});
 	};
 	for (const node of nodes) visit(node, []);
-	const ids = new Set(rows.map((row) => row.id));
 	const dangling = (steps: Step[], host: ActionNode) => {
 		for (const step of steps) {
-			if (step.type === "runAction" && !ids.has(step.actionId)) {
+			if (step.type === "runAction" && !names.has(step.actionId)) {
 				notes.push({ choiceId: host.id, choiceName: host.name, kind: "danglingRunAction", detail: `step ${step.id} runs missing ${step.actionId}` });
 			}
 			if (step.type === "if") {

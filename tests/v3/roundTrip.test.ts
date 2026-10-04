@@ -118,6 +118,12 @@ describe("report", () => {
 		]);
 		expect(kinds("folderModeConflict").map((line) => line.split(":")[0])).toEqual(["fx-folder-conflict", "fx-folder-disabled-flags"]);
 		expect(report.duplicateNames).toEqual([]);
+		expect(report.rows.find((row) => row.id === "fx-folder-inner-child")).toMatchObject({
+			path: "Folder / Inner folder / Inner template",
+			migratedFrom: "Template",
+			steps: 1,
+		});
+		expect(report.rows.find((row) => row.id === "fx-macro")?.summary).toContain("runs 'Top of note', runs 'fx-missing'");
 	});
 
 	it("lists the drops that real packages hit", () => {
