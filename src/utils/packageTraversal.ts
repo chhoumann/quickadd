@@ -8,6 +8,7 @@ import type { IConditionalCommand } from "../types/macros/Conditional/ICondition
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "./choiceUtils";
 import { commandListOf, isCommandLike } from "./macroUtils";
+import { resolveTemplatePath } from "./templateFolderUtils";
 import { collectTemplateIncludePaths } from "./templateIncludes";
 import { CommandType } from "../types/macros/CommandType";
 
@@ -311,12 +312,12 @@ export function collectFileDependencies(
 	const includePaths = new Set<string>();
 	visitIncludedChoices(catalog, choiceIds, (choice) => {
 		if (isTemplateChoice(choice) && choice.templatePath) {
-			templatePaths.add(choice.templatePath);
+			templatePaths.add(resolveTemplatePath(choice.templatePath));
 		}
 		if (isCaptureChoice(choice)) {
 			const creation = choice.createFileIfItDoesntExist;
 			if (creation?.enabled && creation.createWithTemplate && creation.template) {
-				captureTemplatePaths.add(creation.template);
+				captureTemplatePaths.add(resolveTemplatePath(creation.template));
 			}
 			for (const path of captureFormatIncludes(choice)) {
 				includePaths.add(path);

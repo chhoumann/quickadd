@@ -1,4 +1,5 @@
 import { uuidv4 } from "../utils/uuid";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type IChoice from "../types/choices/IChoice";
 import type IMacroChoice from "../types/choices/IMacroChoice";
@@ -380,7 +381,9 @@ export function applyAssetPathOverrides(
 		}
 		case "Template": {
 			const templateChoice = choice as ITemplateChoice;
-			const replacement = pathOverrides.get(templateChoice.templatePath);
+			const replacement =
+				pathOverrides.get(resolveTemplatePath(templateChoice.templatePath)) ??
+				pathOverrides.get(templateChoice.templatePath);
 			if (replacement) {
 				templateChoice.templatePath = replacement;
 			}
@@ -390,7 +393,9 @@ export function applyAssetPathOverrides(
 			const captureChoice = choice as ICaptureChoice;
 			const templatePath = captureChoice.createFileIfItDoesntExist?.template;
 			if (templatePath) {
-				const replacement = pathOverrides.get(templatePath);
+				const replacement =
+					pathOverrides.get(resolveTemplatePath(templatePath)) ??
+					pathOverrides.get(templatePath);
 				if (replacement) {
 					captureChoice.createFileIfItDoesntExist = {
 						...captureChoice.createFileIfItDoesntExist,

@@ -2,7 +2,8 @@ import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, o
 import type { App, WorkspaceLeaf } from "obsidian";
 import { Notice, TFile } from "obsidian";
 import invariant from "src/utils/invariant";
-import { VALUE_SYNTAX, BASE_FILE_EXTENSION_REGEX, CANVAS_FILE_EXTENSION_REGEX } from "../constants";
+import { VALUE_SYNTAX } from "../constants";
+import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
@@ -156,7 +157,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
 			if (selectedUpdate) {
-				if (BASE_FILE_EXTENSION_REGEX.test(templatePath) || CANVAS_FILE_EXTENSION_REGEX.test(templatePath)) {
+				if (!isMarkdownTemplatePath(templatePath)) {
 					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
 				}
 				createdFile = await this.applyExistingFileUpdate(

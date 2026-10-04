@@ -257,6 +257,23 @@ describe("buildPackage", () => {
 		expect(decodeFromBase64(asset.content)).toBe("# Daily {{date}}");
 	});
 
+	it("exports the template asset for a path written with backslashes", async () => {
+		const template = makeTemplateChoice("t1", "Daily", "Templates\\daily");
+		const { app } = makeFakeApp({
+			files: { "Templates/daily.md": "# Daily" },
+		});
+
+		const result = await buildPackage(
+			app as never,
+			buildOptions({ choices: [template], rootChoiceIds: ["t1"] }),
+		);
+
+		expect(result.missingAssets).toEqual([]);
+		expect(result.pkg.assets.map((asset) => asset.originalPath)).toEqual([
+			"Templates/daily.md",
+		]);
+	});
+
 	it("defaults createdAt to the current time when not provided", async () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date("2026-03-15T08:00:00.000Z"));

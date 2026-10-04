@@ -32,11 +32,24 @@ export function hasTemplateExtension(path: string): boolean {
  * their own near-copy, and the preflight copy skipped the leading-slash strip).
  */
 export function getTemplateFile(app: App, templatePath: string): TFile | null {
-	const normalized = normalizeVaultPath(templatePath);
-	if (!normalized) return null;
-	const resolved = hasTemplateExtension(normalized) ? normalized : `${normalized}.md`;
+	const resolved = resolveTemplatePath(templatePath);
+	if (!resolved) return null;
 	const file = app.vault.getAbstractFileByPath(resolved);
 	return file instanceof TFile ? file : null;
+}
+
+/**
+ * The vault path a configured template setting stands for: normalized as a
+ * vault path, with `.md` appended when it carries no template extension. Every
+ * decision made from a template setting (which file to read, which extension
+ * the new note gets, whether it is Markdown, what a package exports) goes
+ * through this, so a path typed as `Meta\\Templates\\Daily` or `x.canvas/`
+ * means the same file everywhere.
+ */
+export function resolveTemplatePath(templatePath: string): string {
+	const normalized = normalizeVaultPath(templatePath);
+	if (!normalized) return "";
+	return hasTemplateExtension(normalized) ? normalized : `${normalized}.md`;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { type App, TFile, TFolder } from "obsidian";
 import { describe, expect, it } from "vitest";
-import { getTemplateFile, isPathWithinTemplateFolders, normalizeTemplateFolderPaths } from "./templateFolderUtils";
+import { getTemplateFile, isPathWithinTemplateFolders, normalizeTemplateFolderPaths, resolveTemplatePath } from "./templateFolderUtils";
 
 function file(path: string): TFile {
 	const f = new TFile();
@@ -147,5 +147,21 @@ describe("getTemplateFile", () => {
 	it("returns null when the path resolves to a folder, not a file", () => {
 		const app = appWith([folder("Templates")]);
 		expect(getTemplateFile(app, "Templates.md")).toBeNull();
+	});
+});
+
+describe("resolveTemplatePath", () => {
+	it("normalizes separators and appends .md when no template extension is present", () => {
+		expect(resolveTemplatePath("Meta\\Templates\\Daily")).toBe("Meta/Templates/Daily.md");
+		expect(resolveTemplatePath("/Templates/Daily.md/")).toBe("Templates/Daily.md");
+	});
+
+	it("keeps canvas and base extensions, even after a stray trailing slash", () => {
+		expect(resolveTemplatePath("Templates/Board.canvas/")).toBe("Templates/Board.canvas");
+		expect(resolveTemplatePath("Templates\\Table.base")).toBe("Templates/Table.base");
+	});
+
+	it("returns an empty string for blank input", () => {
+		expect(resolveTemplatePath("  ")).toBe("");
 	});
 });

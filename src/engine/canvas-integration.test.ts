@@ -54,6 +54,12 @@ describe('Canvas Template Integration', () => {
 			expect(getTemplateExtension('template.txt')).toBe('.md');
 		});
 
+		it('decides the type from the resolved path, not the raw setting', () => {
+			expect(getTemplateExtension('Templates\\template.canvas')).toBe('.canvas');
+			expect(getTemplateExtension('template.canvas/')).toBe('.canvas');
+			expect(getTemplateExtension('template.base/')).toBe('.base');
+		});
+
 		it('should return .base for base templates', () => {
 			expect(getTemplateExtension('template.base')).toBe('.base');
 			expect(getTemplateExtension('path/to/template.base')).toBe('.base');

@@ -1,4 +1,5 @@
 import type { App, TFile } from "obsidian";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import { Notice } from "obsidian";
 import {
 	BASE_FILE_EXTENSION_REGEX,
@@ -48,6 +49,7 @@ export function isNoteEffectivelyEmpty(content: string): boolean {
  * paths default to markdown, matching template content resolution.
  */
 export function isMarkdownTemplatePath(path: string): boolean {
+	path = resolveTemplatePath(path);
 	return (
 		!CANVAS_FILE_EXTENSION_REGEX.test(path) &&
 		!BASE_FILE_EXTENSION_REGEX.test(path)
