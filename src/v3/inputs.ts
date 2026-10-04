@@ -14,7 +14,7 @@ import type { Action, AddToNoteStep, CreateNoteStep } from "./model";
 
 export type InputKind = "value" | "date" | "field" | "file" | "math" | "pick";
 
-export type InputLocation = "format" | "fileName" | "folder" | "target" | "template file";
+export type InputLocation = "format" | "fileName" | "folder" | "target" | "templatePath" | "template file";
 
 /** Something a run of an action asks for, as its placeholders say before any override. */
 export interface ActionInput {
@@ -32,8 +32,9 @@ export interface ActionInput {
 
 /**
  * The inputs a run of `action` asks for, in the order they first appear: step
- * by step, through the file name, folder, target and format, then the
- * template file. Only steps' own text is read, never a script.
+ * by step, as the run asks (the template path, folder and file name of a new
+ * note; the target and format of an addition; then the template file). Only
+ * steps' own text is read, never a script.
  *
  * A Run script step may set any variable, so an input that first appears
  * after one is marked as provided by it, and so is an input named like the
@@ -80,10 +81,11 @@ export async function listInputs(
 	return inputs;
 
 	async function scanCreateNote(index: number, step: CreateNoteStep) {
-		await scan(index, "fileName", step.fileNameFormat.enabled ? step.fileNameFormat.format : VALUE_SYNTAX, "noteTitle");
+		await scanTemplatePath(index, step.templatePath);
 		if (step.location.mode === "folders") {
 			for (const folder of step.location.folders) await scan(index, "folder", folder, "folder");
 		}
+		await scan(index, "fileName", step.fileNameFormat.enabled ? step.fileNameFormat.format : VALUE_SYNTAX, "noteTitle");
 		await scanTemplateFile(index, step.templatePath);
 	}
 
@@ -113,8 +115,16 @@ export async function listInputs(
 		);
 		const create = step.createFileIfItDoesntExist;
 		if (create.enabled && create.createWithTemplate && create.template) {
+			await scanTemplatePath(index, create.template);
 			await scanTemplateFile(index, create.template);
 		}
+	}
+
+	/** The path itself is asked for first, as the run formats it before anything else. */
+	async function scanTemplatePath(index: number, path: string) {
+		if (!path) return;
+		await collector.scanString(path, true, "templatePath");
+		record(index, "templatePath");
 	}
 
 	async function scanTemplateFile(index: number, path: string) {

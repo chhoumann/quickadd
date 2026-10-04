@@ -63,8 +63,9 @@ function nameOf(input: ActionInput): string {
 }
 
 const WHERE: Record<Exclude<ActionInput["definedIn"]["where"], "template file">, string> = {
-	fileName: "Defined in the file name",
+	templatePath: "Defined in the template path",
 	folder: "Defined in the folder",
+	fileName: "Defined in the file name",
 	target: "Defined in the target",
 	format: "Defined in the format",
 };

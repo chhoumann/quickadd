@@ -50,6 +50,19 @@ describe("listInputs", () => {
 		]);
 	});
 
+	it("lists what a template path asks for first, as the run formats it before the file name", async () => {
+		const template = new TemplateChoice("Note of a kind");
+		template.templatePath = "Templates/{{VALUE:kind}}.md";
+		template.fileNameFormat = { enabled: true, format: "{{VALUE:Topic}}" };
+
+		const inputs = await listInputs(actionOf(template), noTemplates);
+
+		expect(inputs.map(({ name, definedIn }) => ({ name, definedIn }))).toEqual([
+			{ name: "kind", definedIn: { step: 0, where: "templatePath" } },
+			{ name: "Topic", definedIn: { step: 0, where: "fileName" } },
+		]);
+	});
+
 	it("lists the note a Capture to a folder asks to pick", async () => {
 		const capture = new CaptureChoice("Inbox");
 		capture.id = "inbox";
