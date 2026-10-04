@@ -125,7 +125,11 @@ export interface AddToNoteStep extends StepBase {
 	eachLine?: boolean;
 }
 
-/** The note a step works on. Migration only ever writes the run note. */
+/**
+ * The run note: the note the last Create note or Add to note step ended on,
+ * whether it created it, wrote to it, or found it already there. A step that
+ * works on the run note names it with this value. Migration only ever writes it.
+ */
 export const RUN_NOTE = "{{NOTE}}";
 
 export interface LinkStep extends StepBase {

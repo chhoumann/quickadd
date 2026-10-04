@@ -869,11 +869,12 @@ to. Handy as the note's top heading:
 
 ## The note this run wrote
 
-### The note a step wrote: `{{NOTE}}` {#note}
+### The note the last step ended on: `{{NOTE}}` {#note}
 
-The note the run last created or added to, for the steps after it. In a macro
-whose first step captures to a note, an Open file step with the path
-`{{NOTE}}` opens that note, and a Capture to `{{NOTE}}` adds to it again.
+The note the run's last Template or Capture step ended on, for the steps
+after it: the note it created, added to, or found already there and opened.
+In a macro whose first step captures to a note, an Open file step with the
+path `{{NOTE}}` opens that note, and a Capture to `{{NOTE}}` adds to it again.
 Scripts get the same note as `params.note`.
 
 `{{NOTE}}` is the note's path with its extension. `{{NOTE|link}}` is a link to
