@@ -9,7 +9,7 @@ import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { V2_CHOICE_KEYS, migrateSettingsV2 } from "../../src/v3/migrate";
 import type { ActionNode, Step } from "../../src/v3/model";
-import { actionsFromChoices, choicesFromActions } from "../../src/v3/storage";
+import { actionsFromChoices, choicesFromActions, findAction, updateAction } from "../../src/v3/storage";
 import { newStep, withStep } from "../../src/v3/addStep";
 import { CommandType } from "../../src/types/macros/CommandType";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
@@ -303,6 +303,12 @@ describe("the lowered view of stored actions", () => {
 		const saved = loadAndSave(disk, (choices) => { choices.push(new CaptureChoice("New")); });
 		expect(saved.actions[1].provenance).toBeUndefined();
 		expect(saved.actions[0].provenance).toEqual({ migratedFrom: "Macro" });
+	});
+
+	it("finds and updates nothing in an unreadable action list, without throwing", () => {
+		const unreadable = { 0: { id: "x" } } as unknown as ActionNode[];
+		expect(findAction(unreadable, "x")).toBeUndefined();
+		expect(updateAction(unreadable, "x", (action) => action)).toBe(unreadable);
 	});
 
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {

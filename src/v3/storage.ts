@@ -218,7 +218,9 @@ function lowerActions(actions: ActionNode[]): IChoice[] {
 
 /** The action with this id, in folders too. */
 export function findAction(actions: readonly ActionNode[] | undefined, id: string): Action | undefined {
-	for (const node of actions ?? []) {
+	// An unreadable action list is kept as it was found; there is nothing in it to find.
+	if (!Array.isArray(actions)) return undefined;
+	for (const node of actions) {
 		if (!isActionNode(node)) continue;
 		if (node.kind === "action" && node.id === id) return node;
 		if (node.kind === "folder") {
@@ -235,6 +237,7 @@ export function updateAction(
 	id: string,
 	change: (action: Action) => Action,
 ): ActionNode[] {
+	if (!Array.isArray(actions)) return actions as ActionNode[];
 	return actions.map((node) => {
 		if (!isActionNode(node)) return node;
 		if (node.kind === "folder") return { ...node, items: updateAction(node.items, id, change) };
