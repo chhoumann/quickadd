@@ -95,7 +95,7 @@ text. A Templater tag in the format itself can still use an answer, as in
 | --- | --- |
 | [`{{CLIPBOARD}}`](#clipboard) | Whatever you copied last |
 | [`{{TEMPLATE:Templates/Meeting.md}}`](#template) | The contents of a template file |
-| [`{{MACRO:My Macro}}`](#macro) | Whatever a macro returns |
+| [`{{ACTION:Generate summary}}`](#macro) | What another choice returns |
 | [`{{GLOBAL_VAR:Header}}`](#global-var) | A snippet you defined in settings |
 | [`{{RANDOM:6}}`](#random) | A random ID like `x7k2p9` |
 
@@ -1221,9 +1221,12 @@ capture body in a template file and set the format to
 `{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file and then
 runs the usual formatting passes on the result.
 
-### A macro's result: `{{MACRO:<macro name>}}` {#macro}
+### Another choice's result: `{{ACTION:<choice name>}}` {#macro}
 
-`{{MACRO:Generate summary}}` runs that macro and inserts its return value.
+`{{ACTION:Generate summary}}` runs that choice and inserts its result. It runs
+any choice: a macro gives back its return value, and a Capture or Template
+gives back the path of the note it ended on. `{{MACRO:}}` is its older name
+and keeps working.
 
 #### Label the macro's prompt: `|label:` {#macro-label}
 
