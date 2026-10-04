@@ -73,10 +73,16 @@ it("adds a script to a capture, which then runs the capture and the script", asy
 	const { obsidian, plugin, sandbox } = getContext();
 	const { capture, log, hello } = await setUp();
 
+	const action = async () => (await plugin.data<Data>().read()).actions.find((node): node is Action => node.name === "Log");
+	const stepIds = async () => (await action())?.steps.map((step) => step.id);
+
 	await addScriptStep(obsidian);
 	await expect.poll(() => obsidian.dev.evalJson<string[]>("app.setting.pageStack.map((entry) => entry.page.title)"), POLL_OPTS)
 		.toEqual(["Log"]);
 	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([["Log"], ["Script", "No file chosen"]]);
+	// The write keeps the capture's id once it is the first step of a sequence.
+	await expect.poll(async () => (await stepIds())?.[0], POLL_OPTS).toBe(capture.id);
+	const [, scriptId] = (await stepIds())!;
 
 	await clickWhenStill(obsidian, '[aria-label="Choose file for Script"]');
 	await waitForElement(obsidian, ".prompt .prompt-input");
@@ -86,10 +92,11 @@ it("adds a script to a capture, which then runs the capture and the script", asy
 	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([["Log"], ["hello", hello]]);
 	await leaveSettingsPage(obsidian);
 
-	const action = async () => (await plugin.data<Data>().read()).actions.find((node): node is Action => node.name === "Log");
 	await expect.poll(async () => (await action())?.steps.map((step) => step.type), POLL_OPTS).toEqual(["addToNote", "runScript"]);
+	await expect.poll(async () => (await action())?.steps[1], POLL_OPTS).toMatchObject({ path: hello });
 	const stored = (await action())!;
 	expect(stored.id).toBe(capture.id);
+	expect(stored.steps.map((step) => step.id)).toEqual([capture.id, scriptId]);
 	expect(stored.steps[0]).toMatchObject({ name: "Log", captureTo: log });
 
 	const target = log.replace(/\.md$/, "");

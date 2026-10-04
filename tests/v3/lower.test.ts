@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { CommandType } from "../../src/types/macros/CommandType";
+import type { INestedChoiceCommand } from "../../src/types/macros/QuickCommands/INestedChoiceCommand";
 import type { IOpenFileCommand } from "../../src/types/macros/QuickCommands/IOpenFileCommand";
 import { compactGroup, legacyTypeOf, lowerNode } from "../../src/v3/lower";
 import { migrateChoice } from "../../src/v3/migrate";
@@ -51,5 +52,30 @@ describe("lowering a write with its follow-ups", () => {
 			? { id: "my-link", type: "link", link: RUN_NOTE, copyToClipboard: true }
 			: { id: "my-templater", type: "templater", note: RUN_NOTE };
 		expect(() => lowerNode({ ...action, steps: [action.steps[0]!, own] })).toThrow("no v2 encoding");
+	});
+});
+
+describe("lowering a Template or Capture that became a sequence", () => {
+	it("gives the nested choice an id of its own and reads the write back under the action's id", () => {
+		const action = captureThatOpens();
+		const wait: Step = { id: "wait", name: "Wait", type: "wait", time: 100 };
+		const sequence: Action = { ...action, steps: [{ ...action.steps[0]!, name: "Log" }, action.steps[1]!, wait] };
+
+		const lowered = lowerNode(sequence) as IMacroChoice;
+		const nested = lowered.macro.commands[0] as INestedChoiceCommand;
+		expect(lowered).toMatchObject({ id: action.id, type: "Macro" });
+		expect(nested.choice.id).toBe(`${action.id}:choice`);
+		expect(nested.choice).toMatchObject({ type: "Capture", openFile: true });
+
+		const steps = (migrateChoice(lowered).node as Action).steps;
+		expect(steps.map((step) => step.id)).toEqual([action.id, `${action.id}:open`, "wait"]);
+	});
+
+	it("keeps the id of a write that is not the action's own", () => {
+		const action = captureThatOpens();
+		const write = { ...action.steps[0]!, id: "write", name: "Log" };
+		const lowered = lowerNode({ ...action, steps: [write, { id: "wait", name: "Wait", type: "wait", time: 100 }] }) as IMacroChoice;
+		expect((lowered.macro.commands[0] as INestedChoiceCommand).choice.id).toBe("write");
+		expect((migrateChoice(lowered).node as Action).steps.map((step) => step.id)).toEqual(["write", "wait"]);
 	});
 });

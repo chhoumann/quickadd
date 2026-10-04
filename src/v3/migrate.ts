@@ -499,7 +499,9 @@ function migrateNested(command: INestedChoiceCommand, host: IChoice, notes: Note
 	if (inlinable) {
 		note(notes, host, "inlined", `'${nested.name}'`);
 		noteUnknownKeys(nested, V2_CHOICE_KEYS[nested.type], nested, "", notes);
-		return writeGroup(nested as ITemplateChoice | ICaptureChoice, nested.id, nested.name, notes);
+		// A Template or Capture that became a sequence: its write is the host's own (see lowerSteps).
+		const stepId = nested.id === `${host.id}:choice` ? host.id : nested.id;
+		return writeGroup(nested as ITemplateChoice | ICaptureChoice, stepId, nested.name, notes);
 	}
 	const reason =
 		nested.type === "Multi" || nested.type === "Macro" ? `a nested ${nested.type}` :

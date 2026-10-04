@@ -108,7 +108,7 @@ export function lowerNode(node: ActionNode): IChoice {
 		...shell,
 		type: "Macro",
 		runOnStartup: node.show.runOnStartup as boolean,
-		macro: { id: node.id, name: node.name, commands: lowerSteps(node.steps) },
+		macro: { id: node.id, name: node.name, commands: lowerSteps(node.steps, node.id) },
 	};
 	return macro;
 }
@@ -186,23 +186,30 @@ const V2_FOLDER_MODE: Record<NoteLocation["mode"], FolderMode> = {
 	ask: "prompt",
 };
 
-function lowerSteps(steps: Step[]): ICommand[] {
+/**
+ * The commands of the Macro `actionId` lowers to. A write keeps its id on the
+ * nested choice, except the write of a Template or Capture that became a
+ * sequence, which keeps the action's id: its nested choice is `<action id>:choice`,
+ * so a run does not take it for the Macro calling itself.
+ */
+function lowerSteps(steps: Step[], actionId: string): ICommand[] {
 	const commands: ICommand[] = [];
 	for (let index = 0; index < steps.length; ) {
 		const group = readWriteGroup(steps, index);
 		if (group) {
-			const choice = lowerGroup(group, { id: group.write.id, name: group.write.name ?? "", command: false });
-			commands.push({ id: `${choice.id}:nested`, name: choice.name, type: CommandType.NestedChoice, choice } as ICommand);
+			const { id, name } = group.write;
+			const choice = lowerGroup(group, { id: id === actionId ? `${actionId}:choice` : id, name: name ?? "", command: false });
+			commands.push({ id: `${id}:nested`, name: choice.name, type: CommandType.NestedChoice, choice } as ICommand);
 			index = group.next;
 			continue;
 		}
-		commands.push(lowerStep(steps[index]));
+		commands.push(lowerStep(steps[index], actionId));
 		index++;
 	}
 	return commands;
 }
 
-function lowerStep(step: Step): ICommand {
+function lowerStep(step: Step, actionId: string): ICommand {
 	const base = { id: step.id, name: step.name as string };
 	switch (step.type) {
 		case "runCommand":
@@ -233,8 +240,8 @@ function lowerStep(step: Step): ICommand {
 				...base,
 				type: CommandType.Conditional,
 				condition: step.condition,
-				thenCommands: lowerSteps(step.thenSteps),
-				elseCommands: lowerSteps(step.elseSteps),
+				thenCommands: lowerSteps(step.thenSteps, actionId),
+				elseCommands: lowerSteps(step.elseSteps, actionId),
 			} as ICommand;
 		case "inlineAction":
 			return { ...base, type: CommandType.NestedChoice, choice: lowerNode(step.node) } as ICommand;
