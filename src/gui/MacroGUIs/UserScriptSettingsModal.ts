@@ -4,6 +4,7 @@ import type { IUserScript } from "../../types/macros/IUserScript";
 import { getQuickAddInstance } from "../../quickAddInstance";
 import { reportingHandler } from "../../utils/errorUtils";
 import { pickUserScript } from "./pickUserScript";
+import { replaceScriptFile } from "./replaceScriptFile";
 import {
 	mountFormatPreview,
 	type FormatPreviewHandle,
@@ -197,10 +198,7 @@ export class UserScriptSettingsModal extends Modal {
 					reportingHandler("Couldn't choose that script", async () => {
 						const picked = await pickUserScript(this.app);
 						if (!picked) return;
-						// Takes the new file's name, as a newly added script does;
-						// a `::member` suffix is dropped with the old file.
-						this.command.name = picked.name;
-						this.command.path = picked.path;
+						if (!(await replaceScriptFile(this.app, this.command, picked))) return;
 						this.onCommandChange?.();
 						// The settings shown are the old script's; Configure
 						// opens the new one's.

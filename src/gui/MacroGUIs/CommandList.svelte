@@ -21,6 +21,7 @@ import UserScriptCommand, { type ScriptFileState } from "./Components/UserScript
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
 import { pickUserScript } from "./pickUserScript";
+import { replaceScriptFile } from "./replaceScriptFile";
 import { reportingHandler } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
@@ -248,15 +249,12 @@ function scriptFileState(command: IUserScript): ScriptFileState {
 	return /\.(js|md)$/i.test(command.path) ? "ok" : "unusable";
 }
 
-/**
- * Point a script step at a file the user picks. The step takes the picked
- * file's name, as a newly added script does; a `::member` suffix on the old
- * name is dropped, since the new file need not export that member.
- */
+/** Point a script step at a file the user picks. */
 async function chooseScriptFile(command: IUserScript) {
 	const picked = await pickUserScript(app);
 	if (!picked) return;
-	const updated: IUserScript = { ...command, name: picked.name, path: picked.path };
+	const updated: IUserScript = { ...command };
+	if (!(await replaceScriptFile(app, updated, picked))) return;
 	updateCommand(updated);
 }
 
