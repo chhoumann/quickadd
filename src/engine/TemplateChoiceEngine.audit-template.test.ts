@@ -265,6 +265,30 @@ describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
 	});
 });
 
+describe("TemplateChoiceEngine Undo snapshot after its link (audit)", () => {
+	it("records, as what the run left, the note after its link went into it as well", async () => {
+		const { engine, choiceExecutor, app } = createEngine();
+		const createdFile = makeTFile("Test Template.md");
+		vi.mocked(app.vault.read).mockImplementation(async (file) => file === createdFile ? "# Plan\n" : "");
+		vi.mocked(app.workspace.getActiveFile).mockReturnValue(createdFile);
+		engine.choice.openFile = false;
+		engine.choice.appendLink = {
+			enabled: true, placement: "newLine", requireActiveFile: false, linkType: "link", destination: { type: "activeFile" },
+		};
+		(engine as unknown as { createFileWithTemplate: () => Promise<TFile | null> }).createFileWithTemplate =
+			vi.fn().mockResolvedValue(createdFile);
+		insertFileLinkToActiveViewMock.mockImplementationOnce(async () => {
+			vi.mocked(app.vault.read).mockImplementation(async (file) => file === createdFile ? "# Plan\n[[Test Template]]\n" : "");
+		});
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			write: { path: "Test Template.md", before: null, after: "# Plan\n[[Test Template]]\n" },
+		}));
+	});
+});
+
 describe("TemplateChoiceEngine create-another collision feedback (audit)", () => {
 	it("reports the renamed file, and what it holds for Undo, when a create-another collision occurs", async () => {
 		const { engine, app, choiceExecutor } = createEngine();

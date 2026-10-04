@@ -33,6 +33,16 @@ export async function insertChoiceFileLink(
 	}
 }
 
+/** The note {@link insertChoiceFileLink} puts the link in, branch for branch. */
+export function linkDestinationFile(
+	app: App, options: AppendLinkOptions, focusedProperty: IChoiceExecutor["focusedProperty"],
+): TFile | null {
+	if (!options.enabled) return null;
+	if (options.destination?.type === "specifiedFile") return getAppendLinkDestinationFile(app, options.destination);
+	if (focusedProperty && !placementSupportsFrontmatter(options.placement)) return focusedProperty.file;
+	return app.workspace.getActiveFile();
+}
+
 export async function copyChoiceFileLink(file: TFile): Promise<void> {
 	try {
 		await copyFileLinkToClipboard(file);

@@ -4,7 +4,7 @@ import { insertCaptureInEditor, setMarkdownCursorsAtOffsets, appendToCurrentLine
 import { mapEditorCursorPlacement, type EditorCursorPlacement, type EditorTextMutationObserver } from "../utils/editorCursorPlacement";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import { getAppendLinkDestinationFile } from "../utils/fileLinks";
-import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
+import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile, linkDestinationFile } from "./choiceFileActions";
 import {
 	Notice,
 	TFile,
@@ -540,21 +540,13 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		write: NoteWrite | undefined,
 		linkOptions: AppendLinkOptions,
 	): Promise<void> {
-		if (!write || !linkOptions.enabled || this.linkDestination(linkOptions)?.path !== file.path) return;
+		if (!write || !linkOptions.enabled || linkDestinationFile(this.app, linkOptions, this.choiceExecutor.focusedProperty)?.path !== file.path) return;
 		const after = await readNote(this.app, file);
 		if (effect === "unchanged" && after !== write.after) {
 			this.outcome.success(file, "changed", { ...write, after });
 			return;
 		}
 		write.after = after;
-	}
-
-	/** The note the capture link goes into, as insertChoiceFileLink chooses it. */
-	private linkDestination(linkOptions: AppendLinkOptions): TFile | null {
-		if (linkOptions.destination?.type === "specifiedFile") return getAppendLinkDestinationFile(this.app, linkOptions.destination);
-		const property = this.choiceExecutor.focusedProperty;
-		if (property && !placementSupportsFrontmatter(linkOptions.placement)) return property.file;
-		return this.app.workspace.getActiveFile();
 	}
 
 	private async commitCapture(write: CaptureWriteResult, options: {

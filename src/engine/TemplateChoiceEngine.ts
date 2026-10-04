@@ -1,4 +1,4 @@
-import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
+import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, linkDestinationFile, openChoiceFile } from "./choiceFileActions";
 import type { App, WorkspaceLeaf } from "obsidian";
 import { TFile } from "obsidian";
 import invariant from "src/utils/invariant";
@@ -21,7 +21,7 @@ import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import type { ChoiceEffect, NoteWrite } from "../types/ChoiceOutcome";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import {
@@ -240,9 +240,10 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.outcome.success(createdFile, effect, effect === "unchanged" ? undefined : {
+			const write: NoteWrite | undefined = effect === "unchanged" ? undefined : {
 				path: createdFile.path, before: this.writtenBefore, after: await this.app.vault.read(createdFile),
-			});
+			};
+			this.outcome.success(createdFile, effect, write);
 			const cursorBeforeLink = this.cursorPlacement;
 
 			if (linkOptions.enabled && createdFile) {
@@ -258,6 +259,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
 							}
 						} : undefined);
+					// The link may have gone into the note itself; Undo compares the note
+					// with what the run left, so the recorded write takes the text after it.
+					if (write && linkDestinationFile(this.app, linkOptions, this.choiceExecutor.focusedProperty)?.path === createdFile.path) {
+						write.after = await this.app.vault.read(createdFile);
+					}
 				} catch (linkError) {
 					// An abort propagating through the link step still aborts the run.
 					if (linkError instanceof MacroAbortError) {
