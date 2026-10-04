@@ -176,7 +176,8 @@ The script is called with up to two arguments: `params` (always) and `settings`
     quickAddApi: QuickAddApi,   // QuickAdd API methods (documented below)
     variables: {},              // Variables object for sharing data between scripts and templates
     obsidian: obsidian,         // Obsidian module with all classes and utilities
-    abort: (message) => never   // Abort macro execution with optional message
+    abort: (message) => never,  // Abort macro execution with optional message
+    note: TFile | null          // The note this run last created or wrote to, like {{NOTE}}
 }
 ```
 

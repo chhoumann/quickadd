@@ -166,6 +166,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			enumerable: true,
 			configurable: false,
 		});
+		Object.defineProperty(params, "note", {
+			get: () => choiceExecutor.runNote ?? null,
+			enumerable: true,
+		});
 
 		return params;
 	}

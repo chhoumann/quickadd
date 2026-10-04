@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import type * as obsidian from "obsidian";
 import type { QuickAddApi } from "../quickAddApi";
 import type QuickAdd from "../main";
@@ -22,6 +22,8 @@ export type ScriptParameters = {
 	variables: Record<string, unknown>;
 	obsidian: typeof obsidian;
 	abort: (message?: string) => never;
+	/** The note this run last created or wrote to, `{{NOTE}}`; null before the first write. */
+	readonly note: TFile | null;
 };
 
 type ScriptContext = {

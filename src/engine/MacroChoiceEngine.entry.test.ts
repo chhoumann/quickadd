@@ -7,7 +7,7 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -537,6 +537,17 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(engine["params"].variables.keep).toBe("executor");
 		expect(engine["params"].variables.override).toBe(1);
 		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
+	});
+
+	it("gives scripts the run note as params.note when they read it", () => {
+		const executor = { ...choiceExecutor, runNote: null as TFile | null };
+		const engine = new MacroChoiceEngine(app, plugin, macroChoice, executor, variables);
+		const params = engine["params"] as unknown as { note: TFile | null };
+
+		expect(params.note).toBeNull();
+		const note = { path: "notes/run-note.md" } as TFile;
+		executor.runNote = note;
+		expect(params.note).toBe(note);
 	});
 
 	it("treats `params.variables = {...}` as replacing the backing map", async () => {
