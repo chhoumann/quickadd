@@ -87,6 +87,23 @@ describe("the lowered view of stored actions", () => {
 		expect(saved).toEqual({ ...disk, actions: renameNodes(disk.actions) });
 	});
 
+	it("keeps an action's input overrides through an edit to its choice's format", () => {
+		const inbox = new CaptureChoice("Inbox");
+		inbox.id = "inbox";
+		inbox.format = { enabled: true, format: "- {{VALUE:Title}}" };
+		const disk = stored([inbox]);
+		expect(disk.actions[0]).not.toHaveProperty("inputs");
+		const inputs = { Title: { label: "What happened?", optional: true } };
+		disk.actions[0].inputs = inputs;
+
+		const saved = loadAndSave(disk, ([loaded]) => {
+			(loaded as CaptureChoice).format.format = "- {{VALUE:Title}} at {{TIME}}";
+		});
+
+		expect(saved.actions[0]).toMatchObject({ inputs, steps: [{ format: { format: "- {{VALUE:Title}} at {{TIME}}" } }] });
+		expect(loadAndSave(saved)).toEqual(saved);
+	});
+
 	it("saves what it loaded unchanged, ribbon and unknown fields included", () => {
 		const disk = stored(FIXTURE);
 		disk.actions = withV3Fields(disk.actions);

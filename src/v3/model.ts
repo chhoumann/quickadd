@@ -48,7 +48,20 @@ export interface Action {
 	};
 	dateOrigin?: DateOrigin;
 	onePageInput?: "always" | "never";
+	/**
+	 * What the builder changed about an input, by its name (see inputs.ts). The
+	 * placeholders stay what defines an input; an override wins over their
+	 * modifiers when the run asks. No v2 choice holds it.
+	 */
+	inputs?: Record<string, InputOverride>;
 	provenance?: { migratedFrom: LegacyChoiceType };
+}
+
+export interface InputOverride {
+	label?: string;
+	type?: "text" | "number" | "date";
+	optional?: boolean;
+	default?: string;
 }
 
 interface StepBase {
