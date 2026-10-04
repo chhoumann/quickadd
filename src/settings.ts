@@ -7,6 +7,10 @@ import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
 export type TemplateFolderLauncherRowPosition = "off" | "top" | "bottom";
 
 export interface QuickAddSettings {
+	/**
+	 * In memory only. data.json stores QuickAdd 3 actions instead, which load
+	 * as these choices and save back as actions (src/v3/storage.ts).
+	 */
 	choices: IChoice[];
 	inputPrompt: "multi-line" | "single-line";
 	persistInputPromptDrafts: boolean;
@@ -110,6 +114,16 @@ export interface QuickAddSettings {
 		migrateToMultipleTemplateFolders: boolean;
 		refreshStaleDefaultModelSeeds: boolean;
 		pinAiModelRefs: boolean;
+		migrateToV3Actions: boolean;
+	};
+	/** Set when the choices were migrated to QuickAdd 3 actions. */
+	v3Migration?: {
+		/** QuickAdd version that migrated. */
+		migratedIn: string;
+		/** The copy of data.json from before, next to it. Absent when there was no data.json. */
+		snapshot?: string;
+		/** QuickAdd version in which the migration report was closed. */
+		reportDismissedIn?: string;
 	};
 }
 
@@ -161,5 +175,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMultipleTemplateFolders: false,
 		refreshStaleDefaultModelSeeds: false,
 		pinAiModelRefs: false,
+		migrateToV3Actions: false,
 	},
 };

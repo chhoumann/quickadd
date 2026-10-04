@@ -60,6 +60,7 @@ import { scheduleStartupModelSync } from "./ai/startupModelSync";
 import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
+import { actionsFromChoices, choicesFromActions } from "./v3/storage";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -81,6 +82,11 @@ export default class QuickAdd extends Plugin {
 	 * into the store after that result has already been (or is about to be) saved.
 	 */
 	private suppressSettingsSave = false;
+	/**
+	 * Set once data.json was handed back to QuickAdd 2 settings: nothing this
+	 * instance holds may be written over them.
+	 */
+	private savingStopped = false;
 	/** Serialize persist calls so overlapping debounced/immediate saves cannot race. */
 	private persistChain: Promise<void> = Promise.resolve();
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
@@ -200,13 +206,14 @@ export default class QuickAdd extends Plugin {
 		// and no startup macros, and no way for the user to tell why (#1566).
 		// The accessors below handle the corrupt shapes we know about; this is the
 		// blast radius bound for the ones nobody has thought of yet.
-		this.addCommandsForChoices(this.settings.choices);
-
 		try {
 			await migrate(this);
 		} catch (err) {
 			reportError(err, "QuickAdd could not run its settings migrations");
 		}
+
+		// After the migrations, so commands come from the migrated choices.
+		this.addCommandsForChoices(this.settings.choices);
 
 		const registerCli = () => {
 			try {
@@ -288,7 +295,7 @@ export default class QuickAdd extends Plugin {
 		const settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			loadedData ?? {},
+			choicesFromActions(loadedData) ?? {},
 		) as QuickAddSettings & {
 			announceUpdates: QuickAddSettings["announceUpdates"] | boolean;
 		};
@@ -350,6 +357,7 @@ export default class QuickAdd extends Plugin {
 	 */
 	private persistSettings(): Promise<void> {
 		const run = async () => {
+			if (this.savingStopped) return;
 			const base = this.lastPersistedSettings;
 
 			const readDisk = async (): Promise<QuickAddSettings | null> => {
@@ -435,8 +443,10 @@ export default class QuickAdd extends Plugin {
 				this.publishSettingsFromDisk(toWrite);
 			}
 
-			await this.saveData(toWrite);
-			this.lastPersistedSettings = deepClone(toWrite);
+			const onDisk = actionsFromChoices(toWrite);
+			await this.saveData(onDisk);
+			// What reading the file back gives: saving canonicalizes the choices.
+			this.lastPersistedSettings = this.normalizeLoadedSettings(JSON.parse(JSON.stringify(onDisk)));
 		};
 
 		this.persistChain = this.persistChain.then(run, run);
@@ -453,6 +463,7 @@ export default class QuickAdd extends Plugin {
 	 */
 	async onExternalSettingsChange(): Promise<void> {
 		const run = async () => {
+			if (this.savingStopped) return;
 			let loadedData: unknown;
 			try {
 				loadedData = await this.loadData();
@@ -488,6 +499,23 @@ export default class QuickAdd extends Plugin {
 
 		this.persistChain = this.persistChain.then(run, run);
 		await this.persistChain;
+	}
+
+	/**
+	 * Write the data.json copy taken before the QuickAdd 3 migration back over
+	 * data.json. This instance saves nothing after that, so the restored file
+	 * stays as it was.
+	 */
+	async restoreV2Snapshot(): Promise<void> {
+		const snapshot = this.settings.v3Migration?.snapshot;
+		if (!snapshot) throw new Error("QuickAdd has no copy of its settings from before the upgrade.");
+		const adapter = this.app.vault.adapter;
+		const bytes = await adapter.readBinary(`${this.manifest.dir}/${snapshot}`);
+		this.savingStopped = true;
+		this.requestSave.cancel();
+		// A save already running finishes first; whether it failed does not matter.
+		await this.persistChain.catch(() => undefined);
+		await adapter.writeBinary(`${this.manifest.dir}/data.json`, bytes);
 	}
 
 	/**
