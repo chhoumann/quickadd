@@ -449,7 +449,16 @@ describe("getUserScript", () => {
 			);
 
 			expect((error as Error).message).toContain("Invalid or unexpected token");
-			expect((error as Error).message).not.toContain("on line 3");
+			expect((error as Error).message).not.toContain("on line");
+
+			const sameMessage = await withDesktopRequire(() =>
+				loadError(
+					"Scripts/shebang.js",
+					["#!/usr/bin/env node", "", "const x = @;"].join("\n"),
+				),
+			);
+			expect((sameMessage as Error).message).toContain("Invalid or unexpected token");
+			expect((sameMessage as Error).message).not.toContain("on line");
 		});
 	});
 
