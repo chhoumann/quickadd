@@ -178,15 +178,15 @@ export async function analysePackagePreview(
 	existingChoices: IChoice[],
 	pkg: QuickAddPackage,
 ): Promise<PackagePreview> {
-	// An asset is probed under its own spelling and, when import can write it,
-	// under the path it will be written to, so a backslash-spelled asset still
-	// warns about the file it overwrites while a rejected one (absolute, hidden)
-	// is not mistaken for an unrelated in-vault file.
+	// An asset import can write is probed under its own spelling and under the
+	// path it will be written to, so a backslash-spelled asset still warns about
+	// the file it overwrites. One import refuses (absolute, hidden) is never
+	// written, so it is not probed and cannot show as an overwrite.
 	const candidatePaths = new Set<string>([
 		...pkg.assets.flatMap((asset) =>
 			isWritableAssetDestination(asset.originalPath)
 				? [asset.originalPath, normalizeVaultPath(asset.originalPath)]
-				: [asset.originalPath],
+				: [],
 		),
 		...collectReferencedAssetPaths(pkg),
 	]);

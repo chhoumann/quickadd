@@ -515,6 +515,20 @@ describe("package preview sees {{TEMPLATE:}} includes", () => {
 		expect(preview.files[0]?.exists).toBe(false);
 		expect(preview.summary.overwritesFiles).toBe(0);
 	});
+
+	it("does not report an asset import will refuse as overwriting the hidden file it names", async () => {
+		const pkg = makePackage(
+			[macroChoice("m1", "Legacy", [])],
+			[asset("template", ".obsidian/snippet.md", "# new")],
+		);
+		const { app } = fakeApp({ ".obsidian/snippet.md": "# old" });
+
+		const preview = await analysePackagePreview(app, [], pkg);
+
+		expect(app.vault.adapter.exists).not.toHaveBeenCalledWith(".obsidian/snippet.md");
+		expect(preview.files[0]?.exists).toBe(false);
+		expect(preview.summary.overwritesFiles).toBe(0);
+	});
 });
 
 // --- Import -----------------------------------------------------------------
