@@ -56,8 +56,8 @@ function sameBytes(a: ArrayBuffer, b: ArrayBuffer): boolean {
 
 /**
  * Moves the choices to QuickAdd 3 actions. data.json then stores `actions`
- * and no `choices`; in memory the plugin keeps working on the choices the
- * actions lower to (src/v3/storage.ts). Runs last, on settings every earlier
+ * and no `choices`; in memory the plugin keeps the actions and works on the
+ * choices they lower to (src/v3/storage.ts). Runs last, on settings every earlier
  * migration has brought to the current v2 shape, and only after the original
  * data.json is safe in data.v2.json.
  */
@@ -81,6 +81,7 @@ const migrateToV3Actions: Migration = {
 		if (snapshot === undefined) return { complete: false };
 
 		const { actions } = migrateSettingsV2({ choices: settings.choices });
+		settings.actions = JSON.parse(JSON.stringify(actions));
 		settings.choices = JSON.parse(JSON.stringify(actions.map(lowerNode)));
 		settings.v3Migration = { migratedIn: plugin.manifest.version, ...(snapshot ? { snapshot } : {}) };
 	},

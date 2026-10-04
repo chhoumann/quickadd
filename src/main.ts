@@ -61,6 +61,7 @@ import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
 import { actionsFromChoices, choicesFromActions } from "./v3/storage";
+import type { StoredSettings } from "./v3/storage";
 import { showMigrationReportOnce } from "./gui/MigrationReportModal";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
@@ -72,11 +73,12 @@ export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
 	/**
-	 * Snapshot of settings as of the last successful load/save. Used as the
-	 * 3-way-merge base so a whole-file write cannot clobber newer on-disk fields
-	 * that this instance never edited (see #1749 / background model sync).
+	 * Snapshot of settings as of the last successful load/save, in the shape
+	 * data.json stores them. Used as the 3-way-merge base so a whole-file write
+	 * cannot clobber newer on-disk fields that this instance never edited (see
+	 * #1749 / background model sync).
 	 */
-	private lastPersistedSettings: QuickAddSettings | null = null;
+	private lastPersistedSettings: StoredSettings | null = null;
 	/**
 	 * When true, the settingsStore subscriber updates `this.settings` but does
 	 * not schedule a disk write. Set while applying a conflict-merge result back
@@ -325,12 +327,26 @@ export default class QuickAdd extends Plugin {
 		return settings;
 	}
 
+	/**
+	 * Settings in the shape data.json stores them. Merges run on this shape,
+	 * so once the choices were migrated they merge as actions: what only an
+	 * action holds takes part, and steps merge by id.
+	 */
+	private storedSettings(settings: QuickAddSettings = this.settings): StoredSettings {
+		return actionsFromChoices(settings) as StoredSettings;
+	}
+
+	/** Raw data.json, normalized as loading does, in the shape data.json stores. */
+	private normalizeStoredSettings(loadedData: unknown): StoredSettings {
+		return this.storedSettings(this.normalizeLoadedSettings(loadedData));
+	}
+
 	async loadSettings() {
 		const loadedData = await this.loadData();
 		const settings = this.normalizeLoadedSettings(loadedData);
 		this.settings = settings;
 		// Deep-clone so later in-place store edits cannot mutate the merge base.
-		this.lastPersistedSettings = deepClone(settings);
+		this.lastPersistedSettings = deepClone(this.storedSettings(settings));
 	}
 
 	/** Start the pending debounced settings write now. Returns the write. */
@@ -362,35 +378,30 @@ export default class QuickAdd extends Plugin {
 			if (this.savingStopped) return;
 			const base = this.lastPersistedSettings;
 
-			const readDisk = async (): Promise<QuickAddSettings | null> => {
+			const readDisk = async (): Promise<StoredSettings | null> => {
 				if (!base) return null;
-				return this.normalizeLoadedSettings(await this.loadData());
+				return this.normalizeStoredSettings(await this.loadData());
 			};
 
 			let disk = await readDisk();
 
-			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
+			const buildPlan = (diskSnapshot: StoredSettings | null) => {
 				// Capture local AFTER the disk read so updates that landed while
-				// loadData() was in flight are included, then fold any further
-				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
-				const local = deepClone(this.settings);
+				// loadData() was in flight are included. Nothing runs between
+				// this and the merge, so it is also the current store.
+				const local = deepClone(this.storedSettings());
 				return reconcileSettingsPersistPlan({
 					base,
 					disk: diskSnapshot,
 					local,
-					currentStore: this.settings,
+					currentStore: local,
 				});
 			};
 
 			const applyStoreReplace = (
-				plan: ReturnType<typeof reconcileSettingsPersistPlan<QuickAddSettings>>,
+				plan: ReturnType<typeof reconcileSettingsPersistPlan<StoredSettings>>,
 			) => {
-				if (
-					plan.shouldReplaceStore &&
-					settingsValuesEqual(this.settings, plan.local)
-				) {
-					this.publishSettingsFromDisk(plan.toWrite);
-				}
+				if (plan.shouldReplaceStore) this.publishStoredSettings(plan.toWrite);
 			};
 
 			let plan = buildPlan(disk);
@@ -422,7 +433,7 @@ export default class QuickAdd extends Plugin {
 
 			// Fold any last-moment store drift onto the planned write, using the
 			// plan's local snapshot as the 3-way base so disk-only fields survive.
-			const storeAtFinalMerge = deepClone(this.settings);
+			const storeAtFinalMerge = deepClone(this.storedSettings());
 			let toWrite = plan.toWrite;
 			if (!settingsValuesEqual(storeAtFinalMerge, plan.local)) {
 				toWrite = threeWayMergeSettings(
@@ -438,17 +449,16 @@ export default class QuickAdd extends Plugin {
 			if (
 				shouldApplyPersistedWriteToStore(
 					toWrite,
-					this.settings,
+					storeAtFinalMerge,
 					storeAtFinalMerge,
 				)
 			) {
-				this.publishSettingsFromDisk(toWrite);
+				this.publishStoredSettings(toWrite);
 			}
 
-			const onDisk = actionsFromChoices(toWrite);
-			await this.saveData(onDisk);
+			await this.saveData(toWrite);
 			// What reading the file back gives: saving canonicalizes the choices.
-			this.lastPersistedSettings = this.normalizeLoadedSettings(JSON.parse(JSON.stringify(onDisk)));
+			this.lastPersistedSettings = this.normalizeStoredSettings(JSON.parse(JSON.stringify(toWrite)));
 		};
 
 		this.persistChain = this.persistChain.then(run, run);
@@ -479,15 +489,14 @@ export default class QuickAdd extends Plugin {
 			if (!loadedData) return;
 
 			const base = this.lastPersistedSettings;
-			const disk = this.normalizeLoadedSettings(loadedData);
+			const disk = this.normalizeStoredSettings(loadedData);
 			if (base && settingsValuesEqual(disk, base)) return;
 
-			const merged = base
-				? threeWayMergeSettings(base, deepClone(this.settings), disk)
-				: disk;
+			const local = deepClone(this.storedSettings());
+			const merged = base ? threeWayMergeSettings(base, local, disk) : disk;
 			this.lastPersistedSettings = deepClone(disk);
-			if (!settingsValuesEqual(merged, this.settings)) {
-				this.publishSettingsFromDisk(merged);
+			if (!settingsValuesEqual(merged, local)) {
+				this.publishStoredSettings(merged);
 			}
 			if (settingsValuesEqual(merged, disk)) {
 				// Everything this instance holds is on disk already.
@@ -521,11 +530,12 @@ export default class QuickAdd extends Plugin {
 	}
 
 	/**
-	 * Replace the live settings with values that came from disk, without
-	 * scheduling a save of them, and bring the choice commands in line: the
-	 * choices may have been added, removed or renamed elsewhere.
+	 * Replace the live settings with settings in the shape data.json stores
+	 * them, without scheduling a save of them, and bring the choice commands in
+	 * line: the choices may have been added, removed or renamed elsewhere.
 	 */
-	private publishSettingsFromDisk(next: QuickAddSettings): void {
+	private publishStoredSettings(stored: StoredSettings): void {
+		const next = this.normalizeLoadedSettings(deepClone(stored));
 		const previousChoices = this.settings.choices;
 		this.suppressSettingsSave = true;
 		try {

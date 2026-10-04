@@ -43,6 +43,8 @@ export interface Action {
 		command: boolean;
 		pickDayCommand?: boolean;
 		runOnStartup?: boolean;
+		/** A ribbon icon that runs the action. No v2 choice holds it. */
+		ribbon?: boolean;
 	};
 	dateOrigin?: DateOrigin;
 	onePageInput?: "always" | "never";

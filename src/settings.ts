@@ -1,6 +1,7 @@
 import type { Model, ModelRef } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
+import type { ActionNode } from "./v3/model";
 import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
 
 /** Position of the "New note from template" row in the Run QuickAdd launcher. */
@@ -8,10 +9,16 @@ export type TemplateFolderLauncherRowPosition = "off" | "top" | "bottom";
 
 export interface QuickAddSettings {
 	/**
-	 * In memory only. data.json stores QuickAdd 3 actions instead, which load
-	 * as these choices and save back as actions (src/v3/storage.ts).
+	 * In memory only: what `actions` lower to, which the builder edits. Saving
+	 * folds the edits back into `actions` (src/v3/storage.ts).
 	 */
 	choices: IChoice[];
+	/**
+	 * The QuickAdd 3 actions as data.json stores them, absent until the
+	 * choices were migrated. They own what no choice can hold, such as
+	 * `show.ribbon`.
+	 */
+	actions?: ActionNode[];
 	inputPrompt: "multi-line" | "single-line";
 	persistInputPromptDrafts: boolean;
 	/**

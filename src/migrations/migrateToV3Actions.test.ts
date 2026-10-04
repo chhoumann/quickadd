@@ -79,7 +79,7 @@ describe("migrateToV3Actions", () => {
 		expect(Object.keys(DEFAULT_SETTINGS.migrations).at(-1)).toBe("migrateToV3Actions");
 	});
 
-	it("keeps the bytes of data.json in data.v2.json and lowers the choices it migrated", async () => {
+	it("keeps the bytes of data.json in data.v2.json, and holds the actions and the choices they lower to", async () => {
 		const raw = '{"choices":[{"id":"c1"}],\n  "odd spacing": true}';
 		const { plugin, files } = makePlugin({ [`${DIR}/data.json`]: encode(raw) });
 		await migrate(plugin);
@@ -87,6 +87,7 @@ describe("migrateToV3Actions", () => {
 		expect(decode(files[`${DIR}/data.v2.json`])).toBe(raw);
 		expect(plugin.settings.migrations.migrateToV3Actions).toBe(true);
 		expect(plugin.settings.v3Migration).toEqual({ migratedIn: "3.0.0", snapshot: "data.v2.json" });
+		expect(plugin.settings.actions).toEqual([JSON.parse(JSON.stringify(migrateChoice(capture).node))]);
 		expect(plugin.settings.choices).toEqual([JSON.parse(JSON.stringify(lowerNode(migrateChoice(capture).node)))]);
 		expect(plugin.settings.choices[0]).not.toHaveProperty("focusExistingFileTab");
 	});
