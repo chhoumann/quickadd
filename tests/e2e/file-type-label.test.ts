@@ -3,6 +3,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // Two `{{FILE:<folder>|type:...}}` pickers on one folder and mode get default
 // labels that name their type, so a one-page form can tell them apart.
@@ -51,10 +52,10 @@ describe("FILE |type: default label", () => {
 		);
 		template.fileNameFormat = { enabled: true, format: "attachment pair" };
 		template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("out")] };
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = true;
 			data.choices.push(template);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		await obsidian.exec("command", { id: `quickadd:choice:${template.id}` });
 

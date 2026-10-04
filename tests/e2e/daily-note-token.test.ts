@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("daily-note-token");
 
@@ -34,10 +35,10 @@ afterEach(async () => {
 
 async function saveChoice(choice: CaptureChoice, globalVariables: Record<string, string> = {}) {
 	const { plugin } = getContext();
-	await plugin.data<{ choices: IChoice[]; globalVariables: Record<string, string> }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; globalVariables: Record<string, string> }>().patch(withStoredChoices((data) => {
 		data.choices.push(choice);
 		data.globalVariables = { ...data.globalVariables, ...globalVariables };
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 }
 

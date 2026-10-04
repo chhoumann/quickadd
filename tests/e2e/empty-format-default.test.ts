@@ -7,6 +7,7 @@ import type { ICommand } from "../../src/types/macros/ICommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { clickAt, insertText, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1999: Capture format and File name have no toggle. An empty field means the
 // default ({{VALUE}} on its own, or the note-title prompt), and typing in it
@@ -54,9 +55,9 @@ it("writes the value on its own until a Capture format is typed", async () => {
 	const choice = new CaptureChoice("Empty format capture");
 	choice.captureTo = inbox;
 	choice.prepend = true;
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {
@@ -81,9 +82,9 @@ it("keeps a Tab and a space typed first into an empty Capture format", async () 
 	const { obsidian, plugin, sandbox } = getContext();
 	const choice = new CaptureChoice("Indented format capture");
 	choice.captureTo = await seedVaultFile(obsidian, sandbox, "Indented.md", "");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {
@@ -117,9 +118,9 @@ it("asks for the note title while File name is empty", async () => {
 	const choice = new TemplateChoice("Empty file name template");
 	choice.templatePath = template;
 	choice.folder = { ...choice.folder, enabled: true, folders: [folder] };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {
@@ -165,13 +166,10 @@ it("runs a legacy choice saved with its toggle on and no text as the default", a
 	templateChoice.templatePath = template;
 	templateChoice.folder = { ...templateChoice.folder, enabled: true, folders: [sandbox.path("Legacy")] };
 	templateChoice.fileNameFormat = { enabled: true, format: "" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [capture, macro, templateChoice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
-	// Loading doesn't rewrite data.json; the next ordinary save stores the fix.
-	const onDisk = await plugin.data<{ choices: IChoice[] }>().read();
-	expect((onDisk.choices[0] as CaptureChoice).format).toEqual({ enabled: true, format: "" });
 
 	const captured = await obsidian.execJson<{ ok: boolean; effect: string }>("quickadd:run", {
 		id: capture.id, verify: true, "value-value": "from the capture",

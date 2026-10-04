@@ -10,6 +10,7 @@ import {
 	createQuickAddObsidianClient,
 	seedVaultFile,
 } from "./e2eVault";
+import { storedChoices, withStoredChoices } from "./storedChoices";
 
 // ---------------------------------------------------------------------------
 // Constants & types
@@ -126,7 +127,7 @@ function clearTestChoices(data: QuickAddData) {
 
 /** Find a choice by ID in plugin data. */
 function findChoice(data: QuickAddData, id: string) {
-	return data.choices.find((c) => c.id === id) as Record<string, unknown> | undefined;
+	return storedChoices(data).find((c) => c.id === id) as Record<string, unknown> | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +170,7 @@ describe("functional: file collision behaviors", () => {
 	beforeAll(async () => {
 		const root = sandbox.root;
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 
 			data.choices.push(
@@ -193,7 +194,7 @@ describe("functional: file collision behaviors", () => {
 				templateChoice("__qa-test-t16-atop-fm", `${root}/qa-t16-append-top-fm`, behavior.appendTop, sandbox.path("tpl-fm.md")),
 				templateChoice("__qa-test-t17-abot-fm", `${root}/qa-t17-append-bottom-fm`, behavior.appendBottom, sandbox.path("tpl-fm.md")),
 			);
-		});
+		}));
 
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);
@@ -339,7 +340,7 @@ describe("migration: consolidateFileExistsBehavior", () => {
 		const root = sandbox.root;
 		const migrationChoice = (id: string) => templateChoice(id, `${root}/migration-test`);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 
 			data.choices.push(
@@ -353,7 +354,7 @@ describe("migration: consolidateFileExistsBehavior", () => {
 
 			data.migrations.consolidateFileExistsBehavior = false;
 			data.migrations.incrementFileNameSettingMoveToDefaultBehavior = true;
-		});
+		}));
 
 		await qa.reload();
 		await qa.waitForData<QuickAddData>(
@@ -411,7 +412,7 @@ describe("migration: repairTemplateFileExistsBehavior", () => {
 		const root = sandbox.root;
 		const migrationChoice = (id: string) => templateChoice(id, `${root}/repair-test`);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 
 			data.choices.push(
@@ -421,7 +422,7 @@ describe("migration: repairTemplateFileExistsBehavior", () => {
 
 			data.migrations.consolidateFileExistsBehavior = true;
 			data.migrations.repairTemplateFileExistsBehavior = false;
-		});
+		}));
 
 		await qa.reload();
 		await qa.waitForData<QuickAddData>(

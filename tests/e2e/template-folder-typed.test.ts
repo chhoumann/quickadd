@@ -3,6 +3,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { leaveSettingsPage, POLL_OPTS, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1993: a folder typed into "Folder path" and never added with the Add button
 // was dropped when the builder was left, leaving a "specific folder" choice with
@@ -16,9 +17,9 @@ it("keeps a folder typed without Add when the builder page is left", async () =>
 	const choice = new TemplateChoice("Typed folder template");
 	choice.templatePath = templatePath;
 	choice.folder = { ...choice.folder, enabled: true, folders: [] };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {

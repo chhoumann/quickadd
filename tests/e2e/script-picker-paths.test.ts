@@ -3,6 +3,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #941/#942: two `view.js` files in different folders were identical "view" rows
 // in both script pickers, and picking the second one from the inline typeahead
@@ -20,9 +21,9 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 	const runner = await seedVaultFile(obsidian, sandbox, "views/runner.md",
 		"# Weekly runner\n\n```js\nmodule.exports = () => {};\n```\n");
 	const macro = new MacroChoice("Script picker paths");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:
@@ -102,7 +103,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await expect.poll(() => obsidian.dev.evalJsonAsync<unknown>(`(async () => {
 			const p = app.plugins.plugins.quickadd;
 			const data = JSON.parse(await app.vault.adapter.read(p.manifest.dir + "/data.json"));
-			return data.choices[0].macro.commands.map((c) => c.path);
+			return data.actions[0].steps.map((step) => step.path);
 		})()`), POLL_OPTS).toEqual([progress, books]);
 	} finally {
 		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);

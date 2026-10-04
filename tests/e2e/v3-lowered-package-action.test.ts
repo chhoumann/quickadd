@@ -10,6 +10,7 @@ import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 import { lowerNode } from "../../src/v3/lower";
 import { migrateChoice } from "../../src/v3/migrate";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 /**
  * The "Journal entry" action of the daily-note-captures package, migrated to
@@ -55,9 +56,9 @@ async function runInDailyFolder(name: string, choice: IChoice) {
 	})()`);
 	const notePath = `${name}/${await obsidian.dev.evalJson<string>(`window.moment().format("YYYY-MM-DD")`)}.md`;
 	await seedVaultFile(obsidian, sandbox, notePath, "# Today\n\n## Journal\n- 08:00 first\n\n## Tasks\n");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	const result = await obsidian.execJson<Record<string, unknown>>("quickadd:run", {
 		id: choice.id,

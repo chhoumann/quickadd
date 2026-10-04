@@ -15,6 +15,7 @@ import {
 	createQuickAddObsidianClient,
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "__qa-end-of-section-comment-math";
@@ -93,7 +94,7 @@ beforeAll(async () => {
 	const commentPath = await seedVaultFile(obsidian, sandbox, NOTES[CHOICE_ID].path);
 	const mathPath = await seedVaultFile(obsidian, sandbox, NOTES[SUBSECTIONS_CHOICE_ID].path);
 
-	await qa.data<QuickAddData>().patch((data) => {
+	await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.choices = data.choices.filter(
 			(choice) => choice.id !== CHOICE_ID && choice.id !== SUBSECTIONS_CHOICE_ID,
 		);
@@ -101,7 +102,7 @@ beforeAll(async () => {
 			captureChoice(CHOICE_ID, commentPath),
 			captureChoice(SUBSECTIONS_CHOICE_ID, mathPath),
 		);
-	});
+	}));
 	await qa.reload({ waitUntilReady: true });
 }, 30_000);
 

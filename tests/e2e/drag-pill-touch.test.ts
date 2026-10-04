@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("drag-pill-touch");
 
@@ -11,9 +12,9 @@ const getContext = createQuickAddE2EHarness("drag-pill-touch");
 // so until then the dragged row was drawn over the next one.
 it("shows the drag pill as soon as a long-press starts a touch drag", async () => {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = ["Touch first", "Touch second", "Touch third"].map((name) => new CaptureChoice(name));
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
 	await waitForElement(obsidian, '[aria-label="Reorder Touch first"]');

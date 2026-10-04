@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // With "Persist input prompt drafts" on, text cancelled with Escape comes back
 // the next time the prompt opens. Clearing that text and pressing Escape must
@@ -28,10 +29,10 @@ it("forgets a restored draft once the prompt is cleared and cancelled", async ()
 	capture.onePageInput = "never";
 	capture.format = { enabled: true, format: "- {{VALUE}}" };
 
-	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [capture];
 		data.persistInputPromptDrafts = true;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = () => obsidian.dev.evalJson(

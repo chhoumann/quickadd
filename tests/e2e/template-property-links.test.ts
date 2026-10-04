@@ -8,6 +8,7 @@ import type {
 import {
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 
@@ -106,7 +107,7 @@ describe("issue 1140: list properties with links", () => {
 			].join("\n"),
 		);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 			data.enableTemplatePropertyTypes = true;
 			data.choices.push(
@@ -121,7 +122,7 @@ describe("issue 1140: list properties with links", () => {
 					`${root}/qa-1140-multi-link`,
 				),
 			);
-		});
+		}));
 
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);

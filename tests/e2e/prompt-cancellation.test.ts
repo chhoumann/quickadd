@@ -10,6 +10,7 @@ import { ConditionalCommand } from "../../src/types/macros/Conditional/Condition
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
 // Obsidian's `dev:errors`, which records every unhandled promise rejection (even one
@@ -99,9 +100,9 @@ async function seedChoices() {
 	multi.command = true;
 
 	const targets = { file, value, field, onePage, template: templateChoice, macroScript, macroChoice, multi };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [...Object.values(targets), captureForMacro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	return { note, targets };
 }
@@ -220,9 +221,9 @@ it("a floated run that fails for real still lands in dev:errors", async () => {
 	const macro = new MacroChoice("Failing macro");
 	macro.onePageInput = "never";
 	macro.macro.commands.push(new UserScript("fail", script));
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await clearDevErrors(obsidian);
 
@@ -238,9 +239,9 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 	await seedVaultFile(obsidian, sandbox, "Scripts/pick.js", "module.exports = async () => {};");
 	const macro = new MacroChoice("Browse cancel macro");
 	macro.macro.commands.push(new ConditionalCommand({ condition: { mode: "script", scriptPath: "" } }));
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:

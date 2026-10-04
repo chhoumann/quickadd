@@ -8,6 +8,7 @@ import type {
 import {
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 const TEST_PREFIX = "__qa-test-1165-";
@@ -190,10 +191,10 @@ async function runOpenFileScenario(
 	await seedFile(`${location}-right-unlocked.md`, `${location.toUpperCase()} RIGHT`);
 	await seedFile(`${location}-target.md`, `${location.toUpperCase()} TARGET`);
 
-	await qa.data<QuickAddData>().patch((data) => {
+	await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 		clearTestChoices(data);
 		data.choices.push(macroOpenFileChoice(id, targetPath, location));
-	});
+	}));
 	await qa.reload({ waitUntilReady: true });
 
 	const layout = await obsidian.dev.evalJsonAsync<LayoutResult>(

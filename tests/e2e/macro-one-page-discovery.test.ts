@@ -7,6 +7,7 @@ import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/Nested
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { pressKey } from "./uiHelpers";
+import { useLoadedStepIds, withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("macro-one-page-discovery");
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
@@ -95,10 +96,10 @@ describe("macro discovery and one-page input overrides", () => {
 		macro.command = true;
 		macro.onePageInput = scenario.macro;
 		macro.macro.commands = [template, capture].map((choice) => new NestedChoiceCommand(choice));
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = scenario.global;
 			data.choices.push(macro);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 
 		await obsidian.exec("command", { id: `quickadd:choice:${macro.id}` });
@@ -190,17 +191,18 @@ async function seedCombinedWorkflow(name: string, options: {
 	const macro = new MacroChoice(`Combined discovery ${name}`);
 	macro.command = true;
 	macro.macro.commands = [template, ...captures].map((choice) => new NestedChoiceCommand(choice));
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = true;
 		data.choices.push(macro);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
+	await useLoadedStepIds(obsidian, macro);
 	await obsidian.exec("command", { id: `quickadd:choice:${macro.id}` });
 	return { obsidian, sandbox, template, macro, noteName, relativePath, initialContent };
 }
 
 function formField(id: string): string {
-	return `.onePageInputModal [aria-labelledby=${JSON.stringify(`qa-onepage-label-${id}`)}]`;
+	return `.onePageInputModal [aria-labelledby=${JSON.stringify(`qa-onepage-label-${encodeURIComponent(id)}`)}]`;
 }
 
 async function clickElement(obsidian: ObsidianClient, selector: string) {

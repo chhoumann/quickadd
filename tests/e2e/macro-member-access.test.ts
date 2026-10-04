@@ -8,6 +8,7 @@ import type {
 import {
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const waitTimeoutMs = Number(process.env.E2E_TIMEOUT_MS) || 15_000;
 const WAIT_OPTS = { timeoutMs: waitTimeoutMs, intervalMs: 200 };
@@ -158,7 +159,7 @@ describe("issue 964: member access across macro user scripts", () => {
 			`{{MACRO:${TEST_PREFIX}ambiguous-macro::Second Script::beta}}`,
 		);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 			data.choices.push(
 				templateChoice(
@@ -196,7 +197,7 @@ describe("issue 964: member access across macro user scripts", () => {
 					{ path: sandbox.path("second-script.js"), name: "Second Script" },
 				]),
 			);
-		});
+		}));
 
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);
@@ -266,7 +267,7 @@ describe("`Script::Export` macro commands read the module's settings", () => {
 			].join("\n"),
 		);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.choices = data.choices.filter((choice) => choice.id !== choiceId);
 			data.choices.push(
 				macroChoice(choiceId, [
@@ -276,7 +277,7 @@ describe("`Script::Export` macro commands read the module's settings", () => {
 					},
 				]),
 			);
-		});
+		}));
 
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);

@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { clickWhenStill, leaveSettingsPage, POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #2023: the Capture builder's "Daily note" button fills in {{DAILY}} and turns
 // on creating the note, so a capture lands in the note Daily notes opens.
@@ -44,7 +45,7 @@ it("captures into the daily note after one click on Daily note", async () => {
 	const choice = new CaptureChoice("Daily note shortcut");
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "- {{VALUE}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => { data.choices = [choice]; });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => { data.choices = [choice]; }));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {

@@ -3,6 +3,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { jsLiteral, POLL_OPTS, showCalendar, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("phone-keyboard");
 
@@ -79,9 +80,9 @@ it("keeps the multi-select's Done above the keyboard", async () => {
 it("brings the macro page's focused field above the keyboard once it is up", async () => {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Keyboard macro");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
 	await waitForElement(obsidian, '[aria-label="Configure Keyboard macro"]');

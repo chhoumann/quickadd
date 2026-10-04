@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // {{linksection}} must only link to headings Obsidian itself resolves (#1906).
 const getContext = createQuickAddE2EHarness("link-section");
@@ -19,7 +20,7 @@ async function setup(block: string, eol = "\n") {
 	choice.captureTo = inbox;
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "{{linksection}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 	await plugin.reload({ waitUntilReady: true });
 	await expect.poll(() => headings(path), POLL_OPTS).toContain("Decisions");
 	await obsidian.dev.evalJsonAsync(`(async () => {

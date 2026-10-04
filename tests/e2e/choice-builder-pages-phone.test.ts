@@ -4,6 +4,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // A choice's settings page on a phone: Obsidian's phone settings, where the
 // page fills the screen under a header with the page's title and a back button
@@ -57,11 +58,11 @@ async function openMacroPage() {
 
 async function openChoicePage(choice: IChoice) {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
 		// AI on adds the AI Assistant button, the widest quick-command bar.
 		data.disableOnlineFeatures = false;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	// On a phone settings closes with an animation, and opening it before that
 	// ends does nothing.

@@ -3,6 +3,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with real Templater", () => {
 	const getContext = createQuickAddE2EHarness("template-cursor-templater");
@@ -70,7 +71,7 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Template cursor with
 
 	async function save(choice: TemplateChoice) {
 		const { plugin } = getContext();
-		await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+		await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 		await plugin.reload({ waitUntilReady: true });
 	}
 

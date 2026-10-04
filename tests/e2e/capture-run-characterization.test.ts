@@ -4,6 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { lowerNode } from "../../src/v3/lower";
 import { migrateChoice } from "../../src/v3/migrate";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 /**
  * Pins what one Capture run does end to end, across the paths CaptureChoiceEngine.run()
@@ -99,10 +100,10 @@ async function arrangeAndRun(arrange: Case[1], mode: Mode): Promise<() => Promis
 	a.open(origin);
 	await arrange(a);
 
-	await plugin.data<{ choices: IChoice[]; showCaptureNotification: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; showCaptureNotification: boolean }>().patch(withStoredChoices((data) => {
 		data.choices.push(mode(choice));
 		data.showCaptureNotification = true;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		const file = app.vault.getAbstractFileByPath(${JSON.stringify(opened.path)});

@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("capture-cursor");
 const AUTOSAVE_POLL = { ...POLL_OPTS, timeout: 5_000 };
@@ -26,7 +27,7 @@ async function setup(content = "# Daily\n\n## Log\n\nExisting\n") {
 
 async function saveAndOpen(choice: CaptureChoice, path: string, mode = "source") {
 	const { plugin, obsidian } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		const leaf = app.workspace.getLeaf(false);

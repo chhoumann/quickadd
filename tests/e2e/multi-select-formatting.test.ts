@@ -8,6 +8,7 @@ import type {
 import {
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const CHOICE_ID = "__qa-1649-template-frontmatter";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
@@ -75,10 +76,10 @@ beforeAll(async () => {
 		"---\nkind: capture\n---\n# Template body\n",
 	);
 
-	await qa.data<QuickAddData>().patch((data) => {
+	await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
 		data.choices.push(captureChoice(templatePath, sandbox.path("output.md")));
-	});
+	}));
 	await qa.reload({ waitUntilReady: true });
 }, 30_000);
 

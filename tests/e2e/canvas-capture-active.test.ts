@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("canvas-capture-active");
 
@@ -18,9 +19,9 @@ it("captures to the selected text card of the canvas in the active tab", async (
 	choice.activeFileWritePosition = "bottom";
 	choice.onePageInput = "never";
 	choice.format = { enabled: true, format: "{{VALUE}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const selected = await obsidian.dev.evalJsonAsync<boolean>(`(async () => {

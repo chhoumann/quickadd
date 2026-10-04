@@ -4,14 +4,15 @@ import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("choice-list-layout");
 
 it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host styles", async (deviceClass) => {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [new CaptureChoice("Layout capture"), new MultiChoice("Layout folder")];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");

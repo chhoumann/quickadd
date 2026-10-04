@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // A typed date is stored as a UTC instant. Outside UTC, the time control must
 // still show the local time, and a day pick must keep it (#1946).
@@ -47,10 +48,10 @@ it("shows a typed or restored time in local time and keeps it when a day is pick
 	capture.prepend = true;
 	capture.format = { enabled: true, format: "- {{VDATE:when,YYYY-MM-DD HH:mm|time}} {{VALUE:what}}" };
 
-	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [capture];
 		data.persistInputPromptDrafts = true;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = () => obsidian.dev.evalJson(

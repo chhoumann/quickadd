@@ -18,6 +18,7 @@ import {
 	createQuickAddObsidianClient,
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-pkg-capture-inbox-gps";
@@ -149,9 +150,9 @@ describe("Capture to Inbox with GPS package", () => {
 		// Snapshot data.json before the import so restoreData() in afterAll rolls
 		// the imported choice back out, and drop a stale copy from an aborted run
 		// so the import below adds rather than overwrites.
-		await qa.updateDataAndReload<QuickAddData>((data) => {
+		await qa.updateDataAndReload<QuickAddData>(withStoredChoices((data) => {
 			data.choices = data.choices.filter((choice) => choice.id !== CHOICE_ID);
-		});
+		}));
 
 		// Install the package the way the docs tell readers to, through the
 		// plugin's own import (the CLI shares applyPackageImport with the modal).
@@ -175,7 +176,7 @@ describe("Capture to Inbox with GPS package", () => {
 
 		// The one thing the install guide leaves to the reader: point the script at
 		// an inbox note. Done through data.json here in place of the script's cog.
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			const choice = data.choices.find((entry) => entry.id === CHOICE_ID);
 			const command = choice?.macro?.commands?.[0];
 			if (!command) throw new Error("imported GPS macro has no script command");
@@ -183,7 +184,7 @@ describe("Capture to Inbox with GPS package", () => {
 				"Inbox path": inboxPath,
 				"Create Inbox if missing": true,
 			};
-		});
+		}));
 
 		await qa.reload({ waitUntilReady: true });
 	}, 30_000);

@@ -4,6 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1879: the inline suggestion list is exactly as wide as its input (Obsidian
 // caps suggestion lists at 500px, narrower than the text prompt's input), and
@@ -68,9 +69,9 @@ it("matches a wide text prompt's input and shows note paths in full", async () =
 	capture.captureTo = inbox;
 	capture.onePageInput = "never";
 	capture.format = { enabled: true, format: "- {{VALUE}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [capture];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(
@@ -114,9 +115,9 @@ it("wraps a long value without spaces instead of cutting it off", async () => {
 		`source: {{FIELD:source|folder:${folder}|label:Source}}\n`);
 	template.fileNameFormat = { enabled: true, format: "list-width" };
 	template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("out")] };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [template];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(

@@ -2,6 +2,7 @@ import { createSuiteLifecycle } from "./suiteLifecycle";
 import { beforeAll, describe, expect, it } from "vitest";
 import type { ObsidianClient, PluginHandle, SandboxApi } from "obsidian-e2e";
 import { seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
 const CHOICE = "__qa-test-inline-property";
@@ -32,7 +33,7 @@ describe("inline script as a property value", () => {
 			'---\ntype: person\nnumber: "```js quickadd ' + script + '```"\n---\n',
 		);
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.choices = data.choices.filter((choice) => choice.id !== CHOICE);
 			data.choices.push({
 				id: CHOICE,
@@ -51,7 +52,7 @@ describe("inline script as a property value", () => {
 				appendLink: false,
 				openFile: false,
 			});
-		});
+		}));
 		await qa.reload({ waitUntilReady: true });
 	}, 15_000);
 

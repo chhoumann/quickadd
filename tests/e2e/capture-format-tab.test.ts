@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { clickAt, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1875: Tab in the builder's Capture format box indents, while tabbing through
 // the builder still passes the box by without editing it.
@@ -41,9 +42,9 @@ it("indents the Capture format on Tab without trapping keyboard navigation", asy
 	const choice = new CaptureChoice("Tab format capture");
 	choice.captureTo = "Inbox.md";
 	choice.format = { enabled: true, format: FORMAT };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {

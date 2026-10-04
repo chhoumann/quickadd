@@ -3,6 +3,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("macro-builder-layout");
 
@@ -12,9 +13,9 @@ const getContext = createQuickAddE2EHarness("macro-builder-layout");
 it("gives the macro builder's inputs the row on a phone", async () => {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Phone layout macro");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");

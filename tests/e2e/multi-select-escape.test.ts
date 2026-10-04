@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { insertText, jsLiteral, POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // In the multi-select picker and the checkbox prompt, the first Esc clears a
 // search and the next one cancels. Obsidian handles Esc in the modal's scope
@@ -40,9 +41,9 @@ it("clears the search on the first Esc and keeps the Capture run going", async (
 	capture.createFileIfItDoesntExist = { enabled: true, createWithTemplate: false, template: "" };
 	capture.onePageInput = "never";
 	capture.format = { enabled: true, format: "{{VALUE:Alpha,Beta,Gamma|multi}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [capture];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(`(() => {
