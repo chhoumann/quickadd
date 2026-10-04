@@ -111,7 +111,7 @@ export function createSettingDefinitions(
 				},
 				{
 					name: "Show capture notifications",
-					desc: "Display a notification when content is captured successfully to confirm the operation completed.",
+					desc: "After a choice writes to a note, say what it did and where, with Open and Undo.",
 					control: { type: "toggle", key: "showCaptureNotification" },
 				},
 			],

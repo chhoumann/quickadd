@@ -13,6 +13,10 @@ This page is a reference for the QuickAdd settings tab, one group at a time. Eac
 - **Choices** - build and organize your QuickAdd choices. This is the main list you add to, reorder, and configure. **New choice** offers [presets](/docs/Choices/Presets/) by outcome, such as **Log with a timestamp** or **Run a script**, and **New folder** adds a folder. Under each choice's name, a one-line summary says what it does, for example *Adds a line under ## Log in today's daily note*; a folder shows how many choices it holds. Click the gear on a choice's row (on a phone, **⋮** → **Configure**) to open its settings as a page of this window; going back or closing Settings saves them (QuickAdd 2.30.0 or later; earlier versions open a dialog). See [Template Choices](/docs/Choices/TemplateChoice/), [Capture Choices](/docs/Choices/CaptureChoice/), [Macro Choices](/docs/Choices/MacroChoice/), and [Multi Choices](/docs/Choices/MultiChoice/).
 - **Packages** - share a set of choices with someone else, or bring theirs in. Use **Export package…** to bundle your choices into a file, and **Import package…** to add someone else's. See [Share QuickAdd Packages](/docs/Choices/Packages/).
 
+## Run log {#run-log}
+
+The last 50 runs on this device: when each ran, the choice, what it did, and a link to the note it wrote to. **Clear** empties the list. The log is kept in `run-log.json` in QuickAdd's plugin folder, not in its settings, so it does not sync between devices.
+
 ## Input {#input}
 
 - **Use multi-line input prompt** - get a large text box for text prompts instead of a single line, so you can write several lines at once. Multi-line prompts submit with Ctrl/Cmd+Enter, and plain Enter adds a newline. See [Controlling Prompts](/docs/ControllingPrompts/#submit-keys).
@@ -25,7 +29,7 @@ Tell QuickAdd where your templates live, so it can suggest them when you configu
 ## Notifications {#notifications}
 
 - **Announce updates** - see what changed when a new version installs, including new features, demo videos, and bug fixes. Choose *Every release*, *Feature releases* (default; new features and breaking changes, not bug-fix-only releases), or *Never*.
-- **Show capture notifications** - get a confirmation that a capture landed. When on, QuickAdd shows a notice after content is captured successfully.
+- **Show capture notifications** - after a choice writes to a note, QuickAdd shows one notice saying what it did and where, such as `Log: added to 'Inbox'`. **Open** opens the note; **Undo** puts the note back the way it was, or moves a note the run created to the trash. If the note changed since the run, Undo leaves it alone and opens it instead. Runs started from an `obsidian://quickadd` link with callbacks, or from the command line, report their result to their caller and show no notice.
 
 ## AI & online {#ai--online}
 
