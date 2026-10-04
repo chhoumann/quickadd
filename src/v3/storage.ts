@@ -62,11 +62,20 @@ function withAddedChoices(lowered: IChoice[], saved: unknown, ids: ReadonlySet<s
 			result.push(choice);
 			continue;
 		}
-		const folder = result.find((entry) => entry.id === choice.id);
-		if (folder?.type !== "Multi" || choice.type !== "Multi") continue;
+		if (choice.type !== "Multi") continue;
 		const items = (choice as IMultiChoice).choices;
+		if (!Array.isArray(items)) continue;
+		const folder = result.find((entry) => entry.id === choice.id);
+		if (folder === undefined) {
+			// The folder is an action this build cannot read, so it is not here
+			// to merge into. What the device added inside it is kept one level
+			// up rather than lost.
+			result.push(...withAddedChoices([], items, ids));
+			continue;
+		}
+		if (folder.type !== "Multi") continue;
 		const children = (folder as IMultiChoice).choices;
-		if (!Array.isArray(items) || !Array.isArray(children)) continue;
+		if (!Array.isArray(children)) continue;
 		const merged = withAddedChoices(children, items, ids);
 		if (merged !== children) result[result.indexOf(folder)] = { ...folder, choices: merged } as IChoice;
 	}

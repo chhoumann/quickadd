@@ -259,6 +259,21 @@ describe("the lowered view of stored actions", () => {
 		expect(saved.actions.map((node: { id: string }) => node.id)).toEqual([unreadable.id, good.id]);
 	});
 
+	it("keeps what a QuickAdd 2 device added inside a folder it cannot read, one level up", () => {
+		const folder = new MultiChoice("Logs");
+		const child = new CaptureChoice("Old entry");
+		folder.choices = [child];
+		const disk = JSON.parse(JSON.stringify(migrateSettingsV2({ ...migrated, choices: [folder, FIXTURE[0]] })));
+		disk.actions[0].items[0].steps = [{ id: "s", type: "teleport" }];
+		const added = new CaptureChoice("Added on a 2.x device");
+		disk.choices = [{ ...JSON.parse(JSON.stringify(folder)), choices: [child, added] }];
+
+		const loaded = choicesFromActions(JSON.parse(JSON.stringify(disk))) as Loaded;
+		expect(loaded.choices.map((choice) => choice.id)).toEqual([FIXTURE[0].id, added.id]);
+		const saved = loadAndSave(disk);
+		expect(saved.actions.map((node: { id: string }) => node.id)).toEqual([folder.id, FIXTURE[0].id, added.id]);
+	});
+
 	it("keeps a folder whose item it cannot read as it is, and out of the choices", () => {
 		const good = stored(FIXTURE.slice(0, 1)).actions as ActionNode[];
 		const folder = { kind: "folder", id: "f", name: "Damaged", command: false, items: [null] };
