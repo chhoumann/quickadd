@@ -92,6 +92,12 @@ export default class QuickAdd extends Plugin {
 	 * instance holds may be written over them.
 	 */
 	private savingStopped = false;
+	/**
+	 * Set once Obsidian unloads this instance. A settings change read while it
+	 * unloaded must not register this instance's commands again over those of
+	 * the instance that replaced it.
+	 */
+	private unloaded = false;
 	/** The ribbon icons of actions shown in the ribbon, and what they were made from. */
 	private actionRibbonIcons: { name: string; el: HTMLElement }[] = [];
 	private actionRibbonKey = "[]";
@@ -275,6 +281,7 @@ export default class QuickAdd extends Plugin {
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		this.unloaded = true;
 		// Leave an open choice builder first, so its edits are in the write below.
 		leaveBuilderPages(this.app);
 		// Flush any pending debounced settings write so a just-made change (e.g. a
@@ -496,7 +503,7 @@ export default class QuickAdd extends Plugin {
 				return;
 			}
 			// A missing file is not a request to reset every setting.
-			if (!loadedData) return;
+			if (!loadedData || this.unloaded) return;
 
 			const base = this.lastPersistedSettings;
 			const disk = this.normalizeStoredSettings(loadedData);

@@ -91,6 +91,29 @@ describe("QuickAdd on stored actions", () => {
 		expect(disk().actions).toEqual(synced.actions);
 	});
 
+	it("leaves a synced change it read while unloading to the instance that replaced it", async () => {
+		const { plugin, setDisk } = pluginOn(v3File);
+		await plugin.loadSettings();
+		const synced = structuredClone(v3File);
+		synced.actions[0].name = "Inbox (renamed)";
+		setDisk(synced);
+		let finishRead!: () => void;
+		const read = vi.mocked(plugin.loadData).getMockImplementation()!;
+		vi.mocked(plugin.loadData).mockImplementationOnce(() => new Promise((resolve) => {
+			finishRead = () => resolve(read());
+		}));
+		const addCommand = vi.spyOn(plugin, "addCommand");
+
+		const change = plugin.onExternalSettingsChange();
+		await vi.waitFor(() => expect(finishRead).toBeDefined());
+		plugin.onunload();
+		finishRead();
+		await change;
+
+		expect(addCommand).not.toHaveBeenCalled();
+		expect(plugin.settings.choices.map((c) => c.name)).toEqual(["Inbox"]);
+	});
+
 	it("merges a save onto actions that changed on disk since it loaded", async () => {
 		const second = { ...choice, id: "c2", name: "Journal" } as IChoice;
 		const file = JSON.parse(JSON.stringify(migrateSettingsV2({ choices: [choice, second], migrations: { migrateToV3Actions: true } })));
