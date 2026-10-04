@@ -412,6 +412,20 @@ describe("getUserScript", () => {
 			});
 		}
 
+		it("keeps a SyntaxError thrown while the script runs out of the load error", async () => {
+			const path = "Scripts/throws.js";
+			const error = await getUserScript(
+				createUserScriptCommand({ path }),
+				createUserScriptApp('throw new SyntaxError("thrown at run time");', path),
+			).then(
+				() => undefined,
+				(error: unknown) => error,
+			);
+
+			expect(error).toBeInstanceOf(SyntaxError);
+			expect(isUserScriptLoadError(error)).toBe(false);
+		});
+
 		it("names the file and the original error", async () => {
 			const error = await loadError("Scripts/broken.js", source);
 
