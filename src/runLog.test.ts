@@ -44,6 +44,36 @@ describe("RunLog", () => {
 		expect(reloaded.list()).toEqual([entry(2), entry(1)]);
 	});
 
+	it("never lets a slow earlier write land over a newer one", async () => {
+		const adapter = fakeAdapter();
+		const written: string[] = [];
+		let releaseFirst!: () => void;
+		let calls = 0;
+		adapter.write = vi.fn(async (_path: string, text: string) => {
+			calls += 1;
+			if (calls === 1) await new Promise<void>((resolve) => { releaseFirst = resolve; });
+			written.push(text);
+		});
+		const log = new RunLog();
+		await log.load(adapter, PATH);
+		log.append(entry(1));
+		// The first write starts now and hangs; the second is scheduled behind it.
+		const first = log.flush();
+		await Promise.resolve();
+		await Promise.resolve();
+		log.append(entry(2));
+		vi.advanceTimersByTime(1100);
+		releaseFirst();
+		await first;
+		await log.flush();
+		expect(written).toHaveLength(2);
+		// The file ends with the newer state: both runs, not the slow write's one.
+		expect(JSON.parse(written[1]!).map((e: RunLogEntry) => e.choiceName)).toEqual(
+			expect.arrayContaining([entry(1).choiceName, entry(2).choiceName]),
+		);
+		expect(JSON.parse(written[1]!)).toHaveLength(2);
+	});
+
 	it("writes at most once a second", async () => {
 		const adapter = fakeAdapter();
 		const log = new RunLog();

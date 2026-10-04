@@ -28,6 +28,7 @@ export class RunLog {
 	private readonly listeners = new Set<() => void>();
 	private storage: { adapter: Adapter; path: string } | null = null;
 	private pendingWrite: ReturnType<typeof setTimeout> | null = null;
+	private writing: Promise<void> = Promise.resolve();
 
 	/** Reads the log from `path`; later changes are written there. */
 	async load(adapter: Adapter, path: string): Promise<void> {
@@ -62,12 +63,14 @@ export class RunLog {
 		return () => this.listeners.delete(listener);
 	}
 
-	/** Writes a change still waiting for its turn. */
+	/** Writes a change still waiting for its turn, after any write under way. */
 	async flush(): Promise<void> {
-		if (this.pendingWrite === null) return;
-		clearTimeout(this.pendingWrite);
-		this.pendingWrite = null;
-		await this.write();
+		if (this.pendingWrite !== null) {
+			clearTimeout(this.pendingWrite);
+			this.pendingWrite = null;
+			this.write();
+		}
+		await this.writing;
 	}
 
 	private save(): void {
@@ -75,14 +78,21 @@ export class RunLog {
 		if (this.storage && this.pendingWrite === null) {
 			this.pendingWrite = setTimeout(() => {
 				this.pendingWrite = null;
-				void this.write();
+				this.write();
 			}, WRITE_INTERVAL_MS);
 		}
 	}
 
-	private async write(): Promise<void> {
-		if (!this.storage) return;
-		await this.storage.adapter.write(this.storage.path, JSON.stringify(this.entries, null, "\t"));
+	/**
+	 * Writes run one after another, each with the entries as they are when its
+	 * turn comes, so a slow earlier write cannot land over a newer one.
+	 */
+	private write(): void {
+		const storage = this.storage;
+		if (!storage) return;
+		this.writing = this.writing
+			.catch(() => undefined)
+			.then(() => storage.adapter.write(storage.path, JSON.stringify(this.entries, null, "\t")));
 	}
 
 	private changed(): void {
