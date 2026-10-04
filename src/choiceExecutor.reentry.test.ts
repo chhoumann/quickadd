@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type IChoice from "./types/choices/IChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
+import type IMultiChoice from "./types/choices/IMultiChoice";
 import type { ICommand } from "./types/macros/ICommand";
 import { CommandType } from "./types/macros/CommandType";
 import type { IUserScript } from "./types/macros/IUserScript";
@@ -39,10 +40,12 @@ vi.mock("./utils/userScript", async (importOriginal) => ({
 const { ChoiceExecutor } = await import("./choiceExecutor");
 const { StartupMacroEngine } = await import("./engine/StartupMacroEngine");
 const { log } = await import("./logger/logManager");
+const { default: ChoiceSuggester } = await import("./gui/suggesters/choiceSuggester");
 
 let choices: IChoice[] = [];
 const app = { workspace: { getActiveFile: () => null } } as never;
 const plugin = {
+	app,
 	settings: { get choices() { return choices; } },
 	getChoiceById: (id: string) => {
 		const choice = choices.find((c) => c.id === id);
@@ -209,6 +212,26 @@ describe("ChoiceExecutor re-entry guard", () => {
 		expect(ran).toEqual(["a"]);
 		expect(logError).toHaveBeenCalledTimes(1);
 		expect(String(logError.mock.calls[0][0])).toContain('Macro "A" calls itself: A -> A');
+		logError.mockRestore();
+	});
+
+	it("refuses a choice picked from a folder that the choice itself opened", async () => {
+		const a = macro("A");
+		const folder: IMultiChoice = { id: "F", name: "F", type: "Multi", command: false, collapsed: false, choices: [a] };
+		a.macro.commands = [script("a"), runs(folder)];
+		choices = [a, folder];
+		// The user picks the folder's first choice as soon as the picker opens.
+		const open = vi.spyOn(ChoiceSuggester.prototype, "open").mockImplementation(function (this: InstanceType<typeof ChoiceSuggester>) {
+			this.onChooseItem(this.getItems()[0], new MouseEvent("click"));
+		});
+		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
+
+		await expect(new ChoiceExecutor(app, plugin).execute(a)).rejects.toThrow(
+			'Macro "A" calls itself: A -> F -> A',
+		);
+		expect(ran).toEqual(["a"]);
+		expect(open).toHaveBeenCalledTimes(1);
+		open.mockRestore();
 		logError.mockRestore();
 	});
 

@@ -179,7 +179,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					}
 					case "Multi": {
 						const multiChoice: IMultiChoice = choice as IMultiChoice;
-						await this.onChooseMultiType(multiChoice);
+						await this.onChooseMultiType(multiChoice, chain);
 						break;
 					}
 					default:
@@ -206,6 +206,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
 		triggerContext?: QuickAddTriggerContext | null,
+		ancestry?: ChoiceChain,
 	): Promise<void> {
 		const previousFocusedOverride = this.focusedPropertyOverride;
 		const previousTriggerOverride = this.triggerContextOverride;
@@ -215,7 +216,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// (including `null` for "no active note at trigger time") IS injected.
 		this.triggerContextOverride = triggerContext;
 		try {
-			await this.execute(choice);
+			await this.execute(choice, ancestry);
 		} finally {
 			this.focusedPropertyOverride = previousFocusedOverride;
 			this.triggerContextOverride = previousTriggerOverride;
@@ -477,7 +478,10 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		});
 	}
 
-	private async onChooseMultiType(multiChoice: IMultiChoice): Promise<void> {
+	private async onChooseMultiType(
+		multiChoice: IMultiChoice,
+		chain: ChoiceChain,
+	): Promise<void> {
 		// Read through the accessor, not `.length`: a non-array value such as `{}`
 		// has an `undefined` length, so a bare `=== 0` check would slide past this
 		// guard and hand the picker a non-list to iterate (#1566).
@@ -526,6 +530,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 				// picker drill-down (choiceSuggester.onChooseMultiType) so both entry points to
 				// the same folder show the same search hint.
 				placeholder: multiChoice.placeholder?.trim() || multiChoice.name,
+				ancestry: chain,
 				completion: (error) =>
 					error === undefined ? resolve() : reject(error),
 			});

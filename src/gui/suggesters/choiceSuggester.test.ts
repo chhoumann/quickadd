@@ -469,6 +469,8 @@ describe("ChoiceSuggester", () => {
 				// Trigger context (issue #1429) is threaded as the 3rd arg; the stub
 				// workspace has no active file.
 				{ activeFile: null },
+				// No folder run opened this picker, so no ancestry.
+				undefined,
 			);
 			expect(executed).toEqual([]);
 		});
@@ -492,6 +494,8 @@ describe("ChoiceSuggester", () => {
 				// Trigger context (issue #1429) is threaded as the 3rd arg; the stub
 				// workspace has no active file.
 				{ activeFile: null },
+				// No folder run opened this picker, so no ancestry.
+				undefined,
 			);
 			expect(executed).toEqual([]);
 		});
@@ -553,6 +557,7 @@ describe("ChoiceSuggester", () => {
 				newMeeting,
 				null,
 				triggerContext,
+				undefined,
 			);
 		});
 
