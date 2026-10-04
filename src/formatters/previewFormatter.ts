@@ -1,5 +1,6 @@
 import { findDateVariableFormat, Formatter, type PromptContext } from "./formatter";
 import { PreviewDiagnostics } from "./previewDiagnostics";
+import type { RunNoteForms } from "./helpers/currentFileTokens";
 import { DateFormatPreviewGenerator, fieldValuePreview, getCurrentFileLinkPreview, getCurrentFileLinkToSectionPreview, getCurrentFileNamePreview, getCurrentFolderPathPreview, getMacroPreview, getVariableExample, getVariablePromptExample } from "./helpers/previewHelpers";
 import { defaultDateVariableFormat, rememberDateVariableFormat, renderStoredDateVariable } from "./helpers/dateTokens";
 import { snappedExampleDate } from "./helpers/snappedExampleDate";
@@ -82,6 +83,10 @@ export abstract class PreviewFormatter extends Formatter {
 	protected getCurrentFileName(): string | null {
 		if (!this.app) return "current_filename";
 		return getCurrentFileNamePreview(this.app.workspace.getActiveFile());
+	}
+
+	protected getRunNote(): RunNoteForms {
+		return { path: "note", link: "note", name: "note", folder: "note_folder" };
 	}
 
 	protected getCurrentFolderPath(): string | null {

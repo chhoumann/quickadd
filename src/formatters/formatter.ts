@@ -2,7 +2,7 @@ import { ValueFormatter } from "./valueFormatter";
 import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
 export { findDateVariableFormat } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
-import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
+import { replaceCurrentFileTokens, type CurrentFileTokenOptions, type RunNoteForms } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
@@ -174,6 +174,7 @@ export abstract class Formatter extends ValueFormatter {
 			FOLDER: () => this.targetFolderPath ?? "",
 			FOLDERCURRENT: () => this.getCurrentFolderPath(),
 			TITLE: () => this.getVariableValue("title"),
+			NOTE: () => this.getRunNote(),
 		}, this.linkToCurrentFileBehavior);
 	}
 
@@ -224,6 +225,11 @@ export abstract class Formatter extends ValueFormatter {
 
 	/** Active folder: null means no active file; an empty string means the vault root. */
 	protected getCurrentFolderPath(): string | null {
+		return null;
+	}
+
+	/** `{{NOTE}}` and its forms: the note this run last created or wrote to. Null when there is none. */
+	protected getRunNote(): RunNoteForms | null {
 		return null;
 	}
 

@@ -202,6 +202,9 @@ export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i,
 );
+export const NOTE_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[N]?[O]?[T]?[E]?[}]?[}]?$|{{NOTE\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
+);
 export const DAILY_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[D]?[A]?[I]?[L]?[Y]?[}]?[}]?$|{{DAILY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
 );

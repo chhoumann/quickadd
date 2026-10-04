@@ -24,6 +24,7 @@ import { normalizeNumericValue } from "../utils/valueSyntax";
 import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { Formatter, type PromptContext } from "./formatter";
+import type { RunNoteForms } from "./helpers/currentFileTokens";
 import {
 	buildPromptContextLine,
 	describeValuePrompt,
@@ -399,6 +400,18 @@ export class CompleteFormatter extends Formatter {
 
 		const parentPath = currentFile.parent?.path ?? "";
 		return parentPath === "/" ? "" : parentPath;
+	}
+
+	protected getRunNote(): RunNoteForms | null {
+		const note = this.choiceExecutor?.runNote;
+		if (!note) return null;
+		const folder = note.parent?.path ?? "";
+		return {
+			path: note.path,
+			link: this.app.fileManager.generateMarkdownLink(note, ""),
+			name: note.basename,
+			folder: folder === "/" ? "" : folder,
+		};
 	}
 
 	/** Resolve the cursor heading link only when present, honoring required/optional behavior. */

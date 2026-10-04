@@ -16,6 +16,7 @@ import {
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
 	MONTHLY_SYNTAX_SUGGEST_REGEX,
 	NAME_SYNTAX_SUGGEST_REGEX,
+	NOTE_SYNTAX_SUGGEST_REGEX,
 	PROPERTY_SYNTAX_SUGGEST_REGEX,
 	QUARTERLY_SYNTAX_SUGGEST_REGEX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
@@ -410,6 +411,18 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		regex: FOLDER_SYNTAX_SUGGEST_REGEX,
 		contexts: ["fileName"],
 		suggestion: token("{{FOLDER|name}}", "The name of the folder the new note lands in"),
+	},
+
+	// == The note this run wrote ==
+	{
+		regex: NOTE_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{NOTE}}", "The note this run last created or added to"),
+	},
+	{
+		regex: NOTE_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{NOTE|link}}", "A link to the note this run last created or added to"),
 	},
 
 	// == Other content ==

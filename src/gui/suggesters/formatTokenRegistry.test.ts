@@ -36,6 +36,10 @@ const PREFIXES = [
 	"{{link",
 	"{{m",
 	"{{mac",
+	"{{n",
+	"{{no",
+	"{{note",
+	"{{note|",
 	"{{t",
 	"{{te",
 	"{{tem",
@@ -184,6 +188,14 @@ describe("format token autocomplete context gating", () => {
 			expect(await suggestInserts(`{{${period.slice(0, 3)}`, { context: "captureTarget" })).toContain(`{{${period}}}`);
 			expect(await suggestInserts(`{{${period.slice(0, 3)}`, { context: "captureTarget" })).not.toContain(`{{${period}|link}}`);
 		}
+	});
+
+	it("offers {{NOTE}} everywhere and its |link where a link is content", async () => {
+		for (const context of ALL_FORMAT_SUGGEST_CONTEXTS) {
+			expect(await suggestInserts("{{no", { context })).toContain("{{NOTE}}");
+		}
+		expect(await suggestInserts("{{note|", { context: "noteContent" })).toContain("{{NOTE|link}}");
+		expect(await suggestInserts("{{no", { context: "captureTarget" })).not.toContain("{{NOTE|link}}");
 	});
 
 	it("keeps {{FOLDERCURRENT}} where it does resolve", async () => {

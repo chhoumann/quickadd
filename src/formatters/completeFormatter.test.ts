@@ -791,6 +791,39 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 	});
 });
 
+describe("CompleteFormatter - {{NOTE}}, the run note", () => {
+	function withRunNote(runNote: unknown) {
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		app.fileManager.generateMarkdownLink = ((file: { basename: string }) =>
+			`[[${file.basename}]]`) as never;
+		const executor = { ...createChoiceExecutor(), runNote: runNote as never };
+		return new CompleteFormatter(app as any, makePlugin() as any, executor);
+	}
+	const note = { path: "notes/Run note.md", basename: "Run note", parent: { path: "notes" } };
+
+	it("resolves every form from the run note", async () => {
+		const f = withRunNote(note);
+		await expect(
+			f.formatFileContent("{{NOTE}} | {{note|LINK}} | {{Note|name}} | {{NOTE|folder}}"),
+		).resolves.toBe("notes/Run note.md | [[Run note]] | Run note | notes");
+		await expect(f.formatFileName("{{NOTE}}", "filePath")).resolves.toBe("notes/Run note.md");
+		await expect(f.formatFolderPath("{{NOTE|folder}}/sub")).resolves.toBe("notes/sub");
+	});
+
+	it("gives the vault root as an empty folder", async () => {
+		const f = withRunNote({ path: "Top.md", basename: "Top", parent: { path: "/" } });
+		await expect(f.formatFileContent("[{{NOTE|folder}}]")).resolves.toBe("[]");
+	});
+
+	it("resolves every form to nothing before the run writes a note", async () => {
+		for (const f of [withRunNote(null), defaultFormatter()]) {
+			await expect(
+				f.formatFileContent("a{{NOTE}}b{{NOTE|link}}c{{NOTE|name}}d{{NOTE|folder}}e"),
+			).resolves.toBe("abcde");
+		}
+	});
+});
+
 // End-to-end guards for #1358 driven through the REAL entry points (not the
 // combined helper directly), so a future revert to sequential token passes —
 // where a later pass re-scans an earlier pass's generated output — is caught

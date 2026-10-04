@@ -812,6 +812,18 @@ describe("collectChoiceRequirements - capture targets", () => {
 		});
 	});
 
+	it("asks nothing for {{NOTE}}, the note the run writes", async () => {
+		const capture = {
+			...createCaptureChoice("{{NOTE}}"),
+			format: { enabled: true, format: "- {{VALUE:entry}} {{NOTE|link}} {{note|name}}" },
+		} as ICaptureChoice;
+		const open = { id: "open", name: "Open", type: CommandType.OpenFile, filePath: "{{NOTE}}" } as ICommand;
+
+		const requirements = await collect(createMacroChoice(nestedChoice(capture), open), choiceExecutor);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["entry"]);
+	});
+
 	it.each([
 		{
 			name: "treats a definite .md target as a file even when a same-named folder exists",

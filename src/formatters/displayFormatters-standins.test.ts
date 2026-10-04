@@ -42,6 +42,7 @@ describe("preview stand-ins", () => {
 		["{{MACRO:a:b}}", "a:b_output", "macro_output"],
 		["{{FIELD:status}}", "status_field_value", "status_field_value"],
 		["{{FIELD:a:b}}", "a:b_field_value", "field_value"],
+		["{{NOTE}} {{NOTE|link}} {{NOTE|name}} {{NOTE|folder}}", "note note note note_folder", "note note note note_folder"],
 	])("%s previews as %s in the body and %s in the file name", async (input, body, fileName) => {
 		await expect(preview(input)).resolves.toEqual({ body, fileName });
 	});
