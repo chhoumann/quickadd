@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "./choiceChain";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 
 type AsyncFunctionConstructor = new (code: string) => () => Promise<unknown>;
@@ -10,10 +11,11 @@ export class SingleInlineScriptEngine extends MacroChoiceEngine {
 		app: App,
 		plugin: QuickAdd,
 		choiceExecutor: IChoiceExecutor,
-		variables: Map<string, string>
+		variables: Map<string, string>,
+		chain: ChoiceChain,
 	) {
 		//@ts-ignore
-		super(app, plugin, null, choiceExecutor, variables);
+		super(app, plugin, null, choiceExecutor, variables, undefined, undefined, null, chain);
 	}
 
 	 

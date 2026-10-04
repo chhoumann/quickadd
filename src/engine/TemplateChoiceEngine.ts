@@ -42,6 +42,7 @@ import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { TemplateEngine } from "./TemplateEngine";
 import { TemplateInsertEngine } from "./TemplateInsertEngine";
+import type { ChoiceChain } from "./choiceChain";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
@@ -62,6 +63,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		choice: ITemplateChoice,
 		choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		private readonly chain: ChoiceChain = [choice],
 	) {
 		super(app, plugin, choiceExecutor);
 		this.choiceExecutor = choiceExecutor;
@@ -72,6 +74,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			draftScopeId: choice.id,
 			choiceName: choice.name,
 		});
+		this.formatter.choiceChain = chain;
 	}
 
 	public async run(): Promise<void> {
@@ -587,6 +590,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			destination: existingFile.path,
 			destinationKind: "file",
 		});
+		insertEngine.choiceChain = this.chain;
 		insertEngine.setLinkToCurrentFileBehavior(
 			linkOptions.enabled && !linkOptions.requireActiveFile
 				? "optional"

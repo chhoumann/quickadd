@@ -9,6 +9,7 @@ const {
 	nativeCursorHandledMock,
 	resolvedPathMock,
 	setPromptRunContextMock,
+	chainMock,
 	targetPathMock,
 	yesNoPromptMock,
 	suggestMock,
@@ -19,6 +20,7 @@ const {
 		placeCursorMock: vi.fn(),
 		nativeCursorHandledMock: vi.fn(() => false),
 		setPromptRunContextMock: vi.fn<(context: unknown) => void>(),
+		chainMock: vi.fn<(chain: unknown) => void>(),
 		// Identity by default (raw == resolved); override to simulate a path token
 		// that resolves to a different extension (issue #620).
 		resolvedPathMock: vi.fn((raw: string) => raw),
@@ -58,6 +60,9 @@ vi.mock("./TemplateInsertEngine", async (importOriginal) => {
 		}
 		setPromptRunContext(context: unknown) {
 			setPromptRunContextMock(context);
+		}
+		set choiceChain(chain: unknown) {
+			chainMock(chain);
 		}
 	}
 
@@ -339,6 +344,17 @@ describe("applyTemplateToNote (non-interactive)", () => {
 			destination: file.path,
 			destinationKind: "file",
 		});
+	});
+
+	it("runs the template inside the caller's choice chain", async () => {
+		const chain = [{ id: "A", name: "A", type: "Macro" }];
+		await applyTemplateToNote(makeApp("CONTENT", makeFile()), plugin, {
+			templatePath: "templates/tpl.md",
+			choiceExecutor: makeExecutor(),
+			chain: chain as never,
+		});
+
+		expect(chainMock).toHaveBeenCalledWith(chain);
 	});
 
 	it("keeps the draft scope stable across applications of the same template", async () => {

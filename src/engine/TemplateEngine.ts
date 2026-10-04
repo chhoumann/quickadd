@@ -15,6 +15,7 @@ import type {
 	TemplateInclusionState,
 } from "../formatters/formatter";
 import type { PromptRunContext } from "../formatters/promptScope";
+import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
@@ -363,6 +364,15 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	 */
 	public setPromptRunContext(context: PromptRunContext) {
 		this.formatter.setPromptRunContext(context);
+	}
+
+	/** See {@link CompleteFormatter.choiceChain}. */
+	public get choiceChain(): ChoiceChain {
+		return this.formatter.choiceChain;
+	}
+
+	public set choiceChain(chain: ChoiceChain) {
+		this.formatter.choiceChain = chain;
 	}
 
 	/**

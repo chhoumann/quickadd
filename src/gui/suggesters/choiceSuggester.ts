@@ -13,6 +13,7 @@ import { MultiChoice } from "../../types/choices/MultiChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import type QuickAdd from "../../main";
 import type { IChoiceExecutor } from "../../IChoiceExecutor";
+import type { ChoiceChain } from "../../engine/choiceChain";
 import { createRenderFallbackWarner } from "./utils";
 import { isCancellationError, reportUnlessCancelled, toError } from "../../utils/errorUtils";
 import { promptCancelled } from "../../errors/UserCancelError";
@@ -181,6 +182,12 @@ type ChoiceSuggesterOptions = {
 	 * caller waiting and stays fire-and-forget.
 	 */
 	completion?: (error?: Error) => void;
+	/**
+	 * Chain of the folder run that opened this picker, so the picked choice runs
+	 * inside it. Set with `completion` by ChoiceExecutor's Multi path; absent for
+	 * the top-level launcher.
+	 */
+	ancestry?: ChoiceChain;
 };
 
 /**
@@ -208,6 +215,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	private placeholderStack: Array<string | undefined> = [];
 	private currentPlaceholder?: string;
 	private readonly completion?: ChoiceSuggesterOptions["completion"];
+	private readonly ancestry?: ChoiceChain;
 	/**
 	 * Set the moment an activation is accepted (selectSuggestion, BEFORE the
 	 * modal closes), so onClose can tell a dismissal from a pick:
@@ -263,6 +271,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 				: { activeFile: this.app.workspace.getActiveFile() };
 		this.placeholderStack = options?.placeholderStack ?? [];
 		this.completion = options?.completion;
+		this.ancestry = options?.ancestry;
 		// `currentPlaceholder` is what a nested level pushes onto the stack so Back
 		// can restore it, so it must hold the effective placeholder (including the
 		// default), not just an explicitly-passed one.
@@ -535,8 +544,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 						item,
 						this.focusedProperty,
 						this.triggerContext,
+						this.ancestry,
 					)
-				: this.choiceExecutor.execute(item);
+				: this.choiceExecutor.execute(item, this.ancestry);
 			this.settleCompletion(execute, `Could not run "${item.name}"`);
 		}
 	}
@@ -585,6 +595,7 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 			// Hand the awaiting run down through every drill-down/Back level; only
 			// the terminal action settles it.
 			completion: this.completion,
+			ancestry: this.ancestry,
 		});
 	}
 }

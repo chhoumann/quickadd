@@ -82,6 +82,7 @@ import {
 	type ConfiguredCanvasCaptureTarget,
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import type { ChoiceChain } from "./choiceChain";
 import {
 	getPeriodicNoteSettings,
 	type Period,
@@ -153,12 +154,14 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		choice: ICaptureChoice,
 		protected choiceExecutor: IChoiceExecutor,
 		private readonly originLeaf: WorkspaceLeaf | null = null,
+		private readonly chain: ChoiceChain = [choice],
 	) {
 		super(app);
 		this.choice = choice;
 		this.plugin = plugin;
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
+		this.formatter.choiceChain = chain;
 		// Every prompt this run opens can say which choice is asking (issue #1546).
 		this.formatter.setPromptRunContext({
 			draftScopeId: choice.id,
@@ -744,6 +747,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				draftScopeId: `${this.choice.id}#${this.choice.createFileIfItDoesntExist.template}`,
 				choiceName: this.choice.name, destination: filePath, destinationKind: "file",
 			});
+			template.choiceChain = this.chain;
 			if (linkOptions.enabled && !linkOptions.requireActiveFile) template.setLinkToCurrentFileBehavior("optional");
 			initialContent = await template.run();
 			templateVars = template.getAndClearTemplatePropertyVars();
@@ -1224,6 +1228,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 				destination: filePath,
 				destinationKind: "file",
 			});
+			singleTemplateEngine.choiceChain = this.chain;
 
 			// Answers to the template's prompts stay marked until Templater has run.
 			singleTemplateEngine.setKeepUserTextProtected(true);

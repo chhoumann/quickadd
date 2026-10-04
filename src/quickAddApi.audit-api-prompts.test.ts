@@ -157,7 +157,7 @@ describe("executeChoice on an unknown choice (throwing getChoiceByName)", () => 
 
 		await api.executeChoice("MyChoice", { foo: "bar" });
 
-		expect(executor.execute).toHaveBeenCalledWith(choice);
+		expect(executor.execute).toHaveBeenCalledWith(choice, undefined);
 		expect(executor.variables.size).toBe(0);
 		expect(mocks.reportError).not.toHaveBeenCalled();
 	});

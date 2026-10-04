@@ -11,9 +11,15 @@ import type IMacroChoice from "./types/choices/IMacroChoice";
 import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import type { LoadedUserScript } from "./utils/userScript";
+import type { ChoiceChain } from "./engine/choiceChain";
 
 export interface IChoiceExecutor {
-	execute(choice: IChoice): Promise<void>;
+	/**
+	 * Runs `choice`. A run started from inside another passes that run's chain
+	 * as `ancestry`, and the call fails with the cycle when `choice` is already
+	 * in it.
+	 */
+	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
@@ -25,11 +31,14 @@ export interface IChoiceExecutor {
 	 * trigger note for `{{...|default-from:active}}`. Optional so existing stubs can
 	 * fall back to {@link execute}; `triggerContext` is optional so callers that only
 	 * carry a focused property need not pass it (the executor then reads it live).
+	 * `ancestry` is as for {@link execute}: the chain of the folder run whose
+	 * picker chose this choice.
 	 */
 	executeWithFocusedProperty?(
 		choice: IChoice,
 		focusedProperty: FrontmatterPropertyTarget | null,
 		triggerContext?: QuickAddTriggerContext | null,
+		ancestry?: ChoiceChain,
 	): Promise<void>;
 	/**
 	 * Executes a Template/Capture choice and returns its structured outcome

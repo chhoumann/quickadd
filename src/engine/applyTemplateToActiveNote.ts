@@ -7,6 +7,7 @@ import {
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
 import { confirmAction } from "../gui/confirmAction";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
+import type { ChoiceChain } from "./choiceChain";
 import { log } from "../logger/logManager";
 import type QuickAdd from "../main";
 import type IChoice from "../types/choices/IChoice";
@@ -35,6 +36,8 @@ interface ApplyTemplateToNoteParams {
 	/** Non-interactive insert mode; skips the mode picker. */
 	mode?: TemplateInsertModeId;
 	choiceExecutor: IChoiceExecutor;
+	/** Chain of the run applying the template, so `{{MACRO:}}` in it is guarded. */
+	chain?: ChoiceChain;
 }
 
 /** A note that only contains whitespace is treated as empty (fast path). */
@@ -192,6 +195,7 @@ export async function applyTemplateToNote(
 			mode,
 			params.choiceExecutor,
 		);
+		if (params.chain) engine.choiceChain = params.chain;
 		// Prompts raised while applying the template say which choice is driving
 		// and which note is being written (issue #1546). Applying a bare template
 		// has no choice, so only the destination is known. Prompts inside the

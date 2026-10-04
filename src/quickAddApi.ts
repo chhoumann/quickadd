@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "./main";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
+import type { ChoiceChain } from "./engine/choiceChain";
 import { CompleteFormatter } from "./formatters/completeFormatter";
 import { restoreDateVariableFormats, snapshotDateVariableFormats } from "./formatters/helpers/dateTokens";
 import { applyTemplateToNote, isMarkdownTemplatePath } from "./engine/applyTemplateToActiveNote";
@@ -44,7 +45,16 @@ export class QuickAddApi {
 	public static checkboxPrompt = PromptApi.checkboxPrompt;
 
 
-	public static GetApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceExecutor) {
+	/**
+	 * `chain` is the run of the macro whose scripts get this API, so the choices
+	 * and `{{MACRO:}}`s they start run inside it. The public `plugin.api` has none.
+	 */
+	public static GetApi(
+		app: App,
+		plugin: QuickAdd,
+		choiceExecutor: IChoiceExecutor,
+		chain?: ChoiceChain,
+	) {
 		const format = async (
 			input: string,
 			variables?: { [key: string]: unknown; },
@@ -63,11 +73,9 @@ export class QuickAddApi {
 			// Restored on failure too: answers given before a cancelled prompt must
 			// not stay behind for the caller's later format calls and Macro steps.
 			try {
-				return await new CompleteFormatter(
-					app,
-					plugin,
-					choiceExecutor,
-				).formatFileContent(input);
+				const formatter = new CompleteFormatter(app, plugin, choiceExecutor);
+				if (chain) formatter.choiceChain = chain;
+				return await formatter.formatFileContent(input);
 			} finally {
 				if (snapshot) restoreVariables(choiceExecutor.variables, snapshot);
 			}
@@ -117,7 +125,7 @@ export class QuickAddApi {
 			// cancelled sub-choice and carries on must not lose them. The cost is
 			// the long-standing quirk that variables seeded into a cancelled call
 			// linger until the next completed one.
-			await choiceExecutor.execute(choice);
+			await choiceExecutor.execute(choice, chain);
 			const abort = choiceExecutor.consumeAbortSignal?.();
 			choiceExecutor.variables.clear();
 			restoreDateVariableFormats(choiceExecutor.variables, new Map());
@@ -255,6 +263,7 @@ export class QuickAddApi {
 						templatePath,
 						mode: options?.mode,
 						choiceExecutor,
+						chain,
 					});
 				} finally {
 					restoreVariables(choiceExecutor.variables, snapshot);
