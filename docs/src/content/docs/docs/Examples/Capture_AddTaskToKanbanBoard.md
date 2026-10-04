@@ -24,7 +24,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
 
 ## What you get
 
-You run the choice, type `Buy milk`, and QuickAdd adds `- [ ] Buy milk` as a new card at the top of the `Backlog` lane.
+You run the choice, type `Buy milk`, and QuickAdd adds `- [ ] Buy milk` as a new card at the end of the `Backlog` lane.
 
 ## Add a date to the card
 

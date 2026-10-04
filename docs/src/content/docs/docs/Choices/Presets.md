@@ -44,6 +44,3 @@ the settings list and in the launcher. Placeholders appear as short names in
 braces, so an **Add to a note** choice that captures to `Journal/{{DATE}}.md`
 reads *Adds a line at the bottom of Journal/{date}*.
 A folder shows how many choices it holds instead.
-
-Older versions of QuickAdd list the choice types in the **New choice** menu
-instead of presets: pick **Capture**, **Template**, or **Macro** there.
