@@ -1,6 +1,6 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
@@ -26,14 +26,14 @@ const plugin = {
 	settings: { choices: [] },
 } as unknown as QuickAdd;
 
-function mountForm() {
+function mountForm(onAddStep?: () => void) {
 	const props = createTemplateChoiceFormProps({
 		choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
 		app: new App(),
 		plugin,
 	});
 	const result = render(TemplateChoiceForm, {
-		props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		props: { choice: props.choice, app: props.app, plugin: props.plugin, onAddStep },
 	});
 	return { ...result, props };
 }
@@ -293,10 +293,10 @@ describe("TemplateChoiceForm", () => {
 		).toHaveAttribute("data-icon", "file-text");
 	});
 
-	it("keeps the optional icon override at the bottom of the form", () => {
+	it("keeps the optional icon override last, above the steps", () => {
 		const { container } = mountForm();
 
-		expect(settingNames(container).at(-1)).toBe("Icon");
+		expect(settingNames(container).slice(-2)).toEqual(["Icon", "Steps"]);
 	});
 
 	// #1993: closing the builder used to drop a folder typed but never added.
@@ -326,5 +326,19 @@ describe("TemplateChoiceForm", () => {
 		it("is left out once another location mode is chosen", async () => {
 			expect((await typeFolder("active-file", "Meetings")).folders).toEqual([]);
 		});
+	});
+
+	it("lists what the template does under Steps, and offers to add a step when it can", async () => {
+		const lines = (container: HTMLElement) =>
+			Array.from(container.querySelectorAll(".qaStepsList li"), (item) => item.textContent);
+		const plain = mountForm();
+		expect(lines(plain.container)).toHaveLength(1);
+		expect(lines(plain.container)[0]).toMatch(/^Creates /);
+		expect(plain.container.querySelector('[aria-label="Add a step"]')).toBeNull();
+		plain.unmount();
+
+		const onAddStep = vi.fn();
+		const { getByRole } = mountForm(onAddStep);
+		expect(getByRole("button", { name: "Add a step" })).toBeTruthy();
 	});
 });

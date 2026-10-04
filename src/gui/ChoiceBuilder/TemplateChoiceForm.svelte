@@ -45,6 +45,8 @@ import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
 import RibbonSetting from "./components/RibbonSetting.svelte";
+import StepsSection from "./components/StepsSection.svelte";
+import type { Step } from "../../v3/model";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
@@ -61,12 +63,14 @@ let {
 	app,
 	plugin,
 	commitPending = $bindable(),
+	onAddStep = undefined,
 }: {
 	choice: ITemplateChoice;
 	app: App;
 	plugin: QuickAdd;
 	/** Set by the form: adds a folder typed but not added (see ChoiceFormProps). */
 	commitPending?: () => void;
+	onAddStep?: (step: Step) => void;
 } = $props();
 
 // Computed once from the stable app/plugin props ($derived satisfies the
@@ -414,3 +418,5 @@ function onModeChange(value: string) {
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>
+
+<StepsSection {choice} {onAddStep} />

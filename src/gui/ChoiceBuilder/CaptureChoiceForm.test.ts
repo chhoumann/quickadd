@@ -1,7 +1,7 @@
 import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { App } from "obsidian";
+import { App, Menu } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync, tick } from "svelte";
 import type QuickAdd from "../../main";
@@ -254,10 +254,10 @@ describe("CaptureChoiceForm", () => {
 		).toHaveAttribute("data-icon", "inbox");
 	});
 
-	it("keeps the optional icon override at the bottom of the form", () => {
+	it("keeps the optional icon override last, above the steps", () => {
 		const { container } = mountForm();
 
-		expect(settingNames(container).at(-1)).toBe("Icon");
+		expect(settingNames(container).slice(-2)).toEqual(["Icon", "Steps"]);
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
@@ -477,5 +477,39 @@ describe("CaptureChoiceForm", () => {
 		expect(describedHint(container, input).textContent).toContain(
 			"Recognized filtered picker",
 		);
+	});
+
+	describe("Steps", () => {
+		const stepLines = (container: HTMLElement) =>
+			Array.from(container.querySelectorAll(".qaStepsList li"), (item) => item.textContent);
+
+		it("lists what the capture does, following the form", async () => {
+			const { container } = mountForm();
+			expect(stepLines(container)).toEqual(["Adds a line at the top of Inbox"]);
+
+			await fireEvent.click(settingItem(container, "Open").querySelector(".checkbox-container") as HTMLElement);
+			flushSync();
+			expect(stepLines(container)).toEqual(["Adds a line at the top of Inbox", "Opens it"]);
+		});
+
+		it("offers to add a step only when the builder can take the choice on", async () => {
+			expect(mountForm().container.querySelector('[aria-label="Add a step"]')).toBeNull();
+
+			const onAddStep = vi.fn();
+			const props = createCaptureChoiceFormProps({ choice: captureChoice(), app: new App(), plugin });
+			const { getByRole } = render(CaptureChoiceForm, {
+				props: { choice: props.choice, app: props.app, plugin: props.plugin, onAddStep },
+			});
+			await fireEvent.click(getByRole("button", { name: "Add a step" }));
+
+			const menu = (Menu as unknown as { lastShown: { items: { title: string; icon: string; clickHandler: () => void }[] } }).lastShown;
+			expect(menu.items.map(({ title, icon }) => [title, icon])).toEqual([
+				["Run a script", "code"],
+				["Open a note", "file"],
+				["Wait", "clock"],
+			]);
+			menu.items[0].clickHandler();
+			expect(onAddStep).toHaveBeenCalledWith(expect.objectContaining({ type: "runScript", path: "" }));
+		});
 	});
 });

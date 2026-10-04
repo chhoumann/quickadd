@@ -20,6 +20,8 @@ import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
 import RibbonSetting from "./components/RibbonSetting.svelte";
+import StepsSection from "./components/StepsSection.svelte";
+import type { Step } from "../../v3/model";
 import CaptureTargetSetting from "./components/CaptureTargetSetting.svelte";
 import WritePositionSetting from "./components/WritePositionSetting.svelte";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
@@ -34,10 +36,12 @@ let {
 	choice = $bindable(),
 	app,
 	plugin,
+	onAddStep = undefined,
 }: {
 	choice: ICaptureChoice;
 	app: App;
 	plugin: QuickAdd;
+	onAddStep?: (step: Step) => void;
 } = $props();
 
 const templateFilePaths = $derived(
@@ -250,3 +254,5 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
 </SettingGroup>
+
+<StepsSection {choice} {onAddStep} />
