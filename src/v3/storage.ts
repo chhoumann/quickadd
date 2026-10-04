@@ -4,7 +4,7 @@ import { isChoiceLike } from "../utils/choiceUtils";
 import { uuidv4 } from "../utils/uuid";
 import { settingsValuesEqual, threeWayMergeSettings } from "../utils/settingsPersistMerge";
 import { lowerNode } from "./lower";
-import { migrateSettingsV2 } from "./migrate";
+import { migrateChoice, migrateSettingsV2 } from "./migrate";
 import type { Action, ActionNode } from "./model";
 
 /*
@@ -123,9 +123,18 @@ export function isReadableAction(value: unknown): value is ActionNode {
 	}
 }
 
-/** A saved choice the migration can read; anything else would throw on the next save. */
+/**
+ * A saved choice the migration can read, tried all the way down as
+ * isReadableAction tries lowering; anything else would throw on the next save.
+ */
 function isMigratableChoice(value: unknown): value is IChoice {
-	return isChoiceLike(value) && typeof value.id === "string" && CHOICE_TYPES.has(value.type);
+	if (!isChoiceLike(value) || typeof value.id !== "string" || !CHOICE_TYPES.has(value.type)) return false;
+	try {
+		migrateChoice(value);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 const CHOICE_TYPES = new Set<unknown>(["Template", "Capture", "Macro", "Multi"]);
