@@ -61,6 +61,15 @@ describe("SingleMacroEngine on a choice that is not a macro", () => {
 		expect(executor.execute).toHaveBeenCalledWith(expect.objectContaining({ name: "New note" }), []);
 	});
 
+	it("gives back nothing, and keeps the run note, when the choice wrote none after an earlier step did", async () => {
+		const earlier = { path: "notes/Earlier.md" } as TFile;
+		executor.runNote = earlier;
+		vi.mocked(executor.execute).mockResolvedValue(undefined);
+
+		await expect(engine([choice("Open inbox", "Capture")]).runAndGetOutput("Open inbox")).resolves.toBe("");
+		expect(executor.runNote).toBe(earlier);
+	});
+
 	it("refuses export access on it", async () => {
 		await expect(engine([choice("Log", "Capture")]).runAndGetOutput("Log::entry")).rejects.toThrow(
 			"'Log' is not a macro, so it has no exports.",
