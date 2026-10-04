@@ -2,7 +2,8 @@ import { createPreflightPlugin } from "../../tests/helpers/preflight/choices";
 import type { FieldRequirement } from "./fieldRequirements";
 import { createCaptureChoice, createTemplateChoice } from "../../tests/helpers/preflight/choices";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { settingsStore } from "src/settingsStore";
 import { TFile, TFolder, type App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
@@ -2093,5 +2094,29 @@ describe("property capture requirements", () => {
 		expect(requirements.map((requirement) => requirement.id)).toEqual(["property", "amount"]);
 		expect(requirements.find((requirement) => requirement.id === "amount")?.type).toBe("number");
 		expect(requirements.every((requirement) => requirement.pathContext)).toBe(true);
+	});
+});
+
+describe("collectChoiceRequirements - the choice's input overrides", () => {
+	const app = { vault: { cachedRead: async () => "Guest: {{VALUE:Guest}}" }, metadataCache: { getFileCache: () => null } } as unknown as App;
+
+	afterEach(() => settingsStore.setState({ actions: [] }));
+
+	it("asks for an input with the label and optional its action overrides it with", async () => {
+		getTemplateFileMock.mockImplementation(() => ({ path: "Templates/Visit.md" }) as never);
+		const visit = Object.assign(new TemplateChoice("Visit"), { id: "visit", templatePath: "Templates/Visit.md" });
+		visit.fileNameFormat = { enabled: true, format: "{{VALUE:Title}}" };
+		settingsStore.setState({
+			actions: [{ kind: "action", id: "visit", name: "Visit", steps: [], show: { command: false }, inputs: {
+				Guest: { label: "Who is coming?", optional: true },
+			} }],
+		});
+
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), visit);
+
+		expect(requirements.map(({ id, label, optional }) => ({ id, label, optional }))).toEqual([
+			{ id: "Title", label: "Title", optional: false },
+			{ id: "Guest", label: "Who is coming?", optional: true },
+		]);
 	});
 });

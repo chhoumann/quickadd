@@ -8,6 +8,8 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceChain } from "../engine/choiceChain";
+import { actionInputOverride } from "../v3/inputOverride";
+import type { InputOverride } from "../v3/model";
 import type { RunClocks } from "../types/dateOrigin";
 import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import { findDateVariableFormat } from "./helpers/dateTokens";
@@ -706,6 +708,10 @@ export class CompleteFormatter extends Formatter {
 			assertInteractivePrompt: (what) => this.assertInteractivePrompt(what),
 			buildInputPromptOptions: (context, line, full) => this.buildInputPromptOptions(context, line, full),
 		};
+	}
+
+	protected inputOverride(name: string): InputOverride | undefined {
+		return actionInputOverride(this.choiceChain.at(-1)?.id, name);
 	}
 
 	protected async promptForVariable(header?: string,

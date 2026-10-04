@@ -43,6 +43,7 @@ import {
 	type FieldRequirement,
 } from "./RequirementCollector";
 import { isPathScope, type PromptScopeKind } from "src/formatters/promptScope";
+import { actionInputOverride, withInputOverride } from "src/v3/inputOverride";
 import {
 	captureTargetKeyFor,
 	isCaptureTargetKey,
@@ -228,6 +229,7 @@ async function collectForTemplateChoice(
 		if (valueRequirement) valueRequirement.runtimeOnly = true;
 	}
 
+	applyInputOverrides(collector, choice.id);
 	return collector;
 }
 
@@ -382,6 +384,8 @@ async function collectForCaptureChoice(
 		}
 	}
 
+	applyInputOverrides(collector, choice.id);
+
 	if (seedCaptureSelectionAsValue) {
 		const selectionOverride = choice.useSelectionAsCaptureValue;
 		const globalSelectionAsValue =
@@ -402,6 +406,13 @@ async function collectForCaptureChoice(
 	}
 
 	return collector;
+}
+
+/** The form asks for each input as the choice's action overrides it. */
+function applyInputOverrides(collector: RequirementCollector, choiceId: string): void {
+	for (const [id, requirement] of collector.requirements) {
+		collector.requirements.set(id, withInputOverride(requirement, actionInputOverride(choiceId, id)));
+	}
 }
 
 async function collectUserScriptRequirements(

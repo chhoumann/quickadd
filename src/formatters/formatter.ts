@@ -21,6 +21,7 @@ import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { stringifyPropertyTokenValue } from "../engine/captureProperty";
 import type { CompleteFormatter } from "./completeFormatter";
+import { withInputOverride } from "../v3/inputOverride";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 export { type PromptContext } from "./valueFormatter";
@@ -332,7 +333,7 @@ export abstract class Formatter extends ValueFormatter {
 
 			const key = parsed.variableKey;
 			if (!this.hasConcreteVariable(key)) {
-				this.variables.set(key, await this.suggestForFile(parsed));
+				this.variables.set(key, await this.suggestForFile(withInputOverride(parsed, this.inputOverride(key))));
 			}
 
 			const renderedValue = renderStoredFileValue(
@@ -483,6 +484,7 @@ export abstract class Formatter extends ValueFormatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
+			override: (name) => this.inputOverride(name),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
 	}

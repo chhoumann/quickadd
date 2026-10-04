@@ -5,7 +5,10 @@ import { uuidv4 } from "../utils/uuid";
 import { settingsValuesEqual, threeWayMergeSettings } from "../utils/settingsPersistMerge";
 import { lowerNode } from "./lower";
 import { migrateChoice, migrateSettingsV2 } from "./migrate";
+import { findAction, isActionNode, isRecord } from "./actionTree";
 import type { Action, ActionNode, Step } from "./model";
+
+export { findAction, isActionNode };
 
 /*
  * QuickAdd 3 stores `actions` in data.json. In memory the plugin holds those
@@ -192,13 +195,6 @@ function dedupeActionsById(nodes: unknown[]): unknown[] {
 	return walk(nodes);
 }
 
-/** The shape of an action with its steps and `show`, or of a folder whose every item has it. */
-export function isActionNode(value: unknown): value is ActionNode {
-	if (!isRecord(value) || typeof value.id !== "string") return false;
-	if (value.kind === "folder") return Array.isArray(value.items) && value.items.every(isActionNode);
-	return value.kind === "action" && Array.isArray(value.steps) && isRecord(value.show);
-}
-
 function withoutProvenance(nodes: ActionNode[]): ActionNode[] {
 	return nodes.map((node) => {
 		if (node.kind === "folder") return { ...node, items: withoutProvenance(node.items) };
@@ -224,21 +220,6 @@ function lowerActions(actions: ActionNode[]): IChoice[] {
 	return JSON.parse(JSON.stringify(actions.map(lowerNode))) as IChoice[];
 }
 
-/** The action with this id, in folders too. */
-export function findAction(actions: readonly ActionNode[] | undefined, id: string): Action | undefined {
-	// An unreadable action list is kept as it was found; there is nothing in it to find.
-	if (!Array.isArray(actions)) return undefined;
-	for (const node of actions) {
-		if (!isActionNode(node)) continue;
-		if (node.kind === "action" && node.id === id) return node;
-		if (node.kind === "folder") {
-			const found = findAction(node.items, id);
-			if (found) return found;
-		}
-	}
-	return undefined;
-}
-
 /** `actions` with the action of this id replaced by `change(action)`. */
 export function updateAction(
 	actions: readonly ActionNode[],
@@ -251,8 +232,4 @@ export function updateAction(
 		if (node.kind === "folder") return { ...node, items: updateAction(node.items, id, change) };
 		return node.id === id ? change(node) : node;
 	});
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
 }

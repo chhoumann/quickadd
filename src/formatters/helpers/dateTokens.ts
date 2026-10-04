@@ -8,6 +8,8 @@ import { normalizeDateInput } from "../../utils/dateAliases";
 import { applyDateSnap, type DateSnap, parseDateSnapSegment } from "../../utils/dateModifiers";
 import { parseVDateOptions } from "../../utils/vdateSyntax";
 import { formatUnknownValue } from "../../utils/conditionalHelpers";
+import { withInputOverride } from "../../v3/inputOverride";
+import type { InputOverride } from "../../v3/model";
 
 type ApplyCase = (value: string, style: string | undefined, token: string) => string;
 interface DateTokenContext {
@@ -19,6 +21,8 @@ interface DateVariableContext {
 	dateParser: IDateParser | undefined;
 	prompt: (name: string, context: PromptContext) => Promise<string>;
 	applyCase: ApplyCase;
+	/** What the builder changed about the date input of this name. */
+	override?: (name: string) => InputOverride | undefined;
 }
 function replaceLiteral(input: string, pattern: RegExp, value: string): string {
 	return input.replace(pattern, () => value);
@@ -234,7 +238,7 @@ export async function replaceDateVariableInString(input: string, context: DateVa
 		}
 
 		const { defaultValue, optional, withTime, snap, caseStyle, label } =
-			parseVDateOptions(match[3]);
+			withInputOverride(parseVDateOptions(match[3]), context.override?.(variableName));
 		// A |time/|datetime token with no explicit format gets a datetime
 		// default so the rendered value carries the picked time.
 		const dateFormat =
