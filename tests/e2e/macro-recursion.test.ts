@@ -119,7 +119,8 @@ it("runs two choices a script starts side by side, one running the other as a st
 		if (window[${jsLiteral(runsOfB)}] === 1) await new Promise((resolve) => { window[${jsLiteral(releaseB)}] = resolve; });
 	};`);
 	const aScript = await seedVaultFile(obsidian, sandbox, "side-a.js", `module.exports = async () => {
-		for (let i = 0; i < 200 && !window[${jsLiteral(releaseB)}]; i++) await new Promise((r) => setTimeout(r, 10));
+		for (let i = 0; i < 1000 && !window[${jsLiteral(releaseB)}]; i++) await new Promise((r) => setTimeout(r, 10));
+		if (!window[${jsLiteral(releaseB)}]) throw new Error("Side B never started");
 	};`);
 	const mScript = await seedVaultFile(obsidian, sandbox, "side-m.js", `module.exports = async ({ quickAddApi }) => {
 		await Promise.all([
