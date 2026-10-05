@@ -59,7 +59,14 @@ function nameOf(input: ActionInput): string {
 	if (input.kind === "pick") return "Target note";
 	if (input.kind === "file") return input.label ?? input.name;
 	if (input.kind === "field") return input.name.slice(FIELD_VARIABLE_PREFIX.length);
+	// The one {{VALUE}} has no name of its own; its prompt's title stands in.
+	if (input.name === "value") return input.label ?? "Value";
 	return input.name;
+}
+
+/** The kind, unless the name already says it. */
+function kindOf(input: ActionInput): string | null {
+	return nameOf(input).toLowerCase() === input.kind ? null : input.kind;
 }
 
 const WHERE: Record<Exclude<ActionInput["definedIn"]["where"], "template file">, string> = {
@@ -103,7 +110,7 @@ function change(name: string, value: Partial<InputOverride>) {
 				<div class="setting-item-info">
 					<div class="setting-item-name">
 						{nameOf(input)}
-						<span class="qaInputKind">{input.kind}</span>
+						{#if kindOf(input)}<span class="qaInputKind">{kindOf(input)}</span>{/if}
 					</div>
 					<div class="setting-item-description">
 						{#if provided}
