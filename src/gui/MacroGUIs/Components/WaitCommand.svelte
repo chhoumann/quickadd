@@ -76,7 +76,12 @@
     display: inline;
     font-family: inherit;
     font-size: inherit;
+    /* As tall as the text around it, so the row is as tall as its neighbours. */
+    height: auto;
+    line-height: inherit;
     padding: 0;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
     width: var(--qa-wait-input-width, 2ch);
     text-decoration: underline dotted;
     background-color: transparent;
@@ -84,5 +89,11 @@
 
 .dotInput:hover {
     background-color: transparent;
+}
+
+.dotInput::-webkit-inner-spin-button,
+.dotInput::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
 }
 </style>

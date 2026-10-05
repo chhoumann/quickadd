@@ -404,8 +404,8 @@ async function configureOpenFile(command: IOpenFileCommand) {
 		border: 0 solid black;
 		overflow-y: auto;
 		height: auto;
-		margin-bottom: 8px;
-		padding: 20px;
+		/* Its last row as far from Add a step as its first from the card's top. */
+		padding: 20px 20px 4px;
 	}
 
 	/* A macro without steps shows no blank list area. The zone type is unique
