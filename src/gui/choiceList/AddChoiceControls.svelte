@@ -22,7 +22,7 @@
 		 */
 		onAddChoice: (preset: Preset, targetFolderId?: string, skipConfigure?: boolean) => void;
 		onAddFolder: (targetFolderId?: string) => void;
-		/** When set, the menu ends with Browse recipes… and Import a package…. */
+		/** When both are set, the menu ends with Browse recipes and Import a package. */
 		onBrowseRecipes?: () => void;
 		onImportPackage?: () => void;
 		/** When set, both actions add into this folder. */
