@@ -71,6 +71,7 @@ describe("CommandList rows", () => {
 		});
 		const { container } = render(CommandList, { props });
 
-		expect(rows(container)).toEqual([["From a newer version"], ["Toggle bold", "Runs 'Toggle bold'"]]);
+		// A line that only repeats the name is left out.
+		expect(rows(container)).toEqual([["From a newer version"], ["Toggle bold"]]);
 	});
 });
