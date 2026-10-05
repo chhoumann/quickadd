@@ -429,6 +429,8 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			plugin: this.plugin,
 			choices: this.choices,
 			title: `${branch === "then" ? "Then" : "Else"}: ${getConditionSummary(command.condition)}`,
+			conditional: command,
+			branch,
 			commands: branch === "then" ? command.thenCommands : command.elseCommands,
 			conditionalHandlers: this.buildConditionalHandlers(),
 			onSave: (commands) => {

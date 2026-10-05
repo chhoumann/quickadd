@@ -3,6 +3,8 @@ import { testApp } from "../../../tests/helpers/settings/modalApp";
 import type QuickAdd from "../../main";
 import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { openAddStepMenu } from "../../../tests/helpers/settings/addStepMenu";
+import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
+import { flushSync } from "svelte";
 
 function openPage(commands: unknown) {
 	const onSave = vi.fn();
@@ -11,6 +13,8 @@ function openPage(commands: unknown) {
 		plugin: { settings: { choices: [] } } as unknown as QuickAdd,
 		choices: [],
 		title: "Then: $mood is truthy",
+		conditional: { ...new ConditionalCommand(), condition: { mode: "variable", variableName: "mood", operator: "isTruthy", valueType: "boolean" } },
+		branch: "then",
 		commands,
 		conditionalHandlers: {},
 		onSave,
@@ -34,6 +38,16 @@ describe("ConditionalBranchEditorPage", () => {
 		page.hide();
 		const saved = onSave.mock.calls[0][0] as Array<{ type: string }>;
 		expect(saved.map((command) => command.type)).toEqual(["Wait", "Wait"]);
+	});
+
+	it("leads with the If step's line, following the branch as it is edited", () => {
+		const { page } = openPage([wait]);
+		const lede = () => page.containerEl.querySelector(".qaChoiceSummaryText")?.textContent;
+		expect(lede()).toBe("If mood is truthy then waits 100 ms");
+
+		openAddStepMenu(page.containerEl).pick("Wait");
+		flushSync();
+		expect(lede()).toBe("If mood is truthy then waits 100 ms, waits 100 ms");
 	});
 
 	it("never replaces a branch it could not read (#1593)", () => {
