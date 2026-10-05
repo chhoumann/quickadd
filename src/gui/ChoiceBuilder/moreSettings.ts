@@ -1,6 +1,8 @@
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
+import type IMacroChoice from "../../types/choices/IMacroChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { CaptureChoice } from "../../types/choices/CaptureChoice";
+import { MacroChoice } from "../../types/choices/MacroChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import type { DateOrigin } from "../../types/dateOrigin";
 import { dateOriginToPreset } from "../../types/dateOriginPresets";
@@ -8,8 +10,11 @@ import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
 import { actionInRibbon } from "./actionRibbon";
 import { deriveFolderMode, isSingleFolder } from "./folderMode";
 
+/** A choice whose builder keeps settings behind More settings. */
+export type MoreSettingsChoice = ITemplateChoice | ICaptureChoice | IMacroChoice;
+
 /**
- * The choice fields set behind a Template or Capture builder's More settings.
+ * The choice fields set behind a builder's More settings.
  * A setting shown only under another one (where to open the file, what to do
  * with a picked existing note) is left out: the one it hangs under counts.
  */
@@ -38,21 +43,32 @@ export const MORE_SETTINGS_FIELDS = {
 		"command",
 		"pickDayCommand",
 	],
-} as const satisfies { Template: (keyof ITemplateChoice)[]; Capture: (keyof ICaptureChoice)[] };
+	Macro: ["onePageInput", "dateOrigin", "runOnStartup", "command", "pickDayCommand", "icon"],
+} as const satisfies {
+	Template: (keyof ITemplateChoice)[];
+	Capture: (keyof ICaptureChoice)[];
+	Macro: (keyof IMacroChoice)[];
+};
+
+const FRESH: Record<keyof typeof MORE_SETTINGS_FIELDS, () => Record<string, unknown>> = {
+	Template: () => ({ ...new TemplateChoice("") }),
+	Capture: () => ({ ...new CaptureChoice("") }),
+	Macro: () => ({ ...new MacroChoice("") }),
+};
 
 /**
  * Whether any setting behind More settings differs from a new choice of the
  * type, so the builder opens with them showing.
  */
-export function hasNonDefaultMoreSettings(choice: ITemplateChoice | ICaptureChoice): boolean {
+export function hasNonDefaultMoreSettings(choice: MoreSettingsChoice): boolean {
 	if (actionInRibbon(choice.id) === true) return true;
 	if (choice.type === "Template") {
 		const folder = (choice as ITemplateChoice).folder;
 		if (!isSingleFolder(folder)) return true;
 		if (deriveFolderMode(folder) === "specified" && folder.chooseFromSubfolders) return true;
 	}
-	const type = choice.type === "Template" ? "Template" : "Capture";
-	const fresh: Record<string, unknown> = type === "Template" ? { ...new TemplateChoice("") } : { ...new CaptureChoice("") };
+	const type = choice.type === "Template" || choice.type === "Macro" ? choice.type : "Capture";
+	const fresh = FRESH[type]();
 	const fields: readonly string[] = MORE_SETTINGS_FIELDS[type];
 	const values = choice as unknown as Record<string, unknown>;
 	return fields.some((field) => !sameSetting(field, values[field], fresh[field]));
@@ -100,7 +116,7 @@ function isOff(value: unknown): boolean {
 /** Choices whose More settings were opened, kept open for the session. */
 const opened = new Map<string, boolean>();
 
-export function moreSettingsOpen(choice: ITemplateChoice | ICaptureChoice): boolean {
+export function moreSettingsOpen(choice: MoreSettingsChoice): boolean {
 	return opened.get(choice.id) ?? hasNonDefaultMoreSettings(choice);
 }
 

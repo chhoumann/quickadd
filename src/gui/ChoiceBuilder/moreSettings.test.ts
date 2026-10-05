@@ -3,6 +3,8 @@ import { CaptureChoice } from "../../types/choices/CaptureChoice";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
+import { MacroChoice } from "../../types/choices/MacroChoice";
+import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MORE_SETTINGS_FIELDS, hasNonDefaultMoreSettings } from "./moreSettings";
 
 const template = (change: (choice: ITemplateChoice) => void = () => {}): ITemplateChoice => {
@@ -31,6 +33,8 @@ const SET: Record<string, unknown> = {
 	eachLine: true,
 	useSelectionAsCaptureValue: false,
 	templater: { afterCapture: "wholeFile" },
+	runOnStartup: true,
+	icon: "star",
 };
 
 describe("hasNonDefaultMoreSettings", () => {
@@ -42,6 +46,16 @@ describe("hasNonDefaultMoreSettings", () => {
 	it.each(MORE_SETTINGS_FIELDS.Template)("counts a Template's %s", (field) => {
 		expect(SET).toHaveProperty(field);
 		expect(hasNonDefaultMoreSettings(template((choice) => Object.assign(choice, { [field]: SET[field] })))).toBe(true);
+	});
+
+	it("is false for a new macro", () => {
+		expect(hasNonDefaultMoreSettings({ ...new MacroChoice("Morning") })).toBe(false);
+	});
+
+	it.each(MORE_SETTINGS_FIELDS.Macro)("counts a Macro's %s", (field) => {
+		expect(SET).toHaveProperty(field);
+		const choice: IMacroChoice = { ...new MacroChoice("Morning"), [field]: SET[field] };
+		expect(hasNonDefaultMoreSettings(choice)).toBe(true);
 	});
 
 	it.each(MORE_SETTINGS_FIELDS.Capture)("counts a Capture's %s", (field) => {

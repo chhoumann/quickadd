@@ -32,17 +32,27 @@ import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 
 const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
 
-/** The builder page, displayed as Obsidian displays it when it opens. */
+/**
+ * The builder page, displayed as Obsidian displays it when it opens, with
+ * its More settings shown.
+ */
 function openPage(choice: IMacroChoice, onSave: (choice: IMacroChoice) => void = () => {}) {
 	const page = new MacroBuilder(new App(), plugin, choice, [], onSave);
 	page.display();
+	page.containerEl.querySelector<HTMLButtonElement>('.qaMoreSettings button[aria-expanded="false"]')?.click();
+	flushSync();
 	return page;
 }
 
-/** The rows of the page's last settings group, Behavior. */
+const moreSettingsShown = (page: MacroBuilder) =>
+	page.containerEl.querySelector('.qaMoreSettings button[aria-label="More settings"]')?.getAttribute("aria-expanded");
+
+/** The rows of the Behavior group, under More settings. */
 function behaviorRows(page: MacroBuilder): Element[] {
-	const groups = Array.from(page.containerEl.children);
-	return Array.from(groups.at(-1)?.lastElementChild?.children ?? []);
+	const behavior = Array.from(page.containerEl.querySelectorAll(".qaMoreSettings h3"))
+		.find((heading) => heading.textContent === "Behavior")
+		?.parentElement?.parentElement;
+	return Array.from(behavior?.lastElementChild?.children ?? []);
 }
 
 describe("MacroBuilder", () => {
@@ -70,6 +80,40 @@ describe("MacroBuilder", () => {
 		editorChoices.onCommandsChange?.([new WaitCommand(250)]);
 		flushSync();
 		expect(lede()).toBe("Waits 250 ms");
+	});
+
+	it("keeps a new macro's settings behind More settings, closed", () => {
+		const page = new MacroBuilder(new App(), plugin, new MacroChoice("Macro under test"), [], () => {});
+		page.display();
+
+		expect(moreSettingsShown(page)).toBe("false");
+		expect(page.containerEl.textContent).not.toContain("Run on startup");
+	});
+
+	it("opens More settings on a macro that runs on startup", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.runOnStartup = true;
+		const page = new MacroBuilder(new App(), plugin, choice, [], () => {});
+		page.display();
+
+		expect(moreSettingsShown(page)).toBe("true");
+		expect(behaviorRows(page).some((row) => row.textContent?.includes("Run on startup"))).toBe(true);
+	});
+
+	it("keeps More settings open when a setting under it redraws the page", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.dateOrigin = { kind: "ask" };
+		const page = new MacroBuilder(new App(), plugin, choice, [], () => {});
+		page.display();
+		expect(moreSettingsShown(page)).toBe("true");
+
+		const whichDay = page.containerEl.querySelectorAll<HTMLSelectElement>(".qaMoreSettings select")[1];
+		whichDay.value = "today";
+		whichDay.dispatchEvent(new Event("change"));
+		flushSync();
+
+		expect(choice.dateOrigin).toBeUndefined();
+		expect(moreSettingsShown(page)).toBe("true");
 	});
 
 	it("heads its steps Steps", () => {

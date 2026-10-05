@@ -1,9 +1,7 @@
 <script lang="ts">
 import { untrack, type Snippet } from "svelte";
-import type ICaptureChoice from "../../../types/choices/ICaptureChoice";
-import type ITemplateChoice from "../../../types/choices/ITemplateChoice";
 import ObsidianIcon from "../../components/ObsidianIcon.svelte";
-import { moreSettingsOpen, setMoreSettingsOpen } from "../moreSettings";
+import { type MoreSettingsChoice, moreSettingsOpen, setMoreSettingsOpen } from "../moreSettings";
 
 /**
  * The settings a builder keeps out of the way, behind one row that shows
@@ -13,13 +11,13 @@ let {
 	choice,
 	children,
 }: {
-	choice: ITemplateChoice | ICaptureChoice;
+	choice: MoreSettingsChoice;
 	children: Snippet;
 } = $props();
 
 // Decided once, when the builder opens: turning a setting off must not
 // close the section around it.
-let open = $state(untrack(() => moreSettingsOpen($state.snapshot(choice) as ITemplateChoice | ICaptureChoice)));
+let open = $state(untrack(() => moreSettingsOpen($state.snapshot(choice) as MoreSettingsChoice)));
 
 function toggle() {
 	open = !open;

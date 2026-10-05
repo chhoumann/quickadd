@@ -14,6 +14,10 @@ import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { getConditionSummary } from "../../utils/conditionalHelpers";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
 import { type LedeHandle, mountLede } from "../ChoiceBuilder/components/mountLede.svelte";
+import MoreSettings from "../ChoiceBuilder/components/MoreSettings.svelte";
+import { setMoreSettingsOpen } from "../ChoiceBuilder/moreSettings";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { createRawSnippet } from "svelte";
 import { settingsStore } from "../../settingsStore";
 import { summarizeChoice } from "../../v3/choiceSummary";
 import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
@@ -82,6 +86,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	private readonly choices: IChoice[] = [];
 	private commandEditor: CommandSequenceEditor | null = null;
 	private lede: LedeHandle | null = null;
+	private moreSettings: MountHandle | null = null;
 	private plugin: QuickAdd;
 	private readonly openedName: string;
 	private pickDaySetting: Setting | null = null;
@@ -114,6 +119,8 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		this.commandEditor = null;
 		this.lede?.destroy();
 		this.lede = null;
+		this.moreSettings?.destroy();
+		this.moreSettings = null;
 	}
 
 	protected render(containerEl: HTMLElement) {
@@ -127,6 +134,17 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		});
 		this.lede = mountLede(containerEl.createDiv(), ...this.ledeContent());
 		this.addCommandEditor(this.addGroup(containerEl, "Steps"));
+		this.moreSettings = mountComponent(containerEl.createDiv(), MoreSettings, {
+			choice: this.choice,
+			// The settings are Obsidian's, built where the section shows them.
+			children: createRawSnippet(() => ({
+				render: () => "<div></div>",
+				setup: (el) => this.renderBehavior(el as HTMLElement),
+			})),
+		}, { what: "this macro's settings" });
+	}
+
+	private renderBehavior(containerEl: HTMLElement): void {
 		const behavior = this.addGroup(containerEl, "Behavior");
 		this.addOnePageInputSetting(behavior);
 		this.addDateOriginSetting(behavior);
@@ -316,8 +334,12 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		});
 	}
 
-	/** Re-render the page, for settings that add or remove rows. */
+	/**
+	 * Re-render the page, for settings that add or remove rows. They all sit
+	 * under More settings, which must stay open around them.
+	 */
 	private reload() {
+		setMoreSettingsOpen(this.choice.id, true);
 		this.destroy();
 		this.containerEl.empty();
 		this.render(this.containerEl);
