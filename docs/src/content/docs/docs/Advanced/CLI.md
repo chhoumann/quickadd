@@ -15,6 +15,8 @@ obsidian vault=dev quickadd choice="Daily log"
 
 QuickAdd registers these CLI handlers automatically on any Obsidian version that
 supports plugin CLI commands.
+The [Raycast extension](/docs/Advanced/RaycastExtension/) is built on these
+commands, so you can run choices from Raycast without typing any.
 
 ## What you need {#requirements}
 
