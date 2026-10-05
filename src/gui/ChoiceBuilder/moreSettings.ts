@@ -43,7 +43,8 @@ export const MORE_SETTINGS_FIELDS = {
 		"command",
 		"pickDayCommand",
 	],
-	Macro: ["onePageInput", "dateOrigin", "runOnStartup", "command", "pickDayCommand", "icon"],
+	// Not the icon: every preset sets one, and the lede shows it anyway.
+	Macro: ["onePageInput", "dateOrigin", "runOnStartup", "command", "pickDayCommand"],
 } as const satisfies {
 	Template: (keyof ITemplateChoice)[];
 	Capture: (keyof ICaptureChoice)[];
