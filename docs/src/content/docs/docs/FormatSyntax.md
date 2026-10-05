@@ -302,6 +302,23 @@ Due: 2026-07-10
 Week: 2026-W28
 ```
 
+:::note[Need the day before or after the date you pick?]
+A VDATE format takes no `+N` offset, so `+-1` is printed as-is. Set the
+choice's [Which day](/docs/Choices/TemplateChoice/#date-origin) to **Ask each
+time** instead. `{{DATE}}` is then the day you pick, and `{{DATE+N}}` counts
+from it.
+
+```markdown title="You write"
+Yesterday: [[{{DATE:YYYY-MM-DD-ddd+-1}}]]
+Tomorrow: [[{{DATE:YYYY-MM-DD-ddd+1}}]]
+```
+
+```markdown title="You get (after picking 2026-03-10)"
+Yesterday: [[2026-03-09-Mon]]
+Tomorrow: [[2026-03-11-Wed]]
+```
+:::
+
 #### Reuse the date with `{{VALUE:<name>}}` {#vdate-reuse}
 
 _Requires QuickAdd 2.29.0 or later._
