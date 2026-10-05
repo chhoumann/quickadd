@@ -12,8 +12,9 @@ vi.mock("../../services/packageImportService", async (importOriginal) => ({
 	applyPackageImport: vi.fn(async (options: { existingChoices: IChoice[]; assetDecisions: { mode: string }[]; pkg: QuickAddPackage }) => {
 		applied.calls.push({ existing: options.existingChoices, assets: options.assetDecisions });
 		await Promise.resolve();
-		applied.during?.();
+		const during = applied.during;
 		applied.during = null;
+		during?.();
 		return {
 			updatedChoices: [...options.existingChoices, ...options.pkg.choices.map((entry) => entry.choice)],
 			addedChoiceIds: options.pkg.choices.map((entry) => entry.choice.id),
@@ -36,12 +37,14 @@ const pkg: QuickAddPackage = {
 	choices: [{ choice: choice("imported"), parentChoiceId: null, pathHint: [] }],
 	assets: [{ kind: "template", originalPath: "T.md", contentEncoding: "base64", content: "" }],
 };
-const app = {} as App;
+const removed: string[] = [];
+const app = { vault: { adapter: { remove: async (path: string) => { removed.push(path); } } } } as unknown as App;
 
 describe("importPackage", () => {
 	beforeEach(() => {
 		applied.calls = [];
 		applied.during = null;
+		removed.length = 0;
 		settingsStore.setState((state) => ({ ...state, choices: [choice("mine")] }));
 	});
 
@@ -58,5 +61,19 @@ describe("importPackage", () => {
 		expect(applied.calls).toHaveLength(2);
 		expect(applied.calls[1]?.existing.map((entry) => entry.id)).toEqual(["mine", "meanwhile"]);
 		expect(applied.calls[1]?.assets).toEqual([{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "skip" }]);
+	});
+
+	it("gives up on choices that never stop changing, taking the files it created with it", async () => {
+		const keepChanging = () => {
+			settingsStore.setState((state) => ({ ...state, choices: [...state.choices, choice(`edit-${state.choices.length}`)] }));
+			applied.during = keepChanging;
+		};
+		applied.during = keepChanging;
+		const before = settingsStore.getState().choices;
+		await expect(importPackage({ app, pkg, choiceDecisions: [], assetDecisions: [{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "write" }] }))
+			.rejects.toThrow("Nothing was imported");
+		expect(settingsStore.getState().choices.map((entry) => entry.id)).not.toContain("imported");
+		expect(settingsStore.getState().choices.length).toBeGreaterThan(before.length);
+		expect(removed).toEqual(["Templates/T.md"]);
 	});
 });

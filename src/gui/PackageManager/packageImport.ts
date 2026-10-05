@@ -83,8 +83,14 @@ export async function importPackage(options: {
 	// another device, an edit in the list). The merge is redone on what the
 	// store holds now, with the files already on disk kept as they are, until
 	// the choices it was computed from are the ones being replaced.
+	const created = createdBy(result, options.assetDecisions);
 	for (let attempt = 0; settingsStore.getState().choices !== existingChoices; attempt++) {
-		if (attempt === 3) throw new Error("The choices kept changing while the package was imported. Nothing was imported; try again.");
+		if (attempt === 5) {
+			// Give up without leaving half an import: the files this import
+			// created go again; a file it replaced cannot be put back.
+			for (const path of created) await options.app.vault.adapter.remove(path);
+			throw new Error("The choices kept changing while the package was imported. Nothing was imported; try again.");
+		}
 		existingChoices = settingsStore.getState().choices;
 		assetDecisions = keptOnDisk(options.pkg, assetDecisions);
 		result = await applyPackageImport({
@@ -96,6 +102,12 @@ export async function importPackage(options: {
 	}
 	settingsStore.setState((state) => ({ ...state, choices: result.updatedChoices }));
 	return { result, previousChoices };
+}
+
+/** The files the first pass created, as opposed to replaced. */
+function createdBy(result: ApplyImportResult, decisions: AssetImportDecision[]): string[] {
+	const writes = new Set(decisions.filter((decision) => decision.mode === "write").map((decision) => decision.destinationPath));
+	return result.writtenAssets.filter((path) => writes.has(path));
 }
 
 /** The decisions with every file kept where the first pass put it. */
