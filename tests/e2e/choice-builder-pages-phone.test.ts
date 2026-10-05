@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
-import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { createQuickAddE2EHarness } from "./e2eVault";
 import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
 import { withStoredChoices } from "./storedChoices";
 
@@ -51,16 +51,21 @@ afterAll(async () => {
 	await emulateMobile(false);
 }, 60_000);
 
+const ICON_FIELD = 'input[aria-label="Choice icon"]';
+
+/** A macro page, its More settings open (an icon is set) with the icon field last. */
 async function openMacroPage() {
-	await openChoicePage(new MacroChoice("Phone macro"));
-	await waitForElement(getContext().obsidian, ".macroBuilder .qa-command-sequence-input");
+	const macro = new MacroChoice("Phone macro");
+	macro.icon = "sunrise";
+	await openChoicePage(macro);
+	await waitForElement(getContext().obsidian, `.macroBuilder ${ICON_FIELD}`);
 }
 
 async function openChoicePage(choice: IChoice) {
 	const { obsidian, plugin } = getContext();
 	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-		// AI on adds the AI Assistant button, the widest quick-command bar.
+		// AI on adds Ask AI, the longest Add a step menu.
 		data.disableOnlineFeatures = false;
 	}));
 	await plugin.reload({ waitUntilReady: true });
@@ -104,8 +109,7 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 			const page = document.querySelector(".macroBuilder");
 			return page.scrollWidth <= page.clientWidth;
 		})()`)).toBe(true);
-		// The quick-command bar keeps its card's padding, with all six buttons
-		// (AI is on) and no steps above it (#2145).
+		// The Add a step bar keeps its card's padding, with no steps above it (#2145).
 		expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
 
 		const header = () => obsidian.dev.evalJson<[number, string | null]>(
@@ -121,16 +125,16 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 });
 
 it("keeps the focused field and its suggestions above the keyboard, under a header that stays solid", async () => {
-	const { obsidian, sandbox } = getContext();
+	const { obsidian } = getContext();
 	try {
-		// A script for the field to suggest.
-		await seedVaultFile(obsidian, sandbox, "phoneScript.js", "module.exports = async () => {};\n");
 		await openMacroPage();
 		await obsidian.dev.evalJson(`(() => {
 			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
 			const page = document.querySelector(".macroBuilder");
 			page.scrollTop = 0;
-			[...page.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script")).focus({ preventScroll: true });
+			const field = page.querySelector(${jsLiteral(ICON_FIELD)});
+			field.focus({ preventScroll: true });
+			field.select();
 			window.dispatchEvent(new Event("keyboardDidShow"));
 			return true;
 		})()`);
@@ -151,7 +155,7 @@ it("keeps the focused field and its suggestions above the keyboard, under a head
 
 		// The emulated keyboard does not shrink the visual viewport, as on
 		// Android, so the list opens above the field, not under the keyboard.
-		await insertText(obsidian, "phoneScript");
+		await insertText(obsidian, "arrow");
 		await waitForElement(obsidian, ".suggestion-container .suggestion-item");
 		expect(await obsidian.dev.evalJson<boolean>(`(() => {
 			const list = document.querySelector(".suggestion-container").getBoundingClientRect();
@@ -168,15 +172,18 @@ it("keeps a field's suggestions under the settings header, with its back and clo
 	const { obsidian } = getContext();
 	try {
 		await openMacroPage();
-		// The Obsidian command field a little under the header, with the keyboard
-		// up: its list has room neither above nor below for all 240px of it.
+		// The icon field a little under the header, with the keyboard up: its
+		// list has room neither above nor below for all 240px of it.
 		await obsidian.dev.evalJson(`(() => {
 			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
 			const page = document.querySelector(".qa-builder-page");
 			const header = document.querySelector(".modal.mod-settings .modal-header").getBoundingClientRect();
-			const field = [...page.querySelectorAll("input")].find((input) => input.placeholder === "Obsidian command");
+			const field = page.querySelector(${jsLiteral(ICON_FIELD)});
 			page.scrollTop += field.getBoundingClientRect().top - (header.bottom + 180);
+			// Empty, so it suggests the whole list.
+			field.value = "";
 			field.focus({ preventScroll: true });
+			field.dispatchEvent(new Event("input"));
 			window.dispatchEvent(new Event("keyboardDidShow"));
 			return true;
 		})()`);

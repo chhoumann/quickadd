@@ -24,9 +24,10 @@ afterEach(async () => {
 	await getContext().obsidian.dev.evalJson("(() => { app.setting.close(); delete window.__qaHello; return true; })()");
 });
 
+/** What each step row says under its name, and the file it names on hover. */
 const rowDetail = (obsidian: ObsidianClient) =>
-	obsidian.dev.evalJson<string[]>(
-		'[...document.querySelectorAll(".macroBuilder .quickAddCommandListItem .quickAddCommandDetail")].map((el) => el.textContent)',
+	obsidian.dev.evalJson<string[][]>(
+		'[...document.querySelectorAll(".macroBuilder .quickAddCommandListItem .quickAddCommandDetail")].map((el) => [el.textContent, el.title])',
 	);
 
 async function chooseFile(obsidian: ObsidianClient, stepName: string, query: string) {
@@ -61,9 +62,9 @@ it("adds a script from its preset and runs the file chosen on its row", async ()
 	})()`);
 	await clickWhenStill(obsidian, '.menu-item[data-qa-preset="script"]');
 
-	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual(["No file chosen"]);
+	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([["No file chosen", ""]]);
 	await chooseFile(obsidian, "Script", "hello.js");
-	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([hello]);
+	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([["Runs hello.js", hello]]);
 	await leaveSettingsPage(obsidian);
 
 	const read = () => plugin.data<Data>().read();
@@ -94,9 +95,9 @@ it("points a step whose script was moved at a file chosen on its row", async () 
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
 	await clickWhenStill(obsidian, '[aria-label="Configure Moved script"]');
-	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([`Can't find ${moved}`]);
+	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([[`Can't find ${moved}`, moved]]);
 	await chooseFile(obsidian, "moved", "hello.js");
-	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([hello]);
+	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([["Runs hello.js", hello]]);
 	await leaveSettingsPage(obsidian);
 
 	const read = () => plugin.data<Data>().read();

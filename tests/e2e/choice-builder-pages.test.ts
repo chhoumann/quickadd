@@ -5,7 +5,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
+import { addStep, clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
 import { storedChoices, withStoredChoices } from "./storedChoices";
 import type { INestedChoiceCommand } from "../../src/types/macros/QuickCommands/INestedChoiceCommand";
 
@@ -155,13 +155,13 @@ it("opens a macro's branch and Choice step as pages over it, and back returns to
 
 	await click('.macroBuilder [aria-label^="Edit then branch"]');
 	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning", "Then: $mood is truthy"]);
-	// With no steps above it, the quick-command bar keeps its card's padding (#2145).
+	// With no steps above it, the Add a step bar keeps its card's padding (#2145).
 	expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
-	await click('.conditionalBranchPage [aria-label="Add wait command"]');
+	await addStep(obsidian, "Wait");
 	await leaveSettingsPage(obsidian);
 	expect(await obsidian.dev.evalJson<string>(
-		'document.querySelector(".macroBuilder .conditionalBranches").textContent',
-	)).toContain("Then: 1");
+		'document.querySelector(".macroBuilder [aria-label^=\'Edit then branch\']").closest("li").querySelector(".quickAddCommandDetail").textContent',
+	)).toBe("If mood is truthy then waits 100 ms");
 
 	await click('.macroBuilder [aria-label="Configure Log"]');
 	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning", "Log"]);
@@ -251,7 +251,7 @@ it("saves a nested page into its macro when settings is closed over both", async
 	await openSettings();
 	await click('[aria-label="Configure Morning"]');
 	await click('.macroBuilder [aria-label^="Edit then branch"]');
-	await click('.conditionalBranchPage [aria-label="Add wait command"]');
+	await addStep(getContext().obsidian, "Wait");
 
 	await getContext().obsidian.dev.evalJson("app.setting.close(), true");
 	expect(await storedThenCommands()).toHaveLength(1);

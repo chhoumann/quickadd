@@ -145,13 +145,15 @@ describe("conditional command branch persistence (regression for the runes rewri
 		);
 		expect(await sev(`return clickLast('[aria-label^="Edit then branch"]');`)).toBe("ok");
 
-		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add wait command"]')[0]`);
-		expect(await sev(`return clickLast('.conditionalBranchPage [aria-label="Add wait command"]');`)).toBe("ok");
+		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add a step"]')[0]`);
+		expect(await sev(`return clickLast('.conditionalBranchPage [aria-label="Add a step"]');`)).toBe("ok");
+		await waitUi("Add a step menu open", `q('.menu .menu-item').some((el) => el.textContent.trim() === 'Wait')`);
+		expect(await sev(`const item = q('.menu .menu-item').find((el) => el.textContent.trim() === 'Wait'); item.click(); return 'ok';`)).toBe("ok");
 
 		await waitUi("wait command staged", `q('.conditionalBranchPage .quickAddCommandListItem').length === 1`);
 		// Back to the macro: the branch page hands its commands to the macro.
 		expect(await sev(`return clickLast('.setting-page-back-button');`)).toBe("ok");
-		await waitUi("macro shows the then-branch command", `q('.conditionalBranches')[0]?.textContent.includes('Then: 1')`);
+		await waitUi("macro shows the then-branch command", `q('.macroBuilder .quickAddCommandDetail').some((el) => el.textContent.includes('then waits 100 ms'))`);
 
 		// Back to the choice list: leaving the macro page saves the choice and
 		// schedules the debounced disk save.

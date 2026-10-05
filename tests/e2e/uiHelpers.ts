@@ -100,11 +100,12 @@ export async function typeInto(obsidian: ObsidianClient, selector: string, text:
 	await insertText(obsidian, text);
 }
 
-export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace" | "Tab", modified = false) {
+export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace" | "Tab" | "ArrowUp" | "ArrowDown", modified = false) {
 	const modifiers = modified
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
-	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	const keyCode = { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9, ArrowUp: 38, ArrowDown: 40 }[key];
+	const event = { key, code: key, windowsVirtualKeyCode: keyCode, modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
 	// A real Enter also types "\r", which is what makes a focused button click.
 	const text = key === "Enter" && !modified ? { text: "\r" } : {};
 	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
@@ -187,4 +188,26 @@ export async function quickCommandBarOverflow(obsidian: ObsidianClient): Promise
 			].filter(Boolean);
 		});
 	})()`);
+}
+
+/**
+ * Pick `title` from the Add a step menu of the settings page on top, with
+ * real clicks.
+ */
+export async function addStep(obsidian: ObsidianClient, title: string) {
+	// The pages under the top one stay in the document, with their own button.
+	await obsidian.dev.evalJson(`(() => {
+		document.querySelector("[data-qa-add-step-button]")?.removeAttribute("data-qa-add-step-button");
+		app.setting.pageStack.at(-1).page.containerEl.querySelector('[aria-label="Add a step"]').setAttribute("data-qa-add-step-button", "");
+		return true;
+	})()`);
+	await clickWhenStill(obsidian, "[data-qa-add-step-button]");
+	await waitForElement(obsidian, ".menu .menu-item");
+	await obsidian.dev.evalJson(`(() => {
+		document.querySelector("[data-qa-add-step]")?.removeAttribute("data-qa-add-step");
+		const item = [...document.querySelectorAll(".menu .menu-item")].find((el) => el.textContent.trim() === ${jsLiteral(title)});
+		item.setAttribute("data-qa-add-step", "");
+		return true;
+	})()`);
+	await clickWhenStill(obsidian, ".menu-item[data-qa-add-step]");
 }

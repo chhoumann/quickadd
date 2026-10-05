@@ -29,10 +29,11 @@ const visibleTexts = (obsidian: ObsidianClient, selector: string) =>
 		.filter((el) => el.getClientRects().length > 0).map((el) => el.textContent.trim())`);
 
 const stepLines = (obsidian: ObsidianClient) => visibleTexts(obsidian, ".qa-builder-page .qaStepsList li");
-/** Each step row of the macro builder: its name, and what it says under it. */
+/** Each step row of the macro builder: its name, what it says under it, and the file that names on hover. */
 const macroRows = (obsidian: ObsidianClient) =>
 	obsidian.dev.evalJson<string[][]>(`[...document.querySelectorAll(".macroBuilder .quickAddCommandListItem")]
-		.map((row) => [...row.querySelectorAll(".quickAddCommandLabel, .quickAddCommandDetail")].map((el) => el.textContent.trim()))`);
+		.map((row) => [...row.querySelectorAll(".quickAddCommandLabel, .quickAddCommandDetail")]
+			.flatMap((el) => el.title && el.title !== el.textContent.trim() ? [el.textContent.trim(), el.title] : [el.textContent.trim()]))`);
 
 async function setUp(): Promise<{ capture: CaptureChoice; log: string; hello: string }> {
 	const { obsidian, plugin, sandbox } = getContext();
@@ -79,7 +80,8 @@ it("adds a script to a capture, which then runs the capture and the script", asy
 	await addScriptStep(obsidian);
 	await expect.poll(() => obsidian.dev.evalJson<string[]>("app.setting.pageStack.map((entry) => entry.page.title)"), POLL_OPTS)
 		.toEqual(["Log"]);
-	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([["Log"], ["Script", "No file chosen"]]);
+	const write = ["Log", `Adds a line at the bottom of ${log.replace(/\.md$/, "")}`];
+	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([write, ["Script", "No file chosen"]]);
 	// The write keeps the capture's id once it is the first step of a sequence.
 	await expect.poll(async () => (await stepIds())?.length, POLL_OPTS).toBe(2);
 	const [writeId, scriptId] = (await stepIds())!;
@@ -90,7 +92,7 @@ it("adds a script to a capture, which then runs the capture and the script", asy
 	await typeInto(obsidian, ".prompt .prompt-input", "hello.js");
 	await waitForElement(obsidian, ".prompt .suggestion-item.is-selected");
 	await pressKey(obsidian, "Enter");
-	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([["Log"], ["hello", hello]]);
+	await expect.poll(() => macroRows(obsidian), POLL_OPTS).toEqual([write, ["hello", "Runs hello.js", hello]]);
 	await leaveSettingsPage(obsidian);
 
 	await expect.poll(async () => (await action())?.steps.map((step) => step.type), POLL_OPTS).toEqual(["addToNote", "runScript"]);
@@ -121,5 +123,6 @@ it("shows the steps of a sequence's capture but offers no step there", async () 
 	await expect.poll(() => obsidian.dev.evalJson<number>("app.setting.pageStack.length"), POLL_OPTS).toBe(2);
 	await expect.poll(() => stepLines(obsidian), POLL_OPTS).toHaveLength(1);
 	expect((await stepLines(obsidian))[0]).toMatch(/^Adds a line/);
-	expect(await visibleTexts(obsidian, '.qa-builder-page [aria-label="Add a step"]')).toEqual([]);
+	// The sequence's page stays under this one, with its own Add a step.
+	expect(await visibleTexts(obsidian, '.captureChoiceBuilder [aria-label="Add a step"]')).toEqual([]);
 });
