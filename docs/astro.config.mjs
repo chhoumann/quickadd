@@ -203,6 +203,7 @@ export default defineConfig({
 							label: "Trigger QuickAdd from outside Obsidian",
 							slug: "docs/Advanced/TriggerQuickAddFromOutsideObsidian",
 						},
+						{ label: "Raycast extension", slug: "docs/Advanced/RaycastExtension" },
 					],
 				},
 				{

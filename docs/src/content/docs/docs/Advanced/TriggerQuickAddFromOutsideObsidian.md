@@ -45,7 +45,9 @@ like `x-success` - is on [Open QuickAdd from a URI](/docs/Advanced/ObsidianUri/)
 ## Trigger from a desktop shortcut {#desktop-shortcuts}
 
 Any desktop shortcut or launcher that can open a URL can open
-`obsidian://quickadd`.
+`obsidian://quickadd`. On a Mac with Raycast, the
+[Raycast extension](/docs/Advanced/RaycastExtension/) runs a choice and answers
+its prompts in Raycast, with no link to build.
 
 ### macOS {#macos}
 
