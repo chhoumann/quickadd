@@ -81,7 +81,7 @@ it("brings the macro page's focused field above the keyboard once it is up", asy
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Keyboard macro");
 	// Opens More settings, whose last field, the icon, sits low on the page.
-	macro.icon = "sunrise";
+	macro.runOnStartup = true;
 	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
 	}));
