@@ -505,30 +505,6 @@ describe("ChoiceView", () => {
 		expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
 	});
 
-	it("starts an empty list with three choices that run on an empty vault, saved once", async () => {
-		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
-		const { container, getByRole } = renderChoiceView([], saveChoices);
-		// It is the empty list's one call to action.
-		expect(getByRole("button", { name: "New choice" })).not.toHaveClass("mod-cta");
-
-		await fireEvent.click(getByRole("button", { name: "Start with three choices" }));
-
-		expect(saveChoices).toHaveBeenCalledTimes(1);
-		const saved = saveChoices.mock.calls[0][0] as unknown as Array<{ name: string; type: string; icon: string }>;
-		expect(saved.map(({ name, type, icon }) => ({ name, type, icon }))).toEqual([
-			{ name: "Log", type: "Capture", icon: "clock" },
-			{ name: "Task", type: "Capture", icon: "check-square" },
-			{ name: "Add to note", type: "Capture", icon: "pencil" },
-		]);
-		await vi.waitFor(() => expect(container.querySelector(".choiceEmptyState")).toBeNull());
-	});
-
-	it("offers the three starter choices only while the list is empty", () => {
-		const { queryByRole } = renderChoiceView([conditionalMacroChoice()]);
-
-		expect(queryByRole("button", { name: "Start with three choices" })).toBeNull();
-	});
-
 	// Issue #1539: the rename prompt that follows "New folder" must be told it is
 	// naming a folder, so its header reads "Folder name" and not "Choice name".
 	it("passes the choice type to the rename prompt so folders say 'folder'", async () => {

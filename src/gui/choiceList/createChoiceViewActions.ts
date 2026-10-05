@@ -21,12 +21,14 @@ import {
 } from "../../services/choiceService";
 import { log } from "../../logger/logManager";
 import { choiceNoun } from "../../utils/choiceNoun";
-import { reportingHandler } from "../../utils/errorUtils";
+import { reportingHandler, reportUnlessCancelled } from "../../utils/errorUtils";
 import { type Plain, snapshot } from "../svelte/persist.svelte";
 import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 import { FOLDER_NAME, type Preset } from "./presets";
 import { uniqueChoiceName } from "./uniqueChoiceName";
+import type { FirstRunPlan } from "./firstRun";
+import { ensureParentFolders } from "../../utils/ensureParentFolders";
 import type { ChoiceListActions } from "./choiceListActions";
 import { replaceChoiceHelper, subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
 import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
@@ -47,7 +49,7 @@ interface ChoiceViewContext {
 /** Access live component state after every await, so intervening store writes survive. */
 export function createChoiceViewActions(
 	context: ChoiceViewContext,
-): ChoiceListActions & { onAddPresets: (presets: Preset[]) => void } {
+): ChoiceListActions & { onCreateFirstRun: (plan: FirstRunPlan) => Promise<void> } {
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
@@ -82,10 +84,18 @@ export function createChoiceViewActions(
 		await revealChoice(newChoice.id);
 	}
 
-	// Several root-level choices at once, saved once, with no builder.
-	function addPresetsToList(presets: Preset[]): void {
-		for (const preset of presets) {
-			context.choices = addChoiceToTree(context.choices, choiceFromPreset(preset));
+	// The first run's choices: the files they need, never over one that exists,
+	// then the choices at the root, saved once, with no builder.
+	async function createFirstRun(plan: FirstRunPlan): Promise<void> {
+		const { vault } = context.app;
+		for (const file of plan.files) {
+			if (await vault.adapter.exists(file.path)) continue;
+			await ensureParentFolders(context.app, file.path);
+			await vault.create(file.path, file.content);
+		}
+		for (const choice of plan.choices) {
+			choice.name = uniqueChoiceName(choice.name, context.choices);
+			context.choices = addChoiceToTree(context.choices, choice);
 		}
 		save();
 	}
@@ -344,7 +354,11 @@ export function createChoiceViewActions(
 		),
 		onAddChoice: reportingHandler("Couldn't add that choice", addChoiceToList),
 		onAddFolder: reportingHandler("Couldn't add that folder", addFolderToList),
-		onAddPresets: reportingHandler("Couldn't add those choices", addPresetsToList),
+		// Settles either way, so the view can hold its button while it runs.
+		onCreateFirstRun: (plan: FirstRunPlan) =>
+			createFirstRun(plan).catch((err: unknown) => {
+				reportUnlessCancelled(err, "Couldn't create those choices");
+			}),
 	};
 
 }
