@@ -60,11 +60,11 @@ choices apart without opening them:
 
 | Capture key | Meaning |
 | --- | --- |
-| `target` | The **Capture to** value, or `<active file>` |
-| `position` | `top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`, `newLineBelow`, or `property`, matching **Write position** |
+| `target` | The **Where** value, or `<active file>` |
+| `position` | `top`, `bottom`, `after`, `before`, `cursor`, `newLineAbove`, `newLineBelow`, or `property`, matching **Position** |
 | `line` | The line for `after` or `before` |
 | `property` | The property a `property` capture writes |
-| `format` | The text written: the **Capture format**, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
+| `format` | The text written: the **What** field, or `{{VALUE}}` when it is empty (before QuickAdd 2.30.0: when its toggle is off) |
 | `task` | `true` when the capture is written as a task |
 | `eachLine` | `true` when [**One entry per line**](/docs/Choices/CaptureChoice/#one-entry-per-line) is on: each line of `{{VALUE}}` becomes its own entry (QuickAdd 2.30.0 or later) |
 | `createWithTemplate` | The template for a target file that doesn't exist yet |

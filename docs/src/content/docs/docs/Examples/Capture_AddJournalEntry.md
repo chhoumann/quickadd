@@ -16,7 +16,7 @@ For reference, the journal entry capture in compact form:
 | --- | --- |
 | Capture to | `{{DAILY}}` (click **Daily note** next to the field) |
 | Create file if it doesn't exist | On |
-| Write position | **After line...** |
+| Position | **After line...** |
 | Insert after | `## What did I do today?` |
 | Capture format | `- {{DATE:HH:mm}} {{VALUE}}` |
 

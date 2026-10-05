@@ -17,9 +17,9 @@ You end up with one QuickAdd command that drops whatever you type onto a Kanban 
 Imported the package above? Follow **After importing** in the card, then skip the manual setup below and read [What you get](#what-you-get).
 
 1. In **Settings → QuickAdd**, click **New choice** → **Add to a note**. The Capture builder opens; set **Name** (for example, `Add to board`).
-2. Set **Capture to** to your Kanban board file.
+2. Set **Where** to your Kanban board file.
 3. Enable the **Task** toggle (in the **Content** section). This wraps your text in `- [ ]` so Kanban reads it as a card.
-4. Set **Write position** to **After line…**.
+4. Set **Position** to **After line…**.
 5. In the **Insert after** field that appears, write `## ` followed by the name of the lane you want to add the card to. For a lane called `Backlog`, that is `## Backlog`.
 
 ## What you get
@@ -28,7 +28,7 @@ You run the choice, type `Buy milk`, and QuickAdd adds `- [ ] Buy milk` as a new
 
 ## Add a date to the card
 
-Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Set **Capture format** to add one (before QuickAdd 2.30.0, turn on the **Capture format** toggle first):
+Kanban recognizes a date written as `@{YYYY-MM-DD}` on a card. Set **What** to add one (before QuickAdd 2.30.0, turn on the **Capture format** toggle first):
 
 - Use today's date automatically:
 

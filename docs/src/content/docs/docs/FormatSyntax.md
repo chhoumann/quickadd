@@ -11,8 +11,8 @@ answer you type, a link to the note you came from.
 You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
-In the format fields of a choice's settings (such as **Capture format**,
-**Capture to**, **File name**, and the insert after/before targets), type
+In the format fields of a choice's settings (such as **What**,
+**Where**, **File name**, and the insert after/before targets), type
 `{{` to get a list of placeholders, then keep typing to filter it. Template
 files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
 an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
@@ -247,7 +247,7 @@ use `{{DATE:HH:mm}}` with an offset, or ask for one with
 _Requires QuickAdd 2.30.0 or later._
 
 `{{DAILY}}` is the path of the day's daily note, from the folder and date
-format in Obsidian's **Daily notes** settings. Set **Capture to** to
+format in Obsidian's **Daily notes** settings. Set **Where** to
 `{{DAILY}}` and entries land in the note **Open today's daily note** opens,
 even after you change those settings.
 
@@ -558,7 +558,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
@@ -792,7 +792,7 @@ The active note's folder, as a vault-relative path with no trailing slash
 confused with [`{{FOLDER}}`](#folder), which is the folder a *new* note is
 being created in.
 
-This makes per-project captures work without a macro. With **Capture to** set
+This makes per-project captures work without a macro. With **Where** set
 to:
 
 ```text
@@ -840,7 +840,7 @@ Where it has a value:
 - **Capture** - in the capture body, where it becomes the destination file's folder.
 - **Apply template to a note** - the target note's folder.
 
-Where it stays empty: the capture **Capture to** field (that field is what
+Where it stays empty: the capture **Where** field (that field is what
 *chooses* the folder, so there is nothing to reference yet), the `format`
 JavaScript API, and macro file-path commands.
 
@@ -917,7 +917,7 @@ topics:
 Inside front matter, `|multi` writes a real YAML list when the placeholder is
 the property's whole value. With the default `|format:auto`, it also stays a
 list when the entire Capture format is the token and
-[**Write position → Property**](/docs/Choices/CaptureChoice/#property) is selected.
+[**Position → Property**](/docs/Choices/CaptureChoice/#property) is selected.
 In note bodies, file names, and other text
 positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:

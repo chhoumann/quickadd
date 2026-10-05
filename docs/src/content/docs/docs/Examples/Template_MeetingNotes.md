@@ -33,7 +33,7 @@ Date: {{DATE:YYYY-MM-DD}}
 
 1. Open **Settings → QuickAdd** and choose **New choice → New note from a template**.
 2. Set **Name** to `New meeting`. (Before QuickAdd 2.30.0, click the choice name at the top of the settings window, rename it, and confirm with **Ok**.)
-3. Set **Template path** to `Templates/Meeting.md`.
+3. Set **Template** to `Templates/Meeting.md`.
 4. In **File name**, enter (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
 
    ```text

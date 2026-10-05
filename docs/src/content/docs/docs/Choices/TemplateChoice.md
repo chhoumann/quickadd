@@ -16,7 +16,7 @@ templates come from the Templater plugin, see
 [Coming from Templater](/docs/ComingFromTemplater/) for the QuickAdd-native way
 to do each familiar job.
 
-![The QuickAdd Template builder page, showing the Name field and the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
+![The QuickAdd Template builder page: the Name field, the line that says what the choice does, the Template, Folder, and File name fields, Inputs, Steps, and More settings](../Images/choices/template-builder.png)
 
 ## Set up your first template choice {#set-up}
 
@@ -37,12 +37,12 @@ to do each familiar job.
 3. The choice's settings open as a page of the settings window. Set **Name**
    to `New book note`. (Before QuickAdd 2.30.0, they open in a dialog; click
    the name at the top to rename it.)
-4. Set **Template path** to `Templates/Book.md`.
+4. Set **Template** to `Templates/Book.md`. (In earlier versions, this is
+   **Template path**.)
 5. In **File name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
-6. Set **New note location** to **In a specific folder**. Enter `Books` in
-   **Folder path** and click **Add**.
-7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
-   and **View mode** to **Live Preview**.
+6. In **Folder**, enter `Books`.
+7. Click **More settings**. Turn **Open** on. Set **File opening location** to
+   **Reuse current tab** and **View mode** to **Live Preview**.
 8. Close Settings. Leaving the page saves it. (Before QuickAdd 2.30.0, choose
    **Done** first.)
 9. Run **QuickAdd: Run** from the command palette and pick `New book note`.
@@ -95,15 +95,47 @@ Template choice (below) when you need a fixed location, file-name format,
 linking, or a hotkey.
 :::
 
-The builder groups a Template choice's settings into four sections:
-**Template** (template path and file name format), **Location** (where the file
-is created), **Linking** (whether and how to link to the created file), and
-**Behavior** (what happens when the file already exists, and how the file is
-opened).
+## The builder page {#builder}
 
-## Point to the template file: Template path {#mandatory}
+The page starts with one line that says what the choice does, for example
+*Creates Books/{title} from Book, opens it*. It changes as you change the
+settings below it.
 
-**Template path** is the one required setting: the path to the template you want
+Under it are the settings most template choices need:
+
+- **Template** - the template file the note is made from.
+- **Folder** - the folder the note is created in. Leave it empty to use
+  Obsidian's "Default location for new notes".
+- **File name** - the new note's name. Leave it empty to ask for the title.
+
+Then come [Inputs](#inputs) and [Steps](#steps). Everything else is behind
+**More settings** at the bottom: the other places a note can go, what happens
+when the note already exists, searching existing notes first, linking,
+opening the note, which day `{{DATE}}` is about, the command palette, the
+ribbon, and the icon. **More settings** opens by itself when one of those is
+changed from what a new choice has, so a choice you set up shows what you set.
+Once you open it, it stays open for that choice until Obsidian restarts.
+
+### Make a template from the builder: New template… {#new-template}
+
+When there are no template files yet, or **Template** is empty, **New
+template…** shows next to it. It asks for a name and creates a Markdown file
+with that name in your first [template folder](/docs/Settings/#template-folders),
+in the folder of Obsidian's Templates core plugin when you have none, or else
+in `Templates`. The new template starts with a heading the note's title fills
+in:
+
+```markdown title="Templates/Meeting.md"
+# {{VALUE:Title}}
+```
+
+QuickAdd puts its path in **Template** and opens it in a new tab behind
+Settings, ready to write once you close them. If a file with that name already
+exists, QuickAdd leaves it alone and creates nothing.
+
+## Point to the template file: Template {#mandatory}
+
+**Template** is the one required setting: the path to the template you want
 to insert. Paths are vault-relative; a leading `/` is ignored.
 
 ```text title="Template path"
@@ -261,8 +293,9 @@ if you want the picker.
 
 ## Decide where the note is created: New note location {#new-note-location}
 
-**New note location** is a dropdown that controls where the note is created.
-Pick one of four modes:
+**Folder** covers the two common cases: a folder you type, or Obsidian's
+default location when it is empty. For anything else, use **New note
+location** under **More settings**, a dropdown with four modes:
 
 - **Obsidian default** - use Obsidian's "Default location for new notes" setting.
 - **In a specific folder** - create the note in the folder(s) you configure

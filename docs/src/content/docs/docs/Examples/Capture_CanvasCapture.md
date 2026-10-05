@@ -33,7 +33,7 @@ Imported the package above? Follow **After importing** in the card; the steps be
 2. Enable **Capture to active file**.
 3. Open a Canvas file.
 4. Select exactly one supported card.
-5. Set **Write position** to **Top of file (after frontmatter)**,
+5. Set **Position** to **Top of file (after frontmatter)**,
    **Bottom of file**, or **After line…** / **Before line…**.
 6. Run the Capture choice.
 
@@ -51,7 +51,7 @@ selected, or the selected card is unsupported.
 
 1. Create a Capture choice: **New choice** → **Add to a note**.
 2. Turn off **Capture to active file**.
-3. Set **Capture to** to a `.canvas` file.
+3. Set **Where** to a `.canvas` file.
 4. Choose **Target canvas node**.
 5. Pick the card you want QuickAdd to write to.
 6. Set a supported write position.
@@ -92,7 +92,7 @@ file to link from.
 | Capture aborts before writing | No card or multiple cards are selected | Select exactly one supported card |
 | Capture aborts with cursor-position wording | The write mode is cursor-based | Use top, bottom, after-line, or before-line placement |
 | Nothing is written to a file card | The file card points to a non-Markdown file | Use a Markdown file card or a text card |
-| The target picker is not shown | Capture target is not a `.canvas` file | Set **Capture to** to the Canvas file path |
+| The target picker is not shown | Capture target is not a `.canvas` file | Set **Where** to the Canvas file path |
 
 ## Related docs
 

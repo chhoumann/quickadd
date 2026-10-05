@@ -63,10 +63,11 @@ takes about a minute.
    page of the settings window.
 2. Set **Name** to `Add to journal`. (Before QuickAdd 2.30.0, the settings open
    in a dialog; click the name at the top to rename it.)
-3. Set **Capture to** to `Journal/{{DATE}}.md` - the note today's entries land in.
-4. Turn on **Create file if it doesn't exist**, so the first capture of the day
-   creates today's note instead of stopping with a "Target file missing" notice.
-5. In **Capture format**, enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
+3. Set **Where** to `Journal/{{DATE}}.md` - the note today's entries land in.
+4. Click **More settings** and turn on **Create file if it doesn't exist**, so
+   the first capture of the day creates today's note instead of stopping with
+   a "Target file missing" notice.
+5. In **What**, enter `- {{DATE:HH:mm}} {{VALUE}}` - the shape
    of one entry. (Before QuickAdd 2.30.0, turn on the **Capture format**
    toggle first.)
 6. Close the settings. Open the command palette (Ctrl/Cmd+P), run

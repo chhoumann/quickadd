@@ -78,10 +78,10 @@ A [Capture choice](/docs/Choices/CaptureChoice/) whose format is `{{TEMPLATE:Tem
 
 Appending to today's note is a Capture choice that targets the daily note - the file doesn't have to exist beforehand:
 
-- **Capture to**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
+- **Where**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
 - **Create file if it doesn't exist**, with **Create file with a template** set to your daily template, so QuickAdd fills in its tokens
 - **Insert after**: `## Log`, with **Create line if not found**
-- **Capture format**: `- {{VALUE}}`
+- **What**: `- {{VALUE}}`
 
 Say today is 2026-07-06 and your daily notes live in `Daily`: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. Before QuickAdd 2.30.0, set **Capture to** to a date-formatted path such as `Daily/{{DATE}}.md` instead. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
 

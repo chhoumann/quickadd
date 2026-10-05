@@ -24,7 +24,7 @@ settings so you can adjust it. The menu groups the presets by outcome:
 
 | Preset | Creates | What it starts with |
 | --- | --- | --- |
-| **New note from a template** | Template | Asks for a title, then creates the note. Set **Template path** to the template to use. |
+| **New note from a template** | Template | Asks for a title, then creates the note. Set **Template** to the template to use. |
 | **New note, linked from here** | Template | Creates the note, puts a link to it on a new line in the note you are in (if any), and opens it. |
 | **New note of a type** | Template | Asks which template to use, which folder to put the note in, and its title, then creates the note and opens it. The templates offered are the notes in your template folder: QuickAdd's first template folder, else the Templates core plugin's folder, else `Templates/`. |
 
