@@ -37,7 +37,7 @@ The extension is not in the Raycast Store yet, so install it from source.
 3. Press Enter. QuickAdd runs the choice inside Obsidian and sends each prompt
    to Raycast.
 
-![The Run QuickAdd Choice list in Raycast. A Recent section holds Capture text, and a Choices section lists Capture text, Capture color, Capture tags, Capture mood, Capture rating, Capture due date, and Capture to a picked note, each tagged Capture](../Images/raycast-run-choice.png)
+![The Run QuickAdd Choice list in Raycast. A Recent section holds New Project, Quick Capture, and Add Book, and a Choices section lists Quick Capture, Journal, Meeting Notes, Add Book, and New Project, each tagged Capture or Template](../Images/raycast-run-choice.png)
 
 Every prompt QuickAdd raises appears in Raycast:
 
@@ -54,14 +54,14 @@ Every prompt QuickAdd raises appears in Raycast:
 - A note picker starts empty, as in QuickAdd's own form, and a required one
   must have a pick before the form submits.
 
-![A form for the Log a meeting choice in Raycast with a Topic text field holding Roadmap review, a Person dropdown set to Ada Lovelace, and a Tags picker holding decision](../Images/raycast-form.png)
+![The Meeting Notes form in Raycast with a Topic text field holding Shed roof plans, a Person dropdown set to Sofia Almeida, and a Tags picker holding decision and follow-up](../Images/raycast-form.png)
 
 In a text field, type `[[` to pick a note or alias, or type `#` at the start
 of a word to pick a tag, most used first. The lists come from QuickAdd's
 [`quickadd:suggest`](/docs/Advanced/CLI/#quickaddsuggest), so they match what
 the editor offers. Picking an item inserts the link or tag where you typed.
 
-![The note picker that opens after typing two square brackets: Plan in Projects, the alias Big Plan for Projects/Plan.md, Plan in Archive, Person in Templates, Grace Hopper in People, and Ada Lovelace in People, with an Insert Link action](../Images/raycast-link-picker.png)
+![The note picker that opens after typing two square brackets, listing the vault's notes with their folders and an Insert Link action](../Images/raycast-link-picker.png)
 
 When the run finishes, a toast reads **Created** or **Added to** with the file
 name and offers **Open in Obsidian**. A choice with no prompts finishes with the
@@ -117,10 +117,11 @@ pin.
 The extension reads Obsidian's vault list and uses the one vault that has
 QuickAdd enabled. When several vaults have it, **Run QuickAdd Choice** asks
 which vault to use, and the capture commands stop with a message until you set
-the **Vault** preference. A set **Vault** preference always wins.
+the **Vault** preference. A set **Vault** preference wins over detection. A
+pinned Quicklink always runs in the vault it was pinned from.
 
 When the vault is closed, the extension opens it, which starts Obsidian when
-needed, and waits up to 20 seconds for QuickAdd to answer. **Run QuickAdd
+needed, and waits about 20 seconds for QuickAdd to answer. **Run QuickAdd
 Choice** reopens itself once the vault is ready, so Raycast comes back if
 Obsidian took the focus.
 
