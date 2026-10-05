@@ -51,7 +51,7 @@ it("adds a script from its preset and runs the file chosen on its row", async ()
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, ".choiceEmptyActions .qaNewChoiceBtn");
+	await clickWhenStill(obsidian, ".qaFirstRun .qaNewChoiceBtn");
 	await waitForElement(obsidian, ".menu .menu-item");
 	await obsidian.dev.evalJson(`(() => {
 		const item = [...document.querySelectorAll(".menu .menu-item")]

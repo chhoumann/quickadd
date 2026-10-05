@@ -51,7 +51,13 @@ it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host 
 });
 
 it("opens the New choice menu under its button", async () => {
-	const { obsidian } = getContext();
+	const { obsidian, plugin } = getContext();
+	// The list's bottom bar: the empty state's button sits low enough that
+	// Obsidian flips the menu above it, which is Obsidian's rule, not this one.
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
+		data.choices = [new CaptureChoice("Layout capture")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
 		await waitForElement(obsidian, ".qaNewChoiceBtn");
