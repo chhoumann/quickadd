@@ -518,7 +518,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 			)()`), AUTOSAVE_POLL).toBe(1);
 			for (const position of ["after", "property", "top"]) {
 				expect(await withLatestCaptureBuilder<boolean>(`(() => {
-					const row = [...builder.querySelectorAll(".setting-item")].find(el => el.querySelector(".setting-item-name")?.textContent === "Write position");
+					const row = [...builder.querySelectorAll(".setting-item")].find(el => el.querySelector(".setting-item-name")?.textContent === "Position");
 					const select = row?.querySelector("select");
 					if (!(select instanceof HTMLSelectElement)) return false;
 					select.value = ${JSON.stringify(position)};

@@ -153,7 +153,7 @@ function validateCaptureTo(value: string) {
 
 {#if !choice.captureToActiveFile}
 	<LabeledField
-		name="Capture to"
+		name="Where"
 		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
 	>
 		{#snippet control()}

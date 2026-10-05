@@ -51,6 +51,8 @@ it("shows an action in the ribbon from its settings, and the icon runs it after 
 
 	await openSettings();
 	await clickWhenStill(obsidian, '[aria-label="Configure Ribbon log"]');
+	// A new capture keeps the setting under More settings.
+	await clickWhenStill(obsidian, '.qa-builder-page .qaMoreSettings button[aria-label="More settings"][aria-expanded="false"]');
 	await clickWhenStill(obsidian, '.qa-builder-page [role="switch"][aria-label="Show in ribbon"]');
 	await leaveSettingsPage(obsidian);
 	await obsidian.dev.evalJson("app.setting.close(), true");

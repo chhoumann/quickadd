@@ -27,13 +27,16 @@ async function openBuilder(name: string, builderClass: string) {
 	), POLL_OPTS).toBe(true);
 }
 
-/** The field under a labelled row, and whether the row still has a toggle. */
+/**
+ * The field under a labelled row, and whether the row still has a toggle that
+ * turns the field on. The Capture format's row has the Task toggle, which is not one.
+ */
 function field(builderClass: string, label: string) {
 	return getContext().obsidian.dev.evalJson<{ value: string; hasToggle: boolean } | null>(`(() => {
 		const row = [...document.querySelectorAll(".${builderClass} .qa-field")]
 			.find(el => el.querySelector(".setting-item-name")?.textContent === ${JSON.stringify(label)});
-		const input = row?.querySelector("input, textarea");
-		return input ? { value: input.value, hasToggle: Boolean(row.querySelector(".checkbox-container")) } : null;
+		const input = row?.querySelector(".qa-field-body input, .qa-field-body textarea");
+		return input ? { value: input.value, hasToggle: Boolean(row.querySelector('.checkbox-container:not([aria-label="Task"])')) } : null;
 	})()`);
 }
 
@@ -65,7 +68,7 @@ it("writes the value on its own until a Capture format is typed", async () => {
 		await expect.poll(() => sandbox.read("Inbox.md"), POLL_OPTS).toContain("plain");
 
 		await openBuilder(choice.name, "captureChoiceBuilder");
-		expect(await field("captureChoiceBuilder", "Capture format")).toEqual({ value: "", hasToggle: false });
+		expect(await field("captureChoiceBuilder", "What")).toEqual({ value: "", hasToggle: false });
 		await typeInto(obsidian, ".captureChoiceBuilder .qa-field textarea", "- {{VALUE}}");
 		await leaveBuilder("captureChoiceBuilder");
 

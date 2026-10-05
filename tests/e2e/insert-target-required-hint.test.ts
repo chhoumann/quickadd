@@ -23,7 +23,7 @@ function field(placeholder: string) {
 async function pickWritePosition(value: "after" | "before") {
 	await getContext().obsidian.dev.evalJson(`(() => {
 		const row = [...document.querySelectorAll(".captureChoiceBuilder .setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Write position");
+			.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Position");
 		const select = row.querySelector("select");
 		select.value = ${JSON.stringify(value)};
 		select.dispatchEvent(new Event("change", { bubbles: true }));

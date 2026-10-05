@@ -16,11 +16,11 @@ function inBuilder<T>(expression: string): Promise<T> {
 		const builder = [...document.querySelectorAll(".captureChoiceBuilder")]
 			.filter(el => el.getClientRects().length > 0).at(-1);
 		if (!builder) throw new Error("Capture builder not open");
-		// The control just before the format box.
-		const row = [...builder.querySelectorAll(".setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent === "One entry per line");
-		const toggle = row?.querySelector(".checkbox-container");
+		// The control on the row before the format box's, and the Task toggle on the box's own row.
+		const position = [...builder.querySelectorAll(".setting-item")]
+			.find(el => el.querySelector(".setting-item-name")?.textContent === "Position")?.querySelector("select");
 		const format = builder.querySelector("textarea");
+		const task = format?.closest(".setting-item")?.querySelector('[aria-label="Task"]');
 		return (${expression});
 	})()`);
 }
@@ -56,11 +56,13 @@ it("indents the Capture format on Tab without trapping keyboard navigation", asy
 		})()`);
 		await expect.poll(() => inBuilder<boolean>("Boolean(format)"), POLL_OPTS).toBe(true);
 
-		// Tabbing through the page stops at the box's row, then the box, then
-		// moves on, unedited: the settings window's own Tab order.
-		await inBuilder("(toggle.focus(), true)");
+		// Tabbing through the page stops at the box's row, its Task toggle, then
+		// the box, then moves on, unedited: the settings window's own Tab order.
+		await inBuilder("(position.focus(), true)");
 		await pressTab();
 		expect(await inBuilder<boolean>("document.activeElement === format.closest('.setting-item')")).toBe(true);
+		await pressTab();
+		expect(await inBuilder<boolean>("document.activeElement === task")).toBe(true);
 		await pressTab();
 		expect(await focusIsFormat()).toBe(true);
 		await pressTab();
@@ -81,10 +83,13 @@ it("indents the Capture format on Tab without trapping keyboard navigation", asy
 		await obsidian.exec("dev:cdp", { method: "Input.insertText", params: JSON.stringify({ text: "- detail" }) });
 		expect(await formatValue()).toBe(`${FORMAT}\t- detail`);
 
-		// Shift+Tab still leaves the box.
+		// Shift+Tab still leaves the box, back to the Task toggle.
 		await pressTab(true);
-		expect(await focusIsFormat()).toBe(false);
+		expect(await inBuilder<boolean>("document.activeElement === task")).toBe(true);
 
+		// Escape goes from the toggle to its row, then leaves the page, which saves.
+		await pressKey(obsidian, "Escape");
+		expect(await inBuilder<boolean>("document.activeElement === format.closest('.setting-item')")).toBe(true);
 		await pressKey(obsidian, "Escape");
 		await expect.poll(() => obsidian.dev.evalJson<string | undefined>(
 			`app.plugins.plugins.quickadd.settings.choices.find(c => c.id === ${JSON.stringify(choice.id)})?.format.format`,

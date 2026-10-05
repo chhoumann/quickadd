@@ -134,7 +134,7 @@ const showCanvasNotice = $derived.by(() => {
 </script>
 
 <SettingItem
-	name="Write position"
+	name="Position"
 	desc={isActiveFile
 		? "Where to place the capture in the current file."
 		: "Where to place the capture in the target file."}
