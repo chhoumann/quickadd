@@ -11,6 +11,8 @@
  *
  *   pnpm run packages:build          # write every package, drop outputs with no manifest
  *   pnpm run packages:build <id>...  # write only the named packages
+ *
+ * Writing also regenerates the plugin's recipe catalogue (scripts/build-recipes.mjs).
  *   pnpm run packages:build --check  # exit 1 when a committed package is stale
  *
  * `tests/examplePackages.test.ts` runs the same check in CI and additionally
@@ -19,6 +21,7 @@
 import { readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeRecipeCatalog } from "../../scripts/build-recipes.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const PACKAGES_DIR = here;
@@ -223,11 +226,14 @@ function main() {
 		writeFileSync(outputPath(id), buildPackageJson(id));
 		console.log(`wrote ${path.relative(process.cwd(), outputPath(id))}`);
 	}
-	if (requested.length > 0) return;
-	for (const id of orphanOutputIds()) {
-		rmSync(outputPath(id));
-		console.log(`removed ${path.relative(process.cwd(), outputPath(id))}`);
+	if (requested.length === 0) {
+		for (const id of orphanOutputIds()) {
+			rmSync(outputPath(id));
+			console.log(`removed ${path.relative(process.cwd(), outputPath(id))}`);
+		}
 	}
+	// The plugin bundles the packages as its recipe catalogue.
+	writeRecipeCatalog();
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

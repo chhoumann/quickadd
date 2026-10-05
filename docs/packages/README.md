@@ -9,6 +9,7 @@ docs/packages/<id>/package.json     manifest (hand-authored, committed)
 docs/packages/<id>/files/*.md       templates the package bundles (optional)
 docs/public/scripts/*.js            user scripts the package bundles
 docs/public/packages/<id>.quickadd.json   built package (generated, committed)
+src/gui/recipes/catalog.generated.json    every package, as the plugin's Recipes gallery (generated, committed)
 ```
 
 A page offers its package by setting `package: <id>` in its frontmatter. The
@@ -53,9 +54,11 @@ script's `settings` object and tell the reader where to paste it in
    manifest: `../../public/scripts/<name>.js` for scripts, `files/<name>.md`
    for templates.
 4. Add the `install` block and set `package: <id>` on the docs page.
-5. Run `pnpm run packages:build` and commit the generated file.
+5. Run `pnpm run packages:build` and commit the generated files: the package
+   and the recipe catalogue, which takes each recipe's title, description and
+   slug from the page's frontmatter.
 
 `pnpm run test` (the root Vitest suite, run on every PR) fails when a built
-package is stale, when a choice's shape drifts from what the plugin stores,
+package or the recipe catalogue is stale, when a choice's shape drifts from what the plugin stores,
 when a package references a file it does not bundle, when a secret value is
 present, or when a page and a manifest do not match one to one.
