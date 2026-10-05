@@ -565,8 +565,8 @@ it*. The list follows the settings as you change them.
 - **Wait** - a pause of 100 ms.
 
 Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
-QuickAdd saves the template choice, makes it the macro's first step as a
-**Nested Choice**, adds the new step after it, and opens the Macro builder. The
+QuickAdd saves the template choice, makes it the macro's first step, adds the
+new step after it, and opens the macro builder. The
 choice keeps its name, its command, and its hotkey. To change the template
 choice's settings later, use the gear on its step in the macro.
 

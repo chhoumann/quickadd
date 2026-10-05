@@ -68,13 +68,13 @@ in the script picker.
 - Any path within a folder starting with a dot (.)
 :::
 
-In the Macro Builder, **Browse** opens QuickAdd's picker of discovered scripts
-(both `.js` files and notes that contain a code block); it is not a native file
-picker. If you add a script manually, type a `.js` script's basename - for
-`scripts/my-script.js`, enter `my-script` (or its vault path, if another `.js`
-file shares that name) - or, for a note, type its vault path
-(e.g. `Scripts/my-script.md`). For a specific export, append a member expression
-such as `my-script::start` (or `Scripts/my-script.md::start`).
+In the macro builder, **Add a step** → **Run a script** opens QuickAdd's picker
+of discovered scripts (both `.js` files and notes that contain a code block); it
+is not a native file picker. For a specific export, type the script with a
+member expression and press Enter: a `.js` script's basename such as
+`my-script::start` for `scripts/my-script.js` (or its vault path, if another
+`.js` file shares that name), or a note's vault path such as
+`Scripts/my-script.md::start`.
 
 ### The script step {#script-step}
 

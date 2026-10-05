@@ -182,7 +182,7 @@ fixed notes, compose Capture choices with a [Macro](/docs/Choices/MacroChoice/):
 
 1. Create one Capture choice per destination.
 2. Give each the same named value, for example `- {{VALUE:entry}}`.
-3. Create a Macro and add each Capture choice as a **Nested Choice** command.
+3. Create a Macro and add each Capture choice with **Add a step** → **Run a choice**.
 4. Run the Macro: QuickAdd prompts for `entry` once and reuses the answer.
 
 | Choice | Where | Format |
@@ -677,8 +677,8 @@ list follows the settings as you change them.
 - **Wait** - a pause of 100 ms.
 
 Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
-QuickAdd saves the capture, makes it the macro's first step as a **Nested
-Choice**, adds the new step after it, and opens the Macro builder. The choice
+QuickAdd saves the capture, makes it the macro's first step, adds the new
+step after it, and opens the macro builder. The choice
 keeps its name, its command, and its hotkey. To change the capture's settings
 later, use the gear on its step in the macro.
 
