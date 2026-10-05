@@ -39,6 +39,19 @@ import { getFileTokenFiles } from "src/utils/vaultQueries";
 export type { FieldRequirement, FieldGroup } from "./fieldRequirements";
 import type { FieldType, FieldRequirement } from "./fieldRequirements";
 
+const OPTION_LIST_LABEL_MAX = 30;
+
+/** "happy / sad"; whole options only, then "…" once past the limit. */
+function optionListLabel(options: string[]): string {
+	let label = options[0];
+	for (const option of options.slice(1)) {
+		const next = `${label} / ${option}`;
+		if (next.length > OPTION_LIST_LABEL_MAX) return `${label}…`;
+		label = next;
+	}
+	return label;
+}
+
 /**
  * RequirementCollector walks through strings that may contain QuickAdd format
  * syntax and records inputs we'd otherwise prompt for at runtime. It never
@@ -270,7 +283,13 @@ export class RequirementCollector extends Formatter {
 
 			if (!variableName) continue;
 
-			const displayLabel = label ?? variableName;
+			// An option list's spec ("happy,sad") is its id, not a readable label.
+			const displayLabel =
+				label ??
+				(hasOptions
+					? (parsed.aliasName ??
+						optionListLabel(displayValues ?? parsed.suggestedValues))
+					: variableName);
 			const requirementId = variableKey;
 
 			// A VDATE with this name asks first at run time, which matches names

@@ -574,8 +574,9 @@ These options work on text prompts and pickers alike. Combine them freely:
 project?" instead of "project", in the prompt and in the
 [one-page input form](/docs/Advanced/onePageInputs/). The name is still the
 variable, so `{{VALUE:project}}` reuses the answer. On an option list, the
-label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`. An
-unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
+label titles the picker: `{{VALUE:Red,Green,Blue|label:Pick a color}}`.
+Without one, the one-page form titles it by its `|name:` or else its options,
+such as "Red / Green / Blue". An unnamed `{{VALUE|label:What's the order?}}` also shows its label in the
 builder's preview.
 
 Before QuickAdd 2.30.0, a named prompt kept its name as the title and showed

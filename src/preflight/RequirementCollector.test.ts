@@ -53,6 +53,48 @@ describe("RequirementCollector", () => {
     expect(byId[variableKey].type).toBe("dropdown");
   });
 
+  describe("option-list labels", () => {
+    const labelOf = async (format: string, id: string) => {
+      const rc = createCollector();
+      await rc.scanString(format);
+      return rc.requirements.get(id)?.label;
+    };
+
+    it("labels an anonymous list by its options, keeping the spec as id", async () => {
+      expect(await labelOf("{{VALUE:happy,sad}}", "happy,sad")).toBe("happy / sad");
+      expect(
+        await labelOf("{{VALUE:alpha,beta,gamma|multi}}", "alpha,beta,gamma"),
+      ).toBe("alpha / beta / gamma");
+    });
+
+    it("labels a list by its |text: entries when it has them", async () => {
+      expect(
+        await labelOf("{{VALUE:lo,hi|text:Low,High}}", "lo,hi"),
+      ).toBe("Low / High");
+    });
+
+    it("cuts a long list at a whole option", async () => {
+      expect(
+        await labelOf(
+          "{{VALUE:Monday,Tuesday,Wednesday,Thursday,Friday}}",
+          "Monday,Tuesday,Wednesday,Thursday,Friday",
+        ),
+      ).toBe("Monday / Tuesday / Wednesday…");
+    });
+
+    it("labels a named list by its |name:", async () => {
+      expect(await labelOf("{{VALUE:work,home|name:category}}", "category")).toBe(
+        "category",
+      );
+    });
+
+    it("prefers |label: over |name:", async () => {
+      expect(
+        await labelOf("{{VALUE:work,home|name:category|label:Area}}", "category"),
+      ).toBe("Area");
+    });
+  });
+
   describe("field order (#1876)", () => {
     it("lists fields in the order the format reads, not by token type", async () => {
       const rc = createCollector();
