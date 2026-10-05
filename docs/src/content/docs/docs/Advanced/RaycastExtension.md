@@ -15,16 +15,16 @@ The extension is not in the Raycast Store yet, so install it from source.
 
 1. In Obsidian, turn on **Settings → General → Command line interface**, then
    restart Obsidian.
-2. Clone the extension and start it. You need Node.js and pnpm.
+2. Clone the extension and start it. You need Node.js and npm.
 
    ```bash
    git clone https://github.com/chhoumann/raycast-quickadd
    cd raycast-quickadd
-   pnpm install
-   pnpm dev
+   npm install
+   npm run dev
    ```
 
-   `pnpm dev` builds the extension and adds it to Raycast. Leave it running
+   `npm run dev` builds the extension and adds it to Raycast. Leave it running
    while you use the extension.
 
 3. In Raycast, search for **Run QuickAdd Choice**.
@@ -173,4 +173,4 @@ could reach the wrong one. Rename one of the folders.
   than `{{VALUE}}`. Pick a choice that runs without prompts, or run it from
   **Run QuickAdd Choice**, which shows the prompts.
 - **"Update the extension"**: QuickAdd sent a prompt type this version of the
-  extension does not know. Pull the latest source and run `pnpm dev` again.
+  extension does not know. Pull the latest source and run `npm run dev` again.
