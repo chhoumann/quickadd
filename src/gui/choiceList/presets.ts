@@ -125,7 +125,7 @@ export const PRESETS: Preset[] = [
 	{
 		id: "addToNote",
 		group: "add",
-		label: "Add to a note",
+		label: "Add to a note you pick",
 		description: "Pick the note each time, write at the bottom.",
 		iconId: "pencil",
 		name: "Add to note",

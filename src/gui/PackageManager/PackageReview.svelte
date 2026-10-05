@@ -217,12 +217,14 @@
 	// Said beside the button, since what blocks it is usually scrolled out of view.
 	const blockedReason = $derived.by(() => {
 		if (!loadedPackage || !analysis || isAnalyzing || hasImported) return "";
+		// Named after the button it sits beside: "Import package" or "Add recipe".
+		const verb = importLabel.split(" ")[0]?.toLowerCase() ?? "import";
 		if (requiresAck && !fullyReviewed)
-			return `View ${unreviewedCount} script${unreviewedCount === 1 ? "" : "s"} above to import.`;
+			return `View ${unreviewedCount} script${unreviewedCount === 1 ? "" : "s"} above to ${verb}.`;
 		if (requiresAck && !acknowledged)
-			return "Confirm the acknowledgement above to import.";
+			return `Confirm the acknowledgement above to ${verb}.`;
 		if (fileRows.some((row) => row.destinationIsFolder))
-			return "A destination above is a folder. Add a file name to import.";
+			return `A destination above is a folder. Add a file name to ${verb}.`;
 		return "";
 	});
 

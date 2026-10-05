@@ -16,7 +16,7 @@ settings so you can adjust it. The menu groups the presets by outcome:
 | --- | --- | --- |
 | **Log with a timestamp** | Capture | Adds `- {{TIME}} {{VALUE}}` under `## Log` in today's daily note. Creates the note and the heading if they are missing. |
 | **Add a task** | Capture | Adds a task under `## Tasks` in today's daily note. Creates the note and the heading if they are missing. |
-| **Add to a note** | Capture | Asks which note each time and writes at the bottom of it. |
+| **Add to a note you pick** | Capture | Asks which note each time and writes at the bottom of it. |
 | **Save the selection or clipboard** | Capture | Asks which note each time and writes the text you have selected at the bottom of it. With nothing selected, it asks for the text, so paste what you copied. |
 | **Fill in a property** | Capture | Asks which property of the note you are in to set, then for its value. Adds the property if the note does not have it. |
 
@@ -96,6 +96,6 @@ quieter **New choice** and **New folder** buttons start from scratch.
 Every choice shows one line under its name that says what it does, for
 example *Adds a line under ## Log in today's daily note*. The line appears in
 the settings list and in the launcher. Placeholders appear as short names in
-braces, so an **Add to a note** choice that captures to `Journal/{{DATE}}.md`
+braces, so an **Add to a note you pick** choice that captures to `Journal/{{DATE}}.md`
 reads *Adds a line at the bottom of Journal/{date}*.
 A folder shows how many choices it holds instead.
