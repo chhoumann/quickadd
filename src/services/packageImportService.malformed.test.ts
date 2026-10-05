@@ -265,4 +265,36 @@ describe("package import over a malformed macro (#1593)", () => {
 		// import completed rather than aborting on the deref.
 		expect(imported.choices?.map((c) => c.id)).toEqual(["kid-1"]);
 	});
+
+	it("refuses to write over a file that appeared after a write was decided for an empty path", async () => {
+		const existing = new Set(["Templates/T.md"]);
+		const writes: string[] = [];
+		const vaultApp = {
+			vault: {
+				adapter: {
+					exists: async (path: string) => existing.has(path),
+					read: async () => "",
+					stat: async (path: string) => (existing.has(path) ? { type: "file" } : null),
+					write: async (path: string) => { writes.push(path); },
+				},
+				configDir: ".obsidian",
+				createFolder: async () => {},
+			},
+		} as never;
+		await expect(applyPackageImport({
+			app: vaultApp,
+			existingChoices: [],
+			pkg: {
+				schemaVersion: QUICKADD_PACKAGE_SCHEMA_VERSION,
+				quickAddVersion: "3.0.0",
+				createdAt: "2026-10-05T00:00:00.000Z",
+				rootChoiceIds: [],
+				choices: [],
+				assets: [{ kind: "template", originalPath: "T.md", contentEncoding: "base64", content: "" }],
+			} as never,
+			choiceDecisions: [],
+			assetDecisions: [{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "write" }],
+		})).rejects.toThrow("was created since it was reviewed");
+		expect(writes).toEqual([]);
+	});
 });

@@ -72,11 +72,38 @@ export async function importPackage(options: {
 	assetDecisions: AssetImportDecision[];
 }): Promise<{ result: ApplyImportResult; previousChoices: IChoice[] }> {
 	const previousChoices = settingsStore.getState().choices;
-	const result = await applyPackageImport({
+	let existingChoices = previousChoices;
+	let assetDecisions = options.assetDecisions;
+	let result = await applyPackageImport({
 		...options,
-		existingChoices: previousChoices,
+		existingChoices,
 		aiProviders: settingsStore.getState().ai.providers,
 	});
+	// The choices may have changed while the files were written (a save from
+	// another device, an edit in the list). The merge is redone on what the
+	// store holds now, with the files already on disk kept as they are, until
+	// the choices it was computed from are the ones being replaced.
+	for (let attempt = 0; settingsStore.getState().choices !== existingChoices; attempt++) {
+		if (attempt === 3) throw new Error("The choices kept changing while the package was imported. Nothing was imported; try again.");
+		existingChoices = settingsStore.getState().choices;
+		assetDecisions = keptOnDisk(options.pkg, assetDecisions);
+		result = await applyPackageImport({
+			...options,
+			assetDecisions,
+			existingChoices,
+			aiProviders: settingsStore.getState().ai.providers,
+		});
+	}
 	settingsStore.setState((state) => ({ ...state, choices: result.updatedChoices }));
 	return { result, previousChoices };
+}
+
+/** The decisions with every file kept where the first pass put it. */
+function keptOnDisk(pkg: QuickAddPackage, decisions: AssetImportDecision[]): AssetImportDecision[] {
+	const decided = new Map(decisions.map((decision) => [decision.originalPath, decision]));
+	return pkg.assets.map((asset) => ({
+		originalPath: asset.originalPath,
+		destinationPath: decided.get(asset.originalPath)?.destinationPath ?? asset.originalPath,
+		mode: "skip",
+	}));
 }

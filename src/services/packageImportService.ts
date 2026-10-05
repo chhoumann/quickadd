@@ -571,6 +571,13 @@ export async function applyPackageImport(
 			skippedAssets.push(destinationPath);
 			continue;
 		}
+		// A "write" was decided for a path that had nothing; a file there now
+		// was never reviewed, so it is not replaced on the strength of that.
+		if (decision?.mode === "write" && exists) {
+			throw new Error(
+				`Refusing to import: "${destinationPath}" was created since it was reviewed. Import again to review it.`,
+			);
+		}
 		if (exists && (await app.vault.adapter.stat(destinationPath))?.type === "folder") {
 			throw new Error(
 				`Refusing to import: "${destinationPath}" is a folder. Choose a file path for "${asset.originalPath}".`,
