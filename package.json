@@ -52,7 +52,7 @@
 	"dependencies": {
 		"chrono-node": "^2.10.1",
 		"fuse.js": "7",
-		"svelte-dnd-action": "0.9.79",
+		"svelte-dnd-action": "0.9.80",
 		"three-way-merge": "^0.1.0",
 		"zustand": "^5.0.15"
 	},
@@ -71,9 +71,6 @@
 		"overrides": {
 			"brace-expansion": "5.0.9",
 			"postcss": "8.5.25"
-		},
-		"patchedDependencies": {
-			"svelte-dnd-action@0.9.79": "patches/svelte-dnd-action@0.9.79.patch"
 		}
 	}
 }

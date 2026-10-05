@@ -8,11 +8,6 @@ overrides:
   brace-expansion: 5.0.9
   postcss: 8.5.25
 
-patchedDependencies:
-  svelte-dnd-action@0.9.79:
-    hash: bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f
-    path: patches/svelte-dnd-action@0.9.79.patch
-
 importers:
 
   .:
@@ -24,8 +19,8 @@ importers:
         specifier: '7'
         version: 7.5.0
       svelte-dnd-action:
-        specifier: 0.9.79
-        version: 0.9.79(patch_hash=bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f)(svelte@5.57.0(@typescript-eslint/types@8.70.0))
+        specifier: 0.9.80
+        version: 0.9.80(svelte@5.57.0(@typescript-eslint/types@8.70.0))
       three-way-merge:
         specifier: ^0.1.0
         version: 0.1.0
@@ -1880,8 +1875,8 @@ packages:
       svelte: ^4.0.0 || ^5.0.0-next.0
       typescript: ^5.0.0 || ^6.0.0
 
-  svelte-dnd-action@0.9.79:
-    resolution: {integrity: sha512-zCKaG1Q9hVgfJFyZXhY+uIpo9+cjsG03CqwNz8yBlWCRBphC8U2zli9FzIcrL4rhXEs8yV+asS4rV0RHDuQqQQ==}
+  svelte-dnd-action@0.9.80:
+    resolution: {integrity: sha512-GweBRVBMp0F3T/e3O8EZoukRbbi+NhYlOghn5cE69CFmkDH1AuY0P/FklTlQxAfWw+SUkSm+iZyvYaRljgKUOA==}
     peerDependencies:
       svelte: '>=3.23.0 || ^5.0.0-next.0'
 
@@ -3638,7 +3633,7 @@ snapshots:
     transitivePeerDependencies:
       - picomatch
 
-  svelte-dnd-action@0.9.79(patch_hash=bf197fcb7e108ea2eb73e1e2fb425297dbe2af136ada4d515964d300867abd1f)(svelte@5.57.0(@typescript-eslint/types@8.70.0)):
+  svelte-dnd-action@0.9.80(svelte@5.57.0(@typescript-eslint/types@8.70.0)):
     dependencies:
       svelte: 5.57.0(@typescript-eslint/types@8.70.0)
 

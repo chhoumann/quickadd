@@ -1,14 +1,15 @@
 /**
- * Regression coverage for patches/svelte-dnd-action@0.9.79.patch (issue #1730).
+ * Regression coverage for issue #1730, fixed upstream in svelte-dnd-action
+ * 0.9.80 (isaacHagoel/svelte-dnd-action#708).
  *
  * Obsidian 1.13 can show Settings in a popout window while the main window is
- * hidden. The drop zone then lives in a second document, but svelte-dnd-action
- * keeps using the module-global `window`/`document` (the main window):
- *  - the rAF that re-arms observation after Svelte removes the dragged item is
+ * hidden. The drop zone then lives in a second document. Before 0.9.80 the
+ * library used the module-global `window`/`document` (the main window):
+ *  - the rAF that re-arms observation after Svelte removes the dragged item was
  *    scheduled on the hidden main window, whose frames never fire, so the list
- *    never reorders;
- *  - the off-document check measures the clone against the main document, so a
- *    drag positioned below the main window's height is finalized immediately.
+ *    never reordered;
+ *  - the off-document check measured the clone against the main document, so a
+ *    drag positioned below the main window's height was finalized immediately.
  *
  * A jsdom iframe stands in for the popout: separate Window, separate Document,
  * own requestAnimationFrame. The main window's rAF is stubbed to never fire.
@@ -61,9 +62,9 @@ function setScrollHeight(doc: Document, value: number): void {
 	});
 }
 
-function mouseMoveOnMainWindow(x: number, y: number): void {
-	window.dispatchEvent(
-		new MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y }),
+function mouseMoveInPopout(x: number, y: number): void {
+	popoutWindow.dispatchEvent(
+		new popoutWindow.MouseEvent("mousemove", { bubbles: true, clientX: x, clientY: y }),
 	);
 }
 
@@ -77,7 +78,7 @@ function startDragOnFirstItem(): void {
 			clientY: ITEM_HEIGHT / 2,
 		}),
 	);
-	mouseMoveOnMainWindow(CURSOR.x, CURSOR.y);
+	mouseMoveInPopout(CURSOR.x, CURSOR.y);
 }
 
 function svelteRemovesDraggedItem(): void {
@@ -110,10 +111,10 @@ beforeEach(() => {
 	};
 	setScrollHeight(document, MAIN_DOCUMENT_HEIGHT);
 	setScrollHeight(popoutDocument, POPOUT_DOCUMENT_HEIGHT);
-	// jsdom has no document.scrollingElement; the library reads it while
-	// building its auto-scroller.
-	Object.defineProperty(document, "scrollingElement", {
-		value: document.documentElement,
+	// jsdom has no document.scrollingElement; the library reads the zone
+	// document's while building its auto-scroller.
+	Object.defineProperty(popoutDocument, "scrollingElement", {
+		value: popoutDocument.documentElement,
 		configurable: true,
 	});
 
@@ -144,7 +145,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+	popoutWindow.dispatchEvent(new popoutWindow.MouseEvent("mouseup", { bubbles: true }));
 	action.destroy?.();
 	frame.remove();
 	vi.restoreAllMocks();
