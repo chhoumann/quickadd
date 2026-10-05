@@ -1,4 +1,5 @@
 import type { Action, ActionNode, AddToNoteStep, CreateNoteStep, LinkStep, Step } from "./model";
+import { getOperatorLabel } from "../utils/conditionalHelpers";
 import { RUN_NOTE } from "./model";
 
 /**
@@ -14,6 +15,11 @@ export function summarize(action: Action, nameOf: (id: string) => string | undef
 /** What one step does, as a line of its own: "Opens it". */
 export function describeStepLine(step: Step, nameOf: (id: string) => string | undefined = () => undefined): string {
 	return capitalize(describeStep(step, nameOf));
+}
+
+/** What a few steps do, as one line: "Adds a line at the bottom of Inbox, opens it". */
+export function describeStepsLine(steps: Step[], nameOf: (id: string) => string | undefined = () => undefined): string {
+	return capitalize(describeSteps(steps, nameOf));
 }
 
 function capitalize(line: string): string {
@@ -46,7 +52,7 @@ function describeStep(step: Step, nameOf: (id: string) => string | undefined): s
 			return `asks AI${step.outputVariableName ? ` for {${step.outputVariableName}}` : ""}`;
 		case "if": {
 			const condition = step.condition.mode === "variable"
-				? `${step.condition.variableName} ${step.condition.operator}${step.condition.expectedValue ? ` ${step.condition.expectedValue}` : ""}`
+				? `${step.condition.variableName || "(missing variable)"} ${getOperatorLabel(step.condition.operator)}${step.condition.expectedValue ? ` ${step.condition.expectedValue}` : ""}`
 				: `${basename(step.condition.scriptPath)} says so`;
 			const otherwise = step.elseSteps.length > 0 ? `, otherwise ${describeSteps(step.elseSteps, nameOf)}` : "";
 			return `if ${condition} then ${describeSteps(step.thenSteps, nameOf) || "nothing"}${otherwise}`;

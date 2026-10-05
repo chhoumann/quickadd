@@ -158,7 +158,7 @@ export function getConditionSummary(
 		: describeScriptCondition(condition);
 }
 
-function getOperatorLabel(operator: ConditionalOperator): string {
+export function getOperatorLabel(operator: ConditionalOperator): string {
 	switch (operator) {
 		case "equals":
 			return "equals";

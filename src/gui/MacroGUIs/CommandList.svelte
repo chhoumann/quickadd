@@ -35,6 +35,8 @@ import ConditionalCommand from "./Components/ConditionalCommand.svelte";
 import type { IWaitCommand } from "../../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
+import { settingsStore } from "../../settingsStore";
+import { describeCommand } from "../../v3/choiceSummary";
 
 let {
 	commands = $bindable([]),
@@ -117,6 +119,11 @@ const asUserScript = (c: ICommand) => c as IUserScript;
 const asAI = (c: ICommand) => c as IAIAssistantCommand;
 const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
 const asConditional = (c: ICommand) => c as IConditionalCommand;
+
+/** What the step does, under its name. Read in the template, so it follows edits. */
+function lineOf(command: ICommand): string | null {
+	return describeCommand(command, settingsStore.getState().choices);
+}
 
 /** Persist the current order/content to the host (plain, non-proxy snapshot). */
 function persist() {
@@ -334,6 +341,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
+				line={lineOf(command)}
 				command={asNested(command)}
 				{dragDisabled}
 				{startDrag}
@@ -344,6 +352,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
+				line={lineOf(command)}
 				command={asUserScript(command)}
 				{dragDisabled}
 				{startDrag}
@@ -356,6 +365,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
+				line={lineOf(command)}
 				command={asAI(command)}
 				{dragDisabled}
 				{startDrag}
@@ -366,6 +376,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
+				line={lineOf(command)}
 				command={asOpenFile(command)}
 				{dragDisabled}
 				{startDrag}
@@ -376,6 +387,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
+				line={lineOf(command)}
 				command={asConditional(command)}
 				{dragDisabled}
 				{startDrag}
@@ -388,6 +400,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else}
 			<StandardCommand
+				line={lineOf(command)}
 				{command}
 				{dragDisabled}
 				{startDrag}

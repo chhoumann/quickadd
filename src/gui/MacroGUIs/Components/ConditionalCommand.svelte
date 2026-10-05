@@ -3,10 +3,11 @@
 	import DragHandle from "../../components/DragHandle.svelte";
 	import type { IConditionalCommand } from "../../../types/macros/Conditional/IConditionalCommand";
 	import { getConditionSummary } from "../../../utils/conditionalHelpers";
-	import { commandListOf } from "../../../utils/macroUtils";
+	import StepRowText from "./StepRowText.svelte";
 
 	let {
 		command,
+		line,
 		startDrag,
 		dragDisabled,
 		onDeleteCommand,
@@ -17,6 +18,7 @@
 		onMoveDown,
 	}: {
 		command: IConditionalCommand;
+		line: string | null;
 		startDrag: () => void;
 		dragDisabled: boolean;
 		onDeleteCommand: (commandId: string) => void;
@@ -28,22 +30,10 @@
 	} = $props();
 
 	const summary = $derived(getConditionSummary(command.condition));
-	// `?.length ?? 0` reads a LENGTH off whatever is there: a branch saved as
-	// "not a list" rendered "Then: 10" (its character count) and an
-	// array-turned-object rendered "Then: 0" as if the branch were empty. Count
-	// only what is actually a list of commands (#1593).
-	const thenCount = $derived(commandListOf(command.thenCommands).length);
-	const elseCount = $derived(commandListOf(command.elseCommands).length);
 </script>
 
-<li class="quickAddCommandListItem conditionalCommand">
-	<div class="quickAddCommandLabel">
-		<div class="conditionalSummary">{summary}</div>
-		<div class="conditionalBranches">
-			<span>Then: {thenCount}</span>
-			<span>Else: {elseCount}</span>
-		</div>
-	</div>
+<li class="quickAddCommandListItem">
+	<StepRowText name={summary} {line} />
 	<div class="quickAddCommandControls">
 		<IconButton
 			iconId="settings"
@@ -79,20 +69,3 @@
 	</div>
 </li>
 
-<style>
-	.conditionalCommand {
-		flex-wrap: wrap;
-	}
-
-	.conditionalSummary {
-		font-weight: 600;
-		margin-bottom: 4px;
-	}
-
-	.conditionalBranches {
-		display: flex;
-		gap: 12px;
-		font-size: 0.9em;
-		opacity: 0.8;
-	}
-</style>

@@ -1,10 +1,12 @@
 <script lang="ts">
     import IconButton from "../../components/IconButton.svelte";
     import DragHandle from "../../components/DragHandle.svelte";
+    import StepRowText from "./StepRowText.svelte";
     import type {INestedChoiceCommand} from "../../../types/macros/QuickCommands/INestedChoiceCommand";
 
     let {
         command,
+        line,
         startDrag,
         dragDisabled,
         onDeleteCommand,
@@ -13,6 +15,7 @@
         onMoveDown,
     }: {
         command: INestedChoiceCommand;
+        line: string | null;
         startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
@@ -23,7 +26,7 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel">{command.name}</span>
+    <StepRowText name={command.name} {line} />
     <div class="quickAddCommandControls">
         <IconButton
             iconId="settings"

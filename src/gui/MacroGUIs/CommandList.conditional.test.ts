@@ -96,11 +96,12 @@ describe("CommandList conditional label after an edit", () => {
 		await fireEvent.click(getByLabelText("Edit condition for (missing variable) is truthy"));
 		await tick();
 
-		expect(container.querySelector(".conditionalSummary")?.textContent).toBe("$mood is truthy");
+		expect(container.querySelector(".quickAddCommandLabel")?.textContent).toBe("$mood is truthy");
+		expect(container.querySelector(".quickAddCommandDetail")?.textContent).toBe("If mood is truthy then nothing");
 		expect(getByLabelText("Edit then branch for $mood is truthy")).toBeTruthy();
 	});
 
-	it("shows the new branch count once its page is left", async () => {
+	it("says what the new branch does once its page is left", async () => {
 		const { getByLabelText, container } = renderWith({
 			onEditThenBranch: (command, onEdited) => {
 				command.thenCommands = [new WaitCommand(100)];
@@ -111,6 +112,8 @@ describe("CommandList conditional label after an edit", () => {
 		await fireEvent.click(getByLabelText("Edit then branch for (missing variable) is truthy"));
 		await tick();
 
-		expect(container.querySelector(".conditionalBranches")?.textContent).toContain("Then: 1");
+		expect(container.querySelector(".quickAddCommandDetail")?.textContent).toBe(
+			"If (missing variable) is truthy then waits 100 ms",
+		);
 	});
 });

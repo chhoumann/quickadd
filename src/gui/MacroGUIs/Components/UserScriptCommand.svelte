@@ -8,9 +8,11 @@
     import DragHandle from "../../components/DragHandle.svelte";
     import { stopDragInit } from "../../shared/stopDragInit";
     import type {IUserScript} from "../../../types/macros/IUserScript";
+    import StepRowText from "./StepRowText.svelte";
 
     let {
         command,
+        line,
         fileState,
         startDrag,
         dragDisabled,
@@ -21,6 +23,7 @@
         onMoveDown,
     }: {
         command: IUserScript;
+        line: string | null;
         fileState: ScriptFileState;
         startDrag: () => void;
         dragDisabled: boolean;
@@ -33,10 +36,10 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandText">
-        <span class="quickAddCommandLabel">{command.name}</span>
+    <StepRowText name={command.name}>
         {#if fileState === "ok"}
-            <span class="quickAddCommandDetail" title={command.path}>{command.path}</span>
+            <!-- What it runs, by the file's name; the path is a hover away. -->
+            <span class="quickAddCommandDetail" title={command.path}>{line ?? command.path}</span>
         {:else if fileState === "none"}
             <span class="quickAddCommandDetail">No file chosen</span>
         {:else if fileState === "unusable"}
@@ -44,7 +47,7 @@
         {:else}
             <span class="quickAddCommandDetail is-warning" title={command.path}>Can't find {command.path}</span>
         {/if}
-    </span>
+    </StepRowText>
     <div class="quickAddCommandControls">
         {#if fileState === "ok"}
             <IconButton

@@ -1676,7 +1676,22 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	min-width: 0;
 }
 
-/* A command row with a second line, e.g. a script step's file. */
+/* A step's number, as the compact builders' Steps section numbers its lines. */
+.quickAddCommandList {
+	counter-reset: qa-step;
+}
+
+.quickAddCommandList > .quickAddCommandListItem::before {
+	counter-increment: qa-step;
+	content: counter(qa-step) ".";
+	flex: 0 0 auto;
+	align-self: flex-start;
+	min-width: 1.75em;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A step row's name, and what the step does under it. */
 .quickAddCommandText {
 	display: flex;
 	flex: 1 1 auto;

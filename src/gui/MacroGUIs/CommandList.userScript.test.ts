@@ -57,7 +57,7 @@ describe("CommandList script step file", () => {
 		expect(saveCommands.mock.calls[0][0]).toEqual([
 			expect.objectContaining({ name: "hello", path: "scripts/hello.js" }),
 		]);
-		getByText("scripts/hello.js");
+		expect(getByText("Runs hello.js").title).toBe("scripts/hello.js");
 		getByRole("button", { name: "Configure hello" });
 	});
 
@@ -93,12 +93,13 @@ describe("CommandList script step file", () => {
 		expect(queryByLabelText("Configure notes")).toBeNull();
 	});
 
-	it("shows the file of a step whose file exists, with its settings button", () => {
+	it("says what a step whose file exists runs, with its settings button", () => {
 		const { getByText, getByRole, queryByText } = renderList(
 			new UserScript("hello", "scripts/hello.js"),
 		);
 
-		getByText("scripts/hello.js");
+		// What it runs, with the path a hover away.
+		expect(getByText("Runs hello.js").title).toBe("scripts/hello.js");
 		getByRole("button", { name: "Configure hello" });
 		expect(queryByText("Choose file")).toBeNull();
 	});
@@ -121,7 +122,7 @@ describe("CommandList script step file", () => {
 		});
 		await fireEvent.click(change);
 
-		await findByText("scripts/other.js");
+		expect((await findByText("Runs other.js")).title).toBe("scripts/other.js");
 		getByRole("button", { name: "Configure other" });
 		expect(saveCommands.mock.lastCall?.[0]).toEqual([
 			expect.objectContaining({ name: "other", path: "scripts/other.js" }),
