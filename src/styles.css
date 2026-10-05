@@ -158,10 +158,17 @@
 	padding-top: min(var(--keyboard-height), var(--safe-area-inset-top));
 }
 
-/* Settings pages run under the keyboard, with room to scroll past it, so a
-   builder page's focused field scrolls into view above the keyboard. */
+/* Settings pages run under the keyboard, so a builder page's focused field
+   scrolls into view above it. A page shorter than the screen has no room to
+   scroll, so it gets the keyboard's height of room at its end while it is up. */
 .is-phone .setting-page.qa-builder-page {
 	scroll-padding-bottom: calc(var(--keyboard-height) + var(--size-4-4));
+}
+
+.is-phone .setting-page.qa-builder-page > .setting-page-content::after {
+	content: "";
+	display: block;
+	height: var(--keyboard-height, 0px);
 }
 
 /* On a phone the settings header floats over the page: its background is a
