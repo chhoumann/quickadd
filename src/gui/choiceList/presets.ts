@@ -21,9 +21,13 @@ export interface Preset {
 
 export const FOLDER_NAME = "New folder";
 
-function dailyNoteCapture(name: string, heading: string): CaptureChoice {
+/** Today's daily note, as a capture target. */
+export const DAILY_NOTE = "{{DAILY}}";
+
+/** A capture under `heading` in `target`, which it creates, heading too, when missing. */
+export function headingCapture(name: string, heading: string, target = DAILY_NOTE): CaptureChoice {
 	const choice = new CaptureChoice(name);
-	choice.captureTo = "{{DAILY}}";
+	choice.captureTo = target;
 	choice.createFileIfItDoesntExist = { enabled: true, createWithTemplate: false, template: "" };
 	choice.insertAfter = {
 		...choice.insertAfter,
@@ -36,6 +40,46 @@ function dailyNoteCapture(name: string, heading: string): CaptureChoice {
 	return choice;
 }
 
+/** A timestamped line under `## Log`. */
+export function logCapture(name: string, target = DAILY_NOTE): CaptureChoice {
+	const choice = headingCapture(name, "## Log", target);
+	choice.format = { enabled: true, format: "- {{TIME}} {{VALUE}}" };
+	return choice;
+}
+
+/** A task under `## Tasks`; `dueDate` asks for an optional Tasks-plugin due date. */
+export function taskCapture(name: string, target = DAILY_NOTE, dueDate = false): CaptureChoice {
+	const choice = headingCapture(name, "## Tasks", target);
+	choice.task = true;
+	// The bracketed emoji is part of the date, so a skipped date leaves no 📅.
+	if (dueDate) choice.format = { enabled: true, format: "{{VALUE}} {{VDATE:Due,[📅 ]YYYY-MM-DD|optional}}" };
+	return choice;
+}
+
+/** A line at the bottom of `target`, or of a note picked each run when it is empty. */
+export function bottomCapture(name: string, target = ""): CaptureChoice {
+	const choice = new CaptureChoice(name);
+	// `prepend` is v2's name for writing at the bottom of a note target.
+	choice.prepend = true;
+	if (target) {
+		choice.captureTo = target;
+		choice.createFileIfItDoesntExist = { enabled: true, createWithTemplate: false, template: "" };
+	}
+	return choice;
+}
+
+/** A new note that is linked on a new line where you are, then opened. */
+export function linkedNoteTemplate(name: string): TemplateChoice {
+	const choice = new TemplateChoice(name);
+	choice.appendLink = normalizeAppendLinkOptions({
+		enabled: true,
+		placement: "newLine",
+		requireActiveFile: false,
+	});
+	choice.openFile = true;
+	return choice;
+}
+
 export const PRESETS: Preset[] = [
 	{
 		id: "log",
@@ -44,9 +88,7 @@ export const PRESETS: Preset[] = [
 		iconId: "clock",
 		name: "Log",
 		create() {
-			const choice = dailyNoteCapture(this.name, "## Log");
-			choice.format = { enabled: true, format: "- {{TIME}} {{VALUE}}" };
-			return choice;
+			return logCapture(this.name);
 		},
 	},
 	{
@@ -56,10 +98,7 @@ export const PRESETS: Preset[] = [
 		iconId: "pencil",
 		name: "Add to note",
 		create() {
-			const choice = new CaptureChoice(this.name);
-			// `prepend` is v2's name for writing at the bottom of a note target.
-			choice.prepend = true;
-			return choice;
+			return bottomCapture(this.name);
 		},
 	},
 	{
@@ -69,9 +108,7 @@ export const PRESETS: Preset[] = [
 		iconId: "check-square",
 		name: "Task",
 		create() {
-			const choice = dailyNoteCapture(this.name, "## Tasks");
-			choice.task = true;
-			return choice;
+			return taskCapture(this.name);
 		},
 	},
 	{
@@ -91,14 +128,7 @@ export const PRESETS: Preset[] = [
 		iconId: "link",
 		name: "Linked note",
 		create() {
-			const choice = new TemplateChoice(this.name);
-			choice.appendLink = normalizeAppendLinkOptions({
-				enabled: true,
-				placement: "newLine",
-				requireActiveFile: false,
-			});
-			choice.openFile = true;
-			return choice;
+			return linkedNoteTemplate(this.name);
 		},
 	},
 	{
