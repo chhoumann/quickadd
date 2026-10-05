@@ -82,13 +82,22 @@ export async function importPackage(options: {
 	// another device, an edit in the list). The merge is redone on what the
 	// store holds now, with the files already on disk kept as they are, until
 	// the choices it was computed from are the ones being replaced.
-	const created = createdBy(result, options.assetDecisions);
+	const created = await contentsOf(options.app, createdBy(result, options.assetDecisions));
 	for (let attempt = 0; settingsStore.getState().choices !== existingChoices; attempt++) {
 		if (attempt === 5) {
-			// Give up without leaving half an import: the files this import
-			// created go again; a file it replaced cannot be put back.
-			for (const path of created) await options.app.vault.adapter.remove(path);
-			throw new Error("The choices kept changing while the package was imported. Nothing was imported; try again.");
+			// Give up without leaving half an import: a file this import created
+			// goes again, unless it was edited since; a file it replaced cannot
+			// be put back.
+			const kept: string[] = [];
+			for (const [path, content] of created) {
+				if ((await options.app.vault.adapter.read(path)) === content) await options.app.vault.adapter.remove(path);
+				else kept.push(path);
+			}
+			throw new Error(
+				`The choices kept changing while the package was imported. Nothing was imported${
+					kept.length === 0 ? "" : `, except ${kept.join(", ")}, edited since it was written`
+				}; try again.`,
+			);
 		}
 		existingChoices = settingsStore.getState().choices;
 		assetDecisions = keptOnDisk(options.pkg, assetDecisions);
@@ -102,6 +111,13 @@ export async function importPackage(options: {
 	settingsStore.setState((state) => ({ ...state, choices: result.updatedChoices }));
 	// The choices the final merge replaced, which is what a command sync diffs.
 	return { result, previousChoices: existingChoices };
+}
+
+/** Each file's content as it is now, so a later edit can be told apart. */
+async function contentsOf(app: App, paths: string[]): Promise<Map<string, string>> {
+	const contents = new Map<string, string>();
+	for (const path of paths) contents.set(path, await app.vault.adapter.read(path));
+	return contents;
 }
 
 /** The files the first pass created, as opposed to replaced. */

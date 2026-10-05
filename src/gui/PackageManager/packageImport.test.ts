@@ -38,13 +38,18 @@ const pkg: QuickAddPackage = {
 	assets: [{ kind: "template", originalPath: "T.md", contentEncoding: "base64", content: "" }],
 };
 const removed: string[] = [];
-const app = { vault: { adapter: { remove: async (path: string) => { removed.push(path); } } } } as unknown as App;
+const files = new Map<string, string>();
+const app = {
+	vault: { adapter: { read: async (path: string) => files.get(path) ?? "", remove: async (path: string) => { removed.push(path); } } },
+} as unknown as App;
 
 describe("importPackage", () => {
 	beforeEach(() => {
 		applied.calls = [];
 		applied.during = null;
 		removed.length = 0;
+		files.clear();
+		files.set("Templates/T.md", "as written");
 		settingsStore.setState((state) => ({ ...state, choices: [choice("mine")] }));
 	});
 
@@ -77,5 +82,19 @@ describe("importPackage", () => {
 		expect(settingsStore.getState().choices.map((entry) => entry.id)).not.toContain("imported");
 		expect(settingsStore.getState().choices.length).toBeGreaterThan(before.length);
 		expect(removed).toEqual(["Templates/T.md"]);
+	});
+
+	it("keeps a created file that was edited while it gave up, and says so", async () => {
+		// The first pass writes the file; the edit lands while the merge is redone.
+		let pass = 0;
+		const keepChanging = () => {
+			if (pass++ > 0) files.set("Templates/T.md", "edited since");
+			settingsStore.setState((state) => ({ ...state, choices: [...state.choices, choice(`edit-${state.choices.length}`)] }));
+			applied.during = keepChanging;
+		};
+		applied.during = keepChanging;
+		await expect(importPackage({ app, pkg, choiceDecisions: [], assetDecisions: [{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "write" }] }))
+			.rejects.toThrow("except Templates/T.md, edited since it was written");
+		expect(removed).toEqual([]);
 	});
 });
