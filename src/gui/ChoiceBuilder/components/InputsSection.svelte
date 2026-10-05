@@ -89,7 +89,8 @@ function change(name: string, value: Partial<InputOverride>) {
 {#if inputs}
 	<SettingGroup heading="Inputs">
 		{#if inputs.length === 0}
-			<div class="setting-item qaInputsEmpty">
+			<!-- tabindex -1, as Obsidian's own rows: its settings keys move focus between rows. -->
+			<div class="setting-item qaInputsEmpty" tabindex="-1">
 				<div class="setting-item-info">
 					<div class="setting-item-description">No inputs</div>
 				</div>
@@ -98,7 +99,7 @@ function change(name: string, value: Partial<InputOverride>) {
 		{#each inputs as input (input.name)}
 			{@const provided = input.providedBy !== undefined}
 			{@const override = overrides?.[input.name]}
-			<div class="setting-item qaInputRow" class:qaInputProvided={provided} data-input={input.name}>
+			<div class="setting-item qaInputRow" class:qaInputProvided={provided} data-input={input.name} tabindex="-1">
 				<div class="setting-item-info">
 					<div class="setting-item-name">
 						{nameOf(input)}

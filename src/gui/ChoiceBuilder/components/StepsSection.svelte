@@ -56,7 +56,8 @@ function openMenu(evt: MouseEvent) {
 
 {#if lines}
 	<SettingGroup heading="Steps">
-		<div class="setting-item qaStepsSetting">
+		<!-- tabindex -1, as Obsidian's own rows: its settings keys move focus between rows. -->
+		<div class="setting-item qaStepsSetting" tabindex="-1">
 			<div class="setting-item-info">
 				<ol class="qaStepsList">
 					{#each lines as line, index (index)}
