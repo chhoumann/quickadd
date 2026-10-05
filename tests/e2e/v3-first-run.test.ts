@@ -3,15 +3,17 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, POLL_OPTS } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
 
-// A new user's empty list offers three choices that run on an empty vault; one
-// click adds them, and the Log one writes to today's daily note straight away.
+// A new user's empty list asks what they do in Obsidian and creates choices
+// for the answer, built on what the vault has: daily notes when they are on,
+// a dated note in Journal/ when they are not.
 const getContext = createQuickAddE2EHarness("v3-first-run");
 
-type Data = { choices: IChoice[]; actions: ActionNode[] };
+type Data = { choices: IChoice[]; actions: ActionNode[]; templateFolderPaths: string[] };
 interface DailyNotesState { enabled: boolean; options: unknown }
 let original: DailyNotesState;
+let today: string;
 
 async function setDailyNotes(state: DailyNotesState): Promise<void> {
 	const { obsidian } = getContext();
@@ -25,48 +27,97 @@ async function setDailyNotes(state: DailyNotesState): Promise<void> {
 	})()`);
 }
 
+/** An empty list, with QuickAdd's templates in the sandbox, and Settings open on it. */
+async function openEmptyList(): Promise<void> {
+	const { obsidian, plugin, sandbox } = getContext();
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		data.choices = [];
+		data.templateFolderPaths = [sandbox.path("Templates")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
+}
+
+async function pick(...jobs: string[]): Promise<void> {
+	const { obsidian } = getContext();
+	for (const job of jobs) await clickWhenStill(obsidian, `.qaJobCard[data-job="${job}"]`);
+}
+
+function rows(): Promise<Array<[string, string]>> {
+	return getContext().obsidian.dev.evalJson(`[...document.querySelectorAll("[data-choice-id]")]
+		.map((row) => [row.querySelector(".choiceListItemName")?.textContent?.trim() ?? "", row.querySelector(".choiceListItemSummary")?.textContent ?? ""])`);
+}
+
 beforeEach(async () => {
 	const { obsidian } = getContext();
 	original = await obsidian.dev.evalJson<DailyNotesState>(`(() => {
 		const plugin = app.internalPlugins.getPluginById("daily-notes");
 		return { enabled: plugin.enabled, options: plugin.instance.options };
 	})()`);
+	today = await obsidian.dev.evalJson<string>('window.moment().format("YYYY-MM-DD")');
 });
 
 afterEach(async () => {
 	const { obsidian } = getContext();
 	await obsidian.dev.evalJson("app.setting.close(), true");
 	await setDailyNotes(original);
+	// Journal/ is at the vault root, outside the sandbox.
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		const folder = app.vault.getFolderByPath("Journal");
+		if (folder) await app.vault.delete(folder, true);
+		return true;
+	})()`);
 });
 
-it("starts an empty list with three choices, and the Log one writes to today's daily note", async () => {
+it("creates a journal and meeting notes from the answer, and Log writes to today's daily note", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
-	await plugin.data<Data>().patch(withStoredChoices((data) => {
-		data.choices = [];
-	}));
-	await plugin.reload({ waitUntilReady: true });
 	const folder = sandbox.path("Daily");
 	await setDailyNotes({ enabled: true, options: { folder, format: "YYYY-MM-DD", template: "" } });
+	await openEmptyList();
 
-	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, 'button.mod-cta[aria-label="Start with three choices"]');
+	await pick("journal", "meetings");
+	await clickWhenStill(obsidian, 'button.mod-cta.qaCreateChoicesBtn:not([disabled])');
 
-	const rows = () => obsidian.dev.evalJson<Array<[string, string]>>(`[...document.querySelectorAll("[data-choice-id]")]
-		.map((row) => [row.querySelector(".choiceListItemName")?.textContent?.trim() ?? "", row.querySelector(".choiceListItemSummary")?.textContent ?? ""])`);
 	await expect.poll(rows, POLL_OPTS).toEqual([
 		["Log", "Adds a line under ## Log in today's daily note"],
-		["Task", "Adds a task under ## Tasks in today's daily note"],
-		["Add to note", "Adds a line at the bottom of a chosen note"],
+		["Thought", "Adds a line under ## Thoughts in today's daily note"],
+		["Meeting note", "Creates Meetings/{date} {Topic} from Meeting, opens it"],
 	]);
 	await expect.poll(async () => (await plugin.data<Data>().read()).actions.map((node) => node.name), POLL_OPTS)
-		.toEqual(["Log", "Task", "Add to note"]);
+		.toEqual(["Log", "Thought", "Meeting note"]);
+	expect(await sandbox.read("Templates/Meeting.md")).toContain("# Meeting with {{VALUE:Who}}");
+	await obsidian.dev.evalJson("app.setting.close(), true");
+
+	// From the command palette: Run QuickAdd, pick Log, answer its prompt.
+	await obsidian.command("quickadd:runQuickAdd").run();
+	await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.activeElement?.closest(".prompt"))'), POLL_OPTS).toBe(true);
+	await insertText(obsidian, "Log");
+	await obsidian.sleep(200);
+	await pressKey(obsidian, "Enter");
+	await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.activeElement?.closest(".modal-container"))'), POLL_OPTS).toBe(true);
+	await insertText(obsidian, "Planted the tomatoes");
+	await pressKey(obsidian, "Enter");
+
+	await expect.poll(() => sandbox.read(`Daily/${today}.md`).catch(() => ""), POLL_OPTS)
+		.toMatch(/^## Log\n- \d{2}:\d{2} Planted the tomatoes\n?$/);
+});
+
+it("writes tasks to a dated note in Journal/ when daily notes are off", async () => {
+	const { obsidian } = getContext();
+	await setDailyNotes({ enabled: false, options: {} });
+	await openEmptyList();
+
+	await pick("tasks");
+	await clickWhenStill(obsidian, 'button.mod-cta.qaCreateChoicesBtn:not([disabled])');
+	await expect.poll(rows, POLL_OPTS).toEqual([["Task", "Adds a task under ## Tasks in Journal/{date}"]]);
 	await obsidian.dev.evalJson("app.setting.close(), true");
 
 	const outcome = await obsidian.execJson("quickadd:run", {
-		choice: "Log", verify: true, vars: JSON.stringify({ value: "Planted the tomatoes" }),
+		choice: "Task", verify: true, vars: JSON.stringify({ value: "Water the plants" }),
 	});
-	const today = await obsidian.dev.evalJson<string>('window.moment().format("YYYY-MM-DD")');
-	expect(outcome).toMatchObject({ ok: true, verified: true, file: `${folder}/${today}.md` });
-	await expect.poll(() => sandbox.read(`Daily/${today}.md`), POLL_OPTS)
-		.toMatch(/^## Log\n- \d{2}:\d{2} Planted the tomatoes\n?$/);
+	expect(outcome).toMatchObject({ ok: true, verified: true, file: `Journal/${today}.md` });
+	const content = await obsidian.dev.evalJsonAsync<string>(
+		`app.vault.read(app.vault.getAbstractFileByPath(${jsLiteral(`Journal/${today}.md`)}))`,
+	);
+	expect(content).toMatch(/^## Tasks\n- \[ \] Water the plants\n?$/);
 });
