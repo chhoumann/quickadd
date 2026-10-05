@@ -3,7 +3,23 @@ import type IChoice from "../../types/choices/IChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import { normalizeAppendLinkOptions } from "../../types/linkPlacement";
+import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
 import { UserScript } from "../../types/macros/UserScript";
+
+export type PresetGroupId = "add" | "create" | "automate";
+
+/** The New choice menu's groups, in the order it shows them. */
+export const PRESET_GROUPS: { id: PresetGroupId; label: string }[] = [
+	{ id: "add", label: "Add to a note" },
+	{ id: "create", label: "Create a note" },
+	{ id: "automate", label: "Automate" },
+];
+
+/** What a preset may build from: the vault it is added to. */
+export interface PresetContext {
+	/** The folder whose notes a run offers as templates. */
+	templateFolder: string;
+}
 
 /** A starting point offered by the "New choice" menu: a configured choice. */
 export interface Preset {
@@ -14,9 +30,12 @@ export interface Preset {
 	description: string;
 	/** Obsidian/lucide icon id. */
 	iconId: string;
+	group: PresetGroupId;
+	/** Needs online features: hidden while they are disabled. */
+	online?: boolean;
 	/** The new choice's name, before it is made unique. */
 	name: string;
-	create(): IChoice;
+	create(context: PresetContext): IChoice;
 }
 
 export const FOLDER_NAME = "New folder";
@@ -83,6 +102,7 @@ export function linkedNoteTemplate(name: string): TemplateChoice {
 export const PRESETS: Preset[] = [
 	{
 		id: "log",
+		group: "add",
 		label: "Log with a timestamp",
 		description: "A line under a heading in today's daily note.",
 		iconId: "clock",
@@ -92,17 +112,8 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
-		id: "addToNote",
-		label: "Add to a note",
-		description: "Pick the note each time, write at the bottom.",
-		iconId: "pencil",
-		name: "Add to note",
-		create() {
-			return bottomCapture(this.name);
-		},
-	},
-	{
 		id: "task",
+		group: "add",
 		label: "Add a task",
 		description: "A task under a heading in today's daily note.",
 		iconId: "check-square",
@@ -112,7 +123,48 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: "addToNote",
+		group: "add",
+		label: "Add to a note",
+		description: "Pick the note each time, write at the bottom.",
+		iconId: "pencil",
+		name: "Add to note",
+		create() {
+			return bottomCapture(this.name);
+		},
+	},
+	{
+		id: "selection",
+		group: "add",
+		label: "Save the selection or clipboard",
+		description: "The selected text, or what you paste, at the bottom of a note you pick.",
+		iconId: "clipboard-paste",
+		name: "Save selection",
+		create() {
+			// No one placeholder is "the selection, else the clipboard": the
+			// selection becomes the value, and without one the prompt takes a paste.
+			const choice = bottomCapture(this.name);
+			choice.useSelectionAsCaptureValue = true;
+			return choice;
+		},
+	},
+	{
+		id: "property",
+		group: "add",
+		label: "Fill in a property",
+		description: "Pick a property of the current note and set it.",
+		iconId: "text-cursor-input",
+		name: "Property",
+		create() {
+			const choice = new CaptureChoice(this.name);
+			choice.captureToActiveFile = true;
+			choice.propertyCapture = { property: { kind: "prompt" }, action: "set", createIfMissing: true };
+			return choice;
+		},
+	},
+	{
 		id: "newNote",
+		group: "create",
 		label: "New note from a template",
 		description: "Asks for a title, then creates the note.",
 		iconId: "file-plus",
@@ -123,6 +175,7 @@ export const PRESETS: Preset[] = [
 	},
 	{
 		id: "linkedNote",
+		group: "create",
 		label: "New note, linked from here",
 		description: "Creates it, links it on a new line here, opens it.",
 		iconId: "link",
@@ -132,7 +185,23 @@ export const PRESETS: Preset[] = [
 		},
 	},
 	{
+		id: "typedNote",
+		group: "create",
+		label: "New note of a type",
+		description: "Pick a template and a folder each time.",
+		iconId: "layout-template",
+		name: "Typed note",
+		create({ templateFolder }) {
+			const choice = new TemplateChoice(this.name);
+			choice.templatePath = `{{FILE:${templateFolder}|path|label:Template}}`;
+			choice.folder = { ...choice.folder, enabled: true, chooseWhenCreatingNote: true };
+			choice.openFile = true;
+			return choice;
+		},
+	},
+	{
 		id: "script",
+		group: "automate",
 		label: "Run a script",
 		description: "A JavaScript file from your vault.",
 		iconId: "code",
@@ -146,6 +215,7 @@ export const PRESETS: Preset[] = [
 	},
 	{
 		id: "sequence",
+		group: "automate",
 		label: "Run a sequence of steps",
 		description: "Start empty and add steps.",
 		iconId: "list-ordered",
@@ -154,4 +224,23 @@ export const PRESETS: Preset[] = [
 			return new MacroChoice(this.name);
 		},
 	},
+	{
+		id: "ai",
+		group: "automate",
+		online: true,
+		label: "Ask AI",
+		description: "Send a prompt to your AI provider.",
+		iconId: "sparkles",
+		name: "Ask AI",
+		create() {
+			const choice = new MacroChoice(this.name);
+			choice.macro.commands.push(new AIAssistantCommand());
+			return choice;
+		},
+	},
 ];
+
+/** The presets to offer: all of them, less the online ones while those are off. */
+export function availablePresets(disableOnlineFeatures: boolean): Preset[] {
+	return disableOnlineFeatures ? PRESETS.filter((preset) => !preset.online) : PRESETS;
+}

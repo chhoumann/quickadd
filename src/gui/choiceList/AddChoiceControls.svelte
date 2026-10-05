@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { Menu, Platform } from "obsidian";
+	import { settingsStore } from "../../settingsStore";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
-	import { PRESETS, type Preset } from "./presets";
+	import { availablePresets, PRESET_GROUPS, type Preset } from "./presets";
 
 	let {
 		onAddChoice,
 		onAddFolder,
+		onBrowseRecipes = undefined,
+		onImportPackage = undefined,
 		targetFolderId = undefined,
 		targetFolderName = undefined,
 		compact = false,
@@ -19,6 +22,9 @@
 		 */
 		onAddChoice: (preset: Preset, targetFolderId?: string, skipConfigure?: boolean) => void;
 		onAddFolder: (targetFolderId?: string) => void;
+		/** When set, the menu ends with Browse recipes… and Import a package…. */
+		onBrowseRecipes?: () => void;
+		onImportPackage?: () => void;
 		/** When set, both actions add into this folder. */
 		targetFolderId?: string;
 		/** Folder name, used in the per-folder tooltip ("Add choice to {name}"). */
@@ -35,18 +41,31 @@
 
 	function openNewChoiceMenu(evt: MouseEvent) {
 		const menu = new Menu();
-		for (const preset of PRESETS) {
+		const presets = availablePresets(settingsStore.getState().disableOnlineFeatures);
+		for (const group of PRESET_GROUPS) {
+			menu.addItem((item) => item.setTitle(group.label).setIsLabel(true).setSection(group.id));
+			for (const preset of presets.filter((entry) => entry.group === group.id)) {
+				menu.addItem((item) =>
+					item
+						// A phone's menu rows are one ellipsized line, too narrow for the description.
+						.setTitle(Platform.isPhone ? preset.label : `${preset.label} - ${preset.description}`)
+						.setIcon(preset.iconId)
+						.setSection(group.id)
+						.onClick((clickEvt) => {
+							// Alt/⌥ scaffolds without opening the builder (batch path).
+							const skip =
+								(clickEvt as MouseEvent | KeyboardEvent).altKey === true;
+							onAddChoice(preset, targetFolderId, skip);
+						}),
+				);
+			}
+		}
+		if (onBrowseRecipes && onImportPackage) {
 			menu.addItem((item) =>
-				item
-					// A phone's menu rows are one ellipsized line, too narrow for the description.
-					.setTitle(Platform.isPhone ? preset.label : `${preset.label} - ${preset.description}`)
-					.setIcon(preset.iconId)
-					.onClick((clickEvt) => {
-						// Alt/⌥ scaffolds without opening the builder (batch path).
-						const skip =
-							(clickEvt as MouseEvent | KeyboardEvent).altKey === true;
-						onAddChoice(preset, targetFolderId, skip);
-					}),
+				item.setTitle("Browse recipes…").setIcon("book-open").setSection("packages").onClick(onBrowseRecipes),
+			);
+			menu.addItem((item) =>
+				item.setTitle("Import a package…").setIcon("package-plus").setSection("packages").onClick(onImportPackage),
 			);
 		}
 		// Reflect open state for assistive tech (aria-expanded on the trigger).

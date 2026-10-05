@@ -1038,7 +1038,17 @@ export class MenuItem {
   title = "";
   icon = "";
   disabled = false;
+  isLabel = false;
+  section = "";
   clickHandler: (() => void) | null = null;
+  setIsLabel(isLabel: boolean): this {
+    this.isLabel = isLabel;
+    return this;
+  }
+  setSection(section: string): this {
+    this.section = section;
+    return this;
+  }
   setTitle(title: string): this {
     this.title = title;
     return this;

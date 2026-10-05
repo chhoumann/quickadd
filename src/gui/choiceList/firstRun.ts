@@ -51,13 +51,21 @@ export interface FirstRunPlan {
 
 const JOURNAL_FOLDER = "Journal";
 const JOURNAL_NOTE = `${JOURNAL_FOLDER}/{{DATE:YYYY-MM-DD}}.md`;
-const DEFAULT_TEMPLATE_FOLDER = "Templates";
+export const DEFAULT_TEMPLATE_FOLDER = "Templates";
 
 const MEETING_TEMPLATE = "# Meeting with {{VALUE:Who}}\n\n{{DATE}}\n\n## Notes\n\n";
 const PROJECT_TEMPLATE = "# {{VALUE:Name}}\n\n## Goal\n\n## Next\n\n";
 
 function record(value: unknown): Record<string, unknown> | undefined {
 	return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+}
+
+/** QuickAdd's first template folder, else the Templates core plugin's. */
+export function readTemplateFolder(app: App, settings: Pick<QuickAddSettings, "templateFolderPaths">): string | null {
+	// Other plugins' internals: check every step before use.
+	const coreTemplates = record(record(record(app.internalPlugins?.plugins?.["templates"])?.instance)?.options);
+	const coreFolder = typeof coreTemplates?.folder === "string" ? normalizeVaultPath(coreTemplates.folder) : "";
+	return normalizeTemplateFolderPaths(settings.templateFolderPaths)[0] ?? (coreFolder || null);
 }
 
 export function readVaultFacts(app: App, settings: Pick<QuickAddSettings, "templateFolderPaths">): VaultFacts {
@@ -68,10 +76,7 @@ export function readVaultFacts(app: App, settings: Pick<QuickAddSettings, "templ
 	} catch {
 		// Neither Daily notes nor Periodic Notes daily notes is on.
 	}
-	// Other plugins' internals: check every step before use.
-	const coreTemplates = record(record(record(app.internalPlugins?.plugins?.["templates"])?.instance)?.options);
-	const coreFolder = typeof coreTemplates?.folder === "string" ? normalizeVaultPath(coreTemplates.folder) : "";
-	const templateFolder = normalizeTemplateFolderPaths(settings.templateFolderPaths)[0] ?? (coreFolder || null);
+	const templateFolder = readTemplateFolder(app, settings);
 	const folder = templateFolder ?? DEFAULT_TEMPLATE_FOLDER;
 	return {
 		dailyNotes,

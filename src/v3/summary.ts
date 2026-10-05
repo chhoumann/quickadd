@@ -77,7 +77,8 @@ function describeCreate(step: CreateNoteStep): string {
 		mode === "activeFolder" ? "{current folder}/" :
 		mode === "folders" && folders.length === 1 && !includeSubfolders ? `${render(folders[0])}/` :
 		"{folder}/";
-	const template = step.templatePath ? ` from ${basename(step.templatePath)}` : "";
+	// Rendered first: a placeholder's argument can hold a slash.
+	const template = step.templatePath ? ` from ${basename(render(step.templatePath))}` : "";
 	return `creates ${folder}${name}${template}`;
 }
 
@@ -89,7 +90,7 @@ function describeAdd(step: AddToNoteStep): string {
 		const verb = step.propertyCapture.action === "set" ? "sets" : "adds to";
 		return `${verb} ${name} in ${target}`;
 	}
-	const what = step.task ? "a task" : step.eachLine ? "each line" : "a line";
+	const what = step.task ? "a task" : step.eachLine ? "each line" : step.useSelectionAsCaptureValue ? "the selection" : "a line";
 	const where = {
 		top: "at the top of",
 		cursor: "at the cursor in",
@@ -135,11 +136,16 @@ function basename(path: string): string {
 	return file.replace(/\.md$/i, "");
 }
 
-/** Placeholders as short names in braces: {{DATE:YYYY}} -> {date}, {{VALUE:Name|optional}} -> {Name}. */
+/**
+ * Placeholders as short names in braces: {{DATE:YYYY}} -> {date},
+ * {{VALUE:Name|optional}} -> {Name}, {{FILE:People|label:Person}} -> {Person}.
+ */
 export function render(text: string): string {
 	return text.replace(/{{\s*([A-Za-z]+)\s*(?::([^}]*))?}}/g, (_match, token: string, argument?: string) => {
 		const name = token.toUpperCase();
-		const label = argument?.split("|")[0].trim();
+		// A FILE placeholder's argument is a folder; its label names the pick.
+		const fileLabel = name === "FILE" ? /\|\s*label:([^|]+)/i.exec(argument ?? "")?.[1].trim() : undefined;
+		const label = fileLabel ?? argument?.split("|")[0].trim();
 		if (name === "DATE" || name === "TIME" || name === "TITLE") return `{${name.toLowerCase()}}`;
 		if (name === "DAILY") return "today's daily note";
 		if (label && ["VALUE", "VDATE", "FIELD", "FILE", "MACRO", "ACTION", "GLOBAL_VAR"].includes(name)) {

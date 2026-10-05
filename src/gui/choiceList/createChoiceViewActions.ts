@@ -27,7 +27,7 @@ import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
 import { FOLDER_NAME, type Preset } from "./presets";
 import { uniqueChoiceName } from "./uniqueChoiceName";
-import type { FirstRunPlan } from "./firstRun";
+import { DEFAULT_TEMPLATE_FOLDER, type FirstRunPlan, readTemplateFolder } from "./firstRun";
 import { ensureParentFolders } from "../../utils/ensureParentFolders";
 import type { ChoiceListActions } from "./choiceListActions";
 import { replaceChoiceHelper, subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
@@ -56,7 +56,8 @@ export function createChoiceViewActions(
 	}
 
 	function choiceFromPreset(preset: Preset): IChoice {
-		const newChoice = preset.create();
+		const templateFolder = readTemplateFolder(context.app, settingsStore.getState()) ?? DEFAULT_TEMPLATE_FOLDER;
+		const newChoice = preset.create({ templateFolder });
 		newChoice.name = uniqueChoiceName(preset.name, context.choices);
 		// The outcome's icon, not the type's, so the list and launcher read by it.
 		newChoice.icon = preset.iconId;
