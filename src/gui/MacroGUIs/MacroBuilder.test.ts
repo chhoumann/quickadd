@@ -1,11 +1,15 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { flushSync } from "svelte";
 
-const { editorChoices } = vi.hoisted(() => ({ editorChoices: { names: [] as string[] } }));
+const { editorChoices } = vi.hoisted(() => ({
+	editorChoices: { names: [] as string[], onCommandsChange: null as ((commands: unknown[]) => void) | null },
+}));
 
 vi.mock("./CommandSequenceEditor", () => ({
 	CommandSequenceEditor: class {
-		constructor(options: { choices: { name: string }[] }) {
+		constructor(options: { choices: { name: string }[]; onCommandsChange: (commands: unknown[]) => void }) {
 			editorChoices.names = options.choices.map((choice) => choice.name);
+			editorChoices.onCommandsChange = options.onCommandsChange;
 		}
 
 		render(parent: HTMLElement) {
@@ -24,6 +28,7 @@ import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import { MacroBuilder } from "./MacroBuilder";
+import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 
 const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
 
@@ -55,6 +60,16 @@ describe("MacroBuilder", () => {
 		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
 		expect(rows.at(-1)?.textContent).toContain("Icon");
 		expect(rows.at(-1)?.textContent).toContain("Lucide/Obsidian icon id");
+	});
+
+	it("leads with what its steps do, and follows them as they change", () => {
+		const page = openPage(new MacroChoice("Macro under test"));
+		const lede = () => page.containerEl.querySelector(".qaChoiceSummaryText")?.textContent;
+		expect(lede()).toBe("No steps yet");
+
+		editorChoices.onCommandsChange?.([new WaitCommand(250)]);
+		flushSync();
+		expect(lede()).toBe("Waits 250 ms");
 	});
 
 	it("heads its steps Steps", () => {
