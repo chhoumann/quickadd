@@ -36,6 +36,8 @@ import { settingsStore } from "../../settingsStore";
 import { withStep } from "../../v3/addStep";
 import type { Step } from "../../v3/model";
 import { backOutOfBuilderPages } from "../ChoiceBuilder/builderPage";
+import { ImportPackageModal } from "../PackageManager/ImportPackageModal";
+import { RecipesModal } from "../recipes/RecipesModal";
 
 interface ChoiceViewContext {
 	app: App;
@@ -47,9 +49,11 @@ interface ChoiceViewContext {
 }
 
 /** Access live component state after every await, so intervening store writes survive. */
-export function createChoiceViewActions(
-	context: ChoiceViewContext,
-): ChoiceListActions & { onCreateFirstRun: (plan: FirstRunPlan) => Promise<void> } {
+export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListActions & {
+	onCreateFirstRun: (plan: FirstRunPlan) => Promise<void>;
+	onBrowseRecipes: () => void;
+	onImportPackage: () => void;
+} {
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
@@ -355,6 +359,8 @@ export function createChoiceViewActions(
 		),
 		onAddChoice: reportingHandler("Couldn't add that choice", addChoiceToList),
 		onAddFolder: reportingHandler("Couldn't add that folder", addFolderToList),
+		onBrowseRecipes: () => new RecipesModal(context.app, context.plugin).open(),
+		onImportPackage: () => new ImportPackageModal(context.app, context.plugin).open(),
 		// Settles either way, so the view can hold its button while it runs.
 		onCreateFirstRun: (plan: FirstRunPlan) =>
 			createFirstRun(plan).catch((err: unknown) => {

@@ -12,11 +12,15 @@
 		onCreate,
 		onAddChoice,
 		onAddFolder,
+		onBrowseRecipes,
+		onImportPackage,
 	}: {
 		facts: VaultFacts;
 		onCreate: (plan: FirstRunPlan) => Promise<void>;
 		onAddChoice: (preset: Preset, targetFolderId?: string, skipConfigure?: boolean) => void;
 		onAddFolder: (targetFolderId?: string) => void;
+		onBrowseRecipes: () => void;
+		onImportPackage: () => void;
 	} = $props();
 
 	const picked = new SvelteSet<JobId>();
@@ -69,8 +73,9 @@
 	<button type="button" class="mod-cta qaCreateChoicesBtn" disabled={count === 0 || creating} onclick={create}>
 		{createLabel}
 	</button>
+	<button type="button" class="qaBrowseRecipesLink" onclick={onBrowseRecipes}>or browse recipes</button>
 	<div class="qaFirstRunScratch">
-		<AddChoiceControls {onAddChoice} {onAddFolder} primary={false} fill={Platform.isMobile} />
+		<AddChoiceControls {onAddChoice} {onAddFolder} {onBrowseRecipes} {onImportPackage} primary={false} fill={Platform.isMobile} />
 	</div>
 	<!-- The one place a brand-new user is guaranteed to look, so it carries the
 	     plugin's only prominent docs link (#1541). -->
@@ -169,6 +174,24 @@
 
 	.qaCreateChoicesBtn {
 		margin-top: 0.25rem;
+	}
+
+	/* A quiet text link: Create stays the one call to action. */
+	.qaBrowseRecipesLink {
+		height: auto;
+		margin-top: -0.25rem;
+		padding: 0.125rem 0.25rem;
+		background: transparent;
+		border: none;
+		box-shadow: none;
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+		cursor: var(--cursor);
+	}
+
+	.qaBrowseRecipesLink:hover {
+		color: var(--text-accent);
+		text-decoration: underline;
 	}
 
 	.qaFirstRunScratch {

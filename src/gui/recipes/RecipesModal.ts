@@ -4,10 +4,12 @@ import type QuickAdd from "../../main";
 import type { ApplyImportResult } from "../../services/packageImportService";
 import type IChoice from "../../types/choices/IChoice";
 import { syncImportedChoiceCommands } from "../../services/packageImportCommands";
-import ImportPackageModalComponent from "./ImportPackageModal.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { RECIPES } from "./catalog";
+import RecipesModalComponent from "./RecipesModal.svelte";
 
-export class ImportPackageModal extends Modal {
+/** The docs' example workflows, each added with one click through the package import. */
+export class RecipesModal extends Modal {
 	private handle: MountHandle | null = null;
 
 	constructor(
@@ -18,18 +20,19 @@ export class ImportPackageModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.modalEl.addClass("quickAddModal", "qa-package-modal", "packageImportModal");
-		this.setTitle("Import QuickAdd package");
+		this.modalEl.addClass("quickAddModal", "qa-package-modal", "qa-recipes-modal");
+		this.setTitle("Recipes");
 		this.handle = mountComponent(
 			this.contentEl,
-			ImportPackageModalComponent,
+			RecipesModalComponent,
 			{
 				app: this.app,
-				close: () => this.close(),
+				recipes: RECIPES,
+				setTitle: (title: string) => this.setTitle(title),
 				onImported: (result: ApplyImportResult, previousChoices: IChoice[]) =>
 					syncImportedChoiceCommands(this.plugin, previousChoices, result),
 			},
-			{ what: "the package importer" },
+			{ what: "the recipes" },
 		);
 	}
 

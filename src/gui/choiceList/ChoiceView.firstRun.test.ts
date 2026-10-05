@@ -8,6 +8,13 @@ import ChoiceView from "./ChoiceView.svelte";
 import type * as firstRun from "./firstRun";
 import { planFirstRun } from "./firstRun";
 
+const recipesOpened = vi.hoisted(() => vi.fn());
+vi.mock("../recipes/RecipesModal", () => ({
+	RecipesModal: class {
+		open = recipesOpened;
+	},
+}));
+
 vi.mock("./firstRun", async (importOriginal) => {
 	const actual = await importOriginal<typeof firstRun>();
 	return { ...actual, planFirstRun: vi.fn(actual.planFirstRun) };
@@ -50,6 +57,14 @@ describe("the empty list's first run", () => {
 		await fireEvent.click(card("Keep a daily journal"));
 		expect(card("Keep a daily journal")).toHaveAttribute("aria-pressed", "false");
 		expect(create()).toHaveTextContent("Create 1 choice");
+	});
+
+	it("offers the recipes under Create, which stays the one call to action", async () => {
+		const { container, getByRole } = renderEmpty();
+		expect(Array.from(container.querySelectorAll(".mod-cta"), (el) => el.textContent?.trim())).toEqual(["Create choices"]);
+
+		await fireEvent.click(getByRole("button", { name: "or browse recipes" }));
+		expect(recipesOpened).toHaveBeenCalledTimes(1);
 	});
 
 	it("says on each card what it adds, from what the vault has", () => {

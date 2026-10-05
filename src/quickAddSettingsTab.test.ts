@@ -120,6 +120,9 @@ describe("settings user-authored DOM XSS safety", () => {
 		const surfaces = [
 			"gui/GlobalVariables/GlobalVariablesView.svelte",
 			"gui/PackageManager/ImportPackageModal.svelte",
+			"gui/PackageManager/PackageReview.svelte",
+			"gui/recipes/RecipesModal.svelte",
+			"gui/recipes/InlineMarkdown.svelte",
 			"gui/PackageManager/ImportChoices.svelte",
 			"gui/PackageManager/ImportAcknowledgement.svelte",
 			"gui/PackageManager/PackageWarnings.svelte",

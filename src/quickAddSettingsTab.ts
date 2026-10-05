@@ -23,7 +23,7 @@ import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
-import { syncImportedChoiceCommands } from "./services/packageImportCommands";
+import { RecipesModal } from "./gui/recipes/RecipesModal";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
 import {
@@ -442,6 +442,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// primary button in the view avoids competing purple CTAs (per the
 		// one-primary-button-per-page rule).
 		let exportButton: ButtonComponent | undefined;
+		setting.settingEl.addClass("qa-packages-setting");
 		setting.addButton((button) => {
 			exportButton = button;
 			button.setButtonText("Export package…").onClick(() => {
@@ -461,10 +462,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
-				new ImportPackageModal(this.app, {
-					onImported: (result, previousChoices) =>
-						syncImportedChoiceCommands(this.plugin, previousChoices, result),
-				}).open();
+				new ImportPackageModal(this.app, this.plugin).open();
+			}),
+		);
+		setting.addButton((button) =>
+			button.setButtonText("Browse recipes…").onClick(() => {
+				new RecipesModal(this.app, this.plugin).open();
 			}),
 		);
 

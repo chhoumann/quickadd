@@ -117,6 +117,8 @@
 				onCreate={actions.onCreateFirstRun}
 				onAddChoice={actions.onAddChoice}
 				onAddFolder={actions.onAddFolder}
+				onBrowseRecipes={actions.onBrowseRecipes}
+				onImportPackage={actions.onImportPackage}
 			/>
 			{#if !disableOnlineFeatures}
 				<!-- The bottom bar (and its AI icon) only renders once choices exist,
@@ -202,7 +204,13 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={actions.onAddChoice} onAddFolder={actions.onAddFolder} fill={isMobile} />
+			<AddChoiceControls
+				onAddChoice={actions.onAddChoice}
+				onAddFolder={actions.onAddFolder}
+				onBrowseRecipes={actions.onBrowseRecipes}
+				onImportPackage={actions.onImportPackage}
+				fill={isMobile}
+			/>
 		</div>
 	{/if}
 	{#snippet failed(error)}

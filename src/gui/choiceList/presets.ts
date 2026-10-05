@@ -137,7 +137,7 @@ export const PRESETS: Preset[] = [
 		id: "selection",
 		group: "add",
 		label: "Save the selection or clipboard",
-		description: "The selected text, or what you paste, at the bottom of a note you pick.",
+		description: "The selected text, or a paste, at the bottom of a note you pick.",
 		iconId: "clipboard-paste",
 		name: "Save selection",
 		create() {
