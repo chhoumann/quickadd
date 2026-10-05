@@ -1144,26 +1144,8 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	gap: 8px;
 }
 
-.qa-command-sequence-input {
-	margin-right: 1em;
-}
-
-/* On phones Obsidian makes every input and button in a modal's setting control
-   full width, so the row's input and its Add button split it and the input's
-   placeholder is cut mid-word. Give the input the room and the buttons their
-   own width. */
-.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input ~ button:not(.clickable-icon) {
-	flex: 0 0 auto;
-	width: auto;
-}
-
 /* The command editor in a settings group card (the Macro and branch pages):
-   the quick-command bar sits inside the card's padding, like the rows. */
+   the Add a step bar sits inside the card's padding, like the rows. */
 .setting-group .quickAddCommandEditor > .quickCommandContainer {
 	padding: 0 var(--setting-items-padding-x);
 	margin-bottom: var(--setting-items-padding-y);
@@ -1172,14 +1154,6 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 /* With no steps the list is hidden, and its padding with it. */
 .setting-group .quickAddCommandEditor:has(> .commandList > .quickAddCommandList.is-empty) > .quickCommandContainer {
 	padding-top: var(--setting-items-padding-y);
-}
-
-/* A phone's card is too narrow for the bar's buttons at their own width;
-   they share the row instead. The inline padding is a minimum: the buttons
-   grow into the row, and with AI on all six fit at 390px. */
-.is-phone .setting-group .quickAddCommandEditor > .quickCommandContainer > button {
-	flex: 1 1 auto;
-	padding-inline: var(--size-4-1);
 }
 
 .qa-hidden {

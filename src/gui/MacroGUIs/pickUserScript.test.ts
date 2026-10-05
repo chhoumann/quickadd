@@ -81,4 +81,27 @@ describe("pickUserScript", () => {
 			path: "Notes/Script note.md",
 		});
 	});
+
+	it("takes a script typed with the export to run, named as typed", async () => {
+		const app = appWith([file("scripts/hello.js"), file("scripts/other.js")]);
+		const suggest = vi.spyOn(InputSuggester, "Suggest").mockResolvedValue("hello::start");
+
+		await expect(pickUserScript(app, { member: true })).resolves.toEqual({
+			name: "hello::start",
+			path: "scripts/hello.js",
+		});
+		const options = suggest.mock.calls[0][3];
+		expect(options?.allowCustomValue).toBe(true);
+		// Only a typed export is offered as typed; a bare name picks from the list.
+		expect(options?.valueExists?.("hello")).toBe(true);
+		expect(options?.valueExists?.("hello::start")).toBe(false);
+	});
+
+	it("takes nothing typed when choosing a step's file", async () => {
+		const app = appWith([file("scripts/hello.js")]);
+		const suggest = vi.spyOn(InputSuggester, "Suggest").mockResolvedValue("hello::start");
+
+		await expect(pickUserScript(app)).resolves.toBeNull();
+		expect(suggest.mock.calls[0][3]?.allowCustomValue).toBe(false);
+	});
 });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { testApp } from "../../../tests/helpers/settings/modalApp";
 import type QuickAdd from "../../main";
 import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
+import { openAddStepMenu } from "../../../tests/helpers/settings/addStepMenu";
 
 function openPage(commands: unknown) {
 	const onSave = vi.fn();
@@ -29,7 +30,7 @@ describe("ConditionalBranchEditorPage", () => {
 
 	it("saves the branch's commands once they are edited", () => {
 		const { page, onSave } = openPage([wait]);
-		page.containerEl.querySelector<HTMLButtonElement>('[aria-label="Add wait command"]')?.click();
+		openAddStepMenu(page.containerEl).pick("Wait");
 		page.hide();
 		const saved = onSave.mock.calls[0][0] as Array<{ type: string }>;
 		expect(saved.map((command) => command.type)).toEqual(["Wait", "Wait"]);

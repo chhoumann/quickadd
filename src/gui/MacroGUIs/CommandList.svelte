@@ -12,11 +12,7 @@ import StandardCommand from "./Components/StandardCommand.svelte";
 import { CommandType } from "../../types/macros/CommandType";
 import WaitCommand from "./Components/WaitCommand.svelte";
 import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
-import { TemplateChoiceBuilder } from "../ChoiceBuilder/templateChoiceBuilder";
-import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
-import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import type IChoice from "../../types/choices/IChoice";
+import { openNestedChoiceBuilder } from "./openNestedChoiceBuilder";
 import UserScriptCommand, { type ScriptFileState } from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
@@ -232,20 +228,8 @@ function editConditionalElse(command: IConditionalCommand) {
 	onEditElseBranch?.(command, () => updateCommand(command));
 }
 
-// The step's choice, as a page over the macro. Saved into the list when the page
-// is left, synchronously, so it is in before the macro page saves (BuilderPage).
 function configureChoice(command: INestedChoiceCommand) {
-	const onSave = (newChoice: IChoice) => {
-		// Immutable update (avoids mutating host-owned $state from this component).
-		const updated: INestedChoiceCommand = { ...command, choice: newChoice, name: newChoice.name };
-		updateCommand(updated);
-	};
-	const choice = command.choice;
-	if (choice.type === "Template") {
-		new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave).open();
-	} else if (choice.type === "Capture") {
-		new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave).open();
-	}
+	openNestedChoiceBuilder(app, plugin, command, updateCommand);
 }
 
 function scriptFileState(command: IUserScript): ScriptFileState {
