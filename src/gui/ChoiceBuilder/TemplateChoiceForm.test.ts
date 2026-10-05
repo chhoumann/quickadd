@@ -1,5 +1,5 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
-import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
+import { settingItem, settingNames, choiceIconInput, openMoreSettings } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it, vi } from "vitest";
 
 import { App } from "obsidian";
@@ -35,6 +35,7 @@ function mountForm(onAddStep?: () => void) {
 	const result = render(TemplateChoiceForm, {
 		props: { choice: props.choice, app: props.app, plugin: props.plugin, onAddStep },
 	});
+	openMoreSettings(result.container);
 	return { ...result, props };
 }
 
@@ -293,13 +294,14 @@ describe("TemplateChoiceForm", () => {
 		).toHaveAttribute("data-icon", "file-text");
 	});
 
-	it("keeps the optional icon override last, above the inputs and the steps", async () => {
+	it("keeps the inputs and the steps above More settings, and the optional icon override last", async () => {
 		const { container } = mountForm();
 		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
 
 		const names = settingNames(container);
-		expect(names.slice(names.indexOf("Inputs") - 1, names.indexOf("Inputs") + 1)).toEqual(["Icon", "Inputs"]);
-		expect(names.at(-1)).toBe("Steps");
+		expect(names.indexOf("Inputs")).toBeLessThan(names.indexOf("Steps"));
+		expect(names.slice(names.indexOf("Steps"), names.indexOf("Steps") + 2)).toEqual(["Steps", "More settings"]);
+		expect(names.at(-1)).toBe("Icon");
 	});
 
 	// #1993: closing the builder used to drop a folder typed but never added.

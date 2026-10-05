@@ -100,3 +100,20 @@ export const folderModeDescriptions: Record<FolderMode, string> = {
 		"Create the note next to the currently active file (falls back to the vault root if no file is open).",
 	prompt: "Choose any folder in the vault when the note is created.",
 };
+
+/**
+ * Whether the destination is one folder, or Obsidian's default location:
+ * what the Template builder's Folder field edits. The other modes, and a
+ * specific folder with none in it yet, are behind More settings.
+ */
+export function isSingleFolder(folder: TemplateFolderConfig): boolean {
+	const mode = deriveFolderMode(folder);
+	return mode === "obsidian-default" || (mode === "specified" && folder.folders.length === 1);
+}
+
+/** The config the Folder field sets: that one folder, or none when empty. */
+export function withSingleFolder(folder: TemplateFolderConfig, path: string): TemplateFolderConfig {
+	return path.trim()
+		? { ...applyFolderMode(folder, "specified"), folders: [path] }
+		: { ...applyFolderMode(folder, "obsidian-default"), folders: [] };
+}

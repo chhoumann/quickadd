@@ -1,5 +1,5 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
-import { settingItem } from "../../../tests/helpers/settings/fields";
+import { openMoreSettings, settingItem } from "../../../tests/helpers/settings/fields";
 import { describe, expect, it } from "vitest";
 
 import { App } from "obsidian";
@@ -25,6 +25,7 @@ function mountForm(overrides: Partial<ITemplateChoice> = {}) {
 	const result = render(TemplateChoiceForm, {
 		props: { choice: props.choice, app: props.app, plugin: props.plugin },
 	});
+	openMoreSettings(result.container);
 	return { ...result, props };
 }
 
