@@ -73,3 +73,44 @@ it("adds a daily-note log from its preset and says what it does in the list and 
 		await pressKey(obsidian, "Escape");
 	}
 });
+
+it("says what the new presets do: selection, property, note of a type, and AI", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await plugin.data<Data & { disableOnlineFeatures: boolean; templateFolderPaths: string[] }>().patch(withStoredChoices((data) => {
+		data.choices = [];
+		data.disableOnlineFeatures = false;
+		data.templateFolderPaths = [sandbox.path("Templates")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
+
+	const presets = ["Save the selection or clipboard", "Fill in a property", "New note of a type", "Ask AI"];
+	for (const [index, label] of presets.entries()) {
+		// The empty list's New choice is the quiet one; after that, the bar's.
+		await clickWhenStill(obsidian, index === 0 ? ".qaFirstRunScratch .qaNewChoiceBtn" : ".qaNewChoiceBtn.mod-cta");
+		await waitForElement(obsidian, ".menu .menu-item");
+		await obsidian.dev.evalJson(`(() => {
+			const item = [...document.querySelectorAll(".menu .menu-item")]
+				.find((el) => el.textContent.trim().startsWith(${jsLiteral(label)}));
+			// Alt adds the choice without opening its builder.
+			item.dispatchEvent(new MouseEvent("click", { bubbles: true, altKey: true }));
+			return true;
+		})()`);
+		await expect.poll(() => obsidian.dev.evalJson<number>('document.querySelectorAll("[data-choice-id]").length'), POLL_OPTS).toBe(index + 1);
+	}
+
+	const rows = () => obsidian.dev.evalJson<Array<[string, string]>>(`[...document.querySelectorAll("[data-choice-id]")]
+		.map((row) => [row.querySelector(".choiceListItemName")?.textContent?.trim() ?? "", row.querySelector(".choiceListItemSummary")?.textContent ?? ""])`);
+	await expect.poll(rows, POLL_OPTS).toEqual([
+		["Save selection", "Adds the selection at the bottom of a chosen note"],
+		["Property", "Sets a chosen property in the current note"],
+		["Typed note", "Creates {folder}/{title} from {Template}, opens it"],
+		["Ask AI", "Asks AI for {output}"],
+	]);
+	const typed = async () =>
+		(await plugin.data<Data>().read()).actions.find((node): node is Action => node.name === "Typed note")?.steps[0];
+	await expect.poll(typed, POLL_OPTS).toMatchObject({
+		type: "createNote",
+		templatePath: `{{FILE:${sandbox.path("Templates")}|path|label:Template}}`,
+	});
+});
