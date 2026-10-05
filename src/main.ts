@@ -1,6 +1,6 @@
 /** biome-ignore-all assist/source/organizeImports: Import order is critical to prevent circular dependencies - ChoiceExecutor must load before dependent classes */
-import type { Debouncer, TFile } from "obsidian";
-import { Plugin, debounce } from "obsidian";
+import type { TFile } from "obsidian";
+import { Plugin } from "obsidian";
 import { QuickAddSettingsTab } from "./quickAddSettingsTab";
 import { DEFAULT_SETTINGS } from "./settings";
 import type { QuickAddSettings } from "./settings";
@@ -92,11 +92,32 @@ export default class QuickAdd extends Plugin {
 	// settings write would be invisible to the unhandled-rejection reporter - which is
 	// the one failure here the user most needs to hear about, since their settings
 	// silently did not persist. Awaiting inside a QuickAdd frame puts us on the stack.
-	private requestSave: Debouncer<[], void> = debounce(() => {
-		void (async () => {
-			await this.persistSettings();
-		})();
-	}, SETTINGS_SAVE_DEBOUNCE_MS);
+	//
+	// Not Obsidian's debounce: that schedules on whichever window is active when it is
+	// called, so a change made in the Settings popout would be written on the popout's
+	// timer, which closing the popout drops. `window` is the main window.
+	private pendingSave: number | null = null;
+	private requestSave = Object.assign(
+		() => {
+			this.pendingSave ??= window.setTimeout(
+				() => this.requestSave.run(),
+				SETTINGS_SAVE_DEBOUNCE_MS,
+			);
+		},
+		{
+			run: () => {
+				if (this.pendingSave === null) return;
+				this.requestSave.cancel();
+				void (async () => {
+					await this.persistSettings();
+				})();
+			},
+			cancel: () => {
+				if (this.pendingSave !== null) window.clearTimeout(this.pendingSave);
+				this.pendingSave = null;
+			},
+		},
+	);
 
 	get api(): ReturnType<typeof QuickAddApi.GetApi> {
 		return QuickAddApi.GetApi(
