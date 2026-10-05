@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CommandType } from "../../types/macros/CommandType";
 import { render } from "@testing-library/svelte";
 import { App, TFile } from "obsidian";
 import CommandList from "./CommandList.svelte";
@@ -73,5 +74,19 @@ describe("CommandList rows", () => {
 
 		// A line that only repeats the name is left out.
 		expect(rows(container)).toEqual([["From a newer version"], ["Toggle bold"]]);
+	});
+
+	it("renders a saved command without a name instead of throwing", () => {
+		const nameless = { id: "n", name: null, type: CommandType.OpenFile, filePath: "Inbox.md" };
+		const props = createCommandListProps({
+			commands: [nameless as never],
+			app,
+			plugin: {} as never,
+			deleteCommand: vi.fn(),
+			saveCommands: vi.fn(),
+		});
+		const { container } = render(CommandList, { props });
+
+		expect(container.querySelectorAll(".quickAddCommandListItem")).toHaveLength(1);
 	});
 });
