@@ -28,6 +28,27 @@ If a referenced script is missing from your vault, the exporter finishes with a
 warning so you can locate or recreate the file before you share the package.
 :::
 
+## Browse recipes in the app {#browse-recipes}
+
+The [examples](/docs/Examples/) in these docs also ship inside QuickAdd as
+recipes, so you can add one without leaving Obsidian:
+
+1. Open **Settings → QuickAdd** and click **New choice → Browse recipes…**.
+   **Browse recipes…** under **Packages** opens the same gallery, and so does
+   **or browse recipes** on an empty list.
+2. Type in the filter to narrow the list. Each recipe says what it adds, for
+   example *2 choices, 2 templates*, and what it needs first. **Guide** opens
+   its page in these docs.
+3. Click **Add**. A recipe with nothing to decide is added straight away. If it
+   bundles a script, or a choice or file it adds is already in your vault,
+   QuickAdd shows the [review](#review-what-a-package-can-do) a pasted package
+   gets; click **Add recipe** when you are done, or **Back** to leave it.
+4. The recipe's card reads **Added** and lists what to do next, the same steps
+   as **After importing** on its page.
+
+Templates a recipe bundles land in your first QuickAdd template folder, as
+they do when you import a package.
+
 ## Install an example from the docs {#install-an-example}
 
 Every [example](/docs/Examples/) page has a **Get this workflow** card at the

@@ -10,7 +10,9 @@ check what the **Get this workflow** card says it needs, click **Copy
 package**, import it in Obsidian, and follow **After importing** under **How
 to install** in the card. See
 [Install an example from the docs](/docs/Choices/Packages/#install-an-example)
-for the full walkthrough.
+for the full walkthrough. In Obsidian, **New choice → Browse recipes…** lists
+the same workflows and adds one with a click; see
+[Browse recipes in the app](/docs/Choices/Packages/#browse-recipes).
 
 | Workflow | Choice type | Setup | Prerequisites | What it creates |
 | --- | --- | --- | --- | --- |
