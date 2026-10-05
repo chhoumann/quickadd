@@ -36,6 +36,37 @@ Hold Alt (⌥ on macOS) while you pick a preset to add the choice without
 opening its settings.
 :::
 
+## Your first choices {#first-run}
+
+When the list in **Settings → QuickAdd** is empty, it asks **What do you do in
+Obsidian?** and offers five answers. Click the ones that fit, then click
+**Create choices**. The button counts the choices it will add.
+
+| Answer | Adds |
+| --- | --- |
+| **Keep a daily journal** | **Log** adds `- {{TIME}} {{VALUE}}` under `## Log`, and **Thought** adds `- {{VALUE}}` under `## Thoughts`, in today's daily note. |
+| **Track tasks** | **Task** adds a task under `## Tasks` in today's daily note. With the Tasks plugin on, it also asks for an optional due date and writes it as `📅 2026-06-14`. |
+| **Meeting and people notes** | **Meeting note** creates `Meetings/{{DATE}} {{VALUE:Topic}}` from a meeting template and opens it. |
+| **Collect reading and ideas** | **Inbox** adds a line at the bottom of `Inbox.md`, and **Save link** adds a task at the bottom of `Reading list.md`. |
+| **Run projects** | **Project** creates `Projects/{{VALUE:Name}}` from a project template, links it on a new line in the note you are in, and opens it. |
+
+The choices follow your vault:
+
+- **Daily notes.** Without the Daily notes core plugin or Periodic Notes, Log,
+  Thought, and Task write to `Journal/{{DATE:YYYY-MM-DD}}.md` instead of
+  today's daily note.
+- **Templates.** Meeting note and Project use a note in your template folder
+  whose name contains "meeting" or "project". The template folder is
+  QuickAdd's first template folder, else the Templates core plugin's folder,
+  else `Templates/`. When there is no such note, QuickAdd creates `Meeting.md`
+  or `Project.md` there, and the answer's card says *Adds a Meeting template*.
+- **Missing notes and headings** are created on the first run. QuickAdd never
+  overwrites a note that exists.
+
+Each one is an ordinary choice; change it in its settings like any other. The
+quieter **New choice** and **New folder** buttons under the question start
+from scratch instead.
+
 ## The summary line {#summary}
 
 Every choice shows one line under its name that says what it does, for

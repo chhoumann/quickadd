@@ -9,7 +9,8 @@ template, logging a line to your journal, running a script - into single
 commands you trigger with a hotkey. Set a workflow up once, then run it in a
 keystroke from anywhere in your vault.
 
-New here? Build your [first workflow](#first-workflow) below in about a minute.
+New here? Let QuickAdd [set up your first choices](#first-run), or build your
+[first workflow](#first-workflow) below in about a minute.
 
 ## Install QuickAdd
 
@@ -36,6 +37,21 @@ You don't pick the type directly. **New choice** in the settings list offers
 [presets](/docs/Choices/Presets/) named after what you want to happen, such as
 **Log with a timestamp** or **Run a script**. Each one creates a choice of the
 right type, already set up.
+
+## Your first choices {#first-run}
+
+An empty list in **Settings → QuickAdd** asks **What do you do in
+Obsidian?** Click every answer that fits, such as **Keep a daily journal** or
+**Meeting and people notes**, then click **Create choices**. QuickAdd adds
+ready-to-run choices for each answer, set up for your vault: with daily notes
+on, the journal and task choices write to today's daily note, and without
+them to a dated note in `Journal/`. Each card says what it adds before you
+pick it, and the [presets page](/docs/Choices/Presets/#first-run) lists them
+all.
+
+Run one from the command palette (Ctrl/Cmd+P) with **QuickAdd: Run**. To build
+a choice yourself instead, click **New choice** under the question, or follow
+the first workflow below.
 
 ## First workflow
 
