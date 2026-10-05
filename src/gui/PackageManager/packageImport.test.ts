@@ -56,8 +56,10 @@ describe("importPackage", () => {
 
 	it("keeps a choice added while the files were written, and the files where they landed", async () => {
 		applied.during = () => settingsStore.setState((state) => ({ ...state, choices: [...state.choices, choice("meanwhile")] }));
-		await importPackage({ app, pkg, choiceDecisions: [], assetDecisions: [{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "write" }] });
+		const { previousChoices } = await importPackage({ app, pkg, choiceDecisions: [], assetDecisions: [{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "write" }] });
 		expect(settingsStore.getState().choices.map((entry) => entry.id)).toEqual(["mine", "meanwhile", "imported"]);
+		// What the import replaced, for the command sync that diffs against it.
+		expect(previousChoices.map((entry) => entry.id)).toEqual(["mine", "meanwhile"]);
 		expect(applied.calls).toHaveLength(2);
 		expect(applied.calls[1]?.existing.map((entry) => entry.id)).toEqual(["mine", "meanwhile"]);
 		expect(applied.calls[1]?.assets).toEqual([{ originalPath: "T.md", destinationPath: "Templates/T.md", mode: "skip" }]);

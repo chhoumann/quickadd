@@ -71,8 +71,7 @@ export async function importPackage(options: {
 	choiceDecisions: ChoiceImportDecision[];
 	assetDecisions: AssetImportDecision[];
 }): Promise<{ result: ApplyImportResult; previousChoices: IChoice[] }> {
-	const previousChoices = settingsStore.getState().choices;
-	let existingChoices = previousChoices;
+	let existingChoices = settingsStore.getState().choices;
 	let assetDecisions = options.assetDecisions;
 	let result = await applyPackageImport({
 		...options,
@@ -101,7 +100,8 @@ export async function importPackage(options: {
 		});
 	}
 	settingsStore.setState((state) => ({ ...state, choices: result.updatedChoices }));
-	return { result, previousChoices };
+	// The choices the final merge replaced, which is what a command sync diffs.
+	return { result, previousChoices: existingChoices };
 }
 
 /** The files the first pass created, as opposed to replaced. */
