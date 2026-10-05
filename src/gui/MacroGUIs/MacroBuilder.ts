@@ -118,7 +118,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			if (isMacroObject(this.macro)) this.macro.name = name;
 			this.pickDaySetting?.setName(pickDaySettingName(name.trim() || this.openedName));
 		});
-		this.addCommandEditor(this.addGroup(containerEl, "Commands"));
+		this.addCommandEditor(this.addGroup(containerEl, "Steps"));
 		const behavior = this.addGroup(containerEl, "Behavior");
 		this.addOnePageInputSetting(behavior);
 		this.addDateOriginSetting(behavior);

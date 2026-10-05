@@ -57,6 +57,12 @@ describe("MacroBuilder", () => {
 		expect(rows.at(-1)?.textContent).toContain("Lucide/Obsidian icon id");
 	});
 
+	it("heads its steps Steps", () => {
+		const page = openPage(new MacroChoice("Macro under test"));
+		const group = Array.from(page.containerEl.children).find((el) => el.querySelector(".quickAddCommandEditor"));
+		expect(group?.querySelector("h3")?.textContent).toBe("Steps");
+	});
+
 	it("leaves the macro out of the choices its steps can run", () => {
 		const choice = new MacroChoice("Macro under test");
 		new MacroBuilder(new App(), plugin, choice, [choice, new MacroChoice("Other")], () => {}).display();

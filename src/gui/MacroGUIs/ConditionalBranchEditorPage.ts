@@ -52,7 +52,7 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 			},
 			conditionalHandlers: this.conditionalHandlers,
 		});
-		const commandsEl = new SettingGroup(containerEl).setHeading("Commands").listEl;
+		const commandsEl = new SettingGroup(containerEl).setHeading("Steps").listEl;
 		this.commandEditor.render(commandsEl.createDiv("branchCommandEditor"));
 	}
 
