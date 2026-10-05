@@ -87,9 +87,18 @@
 		flex: none;
 	}
 
+	/* A long name or note path shortens on a phone instead of widening the page. */
+	.qa-run-log-name,
+	.qa-run-log-note {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
 	.qa-run-log-name {
 		font-weight: var(--font-medium);
-		flex: none;
 	}
 
 	.qa-run-log-what {
@@ -102,10 +111,6 @@
 
 	.qa-run-log-entry[data-status="error"] .qa-run-log-what {
 		color: var(--text-error);
-	}
-
-	.qa-run-log-note {
-		flex: none;
 	}
 
 	.qa-run-log-empty {
