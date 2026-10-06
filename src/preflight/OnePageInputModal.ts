@@ -255,20 +255,28 @@ export class OnePageInputModal extends Modal {
 	onOpen() {
 		this.peek.onHostOpened();
 
-		// Mod+Enter submits without reaching for the mouse. Guarded because the
-		// test mock's Modal has no scope.
+		// Enter in a one-line field submits, as it does in a single prompt, and
+		// Mod+Enter submits from anywhere. An open suggestion list takes Enter
+		// first, and a multi-line field keeps it for its line breaks. Guarded
+		// because the test mock's Modal has no scope.
 		const scope = (
 			this as unknown as {
 				scope?: {
 					register?: (
 						mods: string[],
 						key: string,
-						cb: () => boolean,
+						cb: (evt?: KeyboardEvent) => boolean,
 					) => void;
 				};
 			}
 		).scope;
 		if (typeof scope?.register === "function") {
+			scope.register([], "Enter", (evt) => {
+				// By tag, not instanceof: a popout window has its own HTMLInputElement.
+				if (!evt || evt.isComposing || (evt.target as Element | null)?.tagName !== "INPUT") return true;
+				this.submit();
+				return false;
+			});
 			scope.register(["Mod"], "Enter", () => {
 				this.submit();
 				return false;

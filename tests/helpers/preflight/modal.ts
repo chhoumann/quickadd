@@ -7,14 +7,14 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 		private readonly handlers: Array<{
 			mods: string[];
 			key: string;
-			cb: () => boolean;
+			cb: (evt?: Partial<KeyboardEvent>) => boolean;
 		}> = [];
 
-		register(mods: string[], key: string, cb: () => boolean) {
+		register(mods: string[], key: string, cb: (evt?: Partial<KeyboardEvent>) => boolean) {
 			this.handlers.push({ mods, key, cb });
 		}
 
-		trigger(mods: string[], key: string) {
+		trigger(mods: string[], key: string, evt?: Partial<KeyboardEvent>) {
 			this.handlers
 				.filter(
 					(h) =>
@@ -22,7 +22,7 @@ export async function modalObsidianStub(noticeMessages?: string[]) {
 						h.mods.length === mods.length &&
 						h.mods.every((m) => mods.includes(m)),
 				)
-				.forEach((h) => h.cb());
+				.forEach((h) => h.cb(evt));
 		}
 	}
 
