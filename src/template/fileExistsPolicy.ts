@@ -6,9 +6,9 @@ import {
 
 export const fileExistsBehaviorCategoryOptions = [
 	{ id: "prompt", label: "Ask every time" },
-	{ id: "update", label: "Update existing file" },
-	{ id: "create", label: "Create another file" },
-	{ id: "keep", label: "Keep existing file" },
+	{ id: "update", label: "Update existing note" },
+	{ id: "create", label: "Create another note" },
+	{ id: "keep", label: "Keep existing note" },
 ] as const;
 
 export type FileExistsBehaviorCategoryId =
@@ -23,7 +23,7 @@ export const fileExistsModes = [
 		id: "appendBottom",
 		category: "update",
 		label: "Append to bottom",
-		description: "Adds the template content to the end of the existing file.",
+		description: "Adds the template content to the end of the existing note.",
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
@@ -32,15 +32,15 @@ export const fileExistsModes = [
 		category: "update",
 		label: "Append to top",
 		description:
-			"Adds the template content to the beginning of the existing file.",
+			"Adds the template content to the beginning of the existing note.",
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
 	{
 		id: "overwrite",
 		category: "update",
-		label: "Overwrite file",
-		description: "Replaces the existing file content with the template.",
+		label: "Overwrite note",
+		description: "Replaces the existing note's content with the template.",
 		requiresExistingFile: true,
 		resolutionKind: "modifyExisting",
 	},
@@ -66,7 +66,7 @@ export const fileExistsModes = [
 		id: "doNothing",
 		category: "keep",
 		label: "Do nothing",
-		description: "Leaves the file unchanged and opens the existing file.",
+		description: "Leaves the existing note unchanged and opens it.",
 		requiresExistingFile: true,
 		resolutionKind: "reuseExisting",
 	},

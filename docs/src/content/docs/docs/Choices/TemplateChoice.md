@@ -39,9 +39,9 @@ to do each familiar job.
    the name at the top to rename it.)
 4. Set **Template** to `Templates/Book.md`. (In earlier versions, this is
    **Template path**.)
-5. In **File name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
+5. In **Note name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
 6. In **Folder**, enter `Books`.
-7. Click **More settings**. Turn **Open** on. Set **File opening location** to
+7. Click **More settings**. Turn **Open** on. Set **Opening location** to
    **Reuse current tab** and **View mode** to **Live Preview**.
 8. Close Settings. Leaving the page saves it. (Before QuickAdd 2.30.0, choose
    **Done** first.)
@@ -106,7 +106,7 @@ Under it are the settings most template choices need:
 - **Template** - the template file the note is made from.
 - **Folder** - the folder the note is created in. Leave it empty to use
   Obsidian's "Default location for new notes".
-- **File name** - the new note's name. Leave it empty to ask for the title.
+- **Note name** - the new note's name. Leave it empty to ask for the title.
 
 When the template file uses Templater (it holds a `<%` tag), a line under
 **Template** says *Templater runs after the note is created*, the opening line
@@ -191,7 +191,7 @@ up-front form.
 
 ## Name the new note: File name {#optional}
 
-**File name** sets a format for the created file's name, using
+**Note name** sets a format for the created file's name, using
 [format syntax](/docs/FormatSyntax/) - so file names can be dynamic too.
 
 ```text title="You configure"
@@ -202,7 +202,7 @@ up-front form.
 £ 2021-06-12 Manually-Written-File-Name
 ```
 
-`{{NAME}}` is a value you enter when invoking the template. Leave **File name**
+`{{NAME}}` is a value you enter when invoking the template. Leave **Note name**
 empty and QuickAdd asks for the note title when you run the choice, the same as
 writing `{{VALUE}}`. Before QuickAdd 2.30.0, the field is **File name format**,
 with a toggle that hides it while off; off asks for the note title.
@@ -251,7 +251,7 @@ requires a Markdown template.
 The picker names the action beside each existing note, so an update is visible
 before you select it.
 
-The selected note keeps its path and name. QuickAdd skips **File name**,
+The selected note keeps its path and name. QuickAdd skips **Note name**,
 **New note location**, and the new-note collision setting. `{{TITLE}}` and the
 anonymous `{{VALUE}}` use the selected note's basename, and `{{FOLDER}}` uses its
 folder. The template's other inputs still appear, including in the
@@ -311,7 +311,7 @@ location** under **More settings**, a dropdown with four modes:
   toggle (shown only in this mode) lets the suggester offer the selected folders
   *and* their subfolders. In QuickAdd 2.30.0 or later, a folder you typed but
   didn't **Add** is added when you close the builder; earlier versions drop it.
-- **Same folder as current file** - create the note next to the currently active
+- **Same folder as current note** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each
   time the choice runs.
@@ -329,9 +329,9 @@ Projects/{{VALUE:client}}/{{DATE:YYYY}}
 This prompts for a client and creates the file under that client's folder for
 the current year.
 
-## Link to the new note: Link to created file {#link-to-created-file}
+## Link to the new note: Link to created note {#link-to-created-file}
 
-**Link to created file** controls whether QuickAdd inserts a link to the note it
+**Link to created note** controls whether QuickAdd inserts a link to the note it
 just created - handy for leaving a trail in the note you were in. Three modes:
 
 - **Enabled (strict)** - require the configured link destination to be available
@@ -417,7 +417,7 @@ links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
 ### Copy a link to the clipboard {#copy-link-to-clipboard}
 
 **Copy link to clipboard** copies a link to the created file after the Template
-choice runs. This works separately from **Link to created file**, so you can copy
+choice runs. This works separately from **Link to created note**, so you can copy
 the link without inserting it into the current note, or do both. The copied link
 is a vault-path wikilink, ready to paste into another note.
 
@@ -426,7 +426,7 @@ is a vault-path wikilink, ready to paste into another note.
 **Open** opens the created file. When enabled, additional file-opening controls
 appear (these are shared with the Capture choice):
 
-- **File opening location** - where to open the file: **Reuse current tab**,
+- **Opening location** - where to open the file: **Reuse current tab**,
   **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right
   sidebar**.
 - **Split direction** - shown only when the location is **Split pane**. Arrange
@@ -464,7 +464,7 @@ saves as soon as you flip it. A choice nested inside a macro doesn't have it. To
 
 ## When the note already exists {#file-already-exists-behavior}
 
-**If the target file already exists** decides what QuickAdd does when a note with
+**If the note already exists** decides what QuickAdd does when a note with
 the target name is already there. The setting works in two steps: first pick a
 high-level behavior, then a follow-up field appears for the two behaviors that
 need a detail.
@@ -473,10 +473,10 @@ With **Search existing notes before creating** enabled, this setting is called
 **If a new note's path already exists**. It applies to new-note creation.
 [Selecting an existing match](#search-existing) has its own action.
 
-- **If the target file already exists** - choose **Ask every time**, **Update
-  existing file**, **Create another file**, or **Keep existing file**.
-- **Update action** - shown only when you choose **Update existing file**.
-- **New file naming** - shown only when you choose **Create another file**.
+- **If the note already exists** - choose **Ask every time**, **Update
+  existing note**, **Create another note**, or **Keep existing note**.
+- **Update action** - shown only when you choose **Update existing note**.
+- **New note naming** - shown only when you choose **Create another note**.
 
 ### Let QuickAdd ask each time {#ask-every-time}
 
@@ -485,7 +485,7 @@ already exists:
 
 - **Append to bottom**
 - **Append to top**
-- **Overwrite file**
+- **Overwrite note**
 - **Increment trailing number**
 - **Append duplicate suffix**
 - **Do nothing**
@@ -499,7 +499,7 @@ These options modify the existing markdown, canvas, or base file:
   the note ends. An empty note gets the template with no blank line above it.
 - **Append to top** - adds the template content to the beginning of the existing
   file.
-- **Overwrite file** - replaces the existing file content with the template.
+- **Overwrite note** - replaces the existing file content with the template.
 
 :::note
 For markdown files, **Append to bottom** and **Append to top** handle template
@@ -525,7 +525,7 @@ These options keep the existing file untouched and create a new file instead:
 
 ### Keep the existing note {#keep-existing-file}
 
-Selecting **Keep existing file** applies the same result as choosing **Do
+Selecting **Keep existing note** applies the same result as choosing **Do
 nothing** from the prompt:
 
 - **Do nothing** - leaves the existing file unchanged and opens it

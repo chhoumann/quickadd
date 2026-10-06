@@ -11,7 +11,7 @@ describe("OpenFileCommand", () => {
 		expect(command.filePath).toBe("{{DATE}}.md");
 		expect(command.openInNewTab).toBe(false);
 		expect(command.location).toBeUndefined();
-		expect(command.name).toBe("Open file: {{DATE}}.md");
+		expect(command.name).toBe("Open note: {{DATE}}.md");
 		expect(command.id).toBeDefined();
 	});
 
@@ -29,7 +29,7 @@ describe("OpenFileCommand", () => {
 		expect(command.direction).toBe(NewTabDirection.vertical);
 		expect(command.location).toBe("split");
 		expect(command.focus).toBe(false);
-		expect(command.name).toBe("Open file: notes/{{VALUE}}.md");
+		expect(command.name).toBe("Open note: notes/{{VALUE}}.md");
 	});
 
 	it("syncs legacy flags from location when provided", () => {

@@ -195,12 +195,12 @@ describe("CaptureChoiceForm", () => {
 
 	it("hides the create/open/file-opening sections when capturing to the active file", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).toContain("Create file if it doesn't exist");
+		expect(settingNames(container)).toContain("Create note if it doesn't exist");
 
 		props.choice.captureToActiveFile = true;
 		flushSync();
 		const names = settingNames(container);
-		expect(names).not.toContain("Create file if it doesn't exist");
+		expect(names).not.toContain("Create note if it doesn't exist");
 		expect(names).not.toContain("Open");
 	});
 
@@ -218,12 +218,12 @@ describe("CaptureChoiceForm", () => {
 			props: { choice: props.choice, app: props.app, plugin: props.plugin },
 		});
 		openMoreSettings(container);
-		expect(settingNames(container)).toContain("Create file if it doesn't exist");
+		expect(settingNames(container)).toContain("Create note if it doesn't exist");
 
 		props.choice.captureToActiveFile = true;
 		flushSync();
 		expect(settingNames(container)).not.toContain(
-			"Create file if it doesn't exist",
+			"Create note if it doesn't exist",
 		);
 	});
 
@@ -281,14 +281,14 @@ describe("CaptureChoiceForm", () => {
 	});
 
 	// #1544: the capture target used to be described by three rows — a control-less
-	// "Where", the "Capture to active file" toggle, a control-less "File path /
+	// "Where", the "Capture to active note" toggle, a control-less "File path /
 	// format" — and the input that actually holds it advertised itself as a *file
 	// name* format. One decision, one label, one description, one input.
 	// #2014: the whole-file Templater pass is deprecated. Only a choice that
 	// already has it on still sees the row, so it can turn it off.
 	it("shows the deprecated whole-file Templater option only while it is on", async () => {
 		const { container, props } = mountForm();
-		const rowName = "Run Templater on entire destination file after capture (deprecated)";
+		const rowName = "Run Templater on entire destination note after capture (deprecated)";
 		expect(settingNames(container)).not.toContain(rowName);
 
 		props.choice.templater = { afterCapture: "wholeFile" };

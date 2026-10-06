@@ -55,7 +55,7 @@ describe("CommandList rows", () => {
 
 		expect(rows(container)).toEqual([
 			["Add to note", "Adds a line at the bottom of Inbox"],
-			["Open file: Projects/Board.md", "Opens Projects/Board.md"],
+			["Open note: Projects/Board.md", "Opens Projects/Board.md"],
 			["streaks", "Runs streaks.js"],
 			["Wait", "Waits 200 ms"],
 		]);

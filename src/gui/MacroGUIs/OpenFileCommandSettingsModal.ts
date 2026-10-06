@@ -53,7 +53,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 		this.contentEl.empty();
 
 		const headerEl = this.contentEl.createEl("h2");
-		headerEl.textContent = "Open file command settings";
+		headerEl.textContent = "Open a note";
 		headerEl.addClass("qa-modal-title");
 
 		this.addFilePathSetting();
@@ -65,14 +65,14 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addFilePathSetting() {
 		new Setting(this.contentEl)
-			.setName("File path")
-			.setDesc("Path to the file. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
+			.setName("Note path")
+			.setDesc("Path to the note. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
 			.addText(text => text
 				.setPlaceholder("{{DATE}}todo.md")
 				.setValue(this.command.filePath)
 				.onChange(value => {
 					this.command.filePath = value;
-					this.command.name = `Open file: ${value}`;
+					this.command.name = `Open note: ${value}`;
 				})
 			);
 	}
@@ -148,8 +148,8 @@ export class OpenFileCommandSettingsModal extends Modal {
 
 	private addFocusSetting() {
 		new Setting(this.contentEl)
-			.setName("Focus opened file")
-			.setDesc("Bring the opened file to the foreground")
+			.setName("Focus opened note")
+			.setDesc("Bring the opened note to the foreground")
 			.addToggle((toggle) =>
 				toggle
 					.setValue(this.command.focus ?? true)

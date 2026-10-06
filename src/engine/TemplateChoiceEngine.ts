@@ -248,7 +248,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
-				// failure here — most commonly strict "Link to created file" with no
+				// failure here - most commonly strict "Link to created note" with no
 				// active Markdown view — must not surface as "Error running template
 				// choice", which implies the run failed and tempts a duplicate re-run.
 				// Report it as a non-fatal warning that names the created file.
@@ -429,7 +429,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 
 		const promptModes = getPromptModes();
-		const placeholder = "If the target file already exists";
+		const placeholder = "If the note already exists";
 
 		return (await routePrompt(this.choiceExecutor, {
 			// An interactive run drives this from the client, like every other prompt

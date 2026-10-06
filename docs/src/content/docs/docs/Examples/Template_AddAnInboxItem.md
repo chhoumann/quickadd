@@ -31,7 +31,7 @@ Imported the package above? Follow **After importing** in the card, then skip th
    Templates/Inbox Template.md
    ```
 
-3. Set **File name** to (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
+3. Set **Note name** to (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
 
    ```
    {{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}

@@ -257,7 +257,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		| { kind: "canvasText"; canvas: CanvasTextCaptureTarget }
 		| { kind: "note"; filePath: string; isCanvasTriggered: boolean }
 	> {
-		// An active canvas target only exists with Capture to active file, and a
+		// An active canvas target only exists with Capture to active note, and a
 		// configured one only without it.
 		const canvasTarget =
 			(this.choice.captureToActiveFile
@@ -366,7 +366,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 
 		if (!fileAlreadyExists && !this.choice?.createFileIfItDoesntExist?.enabled) {
 			throw new ChoiceAbortError(
-				`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`,
+				`Target note missing: ${filePath}. Turn on "Create note if it doesn't exist" or choose an existing note.`,
 			);
 		}
 	}
@@ -598,7 +598,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		if (wholeFileTemplater) {
 			warnDeprecatedOnce(
 				`templater-whole-file:${this.choice.id}`,
-				`'${this.choice.name}' uses "Run Templater on entire destination file after capture", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.`,
+				`'${this.choice.name}' uses "Run Templater on entire destination note after capture", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.`,
 			);
 			await overwriteTemplaterOnce(this.app, file);
 		}
@@ -629,7 +629,7 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			throw new ChoiceAbortError("Property capture requires a Markdown note.");
 		}
 		if (!fileAlreadyExists && !this.choice.createFileIfItDoesntExist.enabled) {
-			throw new ChoiceAbortError(`Target file missing: ${filePath}. Enable "Create file if it doesn't exist" or choose an existing file.`);
+			throw new ChoiceAbortError(`Target note missing: ${filePath}. Turn on "Create note if it doesn't exist" or choose an existing note.`);
 		}
 		let file = fileAlreadyExists ? this.getFileByPath(filePath) : undefined;
 		this.formatter.setTitle(basenameWithoutMdOrCanvas(filePath));

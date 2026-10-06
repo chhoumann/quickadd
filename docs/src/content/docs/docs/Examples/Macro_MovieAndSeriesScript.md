@@ -33,7 +33,7 @@ You can find the script <a href="/scripts/movies.js" download>here</a>.
 4. On the script step, click **Choose file** and pick `movies.js`.
 5. Add a Template command to the macro. This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Set **File name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
+    2. Set **Note name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Movie or TV show without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
 6. Click on the cog icon to the right of the script command to configure the script settings. This should allow you to enter the API key you got from OMDb; click the save icon next to it and QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.
 

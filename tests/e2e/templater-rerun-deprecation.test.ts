@@ -78,5 +78,5 @@ it("warns once when a Capture runs Templater on the whole file", async () => {
 	}
 
 	await expect.poll(() => sandbox.read("Whole.md")).toContain("Plain capture");
-	expect(await noticesContaining("Run Templater on entire destination file after capture")).toBe(1);
+	expect(await noticesContaining("Run Templater on entire destination note after capture")).toBe(1);
 });

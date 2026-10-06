@@ -78,7 +78,7 @@ it("makes a note from a new template in the compact builder", async () => {
 
 	expect(await summary(obsidian)).toBe("Creates {title}");
 	await expect.poll(() => rowNames(obsidian), POLL_OPTS)
-		.toEqual(["Name", "Template", "Folder", "File name", "Inputs", "Steps", "More settings"]);
+		.toEqual(["Name", "Template", "Folder", "Note name", "Inputs", "Steps", "More settings"]);
 
 	await clickWhenStill(obsidian, ".qa-builder-page .qaNewTemplateButton");
 	await waitForElement(obsidian, ".qaInputPrompt input");

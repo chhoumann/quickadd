@@ -71,7 +71,7 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	expect(await read(classic)).toBe("");
 });
 
-// With "Create file if it doesn't exist", a name typed in the field is a new
+// With "Create note if it doesn't exist", a name typed in the field is a new
 // note, as in the run's picker, for folder, tag and property scopes. A note's
 // name or alias still picks the note, and outside a folder a name no new note
 // may take is not offered.

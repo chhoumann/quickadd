@@ -51,7 +51,7 @@ Good places to use one:
 
 :::tip
 In the format fields of a choice's settings, such as **What** or
-**File name**, type `{{glob` to get suggestions for the variables you've
+**Note name**, type `{{glob` to get suggestions for the variables you've
 defined, then pick one to insert it. Use descriptive names,
 and avoid two names that differ only by case.
 :::

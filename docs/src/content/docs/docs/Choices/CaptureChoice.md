@@ -22,9 +22,9 @@ stay right where you are. Use it to:
    its name at the top to rename it.)
 2. Set **Where** to where entries should land, for example
    `Journal/{{DATE}}.md`. (In earlier versions, this is **Capture to**.)
-3. Click **More settings** and turn on **Create file if it doesn't exist**, so
+3. Click **More settings** and turn on **Create note if it doesn't exist**, so
    the first capture of the day creates today's note instead of stopping with
-   a "Target file missing" notice.
+   a "Target note missing" notice.
 4. In **What**, describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`. (In earlier versions, this is **Capture
    format**; before QuickAdd 2.30.0, turn on its toggle first.)
@@ -43,7 +43,7 @@ behaves the way you want.
 ## Choose where it goes: Where {#capture-to}
 
 _Where_ is the note you are capturing to. Either enable **Capture to
-active file** to write into the note you are currently in, or enter a file
+active note** to write into the note you are currently in, or enter a file
 path.
 
 The path supports [format syntax](/docs/FormatSyntax/), so it can be dynamic.
@@ -58,7 +58,7 @@ Every run finds today's file, and your entry is captured to it.
 For your daily note, click **Daily note** next to **Where** (QuickAdd
 2.30.0 or later). It writes
 [`{{DAILY}}`](/docs/FormatSyntax/#daily) into the field and turns on **Create
-file if it doesn't exist**. `{{DAILY}}` uses the folder, date format, and
+note if it doesn't exist**. `{{DAILY}}` uses the folder, date format, and
 template from Obsidian's **Daily notes** settings, or from Periodic Notes when
 it manages your daily notes, so the path always matches the note **Open
 today's daily note** opens. [`{{WEEKLY}}`, `{{MONTHLY}}`, `{{QUARTERLY}}`, and `{{YEARLY}}`](/docs/FormatSyntax/#periodic-notes)
@@ -78,7 +78,7 @@ from that path segment. The text inserted into the note is not changed.
 
 ### How QuickAdd picks the target {#how-quickadd-picks-a-target}
 
-When **Capture to active file** is off, the resolved _Where_
+When **Capture to active note** is off, the resolved _Where_
 value decides what happens:
 
 | You write | What happens |
@@ -99,7 +99,7 @@ modification time on purpose, so a sync that touches old notes doesn't push
 them to the top. Files in Obsidian's **Excluded files** list sink to the
 bottom but stay selectable.
 
-You can also **type a new name** into the picker: with **Create file if it
+You can also **type a new name** into the picker: with **Create note if it
 doesn't exist** enabled, a **Create new note: &lt;name&gt;** row appears and
 QuickAdd creates the note for you. The create row is selected first, so press
 Enter to create the exact name you typed even when existing notes are fuzzy
@@ -119,7 +119,7 @@ folder to capture to - nested folders included. Format syntax works here too.
 
 For example: you keep one note per person in `CRM/people`. Set _Capture To_ to
 `CRM/people`, run the capture, and pick the person. Type `John Doe` instead
-and QuickAdd creates `CRM/people/John Doe.md` (with **Create file if it
+and QuickAdd creates `CRM/people/John Doe.md` (with **Create note if it
 doesn't exist** enabled).
 
 ### Capture to a tag {#capturing-to-tags}
@@ -173,7 +173,7 @@ Good to know:
 - The field name matches case-insensitively (`property:type` matches a `Type:` field), and value matching is always case-insensitive.
 - Only the `folder:` / `tag:` / `exclude-folder:` / `exclude-tag:` / `exclude-file:` pipe filters are applied here.
 - Because `|` starts a filter, a property value cannot itself contain `|`.
-- Typing a new note name (with **Create file if it doesn't exist**) creates the note, but does not automatically give it the property.
+- Typing a new note name (with **Create note if it doesn't exist**) creates the note, but does not automatically give it the property.
 
 ### Send one entry to several notes {#capturing-the-same-entry-to-multiple-files}
 
@@ -278,7 +278,7 @@ merge.
 
 :::note
 To insert `.base` content into your current note, keep **Capture to active
-file** enabled and use a `{{TEMPLATE:...}}` placeholder pointing at a `.base` file in the format - see
+note** enabled and use a `{{TEMPLATE:...}}` placeholder pointing at a `.base` file in the format - see
 [Capture: Insert a Related Notes Base into an MOC Note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
 To create a brand-new note that embeds a Base, use a Template choice - see
 [Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
@@ -370,14 +370,14 @@ QuickAdd tab before QuickAdd 2.30.0). This does not affect `{{SELECTED}}`.
 ### Pick where in the note it lands: Position {#write-position}
 
 _Position_ controls where in the note the entry is written. The options
-depend on whether **Capture to active file** is enabled:
+depend on whether **Capture to active note** is enabled:
 
-- **At cursor** (active file) / **Top of file** (target file) - the first option's label changes with the mode
-- **Top of file (after frontmatter)** (active file only)
+- **At cursor** (active file) / **Top of note** (target file) - the first option's label changes with the mode
+- **Top of note (after frontmatter)** (active file only)
 - **New line above cursor** / **New line below cursor** (active file only)
 - **After line…** - insert after a target line you specify, or pick a heading at run time. The workhorse for structured notes - see [Insert after](#insert-after).
 - **Before line…** - see [Insert before](#insert-before)
-- **Bottom of file** - starts the entry on a new line. For a blank line between entries, put one in the format, as in `{{VALUE}}\n\n`. Before QuickAdd 2.30.0, a format ending in `\n` also left a blank line before each new entry.
+- **Bottom of note** - starts the entry on a new line. For a blank line between entries, put one in the format, as in `{{VALUE}}\n\n`. Before QuickAdd 2.30.0, a format ending in `\n` also left a blank line before each new entry.
 - **Property** - set a frontmatter value or add items to a list.
 
 ### Capture into a property {#property}
@@ -442,7 +442,7 @@ Inline scripts read the current value through
 [Property Capture variables](/docs/InlineScripts/#property-capture-variables).
 
 **Create property if missing** permits a new key. When disabled, a missing key
-stops the capture. **Create file if it doesn't exist** separately controls
+stops the capture. **Create note if it doesn't exist** separately controls
 whether QuickAdd can create the destination note.
 
 The Capture format supplies the value. A format made entirely of one `VALUE`,
@@ -488,7 +488,7 @@ later **Add to list**. Use **Add to list** to create it as a list, or set the
 property's type in Obsidian first - choose Text to keep the lines as one value.
 
 QuickAdd collects and validates the property inputs before writing or creating
-the note. **Task** and **Run Templater on entire destination file after capture**
+the note. **Task** and **Run Templater on entire destination note after capture**
 are hidden and do not apply to property captures.
 
 Scripts can supply native values through `executeChoice`. With **Add to list**,
@@ -576,7 +576,7 @@ paste into another note.
 
 ### Open the captured note {#opening-the-captured-file}
 
-When **Capture to active file** is off, the **Behavior** section under **More
+When **Capture to active note** is off, the **Behavior** section under **More
 settings** shows an _Open_ toggle. Enabling it reveals:
 
 - _File opening location_ - **Reuse current tab**, **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right sidebar**
@@ -626,7 +626,7 @@ cursor at `{{CURSOR}}`, since the text under the marker may have moved.
 
 Body captures have two Templater paths when they create a missing Markdown file:
 
-- **Create file if it doesn't exist** without a QuickAdd template: QuickAdd creates a blank file first. If Templater's new-file trigger applies to that location, QuickAdd waits for Templater to finish before inserting the capture.
+- **Create note if it doesn't exist** without a QuickAdd template: QuickAdd creates a blank file first. If Templater's new-file trigger applies to that location, QuickAdd waits for Templater to finish before inserting the capture.
 - **Create with template**: QuickAdd owns the initial content. It renders the selected QuickAdd template, suppresses Templater's new-file/directory trigger for that creation, then runs Templater once on the content QuickAdd wrote.
 
 So a blank Capture-created file can receive Templater's directory template
@@ -742,7 +742,7 @@ is added above older ones, while a fixed title stays pinned at the top.
 The classic "daily log, newest first" recipe (issue
 [#481](https://github.com/chhoumann/quickadd/issues/481)):
 
-- **Where**: your log note (enable `Create file if it doesn't exist` to auto-create it)
+- **Where**: your log note (enable `Create note if it doesn't exist` to auto-create it)
 - **Format**: the entry with a trailing newline, e.g. `- {{DATE:HH:mm}} {{VALUE}}\n` (task captures add their own newline)
 - **Insert after**: the day heading, `## {{DATE:YYYY-MM-DD}}`
 - **Insert at end of section**: off, so each entry lands directly under the day heading (newest first within the day)
@@ -902,7 +902,7 @@ QuickAdd supports two Canvas capture workflows:
 
 ### Capture to the selected card {#1-capture-to-selected-card-in-active-canvas}
 
-Enabled when **Capture to active file** is on and the active view is a
+Enabled when **Capture to active note** is on and the active view is a
 Canvas. Supported card targets:
 
 - Text cards
@@ -910,21 +910,21 @@ Canvas. Supported card targets:
 
 ### Capture to a card in a specific file {#2-capture-to-specific-card-in-specific-canvas-file}
 
-Enabled when **Capture to active file** is off, the capture path resolves to
+Enabled when **Capture to active note** is off, the capture path resolves to
 a `.canvas` file, and **Target canvas node** is set. When the path is a
 `.canvas` file, QuickAdd shows a node picker so you can choose the card
 directly from that board.
 
 ### Positions in Canvas {#write-position-support-in-canvas}
 
-- Text cards and file cards (Markdown targets) support: **Top of file**, **Bottom of file**, **After line...**, **Before line...**
-- Cursor-based modes (**At cursor**, **New line above/below cursor**) don't exist in Canvas. If **Capture to active file** is on and the write position is still the default **At cursor**, the capture aborts until you switch to a supported mode.
+- Text cards and file cards (Markdown targets) support: **Top of note**, **Bottom of note**, **After line...**, **Before line...**
+- Cursor-based modes (**At cursor**, **New line above/below cursor**) don't exist in Canvas. If **Capture to active note** is on and the write position is still the default **At cursor**, the capture aborts until you switch to a supported mode.
 
 Selected-card mode needs exactly one selected card. If the selection is
 missing, multiple, or unsupported, QuickAdd aborts with a notice instead of
 writing to the wrong place.
 
-When **Link to captured file** is **Enabled (strict)** and the capture runs
+When **Link to captured note** is **Enabled (strict)** and the capture runs
 from a Canvas card without a focused Markdown editor, the capture still writes
 and link insertion is skipped.
 

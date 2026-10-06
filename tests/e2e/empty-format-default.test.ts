@@ -128,7 +128,7 @@ it("asks for the note title while File name is empty", async () => {
 
 	try {
 		await openBuilder(choice.name, "templateChoiceBuilder");
-		expect(await field("templateChoiceBuilder", "File name")).toEqual({ value: "", hasToggle: false });
+		expect(await field("templateChoiceBuilder", "Note name")).toEqual({ value: "", hasToggle: false });
 		await typeInto(obsidian, ".templateChoiceBuilder .qa-field input[placeholder='{{VALUE}}']", "Log {{VALUE:topic}}");
 		await leaveBuilder("templateChoiceBuilder");
 		await obsidian.exec("quickadd:run", { choice: choice.name, "value-topic": "one" });

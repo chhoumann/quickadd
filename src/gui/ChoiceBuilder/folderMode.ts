@@ -87,7 +87,7 @@ export function applyFolderMode(
 export const folderModeOptions: { value: FolderMode; label: string }[] = [
 	{ value: "obsidian-default", label: "Obsidian default" },
 	{ value: "specified", label: "In a specific folder" },
-	{ value: "active-file", label: "Same folder as current file" },
+	{ value: "active-file", label: "Same folder as current note" },
 	{ value: "prompt", label: "Ask for folder each time" },
 ];
 

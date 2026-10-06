@@ -205,8 +205,8 @@ function validateDestinationFile(raw: string) {
 </script>
 
 <SettingItem
-	name={`Link to ${fileLabel} file`}
-	desc={`Choose whether QuickAdd should insert a link to the ${fileLabel} file.`}
+	name={`Link to ${fileLabel} note`}
+	desc={`Choose whether QuickAdd should insert a link to the ${fileLabel} note.`}
 >
 	{#snippet control()}
 		<Dropdown value={currentMode} options={modeOptions} onchange={onModeChange} />
@@ -216,7 +216,7 @@ function validateDestinationFile(raw: string) {
 {#if currentMode !== "disabled"}
 	<SettingItem
 		name="Link destination"
-		desc={`Where QuickAdd writes the link to the ${fileLabel} file.`}
+		desc={`Where QuickAdd writes the link to the ${fileLabel} note.`}
 	>
 		{#snippet control()}
 			<Dropdown
@@ -305,7 +305,7 @@ function validateDestinationFile(raw: string) {
 		{/if}
 	{:else}
 		<SettingItem
-			name="Destination file"
+			name="Destination note"
 			desc="Existing Markdown note that receives the link at the bottom."
 		>
 			{#snippet control()}
@@ -316,9 +316,9 @@ function validateDestinationFile(raw: string) {
 					suggestions={markdownFilePaths}
 					maxSuggestions={50}
 					required
-					requiredMessage="Destination file is required"
+					requiredMessage="Destination note is required"
 					validator={validateDestinationFile}
-					ariaLabel="Append link destination file"
+					ariaLabel="Append link destination note"
 					onChange={onDestinationPathChange}
 				/>
 			{/snippet}

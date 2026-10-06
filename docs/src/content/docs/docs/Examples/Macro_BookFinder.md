@@ -21,7 +21,7 @@ You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 4. On the script step, click **Choose file** and pick `BookFinder.js`.
 5. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Set **File name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
+    2. Set **Note name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
 
 You can now use the macro to create notes with book information in your vault.

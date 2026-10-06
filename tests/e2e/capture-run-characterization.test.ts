@@ -475,14 +475,14 @@ const CASES: Case[] = [
 		clipboard: SENTINEL,
 	}],
 	["a missing note without creation", async (a) => { a.choice.captureTo = a.path("Missing.md"); }, {
-		result: { ok: false, aborted: true, error: "Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file." },
+		result: { ok: false, aborted: true, error: "Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file."],
+		notices: ["Capture execution aborted: Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note."],
 		clipboard: SENTINEL,
 	}],
 	["a new note at a path that cannot exist", async (a) => {
@@ -925,14 +925,14 @@ const CASES: Case[] = [
 		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
 		a.choice.format.format = "open";
 	}, {
-		result: { ok: false, aborted: true, error: "Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file." },
+		result: { ok: false, aborted: true, error: "Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file."],
+		notices: ["Capture execution aborted: Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note."],
 		clipboard: SENTINEL,
 	}],
 	["a property on a Canvas text card", async (a) => {
@@ -983,7 +983,7 @@ const TEMPLATER_CASES: Case[] = [
 		active: "Origin.md",
 		selections: ["0:0"],
 		notices: [
-			"QuickAdd: (WARNING) 'Characterization' uses \"Run Templater on entire destination file after capture\", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.",
+			"QuickAdd: (WARNING) 'Characterization' uses \"Run Templater on entire destination note after capture\", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.",
 		],
 		clipboard: SENTINEL,
 	}],

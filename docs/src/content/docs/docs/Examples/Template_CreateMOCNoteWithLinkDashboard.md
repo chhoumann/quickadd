@@ -93,11 +93,11 @@ outgoing links for this note.
 3. Create a **Template** choice with **New choice** → **New note from a template** (see [the Template choice docs](/docs/Choices/TemplateChoice/)), with settings like these:
 
 - **Template Path**: `Templates/MOC Link Dashboard.md`
-- **File name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
+- **Note name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
 - **Create in folder**: your MOC folder, for example `MOCs`
 - **Open**: enabled
-- **If the target file already exists**: `Create another file`
-- **New file naming**: `Increment trailing number`
+- **If the note already exists**: `Create another note`
+- **New note naming**: `Increment trailing number`
 
 4. Run the Template choice and enter a title such as `Alpha Project`.
 

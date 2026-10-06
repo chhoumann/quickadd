@@ -305,7 +305,7 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 
 		expect(noticeClass.instances).toHaveLength(1);
 		expect(noticeClass.instances[0]?.message).toContain(
-			"Capture execution aborted: Target file missing",
+			"Capture execution aborted: Target note missing: Daily/Test.md. Turn on \"Create note if it doesn't exist\" or choose an existing note.",
 		);
 	});
 });

@@ -298,7 +298,7 @@ function onModeChange(value: string) {
 	{/if}
 
 	<LabeledField
-		name="File name"
+		name="Note name"
 		desc="Leave empty to ask for the note title."
 	>
 		{#snippet children(id)}
@@ -392,7 +392,7 @@ function onModeChange(value: string) {
 		<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" {app} />
 		<SettingItem
 			name="Copy link to clipboard"
-			desc="Copy a link to the created file after the Template choice runs."
+			desc="Copy a link to the created note after the Template choice runs."
 		>
 			{#snippet control()}
 				<Toggle
@@ -440,8 +440,8 @@ function onModeChange(value: string) {
 		<SettingItem
 			name={discoverySupported && choice.discoverExistingNotesBeforeCreate
 				? "If a new note's path already exists"
-				: "If the target file already exists"}
-			desc="Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file."
+				: "If the note already exists"}
+			desc="Choose whether QuickAdd should ask what to do, update the existing note, create another note, or keep the existing note."
 		>
 			{#snippet control()}
 				<Dropdown
@@ -457,7 +457,7 @@ function onModeChange(value: string) {
 
 		{#if showModeRow}
 			<SettingItem
-				name={behaviorCategory === "update" ? "Update action" : "New file naming"}
+				name={behaviorCategory === "update" ? "Update action" : "New note naming"}
 				desc={getFileExistsMode(selectedMode).description}
 			>
 				{#snippet control()}
@@ -473,7 +473,7 @@ function onModeChange(value: string) {
 			</SettingItem>
 		{/if}
 
-		<OpenFileSetting bind:openFile={choice.openFile} description="Open the created file." />
+		<OpenFileSetting bind:openFile={choice.openFile} description="Open the created note." />
 		{#if choice.openFile}
 			<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
 		{/if}

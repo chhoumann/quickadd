@@ -10,7 +10,7 @@ describe("AppendLinkSetting", () => {
 		const { container } = render(AppendLinkSetting, {
 			props: { appendLink: false, fileLabel: "created" },
 		});
-		expect(settingNames(container)).toEqual(["Link to created file"]);
+		expect(settingNames(container)).toEqual(["Link to created note"]);
 	});
 
 	it("shows destination + placement + link type when enabled with an embed-capable placement", () => {
@@ -25,7 +25,7 @@ describe("AppendLinkSetting", () => {
 		});
 
 		expect(settingNames(container)).toEqual([
-			"Link to captured file",
+			"Link to captured note",
 			"Link destination",
 			"Link placement",
 			"Link type",
@@ -51,7 +51,7 @@ describe("AppendLinkSetting", () => {
 			});
 
 			expect(settingNames(container)).toEqual([
-				"Link to captured file",
+				"Link to captured note",
 				"Link destination",
 				"Link placement",
 				"Link type",
@@ -87,9 +87,9 @@ describe("AppendLinkSetting", () => {
 		});
 
 		expect(settingNames(container)).toEqual([
-			"Link to created file",
+			"Link to created note",
 			"Link destination",
-			"Destination file",
+			"Destination note",
 		]);
 		expect(settingNames(container)).not.toContain("Link placement");
 		expect(settingNames(container)).not.toContain("Link type");
@@ -110,7 +110,7 @@ describe("AppendLinkSetting", () => {
 		});
 
 		expect(settingNames(container)).toEqual([
-			"Link to created file",
+			"Link to created note",
 			"Link destination",
 			"Link placement",
 			"Frontmatter property",
@@ -217,12 +217,12 @@ describe("AppendLinkSetting", () => {
 
 		const modeSelect = container.querySelector("select") as HTMLSelectElement;
 		await fireEvent.change(modeSelect, { target: { value: "disabled" } });
-		expect(settingNames(container)).toEqual(["Link to created file"]);
+		expect(settingNames(container)).toEqual(["Link to created note"]);
 
 		await fireEvent.change(modeSelect, { target: { value: "required" } });
 
 		expect(settingNames(container)).toEqual([
-			"Link to created file",
+			"Link to created note",
 			"Link destination",
 			"Link placement",
 			"Frontmatter property",

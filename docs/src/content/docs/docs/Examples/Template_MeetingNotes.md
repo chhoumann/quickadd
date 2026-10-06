@@ -34,7 +34,7 @@ Date: {{DATE:YYYY-MM-DD}}
 1. Open **Settings → QuickAdd** and choose **New choice → New note from a template**.
 2. Set **Name** to `New meeting`. (Before QuickAdd 2.30.0, click the choice name at the top of the settings window, rename it, and confirm with **Ok**.)
 3. Set **Template** to `Templates/Meeting.md`.
-4. In **File name**, enter (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
+4. In **Note name**, enter (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first):
 
    ```text
    {{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}
@@ -43,7 +43,7 @@ Date: {{DATE:YYYY-MM-DD}}
 5. Set **New note location** to **In a specific folder**.
 6. Enter `Meetings` in **Folder path** and click **Add**.
 7. Turn **Open** on.
-8. Set **File opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
+8. Set **Opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
 9. Choose **Done** and close Settings.
 
 ![The Template choice settings with Open enabled, File opening location set to Reuse current tab, and View mode set to Live Preview](../Images/examples/meeting-open-settings.png)

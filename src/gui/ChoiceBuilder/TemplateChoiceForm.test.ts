@@ -120,7 +120,7 @@ describe("TemplateChoiceForm", () => {
 
 	it("treats an empty file name as the note-title prompt", async () => {
 		const { container, props } = mountForm();
-		const input = settingItem(container, "File name")
+		const input = settingItem(container, "Note name")
 			.closest(".qa-field")
 			?.querySelector("input") as HTMLInputElement;
 		expect(input.value).toBe("");
@@ -136,7 +136,7 @@ describe("TemplateChoiceForm", () => {
 
 	it("keeps a leading space typed into an empty file name", async () => {
 		const { container, props } = mountForm();
-		const input = settingItem(container, "File name")
+		const input = settingItem(container, "Note name")
 			.closest(".qa-field")
 			?.querySelector("input") as HTMLInputElement;
 
@@ -237,22 +237,22 @@ describe("TemplateChoiceForm", () => {
 
 	it("reveals the file-opening settings only when openFile is enabled", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("File opening location");
+		expect(settingNames(container)).not.toContain("Opening location");
 
 		props.choice.openFile = true;
 		flushSync();
-		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("Opening location");
 	});
 
 	it("shows the file-exists mode row only for update/create categories", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("New file naming");
+		expect(settingNames(container)).not.toContain("New note naming");
 
 		props.choice.fileExistsBehavior = { kind: "apply", mode: "increment" };
 		flushSync();
 		const names = settingNames(container);
 		expect(
-			names.includes("New file naming") || names.includes("Update action"),
+			names.includes("New note naming") || names.includes("Update action"),
 		).toBe(true);
 	});
 

@@ -101,7 +101,7 @@ describe("the compact builder", () => {
 	it("shows a new Template's essentials, with More settings closed", async () => {
 		const { container } = mount(templateChoice());
 		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
-		expect(rowNames(container)).toEqual(["Template", "Folder", "File name", "Inputs", "Steps", "More settings"]);
+		expect(rowNames(container)).toEqual(["Template", "Folder", "Note name", "Inputs", "Steps", "More settings"]);
 		expect(moreSettings(container)).toHaveAttribute("aria-expanded", "false");
 
 		await fireEvent.click(moreSettings(container)!);
@@ -113,7 +113,7 @@ describe("the compact builder", () => {
 		const choice = Object.assign(templateChoice(), { appendLink: true });
 		const { container } = mount(choice);
 		expect(moreSettings(container)).toHaveAttribute("aria-expanded", "true");
-		expect(settingNames(container)).toContain("Link to created file");
+		expect(settingNames(container)).toContain("Link to created note");
 	});
 
 	it("keeps More settings open for the choice once opened", async () => {
@@ -128,7 +128,7 @@ describe("the compact builder", () => {
 	it("shows a new Capture's essentials", async () => {
 		const { container } = mount(captureChoice());
 		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
-		expect(rowNames(container)).toEqual(["Capture to active file", "Where", "Position", "What", "Inputs", "Steps", "More settings"]);
+		expect(rowNames(container)).toEqual(["Capture to active note", "Where", "Position", "What", "Inputs", "Steps", "More settings"]);
 		expect(moreSettings(container)).toHaveAttribute("aria-expanded", "false");
 	});
 

@@ -152,7 +152,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 <MoreSettings {choice}>
 	{#if !choice.captureToActiveFile}
 		<SettingGroup heading="Location">
-			<SettingItem name="Create file if it doesn't exist">
+			<SettingItem name="Create note if it doesn't exist">
 				{#snippet control()}
 					<Toggle bind:checked={choice.createFileIfItDoesntExist.enabled} />
 				{/snippet}
@@ -160,8 +160,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 			{#if choice.createFileIfItDoesntExist.enabled}
 				<LabeledField
-					name="Create file with a template"
-					desc="Path to the template QuickAdd applies to the new file."
+					name="Create note with a template"
+					desc="Path to the template QuickAdd applies to the new note."
 					bodyVisible={choice.createFileIfItDoesntExist.createWithTemplate}
 				>
 					{#snippet control()}
@@ -191,7 +191,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="captured" {app} />
 		<SettingItem
 			name="Copy link to clipboard"
-			desc="Copy a link to the captured file after the Capture choice runs."
+			desc="Copy a link to the captured note after the Capture choice runs."
 		>
 			{#snippet control()}
 				<Toggle
@@ -217,7 +217,7 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 
 	<SettingGroup heading="Behavior">
 		{#if !choice.captureToActiveFile}
-			<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured file." />
+			<OpenFileSetting bind:openFile={choice.openFile} description="Open the captured note." />
 			{#if choice.openFile}
 				<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="captured" />
 			{/if}
@@ -240,8 +240,8 @@ function onTemplaterAfterCaptureChange(value: boolean) {
 		     can turn it off. -->
 		{#if !choice.propertyCapture && choice.templater?.afterCapture === "wholeFile"}
 		<SettingItem
-			name="Run Templater on entire destination file after capture (deprecated)"
-			desc="Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination file, including inside code blocks."
+			name="Run Templater on entire destination note after capture (deprecated)"
+			desc="Will be removed in a future release. QuickAdd already runs Templater in what it captures. This also runs every <% %> elsewhere in the destination note, including inside code blocks."
 		>
 			{#snippet control()}
 				<Toggle

@@ -79,7 +79,7 @@ A [Capture choice](/docs/Choices/CaptureChoice/) whose format is `{{TEMPLATE:Tem
 Appending to today's note is a Capture choice that targets the daily note - the file doesn't have to exist beforehand:
 
 - **Where**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
-- **Create file if it doesn't exist**, with **Create file with a template** set to your daily template, so QuickAdd fills in its tokens
+- **Create note if it doesn't exist**, with **Create note with a template** set to your daily template, so QuickAdd fills in its tokens
 - **Insert after**: `## Log`, with **Create line if not found**
 - **What**: `- {{VALUE}}`
 
@@ -172,4 +172,4 @@ These are the classic symptoms of splitting one template between two engines - e
 - **You get prompted twice.** QuickAdd resolves all of its prompts before the file is created. If another engine prompts in the same template, you answer twice - once per engine. Let QuickAdd own the prompt with `{{VALUE:name}}` and reuse the answer everywhere it's needed.
 - **Template syntax shows up unrendered.** QuickAdd renders QuickAdd tokens; another engine's syntax is only rendered by that engine. If it isn't installed or doesn't run on the file, its markup stays behind as literal text. Port the line to the matching token from [the map](#the-quick-map).
 - **Templater code runs twice.** A macro that runs Templater's **Replace templates in the active file** right after a QuickAdd Template or Capture step runs the templates a second time: QuickAdd already ran them when it wrote the note. That step is deprecated, and QuickAdd 2.30.0 or later shows a notice once per session when a macro runs it. Remove it from the macro.
-- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create file if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).
+- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create note if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).

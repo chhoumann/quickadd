@@ -29,7 +29,7 @@ describe("OpenFileCommand Integration", () => {
 		testCases.forEach(filePath => {
 			const command = new OpenFileCommand(filePath);
 			expect(command.filePath).toBe(filePath);
-			expect(command.name).toBe(`Open file: ${filePath}`);
+			expect(command.name).toBe(`Open note: ${filePath}`);
 		});
 	});
 
@@ -81,13 +81,13 @@ describe("OpenFileCommand Integration", () => {
 		// Empty file path
 		const emptyPathCommand = new OpenFileCommand("");
 		expect(emptyPathCommand.filePath).toBe("");
-		expect(emptyPathCommand.name).toBe("Open file: ");
+		expect(emptyPathCommand.name).toBe("Open note: ");
 
 		// Very long file path
 		const longPath = "very/deep/nested/folder/structure/with/many/levels/file.md";
 		const longPathCommand = new OpenFileCommand(longPath);
 		expect(longPathCommand.filePath).toBe(longPath);
-		expect(longPathCommand.name).toBe(`Open file: ${longPath}`);
+		expect(longPathCommand.name).toBe(`Open note: ${longPath}`);
 
 		// Special characters in path
 		const specialPath = "files with spaces/特殊字符.md";

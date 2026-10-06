@@ -362,7 +362,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 				getPromptModes().find((mode) => mode.id === "duplicateSuffix")?.label,
 			]),
 			expect.arrayContaining(["appendBottom", "increment", "duplicateSuffix"]),
-			"If the target file already exists",
+			"If the note already exists",
 		);
 		expect(createSpy).not.toHaveBeenCalled();
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Test Template.md");

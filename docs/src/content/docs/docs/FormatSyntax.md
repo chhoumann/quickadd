@@ -12,7 +12,7 @@ You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
 In the format fields of a choice's settings (such as **What**,
-**Where**, **File name**, and the insert after/before targets), type
+**Where**, **Note name**, and the insert after/before targets), type
 `{{` to get a list of placeholders, then keep typing to filter it. Template
 files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
 an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
@@ -262,7 +262,7 @@ plugin manages daily notes, `{{DAILY}}` uses its settings instead.
 Good to know:
 
 - The day follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
-- If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
+- If the daily note doesn't exist and **Create note if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create note with a template** to use a QuickAdd template instead.
 - `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
 - If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
 
@@ -558,7 +558,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create note if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
