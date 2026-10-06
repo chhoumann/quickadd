@@ -31,14 +31,19 @@ export class MigrationReportModal extends Modal {
 	}
 
 	onOpen(): void {
+		// The package dialogs' layout: the title and intro stay put while the
+		// entries scroll, and Done stays at the bottom.
+		this.modalEl.addClass("quickAddModal", "qa-package-modal", "qa-migration-report-modal");
 		this.setTitle("Migrated to QuickAdd 3");
-		const { contentEl } = this;
-		contentEl.createEl("p", {
+		const dialog = this.contentEl.createDiv({ cls: "qa-package-dialog" });
+		dialog.createEl("p", {
+			cls: "qa-migration-report-intro",
 			text: `Your previous settings are kept in ${this.snapshot}. Restore them from QuickAdd's Advanced settings.`,
 		});
+		const entries = dialog.createDiv({ cls: "qa-package-body qa-migration-report-entries" });
 
 		if (this.report.duplicateNames.length > 0) {
-			new Setting(contentEl)
+			new Setting(entries)
 				.setName("Names used more than once")
 				.setDesc(this.report.duplicateNames.join(", "));
 		}
@@ -52,10 +57,10 @@ export class MigrationReportModal extends Modal {
 				const list = desc.createEl("ul");
 				for (const note of notes) list.createEl("li", { text: `${NOTE_LABELS[note.kind]}: ${note.detail}` });
 			}
-			new Setting(contentEl).setName(row.path).setDesc(desc);
+			new Setting(entries).setName(row.path).setDesc(desc);
 		}
 
-		new ButtonComponent(contentEl.createDiv({ cls: "modal-button-container" }))
+		new ButtonComponent(dialog.createDiv({ cls: "modal-button-container" }))
 			.setButtonText("Done")
 			.setCta()
 			.onClick(() => this.close());

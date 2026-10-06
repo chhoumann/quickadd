@@ -2727,6 +2727,17 @@ textarea.is-valid {
 	margin-top: var(--size-4-4);
 }
 
+/* The migration report's entries are settings rows, divided by their own
+   rules rather than spaced like the package dialogs' sections. */
+.qa-migration-report-entries {
+	gap: 0;
+}
+
+.qa-migration-report-intro {
+	flex: none;
+	margin-top: 0;
+}
+
 /* Three package actions outgrow a phone's settings row; wrap them. */
 .is-phone .qa-packages-setting .setting-item-control {
 	flex-wrap: wrap;
