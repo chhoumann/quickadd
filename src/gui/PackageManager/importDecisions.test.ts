@@ -4,7 +4,9 @@ import type { App } from "obsidian";
 import {
 	ExistenceResolver,
 	applyExistsResult,
+	countFileOverwrites,
 	defaultAssetDecision,
+	fileGroup,
 	effectiveChoiceMode,
 	initAssetDecisions,
 	reconcileMode,
@@ -331,5 +333,22 @@ describe("ExistenceResolver — a folder is not an existing file (#1865)", () =>
 		resolver.schedule("k", "Scripts", (exists) => (result = exists));
 		await flush();
 		expect(result).toBe(false);
+	});
+});
+
+describe("the review's file groups", () => {
+	it("lists a file by whether it was in the vault and what the reader decided", () => {
+		expect(fileGroup(false, "write")).toBe("added");
+		expect(fileGroup(false, "skip")).toBe("added");
+		expect(fileGroup(true, "overwrite")).toBe("overwrite");
+		expect(fileGroup(true, "skip")).toBe("kept");
+	});
+
+	it("counts only the files the import writes over", () => {
+		expect(countFileOverwrites([
+			{ mode: "overwrite", destinationPath: "a.md", destinationExists: true },
+			{ mode: "skip", destinationPath: "b.md", destinationExists: true },
+			{ mode: "write", destinationPath: "c.md", destinationExists: false },
+		])).toBe(1);
 	});
 });

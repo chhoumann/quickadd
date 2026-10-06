@@ -24,6 +24,7 @@ import {
 	decodeAssetPreview,
 	unreviewedScriptCount,
 	requiresAcknowledgement,
+	withFileOverwrites,
 	MAX_PREVIEW_CHARS,
 } from "./packagePreview";
 
@@ -1110,5 +1111,31 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 		expect(scriptRows(preview)).toEqual([]);
 		expect(preview.summary.hasCritical).toBe(false);
 		expect(preview.choices.flatMap((choice) => choice.inlineScripts)).toEqual([]);
+	});
+});
+
+describe("withFileOverwrites", () => {
+	const preview = buildPackagePreview(
+		NO_EXISTING,
+		makePackage([], [asset("template", "Templates/Meeting.md", "# Meeting")]),
+		new Set(["Templates/Meeting.md"]),
+	);
+	const overwriteRow = (rows: typeof preview.capabilityRows) =>
+		rows.find((row) => row.flag === "overwrites-existing-file");
+
+	it("drops the row about overwriting files when the reader keeps every file", () => {
+		expect(overwriteRow(preview.capabilityRows)?.detail).toBe("1 file");
+
+		const kept = withFileOverwrites(preview, 0);
+
+		expect(overwriteRow(kept.capabilityRows)).toBeUndefined();
+		expect(kept.summary).toMatchObject({ overwritesFiles: 0, hasWarning: false, warningCount: 0 });
+	});
+
+	it("counts the files the reader's decisions overwrite", () => {
+		const overwritten = withFileOverwrites(withFileOverwrites(preview, 0), 2);
+
+		expect(overwriteRow(overwritten.capabilityRows)?.detail).toBe("2 files");
+		expect(overwritten.summary).toMatchObject({ overwritesFiles: 2, hasWarning: true, warningCount: 1 });
 	});
 });

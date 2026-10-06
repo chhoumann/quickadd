@@ -80,6 +80,16 @@ describe("FilePreviewRow", () => {
 		expect(getByText("Will overwrite")).toBeTruthy();
 	});
 
+	it("says a skipped file that is already there is kept, without a warning", () => {
+		const { getByText, queryByText } = renderRow({
+			file: makeFile({ exists: true }),
+			mode: "skip",
+			destinationExists: true,
+		});
+		expect(getByText("Kept, yours stays").classList.contains("mod-warning")).toBe(false);
+		expect(queryByText("Will overwrite")).toBeNull();
+	});
+
 	it("labels executable scripts and reveals decoded contents on expand", async () => {
 		const onReviewed = vi.fn();
 		const source = "console.log('hello')";

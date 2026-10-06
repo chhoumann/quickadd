@@ -14,6 +14,7 @@
 	import {
 		requiresAcknowledgement,
 		unreviewedScriptCount,
+		withFileOverwrites,
 	} from "../../services/packagePreview";
 	import CapabilityBanner from "./CapabilityBanner.svelte";
 	import FilePreviewRow from "./FilePreviewRow.svelte";
@@ -28,6 +29,8 @@
 		initAssetDecisions,
 		initChoiceDecisions,
 		resolveAssetDecision,
+		countFileOverwrites,
+		fileGroup,
 		setAssetMode,
 		setAssetPath,
 		setChoiceMode,
@@ -106,10 +109,11 @@
 
 	let choiceDecisions = $state<ChoiceDecisions>(new Map());
 	let assetDecisions = $state<AssetDecisions>(new Map());
-	// Files that will overwrite, as found when the package was analysed. Rows are
-	// grouped by this, not by the live destination, so a row never jumps groups
-	// (and loses focus) while you type its path; the row itself shows the live state.
-	let overwritesAtLoad = $state(new Set<string>());
+	// Files already in the vault, as found when the package was analysed. Rows
+	// are grouped by this and their decision, not by the live destination, so a
+	// row never jumps groups (and loses focus) while you type its path; the row
+	// itself shows the live state.
+	let existingAtLoad = $state(new Set<string>());
 	let isAnalyzing = $state(false);
 	let analysisToken = $state(0);
 	let hasImported = $state(false);
@@ -132,12 +136,6 @@
 	const previewFileByPath = $derived(
 		new Map(
 			(preview?.files ?? []).map((file) => [file.originalPath, file]),
-		),
-	);
-	const showBanner = $derived(
-		Boolean(
-			preview &&
-			(preview.summary.hasCritical || preview.summary.hasWarning),
 		),
 	);
 	const importSummaryText = $derived.by(() => {
@@ -204,11 +202,26 @@
 			};
 		}),
 	);
-	const addedFileRows = $derived(
-		fileRows.filter((row) => !overwritesAtLoad.has(row.conflict.originalPath)),
+	// The banner counts the files the reader's decisions will overwrite.
+	const bannerPreview = $derived(
+		preview && withFileOverwrites(preview, countFileOverwrites(fileRows.map((row) => row.state))),
 	);
-	const overwriteFileRows = $derived(
-		fileRows.filter((row) => overwritesAtLoad.has(row.conflict.originalPath)),
+	const showBanner = $derived(
+		Boolean(
+			bannerPreview &&
+			(bannerPreview.summary.hasCritical || bannerPreview.summary.hasWarning),
+		),
+	);
+	const fileGroups = $derived(
+		([
+			{ group: "added", label: "Added", warning: false },
+			{ group: "overwrite", label: "Will overwrite", warning: true },
+			{ group: "kept", label: "Kept", warning: false },
+		] as const).map((entry) => ({
+			...entry,
+			rows: fileRows.filter((row) =>
+				fileGroup(existingAtLoad.has(row.conflict.originalPath), row.state.mode) === entry.group),
+		})),
 	);
 
 	const canImport = $derived(
@@ -250,11 +263,11 @@
 				exists,
 				{ keepExisting: keepExistingFiles },
 			);
-			if (regroup && exists !== overwritesAtLoad.has(originalPath)) {
-				const next = new Set(overwritesAtLoad);
+			if (regroup && exists !== existingAtLoad.has(originalPath)) {
+				const next = new Set(existingAtLoad);
 				if (exists) next.add(originalPath);
 				else next.delete(originalPath);
-				overwritesAtLoad = next;
+				existingAtLoad = next;
 			}
 		});
 	}
@@ -263,7 +276,7 @@
 		if (!analysis) {
 			choiceDecisions = new Map();
 			assetDecisions = new Map();
-			overwritesAtLoad = new Set();
+			existingAtLoad = new Set();
 			return;
 		}
 		choiceDecisions = initChoiceDecisions(analysis.choiceConflicts);
@@ -273,7 +286,7 @@
 			optimisticExists,
 			{ keepExisting: keepExistingFiles },
 		);
-		overwritesAtLoad = new Set(
+		existingAtLoad = new Set(
 			analysis.assetConflicts
 				.filter(
 					(conflict) =>
@@ -465,8 +478,8 @@
 		{/if}
 
 		{#if loadedPackage && analysis}
-			{#if showBanner && preview}
-				<CapabilityBanner {preview} {noun} />
+			{#if showBanner && bannerPreview}
+				<CapabilityBanner preview={bannerPreview} {noun} />
 			{/if}
 
 			<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
@@ -488,12 +501,9 @@
 						</div>
 					</div>
 				{:else}
-					{#each [
-						{ label: "Added", rows: addedFileRows, overwrite: false },
-						{ label: "Will overwrite", rows: overwriteFileRows, overwrite: true },
-					] as group (group.label)}
+					{#each fileGroups as group (group.group)}
 						{#if group.rows.length > 0}
-							<h4 class="qa-import-files-group" class:mod-warning={group.overwrite}>
+							<h4 class="qa-import-files-group" class:mod-warning={group.warning}>
 								{group.label} ({group.rows.length})
 							</h4>
 							{#each group.rows as row (row.conflict.originalPath)}

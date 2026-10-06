@@ -50,6 +50,7 @@
 	const actionId = `${uid}-action`;
 	const folderId = `${uid}-folder`;
 	const fileName = $derived(file.originalPath.split("/").pop() ?? file.originalPath);
+	const kept = $derived(mode === "skip");
 
 	function formatBytes(bytes: number): string {
 		if (bytes < 1024) return `${bytes} B`;
@@ -80,7 +81,7 @@
 			<div class="setting-item-name qa-import-file-name">
 				<span class="qa-import-file-icon">
 					<ObsidianIcon
-						iconId={destinationExists ? "file-warning" : "file-plus"}
+						iconId={!destinationExists ? "file-plus" : kept ? "file-check" : "file-warning"}
 					/>
 				</span>
 				<span class="qa-import-file-label">{fileName}</span>
@@ -110,8 +111,8 @@
 						>The destination is a folder. Add a file name.</span
 					>
 				{:else}
-					<span class:mod-warning={destinationExists}
-						>{destinationExists ? "Will overwrite" : "New file"}</span
+					<span class:mod-warning={destinationExists && !kept}
+						>{!destinationExists ? "New file" : kept ? "Kept, yours stays" : "Will overwrite"}</span
 					>
 				{/if}
 				· {formatBytes(file.sizeBytes)}

@@ -100,3 +100,55 @@ it("adds the meeting notes recipe from the gallery, and its command creates a me
 	const today = await obsidian.dev.evalJson<string>('window.moment().format("YYYY-MM-DD")');
 	await expect.poll(() => exists(`Meetings/${today} Standup.md`), POLL_OPTS).toBe(true);
 });
+
+it("reviews a recipe whose template is already there as kept, and says so until the reader overwrites it", async () => {
+	const { obsidian, plugin } = getContext();
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		const inbox = new CaptureChoice("Inbox");
+		inbox.captureTo = "Inbox.md";
+		data.choices = [inbox];
+		data.templateFolderPaths = [];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		await app.vault.createFolder("Templates").catch(() => {});
+		await app.vault.create("Templates/Meeting.md", "# Mine\\n");
+		return true;
+	})()`);
+
+	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
+	await pickMenuItem(obsidian, ".qaNewChoiceBtn.mod-cta", "Browse recipes…");
+	await waitForElement(obsidian, '[data-recipe-id="meeting-notes"] .qa-recipe-add');
+	await clickWhenStill(obsidian, '[data-recipe-id="meeting-notes"] .qa-recipe-add');
+	await waitForElement(obsidian, ".qa-recipes-modal .qa-import-files");
+
+	const review = () => obsidian.dev.evalJson<{ groups: string[]; meeting: string; overwrites: string | null }>(`(() => {
+		const modal = document.querySelector(".qa-recipes-modal");
+		const meeting = [...modal.querySelectorAll(".qa-import-file")]
+			.find((row) => row.querySelector(".qa-import-file-label")?.textContent === "Meeting.md");
+		const overwrites = [...modal.querySelectorAll(".qa-import-banner-rows li")]
+			.find((row) => row.textContent.includes("Overwrites existing files"));
+		return {
+			groups: [...modal.querySelectorAll(".qa-import-files-group")].map((group) => group.textContent.trim()),
+			meeting: meeting?.querySelector(".setting-item-description span")?.textContent ?? "",
+			overwrites: overwrites?.querySelector(".qa-import-banner-detail")?.textContent ?? null,
+		};
+	})()`);
+	const decide = (mode: "overwrite" | "skip") => obsidian.dev.evalJson(`(() => {
+		const row = [...document.querySelectorAll(".qa-recipes-modal .qa-import-file")]
+			.find((candidate) => candidate.querySelector(".qa-import-file-label")?.textContent === "Meeting.md");
+		const select = row.querySelector("select");
+		select.value = ${jsLiteral(mode)};
+		select.dispatchEvent(new Event("change", { bubbles: true }));
+		return true;
+	})()`);
+
+	await expect.poll(review, POLL_OPTS).toEqual({ groups: ["Added (1)", "Kept (1)"], meeting: "Kept, yours stays", overwrites: null });
+	await decide("overwrite");
+	await expect.poll(review, POLL_OPTS).toEqual({ groups: ["Added (1)", "Will overwrite (1)"], meeting: "Will overwrite", overwrites: "1 file" });
+	await decide("skip");
+	await expect.poll(review, POLL_OPTS).toEqual({ groups: ["Added (1)", "Kept (1)"], meeting: "Kept, yours stays", overwrites: null });
+
+	await clickWhenStill(obsidian, ".qa-recipes-modal .modal-button-container button.mod-cta:not([disabled])");
+	await expect.poll(() => obsidian.dev.evalJsonAsync<string>('app.vault.adapter.read("Templates/Meeting.md")'), POLL_OPTS).toBe("# Mine\n");
+});

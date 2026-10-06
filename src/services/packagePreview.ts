@@ -397,14 +397,7 @@ export function buildPackagePreview(
 	}
 
 	const overwriteFileCount = files.filter((f) => f.exists).length;
-	if (overwriteFileCount > 0) {
-		capabilityRows.push({
-			flag: "overwrites-existing-file",
-			severity: "warning",
-			title: "Overwrites existing files in your vault",
-			detail: `${overwriteFileCount} file${overwriteFileCount === 1 ? "" : "s"}`,
-		});
-	}
+	if (overwriteFileCount > 0) capabilityRows.push(overwriteFilesRow(overwriteFileCount));
 
 	if (missingReferences.length > 0) {
 		const scriptMissing = missingReferences.filter((m) => m.asScript).length;
@@ -550,6 +543,32 @@ export function decodeAssetPreview(
 }
 
 /** A package needs explicit acknowledgement when it has any critical capability. */
+function overwriteFilesRow(count: number): CapabilityRow {
+	return {
+		flag: "overwrites-existing-file",
+		severity: "warning",
+		title: "Overwrites existing files in your vault",
+		detail: `${count} file${count === 1 ? "" : "s"}`,
+	};
+}
+
+/**
+ * The preview as the reader's file decisions leave it: the row about
+ * overwriting files counts the files the import will overwrite, and is gone
+ * when it will overwrite none.
+ */
+export function withFileOverwrites(preview: PackagePreview, count: number): PackagePreview {
+	const capabilityRows = preview.capabilityRows.filter((row) => row.flag !== "overwrites-existing-file");
+	if (count > 0) capabilityRows.push(overwriteFilesRow(count));
+	capabilityRows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+	const warningCount = capabilityRows.filter((row) => row.severity === "warning").length;
+	return {
+		...preview,
+		capabilityRows,
+		summary: { ...preview.summary, hasWarning: warningCount > 0, warningCount, overwritesFiles: count },
+	};
+}
+
 export function requiresAcknowledgement(preview: PackagePreview): boolean {
 	return preview.summary.hasCritical;
 }
