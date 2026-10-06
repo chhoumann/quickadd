@@ -5,6 +5,7 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { TemplateChoice } from "../../types/choices/TemplateChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
+import { createFromPreset, PRESETS } from "../choiceList/presets";
 import { MORE_SETTINGS_FIELDS, hasNonDefaultMoreSettings } from "./moreSettings";
 
 const template = (change: (choice: ITemplateChoice) => void = () => {}): ITemplateChoice => {
@@ -46,6 +47,13 @@ describe("hasNonDefaultMoreSettings", () => {
 	it.each(MORE_SETTINGS_FIELDS.Template)("counts a Template's %s", (field) => {
 		expect(SET).toHaveProperty(field);
 		expect(hasNonDefaultMoreSettings(template((choice) => Object.assign(choice, { [field]: SET[field] })))).toBe(true);
+	});
+
+	it("reads asking once, as a new choice from the New choice menu does, as the default", () => {
+		for (const preset of PRESETS) {
+			const choice = createFromPreset(preset, { templateFolder: "Templates" }) as ITemplateChoice | ICaptureChoice | IMacroChoice;
+			expect(hasNonDefaultMoreSettings(choice)).toBe(hasNonDefaultMoreSettings({ ...choice, onePageInput: undefined }));
+		}
 	});
 
 	it("is false for a new macro", () => {

@@ -89,6 +89,9 @@ function sameSetting(field: string, value: unknown, fresh: unknown): boolean {
 			return (value as ICaptureChoice["templater"])?.afterCapture !== "wholeFile";
 		case "dateOrigin":
 			return dateOriginToPreset(value as DateOrigin) === dateOriginToPreset(fresh as DateOrigin | undefined);
+		// A new choice asks once; unset follows the global setting, as older choices do.
+		case "onePageInput":
+			return value === "always";
 		default:
 			return same(value, fresh);
 	}
