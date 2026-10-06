@@ -64,6 +64,11 @@ function onInput(event: Event) {
 		min-width: min(18rem, 100%);
 	}
 
+	/* A phone stacks the row: the field reaches the card's edge as the others do. */
+	:global(.is-phone) .qa-choice-icon-setting-control {
+		flex: 1 1 auto;
+	}
+
 	.qa-choice-icon-setting-preview {
 		display: inline-flex;
 		align-items: center;

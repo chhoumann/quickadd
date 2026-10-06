@@ -267,3 +267,20 @@ it("keeps More settings on one line with its chevron", async () => {
 		await obsidian.dev.evalJson("app.setting.close(), true");
 	}
 });
+
+it("takes the icon field to the card's edge, as the fields above it", async () => {
+	const { obsidian } = getContext();
+	try {
+		const capture = new CaptureChoice("Phone icon");
+		capture.openFile = true;
+		await openChoicePage(capture);
+		await waitForElement(obsidian, `.qa-builder-page ${ICON_FIELD}`);
+		expect(await obsidian.dev.evalJson<number>(`(() => {
+			const icon = document.querySelector(".qa-builder-page " + ${jsLiteral(ICON_FIELD)}).getBoundingClientRect();
+			const name = document.querySelector(".qa-builder-page .setting-group input").getBoundingClientRect();
+			return Math.round(name.right - icon.right);
+		})()`)).toBe(0);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});
