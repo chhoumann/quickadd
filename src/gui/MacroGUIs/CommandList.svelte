@@ -399,7 +399,9 @@ async function configureOpenFile(command: IOpenFileCommand) {
 <style>
 	.quickAddCommandList {
 		display: grid;
-		grid-template-columns: auto;
+		/* minmax(0, ...): a step's one-line detail shortens instead of widening
+		   the column and pushing the row's buttons out of the card. */
+		grid-template-columns: minmax(0, 1fr);
 		width: auto;
 		border: 0 solid black;
 		overflow-y: auto;

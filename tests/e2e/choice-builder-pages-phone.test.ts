@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
@@ -227,6 +228,25 @@ it("lines up the toggles on the right edge of their card (#2146)", async () => {
 				return short > 0.5 ? [row.querySelector(".setting-item-name").textContent + ": " + Math.round(short) + "px"] : [];
 			});
 		})()`)).toEqual([]);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});
+
+it("keeps a step's buttons in its card when the line under it is long", async () => {
+	const { obsidian } = getContext();
+	try {
+		const macro = new MacroChoice("Phone steps");
+		const write = new CaptureChoice("Add to review");
+		write.captureTo = "Reviews/Quarterly/{{DATE:YYYY}}/Weekly review of the projects in flight.md";
+		macro.macro.commands.push(new NestedChoiceCommand(write));
+		await openChoicePage(macro);
+		await waitForElement(obsidian, ".macroBuilder .quickAddCommandListItem");
+		expect(await obsidian.dev.evalJson<Record<string, unknown>>(`(() => {
+			const list = document.querySelector(".macroBuilder .quickAddCommandList");
+			const button = list.querySelector(".quickAddCommandControls button:last-of-type").getBoundingClientRect();
+			return { scrolls: list.scrollWidth > list.clientWidth, buttonInside: button.right <= list.getBoundingClientRect().right };
+		})()`)).toEqual({ scrolls: false, buttonInside: true });
 	} finally {
 		await obsidian.dev.evalJson("app.setting.close(), true");
 	}
