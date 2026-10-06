@@ -46,10 +46,10 @@ import type { ChoiceChain } from "./choiceChain";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
-import { refuse, RefusalError } from "../errors/RefusalError";
+import { RefusalError } from "../errors/RefusalError";
+import { checkTemplateSource, templateFileOrRefuse } from "./templateSource";
 import { parentFolderPath } from "../utils/pathUtils";
 import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
-import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -85,9 +85,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
 
 		try {
-			if (!this.choice.templatePath) {
-				throw refuse("no template is picked", "no note was created", "Pick a template on the choice's page.");
-			}
+			checkTemplateSource(this.app, this.choice);
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.setLinkToCurrentFileBehavior(
@@ -137,7 +135,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
-			if (selectedUpdate && getTemplateFile(this.app, templatePath)?.path === selectedUpdate.file.path) {
+			const templateFile = templateFileOrRefuse(this.app, templatePath,
+				selectedUpdate ? "the note was not changed" : "no note was created");
+			if (selectedUpdate && templateFile.path === selectedUpdate.file.path) {
 				throw new ChoiceAbortError("Cannot apply a template to its own template source.");
 			}
 

@@ -76,7 +76,12 @@ function createPlugin(choices: IChoice[]) {
 	const { byName, byId } = flattenChoices(choices);
 
 	const plugin = {
-		app: {},
+		app: {
+			vault: {
+				getAbstractFileByPath: (path: string) =>
+					path === "Templates/T.md" ? Object.assign(new TFile(), { path }) : null,
+			},
+		},
 		settings: {
 			choices,
 		},
@@ -120,7 +125,8 @@ describe("registerQuickAddCliHandlers", () => {
 		name: "Template Choice",
 		type: "Template",
 		command: true,
-	};
+		templatePath: "Templates/T.md",
+	} as IChoice;
 
 	const nestedCaptureChoice: IChoice = {
 		id: "capture-id",
@@ -322,6 +328,24 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(payload.ok).toBe(false);
 		expect(payload.missingInputCount).toBeUndefined();
 		expect(payload.missingFlags).toContain("value-title=<value>");
+		expect(executors[0].execute).not.toHaveBeenCalled();
+	});
+
+	it("refuses a Template whose template is not there before listing missing inputs", async () => {
+		const gone = { ...templateChoice, id: "gone", name: "Gone", templatePath: "Templates/Gone.md" } as IChoice;
+		const { plugin, handlers } = createPlugin([gone]);
+		registerQuickAddCliHandlers(plugin);
+		const run = handlers.find((handler) => handler.command === "quickadd:run");
+		collectChoiceRequirementsMock.mockClear();
+
+		const payload = JSON.parse(String(await run!.handler({ choice: "Gone" })));
+
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "Gone: the template Templates/Gone.md does not exist, so no note was created. Pick a template on the choice's page.",
+		});
+		expect(payload.missing).toBeUndefined();
+		expect(collectChoiceRequirementsMock).not.toHaveBeenCalled();
 		expect(executors[0].execute).not.toHaveBeenCalled();
 	});
 

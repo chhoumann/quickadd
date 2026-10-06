@@ -19,7 +19,7 @@ import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
-import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
@@ -31,10 +31,10 @@ import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
-import { refuse } from "../errors/RefusalError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
+import { templateFileOrRefuse } from "./templateSource";
 import { restoreUserText, restoreUserTextAt } from "../formatters/helpers/userText";
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
@@ -503,16 +503,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		resolvedTemplatePath: string,
 		consequence = "nothing was written",
 	): Promise<string> {
-		const templateFile = getTemplateFile(this.app, resolvedTemplatePath);
-
-		if (!templateFile) {
-			throw refuse(
-				`the template ${resolvedTemplatePath} does not exist`,
-				consequence,
-				"Pick a template on the choice's page.",
-			);
-		}
-
-		return await this.app.vault.cachedRead(templateFile);
+		return await this.app.vault.cachedRead(
+			templateFileOrRefuse(this.app, resolvedTemplatePath, consequence),
+		);
 	}
 }

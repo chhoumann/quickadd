@@ -1,6 +1,9 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../utils/templateFolderUtils", async (importOriginal) =>
+	(await import("../../tests/helpers/engines/everyTemplateExists")).everyTemplateExists(importOriginal));
+
 vi.mock("../quickAddSettingsTab", async () => {
 	const { engineSettingsMock } = await import("../../tests/helpers/engines/settings");
 	return engineSettingsMock();

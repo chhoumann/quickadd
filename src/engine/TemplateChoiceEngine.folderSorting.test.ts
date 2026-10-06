@@ -6,6 +6,9 @@ const { inputSuggestMock, setTargetFolderPath } = vi.hoisted(() => ({
 	setTargetFolderPath: vi.fn(),
 }));
 
+vi.mock("../utils/templateFolderUtils", async (importOriginal) =>
+	(await import("../../tests/helpers/engines/everyTemplateExists")).everyTemplateExists(importOriginal));
+
 vi.mock("../gui/InputSuggester/inputSuggester", () => ({
 	default: {
 		Suggest: inputSuggestMock,

@@ -183,11 +183,14 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 	await plugin.reload({ waitUntilReady: true });
 
 	const notices = async () => obsidian.dev.evalJson<string[]>("window.__qaNotices.splice(0).map((n) => n.textContent)");
+	const prompts = async () => obsidian.dev.evalJson<number>("window.__qaPrompts.splice(0).length");
 	await obsidian.dev.evalJson(`(() => {
 		window.__qaNotices = [];
+		window.__qaPrompts = [];
 		window.__qaNoticeObserver = new MutationObserver((records) => {
 			for (const record of records) for (const node of record.addedNodes) {
 				if (node instanceof HTMLElement && node.matches(".notice")) window.__qaNotices.push(node);
+				if (node instanceof HTMLElement && node.matches(".modal-container, .prompt")) window.__qaPrompts.push(node);
 			}
 		});
 		window.__qaNoticeObserver.observe(document.body, { childList: true, subtree: true });
@@ -204,12 +207,24 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 
 		const template = sandbox.path("Templates/Meeting.md");
 		await obsidian.dev.evalJsonAsync(`app.vault.delete(app.vault.getAbstractFileByPath(${jsLiteral(template)})).then(() => true)`);
-		await refuses("Meeting note", `Meeting note: the template ${template} does not exist, so no note was created. Pick a template on the choice's page.`);
+		const missingTemplate = `Meeting note: the template ${template} does not exist, so no note was created. Pick a template on the choice's page.`;
+		await refuses("Meeting note", missingTemplate);
+		// Picked from the launcher, it says so before it asks for anything.
+		await obsidian.command("quickadd:runQuickAdd").run();
+		await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.activeElement?.closest(".prompt"))'), POLL_OPTS).toBe(true);
+		await insertText(obsidian, "Meeting note");
+		await obsidian.sleep(200);
+		await prompts();
+		await pressKey(obsidian, "Enter");
+		await expect.poll(notices, POLL_OPTS).toEqual([missingTemplate]);
+		await obsidian.sleep(500);
+		expect(await prompts()).toBe(0);
+		expect(await obsidian.dev.evalJson<number>('document.querySelectorAll(".modal-container, .prompt").length')).toBe(0);
 
 		await obsidian.dev.evalJson("(() => { for (const leaf of app.workspace.getLeavesOfType('markdown')) leaf.detach(); return true; })()");
 		await refuses("Quick capture", "Quick capture: no note is open, so there is nothing to add to.");
 	} finally {
-		await obsidian.dev.evalJson("(() => { window.__qaNoticeObserver?.disconnect(); delete window.__qaNoticeObserver; delete window.__qaNotices; return true; })()");
+		await obsidian.dev.evalJson("(() => { window.__qaNoticeObserver?.disconnect(); delete window.__qaNoticeObserver; delete window.__qaNotices; delete window.__qaPrompts; return true; })()");
 	}
 });
 

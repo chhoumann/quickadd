@@ -6,6 +6,7 @@ import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
+import { checkTemplateSource } from "./engine/templateSource";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -211,6 +212,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			// A Template checks its template before the form or the date asks anything.
+			if (isTemplateChoice(choice)) checkTemplateSource(this.app, choice);
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
 				await this.applyDateOrigin(choice);
@@ -353,6 +356,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			// A Template checks its template before the form or the date asks anything.
+			if (isTemplateChoice(choice)) checkTemplateSource(this.app, choice);
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
 				await this.applyDateOrigin(choice);

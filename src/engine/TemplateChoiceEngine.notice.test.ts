@@ -1,6 +1,9 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../utils/templateFolderUtils", async (importOriginal) =>
+	(await import("../../tests/helpers/engines/everyTemplateExists")).everyTemplateExists(importOriginal));
+
 vi.mock("../quickAddSettingsTab", async () => {
 	const { engineSettingsMock } = await import("../../tests/helpers/engines/settings");
 	return engineSettingsMock();
@@ -116,6 +119,7 @@ import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { InputPromptDraftStore } from "../utils/InputPromptDraftStore";
 import { insertFileLinkToActiveView } from "../utils/editorInsertion";
+import { getTemplateFile } from "../utils/templateFolderUtils";
 
 const defaultSettingsState = structuredClone(settingsStore.getState());
 
@@ -553,9 +557,10 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 	it.each([
 		["Templates/Test.md", "the template Templates/Test.md does not exist, so no note was created. Pick a template on the choice's page."],
 		["", "no template is picked, so no note was created. Pick a template on the choice's page."],
-	])("refuses a template path %j in one sentence naming the choice", async (templatePath, reason) => {
+	])("refuses a template path %j in one sentence naming the choice, before asking the title", async (templatePath, reason) => {
 		const { engine, choiceExecutor } = createEngine("unused", { throwDuringFileName: false });
 		(engine as unknown as { choice: ITemplateChoice }).choice.templatePath = templatePath;
+		if (templatePath) vi.mocked(getTemplateFile).mockReturnValueOnce(null);
 		choiceExecutor.recordExecutionResult = vi.fn();
 
 		await engine.run();
@@ -564,6 +569,20 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "error", reason: sentence });
 		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([sentence]);
 		expect(vi.mocked(choiceExecutor.signalAbort!).mock.calls[0]?.[0]?.message).toBe(sentence);
+		expect(formatFileNameMock).not.toHaveBeenCalled();
+	});
+
+	it("refuses a template path with a token once it is resolved, before asking the title", async () => {
+		const { engine, choiceExecutor } = createEngine("unused", { throwDuringFileName: false });
+		(engine as unknown as { choice: ITemplateChoice }).choice.templatePath = "Templates/{{VALUE:type}}.md";
+		vi.mocked(getTemplateFile).mockReturnValueOnce(null);
+		choiceExecutor.recordExecutionResult = vi.fn();
+
+		await engine.run();
+
+		const sentence = "Test Template Choice: the template Templates/{{VALUE:type}}.md does not exist, so no note was created. Pick a template on the choice's page.";
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "error", reason: sentence });
+		expect(formatFileNameMock).not.toHaveBeenCalled();
 	});
 
 	// A failure exit that is not a throw used to record nothing at all, which is the
