@@ -1,5 +1,5 @@
 ---
-title: "Capture: Fetch Tasks From Todoist"
+title: "Capture: Fetch tasks from Todoist"
 description: Import Todoist tasks into a note using a macro and user script, selecting from all tasks, a project, or a single section
 slug: docs/Examples/Capture_FetchTasksFromTodoist
 package: todoist-tasks

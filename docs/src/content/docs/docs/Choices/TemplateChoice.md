@@ -151,7 +151,7 @@ Templates/Book.md
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`)
 templates. The created file uses the same extension as the template. If you want
 a new markdown note to include a live embedded Base dashboard, see
-[Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
+[Template: Create an MOC note with a link dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
 
 ### Use a dynamic template path {#dynamic-template-path}
 

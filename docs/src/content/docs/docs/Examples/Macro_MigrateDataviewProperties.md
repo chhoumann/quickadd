@@ -1,5 +1,5 @@
 ---
-title: Migrate Dataview Properties to Frontmatter
+title: "Migrate Dataview properties to frontmatter"
 description: Migrate inline Dataview properties to YAML frontmatter with wikilink-aware comma handling and selective property lists
 slug: docs/Examples/Macro_MigrateDataviewProperties
 package: migrate-dataview-properties

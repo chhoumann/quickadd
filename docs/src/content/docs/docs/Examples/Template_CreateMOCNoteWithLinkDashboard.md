@@ -1,5 +1,5 @@
 ---
-title: "Template: Create an MOC Note with a Link Dashboard"
+title: "Template: Create an MOC note with a link dashboard"
 description: Create a map-of-content note with an embedded Base dashboard showing its backlinks and outgoing links, via a Template choice
 slug: docs/Examples/Template_CreateMOCNoteWithLinkDashboard
 package: moc-link-dashboard

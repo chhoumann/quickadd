@@ -1,5 +1,5 @@
 ---
-title: "Capture: Insert a Related Notes Base into an MOC Note"
+title: "Capture: Insert a related notes Base into an MOC note"
 description: Insert a live Base view of related notes into an active MOC note by capturing from a .base template into the current file
 slug: docs/Examples/Capture_InsertBaseTemplateIntoActiveFile
 package: moc-related-notes

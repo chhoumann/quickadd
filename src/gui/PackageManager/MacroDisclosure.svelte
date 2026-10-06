@@ -14,7 +14,7 @@
 		Wait: "Wait",
 		EditorCommand: "Editor command",
 		AIAssistant: "AI assistant",
-		OpenFile: "Open file",
+		OpenFile: "Open note",
 	};
 
 	function humanCommandType(type: string): string {

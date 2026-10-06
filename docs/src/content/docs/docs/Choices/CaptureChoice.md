@@ -279,9 +279,9 @@ merge.
 :::note
 To insert `.base` content into your current note, keep **Capture to active
 note** enabled and use a `{{TEMPLATE:...}}` placeholder pointing at a `.base` file in the format - see
-[Capture: Insert a Related Notes Base into an MOC Note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
+[Capture: Insert a related notes Base into an MOC note](/docs/Examples/Capture_InsertBaseTemplateIntoActiveFile/).
 To create a brand-new note that embeds a Base, use a Template choice - see
-[Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
+[Template: Create an MOC note with a link dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
 :::
 
 If your format includes an inline `js quickadd` block and you need to
@@ -929,7 +929,7 @@ from a Canvas card without a focused Markdown editor, the capture still writes
 and link insertion is skipped.
 
 For a step-by-step setup, see
-[Capture: Canvas Capture](/docs/Examples/Capture_CanvasCapture/).
+[Capture: Canvas capture](/docs/Examples/Capture_CanvasCapture/).
 
 ### Canvas capture FAQ {#canvas-capture-faq}
 

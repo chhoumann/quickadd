@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildCatalogJson, CATALOG_PATH, cleanTitle, parseFrontmatter, recipeFrom } from "../scripts/build-recipes.mjs";
+import { buildCatalogJson, CATALOG_PATH, cleanTitle, parseFrontmatter, recipeFrom, sentenceCase } from "../scripts/build-recipes.mjs";
 
 const PAGE = `---
 title: "Template: Plan a trip"
@@ -64,6 +65,33 @@ describe("build-recipes", () => {
 			"My Book Notes",
 			"Zettelizer",
 		]);
+	});
+
+	it("writes a title in sentence case, keeping proper nouns", () => {
+		expect([
+			"Add a Task to a Kanban Board",
+			"Insert a Related Notes Base into an MOC Note",
+			"Capture to Inbox with GPS",
+			"Fetch Tasks From Todoist",
+			"Zettelizer",
+		].map(sentenceCase)).toEqual([
+			"Add a task to a Kanban board",
+			"Insert a related notes Base into an MOC note",
+			"Capture to inbox with GPS",
+			"Fetch tasks from Todoist",
+			"Zettelizer",
+		]);
+	});
+
+	it("titles each recipe as its docs page does", () => {
+		const examples = "docs/src/content/docs/docs/Examples";
+		const pages = readdirSync(examples)
+			.filter((name) => name.endsWith(".md"))
+			.map((name) => parseFrontmatter(readFileSync(path.join(examples, name), "utf8")))
+			.filter((page) => page.package);
+		const catalog = JSON.parse(buildCatalogJson()) as Array<{ id: string; title: string }>;
+		expect(pages.map((page) => [page.package, cleanTitle(page.title)]).sort())
+			.toEqual(catalog.map((recipe) => [recipe.id, recipe.title]).sort());
 	});
 
 	it("matches the committed catalogue, so a changed example rebuilds it", () => {

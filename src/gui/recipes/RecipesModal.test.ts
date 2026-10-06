@@ -79,7 +79,8 @@ describe("Recipes gallery", () => {
 		const { getAllByText, getByLabelText, getByRole, getByText, setTitle } = open();
 		await fireEvent.click(getByLabelText(`Add ${recipe("book-finder").title}`));
 
-		await waitFor(() => expect(getByText("What this package can do")).toBeTruthy());
+		await waitFor(() => expect(getByText("What this recipe can do")).toBeTruthy());
+		expect(getByText("Show sequence")).toBeTruthy();
 		expect(setTitle).toHaveBeenLastCalledWith(recipe("book-finder").title);
 		const checkbox = getByRole("checkbox") as HTMLInputElement;
 		const addButton = getByText("Add recipe") as HTMLButtonElement;

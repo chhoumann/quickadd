@@ -1,5 +1,5 @@
 ---
-title: Book Finder Script
+title: "Book finder script"
 description: Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required
 slug: docs/Examples/Macro_BookFinder
 package: book-finder

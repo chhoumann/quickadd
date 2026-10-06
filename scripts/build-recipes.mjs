@@ -64,6 +64,23 @@ export function cleanTitle(title) {
 	return title.replace(/^(?:(?:Capture|Macro|Template):|Template -)\s*/, "");
 }
 
+/** Words a title keeps capitalized: names of products, plugins and things in Obsidian. */
+const PROPER_NOUNS = new Set([
+	"Obsidian", "QuickAdd", "Todoist", "Readwise", "Toggl", "GPS", "MOC", "Dataview", "Kanban", "Canvas", "Base",
+]);
+
+/**
+ * A title in sentence case: its first word as written, the rest lowercase
+ * unless they are proper nouns.
+ * @param {string} title
+ */
+export function sentenceCase(title) {
+	return title
+		.split(" ")
+		.map((word, index) => (index === 0 || PROPER_NOUNS.has(word) ? word : word.toLowerCase()))
+		.join(" ");
+}
+
 /**
  * One catalogue entry from a page's frontmatter, its manifest, and its built package.
  * @param {string} id
@@ -77,7 +94,7 @@ export function recipeFrom(id, page, manifest, pkg) {
 	const count = (kinds) => pkg.assets.filter((/** @type {any} */ asset) => kinds.includes(asset.kind)).length;
 	return {
 		id,
-		title: cleanTitle(page.title),
+		title: sentenceCase(cleanTitle(page.title)),
 		description: page.description,
 		slug: page.slug,
 		requires: manifest.install?.requires ?? [],

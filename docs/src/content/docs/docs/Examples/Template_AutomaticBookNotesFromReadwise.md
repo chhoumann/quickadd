@@ -1,5 +1,5 @@
 ---
-title: "Template - My Book Notes template"
+title: "Template - My book notes template"
 description: Pull a book's highlights from Readwise into a new note using a Template choice and a bundled highlight-fetching macro
 slug: docs/Examples/Template_AutomaticBookNotesFromReadwise
 package: readwise-book-notes

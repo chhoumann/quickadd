@@ -111,6 +111,7 @@ describe("ImportPackageModal gate flow", () => {
 		await waitFor(() =>
 			expect(getByText("What this package can do")).toBeTruthy(),
 		);
+		expect(getByText("Show sequence")).toBeTruthy();
 
 		const importButton = getByText("Import package") as HTMLButtonElement;
 		const checkbox = getByRole("checkbox") as HTMLInputElement;

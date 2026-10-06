@@ -1,5 +1,5 @@
 ---
-title: "Capture: Add a Task to a Kanban Board"
+title: "Capture: Add a task to a Kanban board"
 description: Add a task to a chosen lane on an Obsidian Kanban board by capturing after the lane heading, with optional date formatting
 slug: docs/Examples/Capture_AddTaskToKanbanBoard
 package: kanban-task

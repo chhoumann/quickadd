@@ -1,5 +1,5 @@
 ---
-title: "Macro: Capture to Inbox with GPS"
+title: "Macro: Capture to inbox with GPS"
 description: Append a timestamped inbox line with device GPS coordinates, for offline capture on Obsidian mobile 1.11+
 slug: docs/Examples/Macro_CaptureInboxGps
 package: capture-inbox-gps

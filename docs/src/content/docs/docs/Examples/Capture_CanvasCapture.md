@@ -1,5 +1,5 @@
 ---
-title: "Capture: Canvas Capture"
+title: "Capture: Canvas capture"
 description: Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking
 slug: docs/Examples/Capture_CanvasCapture
 package: canvas-capture
@@ -98,4 +98,4 @@ file to link from.
 
 - [Capture Choices](/docs/Choices/CaptureChoice/)
 - [Format Syntax](/docs/FormatSyntax/)
-- [Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/)
+- [Template: Create an MOC note with a link dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/)

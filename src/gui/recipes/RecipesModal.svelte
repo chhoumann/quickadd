@@ -83,6 +83,7 @@
 		{app}
 		pkg={reviewing.pkg}
 		importLabel="Add recipe"
+		noun="recipe"
 		keepExistingFiles
 		cancelLabel="Back"
 		onCancel={() => void backToList(recipe)}

@@ -102,9 +102,9 @@ type, difficulty, prerequisites, and outcome.
 Good first examples:
 
 - [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/)
-- [Template: Add an Inbox Item](/docs/Examples/Template_AddAnInboxItem/)
+- [Template: Add an inbox item](/docs/Examples/Template_AddAnInboxItem/)
 - [Macro: Book Finder](/docs/Examples/Macro_BookFinder/)
-- [Capture: Canvas Capture](/docs/Examples/Capture_CanvasCapture/)
+- [Capture: Canvas capture](/docs/Examples/Capture_CanvasCapture/)
 
 ### I want to automate with scripts
 

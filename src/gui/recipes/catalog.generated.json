@@ -1,7 +1,7 @@
 [
 	{
 		"id": "kanban-task",
-		"title": "Add a Task to a Kanban Board",
+		"title": "Add a task to a Kanban board",
 		"description": "Add a task to a chosen lane on an Obsidian Kanban board by capturing after the lane heading, with optional date formatting",
 		"slug": "docs/Examples/Capture_AddTaskToKanbanBoard",
 		"requires": [
@@ -96,7 +96,7 @@
 	},
 	{
 		"id": "inbox-item",
-		"title": "Add an Inbox Item",
+		"title": "Add an inbox item",
 		"description": "Create a timestamped inbox note from a template, naming the file with the current date and time plus your input",
 		"slug": "docs/Examples/Template_AddAnInboxItem",
 		"requires": [],
@@ -885,7 +885,7 @@
 	},
 	{
 		"id": "book-finder",
-		"title": "Book Finder Script",
+		"title": "Book finder script",
 		"description": "Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required",
 		"slug": "docs/Examples/Macro_BookFinder",
 		"requires": [
@@ -1126,7 +1126,7 @@
 	},
 	{
 		"id": "canvas-capture",
-		"title": "Canvas Capture",
+		"title": "Canvas capture",
 		"description": "Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking",
 		"slug": "docs/Examples/Capture_CanvasCapture",
 		"requires": [],
@@ -1217,7 +1217,7 @@
 	},
 	{
 		"id": "capture-inbox-gps",
-		"title": "Capture to Inbox with GPS",
+		"title": "Capture to inbox with GPS",
 		"description": "Append a timestamped inbox line with device GPS coordinates, for offline capture on Obsidian mobile 1.11+",
 		"slug": "docs/Examples/Macro_CaptureInboxGps",
 		"requires": [
@@ -1496,7 +1496,7 @@
 	},
 	{
 		"id": "moc-link-dashboard",
-		"title": "Create an MOC Note with a Link Dashboard",
+		"title": "Create an MOC note with a link dashboard",
 		"description": "Create a map-of-content note with an embedded Base dashboard showing its backlinks and outgoing links, via a Template choice",
 		"slug": "docs/Examples/Template_CreateMOCNoteWithLinkDashboard",
 		"requires": [
@@ -1580,7 +1580,7 @@
 	},
 	{
 		"id": "todoist-tasks",
-		"title": "Fetch Tasks From Todoist",
+		"title": "Fetch tasks from Todoist",
 		"description": "Import Todoist tasks into a note using a macro and user script, selecting from all tasks, a project, or a single section",
 		"slug": "docs/Examples/Capture_FetchTasksFromTodoist",
 		"requires": [
@@ -1712,7 +1712,7 @@
 	},
 	{
 		"id": "moc-related-notes",
-		"title": "Insert a Related Notes Base into an MOC Note",
+		"title": "Insert a related notes Base into an MOC note",
 		"description": "Insert a live Base view of related notes into an active MOC note by capturing from a .base template into the current file",
 		"slug": "docs/Examples/Capture_InsertBaseTemplateIntoActiveFile",
 		"requires": [
@@ -1878,7 +1878,7 @@
 	},
 	{
 		"id": "migrate-dataview-properties",
-		"title": "Migrate Dataview Properties to Frontmatter",
+		"title": "Migrate Dataview properties to frontmatter",
 		"description": "Migrate inline Dataview properties to YAML frontmatter with wikilink-aware comma handling and selective property lists",
 		"slug": "docs/Examples/Macro_MigrateDataviewProperties",
 		"requires": [],
@@ -2009,7 +2009,7 @@
 	},
 	{
 		"id": "movie-notes",
-		"title": "Movie & Series Script",
+		"title": "Movie & series script",
 		"description": "Insert a movie or TV show note from the OMDb API into your vault with a Macro choice and template, requires an API key",
 		"slug": "docs/Examples/Macro_MovieAndSeriesScript",
 		"requires": [
@@ -2118,7 +2118,7 @@
 	},
 	{
 		"id": "readwise-book-notes",
-		"title": "My Book Notes template",
+		"title": "My book notes template",
 		"description": "Pull a book's highlights from Readwise into a new note using a Template choice and a bundled highlight-fetching macro",
 		"slug": "docs/Examples/Template_AutomaticBookNotesFromReadwise",
 		"requires": [
@@ -2234,7 +2234,7 @@
 	},
 	{
 		"id": "toggl-manager",
-		"title": "Toggl Manager",
+		"title": "Toggl manager",
 		"description": "Start preset Toggl Track time entries from a customizable menu using a macro and the Obsidian Toggl integration plugin",
 		"slug": "docs/Examples/Macro_TogglManager",
 		"requires": [

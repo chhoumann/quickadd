@@ -57,6 +57,7 @@
 		onImported,
 		header,
 		keepExistingFiles = false,
+		noun = "package",
 	}: {
 		app: App;
 		/** The package to review; null while there is none. */
@@ -74,6 +75,8 @@
 		header?: Snippet;
 		/** A file already in the vault is kept unless the reader chooses otherwise. */
 		keepExistingFiles?: boolean;
+		/** What the review calls what it reviews: the gallery's are recipes. */
+		noun?: "package" | "recipe";
 	} = $props();
 
 	// Lazily memoized so the `app` prop is read inside a closure (not captured at
@@ -446,7 +449,7 @@
 		{#if loadError}
 			<p class="qa-import-status mod-error">{loadError}</p>
 		{:else if isAnalyzing}
-			<p class="qa-import-status">Analyzing package…</p>
+			<p class="qa-import-status">Analyzing {noun}…</p>
 		{:else if showDetails && loadedPackage && analysis}
 			<p class="qa-import-status">
 				Version {loadedPackage.quickAddVersion} · Created {new Date(
@@ -463,7 +466,7 @@
 
 		{#if loadedPackage && analysis}
 			{#if showBanner && preview}
-				<CapabilityBanner {preview} />
+				<CapabilityBanner {preview} {noun} />
 			{/if}
 
 			<ImportChoices conflicts={analysis.choiceConflicts} {choiceDecisions}
@@ -479,7 +482,7 @@
 						<div class="setting-item mod-empty-state">
 							<div class="setting-item-info">
 								<div class="setting-item-name">
-									No files bundled with this package.
+									No files bundled with this {noun}.
 								</div>
 							</div>
 						</div>

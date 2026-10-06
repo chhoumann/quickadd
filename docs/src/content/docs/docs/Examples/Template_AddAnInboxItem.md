@@ -1,5 +1,5 @@
 ---
-title: "Template: Add an Inbox Item"
+title: "Template: Add an inbox item"
 description: Create a timestamped inbox note from a template, naming the file with the current date and time plus your input
 slug: docs/Examples/Template_AddAnInboxItem
 package: inbox-item

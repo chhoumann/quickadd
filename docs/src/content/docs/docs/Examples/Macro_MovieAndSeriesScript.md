@@ -1,5 +1,5 @@
 ---
-title: Movie & Series Script
+title: "Movie & series script"
 description: Insert a movie or TV show note from the OMDb API into your vault with a Macro choice and template, requires an API key
 slug: docs/Examples/Macro_MovieAndSeriesScript
 package: movie-notes

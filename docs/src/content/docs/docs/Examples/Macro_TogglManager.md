@@ -1,5 +1,5 @@
 ---
-title: Toggl Manager
+title: "Toggl manager"
 description: Start preset Toggl Track time entries from a customizable menu using a macro and the Obsidian Toggl integration plugin
 slug: docs/Examples/Macro_TogglManager
 package: toggl-manager
