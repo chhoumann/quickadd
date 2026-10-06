@@ -13,9 +13,10 @@ import type {
 
 /**
  * QuickAdd v3 storage model: a tree of folders and actions, where an action is
- * an ordered list of steps. Only shapes that v2 data migrates into are here;
- * every one of them lowers back to a v2 choice (see lower.ts), which is what
- * the existing engines run.
+ * an ordered list of steps. Every action lowers to a v2 choice (see lower.ts)
+ * for the choice list, commands and packages. A sequence runs its steps
+ * through the step runner (run/stepRunner.ts); everything else runs on the
+ * existing engines.
  */
 export type ActionNode = Action | Folder;
 
@@ -144,6 +145,20 @@ export interface AddToNoteStep extends StepBase {
  * works on the run note names it with this value. Migration only ever writes it.
  */
 export const RUN_NOTE = "{{NOTE}}";
+
+/**
+ * The command type a step with no v2 command form lowers to (a link or a
+ * Templater step outside a write group, an open with a view mode). The step
+ * runner runs the step itself; migration reads the step back.
+ */
+export const V3_STEP_COMMAND = "v3-step";
+
+export interface V3StepCommand {
+	id: string;
+	name: string;
+	type: typeof V3_STEP_COMMAND;
+	step: Step;
+}
 
 export interface LinkStep extends StepBase {
 	type: "link";

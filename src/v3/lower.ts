@@ -8,6 +8,7 @@ import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import type { ChoiceType } from "../types/choices/choiceType";
 import { CommandType } from "../types/macros/CommandType";
 import type { ICommand } from "../types/macros/ICommand";
+import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import { normalizeFileOpening } from "../utils/fileOpeningDefaults";
 import type {
 	Action,
@@ -19,7 +20,8 @@ import type {
 	TemplaterStep,
 	WriteStep,
 } from "./model";
-import { RUN_NOTE } from "./model";
+import type { V3StepCommand } from "./model";
+import { RUN_NOTE, V3_STEP_COMMAND } from "./model";
 
 /**
  * A write step with the steps that v2 stores as settings on the same choice:
@@ -187,19 +189,24 @@ const V2_FOLDER_MODE: Record<NoteLocation["mode"], FolderMode> = {
 };
 
 /**
- * The commands of the Macro `actionId` lowers to. A write keeps its id on the
- * nested choice, except the write of a Template or Capture that became a
- * sequence, which keeps the action's id: its nested choice is `<action id>:choice`,
- * so a run does not take it for the Macro calling itself.
+ * The nested choice a write group of the action `actionId` runs as. A write
+ * keeps its id, except the write of a Template or Capture that became a
+ * sequence, which keeps the action's id: its choice is `<action id>:choice`, so
+ * a run does not take it for the action calling itself.
  */
-function lowerSteps(steps: Step[], actionId: string): ICommand[] {
+export function lowerWriteGroup(group: WriteGroup, actionId: string): INestedChoiceCommand {
+	const { id, name } = group.write;
+	const choice = lowerGroup(group, { id: id === actionId ? `${actionId}:choice` : id, name: name ?? "", command: false });
+	return { id: `${id}:nested`, name: choice.name, type: CommandType.NestedChoice, choice };
+}
+
+/** The commands of the Macro `actionId` lowers to. */
+export function lowerSteps(steps: Step[], actionId: string): ICommand[] {
 	const commands: ICommand[] = [];
 	for (let index = 0; index < steps.length; ) {
 		const group = readWriteGroup(steps, index);
 		if (group) {
-			const { id, name } = group.write;
-			const choice = lowerGroup(group, { id: id === actionId ? `${actionId}:choice` : id, name: name ?? "", command: false });
-			commands.push({ id: `${id}:nested`, name: choice.name, type: CommandType.NestedChoice, choice } as ICommand);
+			commands.push(lowerWriteGroup(group, actionId));
 			index = group.next;
 			continue;
 		}
@@ -209,7 +216,12 @@ function lowerSteps(steps: Step[], actionId: string): ICommand[] {
 	return commands;
 }
 
-function lowerStep(step: Step, actionId: string): ICommand {
+/**
+ * The command a step that is not part of a write group lowers to. A step with
+ * no v2 command form lowers to a {@link V3StepCommand}, which only the step
+ * runner runs.
+ */
+export function lowerStep(step: Step, actionId: string): ICommand {
 	const base = { id: step.id, name: step.name as string };
 	switch (step.type) {
 		case "runCommand":
@@ -224,9 +236,12 @@ function lowerStep(step: Step, actionId: string): ICommand {
 			return { ...base, type: CommandType.Wait, time: step.time } as ICommand;
 		case "ai":
 			return { ...step, type: CommandType.AIAssistant } as ICommand;
+		case "link":
+		case "templater":
+			return asStepCommand(step);
 		case "open":
 			// The v2 command formats its path, so {{NOTE}} opens the run note.
-			if (step.mode !== "default") break;
+			if (step.mode !== "default") return asStepCommand(step);
 			return {
 				...base,
 				type: CommandType.OpenFile,
@@ -250,5 +265,10 @@ function lowerStep(step: Step, actionId: string): ICommand {
 		default:
 			break;
 	}
-	throw new Error(`Step ${step.id} (${step.type}) has no v2 encoding here.`);
+	throw new Error(`Step ${step.id} (${(step as Step).type}) has no v2 encoding here.`);
+}
+
+function asStepCommand(step: Step): ICommand {
+	const command: V3StepCommand = { id: step.id, name: step.name ?? "", type: V3_STEP_COMMAND, step };
+	return command as unknown as ICommand;
 }

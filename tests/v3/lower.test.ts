@@ -8,7 +8,7 @@ import type { IOpenFileCommand } from "../../src/types/macros/QuickCommands/IOpe
 import { compactGroup, legacyTypeOf, lowerNode } from "../../src/v3/lower";
 import { migrateChoice } from "../../src/v3/migrate";
 import type { Action, OpenStep, Step } from "../../src/v3/model";
-import { RUN_NOTE } from "../../src/v3/model";
+import { RUN_NOTE, V3_STEP_COMMAND } from "../../src/v3/model";
 
 function captureThatOpens(): Action {
 	const choice = new CaptureChoice("Log");
@@ -46,12 +46,37 @@ describe("lowering a write with its follow-ups", () => {
 		expect((migrateChoice(macro).node as Action).steps[0]).toMatchObject({ type: "open", note: RUN_NOTE });
 	});
 
-	it.each(["link", "templater"] as const)("cannot lower a %s step of the user's own on the run note yet", (type) => {
+	it.each([
+		["link", { id: "my-link", type: "link", link: RUN_NOTE, copyToClipboard: true }],
+		["templater", { id: "my-templater", type: "templater", note: RUN_NOTE }],
+		["open with a view mode", { id: "my-open", type: "open", note: RUN_NOTE, location: "tab", direction: "vertical", mode: "preview", focus: true }],
+	] as [string, Step][])("lowers a %s step of the user's own to a step command, which migrates back to the step", (_, own) => {
 		const action = captureThatOpens();
-		const own: Step = type === "link"
-			? { id: "my-link", type: "link", link: RUN_NOTE, copyToClipboard: true }
-			: { id: "my-templater", type: "templater", note: RUN_NOTE };
-		expect(() => lowerNode({ ...action, steps: [action.steps[0]!, own] })).toThrow("no v2 encoding");
+		const lowered = lowerNode({ ...action, steps: [action.steps[0]!, own] }) as IMacroChoice;
+		expect(lowered.type).toBe("Macro");
+		expect(lowered.macro.commands[1]).toEqual({ id: own.id, name: "", type: V3_STEP_COMMAND, step: own });
+		const steps = (migrateChoice(lowered).node as Action).steps;
+		expect(steps.map((step) => step.id)).toEqual([action.id, own.id]);
+		expect(steps[1]).toEqual(own);
+	});
+
+	it("lowers a step command inside an if branch and reads it back", () => {
+		const link: Step = { id: "link", type: "link", link: RUN_NOTE, copyToClipboard: true };
+		const branch: Step = {
+			id: "if",
+			type: "if",
+			condition: { mode: "variable", variableName: "x", operator: "isTruthy", valueType: "boolean" },
+			thenSteps: [link],
+			elseSteps: [],
+		};
+		const action: Action = { ...captureThatOpens(), steps: [branch] };
+		expect((migrateChoice(lowerNode(action)).node as Action).steps).toEqual([branch]);
+	});
+
+	it("still cannot lower a step type it does not know", () => {
+		const action = captureThatOpens();
+		const future = { id: "future", type: "future" } as unknown as Step;
+		expect(() => lowerNode({ ...action, steps: [action.steps[0]!, future] })).toThrow("no v2 encoding");
 	});
 });
 

@@ -34,7 +34,7 @@ import type {
 	Step,
 	WritePosition,
 } from "./model";
-import { RUN_NOTE } from "./model";
+import { RUN_NOTE, V3_STEP_COMMAND, type V3StepCommand } from "./model";
 import { summarize } from "./summary";
 
 /** Something the migration decided for one choice that a person should be able to see. */
@@ -429,6 +429,8 @@ function migrateCommand(command: ICommand, host: IChoice, notes: Notes): Step[] 
 		note(notes, host, "unknownCommand", "unreadable command kept as is");
 		return [{ id: "", type: "unknown", raw: command }];
 	}
+	// A step lowered without a v2 command form (lower.ts) carries itself.
+	if ((command.type as string) === V3_STEP_COMMAND) return [(command as unknown as V3StepCommand).step];
 	const base = withoutUndefined({ id: command.id, name: command.name });
 	noteUnknownKeys(command, V2_COMMAND_KEYS[command.type], host, `step ${String(command.id)}: `, notes);
 	switch (command.type) {
