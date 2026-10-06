@@ -89,7 +89,7 @@ fixture | Add to a list property
 fixture | Stashed settings
     Adds a line at the top of Inbox
 fixture | Capture with every follow-up
-    Adds a task at the top of a note in Projects/, runs Templater on it, links it here and copies its link, opens it
+    Adds a task at the top of a note in Projects/, runs Templater on it, links it at the cursor here and copies its link, opens it
 fixture | Canvas card
     Adds a line under ## Ideas in Board.canvas
 fixture | Copy link only
@@ -107,15 +107,15 @@ fixture | Ask and active folder both on
 fixture | Folder off with flags on
     Creates {date} {Topic} from Note
 fixture | Link into a property of a note
-    Creates {title} from Note, links it in the related property of Index, opens it
+    Creates {title} from Note, links it at the bottom of Index, opens it
 fixture | Legacy boolean link
-    Creates {date} {Topic} from Note, links it here
+    Creates {date} {Topic} from Note, links it at the cursor here
 fixture | Legacy file-exists and open settings
     Creates {date} {Topic} from Note, opens it
 fixture | Template with its own date
     Creates {date} {Topic} from Note
 fixture | Macro with every step
-    Runs 'Toggle', paste in the editor, runs lib.js::build, runs 'Top of note', runs 'fx-missing', waits 250 ms, asks AI for {summary}, opens {date} log.md, opens Inbox.md, opens Board.md, creates {date} {Topic} from Note, opens it, runs 'Templater: Replace templates in the active file', adds a line at the top of Inbox, runs Templater on it, links it here, if kind equals task then adds a task at the top of Inbox, otherwise waits 10 ms, runs 'Nested macro' (runs inner.js), asks which of 'Option A' to run, runs 'Tomorrow's note' (creates {date} {Topic} from Note), runs 'Inner name' (creates {date} {Topic} from Note), skips a step this version cannot read
+    Runs 'Toggle', paste in the editor, runs lib.js::build, runs 'Top of note', runs 'fx-missing', waits 250 ms, asks AI for {summary}, opens {date} log.md, opens Inbox.md, opens Board.md, creates {date} {Topic} from Note, opens it, runs 'Templater: Replace templates in the active file', adds a line at the top of Inbox, runs Templater on it, links it at the cursor here, if kind equals task then adds a task at the top of Inbox, otherwise waits 10 ms, runs 'Nested macro' (runs inner.js), asks which of 'Option A' to run, runs 'Tomorrow's note' (creates {date} {Topic} from Note), runs 'Inner name' (creates {date} {Topic} from Note), skips a step this version cannot read
 fixture | Array-valued macro
     Runs a.js
 fixture | Old keys

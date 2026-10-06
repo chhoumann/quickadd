@@ -24,7 +24,7 @@ describe("planFirstRun", () => {
 			"Meeting note (users): Creates Meetings/{date} {Topic} from Meeting, opens it",
 			"Inbox (inbox): Adds a line at the bottom of Inbox",
 			"Save link (bookmark): Adds a task at the bottom of Reading list",
-			"Project (folder-kanban): Creates Projects/{Name} from Project, links it here, opens it",
+			"Project (folder-kanban): Creates Projects/{Name} from Project, links it on a new line here, opens it",
 		]);
 		expect(files.map((file) => file.path)).toEqual(["Templates/Meeting.md", "Templates/Project.md"]);
 	});

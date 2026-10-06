@@ -13,7 +13,7 @@ const EXPECTED: Record<string, string> = {
 	selection: "Adds the selection at the bottom of a chosen note",
 	property: "Sets a chosen property in the current note",
 	newNote: "Creates {title}, opens it",
-	linkedNote: "Creates {title}, links it here, opens it",
+	linkedNote: "Creates {title}, links it on a new line here, opens it",
 	typedNote: "Creates {folder}/{title} from {Template}, opens it",
 	script: "Runs a script",
 	sequence: "No steps yet",

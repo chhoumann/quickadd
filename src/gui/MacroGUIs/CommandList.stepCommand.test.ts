@@ -59,7 +59,7 @@ describe("a step with no v2 command form", () => {
 	it("shows a link step as a row that says what it does, with its settings behind the gear", async () => {
 		const link = lowerStep(newStep("link"), "");
 		const { container, saveCommands } = renderList([link]);
-		expect(rows(container)).toEqual([["Link it", "Links it here"]]);
+		expect(rows(container)).toEqual([["Link it", "Links it on a new line here"]]);
 
 		await configure(container, "Link it");
 		expect(modal().querySelector(".qa-modal-title")?.textContent).toBe("Link it");
@@ -74,7 +74,7 @@ describe("a step with no v2 command form", () => {
 			type: "v3-step",
 			step: { type: "link", link: "{{NOTE}}", insert: { placement: "newLine", requireActiveFile: false }, copyToClipboard: true },
 		});
-		expect(rows(container)).toEqual([["Link it", "Links it here and copies its link"]]);
+		expect(rows(container)).toEqual([["Link it", "Links it on a new line here and copies its link"]]);
 	});
 
 	it("drops the insert when Insert is turned off, and keeps what Cancel leaves", async () => {

@@ -566,8 +566,8 @@ A template choice nested inside a macro lists its inputs without the controls.
 ## Do more afterwards: Add a step {#steps}
 
 The last group in the builder, **Steps**, lists what the template choice does,
-one line per step, for example *Creates {title}*, *Links it here*, and *Opens
-it*. The list follows the settings as you change them.
+one line per step, for example *Creates {title}*, *Links it on a new line
+here*, and *Opens it*. The list follows the settings as you change them.
 
 **Add a step** adds something to do after the template choice:
 

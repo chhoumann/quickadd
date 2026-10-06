@@ -1,6 +1,7 @@
 import type { Action, ActionNode, AddToNoteStep, CreateNoteStep, LinkStep, Step } from "./model";
 import { getOperatorLabel } from "../utils/conditionalHelpers";
 import { RUN_NOTE } from "./model";
+import { placementSupportsEmbed } from "../types/linkPlacement";
 
 /**
  * One line that says what an action does, generated from its steps:
@@ -125,16 +126,26 @@ function describeLink(step: LinkStep): string {
 	const parts: string[] = [];
 	const insert = step.insert;
 	if (insert) {
-		const verb = insert.linkType === "embed" ? "embeds" : "links";
-		const into = insert.destination?.type === "specifiedFile" ? render(insert.destination.path.replace(/\.md$/i, "")) : "here";
-		parts.push(
-			insert.placement === "inFrontmatter"
-				? `${verb} it in the ${insert.frontmatterProperty ?? "chosen"} property ${into === "here" ? "here" : `of ${into}`}`
-				: `${verb} it ${into === "here" ? "here" : `in ${into}`}`,
-		);
+		const here = insert.destination?.type !== "specifiedFile";
+		const verb = here && insert.linkType === "embed" && placementSupportsEmbed(insert.placement) ? "embeds" : "links";
+		parts.push(`${verb} it ${linkPlace(insert)}`);
 	}
 	if (step.copyToClipboard) parts.push("copies its link");
 	return parts.join(" and ");
+}
+
+/** Where a Link it step puts the link: a specified note gets it on a line at its bottom. */
+function linkPlace(insert: NonNullable<LinkStep["insert"]>): string {
+	if (insert.destination?.type === "specifiedFile") {
+		return `at the bottom of ${render(insert.destination.path.replace(/\.md$/i, ""))}`;
+	}
+	return {
+		replaceSelection: "at the cursor here",
+		afterSelection: "after the selection here",
+		endOfLine: "at the end of the line here",
+		newLine: "on a new line here",
+		inFrontmatter: `in the ${insert.frontmatterProperty?.trim() || "chosen"} property here`,
+	}[insert.placement];
 }
 
 function basename(path: string): string {

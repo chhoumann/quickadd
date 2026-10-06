@@ -177,7 +177,7 @@ it("adds Link it, which also copies the link once its settings say so, and links
 	await addStep(obsidian, "Link it");
 	await expect.poll(() => rows(obsidian), POLL_OPTS).toEqual([
 		["Add to note", "Adds a line at the bottom of Inbox"],
-		["Link it", "Links it here"],
+		["Link it", "Links it on a new line here"],
 	]);
 
 	await clickWhenStill(obsidian, '.macroBuilder [aria-label="Configure Link it"]');
@@ -189,9 +189,9 @@ it("adds Link it, which also copies the link once its settings say so, and links
 
 	await expect.poll(() => rows(obsidian), POLL_OPTS).toEqual([
 		["Add to note", "Adds a line at the bottom of Inbox"],
-		["Link it", "Links it here and copies its link"],
+		["Link it", "Links it on a new line here and copies its link"],
 	]);
-	expect(await lede(obsidian)).toBe("Adds a line at the bottom of Inbox, links it here and copies its link");
+	expect(await lede(obsidian)).toBe("Adds a line at the bottom of Inbox, links it on a new line here and copies its link");
 	await leaveSettingsPage(obsidian);
 	await obsidian.dev.evalJson("app.setting.close(), true");
 

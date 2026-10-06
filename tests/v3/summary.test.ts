@@ -29,6 +29,22 @@ describe("summary line", () => {
 		expect(describeStepLine({ type: "runScript", id: "s", path: "", settings: {} })).toBe("Runs a script");
 	});
 
+	it("says where and how a Link it step puts the link", () => {
+		const link = (insert?: Extract<Step, { type: "link" }>["insert"], copyToClipboard?: boolean) =>
+			describeStepLine({ type: "link", id: "l", link: "{{NOTE}}", insert, copyToClipboard });
+		const here = { requireActiveFile: false, destination: { type: "activeFile" } } as const;
+
+		expect(link({ ...here, placement: "newLine" })).toBe("Links it on a new line here");
+		expect(link({ ...here, placement: "replaceSelection" })).toBe("Links it at the cursor here");
+		expect(link({ ...here, placement: "endOfLine", linkType: "embed" })).toBe("Embeds it at the end of the line here");
+		expect(link({ ...here, placement: "inFrontmatter", frontmatterProperty: "related" })).toBe("Links it in the related property here");
+		// A specified note gets the link on a line at its bottom, whatever the placement says.
+		expect(link({ ...here, placement: "inFrontmatter", linkType: "embed", destination: { type: "specifiedFile", path: "Projects.md" } }))
+			.toBe("Links it at the bottom of Projects");
+		expect(link(undefined, true)).toBe("Copies its link");
+		expect(link({ ...here, placement: "newLine" }, true)).toBe("Links it on a new line here and copies its link");
+	});
+
 	it("matches the reviewed lines for every package and fixture action", async () => {
 		const sources = [
 			...packageChoices()

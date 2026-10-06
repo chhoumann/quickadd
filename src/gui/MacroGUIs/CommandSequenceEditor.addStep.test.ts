@@ -115,7 +115,7 @@ describe("Add a step", () => {
 			expect.objectContaining({ type: "v3-step", step: expect.objectContaining({ type: "templater", note: "{{NOTE}}" }) }),
 		]);
 		expect(rows(container)).toEqual([
-			["Link it", "Links it here"],
+			["Link it", "Links it on a new line here"],
 			["Run Templater", "Runs Templater on it"],
 		]);
 	});
