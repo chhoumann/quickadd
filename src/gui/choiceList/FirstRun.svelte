@@ -140,6 +140,11 @@
 		box-shadow: 0 0 0 1px var(--interactive-accent);
 	}
 
+	/* After is-selected: the keyboard's ring shows on a picked card too. */
+	.qaJobCard:focus-visible {
+		box-shadow: 0 0 0 3px var(--background-modifier-border-focus);
+	}
+
 	.qaJobCardIcon {
 		display: inline-flex;
 		color: var(--text-muted);

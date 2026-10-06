@@ -3,7 +3,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
 
 // A new user's empty list asks what they do in Obsidian and creates choices
 // for the answer, built on what the vault has: daily notes when they are on,
@@ -120,4 +120,12 @@ it("writes tasks to a dated note in Journal/ when daily notes are off", async ()
 		`app.vault.read(app.vault.getAbstractFileByPath(${jsLiteral(`Journal/${today}.md`)}))`,
 	);
 	expect(content).toMatch(/^## Tasks\n- \[ \] Water the plants\n?$/);
+});
+
+it("rings the card the keyboard is on, picked or not", async () => {
+	const { obsidian } = getContext();
+	await openEmptyList();
+	await waitForElement(obsidian, ".qaJobCard");
+	await pick("tasks");
+	expect(await withoutFocusRing(obsidian, ".qaJobCard")).toEqual([]);
 });

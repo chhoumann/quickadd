@@ -211,3 +211,22 @@ export async function addStep(obsidian: ObsidianClient, title: string) {
 	})()`);
 	await clickWhenStill(obsidian, ".menu-item[data-qa-add-step]");
 }
+
+/**
+ * The visible elements matching `selector` that show no ring when focused from
+ * the keyboard, by their text.
+ */
+export async function withoutFocusRing(obsidian: ObsidianClient, selector: string): Promise<string[]> {
+	return obsidian.dev.evalJson<string[]>(`(() => {
+		const missing = [];
+		for (const el of document.querySelectorAll(${jsLiteral(selector)})) {
+			if (el.getClientRects().length === 0) continue;
+			el.focus({ focusVisible: true, preventScroll: true });
+			const style = getComputedStyle(el);
+			const ring = style.boxShadow !== "none" || (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0);
+			if (!ring || document.activeElement !== el) missing.push(el.textContent.trim());
+			el.blur();
+		}
+		return missing;
+	})()`);
+}
