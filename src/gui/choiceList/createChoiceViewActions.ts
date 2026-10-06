@@ -25,7 +25,7 @@ import { reportingHandler, reportUnlessCancelled } from "../../utils/errorUtils"
 import { type Plain, snapshot } from "../svelte/persist.svelte";
 import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
-import { FOLDER_NAME, type Preset } from "./presets";
+import { createFromPreset, FOLDER_NAME, type Preset } from "./presets";
 import { uniqueChoiceName } from "./uniqueChoiceName";
 import { DEFAULT_TEMPLATE_FOLDER, type FirstRunPlan, readTemplateFolder } from "./firstRun";
 import { ensureParentFolders } from "../../utils/ensureParentFolders";
@@ -61,7 +61,7 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 	function choiceFromPreset(preset: Preset): IChoice {
 		const templateFolder = readTemplateFolder(context.app, settingsStore.getState()) ?? DEFAULT_TEMPLATE_FOLDER;
-		const newChoice = preset.create({ templateFolder });
+		const newChoice = createFromPreset(preset, { templateFolder });
 		newChoice.name = uniqueChoiceName(preset.name, context.choices);
 		// The outcome's icon, not the type's, so the list and launcher read by it.
 		newChoice.icon = preset.iconId;

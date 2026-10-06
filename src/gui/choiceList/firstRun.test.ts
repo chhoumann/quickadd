@@ -69,6 +69,13 @@ describe("planFirstRun", () => {
 		expect(describeJob("meetings", facts)).toBe("Meeting note, in Meetings/. Adds a Meeting template");
 	});
 
+	it("plans choices that ask for their inputs on one page", () => {
+		for (const dailyNotes of [true, false]) {
+			const { choices } = planFirstRun(ALL_JOBS, { ...FACTS, dailyNotes });
+			expect(choices.map((choice) => choice.onePageInput)).toEqual(choices.map(() => "always"));
+		}
+	});
+
 	it("gives the choices in the order of the jobs", () => {
 		const names = (jobs: JobId[]) => planFirstRun(jobs, FACTS).choices.map((choice) => choice.name);
 		expect(names(["projects", "journal"])).toEqual(["Project", "Log", "Thought"]);

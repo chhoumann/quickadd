@@ -4,7 +4,7 @@ import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { summarizeChoice } from "../../v3/choiceSummary";
 import { lowerNode } from "../../v3/lower";
 import { migrateChoice } from "../../v3/migrate";
-import { availablePresets, PRESET_GROUPS, PRESETS } from "./presets";
+import { availablePresets, createFromPreset, PRESET_GROUPS, PRESETS } from "./presets";
 
 const EXPECTED: Record<string, string> = {
 	log: "Adds a line under ## Log in today's daily note",
@@ -77,6 +77,14 @@ describe("presets", () => {
 	it("names every preset differently", () => {
 		const names = PRESETS.map((preset) => preset.name);
 		expect(new Set(names).size).toBe(names.length);
+	});
+
+	it("adds every preset's choice asking for its inputs on one page", () => {
+		for (const preset of PRESETS) expect(createFromPreset(preset, CONTEXT).onePageInput).toBe("always");
+	});
+
+	it("leaves a sequence's step to follow its sequence", () => {
+		for (const preset of PRESETS) expect(preset.create(CONTEXT).onePageInput).toBeUndefined();
 	});
 
 	it("names the choice after the preset", () => {

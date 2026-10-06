@@ -240,6 +240,16 @@ export const PRESETS: Preset[] = [
 	},
 ];
 
+/**
+ * A preset's choice as the New choice menu adds it: asking for all its inputs
+ * on one page. A step a sequence adds stays unset and follows its sequence.
+ */
+export function createFromPreset(preset: Preset, context: PresetContext): IChoice {
+	const choice = preset.create(context);
+	choice.onePageInput = "always";
+	return choice;
+}
+
 /** The presets to offer: all of them, less the online ones while those are off. */
 export function availablePresets(disableOnlineFeatures: boolean): Preset[] {
 	return disableOnlineFeatures ? PRESETS.filter((preset) => !preset.online) : PRESETS;

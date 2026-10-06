@@ -127,9 +127,11 @@ export function describeJob(id: JobId, facts: VaultFacts): string {
 	}
 }
 
-function withIcon<T extends IChoice>(choice: T, iconId: string): T {
+/** A planned choice: with its outcome's icon, asking for all its inputs on one page. */
+function planned<T extends IChoice>(choice: T, iconId: string): T {
 	// The outcome's icon, not the type's, so the list and launcher read by it.
 	choice.icon = iconId;
+	choice.onePageInput = "always";
 	return choice;
 }
 
@@ -152,17 +154,17 @@ export function planFirstRun(jobs: JobId[], facts: VaultFacts): FirstRunPlan {
 			case "journal": {
 				const thought = headingCapture("Thought", "## Thoughts", target);
 				thought.format = { enabled: true, format: "- {{VALUE}}" };
-				choices.push(withIcon(logCapture("Log", target), "clock"), withIcon(thought, "lightbulb"));
+				choices.push(planned(logCapture("Log", target), "clock"), planned(thought, "lightbulb"));
 				break;
 			}
 			case "tasks":
-				choices.push(withIcon(taskCapture("Task", target, facts.tasksPlugin), "check-square"));
+				choices.push(planned(taskCapture("Task", target, facts.tasksPlugin), "check-square"));
 				break;
 			case "meetings": {
 				const { path, file } = meetingTemplate(facts);
 				if (file) files.push(file);
 				const meeting = fromTemplate(new TemplateChoice("Meeting note"), path, "Meetings", "{{DATE}} {{VALUE:Topic}}");
-				choices.push(withIcon(meeting, "users"));
+				choices.push(planned(meeting, "users"));
 				break;
 			}
 			case "reading": {
@@ -170,14 +172,14 @@ export function planFirstRun(jobs: JobId[], facts: VaultFacts): FirstRunPlan {
 				inbox.format = { enabled: true, format: "- {{VALUE}}" };
 				const link = bottomCapture("Save link", "Reading list.md");
 				link.task = true;
-				choices.push(withIcon(inbox, "inbox"), withIcon(link, "bookmark"));
+				choices.push(planned(inbox, "inbox"), planned(link, "bookmark"));
 				break;
 			}
 			case "projects": {
 				const { path, file } = projectTemplate(facts);
 				if (file) files.push(file);
 				const project = fromTemplate(linkedNoteTemplate("Project"), path, "Projects", "{{VALUE:Name}}");
-				choices.push(withIcon(project, "folder-kanban"));
+				choices.push(planned(project, "folder-kanban"));
 				break;
 			}
 		}
