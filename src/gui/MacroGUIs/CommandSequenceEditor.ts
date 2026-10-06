@@ -34,6 +34,7 @@ import {
 } from "../../utils/macroUtils";
 import DataUnreadable from "../svelte/DataUnreadable.svelte";
 import { PRESETS } from "../choiceList/presets";
+import { isTemplateChoice } from "../../types/choices/choiceType";
 import { DEFAULT_TEMPLATE_FOLDER, readTemplateFolder } from "../choiceList/firstRun";
 import { openNestedChoiceBuilder } from "./openNestedChoiceBuilder";
 import { getCommandDisplayName } from "../../utils/macroHelpers";
@@ -282,7 +283,11 @@ export class CommandSequenceEditor {
 		const preset = PRESETS.find((entry) => entry.id === presetId);
 		if (!preset) throw new Error(`Missing preset '${presetId}'`);
 		const templateFolder = readTemplateFolder(this.app, settingsStore.getState()) ?? DEFAULT_TEMPLATE_FOLDER;
-		const command = new NestedChoiceCommand(preset.create({ templateFolder }));
+		const choice = preset.create({ templateFolder });
+		// A step leaves the note it creates closed: the steps after it act on the
+		// note that is open, and an Open a note step opens it.
+		if (isTemplateChoice(choice)) choice.openFile = false;
+		const command = new NestedChoiceCommand(choice);
 		this.addCommand(command);
 		openNestedChoiceBuilder(this.app, this.plugin, command, (updated) => this.replaceCommand(updated));
 	}

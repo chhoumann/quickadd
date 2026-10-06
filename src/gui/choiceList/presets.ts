@@ -166,11 +166,13 @@ export const PRESETS: Preset[] = [
 		id: "newNote",
 		group: "create",
 		label: "New note from a template",
-		description: "Asks for a title, then creates the note.",
+		description: "Asks for a title, then creates and opens the note.",
 		iconId: "file-plus",
 		name: "New note",
 		create() {
-			return new TemplateChoice(this.name);
+			const choice = new TemplateChoice(this.name);
+			choice.openFile = true;
+			return choice;
 		},
 	},
 	{

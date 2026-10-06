@@ -68,9 +68,10 @@ it("makes a note from a new template in the compact builder", async () => {
 	await pickMenuItem(obsidian, ".qaFirstRunScratch .qaNewChoiceBtn", "New note from a template");
 	await waitForElement(obsidian, ".qa-builder-page .qaChoiceSummary");
 
-	expect(await summary(obsidian)).toBe("Creates {title}");
-	await expect.poll(() => rowNames(obsidian), POLL_OPTS)
-		.toEqual(["Name", "Template", "Folder", "Note name", "Inputs", "Steps", "More settings"]);
+	expect(await summary(obsidian)).toBe("Creates {title}, opens it");
+	// Opening the note is set behind More settings, so they show.
+	await expect.poll(async () => (await rowNames(obsidian)).slice(0, 8), POLL_OPTS)
+		.toEqual(["Name", "Template", "Folder", "Note name", "Inputs", "Steps", "More settings", "Location"]);
 
 	await clickWhenStill(obsidian, ".qa-builder-page .qaNewTemplateButton");
 	await waitForElement(obsidian, ".qaInputPrompt input");
@@ -85,15 +86,16 @@ it("makes a note from a new template in the compact builder", async () => {
 		return document.getElementById(label.htmlFor).value;
 	})()`);
 	await expect.poll(templateField, POLL_OPTS).toBe(TEMPLATE);
-	await expect.poll(() => summary(obsidian), POLL_OPTS).toBe("Creates {title} from Meeting");
+	await expect.poll(() => summary(obsidian), POLL_OPTS).toBe("Creates {title} from Meeting, opens it");
 	// The template opened in a tab behind settings, which stay open.
 	expect(await obsidian.dev.evalJson<boolean>(`app.workspace.getLeavesOfType("markdown").some((leaf) => leaf.view.file?.path === ${jsLiteral(TEMPLATE)})`)).toBe(true);
 	expect(await obsidian.dev.evalJson<number>("app.setting.pageStack.length")).toBe(1);
 
-	await clickWhenStill(obsidian, '.qa-builder-page .qaMoreSettings button[aria-label="More settings"]');
+	// The preset opens the note it creates.
 	await markRow(obsidian, "Open", "open");
-	await clickWhenStill(obsidian, '[data-qa-row="open"] .checkbox-container');
-	await expect.poll(() => summary(obsidian), POLL_OPTS).toBe("Creates {title} from Meeting, opens it");
+	expect(await obsidian.dev.evalJson<boolean>(
+		'document.querySelector(\'[data-qa-row="open"] .checkbox-container\').classList.contains("is-enabled")',
+	)).toBe(true);
 
 	// Into the sandbox, so the note the run makes goes with it.
 	const folder = sandbox.path("Meetings");

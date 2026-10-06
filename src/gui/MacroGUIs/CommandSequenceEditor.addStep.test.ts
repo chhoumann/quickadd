@@ -13,6 +13,8 @@ import GenericSuggester from "../GenericSuggester/genericSuggester";
 import { CommandSequenceEditor } from "./CommandSequenceEditor";
 import { MacroBuilder } from "./MacroBuilder";
 
+vi.mock("./openNestedChoiceBuilder", () => ({ openNestedChoiceBuilder: vi.fn() }));
+
 function renderEditor(choices: IChoice[] = []) {
 	const onCommandsChange = vi.fn();
 	const editor = new CommandSequenceEditor({
@@ -69,6 +71,17 @@ describe("Add a step", () => {
 		const { container } = renderEditor();
 
 		expect(openAddStepMenu(container).titles).not.toContain("Ask AI");
+	});
+
+	it("creates a note in a step without opening it, unlike the New note preset", () => {
+		const { container, onCommandsChange } = renderEditor();
+
+		openAddStepMenu(container).pick("Create a note");
+		flushSync();
+
+		expect(onCommandsChange.mock.lastCall?.[0]).toEqual([
+			expect.objectContaining({ type: "NestedChoice", choice: expect.objectContaining({ type: "Template", openFile: false }) }),
+		]);
 	});
 
 	it("adds a wait of 100 ms", () => {

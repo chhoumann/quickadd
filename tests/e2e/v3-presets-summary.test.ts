@@ -66,7 +66,7 @@ it("adds a daily-note log from its preset and says what it does in the list and 
 	}
 });
 
-it("says what the new presets do: selection, property, note of a type, and AI", async () => {
+it("says what the new presets do: selection, property, the two new notes, and AI", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	await plugin.data<Data & { disableOnlineFeatures: boolean; templateFolderPaths: string[] }>().patch(withStoredChoices((data) => {
 		data.choices = [];
@@ -76,7 +76,7 @@ it("says what the new presets do: selection, property, note of a type, and AI", 
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
 
-	const presets = ["Save the selection or clipboard", "Fill in a property", "New note of a type", "Ask AI"];
+	const presets = ["Save the selection or clipboard", "Fill in a property", "New note from a template", "New note of a type", "Ask AI"];
 	for (const [index, label] of presets.entries()) {
 		// The empty list's New choice is the quiet one; after that, the bar's.
 		// Alt adds the choice without opening its builder.
@@ -89,6 +89,7 @@ it("says what the new presets do: selection, property, note of a type, and AI", 
 	await expect.poll(rows, POLL_OPTS).toEqual([
 		["Save selection", "Adds the selection at the bottom of a chosen note"],
 		["Property", "Sets a chosen property in the current note"],
+		["New note", "Creates {title}, opens it"],
 		["Typed note", "Creates {folder}/{title} from {Template}, opens it"],
 		["Ask AI", "Asks AI for {output}"],
 	]);
