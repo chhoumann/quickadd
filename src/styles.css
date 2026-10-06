@@ -393,7 +393,8 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	width: 60%;
 }
 
-.quickAddModal.onePageInputModal .setting-item-control > input {
+.quickAddModal.onePageInputModal .setting-item-control > input,
+.quickAddModal.onePageInputModal .setting-item-control:not(:has(> .qa-onepage-dropdown-note)) > select {
 	width: 100%;
 }
 
