@@ -28,6 +28,13 @@ function renderEditor(choices: IChoice[] = []) {
 	return { container, onCommandsChange };
 }
 
+/** Each row: its name, then what it says under it. */
+function rows(container: HTMLElement): string[][] {
+	return Array.from(container.querySelectorAll(".quickAddCommandListItem"), (row) =>
+		Array.from(row.querySelectorAll(".quickAddCommandLabel, .quickAddCommandDetail"), (el) => el.textContent?.trim() ?? ""),
+	);
+}
+
 describe("Add a step", () => {
 	afterEach(() => {
 		settingsStore.setState({ disableOnlineFeatures: true });
@@ -45,6 +52,8 @@ describe("Add a step", () => {
 			"Add to a note",
 			"[Then]",
 			"Open a note",
+			"Link it",
+			"Run Templater",
 			"Run a script",
 			"Run a command",
 			"Run an editor command",
@@ -71,6 +80,31 @@ describe("Add a step", () => {
 		expect(onCommandsChange).toHaveBeenCalledTimes(1);
 		expect(onCommandsChange.mock.lastCall?.[0]).toEqual([expect.objectContaining({ type: "Wait", time: 100 })]);
 		expect(container.querySelectorAll(".quickAddCommandListItem")).toHaveLength(1);
+	});
+
+	it("adds a link to the run note on a new line in the current note, and a Templater run on it", () => {
+		const { container, onCommandsChange } = renderEditor();
+
+		openAddStepMenu(container).pick("Link it");
+		openAddStepMenu(container).pick("Run Templater");
+		flushSync();
+
+		const commands = onCommandsChange.mock.lastCall?.[0];
+		expect(commands).toEqual([
+			expect.objectContaining({
+				type: "v3-step",
+				step: expect.objectContaining({
+					type: "link",
+					link: "{{NOTE}}",
+					insert: { placement: "newLine", requireActiveFile: false },
+				}),
+			}),
+			expect.objectContaining({ type: "v3-step", step: expect.objectContaining({ type: "templater", note: "{{NOTE}}" }) }),
+		]);
+		expect(rows(container)).toEqual([
+			["Link it", "Links it here"],
+			["Run Templater", "Runs Templater on it"],
+		]);
 	});
 
 	it("runs a choice picked from every choice but the sequence's own", async () => {

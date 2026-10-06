@@ -32,6 +32,8 @@ const lines = $derived.by(() => {
 const KINDS: { kind: NewStepKind; title: string; icon: string }[] = [
 	{ kind: "runScript", title: "Run a script", icon: "code" },
 	{ kind: "open", title: "Open a note", icon: "file" },
+	{ kind: "link", title: "Link it", icon: "link" },
+	{ kind: "templater", title: "Run Templater", icon: "braces" },
 	{ kind: "wait", title: "Wait", icon: "clock" },
 ];
 

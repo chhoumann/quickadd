@@ -36,6 +36,9 @@ import DataUnreadable from "../svelte/DataUnreadable.svelte";
 import { PRESETS } from "../choiceList/presets";
 import { DEFAULT_TEMPLATE_FOLDER, readTemplateFolder } from "../choiceList/firstRun";
 import { openNestedChoiceBuilder } from "./openNestedChoiceBuilder";
+import { getCommandDisplayName } from "../../utils/macroHelpers";
+import { newStep } from "../../v3/addStep";
+import { lowerStep } from "../../v3/lower";
 
 /**
  * Opens a branch's commands as a page. Mutates the command when the page is
@@ -181,7 +184,7 @@ export class CommandSequenceEditor {
 				}
 
 				const promptAnswer = await confirmAction(this.app, {
-					title: `Delete '${command.name}'?`,
+					title: `Delete '${getCommandDisplayName(command)}'?`,
 					message: "The command will be removed from this macro.",
 					action: "Delete",
 				});
@@ -252,6 +255,8 @@ export class CommandSequenceEditor {
 		add("write", "Add to a note", "pencil", () => this.addNestedChoice("addToNote"));
 		label("then", "Then");
 		add("then", "Open a note", "file-search", () => this.addCommand(new OpenFileCommand()));
+		add("then", "Link it", "link", () => this.addCommand(lowerStep(newStep("link"), "")));
+		add("then", "Run Templater", "braces", () => this.addCommand(lowerStep(newStep("templater"), "")));
 		add("then", "Run a script", "code", () => this.addUserScript());
 		add("then", "Run a command", "terminal-square", () => this.addObsidianCommand());
 		add("then", "Run an editor command", "text-cursor", () => this.addEditorCommand());

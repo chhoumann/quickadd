@@ -512,10 +512,16 @@ describe("CaptureChoiceForm", () => {
 			expect(menu.items.map(({ title, icon }) => [title, icon])).toEqual([
 				["Run a script", "code"],
 				["Open a note", "file"],
+				["Link it", "link"],
+				["Run Templater", "braces"],
 				["Wait", "clock"],
 			]);
 			menu.items[0].clickHandler();
 			expect(onAddStep).toHaveBeenCalledWith(expect.objectContaining({ type: "runScript", path: "" }));
+			menu.items[2].clickHandler();
+			expect(onAddStep).toHaveBeenLastCalledWith(expect.objectContaining({ type: "link", link: "{{NOTE}}" }));
+			menu.items[3].clickHandler();
+			expect(onAddStep).toHaveBeenLastCalledWith(expect.objectContaining({ type: "templater", note: "{{NOTE}}" }));
 		});
 	});
 });
