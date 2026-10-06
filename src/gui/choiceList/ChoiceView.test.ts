@@ -321,6 +321,31 @@ describe("ChoiceView", () => {
 		expect(rows).toEqual(["f1", "c1"]);
 	});
 
+	it("says how many of a folder's choices match while filtering", async () => {
+		const folderChoice = {
+			id: "work",
+			name: "Work",
+			type: "Multi",
+			collapsed: false,
+			choices: [
+				{ id: "meeting", name: "Meeting note", type: "Template" },
+				{ id: "inbox", name: "Inbox", type: "Capture" },
+				{ id: "review", name: "Weekly review", type: "Capture" },
+			],
+		} as unknown as IChoice;
+		const { container, getByPlaceholderText } = renderChoiceView([folderChoice]);
+		const folderLine = () => container.querySelector('[data-choice-id="work"] .choiceListItemSummary')?.textContent;
+		expect(folderLine()).toBe("3 choices");
+
+		const filter = getByPlaceholderText("Filter choices...");
+		await fireEvent.input(filter, { target: { value: "meeting" } });
+		expect(folderLine()).toBe("1 of 3 choices");
+
+		// A folder that matches by name shows all its choices, and says so plainly.
+		await fireEvent.input(filter, { target: { value: "work" } });
+		expect(folderLine()).toBe("3 choices");
+	});
+
 	// A folder name matches only as plain text, so a loose fuzzy match ("pro" in
 	// "Personal") neither opens the whole folder nor shows it empty.
 	it("shows a folder that only matches fuzzily just for its matching choices", async () => {

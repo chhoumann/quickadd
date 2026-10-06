@@ -10,7 +10,7 @@
     import type IChoice from "src/types/choices/IChoice";
     import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
-    import { childChoicesOf, flattenChoices, hasUnreadableChildren } from "../../utils/choiceUtils";
+    import { childChoicesOf, flattenChoices, hasUnreadableChildren, isChoiceLike } from "../../utils/choiceUtils";
     import { summarizeChoice } from "../../v3/choiceSummary";
     import type { ChoiceListActions } from "./choiceListActions";
 
@@ -55,10 +55,15 @@
     const unreadable = $derived(hasUnreadableChildren(choice));
 
     // Counted on the live folder: the filtered view renders a clone holding only
-    // the children that matched.
-    const summary = $derived(
-        summarizeChoice(flattenChoices(roots).find((c) => c.id === choice.id) ?? choice, roots),
-    );
+    // the children that matched, and then says how many of them it shows.
+    const summary = $derived.by(() => {
+        const live = flattenChoices(roots).find((c) => c.id === choice.id) ?? choice;
+        const line = summarizeChoice(live, roots);
+        if (!forceDragDisabled || unreadable) return line;
+        const total = childChoicesOf(live).filter(isChoiceLike).length;
+        const shown = children.filter(isChoiceLike).length;
+        return shown < total ? `${shown} of ${total} choices` : line;
+    });
 
     let showConfigureButton = $state(true);
     let nameElement = $state<HTMLSpanElement>();
