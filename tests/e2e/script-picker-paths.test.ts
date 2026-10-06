@@ -88,6 +88,11 @@ it("adds same-named scripts by path from the script picker, and runs each", asyn
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "view.js", note: books }]);
 		// The row highlights the match, as the quick switcher does.
 		expect(await texts(".prompt .suggestion-item .suggestion-highlight")).toEqual(["books"]);
+		// Obsidian selects the first row a tick after it renders; Enter before
+		// that chooses nothing.
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(
+			'Boolean(document.querySelector(".prompt .suggestion-item.is-selected")?.textContent?.includes("books"))',
+		), POLL_OPTS).toBe(true);
 		await pressKey(obsidian, "Enter");
 
 		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress, books]);
