@@ -17,7 +17,10 @@ For a task-oriented overview of prompts in general, see
 
 ## Turn it on {#enable}
 
-Go to **Settings → QuickAdd** and toggle **One-page input for choices**.
+A choice made from a [preset](/docs/Choices/Presets/) or by
+[Your first choices](/docs/Choices/Presets/#first-run) already uses the form:
+its **One-page input override** starts at **Always**. For every other choice,
+go to **Settings → QuickAdd** and toggle **One-page input for choices**.
 
 It works with Template, Capture, and Macro choices.
 
@@ -51,8 +54,8 @@ to **Never**.
 Template, Capture, and Macro choice builders have a **One-page input override**
 dropdown that overrides the global setting for that one choice:
 
-- **Follow global setting** - inherit the enclosing Macro's override, or use the global toggle (default).
-- **Always** - force the one-page form for this choice even when it is off globally.
+- **Follow global setting** - inherit the enclosing Macro's override, or use the global toggle. Choices made before QuickAdd 3 start here.
+- **Always** - force the one-page form for this choice even when it is off globally. New choices start here.
 - **Never** - use step-by-step prompts for this choice even when it is on globally.
 
 ### Macro overrides
@@ -75,6 +78,28 @@ separate from the note title. Named inputs such as `{{VALUE:details}}` remain sh
 If that Template's override is **Never**, QuickAdd shows its note picker first.
 After the Template finishes, remaining eligible Capture inputs appear together
 in one form. Scripts and conditional steps retain their execution boundaries.
+
+## Where the run lands {#preview}
+
+Above the fields, the form says what the run will do with your answers, and
+updates as you type:
+
+- **Creates** - for a Template, the full path of the new note, for example
+  `Meetings/2026-10-06 Launch review.md`. When the run asks for the folder,
+  the path starts with `{folder}`. A name the run would refuse is flagged
+  under the path.
+- **Adds to** - for a Capture, the note it writes to and the heading it writes
+  under, for example `Journal/2026-10-06.md under ## Log`. `{{DAILY}}` names
+  today's daily note. A Capture that asks which note says *a note you pick*,
+  and one that captures to the active file says *the current note*.
+- One row per date field you have filled, named after the field, with the date
+  as the run will write it. Text that is not a date reads **Not a date**.
+
+When you answer prompts one at a time instead, the last prompt of a Capture
+names the same note and heading under its title.
+
+**Enter** in a one-line field submits the form, as it does in a single prompt.
+**Ctrl/Cmd+Enter** submits from any field.
 
 ## What ends up in the form {#what-gets-collected}
 

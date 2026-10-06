@@ -45,7 +45,9 @@ workflows from these docs, and **Import a package…** opens the
 [folder](/docs/Choices/MultiChoice/) for grouping choices.
 
 The new choice is named after the preset, for example `Log`, and uses the
-preset's icon. Change both in its settings. A preset only fills in settings,
+preset's icon. Change both in its settings. It asks for all its inputs in one
+[one-page form](/docs/Advanced/onePageInputs/), as do the choices from
+[Your first choices](#first-run). A preset only fills in settings,
 so everything it sets can be changed later. A choice made from
 **Log with a timestamp** is an ordinary Capture choice, documented on the
 [Capture](/docs/Choices/CaptureChoice/) page.

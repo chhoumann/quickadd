@@ -95,7 +95,7 @@ Skipping is an answer; pressing **Esc** still cancels the whole choice. If the s
 | Multi-line input | `Ctrl/Cmd+Enter` (`Enter` inserts a newline) | `Tab` indents; `Shift+Tab` moves focus out |
 | Pick list / suggester | `Enter` picks the highlighted option | |
 | Math prompt ([`{{MVALUE}}`](/docs/FormatSyntax/#mvalue)) | `Ctrl/Cmd+Enter` | `Tab` jumps to the cursor marker |
-| One-page input form | `Ctrl/Cmd+Enter` | `Tab` moves between fields |
+| One-page input form | `Enter` in a one-line field, `Ctrl/Cmd+Enter` in any field | `Tab` moves between fields |
 | Any optional prompt | | `Ctrl/Cmd+Shift+Enter` skips |
 
 `Esc` cancels the prompt and with it the whole run - nothing is created or captured by the cancelled choice. (In a macro, steps that already ran are not undone.) To get a notice when that happens, enable **Show input cancellation notifications** under [Settings → QuickAdd → Advanced](/docs/Settings/#advanced-notifications) (QuickAdd 2.30.0 or later; earlier versions show it on the main QuickAdd tab).
@@ -120,9 +120,9 @@ These triggers work in single-line and multi-line prompts, and in text and texta
 
 ## One form instead of many prompts {#one-form-instead-of-many-prompts}
 
-Rather than answering prompts one at a time, QuickAdd can collect everything in a single form before the choice runs. Every unanswered variable appears as the right widget - text, textarea, date with a calendar, dropdown, slider - with optional fields badged, and Template choices with a file name format get a live file name preview.
+Rather than answering prompts one at a time, QuickAdd can collect everything in a single form before the choice runs. Every unanswered variable appears as the right widget - text, textarea, date with a calendar, dropdown, slider - with optional fields badged. Above them, the form shows [where the run lands](/docs/Advanced/onePageInputs/#preview): the note a Template creates, or the note and heading a Capture adds to, and the dates you typed.
 
-- Turn it on for everything with **One-page input for choices** under [Settings → Input](/docs/Settings/#input).
+- Choices made from a [preset](/docs/Choices/Presets/) use it from the start. Turn it on for everything with **One-page input for choices** under [Settings → Input](/docs/Settings/#input).
 - Template and Capture choices each have a **One-page input override** dropdown in their builder (**Follow global setting**, **Always**, **Never**), so you can flip the form on or off for one choice.
 - A few inputs still run as follow-up steps after the form, such as [`{{FIELD:...|multi}}`](/docs/FormatSyntax/#field-multi) pickers and Capture's insert-after heading picker.
 - Cancelling the form cancels the whole run, exactly like cancelling a sequential prompt.
