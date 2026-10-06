@@ -19,7 +19,13 @@ export function templateFileOrRefuse(app: App, resolvedTemplatePath: string, con
  * are in, so the run checks that one when it resolves the path, still before the
  * note's title.
  */
-export function checkTemplateSource(app: App, choice: Pick<ITemplateChoice, "templatePath">): void {
+export function checkTemplateSource(
+	app: App,
+	choice: Pick<ITemplateChoice, "templatePath" | "discoverExistingNotesBeforeCreate">,
+): void {
+	// A run that may open an existing note needs no template for that; the
+	// creation path checks when it comes to creating.
+	if (choice.discoverExistingNotesBeforeCreate) return;
 	if (!choice.templatePath) throw refuse("no template is picked", "no note was created", PICK_TEMPLATE);
 	if (!hasTemplatePathSyntax(choice.templatePath)) {
 		templateFileOrRefuse(app, choice.templatePath, "no note was created");
