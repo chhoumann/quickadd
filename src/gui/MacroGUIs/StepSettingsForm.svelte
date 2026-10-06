@@ -51,14 +51,16 @@ function edited(): NoteStep {
 
 <SettingItem name="Note">
 	{#snippet control()}
-		<ValidatedInput
-			bind:value={note}
-			placeholder={RUN_NOTE}
-			{app}
-			suggestions={notes}
-			maxSuggestions={50}
-			ariaLabel="Note"
-		/>
+		<div class="qa-step-note-field">
+			<ValidatedInput
+				bind:value={note}
+				placeholder={RUN_NOTE}
+				{app}
+				suggestions={notes}
+				maxSuggestions={50}
+				ariaLabel="Note"
+			/>
+		</div>
 	{/snippet}
 </SettingItem>
 

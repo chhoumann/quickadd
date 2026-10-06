@@ -238,3 +238,32 @@ it("turns a capture into a sequence from its Steps with Run Templater", async ()
 	]);
 	expect(await lede(obsidian)).toBe("Adds a line at the bottom of Inbox, runs Templater on it");
 });
+
+it("gives the first field of the Link it, Run Templater and Open a note modals one width", async () => {
+	const { obsidian, plugin } = getContext();
+	await plugin.data<{ choices: IChoice[]; templateFolderPaths: string[] }>().patch(withStoredChoices((data) => {
+		data.choices = [];
+		data.templateFolderPaths = [];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	await newSequenceAddingToInbox(obsidian);
+	await addStep(obsidian, "Link it");
+	await addStep(obsidian, "Run Templater");
+	await addStep(obsidian, "Open a note");
+	await expect.poll(async () => (await rows(obsidian)).length, POLL_OPTS).toBe(4);
+
+	const widths: number[] = [];
+	for (const [row, modal] of [[1, ".qaStepSettingsModal"], [2, ".qaStepSettingsModal"], [3, ".openFileCommandSettingsModal"]] as const) {
+		await obsidian.dev.evalJson(`(() => {
+			document.querySelectorAll(".macroBuilder .quickAddCommandListItem")[${row}].querySelector('[aria-label^="Configure"]').click();
+			return true;
+		})()`);
+		await waitForElement(obsidian, `${modal} .modal input[type="text"]`);
+		widths.push(await obsidian.dev.evalJson<number>(
+			`document.querySelector(${jsLiteral(`${modal} .modal input[type="text"]`)}).getBoundingClientRect().width`,
+		));
+		await pressKey(obsidian, "Escape");
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(`document.querySelector(${jsLiteral(modal)}) === null`), POLL_OPTS).toBe(true);
+	}
+	expect(new Set(widths).size, JSON.stringify(widths)).toBe(1);
+});

@@ -1207,6 +1207,16 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	min-height: 10rem;
 }
 
+/* A step modal's first field, the note the step acts on: one width in all of them. */
+.qa-step-note-field {
+	width: 16rem;
+	max-width: 100%;
+}
+
+.qa-step-note-field input {
+	margin-bottom: 0;
+}
+
 .qa-choice-icon-setting .setting-item-control {
 	gap: 8px;
 }

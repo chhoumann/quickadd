@@ -62,6 +62,7 @@ export class OpenFileCommandSettingsModal extends Modal {
 			.setName("Note path")
 			.setDesc("Path to the note. Supports formatting like {{DATE}}, {{VALUE}}, etc.")
 			.addText(text => text
+				.then((component) => component.inputEl.addClass("qa-step-note-field"))
 				.setPlaceholder("{{DATE}}todo.md")
 				.setValue(this.step.note)
 				.onChange(value => {
