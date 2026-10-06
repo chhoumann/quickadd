@@ -1431,6 +1431,8 @@ describe("OnePageInputModal preview block (#1590)", () => {
 			undefined,
 			{ title: "Log" },
 		);
+		// Closing rejects the form's promise as cancelled; nobody is waiting for it here.
+		void modal.waitForClose.catch(() => undefined);
 		modal.onOpen();
 		expect(modal.contentEl.querySelector("h2")?.textContent).toBe("Log");
 		modal.onClose();
