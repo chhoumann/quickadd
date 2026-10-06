@@ -56,3 +56,28 @@ it("lists the last runs, newest first, and clears them", async () => {
 	expect(await obsidian.dev.evalJson<string>(`document.querySelector(".mod-settings .qa-run-log-empty")?.textContent ?? ""`))
 		.toBe("No runs yet");
 });
+
+it("shortens a failure's reason before the name of the choice that failed", async () => {
+	const { obsidian, plugin } = getContext();
+	const entry = {
+		at: new Date().toISOString(),
+		choiceId: "qa-run-log-failed",
+		choiceName: "Weekly review",
+		status: "error",
+		reason: "Script captureInboxGps.js threw: Cannot read properties of undefined (reading 'coords') ".repeat(3),
+		durationMs: 90,
+	};
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		const path = app.plugins.plugins.quickadd.manifest.dir + "/run-log.json";
+		await app.vault.adapter.write(path, JSON.stringify([${JSON.stringify(entry)}]));
+		return true;
+	})()`);
+	await plugin.reload({ waitUntilReady: true });
+	await obsidian.dev.evalJson("(() => { app.setting.open(); app.setting.openTabById('quickadd'); return true; })()");
+	await waitForElement(obsidian, ".mod-settings .qa-run-log-entry");
+	expect(await obsidian.dev.evalJson<Record<string, boolean>>(`(() => {
+		const entry = document.querySelector(".mod-settings .qa-run-log-entry");
+		const cut = (el) => el.scrollWidth > el.clientWidth;
+		return { name: cut(entry.querySelector(".qa-run-log-name")), reason: cut(entry.querySelector(".qa-run-log-what")) };
+	})()`)).toEqual({ name: false, reason: true });
+});

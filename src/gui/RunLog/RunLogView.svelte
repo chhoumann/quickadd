@@ -87,8 +87,10 @@
 		flex: none;
 	}
 
-	/* A long name or note path shortens on a phone instead of widening the page. */
+	/* A long note path or failure shortens first, a long name only past 40%
+	   of the row, so neither widens the page on a phone. */
 	.qa-run-log-name,
+	.qa-run-log-what,
 	.qa-run-log-note {
 		flex: 0 1 auto;
 		min-width: 0;
@@ -98,15 +100,18 @@
 	}
 
 	.qa-run-log-name {
+		flex-shrink: 0;
+		max-width: 40%;
 		font-weight: var(--font-medium);
 	}
 
 	.qa-run-log-what {
 		color: var(--text-muted);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		min-width: 0;
+	}
+
+	/* What a run did is a word or two; only a failure's reason is long. */
+	.qa-run-log-entry[data-status="success"] .qa-run-log-what {
+		flex-shrink: 0;
 	}
 
 	.qa-run-log-entry[data-status="error"] .qa-run-log-what {
