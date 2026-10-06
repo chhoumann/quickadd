@@ -318,7 +318,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	private addRunOnStartupSetting(parent: HTMLElement): void {
 		new Setting(parent)
 			.setName("Run on startup")
-			.setDesc("Execute this macro when Obsidian starts")
+			.setDesc("Run this sequence when Obsidian starts.")
 			.addToggle(toggle => toggle
 				.setValue(this.choice.runOnStartup)
 				.onChange(value => {
