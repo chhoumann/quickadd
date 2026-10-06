@@ -59,6 +59,14 @@ it("captures into the daily note after one click on Daily note", async () => {
 			`Boolean(document.querySelector(".captureChoiceBuilder"))`,
 		), POLL_OPTS).toBe(true);
 
+		// An empty Where's two lines under it sit as close to each other as to the field.
+		const [fieldToHint, hintToTokenHint] = await obsidian.dev.evalJson<number[]>(`(() => {
+			const hint = document.querySelector(".captureChoiceBuilder .qa-field-hint:not(:empty)");
+			const gap = (above, below) => Math.round(below.getBoundingClientRect().top - above.getBoundingClientRect().bottom);
+			return [gap(hint.previousElementSibling, hint), gap(hint, hint.nextElementSibling)];
+		})()`);
+		expect(hintToTokenHint).toBe(fieldToHint);
+
 		await clickButton("Daily note");
 		await leaveSettingsPage(obsidian);
 		await expect.poll(() => obsidian.dev.evalJson(

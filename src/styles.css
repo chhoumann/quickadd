@@ -286,6 +286,11 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+/* Under a field's own hint, as close to it as that hint is to the field. */
+.quickAddModal .qa-field-hint:not(:empty) + .qa-token-hint {
+	margin-top: -8px;
+}
+
 .quickAddModal .qa-token-hint code {
 	font-size: inherit;
 	padding: 1px 4px;
