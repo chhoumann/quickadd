@@ -65,6 +65,8 @@ import type { StoredSettings } from "./v3/storage";
 import type { ActionNode } from "./v3/model";
 import { showMigrationReportOnce } from "./gui/MigrationReportModal";
 import { runLog } from "./runLog";
+import { BUTTON_BLOCK_LANGUAGE } from "./noteButtons/buttonBlock";
+import { NoteButtonBlock } from "./noteButtons/NoteButtonBlock";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -214,6 +216,11 @@ export default class QuickAdd extends Plugin {
 			id: "openAIAssistantSettings",
 			name: QUICK_ADD_COMMAND_LABELS.openAISettings,
 			callback: () => settingsTab.openAIAssistantPageFromCommand(),
+		});
+
+		// quickadd blocks in notes render as buttons that run choices.
+		this.registerMarkdownCodeBlockProcessor(BUTTON_BLOCK_LANGUAGE, (source, el, ctx) => {
+			ctx.addChild(new NoteButtonBlock(el, source, (choice) => this.runRegisteredChoice(choice.id, choice.name)));
 		});
 
 		// Everything from here on reads the choice tree, i.e. untrusted data.json.

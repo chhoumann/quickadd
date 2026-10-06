@@ -2829,3 +2829,43 @@ body:not(.is-phone) .quickAddModal.qa-recipes-modal {
 	gap: var(--size-4-2);
 	margin-top: var(--size-4-2);
 }
+
+/* A quickadd block in a note: a row of buttons that run choices. */
+.qa-note-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+}
+
+.qa-note-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	max-width: 100%;
+}
+
+.qa-note-button-icon {
+	display: flex;
+	flex-shrink: 0;
+}
+
+.qa-note-button-icon svg {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.qa-note-button-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.qa-note-button.is-unresolved {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+.is-mobile .qa-note-button {
+	min-height: 44px;
+	padding-inline: var(--size-4-4);
+}

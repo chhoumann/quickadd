@@ -31,10 +31,24 @@ export class BaseComponent {
 }
 
 export class Component extends BaseComponent {
-  load() {}
+  private cleanups: Array<() => unknown> = [];
+  load() { this.onload(); }
   onload() {}
-  unload() {}
+  unload() {
+    for (const cleanup of this.cleanups.splice(0)) cleanup();
+    this.onunload();
+  }
   onunload() {}
+  register(cleanup: () => unknown) { this.cleanups.push(cleanup); }
+}
+
+export class MarkdownRenderChild extends Component {
+  containerEl: HTMLElement;
+
+  constructor(containerEl: HTMLElement) {
+    super();
+    this.containerEl = containerEl;
+  }
 }
 
 export class ButtonComponent extends BaseComponent {
@@ -553,6 +567,7 @@ export class Plugin {
   registerEvent() {}
   registerInterval() {}
   registerDomEvent() {}
+  registerMarkdownCodeBlockProcessor() {}
   onunload() {}
   async onload() {}
 }
@@ -1198,6 +1213,7 @@ export default {
   App,
   FileSystemAdapter,
   Component,
+  MarkdownRenderChild,
   BaseComponent,
   ButtonComponent,
   ExtraButtonComponent,
