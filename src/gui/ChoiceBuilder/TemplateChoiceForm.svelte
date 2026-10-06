@@ -49,6 +49,9 @@ import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
 import RibbonSetting from "./components/RibbonSetting.svelte";
 import StepsSection from "./components/StepsSection.svelte";
 import InputsSection from "./components/InputsSection.svelte";
+import TemplaterBadge from "./components/TemplaterBadge.svelte";
+import { getTemplater } from "../../utils/templaterIntegration";
+import { usesTemplater } from "../../v3/templater";
 import type { Step } from "../../v3/model";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
 import ChoiceSummary from "./components/ChoiceSummary.svelte";
@@ -97,6 +100,25 @@ async function onNewTemplate() {
 	templatesAdded++;
 }
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
+
+// Whether the chosen template has Templater tags, read again when the Template field changes.
+let templateUsesTemplater = $state(false);
+$effect(() => {
+	const file = getTemplateFile(app, choice.templatePath);
+	let current = true;
+	templateUsesTemplater = false;
+	if (!file) return;
+	app.vault.cachedRead(file).then(
+		(text) => {
+			if (current) templateUsesTemplater = usesTemplater(text);
+		},
+		() => {},
+	);
+	return () => {
+		current = false;
+	};
+});
+const templaterInstalled = $derived(Boolean(getTemplater(app)));
 
 function validateTemplatePath(
 	raw: string,
@@ -234,7 +256,7 @@ function onModeChange(value: string) {
 }
 </script>
 
-<ChoiceSummary {choice} />
+<ChoiceSummary {choice} runsTemplater={templateUsesTemplater && templaterInstalled} />
 
 <SettingGroup>
 	<LabeledField name="Template">
@@ -254,6 +276,9 @@ function onModeChange(value: string) {
 				validator={validateTemplatePath}
 				onChange={(value) => (choice.templatePath = value.trim())}
 			/>
+			{#if templateUsesTemplater}
+				<TemplaterBadge installed={templaterInstalled} />
+			{/if}
 		{/snippet}
 	</LabeledField>
 

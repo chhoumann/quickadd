@@ -1040,6 +1040,11 @@ export function setIcon(parent: HTMLElement, iconId: string): void {
   parent.appendChild(svg);
 }
 
+// No icon is registered in tests.
+export function getIcon(_iconId: string): SVGSVGElement | null {
+  return null;
+}
+
 // Standalone setTooltip — mirror Obsidian's behaviour enough for tests by
 // reflecting the text into aria-label so it stays assertable.
 export function setTooltip(el: HTMLElement, tooltip: string): void {
@@ -1247,6 +1252,7 @@ export default {
   normalizePath,
   debounce,
   setIcon,
+  getIcon,
   prepareFuzzySearch,
   parseFrontMatterAliases,
   sortSearchResults,

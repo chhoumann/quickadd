@@ -16,8 +16,8 @@ import TemplateChoiceForm from "./TemplateChoiceForm.svelte";
 vi.mock("../GenericInputPrompt/GenericInputPrompt", () => ({ default: { Prompt: vi.fn() } }));
 vi.mock("../../utils/fileOpening", () => ({ openFile: vi.fn(async () => ({})) }));
 
-/** An app whose vault holds `files`, and records what is created. */
-function appWith(files: string[] = []): App {
+/** An app whose vault holds `files` (with `contents`), and records what is created. */
+function appWith(files: string[] = [], contents: Record<string, string> = {}): App {
 	const app = new App();
 	const paths = new Map(files.map((path) => [path, Object.assign(new TFile(), { path })]));
 	const folders = new Set<string>();
@@ -25,6 +25,7 @@ function appWith(files: string[] = []): App {
 		...app.vault,
 		getAbstractFileByPath: (path: string) => paths.get(path) ?? null,
 		getFiles: () => [...paths.values()],
+		cachedRead: async (file: TFile) => contents[file.path] ?? "",
 		create: vi.fn(async (path: string) => {
 			const file = Object.assign(new TFile(), { path });
 			paths.set(path, file);
@@ -142,6 +143,37 @@ describe("the compact builder", () => {
 		props.choice.folder = { ...props.choice.folder, enabled: true, chooseWhenCreatingNote: true };
 		flushSync();
 		expect(settingNames(container)).not.toContain("Folder");
+	});
+});
+
+describe("the Templater badge", () => {
+	const files = { "Templates/Dinner.md": '# <% tp.system.prompt("Guest") %>\n', "Templates/Plain.md": "# {{VALUE:Title}}\n" };
+	const badge = (container: HTMLElement) => container.querySelector(".qaTemplaterBadge");
+
+	it("says Templater runs after the note is created, and the lede says it runs Templater", async () => {
+		const app = appWith(Object.keys(files), files);
+		app.plugins.plugins["templater-obsidian"] = {} as App["plugins"]["plugins"][string];
+		const { container, props } = mount(Object.assign(templateChoice(), { templatePath: "Templates/Dinner.md" }), app);
+
+		await vi.waitFor(() => expect(badge(container)?.textContent?.trim()).toBe("Templater runs after the note is created"));
+		expect(badge(container)?.querySelector("svg")).toHaveAttribute("data-icon", "braces");
+		expect(summary(container)).toBe("Creates {title} from Dinner, runs Templater");
+
+		props.choice.templatePath = "Templates/Plain.md";
+		await vi.waitFor(() => expect(badge(container)).toBeNull());
+		expect(summary(container)).toBe("Creates {title} from Plain");
+	});
+
+	it("says the template uses Templater, which is not installed, and links to it", async () => {
+		const app = appWith(Object.keys(files), files);
+		const { container } = mount(Object.assign(templateChoice(), { templatePath: "Templates/Dinner.md" }), app);
+
+		await vi.waitFor(() =>
+			expect(badge(container)?.textContent?.replace(/\s+/g, " ").trim()).toBe("This template uses Templater, which is not installed"),
+		);
+		expect(badge(container)?.querySelector("a")).toHaveAttribute("href", "obsidian://show-plugin?id=templater-obsidian");
+		// Templater will not run, so the lede does not say it does.
+		expect(summary(container)).toBe("Creates {title} from Dinner");
 	});
 });
 
