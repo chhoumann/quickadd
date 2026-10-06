@@ -68,17 +68,27 @@ export function effectiveChoiceMode(
 
 // --- The review's file groups ----------------------------------------------
 
-/** Where the review lists a file: what the reader decided for a file already in the vault. */
+/** Where the review lists a file: what the reader decided, and whether it was in the vault. */
 export type FileGroup = "added" | "overwrite" | "kept";
 
 export function fileGroup(existedAtLoad: boolean, mode: AssetImportMode): FileGroup {
-	if (!existedAtLoad) return "added";
-	return mode === "skip" ? "kept" : "overwrite";
+	if (mode === "skip") return "kept";
+	return existedAtLoad ? "overwrite" : "added";
 }
 
 /** How many files the import will write over. */
 export function countFileOverwrites(states: readonly AssetDecisionState[]): number {
 	return states.filter((state) => state.destinationExists && state.mode === "overwrite").length;
+}
+
+/** How many choices the import will replace. */
+export function countChoiceOverwrites(
+	conflicts: readonly ChoiceConflict[],
+	decisions: ChoiceDecisions,
+): number {
+	return snapshotChoiceDecisions(conflicts, decisions).filter(
+		(decision) => decision.mode === "overwrite",
+	).length;
 }
 
 // --- Default destination ----------------------------------------------------

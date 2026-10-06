@@ -4,6 +4,7 @@ import type { App } from "obsidian";
 import {
 	ExistenceResolver,
 	applyExistsResult,
+	countChoiceOverwrites,
 	countFileOverwrites,
 	defaultAssetDecision,
 	fileGroup,
@@ -339,9 +340,27 @@ describe("ExistenceResolver — a folder is not an existing file (#1865)", () =>
 describe("the review's file groups", () => {
 	it("lists a file by whether it was in the vault and what the reader decided", () => {
 		expect(fileGroup(false, "write")).toBe("added");
-		expect(fileGroup(false, "skip")).toBe("added");
+		expect(fileGroup(false, "skip")).toBe("kept");
 		expect(fileGroup(true, "overwrite")).toBe("overwrite");
 		expect(fileGroup(true, "skip")).toBe("kept");
+	});
+
+	it("counts only the choices the import replaces", () => {
+		const conflicts = [
+			{ choiceId: "a", exists: true },
+			{ choiceId: "b", exists: true },
+			{ choiceId: "c", exists: false },
+			{ choiceId: "d", exists: true },
+		] as unknown as Parameters<typeof countChoiceOverwrites>[0];
+		const decisions = new Map([
+			["a", "overwrite"],
+			["b", "skip"],
+			["c", "overwrite"],
+			["d", "duplicate"],
+		] as const);
+
+		expect(countChoiceOverwrites(conflicts, decisions)).toBe(1);
+		expect(countChoiceOverwrites(conflicts, new Map([["a", "skip"]]))).toBe(0);
 	});
 
 	it("counts only the files the import writes over", () => {

@@ -81,7 +81,7 @@
 			<div class="setting-item-name qa-import-file-name">
 				<span class="qa-import-file-icon">
 					<ObsidianIcon
-						iconId={!destinationExists ? "file-plus" : kept ? "file-check" : "file-warning"}
+						iconId={kept ? (destinationExists ? "file-check" : "file-minus") : destinationExists ? "file-warning" : "file-plus"}
 					/>
 				</span>
 				<span class="qa-import-file-label">{fileName}</span>
@@ -112,7 +112,7 @@
 					>
 				{:else}
 					<span class:mod-warning={destinationExists && !kept}
-						>{!destinationExists ? "New file" : kept ? "Kept, yours stays" : "Will overwrite"}</span
+						>{kept ? (destinationExists ? "Kept, yours stays" : "Not added") : destinationExists ? "Will overwrite" : "New file"}</span
 					>
 				{/if}
 				· {formatBytes(file.sizeBytes)}

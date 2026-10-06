@@ -14,7 +14,7 @@
 	import {
 		requiresAcknowledgement,
 		unreviewedScriptCount,
-		withFileOverwrites,
+		withOverwrites,
 	} from "../../services/packagePreview";
 	import CapabilityBanner from "./CapabilityBanner.svelte";
 	import FilePreviewRow from "./FilePreviewRow.svelte";
@@ -29,6 +29,7 @@
 		initAssetDecisions,
 		initChoiceDecisions,
 		resolveAssetDecision,
+		countChoiceOverwrites,
 		countFileOverwrites,
 		fileGroup,
 		setAssetMode,
@@ -202,9 +203,12 @@
 			};
 		}),
 	);
-	// The banner counts the files the reader's decisions will overwrite.
+	// The banner counts the choices and files the reader's decisions will replace.
 	const bannerPreview = $derived(
-		preview && withFileOverwrites(preview, countFileOverwrites(fileRows.map((row) => row.state))),
+		preview && analysis && withOverwrites(preview, {
+			choices: countChoiceOverwrites(analysis.choiceConflicts, choiceDecisions),
+			files: countFileOverwrites(fileRows.map((row) => row.state)),
+		}),
 	);
 	const showBanner = $derived(
 		Boolean(
