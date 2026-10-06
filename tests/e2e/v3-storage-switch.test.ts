@@ -35,11 +35,17 @@ afterEach(async () => {
 	if (dataBeforeTest !== undefined) await loadDataJson(dataBeforeTest);
 });
 
-/** Turn QuickAdd off, write data.json as another QuickAdd would have, turn it on. */
+/**
+ * Turn QuickAdd off, write data.json as another QuickAdd would have, turn it on.
+ * Saves first: QuickAdd flushes a pending debounced save on unload without
+ * awaiting it, and that write could land over the one below.
+ */
 async function loadDataJson(text: string) {
 	const { obsidian } = getContext();
 	await obsidian.dev.evalJsonAsync(`(async () => {
-		const dir = app.plugins.plugins.quickadd.manifest.dir;
+		const plugin = app.plugins.plugins.quickadd;
+		const dir = plugin.manifest.dir;
+		await plugin.saveSettings();
 		await app.plugins.disablePlugin("quickadd");
 		await app.vault.adapter.write(dir + "/data.json", ${jsLiteral(text)});
 		await app.plugins.enablePlugin("quickadd");
