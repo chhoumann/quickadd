@@ -4,19 +4,24 @@ import { leaveBuilderPages, saveBuilderPages } from "../gui/ChoiceBuilder/builde
 /**
  * Save what QuickAdd holds only in memory before the app can lose it: an open
  * choice builder's edits, which it keeps until it is left, and the pending
- * debounced settings write. `flushPendingSave` starts that write and returns it.
+ * debounced settings write. `flushPendingSave` starts that write and returns
+ * the settings work still running, or null when there is none.
  */
 export function registerSaveOnExit(
 	plugin: Plugin,
-	flushPendingSave: () => Promise<void>,
+	flushPendingSave: () => Promise<void> | null,
 ): void {
 	// Quitting closes the window without closing settings or finishing the
 	// debounced write, so a change made in the last second was lost too.
-	// Obsidian waits for the tasks it is handed before it quits.
+	// Obsidian waits for the tasks it is handed before it quits, by cancelling
+	// the close, showing "Saving...", and closing again. Hand it a task only
+	// when there is a write to wait for. A failed write is reported where it
+	// started; handed to Obsidian, it would leave the window on "Saving...".
 	plugin.registerEvent(
 		plugin.app.workspace.on("quit", (tasks) => {
 			leaveBuilderPages(plugin.app);
-			tasks.addPromise(flushPendingSave());
+			const write = flushPendingSave();
+			if (write) tasks.addPromise(write.catch(() => undefined));
 		}),
 	);
 

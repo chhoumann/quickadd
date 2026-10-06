@@ -51,7 +51,7 @@ function setup(pendingWrite: Promise<void> | null = Promise.resolve()) {
 	} as unknown as Plugin;
 	const flush = vi.fn(() => pendingWrite);
 	registerSaveOnExit(plugin, flush);
-	return { app, saved, flush, write: pendingWrite, quit: (tasks: Parameters<typeof quit>[0]) => quit(tasks) };
+	return { app, saved, flush, quit: (tasks: Parameters<typeof quit>[0]) => quit(tasks) };
 }
 
 function goToBackground(state: DocumentVisibilityState) {
@@ -65,8 +65,11 @@ describe("registerSaveOnExit", () => {
 		while (listeners.length) listeners.pop()?.();
 	});
 
-	it("leaves open builder pages on quit, top first, and has Obsidian wait for the write", () => {
-		const { app, saved, flush, write, quit } = setup();
+	it("leaves open builder pages on quit, top first, and has Obsidian wait for the write", async () => {
+		let finishWrite = () => {};
+		const { app, saved, flush, quit } = setup(
+			new Promise<void>((resolve) => (finishWrite = resolve)),
+		);
 		const addPromise = vi.fn();
 
 		quit({ addPromise });
@@ -74,11 +77,28 @@ describe("registerSaveOnExit", () => {
 		expect(app.setting.clearPageStack).toHaveBeenCalledTimes(1);
 		expect(saved).toEqual(["Then", "Macro"]);
 		expect(flush).toHaveBeenCalledTimes(1);
-		expect(addPromise).toHaveBeenCalledWith(write);
+		expect(addPromise).toHaveBeenCalledTimes(1);
+		let done = false;
+		const task = (addPromise.mock.calls[0][0] as Promise<unknown>).then(() => (done = true));
+		await Promise.resolve();
+		expect(done).toBe(false);
+		finishWrite();
+		await task;
+	});
+
+	it("lets Obsidian finish quitting when the write fails", async () => {
+		const failed = Promise.reject(new Error("disk full"));
+		failed.catch(() => {});
+		const { quit } = setup(failed);
+		const addPromise = vi.fn();
+
+		quit({ addPromise });
+
+		await expect(addPromise.mock.calls[0][0]).resolves.toBeUndefined();
 	});
 
 	// Obsidian cancels the window close and shows "Saving..." whenever quit
-	// is handed something to wait for (#2194).
+	// is handed something to wait for.
 	it("hands Obsidian nothing to wait for on quit when there is nothing to save", () => {
 		const { flush, quit } = setup(null);
 		const addPromise = vi.fn();
