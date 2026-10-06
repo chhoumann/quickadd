@@ -53,10 +53,10 @@ afterAll(async () => {
 
 const ICON_FIELD = 'input[aria-label="Choice icon"]';
 
-/** A macro page, its More settings open (an icon is set) with the icon field last. */
+/** A macro page, its More settings open (run on startup is set) with the icon field last. */
 async function openMacroPage() {
 	const macro = new MacroChoice("Phone macro");
-	macro.icon = "sunrise";
+	macro.runOnStartup = true;
 	await openChoicePage(macro);
 	await waitForElement(getContext().obsidian, `.macroBuilder ${ICON_FIELD}`);
 }
