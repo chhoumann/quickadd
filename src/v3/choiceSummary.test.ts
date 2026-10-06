@@ -4,8 +4,11 @@ import type IMultiChoice from "../types/choices/IMultiChoice";
 import { CaptureChoice } from "../types/choices/CaptureChoice";
 import { MacroChoice } from "../types/choices/MacroChoice";
 import { MultiChoice } from "../types/choices/MultiChoice";
+import { TemplateChoice } from "../types/choices/TemplateChoice";
 import { ChoiceCommand } from "../types/macros/ChoiceCommand";
-import { summarizeChoice } from "./choiceSummary";
+import { NestedChoiceCommand } from "../types/macros/QuickCommands/NestedChoiceCommand";
+import { OpenFileCommand } from "../types/macros/QuickCommands/OpenFileCommand";
+import { describeCommand, summarizeChoice } from "./choiceSummary";
 
 const folder = (children: IChoice[]): IMultiChoice => new MultiChoice("Folder").addChoices(children);
 
@@ -27,6 +30,17 @@ describe("summarizeChoice", () => {
 		const macro = new MacroChoice("Morning");
 		macro.macro.commands.push(new ChoiceCommand("Inbox", target.id));
 		expect(summarizeChoice(macro, [folder([target]), macro])).toBe("Runs 'Inbox'");
+	});
+
+	it("says a sequence's Create a note step then Open the note step opens it once", () => {
+		// The sequence page's Create a note step leaves its note closed; the Open step opens it.
+		const create = new TemplateChoice("New note");
+		create.openFile = false;
+		const macro = new MacroChoice("Sequence");
+		macro.macro.commands.push(new NestedChoiceCommand(create), new OpenFileCommand("{{NOTE}}"));
+
+		expect(macro.macro.commands.map((command) => describeCommand(command, [macro]))).toEqual(["Creates {title}", "Opens it"]);
+		expect(summarizeChoice(macro, [macro])).toBe("Creates {title}, opens it");
 	});
 
 	it("returns nothing, rather than throwing, for a choice it cannot read", () => {
