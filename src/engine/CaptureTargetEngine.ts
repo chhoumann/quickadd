@@ -16,7 +16,7 @@ import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
-import { RefusalError } from "../errors/RefusalError";
+import { refuse } from "../errors/RefusalError";
 import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
 import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
@@ -42,7 +42,7 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 	): Promise<string> {
 		if (shouldCaptureToActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
-			invariant(activeFile, "Cannot capture to active file - no active file.");
+			if (!activeFile) throw refuse("No note is open", "there is nothing to add to");
 
 			return activeFile.path;
 		}
@@ -50,7 +50,7 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		// would be an empty target, which opens the vault-wide picker and asks
 		// the user to decide what the run should have decided.
 		if (isRunNoteToken(this.choice.captureTo) && !this.choiceExecutor?.runNote) {
-			throw new RefusalError("Nothing has written a note yet, so there is no {{NOTE}} to add to.");
+			throw refuse("Nothing has written a note yet", "there is no {{NOTE}} to add to");
 		}
 
 		// A preselected capture target (the trusted one-page preflight pick, or a

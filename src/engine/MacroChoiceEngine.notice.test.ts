@@ -25,6 +25,7 @@ import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { refuse } from "../errors/RefusalError";
 import { settingsStore } from "../settingsStore";
 import type IChoice from "../types/choices/IChoice";
 
@@ -185,6 +186,7 @@ describe("MacroChoiceEngine cancellation notices", () => {
 			async (executor) => {
 				const error = new MacroAbortError("Target file missing: Inbox.md");
 				handleMacroAbort(error, {
+					choiceName: "Capture",
 					logPrefix: "Capture execution aborted",
 					defaultReason: "Capture aborted",
 				});
@@ -196,6 +198,33 @@ describe("MacroChoiceEngine cancellation notices", () => {
 
 		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([
 			"Capture execution aborted: Target file missing: Inbox.md",
+		]);
+	});
+
+	it("stops at a step's refusal and names the step's choice, not the sequence", async () => {
+		const log: IChoice = { id: "log", name: "Log", type: "Capture", command: false };
+		const after = vi.fn();
+		const engine = createTestEngine(
+			"unused",
+			[
+				{ id: "step", name: "Log", type: CommandType.NestedChoice, choice: log } as any,
+				{ id: "after", name: "After", type: CommandType.NestedChoice, choice: { ...log, id: "after" } } as any,
+			],
+			async (executor) => {
+				after();
+				if (after.mock.calls.length > 1) return;
+				// What CaptureChoiceEngine does when a guard refuses.
+				const error = refuse("The Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
+				handleMacroAbort(error, { choiceName: "Log", logPrefix: "Capture execution aborted", defaultReason: "Capture aborted" });
+				executor.signalAbort?.(error);
+			},
+		);
+
+		await engine.run();
+
+		expect(after).toHaveBeenCalledTimes(1);
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([
+			"Log: the Daily notes core plugin is off, so {{DAILY}} has no note to point at. Turn it on in Settings > Core plugins.",
 		]);
 	});
 

@@ -31,6 +31,7 @@ import { normalizeGeneratedFilePath } from "../utils/generatedFilePath";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
 import { basenameWithoutMdOrCanvas, parentFolderPath } from "../utils/pathUtils";
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { refuse } from "../errors/RefusalError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
@@ -229,8 +230,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	/**
 	 * Why the last template write failed.
 	 *
-	 * Each of the write helpers below reports the real cause ("Template file not found at
-	 * path …") and then returns null, so its caller only knew THAT the write failed, not
+	 * Each of the write helpers below reports the real cause ("Could not create file with
+	 * template at …") and then returns null, so its caller only knew THAT the write failed, not
 	 * why - and the caller is what records the run's outcome. A remote client was told
 	 * "Choice execution failed; no file was created." while the actionable sentence went
 	 * to a desktop notice nobody was watching (#1603).
@@ -299,7 +300,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "no note was created",
 			);
 
 			const { content: formattedTemplateContent, variables: templateVars } =
@@ -409,7 +410,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "the note was not changed",
 			);
 
 			const { content: formattedTemplateContent, variables: templateVars } =
@@ -454,7 +455,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "the note was not changed",
 			);
 
 			this.setTemplateDestination(file.path, file.basename);
@@ -498,13 +499,19 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	 * This method intentionally does not format, so {{date}}/{{random}} in a
 	 * template path won't re-evaluate between extension derivation and reading.
 	 */
-	protected async getTemplateContent(resolvedTemplatePath: string): Promise<string> {
+	protected async getTemplateContent(
+		resolvedTemplatePath: string,
+		consequence = "nothing was written",
+	): Promise<string> {
 		const templateFile = getTemplateFile(this.app, resolvedTemplatePath);
 
-		if (!templateFile)
-			throw new Error(
-				`Template file not found at path "${resolvedTemplatePath}".`
+		if (!templateFile) {
+			throw refuse(
+				`The template ${resolvedTemplatePath} does not exist`,
+				consequence,
+				"Pick a template on the choice's page.",
 			);
+		}
 
 		return await this.app.vault.cachedRead(templateFile);
 	}

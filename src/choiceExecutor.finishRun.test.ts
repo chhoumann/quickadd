@@ -7,6 +7,7 @@ import type { ICommand } from "./types/macros/ICommand";
 import { CommandType } from "./types/macros/CommandType";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
 import { UserCancelError } from "./errors/UserCancelError";
+import { claimRefusal, refuse } from "./errors/RefusalError";
 import { runLog } from "./runLog";
 
 type NoticeStub = { instances: { messageEl: HTMLElement }[] };
@@ -43,6 +44,11 @@ vi.mock("./engine/CaptureChoiceEngine", () => ({
 			const target = this.choice.captureTo;
 			if (target === "throw") throw new Error("boom");
 			if (target === "cancel") return this.executor.signalAbort?.(new UserCancelError("Input cancelled by user"));
+			if (target === "refuse") {
+				const refusal = refuse("No note is open", "there is nothing to add to");
+				this.executor.recordExecutionResult?.({ status: "error", reason: claimRefusal(refusal, this.choice.name) });
+				return this.executor.signalAbort?.(refusal);
+			}
 			if (target.startsWith("unchanged:")) {
 				return this.executor.recordExecutionResult?.({ status: "success", file: fileAt(target.slice("unchanged:".length)), effect: "unchanged" });
 			}
@@ -160,6 +166,19 @@ describe("ChoiceExecutor run log", () => {
 			{ choiceName: "Capture cancel", status: "cancelled", reason: undefined },
 			{ choiceName: "Capture fail", status: "error", reason: "failed" },
 		]);
+	});
+
+	it("logs a sequence stopped by a step's refusal as a failure in the step's words", async () => {
+		await new ChoiceExecutor(app, plugin).execute(macro("M", [nested(capture("refuse")), nested(capture("a.md"))]));
+		expect(runLog.list().map(({ choiceName, status, reason, path }) => ({ choiceName, status, reason, path }))).toEqual([
+			{ choiceName: "M", status: "error", reason: "Capture refuse: no note is open, so there is nothing to add to.", path: undefined },
+		]);
+	});
+
+	it("returns a refusal to the caller as a failure with the sentence", async () => {
+		await expect(new ChoiceExecutor(app, plugin).executeWithOutcome(capture("refuse"))).resolves.toEqual({
+			status: "error", reason: "Capture refuse: no note is open, so there is nothing to add to.",
+		});
 	});
 
 	it("logs a run that returns its outcome to the caller", async () => {

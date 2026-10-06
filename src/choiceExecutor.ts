@@ -19,7 +19,8 @@ import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
-import { isCancellationError, reportError } from "./utils/errorUtils";
+import { isCancellationError, reportError, reportRefusal } from "./utils/errorUtils";
+import { RefusalError } from "./errors/RefusalError";
 import { failureReason } from "./engine/choiceOutcomeRecorder";
 import { showResultNotice } from "./gui/resultNotice";
 import { runLog } from "./runLog";
@@ -51,6 +52,8 @@ type RunResult = ChoiceOutcome | { status: "success"; effect?: undefined; file?:
 
 /** The outcome of a run that threw, or stopped with an abort signal. */
 function outcomeOfThrow(error: unknown): ChoiceOutcome {
+	// A refusal stops the run like an abort, but the run did not do its job.
+	if (error instanceof RefusalError) return { status: "error", reason: error.message };
 	if (error instanceof UserCancelError || isCancellationError(error)) {
 		return { status: "cancelled", cancelKind: "user" };
 	}
@@ -247,6 +250,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
+			// A refusal from outside the engines (the one-page form, the date origin).
+			if (error instanceof RefusalError) reportRefusal(error, choice.name);
 			thrown = { error };
 			throw error;
 		} finally {
@@ -358,18 +363,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
 				}
 
-				if (this.pendingAbort) {
+				const abort = this.consumeAbortSignal();
+				if (abort) {
 					promptDraftStore.rollbackExecutionScope(draftScope);
-					const abort = this.consumeAbortSignal();
-					const isUser = abort instanceof UserCancelError;
-					return {
-						status: "cancelled",
-						cancelKind: isUser ? "user" : "aborted",
-						// Only surface the message for an involuntary abort (e.g. the
-						// non-interactive prompt guards). A user dismissal keeps its stable
-						// "cancelled by user" text and leaks no internals.
-						reason: isUser ? undefined : abort?.message,
-					};
+					// A user dismissal keeps its stable "cancelled by user" text and leaks
+					// no internals; an involuntary abort or a refusal says why.
+					return outcomeOfThrow(abort);
 				}
 
 				promptDraftStore.commitExecutionScope(draftScope);
@@ -380,13 +379,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
-			if (error instanceof UserCancelError) {
-				// Stable user-facing text; no internal message surfaced.
-				return { status: "cancelled", cancelKind: "user" };
-			}
-			if (error instanceof MacroAbortError) {
-				return { status: "cancelled", cancelKind: "aborted", reason: error.message };
-			}
+			if (error instanceof RefusalError) reportRefusal(error, choice.name);
+			if (error instanceof MacroAbortError) return outcomeOfThrow(error);
 			reportError(error, "Error executing choice from URI");
 			return {
 				status: "error",

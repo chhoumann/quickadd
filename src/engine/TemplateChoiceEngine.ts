@@ -1,7 +1,6 @@
 import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, linkDestinationFile, openChoiceFile } from "./choiceFileActions";
 import type { App, WorkspaceLeaf } from "obsidian";
 import { TFile } from "obsidian";
-import invariant from "src/utils/invariant";
 import { VALUE_SYNTAX } from "../constants";
 import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
@@ -47,6 +46,7 @@ import type { ChoiceChain } from "./choiceChain";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { refuse, RefusalError } from "../errors/RefusalError";
 import { parentFolderPath } from "../utils/pathUtils";
 import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
 import { getTemplateFile } from "../utils/templateFolderUtils";
@@ -85,12 +85,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
 
 		try {
-			invariant(this.choice.templatePath, () => {
-				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
-						? "Template path is empty."
-						: `Template path is not valid: ${this.choice.templatePath}`
-					}`;
-			});
+			if (!this.choice.templatePath) {
+				throw refuse("No template is picked", "no note was created", "Pick a template on the choice's page.");
+			}
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.setLinkToCurrentFileBehavior(
@@ -300,11 +297,13 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		} catch (err) {
 			if (
 				handleMacroAbort(err, {
+					choiceName: this.choice.name,
 					logPrefix: "Template execution aborted",
 					noticePrefix: "Template execution aborted",
 					defaultReason: "Template execution aborted",
 				})
 			) {
+				if (err instanceof RefusalError) this.outcome.failure(err.message);
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}

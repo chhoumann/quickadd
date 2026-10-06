@@ -364,6 +364,7 @@ export class SingleMacroEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
+					choiceName: macroChoice.name,
 					logPrefix: "Macro execution aborted",
 					noticePrefix: "Macro execution aborted",
 					defaultReason: "Macro execution aborted",

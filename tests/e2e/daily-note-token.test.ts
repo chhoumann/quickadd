@@ -121,7 +121,10 @@ describe("{{DAILY}} in native Obsidian", () => {
 
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ value: "x" }) });
 
-		expect(outcome).toMatchObject({ ok: false, error: expect.stringContaining("{{DAILY}} needs the Daily notes core plugin") });
+		expect(outcome).toEqual({
+			ok: false,
+			error: "Daily note token E2E: the Daily notes core plugin is off, so {{DAILY}} has no note to point at. Turn it on in Settings > Core plugins.",
+		});
 		expect(await files()).toEqual(before);
 	});
 
@@ -152,7 +155,10 @@ describe("{{DAILY}} in native Obsidian", () => {
 			monthlyChoice.captureTo = "{{MONTHLY}}";
 			await saveChoice(monthlyChoice);
 			const monthly = await obsidian.execJson("quickadd:run", { id: monthlyChoice.id, verify: true, vars: JSON.stringify({ value: "x" }) });
-			expect(monthly).toMatchObject({ ok: false, error: expect.stringContaining("{{MONTHLY}} needs the Periodic Notes plugin with monthly notes turned on") });
+			expect(monthly).toEqual({
+				ok: false,
+				error: "Daily note token E2E: Periodic Notes has monthly notes off, so {{MONTHLY}} has no note to point at. Turn them on in Settings > Periodic Notes.",
+			});
 		} finally {
 			await obsidian.dev.evalJson(`(() => { delete app.plugins.plugins["periodic-notes"]; return true; })()`);
 		}

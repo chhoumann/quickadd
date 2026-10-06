@@ -550,6 +550,22 @@ describe("TemplateChoiceEngine cancellation notices", () => {
 		});
 	});
 
+	it.each([
+		["Templates/Test.md", "the template Templates/Test.md does not exist, so no note was created. Pick a template on the choice's page."],
+		["", "no template is picked, so no note was created. Pick a template on the choice's page."],
+	])("refuses a template path %j in one sentence naming the choice", async (templatePath, reason) => {
+		const { engine, choiceExecutor } = createEngine("unused", { throwDuringFileName: false });
+		(engine as unknown as { choice: ITemplateChoice }).choice.templatePath = templatePath;
+		choiceExecutor.recordExecutionResult = vi.fn();
+
+		await engine.run();
+
+		const sentence = `Test Template Choice: ${reason}`;
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "error", reason: sentence });
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([sentence]);
+		expect(vi.mocked(choiceExecutor.signalAbort!).mock.calls[0]?.[0]?.message).toBe(sentence);
+	});
+
 	// A failure exit that is not a throw used to record nothing at all, which is the
 	// same reason-less outcome reached without any exception.
 	it("records a reason when the file could not be created", async () => {

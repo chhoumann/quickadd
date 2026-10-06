@@ -8,8 +8,8 @@ import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
-import { reportError, reportRefusal } from "../utils/errorUtils";
-import { RefusalError } from "../errors/RefusalError";
+import { reportError } from "../utils/errorUtils";
+import { refuse } from "../errors/RefusalError";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
@@ -347,6 +347,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
+					choiceName: this.choice.name,
 					logPrefix: "Macro execution aborted",
 					noticePrefix: "Macro execution aborted",
 					defaultReason: "Macro execution aborted",
@@ -623,6 +624,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			return async () => script;
 		} catch (error) {
+			// A missing script is a refusal the macro reports with its name.
+			if (error instanceof MacroAbortError) throw error;
 			reportError(
 				error,
 				`Failed to load conditional script '${condition.scriptPath}'.`
@@ -647,8 +650,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	private async executeOpenFile(command: IOpenFileCommand) {
 		if (isRunNoteToken(command.filePath) && !this.choiceExecutor.runNote) {
-			reportRefusal(new RefusalError("Nothing has written a note yet, so there is no {{NOTE}} to open."), this.choice.name);
-			return;
+			throw refuse("Nothing has written a note yet", "there is no {{NOTE}} to open");
 		}
 		try {
 			const formatter = new CompleteFormatter(

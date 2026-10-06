@@ -475,14 +475,14 @@ const CASES: Case[] = [
 		clipboard: SENTINEL,
 	}],
 	["a missing note without creation", async (a) => { a.choice.captureTo = a.path("Missing.md"); }, {
-		result: { ok: false, aborted: true, error: "Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note." },
+		result: { ok: false, error: "Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note."],
+		notices: ["Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page."],
 		clipboard: SENTINEL,
 	}],
 	["a new note at a path that cannot exist", async (a) => {
@@ -925,14 +925,14 @@ const CASES: Case[] = [
 		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
 		a.choice.format.format = "open";
 	}, {
-		result: { ok: false, aborted: true, error: "Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note." },
+		result: { ok: false, error: "Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target note missing: Missing.md. Turn on \"Create note if it doesn't exist\" or choose an existing note."],
+		notices: ["Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page."],
 		clipboard: SENTINEL,
 	}],
 	["a property on a Canvas text card", async (a) => {

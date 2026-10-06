@@ -1,6 +1,7 @@
 import { TFile, type App } from "obsidian";
 import type { Moment, unitOfTime } from "moment";
 import { usesMarkdownLinks } from "./fileLinks";
+import { refuse } from "../errors/RefusalError";
 
 export const PERIODS = ["daily", "weekly", "monthly", "quarterly", "yearly"] as const;
 export type Period = (typeof PERIODS)[number];
@@ -73,19 +74,21 @@ export function getPeriodicNoteSettings(app: App | undefined, period: Period): P
 	// Periodic Notes 1.0 (beta) keeps its settings in calendar sets. Reading only
 	// core Daily notes there could target a different note than the one it opens.
 	if (periodicNotes && "calendarSets" in periodicNotes) {
-		throw new Error(`${token(period)} can't read the settings of Periodic Notes 1.0. Use Periodic Notes 0.0.17, or turn it off and use the Daily notes core plugin.`);
+		throw refuse("QuickAdd can't read the settings of Periodic Notes 1.0", `${token(period)} has no note to point at`, "Use Periodic Notes 0.0.17, or turn it off and use the Daily notes core plugin.");
 	}
 	const managed = record(periodicNotes?.[period]);
 	if (managed?.enabled === true) return settingsFrom("periodic-notes", period, managed);
 
 	if (period !== "daily") {
-		throw new Error(`${token(period)} needs the Periodic Notes plugin with ${period} notes turned on.`);
+		throw periodicNotes
+			? refuse(`Periodic Notes has ${period} notes off`, `${token(period)} has no note to point at`, `Turn them on in Settings > Periodic Notes.`)
+			: refuse("The Periodic Notes plugin is off", `${token(period)} has no note to point at`, `Turn it on in Settings > Community plugins, with ${period} notes on.`);
 	}
 	const dailyNotes = record(app?.internalPlugins?.plugins?.["daily-notes"]);
 	if (dailyNotes?.enabled === true) {
 		return settingsFrom("daily-notes", period, record(record(dailyNotes.instance)?.options) ?? {});
 	}
-	throw new Error("{{DAILY}} needs the Daily notes core plugin, or Periodic Notes with daily notes, turned on.");
+	throw refuse("The Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
 }
 
 /** The first moment of the period `date` falls in, which names the period's note. */
@@ -138,7 +141,7 @@ export async function readPeriodicNoteTemplate(app: App, settings: PeriodicNoteS
 		: exact instanceof TFile ? exact : app.vault.getAbstractFileByPath(`${template}.md`);
 	if (!(file instanceof TFile)) {
 		const where = settings.source === "daily-notes" ? "Daily notes" : "Periodic Notes";
-		throw new Error(`The ${period} note template "${template}" doesn't exist. Fix it in Settings → ${where}.`);
+		throw refuse(`The ${period} note template ${template} does not exist`, `no ${period} note was created`, `Pick one in Settings > ${where}.`);
 	}
 	return app.vault.cachedRead(file);
 }

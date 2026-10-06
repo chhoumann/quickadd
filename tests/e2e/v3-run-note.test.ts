@@ -92,7 +92,8 @@ it("refuses {{NOTE}} before any note was written in one plain sentence naming th
 	const macro = new MacroChoice("Open run note");
 	macro.macro.commands.push(new OpenFileCommand(RUN_NOTE));
 	await store(macro);
-	expect(await obsidian.execJson("quickadd:run", { id: macro.id, verify: true })).toMatchObject({ ok: true });
+	expect(await obsidian.execJson("quickadd:run", { id: macro.id, verify: true }))
+		.toMatchObject({ ok: false, error: "Open run note: nothing has written a note yet, so there is no {{NOTE}} to open." });
 	await expect.poll(() => obsidian.dev.evalJson<string[]>(notices), POLL_OPTS)
 		.toEqual(["Open run note: nothing has written a note yet, so there is no {{NOTE}} to open."]);
 
@@ -104,7 +105,7 @@ it("refuses {{NOTE}} before any note was written in one plain sentence naming th
 	}));
 	await plugin.reload({ waitUntilReady: true });
 	expect(await obsidian.execJson("quickadd:run", { id: log.id, verify: true, vars: JSON.stringify({ value: "x" }) }))
-		.toMatchObject({ ok: false, error: "Nothing has written a note yet, so there is no {{NOTE}} to add to." });
+		.toMatchObject({ ok: false, error: "Log: nothing has written a note yet, so there is no {{NOTE}} to add to." });
 	await expect.poll(() => obsidian.dev.evalJson<string[]>(notices), POLL_OPTS)
 		.toEqual(["Log: nothing has written a note yet, so there is no {{NOTE}} to add to."]);
 });

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
+import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
@@ -163,6 +164,52 @@ it("runs every first-run choice without an error notice", async () => {
 			}
 			return true;
 		})()`);
+	}
+});
+
+it("refuses what is not set up in one sentence naming the choice, and shows nothing else", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	await setDailyNotes({ enabled: true, options: { folder: sandbox.path("Daily"), format: "YYYY-MM-DD", template: "" } });
+	await openEmptyList();
+	await pick("journal", "meetings");
+	await clickWhenStill(obsidian, 'button.mod-cta.qaCreateChoicesBtn:not([disabled])');
+	await expect.poll(async () => (await rows()).map(([name]) => name), POLL_OPTS).toEqual(["Log", "Thought", "Meeting note"]);
+	await obsidian.dev.evalJson("app.setting.close(), true");
+	const quickCapture = new CaptureChoice("Quick capture");
+	quickCapture.captureToActiveFile = true;
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		data.choices.push(quickCapture);
+	}));
+	await plugin.reload({ waitUntilReady: true });
+
+	const notices = async () => obsidian.dev.evalJson<string[]>("window.__qaNotices.splice(0).map((n) => n.textContent)");
+	await obsidian.dev.evalJson(`(() => {
+		window.__qaNotices = [];
+		window.__qaNoticeObserver = new MutationObserver((records) => {
+			for (const record of records) for (const node of record.addedNodes) {
+				if (node instanceof HTMLElement && node.matches(".notice")) window.__qaNotices.push(node);
+			}
+		});
+		window.__qaNoticeObserver.observe(document.body, { childList: true, subtree: true });
+		return true;
+	})()`);
+	const refuses = async (choice: string, sentence: string) => {
+		expect(await obsidian.execJson("quickadd:run", { choice, verify: true, vars: JSON.stringify({ value: "x", Topic: "T", Who: "Ana" }) }), choice)
+			.toMatchObject({ ok: false, error: sentence });
+		await expect.poll(notices, POLL_OPTS).toEqual([sentence]);
+	};
+	try {
+		await setDailyNotes({ enabled: false, options: {} });
+		await refuses("Log", "Log: the Daily notes core plugin is off, so {{DAILY}} has no note to point at. Turn it on in Settings > Core plugins.");
+
+		const template = sandbox.path("Templates/Meeting.md");
+		await obsidian.dev.evalJsonAsync(`app.vault.delete(app.vault.getAbstractFileByPath(${jsLiteral(template)})).then(() => true)`);
+		await refuses("Meeting note", `Meeting note: the template ${template} does not exist, so no note was created. Pick a template on the choice's page.`);
+
+		await obsidian.dev.evalJson("(() => { for (const leaf of app.workspace.getLeavesOfType('markdown')) leaf.detach(); return true; })()");
+		await refuses("Quick capture", "Quick capture: no note is open, so there is nothing to add to.");
+	} finally {
+		await obsidian.dev.evalJson("(() => { window.__qaNoticeObserver?.disconnect(); delete window.__qaNoticeObserver; delete window.__qaNotices; return true; })()");
 	}
 });
 

@@ -24,7 +24,7 @@ stay right where you are. Use it to:
    `Journal/{{DATE}}.md`. (In earlier versions, this is **Capture to**.)
 3. Click **More settings** and turn on **Create note if it doesn't exist**, so
    the first capture of the day creates today's note instead of stopping with
-   a "Target note missing" notice.
+   a notice that the note does not exist.
 4. In **What**, describe one entry, for example
    `- {{DATE:HH:mm}} {{VALUE}}`. (In earlier versions, this is **Capture
    format**; before QuickAdd 2.30.0, turn on its toggle first.)

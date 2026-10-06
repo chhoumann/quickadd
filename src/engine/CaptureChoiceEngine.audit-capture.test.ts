@@ -448,9 +448,9 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 
 		await engine.run();
 
-		// A refusal, not an error: the reason alone for a CLI or URI caller, and one
-		// sentence naming the choice for the user, with no error report around it.
-		expect(recordedOutcome(engine)).toEqual({ status: "error", reason: "Nothing has written a note yet, so there is no {{NOTE}} to add to." });
+		// A refusal, not an error: one sentence naming the choice, the same for a CLI or
+		// URI caller as for the user, with no error report around it.
+		expect(recordedOutcome(engine)).toEqual({ status: "error", reason: "Log: nothing has written a note yet, so there is no {{NOTE}} to add to." });
 		expect(noticeClass.instances.map((notice) => notice.message))
 			.toEqual(["Log: nothing has written a note yet, so there is no {{NOTE}} to add to."]);
 		expect(logError).not.toHaveBeenCalled();
