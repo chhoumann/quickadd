@@ -13,7 +13,10 @@ import { migrateSettingsV2 } from "../../../v3/migrate";
 import { findAction } from "../../../v3/storage";
 import InputsSection from "./InputsSection.svelte";
 
-const files: Record<string, string> = { "Templates/Visit.md": "Guest: {{VALUE:Guest}}" };
+const files: Record<string, string> = {
+	"Templates/Visit.md": "Guest: {{VALUE:Guest}}",
+	"Templates/Dinner.md": '# <% tp.system.prompt("Guest") %>\nTopic: {{VALUE:Topic}}',
+};
 const openFile = vi.fn(async () => {});
 const app = {
 	vault: {
@@ -75,6 +78,22 @@ describe("InputsSection", () => {
 		expect(rows(container)).toEqual([{ name: "Guest value", where: "Defined in Visit.md", controls: 2 }]);
 		await fireEvent.click(container.querySelector(".qaInputRow a")!);
 		expect(openFile).toHaveBeenCalledWith({ path: "Templates/Visit.md" });
+	});
+
+	it("shows a Templater prompt muted and without controls, after the file's own inputs", async () => {
+		const dinner = Object.assign(new TemplateChoice("Dinner"), { id: "dinner", templatePath: "Templates/Dinner.md" });
+		dinner.fileNameFormat = { enabled: true, format: "{{DATE}}" };
+		useSettings([dinner]);
+		const { container } = await mount(dinner);
+
+		expect(rows(container)).toEqual([
+			{ name: "Topic value", where: "Defined in Dinner.md", controls: 2 },
+			{ name: "Guest", where: "Asked by Templater, in Dinner.md", controls: 0 },
+		]);
+		const guest = container.querySelectorAll<HTMLElement>(".qaInputRow")[1];
+		expect(guest).toHaveClass("qaInputProvided");
+		await fireEvent.click(guest.querySelector("a")!);
+		expect(openFile).toHaveBeenCalledWith({ path: "Templates/Dinner.md" });
 	});
 
 	it("saves a label and optional to the action as they change", async () => {

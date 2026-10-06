@@ -37,6 +37,23 @@ describe("listInputs", () => {
 		]);
 	});
 
+	it("lists a template file's Templater prompts after its own inputs, as asked by Templater", async () => {
+		const template = new TemplateChoice("Visit");
+		template.templatePath = "Templates/Visit.md";
+		template.fileNameFormat = { enabled: true, format: "{{DATE}}" };
+		const files: Record<string, string> = {
+			"Templates/Visit.md": '# <% tp.system.prompt("Guest") %>\nTopic: {{VALUE:Topic}}\nGuest again: <% tp.system.prompt("Guest") %>',
+		};
+
+		const inputs = await listInputs(actionOf(template), async (path) => files[path] ?? null);
+
+		const definedIn = { step: 0, where: "template file", path: "Templates/Visit.md" };
+		expect(inputs).toEqual([
+			{ name: "Topic", kind: "value", label: "Topic", type: "text", optional: false, definedIn },
+			{ name: "Guest", kind: "value", label: "Guest", optional: false, definedIn, askedBy: "templater" },
+		]);
+	});
+
 	it("reads what a global variable holds, from the settings it is given", async () => {
 		const capture = new CaptureChoice("Project log");
 		capture.captureTo = "Log.md";

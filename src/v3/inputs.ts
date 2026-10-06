@@ -11,6 +11,7 @@ import { type FieldRequirement, RequirementCollector } from "../preflight/Requir
 import type QuickAdd from "../main";
 import type { QuickAddSettings } from "../settings";
 import type { Action, AddToNoteStep, CreateNoteStep } from "./model";
+import { templaterPrompts } from "./templater";
 
 export type InputKind = "value" | "date" | "field" | "file" | "math" | "pick";
 
@@ -28,6 +29,8 @@ export interface ActionInput {
 	definedIn: { step: number; where: InputLocation; path?: string };
 	/** The index of an earlier step that may set it, so the run need not ask. */
 	providedBy?: number;
+	/** Set when Templater asks it, after QuickAdd's own inputs; its name is its label. */
+	askedBy?: "templater";
 }
 
 /**
@@ -40,6 +43,9 @@ export interface ActionInput {
  * after one is marked as provided by it, and so is an input named like the
  * output variable of an earlier AI step. An input that first appears before
  * either is asked for, as a script cannot answer what was already asked.
+ *
+ * A template file's Templater prompts follow that file's own inputs, as
+ * Templater asks them once the note exists.
  */
 export async function listInputs(
 	action: Action,
@@ -54,7 +60,7 @@ export async function listInputs(
 	const aiOutputs = new Map<string, number>();
 
 	const record = (step: number, where: InputLocation, path?: string) => {
-		const known = new Set(inputs.map((input) => input.name));
+		const known = new Set(inputs.filter((input) => !input.askedBy).map((input) => input.name));
 		for (const requirement of collector.requirements.values()) {
 			if (known.has(requirement.id)) continue;
 			const providers = [aiOutputs.get(requirement.id), lastScript].filter((step) => step !== undefined);
@@ -131,6 +137,17 @@ export async function listInputs(
 		if (!path) return;
 		await scanTemplateBody(readTemplate, collector, path);
 		record(index, "template file", path);
+		for (const { label } of templaterPrompts((await readTemplate(path)) ?? "")) {
+			if (inputs.some((input) => input.askedBy === "templater" && input.name === label)) continue;
+			inputs.push({
+				name: label,
+				kind: "value",
+				label,
+				optional: false,
+				definedIn: { step: index, where: "template file", path },
+				askedBy: "templater",
+			});
+		}
 	}
 }
 

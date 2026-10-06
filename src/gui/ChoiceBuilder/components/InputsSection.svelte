@@ -64,8 +64,9 @@ function nameOf(input: ActionInput): string {
 	return input.name;
 }
 
-/** The kind, unless the name already says it. */
+/** The kind, unless the name already says it. Templater's own prompts are its to type. */
 function kindOf(input: ActionInput): string | null {
+	if (input.askedBy) return null;
 	return nameOf(input).toLowerCase() === input.kind ? null : input.kind;
 }
 
@@ -103,8 +104,8 @@ function change(name: string, value: Partial<InputOverride>) {
 				</div>
 			</div>
 		{/if}
-		{#each inputs as input (input.name)}
-			{@const provided = input.providedBy !== undefined}
+		{#each inputs as input (`${input.askedBy ?? "quickadd"}:${input.name}`)}
+			{@const provided = input.providedBy !== undefined || input.askedBy !== undefined}
 			{@const override = overrides?.[input.name]}
 			<div class="setting-item qaInputRow" class:qaInputProvided={provided} data-input={input.name} tabindex="-1">
 				<div class="setting-item-info">
@@ -113,7 +114,10 @@ function change(name: string, value: Partial<InputOverride>) {
 						{#if kindOf(input)}<span class="qaInputKind">{kindOf(input)}</span>{/if}
 					</div>
 					<div class="setting-item-description">
-						{#if provided}
+						{#if input.askedBy && input.definedIn.path}
+							{@const path = input.definedIn.path}
+							Asked by Templater, in <a href={path} onclick={(event) => openTemplate(event, path)}>{fileName(path)}</a>
+						{:else if provided}
 							Provided by step {(input.providedBy ?? 0) + 1}
 						{:else if input.definedIn.where === "template file" && input.definedIn.path}
 							{@const path = input.definedIn.path}
