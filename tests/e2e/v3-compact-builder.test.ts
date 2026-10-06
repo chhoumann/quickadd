@@ -28,6 +28,9 @@ let templatesFolderExisted = true;
 
 beforeEach(async () => {
 	const { obsidian } = getContext();
+	// An aborted run can leave its template behind, and the folder it made for it.
+	const stale = await obsidian.dev.evalJson<boolean>(`app.vault.getAbstractFileByPath(${jsLiteral(TEMPLATE)}) !== null`);
+	if (stale) await removeTemplate(obsidian, false);
 	templatesFolderExisted = await obsidian.dev.evalJson<boolean>('app.vault.getAbstractFileByPath("Templates") !== null');
 	expect(await obsidian.dev.evalJson<boolean>(`app.vault.getAbstractFileByPath(${jsLiteral(TEMPLATE)}) === null`)).toBe(true);
 });
