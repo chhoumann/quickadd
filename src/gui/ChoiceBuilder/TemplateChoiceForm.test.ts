@@ -105,7 +105,7 @@ describe("TemplateChoiceForm", () => {
 
 		expect(toggle?.classList.contains("is-disabled")).toBe(true);
 		expect(item.textContent).toContain(
-			"Only available when the file name prompt is the default note title",
+			"Only available when the note name asks for the note title: empty, {{VALUE}}, or {{NAME}}.",
 		);
 
 		await fireEvent.click(toggle!);

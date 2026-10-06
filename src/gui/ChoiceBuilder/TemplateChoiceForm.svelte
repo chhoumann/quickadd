@@ -156,7 +156,7 @@ const discoverySupported = $derived(
 const discoveryDescription = $derived(
 	discoverySupported
 		? "Show matching notes and unresolved links in the note-title prompt."
-		: "Only available when the file name prompt is the default note title: no custom format, {{VALUE}}, or {{NAME}}.",
+		: "Only available when the note name asks for the note title: empty, {{VALUE}}, or {{NAME}}.",
 );
 
 // --- Folder selector -----------------------------------------------------
