@@ -2860,8 +2860,10 @@ body:not(.is-phone) .quickAddModal.qa-recipes-modal {
 	white-space: nowrap;
 }
 
+/* Muted, not faint: a disabled button is dimmed again, and faint text dimmed
+   is unreadable in a dark theme. */
 .qa-note-button.qa-note-button--unresolved {
-	color: var(--text-faint);
+	color: var(--text-muted);
 	cursor: default;
 }
 
