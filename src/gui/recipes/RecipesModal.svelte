@@ -227,6 +227,12 @@
 		text-decoration: underline;
 	}
 
+	/* The ring Obsidian gives a focused link in settings. */
+	.qa-recipe :global(a:focus-visible) {
+		border-radius: var(--radius-s);
+		box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+	}
+
 	.qa-recipe-add {
 		display: inline-flex;
 		align-items: center;

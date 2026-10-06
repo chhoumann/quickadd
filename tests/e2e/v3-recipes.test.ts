@@ -4,7 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
 
 // The New choice menu opens the Recipes gallery, where a docs example is
 // added with one click and its choices work straight away.
@@ -61,6 +61,9 @@ it("adds the meeting notes recipe from the gallery, and its command creates a me
 		return true;
 	})()`);
 	await clickWhenStill(obsidian, ".menu-item[data-qa-recipes]");
+
+	await waitForElement(obsidian, ".qa-recipes-modal .qa-recipe-guide");
+	expect(await withoutFocusRing(obsidian, ".qa-recipes-modal .qa-recipe a")).toEqual([]);
 
 	await clickWhenStill(obsidian, '.qa-recipes-modal input[type="search"]');
 	await insertText(obsidian, "meeting");
