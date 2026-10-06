@@ -350,11 +350,13 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	color: var(--text-muted);
 }
 
+/* Secondary, not a form field's background: that is the modal's own white in
+   the light theme, where the box would vanish and leave its text indented. */
 .quickAddModal .qa-onepage-preview,
 .quickAddModal .vdate-preview-container {
 	padding: 0.5rem;
 	margin-bottom: 0.75rem;
-	background-color: var(--background-modifier-form-field);
+	background-color: var(--background-secondary);
 	border-radius: 4px;
 }
 

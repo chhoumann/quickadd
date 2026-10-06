@@ -90,6 +90,11 @@ it("asks a first-run Log once, showing the daily note and heading it adds under"
 	await expect.poll(modals, POLL_OPTS).toEqual([
 		{ onePage: true, rows: [`Adds to:Journal/${today}.md under ## Log`] },
 	]);
+	// The preview sits in a box of its own, whatever the theme.
+	expect(await obsidian.dev.evalJson<boolean>(`(() => {
+		const modal = document.querySelector(".onePageInputModal .modal");
+		return getComputedStyle(modal.querySelector(".qa-onepage-preview")).backgroundColor !== getComputedStyle(modal).backgroundColor;
+	})()`)).toBe(true);
 	await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.activeElement?.closest(".onePageInputModal"))'), POLL_OPTS).toBe(true);
 	await insertText(obsidian, "Planted the tomatoes");
 	await pressKey(obsidian, "Enter");
