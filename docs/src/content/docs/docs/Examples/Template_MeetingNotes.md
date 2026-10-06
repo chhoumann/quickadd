@@ -40,13 +40,11 @@ Date: {{DATE:YYYY-MM-DD}}
    {{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}
    ```
 
-5. Set **New note location** to **In a specific folder**.
-6. Enter `Meetings` in **Folder path** and click **Add**.
-7. Turn **Open** on.
-8. Set **Opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
-9. Choose **Done** and close Settings.
+5. In **Folder**, enter `Meetings`. (Before QuickAdd 2.30.0, set **New note location** to **In a specific folder**, enter `Meetings` in **Folder path**, and click **Add**.)
+6. Click **More settings**. Turn **Open** on. Set **Opening location** to **Reuse current tab** and **View mode** to **Live Preview**.
+7. Close Settings. Leaving the page saves it. (Before QuickAdd 2.30.0, choose **Done** first.)
 
-![The Template choice settings with Open enabled, File opening location set to Reuse current tab, and View mode set to Live Preview](../Images/examples/meeting-open-settings.png)
+![The New meeting choice's Behavior settings with Open on, Opening location set to Reuse current tab, and View mode set to Live Preview](../Images/examples/meeting-open-settings.png)
 
 ## Run it and start typing
 
