@@ -7,7 +7,7 @@ import {
 	createDatePicker,
 	type DatePickerController,
 } from "../date-picker/datePicker";
-import { formatISODate, parseNaturalLanguageDate } from "../../utils/dateParser";
+import { formatISODate, NOT_A_DATE, parseNaturalLanguageDate } from "../../utils/dateParser";
 import { positionInputPromptCursor } from "../inputPromptCursor";
 import { settingsStore } from "../../settingsStore";
 import {
@@ -306,7 +306,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			this.selectedIso = undefined;
 			this.lastPickerDisplayValue = undefined;
 			this.syncPickerSelection();
-			const errorMessage = parseResult.error || "Unable to parse date";
+			const errorMessage = parseResult.error || NOT_A_DATE;
 			this.setPreviewText(errorMessage, true);
 		}
 	}

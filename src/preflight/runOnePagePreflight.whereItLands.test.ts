@@ -157,9 +157,16 @@ describe("the one-page form shows where the run lands", () => {
 
 	it("says Not a date, in the error style, while the text does not parse", async () => {
 		await openForm(meetingNote("{{VDATE:When,YYYY-MM-DD}} {{VALUE:Topic}}"));
+		const fieldMessage = () => document.querySelector<HTMLElement>(".qa-date-preview-text");
+		// Nothing typed, nothing to say under the field.
+		expect(fieldMessage()?.hidden).toBe(true);
 		await type("When", "blah");
 		expect(rows().at(-1)).toBe("When: Not a date");
 		const value = [...document.querySelectorAll(".qa-preview-val")].at(-1);
 		expect(value?.classList.contains("qa-preview-issue--error")).toBe(true);
+		// The field says it in the same words.
+		expect(fieldMessage()?.hidden).toBe(false);
+		expect(fieldMessage()?.textContent).toBe("Not a date");
+		expect(fieldMessage()?.classList.contains("is-error")).toBe(true);
 	});
 });

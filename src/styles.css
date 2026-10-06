@@ -590,8 +590,13 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 .quickAddModal .vdate-preview-text {
 	margin-top: 0.25rem;
 	font-size: 0.9em;
-	font-family: var(--font-monospace);
 	color: var(--text-normal);
+}
+
+/* The prompt's preview box shows the parsed date as a value; the one-page
+   form's line under a field reads like the rest of the form. */
+.quickAddModal .vdate-preview-text {
+	font-family: var(--font-monospace);
 }
 
 .quickAddModal .qa-date-preview-text.is-error,

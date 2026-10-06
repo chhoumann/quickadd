@@ -6,8 +6,8 @@ describe("dateParser", () => {
 		it.each([
 			["should return error when input is empty", "", "Empty input"],
 			["should return error when input is only whitespace", "   ", "Empty input"],
-			["should return error when date parsing fails", "invalid date", "Unable to parse date"],
-			["should handle unparseable input gracefully", "not a valid date at all", "Unable to parse date"],
+			["should return error when date parsing fails", "invalid date", "Not a date"],
+			["should handle unparseable input gracefully", "not a valid date at all", "Not a date"],
 		] as const)("%s", (_name, input, expected) => {
 			const result = parseNaturalLanguageDate(input);
 			expect(result.isValid).toBe(false);

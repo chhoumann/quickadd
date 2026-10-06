@@ -9,7 +9,7 @@ import { MacroAbortError } from "src/errors/MacroAbortError";
 import { log } from "src/logger/logManager";
 import { OnePageInputModal, type PreviewRow } from "./OnePageInputModal";
 import { previewCaptureTarget, previewNewNotePath } from "./resolvedTarget";
-import { formatISODate } from "src/utils/dateParser";
+import { formatISODate, NOT_A_DATE } from "src/utils/dateParser";
 import {
 	canonicalizeOnePageFileValue,
 	FILE_VARIABLE_PREFIX,
@@ -218,7 +218,7 @@ export async function runOnePagePreflight(
 				if (req.type !== "date" || req.id === QA_INTERNAL_DATE_ORIGIN) continue;
 				const label = req.label ?? req.id;
 				if (unparsedDates.has(req.id)) {
-					rows.push({ label, text: "Not a date", diagnostics: [], invalid: true });
+					rows.push({ label, text: NOT_A_DATE, diagnostics: [], invalid: true });
 					continue;
 				}
 				const value = values[req.id];
