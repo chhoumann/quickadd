@@ -51,7 +51,7 @@ describe("one-page form field order", () => {
 		await waitForElement(obsidian, FIELD);
 		expect(await obsidian.dev.evalJson<string[]>(
 			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
-		)).toEqual(["Enter value", "client", "due"]);
+		)).toEqual(["Text to capture", "client", "due"]);
 
 		for (const [index, text] of ["48 mugs", "Northwind", "2026-10-02"].entries()) {
 			expect(await obsidian.dev.evalJson<boolean>(`(() => {
