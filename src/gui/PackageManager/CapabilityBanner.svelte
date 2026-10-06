@@ -57,10 +57,13 @@
 		margin: 0;
 	}
 
-	/* Setting-row text size, so the callout sits level with the cards. */
+	/* Setting-row text size, so the callout sits level with the cards. Its rows
+	   wrap, so nothing scrolls: Obsidian's scrolling callout content showed a
+	   scrollbar for a pixel of rounding. */
 	.qa-import-banner .callout-content {
 		padding-top: var(--size-4-2);
 		font-size: var(--font-ui-small);
+		overflow: visible;
 	}
 
 	.qa-import-banner-rows {
