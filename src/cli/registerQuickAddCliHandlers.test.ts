@@ -896,6 +896,25 @@ describe("registerQuickAddCliHandlers", () => {
 		expect(executors[0].execute).not.toHaveBeenCalled();
 	});
 
+	it("reports a Template whose template is not there instead of its inputs", async () => {
+		const gone = { ...templateChoice, id: "gone", name: "Gone", templatePath: "Templates/Gone.md" } as IChoice;
+		const { plugin, handlers } = createPlugin([gone]);
+		registerQuickAddCliHandlers(plugin);
+		const check = handlers.find((handler) => handler.command === "quickadd:check");
+		collectChoiceRequirementsMock.mockClear();
+
+		const payload = JSON.parse(String(await check!.handler({ choice: "Gone" })));
+
+		expect(payload).toMatchObject({
+			ok: false,
+			error: "Gone: the template Templates/Gone.md does not exist, so no note was created. Pick a template on the choice's page.",
+			choice: { id: "gone", name: "Gone" },
+		});
+		expect(payload.missing).toBeUndefined();
+		expect(payload.requiredInputCount).toBeUndefined();
+		expect(collectChoiceRequirementsMock).not.toHaveBeenCalled();
+	});
+
 	it("includes deferred macro steps in quickadd:check", async () => {
 		const { plugin, handlers } = createPlugin([macroChoice]);
 		registerQuickAddCliHandlers(plugin);

@@ -6,6 +6,9 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type ICaptureChoice from "../types/choices/ICaptureChoice";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
 import { getWritePosition } from "../engine/captureAction";
+import { checkTemplateSource } from "../engine/templateSource";
+import { claimRefusal, RefusalError } from "../errors/RefusalError";
+import { isTemplateChoice } from "../types/choices/choiceType";
 import { deriveFolderMode } from "../gui/ChoiceBuilder/folderMode";
 import { childChoicesOf, isChoiceLike, rootChoicesOf } from "../utils/choiceUtils";
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
@@ -135,12 +138,20 @@ export async function checkChoiceHandler(
 	);
 	setExecutorVariables(choiceExecutor, variables);
 
-	const requirements = await collectChoiceRequirements(
-		plugin.app,
-		plugin,
-		choiceExecutor,
-		choice,
-	);
+	let requirements;
+	try {
+		// A template that is not there is the one thing to report: nothing is asked.
+		if (isTemplateChoice(choice)) checkTemplateSource(plugin.app, choice);
+		requirements = await collectChoiceRequirements(
+			plugin.app,
+			plugin,
+			choiceExecutor,
+			choice,
+		);
+	} catch (error) {
+		if (!(error instanceof RefusalError)) throw error;
+		return { ok: false, error: claimRefusal(error, choice.name), choice: describeChoice(choice) };
+	}
 	const unresolved = getUnresolvedRequirements(
 		requirements,
 		choiceExecutor.variables,

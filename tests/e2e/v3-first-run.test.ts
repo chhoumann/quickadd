@@ -220,6 +220,10 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 		await obsidian.dev.evalJsonAsync(`app.vault.delete(app.vault.getAbstractFileByPath(${jsLiteral(template)})).then(() => true)`);
 		const missingTemplate = `Meeting note: the template ${template} does not exist, so no note was created. Pick a template on the choice's page.`;
 		await refuses("Meeting note", missingTemplate);
+		// A check says the same, and lists no inputs.
+		const check = await obsidian.execJson<{ ok: boolean; error?: string; missing?: unknown }>("quickadd:check", { choice: "Meeting note" });
+		expect(check).toMatchObject({ ok: false, error: missingTemplate });
+		expect(check.missing).toBeUndefined();
 		// Picked from the launcher, it says so before it asks for anything.
 		await obsidian.command("quickadd:runQuickAdd").run();
 		await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.activeElement?.closest(".prompt"))'), POLL_OPTS).toBe(true);
