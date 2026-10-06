@@ -46,6 +46,10 @@ import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import { isTemplateChoice } from "./types/choices/choiceType";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
+import { currentActions, findAction } from "./v3/storage";
+import { compactGroup } from "./v3/lower";
+import type { Action } from "./v3/model";
+import { runSteps } from "./v3/run/stepRunner";
 
 type RunWrite = Extract<ChoiceOutcome, { status: "success" }> & { file: TFile };
 /** A run's result for the log; a bare success recorded nothing. */
@@ -232,7 +236,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					}
 					case "Macro": {
 						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						await this.onChooseMacroType(macroChoice, originLeaf, chain);
+						const action = findAction(currentActions(settingsStore.getState()), choice.id);
+						if (action && !compactGroup(action)) {
+							await this.onChooseSequence(macroChoice, action, originLeaf, chain);
+						} else {
+							await this.onChooseMacroType(macroChoice, originLeaf, chain);
+						}
 						break;
 					}
 					case "Multi": {
@@ -556,6 +565,35 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		originLeaf: WorkspaceLeaf | null,
 		chain: ChoiceChain,
 	) {
+		await this.withMacroEngine(macroChoice, originLeaf, chain, (macroEngine) => macroEngine.run());
+	}
+
+	/** A stored action that is more than one write runs step by step. */
+	private async onChooseSequence(
+		macroChoice: IMacroChoice,
+		action: Action,
+		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
+	) {
+		await this.withMacroEngine(macroChoice, originLeaf, chain, (macroEngine) =>
+			runSteps(action.steps, {
+				app: this.app,
+				plugin: this.plugin,
+				executor: this,
+				action,
+				chain,
+				originLeaf,
+				macroEngine,
+			}),
+		);
+	}
+
+	private async withMacroEngine(
+		macroChoice: IMacroChoice,
+		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
+		run: (macroEngine: MacroChoiceEngine) => Promise<void>,
+	) {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
@@ -570,7 +608,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const previousOverride = this.macroOnePageInput;
 		this.macroOnePageInput = macroChoice.onePageInput ?? previousOverride;
 		try {
-			await macroEngine.run();
+			await run(macroEngine);
 		} finally {
 			this.macroOnePageInput = previousOverride;
 		}

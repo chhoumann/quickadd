@@ -106,6 +106,14 @@ export function actionsFromChoices<S extends { choices: unknown; actions?: Actio
 }
 
 /**
+ * The actions as the next save writes them. The builders edit the choices, so
+ * the stored actions lag behind until a save folds the edits in.
+ */
+export function currentActions(settings: Parameters<typeof actionsFromChoices>[0]): ActionNode[] | undefined {
+	return (actionsFromChoices(settings) as { actions?: ActionNode[] }).actions;
+}
+
+/**
  * The actions with the edits made to the choices they lowered to. Lowering
  * and migrating again (the round trip) gives each action as far as a choice
  * can express it; anything the round trip does not give back is the action's
