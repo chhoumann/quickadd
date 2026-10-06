@@ -203,6 +203,7 @@ export function setAssetPath(
 	originalPath: string,
 	value: string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): SetAssetPathResult {
 	const previous =
 		decisions.get(originalPath) ?? fallbackDecision(originalPath, exists);
@@ -214,7 +215,7 @@ export function setAssetPath(
 	const next = new Map(decisions);
 	next.set(originalPath, {
 		...previous,
-		mode: reconcileMode(previous.mode, destinationExists),
+		mode: reconcileMode(previous.mode, destinationExists, options),
 		destinationPath,
 		destinationExists,
 	});

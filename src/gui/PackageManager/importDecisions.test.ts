@@ -61,6 +61,14 @@ describe("reconcileMode", () => {
 		expect(applyExistsResult(decisions, "T.md", true).get("T.md")?.mode).toBe("overwrite");
 	});
 
+	it("keeps a file at a destination typed in, when asked to", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "write", destinationPath: "T.md", destinationExists: false }],
+		]);
+		const edited = setAssetPath(decisions, "T.md", "Templates/Mine.md", (path) => path === "Templates/Mine.md", { keepExisting: true });
+		expect(edited.decisions.get("T.md")?.mode).toBe("skip");
+	});
+
 	it("flips write -> overwrite when the destination exists", () => {
 		expect(reconcileMode("write", true)).toBe("overwrite");
 	});

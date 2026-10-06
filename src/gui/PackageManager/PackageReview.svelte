@@ -308,6 +308,7 @@
 			conflict.originalPath,
 			value,
 			optimisticExists,
+			{ keepExisting: keepExistingFiles },
 		);
 		assetDecisions = decisions;
 		scheduleExists(conflict.originalPath, effectivePath);
