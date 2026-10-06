@@ -132,6 +132,15 @@ export async function expectNoPrompt(obsidian: ObsidianClient) {
 	), POLL_OPTS).toBe(false);
 }
 
+/** Escapes out of every open modal or prompt, so a failed spec cannot block the next one. */
+export async function closeOpenPrompts(obsidian: ObsidianClient) {
+	for (let remaining = 10; remaining > 0; remaining--) {
+		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container, .prompt"))')) break;
+		await pressKey(obsidian, "Escape");
+	}
+	await expectNoPrompt(obsidian);
+}
+
 /**
  * A real click in the middle of the visible element matching `selector`, once
  * it stops moving: a settings page slides in when it opens or is returned to.
