@@ -191,6 +191,12 @@
 		text-decoration: underline;
 	}
 
+	/* The ring Obsidian gives a focused link, which these read as. */
+	.qaAddChoiceControls.compact button:focus-visible {
+		border-radius: var(--radius-s);
+		box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+	}
+
 	/* Mobile/touch: stretch so the two buttons fill the bar width instead of
 	   cramming to the right. Driven by `fill` (Platform.isMobile from the bottom
 	   bar) because viewport media queries don't fire under desktop mobile-emulation. */

@@ -3,7 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { pressKey, waitForElement } from "./uiHelpers";
+import { pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
 import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("choice-list-layout");
@@ -78,6 +78,21 @@ it("opens the New choice menu under its button", async () => {
 		expect(menu.left).toBeLessThan(button.left);
 	} finally {
 		await pressKey(obsidian, "Escape");
+		await obsidian.dev.evalJson("app.setting.close(); true");
+	}
+});
+
+it("rings a folder's Add folder and Add choice when the keyboard is on them", async () => {
+	const { obsidian, plugin } = getContext();
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
+		data.choices = [new MultiChoice("Ringed folder")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	try {
+		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
+		await waitForElement(obsidian, ".qaAddChoiceControls.compact button");
+		expect(await withoutFocusRing(obsidian, ".qaAddChoiceControls.compact button")).toEqual([]);
+	} finally {
 		await obsidian.dev.evalJson("app.setting.close(); true");
 	}
 });
