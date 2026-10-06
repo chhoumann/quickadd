@@ -2,7 +2,7 @@ import { ValueFormatter } from "./valueFormatter";
 import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
 export { findDateVariableFormat } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
-import { replaceCurrentFileTokens, type CurrentFileTokenOptions, type RunNoteForms } from "./helpers/currentFileTokens";
+import { refuseLink, replaceCurrentFileTokens, type CurrentFileTokenOptions, type RunNoteForms } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
@@ -129,9 +129,7 @@ export abstract class Formatter extends ValueFormatter {
 
 		const currentFilePathLink = this.getCurrentFileLink();
 		if (!currentFilePathLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
-			}
+			if (this.linkToCurrentFileBehavior === "required") throw refuseLink("LINKCURRENT");
 			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
 		}
 
@@ -146,9 +144,7 @@ export abstract class Formatter extends ValueFormatter {
 		const sectionLink = this.getCurrentFileLinkToSection();
 
 		if (!sectionLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
-			}
+			if (this.linkToCurrentFileBehavior === "required") throw refuseLink("LINKSECTION");
 			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
 		}
 

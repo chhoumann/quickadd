@@ -171,3 +171,20 @@ describe("Capture keeps tokens and Templater tags inside user text literal", () 
 		expect(written).toBe("# Inbox\nX <% Y %> {{TITLE}} <% z %>");
 	});
 });
+
+describe("Capture with {{LINKCURRENT}} and no note open", () => {
+	it("refuses in one sentence, which is the run's outcome", async () => {
+		const { app, plugin, executor, files } = setup({});
+		const recordExecutionResult = vi.fn();
+		const choice = captureChoice("- {{LINKCURRENT}}");
+		choice.name = "Log";
+
+		await new CaptureChoiceEngine(app, plugin, choice, { ...executor, recordExecutionResult }).run();
+
+		expect(recordExecutionResult).toHaveBeenCalledWith({
+			status: "error",
+			reason: "Log: no note is open, so {{LINKCURRENT}} has nothing to link to.",
+		});
+		expect(files.get(TARGET)).toBe("# Inbox\n");
+	});
+});

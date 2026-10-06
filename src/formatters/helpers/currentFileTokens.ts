@@ -1,4 +1,10 @@
+import { refuse, type RefusalError } from "../../errors/RefusalError";
 import { log } from "../../logger/logManager";
+
+/** A link to the open note, asked for with no note open. */
+export function refuseLink(token: "LINKCURRENT" | "LINKSECTION"): RefusalError {
+	return refuse("no note is open", `{{${token}}} has nothing to link to`);
+}
 
 export interface CurrentFileTokenOptions {
 	links?: boolean;
@@ -76,12 +82,12 @@ export function replaceCurrentFileTokens(
 	}
 	if (missing.size > 0) {
 		if (behavior === "required") {
+			if (missing.has("LINKCURRENT")) throw refuseLink("LINKCURRENT");
+			if (missing.has("LINKSECTION")) throw refuseLink("LINKSECTION");
 			throw new Error(
-				missing.has("LINKCURRENT") || missing.has("LINKSECTION")
-					? "Unable to get current file path. Make sure you have a file open in the editor."
-					: missing.has("FILENAMECURRENT")
-						? "Unable to get current file name. Make sure you have a file open in the editor."
-						: folderError,
+				missing.has("FILENAMECURRENT")
+					? "Unable to get current file name. Make sure you have a file open in the editor."
+					: folderError,
 			);
 		}
 		log.logMessage("Skipping current-file token replacement because no active file is available.");

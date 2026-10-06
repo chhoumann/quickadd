@@ -32,7 +32,7 @@ describe("Formatter {{linksection}} behavior", () => {
 		const formatter = new StubFormatter();
 		formatter.setLink(null);
 		expect(() => formatter.process("{{LINKSECTION}}")).toThrow(
-			"Unable to get current file path",
+			"No note is open, so {{LINKSECTION}} has nothing to link to.",
 		);
 	});
 

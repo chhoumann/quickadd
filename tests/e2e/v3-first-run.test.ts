@@ -177,8 +177,12 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 	await obsidian.dev.evalJson("app.setting.close(), true");
 	const quickCapture = new CaptureChoice("Quick capture");
 	quickCapture.captureToActiveFile = true;
+	const linkLog = new CaptureChoice("Link log");
+	linkLog.captureTo = sandbox.path("Links.md");
+	linkLog.createFileIfItDoesntExist.enabled = true;
+	linkLog.format = { enabled: true, format: "- {{LINKCURRENT}}" };
 	await plugin.data<Data>().patch(withStoredChoices((data) => {
-		data.choices.push(quickCapture);
+		data.choices.push(quickCapture, linkLog);
 	}));
 	await plugin.reload({ waitUntilReady: true });
 
@@ -223,6 +227,7 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 
 		await obsidian.dev.evalJson("(() => { for (const leaf of app.workspace.getLeavesOfType('markdown')) leaf.detach(); return true; })()");
 		await refuses("Quick capture", "Quick capture: no note is open, so there is nothing to add to.");
+		await refuses("Link log", "Link log: no note is open, so {{LINKCURRENT}} has nothing to link to.");
 	} finally {
 		await obsidian.dev.evalJson("(() => { window.__qaNoticeObserver?.disconnect(); delete window.__qaNoticeObserver; delete window.__qaNotices; delete window.__qaPrompts; return true; })()");
 	}

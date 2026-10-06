@@ -779,7 +779,7 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 	it("throws (required behavior) when {{LINKCURRENT}} but no active file", async () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(f.formatFileContent("{{LINKCURRENT}}")).rejects.toThrow(
-			"Unable to get current file path",
+			"No note is open, so {{LINKCURRENT}} has nothing to link to.",
 		);
 	});
 
@@ -2176,7 +2176,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const app = makeSectionApp({ activeFile: null, view: undefined });
 		const f = new CompleteFormatter(app as any, makePlugin() as any);
 		await expect(f.formatFileContent("{{linksection}}")).rejects.toThrow(
-			"Unable to get current file path",
+			"No note is open, so {{LINKSECTION}} has nothing to link to.",
 		);
 	});
 
