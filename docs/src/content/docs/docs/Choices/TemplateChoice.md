@@ -108,6 +108,12 @@ Under it are the settings most template choices need:
   Obsidian's "Default location for new notes".
 - **File name** - the new note's name. Leave it empty to ask for the title.
 
+When the template file uses Templater (it holds a `<%` tag), a line under
+**Template** says *Templater runs after the note is created*, the opening line
+ends with *runs Templater*, and Templater's own prompts are listed in
+[Inputs](#inputs). If Templater isn't installed, the line says so instead. See
+[Using Templater with QuickAdd 3](/docs/ComingFromTemplater/#templater-in-quickadd-3).
+
 Then come [Inputs](#inputs) and [Steps](#steps). Everything else is behind
 **More settings** at the bottom: the other places a note can go, what happens
 when the note already exists, searching existing notes first, linking,
@@ -548,6 +554,12 @@ asks as the placeholder says again.
 
 An input from the template file reads *Defined in* and the file's name. Click
 the name to open the file, and change the placeholder there.
+
+A Templater prompt in the template file, `tp.system.prompt("Guest")` or
+`tp.system.suggester(...)`, is listed after the file's own inputs and reads
+*Asked by Templater, in* and the file's name. It has no controls: Templater
+asks it when it runs, after QuickAdd's prompts, and it isn't part of the
+one-page form.
 
 A template choice nested inside a macro lists its inputs without the controls.
 

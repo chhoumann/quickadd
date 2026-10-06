@@ -142,6 +142,29 @@ QuickAdd runs JavaScript in two shapes:
 
 `{{MACRO:My macro}}` embeds a macro's return value anywhere format syntax is accepted, so a computed value can flow straight into a file name, template body, or capture line.
 
+## Using Templater with QuickAdd 3 {#templater-in-quickadd-3}
+
+You don't have to port a template to use it. A Template choice can point at a
+template file with Templater tags: QuickAdd fills in its own tokens and creates
+the note, then Templater runs the `<% %>` tags in it. The builder says so:
+
+- **The Template field.** When the template file holds a `<%` tag, a line under
+  **Template** reads *Templater runs after the note is created*, and the line at
+  the top of the page ends with *runs Templater*.
+- **Inputs.** The questions Templater will ask are listed in
+  [Inputs](/docs/Choices/TemplateChoice/#inputs), after QuickAdd's own, as
+  *Asked by Templater, in* the template's name: `tp.system.prompt("Guest")` is
+  listed as *Guest*, and `tp.system.suggester(["Happy", "Sad"], ...)` as *Happy,
+  Sad* (a suggester built from variables reads *a choice*). They have no Label
+  or Optional controls, and the [one-page form](/docs/Advanced/onePageInputs/)
+  doesn't include them: Templater asks them itself when it runs.
+- **When Templater isn't installed.** The line under **Template** says *This
+  template uses Templater, which is not installed*, with a link to Templater in
+  Community plugins. Without it, the tags stay in the note as text.
+
+A prompt you answer in both engines is a [double prompt](#common-migration-snags):
+move it to `{{VALUE:name}}` when QuickAdd should own it.
+
 ## Common migration snags
 
 These are the classic symptoms of splitting one template between two engines - each has a QuickAdd-native fix:
