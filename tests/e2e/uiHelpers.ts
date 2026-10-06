@@ -196,9 +196,12 @@ export async function quickCommandBarOverflow(obsidian: ObsidianClient): Promise
  */
 export async function addStep(obsidian: ObsidianClient, title: string) {
 	// The pages under the top one stay in the document, with their own button.
+	// Centered, so the page's sticky title bar is not over it.
 	await obsidian.dev.evalJson(`(() => {
 		document.querySelector("[data-qa-add-step-button]")?.removeAttribute("data-qa-add-step-button");
-		app.setting.pageStack.at(-1).page.containerEl.querySelector('[aria-label="Add a step"]').setAttribute("data-qa-add-step-button", "");
+		const button = app.setting.pageStack.at(-1).page.containerEl.querySelector('[aria-label="Add a step"]');
+		button.setAttribute("data-qa-add-step-button", "");
+		button.scrollIntoView({ block: "center" });
 		return true;
 	})()`);
 	await clickWhenStill(obsidian, "[data-qa-add-step-button]");

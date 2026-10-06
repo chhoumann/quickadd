@@ -2,7 +2,7 @@ import { expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { addStep, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
 import { withStoredChoices } from "./storedChoices";
 
 // #941/#942: two `view.js` files in different folders were identical "view" rows
@@ -63,9 +63,11 @@ it("adds same-named scripts by path from the script picker, and runs each", asyn
 
 		// Searching the picker: same-named scripts are listed by path, and the
 		// picked one is the one that gets added.
+		// Real clicks on a still menu: Obsidian takes a menu's keys a tick after it
+		// shows it, so an item clicked sooner leaves the closed menu's keys above
+		// the picker, and they swallow its Enter.
 		const runAScript = async () => {
-			expect(await click('.macroBuilder [aria-label="Add a step"]')).toBe(true);
-			await expect.poll(() => click(".menu .menu-item", "Run a script"), POLL_OPTS).toBe(true);
+			await addStep(obsidian, "Run a script");
 			await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".prompt .prompt-input"))'), POLL_OPTS).toBe(true);
 		};
 		await runAScript();
