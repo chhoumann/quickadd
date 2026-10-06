@@ -16,6 +16,7 @@ import type { FieldFilter } from "../utils/FieldSuggestionParser";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
+import { RefusalError } from "../errors/RefusalError";
 import { captureCandidates, captureScopeFiles } from "./helpers/captureCandidates";
 import { itemWithAlias } from "../utils/fileSyntax";
 import { classifyCaptureTargetScope, markdownFilePathForFolderCandidate, type CaptureTargetScope } from "./helpers/captureTargetScope";
@@ -49,7 +50,7 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		// would be an empty target, which opens the vault-wide picker and asks
 		// the user to decide what the run should have decided.
 		if (isRunNoteToken(this.choice.captureTo) && !this.choiceExecutor?.runNote) {
-			throw new Error("Capture to {{NOTE}}: nothing in this run has created or written a note yet.");
+			throw new RefusalError("Nothing has written a note yet, so there is no {{NOTE}} to add to.");
 		}
 
 		// A preselected capture target (the trusted one-page preflight pick, or a

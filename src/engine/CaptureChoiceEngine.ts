@@ -52,7 +52,8 @@ import {
 	type AppendLinkOptions,
 } from "../types/linkPlacement";
 import { createNoteAfterTemplaterTrigger, isTemplaterTriggerOnCreateEnabled, jumpToNextTemplaterCursorIfPossible, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
-import { reportError } from "../utils/errorUtils";
+import { reportError, reportRefusal } from "../utils/errorUtils";
+import { RefusalError } from "../errors/RefusalError";
 import {
 	ChoiceOutcomeRecorder,
 	failureReason,
@@ -468,7 +469,8 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 			// post-commit link/open failure cannot make an automation retry and write
 			// the capture twice.
 			this.outcome.failure(failureReason(err));
-			reportError(err, `Error running capture choice "${this.choice.name}"`);
+			if (err instanceof RefusalError) reportRefusal(err, this.choice.name);
+			else reportError(err, `Error running capture choice "${this.choice.name}"`);
 		} finally {
 			if (contentCommitted) {
 				this.formatter.consumeCreatedClipboardAttachmentPaths();

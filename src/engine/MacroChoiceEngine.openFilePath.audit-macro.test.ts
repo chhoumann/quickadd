@@ -68,13 +68,15 @@ vi.mock("../ai/aiHelpers", () => ({
 }));
 
 import type { App } from "obsidian";
-import { TFile } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import { MacroChoiceEngine } from "./MacroChoiceEngine";
 import { OpenFileCommand } from "../types/macros/QuickCommands/OpenFileCommand";
 import type { IMacro } from "../types/macros/IMacro";
 import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { QuickAddApi } from "../quickAddApi";
+
+const noticeClass = Notice as unknown as { instances: Array<{ message: string }> };
 
 const getApiMock = QuickAddApi.GetApi as unknown as ReturnType<typeof vi.fn>;
 
@@ -162,10 +164,13 @@ describe("MacroChoiceEngine executeOpenFile path validation", () => {
 	it("refuses to open {{NOTE}} when nothing in the run has written a note yet", async () => {
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const { engine } = createEngine("{{NOTE}}", {});
+		noticeClass.instances.length = 0;
 
 		await engine.run();
 
-		expect(String(logError.mock.calls[0]?.[0])).toContain("nothing in this run has created or written a note yet");
+		expect(noticeClass.instances.map((notice) => notice.message))
+			.toEqual(["Test choice: nothing has written a note yet, so there is no {{NOTE}} to open."]);
+		expect(logError).not.toHaveBeenCalled();
 		expect(formatFileNameMock).not.toHaveBeenCalled();
 		expect(openFileMock).not.toHaveBeenCalled();
 		logError.mockRestore();

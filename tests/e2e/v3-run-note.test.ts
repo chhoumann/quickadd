@@ -85,3 +85,26 @@ it("writes a second capture into the note the first one wrote to", async () => {
 		.toMatchObject({ ok: true });
 	await expect.poll(() => sandbox.read("log.md"), POLL_OPTS).toBe("# Log\n- first\n- second");
 });
+
+it("refuses {{NOTE}} before any note was written in one plain sentence naming the choice", async () => {
+	const { obsidian } = getContext();
+	const notices = `Array.from(document.querySelectorAll(".notice"), (n) => n.textContent)`;
+	const macro = new MacroChoice("Open run note");
+	macro.macro.commands.push(new OpenFileCommand(RUN_NOTE));
+	await store(macro);
+	expect(await obsidian.execJson("quickadd:run", { id: macro.id, verify: true })).toMatchObject({ ok: true });
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(notices), POLL_OPTS)
+		.toEqual(["Open run note: nothing has written a note yet, so there is no {{NOTE}} to open."]);
+
+	await obsidian.dev.evalJson(`(() => { for (const n of document.querySelectorAll(".notice")) n.remove(); return true; })()`);
+	const log = capture("Log", RUN_NOTE, "- {{VALUE}}");
+	const { plugin } = getContext();
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		data.choices = [log];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	expect(await obsidian.execJson("quickadd:run", { id: log.id, verify: true, vars: JSON.stringify({ value: "x" }) }))
+		.toMatchObject({ ok: false, error: "Nothing has written a note yet, so there is no {{NOTE}} to add to." });
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(notices), POLL_OPTS)
+		.toEqual(["Log: nothing has written a note yet, so there is no {{NOTE}} to add to."]);
+});

@@ -2,6 +2,8 @@ import { log } from "../logger/logManager";
 import type { ErrorLevel } from "../logger/errorLevel";
 import { ErrorLevel as ErrorLevelEnum } from "../logger/errorLevel";
 import { UserCancelError } from "../errors/UserCancelError";
+import { Notice } from "obsidian";
+import { refusalNotice, type RefusalError } from "../errors/RefusalError";
 
 /**
  * Maximum number of errors to keep in the error log
@@ -150,6 +152,18 @@ export function reportError(
       log.logError(error);
   }
   return true;
+}
+
+/**
+ * Show a refusal once, as a plain notice naming the choice. The error log keeps
+ * it as a message, since nothing went wrong.
+ */
+export function reportRefusal(err: RefusalError, choiceName: string): void {
+  if (alreadyReported(err, Date.now())) return;
+  markErrorReported(err);
+  const text = refusalNotice(choiceName, err);
+  new Notice(text);
+  log.logMessage(text);
 }
 
 /**

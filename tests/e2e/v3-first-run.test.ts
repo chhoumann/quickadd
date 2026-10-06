@@ -122,6 +122,50 @@ it("writes tasks to a dated note in Journal/ when daily notes are off", async ()
 	expect(content).toMatch(/^## Tasks\n- \[ \] Water the plants\n?$/);
 });
 
+it("runs every first-run choice without an error notice", async () => {
+	const { obsidian, sandbox } = getContext();
+	await setDailyNotes({ enabled: true, options: { folder: sandbox.path("Daily"), format: "YYYY-MM-DD", template: "" } });
+	await openEmptyList();
+	await pick("journal", "tasks", "meetings", "reading", "projects");
+	await clickWhenStill(obsidian, 'button.mod-cta.qaCreateChoicesBtn:not([disabled])');
+	await expect.poll(async () => (await rows()).map(([name]) => name), POLL_OPTS)
+		.toEqual(["Log", "Thought", "Task", "Meeting note", "Inbox", "Save link", "Project"]);
+	await obsidian.dev.evalJson("app.setting.close(), true");
+	// Project links the note it creates from the note that is open.
+	const open = sandbox.path("Open.md");
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		const file = await app.vault.create(${jsLiteral(open)}, "");
+		await app.workspace.getLeaf(false).openFile(file);
+		window.__qaNotices = [];
+		window.__qaNoticeObserver = new MutationObserver((records) => {
+			for (const record of records) for (const node of record.addedNodes) {
+				if (node instanceof HTMLElement && node.matches(".notice")) window.__qaNotices.push(node);
+			}
+		});
+		window.__qaNoticeObserver.observe(document.body, { childList: true, subtree: true });
+		return true;
+	})()`);
+	try {
+		const vars = JSON.stringify({ value: "First-run audit", Topic: "Audit", Who: "Ana", Name: "Audit project" });
+		for (const choice of ["Log", "Thought", "Task", "Meeting note", "Inbox", "Save link", "Project"]) {
+			expect(await obsidian.execJson("quickadd:run", { choice, verify: true, vars }), choice).toMatchObject({ ok: true });
+		}
+		const notices = await obsidian.dev.evalJson<string[]>("window.__qaNotices.map((n) => n.textContent)");
+		expect(notices.filter((text) => text.includes("(ERROR)"))).toEqual([]);
+	} finally {
+		await obsidian.dev.evalJsonAsync(`(async () => {
+			window.__qaNoticeObserver?.disconnect();
+			delete window.__qaNotices;
+			app.workspace.getLeaf(false).detach();
+			for (const path of ["Inbox.md", "Reading list.md", "Meetings", "Projects"]) {
+				const file = app.vault.getAbstractFileByPath(path);
+				if (file) await app.vault.delete(file, true);
+			}
+			return true;
+		})()`);
+	}
+});
+
 it("rings the card the keyboard is on, picked or not", async () => {
 	const { obsidian } = getContext();
 	await openEmptyList();

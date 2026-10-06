@@ -8,7 +8,8 @@ import * as obsidian from "obsidian";
 import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
-import { reportError } from "../utils/errorUtils";
+import { reportError, reportRefusal } from "../utils/errorUtils";
+import { RefusalError } from "../errors/RefusalError";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
@@ -646,7 +647,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	private async executeOpenFile(command: IOpenFileCommand) {
 		if (isRunNoteToken(command.filePath) && !this.choiceExecutor.runNote) {
-			log.logError("Open file: nothing in this run has created or written a note yet, so {{NOTE}} has no note to open.");
+			reportRefusal(new RefusalError("Nothing has written a note yet, so there is no {{NOTE}} to open."), this.choice.name);
 			return;
 		}
 		try {

@@ -440,14 +440,22 @@ describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		formatContentOnlyMock.mockResolvedValue("new line");
-		const choice = createCaptureChoice();
+		const choice = createCaptureChoice({ name: "Log" });
 		choice.captureTo = "{{NOTE}}";
 		const engine = buildRunEngine(choice, app);
+		noticeClass.instances.length = 0;
+		const logError = vi.spyOn(log, "logError");
 
 		await engine.run();
 
-		expect(recordedOutcome(engine)).toMatchObject({ status: "error", reason: expect.stringContaining("nothing in this run has created or written a note yet") });
+		// A refusal, not an error: the reason alone for a CLI or URI caller, and one
+		// sentence naming the choice for the user, with no error report around it.
+		expect(recordedOutcome(engine)).toEqual({ status: "error", reason: "Nothing has written a note yet, so there is no {{NOTE}} to add to." });
+		expect(noticeClass.instances.map((notice) => notice.message))
+			.toEqual(["Log: nothing has written a note yet, so there is no {{NOTE}} to add to."]);
+		expect(logError).not.toHaveBeenCalled();
 		expect(insertFormattedContentMock).not.toHaveBeenCalled();
+		logError.mockRestore();
 	});
 
 	it("treats a whitespace-only payload as a no-op", async () => {
