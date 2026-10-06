@@ -94,3 +94,35 @@ it("names the template file a template's input is defined in", async () => {
 		'document.querySelector(".qa-builder-page .qaInputRow a")?.textContent ?? ""',
 	)).toBe("Guest template.md");
 });
+
+it("fills a template file's {{VALUE:Title}} from the note's title, so the one-page form asks only the title", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const template = new TemplateChoice("Meeting");
+	template.id = "qa-inputs-meeting";
+	template.command = true;
+	template.templatePath = await seedVaultFile(obsidian, sandbox, "Meeting template.md", "# {{VALUE:Title}}\n");
+	template.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
+	template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("Meetings")] };
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		data.onePageInputEnabled = true;
+		data.choices = [template];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+
+	await openBuilder("Meeting");
+	await expect.poll(inputRows, POLL_OPTS).toEqual([
+		"Note title value Defined in the note name",
+		"Title value Filled from the note title",
+	]);
+	await obsidian.dev.evalJson("app.setting.close(), true");
+
+	await obsidian.exec("command", { id: `quickadd:choice:${template.id}` });
+	await waitForElement(obsidian, ".onePageInputModal input");
+	expect(await obsidian.dev.evalJson<string[]>(
+		'[...document.querySelectorAll(".onePageInputModal [id^=\\"qa-onepage-label-\\"]")].map((label) => label.textContent.trim())',
+	)).toEqual(["Note title"]);
+	await typeInto(obsidian, ".onePageInputModal input", "Standup");
+	await pressKey(obsidian, "Enter");
+	await sandbox.waitForContent("Meetings/Standup.md", (text) => text === "# Standup\n");
+	await expectNoPrompt(obsidian);
+});

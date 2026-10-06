@@ -3,6 +3,7 @@ import { classifyCaptureTargetScope } from "../engine/helpers/captureTargetScope
 import type { PromptScopeKind } from "../formatters/promptScope";
 import { captureTargetKeyFor, isCaptureTargetKey } from "../preflight/captureTargetKey";
 import {
+	isNoteTitleInput,
 	type ReadTemplate,
 	scanContentWithTemplateIncludes,
 	scanTemplateBody,
@@ -68,7 +69,7 @@ export async function listInputs(
 		const known = new Set(inputs.filter((input) => !input.askedBy).map((input) => input.name));
 		for (const requirement of collector.requirements.values()) {
 			if (known.has(requirement.id)) continue;
-			if (where === "template file" && requirement.id.toLowerCase() === "title") {
+			if (where === "template file" && isNoteTitleInput(requirement.id)) {
 				if (inputs.some((input) => input.providedHow === "title")) continue;
 				inputs.push({
 					name: requirement.id,

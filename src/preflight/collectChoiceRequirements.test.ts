@@ -174,6 +174,37 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		);
 	});
 
+	it("leaves out a template file's {{VALUE:title}}, in any case, which the note's title fills", async () => {
+		templateBodies.set("Templates/Meeting.md", "# {{VALUE:Title}}\nWith {{VALUE:Who}}");
+		const choice = {
+			...createTemplateChoice("Templates/Meeting.md"),
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+		};
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["value", "Who"]);
+	});
+
+	it("still asks for a title the file name asks for", async () => {
+		templateBodies.set("Templates/Meeting.md", "# {{VALUE:title}}");
+		const choice = {
+			...createTemplateChoice("Templates/Meeting.md"),
+			fileNameFormat: { enabled: true, format: "{{VALUE:title}}" },
+		};
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["title"]);
+	});
+
+	it("leaves out the title in the template a Capture creates its note from", async () => {
+		templateBodies.set("Templates/Project.md", "# {{VALUE:TITLE}}\n{{VALUE:status}}");
+		const choice = {
+			...createCaptureChoice("Projects/Alpha.md"),
+			format: { enabled: true, format: "- done" },
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: true, template: "Templates/Project.md" },
+		} as ICaptureChoice;
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["status"]);
+	});
+
 	it("asks for a One entry per line value in a text area (#1996)", async () => {
 		const choice = (eachLine: boolean, format: string) => ({
 			...createCaptureChoice("Inbox.md"),

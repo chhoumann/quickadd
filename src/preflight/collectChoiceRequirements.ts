@@ -152,7 +152,28 @@ async function scanTemplateSource(
 ): Promise<void> {
 	// The template PATH is path context; the template BODY is content.
 	await collector.scanString(templatePath, true, "templatePath");
+	await scanNoteTemplateBody(readTemplate, collector, templatePath);
+}
+
+/**
+ * A template file's `{{VALUE:title}}`, in any case, is the title of the note the
+ * run creates from it, so the run never asks for it.
+ */
+export function isNoteTitleInput(name: string): boolean {
+	return name.toLowerCase() === "title";
+}
+
+/** Scans the template a run creates a note from, leaving out what the note's title fills. */
+async function scanNoteTemplateBody(
+	readTemplate: ReadTemplate,
+	collector: RequirementCollector,
+	templatePath: string,
+): Promise<void> {
+	const known = new Set(collector.requirements.keys());
 	await scanTemplateBody(readTemplate, collector, templatePath);
+	for (const id of [...collector.requirements.keys()]) {
+		if (!known.has(id) && isNoteTitleInput(id)) collector.requirements.delete(id);
+	}
 }
 
 export async function scanTemplateBody(
@@ -219,7 +240,7 @@ async function collectForTemplateChoice(
 	}
 
 	if (choice.templatePath) {
-		await scanTemplateBody(readTemplate, collector, choice.templatePath);
+		await scanNoteTemplateBody(readTemplate, collector, choice.templatePath);
 	}
 
 	const format = choice.fileNameFormat?.enabled
