@@ -63,13 +63,16 @@ async function openChoicePage(choice: IChoice) {
 		data.disableOnlineFeatures = false;
 	});
 	await plugin.reload({ waitUntilReady: true });
-	// On a phone settings closes with an animation, and opening it before that
-	// ends does nothing.
+	// On a phone settings opens and closes with an animation. Opening it, or
+	// its QuickAdd tab, during one can do nothing or leave the tab empty, so
+	// open again until the choice's row shows.
 	await obsidian.dev.evalJson("app.setting.close(), true");
-	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(
-		'!document.querySelector(".modal.mod-settings")',
-	), { message: "settings closed", timeoutMs: 10_000 });
-	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
+	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
+		if (document.querySelector(${jsLiteral(`[aria-label="More options for ${choice.name}"]`)})) return true;
+		if (!document.querySelector(".modal.mod-settings")) app.setting.open();
+		app.setting.openTabById("quickadd");
+		return false;
+	})()`), { message: `the ${choice.name} row in settings`, timeoutMs: 10_000, intervalMs: 500 });
 	// A phone row has no gear: its menu has Configure.
 	await clickWhenStill(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`);
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
