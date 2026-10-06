@@ -156,6 +156,32 @@ describe("OnePageInputModal", () => {
 		attachImagePasteHandlerMock.mockClear();
 	});
 
+	it("fills empty and default-valued fields from the clipboard and keeps what the user typed", async () => {
+		Object.defineProperty(navigator, "clipboard", {
+			configurable: true,
+			value: { readText: vi.fn().mockResolvedValue("Lunch with Anna on Friday about the roadmap") },
+		});
+		const fill = vi.fn().mockResolvedValue({ topic: "Roadmap", project: "quickadd", notes: "ignored" });
+		const modal = new OnePageInputModal({} as App, [
+			{ id: "topic", label: "topic", type: "text" },
+			{ id: "project", label: "project", type: "text", defaultValue: "inbox" },
+			{ id: "notes", label: "notes", type: "text" },
+		], undefined, undefined, undefined, fill);
+		const notes = modal.contentEl.querySelectorAll("input")[2];
+		notes.value = "Typed by me";
+		notes.dispatchEvent(new Event("input"));
+
+		modalButton(modal, "Fill from clipboard").click();
+		await vi.waitFor(() => expect(modal.contentEl.querySelectorAll("input")[0].value).toBe("Roadmap"));
+
+		expect(fill).toHaveBeenCalledWith(
+			"Lunch with Anna on Friday about the roadmap",
+			[expect.objectContaining({ id: "topic" }), expect.objectContaining({ id: "project" })],
+		);
+		modalButton(modal).click();
+		await expect(modal.waitForClose).resolves.toEqual({ topic: "Roadmap", project: "quickadd", notes: "Typed by me" });
+	});
+
 	it("keeps each control's default and draft when switching between dropdown and text", async () => {
 		const modal = discoveryModal(
 			{ id: "detail", label: "Folder", type: "dropdown", options: ["a", "b"], defaultValue: "b" },
