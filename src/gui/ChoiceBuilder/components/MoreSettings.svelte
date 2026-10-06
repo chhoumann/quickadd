@@ -69,6 +69,12 @@ function toggle() {
 		margin-top: var(--size-4-6);
 	}
 
+	/* The sequence page hands its settings in a wrapper, where Obsidian's
+	   space between adjacent groups does not reach its first group. */
+	.qaMoreSettings > .setting-group + :global(*) > :global(.setting-group:first-child) {
+		margin-top: var(--size-4-6);
+	}
+
 	.qaMoreSettingsChevron :global(.quickadd-icon) {
 		transition: transform 100ms ease-in-out;
 	}

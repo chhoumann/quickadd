@@ -379,3 +379,29 @@ it("saves the open page when QuickAdd reloads, without errors or later writes", 
 	expect((await stored("pages-inbox"))?.name).toBe("Inbox (reloaded)");
 	expect((await obsidian.execText("dev:errors")).trim()).toBe("No errors captured.");
 });
+
+it("spaces More settings from the groups it opens as on the Template page", async () => {
+	const { obsidian } = getContext();
+	const macro = new MacroChoice("Spaced macro");
+	macro.runOnStartup = true;
+	const template = new TemplateChoice("Spaced template");
+	template.openFile = true;
+	await seed(macro, template);
+	// The gap from the More settings row's group to the first group under it.
+	const gap = () => obsidian.dev.evalJson<number>(`(() => {
+		const more = [...document.querySelectorAll(".qa-builder-page")].pop().querySelector(".qaMoreSettings > .setting-group");
+		const next = [...more.parentElement.querySelectorAll(".setting-group")][1];
+		return Math.round(next.getBoundingClientRect().top - more.getBoundingClientRect().bottom);
+	})()`);
+	const open = async (name: string) => {
+		await openSettings();
+		await click(`[aria-label=${jsLiteral(`Configure ${name}`)}]`);
+		await expect.poll(pageTitles, POLL_OPTS).toEqual([name]);
+	};
+	await open(template.name);
+	const onTemplate = await gap();
+	await leaveSettingsPage(obsidian);
+	await open(macro.name);
+	expect(await gap()).toBe(onTemplate);
+	expect(onTemplate).toBeGreaterThan(0);
+});
