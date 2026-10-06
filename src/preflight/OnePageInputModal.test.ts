@@ -1421,4 +1421,18 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		expect(block.querySelector(".qa-preview-issue")).toBeNull();
 		modal.close();
 	});
+
+	it("is titled after the choice when given its name", () => {
+		const modal = new OnePageInputModal(
+			{} as never,
+			[{ id: "value", label: "Text to capture", type: "text", source: "collected" } as never],
+			undefined,
+			undefined,
+			undefined,
+			{ title: "Log" },
+		);
+		modal.onOpen();
+		expect(modal.contentEl.querySelector("h2")?.textContent).toBe("Log");
+		modal.onClose();
+	});
 });

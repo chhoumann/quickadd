@@ -209,4 +209,12 @@ describe("buildPromptContextLine tooltip form", () => {
 			"Note to self → Work/Clients/Acme/Meetings/2026/Weekly standup notes.md",
 		);
 	});
+
+	it("keeps the capture text's title when other tokens share the line", () => {
+		expect(describeValuePrompt("captureText", false)).toEqual({
+			title: "Text to capture",
+			placeholder: "Part of the text added to the note",
+		});
+		expect(describeValuePrompt("noteTitle", false)).toEqual({ placeholder: "Part of the new note's title" });
+	});
 });

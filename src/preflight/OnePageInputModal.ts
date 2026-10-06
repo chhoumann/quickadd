@@ -123,6 +123,8 @@ export class OnePageInputModal extends Modal {
 		initial?: Map<string, unknown>,
 		computePreview?: PreviewComputer,
 		private readonly discoveryForm?: DiscoveryFormConfig,
+		/** The form's title: the choice's name, when known. */
+		private readonly options: { title?: string } = {},
 	) {
 		super(app);
 		this.requirements = requirements.map((requirement) => ({ ...requirement }));
@@ -140,7 +142,7 @@ export class OnePageInputModal extends Modal {
 		);
 		this.peek = new InputPromptPeek({
 			app,
-			title: "Provide inputs",
+			title: this.options.title ?? "Provide inputs",
 			containerEl: this.containerEl,
 			scope: this.scope,
 			getField: () => this.insertTarget()?.el,
@@ -178,7 +180,7 @@ export class OnePageInputModal extends Modal {
 		if (this.discoveryForm) this.containerEl.addClass("qa-discovery-form");
 		this.contentEl.empty();
 
-		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
+		const title = this.contentEl.createEl("h2", { text: this.options.title ?? "Provide inputs" });
 		title.addClass("qa-onepage-title");
 
 		// Optional live preview area. Created (empty and collapsed) before the

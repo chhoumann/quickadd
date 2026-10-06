@@ -244,6 +244,7 @@ export async function runOnePagePreflight(
 				choiceExecutor.variables,
 				computePreview,
 				discoveryPlan?.config,
+				{ title: choice.name },
 			);
 			values = await modal.waitForClose;
 		}

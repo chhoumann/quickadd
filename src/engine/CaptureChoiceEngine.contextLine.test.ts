@@ -70,7 +70,7 @@ it("tells the last prompt of a Log to {{DAILY}} the note and heading it adds und
 	await new CaptureChoiceEngine(app, plugin, logCapture("Log"), createChoiceExecutor()).run();
 
 	// The form's preview row says "Adds to Journal/2026-10-06.md under ## Log";
-	// the prompt's title already names the choice.
-	expect(prompts).toEqual([{ header: "Log", contextLine: "→ Journal/2026-10-06.md under ## Log" }]);
+	// the prompt asks for the text, and its line names the choice and the note.
+	expect(prompts).toEqual([{ header: "Text to capture", contextLine: "Log → Journal/2026-10-06.md under ## Log" }]);
 	expect(files.get("Journal/2026-10-06.md")).toBe("## Log\n- 10:00 Planted the tomatoes");
 });

@@ -237,8 +237,12 @@ export function describeValuePrompt(
 ): ValuePromptCopy {
 	if (scope === "generic") return {};
 	const copy = SCOPE_COPY[scope];
-	return soleValue
-		? { title: copy.ask, placeholder: copy.hint }
+	if (soleValue) return { title: copy.ask, placeholder: copy.hint };
+	// A capture format's other tokens are filled in, not typed: the answer is
+	// still the text to capture, so the title holds; the placeholder says it is
+	// part of the line.
+	return FORMATTING_LITERAL_SCOPES.has(scope)
+		? { title: copy.ask, placeholder: copy.partOf }
 		: { placeholder: copy.partOf };
 }
 
