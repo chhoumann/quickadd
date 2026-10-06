@@ -6,7 +6,7 @@ import { UserScript } from "../../src/types/macros/UserScript";
 import type { Action, ActionNode, RunScriptStep } from "../../src/v3/model";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { clickWhenStill, jsLiteral, leaveSettingsPage, pickMenuItem, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // A script step's row says which file it runs, or that it has none, and a step
 // without a runnable file gets one picked from the row.
@@ -52,15 +52,7 @@ it("adds a script from its preset and runs the file chosen on its row", async ()
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, ".qaFirstRun .qaNewChoiceBtn");
-	await waitForElement(obsidian, ".menu .menu-item");
-	await obsidian.dev.evalJson(`(() => {
-		const item = [...document.querySelectorAll(".menu .menu-item")]
-			.find((el) => el.textContent.trim().startsWith("Run a script"));
-		item.setAttribute("data-qa-preset", "script");
-		return true;
-	})()`);
-	await clickWhenStill(obsidian, '.menu-item[data-qa-preset="script"]');
+	await pickMenuItem(obsidian, ".qaFirstRun .qaNewChoiceBtn", "Run a script");
 
 	await expect.poll(() => rowDetail(obsidian), POLL_OPTS).toEqual([["No file chosen", ""]]);
 	await chooseFile(obsidian, "Script", "hello.js");

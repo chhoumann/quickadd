@@ -4,7 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { clickWhenStill, jsLiteral, leaveSettingsPage, pickMenuItem, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // "New note from a template" opens the compact builder: what the choice does
 // at the top, the essentials under it, everything else behind More settings.
@@ -65,15 +65,7 @@ it("makes a note from a new template in the compact builder", async () => {
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, ".qaFirstRunScratch .qaNewChoiceBtn");
-	await waitForElement(obsidian, ".menu .menu-item");
-	await obsidian.dev.evalJson(`(() => {
-		const item = [...document.querySelectorAll(".menu .menu-item")]
-			.find((el) => el.textContent.trim().startsWith("New note from a template"));
-		item.setAttribute("data-qa-preset", "newNote");
-		return true;
-	})()`);
-	await clickWhenStill(obsidian, '.menu-item[data-qa-preset="newNote"]');
+	await pickMenuItem(obsidian, ".qaFirstRunScratch .qaNewChoiceBtn", "New note from a template");
 	await waitForElement(obsidian, ".qa-builder-page .qaChoiceSummary");
 
 	expect(await summary(obsidian)).toBe("Creates {title}");

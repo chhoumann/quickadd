@@ -5,7 +5,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { addStep, clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
+import { addStep, clickWhenStill, insertText, jsLiteral, leaveSettingsPage, pickMenuItem, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
 import { storedChoices, withStoredChoices } from "./storedChoices";
 import type { INestedChoiceCommand } from "../../src/types/macros/QuickCommands/INestedChoiceCommand";
 
@@ -215,8 +215,7 @@ it("comes back from a page where it was: the filter kept and focus on the contro
 
 	// New choice opens the new choice's page; back returns to the button.
 	await click(".qaFilterClearButton");
-	await click(".qaNewChoiceBtn.mod-cta");
-	await click(".menu-item:not(.is-label)");
+	await pickMenuItem(obsidian, ".qaNewChoiceBtn.mod-cta", "Log with a timestamp");
 	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
 	await pressKey(obsidian, "Escape");
 	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
@@ -238,8 +237,7 @@ it("comes back to New choice after adding the first choice (#2150)", async () =>
 	await seed();
 	await openSettings();
 	// The empty list has its own New choice, replaced by the list's once a choice exists.
-	await click(".qaFirstRun .qaNewChoiceBtn");
-	await click(".menu-item:not(.is-label)");
+	await pickMenuItem(obsidian, ".qaFirstRun .qaNewChoiceBtn", "Log with a timestamp");
 	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
 	await pressKey(obsidian, "Escape");
 	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);

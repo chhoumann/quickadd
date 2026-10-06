@@ -5,7 +5,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { Action, ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { addStep, clickWhenStill, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // "My capture should also run my script": a Capture's builder adds a step,
 // which turns the capture into a sequence that runs its write first.
@@ -58,15 +58,7 @@ async function addScriptStep(obsidian: ObsidianClient) {
 	await expect.poll(() => stepLines(obsidian), POLL_OPTS).toHaveLength(1);
 	expect((await stepLines(obsidian))[0]).toMatch(/^Adds a line/);
 
-	await clickWhenStill(obsidian, '.qa-builder-page [aria-label="Add a step"]');
-	await waitForElement(obsidian, ".menu .menu-item");
-	await obsidian.dev.evalJson(`(() => {
-		const item = [...document.querySelectorAll(".menu .menu-item")]
-			.find((el) => el.textContent.trim() === "Run a script");
-		item.setAttribute("data-qa-step", "script");
-		return true;
-	})()`);
-	await clickWhenStill(obsidian, '.menu-item[data-qa-step="script"]');
+	await addStep(obsidian, "Run a script");
 	await waitForElement(obsidian, ".macroBuilder");
 }
 

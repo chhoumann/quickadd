@@ -9,7 +9,7 @@ import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { addStep, insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
 import { withStoredChoices } from "./storedChoices";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
@@ -270,8 +270,7 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 				`Boolean(document.querySelector(${jsLiteral(`.prompt .prompt-input[placeholder^="${placeholder}"]`)}))`,
 			);
 			await clearDevErrors(obsidian);
-			expect(await click('.macroBuilder [aria-label="Add a step"]')).toBe(true);
-			await expect.poll(() => click(".menu .menu-item", item), POLL_OPTS).toBe(true);
+			await addStep(obsidian, item);
 			await expect.poll(open, POLL_OPTS).toBe(true);
 			await pressKey(obsidian, "Escape");
 			await expect.poll(open, POLL_OPTS).toBe(false);

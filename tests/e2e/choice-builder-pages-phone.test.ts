@@ -4,7 +4,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
+import { insertText, jsLiteral, pickMenuItem, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
 import { withStoredChoices } from "./storedChoices";
 
 // A choice's settings page on a phone: Obsidian's phone settings, where the
@@ -84,13 +84,7 @@ async function openChoicePage(choice: IChoice) {
 		return false;
 	})()`), { message: "the QuickAdd settings tab shown", timeoutMs: 10_000, intervalMs: 500 });
 	// A phone row has no gear: its menu has Configure.
-	await clickWhenStill(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`);
-	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
-		const item = [...document.querySelectorAll(".menu-item")].find((el) => el.textContent.trim() === "Configure");
-		item?.setAttribute("data-qa-configure", "");
-		return Boolean(item);
-	})()`), { message: "the row menu's Configure", timeoutMs: 10_000 });
-	await clickWhenStill(obsidian, ".menu-item[data-qa-configure]");
+	await pickMenuItem(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`, "Configure");
 	await expect.poll(
 		() => obsidian.dev.evalJson<string[]>("app.setting.pageStack.map((entry) => entry.page.title)"),
 		POLL_OPTS,

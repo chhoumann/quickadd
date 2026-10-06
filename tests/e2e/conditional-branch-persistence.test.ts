@@ -8,6 +8,7 @@ import {
 	createQuickAddObsidianClient,
 } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
+import { addStep } from "./uiHelpers";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-e2e-cond-branch";
@@ -146,9 +147,7 @@ describe("conditional command branch persistence (regression for the runes rewri
 		expect(await sev(`return clickLast('[aria-label^="Edit then branch"]');`)).toBe("ok");
 
 		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add a step"]')[0]`);
-		expect(await sev(`return clickLast('.conditionalBranchPage [aria-label="Add a step"]');`)).toBe("ok");
-		await waitUi("Add a step menu open", `q('.menu .menu-item').some((el) => el.textContent.trim() === 'Wait')`);
-		expect(await sev(`const item = q('.menu .menu-item').find((el) => el.textContent.trim() === 'Wait'); item.click(); return 'ok';`)).toBe("ok");
+		await addStep(obsidian, "Wait");
 
 		await waitUi("wait command staged", `q('.conditionalBranchPage .quickAddCommandListItem').length === 1`);
 		// Back to the macro: the branch page hands its commands to the macro.

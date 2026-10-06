@@ -4,7 +4,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import type { ActionNode } from "../../src/v3/model";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
+import { clickWhenStill, insertText, jsLiteral, pickMenuItem, POLL_OPTS, pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
 
 // The New choice menu opens the Recipes gallery, where a docs example is
 // added with one click and its choices work straight away.
@@ -52,15 +52,7 @@ it("adds the meeting notes recipe from the gallery, and its command creates a me
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, ".qaNewChoiceBtn.mod-cta");
-	await waitForElement(obsidian, ".menu .menu-item");
-	await obsidian.dev.evalJson(`(() => {
-		const item = [...document.querySelectorAll(".menu .menu-item")]
-			.find((el) => el.textContent.trim() === "Browse recipes…");
-		item.setAttribute("data-qa-recipes", "");
-		return true;
-	})()`);
-	await clickWhenStill(obsidian, ".menu-item[data-qa-recipes]");
+	await pickMenuItem(obsidian, ".qaNewChoiceBtn.mod-cta", "Browse recipes…");
 
 	await waitForElement(obsidian, ".qa-recipes-modal .qa-recipe-guide");
 	expect(await withoutFocusRing(obsidian, ".qa-recipes-modal .qa-recipe a")).toEqual([]);

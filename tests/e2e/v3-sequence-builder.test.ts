@@ -5,10 +5,10 @@ import { createQuickAddE2EHarness } from "./e2eVault";
 import { withStoredChoices } from "./storedChoices";
 import {
 	addStep,
-	clickWhenStill,
 	insertText,
 	jsLiteral,
 	leaveSettingsPage,
+	pickMenuItem,
 	POLL_OPTS,
 	pressKey,
 	typeInto,
@@ -67,15 +67,7 @@ it("builds a sequence from the Add a step menu, reorders it with the keyboard, a
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	await clickWhenStill(obsidian, ".qaFirstRunScratch .qaNewChoiceBtn");
-	await waitForElement(obsidian, ".menu .menu-item");
-	await obsidian.dev.evalJson(`(() => {
-		const item = [...document.querySelectorAll(".menu .menu-item")]
-			.find((el) => el.textContent.trim().startsWith("Run a sequence of steps"));
-		item.setAttribute("data-qa-preset", "sequence");
-		return true;
-	})()`);
-	await clickWhenStill(obsidian, '.menu-item[data-qa-preset="sequence"]');
+	await pickMenuItem(obsidian, ".qaFirstRunScratch .qaNewChoiceBtn", "Run a sequence of steps");
 	await waitForElement(obsidian, ".macroBuilder .qaChoiceSummary");
 	expect(await lede(obsidian)).toBe("No steps yet");
 	expect(await rows(obsidian)).toEqual([]);
