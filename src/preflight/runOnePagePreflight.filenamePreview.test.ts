@@ -352,6 +352,7 @@ describe("the one-page preview of a Template with no File name", () => {
 		choice.fileNameFormat = { enabled: false, format: "" };
 		await runOnePagePreflight(createApp(), createPlugin(), createExecutor(), choice);
 
+		expect((await computePreview!({ value: "" }))[0].text).toBe("Meals/{title}.md");
 		expect((await computePreview!({ value: "Friday" }))[0]).toMatchObject({ label: "Creates", text: "Meals/Friday.md" });
 		expect((await computePreview!({ value: "Friday plans" }))[0].text).toBe("Meals/Friday plans.md");
 	});

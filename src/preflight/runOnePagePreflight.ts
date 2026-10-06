@@ -154,6 +154,8 @@ async function previewTargetRow(
 		}
 		if (choice.type === "Template") {
 			if (discovery) return undefined;
+			// Until it is typed, the title reads as the choice's summary names it.
+			if (values.value === "") formatter["variables"].set("value", "{title}");
 			const { path, diagnostics } = await previewNewNotePath(app, choice as ITemplateChoice, formatter);
 			// The user's REAL answers are seeded above, so a "this name would abort
 			// the run" diagnostic (#1558) shows the exact name about to fail.
