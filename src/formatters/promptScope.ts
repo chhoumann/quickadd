@@ -44,6 +44,16 @@ export interface PromptRunContext {
 	draftScopeId?: string;
 	destination?: string;
 	destinationKind?: "file" | "folder";
+	/** The heading a capture writes under in `destination`. */
+	heading?: string;
+}
+
+/**
+ * Where a capture adds its text: `target`, and the heading it writes under.
+ * Said the same way by the one-page form and the sequential prompt.
+ */
+export function describeCaptureTarget(target: string, heading: string | undefined): string {
+	return heading ? `${target} under ${heading}` : target;
 }
 
 interface ScopeCopy {
@@ -286,7 +296,7 @@ export function buildPromptContextLine(
 		const shown =
 			options?.elide === false ? destination : elideMiddlePath(destination);
 		parts.push(
-			`→ ${context.destinationKind === "folder" ? `${shown}/` : shown}`,
+			`→ ${context.destinationKind === "folder" ? `${shown}/` : describeCaptureTarget(shown, context.heading)}`,
 		);
 	}
 

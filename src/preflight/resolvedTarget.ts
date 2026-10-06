@@ -4,6 +4,7 @@ import { isRunNoteToken } from "src/engine/CaptureTargetEngine";
 import { resolveCaptureTarget } from "src/engine/helpers/captureTargetResolution";
 import type { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatter";
 import type { PreviewDiagnostic } from "src/formatters/previewDiagnostics";
+import { describeCaptureTarget } from "src/formatters/promptScope";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
@@ -32,11 +33,6 @@ export function captureHeading(choice: ICaptureChoice): string | undefined {
 	if (choice.propertyCapture || !insertAfter?.enabled || insertAfter.promptHeading) return undefined;
 	const line = insertAfter.after?.trim();
 	return line && /^#{1,6}\s/.test(line) && !line.includes("{{") ? line : undefined;
-}
-
-/** `target`, and the heading the capture writes under. */
-export function describeCaptureTarget(target: string, heading: string | undefined): string {
-	return heading ? `${target} under ${heading}` : target;
 }
 
 function stripLeadingSlash(path: string): string {

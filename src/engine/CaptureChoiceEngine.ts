@@ -82,6 +82,7 @@ import {
 } from "./canvasCapture";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import type { ChoiceChain } from "./choiceChain";
+import { captureHeading } from "../preflight/resolvedTarget";
 import {
 	getPeriodicNoteSettings,
 	type Period,
@@ -157,10 +158,12 @@ export class CaptureChoiceEngine extends CaptureTargetEngine {
 		this.outcome = new ChoiceOutcomeRecorder(choiceExecutor);
 		this.formatter = new CaptureChoiceFormatter(app, plugin, choiceExecutor);
 		this.formatter.choiceChain = chain;
-		// Every prompt this run opens can say which choice is asking (issue #1546).
+		// Every prompt this run opens can say which choice is asking (issue #1546),
+		// and once the target note is known, where in it the text lands.
 		this.formatter.setPromptRunContext({
 			draftScopeId: choice.id,
 			choiceName: choice.name,
+			heading: captureHeading(choice),
 		});
 	}
 
