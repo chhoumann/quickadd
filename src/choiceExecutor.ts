@@ -200,6 +200,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async execute(
 		choice: IChoice,
 		ancestry: ChoiceChain = this.dispatchAncestry,
+		inline?: Action,
 	): Promise<void> {
 		const chain = enterChoice(choice, ancestry);
 		this.pendingAbort = null;
@@ -236,7 +237,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					}
 					case "Macro": {
 						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						const action = findAction(currentActions(settingsStore.getState()), choice.id);
+						const action = inline ?? findAction(currentActions(settingsStore.getState()), choice.id);
 						if (action && !compactGroup(action)) {
 							await this.onChooseSequence(macroChoice, action, originLeaf, chain);
 						} else {

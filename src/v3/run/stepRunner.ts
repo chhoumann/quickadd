@@ -18,7 +18,7 @@ import { resolveChoiceFromPlugin } from "../../utils/resolveChoiceFromPlugin";
 import { getTemplaterPlugin, overwriteTemplaterOnce } from "../../utils/templaterIntegration";
 import { templaterRerunAfter, warnDeprecatedOnce } from "../../utils/templaterRerunDeprecation";
 import { lowerStep, lowerSteps, lowerWriteGroup, readWriteGroup } from "../lower";
-import type { Action, LinkStep, OpenStep, Step, TemplaterStep } from "../model";
+import type { Action, InlineActionStep, LinkStep, OpenStep, Step, TemplaterStep } from "../model";
 
 export interface StepRunContext {
 	app: App;
@@ -34,9 +34,9 @@ export interface StepRunContext {
 /**
  * Runs `steps` in order. A write with its follow-ups runs as the Template or
  * Capture choice it lowers to, through the executor, so the run note follows
- * it. A link, Templater or open step runs here; every other step runs as its
- * command on the macro engine. An abort or a refusal stops the run, as it
- * stops a macro.
+ * it, and so does an inline action. A link, Templater or open step runs here;
+ * every other step runs as its command on the macro engine. An abort or a
+ * refusal stops the run, as it stops a macro.
  */
 export async function runSteps(steps: Step[], ctx: StepRunContext): Promise<void> {
 	try {
@@ -110,10 +110,24 @@ async function runStep(step: Step, command: ICommand, ctx: StepRunContext): Prom
 			const holds = await ctx.macroEngine.conditionHolds(step.condition);
 			return await runList(holds ? step.thenSteps : step.elseSteps, ctx);
 		}
+		case "inlineAction":
+			return await runInline(step, command as INestedChoiceCommand, ctx);
 		default:
 			await ctx.macroEngine.runSubset([command]);
 			throwPendingAbort(ctx.executor);
 	}
+}
+
+/**
+ * An inline action runs as the choice it lowers to, through the executor, so
+ * its own settings (its day, its one-page form) apply. The executor runs a
+ * sequence's steps here, which the macro engine's nested choice could not.
+ */
+async function runInline(step: InlineActionStep, command: INestedChoiceCommand, ctx: StepRunContext): Promise<void> {
+	const { executor } = ctx;
+	const inline = step.node.kind === "action" ? step.node : undefined;
+	await withPreparedChoiceInputs(executor, command.id, () => executor.execute(command.choice, ctx.chain, inline));
+	throwPendingAbort(executor);
 }
 
 async function runLink(step: LinkStep, ctx: StepRunContext): Promise<void> {

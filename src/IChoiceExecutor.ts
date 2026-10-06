@@ -13,14 +13,17 @@ import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import type { LoadedUserScript } from "./utils/userScript";
 import type { ChoiceChain } from "./engine/choiceChain";
+import type { Action } from "./v3/model";
 
 export interface IChoiceExecutor {
 	/**
 	 * Runs `choice`. A run started from inside another passes that run's chain
 	 * as `ancestry`, and the call fails with the cycle when `choice` is already
-	 * in it.
+	 * in it. `inline` is the action a Macro `choice` was lowered from when no
+	 * stored action holds it on its own (an inline action step's): a sequence
+	 * runs its steps rather than the commands.
 	 */
-	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
+	execute(choice: IChoice, ancestry?: ChoiceChain, inline?: Action): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
