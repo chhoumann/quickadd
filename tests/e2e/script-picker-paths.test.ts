@@ -17,7 +17,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("books"); };');
 	const progress = await seedVaultFile(obsidian, sandbox, "views/qa-progress-panel/view.js",
 		'module.exports = () => { (window.__qaScriptPickerRuns ??= []).push("progress"); };');
-	const runner = await seedVaultFile(obsidian, sandbox, "views/runner.md",
+	const runner = await seedVaultFile(obsidian, sandbox, "views/202610061432.md",
 		"# Weekly runner\n\n```js\nmodule.exports = () => {};\n```\n");
 	const macro = new MacroChoice("Script picker paths");
 	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
@@ -84,7 +84,7 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 				{ title: "view.js", note: books },
 				{ title: "view.js", note: progress },
 			]));
-		// #1932: a note script's row shows its heading, and typing that heading finds it.
+		// #1932: an ID-named note script's row shows its heading, and typing that heading finds it.
 		await typeInto(obsidian, ".prompt .prompt-input", "weekly runner");
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "Weekly runner", note: runner }]);
 		await typeInto(obsidian, ".prompt .prompt-input", "books");
