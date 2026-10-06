@@ -875,7 +875,8 @@ The note the run's last Template or Capture step ended on, for the steps
 after it: the note it created, added to, or found already there and opened.
 In a macro whose first step captures to a note, an Open file step with the
 path `{{NOTE}}` opens that note, and a Capture to `{{NOTE}}` adds to it again.
-Scripts get the same note as `params.note`.
+A Link it or Run Templater step on `{{NOTE}}` links that note or runs
+Templater on it. Scripts get the same note as `params.note`.
 
 `{{NOTE}}` is the note's path with its extension. `{{NOTE|link}}` is a link to
 it, `{{NOTE|name}}` its file name without the extension, and

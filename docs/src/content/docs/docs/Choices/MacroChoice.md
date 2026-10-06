@@ -99,7 +99,9 @@ Pick a step from **Add a step**. Add as many as you like, in any order.
 | --- | --- |
 | **Create a note** | Create a note from a template. It is added as a new Template choice inside the macro, and its page opens so you can set it up. |
 | **Add to a note** | Write into a note. It is added as a new Capture choice inside the macro, and its page opens so you can set it up. |
-| **Open a note** | Open an existing file at a formatted path. Supports all [format syntax](/docs/FormatSyntax/) (`{{DATE}}`, `{{VALUE}}`, and so on), with tab and split options. It opens in the default view mode with focus, and only opens files that already exist (it won't create one). |
+| **Open a note** | Open an existing file at a formatted path. Supports all [format syntax](/docs/FormatSyntax/) (`{{DATE}}`, `{{VALUE}}`, and so on), with tab and split options and a **View** (as saved, source mode, reading view or Live Preview). It only opens files that already exist (it won't create one). |
+| **Link it** | Link the note an earlier step wrote ([`{{NOTE}}`](/docs/FormatSyntax/#note)) on a new line in the current note. Its settings pick another note, where the link goes, and whether to copy the link too. |
+| **Run Templater** | Run Templater's *Replace templates* over the note an earlier step wrote (`{{NOTE}}`), or over the note its settings name. Does nothing without Templater. |
 | **Run a script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a script step](#add-a-user-script-command). |
 | **Run a command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
 | **Run an editor command** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |

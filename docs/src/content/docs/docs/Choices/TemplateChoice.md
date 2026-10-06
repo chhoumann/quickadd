@@ -574,6 +574,8 @@ it*. The list follows the settings as you change them.
 - **Run a script** - a script step with no file yet. Click **Choose file** on
   it to pick the script.
 - **Open a note** - an **Open File** step. Set the note in its settings.
+- **Link it** - links the note on a new line in the current note.
+- **Run Templater** - runs Templater on the note.
 - **Wait** - a pause of 100 ms.
 
 Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
