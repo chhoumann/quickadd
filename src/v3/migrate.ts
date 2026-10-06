@@ -79,6 +79,17 @@ export function migrateChoice(choice: IChoice): { node: ActionNode; notes: Notes
 }
 
 /**
+ * The steps one macro command migrates to, as migrateChoice reads it inside a
+ * macro: a nested Capture that opens its note is two. Throws when the command
+ * cannot be read.
+ */
+export function stepsOfCommand(command: unknown): Step[] {
+	const host = { id: "", name: "", type: "Macro", command: false, macro: { id: "", name: "", commands: [command] } };
+	const { node } = migrateChoice(host as unknown as IChoice);
+	return node.kind === "action" ? node.steps : [];
+}
+
+/**
  * Old versions saved some nested choices without an id. Normalizing would give
  * them a random one, so name them after their step instead: migration must
  * give the same result on every device.

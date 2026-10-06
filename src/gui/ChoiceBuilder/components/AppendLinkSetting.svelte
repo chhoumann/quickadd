@@ -2,6 +2,7 @@
 import { TFile, type App } from "obsidian";
 import SettingItem from "../../components/SettingItem.svelte";
 import Dropdown from "../../components/Dropdown.svelte";
+import Toggle from "../../components/Toggle.svelte";
 import ValidatedInput from "./ValidatedInput.svelte";
 import type {
 	AppendLinkOptions,
@@ -24,16 +25,23 @@ import { normalizeAppendLinkDestinationPath } from "../../../utils/fileLinks";
  * addAppendLinkSetting from captureChoiceBuilder and templateChoiceBuilder.
  * Conditional placement / link-type rows are reactive `{#if}` blocks; the old
  * `reload()` calls are gone (whole-value reassignment drives re-render).
+ *
+ * Without `fileLabel` the rows are a Link it step's: the step's own toggle
+ * turns the link on, so there is no mode row, and whether the current note is
+ * required is a toggle of its own.
  */
 let {
 	appendLink = $bindable(),
-	fileLabel,
+	fileLabel = undefined,
 	app = undefined,
 }: {
 	appendLink: boolean | AppendLinkOptions;
-	fileLabel: "captured" | "created";
+	fileLabel?: "captured" | "created" | undefined;
 	app?: App | undefined;
 } = $props();
+
+/** A row's description; a Link it step's rows have none. */
+const desc = (text: string) => (fileLabel ? text : undefined);
 
 type AppendLinkMode = "required" | "optional" | "disabled";
 type AppendLinkDestinationMode = "activeFile" | "specifiedFile";
@@ -204,19 +212,21 @@ function validateDestinationFile(raw: string) {
 }
 </script>
 
-<SettingItem
-	name={`Link to ${fileLabel} note`}
-	desc={`Choose whether QuickAdd should insert a link to the ${fileLabel} note.`}
->
-	{#snippet control()}
-		<Dropdown value={currentMode} options={modeOptions} onchange={onModeChange} />
-	{/snippet}
-</SettingItem>
+{#if fileLabel}
+	<SettingItem
+		name={`Link to ${fileLabel} note`}
+		desc={`Choose whether QuickAdd should insert a link to the ${fileLabel} note.`}
+	>
+		{#snippet control()}
+			<Dropdown value={currentMode} options={modeOptions} onchange={onModeChange} />
+		{/snippet}
+	</SettingItem>
+{/if}
 
 {#if currentMode !== "disabled"}
 	<SettingItem
 		name="Link destination"
-		desc={`Where QuickAdd writes the link to the ${fileLabel} note.`}
+		desc={desc(`Where QuickAdd writes the link to the ${fileLabel} note.`)}
 	>
 		{#snippet control()}
 			<Dropdown
@@ -230,7 +240,7 @@ function validateDestinationFile(raw: string) {
 	{#if destinationMode === "activeFile"}
 		<SettingItem
 			name="Link placement"
-			desc="Where to place the link when appending"
+			desc={desc("Where to place the link when appending")}
 		>
 			{#snippet control()}
 				<Dropdown
@@ -241,10 +251,22 @@ function validateDestinationFile(raw: string) {
 			{/snippet}
 		</SettingItem>
 
+		{#if !fileLabel}
+			<SettingItem name="Require the current note">
+				{#snippet control()}
+					<Toggle
+						checked={normalized.requireActiveFile}
+						ariaLabel="Require the current note"
+						onchange={(value) => (appendLink = nextOptions({ requireActiveFile: value }))}
+					/>
+				{/snippet}
+			</SettingItem>
+		{/if}
+
 		{#if placementSupportsEmbed(normalized.placement)}
 			<SettingItem
 				name="Link type"
-				desc="Choose whether to insert a link or an embed. Embeds transclude the note's contents at the placement position."
+				desc={desc("Choose whether to insert a link or an embed. Embeds transclude the note's contents at the placement position.")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -259,7 +281,7 @@ function validateDestinationFile(raw: string) {
 		{#if placementSupportsSelectionAlias(normalized.placement) && normalizedLinkType === "link"}
 			<SettingItem
 				name="Link display text"
-				desc="What the inserted link displays. 'Selected text' keeps the highlighted text as the link's display text; with nothing selected, the plain link is inserted."
+				desc={desc("What the inserted link displays. 'Selected text' keeps the highlighted text as the link's display text; with nothing selected, the plain link is inserted.")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -274,7 +296,7 @@ function validateDestinationFile(raw: string) {
 		{#if placementSupportsFrontmatter(normalized.placement)}
 			<SettingItem
 				name="Frontmatter property"
-				desc="Required property to insert the link into."
+				desc={desc("Required property to insert the link into.")}
 			>
 				{#snippet control()}
 					<input
@@ -292,7 +314,7 @@ function validateDestinationFile(raw: string) {
 
 			<SettingItem
 				name="Property handling"
-				desc="Choose how strict QuickAdd should be when the property is missing or not a list."
+				desc={desc("Choose how strict QuickAdd should be when the property is missing or not a list.")}
 			>
 				{#snippet control()}
 					<Dropdown
@@ -306,7 +328,7 @@ function validateDestinationFile(raw: string) {
 	{:else}
 		<SettingItem
 			name="Destination note"
-			desc="Existing Markdown note that receives the link at the bottom."
+			desc={desc("Existing Markdown note that receives the link at the bottom.")}
 		>
 			{#snippet control()}
 				<ValidatedInput

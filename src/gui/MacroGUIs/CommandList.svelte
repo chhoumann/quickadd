@@ -34,6 +34,12 @@ import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INes
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
 import { settingsStore } from "../../settingsStore";
 import { describeCommand } from "../../v3/choiceSummary";
+import { lowerStep } from "../../v3/lower";
+import { stepsOfCommand } from "../../v3/migrate";
+import { type Step, V3_STEP_COMMAND, type V3StepCommand } from "../../v3/model";
+import { stepName } from "../../v3/addStep";
+import StepCommand from "./Components/StepCommand.svelte";
+import { StepSettingsModal } from "./StepSettingsModal";
 
 let {
 	commands = $bindable([]),
@@ -116,6 +122,13 @@ const asUserScript = (c: ICommand) => c as IUserScript;
 const asAI = (c: ICommand) => c as IAIAssistantCommand;
 const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
 const asConditional = (c: ICommand) => c as IConditionalCommand;
+const asStep = (c: ICommand) => (c as unknown as V3StepCommand).step;
+
+/** A step with no v2 command form, which the command carries (see lowerStep). */
+function isStepCommand(command: ICommand): boolean {
+	const step = (command as unknown as V3StepCommand).step;
+	return (command.type as string) === V3_STEP_COMMAND && typeof step === "object" && step !== null;
+}
 
 /** What the step does, under its name. Read in the template, so it follows edits. */
 function lineOf(command: ICommand): string | null {
@@ -287,13 +300,19 @@ async function configureAssistant(command: IAIAssistantCommand) {
 	}
 }
 
+// The modals edit the step a command migrates to, and the row takes the
+// command the edited step lowers to: an open in a view mode has no v2 form.
 async function configureOpenFile(command: IOpenFileCommand) {
-	const updatedCommand = await new OpenFileCommandSettingsModal(app, command)
-		.waitForClose;
+	const [step] = stepsOfCommand(command);
+	if (step?.type === "open") await configureStep(step);
+}
 
-	if (updatedCommand) {
-		updateCommand(updatedCommand);
-	}
+async function configureStep(step: Step) {
+	const edited =
+		step.type === "open" ? await new OpenFileCommandSettingsModal(app, step).waitForClose :
+		step.type === "link" || step.type === "templater" ? await new StepSettingsModal(app, step).waitForClose :
+		null;
+	if (edited) updateCommand(lowerStep(edited, ""));
 }
 </script>
 
@@ -380,6 +399,18 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onConfigureCondition={configureConditionalCommand}
 				onEditThenBranch={editConditionalThen}
 				onEditElseBranch={editConditionalElse}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
+			/>
+		{:else if isStepCommand(command)}
+			<StepCommand
+				id={command.id}
+				name={stepName(asStep(command))}
+				line={lineOf(command)}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigure={() => configureStep($state.snapshot(asStep(command)) as Step)}
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>

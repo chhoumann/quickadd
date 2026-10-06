@@ -1,6 +1,6 @@
 import type IChoice from "../types/choices/IChoice";
 import { childChoicesOf, flattenChoices, hasUnreadableChildren, isChoiceLike } from "../utils/choiceUtils";
-import { migrateChoice } from "./migrate";
+import { migrateChoice, stepsOfCommand } from "./migrate";
 import { describeStepsLine, summarize } from "./summary";
 
 /**
@@ -31,12 +31,10 @@ export function summarizeChoice(choice: IChoice, all: IChoice[]): string {
  * two). Null for a command this version cannot read, whose row says nothing.
  */
 export function describeCommand(command: unknown, all: IChoice[]): string | null {
-	const host = { id: "", name: "", type: "Macro", command: false, macro: { id: "", name: "", commands: [command] } };
 	try {
-		const { node } = migrateChoice(host as unknown as IChoice);
-		if (node.kind !== "action" || node.steps.length === 0) return null;
-		if (node.steps.some((step) => step.type === "unknown")) return null;
-		return describeStepsLine(node.steps, namesOf(all));
+		const steps = stepsOfCommand(command);
+		if (steps.length === 0 || steps.some((step) => step.type === "unknown")) return null;
+		return describeStepsLine(steps, namesOf(all));
 	} catch {
 		return null;
 	}
