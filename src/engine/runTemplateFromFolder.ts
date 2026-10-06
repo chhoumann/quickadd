@@ -28,12 +28,9 @@ function templateDisplayName(path: string): string {
  * Not persisted and never added to settings.choices — it exists only for the
  * duration of one ChoiceExecutor.execute() call.
  *
- * `fileNameFormat.enabled` MUST be true. Runtime is identical to `enabled:false`
- * (TemplateChoiceEngine resolves both to VALUE_SYNTAX), but collectChoiceRequirements
- * only scans the file-name format when it is enabled — so with `enabled:false` the
- * implicit {{value}} note-name prompt is invisible to the non-interactive CLI guard
- * (it would pass with zero unresolved inputs and then hang on an interactive prompt)
- * and to the one-page input form (which would omit the name field).
+ * `fileNameFormat.enabled` is true so the note name is always a collected input;
+ * with `enabled:false` collectChoiceRequirements leaves it to the editor's
+ * selection when there is one.
  */
 export function createFolderTemplateChoice(templatePath: string): ITemplateChoice {
 	const choice = new TemplateChoice(templateDisplayName(templatePath));

@@ -162,6 +162,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		metadataCache: {
 			getFileCache: vi.fn(() => null),
 		},
+		workspace: { getActiveViewOfType: () => null },
 	} as unknown as App;
 	const plugin = createPreflightPlugin();
 
@@ -1111,7 +1112,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 	const collect = (choice: IChoice, executor: IChoiceExecutor, options?: Parameters<typeof collectChoiceRequirements>[4]) =>
 		collectChoiceRequirements(app, plugin, executor, choice, options);
 
-	const app = {} as App;
+	const app = { workspace: { getActiveViewOfType: () => null } } as unknown as App;
 	const plugin = { settings: { inputPrompt: "single-line" } } as any;
 
 	beforeEach(() => {
@@ -2149,5 +2150,46 @@ describe("collectChoiceRequirements - the choice's input overrides", () => {
 			{ id: "Title", label: "Title", optional: false },
 			{ id: "Guest", label: "Who is coming?", optional: true },
 		]);
+	});
+});
+
+describe("collectChoiceRequirements - the note title of a Template with no File name", () => {
+	const getSelection = vi.fn(() => "");
+	const app = {
+		vault: { cachedRead: async () => "Topic: {{VALUE:Topic}}", getAbstractFileByPath: () => null },
+		metadataCache: { getFileCache: () => null },
+		workspace: { getActiveViewOfType: () => ({ editor: { getSelection } }) },
+	} as unknown as App;
+	const dinner = (): ITemplateChoice => ({ ...createTemplateChoice("Templates/Dinner.md"), id: "dinner", name: "Dinner" });
+
+	beforeEach(() => {
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockImplementation(() => ({ path: "Templates/Dinner.md" }) as never);
+		getSelection.mockReturnValue("");
+	});
+
+	it("asks for the note title first, as the run's title prompt does", async () => {
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), dinner());
+
+		expect(requirements.map(({ id, label }) => ({ id, label }))).toEqual([
+			{ id: "value", label: "Note title" },
+			{ id: "Topic", label: "Topic" },
+		]);
+	});
+
+	it("leaves the title to the editor's selection, which the run takes as the title", async () => {
+		getSelection.mockReturnValue("Friday");
+
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), dinner());
+
+		expect(requirements.map(({ id }) => id)).toEqual(["Topic"]);
+	});
+
+	it("leaves the title to the step inside a macro, so two steps do not share one title", async () => {
+		const requirements = await collectChoiceRequirements(
+			app, createPreflightPlugin(), createChoiceExecutor(), createMacroChoice(nestedChoice(dinner())),
+		);
+
+		expect(requirements.map(({ id }) => id)).toEqual(["Topic"]);
 	});
 });

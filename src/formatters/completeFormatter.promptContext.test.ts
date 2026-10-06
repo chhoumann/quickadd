@@ -112,6 +112,14 @@ describe("anonymous {{VALUE}} prompt copy", () => {
 		});
 	});
 
+	it("takes the note title the one-page form answered without asking again", async () => {
+		const executor = { variables: new Map<string, unknown>([["value", "Friday"]]) } as never;
+		const f = new CompleteFormatter(app, plugin, executor);
+
+		expect(await f.formatFileName("{{VALUE}}", "noteTitle")).toBe("Friday");
+		expect(mocks.prompt).not.toHaveBeenCalled();
+	});
+
 	it("keeps the choice name when the answer is only part of the file name", async () => {
 		const f = makeFormatter();
 		f.setPromptRunContext({ choiceName: "Daily note" });

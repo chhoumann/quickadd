@@ -268,7 +268,7 @@ describe("runOnePagePreflight template extension handling", () => {
 		);
 	});
 
-	it("leaves FIELD multi-select prompts for runtime instead of the one-page modal", async () => {
+	it("leaves FIELD multi-select prompts for runtime, out of the one-page modal", async () => {
 		const templateFile = new TFile();
 		templateFile.path = "Templates/FieldMulti.md";
 		templateFile.name = "FieldMulti.md";
@@ -298,8 +298,9 @@ describe("runOnePagePreflight template extension handling", () => {
 			createTemplateChoice("Templates/FieldMulti.md"),
 		);
 
-		expect(result).toBe(false);
-		expect(modalOpenMock).not.toHaveBeenCalled();
+		expect(result).toBe(true);
+		const requirements = modalOpenMock.mock.calls[0][1] as Array<{ id: string }>;
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["value"]);
 		expect(executor.variables.has("FIELD:topic|multi")).toBe(false);
 	});
 

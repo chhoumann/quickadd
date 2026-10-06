@@ -202,6 +202,7 @@ async function collectForTemplateChoice(
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
 	choice: ITemplateChoice,
+	askTitle: boolean,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
 	const readTemplate = vaultTemplateReader(app);
@@ -223,18 +224,17 @@ async function collectForTemplateChoice(
 		}
 	}
 
-	// Only the ENABLED format is scanned. The engine resolves a disabled one to
-	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
-	// collecting it would also make the non-interactive CLI guard reject runs the
-	// engine satisfies from the editor selection, and would show the one-page
-	// form an empty title field where the selection used to fill it in silently.
-	// Closing that needs the selection modelled here first (there is no Template
-	// counterpart to seedCaptureSelectionAsValue); tracked separately.
-	if (choice.fileNameFormat?.enabled) {
+	// A disabled format is VALUE_SYNTAX: the run asks for the note title, unless
+	// the editor's selection fills it. Inside a macro the title is left to the
+	// step itself, since one shared answer would give every step the same title.
+	const titleFormat = choice.fileNameFormat?.enabled
+		? choice.fileNameFormat.format
+		: askTitle && getActiveEditorSelection(app) === "" ? VALUE_SYNTAX : null;
+	if (titleFormat !== null) {
 		await scanContentWithTemplateIncludes(
 			readTemplate,
 			collector,
-			choice.fileNameFormat.format,
+			titleFormat,
 			"noteTitle",
 		);
 	}
@@ -515,6 +515,7 @@ async function collectForMacroChoice(
 									plugin,
 									choiceExecutor,
 									entry.choice,
+									false,
 								)
 							).requirements.values(),
 						)
@@ -612,7 +613,7 @@ export async function collectChoiceRequirements(
 	if (isMacroChoice(choice)) {
 		requirements = await collectForMacroChoice(app, plugin, choiceExecutor, choice, options);
 	} else if (isTemplateChoice(choice)) {
-		const collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice);
+		const collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice, true);
 		requirements = [...collector.requirements.values()];
 	} else if (choice.type === "Capture") {
 		const collector = await collectForCaptureChoice(

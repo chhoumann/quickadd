@@ -345,3 +345,14 @@ describe("the one-page preview follows the choice's Which day", () => {
 		expect(out[0].text).toBe("Daily/2026-08-21 Standup.md");
 	});
 });
+
+describe("the one-page preview of a Template with no File name", () => {
+	it("names the note with the title as it is typed", async () => {
+		const choice = createChoice("", { enabled: true, folders: ["Meals"] });
+		choice.fileNameFormat = { enabled: false, format: "" };
+		await runOnePagePreflight(createApp(), createPlugin(), createExecutor(), choice);
+
+		expect((await computePreview!({ value: "Friday" }))[0]).toMatchObject({ label: "Creates", text: "Meals/Friday.md" });
+		expect((await computePreview!({ value: "Friday plans" }))[0].text).toBe("Meals/Friday plans.md");
+	});
+});

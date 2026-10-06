@@ -135,3 +135,34 @@ it("shows the date a new note's name reads from the answer, as it is typed", asy
 	await typeInto(obsidian, field("When"), "blah");
 	await expect.poll(async () => (await modals())[0]?.rows.at(-1), POLL_OPTS).toBe("When:Not a date");
 });
+
+it("asks a Template's note title on the same page as its other inputs", async () => {
+	const { obsidian, plugin, sandbox } = getContext();
+	const template = await seedVaultFile(obsidian, sandbox, "Templates/Dinner.md", "Topic: {{VALUE:Topic}}\n");
+	const preset = PRESETS.find((entry) => entry.id === "newNote")!;
+	const choice = createFromPreset(preset, { templateFolder: sandbox.path("Templates") }) as ITemplateChoice;
+	choice.command = true;
+	choice.templatePath = template;
+	choice.folder = { ...choice.folder, enabled: true, folders: [sandbox.path("Meals")] };
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
+		data.choices = [choice];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+
+	await obsidian.command(`quickadd:choice:${choice.id}`).run();
+	await expect.poll(() => obsidian.dev.evalJson<string[]>(
+		'[...document.querySelectorAll(".onePageInputModal .setting-item-name")].map((name) => name.textContent.trim())',
+	), POLL_OPTS).toEqual(["Note title", "Topic"]);
+	await typeInto(obsidian, field("value"), "Friday");
+	await expect.poll(modals, POLL_OPTS).toEqual([
+		{ onePage: true, rows: [`Creates:${sandbox.path("Meals")}/Friday.md`] },
+	]);
+	await typeInto(obsidian, field("Topic"), "Plans");
+	await pressKey(obsidian, "Enter");
+
+	await expect.poll(() => obsidian.dev.evalJsonAsync<string>(`(async () => {
+		const path = ${JSON.stringify(`${sandbox.path("Meals")}/Friday.md`)};
+		return (await app.vault.adapter.exists(path)) ? app.vault.adapter.read(path) : "";
+	})()`), POLL_OPTS).toBe("Topic: Plans\n");
+	expect(await modals()).toEqual([]);
+});
