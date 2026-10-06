@@ -221,10 +221,13 @@ temporary variables after the choice runs.
 
 ### Friendlier names in the picker {#file-picker-labels}
 
-The picker labels each note by its frontmatter `title` when available, then
-its first level-1 heading, then its file name. The selected destination is
-always the real file, so captures write to the same place even when the label
-is friendlier than the filename.
+The picker shows a note's file name. When the file name is an ID, the note
+shows its first level-1 heading instead. An ID is an unbroken timestamp of 12
+or more digits, such as `202610061432`, a UUID, or a ULID. A date such as
+`2026-10-06` is not an ID, so a daily note shows its file name. A frontmatter
+`title` wins for every note. The selected destination is always the real file,
+so captures write to the same place even when the label is friendlier than the
+filename.
 
 You can also find a note by its `aliases`. A note found that way shows the
 alias with the note's name beneath it, as in Obsidian's quick switcher, and

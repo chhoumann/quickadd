@@ -348,6 +348,21 @@ function firstLevelHeading(metadata?: CachedMetadata | null): string | undefined
 	return scalarTitleValue(heading?.heading);
 }
 
+const OPAQUE_ID_NAMES = {
+	timestamp: /^\d{12,}$/,
+	compactUuid: /^[0-9a-f]{32}$/i,
+	uuid: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+	ulid: /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/i,
+};
+
+function noteName(basename: string, metadata: CachedMetadata | null): string {
+	const title = frontmatterTitle(metadata?.frontmatter);
+	if (title) return title;
+	const isOpaqueId = Object.values(OPAQUE_ID_NAMES).some((pattern) => pattern.test(basename));
+	if (!isOpaqueId) return basename;
+	return firstLevelHeading(metadata) ?? basename;
+}
+
 function parentLabel(file: TFile): string {
 	const parent = file.parent?.path;
 	if (parent && parent !== "/") return parent;
@@ -392,10 +407,7 @@ export function buildFileDisplayInfos(
 	const baseLabels = files.map((file) => {
 		const metadata = metadataCache?.(file) ?? null;
 		const basename = basenameFor(file);
-		const primary =
-			frontmatterTitle(metadata?.frontmatter) ??
-			firstLevelHeading(metadata) ??
-			basename;
+		const primary = noteName(basename, metadata);
 		const label = primary === basename
 			? basename
 			: `${primary} (${basename})`;
@@ -422,8 +434,8 @@ export function buildFileDisplayInfos(
 }
 
 /**
- * Display labels for a folder's files: readable title/H1 labels first, with the
- * basename and parent folder folded in when needed so duplicate labels stay
+ * Display labels for a folder's files: each note's name, with
+ * the basename and parent folder folded in when needed so duplicate labels stay
  * distinguishable in plain-text suggesters.
  */
 export function buildFileDisplayLabels(

@@ -1098,9 +1098,12 @@ folder and inserts your pick. Where [`{{FIELD}}`](#field) suggests the
 option. Because the options are real files, the list always reflects what
 currently exists.
 
-The picker labels each note by its frontmatter `title` if present, then its
-first level-1 heading, then its file name - but always inserts based on the
-actual file, so friendly labels never change what you get.
+The picker shows a note's file name. When the file name is an ID, the note
+shows its first level-1 heading instead. An ID is an unbroken timestamp of 12
+or more digits, such as `202610061432`, a UUID, or a ULID. A date such as
+`2026-10-06` is not an ID, so a daily note shows its file name. A frontmatter
+`title` wins for every note. The picker always inserts the actual file, so
+friendly labels never change what you get.
 
 You can also find a note by its `aliases`: the row shows the alias with the
 note's name beneath it, and still inserts the note (QuickAdd 2.30.0 or later).

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, closeOpenPrompts, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // Two `{{FILE:<folder>|type:...}}` pickers on one folder and mode get default
 // labels that name their type, so a one-page form can tell them apart.
@@ -13,17 +13,8 @@ type QuickAddData = {
 	onePageInputEnabled: boolean;
 };
 
-async function closeOpenPrompts() {
-	const { obsidian } = getContext();
-	for (let remaining = 10; remaining > 0; remaining--) {
-		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container, .prompt"))')) break;
-		await pressKey(obsidian, "Escape");
-	}
-	await expectNoPrompt(obsidian);
-}
-
-beforeEach(closeOpenPrompts);
-afterEach(closeOpenPrompts);
+beforeEach(() => closeOpenPrompts(getContext().obsidian));
+afterEach(() => closeOpenPrompts(getContext().obsidian));
 
 async function pick(selector: string, typed: string, expected: string) {
 	const { obsidian } = getContext();

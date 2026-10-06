@@ -805,7 +805,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 			if (file.path === "Goals/Alpha.md") {
 				return { frontmatter: { title: "Alpha Goal", aliases: ["First goal"] } };
 			}
-			if (file.path === "Projects/Beta.md") {
+			if (file.path === "Projects/202610061432.md") {
 				return { headings: [{ level: 1, heading: "Beta Heading" }] };
 			}
 			return null;
@@ -918,7 +918,7 @@ describe("collectChoiceRequirements - capture targets", () => {
 	it("asks for a file filter target's note in a searchable picker that matches aliases", async () => {
 		getMarkdownFilesMatchingFilterMock.mockReturnValue([
 			{ path: "Goals/Alpha.md" } as never,
-			{ path: "Projects/Beta.md" } as never,
+			{ path: "Projects/202610061432.md" } as never,
 		]);
 
 		const requirements = await collect(createCaptureChoice("folder:Goals|folder:Projects|tag:active"), choiceExecutor);
@@ -937,11 +937,11 @@ describe("collectChoiceRequirements - capture targets", () => {
 		);
 		expect(target?.options).toEqual([
 			"Goals/Alpha.md",
-			"Projects/Beta.md",
+			"Projects/202610061432.md",
 		]);
 		expect(target?.displayOptions).toEqual([
 			"Alpha Goal (Alpha)",
-			"Beta Heading (Beta)",
+			"Beta Heading (202610061432)",
 		]);
 		expect(target?.type).toBe("file-picker");
 		expect(target?.optionAliases).toEqual([["First goal"], []]);

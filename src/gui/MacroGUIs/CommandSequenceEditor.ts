@@ -515,9 +515,9 @@ export class CommandSequenceEditor {
 		}
 
 		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
-		// Rows show the name (a note's title or heading) with the full path beneath
-		// it, and search matches both, so same-named scripts in different folders
-		// can be told apart and a note is found by the name its row shows.
+		// Rows show the name with the full path beneath it, and search matches
+		// both, so same-named scripts in different folders can be told apart and
+		// a note is found by the name its row shows.
 		const paths = this.scriptCandidates.map((c) => c.file.path);
 		const labels = candidateLabels(this.scriptCandidates);
 		const titles = buildFileDisplayInfos(

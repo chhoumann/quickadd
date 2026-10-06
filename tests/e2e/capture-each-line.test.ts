@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, expectNoPrompt, pressKey, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, closeOpenPrompts, expectNoPrompt, waitForElement } from "./uiHelpers";
 
 // #1996: Capture "One entry per line" writes the format once per line of
 // {{VALUE}}, while macros and inline scripts run once per capture.
@@ -18,20 +18,11 @@ const FORMAT = [
 	"```js quickadd\nwindow.qaEachLineScript = (window.qaEachLineScript ?? 0) + 1;\nreturn \"script\";\n```",
 ].join("");
 
-async function closeOpenPrompts() {
-	const { obsidian } = getContext();
-	for (let remaining = 10; remaining > 0; remaining--) {
-		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container, .prompt"))')) break;
-		await pressKey(obsidian, "Escape");
-	}
-	await expectNoPrompt(obsidian);
-}
-
 beforeEach(async () => {
-	await closeOpenPrompts();
+	await closeOpenPrompts(getContext().obsidian);
 	await getContext().obsidian.dev.evalJson("(() => { window.qaEachLineMacro = 0; window.qaEachLineScript = 0; return true; })()");
 });
-afterEach(closeOpenPrompts);
+afterEach(() => closeOpenPrompts(getContext().obsidian));
 
 async function setUp(options: { eachLine: boolean; onePage?: boolean }) {
 	const { obsidian, plugin, sandbox } = getContext();
