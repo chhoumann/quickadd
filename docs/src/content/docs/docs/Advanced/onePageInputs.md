@@ -30,7 +30,8 @@ form.
 Fields appear in the order the choice uses them: the day first when
 [Which day](/docs/Choices/TemplateChoice/#date-origin) is **Ask each time**,
 then a Capture's note picker (when it captures to a folder or a tag), a
-Template's template path, folder and file name before the note content, a
+Template's template path, folder and file name (the note title, when it sets
+no **File name**) before the note content, a
 Macro's steps in turn, and within each, the order they have in the format.
 Step-by-step prompts group one text's fields by kind instead; see
 [The order prompts appear in](/docs/ControllingPrompts/#prompt-order).
@@ -166,6 +167,7 @@ The form only opens when it has something to ask:
 - If every required input already has a value (for example, prefilled by an earlier macro step), the form does not open.
 - An empty string counts as an intentional value and will not prompt again. This applies to `{{VDATE}}` too: a script-set `""` renders empty instead of re-prompting.
 - For Capture choices, a non-empty editor selection prefills `{{VALUE}}` during preflight when selection-as-value is enabled.
+- For a Template choice with no **File name**, a non-empty editor selection is the note title, so the form does not ask for it.
 
 :::note[Required date fields]
 A **required** date field with a default applies the default automatically when
