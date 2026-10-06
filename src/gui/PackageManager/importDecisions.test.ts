@@ -40,6 +40,27 @@ describe("reconcileMode", () => {
 		expect(fresh.mode).toBe("write");
 	});
 
+	it("writes a relocated file whose destination is empty, even when the package's own path is taken", () => {
+		const conflict = { originalPath: "Templates/Meeting.md", exists: true } as AssetConflict;
+		const relocated = defaultAssetDecision(conflict, () => "My Templates/Meeting.md", () => false, { keepExisting: true });
+		expect(relocated.mode).toBe("write");
+	});
+
+	it("turns a write picked for a file that is there into an overwrite", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "skip", destinationPath: "T.md", destinationExists: true }],
+		]);
+		expect(setAssetMode(decisions, "T.md", "write", () => true).get("T.md")?.mode).toBe("overwrite");
+	});
+
+	it("keeps a file that turns out to be there when asked to", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "write", destinationPath: "Templates/T.md", destinationExists: false }],
+		]);
+		expect(applyExistsResult(decisions, "T.md", true, { keepExisting: true }).get("T.md")?.mode).toBe("skip");
+		expect(applyExistsResult(decisions, "T.md", true).get("T.md")?.mode).toBe("overwrite");
+	});
+
 	it("flips write -> overwrite when the destination exists", () => {
 		expect(reconcileMode("write", true)).toBe("overwrite");
 	});

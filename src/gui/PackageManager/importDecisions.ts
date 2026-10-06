@@ -41,12 +41,19 @@ export type ExistsProbe = (path: string) => boolean;
  * destination currently exists. This is the single home for a rule that was
  * previously inlined in three places.
  */
+/** How a file already at a destination is treated unless the reader says otherwise. */
+export interface AssetDecisionOptions {
+	/** Keep the reader's file (skip) instead of writing the package's over it. */
+	keepExisting?: boolean;
+}
+
 export function reconcileMode(
 	mode: AssetImportMode,
 	exists: boolean,
+	options: AssetDecisionOptions = {},
 ): AssetImportMode {
 	if (mode === "skip") return mode;
-	if (exists && mode === "write") return "overwrite";
+	if (exists && mode === "write") return options.keepExisting ? "skip" : "overwrite";
 	if (!exists && mode === "overwrite") return "write";
 	return mode;
 }
@@ -89,12 +96,6 @@ export function defaultAssetDestinationFor(
 
 // --- Decision construction --------------------------------------------------
 
-/** How a file already at a destination is treated unless the reader says otherwise. */
-export interface AssetDecisionOptions {
-	/** Keep the reader's file (skip) instead of writing the package's over it. */
-	keepExisting?: boolean;
-}
-
 export function defaultAssetDecision(
 	conflict: AssetConflict,
 	destinationFor: (conflict: AssetConflict) => string,
@@ -102,7 +103,11 @@ export function defaultAssetDecision(
 	options: AssetDecisionOptions = {},
 ): AssetDecisionState {
 	const destinationPath = destinationFor(conflict);
-	const destinationExists = conflict.exists || exists(destinationPath);
+	// `conflict.exists` is about the package's own path; a file there says
+	// nothing about a destination elsewhere, which only the probe knows.
+	const destinationExists = destinationPath === conflict.originalPath
+		? conflict.exists || exists(destinationPath)
+		: exists(destinationPath);
 	return {
 		mode: !destinationExists ? "write" : options.keepExisting ? "skip" : "overwrite",
 		destinationPath,
@@ -182,7 +187,8 @@ export function setAssetMode(
 	const previous =
 		decisions.get(originalPath) ?? fallbackDecision(originalPath, exists);
 	const next = new Map(decisions);
-	next.set(originalPath, { ...previous, mode });
+	// A write picked for a file that is there is an overwrite, and says so.
+	next.set(originalPath, { ...previous, mode: reconcileMode(mode, previous.destinationExists) });
 	return next;
 }
 
@@ -220,6 +226,7 @@ export function applyExistsResult(
 	decisions: AssetDecisions,
 	originalPath: string,
 	exists: boolean,
+	options: AssetDecisionOptions = {},
 ): AssetDecisions {
 	const current = decisions.get(originalPath);
 	if (!current || current.destinationExists === exists) return decisions;
@@ -227,7 +234,7 @@ export function applyExistsResult(
 	next.set(originalPath, {
 		...current,
 		destinationExists: exists,
-		mode: reconcileMode(current.mode, exists),
+		mode: reconcileMode(current.mode, exists, options),
 	});
 	return next;
 }

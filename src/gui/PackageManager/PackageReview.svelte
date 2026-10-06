@@ -245,6 +245,7 @@
 				assetDecisions,
 				originalPath,
 				exists,
+				{ keepExisting: keepExistingFiles },
 			);
 			if (regroup && exists !== overwritesAtLoad.has(originalPath)) {
 				const next = new Set(overwritesAtLoad);
