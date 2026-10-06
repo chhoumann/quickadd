@@ -606,7 +606,7 @@ choice.
 
 **Show in ribbon** adds an icon to Obsidian's ribbon that runs the capture. The
 icon and its tooltip are the choice's icon and name. The setting saves as soon
-as you flip it. A choice nested inside a macro doesn't have it.
+as you flip it. A choice nested inside a macro doesn't have it. To put a button that runs it in a note instead, see [Buttons in notes](/docs/Choices/NoteButtons/).
 
 ### Run Templater on the whole file afterwards {#run-templater-on-entire-destination-file-after-capture}
 

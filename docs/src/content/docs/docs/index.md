@@ -49,9 +49,10 @@ them to a dated note in `Journal/`. Each card says what it adds before you
 pick it, and the [presets page](/docs/Choices/Presets/#first-run) lists them
 all.
 
-Run one from the command palette (Ctrl/Cmd+P) with **QuickAdd: Run**. To build
-a choice yourself instead, click **New choice** under the question, or follow
-the first workflow below.
+Run one from the command palette (Ctrl/Cmd+P) with **QuickAdd: Run**, or put
+it on a [button in a note](/docs/Choices/NoteButtons/) to run it with a click
+or a tap. To build a choice yourself instead, click **New choice** under the
+question, or follow the first workflow below.
 
 ## First workflow
 

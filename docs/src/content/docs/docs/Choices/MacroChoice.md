@@ -353,7 +353,7 @@ Template page.
 ### Show in ribbon {#show-in-ribbon}
 
 **Show in ribbon** adds an icon to Obsidian's ribbon that runs the macro, with
-the choice's icon and name. It saves as soon as you flip it.
+the choice's icon and name. It saves as soon as you flip it. To put a button that runs it in a note instead, see [Buttons in notes](/docs/Choices/NoteButtons/).
 
 ## Practical examples {#practical-examples}
 

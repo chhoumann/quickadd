@@ -120,6 +120,7 @@ export default defineConfig({
 						{ label: "Capture Choices", slug: "docs/Choices/CaptureChoice" },
 						{ label: "Macro Choices", slug: "docs/Choices/MacroChoice" },
 						{ label: "Multi Choices", slug: "docs/Choices/MultiChoice" },
+						{ label: "Buttons in notes", slug: "docs/Choices/NoteButtons" },
 						{ label: "Share QuickAdd Packages", slug: "docs/Choices/Packages" },
 					],
 				},
