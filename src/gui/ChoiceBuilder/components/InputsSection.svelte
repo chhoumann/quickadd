@@ -117,6 +117,8 @@ function change(name: string, value: Partial<InputOverride>) {
 						{#if input.askedBy && input.definedIn.path}
 							{@const path = input.definedIn.path}
 							Asked by Templater, in <a href={path} onclick={(event) => openTemplate(event, path)}>{fileName(path)}</a>
+						{:else if input.providedHow === "title"}
+							Filled from the note title
 						{:else if provided}
 							Provided by step {(input.providedBy ?? 0) + 1}
 						{:else if input.definedIn.where === "template file" && input.definedIn.path}

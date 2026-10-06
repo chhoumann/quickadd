@@ -37,6 +37,21 @@ describe("listInputs", () => {
 		]);
 	});
 
+	it("marks a template file's title as filled from the note title, and still asks the rest", async () => {
+		const template = new TemplateChoice("Meeting");
+		template.templatePath = "Templates/Meeting.md";
+		const files: Record<string, string> = { "Templates/Meeting.md": "# {{VALUE:Title}}\nGuest: {{VALUE:Guest}}\nAgain: {{VALUE:title}}" };
+
+		const inputs = await listInputs(actionOf(template), async (path) => files[path] ?? null);
+
+		const definedIn = { step: 0, where: "template file", path: "Templates/Meeting.md" };
+		expect(inputs).toEqual([
+			{ name: "value", kind: "value", label: "Note title", type: "text", optional: false, definedIn: { step: 0, where: "fileName" } },
+			{ name: "Title", kind: "value", label: "Title", type: "text", optional: false, definedIn, providedBy: 0, providedHow: "title" },
+			{ name: "Guest", kind: "value", label: "Guest", type: "text", optional: false, definedIn },
+		]);
+	});
+
 	it("lists a template file's Templater prompts after its own inputs, as asked by Templater", async () => {
 		const template = new TemplateChoice("Visit");
 		template.templatePath = "Templates/Visit.md";

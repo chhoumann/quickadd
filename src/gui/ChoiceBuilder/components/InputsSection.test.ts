@@ -16,6 +16,7 @@ import InputsSection from "./InputsSection.svelte";
 const files: Record<string, string> = {
 	"Templates/Visit.md": "Guest: {{VALUE:Guest}}",
 	"Templates/Dinner.md": '# <% tp.system.prompt("Guest") %>\nTopic: {{VALUE:Topic}}',
+	"Templates/Meeting.md": "# {{VALUE:Title}}\nGuest: {{VALUE:Guest}}",
 };
 const openFile = vi.fn(async () => {});
 const app = {
@@ -94,6 +95,19 @@ describe("InputsSection", () => {
 		expect(guest).toHaveClass("qaInputProvided");
 		await fireEvent.click(guest.querySelector("a")!);
 		expect(openFile).toHaveBeenCalledWith({ path: "Templates/Dinner.md" });
+	});
+
+	it("shows a template file's title as filled from the note title, muted and without controls", async () => {
+		const meeting = Object.assign(new TemplateChoice("Meeting"), { id: "meeting", templatePath: "Templates/Meeting.md" });
+		useSettings([meeting]);
+		const { container } = await mount(meeting);
+
+		expect(rows(container)).toEqual([
+			{ name: "Note title value", where: "Defined in the note name", controls: 2 },
+			{ name: "Title value", where: "Filled from the note title", controls: 0 },
+			{ name: "Guest value", where: "Defined in Meeting.md", controls: 2 },
+		]);
+		expect(container.querySelector('[data-input="Title"]')).toHaveClass("qaInputProvided");
 	});
 
 	it("saves a label and optional to the action as they change", async () => {

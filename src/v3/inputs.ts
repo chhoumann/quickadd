@@ -29,6 +29,8 @@ export interface ActionInput {
 	definedIn: { step: number; where: InputLocation; path?: string };
 	/** The index of an earlier step that may set it, so the run need not ask. */
 	providedBy?: number;
+	/** Set when the note `providedBy` creates answers it with its title. */
+	providedHow?: "title";
 	/** Set when Templater asks it, after QuickAdd's own inputs; its name is its label. */
 	askedBy?: "templater";
 }
@@ -43,6 +45,9 @@ export interface ActionInput {
  * after one is marked as provided by it, and so is an input named like the
  * output variable of an earlier AI step. An input that first appears before
  * either is asked for, as a script cannot answer what was already asked.
+ *
+ * A template file's `{{VALUE:title}}`, in any case, is the title of the note
+ * the step creates, so it is marked as provided by that step.
  *
  * A template file's Templater prompts follow that file's own inputs, as
  * Templater asks them once the note exists.
@@ -63,6 +68,18 @@ export async function listInputs(
 		const known = new Set(inputs.filter((input) => !input.askedBy).map((input) => input.name));
 		for (const requirement of collector.requirements.values()) {
 			if (known.has(requirement.id)) continue;
+			if (where === "template file" && requirement.id.toLowerCase() === "title") {
+				if (inputs.some((input) => input.providedHow === "title")) continue;
+				inputs.push({
+					name: requirement.id,
+					...describe(requirement),
+					optional: requirement.optional ?? false,
+					definedIn: { step, where, ...(path === undefined ? {} : { path }) },
+					providedBy: step,
+					providedHow: "title",
+				});
+				continue;
+			}
 			const providers = [aiOutputs.get(requirement.id), lastScript].filter((step) => step !== undefined);
 			inputs.push({
 				name: requirement.id,
