@@ -18,8 +18,9 @@
 
 	function what(entry: RunLogEntry): string {
 		if (entry.status === "success") return entry.effect ? EFFECTS[entry.effect] : "ran";
-		const label = entry.status === "error" ? "failed" : "cancelled";
-		return entry.reason ? `${label}: ${entry.reason}` : label;
+		// A failure's reason is a sentence: it gets a line of its own.
+		if (entry.status === "error") return "failed";
+		return entry.reason ? `cancelled: ${entry.reason}` : "cancelled";
 	}
 
 	function basename(path: string): string {
@@ -45,18 +46,25 @@
 			{#each entries as entry, index (`${entry.at}-${index}`)}
 				<li class="qa-run-log-entry" data-status={entry.status}>
 					<span class="qa-run-log-time">{time(entry.at)}</span>
-					<span class="qa-run-log-name">{entry.choiceName}</span>
-					<span class="qa-run-log-what" title={entry.reason}>{what(entry)}</span>
-					{#if entry.status === "success" && entry.path}
-						<a
-							class="qa-run-log-note"
-							href={entry.path}
-							onclick={(event) => {
-								event.preventDefault();
-								void open(entry.path!);
-							}}>{basename(entry.path)}</a
-						>
-					{/if}
+					<div class="qa-run-log-body">
+						<div class="qa-run-log-line">
+							<span class="qa-run-log-name">{entry.choiceName}</span>
+							<span class="qa-run-log-what" title={entry.reason}>{what(entry)}</span>
+							{#if entry.status === "success" && entry.path}
+								<a
+									class="qa-run-log-note"
+									href={entry.path}
+									onclick={(event) => {
+										event.preventDefault();
+										void open(entry.path!);
+									}}>{basename(entry.path)}</a
+								>
+							{/if}
+						</div>
+						{#if entry.status === "error" && entry.reason}
+							<div class="qa-run-log-reason">{entry.reason}</div>
+						{/if}
+					</div>
 				</li>
 			{/each}
 		</ul>
@@ -73,12 +81,28 @@
 		padding: 0;
 	}
 
-	.qa-run-log-entry {
+	.qa-run-log-entry,
+	.qa-run-log-line {
 		display: flex;
 		gap: var(--size-4-2);
 		align-items: baseline;
-		padding: var(--size-4-1) 0;
 		min-width: 0;
+	}
+
+	.qa-run-log-entry {
+		padding: var(--size-4-1) 0;
+	}
+
+	.qa-run-log-body {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	/* Under the name, the whole sentence, wrapped. */
+	.qa-run-log-reason {
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+		overflow-wrap: anywhere;
 	}
 
 	.qa-run-log-time {
@@ -87,8 +111,8 @@
 		flex: none;
 	}
 
-	/* A long note path or failure shortens first, a long name only past 40%
-	   of the row, so neither widens the page on a phone. */
+	/* A long note path or cancel reason shortens first, a long name only past
+	   40% of the row, so neither widens the page on a phone. */
 	.qa-run-log-name,
 	.qa-run-log-what,
 	.qa-run-log-note {

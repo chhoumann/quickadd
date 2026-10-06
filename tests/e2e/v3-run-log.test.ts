@@ -57,14 +57,15 @@ it("lists the last runs, newest first, and clears them", async () => {
 		.toBe("No runs yet");
 });
 
-it("shortens a failure's reason before the name of the choice that failed", async () => {
+it("shows a failure's whole reason on a line of its own under the choice that failed", async () => {
 	const { obsidian, plugin } = getContext();
+	const reason = "Script captureInboxGps.js threw: Cannot read properties of undefined (reading 'coords') ".repeat(3).trim();
 	const entry = {
 		at: new Date().toISOString(),
 		choiceId: "qa-run-log-failed",
 		choiceName: "Weekly review",
 		status: "error",
-		reason: "Script captureInboxGps.js threw: Cannot read properties of undefined (reading 'coords') ".repeat(3),
+		reason,
 		durationMs: 90,
 	};
 	await obsidian.dev.evalJsonAsync(`(async () => {
@@ -75,9 +76,31 @@ it("shortens a failure's reason before the name of the choice that failed", asyn
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("(() => { app.setting.open(); app.setting.openTabById('quickadd'); return true; })()");
 	await waitForElement(obsidian, ".mod-settings .qa-run-log-entry");
-	expect(await obsidian.dev.evalJson<Record<string, boolean>>(`(() => {
+	expect(await obsidian.dev.evalJson(`(() => {
 		const entry = document.querySelector(".mod-settings .qa-run-log-entry");
-		const cut = (el) => el.scrollWidth > el.clientWidth;
-		return { name: cut(entry.querySelector(".qa-run-log-name")), reason: cut(entry.querySelector(".qa-run-log-what")) };
-	})()`)).toEqual({ name: false, reason: true });
+		const name = entry.querySelector(".qa-run-log-name");
+		const what = entry.querySelector(".qa-run-log-what");
+		const sentence = entry.querySelector(".qa-run-log-reason");
+		const lineHeight = parseFloat(getComputedStyle(sentence).lineHeight);
+		return {
+			nameCut: name.scrollWidth > name.clientWidth,
+			what: what.textContent,
+			tooltip: what.title === ${jsLiteral(reason)},
+			sentence: sentence.textContent,
+			sentenceCut: sentence.scrollWidth > sentence.clientWidth,
+			below: sentence.getBoundingClientRect().top >= name.getBoundingClientRect().bottom,
+			wraps: sentence.getBoundingClientRect().height > lineHeight * 1.5,
+			// As muted as the time beside it.
+			muted: getComputedStyle(sentence).color === getComputedStyle(entry.querySelector(".qa-run-log-time")).color,
+		};
+	})()`)).toEqual({
+		nameCut: false,
+		what: "failed",
+		tooltip: true,
+		sentence: reason,
+		sentenceCut: false,
+		below: true,
+		wraps: true,
+		muted: true,
+	});
 });
