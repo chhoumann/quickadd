@@ -101,4 +101,18 @@ it("runs a choice from a button in a note, and the button follows a rename", asy
 		["Task", false],
 		["Journal entry", false],
 	]);
+
+	// Live preview draws the button that names no choice as reading view does,
+	// not as an unresolved link.
+	const unresolvedColor = () => obsidian.dev.evalJson<string>(`(() => {
+		const el = [...document.querySelectorAll(".workspace-leaf.mod-active .qa-note-button")].find((b) => b.disabled && b.getClientRects().length > 0);
+		return el ? getComputedStyle(el).color : "";
+	})()`);
+	const reading = await unresolvedColor();
+	expect(reading).not.toBe("");
+	await obsidian.dev.evalJsonAsync(`(async () => {
+		await app.workspace.activeLeaf.setViewState({ type: "markdown", state: { file: ${jsLiteral(dashboard)}, mode: "source", source: false } });
+		return true;
+	})()`);
+	await expect.poll(unresolvedColor, POLL_OPTS).toBe(reading);
 });

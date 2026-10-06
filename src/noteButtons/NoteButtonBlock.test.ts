@@ -29,7 +29,7 @@ const view = (el: HTMLElement) =>
 		label: b.textContent,
 		title: b.title,
 		disabled: b.disabled,
-		unresolved: b.classList.contains("is-unresolved"),
+		unresolved: b.classList.contains("qa-note-button--unresolved"),
 	}));
 
 beforeEach(() => {

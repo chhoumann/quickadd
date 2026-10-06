@@ -62,7 +62,8 @@ export class NoteButtonBlock extends MarkdownRenderChild {
 		for (const button of buttons) {
 			const el = row.createEl("button", { cls: "qa-note-button" });
 			if ("problem" in button) {
-				el.addClass("is-unresolved");
+				// Not is-unresolved: live preview colours that class as an unresolved link.
+				el.addClass("qa-note-button--unresolved");
 				el.disabled = true;
 				el.createSpan({ cls: "qa-note-button-label", text: button.problem });
 				continue;

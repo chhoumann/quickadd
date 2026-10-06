@@ -2860,7 +2860,7 @@ body:not(.is-phone) .quickAddModal.qa-recipes-modal {
 	white-space: nowrap;
 }
 
-.qa-note-button.is-unresolved {
+.qa-note-button.qa-note-button--unresolved {
 	color: var(--text-faint);
 	cursor: default;
 }
