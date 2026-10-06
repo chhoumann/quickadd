@@ -4,6 +4,7 @@ import { expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
+import { storedChoices, withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("settings-popout-save");
 
@@ -12,13 +13,13 @@ const getContext = createQuickAddE2EHarness("settings-popout-save");
 for (const mainWindow of ["visible", "hidden"] as const) {
 	it(`saves a reorder made in the Settings popout that closes right after, main window ${mainWindow}`, async () => {
 		const { obsidian, plugin } = getContext();
-		await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 			data.choices = ["Alpha", "Bravo", "Charlie"].map((name) => new TemplateChoice(name));
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		const dataPath = path.join(await obsidian.vaultPath(), ".obsidian/plugins/quickadd/data.json");
-		const onDisk = () =>
-			(JSON.parse(readFileSync(dataPath, "utf8")).choices as IChoice[]).map((choice) => choice.name);
+		// QuickAdd 3 stores the choices as actions; read them as it loads them.
+		const onDisk = () => storedChoices(JSON.parse(readFileSync(dataPath, "utf8"))).map((choice) => choice.name);
 		const popout = await obsidian.dev.evalJson<boolean>("app.vault.getConfig('settingsPopoutWindow') ?? true");
 		try {
 			// Reorder by a native mouse drag in the popout, and close it 300 ms after the drop.
