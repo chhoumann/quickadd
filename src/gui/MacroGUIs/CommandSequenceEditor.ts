@@ -1,9 +1,5 @@
-import type {
-	App,
-	DropdownComponent,
-	TextComponent,
-} from "obsidian";
-import { ButtonComponent, Notice, Setting } from "obsidian";
+import type { App } from "obsidian";
+import { ButtonComponent, Menu, Notice } from "obsidian";
 import CommandList from "./CommandList.svelte";
 import { editorCommands } from "./editorCommands";
 import {
@@ -19,29 +15,17 @@ import type { IObsidianCommand } from "../../types/macros/IObsidianCommand";
 import { ChoiceCommand } from "../../types/macros/ChoiceCommand";
 import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 import { NestedChoiceCommand } from "../../types/macros/QuickCommands/NestedChoiceCommand";
-import { CaptureChoice } from "../../types/choices/CaptureChoice";
-import { TemplateChoice } from "../../types/choices/TemplateChoice";
-import {
-	type ScriptCandidate,
-	candidateLabels,
-	loadScriptCandidates,
-	noteScriptError,
-	resolveScriptSelector,
-} from "./scriptCandidates";
 import { UserScript } from "../../types/macros/UserScript";
-import { GenericTextSuggester } from "../suggesters/genericTextSuggester";
+import GenericSuggester from "../GenericSuggester/genericSuggester";
 import { confirmAction } from "../confirmAction";
-import { showNoScriptsFoundNotice } from "./noScriptsFoundNotice";
-import InputSuggester from "../InputSuggester/inputSuggester";
-import { renderNotePathSuggestion } from "../InputSuggester/renderNotePathSuggestion";
-import { buildFileDisplayInfos } from "../../utils/fileSyntax";
+import { pickUserScript } from "./pickUserScript";
 import { log } from "../../logger/logManager";
 import { reportingHandler } from "../../utils/errorUtils";
 import { AIAssistantCommand } from "../../types/macros/QuickCommands/AIAssistantCommand";
+import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
 import { settingsStore } from "../../settingsStore";
 import { OpenFileCommand } from "../../types/macros/QuickCommands/OpenFileCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
-import { getUserScriptMemberAccess } from "../../utils/userScript";
 import { ConditionalCommand } from "../../types/macros/Conditional/ConditionalCommand";
 import { clearUserScriptSecretsFromCommand } from "../../utils/userScriptSecrets";
 import {
@@ -49,6 +33,13 @@ import {
 	normalizeCommandList,
 } from "../../utils/macroUtils";
 import DataUnreadable from "../svelte/DataUnreadable.svelte";
+import { PRESETS } from "../choiceList/presets";
+import { isTemplateChoice } from "../../types/choices/choiceType";
+import { DEFAULT_TEMPLATE_FOLDER, readTemplateFolder } from "../choiceList/firstRun";
+import { openNestedChoiceBuilder } from "./openNestedChoiceBuilder";
+import { getCommandDisplayName } from "../../utils/macroHelpers";
+import { newStep } from "../../v3/addStep";
+import { lowerStep } from "../../v3/lower";
 
 /**
  * Opens a branch's commands as a page. Mutates the command when the page is
@@ -92,7 +83,6 @@ export class CommandSequenceEditor {
 	 */
 	private readonly unreadable: boolean;
 	private obsidianCommands: IObsidianCommand[] = [];
-	private scriptCandidates: ScriptCandidate[] = [];
 	private commandListHandle: MountHandle | null = null;
 	private commandListProps: CommandListProps | null = null;
 	private containerEl: HTMLElement | null = null;
@@ -115,7 +105,6 @@ export class CommandSequenceEditor {
 		this.conditionalHandlers = options.conditionalHandlers;
 
 		this.loadObsidianCommands();
-		this.loadScriptCandidates();
 	}
 
 	/**
@@ -146,11 +135,7 @@ export class CommandSequenceEditor {
 		// user would be adding commands they cannot see, reorder or delete.
 		if (!this.renderCommandList(containerEl)) return false;
 
-		this.renderCommandBar(containerEl);
-		this.renderAddObsidianCommandSetting(containerEl);
-		this.renderAddEditorCommandSetting(containerEl);
-		this.renderAddUserScriptSetting(containerEl);
-		this.renderAddChoiceSetting(containerEl);
+		this.renderAddStep(containerEl);
 		return true;
 	}
 
@@ -183,10 +168,6 @@ export class CommandSequenceEditor {
 		});
 	}
 
-	private loadScriptCandidates(): void {
-		this.scriptCandidates = loadScriptCandidates(this.app);
-	}
-
 	/** @returns whether the list actually rendered (see render()). */
 	private renderCommandList(parent: HTMLElement): boolean {
 		const commandListEl = parent.createDiv("commandList");
@@ -204,7 +185,7 @@ export class CommandSequenceEditor {
 				}
 
 				const promptAnswer = await confirmAction(this.app, {
-					title: `Delete '${command.name}'?`,
+					title: `Delete '${getCommandDisplayName(command)}'?`,
 					message: "The command will be removed from this macro.",
 					action: "Delete",
 				});
@@ -245,319 +226,133 @@ export class CommandSequenceEditor {
 		return this.commandListHandle.ok;
 	}
 
-	private renderCommandBar(parent: HTMLElement) {
-		const quickCommandContainer: HTMLDivElement = parent.createDiv(
-			"quickCommandContainer"
-		);
+	/** One button, which offers every kind of step this list can hold. */
+	private renderAddStep(parent: HTMLElement) {
+		const container = parent.createDiv("quickCommandContainer");
+		const button = new ButtonComponent(container).setButtonText("Add a step");
+		button.buttonEl.setAttribute("aria-label", "Add a step");
+		button.buttonEl.setAttribute("aria-haspopup", "menu");
+		button.buttonEl.setAttribute("aria-expanded", "false");
+		button.onClick(() => this.openAddStepMenu(button.buttonEl));
+	}
 
-		this.addChoiceButton(quickCommandContainer, "Capture", CaptureChoice);
-		this.addChoiceButton(quickCommandContainer, "Template", TemplateChoice);
-		this.addCommandButton(
-			quickCommandContainer,
-			"file-search",
-			"Add open file command",
-			() => new OpenFileCommand(),
-		);
-		this.addCommandButton(
-			quickCommandContainer,
-			"clock",
-			"Add wait command",
-			() => new WaitCommand(100),
-		);
-		this.addCommandButton(
-			quickCommandContainer,
-			"git-branch",
-			"Add conditional command",
-			() => new ConditionalCommand(),
-		);
+	private openAddStepMenu(button: HTMLElement) {
+		const menu = new Menu();
+		const add = (section: string, title: string, icon: string, run: () => void | Promise<void>) =>
+			menu.addItem((item) =>
+				item
+					.setTitle(title)
+					.setIcon(icon)
+					.setSection(section)
+					// Obsidian drops the handler's promise: a picker dismissed with
+					// Escape would be an unhandled rejection.
+					.onClick(reportingHandler("Couldn't add that step", run)),
+			);
+		const label = (section: string, title: string) =>
+			menu.addItem((item) => item.setTitle(title).setIsLabel(true).setSection(section));
 
+		label("write", "Write");
+		add("write", "Create a note", "file-plus", () => this.addNestedChoice("newNote"));
+		add("write", "Add to a note", "pencil", () => this.addNestedChoice("addToNote"));
+		label("then", "Then");
+		add("then", "Open a note", "file-search", () => this.addCommand(new OpenFileCommand()));
+		add("then", "Link it", "link", () => this.addCommand(lowerStep(newStep("link"), "")));
+		add("then", "Run Templater", "braces", () => this.addCommand(lowerStep(newStep("templater"), "")));
+		add("then", "Run a script", "code", () => this.addUserScript());
+		add("then", "Run a command", "terminal-square", () => this.addObsidianCommand());
+		add("then", "Run an editor command", "text-cursor", () => this.addEditorCommand());
 		if (!settingsStore.getState().disableOnlineFeatures) {
-			this.addCommandButton(
-				quickCommandContainer,
-				"bot",
-				"Add AI Assistant command",
-				() => new AIAssistantCommand(),
-			);
+			add("then", "Ask AI", "bot", () => this.addAIAssistant());
 		}
+		add("then", "Run a choice", "play", () => this.addChoiceCommand());
+		add("then", "If", "git-branch", () => this.addConditional());
+		add("then", "Wait", "clock", () => this.addCommand(new WaitCommand(100)));
+
+		button.setAttribute("aria-expanded", "true");
+		menu.onHide(() => button.setAttribute("aria-expanded", "false"));
+		// Under the button, which a key press has no position of its own for.
+		const rect = button.getBoundingClientRect();
+		menu.showAtPosition({ x: rect.left, y: rect.bottom + 4, width: rect.width, overlap: true, left: true });
 	}
 
-	private renderAddObsidianCommandSetting(parent: HTMLElement) {
-		let input: TextComponent;
-
-		const addObsidianCommandFromInput = () => {
-			const value: string = input.getValue();
-			if (!value.trim()) return;
-			const obsidianCommand = this.obsidianCommands.find((v) => v.name === value);
-
-			if (!obsidianCommand) {
-				log.logError(`Could not find Obsidian command with name "${value}"`);
-				return;
-			}
-
-			const command = new ObsidianCommand(
-				obsidianCommand.name,
-				obsidianCommand.commandId
-			);
-			command.generateId();
-
-			this.addCommand(command);
-
-			input.setValue("");
-		};
-
-		new Setting(parent)
-			.setName("Obsidian command")
-			.setDesc("Add an Obsidian command")
-			.addText((textComponent) => {
-				input = this.configureSuggestedInput(
-					textComponent,
-					"Obsidian command",
-					this.obsidianCommands.map((c) => c.name),
-					addObsidianCommandFromInput,
-				);
-			})
-			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addObsidianCommandFromInput)
-			);
+	/**
+	 * A Create or Add step: a new choice made as the New choice menu's preset
+	 * makes it, opened in its builder over this page.
+	 */
+	private addNestedChoice(presetId: "newNote" | "addToNote") {
+		const preset = PRESETS.find((entry) => entry.id === presetId);
+		if (!preset) throw new Error(`Missing preset '${presetId}'`);
+		const templateFolder = readTemplateFolder(this.app, settingsStore.getState()) ?? DEFAULT_TEMPLATE_FOLDER;
+		const choice = preset.create({ templateFolder });
+		// A step leaves the note it creates closed: the steps after it act on the
+		// note that is open, and an Open a note step opens it.
+		if (isTemplateChoice(choice)) choice.openFile = false;
+		const command = new NestedChoiceCommand(choice);
+		this.addCommand(command);
+		openNestedChoiceBuilder(this.app, this.plugin, command, (updated) => this.replaceCommand(updated));
 	}
 
-	private renderAddEditorCommandSetting(parent: HTMLElement) {
-		let dropdownComponent: DropdownComponent;
-
-		const addEditorCommandFromDropdown = () => {
-			if (!dropdownComponent.getValue()) return;
-			const Command = editorCommands.get(dropdownComponent.getValue());
-			if (!Command) {
-				log.logError("invalid editor command type");
-				throw new Error("invalid editor command type");
-			}
-			this.addCommand(new Command());
-			dropdownComponent.setValue("");
-		};
-
-		new Setting(parent)
-			.setName("Editor commands")
-			.setDesc("Add editor command")
-			.addDropdown((dropdown) => {
-				dropdownComponent = dropdown;
-				dropdown.selectEl.addClass("qa-command-sequence-input");
-				dropdown.addOption("", "Select command");
-				for (const type of editorCommands.keys()) dropdown.addOption(type, type);
-			})
-			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addEditorCommandFromDropdown)
-			);
+	private async addUserScript() {
+		const script = await pickUserScript(this.app, { member: true });
+		if (script) this.addCommand(new UserScript(script.name, script.path));
 	}
 
-	private renderAddUserScriptSetting(parent: HTMLElement) {
-		let input!: TextComponent;
-		let addButton: ButtonComponent | null = null;
-
-		const addUserScriptFromInput = async () => {
-			// Refresh so scripts/notes created while this editor is open resolve.
-			this.loadScriptCandidates();
-			const value: string = input.getValue().trim();
-			if (!value) return;
-			const selector = getUserScriptMemberAccess(value).basename ?? value;
-
-			// Notes resolve by path (so a bare basename never picks a note over a
-			// same-named .js); .js keeps basename matching. Member access (`::`) is
-			// preserved in `value`, which becomes the command name.
-			const resolved = resolveScriptSelector(
-				this.app,
-				this.scriptCandidates,
-				selector,
-			);
-			if (!resolved) {
-				new Notice(
-					`QuickAdd: No script or js-block note named "${value}" found.`
-				);
-				return;
-			}
-
-			if (resolved.isMarkdown) {
-				const reason = await noteScriptError(this.app, resolved.file);
-				if (reason) {
-					new Notice(`QuickAdd: "${resolved.file.path}" — ${reason}`);
-					return;
-				}
-			}
-
-			this.addCommand(new UserScript(value, resolved.file.path));
-
-			input.setValue("");
-			if (addButton) {
-				addButton.buttonEl.addClass("qa-hidden");
-			}
-		};
-
-		new Setting(parent)
-			.setName("User scripts")
-			.setDesc("Add a .js file or a note with a ```js code block - type the name or click Browse")
-			.addText((textComponent) => {
-				input = this.configureSuggestedInput(
-					textComponent,
-					"Start typing script name...",
-					candidateLabels(this.scriptCandidates),
-					addUserScriptFromInput,
-				);
-			})
-			.addButton((button) =>
-				button
-					.setButtonText("Browse")
-					.setTooltip("Browse and select a script (.js file or note)")
-					// Obsidian drops the click handler's promise: without this, pressing
-					// Escape in the picker is an unhandled rejection.
-					.onClick(reportingHandler("Couldn't add that script", async () => {
-						const script = await this.showScriptPicker();
-						if (script) this.addCommand(script);
-					}))
-			)
-			.addButton((button) => {
-				addButton = button;
-				button
-					.setButtonText("Add")
-					.setCta()
-					.onClick(() => void addUserScriptFromInput());
-				button.buttonEl.addClass("qa-hidden");
-			});
-
-		input.onChange((value) => {
-			if (!addButton) return;
-			addButton.buttonEl.toggleClass("qa-hidden", value.trim().length === 0);
-		});
-	}
-
-	private renderAddChoiceSetting(parent: HTMLElement) {
-		let input: TextComponent;
-
-		const addChoiceFromInput = () => {
-			const value: string = input.getValue();
-			if (!value.trim()) return;
-			const choice = this.choices.find((c) => c.name === value);
-			if (!choice) {
-				new Notice(`QuickAdd: No choice named "${value}".`);
-				return;
-			}
-
-			this.addCommand(new ChoiceCommand(choice.name, choice.id));
-
-			input.setValue("");
-		};
-
-		new Setting(parent)
-			.setName("Choices")
-			.setDesc("Add existing choice")
-			.addText((textComponent) => {
-				input = this.configureSuggestedInput(
-					textComponent,
-					"Choice",
-					this.choices.map((c) => c.name),
-					addChoiceFromInput,
-				);
-			})
-			.addButton((button) =>
-				button.setCta().setButtonText("Add").onClick(addChoiceFromInput)
-			);
-	}
-
-	private configureSuggestedInput(
-		input: TextComponent,
-		placeholder: string,
-		suggestions: string[],
-		add: () => void | Promise<void>,
-	): TextComponent {
-		input.inputEl.addClass("qa-command-sequence-input");
-		input.setPlaceholder(placeholder);
-		new GenericTextSuggester(this.app, input.inputEl, suggestions);
-		input.inputEl.addEventListener("keypress", (event: KeyboardEvent) => {
-			if (event.key === "Enter") void add();
-		});
-		return input;
-	}
-
-	private addChoiceButton(
-		container: HTMLDivElement,
-		typeName: string,
-		Type: typeof TemplateChoice | typeof CaptureChoice
-	) {
-		const button: ButtonComponent = new ButtonComponent(container);
-		button
-			.setButtonText(typeName)
-			.setTooltip(`Add ${typeName} choice`)
-			.onClick(() => {
-				// NOT lowercased with the tooltip above: this is a persisted choice
-				// NAME, not a label, so changing it would only split existing and
-				// newly created choices into two spellings.
-				const newChoice: IChoice = new Type(`Untitled ${typeName} Choice`);
-				this.addCommand(new NestedChoiceCommand(newChoice));
-			});
-	}
-
-	private addCommandButton(
-		container: HTMLDivElement,
-		icon: string,
-		tooltip: string,
-		create: () => ICommand,
-	) {
-		new ButtonComponent(container)
-			.setIcon(icon)
-			.setTooltip(tooltip)
-			.onClick(() => this.addCommand(create()));
-	}
-
-	private async showScriptPicker(): Promise<UserScript | null> {
-		// Refresh so scripts/notes created while this editor is open are listed.
-		this.loadScriptCandidates();
-		if (this.scriptCandidates.length === 0) {
-			showNoScriptsFoundNotice(this.app);
-			return null;
-		}
-
-		// One unified list: .js paths and notes-with-a-code-block, keyed by path.
-		// Rows show the name (a note's title or heading) with the full path beneath
-		// it, and search matches both, so same-named scripts in different folders
-		// can be told apart and a note is found by the name its row shows.
-		const paths = this.scriptCandidates.map((c) => c.file.path);
-		const labels = candidateLabels(this.scriptCandidates);
-		const titles = buildFileDisplayInfos(
-			this.scriptCandidates.map((c) => c.file),
-			(file) => this.app.metadataCache.getFileCache(file),
-		);
-		const selectedPath = await InputSuggester.Suggest(
+	// A dismissed suggester rejects, which the menu's handler lets pass quietly.
+	private async addObsidianCommand() {
+		const picked = await GenericSuggester.Suggest(
 			this.app,
-			labels,
-			paths,
-			{
-				placeholder: "Select a script (.js file or note with a ```js block)",
-				renderItem: (path, el, matches) => renderNotePathSuggestion(el, path, this.app, {
-					matches,
-					pathOffset: titles[paths.indexOf(path)].primary.length + 1,
-				}),
-				searchItems: paths.map((path, index) => `${titles[index].primary} ${path}`),
-				allowCustomValue: false,
-			}
+			this.obsidianCommands.map((command) => command.name),
+			this.obsidianCommands,
+			"Obsidian command",
 		);
+		const command = new ObsidianCommand(picked.name, picked.commandId);
+		command.generateId();
+		this.addCommand(command);
+	}
 
-		const index = paths.indexOf(selectedPath);
-		if (index === -1) return null;
-		const candidate = this.scriptCandidates[index];
+	private async addEditorCommand() {
+		const types = [...editorCommands.keys()];
+		const type = await GenericSuggester.Suggest(this.app, types, types, "Editor command");
+		const Command = editorCommands.get(type);
+		if (Command) this.addCommand(new Command());
+	}
 
-		if (candidate.isMarkdown) {
-			const reason = await noteScriptError(this.app, candidate.file);
-			if (reason) {
-				new Notice(`QuickAdd: "${candidate.file.path}" — ${reason}`);
-				return null;
-			}
+	private async addChoiceCommand() {
+		const choice = await GenericSuggester.Suggest(
+			this.app,
+			this.choices.map((entry) => entry.name),
+			this.choices,
+			"Choice",
+		);
+		this.addCommand(new ChoiceCommand(choice.name, choice.id));
+	}
+
+	private async addAIAssistant() {
+		const command = new AIAssistantCommand();
+		this.addCommand(command);
+		if (await new AIAssistantCommandSettingsModal(this.app, command).waitForClose) {
+			this.replaceCommand({ ...command });
 		}
+	}
 
-		return new UserScript(labels[index], candidate.file.path);
+	private async addConditional() {
+		const command = new ConditionalCommand();
+		this.addCommand(command);
+		if (await this.conditionalHandlers?.configureCondition?.(command)) {
+			this.replaceCommand({ ...command });
+		}
 	}
 
 	private addCommand(command: ICommand) {
 		// Immutable add: callers (MacroBuilder, ConditionalBranchEditorPage) track
 		// changes via onCommandsChange, not in-place mutation of the passed array.
 		this.commandsRef = [...this.commandsRef, command];
+		this.emitCommandsChanged();
+	}
+
+	/** A step edited after it was added, such as by its settings dialog. */
+	private replaceCommand(command: ICommand) {
+		this.commandsRef = this.commandsRef.map((entry) => (entry.id === command.id ? command : entry));
 		this.emitCommandsChanged();
 	}
 

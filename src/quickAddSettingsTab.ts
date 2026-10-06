@@ -16,13 +16,14 @@ import { mountComponent, type MountHandle } from "./gui/svelte/mountComponent";
 import type { Plain } from "./gui/svelte/persist.svelte";
 import GenericSuggester from "./gui/GenericSuggester/genericSuggester";
 import GlobalVariablesView from "./gui/GlobalVariables/GlobalVariablesView.svelte";
+import RunLogView from "./gui/RunLog/RunLogView.svelte";
 import { settingsStore } from "./settingsStore";
 import { getAllFolderPathsInVault } from "./utils/vaultQueries";
 import { normalizeTemplateFolderPaths } from "./utils/templateFolderUtils";
 import { sortFolderPathsByTree } from "./utils/folder-sorting";
 import { ExportPackageModal } from "./gui/PackageManager/ExportPackageModal";
 import { ImportPackageModal } from "./gui/PackageManager/ImportPackageModal";
-import { syncImportedChoiceCommands } from "./services/packageImportCommands";
+import { RecipesModal } from "./gui/recipes/RecipesModal";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { QuickAddSettings } from "./settings";
 import {
@@ -45,12 +46,10 @@ import {
 	aiPageSignature,
 	createAIAssistantPage,
 } from "./gui/ai/aiAssistantSettingsPage";
-import {
-	openQuickAddSettings,
-	tryOpenSettingsPage,
-} from "./utils/openPluginSettings";
+import { openQuickAddSettings, tryOpenSettingsPage, closeSettings, tryOpenPluginSettings } from "./utils/openPluginSettings";
 import { storedProviders } from "./gui/ai/aiSettingsState";
 import { isCancellationError } from "./utils/errorUtils";
+import { confirmAction } from "./gui/confirmAction";
 
 const AI_KEY_PREFIX = "ai.";
 
@@ -64,7 +63,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	 * opened the page, so the new row gets the same list instead.
 	 */
 	private choiceView: { el: HTMLElement; handle: MountHandle } | null = null;
-	private globalVariablesViewHandle: MountHandle | null = null;
+	/** The Svelte views mounted in rows other than the choice list, by row. */
+	private readonly mountedViews = new Map<string, MountHandle>();
 	/** Live store subscription behind the Packages row's Export state. */
 	private packagesUnsubscribe: (() => void) | null = null;
 
@@ -85,13 +85,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 		// Declarative definitions are a snapshot: Obsidian re-renders from them
 		// until update() rebuilds them. Rebuild when the AI page's provider
-		// entries or the template folder list change (the way Obsidian's own
-		// Keychain tab follows its secrets), but not on every store write:
-		// update() re-renders the page on screen.
+		// entries, the template folder list or the QuickAdd 2 copy change (the
+		// way Obsidian's own Keychain tab follows its secrets), but not on every
+		// store write: update() re-renders the page on screen.
 		const definitionsSignature = (state: QuickAddSettings): string =>
 			JSON.stringify([
 				aiPageSignature(storedProviders(state)),
 				normalizeTemplateFolderPaths(state.templateFolderPaths),
+				state.v3Migration?.snapshot,
 			]);
 		let signature = definitionsSignature(settingsStore.getState());
 		plugin.register(
@@ -196,8 +197,55 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 			packages: (setting) => this.renderPackages(setting),
 			dateAliases: (setting) => this.renderDateAliases(setting),
 			globalVariables: (setting) => this.renderGlobalVariablesView(setting),
+			runLog: (setting) => this.renderRunLogView(setting),
 			developmentInfo: (setting) => this.renderDevInfo(setting),
-		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList());
+		}, __IS_DEV_BUILD__, createAIAssistantPage(this.app), this.templateFoldersList(), this.v2SettingsGroup());
+	}
+
+	/** Undo or redo the QuickAdd 3 migration from the copy of data.json taken before it. */
+	private v2SettingsGroup(): SettingDefinitionGroup<SettingsKey> | undefined {
+		const snapshot = settingsStore.getState().v3Migration?.snapshot;
+		if (!snapshot) return undefined;
+		const id = this.plugin.manifest.id;
+		const plugins = this.app.plugins;
+		return {
+			type: "group",
+			heading: "QuickAdd 2 settings",
+			items: [
+				{
+					name: "Restore QuickAdd 2 settings",
+					action: () => void (async () => {
+						const confirmed = await confirmAction(this.app, {
+							title: "Restore QuickAdd 2 settings?",
+							message: `QuickAdd replaces its settings with the copy in ${snapshot} from before the upgrade and turns itself off. Every change since the upgrade is lost. Install QuickAdd 2 to use the restored settings.`,
+							action: "Restore and turn off",
+						});
+						if (!confirmed) return;
+						await this.plugin.restoreV2Snapshot();
+						await plugins.disablePluginAndSave(id);
+						// The tab is gone with the plugin; an empty pane would be left behind.
+						closeSettings(this.app);
+						new Notice("QuickAdd restored its QuickAdd 2 settings and turned itself off.");
+					})(),
+				},
+				{
+					name: "Migrate again from QuickAdd 2 settings",
+					action: () => void (async () => {
+						const confirmed = await confirmAction(this.app, {
+							title: "Migrate again?",
+							message: `QuickAdd replaces its settings with the copy in ${snapshot} from before the upgrade and migrates them again. Every change since the upgrade is lost.`,
+							action: "Migrate again",
+						});
+						if (!confirmed) return;
+						await this.plugin.restoreV2Snapshot();
+						await plugins.disablePlugin(id);
+						await plugins.enablePlugin(id);
+						// The new instance registers its own tab; show it where this one was.
+						tryOpenPluginSettings(this.app, id);
+					})(),
+				},
+			],
+		};
 	}
 
 	private templateFoldersList(): SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey> {
@@ -269,8 +317,8 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 	private destroySettingViews(): void {
 		this.choiceView?.handle.destroy();
 		this.choiceView = null;
-		this.globalVariablesViewHandle?.destroy();
-		this.globalVariablesViewHandle = null;
+		for (const handle of this.mountedViews.values()) handle.destroy();
+		this.mountedViews.clear();
 		// Safety net for the Packages subscription: the render cleanup already
 		// unsubscribes, but this row outlives no view of its own, so a missed
 		// cleanup would leak a listener for the plugin's lifetime.
@@ -301,16 +349,17 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 
 	private mountView(
 		setting: Setting,
+		row: string,
 		mount: (target: HTMLElement) => MountHandle,
 	): () => void {
 		this.prepareFullWidthSetting(setting);
-		this.globalVariablesViewHandle?.destroy();
+		this.mountedViews.get(row)?.destroy();
 		const handle = mount(setting.controlEl);
-		this.globalVariablesViewHandle = handle;
+		this.mountedViews.set(row, handle);
 		// A stale row cleanup must never destroy or clear its replacement.
 		return () => {
 			handle.destroy();
-			if (this.globalVariablesViewHandle === handle) this.globalVariablesViewHandle = null;
+			if (this.mountedViews.get(row) === handle) this.mountedViews.delete(row);
 		};
 	}
 
@@ -356,8 +405,14 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		);
 	}
 
+	private renderRunLogView(setting: Setting): () => void {
+		return this.mountView(setting, "runLog", (target) =>
+			mountComponent(target, RunLogView, { app: this.app }, { what: "the run log" }),
+		);
+	}
+
 	private renderGlobalVariablesView(setting: Setting): () => void {
-		return this.mountView(setting, (target) =>
+		return this.mountView(setting, "globalVariables", (target) =>
 			mountComponent(
 				target,
 				GlobalVariablesView,
@@ -387,6 +442,7 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// primary button in the view avoids competing purple CTAs (per the
 		// one-primary-button-per-page rule).
 		let exportButton: ButtonComponent | undefined;
+		setting.settingEl.addClass("qa-packages-setting");
 		setting.addButton((button) => {
 			exportButton = button;
 			button.setButtonText("Export package…").onClick(() => {
@@ -406,10 +462,12 @@ export class QuickAddSettingsTab extends PluginSettingTab {
 		// a whole is not de-emphasised, only the action that cannot work.
 		setting.addButton((button) =>
 			button.setButtonText("Import package…").onClick(() => {
-				new ImportPackageModal(this.app, {
-					onImported: (result, previousChoices) =>
-						syncImportedChoiceCommands(this.plugin, previousChoices, result),
-				}).open();
+				new ImportPackageModal(this.app, this.plugin).open();
+			}),
+		);
+		setting.addButton((button) =>
+			button.setButtonText("Browse recipes…").onClick(() => {
+				new RecipesModal(this.app, this.plugin).open();
 			}),
 		);
 

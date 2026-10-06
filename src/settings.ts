@@ -1,13 +1,24 @@
 import type { Model, ModelRef } from "./ai/Provider";
 import { DefaultProviders, type AIProvider } from "./ai/Provider";
 import type IChoice from "./types/choices/IChoice";
+import type { ActionNode } from "./v3/model";
 import { DEFAULT_DATE_ALIASES } from "./utils/dateAliases";
 
 /** Position of the "New note from template" row in the Run QuickAdd launcher. */
 export type TemplateFolderLauncherRowPosition = "off" | "top" | "bottom";
 
 export interface QuickAddSettings {
+	/**
+	 * In memory only: what `actions` lower to, which the builder edits. Saving
+	 * folds the edits back into `actions` (src/v3/storage.ts).
+	 */
 	choices: IChoice[];
+	/**
+	 * The QuickAdd 3 actions as data.json stores them, absent until the
+	 * choices were migrated. They own what no choice can hold, such as
+	 * `show.ribbon`.
+	 */
+	actions?: ActionNode[];
 	inputPrompt: "multi-line" | "single-line";
 	persistInputPromptDrafts: boolean;
 	/**
@@ -110,6 +121,16 @@ export interface QuickAddSettings {
 		migrateToMultipleTemplateFolders: boolean;
 		refreshStaleDefaultModelSeeds: boolean;
 		pinAiModelRefs: boolean;
+		migrateToV3Actions: boolean;
+	};
+	/** Set when the choices were migrated to QuickAdd 3 actions. */
+	v3Migration?: {
+		/** QuickAdd version that migrated. */
+		migratedIn: string;
+		/** The copy of data.json from before, next to it. Absent when there was no data.json. */
+		snapshot?: string;
+		/** QuickAdd version in which the migration report was closed. */
+		reportDismissedIn?: string;
 	};
 }
 
@@ -161,5 +182,6 @@ export const DEFAULT_SETTINGS: QuickAddSettings = {
 		migrateToMultipleTemplateFolders: false,
 		refreshStaleDefaultModelSeeds: false,
 		pinAiModelRefs: false,
+		migrateToV3Actions: false,
 	},
 };

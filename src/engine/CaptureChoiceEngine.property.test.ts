@@ -119,8 +119,28 @@ describe("Capture property writes", () => {
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "done", other: 42 });
 		expect(test.read()).toMatch(/---\nBody\n$/);
-		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success", file: test.file, effect: "changed",
+			write: { path: test.file.path, before: "---\nstatus: active\nother: 42\n---\nBody\n", after: test.read() },
+		});
 		expect(mocks.picker).not.toHaveBeenCalled();
+	});
+
+	it("records, as what the run left, the note after its link went into it as well", async () => {
+		const test = fixture("---\nstatus: active\n---\nBody\n");
+		test.choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		const link = vi.spyOn(CaptureChoiceEngine.prototype as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink")
+			.mockImplementation(async () => test.overwrite(`${test.read()}[[Inbox]]\n`));
+		try {
+			await test.run();
+		} finally {
+			link.mockRestore();
+		}
+		expect(test.read()).toMatch(/\[\[Inbox\]\]\n$/);
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			effect: "changed",
+			write: { path: test.file.path, before: "---\nstatus: active\n---\nBody\n", after: test.read() },
+		}));
 	});
 
 	it("uses the active Markdown file without requiring an editor insertion", async () => {
@@ -184,7 +204,10 @@ describe("Capture property writes", () => {
 		mocks.value.mockResolvedValue("work\n personal \n\nold\n");
 		await test.run();
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: ["old", "work", "personal"] });
-		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "changed" });
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success", file: test.file, effect: "changed",
+			write: { path: test.file.path, before: "---\nstatus: [old]\n---\nBody\n", after: test.read() },
+		});
 	});
 
 	it("seeds property variables and compose-writes when the format contains {{PROPERTY}}", async () => {
@@ -294,7 +317,10 @@ describe("Capture property writes", () => {
 		expect(readCaptureFrontmatter(test.read() ?? "")).toEqual({ status: "done" });
 		expect(test.read()).toMatch(/---\nTemplater body\n$/);
 		expect(test.create).toHaveBeenCalledTimes(1);
-		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: test.file, effect: "created" });
+		expect(test.executor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success", file: test.file, effect: "created",
+			write: { path: test.file.path, before: null, after: test.read() },
+		});
 	});
 
 	it("reports failure when Templater makes the final property update invalid", async () => {

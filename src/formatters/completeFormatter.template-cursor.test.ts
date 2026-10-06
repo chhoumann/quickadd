@@ -85,7 +85,7 @@ describe("Template cursor formatting scope", () => {
 		prompt.mockImplementationOnce(async () => {
 			if (throws) {
 				await expect(formatter.formatFileContent("{{TEMPLATE:Missing.md}}"))
-					.rejects.toThrow("Template file not found");
+					.rejects.toThrow("The template Missing.md does not exist");
 				return "recovered";
 			}
 			return await formatter.formatFileContent("nested{{CURSOR}}text");
@@ -98,7 +98,7 @@ describe("Template cursor formatting scope", () => {
 	it("does not preserve markers in a later render after a Template render fails", async () => {
 		const { formatter, formatTemplate } = makeHarness();
 		await expect(formatTemplate("{{CURSOR}}{{TEMPLATE:Missing.md}}"))
-			.rejects.toThrow("Template file not found");
+			.rejects.toThrow("The template Missing.md does not exist");
 		expect(await formatter.withPromptScope("noteBody", "later{{CURSOR}}text", () =>
 			formatter.formatFileContent("later{{CURSOR}}text"),
 		)).toBe("latertext");

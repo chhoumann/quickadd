@@ -1,0 +1,247 @@
+import type IChoice from "../types/choices/IChoice";
+import type IMultiChoice from "../types/choices/IMultiChoice";
+import { isChoiceLike } from "../utils/choiceUtils";
+import { uuidv4 } from "../utils/uuid";
+import { settingsValuesEqual, threeWayMergeSettings } from "../utils/settingsPersistMerge";
+import { lowerNode } from "./lower";
+import { migrateChoice, migrateSettingsV2 } from "./migrate";
+import { findAction, isActionNode, isRecord } from "./actionTree";
+import type { Action, ActionNode, Step } from "./model";
+
+export { findAction, isActionNode };
+
+/*
+ * QuickAdd 3 stores `actions` in data.json. In memory the plugin holds those
+ * actions and, next to them, the v2 `choices` they lower to, because the rest
+ * of the plugin (engines, builder, CLI, URI, commands, packages) still reads
+ * and edits choices. The actions own their data: saving folds the edits made
+ * to the choices into them (`actionsFromChoices`), and everything a choice
+ * cannot hold stays as the actions have it.
+ */
+
+/** Settings in the shape data.json stores them: `actions` and no `choices`, once migrated. */
+export type StoredSettings = Record<string, unknown>;
+
+/** Raw data.json as the plugin holds it in memory: the actions, and the choices they lower to. */
+export function choicesFromActions(data: unknown): unknown {
+	if (!isRecord(data) || !("actions" in data)) return data;
+	const { actions: stored, ...rest } = data;
+	if (!Array.isArray(stored)) {
+		// Kept as is, so a save writes it back instead of an empty list. Choices
+		// a QuickAdd 2 device saved next to it stay the choices, and both are
+		// written back (actionsFromChoices) until someone repairs the file.
+		return Array.isArray(rest.choices) ? { ...rest, actions: stored, choices: rest.choices } : { ...rest, choices: stored };
+	}
+	// An entry this build cannot read is left out of the choices and kept in
+	// `actions`, so one damaged action neither stops the plugin from loading
+	// nor gets dropped by the next save. Repeated ids are healed here, as
+	// dedupeChoicesById heals the choices, so the actions and the choices they
+	// lower to keep agreeing and the next save still merges them by id.
+	const actions = dedupeActionsById(stored);
+	const readable = actions.filter(isReadableAction);
+	const lowered = lowerActions(readable);
+	// A QuickAdd 2 device on the same synced vault keeps `actions` and saves
+	// the choices it adds next to them, at the root or inside a folder. Keep
+	// those, so the next save moves them into `actions`.
+	// Every id the actions hold, readable or not: a QuickAdd 2 copy of an
+	// action this build cannot read is not an addition.
+	const ids = new Set<string>();
+	const collect = (node: unknown) => {
+		if (!isRecord(node)) return;
+		if (typeof node.id === "string") ids.add(node.id);
+		if (Array.isArray(node.items)) node.items.forEach(collect);
+	};
+	actions.forEach(collect);
+	return { ...rest, actions, choices: withAddedChoices(lowered, rest.choices, ids) };
+}
+
+/** `lowered` with the choices in `saved` whose id no action has, folders included. */
+function withAddedChoices(lowered: IChoice[], saved: unknown, ids: ReadonlySet<string>): IChoice[] {
+	if (!Array.isArray(saved)) return lowered;
+	const result = [...lowered];
+	for (const choice of saved) {
+		// A folder is read child by child below, so one damaged child does not
+		// cost the choices saved beside it.
+		const folderItems = isChoiceLike(choice) && choice.type === "Multi" && typeof choice.id === "string"
+			? (choice as IMultiChoice).choices
+			: undefined;
+		const migratable = isMigratableChoice(choice);
+		if (!migratable && !Array.isArray(folderItems)) continue;
+		if (!ids.has(choice.id)) {
+			result.push(migratable ? choice : { ...choice, choices: withAddedChoices([], folderItems, ids) } as IChoice);
+			continue;
+		}
+		if (choice.type !== "Multi") continue;
+		const items = folderItems;
+		if (!Array.isArray(items)) continue;
+		const folder = result.find((entry) => entry.id === choice.id);
+		if (folder === undefined) {
+			// The folder is an action this build cannot read, so it is not here
+			// to merge into. What the device added inside it is kept one level
+			// up rather than lost.
+			result.push(...withAddedChoices([], items, ids));
+			continue;
+		}
+		if (folder.type !== "Multi") continue;
+		const children = (folder as IMultiChoice).choices;
+		if (!Array.isArray(children)) continue;
+		const merged = withAddedChoices(children, items, ids);
+		if (merged !== children) result[result.indexOf(folder)] = { ...folder, choices: merged } as IChoice;
+	}
+	return result.length === lowered.length && result.every((entry, index) => entry === lowered[index]) ? lowered : result;
+}
+
+/** Settings as data.json stores them once the choices were migrated to actions. */
+export function actionsFromChoices<S extends { choices: unknown; actions?: ActionNode[]; migrations: { migrateToV3Actions?: boolean } }>(
+	settings: S,
+): object {
+	// A data.json that holds actions is a QuickAdd 3 store whatever the flag
+	// says: a damaged `migrations` value is reset to its defaults on load.
+	if (!settings.migrations?.migrateToV3Actions && !Array.isArray(settings.actions)) return settings;
+	const { choices, actions, ...rest } = settings;
+	if (!Array.isArray(choices)) return { ...rest, actions: choices };
+	// An unreadable action list is written back as found, the choices next to it.
+	if (actions !== undefined && !Array.isArray(actions)) return { ...rest, actions, choices };
+	return { ...rest, actions: withChoiceEdits(actions ?? [], choices as IChoice[]) };
+}
+
+/**
+ * The actions as the next save writes them. The builders edit the choices, so
+ * the stored actions lag behind until a save folds the edits in.
+ */
+export function currentActions(settings: Parameters<typeof actionsFromChoices>[0]): ActionNode[] | undefined {
+	return (actionsFromChoices(settings) as { actions?: ActionNode[] }).actions;
+}
+
+/**
+ * The actions with the edits made to the choices they lowered to. Lowering
+ * and migrating again (the round trip) gives each action as far as a choice
+ * can express it; anything the round trip does not give back is the action's
+ * own and kept. That is a three-way merge: the round trip is the base, the
+ * migrated choices are the edit, and the actions are the other side. Lists
+ * merge by id, so a step keeps what is its own when the steps around it
+ * change, a removed choice removes its action and a new one adds one.
+ */
+function withChoiceEdits(actions: ActionNode[], choices: IChoice[]): ActionNode[] {
+	// JSON: choices the builder made are class instances, some holding functions.
+	const edited = JSON.parse(JSON.stringify(choices)) as IChoice[];
+	const readable = actions.filter(isReadableAction);
+	const lowered = lowerActions(readable);
+	if (settingsValuesEqual(edited, lowered)) return actions;
+	// Provenance says what the one-time migration found; a save does not
+	// restamp it, so a Template or Capture that became a sequence keeps saying
+	// so and goes back to its compact form when the extra steps go, while a
+	// QuickAdd 2 macro stays a macro. A new choice carries none.
+	const roundTrip = withoutProvenance(migrateSettingsV2({ choices: lowered }).actions);
+	const migrated = withoutProvenance(migrateSettingsV2({ choices: edited }).actions);
+	const merged = threeWayMergeSettings(roundTrip, migrated, readable, ["actions"]);
+	// Entries this build cannot read stay where they were.
+	const result = [...merged];
+	actions.forEach((node, index) => {
+		if (!isReadableAction(node)) result.splice(Math.min(index, result.length), 0, node);
+	});
+	return result;
+}
+
+/**
+ * Whether this build can lower `value` to a choice. The shape is checked
+ * first; then lowering is tried, because a step this build does not know, or
+ * a damaged one, shows only there. Anything else is kept verbatim and not shown.
+ */
+export function isReadableAction(value: unknown): value is ActionNode {
+	if (!isActionNode(value)) return false;
+	try {
+		lowerNode(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * A saved choice the migration can read, tried all the way down as
+ * isReadableAction tries lowering; anything else would throw on the next save.
+ */
+function isMigratableChoice(value: unknown): value is IChoice {
+	if (!isChoiceLike(value) || typeof value.id !== "string" || !CHOICE_TYPES.has(value.type)) return false;
+	try {
+		migrateChoice(value);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+const CHOICE_TYPES = new Set<unknown>(["Template", "Capture", "Macro", "Multi"]);
+
+/**
+ * The list with repeated ids healed the way dedupeChoicesById heals choices: a
+ * repeat equal to the first occurrence is dropped, a differing one keeps its
+ * data under a fresh id. Entries this build cannot read are kept verbatim.
+ */
+function dedupeActionsById(nodes: unknown[]): unknown[] {
+	const firstById = new Map<string, unknown>();
+	// Inside a folder kept under a fresh id, a repeated id is the copy's own
+	// and gets a fresh id too, so the folder keeps its items.
+	const walk = (list: unknown[], copied = false): unknown[] => {
+		const out: unknown[] = [];
+		for (const entry of list) {
+			if (!isActionNode(entry)) {
+				out.push(entry);
+				continue;
+			}
+			let node: ActionNode = entry;
+			const prior = firstById.get(node.id);
+			let fresh = false;
+			if (prior) {
+				if (!copied && JSON.stringify(node) === JSON.stringify(prior)) continue;
+				node = { ...node, id: uuidv4() };
+				fresh = true;
+			}
+			firstById.set(node.id, node);
+			if (node.kind === "folder") node = { ...node, items: walk(node.items, copied || fresh) as ActionNode[] };
+			out.push(node);
+		}
+		return out;
+	};
+	return walk(nodes);
+}
+
+function withoutProvenance(nodes: ActionNode[]): ActionNode[] {
+	return nodes.map((node) => {
+		if (node.kind === "folder") return { ...node, items: withoutProvenance(node.items) };
+		const action: Action = { ...node, steps: stepsWithoutProvenance(node.steps) };
+		delete action.provenance;
+		return action;
+	});
+}
+
+function stepsWithoutProvenance(steps: Step[]): Step[] {
+	return steps.map((step) => {
+		if (step.type === "inlineAction") return { ...step, node: withoutProvenance([step.node])[0] ?? step.node };
+		if (step.type === "if") {
+			return { ...step, thenSteps: stepsWithoutProvenance(step.thenSteps), elseSteps: stepsWithoutProvenance(step.elseSteps) };
+		}
+		return step;
+	});
+}
+
+function lowerActions(actions: ActionNode[]): IChoice[] {
+	// JSON drops the keys lowering leaves undefined, so the loaded settings
+	// compare equal to what the next load of the same file gives.
+	return JSON.parse(JSON.stringify(actions.map(lowerNode))) as IChoice[];
+}
+
+/** `actions` with the action of this id replaced by `change(action)`. */
+export function updateAction(
+	actions: readonly ActionNode[],
+	id: string,
+	change: (action: Action) => Action,
+): ActionNode[] {
+	if (!Array.isArray(actions)) return actions as ActionNode[];
+	return actions.map((node) => {
+		if (!isActionNode(node)) return node;
+		if (node.kind === "folder") return { ...node, items: updateAction(node.items, id, change) };
+		return node.id === id ? change(node) : node;
+	});
+}

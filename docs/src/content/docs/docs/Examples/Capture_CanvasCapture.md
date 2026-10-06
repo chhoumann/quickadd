@@ -1,5 +1,5 @@
 ---
-title: "Capture: Canvas Capture"
+title: "Capture: Canvas capture"
 description: Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking
 slug: docs/Examples/Capture_CanvasCapture
 package: canvas-capture
@@ -29,12 +29,12 @@ Good fits:
 
 Imported the package above? Follow **After importing** in the card; the steps below build the same choice by hand.
 
-1. Create a Capture choice.
-2. Enable **Capture to active file**.
+1. Create a Capture choice: **New choice** → **Add to a note**.
+2. Enable **Capture to active note**.
 3. Open a Canvas file.
 4. Select exactly one supported card.
-5. Set **Write position** to **Top of file (after frontmatter)**,
-   **Bottom of file**, or **After line…** / **Before line…**.
+5. Set **Position** to **Top of note (after frontmatter)**,
+   **Bottom of note**, or **After line…** / **Before line…**.
 6. Run the Capture choice.
 
 ![Selecting the Contact flow card on a Website brainstorm canvas, running QuickAdd: Run, and picking an Add idea to card Capture that has Capture to active file on, Write position set to Bottom of file, and the format "- {{VALUE}}". After typing "Add a map with the studio address", the text appears as a new bullet at the bottom of the selected card](../Images/examples/canvas-capture-selected-card.gif)
@@ -49,9 +49,9 @@ selected, or the selected card is unsupported.
 
 ## Capture to a specific card
 
-1. Create a Capture choice.
-2. Turn off **Capture to active file**.
-3. Set **Capture to** to a `.canvas` file.
+1. Create a Capture choice: **New choice** → **Add to a note**.
+2. Turn off **Capture to active note**.
+3. Set **Where** to a `.canvas` file.
 4. Choose **Target canvas node**.
 5. Pick the card you want QuickAdd to write to.
 6. Set a supported write position.
@@ -63,9 +63,9 @@ to the same Canvas card.
 
 Canvas capture supports these write positions:
 
-- **Top of file** (shown as **Top of file (after frontmatter)** when
-  **Capture to active file** is enabled)
-- **Bottom of file**
+- **Top of note** (shown as **Top of note (after frontmatter)** when
+  **Capture to active note** is enabled)
+- **Bottom of note**
 - **After line…**
 - **Before line…**
 
@@ -75,12 +75,12 @@ Canvas capture does not support cursor-based write positions:
 - **New line above cursor**
 - **New line below cursor**
 
-If **Capture to active file** is enabled and the write position is still
+If **Capture to active note** is enabled and the write position is still
 **At cursor**, QuickAdd aborts instead of writing to the wrong place.
 
 ## Link-to-captured-file behavior
 
-When **Link to captured file** is set to **Enabled (strict)** and
+When **Link to captured note** is set to **Enabled (strict)** and
 capture runs from a Canvas card without a focused Markdown editor, the capture
 still writes. QuickAdd skips link insertion because there is no active Markdown
 file to link from.
@@ -92,10 +92,10 @@ file to link from.
 | Capture aborts before writing | No card or multiple cards are selected | Select exactly one supported card |
 | Capture aborts with cursor-position wording | The write mode is cursor-based | Use top, bottom, after-line, or before-line placement |
 | Nothing is written to a file card | The file card points to a non-Markdown file | Use a Markdown file card or a text card |
-| The target picker is not shown | Capture target is not a `.canvas` file | Set **Capture to** to the Canvas file path |
+| The target picker is not shown | Capture target is not a `.canvas` file | Set **Where** to the Canvas file path |
 
 ## Related docs
 
 - [Capture Choices](/docs/Choices/CaptureChoice/)
 - [Format Syntax](/docs/FormatSyntax/)
-- [Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/)
+- [Template: Create an MOC note with a link dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/)

@@ -55,7 +55,7 @@ describe("MacroBuilder over a malformed macro object (#1593)", () => {
 		expect(addControls(el)).toBeGreaterThan(0);
 		expect(rows(el)).toBe(0);
 		// The rest of the page is there too.
-		expect(el.textContent).toContain("Run on startup");
+		expect(el.textContent).toContain("More settings");
 	});
 
 	it("materializes a real macro object on the first edit, and it survives JSON", () => {

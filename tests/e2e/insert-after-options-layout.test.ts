@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #2048: a dropdown is as wide as its longest option, so a long option label
 // squeezed the row's name into a narrow column beside it.
@@ -20,9 +21,9 @@ it("keeps the names of the ordered placement rows on one line", async () => {
 		createIfNotFoundLocation: "ordered",
 		orderBy: { by: "date", direction: "desc", dateFormat: "YYYY-MM-DD", unparseable: "bottom" },
 	};
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {

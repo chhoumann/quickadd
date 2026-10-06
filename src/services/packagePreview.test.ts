@@ -24,6 +24,7 @@ import {
 	decodeAssetPreview,
 	unreviewedScriptCount,
 	requiresAcknowledgement,
+	withOverwrites,
 	MAX_PREVIEW_CHARS,
 } from "./packagePreview";
 
@@ -1110,5 +1111,45 @@ describe("buildPackagePreview - inline JavaScript in a choice's own settings", (
 		expect(scriptRows(preview)).toEqual([]);
 		expect(preview.summary.hasCritical).toBe(false);
 		expect(preview.choices.flatMap((choice) => choice.inlineScripts)).toEqual([]);
+	});
+});
+
+describe("withOverwrites", () => {
+	const existing = {
+		id: "t1",
+		name: "Meeting",
+		type: "Template",
+		command: false,
+		templatePath: "Templates/Meeting.md",
+	} as unknown as ITemplateChoice;
+	const preview = buildPackagePreview(
+		[existing],
+		makePackage([pkgChoice(existing, ["Meeting"])], [asset("template", "Templates/Meeting.md", "# Meeting")]),
+		new Set(["Templates/Meeting.md"]),
+	);
+	const row = (rows: typeof preview.capabilityRows, flag: string) =>
+		rows.find((candidate) => candidate.flag === flag);
+
+	it("drops the rows about replacing when the reader keeps every choice and file", () => {
+		expect(row(preview.capabilityRows, "overwrites-existing-choice")?.detail).toBe("1 choice");
+		expect(row(preview.capabilityRows, "overwrites-existing-file")?.detail).toBe("1 file");
+
+		const kept = withOverwrites(preview, { choices: 0, files: 0 });
+
+		expect(row(kept.capabilityRows, "overwrites-existing-choice")).toBeUndefined();
+		expect(row(kept.capabilityRows, "overwrites-existing-file")).toBeUndefined();
+		expect(kept.summary).toMatchObject({ overwritesChoices: 0, overwritesFiles: 0, hasWarning: false, warningCount: 0 });
+	});
+
+	it("counts the choices and files the reader's decisions replace, in the analysis's order", () => {
+		const replaced = withOverwrites(withOverwrites(preview, { choices: 0, files: 0 }), { choices: 1, files: 2 });
+
+		expect(replaced.capabilityRows.map((candidate) => [candidate.flag, candidate.detail])).toEqual(
+			preview.capabilityRows.map((candidate) => [
+				candidate.flag,
+				candidate.flag === "overwrites-existing-file" ? "2 files" : candidate.detail,
+			]),
+		);
+		expect(replaced.summary).toMatchObject({ overwritesChoices: 1, overwritesFiles: 2, hasWarning: true, warningCount: 2 });
 	});
 });

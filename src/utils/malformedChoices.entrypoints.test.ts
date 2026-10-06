@@ -30,7 +30,7 @@ import {
 	isChoiceNested,
 	computeEligibleMultiTargets,
 } from "../gui/choiceList/contextMenu";
-import { uniqueDefaultChoiceName } from "../gui/choiceList/choiceTypeMeta";
+import { uniqueChoiceName } from "../gui/choiceList/uniqueChoiceName";
 import {
 	emptyFolderNoticeText,
 	folderFlairFor,
@@ -134,7 +134,7 @@ const sweeps: Sweep[] = [
 		"computeEligibleMultiTargets (every node)",
 		(t) => t.filter(isChoiceLike).map((c) => computeEligibleMultiTargets(c, t)),
 	],
-	["uniqueDefaultChoiceName", (t) => uniqueDefaultChoiceName("Multi", t)],
+	["uniqueChoiceName", (t) => uniqueChoiceName("New folder", t)],
 
 	// --- picker
 	["isEmptyFolderChoice (every node)", (t) => t.filter(isChoiceLike).map((c) => isEmptyFolderChoice(c))],

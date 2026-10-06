@@ -62,6 +62,24 @@ it("offers Overwrite, not Import, for a choice already in the vault", async () =
 			const select = document.querySelector('.qa-import-choices select');
 			return select ? { options: Array.from(select.options, (o) => o.value), value: select.value } : null;
 		})()`), POLL_OPTS).toEqual({ options: ["overwrite", "duplicate", "skip"], value: "overwrite" });
+
+		// The banner counts the choices the decisions replace, and drops the line at none.
+		const replaces = () => obsidian.dev.evalJson<string | null>(`(() => {
+			const row = [...document.querySelectorAll(".qa-import-banner-rows li")]
+				.find((candidate) => candidate.textContent.includes("Replaces choices"));
+			return row?.querySelector(".qa-import-banner-detail")?.textContent ?? null;
+		})()`);
+		const decide = (mode: "overwrite" | "duplicate") => obsidian.dev.evalJson(`(() => {
+			const select = document.querySelector('.qa-import-choices select');
+			select.value = ${jsLiteral(mode)};
+			select.dispatchEvent(new Event("change", { bubbles: true }));
+			return true;
+		})()`);
+		await expect.poll(replaces, POLL_OPTS).toBe("1 choice");
+		await decide("duplicate");
+		await expect.poll(replaces, POLL_OPTS).toBeNull();
+		await decide("overwrite");
+		await expect.poll(replaces, POLL_OPTS).toBe("1 choice");
 	} finally {
 		await pressKey(obsidian, "Escape");
 		await obsidian.dev.evalJson("app.setting.close(); true");

@@ -8,6 +8,7 @@ import type {
 import {
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const TEST_PREFIX = "__qa-scorecard-";
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
@@ -149,7 +150,7 @@ describe("scorecard final acceptance composed flows", () => {
 		await sandbox.delete("scorecard-template-output.md");
 		await sandbox.delete("scorecard-capture-target.md");
 
-		await qa.data<QuickAddData>().patch((data) => {
+		await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 			clearTestChoices(data);
 			const template = templateChoice(templateId);
 			const capture = captureChoice(captureId, "scorecard capture body");
@@ -164,7 +165,7 @@ describe("scorecard final acceptance composed flows", () => {
 				macroChoice(macroId, [templateId, captureId]),
 				multiChoice(multiId, [multiChild]),
 			);
-		});
+		}));
 
 		await qa.reload();
 	});

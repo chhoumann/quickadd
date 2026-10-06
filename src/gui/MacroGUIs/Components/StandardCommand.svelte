@@ -3,9 +3,11 @@
     import IconButton from "../../components/IconButton.svelte";
     import DragHandle from "../../components/DragHandle.svelte";
     import {getCommandDisplayName} from "../../../utils/macroHelpers";
+    import StepRowText from "./StepRowText.svelte";
 
     let {
         command,
+        line,
         startDrag,
         dragDisabled,
         onDeleteCommand,
@@ -13,6 +15,7 @@
         onMoveDown,
     }: {
         command: ICommand;
+        line: string | null;
         startDrag: () => void;
         dragDisabled: boolean;
         onDeleteCommand: (commandId: string) => void;
@@ -22,7 +25,7 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel">{getCommandDisplayName(command)}</span>
+    <StepRowText name={getCommandDisplayName(command)} {line} />
     <div class="quickAddCommandControls">
         <IconButton
             iconId="trash-2"

@@ -7,6 +7,7 @@ import { ObsidianCommand } from "../../src/types/macros/ObsidianCommand";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import { WaitCommand } from "../../src/types/macros/QuickCommands/WaitCommand";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 // #2014: re-running Templater after QuickAdd wrote a note is deprecated. Each
 // pattern shows a notice the first time it runs in a session, not on every run.
@@ -32,9 +33,9 @@ const noticesContaining = (text: string) => getContext().obsidian.dev.evalJson<n
 
 async function saveChoices(choices: IChoice[]) {
 	const { plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = choices;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 }
 
@@ -77,5 +78,5 @@ it("warns once when a Capture runs Templater on the whole file", async () => {
 	}
 
 	await expect.poll(() => sandbox.read("Whole.md")).toContain("Plain capture");
-	expect(await noticesContaining("Run Templater on entire destination file after capture")).toBe(1);
+	expect(await noticesContaining("Run Templater on entire destination note after capture")).toBe(1);
 });

@@ -37,6 +37,8 @@ import {
 } from "../utils/valueSyntax";
 import { SILENT_WARN, type WarnSink } from "../utils/warnSink";
 import { formatUnknownValue } from "../utils/conditionalHelpers";
+import { withInputOverride } from "../v3/inputOverride";
+import type { InputOverride } from "../v3/model";
 
 export interface PromptContext {
 	type?: string;
@@ -238,6 +240,11 @@ export abstract class ValueFormatter {
 
 	protected abstract promptForValue(header?: string): Promise<string> | string;
 
+	/** What the builder changed about the input of this name for the choice being run. */
+	protected inputOverride(_name: string): InputOverride | undefined {
+		return undefined;
+	}
+
 	/** Settles the {{VALUE}} answer for `input`'s tokens, asking at most once per run. */
 	protected async resolveValue(input: string): Promise<string> {
 		this.valuePromptContext = this.getValuePromptContext(input);
@@ -283,9 +290,10 @@ export abstract class ValueFormatter {
 				));
 			}
 			const rawOptions = inner.slice(optionsIndex);
-			const parsed = parseAnonymousValueOptions(rawOptions, {
-				warn: this.warnSink,
-			});
+			const parsed = withInputOverride(
+				parseAnonymousValueOptions(rawOptions, { warn: this.warnSink }),
+				this.inputOverride("value"),
+			);
 			// An empty submission takes the default unless |optional explicitly permits empty.
 			const effectiveValue =
 				this.value === "" && parsed.defaultValue && !parsed.optional
@@ -388,7 +396,8 @@ export abstract class ValueFormatter {
 			}
 		}
 
-		return context;
+		const override = this.inputOverride("value");
+		return override ? withInputOverride(context ?? {}, override) : context;
 	}
 
 	/**
@@ -502,8 +511,9 @@ export abstract class ValueFormatter {
 	 * the prompt/suggest/default/store logic has a single source of truth.
 	 */
 	private async ensureValueVariableResolved(
-		parsed: ParsedValueToken,
+		token: ParsedValueToken,
 	): Promise<string> {
+		const parsed = withInputOverride(token, this.inputOverride(token.variableKey));
 		const {
 			variableName,
 			variableKey,

@@ -81,11 +81,11 @@
 							<span class="qa-import-choice-chevron" class:open={expanded}>
 								<ObsidianIcon iconId="chevron-right" size={14} />
 							</span>
-							<span>{expanded ? "Hide macro" : "Show macro"}</span>
+							<span>{expanded ? "Hide sequence" : "Show sequence"}</span>
 						</button>
 					{/if}
 					{#if inlineScripts.length > 0}
-						<!-- Its own line, under Show macro when a macro has both. -->
+						<!-- Its own line, under Show sequence when a sequence has both. -->
 						<div>
 							<button
 								type="button"

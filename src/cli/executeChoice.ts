@@ -1,4 +1,5 @@
 import { MacroAbortError } from "../errors/MacroAbortError";
+import { RefusalError } from "../errors/RefusalError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceEffect } from "../types/ChoiceOutcome";
 import type IChoice from "../types/choices/IChoice";
@@ -48,6 +49,7 @@ export async function executeChoice(
 		if (!(error instanceof MacroAbortError)) throw error;
 		aborted = error;
 	}
+	if (aborted instanceof RefusalError) return { ok: false, error: aborted.message };
 	return aborted
 		? { ok: false, aborted: true, error: aborted.message || "Choice execution aborted" }
 		: { ok: true, verified: false, effect: "unknown" };

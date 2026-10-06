@@ -26,6 +26,8 @@ import FolderList from "./FolderList.svelte";
 import {
 	applyFolderMode,
 	deriveFolderMode,
+	isSingleFolder,
+	withSingleFolder,
 	folderModeDescriptions,
 	folderModeOptions,
 	type FolderMode,
@@ -44,7 +46,17 @@ import FileOpeningSetting from "./components/FileOpeningSetting.svelte";
 import OnePageOverrideSetting from "./components/OnePageOverrideSetting.svelte";
 import DateOriginSetting from "./components/DateOriginSetting.svelte";
 import CommandPaletteSetting from "./components/CommandPaletteSetting.svelte";
+import RibbonSetting from "./components/RibbonSetting.svelte";
+import StepsSection from "./components/StepsSection.svelte";
+import InputsSection from "./components/InputsSection.svelte";
+import TemplaterBadge from "./components/TemplaterBadge.svelte";
+import { getTemplater } from "../../utils/templaterIntegration";
+import { usesTemplater } from "../../v3/templater";
+import type { Step } from "../../v3/model";
 import ChoiceIconSetting from "./components/ChoiceIconSetting.svelte";
+import ChoiceSummary from "./components/ChoiceSummary.svelte";
+import MoreSettings from "./components/MoreSettings.svelte";
+import { newTemplate } from "./newTemplate";
 import { suggester } from "./components/suggesterAction";
 import { VALUE_SYNTAX } from "../../constants";
 import { usesDefaultTemplateTitlePrompt } from "../../utils/templateNoteDiscoveryEligibility";
@@ -60,19 +72,53 @@ let {
 	app,
 	plugin,
 	commitPending = $bindable(),
+	onAddStep = undefined,
 }: {
 	choice: ITemplateChoice;
 	app: App;
 	plugin: QuickAdd;
 	/** Set by the form: adds a folder typed but not added (see ChoiceFormProps). */
 	commitPending?: () => void;
+	onAddStep?: (step: Step) => void;
 } = $props();
 
 // Computed once from the stable app/plugin props ($derived satisfies the
 // reactive-reference rule; the vault snapshot matches the imperative builder,
 // which also read these once per render).
-const templatePaths = $derived(plugin.getTemplateFiles().map((f) => f.path));
+// Read again once New template… adds one.
+let templatesAdded = $state(0);
+const templatePaths = $derived.by(() => {
+	void templatesAdded;
+	return plugin.getTemplateFiles().map((f) => f.path);
+});
+const offerNewTemplate = $derived(templatePaths.length === 0 || !choice.templatePath.trim());
+
+async function onNewTemplate() {
+	const path = await newTemplate(app, plugin.settings.templateFolderPaths);
+	if (!path) return;
+	choice.templatePath = path;
+	templatesAdded++;
+}
 const allFolders = $derived(sortFolderPathsByTree(getAllFolderPathsInVault(app)));
+
+// Whether the chosen template has Templater tags, read again when the Template field changes.
+let templateUsesTemplater = $state(false);
+$effect(() => {
+	const file = getTemplateFile(app, choice.templatePath);
+	let current = true;
+	templateUsesTemplater = false;
+	if (!file) return;
+	app.vault.cachedRead(file).then(
+		(text) => {
+			if (current) templateUsesTemplater = usesTemplater(text);
+		},
+		() => {},
+	);
+	return () => {
+		current = false;
+	};
+});
+const templaterInstalled = $derived(Boolean(getTemplater(app)));
 
 function validateTemplatePath(
 	raw: string,
@@ -110,7 +156,7 @@ const discoverySupported = $derived(
 const discoveryDescription = $derived(
 	discoverySupported
 		? "Show matching notes and unresolved links in the note-title prompt."
-		: "Only available when the file name prompt is the default note title: no custom format, {{VALUE}}, or {{NAME}}.",
+		: "Only available when the note name asks for the note title: empty, {{VALUE}}, or {{NAME}}.",
 );
 
 // --- Folder selector -----------------------------------------------------
@@ -122,6 +168,10 @@ const folderModeDesc = $derived(folderModeDescriptions[folderMode]);
 const needsFolderList = $derived(
 	folderMode === "specified" && choice.folder.folders.length === 0,
 );
+
+// The Folder field: one folder, or Obsidian's default location when empty.
+const singleFolder = $derived(isSingleFolder(choice.folder));
+const singleFolderPath = $derived(folderMode === "specified" ? (choice.folder.folders[0] ?? "") : "");
 
 function onFolderModeChange(value: string) {
 	// Immutable reassignment so the nested change is reactive (in-place
@@ -206,8 +256,15 @@ function onModeChange(value: string) {
 }
 </script>
 
-<SettingGroup heading="Template">
-	<LabeledField name="Template path" desc="Path to the template this choice creates notes from.">
+<ChoiceSummary {choice} runsTemplater={templateUsesTemplater && templaterInstalled} />
+
+<SettingGroup>
+	<LabeledField name="Template">
+		{#snippet control()}
+			{#if offerNewTemplate}
+				<button type="button" class="qaNewTemplateButton" onclick={onNewTemplate}>New template…</button>
+			{/if}
+		{/snippet}
 		{#snippet children(id)}
 			<ValidatedInput
 				{id}
@@ -219,11 +276,29 @@ function onModeChange(value: string) {
 				validator={validateTemplatePath}
 				onChange={(value) => (choice.templatePath = value.trim())}
 			/>
+			{#if templateUsesTemplater}
+				<TemplaterBadge installed={templaterInstalled} />
+			{/if}
 		{/snippet}
 	</LabeledField>
 
+	{#if singleFolder}
+		<LabeledField name="Folder">
+			{#snippet children(id)}
+				<ValidatedInput
+					{id}
+					value={singleFolderPath}
+					placeholder="Default location for new notes"
+					{app}
+					suggestions={allFolders}
+					onChange={(value) => (choice.folder = withSingleFolder(choice.folder, value.trim()))}
+				/>
+			{/snippet}
+		</LabeledField>
+	{/if}
+
 	<LabeledField
-		name="File name"
+		name="Note name"
 		desc="Leave empty to ask for the note title."
 	>
 		{#snippet children(id)}
@@ -247,6 +322,10 @@ function onModeChange(value: string) {
 		{/snippet}
 	</LabeledField>
 </SettingGroup>
+
+<InputsSection {choice} {app} />
+
+<StepsSection {choice} {onAddStep} />
 
 {#snippet folderSelection()}
 	<div class="folderSelectionContainer">
@@ -278,136 +357,140 @@ function onModeChange(value: string) {
 	{/if}
 {/snippet}
 
-<SettingGroup heading="Location">
-	<!-- The folders are part of the row that picks them, so a settings page's
-	     Tab order runs from the dropdown through them. -->
-	<SettingItem
-		name="New note location"
-		desc={folderModeDesc}
-		body={folderMode === "specified" ? folderSelection : undefined}
-	>
-		{#snippet control()}
-			<Dropdown
-				value={folderMode}
-				options={folderModeOptions}
-				ariaLabel="New note location"
-				onchange={onFolderModeChange}
-			/>
-		{/snippet}
-	</SettingItem>
-
-	{#if folderMode === "specified"}
+<MoreSettings {choice}>
+	<SettingGroup heading="Location">
+		<!-- The folders are part of the row that picks them, so a settings page's
+		     Tab order runs from the dropdown through them. -->
 		<SettingItem
-			name="Include subfolders"
-			desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
+			name="New note location"
+			desc={folderModeDesc}
+			body={folderMode === "specified" ? folderSelection : undefined}
 		>
 			{#snippet control()}
-				<Toggle bind:checked={choice.folder.chooseFromSubfolders} />
-			{/snippet}
-		</SettingItem>
-	{/if}
-</SettingGroup>
-
-<SettingGroup heading="Linking">
-	<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" {app} />
-	<SettingItem
-		name="Copy link to clipboard"
-		desc="Copy a link to the created file after the Template choice runs."
-	>
-		{#snippet control()}
-			<Toggle
-				checked={choice.copyLinkToClipboard ?? false}
-				onchange={(value) => (choice.copyLinkToClipboard = value)}
-			/>
-		{/snippet}
-	</SettingItem>
-</SettingGroup>
-
-<SettingGroup heading="Behavior">
-	<SettingItem
-		name="Search existing notes before creating"
-		desc={discoveryDescription}
-	>
-		{#snippet control()}
-			<!-- When discovery is unsupported (custom file-name format) the engine
-			     ignores the stored flag, so show the toggle as off to match the
-			     runtime behavior rather than a misleading checked-but-greyed state. -->
-			<Toggle
-				checked={discoverySupported
-					? (choice.discoverExistingNotesBeforeCreate ?? false)
-					: false}
-				disabled={!discoverySupported}
-				onchange={(value) => (choice.discoverExistingNotesBeforeCreate = value)}
-			/>
-		{/snippet}
-	</SettingItem>
-
-	{#if discoverySupported && choice.discoverExistingNotesBeforeCreate}
-		<SettingItem name="When selecting an existing note">
-			{#snippet control()}
 				<Dropdown
-					value={choice.existingNoteAction ?? "open"}
-					options={existingNoteActions.map((action) => ({ value: action.id, label: action.label }))}
-					onchange={(value) => {
-						const action = existingNoteActions.find((action) => action.id === value);
-						if (action) choice.existingNoteAction = action.id;
-					}}
+					value={folderMode}
+					options={folderModeOptions}
+					ariaLabel="New note location"
+					onchange={onFolderModeChange}
 				/>
 			{/snippet}
 		</SettingItem>
-	{/if}
 
-	<SettingItem
-		name={discoverySupported && choice.discoverExistingNotesBeforeCreate
-			? "If a new note's path already exists"
-			: "If the target file already exists"}
-		desc="Choose whether QuickAdd should ask what to do, update the existing file, create another file, or keep the existing file."
-	>
-		{#snippet control()}
-			<Dropdown
-				value={behaviorCategory}
-				options={fileExistsBehaviorCategoryOptions.map((o) => ({
-					value: o.id,
-					label: o.label,
-				}))}
-				onchange={onCategoryChange}
-			/>
-		{/snippet}
-	</SettingItem>
+		{#if folderMode === "specified"}
+			<SettingItem
+				name="Include subfolders"
+				desc="Get prompted to choose from both the selected folders and their subfolders when creating the note."
+			>
+				{#snippet control()}
+					<Toggle bind:checked={choice.folder.chooseFromSubfolders} />
+				{/snippet}
+			</SettingItem>
+		{/if}
+	</SettingGroup>
 
-	{#if showModeRow}
+	<SettingGroup heading="Linking">
+		<AppendLinkSetting bind:appendLink={choice.appendLink} fileLabel="created" {app} />
 		<SettingItem
-			name={behaviorCategory === "update" ? "Update action" : "New file naming"}
-			desc={getFileExistsMode(selectedMode).description}
+			name="Copy link to clipboard"
+			desc="Copy a link to the created note after the Template choice runs."
+		>
+			{#snippet control()}
+				<Toggle
+					checked={choice.copyLinkToClipboard ?? false}
+					onchange={(value) => (choice.copyLinkToClipboard = value)}
+				/>
+			{/snippet}
+		</SettingItem>
+	</SettingGroup>
+
+	<SettingGroup heading="Behavior">
+		<SettingItem
+			name="Search existing notes before creating"
+			desc={discoveryDescription}
+		>
+			{#snippet control()}
+				<!-- When discovery is unsupported (custom file-name format) the engine
+				     ignores the stored flag, so show the toggle as off to match the
+				     runtime behavior rather than a misleading checked-but-greyed state. -->
+				<Toggle
+					checked={discoverySupported
+						? (choice.discoverExistingNotesBeforeCreate ?? false)
+						: false}
+					disabled={!discoverySupported}
+					onchange={(value) => (choice.discoverExistingNotesBeforeCreate = value)}
+				/>
+			{/snippet}
+		</SettingItem>
+
+		{#if discoverySupported && choice.discoverExistingNotesBeforeCreate}
+			<SettingItem name="When selecting an existing note">
+				{#snippet control()}
+					<Dropdown
+						value={choice.existingNoteAction ?? "open"}
+						options={existingNoteActions.map((action) => ({ value: action.id, label: action.label }))}
+						onchange={(value) => {
+							const action = existingNoteActions.find((action) => action.id === value);
+							if (action) choice.existingNoteAction = action.id;
+						}}
+					/>
+				{/snippet}
+			</SettingItem>
+		{/if}
+
+		<SettingItem
+			name={discoverySupported && choice.discoverExistingNotesBeforeCreate
+				? "If a new note's path already exists"
+				: "If the note already exists"}
+			desc="Choose whether QuickAdd should ask what to do, update the existing note, create another note, or keep the existing note."
 		>
 			{#snippet control()}
 				<Dropdown
-					value={selectedMode}
-					options={modeOptions.map((mode) => ({
-						value: mode.id,
-						label: mode.label,
+					value={behaviorCategory}
+					options={fileExistsBehaviorCategoryOptions.map((o) => ({
+						value: o.id,
+						label: o.label,
 					}))}
-					onchange={onModeChange}
+					onchange={onCategoryChange}
 				/>
 			{/snippet}
 		</SettingItem>
-	{/if}
 
-	<OpenFileSetting bind:openFile={choice.openFile} description="Open the created file." />
-	{#if choice.openFile}
-		<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
-	{/if}
+		{#if showModeRow}
+			<SettingItem
+				name={behaviorCategory === "update" ? "Update action" : "New note naming"}
+				desc={getFileExistsMode(selectedMode).description}
+			>
+				{#snippet control()}
+					<Dropdown
+						value={selectedMode}
+						options={modeOptions.map((mode) => ({
+							value: mode.id,
+							label: mode.label,
+						}))}
+						onchange={onModeChange}
+					/>
+				{/snippet}
+			</SettingItem>
+		{/if}
 
-	<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
+		<OpenFileSetting bind:openFile={choice.openFile} description="Open the created note." />
+		{#if choice.openFile}
+			<FileOpeningSetting bind:fileOpening={choice.fileOpening} contextLabel="created" />
+		{/if}
 
-	<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
+		<DateOriginSetting bind:dateOrigin={choice.dateOrigin} />
 
-	<CommandPaletteSetting
-		bind:command={choice.command}
-		bind:pickDayCommand={choice.pickDayCommand}
-		name={choice.name}
-		dateOrigin={choice.dateOrigin}
-	/>
+		<OnePageOverrideSetting bind:onePageInput={choice.onePageInput} />
 
-	<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
-</SettingGroup>
+		<CommandPaletteSetting
+			bind:command={choice.command}
+			bind:pickDayCommand={choice.pickDayCommand}
+			name={choice.name}
+			dateOrigin={choice.dateOrigin}
+		/>
+
+		<RibbonSetting choiceId={choice.id} />
+
+		<ChoiceIconSetting bind:icon={choice.icon} type={choice.type} {app} />
+	</SettingGroup>
+</MoreSettings>

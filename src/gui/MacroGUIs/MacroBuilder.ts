@@ -13,10 +13,19 @@ import { ConditionalCommandSettingsModal } from "./ConditionalCommandSettingsMod
 import { ConditionalBranchEditorPage } from "./ConditionalBranchEditorPage";
 import { getConditionSummary } from "../../utils/conditionalHelpers";
 import { addChoiceIconSetting } from "../ChoiceBuilder/components/choiceIconSetting";
+import { type LedeHandle, mountLede } from "../ChoiceBuilder/components/mountLede.svelte";
+import MoreSettings from "../ChoiceBuilder/components/MoreSettings.svelte";
+import { setMoreSettingsOpen } from "../ChoiceBuilder/moreSettings";
+import { mountComponent, type MountHandle } from "../svelte/mountComponent";
+import { createRawSnippet } from "svelte";
+import { settingsStore } from "../../settingsStore";
+import { summarizeChoice } from "../../v3/choiceSummary";
 import { BuilderPage, nameOrFallback } from "../ChoiceBuilder/builderPage";
+import { RIBBON_SETTING_NAME, actionInRibbon, setActionInRibbon } from "../ChoiceBuilder/actionRibbon";
 import {
 	childChoicesOf,
 	isChoiceLike,
+	resolveChoiceIcon,
 	rootChoicesOf,
 } from "../../utils/choiceUtils";
 import {
@@ -76,6 +85,8 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	public macro: IMacro;
 	private readonly choices: IChoice[] = [];
 	private commandEditor: CommandSequenceEditor | null = null;
+	private lede: LedeHandle | null = null;
+	private moreSettings: MountHandle | null = null;
 	private plugin: QuickAdd;
 	private readonly openedName: string;
 	private pickDaySetting: Setting | null = null;
@@ -106,6 +117,10 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	protected destroy(): void {
 		this.commandEditor?.destroy();
 		this.commandEditor = null;
+		this.lede?.destroy();
+		this.lede = null;
+		this.moreSettings?.destroy();
+		this.moreSettings = null;
 	}
 
 	protected render(containerEl: HTMLElement) {
@@ -117,13 +132,35 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			if (isMacroObject(this.macro)) this.macro.name = name;
 			this.pickDaySetting?.setName(pickDaySettingName(name.trim() || this.openedName));
 		});
-		this.addCommandEditor(this.addGroup(containerEl, "Commands"));
+		this.lede = mountLede(containerEl.createDiv(), ...this.ledeContent());
+		this.addCommandEditor(this.addGroup(containerEl, "Steps"));
+		this.moreSettings = mountComponent(containerEl.createDiv(), MoreSettings, {
+			choice: this.choice,
+			// The settings are Obsidian's, built where the section shows them.
+			children: createRawSnippet(() => ({
+				render: () => "<div></div>",
+				setup: (el) => this.renderBehavior(el as HTMLElement),
+			})),
+		}, { what: "this macro's settings" });
+	}
+
+	private renderBehavior(containerEl: HTMLElement): void {
 		const behavior = this.addGroup(containerEl, "Behavior");
 		this.addOnePageInputSetting(behavior);
 		this.addDateOriginSetting(behavior);
 		this.addRunOnStartupSetting(behavior);
 		this.addCommandPaletteSettings(behavior);
+		this.addRibbonSetting(behavior);
 		this.addIconSetting(behavior);
+	}
+
+	/** The macro's icon, and what its steps do. */
+	private ledeContent(): [string, string] {
+		return [resolveChoiceIcon(this.choice), summarizeChoice(this.choice, settingsStore.getState().choices)];
+	}
+
+	private updateLede(): void {
+		this.lede?.set(...this.ledeContent());
 	}
 
 	/** An Obsidian setting group; returns the element its settings go in. */
@@ -265,10 +302,23 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 		}
 	}
 
+	/** Saves when flipped: the ribbon is no setting of the choice (see RibbonSetting.svelte). */
+	private addRibbonSetting(parent: HTMLElement): void {
+		const inRibbon = actionInRibbon(this.choice.id);
+		if (inRibbon === null) return;
+		new Setting(parent)
+			.setName(RIBBON_SETTING_NAME)
+			.addToggle((toggle) => {
+				toggle.setValue(inRibbon).onChange((value) => {
+					setActionInRibbon(this.choice.id, value);
+				});
+			});
+	}
+
 	private addRunOnStartupSetting(parent: HTMLElement): void {
 		new Setting(parent)
 			.setName("Run on startup")
-			.setDesc("Execute this macro when Obsidian starts")
+			.setDesc("Run this sequence when Obsidian starts.")
 			.addToggle(toggle => toggle
 				.setValue(this.choice.runOnStartup)
 				.onChange(value => {
@@ -280,11 +330,16 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 	private addIconSetting(parent: HTMLElement): void {
 		addChoiceIconSetting(this.app, parent, this.choice, (icon) => {
 			this.choice.icon = icon;
+			this.updateLede();
 		});
 	}
 
-	/** Re-render the page, for settings that add or remove rows. */
+	/**
+	 * Re-render the page, for settings that add or remove rows. They all sit
+	 * under More settings, which must stay open around them.
+	 */
 	private reload() {
+		setMoreSettingsOpen(this.choice.id, true);
 		this.destroy();
 		this.containerEl.empty();
 		this.render(this.containerEl);
@@ -332,6 +387,7 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			choices: this.choices,
 			onCommandsChange: (commands) => {
 				this.setMacroCommands(commands);
+				this.updateLede();
 			},
 			conditionalHandlers: this.buildConditionalHandlers(),
 		});
@@ -373,6 +429,8 @@ export class MacroBuilder extends BuilderPage<IMacroChoice> {
 			plugin: this.plugin,
 			choices: this.choices,
 			title: `${branch === "then" ? "Then" : "Else"}: ${getConditionSummary(command.condition)}`,
+			conditional: command,
+			branch,
 			commands: branch === "then" ? command.thenCommands : command.elseCommands,
 			conditionalHandlers: this.buildConditionalHandlers(),
 			onSave: (commands) => {

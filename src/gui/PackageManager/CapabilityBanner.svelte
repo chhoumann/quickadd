@@ -3,7 +3,7 @@
 	import CapabilityTag from "./CapabilityTag.svelte";
 	import type { PackagePreview } from "../../services/packagePreview";
 
-	let { preview }: { preview: PackagePreview } = $props();
+	let { preview, noun = "package" }: { preview: PackagePreview; noun?: "package" | "recipe" } = $props();
 
 	const critical = $derived(preview.summary.hasCritical);
 </script>
@@ -22,7 +22,7 @@
 			<ObsidianIcon iconId={critical ? "zap" : "alert-triangle"} />
 		</div>
 		<div class="callout-title-inner" id="qa-import-banner-title">
-			What this package can do
+			What this {noun} can do
 		</div>
 	</div>
 
@@ -57,10 +57,13 @@
 		margin: 0;
 	}
 
-	/* Setting-row text size, so the callout sits level with the cards. */
+	/* Setting-row text size, so the callout sits level with the cards. Its rows
+	   wrap, so nothing scrolls: Obsidian's scrolling callout content showed a
+	   scrollbar for a pixel of rounding. */
 	.qa-import-banner .callout-content {
 		padding-top: var(--size-4-2);
 		font-size: var(--font-ui-small);
+		overflow: visible;
 	}
 
 	.qa-import-banner-rows {

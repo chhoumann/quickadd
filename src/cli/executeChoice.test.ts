@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
+import { claimRefusal, refuse } from "../errors/RefusalError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type IChoice from "../types/choices/IChoice";
 import { executeChoice } from "./executeChoice";
@@ -49,6 +50,17 @@ describe("CLI executeChoice without verify", () => {
 			ok: false,
 			aborted: true,
 			error: "Input cancelled by user",
+		});
+	});
+
+	it("reports a sequence's refusal as a failure with the sentence, not an abort", async () => {
+		const refusal = refuse("no note is open", "there is nothing to add to");
+		claimRefusal(refusal, "Quick capture");
+		const run = executor(() => Promise.resolve(), refusal);
+
+		await expect(executeChoice(run, macro, false)).resolves.toEqual({
+			ok: false,
+			error: "Quick capture: no note is open, so there is nothing to add to.",
 		});
 	});
 

@@ -1,4 +1,4 @@
-import { Notice, type App, type WorkspaceLeaf } from "obsidian";
+import { Notice, type App, type TFile, type WorkspaceLeaf } from "obsidian";
 import { currentDispatchChain, enterChoice, type ChoiceChain } from "./engine/choiceChain";
 import type QuickAdd from "./main";
 import type IChoice from "./types/choices/IChoice";
@@ -6,6 +6,7 @@ import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
 import type IMacroChoice from "./types/choices/IMacroChoice";
 import { TemplateChoiceEngine } from "./engine/TemplateChoiceEngine";
+import { checkTemplateSource } from "./engine/templateSource";
 import { CaptureChoiceEngine } from "./engine/CaptureChoiceEngine";
 import { MacroChoiceEngine } from "./engine/MacroChoiceEngine";
 import type { IChoiceExecutor } from "./IChoiceExecutor";
@@ -19,7 +20,11 @@ import { runOnePagePreflight } from "./preflight/runOnePagePreflight";
 import { MacroAbortError } from "./errors/MacroAbortError";
 import { ChoiceAbortError } from "./errors/ChoiceAbortError";
 import { UserCancelError } from "./errors/UserCancelError";
-import { isCancellationError, reportError } from "./utils/errorUtils";
+import { isCancellationError, reportError, reportRefusal } from "./utils/errorUtils";
+import { RefusalError } from "./errors/RefusalError";
+import { failureReason } from "./engine/choiceOutcomeRecorder";
+import { showResultNotice } from "./gui/resultNotice";
+import { runLog } from "./runLog";
 import { getOpenFileOriginLeaf } from "./utils/fileOpening";
 import { InputPromptDraftStore } from "./utils/InputPromptDraftStore";
 import type { ChoiceOutcome } from "./types/ChoiceOutcome";
@@ -41,6 +46,27 @@ import type { LoadedUserScript } from "./utils/userScript";
 import { withPreparedChoiceInputs, clearPreparedChoiceInputs, createPreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import { isTemplateChoice } from "./types/choices/choiceType";
 import { shouldRunTemplateNoteDiscovery } from "./utils/templateNoteDiscoveryEligibility";
+import { currentActions, findAction } from "./v3/storage";
+import { compactGroup } from "./v3/lower";
+import type { Action } from "./v3/model";
+import { runSteps } from "./v3/run/stepRunner";
+
+type RunWrite = Extract<ChoiceOutcome, { status: "success" }> & { file: TFile };
+/** A run's result for the log; a bare success recorded nothing. */
+type RunResult = ChoiceOutcome | { status: "success"; effect?: undefined; file?: undefined };
+
+/** The outcome of a run that threw, or stopped with an abort signal. */
+function outcomeOfThrow(error: unknown): ChoiceOutcome {
+	// A refusal stops the run like an abort, but the run did not do its job.
+	if (error instanceof RefusalError) return { status: "error", reason: error.message };
+	if (error instanceof UserCancelError || isCancellationError(error)) {
+		return { status: "cancelled", cancelKind: "user" };
+	}
+	if (error instanceof MacroAbortError) {
+		return { status: "cancelled", cancelKind: "aborted", reason: error.message };
+	}
+	return { status: "error", reason: failureReason(error) };
+}
 
 export class ChoiceExecutor implements IChoiceExecutor {
 	public variables: Map<string, unknown> = new Map<string, LoadedUserScript>();
@@ -62,8 +88,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	public triggerContext: QuickAddTriggerContext | null = null;
 	public clocks?: RunClocks;
 	public pickDate = false;
+	public runNote: TFile | null = null;
+	/** How many times a run has recorded the note it ended on; noteEndedOn reads it. */
+	private notesRecorded = 0;
 	private pendingAbort: MacroAbortError | null = null;
 	private pendingResult: ChoiceOutcome | null = null;
+	/** The latest result any choice of the outermost run recorded. */
+	private lastResult: ChoiceOutcome | null = null;
+	/** The latest success with a note in the outermost run: what made the run note. */
+	private lastWrite: RunWrite | null = null;
+	private runStartedAt = 0;
 	private executionDepth = 0;
 	/**
 	 * Ancestry of a run started without one: the dispatching run's chain when
@@ -88,10 +122,30 @@ export class ChoiceExecutor implements IChoiceExecutor {
 
 	recordExecutionResult(result: ChoiceOutcome) {
 		this.pendingResult = result;
+		this.lastResult = result;
+		if (result.status === "success" && result.file) {
+			this.runNote = result.file;
+			this.notesRecorded++;
+			// The notice and the log describe the run's last write; a later step
+			// that left its note alone does not take its place.
+			if (result.effect !== "unchanged" || this.lastWrite === null || this.lastWrite.effect === "unchanged") {
+				this.lastWrite = { ...result, file: result.file };
+			}
+		}
+	}
+
+	async noteEndedOn(run: () => Promise<void>): Promise<TFile | null> {
+		const seen = this.notesRecorded;
+		await run();
+		return this.notesRecorded === seen ? null : this.runNote;
 	}
 
 	private beginExecutionContext(): void {
 		if (this.executionDepth === 0) {
+			this.runNote = null;
+			this.lastResult = null;
+			this.lastWrite = null;
+			this.runStartedAt = Date.now();
 			this.focusedProperty =
 				this.focusedPropertyOverride !== undefined
 					? this.focusedPropertyOverride
@@ -129,6 +183,9 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			this.triggerContext = null;
 			this.clocks = undefined;
 			this.pickDate = false;
+			this.runNote = null;
+			this.lastResult = null;
+			this.lastWrite = null;
 			// Preloaded script modules are scoped to ONE outermost execution: a
 			// cancelled/aborted run must not strand its entries, or a later
 			// trigger on a long-lived executor (api.executeChoice callers reuse
@@ -143,6 +200,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async execute(
 		choice: IChoice,
 		ancestry: ChoiceChain = this.dispatchAncestry,
+		inline?: Action,
 	): Promise<void> {
 		const chain = enterChoice(choice, ancestry);
 		this.pendingAbort = null;
@@ -151,11 +209,16 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		// enclosing executeWithOutcome(): snapshot and restore pendingResult so the nested
 		// choice's recorded result never leaks into the outer choice's reported outcome.
 		const savedResult = this.pendingResult;
+		this.pendingResult = null;
+		const outermost = this.executionDepth === 0;
+		let thrown: { error: unknown } | null = null;
 		this.beginExecutionContext();
 		const originLeaf = getOpenFileOriginLeaf(this.app);
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			// A Template checks its template before the form or the date asks anything.
+			if (isTemplateChoice(choice)) checkTemplateSource(this.app, choice);
 			await this.runOnePagePreflightIfEnabled(choice);
 			await withPreparedChoiceInputs(this, choice.id, async () => {
 				await this.applyDateOrigin(choice);
@@ -174,7 +237,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					}
 					case "Macro": {
 						const macroChoice: IMacroChoice = choice as IMacroChoice;
-						await this.onChooseMacroType(macroChoice, originLeaf, chain);
+						const action = inline ?? findAction(currentActions(settingsStore.getState()), choice.id);
+						if (action && !compactGroup(action)) {
+							await this.onChooseSequence(macroChoice, action, originLeaf, chain);
+						} else {
+							await this.onChooseMacroType(macroChoice, originLeaf, chain);
+						}
 						break;
 					}
 					case "Multi": {
@@ -195,11 +263,55 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
+			// A refusal from outside the engines (the one-page form, the date origin).
+			if (error instanceof RefusalError) reportRefusal(error, choice.name);
+			thrown = { error };
 			throw error;
 		} finally {
+			if (outermost) this.finishRun(choice, thrown ? outcomeOfThrow(thrown.error) : this.settledOutcome(choice));
 			this.pendingResult = savedResult;
 			this.endExecutionContext();
 		}
+	}
+
+	/**
+	 * What an outermost execute() did. A Template or Capture records its own result; a
+	 * Macro or folder succeeds unless the last choice it ran failed. Null is a success
+	 * that recorded nothing, such as a macro of scripts.
+	 */
+	private settledOutcome(choice: IChoice): ChoiceOutcome | null {
+		if (this.pendingAbort) return outcomeOfThrow(this.pendingAbort);
+		if (choice.type === "Template" || choice.type === "Capture") {
+			// Nothing recorded and no abort: the engine swallowed a failure.
+			return this.pendingResult ?? { status: "error" };
+		}
+		return this.lastResult?.status === "error" ? this.lastResult : null;
+	}
+
+	/**
+	 * Logs an outermost execute() and, when it wrote a note, says what it did and where.
+	 * The outcome-returning entry point (URI callbacks, the CLI) reports to its caller
+	 * instead, so it only logs.
+	 */
+	private finishRun(choice: IChoice, outcome: ChoiceOutcome | null): void {
+		const write = !outcome || outcome.status === "success" ? this.lastWrite : null;
+		this.logRun(choice, write ?? outcome ?? { status: "success" });
+		if (write && settingsStore.getState().showCaptureNotification) {
+			showResultNotice(this.app, choice.name, write);
+		}
+	}
+
+	private logRun(choice: IChoice, result: RunResult): void {
+		runLog.append({
+			at: new Date().toISOString(),
+			choiceId: choice.id,
+			choiceName: choice.name,
+			status: result.status,
+			...(result.status === "success"
+				? { effect: result.effect, path: result.file?.path }
+				: { reason: result.reason }),
+			durationMs: Date.now() - this.runStartedAt,
+		});
 	}
 
 	async executeWithFocusedProperty(
@@ -237,6 +349,15 @@ export class ChoiceExecutor implements IChoiceExecutor {
 	async executeWithOutcome(
 		choice: ITemplateChoice | ICaptureChoice,
 	): Promise<ChoiceOutcome> {
+		const outermost = this.executionDepth === 0;
+		const outcome = await this.runWithOutcome(choice);
+		if (outermost) this.logRun(choice, outcome);
+		return outcome;
+	}
+
+	private async runWithOutcome(
+		choice: ITemplateChoice | ICaptureChoice,
+	): Promise<ChoiceOutcome> {
 		const chain = enterChoice(choice, this.dispatchAncestry);
 		this.pendingAbort = null;
 		this.pendingResult = null;
@@ -245,6 +366,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const promptDraftStore = InputPromptDraftStore.getInstance();
 		const draftScope = promptDraftStore.beginExecutionScope();
 		try {
+			// A Template checks its template before the form or the date asks anything.
+			if (isTemplateChoice(choice)) checkTemplateSource(this.app, choice);
 			await this.runOnePagePreflightIfEnabled(choice);
 			return await withPreparedChoiceInputs(this, choice.id, async (): Promise<ChoiceOutcome> => {
 				await this.applyDateOrigin(choice);
@@ -255,18 +378,12 @@ export class ChoiceExecutor implements IChoiceExecutor {
 					await this.onChooseCaptureType(choice as ICaptureChoice, originLeaf, chain);
 				}
 
-				if (this.pendingAbort) {
+				const abort = this.consumeAbortSignal();
+				if (abort) {
 					promptDraftStore.rollbackExecutionScope(draftScope);
-					const abort = this.consumeAbortSignal();
-					const isUser = abort instanceof UserCancelError;
-					return {
-						status: "cancelled",
-						cancelKind: isUser ? "user" : "aborted",
-						// Only surface the message for an involuntary abort (e.g. the
-						// non-interactive prompt guards). A user dismissal keeps its stable
-						// "cancelled by user" text and leaks no internals.
-						reason: isUser ? undefined : abort?.message,
-					};
+					// A user dismissal keeps its stable "cancelled by user" text and leaks
+					// no internals; an involuntary abort or a refusal says why.
+					return outcomeOfThrow(abort);
 				}
 
 				promptDraftStore.commitExecutionScope(draftScope);
@@ -277,13 +394,8 @@ export class ChoiceExecutor implements IChoiceExecutor {
 			});
 		} catch (error) {
 			promptDraftStore.rollbackExecutionScope(draftScope);
-			if (error instanceof UserCancelError) {
-				// Stable user-facing text; no internal message surfaced.
-				return { status: "cancelled", cancelKind: "user" };
-			}
-			if (error instanceof MacroAbortError) {
-				return { status: "cancelled", cancelKind: "aborted", reason: error.message };
-			}
+			if (error instanceof RefusalError) reportRefusal(error, choice.name);
+			if (error instanceof MacroAbortError) return outcomeOfThrow(error);
 			reportError(error, "Error executing choice from URI");
 			return {
 				status: "error",
@@ -454,6 +566,35 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		originLeaf: WorkspaceLeaf | null,
 		chain: ChoiceChain,
 	) {
+		await this.withMacroEngine(macroChoice, originLeaf, chain, (macroEngine) => macroEngine.run());
+	}
+
+	/** A stored action that is more than one write runs step by step. */
+	private async onChooseSequence(
+		macroChoice: IMacroChoice,
+		action: Action,
+		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
+	) {
+		await this.withMacroEngine(macroChoice, originLeaf, chain, (macroEngine) =>
+			runSteps(action.steps, {
+				app: this.app,
+				plugin: this.plugin,
+				executor: this,
+				action,
+				chain,
+				originLeaf,
+				macroEngine,
+			}),
+		);
+	}
+
+	private async withMacroEngine(
+		macroChoice: IMacroChoice,
+		originLeaf: WorkspaceLeaf | null,
+		chain: ChoiceChain,
+		run: (macroEngine: MacroChoiceEngine) => Promise<void>,
+	) {
 		const macroEngine = new MacroChoiceEngine(
 			this.app,
 			this.plugin,
@@ -468,7 +609,7 @@ export class ChoiceExecutor implements IChoiceExecutor {
 		const previousOverride = this.macroOnePageInput;
 		this.macroOnePageInput = macroChoice.onePageInput ?? previousOverride;
 		try {
-			await macroEngine.run();
+			await run(macroEngine);
 		} finally {
 			this.macroOnePageInput = previousOverride;
 		}

@@ -1,7 +1,7 @@
-import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it } from "vitest";
+import { settingItem, settingNames, choiceIconInput, openMoreSettings } from "../../../tests/helpers/settings/fields";
+import { describe, expect, it, vi } from "vitest";
 
-import { App } from "obsidian";
+import { App, Menu } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
 import { flushSync, tick } from "svelte";
 import type QuickAdd from "../../main";
@@ -81,6 +81,7 @@ function mountForm(choice: ICaptureChoice = captureChoice()) {
 	const result = render(CaptureChoiceForm, {
 		props: { choice: props.choice, app: props.app, plugin: props.plugin },
 	});
+	openMoreSettings(result.container);
 	return { ...result, props };
 }
 
@@ -111,12 +112,12 @@ describe("CaptureChoiceForm", () => {
 		props.choice.insertAfter.enabled = true;
 		props.choice.task = true;
 		flushSync();
-		expect(selectUnderSetting(container, "Write position").value).toBe("after");
-		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		expect(selectUnderSetting(container, "Position").value).toBe("after");
+		await fireEvent.change(selectUnderSetting(container, "Position"), { target: { value: "property" } });
 		flushSync();
-		expect(selectUnderSetting(container, "Write position").value).toBe("property");
+		expect(selectUnderSetting(container, "Position").value).toBe("property");
 		expect(settingNames(container)).not.toContain("Insert after");
-		expect(settingNames(container)).not.toContain("Task");
+		expect(container.querySelector('[aria-label="Task"]')).toBeNull();
 		expect(settingNames(container)).toContain("Create property if missing");
 		await fireEvent.input(getByLabelText("Property"), { target: { value: "{{VALUE:property}}" } });
 		await fireEvent.change(selectUnderSetting(container, "Action"), { target: { value: "addToList" } });
@@ -134,10 +135,10 @@ describe("CaptureChoiceForm", () => {
 		await fireEvent.change(selectUnderSetting(container, "Property"), { target: { value: "named" } });
 		flushSync();
 		expect(getByLabelText("Property")).toHaveValue("status");
-		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
+		await fireEvent.change(selectUnderSetting(container, "Position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(props.choice.propertyCapture).toBeUndefined();
-		expect(settingNames(container)).toContain("Task");
+		expect(container.querySelector('[aria-label="Task"]')).not.toBeNull();
 	});
 
 	// #1748: for a list destination each line of the Capture format is one item.
@@ -148,10 +149,10 @@ describe("CaptureChoiceForm", () => {
 		props.choice.format.enabled = true;
 		flushSync();
 		const actionDesc = () => settingItem(container, "Action").querySelector(".setting-item-description")?.textContent ?? "";
-		const textarea = () => settingItem(container, "Capture format").closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
+		const textarea = () => settingItem(container, "What").closest(".qa-field")?.querySelector("textarea") as HTMLTextAreaElement;
 		expect(textarea().placeholder).toBe("{{VALUE}}");
 
-		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "property" } });
+		await fireEvent.change(selectUnderSetting(container, "Position"), { target: { value: "property" } });
 		flushSync();
 		expect(actionDesc()).toContain("For a list, each line is one item");
 		expect(actionDesc()).toContain("{{PROPERTY}}");
@@ -164,7 +165,7 @@ describe("CaptureChoiceForm", () => {
 		expect(actionDesc()).toContain("{{PROPERTY}}");
 		expect(textarea().placeholder).toBe("One item per line");
 
-		await fireEvent.change(selectUnderSetting(container, "Write position"), { target: { value: "bottom" } });
+		await fireEvent.change(selectUnderSetting(container, "Position"), { target: { value: "bottom" } });
 		flushSync();
 		expect(textarea().placeholder).toBe("{{VALUE}}");
 	});
@@ -175,7 +176,7 @@ describe("CaptureChoiceForm", () => {
 		expect(headerBefore).not.toBeNull();
 		expect(settingNames(container)).not.toContain("Insert after");
 
-		const select = selectUnderSetting(container, "Write position");
+		const select = selectUnderSetting(container, "Position");
 		await fireEvent.change(select, { target: { value: "after" } });
 		flushSync();
 		expect(settingNames(container)).toContain("Insert after");
@@ -194,12 +195,12 @@ describe("CaptureChoiceForm", () => {
 
 	it("hides the create/open/file-opening sections when capturing to the active file", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).toContain("Create file if it doesn't exist");
+		expect(settingNames(container)).toContain("Create note if it doesn't exist");
 
 		props.choice.captureToActiveFile = true;
 		flushSync();
 		const names = settingNames(container);
-		expect(names).not.toContain("Create file if it doesn't exist");
+		expect(names).not.toContain("Create note if it doesn't exist");
 		expect(names).not.toContain("Open");
 	});
 
@@ -216,18 +217,19 @@ describe("CaptureChoiceForm", () => {
 		const { container } = render(CaptureChoiceForm, {
 			props: { choice: props.choice, app: props.app, plugin: props.plugin },
 		});
-		expect(settingNames(container)).toContain("Create file if it doesn't exist");
+		openMoreSettings(container);
+		expect(settingNames(container)).toContain("Create note if it doesn't exist");
 
 		props.choice.captureToActiveFile = true;
 		flushSync();
 		expect(settingNames(container)).not.toContain(
-			"Create file if it doesn't exist",
+			"Create note if it doesn't exist",
 		);
 	});
 
 	it("persists write-position edits onto the form proxy (snapshot reflects them)", async () => {
 		const { container, props } = mountForm();
-		const select = selectUnderSetting(container, "Write position");
+		const select = selectUnderSetting(container, "Position");
 		await fireEvent.change(select, { target: { value: "before" } });
 		flushSync();
 		// Mutual-exclusivity zeroing held: only insertBefore is enabled.
@@ -254,10 +256,14 @@ describe("CaptureChoiceForm", () => {
 		).toHaveAttribute("data-icon", "inbox");
 	});
 
-	it("keeps the optional icon override at the bottom of the form", () => {
+	it("keeps the inputs and the steps above More settings, and the optional icon override last", async () => {
 		const { container } = mountForm();
+		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
 
-		expect(settingNames(container).at(-1)).toBe("Icon");
+		const names = settingNames(container);
+		expect(names.indexOf("Inputs")).toBeLessThan(names.indexOf("Steps"));
+		expect(names.slice(names.indexOf("Steps"), names.indexOf("Steps") + 2)).toEqual(["Steps", "More settings"]);
+		expect(names.at(-1)).toBe("Icon");
 	});
 
 	it("persists the copy-link-to-clipboard toggle", async () => {
@@ -275,14 +281,14 @@ describe("CaptureChoiceForm", () => {
 	});
 
 	// #1544: the capture target used to be described by three rows — a control-less
-	// "Capture to", the "Capture to active file" toggle, a control-less "File path /
+	// "Where", the "Capture to active note" toggle, a control-less "File path /
 	// format" — and the input that actually holds it advertised itself as a *file
 	// name* format. One decision, one label, one description, one input.
 	// #2014: the whole-file Templater pass is deprecated. Only a choice that
 	// already has it on still sees the row, so it can turn it off.
 	it("shows the deprecated whole-file Templater option only while it is on", async () => {
 		const { container, props } = mountForm();
-		const rowName = "Run Templater on entire destination file after capture (deprecated)";
+		const rowName = "Run Templater on entire destination note after capture (deprecated)";
 		expect(settingNames(container)).not.toContain(rowName);
 
 		props.choice.templater = { afterCapture: "wholeFile" };
@@ -301,7 +307,7 @@ describe("CaptureChoiceForm", () => {
 		const { container, props } = mountForm();
 		props.choice.createFileIfItDoesntExist = { enabled: false, createWithTemplate: true, template: "T.md" };
 		flushSync();
-		const button = () => [...settingItem(container, "Capture to").querySelectorAll("button")]
+		const button = () => [...settingItem(container, "Where").querySelectorAll("button")]
 			.find((el) => el.textContent === "Daily note");
 
 		await fireEvent.click(button()!);
@@ -317,9 +323,9 @@ describe("CaptureChoiceForm", () => {
 		const names = settingNames(container);
 
 		expect(names).not.toContain("File path / format");
-		expect(names.filter((name) => name === "Capture to")).toHaveLength(1);
+		expect(names.filter((name) => name === "Where")).toHaveLength(1);
 
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Where") as HTMLInputElement;
 		expect(input.placeholder).toBe("Daily/{{DATE}}.md");
 
 		// The label is a real <label for>, and the field lives in the same group.
@@ -332,7 +338,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("treats an empty capture format as capturing {{VALUE}} on its own", async () => {
 		const { container, props } = mountForm();
-		const textarea = settingItem(container, "Capture format")
+		const textarea = settingItem(container, "What")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;
 		expect(textarea.value).toBe("");
@@ -351,7 +357,7 @@ describe("CaptureChoiceForm", () => {
 	// erased while it had no other text yet.
 	it("keeps leading whitespace typed into an empty capture format", async () => {
 		const { container, props } = mountForm();
-		const textarea = settingItem(container, "Capture format")
+		const textarea = settingItem(container, "What")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;
 
@@ -372,7 +378,7 @@ describe("CaptureChoiceForm", () => {
 		const choice = new CaptureChoice("Old");
 		choice.format = { enabled: false, format: "- {{VALUE}}" };
 		const { container } = mountForm(choice);
-		const textarea = settingItem(container, "Capture format")
+		const textarea = settingItem(container, "What")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;
 		expect(textarea.value).toBe("");
@@ -382,7 +388,7 @@ describe("CaptureChoiceForm", () => {
 	// passes it by without editing it.
 	it("indents the capture format on Tab once the field is in use", async () => {
 		const { container, props } = mountForm();
-		const textarea = settingItem(container, "Capture format")
+		const textarea = settingItem(container, "What")
 			.closest(".qa-field")
 			?.querySelector("textarea") as HTMLTextAreaElement;
 		textarea.value = "- {{VALUE}}\n";
@@ -402,7 +408,7 @@ describe("CaptureChoiceForm", () => {
 	// as a bare "Preview:" with nothing after it whenever the field was empty.
 	it("renders the preview after the field it previews, and only once the field has a value", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Where") as HTMLInputElement;
 
 		await settleValidation();
 		const preview = previewRows(container)[0];
@@ -426,7 +432,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("shows recognized feedback and hides the path preview for picker filter targets", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Where") as HTMLInputElement;
 		// Only the capture-target preview renders: the capture format is empty, and
 		// an empty field shows no preview row at all (#1543).
 		expect(previewRows(container)).toHaveLength(1);
@@ -447,7 +453,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("rejects multi-select capture target filters before runtime", async () => {
 		const { container, getByLabelText } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Where") as HTMLInputElement;
 		expect(previewRows(container)).toHaveLength(1);
 
 		input.value = "tag:work|multi";
@@ -465,7 +471,7 @@ describe("CaptureChoiceForm", () => {
 
 	it("does not show the canvas node picker for filter syntax that ends in .canvas", async () => {
 		const { container, getByLabelText, props } = mountForm();
-		const input = getByLabelText("Capture to") as HTMLInputElement;
+		const input = getByLabelText("Where") as HTMLInputElement;
 		props.choice.captureToCanvasNodeId = "stale-node-id";
 
 		input.value = "folder:Boards.canvas";
@@ -477,5 +483,45 @@ describe("CaptureChoiceForm", () => {
 		expect(describedHint(container, input).textContent).toContain(
 			"Recognized filtered picker",
 		);
+	});
+
+	describe("Steps", () => {
+		const stepLines = (container: HTMLElement) =>
+			Array.from(container.querySelectorAll(".qaStepsList li"), (item) => item.textContent);
+
+		it("lists what the capture does, following the form", async () => {
+			const { container } = mountForm();
+			expect(stepLines(container)).toEqual(["Adds a line at the top of Inbox"]);
+
+			await fireEvent.click(settingItem(container, "Open").querySelector(".checkbox-container") as HTMLElement);
+			flushSync();
+			expect(stepLines(container)).toEqual(["Adds a line at the top of Inbox", "Opens it"]);
+		});
+
+		it("offers to add a step only when the builder can take the choice on", async () => {
+			expect(mountForm().container.querySelector('[aria-label="Add a step"]')).toBeNull();
+
+			const onAddStep = vi.fn();
+			const props = createCaptureChoiceFormProps({ choice: captureChoice(), app: new App(), plugin });
+			const { getByRole } = render(CaptureChoiceForm, {
+				props: { choice: props.choice, app: props.app, plugin: props.plugin, onAddStep },
+			});
+			await fireEvent.click(getByRole("button", { name: "Add a step" }));
+
+			const menu = (Menu as unknown as { lastShown: { items: { title: string; icon: string; clickHandler: () => void }[] } }).lastShown;
+			expect(menu.items.map(({ title, icon }) => [title, icon])).toEqual([
+				["Run a script", "code"],
+				["Open a note", "file"],
+				["Link it", "link"],
+				["Run Templater", "braces"],
+				["Wait", "clock"],
+			]);
+			menu.items[0].clickHandler();
+			expect(onAddStep).toHaveBeenCalledWith(expect.objectContaining({ type: "runScript", path: "" }));
+			menu.items[2].clickHandler();
+			expect(onAddStep).toHaveBeenLastCalledWith(expect.objectContaining({ type: "link", link: "{{NOTE}}" }));
+			menu.items[3].clickHandler();
+			expect(onAddStep).toHaveBeenLastCalledWith(expect.objectContaining({ type: "templater", note: "{{NOTE}}" }));
+		});
 	});
 });

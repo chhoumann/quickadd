@@ -40,6 +40,7 @@ import {
 import type { UserScriptSecretSanitizerOptions } from "../utils/userScriptSecrets";
 import { log } from "../logger/logManager";
 import { escapesVaultBoundary } from "../utils/vaultPathBoundary";
+import type { Step } from "../v3/model";
 
 const choiceConstructors: Record<ChoiceType, new (name: string) => IChoice> = {
 	Template: TemplateChoice,
@@ -201,6 +202,14 @@ async function buildSecretOptionNamesByPath(
 	return secretOptionNamesByPath;
 }
 
+export interface BuilderOptions {
+	/**
+	 * Offered by the Template and Capture builders: saves, then hands the
+	 * choice on to have `step` added after what it does.
+	 */
+	onAddStep?: (step: Step) => void;
+}
+
 /**
  * The builder page for a choice, not yet open. It hands the edited choice to
  * `onSave` when it saves.
@@ -210,12 +219,13 @@ export function getChoiceBuilder(
 	app: App,
 	plugin: QuickAdd,
 	onSave: (choice: IChoice) => void,
+	{ onAddStep }: BuilderOptions = {},
 ): { open(): boolean } {
 	switch (choice.type) {
 		case "Template":
-			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave);
+			return new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave, onAddStep);
 		case "Capture":
-			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave);
+			return new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave, onAddStep);
 		case "Macro":
 			return new MacroBuilder(
 				app,
@@ -333,12 +343,13 @@ export function configureChoice(
 	app: App,
 	plugin: QuickAdd,
 	onSave: (edited: IChoice, base: IChoice) => void,
+	options?: BuilderOptions,
 ): boolean {
 	const builder = getChoiceBuilder(choice, app, plugin, (edited) => {
 		const saved = snapshot(edited);
 		onSave(saved, base);
 		base = saved;
-	});
+	}, options);
 	let base: IChoice = snapshot(choice);
 	return builder.open();
 }

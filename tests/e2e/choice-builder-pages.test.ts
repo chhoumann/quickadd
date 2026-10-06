@@ -5,7 +5,9 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import type IMacroChoice from "../../src/types/choices/IMacroChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, leaveSettingsPage, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
+import { addStep, clickWhenStill, insertText, jsLiteral, leaveSettingsPage, pickMenuItem, POLL_OPTS, pressKey, quickCommandBarOverflow, typeInto } from "./uiHelpers";
+import { storedChoices, withStoredChoices } from "./storedChoices";
+import type { INestedChoiceCommand } from "../../src/types/macros/QuickCommands/INestedChoiceCommand";
 
 // A choice's settings open as a page of Settings → QuickAdd, like the AI
 // Assistant's pages, instead of a dialog over the settings window. Leaving the
@@ -27,9 +29,9 @@ function capture(name: string, id: string): CaptureChoice {
 
 async function seed(...choices: IChoice[]) {
 	const { plugin } = getContext();
-	await plugin.data<Data>().patch((data) => {
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
 		data.choices = choices;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 }
 
@@ -67,7 +69,7 @@ const stored = (id: string) =>
 	);
 
 const onDisk = async (id: string) =>
-	(await getContext().plugin.data<Data>().read()).choices.find((c) => c.id === id) ?? null;
+	storedChoices(await getContext().plugin.data<Data>().read()).find((c) => c.id === id) ?? null;
 
 it("opens a choice's settings as a page in the settings window, and saves it when left with back", async () => {
 	const { obsidian } = getContext();
@@ -153,13 +155,13 @@ it("opens a macro's branch and Choice step as pages over it, and back returns to
 
 	await click('.macroBuilder [aria-label^="Edit then branch"]');
 	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning", "Then: $mood is truthy"]);
-	// With no steps above it, the quick-command bar keeps its card's padding (#2145).
+	// With no steps above it, the Add a step bar keeps its card's padding (#2145).
 	expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
-	await click('.conditionalBranchPage [aria-label="Add wait command"]');
+	await addStep(obsidian, "Wait");
 	await leaveSettingsPage(obsidian);
 	expect(await obsidian.dev.evalJson<string>(
-		'document.querySelector(".macroBuilder .conditionalBranches").textContent',
-	)).toContain("Then: 1");
+		'document.querySelector(".macroBuilder [aria-label^=\'Edit then branch\']").closest("li").querySelector(".quickAddCommandDetail").textContent',
+	)).toBe("If mood is truthy then waits 100 ms");
 
 	await click('.macroBuilder [aria-label="Configure Log"]');
 	await expect.poll(pageTitles, POLL_OPTS).toEqual(["Morning", "Log"]);
@@ -172,8 +174,8 @@ it("opens a macro's branch and Choice step as pages over it, and back returns to
 	// Nothing is saved until the macro itself is left.
 	expect(await storedThenCommands()).toEqual([]);
 	await leaveSettingsPage(obsidian);
-	const saved = (await storedMacro())?.macro.commands;
-	expect(saved?.find((c) => c.id === "pages-step-command")).toMatchObject({
+	const saved = (await storedMacro())?.macro.commands as INestedChoiceCommand[] | undefined;
+	expect(saved?.find((c) => c.choice?.id === "pages-step")).toMatchObject({
 		name: "Log to journal",
 		choice: { name: "Log to journal" },
 	});
@@ -213,8 +215,7 @@ it("comes back from a page where it was: the filter kept and focus on the contro
 
 	// New choice opens the new choice's page; back returns to the button.
 	await click(".qaFilterClearButton");
-	await click(".qaNewChoiceBtn.mod-cta");
-	await click(".menu-item");
+	await pickMenuItem(obsidian, ".qaNewChoiceBtn.mod-cta", "Log with a timestamp");
 	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
 	await pressKey(obsidian, "Escape");
 	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
@@ -236,8 +237,7 @@ it("comes back to New choice after adding the first choice (#2150)", async () =>
 	await seed();
 	await openSettings();
 	// The empty list has its own New choice, replaced by the list's once a choice exists.
-	await click(".choiceEmptyActions .qaNewChoiceBtn");
-	await click(".menu-item");
+	await pickMenuItem(obsidian, ".qaFirstRun .qaNewChoiceBtn", "Log with a timestamp");
 	await expect.poll(async () => (await pageTitles()).length, POLL_OPTS).toBe(1);
 	await pressKey(obsidian, "Escape");
 	await expect.poll(pageTitles, POLL_OPTS).toEqual([]);
@@ -249,7 +249,7 @@ it("saves a nested page into its macro when settings is closed over both", async
 	await openSettings();
 	await click('[aria-label="Configure Morning"]');
 	await click('.macroBuilder [aria-label^="Edit then branch"]');
-	await click('.conditionalBranchPage [aria-label="Add wait command"]');
+	await addStep(getContext().obsidian, "Wait");
 
 	await getContext().obsidian.dev.evalJson("app.setting.close(), true");
 	expect(await storedThenCommands()).toHaveLength(1);
@@ -263,11 +263,11 @@ it("keeps what another device changed while the page was open", async () => {
 	await rename("Inbox (here)");
 
 	// Another device changes this choice's target and renames the other choice.
-	await plugin.data<Data>().patch((data) => {
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
 		data.choices = data.choices.map((c) =>
 			c.id === "pages-inbox" ? { ...c, captureTo: "Phone.md" } as IChoice
 				: c.id === "pages-journal" ? { ...c, name: "Journal (phone)" } : c);
-	});
+	}));
 	await expect.poll(async () => (await stored("pages-journal"))?.name, POLL_OPTS).toBe("Journal (phone)");
 
 	await leaveSettingsPage(obsidian);
@@ -293,9 +293,9 @@ it("says once that a choice deleted elsewhere was not saved, and does not bring 
 		return true;
 	})()`);
 
-	await plugin.data<Data>().patch((data) => {
+	await plugin.data<Data>().patch(withStoredChoices((data) => {
 		data.choices = data.choices.filter((c) => c.id !== "pages-inbox");
-	});
+	}));
 	await expect.poll(() => stored("pages-inbox"), POLL_OPTS).toBeNull();
 
 	// The app goes to the background twice, then the page is left.
@@ -310,7 +310,7 @@ it("says once that a choice deleted elsewhere was not saved, and does not bring 
 		"QuickAdd: “Inbox” was deleted elsewhere, so your changes to it were not saved.",
 	]);
 	expect(await stored("pages-inbox")).toBeNull();
-	await expect.poll(async () => (await plugin.data<Data>().read()).choices.map((c) => c.id), POLL_OPTS)
+	await expect.poll(async () => storedChoices(await plugin.data<Data>().read()).map((c) => c.id), POLL_OPTS)
 		.toEqual(["pages-journal"]);
 });
 
@@ -376,4 +376,30 @@ it("saves the open page when QuickAdd reloads, without errors or later writes", 
 	await expect.poll(async () => (await onDisk("pages-inbox"))?.name, POLL_OPTS).toBe("Inbox (reloaded)");
 	expect((await stored("pages-inbox"))?.name).toBe("Inbox (reloaded)");
 	expect((await obsidian.execText("dev:errors")).trim()).toBe("No errors captured.");
+});
+
+it("spaces More settings from the groups it opens as on the Template page", async () => {
+	const { obsidian } = getContext();
+	const macro = new MacroChoice("Spaced macro");
+	macro.runOnStartup = true;
+	const template = new TemplateChoice("Spaced template");
+	template.openFile = true;
+	await seed(macro, template);
+	// The gap from the More settings row's group to the first group under it.
+	const gap = () => obsidian.dev.evalJson<number>(`(() => {
+		const more = [...document.querySelectorAll(".qa-builder-page")].pop().querySelector(".qaMoreSettings > .setting-group");
+		const next = [...more.parentElement.querySelectorAll(".setting-group")][1];
+		return Math.round(next.getBoundingClientRect().top - more.getBoundingClientRect().bottom);
+	})()`);
+	const open = async (name: string) => {
+		await openSettings();
+		await click(`[aria-label=${jsLiteral(`Configure ${name}`)}]`);
+		await expect.poll(pageTitles, POLL_OPTS).toEqual([name]);
+	};
+	await open(template.name);
+	const onTemplate = await gap();
+	await leaveSettingsPage(obsidian);
+	await open(macro.name);
+	expect(await gap()).toBe(onTemplate);
+	expect(onTemplate).toBeGreaterThan(0);
 });

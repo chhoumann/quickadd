@@ -60,6 +60,13 @@ import { scheduleStartupModelSync } from "./ai/startupModelSync";
 import { keepFocusedFieldInView } from "./gui/keepFocusedFieldInView";
 import { leaveBuilderPages } from "./gui/ChoiceBuilder/builderPage";
 import { registerSaveOnExit } from "./plugin/registerSaveOnExit";
+import { actionsFromChoices, choicesFromActions } from "./v3/storage";
+import type { StoredSettings } from "./v3/storage";
+import type { ActionNode } from "./v3/model";
+import { showMigrationReportOnce } from "./gui/MigrationReportModal";
+import { runLog } from "./runLog";
+import { BUTTON_BLOCK_LANGUAGE } from "./noteButtons/buttonBlock";
+import { NoteButtonBlock } from "./noteButtons/NoteButtonBlock";
 
 // The settingsStore subscriber fires on every store change — including high-frequency
 // ones like folder collapse toggles. Coalesce those full-settings disk writes into one
@@ -70,17 +77,32 @@ export default class QuickAdd extends Plugin {
 	settings: QuickAddSettings;
 	private unsubscribeSettingsStore: () => void;
 	/**
-	 * Snapshot of settings as of the last successful load/save. Used as the
-	 * 3-way-merge base so a whole-file write cannot clobber newer on-disk fields
-	 * that this instance never edited (see #1749 / background model sync).
+	 * Snapshot of settings as of the last successful load/save, in the shape
+	 * data.json stores them. Used as the 3-way-merge base so a whole-file write
+	 * cannot clobber newer on-disk fields that this instance never edited (see
+	 * #1749 / background model sync).
 	 */
-	private lastPersistedSettings: QuickAddSettings | null = null;
+	private lastPersistedSettings: StoredSettings | null = null;
 	/**
 	 * When true, the settingsStore subscriber updates `this.settings` but does
 	 * not schedule a disk write. Set while applying a conflict-merge result back
 	 * into the store after that result has already been (or is about to be) saved.
 	 */
 	private suppressSettingsSave = false;
+	/**
+	 * Set once data.json was handed back to QuickAdd 2 settings: nothing this
+	 * instance holds may be written over them.
+	 */
+	private savingStopped = false;
+	/**
+	 * Set once Obsidian unloads this instance. A settings change read while it
+	 * unloaded must not register this instance's commands again over those of
+	 * the instance that replaced it.
+	 */
+	private unloaded = false;
+	/** The ribbon icons of actions shown in the ribbon, and what they were made from. */
+	private actionRibbonIcons: { name: string; el: HTMLElement }[] = [];
+	private actionRibbonKey = "[]";
 	/** Serialize persist calls so overlapping debounced/immediate saves cannot race. */
 	private persistChain: Promise<void> = Promise.resolve();
 	// Debounced disk write for the store subscriber. saveSettings() stays immediate
@@ -137,8 +159,11 @@ export default class QuickAdd extends Plugin {
 
 		await this.loadSettings();
 		settingsStore.replaceState(this.settings);
+		await runLog.load(this.app.vault.adapter, `${this.manifest.dir}/run-log.json`);
 		this.unsubscribeSettingsStore = settingsStore.subscribe((settings) => {
 			this.settings = settings;
+			// Edits in the builder and settings synced from elsewhere both land here.
+			this.refreshActionRibbon();
 			if (!this.suppressSettingsSave) {
 				this.requestSave();
 			}
@@ -193,6 +218,11 @@ export default class QuickAdd extends Plugin {
 			callback: () => settingsTab.openAIAssistantPageFromCommand(),
 		});
 
+		// quickadd blocks in notes render as buttons that run choices.
+		this.registerMarkdownCodeBlockProcessor(BUTTON_BLOCK_LANGUAGE, (source, el, ctx) => {
+			ctx.addChild(new NoteButtonBlock(el, source, (choice) => this.runRegisteredChoice(choice.id, choice.name)));
+		});
+
 		// Everything from here on reads the choice tree, i.e. untrusted data.json.
 		// Each step is isolated so a defect in that data costs one capability
 		// instead of the whole plugin: onload throwing leaves Obsidian reporting
@@ -200,13 +230,15 @@ export default class QuickAdd extends Plugin {
 		// and no startup macros, and no way for the user to tell why (#1566).
 		// The accessors below handle the corrupt shapes we know about; this is the
 		// blast radius bound for the ones nobody has thought of yet.
-		this.addCommandsForChoices(this.settings.choices);
-
 		try {
 			await migrate(this);
 		} catch (err) {
 			reportError(err, "QuickAdd could not run its settings migrations");
 		}
+
+		// After the migrations, so commands come from the migrated choices.
+		this.addCommandsForChoices(this.settings.choices);
+		this.refreshActionRibbon();
 
 		const registerCli = () => {
 			try {
@@ -251,15 +283,18 @@ export default class QuickAdd extends Plugin {
 		});
 
 		this.announceUpdate();
+		this.app.workspace.onLayoutReady(() => void showMigrationReportOnce(this));
 	}
 
 	onunload() {
 		log.logMessage("Unloading QuickAdd");
+		this.unloaded = true;
 		// Leave an open choice builder first, so its edits are in the write below.
 		leaveBuilderPages(this.app);
 		// Flush any pending debounced settings write so a just-made change (e.g. a
 		// folder collapse) is never lost on plugin reload.
 		void this.flushPendingSave();
+		void runLog.flush();
 		this.unsubscribeSettingsStore?.call(this);
 
 		// Clear the error log to prevent memory leaks
@@ -288,13 +323,21 @@ export default class QuickAdd extends Plugin {
 		const settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			loadedData ?? {},
+			choicesFromActions(loadedData) ?? {},
 		) as QuickAddSettings & {
 			announceUpdates: QuickAddSettings["announceUpdates"] | boolean;
 		};
 
 		if (typeof settings.announceUpdates === "boolean") {
 			settings.announceUpdates = settings.announceUpdates ? "all" : "none";
+		}
+
+		// A damaged `migrations` value (null, a list) would make every migration
+		// read and every save throw; treat it as absent, so the migrations run
+		// as they do for a fresh install.
+		const migrations: unknown = settings.migrations;
+		if (typeof migrations !== "object" || migrations === null || Array.isArray(migrations)) {
+			settings.migrations = { ...DEFAULT_SETTINGS.migrations };
 		}
 
 		// Heal duplicate choice ids (#1451): a repeated id makes the settings tab's
@@ -316,12 +359,26 @@ export default class QuickAdd extends Plugin {
 		return settings;
 	}
 
+	/**
+	 * Settings in the shape data.json stores them. Merges run on this shape,
+	 * so once the choices were migrated they merge as actions: what only an
+	 * action holds takes part, and steps merge by id.
+	 */
+	private storedSettings(settings: QuickAddSettings = this.settings): StoredSettings {
+		return actionsFromChoices(settings) as StoredSettings;
+	}
+
+	/** Raw data.json, normalized as loading does, in the shape data.json stores. */
+	private normalizeStoredSettings(loadedData: unknown): StoredSettings {
+		return this.storedSettings(this.normalizeLoadedSettings(loadedData));
+	}
+
 	async loadSettings() {
 		const loadedData = await this.loadData();
 		const settings = this.normalizeLoadedSettings(loadedData);
 		this.settings = settings;
 		// Deep-clone so later in-place store edits cannot mutate the merge base.
-		this.lastPersistedSettings = deepClone(settings);
+		this.lastPersistedSettings = deepClone(this.storedSettings(settings));
 	}
 
 	/** Start the pending debounced settings write now. Returns the write. */
@@ -350,37 +407,33 @@ export default class QuickAdd extends Plugin {
 	 */
 	private persistSettings(): Promise<void> {
 		const run = async () => {
+			if (this.savingStopped) return;
 			const base = this.lastPersistedSettings;
 
-			const readDisk = async (): Promise<QuickAddSettings | null> => {
+			const readDisk = async (): Promise<StoredSettings | null> => {
 				if (!base) return null;
-				return this.normalizeLoadedSettings(await this.loadData());
+				return this.normalizeStoredSettings(await this.loadData());
 			};
 
 			let disk = await readDisk();
 
-			const buildPlan = (diskSnapshot: QuickAddSettings | null) => {
+			const buildPlan = (diskSnapshot: StoredSettings | null) => {
 				// Capture local AFTER the disk read so updates that landed while
-				// loadData() was in flight are included, then fold any further
-				// live-store drift onto that plan (Codex P1 / CodeRabbit on #1750).
-				const local = deepClone(this.settings);
+				// loadData() was in flight are included. Nothing runs between
+				// this and the merge, so it is also the current store.
+				const local = deepClone(this.storedSettings());
 				return reconcileSettingsPersistPlan({
 					base,
 					disk: diskSnapshot,
 					local,
-					currentStore: this.settings,
+					currentStore: local,
 				});
 			};
 
 			const applyStoreReplace = (
-				plan: ReturnType<typeof reconcileSettingsPersistPlan<QuickAddSettings>>,
+				plan: ReturnType<typeof reconcileSettingsPersistPlan<StoredSettings>>,
 			) => {
-				if (
-					plan.shouldReplaceStore &&
-					settingsValuesEqual(this.settings, plan.local)
-				) {
-					this.publishSettingsFromDisk(plan.toWrite);
-				}
+				if (plan.shouldReplaceStore) this.publishStoredSettings(plan.toWrite);
 			};
 
 			let plan = buildPlan(disk);
@@ -412,7 +465,7 @@ export default class QuickAdd extends Plugin {
 
 			// Fold any last-moment store drift onto the planned write, using the
 			// plan's local snapshot as the 3-way base so disk-only fields survive.
-			const storeAtFinalMerge = deepClone(this.settings);
+			const storeAtFinalMerge = deepClone(this.storedSettings());
 			let toWrite = plan.toWrite;
 			if (!settingsValuesEqual(storeAtFinalMerge, plan.local)) {
 				toWrite = threeWayMergeSettings(
@@ -428,15 +481,16 @@ export default class QuickAdd extends Plugin {
 			if (
 				shouldApplyPersistedWriteToStore(
 					toWrite,
-					this.settings,
+					storeAtFinalMerge,
 					storeAtFinalMerge,
 				)
 			) {
-				this.publishSettingsFromDisk(toWrite);
+				this.publishStoredSettings(toWrite);
 			}
 
 			await this.saveData(toWrite);
-			this.lastPersistedSettings = deepClone(toWrite);
+			// What reading the file back gives: saving canonicalizes the choices.
+			this.lastPersistedSettings = this.normalizeStoredSettings(JSON.parse(JSON.stringify(toWrite)));
 		};
 
 		this.persistChain = this.persistChain.then(run, run);
@@ -453,6 +507,7 @@ export default class QuickAdd extends Plugin {
 	 */
 	async onExternalSettingsChange(): Promise<void> {
 		const run = async () => {
+			if (this.savingStopped) return;
 			let loadedData: unknown;
 			try {
 				loadedData = await this.loadData();
@@ -463,18 +518,17 @@ export default class QuickAdd extends Plugin {
 				return;
 			}
 			// A missing file is not a request to reset every setting.
-			if (!loadedData) return;
+			if (!loadedData || this.unloaded) return;
 
 			const base = this.lastPersistedSettings;
-			const disk = this.normalizeLoadedSettings(loadedData);
+			const disk = this.normalizeStoredSettings(loadedData);
 			if (base && settingsValuesEqual(disk, base)) return;
 
-			const merged = base
-				? threeWayMergeSettings(base, deepClone(this.settings), disk)
-				: disk;
+			const local = deepClone(this.storedSettings());
+			const merged = base ? threeWayMergeSettings(base, local, disk) : disk;
 			this.lastPersistedSettings = deepClone(disk);
-			if (!settingsValuesEqual(merged, this.settings)) {
-				this.publishSettingsFromDisk(merged);
+			if (!settingsValuesEqual(merged, local)) {
+				this.publishStoredSettings(merged);
 			}
 			if (settingsValuesEqual(merged, disk)) {
 				// Everything this instance holds is on disk already.
@@ -491,11 +545,35 @@ export default class QuickAdd extends Plugin {
 	}
 
 	/**
-	 * Replace the live settings with values that came from disk, without
-	 * scheduling a save of them, and bring the choice commands in line: the
-	 * choices may have been added, removed or renamed elsewhere.
+	 * Write the data.json copy taken before the QuickAdd 3 migration back over
+	 * data.json. This instance saves nothing after that, so the restored file
+	 * stays as it was.
 	 */
-	private publishSettingsFromDisk(next: QuickAddSettings): void {
+	async restoreV2Snapshot(): Promise<void> {
+		const snapshot = this.settings.v3Migration?.snapshot;
+		if (!snapshot) throw new Error("QuickAdd has no copy of its settings from before the upgrade.");
+		const adapter = this.app.vault.adapter;
+		const bytes = await adapter.readBinary(`${this.manifest.dir}/${snapshot}`);
+		this.savingStopped = true;
+		this.requestSave.cancel();
+		// A save already running finishes first; whether it failed does not matter.
+		await this.persistChain.catch(() => undefined);
+		try {
+			await adapter.writeBinary(`${this.manifest.dir}/data.json`, bytes);
+		} catch (error) {
+			// Nothing was restored, so this instance keeps saving as before.
+			this.savingStopped = false;
+			throw error;
+		}
+	}
+
+	/**
+	 * Replace the live settings with settings in the shape data.json stores
+	 * them, without scheduling a save of them, and bring the choice commands in
+	 * line: the choices may have been added, removed or renamed elsewhere.
+	 */
+	private publishStoredSettings(stored: StoredSettings): void {
+		const next = this.normalizeLoadedSettings(deepClone(stored));
 		const previousChoices = this.settings.choices;
 		this.suppressSettingsSave = true;
 		try {
@@ -509,6 +587,39 @@ export default class QuickAdd extends Plugin {
 			if (isChoiceLike(choice)) this.removeCommandForChoice(choice, { recursive: true });
 		}
 		this.addCommandsForChoices(next.choices);
+	}
+
+	/**
+	 * A ribbon icon for each action shown in the ribbon, with the name and
+	 * icon of its choice, that runs it. Rebuilt whenever that list changes.
+	 */
+	private refreshActionRibbon(): void {
+		const items: { id: string; name: string; icon: string }[] = [];
+		const walk = (nodes: unknown) => {
+			if (!Array.isArray(nodes)) return;
+			for (const node of nodes as ActionNode[]) {
+				if (node?.kind === "folder") walk(node.items);
+				if (node?.kind !== "action" || !node.show?.ribbon) continue;
+				const choice = this.getChoice("id", node.id);
+				if (choice) items.push({ id: choice.id, name: choice.name, icon: resolveChoiceIcon(choice) });
+			}
+		};
+		walk(this.settings.actions);
+		const key = JSON.stringify(items);
+		if (key === this.actionRibbonKey) return;
+		this.actionRibbonKey = key;
+
+		// Obsidian has no public way to remove a ribbon icon; this is what it
+		// runs itself for a plugin's icons when the plugin unloads.
+		const ribbon = this.app.workspace.leftRibbon as unknown as { removeRibbonAction?: (id: string) => void };
+		for (const { name, el } of this.actionRibbonIcons) {
+			ribbon.removeRibbonAction?.(`${this.manifest.id}:${name}`);
+			el.detach();
+		}
+		this.actionRibbonIcons = items.map(({ id, name, icon }) => ({
+			name,
+			el: this.addRibbonIcon(icon, name, () => this.runRegisteredChoice(id, name)),
+		}));
 	}
 
 	private addCommandsForChoices(choices: IChoice[]) {

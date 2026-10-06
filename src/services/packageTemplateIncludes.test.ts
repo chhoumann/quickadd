@@ -770,7 +770,8 @@ describe("applyPackageImport follows {{TEMPLATE:}} includes to their destination
 			],
 			assetDecisions: [
 				{ originalPath: "Templates/MOC.md", destinationPath: "My Templates/MOC.md", mode: "skip" },
-				{ originalPath: "Templates/Section.md", destinationPath: "My Templates/Section.md", mode: "write" },
+				// The review sends "overwrite" for a file that is there (importDecisions).
+				{ originalPath: "Templates/Section.md", destinationPath: "My Templates/Section.md", mode: "overwrite" },
 				{ originalPath: "Templates/Dashboard.base", destinationPath: "My Templates/Dashboard.base", mode: "skip" },
 			],
 		});

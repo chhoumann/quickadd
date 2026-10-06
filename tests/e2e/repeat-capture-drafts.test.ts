@@ -5,6 +5,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // Discussion #763: a Macro that re-runs a Capture until Escape, for quick
 // brain dumps. Every re-opened prompt must start empty, and stopping the loop
@@ -40,9 +41,9 @@ it("a capture re-run from a Macro loop opens empty every time, including after E
 	macro.onePageInput = "never";
 	macro.macro.commands.push(new UserScript("repeat", script));
 
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [capture, macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = (name: string) => obsidian.dev.evalJson(
@@ -98,9 +99,9 @@ it("a script prompt asked again in the same run opens empty, and a failed run ke
 	macro.onePageInput = "never";
 	macro.macro.commands.push(new UserScript("ideas", script));
 
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [capture, macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = () => obsidian.dev.evalJson(

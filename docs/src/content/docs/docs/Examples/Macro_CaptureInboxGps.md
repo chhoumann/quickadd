@@ -1,5 +1,5 @@
 ---
-title: "Macro: Capture to Inbox with GPS"
+title: "Macro: Capture to inbox with GPS"
 description: Append a timestamped inbox line with device GPS coordinates, for offline capture on Obsidian mobile 1.11+
 slug: docs/Examples/Macro_CaptureInboxGps
 package: capture-inbox-gps
@@ -31,10 +31,10 @@ run it from the command palette.
 
 1. Save <a href="/scripts/captureInboxGps.js" download>captureInboxGps.js</a>
    anywhere in your vault except `.obsidian` or a hidden folder.
-2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
-   Builder opens; click its name at the top to rename it
+2. In **Settings → QuickAdd**, click **New choice** → **Run a script**. The
+   Macro Builder opens with one script step; set **Name** to
    `Capture to Inbox with GPS`.
-3. In the Macro Builder, add that script as a **User Script**.
+3. On the script step, click **Choose file** and pick `captureInboxGps.js`.
 4. Turn on the ⚡ **Command palette** toggle on the choice's row so it appears
    in the palette.
 

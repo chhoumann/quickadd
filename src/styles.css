@@ -158,10 +158,17 @@
 	padding-top: min(var(--keyboard-height), var(--safe-area-inset-top));
 }
 
-/* Settings pages run under the keyboard, with room to scroll past it, so a
-   builder page's focused field scrolls into view above the keyboard. */
+/* Settings pages run under the keyboard, so a builder page's focused field
+   scrolls into view above it. A page shorter than the screen has no room to
+   scroll, so it gets the keyboard's height of room at its end while it is up. */
 .is-phone .setting-page.qa-builder-page {
 	scroll-padding-bottom: calc(var(--keyboard-height) + var(--size-4-4));
+}
+
+.is-phone .setting-page.qa-builder-page > .setting-page-content::after {
+	content: "";
+	display: block;
+	height: var(--keyboard-height, 0px);
 }
 
 /* On a phone the settings header floats over the page: its background is a
@@ -279,6 +286,11 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+/* Under a field's own hint, as close to it as that hint is to the field. */
+.quickAddModal .qa-field-hint:not(:empty) + .qa-token-hint {
+	margin-top: -8px;
+}
+
 .quickAddModal .qa-token-hint code {
 	font-size: inherit;
 	padding: 1px 4px;
@@ -343,11 +355,13 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	color: var(--text-muted);
 }
 
+/* Secondary, not a form field's background: that is the modal's own white in
+   the light theme, where the box would vanish and leave its text indented. */
 .quickAddModal .qa-onepage-preview,
 .quickAddModal .vdate-preview-container {
 	padding: 0.5rem;
 	margin-bottom: 0.75rem;
-	background-color: var(--background-modifier-form-field);
+	background-color: var(--background-secondary);
 	border-radius: 4px;
 }
 
@@ -384,7 +398,8 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	width: 60%;
 }
 
-.quickAddModal.onePageInputModal .setting-item-control > input {
+.quickAddModal.onePageInputModal .setting-item-control > input,
+.quickAddModal.onePageInputModal .setting-item-control:not(:has(> .qa-onepage-dropdown-note)) > select {
 	width: 100%;
 }
 
@@ -575,7 +590,6 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 .quickAddModal .vdate-preview-text {
 	margin-top: 0.25rem;
 	font-size: 0.9em;
-	font-family: var(--font-monospace);
 	color: var(--text-normal);
 }
 
@@ -617,9 +631,16 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	overflow: hidden;
 }
 
+/* One grid for every row, so the values line up under each other whatever
+   their labels' widths. A row's problems span both columns. */
+.quickAddModal .qa-onepage-preview:not(.qa-hidden) {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	column-gap: 0.5rem;
+}
+
 .quickAddModal .qa-onepage-preview-row {
-	display: flex;
-	gap: 0.5rem;
+	display: contents;
 }
 
 /* The one-page form's problems reuse .qa-preview-issue (already scoped to
@@ -627,6 +648,7 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
    describe a refused name identically. They sit directly under their row rather
    than in the builder's .qa-preview-issues grid, so the gap is set here. */
 .quickAddModal .qa-onepage-preview .qa-preview-issue {
+	grid-column: 1 / -1;
 	margin-top: 0.25rem;
 }
 
@@ -1144,26 +1166,8 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	gap: 8px;
 }
 
-.qa-command-sequence-input {
-	margin-right: 1em;
-}
-
-/* On phones Obsidian makes every input and button in a modal's setting control
-   full width, so the row's input and its Add button split it and the input's
-   placeholder is cut mid-word. Give the input the room and the buttons their
-   own width. */
-.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.is-phone .quickAddModal .setting-item-control > .qa-command-sequence-input ~ button:not(.clickable-icon) {
-	flex: 0 0 auto;
-	width: auto;
-}
-
 /* The command editor in a settings group card (the Macro and branch pages):
-   the quick-command bar sits inside the card's padding, like the rows. */
+   the Add a step bar sits inside the card's padding, like the rows. */
 .setting-group .quickAddCommandEditor > .quickCommandContainer {
 	padding: 0 var(--setting-items-padding-x);
 	margin-bottom: var(--setting-items-padding-y);
@@ -1172,14 +1176,6 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 /* With no steps the list is hidden, and its padding with it. */
 .setting-group .quickAddCommandEditor:has(> .commandList > .quickAddCommandList.is-empty) > .quickCommandContainer {
 	padding-top: var(--setting-items-padding-y);
-}
-
-/* A phone's card is too narrow for the bar's buttons at their own width;
-   they share the row instead. The inline padding is a minimum: the buttons
-   grow into the row, and with AI on all six fit at 390px. */
-.is-phone .setting-group .quickAddCommandEditor > .quickCommandContainer > button {
-	flex: 1 1 auto;
-	padding-inline: var(--size-4-1);
 }
 
 .qa-hidden {
@@ -1209,6 +1205,16 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 
 .qa-validated-input-textarea {
 	min-height: 10rem;
+}
+
+/* A step modal's first field, the note the step acts on: one width in all of them. */
+.qa-step-note-field {
+	width: 16rem;
+	max-width: 100%;
+}
+
+.qa-step-note-field input {
+	margin-bottom: 0;
 }
 
 .qa-choice-icon-setting .setting-item-control {
@@ -1657,6 +1663,9 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 	flex: 1 1 auto;
 	align-items: center;
 	justify-content: space-between;
+	/* The same rhythm as a choice row, so a two-line step does not crowd its neighbours. */
+	min-height: 32px;
+	padding: 3px 0;
 }
 
 /* Action buttons + drag handle group on a macro command row (#1250). */
@@ -1671,6 +1680,42 @@ body:not(.is-phone) .setting-item.qa-field > .setting-item-control {
 .quickAddCommandLabel {
 	flex: 1 1 auto;
 	min-width: 0;
+}
+
+/* A step's number, as the compact builders' Steps section numbers its lines. */
+.quickAddCommandList {
+	counter-reset: qa-step;
+}
+
+.quickAddCommandList > .quickAddCommandListItem::before {
+	counter-increment: qa-step;
+	content: counter(qa-step) ".";
+	flex: 0 0 auto;
+	align-self: flex-start;
+	min-width: 1.75em;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A step row's name, and what the step does under it. */
+.quickAddCommandText {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.quickAddCommandDetail {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.3;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.quickAddCommandDetail.is-warning {
+	color: var(--text-warning);
 }
 
 .quickCommandContainer {
@@ -2374,6 +2419,23 @@ body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 	display: inline;
 }
 
+/* Name over the one-line summary of what the choice does. */
+.choiceListItemText {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.choiceListItemSummary {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.3;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 /* ChoiceSuggester.ts */
 .quickadd-choice-suggestion-content {
 	display: flex;
@@ -2412,6 +2474,15 @@ body.mod-rtl #dnd-action-dragged-el.qa-drag-clone .qa-drag-pill {
 
 .quickadd-choice-suggestion p {
 	margin: 0;
+}
+
+/* The breadcrumb and the summary stay on one line, so a long summary cannot
+   make its row taller than its neighbours. */
+.quickadd-choice-suggestion .suggestion-note {
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* Empty folders (#1554). A folder with no choices in it cannot be drilled into,
@@ -2665,6 +2736,28 @@ textarea.is-valid {
 	margin-top: var(--size-4-4);
 }
 
+/* The migration report's entries are settings rows, divided by their own
+   rules rather than spaced like the package dialogs' sections. */
+.qa-migration-report-entries {
+	gap: 0;
+}
+
+.qa-migration-report-intro {
+	flex: none;
+	margin-top: 0;
+}
+
+/* Three package actions outgrow a phone's settings row; wrap them. */
+.is-phone .qa-packages-setting .setting-item-control {
+	flex-wrap: wrap;
+}
+
+/* The Recipes gallery keeps its size while the filter narrows the list. A
+   phone's modal already fills the screen. */
+body:not(.is-phone) .quickAddModal.qa-recipes-modal {
+	height: min(80vh, 46rem);
+}
+
 /* Marks a script in the import review as opened toward the gate. */
 .qa-import-reviewed {
 	display: inline-flex;
@@ -2757,4 +2850,52 @@ textarea.is-valid {
    core, a theme or this file gives them, so this is !important. */
 .quickAddModal [hidden] {
 	display: none !important;
+}
+
+.qa-result-notice-actions {
+	display: flex;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}
+
+/* A quickadd block in a note: a row of buttons that run choices. */
+.qa-note-buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+}
+
+.qa-note-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	max-width: 100%;
+}
+
+.qa-note-button-icon {
+	display: flex;
+	flex-shrink: 0;
+}
+
+.qa-note-button-icon svg {
+	width: var(--icon-s);
+	height: var(--icon-s);
+}
+
+.qa-note-button-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Muted, not faint: a disabled button is dimmed again, and faint text dimmed
+   is unreadable in a dark theme. */
+.qa-note-button.qa-note-button--unresolved {
+	color: var(--text-muted);
+	cursor: default;
+}
+
+.is-mobile .qa-note-button {
+	min-height: 44px;
+	padding-inline: var(--size-4-4);
 }

@@ -820,7 +820,7 @@ describe("ai.prompt validation", () => {
 		mocks.storeState.disableOnlineFeatures = true;
 		const { api } = getApi();
 		await expect(api.ai.prompt("hi", "gpt-4")).rejects.toThrow(
-			"Online features are disabled",
+			"Online features are off, so the AI request was not sent.",
 		);
 	});
 
@@ -915,7 +915,7 @@ describe("ai.chunkedPrompt validation", () => {
 		const { api } = getApi();
 		await expect(
 			api.ai.chunkedPrompt("text", "tmpl", "gpt-4"),
-		).rejects.toThrow("Online features are disabled");
+		).rejects.toThrow("Online features are off, so the AI request was not sent.");
 	});
 
 	it("throws for a missing model name", async () => {

@@ -30,6 +30,17 @@ import type { TFile } from "obsidian";
 export type ChoiceEffect = "created" | "changed" | "unchanged";
 
 /**
+ * The text a run wrote to its target note, so the write can be undone: `before` is the
+ * note's content before the run (null when the run created the note) and `after` the
+ * content the run left. Undo restores `before` only while the note still holds `after`.
+ */
+export interface NoteWrite {
+	path: string;
+	before: string | null;
+	after: string;
+}
+
+/**
  * The result of executing a single choice, surfaced by
  * {@link ChoiceExecutor.executeWithOutcome} for callers (e.g. the URI x-callback
  * handler) that must report success / failure / cancellation back to an external
@@ -52,6 +63,6 @@ export type ChoiceEffect = "created" | "changed" | "unchanged";
  * automation #1615 is about still counting captures that never happened.
  */
 export type ChoiceOutcome =
-	| { status: "success"; file?: TFile; effect: ChoiceEffect }
+	| { status: "success"; file?: TFile; effect: ChoiceEffect; write?: NoteWrite }
 	| { status: "error"; reason?: string }
 	| { status: "cancelled"; cancelKind: "user" | "aborted"; reason?: string };

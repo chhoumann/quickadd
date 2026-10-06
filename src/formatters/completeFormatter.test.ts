@@ -357,6 +357,13 @@ describe("CompleteFormatter - macro / template / inline-script integration", () 
 		expect(mocks.macroRunAndGetOutput).toHaveBeenCalled();
 	});
 
+	it.each(["{{ACTION:doThing}}", "{{action:doThing}}"])("replaces %s like {{MACRO:doThing}}", async (input) => {
+		mocks.macroRunAndGetOutput.mockResolvedValue("ACTION_OUT");
+		const f = defaultFormatter();
+		await expect(f.formatFolderPath(`a ${input} b`)).resolves.toBe("a ACTION_OUT b");
+		expect(mocks.macroRunAndGetOutput).toHaveBeenCalledWith("doThing", undefined, expect.anything());
+	});
+
 	it("inserts a macro's output as text instead of expanding macro tokens in it", async () => {
 		mocks.macroRunAndGetOutput.mockResolvedValue("{{MACRO:again}}");
 		const f = defaultFormatter();
@@ -772,7 +779,7 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 	it("throws (required behavior) when {{LINKCURRENT}} but no active file", async () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(f.formatFileContent("{{LINKCURRENT}}")).rejects.toThrow(
-			"Unable to get current file path",
+			"No note is open, so {{LINKCURRENT}} has nothing to link to.",
 		);
 	});
 
@@ -787,7 +794,40 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(
 			f.formatFileContent("{{FILENAMECURRENT}}"),
-		).rejects.toThrow("Unable to get current file name");
+		).rejects.toThrow("No note is open, so {{FILENAMECURRENT}} has no name to give.");
+	});
+});
+
+describe("CompleteFormatter - {{NOTE}}, the run note", () => {
+	function withRunNote(runNote: unknown) {
+		const app = makeApp({ activeFile: null, selection: null, generatedLink: "" });
+		app.fileManager.generateMarkdownLink = ((file: { basename: string }) =>
+			`[[${file.basename}]]`) as never;
+		const executor = { ...createChoiceExecutor(), runNote: runNote as never };
+		return new CompleteFormatter(app as any, makePlugin() as any, executor);
+	}
+	const note = { path: "notes/Run note.md", basename: "Run note", parent: { path: "notes" } };
+
+	it("resolves every form from the run note", async () => {
+		const f = withRunNote(note);
+		await expect(
+			f.formatFileContent("{{NOTE}} | {{note|LINK}} | {{Note|name}} | {{NOTE|folder}}"),
+		).resolves.toBe("notes/Run note.md | [[Run note]] | Run note | notes");
+		await expect(f.formatFileName("{{NOTE}}", "filePath")).resolves.toBe("notes/Run note.md");
+		await expect(f.formatFolderPath("{{NOTE|folder}}/sub")).resolves.toBe("notes/sub");
+	});
+
+	it("gives the vault root as an empty folder", async () => {
+		const f = withRunNote({ path: "Top.md", basename: "Top", parent: { path: "/" } });
+		await expect(f.formatFileContent("[{{NOTE|folder}}]")).resolves.toBe("[]");
+	});
+
+	it("resolves every form to nothing before the run writes a note", async () => {
+		for (const f of [withRunNote(null), defaultFormatter()]) {
+			await expect(
+				f.formatFileContent("a{{NOTE}}b{{NOTE|link}}c{{NOTE|name}}d{{NOTE|folder}}e"),
+			).resolves.toBe("abcde");
+		}
 	});
 });
 
@@ -897,7 +937,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 		f.setLinkToCurrentFileBehavior("optional");
 		await expect(
 			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md"),
-		).rejects.toThrow("Unable to get the active file's folder");
+		).rejects.toThrow("No note is open, so {{FOLDERCURRENT}} has no folder to give.");
 	});
 
 	it("formatFolderPath strips the leading slash a root-level active file produces", async () => {
@@ -915,7 +955,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 	it("formatFolderPath throws without an active file", async () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(f.formatFolderPath("{{FOLDERCURRENT}}")).rejects.toThrow(
-			"Unable to get the active file's folder",
+			"No note is open, so {{FOLDERCURRENT}} has no folder to give.",
 		);
 	});
 
@@ -2136,7 +2176,7 @@ describe("CompleteFormatter {{linksection}} runtime resolution", () => {
 		const app = makeSectionApp({ activeFile: null, view: undefined });
 		const f = new CompleteFormatter(app as any, makePlugin() as any);
 		await expect(f.formatFileContent("{{linksection}}")).rejects.toThrow(
-			"Unable to get current file path",
+			"No note is open, so {{LINKSECTION}} has nothing to link to.",
 		);
 	});
 

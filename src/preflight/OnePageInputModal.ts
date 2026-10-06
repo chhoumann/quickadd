@@ -64,6 +64,8 @@ function hasMultipleGroups(requirements: FieldRequirement[]): boolean {
 
 type PreviewComputer = (
 	values: Record<string, unknown>,
+	/** Visible date fields whose text does not parse. */
+	unparsedDates: ReadonlySet<string>,
 ) => Promise<PreviewRow[]> | PreviewRow[];
 
 
@@ -121,6 +123,8 @@ export class OnePageInputModal extends Modal {
 		initial?: Map<string, unknown>,
 		computePreview?: PreviewComputer,
 		private readonly discoveryForm?: DiscoveryFormConfig,
+		/** The form's title: the choice's name, when known. */
+		private readonly options: { title?: string } = {},
 	) {
 		super(app);
 		this.requirements = requirements.map((requirement) => ({ ...requirement }));
@@ -138,7 +142,7 @@ export class OnePageInputModal extends Modal {
 		);
 		this.peek = new InputPromptPeek({
 			app,
-			title: "Provide inputs",
+			title: this.options.title ?? "Provide inputs",
 			containerEl: this.containerEl,
 			scope: this.scope,
 			getField: () => this.insertTarget()?.el,
@@ -176,7 +180,7 @@ export class OnePageInputModal extends Modal {
 		if (this.discoveryForm) this.containerEl.addClass("qa-discovery-form");
 		this.contentEl.empty();
 
-		const title = this.contentEl.createEl("h2", { text: "Provide inputs" });
+		const title = this.contentEl.createEl("h2", { text: this.options.title ?? "Provide inputs" });
 		title.addClass("qa-onepage-title");
 
 		// Optional live preview area. Created (empty and collapsed) before the
@@ -253,20 +257,28 @@ export class OnePageInputModal extends Modal {
 	onOpen() {
 		this.peek.onHostOpened();
 
-		// Mod+Enter submits without reaching for the mouse. Guarded because the
-		// test mock's Modal has no scope.
+		// Enter in a one-line field submits, as it does in a single prompt, and
+		// Mod+Enter submits from anywhere. An open suggestion list takes Enter
+		// first, and a multi-line field keeps it for its line breaks. Guarded
+		// because the test mock's Modal has no scope.
 		const scope = (
 			this as unknown as {
 				scope?: {
 					register?: (
 						mods: string[],
 						key: string,
-						cb: () => boolean,
+						cb: (evt?: KeyboardEvent) => boolean,
 					) => void;
 				};
 			}
 		).scope;
 		if (typeof scope?.register === "function") {
+			scope.register([], "Enter", (evt) => {
+				// By tag, not instanceof: a popout window has its own HTMLInputElement.
+				if (!evt || evt.isComposing || (evt.target as Element | null)?.tagName !== "INPUT") return true;
+				this.submit();
+				return false;
+			});
 			scope.register(["Mod"], "Enter", () => {
 				this.submit();
 				return false;
@@ -716,7 +728,10 @@ export class OnePageInputModal extends Modal {
 			// value the run is about to re-ask for: an untouched required
 			// {{VDATE:}} is withheld here too, and the preview falls back to its
 			// example date instead of rendering an empty one (#1590).
-			const rows = await this.computePreview(this.collectPreviewAnswers());
+			const rows = await this.computePreview(
+				this.collectPreviewAnswers(),
+				new Set([...this.dateParseErrors].filter((id) => this.isFieldVisible(id))),
+			);
 			if (token !== this.previewToken || !this.previewContainerEl) return;
 
 			renderOnePagePreview(this.previewContainerEl, rows);

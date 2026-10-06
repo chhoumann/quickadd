@@ -6,6 +6,7 @@ import type { QuickAddPackage } from "../../src/types/packages/QuickAddPackage";
 import { encodeToBase64 } from "../../src/utils/base64";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { jsLiteral } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1881: code runs only from .js files and notes, and the package import review
 // asks you to read exactly the bundled files that can run.
@@ -25,9 +26,9 @@ it("runs a user script only from a .js file or a note", async () => {
 		choice.macro.commands.push(new UserScript(path, path));
 		return choice;
 	};
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro("js", js), macro("txt", txt), macro("base", base)];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("(() => { window.__qaScriptExtRuns = []; return true; })()");
 

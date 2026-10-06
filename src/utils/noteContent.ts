@@ -80,11 +80,14 @@ export async function processNote(app: App, file: TFile, fn: (content: string) =
 /**
  * Replaces `base` (the text read earlier) with `next`. Edits made to the note
  * in between are 3-way merged in (`merged: true`), or the write is refused
- * when they conflict, so nothing is lost.
+ * when they conflict, so nothing is lost. `before` is the text the write
+ * replaced.
  */
-export async function writeNote(app: App, file: TFile, base: string, next: string): Promise<{ content: string; merged: boolean }> {
+export async function writeNote(app: App, file: TFile, base: string, next: string): Promise<{ content: string; merged: boolean; before: string }> {
 	let merged = false;
+	let before = base;
 	const content = await processNote(app, file, current => {
+		before = current;
 		if (toLF(current) === toLF(base)) return next;
 		const result = merge(toLF(current), toLF(base), toLF(next));
 		invariant(result.isSuccess(), () =>
@@ -92,7 +95,7 @@ export async function writeNote(app: App, file: TFile, base: string, next: strin
 		merged = true;
 		return result.joinedResults() as string;
 	});
-	return { content, merged };
+	return { content, merged, before };
 }
 
 /**
@@ -132,6 +135,6 @@ export function minimalEdit(before: string, after: string): { from: number; to: 
 	return { from: prefix, to: before.length - suffix, text: after.slice(prefix, after.length - suffix) };
 }
 
-function toLF(text: string): string {
+export function toLF(text: string): string {
 	return text.includes("\r") ? text.replace(/\r\n?/g, "\n") : text;
 }

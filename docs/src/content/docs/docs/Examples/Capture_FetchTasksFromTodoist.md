@@ -1,5 +1,5 @@
 ---
-title: "Capture: Fetch Tasks From Todoist"
+title: "Capture: Fetch tasks from Todoist"
 description: Import Todoist tasks into a note using a macro and user script, selecting from all tasks, a project, or a single section
 slug: docs/Examples/Capture_FetchTasksFromTodoist
 package: todoist-tasks
@@ -32,12 +32,12 @@ By default, the script completes every task it imports, so the same task isn't i
 Imported the package above? The script, the macro, and the Capture choice are already in place. Open the **Todoist** macro and follow step 3 to save your token and decide whether imported tasks are completed.
 
 1. Save the <a href="/scripts/TodoistScript.js" download>Todoist Script</a> to your vault, for example as `scripts/todoistTaskSync.js`.
-2. In **Settings → QuickAdd**, add a [Macro choice](/docs/Choices/MacroChoice/) named `Todoist`, and add the script to its command list. Add it by its file name (`todoistTaskSync`) to pick an export when the macro runs, or append an export (`todoistTaskSync::GetAllTasksFromProject`) to always run that one. Either way, the script's settings apply.
+2. In **Settings → QuickAdd**, click **New choice** → **Run a sequence of steps** to add a [Macro choice](/docs/Choices/MacroChoice/). Name it `Todoist`, and add the script to its command list. Add it by its file name (`todoistTaskSync`) to pick an export when the macro runs, or append an export (`todoistTaskSync::GetAllTasksFromProject`) to always run that one. Either way, the script's settings apply.
 3. Click the gear (⚙️) next to the script command, paste your Todoist API token into **Todoist API token**, and click the save icon next to it. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`. Leave **Complete imported tasks in Todoist** ticked, or untick it to leave tasks open in Todoist.
 
     ![Todoist script settings](../Images/Todoist-ScriptSettings.png)
 
-4. Add a [Capture choice](/docs/Choices/CaptureChoice/) with these settings:
+4. Add a [Capture choice](/docs/Choices/CaptureChoice/) with **New choice** → **Add to a note**, and give it these settings:
     -   _Capture to:_ the path to the file where you want to store the tasks.
     -   _Capture format:_ Enabled - and in the format, write `{{MACRO:Todoist}}` to be asked which export to run, or `{{MACRO:Todoist::GetAllTasksFromProject}}` (or any of the other exports) to run that one directly.
 

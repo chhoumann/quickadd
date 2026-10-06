@@ -3,6 +3,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, POLL_OPTS, pressKey, typeInto, waitForElement, expectNoPrompt } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("template-cursor");
 
@@ -22,7 +23,7 @@ async function setup(template = "## Log\n### {{DATE:YYYY-MM-DD}}\n- {{cursor}}af
 
 async function save(choice: TemplateChoice) {
 	const { plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 	await plugin.reload({ waitUntilReady: true });
 }
 

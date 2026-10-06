@@ -9,7 +9,8 @@ import { ChoiceCommand } from "../../src/types/macros/ChoiceCommand";
 import { ConditionalCommand } from "../../src/types/macros/Conditional/ConditionalCommand";
 import { UserScript } from "../../src/types/macros/UserScript";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { addStep, insertText, jsLiteral, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // Pressing Escape in a prompt is a normal way to stop a run. It must not land in
 // Obsidian's `dev:errors`, which records every unhandled promise rejection (even one
@@ -99,9 +100,9 @@ async function seedChoices() {
 	multi.command = true;
 
 	const targets = { file, value, field, onePage, template: templateChoice, macroScript, macroChoice, multi };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [...Object.values(targets), captureForMacro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	return { note, targets };
 }
@@ -220,9 +221,9 @@ it("a floated run that fails for real still lands in dev:errors", async () => {
 	const macro = new MacroChoice("Failing macro");
 	macro.onePageInput = "never";
 	macro.macro.commands.push(new UserScript("fail", script));
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await clearDevErrors(obsidian);
 
@@ -231,16 +232,16 @@ it("a floated run that fails for real still lands in dev:errors", async () => {
 	await expect.poll(() => devErrors(obsidian), POLL_OPTS).toContain("qa real failure");
 });
 
-// The macro builder's two Browse buttons open a script picker from a click handler
-// whose promise Obsidian drops.
+// The macro builder's Add a step menu and the condition's Browse button open a
+// picker from a click handler whose promise Obsidian drops.
 it("Escape in the macro builder's script pickers leaves dev:errors empty", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	await seedVaultFile(obsidian, sandbox, "Scripts/pick.js", "module.exports = async () => {};");
 	const macro = new MacroChoice("Browse cancel macro");
 	macro.macro.commands.push(new ConditionalCommand({ condition: { mode: "script", scriptPath: "" } }));
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:
@@ -263,14 +264,19 @@ it("Escape in the macro builder's script pickers leaves dev:errors empty", async
 		await expect.poll(() => click(`[aria-label="Configure ${macro.name}"]`), POLL_OPTS).toBe(true);
 		await expect.poll(() => obsidian.dev.evalJson<boolean>(`Boolean(document.querySelector(".macroBuilder"))`), POLL_OPTS).toBe(true);
 
-		// Macro builder: Browse next to "Start typing script name...".
-		await clearDevErrors(obsidian);
-		expect(await click(".macroBuilder button", "Browse")).toBe(true);
-		await expect.poll(pickerOpen, POLL_OPTS).toBe(true);
-		await pressKey(obsidian, "Escape");
-		await expect.poll(pickerOpen, POLL_OPTS).toBe(false);
-		await obsidian.sleep(300);
-		expect(await devErrors(obsidian)).toBe(NO_ERRORS);
+		// Macro builder: Add a step, then Run a script, and Run a command.
+		for (const [item, placeholder] of [["Run a script", "Select a script"], ["Run a command", "Obsidian command"]]) {
+			const open = () => obsidian.dev.evalJson<boolean>(
+				`Boolean(document.querySelector(${jsLiteral(`.prompt .prompt-input[placeholder^="${placeholder}"]`)}))`,
+			);
+			await clearDevErrors(obsidian);
+			await addStep(obsidian, item);
+			await expect.poll(open, POLL_OPTS).toBe(true);
+			await pressKey(obsidian, "Escape");
+			await expect.poll(open, POLL_OPTS).toBe(false);
+			await obsidian.sleep(300);
+			expect(await devErrors(obsidian)).toBe(NO_ERRORS);
+		}
 
 		// Conditional command settings: Browse for the condition script.
 		expect(await click('[aria-label^="Edit condition for"]')).toBe(true);

@@ -7,6 +7,8 @@ import {
 	acquireQuickAddVaultRunLock,
 	createQuickAddObsidianClient,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
+import { addStep } from "./uiHelpers";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "qa-e2e-cond-branch";
@@ -94,7 +96,7 @@ afterAll(async () => {
 describe("conditional command branch persistence (regression for the runes rewrite)", () => {
 	it("persists a command added to a Conditional's Then branch through the macro editor GUI", async () => {
 		// Seed a macro choice with a single Conditional command (empty then/else).
-		await qa.data<{ choices: Record<string, unknown>[] }>().patch((data) => {
+		await qa.data<{ choices: Record<string, unknown>[] }>().patch(withStoredChoices((data) => {
 			data.choices = (data.choices ?? []).filter((c) => c.id !== CHOICE_ID);
 			data.choices.push({
 				id: CHOICE_ID,
@@ -117,7 +119,7 @@ describe("conditional command branch persistence (regression for the runes rewri
 					],
 				},
 			});
-		});
+		}));
 		await qa.reload({ waitUntilReady: true });
 		await closeAllModals();
 
@@ -144,13 +146,13 @@ describe("conditional command branch persistence (regression for the runes rewri
 		);
 		expect(await sev(`return clickLast('[aria-label^="Edit then branch"]');`)).toBe("ok");
 
-		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add wait command"]')[0]`);
-		expect(await sev(`return clickLast('.conditionalBranchPage [aria-label="Add wait command"]');`)).toBe("ok");
+		await waitUi("branch page open", `!!q('.conditionalBranchPage [aria-label="Add a step"]')[0]`);
+		await addStep(obsidian, "Wait");
 
 		await waitUi("wait command staged", `q('.conditionalBranchPage .quickAddCommandListItem').length === 1`);
 		// Back to the macro: the branch page hands its commands to the macro.
 		expect(await sev(`return clickLast('.setting-page-back-button');`)).toBe("ok");
-		await waitUi("macro shows the then-branch command", `q('.conditionalBranches')[0]?.textContent.includes('Then: 1')`);
+		await waitUi("macro shows the then-branch command", `q('.macroBuilder .quickAddCommandDetail').some((el) => el.textContent.includes('then waits 100 ms'))`);
 
 		// Back to the choice list: leaving the macro page saves the choice and
 		// schedules the debounced disk save.
@@ -166,9 +168,9 @@ describe("conditional command branch persistence (regression for the runes rewri
 				const len = await obsidian.dev.eval<number>(`(async () => {
 					const p=app.plugins.plugins.quickadd;
 					const raw=await p.app.vault.adapter.read(p.manifest.dir+'/data.json');
-					const ch=JSON.parse(raw).choices.find(c=>c.id==='${CHOICE_ID}');
-					const cond=ch&&ch.macro.commands.find(c=>c.id==='${COND_ID}');
-					return cond ? cond.thenCommands.length : -1;
+					const action=JSON.parse(raw).actions.find(a=>a.id==='${CHOICE_ID}');
+					const cond=action&&action.steps.find(s=>s.id==='${COND_ID}');
+					return cond ? cond.thenSteps.length : -1;
 				})()`);
 				return len === 1 ? len : false;
 			},

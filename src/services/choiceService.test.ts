@@ -330,13 +330,14 @@ describe("choiceService", () => {
 	describe("getChoiceBuilder", () => {
 		const onSave = () => {};
 
-		it.each(["Template", "Capture"] as const)("builds the %s builder page", (type) => {
+		it.each(["Template", "Capture"] as const)("builds the %s builder page, which can add a step", (type) => {
 			const choice = createChoice(type, "T");
 			const plugin = {} as unknown as QuickAdd;
-			getChoiceBuilder(choice, fakeApp, plugin, onSave);
+			const onAddStep = () => {};
+			getChoiceBuilder(choice, fakeApp, plugin, onSave, { onAddStep });
 			expect(mocks.builders.at(-1)).toMatchObject({
 				kind: type,
-				args: [fakeApp, choice, plugin, onSave],
+				args: [fakeApp, choice, plugin, onSave, onAddStep],
 			});
 		});
 

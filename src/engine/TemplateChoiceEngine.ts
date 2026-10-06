@@ -1,7 +1,6 @@
-import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, openChoiceFile } from "./choiceFileActions";
+import { appendLinkDestinationError, insertChoiceFileLink, copyChoiceFileLink, linkDestinationFile, openChoiceFile } from "./choiceFileActions";
 import type { App, WorkspaceLeaf } from "obsidian";
-import { Notice, TFile } from "obsidian";
-import invariant from "src/utils/invariant";
+import { TFile } from "obsidian";
 import { VALUE_SYNTAX } from "../constants";
 import { isMarkdownTemplatePath } from "./applyTemplateToActiveNote";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
@@ -21,7 +20,7 @@ import { resolveTemplateNoteSelection } from "src/utils/templateNoteDiscovery";
 import { shouldRunTemplateNoteDiscovery } from "src/utils/templateNoteDiscoveryEligibility";
 import { getPreparedTemplateNoteSelection } from "src/preflight/preparedChoiceInputs";
 import type ITemplateChoice from "../types/choices/ITemplateChoice";
-import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import type { ChoiceEffect, NoteWrite } from "../types/ChoiceOutcome";
 import { routePrompt } from "../interactive/routePrompt";
 import { promptEngineChoice } from "../interactive/engineChoice";
 import {
@@ -47,9 +46,10 @@ import type { ChoiceChain } from "./choiceChain";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
+import { RefusalError } from "../errors/RefusalError";
+import { checkTemplateSource, templateFileOrRefuse } from "./templateSource";
 import { parentFolderPath } from "../utils/pathUtils";
 import { mapEditorCursorPlacement } from "../utils/editorCursorPlacement";
-import { getTemplateFile } from "../utils/templateFolderUtils";
 
 type NormalizedAppendLinkOptions = ReturnType<typeof normalizeAppendLinkOptions>;
 
@@ -85,12 +85,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		let selectedUpdate: { file: TFile; mode: Exclude<TemplateExistingNoteAction, "open"> } | null = null;
 
 		try {
-			invariant(this.choice.templatePath, () => {
-				return `Invalid template path for ${this.choice.name}. ${this.choice.templatePath.length === 0
-						? "Template path is empty."
-						: `Template path is not valid: ${this.choice.templatePath}`
-					}`;
-			});
+			checkTemplateSource(this.app, this.choice);
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);
 			this.setLinkToCurrentFileBehavior(
@@ -140,7 +135,9 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			const templatePath = await this.resolveTemplateSourcePath(
 				this.choice.templatePath,
 			);
-			if (selectedUpdate && getTemplateFile(this.app, templatePath)?.path === selectedUpdate.file.path) {
+			const templateFile = templateFileOrRefuse(this.app, templatePath,
+				selectedUpdate ? "the note was not changed" : "no note was created");
+			if (selectedUpdate && templateFile.path === selectedUpdate.file.path) {
 				throw new ChoiceAbortError("Cannot apply a template to its own template source.");
 			}
 
@@ -150,7 +147,6 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 			let createdFile: TFile | null;
 			let shouldAutoOpen = false;
-			let createdNew = false;
 			// What this run did to its target note (#1615). Derived from the file-exists
 			// resolution the engine actually performed rather than from a byte compare,
 			// which is exact for the two answers an automation acts on: "createNew"
@@ -159,6 +155,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 			// inferred: it always writes, so `changed` can in principle over-report a
 			// write whose bytes happened to match, which is the harmless direction.
 			let effect: ChoiceEffect = "created";
+			// The content before this run's write is read at the write (writtenBefore).
+			this.writtenBefore = null;
 			if (selectedUpdate) {
 				if (!isMarkdownTemplatePath(templatePath)) {
 					throw new ChoiceAbortError("Only Markdown templates can be applied to a selected note.");
@@ -234,18 +232,20 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					);
 					return;
 				}
-				createdNew = true;
 			}
 
 			// File is created/resolved (the commit point). Record success before
 			// append-link/open-file steps so a later post-commit failure cannot make
 			// automation callers retry and duplicate the Template side effect.
-			this.outcome.success(createdFile, effect);
+			const write: NoteWrite | undefined = effect === "unchanged" ? undefined : {
+				path: createdFile.path, before: this.writtenBefore, after: await this.app.vault.read(createdFile),
+			};
+			this.outcome.success(createdFile, effect, write);
 			const cursorBeforeLink = this.cursorPlacement;
 
 			if (linkOptions.enabled && createdFile) {
 				// The note is already committed (success recorded above). A link
-				// failure here — most commonly strict "Link to created file" with no
+				// failure here - most commonly strict "Link to created note" with no
 				// active Markdown view — must not surface as "Error running template
 				// choice", which implies the run failed and tempts a duplicate re-run.
 				// Report it as a non-fatal warning that names the created file.
@@ -256,6 +256,11 @@ export class TemplateChoiceEngine extends TemplateEngine {
 								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
 							}
 						} : undefined);
+					// The link may have gone into the note itself; Undo compares the note
+					// with what the run left, so the recorded write takes the text after it.
+					if (write && linkDestinationFile(this.app, linkOptions, this.choiceExecutor.focusedProperty)?.path === createdFile.path) {
+						write.after = await this.app.vault.read(createdFile);
+					}
 				} catch (linkError) {
 					// An abort propagating through the link step still aborts the run.
 					if (linkError instanceof MacroAbortError) {
@@ -288,24 +293,17 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				if (!this.templaterCursorHandled && !await jumpToNextTemplaterCursorIfPossible(this.app, createdFile)) {
 					this.placeCursor(createdFile, cursorBeforeLink);
 				}
-			} else if (
-				createdNew &&
-				!linkOptions.enabled &&
-				!this.choice.copyLinkToClipboard
-			) {
-				// The note was created but nothing else surfaces it (not opened, no
-				// link appended, not copied to clipboard). Confirm the creation so
-				// the run isn't silent — mirroring Capture's success notice.
-				new Notice(`Created '${createdFile.basename}'.`);
 			}
 		} catch (err) {
 			if (
 				handleMacroAbort(err, {
+					choiceName: this.choice.name,
 					logPrefix: "Template execution aborted",
 					noticePrefix: "Template execution aborted",
 					defaultReason: "Template execution aborted",
 				})
 			) {
+				if (err instanceof RefusalError) this.outcome.failure(err.message);
 				this.choiceExecutor.signalAbort?.(err);
 				return;
 			}
@@ -430,7 +428,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		}
 
 		const promptModes = getPromptModes();
-		const placeholder = "If the target file already exists";
+		const placeholder = "If the note already exists";
 
 		return (await routePrompt(this.choiceExecutor, {
 			// An interactive run drives this from the client, like every other prompt
@@ -492,24 +490,8 @@ export class TemplateChoiceEngine extends TemplateEngine {
 					async (path) => await this.app.vault.adapter.exists(path),
 				);
 
-				const createdFile = await this.createFileWithTemplate(
-					nextFilePath,
-					templatePath,
-				);
-
-				// A collision forced a different name. If the file won't be opened,
-				// the user otherwise gets no signal which name was actually used and
-				// may re-run, accumulating "Plan (1)", "Plan (2)", … clutter.
-				if (
-					createdFile &&
-					nextFilePath !== targetFilePath &&
-					!this.choice.openFile
-				) {
-					new Notice(`Created '${createdFile.basename}'.`);
-				}
-
 				return {
-					createdFile,
+					createdFile: await this.createFileWithTemplate(nextFilePath, templatePath),
 					shouldAutoOpen: false,
 				};
 			}
@@ -601,6 +583,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		const file = await this.withAnonymousValueForInsertEngine(() =>
 			insertEngine.apply()
 		);
+		this.writtenBefore = insertEngine.writeBefore;
 		this.cursorPlacement = insertEngine.getCursorPlacement();
 		return file;
 	}

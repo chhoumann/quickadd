@@ -100,11 +100,12 @@ export async function typeInto(obsidian: ObsidianClient, selector: string, text:
 	await insertText(obsidian, text);
 }
 
-export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace" | "Tab", modified = false) {
+export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape" | "F8" | "Backspace" | "Tab" | "ArrowUp" | "ArrowDown", modified = false) {
 	const modifiers = modified
 		? (await obsidian.dev.evalJson<string>("process.platform")) === "darwin" ? 4 : 2
 		: 0;
-	const event = { key, code: key, windowsVirtualKeyCode: { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9 }[key], modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
+	const keyCode = { Enter: 13, Escape: 27, F8: 119, Backspace: 8, Tab: 9, ArrowUp: 38, ArrowDown: 40 }[key];
+	const event = { key, code: key, windowsVirtualKeyCode: keyCode, modifiers: modifiers | (modified && key === "F8" ? 8 : 0) };
 	// A real Enter also types "\r", which is what makes a focused button click.
 	const text = key === "Enter" && !modified ? { text: "\r" } : {};
 	await sendInput(obsidian, `press ${modified ? "Mod+" : ""}${key}`, INPUT_TARGET, [
@@ -118,11 +119,13 @@ export async function pressKey(obsidian: ObsidianClient, key: "Enter" | "Escape"
  * through the browser's hit testing, so whatever is layered on top at that
  * point receives it.
  */
-export async function clickAt(obsidian: ObsidianClient, x: number, y: number) {
+export async function clickAt(obsidian: ObsidianClient, x: number, y: number, { alt = false } = {}) {
 	const target = `(() => { ${DESCRIBE_ELEMENT} return "on top: " + describe(document.elementFromPoint(${x}, ${y})); })()`;
-	await sendInput(obsidian, `click (${Math.round(x)}, ${Math.round(y)})`, target, [
-		["Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 }],
-		["Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 }],
+	// CDP's modifier bit for Alt is 1.
+	const modifiers = alt ? 1 : 0;
+	await sendInput(obsidian, `${alt ? "Alt+" : ""}click (${Math.round(x)}, ${Math.round(y)})`, target, [
+		["Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1, modifiers }],
+		["Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1, modifiers }],
 	]);
 }
 
@@ -186,5 +189,73 @@ export async function quickCommandBarOverflow(obsidian: ObsidianClient): Promise
 				rect.right > box.right - padX + 0.5 ? label + ": right" : null,
 			].filter(Boolean);
 		});
+	})()`);
+}
+
+/**
+ * Opens the menu `triggerSelector` shows and picks `itemText` from it, with
+ * real clicks. Obsidian gives a menu the keyboard a tick after it shows it, so
+ * an item clicked sooner leaves the closed menu's keys above whatever opens
+ * next, where they swallow its Enter. This clicks once the menu holds the
+ * keyboard and its item stands still. An item matches its title, or the title
+ * before the " - " that starts a preset's description.
+ */
+export async function pickMenuItem(obsidian: ObsidianClient, triggerSelector: string, itemText: string, { alt = false } = {}) {
+	// Centered, so a page's sticky title bar is not over it.
+	await obsidian.dev.evalJson(`(() => {
+		[...document.querySelectorAll(${jsLiteral(triggerSelector)})].find((el) => el.getClientRects().length > 0)
+			?.scrollIntoView({ block: "center" });
+		return true;
+	})()`);
+	await clickWhenStill(obsidian, triggerSelector);
+	let last = "";
+	const point = await obsidian.waitFor(async () => {
+		const rect = await obsidian.dev.evalJson<{ x: number; y: number } | null>(`(() => {
+			const keys = new Set((app.keymap.getWindowStack(window).scope?.keys ?? []).map((key) => key.key));
+			const live = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Enter", "Escape"].every((key) => keys.has(key));
+			const text = ${jsLiteral(itemText)};
+			const item = [...([...document.querySelectorAll(".menu")].at(-1)?.querySelectorAll(".menu-item:not(.is-label)") ?? [])]
+				.find((el) => el.textContent.trim() === text || el.textContent.trim().startsWith(text + " - "));
+			if (!live || !item) return null;
+			item.scrollIntoView({ block: "nearest" });
+			const rect = item.getBoundingClientRect();
+			return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+		})()`);
+		const key = JSON.stringify(rect);
+		const settled = rect !== null && key === last;
+		last = key;
+		return settled ? rect : false;
+	}, { message: `the menu's ${itemText} live and still`, timeoutMs: 10_000, intervalMs: 100 });
+	await clickAt(obsidian, point.x, point.y, { alt });
+}
+
+/** Pick `title` from the Add a step menu of the settings page on top. */
+export async function addStep(obsidian: ObsidianClient, title: string) {
+	// The pages under the top one stay in the document, with their own button.
+	await obsidian.dev.evalJson(`(() => {
+		document.querySelector("[data-qa-add-step-button]")?.removeAttribute("data-qa-add-step-button");
+		app.setting.pageStack.at(-1).page.containerEl.querySelector('[aria-label="Add a step"]')
+			.setAttribute("data-qa-add-step-button", "");
+		return true;
+	})()`);
+	await pickMenuItem(obsidian, "[data-qa-add-step-button]", title);
+}
+
+/**
+ * The visible elements matching `selector` that show no ring when focused from
+ * the keyboard, by their text.
+ */
+export async function withoutFocusRing(obsidian: ObsidianClient, selector: string): Promise<string[]> {
+	return obsidian.dev.evalJson<string[]>(`(() => {
+		const missing = [];
+		for (const el of document.querySelectorAll(${jsLiteral(selector)})) {
+			if (el.getClientRects().length === 0) continue;
+			el.focus({ focusVisible: true, preventScroll: true });
+			const style = getComputedStyle(el);
+			const ring = style.boxShadow !== "none" || (style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0);
+			if (!ring || document.activeElement !== el) missing.push(el.textContent.trim());
+			el.blur();
+		}
+		return missing;
 	})()`);
 }

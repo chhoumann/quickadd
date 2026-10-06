@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #2062: a note is found by its aliases in the {{FILE:}} picker, the one-page
 // form's file field and the Capture to picker, shown like the quick switcher
@@ -32,9 +33,9 @@ it("finds notes by alias in the file pickers and uses the note", async () => {
 	const onePage = capture("Alias one page", out, `{{FILE:${people}|label:Person}}\n`);
 	onePage.onePageInput = "always";
 	const target = capture("Alias capture target", `${people}/`, "- captured\n");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [filePick, onePage, target];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const rows = (selector: string) => obsidian.dev.evalJson<Row[]>(`

@@ -329,8 +329,9 @@ export function fileLinkNameFromPath(value: string): string {
 	return segment.replace(/\.md$/i, "");
 }
 
+/** A title with a placeholder in it is a template's, not a name for the note. */
 function scalarTitleValue(value: unknown): string | undefined {
-	return typeof value === "string" && value.trim().length > 0
+	return typeof value === "string" && value.trim().length > 0 && !/{{|<%/.test(value)
 		? value.trim()
 		: undefined;
 }

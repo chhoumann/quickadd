@@ -1,0 +1,154 @@
+<script lang="ts">
+	import { Notice, TFile, type App } from "obsidian";
+	import { runLog, type RunLogEntry } from "../../runLog";
+	import { openChoiceFile } from "../../engine/choiceFileActions";
+	import { closeSettings } from "../../utils/openPluginSettings";
+
+	let { app }: { app: App } = $props();
+
+	let entries = $state(runLog.list());
+	$effect(() => runLog.subscribe(() => (entries = runLog.list())));
+
+	const EFFECTS = { created: "created", changed: "added to", unchanged: "nothing to add to" } as const;
+
+	function time(at: string): string {
+		const date = new Date(at);
+		return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+	}
+
+	function what(entry: RunLogEntry): string {
+		if (entry.status === "success") return entry.effect ? EFFECTS[entry.effect] : "ran";
+		// A failure's reason is a sentence: it gets a line of its own.
+		if (entry.status === "error") return "failed";
+		return entry.reason ? `cancelled: ${entry.reason}` : "cancelled";
+	}
+
+	function basename(path: string): string {
+		return path.replace(/^.*\//, "").replace(/\.md$/, "");
+	}
+
+	async function open(path: string): Promise<void> {
+		const file = app.vault.getAbstractFileByPath(path);
+		if (!(file instanceof TFile)) {
+			new Notice(`'${basename(path)}' no longer exists`);
+			return;
+		}
+		closeSettings(app);
+		await openChoiceFile({ app, file, opening: { location: "reuse" }, originLeaf: null });
+	}
+</script>
+
+<div class="qa-run-log">
+	{#if entries.length === 0}
+		<div class="qa-run-log-empty">No runs yet</div>
+	{:else}
+		<ul class="qa-run-log-list">
+			{#each entries as entry, index (`${entry.at}-${index}`)}
+				<li class="qa-run-log-entry" data-status={entry.status}>
+					<span class="qa-run-log-time">{time(entry.at)}</span>
+					<div class="qa-run-log-body">
+						<div class="qa-run-log-line">
+							<span class="qa-run-log-name">{entry.choiceName}</span>
+							<span class="qa-run-log-what" title={entry.reason}>{what(entry)}</span>
+							{#if entry.status === "success" && entry.path}
+								<a
+									class="qa-run-log-note"
+									href={entry.path}
+									onclick={(event) => {
+										event.preventDefault();
+										void open(entry.path!);
+									}}>{basename(entry.path)}</a
+								>
+							{/if}
+						</div>
+						{#if entry.status === "error" && entry.reason}
+							<div class="qa-run-log-reason">{entry.reason}</div>
+						{/if}
+					</div>
+				</li>
+			{/each}
+		</ul>
+		<div class="qa-run-log-actions">
+			<button onclick={() => runLog.clear()}>Clear</button>
+		</div>
+	{/if}
+</div>
+
+<style>
+	.qa-run-log-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+
+	.qa-run-log-entry,
+	.qa-run-log-line {
+		display: flex;
+		gap: var(--size-4-2);
+		align-items: baseline;
+		min-width: 0;
+	}
+
+	.qa-run-log-entry {
+		padding: var(--size-4-1) 0;
+	}
+
+	.qa-run-log-body {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	/* Under the name, the whole sentence, wrapped. */
+	.qa-run-log-reason {
+		color: var(--text-muted);
+		font-size: var(--font-ui-small);
+		overflow-wrap: anywhere;
+	}
+
+	.qa-run-log-time {
+		color: var(--text-muted);
+		font-variant-numeric: tabular-nums;
+		flex: none;
+	}
+
+	/* A long note path or cancel reason shortens first, a long name only past
+	   40% of the row, so neither widens the page on a phone. */
+	.qa-run-log-name,
+	.qa-run-log-what,
+	.qa-run-log-note {
+		flex: 0 1 auto;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.qa-run-log-name {
+		flex-shrink: 0;
+		max-width: 40%;
+		font-weight: var(--font-medium);
+	}
+
+	.qa-run-log-what {
+		color: var(--text-muted);
+	}
+
+	/* What a run did is a word or two; only a failure's reason is long. */
+	.qa-run-log-entry[data-status="success"] .qa-run-log-what {
+		flex-shrink: 0;
+	}
+
+	.qa-run-log-entry[data-status="error"] .qa-run-log-what {
+		color: var(--text-error);
+	}
+
+	.qa-run-log-empty {
+		color: var(--text-muted);
+	}
+
+	.qa-run-log-actions {
+		display: flex;
+		justify-content: flex-end;
+		margin-top: var(--size-4-2);
+	}
+</style>

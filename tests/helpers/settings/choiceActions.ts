@@ -11,6 +11,7 @@ export function actionsSpy(): ChoiceListActions {
 		onMoveChoice: vi.fn(),
 		onReorderChoices: vi.fn(),
 		onAddChoice: vi.fn(),
+		onAddFolder: vi.fn(),
 		onToggleCollapsed: vi.fn(),
 		onCommitFolder: vi.fn(),
 	};

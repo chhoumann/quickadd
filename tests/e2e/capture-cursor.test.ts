@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("capture-cursor");
 const AUTOSAVE_POLL = { ...POLL_OPTS, timeout: 5_000 };
@@ -26,7 +27,7 @@ async function setup(content = "# Daily\n\n## Log\n\nExisting\n") {
 
 async function saveAndOpen(choice: CaptureChoice, path: string, mode = "source") {
 	const { plugin, obsidian } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		const leaf = app.workspace.getLeaf(false);
@@ -108,13 +109,24 @@ async function visibleNotices() {
 	return getContext().obsidian.dev.evalJson<string[]>(`(() =>
 		[...document.querySelectorAll(".notice")]
 			.filter(notice => notice.getClientRects().length > 0)
-			.map(notice => notice.textContent?.trim() ?? "")
+			.map(notice => {
+				const text = notice.cloneNode(true);
+				text.querySelectorAll("button").forEach(button => button.remove());
+				return text.textContent?.trim() ?? "";
+			})
 	)()`);
 }
 
 async function expectOneNothingToCaptureNotice() {
 	await expect.poll(() => visibleNotices(), AUTOSAVE_POLL).toHaveLength(1);
 	expect(await visibleNotices()).toEqual([expect.stringMatching(/nothing to capture/i)]);
+}
+
+async function runFromCommand(choice: CaptureChoice) {
+	await getContext().obsidian.dev.evalJson(`(() => {
+		app.commands.executeCommandById(${JSON.stringify(`quickadd:choice:${choice.id}`)});
+		return true;
+	})()`);
 }
 
 async function run(choice: CaptureChoice) {
@@ -432,7 +444,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 		expect(await obsidian.dev.evalJson(`app.vault.getAbstractFileByPath(${JSON.stringify(path)}).stat.mtime`)).toBe(before);
 	});
 
-	it.each(["note", "editor", "canvas"] as const)("shows a nothing-to-capture notice for marker-only %s captures", async mode => {
+	it.each(["note", "editor", "canvas"] as const)("says there is nothing to add for marker-only %s captures", async mode => {
 		const { choice, path } = await setup("Original");
 		const { obsidian, sandbox } = getContext();
 		await enableCaptureNotices();
@@ -456,7 +468,11 @@ describe("Capture cursor markers in native Obsidian", () => {
 		const before = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
 		await clearNotices();
 		expect(await run(choice)).toMatchObject({ file: targetPath, effect: "unchanged" });
-		await expectOneNothingToCaptureNotice();
+		// A run that reports its outcome to its caller shows no notice.
+		expect(await visibleNotices()).toEqual([]);
+		await runFromCommand(choice);
+		const name = targetPath.replace(/^.*\//, "").replace(/\.(md|canvas)$/, "");
+		await expect.poll(() => visibleNotices(), AUTOSAVE_POLL).toEqual([`Cursor capture: nothing to add to '${name}'`]);
 		const after = await obsidian.dev.evalJsonAsync<string>(`(async () => app.vault.read(app.vault.getAbstractFileByPath(${JSON.stringify(targetPath)})))()`);
 		expect(after).toBe(before);
 		expect(after).not.toMatch(/{{CURSOR}}/i);
@@ -502,7 +518,7 @@ describe("Capture cursor markers in native Obsidian", () => {
 			)()`), AUTOSAVE_POLL).toBe(1);
 			for (const position of ["after", "property", "top"]) {
 				expect(await withLatestCaptureBuilder<boolean>(`(() => {
-					const row = [...builder.querySelectorAll(".setting-item")].find(el => el.querySelector(".setting-item-name")?.textContent === "Write position");
+					const row = [...builder.querySelectorAll(".setting-item")].find(el => el.querySelector(".setting-item-name")?.textContent === "Position");
 					const select = row?.querySelector("select");
 					if (!(select instanceof HTMLSelectElement)) return false;
 					select.value = ${JSON.stringify(position)};

@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { insertText, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // The one-page form asks for a folder capture's note in a searchable field,
 // which finds notes by alias like the run's picker, instead of a dropdown of
@@ -24,6 +25,9 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	const thomas = await seedVaultFile(obsidian, sandbox, "People/Thomas Anderson.md",
 		"---\naliases: [Neo, The One]\n---\n");
 	const classic = await seedVaultFile(obsidian, sandbox, "People/Neo Classic.md", "");
+	// The picker reads aliases from the metadata cache, which indexes a new note later.
+	await obsidian.metadata.waitForFrontmatter<{ aliases: string[] }>(thomas,
+		(frontmatter) => Array.isArray(frontmatter.aliases) && frontmatter.aliases.includes("The One"));
 
 	const choice = new CaptureChoice("One-page capture target");
 	choice.command = true;
@@ -31,9 +35,9 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	choice.onePageInput = "always";
 	choice.createFileIfItDoesntExist = { ...choice.createFileIfItDoesntExist, enabled: true };
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const read = (path: string) => obsidian.dev.evalJsonAsync<string | null>(
@@ -67,7 +71,7 @@ it("picks the one-page capture target by searching, aliases included", async () 
 	expect(await read(classic)).toBe("");
 });
 
-// With "Create file if it doesn't exist", a name typed in the field is a new
+// With "Create note if it doesn't exist", a name typed in the field is a new
 // note, as in the run's picker, for folder, tag and property scopes. A note's
 // name or alias still picks the note, and outside a folder a name no new note
 // may take is not offered.
@@ -95,9 +99,9 @@ it("creates the note named in the one-page capture target field", async () => {
 		{ choice: choiceFor("Tag", "#qa-crew"), typed: sandbox.path("Tank"), created: sandbox.path("Tank.md"), oracle: [] },
 		{ choice: choiceFor("Property", "property:qaRole=crew"), typed: sandbox.path("Dozer"), created: sandbox.path("Dozer.md"), oracle: [] },
 	];
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = scopes.map(({ choice }) => choice);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const field = ".qa-onepage-file-picker input";
@@ -147,9 +151,9 @@ it("shows the picked note's whole name on a phone", async () => {
 	choice.captureTo = `${sandbox.path("Planets")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {
@@ -211,9 +215,9 @@ it("leaves no highlight showing for a match the ellipsis cuts off", async () => 
 	choice.captureTo = `${sandbox.path("Moons")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {
@@ -264,9 +268,9 @@ it("opens a folder capture's form in its empty note picker and waits for a pick"
 	choice.captureTo = `${sandbox.path("Inner")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson('(() => { document.querySelectorAll(".notice").forEach((notice) => notice.remove()); return true; })()');
@@ -312,9 +316,9 @@ it("waits for a pick in a required {{FILE}} field", async () => {
 	choice.captureTo = log;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: `- {{FILE:${sandbox.path("Galilean")}|label:Moon}} {{VALUE:note}}\n` };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.command(`quickadd:choice:${choice.id}`).run();
@@ -345,9 +349,9 @@ it("picks the note typed when Enter comes before the list follows the text", asy
 	choice.captureTo = `${sandbox.path("Outer")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.command(`quickadd:choice:${choice.id}`).run();
@@ -383,9 +387,9 @@ it("captures into a note passed with the run without asking for one", async () =
 	choice.captureTo = `${sandbox.path("Passed")}/`;
 	choice.onePageInput = "always";
 	choice.format = { enabled: true, format: "- {{VALUE:note}}\n" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = obsidian.execText("quickadd:run", {

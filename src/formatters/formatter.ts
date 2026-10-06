@@ -2,7 +2,7 @@ import { ValueFormatter } from "./valueFormatter";
 import { replaceDateInString, replaceTimeInString, replaceDateVariableInString, defaultDateVariableFormat, renderStoredDateVariable, getDateVariableFormat } from "./helpers/dateTokens";
 export { findDateVariableFormat } from "./helpers/dateTokens";
 import { findInlineScriptSpans } from "./helpers/inlineScriptSpans";
-import { replaceCurrentFileTokens, type CurrentFileTokenOptions } from "./helpers/currentFileTokens";
+import { refuseLink, replaceCurrentFileTokens, type CurrentFileTokenOptions, type RunNoteForms } from "./helpers/currentFileTokens";
 import { TFile } from "obsidian";
 import { LINK_TO_CURRENT_FILE_REGEX, LINK_TO_CURRENT_SECTION_REGEX, FILE_REGEX, MACRO_REGEX, MATH_VALUE_REGEX, TEMPLATE_REGEX, FIELD_VAR_REGEX_WITH_FILTERS, FIELD_VARIABLE_PREFIX, SELECTED_REGEX, CLIPBOARD_REGEX, RANDOM_REGEX, PROPERTY_REGEX } from "../constants";
 import {
@@ -21,6 +21,7 @@ import { FieldSuggestionParser } from "../utils/FieldSuggestionParser";
 import { parseMacroToken } from "../utils/macroSyntax";
 import { stringifyPropertyTokenValue } from "../engine/captureProperty";
 import type { CompleteFormatter } from "./completeFormatter";
+import { withInputOverride } from "../v3/inputOverride";
 
 export type LinkToCurrentFileBehavior = "required" | "optional";
 export { type PromptContext } from "./valueFormatter";
@@ -128,9 +129,7 @@ export abstract class Formatter extends ValueFormatter {
 
 		const currentFilePathLink = this.getCurrentFileLink();
 		if (!currentFilePathLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
-			}
+			if (this.linkToCurrentFileBehavior === "required") throw refuseLink("LINKCURRENT");
 			log.logMessage("Skipping {{LINKCURRENT}} replacement because no active file is available.");
 		}
 
@@ -145,9 +144,7 @@ export abstract class Formatter extends ValueFormatter {
 		const sectionLink = this.getCurrentFileLinkToSection();
 
 		if (!sectionLink) {
-			if (this.linkToCurrentFileBehavior === "required") {
-				throw new Error("Unable to get current file path. Make sure you have a file open in the editor.");
-			}
+			if (this.linkToCurrentFileBehavior === "required") throw refuseLink("LINKSECTION");
 			log.logMessage("Skipping {{LINKSECTION}} replacement because no active file is available.");
 		}
 
@@ -174,6 +171,7 @@ export abstract class Formatter extends ValueFormatter {
 			FOLDER: () => this.targetFolderPath ?? "",
 			FOLDERCURRENT: () => this.getCurrentFolderPath(),
 			TITLE: () => this.getVariableValue("title"),
+			NOTE: () => this.getRunNote(),
 		}, this.linkToCurrentFileBehavior);
 	}
 
@@ -224,6 +222,11 @@ export abstract class Formatter extends ValueFormatter {
 
 	/** Active folder: null means no active file; an empty string means the vault root. */
 	protected getCurrentFolderPath(): string | null {
+		return null;
+	}
+
+	/** `{{NOTE}}` and its forms: the note this run last created or wrote to. Null when there is none. */
+	protected getRunNote(): RunNoteForms | null {
 		return null;
 	}
 
@@ -326,7 +329,7 @@ export abstract class Formatter extends ValueFormatter {
 
 			const key = parsed.variableKey;
 			if (!this.hasConcreteVariable(key)) {
-				this.variables.set(key, await this.suggestForFile(parsed));
+				this.variables.set(key, await this.suggestForFile(withInputOverride(parsed, this.inputOverride(key))));
 			}
 
 			const renderedValue = renderStoredFileValue(
@@ -477,6 +480,7 @@ export abstract class Formatter extends ValueFormatter {
 	protected async replaceDateVariableInString(input: string): Promise<string> {
 		return replaceDateVariableInString(input, {
 			variables: this.variables, dateParser: this.dateParser, prompt: (name, options) => this.promptForVariable(name, options),
+			override: (name) => this.inputOverride(name),
 			applyCase: (value, style, token) => this.applyCaseOption(value, style, token),
 		});
 	}

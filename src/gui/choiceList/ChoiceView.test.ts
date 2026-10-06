@@ -12,6 +12,7 @@ vi.mock("../choiceRename", () => ({
 }));
 
 import { fireEvent, render } from "@testing-library/svelte";
+import { Menu } from "obsidian";
 import { promptRenameChoice } from "../choiceRename";
 import type IChoice from "../../types/choices/IChoice";
 import type { Plain } from "../svelte/persist.svelte";
@@ -320,6 +321,31 @@ describe("ChoiceView", () => {
 		expect(rows).toEqual(["f1", "c1"]);
 	});
 
+	it("says how many of a folder's choices match while filtering", async () => {
+		const folderChoice = {
+			id: "work",
+			name: "Work",
+			type: "Multi",
+			collapsed: false,
+			choices: [
+				{ id: "meeting", name: "Meeting note", type: "Template" },
+				{ id: "inbox", name: "Inbox", type: "Capture" },
+				{ id: "review", name: "Weekly review", type: "Capture" },
+			],
+		} as unknown as IChoice;
+		const { container, getByPlaceholderText } = renderChoiceView([folderChoice]);
+		const folderLine = () => container.querySelector('[data-choice-id="work"] .choiceListItemSummary')?.textContent;
+		expect(folderLine()).toBe("3 choices");
+
+		const filter = getByPlaceholderText("Filter choices...");
+		await fireEvent.input(filter, { target: { value: "meeting" } });
+		expect(folderLine()).toBe("1 of 3 choices");
+
+		// A folder that matches by name shows all its choices, and says so plainly.
+		await fireEvent.input(filter, { target: { value: "work" } });
+		expect(folderLine()).toBe("3 choices");
+	});
+
 	// A folder name matches only as plain text, so a loose fuzzy match ("pro" in
 	// "Personal") neither opens the whole folder nor shows it empty.
 	it("shows a folder that only matches fuzzily just for its matching choices", async () => {
@@ -446,6 +472,49 @@ describe("ChoiceView", () => {
 			"Child",
 			"New folder",
 		]);
+	});
+
+	it("says what each row does under its name", () => {
+		const folderChoice = {
+			id: "f1",
+			name: "Folder",
+			type: "Multi",
+			collapsed: false,
+			choices: [{ id: "c1", name: "Inbox", type: "Capture", captureTo: "Inbox.md" }],
+		} as unknown as IChoice;
+
+		const { container } = renderChoiceView([folderChoice]);
+
+		const summaryOf = (id: string) =>
+			container.querySelector(`[data-choice-id="${id}"] .choiceListItemSummary`)?.textContent;
+		expect(summaryOf("f1")).toBe("1 choice");
+		expect(summaryOf("c1")).toBe("Adds a line at the top of Inbox");
+	});
+
+	it("adds a daily-note log from its preset and says so on the new row", async () => {
+		const saveChoices = vi.fn<(next: Plain<IChoice[]>) => void>();
+		const { container, getByLabelText } = renderChoiceView([], saveChoices);
+
+		await fireEvent.click(getByLabelText("New choice"));
+		const items = (Menu as unknown as {
+			lastShown: { items: Array<{ title: string; clickHandler: (evt: Partial<MouseEvent>) => void }> };
+		}).lastShown.items;
+		// Alt-click: scaffold without opening the builder.
+		items.find((item) => item.title.startsWith("Log with a timestamp"))?.clickHandler({ altKey: true });
+
+		await vi.waitFor(() => expect(saveChoices).toHaveBeenCalled());
+		const [saved] = saveChoices.mock.calls.at(-1)![0] as unknown as Array<{
+			id: string;
+			name: string;
+			type: string;
+			captureTo: string;
+		}>;
+		expect(saved).toMatchObject({ name: "Log", type: "Capture", captureTo: "{{DAILY}}", icon: "clock" });
+		await vi.waitFor(() =>
+			expect(
+				container.querySelector(`[data-choice-id="${saved.id}"] .choiceListItemSummary`)?.textContent,
+			).toBe("Adds a line under ## Log in today's daily note"),
+		);
 	});
 
 	// Issue #1541: the first-run empty state is the one place a brand-new user is

@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { clickAt, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #2034: picking After line… / Before line… no longer shows the target field as
 // an error before the user has typed in it or left it empty.
@@ -22,7 +23,7 @@ function field(placeholder: string) {
 async function pickWritePosition(value: "after" | "before") {
 	await getContext().obsidian.dev.evalJson(`(() => {
 		const row = [...document.querySelectorAll(".captureChoiceBuilder .setting-item")]
-			.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Write position");
+			.find(el => el.querySelector(".setting-item-name")?.textContent.trim() === "Position");
 		const select = row.querySelector("select");
 		select.value = ${JSON.stringify(value)};
 		select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -37,9 +38,9 @@ it.each([
 	const { obsidian, plugin } = getContext();
 	const choice = new CaptureChoice(`Required hint ${position}`);
 	choice.captureTo = "Inbox.md";
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	try {

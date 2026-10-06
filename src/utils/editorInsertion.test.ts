@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { App, Editor, TFile } from "obsidian";
 import { prepareCapture } from "../formatters/helpers/capturePlacement";
 import {
+	appendToCurrentLine,
 	insertCaptureInBoundEditor,
+	insertOnNewLine,
 	insertFileLinkToActiveView,
 	insertLinkWithPlacement,
 	setMarkdownCursorAtOffset,
@@ -762,5 +764,17 @@ describe("insertFileLinkToActiveView raw-caller guard semantics", () => {
 
 		expect(harness.editor.replaceSelection).toHaveBeenCalledWith("[[X]]");
 		expect(harness.editor.transaction).not.toHaveBeenCalled();
+	});
+});
+
+describe("inserting at the cursor with no note open", () => {
+	it.each([
+		["the current line", (app: App) => appendToCurrentLine("x", app)],
+		["a new line", (app: App) => insertOnNewLine("x", "below", app)],
+	])("refuses to add to %s", (_where, insert) => {
+		const app = {
+			workspace: { getActiveViewOfType: vi.fn(() => null), getLeavesOfType: vi.fn(() => []) },
+		} as unknown as App;
+		expect(() => insert(app)).toThrow("No note is open in an editor, so there is nothing to add to.");
 	});
 });

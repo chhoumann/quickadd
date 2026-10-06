@@ -295,4 +295,13 @@ describe("buildFileDisplayLabels", () => {
 		} as never));
 		expect(labels).toEqual(["Ada Lovelace (01HX)"]);
 	});
+
+	it("names a template by its file, not a title that holds placeholders", () => {
+		const files = [makeFile("Templates/Book.md"), makeFile("Templates/Person.md")];
+		const labels = buildFileDisplayLabels(files, (file) => ({
+			frontmatter: file.basename === "Person" ? { title: "<% tp.file.title %>" } : undefined,
+			headings: [{ heading: "Book {{VALUE:title}}", level: 1 }],
+		} as never));
+		expect(labels).toEqual(["Book", "Person"]);
+	});
 });

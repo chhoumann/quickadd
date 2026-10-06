@@ -184,10 +184,10 @@ the same Macro run.
 
 ## `executeChoice` is a trigger, not a function call {#executechoice-is-a-trigger}
 
-The Macro Builder's **Choice** command and the API method
+The macro builder's **Run a choice** step and the API method
 `quickAddApi.executeChoice` look similar but behave differently.
 
-A **Choice** command added inside a Macro runs as part of that Macro's sequence
+A **Run a choice** step added inside a Macro runs as part of that Macro's sequence
 and shares the Macro's scratchpad with the steps after it.
 
 `quickAddApi.executeChoice(choiceName, variables)` is a **one-way trigger**. It

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { openMoreSettings } from "../../../tests/helpers/settings/fields";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
@@ -157,6 +158,7 @@ describe("choice edit forms tolerate legacy choices missing newer fields (#1497)
 			props: { choice: props.choice, app: props.app, plugin: props.plugin },
 		});
 		expect(container.querySelectorAll(".setting-item").length).toBeGreaterThan(0);
+		openMoreSettings(container);
 
 		// The subfolders toggle itself rendered (it is the row that crashed).
 		const subfoldersItem = Array.from(

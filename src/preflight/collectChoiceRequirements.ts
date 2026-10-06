@@ -24,6 +24,7 @@ import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import { getTemplateFile } from "src/utils/templateFolderUtils";
 import { isFolder } from "src/utils/vaultQueries";
 import { log } from "src/logger/logManager";
+import { RefusalError } from "src/errors/RefusalError";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
@@ -43,6 +44,7 @@ import {
 	type FieldRequirement,
 } from "./RequirementCollector";
 import { isPathScope, type PromptScopeKind } from "src/formatters/promptScope";
+import { actionInputOverride, withInputOverride } from "src/v3/inputOverride";
 import {
 	captureTargetKeyFor,
 	isCaptureTargetKey,
@@ -69,13 +71,18 @@ interface CollectChoiceRequirementsOptions {
 	preloadedUserScripts?: Map<string, LoadedUserScript>;
 }
 
-async function readTemplate(app: App, path: string): Promise<string> {
-	const file = getTemplateFile(app, path);
-	return file ? await app.vault.cachedRead(file) : "";
+/** A template's text by the path a choice or a {{TEMPLATE:}} names it with, or null when there is none. */
+export type ReadTemplate = (path: string) => Promise<string | null>;
+
+function vaultTemplateReader(app: App): ReadTemplate {
+	return async (path) => {
+		const file = getTemplateFile(app, path);
+		return file ? await app.vault.cachedRead(file) : null;
+	};
 }
 
-async function scanContentWithTemplateIncludes(
-	app: App,
+export async function scanContentWithTemplateIncludes(
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	content: string,
 	scope: PromptScopeKind = "generic",
@@ -114,9 +121,9 @@ async function scanContentWithTemplateIncludes(
 		templateStack.add(ref);
 		try {
 			await scanContentWithTemplateIncludes(
-				app,
+				readTemplate,
 				collector,
-				await readTemplate(app, ref),
+				(await readTemplate(ref)) ?? "",
 				scope,
 				templateStack,
 				depth + 1,
@@ -139,17 +146,38 @@ async function scanContentWithTemplateIncludes(
  *  - Otherwise walks the literal template body (and nested {{TEMPLATE:}}).
  */
 async function scanTemplateSource(
-	app: App,
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
 	// The template PATH is path context; the template BODY is content.
 	await collector.scanString(templatePath, true, "templatePath");
-	await scanTemplateBody(app, collector, templatePath);
+	await scanNoteTemplateBody(readTemplate, collector, templatePath);
 }
 
-async function scanTemplateBody(
-	app: App,
+/**
+ * A template file's `{{VALUE:title}}`, in any case, is the title of the note the
+ * run creates from it, so the run never asks for it.
+ */
+export function isNoteTitleInput(name: string): boolean {
+	return name.toLowerCase() === "title";
+}
+
+/** Scans the template a run creates a note from, leaving out what the note's title fills. */
+async function scanNoteTemplateBody(
+	readTemplate: ReadTemplate,
+	collector: RequirementCollector,
+	templatePath: string,
+): Promise<void> {
+	const known = new Set(collector.requirements.keys());
+	await scanTemplateBody(readTemplate, collector, templatePath);
+	for (const id of [...collector.requirements.keys()]) {
+		if (!known.has(id) && isNoteTitleInput(id)) collector.requirements.delete(id);
+	}
+}
+
+export async function scanTemplateBody(
+	readTemplate: ReadTemplate,
 	collector: RequirementCollector,
 	templatePath: string,
 ): Promise<void> {
@@ -161,9 +189,9 @@ async function scanTemplateBody(
 	}
 
 	await scanContentWithTemplateIncludes(
-		app,
+		readTemplate,
 		collector,
-		await readTemplate(app, templatePath),
+		(await readTemplate(templatePath)) ?? "",
 		"noteBody",
 		new Set([templatePath]),
 	);
@@ -174,8 +202,10 @@ async function collectForTemplateChoice(
 	plugin: QuickAdd,
 	choiceExecutor: IChoiceExecutor,
 	choice: ITemplateChoice,
+	askTitle: boolean,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const readTemplate = vaultTemplateReader(app);
 
 	// Scanned in the order the run asks: the template path, the folder, the
 	// file name, then the template's content.
@@ -186,7 +216,7 @@ async function collectForTemplateChoice(
 	if (choice.folder?.enabled) {
 		for (const folder of choice.folder.folders ?? []) {
 			await scanContentWithTemplateIncludes(
-				app,
+				readTemplate,
 				collector,
 				folder,
 				"folder",
@@ -194,24 +224,23 @@ async function collectForTemplateChoice(
 		}
 	}
 
-	// Only the ENABLED format is scanned. The engine resolves a disabled one to
-	// VALUE_SYNTAX, so this under-collects the implicit note-name prompt - but
-	// collecting it would also make the non-interactive CLI guard reject runs the
-	// engine satisfies from the editor selection, and would show the one-page
-	// form an empty title field where the selection used to fill it in silently.
-	// Closing that needs the selection modelled here first (there is no Template
-	// counterpart to seedCaptureSelectionAsValue); tracked separately.
-	if (choice.fileNameFormat?.enabled) {
+	// A disabled format is VALUE_SYNTAX: the run asks for the note title, unless
+	// the editor's selection fills it. Inside a macro the title is left to the
+	// step itself, since one shared answer would give every step the same title.
+	const titleFormat = choice.fileNameFormat?.enabled
+		? choice.fileNameFormat.format
+		: askTitle && getActiveEditorSelection(app) === "" ? VALUE_SYNTAX : null;
+	if (titleFormat !== null) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
-			choice.fileNameFormat.format,
+			titleFormat,
 			"noteTitle",
 		);
 	}
 
 	if (choice.templatePath) {
-		await scanTemplateBody(app, collector, choice.templatePath);
+		await scanNoteTemplateBody(readTemplate, collector, choice.templatePath);
 	}
 
 	const format = choice.fileNameFormat?.enabled
@@ -222,6 +251,7 @@ async function collectForTemplateChoice(
 		if (valueRequirement) valueRequirement.runtimeOnly = true;
 	}
 
+	applyInputOverrides(collector, choice.id);
 	return collector;
 }
 
@@ -233,16 +263,17 @@ async function collectForCaptureChoice(
 	seedCaptureSelectionAsValue: boolean,
 ): Promise<RequirementCollector> {
 	const collector = new RequirementCollector(app, plugin, choiceExecutor);
+	const readTemplate = vaultTemplateReader(app);
 
 	await scanContentWithTemplateIncludes(
-		app,
+		readTemplate,
 		collector,
 		choice.captureTo,
 		"captureTarget",
 	);
 	if (choice.propertyCapture?.property.kind === "named") {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.propertyCapture.property.format,
 			"propertyName",
@@ -257,7 +288,7 @@ async function collectForCaptureChoice(
 	if (choice.format?.enabled || choice.propertyCapture) {
 		collector.valueTakesLines = !!choice.eachLine && !choice.propertyCapture;
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.propertyCapture ? inheritPropertyValueType(captureFormat, knownPropertyType) : captureFormat,
 			choice.propertyCapture ? "propertyValue" : "captureText",
@@ -273,7 +304,7 @@ async function collectForCaptureChoice(
 
 	if (!choice.propertyCapture && choice.insertAfter?.enabled && !choice.insertAfter.promptHeading) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.insertAfter.after,
 			"lineTarget",
@@ -282,7 +313,7 @@ async function collectForCaptureChoice(
 
 	if (!choice.propertyCapture && choice.insertBefore?.enabled) {
 		await scanContentWithTemplateIncludes(
-			app,
+			readTemplate,
 			collector,
 			choice.insertBefore.before,
 			"lineTarget",
@@ -299,7 +330,7 @@ async function collectForCaptureChoice(
 		createWithTemplate.createWithTemplate &&
 		createWithTemplate.template
 	) {
-		await scanTemplateSource(app, collector, createWithTemplate.template);
+		await scanTemplateSource(readTemplate, collector, createWithTemplate.template);
 	}
 
 	// One classifier (shared with CaptureChoiceEngine) decides whether "Capture to"
@@ -375,6 +406,8 @@ async function collectForCaptureChoice(
 		}
 	}
 
+	applyInputOverrides(collector, choice.id);
+
 	if (seedCaptureSelectionAsValue) {
 		const selectionOverride = choice.useSelectionAsCaptureValue;
 		const globalSelectionAsValue =
@@ -395,6 +428,13 @@ async function collectForCaptureChoice(
 	}
 
 	return collector;
+}
+
+/** The form asks for each input as the choice's action overrides it. */
+function applyInputOverrides(collector: RequirementCollector, choiceId: string): void {
+	for (const [id, requirement] of collector.requirements) {
+		collector.requirements.set(id, withInputOverride(requirement, actionInputOverride(choiceId, id)));
+	}
 }
 
 async function collectUserScriptRequirements(
@@ -430,7 +470,8 @@ async function collectUserScriptRequirements(
 	} catch (error) {
 		const scriptPath = userScriptCommand.path ?? userScriptCommand.id;
 		const message = error instanceof Error ? error.message : String(error);
-		if (isUserScriptLoadError(error)) {
+		// The run itself reports a script it cannot load, with the choice's name.
+		if (isUserScriptLoadError(error) || error instanceof RefusalError) {
 			log.logMessage(
 				`QuickAdd preflight could not inspect user script '${scriptPath}': ${message}`,
 			);
@@ -474,6 +515,7 @@ async function collectForMacroChoice(
 									plugin,
 									choiceExecutor,
 									entry.choice,
+									false,
 								)
 							).requirements.values(),
 						)
@@ -571,7 +613,7 @@ export async function collectChoiceRequirements(
 	if (isMacroChoice(choice)) {
 		requirements = await collectForMacroChoice(app, plugin, choiceExecutor, choice, options);
 	} else if (isTemplateChoice(choice)) {
-		const collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice);
+		const collector = await collectForTemplateChoice(app, plugin, choiceExecutor, choice, true);
 		requirements = [...collector.requirements.values()];
 	} else if (choice.type === "Capture") {
 		const collector = await collectForCaptureChoice(

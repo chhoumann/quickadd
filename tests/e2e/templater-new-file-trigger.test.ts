@@ -2,6 +2,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Capture into a new note with Templater's new-file trigger", () => {
 	const getContext = createQuickAddE2EHarness("templater-new-file-trigger");
@@ -47,7 +48,7 @@ describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Capture into a new n
 		choice.createFileIfItDoesntExist.enabled = true;
 		choice.format = { enabled: true, format: "CAPTURED" };
 		choice.prepend = true;
-		await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+		await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 		await plugin.reload({ waitUntilReady: true });
 		return obsidian.dev.evalJsonAsync<{ ms: number; content: string }>(`(async () => {
 			const start = performance.now();

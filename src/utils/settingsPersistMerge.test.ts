@@ -309,6 +309,52 @@ describe("threeWayMergeSettings", () => {
 		]);
 	});
 
+	it("merges edits to different steps of one action, inside folders and If branches", () => {
+		const wait = (id: string, time: number) => ({ id, type: "wait", time });
+		const base = {
+			actions: [{
+				kind: "folder", id: "f", name: "Folder",
+				items: [{
+					kind: "action", id: "a", name: "A",
+					steps: [wait("s1", 1), { id: "if", type: "if", thenSteps: [wait("t1", 1)], elseSteps: [wait("e1", 1)] }],
+				}],
+			}],
+		};
+		const local = deepClone(base);
+		const disk = deepClone(base);
+		local.actions[0].items[0].steps[0] = wait("s1", 2);
+		(local.actions[0].items[0].steps[1] as { thenSteps: unknown[] }).thenSteps = [wait("t1", 2)];
+		(disk.actions[0].items[0].steps[1] as { elseSteps: unknown[] }).elseSteps = [wait("e1", 3), wait("e2", 3)];
+		disk.actions[0].items[0].steps.push(wait("s2", 3));
+
+		expect(threeWayMergeSettings(base, local, disk).actions[0].items[0].steps).toEqual([
+			wait("s1", 2),
+			{ id: "if", type: "if", thenSteps: [wait("t1", 2)], elseSteps: [wait("e1", 3), wait("e2", 3)] },
+			wait("s2", 3),
+		]);
+	});
+
+	it("keeps a list inside a script step's settings in order instead of merging it by id", () => {
+		const items = (...values: number[]) => values.map((v, i) => ({ id: `i${i}`, v }));
+		const action = (list: unknown[]) => ({
+			actions: [{ kind: "action", id: "a", name: "A", steps: [{ id: "s", type: "runScript", path: "x.js", settings: { items: list } }] }],
+		});
+		const base = action(items(1, 1));
+		const local = action(items(2, 1));
+		const disk = action([...items(1, 1), { id: "i2", v: 3 }]);
+
+		expect(threeWayMergeSettings(base, local, disk)).toEqual(local);
+	});
+
+	it("does not merge a step list by id when an id repeats, so no step is lost", () => {
+		const step = (time: number) => ({ id: "same", type: "wait", time });
+		const base = { steps: [step(1), step(1)] };
+		const local = { steps: [step(2), step(1)] };
+		const disk = { steps: [step(1), step(1), { id: "other", type: "wait", time: 3 }] };
+
+		expect(threeWayMergeSettings(base, local, disk).steps).toEqual(local.steps);
+	});
+
 	it("still preserves disk choices when local only changed ai (the #1749 shape)", () => {
 		const base = {
 			choices: [

@@ -147,5 +147,28 @@ describe("OnePageInputModal preflight-suggesters audit", () => {
 
 			await expect(modal.waitForClose).resolves.toEqual({ title: "Hello" });
 		});
+
+		it("submits on Enter in a one-line field, as a single prompt does", async () => {
+			const modal = new OnePageInputModal({} as App, [{ id: "title", label: "Title", type: "text" }], new Map());
+			(modal as any).open();
+			const input = modal.contentEl.querySelector("input") as HTMLInputElement;
+			input.value = "Hello";
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+
+			(modal as any).scope.trigger([], "Enter", { target: input, isComposing: false });
+
+			await expect(modal.waitForClose).resolves.toEqual({ title: "Hello" });
+		});
+
+		it("keeps Enter for line breaks in a multi-line field", () => {
+			const modal = new OnePageInputModal({} as App, [{ id: "body", label: "Body", type: "textarea" }], new Map());
+			(modal as any).open();
+			const textarea = modal.contentEl.querySelector("textarea") as HTMLTextAreaElement;
+
+			(modal as any).scope.trigger([], "Enter", { target: textarea, isComposing: false });
+
+			expect((modal as any).settled).toBe(false);
+			modal.close();
+		});
 	});
 });

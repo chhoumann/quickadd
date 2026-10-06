@@ -1,3 +1,4 @@
+import type { TFile } from "obsidian";
 import type IChoice from "./types/choices/IChoice";
 import type ITemplateChoice from "./types/choices/ITemplateChoice";
 import type ICaptureChoice from "./types/choices/ICaptureChoice";
@@ -12,14 +13,17 @@ import type { ICommand } from "./types/macros/ICommand";
 import type { PreparedChoiceInputState } from "./preflight/preparedChoiceInputs";
 import type { LoadedUserScript } from "./utils/userScript";
 import type { ChoiceChain } from "./engine/choiceChain";
+import type { Action } from "./v3/model";
 
 export interface IChoiceExecutor {
 	/**
 	 * Runs `choice`. A run started from inside another passes that run's chain
 	 * as `ancestry`, and the call fails with the cycle when `choice` is already
-	 * in it.
+	 * in it. `inline` is the action a Macro `choice` was lowered from when no
+	 * stored action holds it on its own (an inline action step's): a sequence
+	 * runs its steps rather than the commands.
 	 */
-	execute(choice: IChoice, ancestry?: ChoiceChain): Promise<void>;
+	execute(choice: IChoice, ancestry?: ChoiceChain, inline?: Action): Promise<void>;
 	prepareMacroInputs(choice: IMacroChoice, commands: ICommand[]): Promise<void>;
 	readonly preparedInputs: PreparedChoiceInputState;
 	/**
@@ -102,6 +106,18 @@ export interface IChoiceExecutor {
 	 * unaffected; absent/undefined means "no trigger-derived default".
 	 */
 	triggerContext?: QuickAddTriggerContext | null;
+	/**
+	 * The run note, `{{NOTE}}`: the note this outermost run last created or
+	 * wrote to, or null before its first write. A nested choice runs through
+	 * the same executor, so a macro sees the note its nested Capture wrote.
+	 */
+	runNote?: TFile | null;
+	/**
+	 * Runs `run` and gives the note it ended on: the run note once `run` has
+	 * recorded one, null when it recorded none. The run note itself is left as
+	 * it is throughout, so `{{NOTE}}` inside `run` still sees the outer note.
+	 */
+	noteEndedOn?(run: () => Promise<void>): Promise<TFile | null>;
 	/**
 	 * Records the structured outcome of the current execution so an orchestrator
 	 * (the URI x-callback handler, via {@link ChoiceExecutor.executeWithOutcome}) can

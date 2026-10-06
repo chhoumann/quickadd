@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("drag-pill-bounds");
 
@@ -10,9 +11,9 @@ const LONG_NAME = "A choice name long enough to fill the whole drag pill while i
 
 it("keeps the drag pill inside a narrow window with the grip under the cursor", async () => {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [new CaptureChoice(LONG_NAME), new CaptureChoice("Second")];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	const mouse = async (type: string, x: number, y: number, buttons: number) => {
 		const params = { type, x, y, button: buttons ? "left" : "none", buttons, clickCount: 1 };

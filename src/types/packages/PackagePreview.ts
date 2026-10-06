@@ -32,7 +32,7 @@ export interface PreviewUsageSite {
 	breadcrumb: string;
 }
 
-/** A flattened command in a macro, for the read-only "Show macro" disclosure. */
+/** A flattened command in a macro, for the read-only "Show sequence" disclosure. */
 export interface PreviewCommand {
 	name: string;
 	type: string;

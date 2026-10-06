@@ -15,6 +15,7 @@ import {
 	createQuickAddObsidianClient,
 	seedVaultFile,
 } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const PLUGIN_ID = "quickadd";
 const CHOICE_ID = "__qa-1968-end-of-section-fence";
@@ -90,7 +91,7 @@ beforeAll(async () => {
 
 	const targetPath = await seedVaultFile(obsidian, sandbox, NOTE, NOTE_CONTENT);
 
-	await qa.data<QuickAddData>().patch((data) => {
+	await qa.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.choices = data.choices.filter(
 			(choice) => choice.id !== CHOICE_ID && choice.id !== SUBSECTIONS_CHOICE_ID,
 		);
@@ -98,7 +99,7 @@ beforeAll(async () => {
 			captureChoice(CHOICE_ID, targetPath, false),
 			captureChoice(SUBSECTIONS_CHOICE_ID, targetPath, true),
 		);
-	});
+	}));
 	await qa.reload({ waitUntilReady: true });
 }, 30_000);
 

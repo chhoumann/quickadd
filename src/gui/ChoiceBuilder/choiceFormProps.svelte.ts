@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import { snapshot } from "../svelte/persist.svelte";
 import type IChoice from "../../types/choices/IChoice";
+import type { Step } from "../../v3/model";
 
 export interface ChoiceFormProps<C extends IChoice> {
 	choice: C;
@@ -12,6 +13,11 @@ export interface ChoiceFormProps<C extends IChoice> {
 	 * folder field): writes it into `choice`, leaving the form mounted.
 	 */
 	commitPending?: () => void;
+	/**
+	 * Adds a step after what the choice does, which makes it a sequence of
+	 * steps. Absent where a choice cannot become one: a macro's step.
+	 */
+	onAddStep?: (step: Step) => void;
 }
 
 /** Detach live proxies and class instances before making the editable form state.

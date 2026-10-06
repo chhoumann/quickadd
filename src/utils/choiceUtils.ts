@@ -164,7 +164,9 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 	// id -> first kept choice with that id (the original object, for comparison).
 	const firstById = new Map<string, IChoice>();
 
-	const walk = (list: IChoice[]): IChoice[] => {
+	// Inside a folder kept under a fresh id, a repeated id is the copy's own and
+	// gets a fresh id too, so the folder keeps its children.
+	const walk = (list: IChoice[], copied = false): IChoice[] => {
 		const out: IChoice[] = [];
 		for (const choice of list) {
 			// A list entry can be `null` or a primitive (a truncated write, a bad
@@ -178,14 +180,16 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 			}
 			let current = choice;
 			const prior = firstById.get(current.id);
+			let fresh = false;
 			if (prior) {
 				// Compare the whole choice (incl. nested children) to the first
 				// occurrence: equal => true duplicate, drop it; otherwise a real id
 				// collision, so keep it under a fresh id (nothing lost).
-				if (JSON.stringify(current) === JSON.stringify(prior)) {
+				if (!copied && JSON.stringify(current) === JSON.stringify(prior)) {
 					continue;
 				}
 				current = { ...current, id: uuidv4() };
+				fresh = true;
 			}
 			firstById.set(current.id, current);
 			// Recurse only into a real children array; a malformed Multi (missing or
@@ -193,7 +197,7 @@ export function dedupeChoicesById(choices: IChoice[]): IChoice[] {
 			if (isMultiChoice(current) && Array.isArray(current.choices)) {
 				const repaired: IMultiChoice = {
 					...current,
-					choices: walk(current.choices),
+					choices: walk(current.choices, copied || fresh),
 				};
 				current = repaired;
 			}

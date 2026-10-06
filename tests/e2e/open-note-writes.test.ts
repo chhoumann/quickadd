@@ -4,6 +4,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // Writes into a note open in an editor must land in that editor before the
 // run resolves (#1798): Obsidian re-reads notes over its 64K-character cache
@@ -29,7 +30,7 @@ async function seedNote(name: string, head: string, kb = 0): Promise<string> {
 
 async function saveChoice(choice: IChoice) {
 	const { plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch(data => { data.choices.push(choice); });
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices(data => { data.choices.push(choice); }));
 	await plugin.reload({ waitUntilReady: true });
 }
 

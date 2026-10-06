@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // `|label:` names the prompt of a {{VDATE}} (#1869), an unnamed {{VALUE}}
 // (#1876) and a named single-value {{VALUE}}, in place of the variable name.
@@ -50,10 +51,10 @@ async function runCapture(file: string, format: string, onePage: boolean) {
 	choice.captureTo = sandbox.path(file);
 	choice.createFileIfItDoesntExist = { ...choice.createFileIfItDoesntExist, enabled: true };
 	choice.format = { enabled: true, format };
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = onePage;
 		data.choices.push(choice);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 }

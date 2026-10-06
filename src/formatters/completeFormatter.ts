@@ -8,6 +8,8 @@ import type { App, TFile } from "obsidian";
 import { MarkdownView } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { ChoiceChain } from "../engine/choiceChain";
+import { actionInputOverride } from "../v3/inputOverride";
+import type { InputOverride } from "../v3/model";
 import type { RunClocks } from "../types/dateOrigin";
 import { DATE_VARIABLE_REGEX, TITLE_REGEX } from "../constants";
 import { findDateVariableFormat } from "./helpers/dateTokens";
@@ -24,6 +26,7 @@ import { normalizeNumericValue } from "../utils/valueSyntax";
 import { collectFieldValuesRaw, generateFieldCacheKey } from "../utils/FieldValueCollector";
 import { getActiveMarkdownEditorView } from "../utils/activeMarkdownEditor";
 import { Formatter, type PromptContext } from "./formatter";
+import type { RunNoteForms } from "./helpers/currentFileTokens";
 import {
 	buildPromptContextLine,
 	describeValuePrompt,
@@ -401,6 +404,18 @@ export class CompleteFormatter extends Formatter {
 		return parentPath === "/" ? "" : parentPath;
 	}
 
+	protected getRunNote(): RunNoteForms | null {
+		const note = this.choiceExecutor?.runNote;
+		if (!note) return null;
+		const folder = note.parent?.path ?? "";
+		return {
+			path: note.path,
+			link: this.app.fileManager.generateMarkdownLink(note, ""),
+			name: note.basename,
+			folder: folder === "/" ? "" : folder,
+		};
+	}
+
 	/** Resolve the cursor heading link only when present, honoring required/optional behavior. */
 	protected getCurrentFileLinkToSection(): string | null {
 		const currentFile = this.app.workspace.getActiveFile();
@@ -693,6 +708,10 @@ export class CompleteFormatter extends Formatter {
 			assertInteractivePrompt: (what) => this.assertInteractivePrompt(what),
 			buildInputPromptOptions: (context, line, full) => this.buildInputPromptOptions(context, line, full),
 		};
+	}
+
+	protected inputOverride(name: string): InputOverride | undefined {
+		return actionInputOverride(this.choiceChain.at(-1)?.id, name);
 	}
 
 	protected async promptForVariable(header?: string,

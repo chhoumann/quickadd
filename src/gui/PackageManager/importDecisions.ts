@@ -41,12 +41,19 @@ export type ExistsProbe = (path: string) => boolean;
  * destination currently exists. This is the single home for a rule that was
  * previously inlined in three places.
  */
+/** How a file already at a destination is treated unless the reader says otherwise. */
+export interface AssetDecisionOptions {
+	/** Keep the reader's file (skip) instead of writing the package's over it. */
+	keepExisting?: boolean;
+}
+
 export function reconcileMode(
 	mode: AssetImportMode,
 	exists: boolean,
+	options: AssetDecisionOptions = {},
 ): AssetImportMode {
 	if (mode === "skip") return mode;
-	if (exists && mode === "write") return "overwrite";
+	if (exists && mode === "write") return options.keepExisting ? "skip" : "overwrite";
 	if (!exists && mode === "overwrite") return "write";
 	return mode;
 }
@@ -57,6 +64,31 @@ export function effectiveChoiceMode(
 	exists: boolean,
 ): ChoiceImportMode {
 	return !exists && mode === "overwrite" ? "import" : mode;
+}
+
+// --- The review's file groups ----------------------------------------------
+
+/** Where the review lists a file: what the reader decided, and whether it was in the vault. */
+export type FileGroup = "added" | "overwrite" | "kept";
+
+export function fileGroup(existedAtLoad: boolean, mode: AssetImportMode): FileGroup {
+	if (mode === "skip") return "kept";
+	return existedAtLoad ? "overwrite" : "added";
+}
+
+/** How many files the import will write over. */
+export function countFileOverwrites(states: readonly AssetDecisionState[]): number {
+	return states.filter((state) => state.destinationExists && state.mode === "overwrite").length;
+}
+
+/** How many choices the import will replace. */
+export function countChoiceOverwrites(
+	conflicts: readonly ChoiceConflict[],
+	decisions: ChoiceDecisions,
+): number {
+	return snapshotChoiceDecisions(conflicts, decisions).filter(
+		(decision) => decision.mode === "overwrite",
+	).length;
 }
 
 // --- Default destination ----------------------------------------------------
@@ -93,11 +125,16 @@ export function defaultAssetDecision(
 	conflict: AssetConflict,
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisionState {
 	const destinationPath = destinationFor(conflict);
-	const destinationExists = conflict.exists || exists(destinationPath);
+	// `conflict.exists` is about the package's own path; a file there says
+	// nothing about a destination elsewhere, which only the probe knows.
+	const destinationExists = destinationPath === conflict.originalPath
+		? conflict.exists || exists(destinationPath)
+		: exists(destinationPath);
 	return {
-		mode: destinationExists ? "overwrite" : "write",
+		mode: !destinationExists ? "write" : options.keepExisting ? "skip" : "overwrite",
 		destinationPath,
 		destinationExists,
 	};
@@ -119,12 +156,13 @@ export function initAssetDecisions(
 	conflicts: readonly AssetConflict[],
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisions {
 	const decisions: AssetDecisions = new Map();
 	for (const conflict of conflicts) {
 		decisions.set(
 			conflict.originalPath,
-			defaultAssetDecision(conflict, destinationFor, exists),
+			defaultAssetDecision(conflict, destinationFor, exists, options),
 		);
 	}
 	return decisions;
@@ -135,10 +173,11 @@ export function resolveAssetDecision(
 	conflict: AssetConflict,
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisionState {
 	return (
 		decisions.get(conflict.originalPath) ??
-		defaultAssetDecision(conflict, destinationFor, exists)
+		defaultAssetDecision(conflict, destinationFor, exists, options)
 	);
 }
 
@@ -173,7 +212,8 @@ export function setAssetMode(
 	const previous =
 		decisions.get(originalPath) ?? fallbackDecision(originalPath, exists);
 	const next = new Map(decisions);
-	next.set(originalPath, { ...previous, mode });
+	// A write picked for a file that is there is an overwrite, and says so.
+	next.set(originalPath, { ...previous, mode: reconcileMode(mode, previous.destinationExists) });
 	return next;
 }
 
@@ -188,6 +228,7 @@ export function setAssetPath(
 	originalPath: string,
 	value: string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): SetAssetPathResult {
 	const previous =
 		decisions.get(originalPath) ?? fallbackDecision(originalPath, exists);
@@ -199,7 +240,7 @@ export function setAssetPath(
 	const next = new Map(decisions);
 	next.set(originalPath, {
 		...previous,
-		mode: reconcileMode(previous.mode, destinationExists),
+		mode: reconcileMode(previous.mode, destinationExists, options),
 		destinationPath,
 		destinationExists,
 	});
@@ -211,6 +252,7 @@ export function applyExistsResult(
 	decisions: AssetDecisions,
 	originalPath: string,
 	exists: boolean,
+	options: AssetDecisionOptions = {},
 ): AssetDecisions {
 	const current = decisions.get(originalPath);
 	if (!current || current.destinationExists === exists) return decisions;
@@ -218,7 +260,7 @@ export function applyExistsResult(
 	next.set(originalPath, {
 		...current,
 		destinationExists: exists,
-		mode: reconcileMode(current.mode, exists),
+		mode: reconcileMode(current.mode, exists, options),
 	});
 	return next;
 }

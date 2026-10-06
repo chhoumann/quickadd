@@ -4,7 +4,7 @@ import { attachCalendarToggle, createDatePicker } from "src/gui/date-picker/date
 import { FieldValueInputSuggest } from "src/gui/suggesters/FieldValueInputSuggest";
 import { FilePickerInputSuggest, type FilePickerOption } from "src/gui/suggesters/FilePickerInputSuggest";
 import { SuggesterInputSuggest } from "src/gui/suggesters/SuggesterInputSuggest";
-import { formatISODate, parseNaturalLanguageDate } from "src/utils/dateParser";
+import { formatISODate, NOT_A_DATE, parseNaturalLanguageDate } from "src/utils/dateParser";
 import { formatDateAliasInline, getOrderedDateAliases } from "src/utils/dateAliases";
 import { settingsStore } from "src/settingsStore";
 import { normalizeNumericValue, normalizeSliderValue } from "src/utils/valueSyntax";
@@ -267,9 +267,11 @@ export class OnePageFieldRenderer {
 					return iso.length >= 10 ? iso.slice(0, 10) : iso;
 				};
 
+				// Hidden while there is nothing to say about the field.
 				const renderPreview = (text: string, isError: boolean) => {
 					preview.setText(text);
 					preview.toggleClass("is-error", isError);
+					preview.hidden = text === "";
 				};
 
 				const syncSelection = (iso?: string) => {
@@ -297,7 +299,7 @@ export class OnePageFieldRenderer {
 					setValue(req.id, iso ? `@date:${iso}` : "");
 					syncSelection(iso);
 					renderPreview(
-						iso ? (parsed.formatted ?? formatIsoForDisplay(iso)) : (parsed.error || "Unable to parse date"),
+						iso ? (parsed.formatted ?? formatIsoForDisplay(iso)) : NOT_A_DATE,
 						!iso,
 					);
 				};
@@ -313,7 +315,7 @@ export class OnePageFieldRenderer {
 						control.dateParseError = false;
 						setValue(req.id, "");
 						syncSelection();
-						renderPreview(req.optional ? "Will be left empty" : "Preview will appear here", false);
+						renderPreview(req.optional ? "Will be left empty" : "", false);
 						return;
 					}
 					if (inputVal.startsWith("@date:")) {

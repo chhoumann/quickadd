@@ -15,7 +15,7 @@ describe("StandardCommand", () => {
 		const command = new ObsidianCommand("My Command", "obsidian-cmd");
 		const onDeleteCommand = vi.fn();
 		const { container } = render(StandardCommand, {
-			props: { command, startDrag: noop, dragDisabled: true, onDeleteCommand },
+			props: { command, line: null, startDrag: noop, dragDisabled: true, onDeleteCommand },
 		});
 		const deleteBtn = container.querySelector(".clickable") as HTMLElement;
 		await fireEvent.click(deleteBtn);
@@ -54,6 +54,7 @@ describe("ConditionalCommand", () => {
 		const { getByLabelText } = render(ConditionalCommand, {
 			props: {
 				command,
+				line: null,
 				startDrag: noop,
 				dragDisabled: true,
 				onConfigureCondition,

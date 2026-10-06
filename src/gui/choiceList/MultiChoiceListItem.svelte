@@ -10,7 +10,8 @@
     import type IChoice from "src/types/choices/IChoice";
     import { choiceMenuActions, showChoiceContextMenu, showChoiceContextMenuAtElement } from "./contextMenu";
 	import { renderChoiceName } from "./renderChoiceName";
-    import { childChoicesOf, hasUnreadableChildren } from "../../utils/choiceUtils";
+    import { childChoicesOf, flattenChoices, hasUnreadableChildren, isChoiceLike } from "../../utils/choiceUtils";
+    import { summarizeChoice } from "../../v3/choiceSummary";
     import type { ChoiceListActions } from "./choiceListActions";
 
     let {
@@ -52,6 +53,17 @@
     // folder must not claim to be empty, and must not offer any affordance that
     // would overwrite the value (the add row and the drop zone are its only two).
     const unreadable = $derived(hasUnreadableChildren(choice));
+
+    // Counted on the live folder: the filtered view renders a clone holding only
+    // the children that matched, and then says how many of them it shows.
+    const summary = $derived.by(() => {
+        const live = flattenChoices(roots).find((c) => c.id === choice.id) ?? choice;
+        const line = summarizeChoice(live, roots);
+        if (!forceDragDisabled || unreadable) return line;
+        const total = childChoicesOf(live).filter(isChoiceLike).length;
+        const shown = children.filter(isChoiceLike).length;
+        return shown < total ? `${shown} of ${total} choices` : line;
+    });
 
     let showConfigureButton = $state(true);
     let nameElement = $state<HTMLSpanElement>();
@@ -151,12 +163,12 @@
             >
                 <ObsidianIcon iconId="chevron-down" size={16} />
             </span>
-            <span class="choiceListItemName" bind:this={nameElement}></span>
-            {#if choice.collapsed && children.length > 0}
-                <!-- What a closed folder hides is real information: a quiet
-                     count keeps the list scannable without expanding. -->
-                <span class="qaFolderCount" aria-hidden="true">{children.length}</span>
-            {/if}
+            <span class="choiceListItemText">
+                <span class="choiceListItemName" bind:this={nameElement}></span>
+                {#if summary}
+                    <span class="choiceListItemSummary" title={summary}>{summary}</span>
+                {/if}
+            </span>
         </button>
 
         <RightButtons
@@ -211,6 +223,7 @@
                             targetFolderId={choice.id}
                             targetFolderName={choice.name}
                             onAddChoice={actions.onAddChoice}
+                            onAddFolder={actions.onAddFolder}
                         />
                     </div>
                 {/if}
@@ -251,8 +264,7 @@
         align-self: stretch;
         display: flex;
         align-items: center;
-        /* Obsidian's base button centers flex content; the name must not rely
-           on a growing child to stay left (it stopped growing for the count). */
+        /* Obsidian's base button centers flex content. */
         justify-content: flex-start;
         gap: 8px;
         background: transparent;
@@ -273,12 +285,6 @@
         touch-action: manipulation;
     }
 
-    /* The count reads as part of the label ("Misc · 12"), so the name must not
-       grow — it keeps its ellipsis via flex-shrink + the shared min-width: 0. */
-    .multiChoiceListItemName :global(.choiceListItemName) {
-        flex: 0 1 auto;
-    }
-
     /* Same slot, weight and colour as the empty-folder hint in ChoiceList, so a
        folder we cannot read reads as a variation of "empty" rather than an alarm. */
     .qaUnreadableFolder {
@@ -291,14 +297,6 @@
 
     .qaUnreadableFolder code {
         font-size: inherit;
-    }
-
-    .qaFolderCount {
-        flex: 0 0 auto;
-        color: var(--text-faint);
-        font-size: var(--font-ui-smaller, 12px);
-        font-variant-numeric: tabular-nums;
-        line-height: 1;
     }
 
     .multiChoiceListItemName:focus-visible {

@@ -18,6 +18,9 @@ interface ParsedDate {
  * @param dateParser - Optional date parser to use (defaults to NLDParser)
  * @returns ParsedDate object with the result
  */
+/** What every date field says about text that does not read as a date. */
+export const NOT_A_DATE = "Not a date";
+
 export function parseNaturalLanguageDate(
 	input: string,
 	format?: string,
@@ -50,7 +53,7 @@ export function parseNaturalLanguageDate(
 		} else {
 			return {
 				isValid: false,
-				error: "Unable to parse date"
+				error: NOT_A_DATE
 			};
 		}
 	} catch (error) {

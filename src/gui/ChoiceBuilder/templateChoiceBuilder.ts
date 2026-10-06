@@ -1,6 +1,7 @@
 import type { App } from "obsidian";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
+import type { Step } from "../../v3/model";
 import type ITemplateChoice from "../../types/choices/ITemplateChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import { ChoiceBuilder } from "./choiceBuilder";
@@ -12,8 +13,9 @@ export class TemplateChoiceBuilder extends ChoiceBuilder<ITemplateChoice> {
 		choice: ITemplateChoice,
 		plugin: QuickAdd,
 		onSave: (choice: IChoice) => void,
+		onAddStep?: (step: Step) => void,
 	) {
-		super(app, choice, plugin, onSave, TemplateChoiceForm, "this template choice's settings");
+		super(app, choice, plugin, onSave, TemplateChoiceForm, "this template choice's settings", onAddStep);
 		this.containerEl.addClass("templateChoiceBuilder");
 		this.normalizeChoice();
 	}

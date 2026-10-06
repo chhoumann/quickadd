@@ -30,6 +30,11 @@ export function tryOpenPluginSettings(app: App, pluginId: string): boolean {
 	}
 }
 
+/** Closes the settings window, so a note opened from it is in view. */
+export function closeSettings(app: App): void {
+	(app as unknown as { setting?: { close?: () => void } }).setting?.close?.();
+}
+
 /**
  * Opens a sub-page of a settings tab, e.g. Settings → QuickAdd → AI Assistant.
  * Obsidian has no public API for this; `navigateToSearchResult` is the

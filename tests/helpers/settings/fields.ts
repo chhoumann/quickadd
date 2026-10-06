@@ -1,3 +1,4 @@
+import { flushSync } from "svelte";
 
 
 export function settingItem(container: HTMLElement, name: string): HTMLElement {
@@ -21,4 +22,14 @@ export function choiceIconInput(container: HTMLElement): HTMLInputElement {
 	);
 	if (!el) throw new Error("Choice icon input not found");
 	return el;
+}
+
+/** Show a builder's More settings, if they are not showing. */
+export function openMoreSettings(container: HTMLElement): void {
+	const button = container.querySelector<HTMLButtonElement>('.qaMoreSettings button[aria-label="More settings"]');
+	if (!button) throw new Error("More settings not found");
+	if (button.getAttribute("aria-expanded") !== "true") {
+		button.click();
+		flushSync();
+	}
 }

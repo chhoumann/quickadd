@@ -36,6 +36,10 @@ const PREFIXES = [
 	"{{link",
 	"{{m",
 	"{{mac",
+	"{{n",
+	"{{no",
+	"{{note",
+	"{{note|",
 	"{{t",
 	"{{te",
 	"{{tem",
@@ -186,6 +190,14 @@ describe("format token autocomplete context gating", () => {
 		}
 	});
 
+	it("offers {{NOTE}} everywhere and its |link where a link is content", async () => {
+		for (const context of ALL_FORMAT_SUGGEST_CONTEXTS) {
+			expect(await suggestInserts("{{no", { context })).toContain("{{NOTE}}");
+		}
+		expect(await suggestInserts("{{note|", { context: "noteContent" })).toContain("{{NOTE|link}}");
+		expect(await suggestInserts("{{no", { context: "captureTarget" })).not.toContain("{{NOTE|link}}");
+	});
+
 	it("keeps {{FOLDERCURRENT}} where it does resolve", async () => {
 		expect(await suggestInserts("{{", { context: "captureTarget" })).toContain(
 			"{{FOLDERCURRENT}}",
@@ -249,6 +261,13 @@ describe("format token insertion", () => {
 		const macro = await accept("Note {{mac", "{{MACRO:}}");
 		expect(macro.value).toBe("Note {{MACRO:}}");
 		expect(macro.value.slice(0, macro.caret)).toBe("Note {{MACRO:");
+	});
+
+	it("offers {{ACTION:}}, the name {{MACRO:}} goes by now", async () => {
+		const action = await accept("Note {{act", "{{ACTION:}}");
+		expect(action.value).toBe("Note {{ACTION:}}");
+		expect(action.value.slice(0, action.caret)).toBe("Note {{ACTION:");
+		expect(await suggestInserts("{{mac")).not.toContain("{{ACTION:}}");
 	});
 
 	it("leaves the caret after a token that needs no further input", async () => {

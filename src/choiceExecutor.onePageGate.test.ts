@@ -32,6 +32,9 @@ vi.mock("./engine/TemplateChoiceEngine", () => ({
 		async run() { await runTemplate(this.choice); }
 	},
 }));
+// Every template these runs name is there.
+const checkTemplateSource = vi.fn<(app: unknown, choice: IChoice) => void>();
+vi.mock("./engine/templateSource", () => ({ checkTemplateSource }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({
 	getFocusedPropertyTarget: vi.fn(() => null),
 }));
@@ -159,6 +162,23 @@ describe("ChoiceExecutor one-page preflight gate", () => {
 			executor,
 			templateChoice,
 		);
+	});
+
+	it("execute() checks a Template's template before the form asks anything", async () => {
+		onePageInputEnabled = true;
+		runTemplate.mockClear();
+		const { refuse } = await import("./errors/RefusalError");
+		checkTemplateSource.mockImplementationOnce(() => {
+			throw refuse("the template T.md does not exist", "no note was created");
+		});
+		const executor = makeExecutor() as unknown as InstanceType<typeof ChoiceExecutor>;
+		const templateChoice = choice("Template");
+		await expect(executor.execute(templateChoice as never)).rejects.toThrow(
+			"Gate test: the template T.md does not exist, so no note was created.",
+		);
+		expect(checkTemplateSource).toHaveBeenCalledWith(expect.anything(), templateChoice);
+		expect(runOnePagePreflight).not.toHaveBeenCalled();
+		expect(runTemplate).not.toHaveBeenCalled();
 	});
 
 	it("rethrows non-cancellation preflight errors unchanged", async () => {

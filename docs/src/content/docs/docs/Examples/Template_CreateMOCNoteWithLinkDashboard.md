@@ -1,5 +1,5 @@
 ---
-title: "Template: Create an MOC Note with a Link Dashboard"
+title: "Template: Create an MOC note with a link dashboard"
 description: Create a map-of-content note with an embedded Base dashboard showing its backlinks and outgoing links, via a Template choice
 slug: docs/Examples/Template_CreateMOCNoteWithLinkDashboard
 package: moc-link-dashboard
@@ -90,14 +90,14 @@ outgoing links for this note.
 - Start linking this note to related ideas.
 ````
 
-3. Create a **Template** choice (see [the Template choice docs](/docs/Choices/TemplateChoice/)) with settings like these:
+3. Create a **Template** choice with **New choice** → **New note from a template** (see [the Template choice docs](/docs/Choices/TemplateChoice/)), with settings like these:
 
 - **Template Path**: `Templates/MOC Link Dashboard.md`
-- **File name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
+- **Note name**: `{{VALUE:moc_title}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first)
 - **Create in folder**: your MOC folder, for example `MOCs`
 - **Open**: enabled
-- **If the target file already exists**: `Create another file`
-- **New file naming**: `Increment trailing number`
+- **If the note already exists**: `Create another note`
+- **New note naming**: `Increment trailing number`
 
 4. Run the Template choice and enter a title such as `Alpha Project`.
 

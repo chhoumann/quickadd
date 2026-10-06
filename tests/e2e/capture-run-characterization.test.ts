@@ -1,7 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
+import { lowerNode } from "../../src/v3/lower";
+import { migrateChoice } from "../../src/v3/migrate";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 /**
  * Pins what one Capture run does end to end, across the paths CaptureChoiceEngine.run()
@@ -49,7 +52,17 @@ const canvasJson = (nodes: Record<string, unknown>[]) =>
 let caseNumber = 0;
 let dir = "";
 
-async function arrangeAndRun(arrange: Case[1]): Promise<() => Promise<Observation>> {
+/**
+ * How the case's choice reaches data.json: as built, or migrated to a v3 action
+ * and lowered back to the v2 choice the engines run. Both must observe the same.
+ */
+type Mode = (choice: IChoice) => IChoice;
+const MODES: [string, Mode][] = [
+	["v2", (choice) => choice],
+	["v3 migrated and lowered", (choice) => lowerNode(migrateChoice(choice).node)],
+];
+
+async function arrangeAndRun(arrange: Case[1], mode: Mode): Promise<() => Promise<Observation>> {
 	const { obsidian, plugin, sandbox } = getContext();
 	// Each case works in its own folder, deleted afterwards, so a file name is unique
 	// in the vault and links to it stay short.
@@ -87,10 +100,10 @@ async function arrangeAndRun(arrange: Case[1]): Promise<() => Promise<Observatio
 	a.open(origin);
 	await arrange(a);
 
-	await plugin.data<{ choices: IChoice[]; showCaptureNotification: boolean }>().patch((data) => {
-		data.choices.push(choice);
+	await plugin.data<{ choices: IChoice[]; showCaptureNotification: boolean }>().patch(withStoredChoices((data) => {
+		data.choices.push(mode(choice));
 		data.showCaptureNotification = true;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJsonAsync(`(async () => {
 		const file = app.vault.getAbstractFileByPath(${JSON.stringify(opened.path)});
@@ -192,7 +205,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["bottom of an existing note", async (a) => { await note(a); a.choice.prepend = true; }, {
@@ -203,7 +216,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading, top of its section", async (a) => {
@@ -217,7 +230,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading, end of its section", async (a) => {
@@ -231,7 +244,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a missing heading, created at the bottom", async (a) => {
@@ -245,7 +258,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Missing'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a missing heading, not created", async (a) => {
@@ -273,7 +286,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' before '## Next'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a task at the bottom", async (a) => { await note(a); a.choice.prepend = true; a.choice.task = true; a.choice.format.format = "Do it"; }, {
@@ -284,7 +297,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["an empty value", async (a) => { await note(a); a.choice.format.format = "{{VALUE}}"; a.vars.value = ""; }, {
@@ -295,7 +308,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Nothing to capture — 'Target' unchanged"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["only a cursor marker", async (a) => { await note(a); a.choice.format.format = "{{CURSOR}}"; }, {
@@ -306,7 +319,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Nothing to capture — 'Target' unchanged"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["opening the note at the cursor marker", async (a) => {
@@ -322,7 +335,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["opening the note with two cursor markers", async (a) => {
@@ -338,7 +351,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["copying a link to the captured note", async (a) => { await note(a); a.choice.copyLinkToClipboard = true; }, {
@@ -349,7 +362,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to top of 'Target'", "Copied link to 'Target' to clipboard."],
+		notices: ["Copied link to 'Target' to clipboard."],
 		clipboard: "[[Target]]",
 	}],
 	["appending a link to the active note", async (a) => { await note(a); a.choice.appendLink = true; }, {
@@ -360,7 +373,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:10"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["one entry per line", async (a) => {
@@ -377,7 +390,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a |multi value into an existing note", async (a) => {
@@ -395,7 +408,6 @@ const CASES: Case[] = [
 		selections: ["0:0"],
 		notices: [
 			"QuickAdd: (WARNING) {{VALUE:…|multi}}, {{FILE:…|multi}} and {{FIELD:…|multi}} in this capture write comma-separated strings by default. Add |format:yaml, |format:markdown, |format:inline or |format:spaced to choose the output explicitly.",
-			"Captured to bottom of 'Target'",
 		],
 		clipboard: SENTINEL,
 	}],
@@ -426,7 +438,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a new note from a template", async (a) => {
@@ -443,7 +455,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a new note whose capture is its front matter", async (a) => {
@@ -459,18 +471,18 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a missing note without creation", async (a) => { a.choice.captureTo = a.path("Missing.md"); }, {
-		result: { ok: false, aborted: true, error: "Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file." },
+		result: { ok: false, error: "Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file."],
+		notices: ["Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page."],
 		clipboard: SENTINEL,
 	}],
 	["a new note at a path that cannot exist", async (a) => {
@@ -534,7 +546,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created and captured to '2031-02-10'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["an existing daily note", async (a) => {
@@ -551,7 +563,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of '2031-02-10'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -568,7 +580,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:9"],
-		notices: ["Captured to current line in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["on a new line above the cursor", async (a) => {
@@ -583,7 +595,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:5"],
-		notices: ["Captured on a new line above cursor in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["on a new line below the cursor", async (a) => {
@@ -598,7 +610,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["4:5"],
-		notices: ["Captured on a new line below cursor in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["top of the active note", async (a) => {
@@ -613,7 +625,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["4:2"],
-		notices: ["Captured to top of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["bottom of the active note", async (a) => {
@@ -628,7 +640,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading in the active note", async (a) => {
@@ -643,7 +655,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Target' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a cursor marker at the cursor in the active note", async (a) => {
@@ -658,7 +670,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["3:7"],
-		notices: ["Captured to current line in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a cursor marker and a link in the same active note", async (a) => {
@@ -675,7 +687,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -693,7 +705,7 @@ const CASES: Case[] = [
 		},
 		active: "Target.md",
 		selections: ["7:2"],
-		notices: ["Captured to bottom of 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	// Canvas cards.
@@ -709,7 +721,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Board'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["after a heading in a Canvas text card", async (a) => {
@@ -724,7 +736,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'Board' under '## Log'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a Canvas text card, opening the canvas", async (a) => {
@@ -741,7 +753,7 @@ const CASES: Case[] = [
 		},
 		active: "Board.canvas",
 		selections: null,
-		notices: ["Captured to bottom of 'Board'", "Copied link to 'Board' to clipboard."],
+		notices: ["Copied link to 'Board' to clipboard."],
 		clipboard: "[[Board.canvas]]",
 	}],
 	["a Canvas text card, creating a missing heading at the cursor", async (a) => {
@@ -773,7 +785,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to bottom of 'Card note'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a Canvas file card, creating a missing heading at the cursor", async (a) => {
@@ -819,7 +831,7 @@ const CASES: Case[] = [
 		},
 		active: "Board.canvas",
 		selections: null,
-		notices: ["Captured to bottom of 'Board'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["the selected file card of the active canvas", async (a) => {
@@ -837,7 +849,7 @@ const CASES: Case[] = [
 		},
 		active: "Card note.md",
 		selections: null,
-		notices: ["Captured to bottom of 'Card note'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 
@@ -856,7 +868,6 @@ const CASES: Case[] = [
 		active: "Board.canvas",
 		selections: null,
 		notices: [
-			"Captured to bottom of 'Board'",
 			"Canvas capture skipped link insertion because no Markdown editor is focused.",
 		],
 		clipboard: SENTINEL,
@@ -875,7 +886,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'status' in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["adding to a list property", async (a) => {
@@ -890,7 +901,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'tags' in 'Target'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a property on a new note", async (a) => {
@@ -906,7 +917,7 @@ const CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Captured to 'status' in 'Created'"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["a property on a missing note without creation", async (a) => {
@@ -914,14 +925,14 @@ const CASES: Case[] = [
 		a.choice.propertyCapture = { property: { kind: "named", format: "status" }, action: "set", createIfMissing: true };
 		a.choice.format.format = "open";
 	}, {
-		result: { ok: false, aborted: true, error: "Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file." },
+		result: { ok: false, error: "Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page." },
 		files: {
 			"Origin.md": "origin line\n",
 			"Missing.md": null,
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Capture execution aborted: Target file missing: Missing.md. Enable \"Create file if it doesn't exist\" or choose an existing file."],
+		notices: ["Characterization: the note Missing.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page."],
 		clipboard: SENTINEL,
 	}],
 	["a property on a Canvas text card", async (a) => {
@@ -955,7 +966,7 @@ const TEMPLATER_CASES: Case[] = [
 		},
 		active: "Origin.md",
 		selections: ["0:0"],
-		notices: ["Created 'Created' — nothing to capture (no content)"],
+		notices: [],
 		clipboard: SENTINEL,
 	}],
 	["Templater over the whole note after the capture", async (a) => {
@@ -972,28 +983,27 @@ const TEMPLATER_CASES: Case[] = [
 		active: "Origin.md",
 		selections: ["0:0"],
 		notices: [
-			"QuickAdd: (WARNING) 'Characterization' uses \"Run Templater on entire destination file after capture\", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.",
-			"Captured to bottom of 'Target'",
+			"QuickAdd: (WARNING) 'Characterization' uses \"Run Templater on entire destination note after capture\", which is deprecated and will be removed in a future release. QuickAdd already runs Templater in what it captures. Turn the option off in the Capture's settings.",
 		],
 		clipboard: SENTINEL,
 	}],
 ];
 
-const check = async (_name: string, arrange: Case[1], expected: Observation) => {
-	const observe = await arrangeAndRun(arrange);
+const check = (mode: Mode) => async (_name: string, arrange: Case[1], expected: Observation) => {
+	const observe = await arrangeAndRun(arrange, mode);
 	await expect.poll(observe, { timeout: 5_000, interval: 250 }).toEqual(expected);
 };
 
-describe("Capture run characterization", () => {
-	it.each(CASES)("%s", check);
+describe.each(MODES)("Capture run characterization (%s)", (_mode, mode) => {
+	it.each(CASES)("%s", check(mode));
 });
 
-describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1")("Capture run characterization with Templater", () => {
+describe.runIf(process.env.OBSIDIAN_E2E_TEMPLATER === "1").each(MODES)("Capture run characterization with Templater (%s)", (_mode, mode) => {
 	beforeAll(async () => {
 		expect(await getContext().obsidian.dev.evalJson(
 			`Boolean(app.plugins.plugins["templater-obsidian"]?.templater)`,
 		)).toBe(true);
 	});
 
-	it.each(TEMPLATER_CASES)("%s", check);
+	it.each(TEMPLATER_CASES)("%s", check(mode));
 });

@@ -3,6 +3,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1797: `{{FIELD:...|label:...}}` words the prompt instead of "Enter value for
 // <field>", and two labels on the same property ask two separate questions.
@@ -41,10 +42,10 @@ async function runCallTemplate(onePage: boolean) {
 	);
 	template.fileNameFormat = { enabled: true, format: `call ${mode}` };
 	template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("out")] };
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = onePage;
 		data.choices.push(template);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${template.id}` });
 	return scope;

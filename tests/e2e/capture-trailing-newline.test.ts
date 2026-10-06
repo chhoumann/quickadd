@@ -2,6 +2,7 @@ import { expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 // #2007: the docs said a Capture format must end with `\n` "so each capture
 // lands as its own complete line". Every line-based write position already puts
@@ -38,9 +39,9 @@ it.each<Position>(["top", "bottom", "afterTop", "afterEnd"])(
 			capture(`${position} plain`, plain, "- {{VALUE}}", position),
 			capture(`${position} newline`, newline, "- {{VALUE}}\n", position),
 		];
-		await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+		await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 			data.choices = choices;
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 
 		for (const choice of choices) {

@@ -3,15 +3,16 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MultiChoice } from "../../src/types/choices/MultiChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
-import { pressKey, waitForElement } from "./uiHelpers";
+import { pressKey, waitForElement, withoutFocusRing } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("choice-list-layout");
 
 it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host styles", async (deviceClass) => {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [new CaptureChoice("Layout capture"), new MultiChoice("Layout folder")];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
@@ -50,11 +51,17 @@ it.each(["is-phone", "is-tablet"])("keeps choice controls compact under %s host 
 });
 
 it("opens the New choice menu under its button", async () => {
-	const { obsidian } = getContext();
+	const { obsidian, plugin } = getContext();
+	// The list's bottom bar: the empty state's button sits low enough that
+	// Obsidian flips the menu above it, which is Obsidian's rule, not this one.
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
+		data.choices = [new CaptureChoice("Layout capture")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
-		await waitForElement(obsidian, ".qaNewChoiceBtn.mod-cta");
-		await obsidian.dev.evalJson("document.querySelector('.qaNewChoiceBtn.mod-cta').click(); true");
+		await waitForElement(obsidian, ".qaNewChoiceBtn");
+		await obsidian.dev.evalJson("document.querySelector('.qaNewChoiceBtn').click(); true");
 		await waitForElement(obsidian, ".menu");
 		const { button, menu } = await obsidian.dev.evalJson<{
 			button: { left: number; right: number; bottom: number };
@@ -64,13 +71,28 @@ it("opens the New choice menu under its button", async () => {
 				const { left, right, top, bottom } = document.querySelector(selector).getBoundingClientRect();
 				return { left, right, top, bottom };
 			};
-			return { button: rect('.qaNewChoiceBtn.mod-cta'), menu: rect('.menu') };
+			return { button: rect('.qaNewChoiceBtn'), menu: rect('.menu') };
 		})()`);
 		expect(menu.top).toBeGreaterThan(button.bottom);
 		expect(menu.right).toBeCloseTo(button.right, 0);
 		expect(menu.left).toBeLessThan(button.left);
 	} finally {
 		await pressKey(obsidian, "Escape");
+		await obsidian.dev.evalJson("app.setting.close(); true");
+	}
+});
+
+it("rings a folder's Add folder and Add choice when the keyboard is on them", async () => {
+	const { obsidian, plugin } = getContext();
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
+		data.choices = [new MultiChoice("Ringed folder")];
+	}));
+	await plugin.reload({ waitUntilReady: true });
+	try {
+		await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
+		await waitForElement(obsidian, ".qaAddChoiceControls.compact button");
+		expect(await withoutFocusRing(obsidian, ".qaAddChoiceControls.compact button")).toEqual([]);
+	} finally {
 		await obsidian.dev.evalJson("app.setting.close(); true");
 	}
 });

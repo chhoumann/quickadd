@@ -5,6 +5,7 @@ import { UserScript } from "../../src/types/macros/UserScript";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("multi-failure");
 
@@ -17,9 +18,9 @@ it("rejects a Multi run when its selected user script throws undefined", async (
 	macro.onePageInput = "never";
 	macro.macro.commands.push(new UserScript("Failing script", scriptPath));
 	const folder = new MultiChoice("Run failing script").addChoice(macro);
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [folder];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson<boolean>(`(() => {

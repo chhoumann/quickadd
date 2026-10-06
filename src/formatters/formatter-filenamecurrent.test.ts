@@ -30,7 +30,7 @@ describe("Formatter filename of current file behavior", () => {
     const formatter = new StubFormatter();
     formatter.setFilename(null);
     await expect(formatter.process("{{FILENAMECURRENT}}"))
-      .rejects.toThrow("Unable to get current file name");
+      .rejects.toThrow("No note is open, so {{FILENAMECURRENT}} has no name to give.");
   });
 
   it("silently strips placeholder when optional and no active file", async () => {

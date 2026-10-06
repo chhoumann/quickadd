@@ -25,6 +25,7 @@ import {
 	type FrontmatterPropertyTarget,
 } from "../../utils/frontmatterPropertyLinks";
 import { MultiChoice } from "../../types/choices/MultiChoice";
+import { CommandType } from "../../types/macros/CommandType";
 import { UserCancelError } from "../../errors/UserCancelError";
 import { settingsStore } from "../../settingsStore";
 import { runTemplateFromFolder } from "../../engine/runTemplateFromFolder";
@@ -106,7 +107,7 @@ describe("ChoiceSuggester", () => {
 		footnotes = choice("Footnotes");
 		rootChoices = [topNote, work, footnotes];
 
-		settingsStore.setState({ searchNestedChoices: true });
+		settingsStore.setState({ searchNestedChoices: true, choices: [] });
 		vi.mocked(getFocusedPropertyTarget).mockReturnValue(null);
 	});
 
@@ -784,10 +785,10 @@ describe("ChoiceSuggester", () => {
 			const elB = await render(suggester, taskB);
 
 			expect(elA.querySelector(".suggestion-note")?.textContent).toBe(
-				"Client A"
+				"Client A · Creates {title}"
 			);
 			expect(elB.querySelector(".suggestion-note")?.textContent).toBe(
-				"Client B"
+				"Client B · Creates {title}"
 			);
 			expect(elA.querySelector(".suggestion-title")?.textContent).toBe(
 				"New task"
@@ -804,18 +805,40 @@ describe("ChoiceSuggester", () => {
 			const el = await render(suggester, inner);
 
 			expect(el.querySelector(".suggestion-note")?.textContent).toBe(
-				"Bold folder"
+				"Bold folder · Creates {title}"
 			);
 		});
 
-		it("renders current-level items without breadcrumbs", async () => {
+		it("says what a current-level item does, without a breadcrumb", async () => {
 			const suggester = makeSuggester(rootChoices);
 			suggester.getSuggestions("top");
 
 			const el = await render(suggester, topNote);
 
+			expect(el.querySelector(".suggestion-title")?.textContent).toBe("Top note");
+			expect(el.querySelector(".suggestion-note")?.textContent).toBe("Creates {title}");
+		});
+
+		it("names a Run action target from the whole tree, not just this level", async () => {
+			const target = choice("Inbox");
+			const macro = { ...choice("Morning"), type: "Macro", macro: { id: "m", name: "Morning", commands: [
+				{ id: "c", name: "Inbox", type: CommandType.Choice, choiceId: target.id },
+			] } } as unknown as IChoice;
+			settingsStore.setState({ choices: [multi("Elsewhere", [target]), macro] });
+			const suggester = makeSuggester([macro]);
+
+			const el = await render(suggester, macro);
+
+			expect(el.querySelector(".suggestion-note")?.textContent).toBe("Runs 'Inbox'");
+		});
+
+		it("gives an empty folder its flair and no summary", async () => {
+			const empty = multi("Reading", []);
+			const suggester = makeSuggester([empty]);
+
+			const el = await render(suggester, empty);
+
 			expect(el.querySelector(".suggestion-note")).toBeNull();
-			expect(el.textContent).toBe("Top note");
 		});
 
 		it("renders the default choice-type icon", async () => {

@@ -29,9 +29,9 @@ vi.mock("./OnePageInputModal", () => ({
 			_app: unknown,
 			_requirements: unknown,
 			_variables: unknown,
-			preview: (values: Record<string, string>) => Promise<PreviewRow[]>,
+			preview: (values: Record<string, string>, unparsedDates: ReadonlySet<string>) => Promise<PreviewRow[]>,
 		) {
-			computePreview = preview;
+			computePreview = (values) => preview(values, new Set());
 		}
 		get waitForClose() {
 			return Promise.resolve({ title: "My Note" });
@@ -79,6 +79,7 @@ const createApp = (templates: Record<string, string> = {}) =>
 			cachedRead: async (file: { path: string }) => templates[file.path],
 		},
 		metadataCache: { getFileCache: () => null, getAllPropertyInfos: () => ({}) },
+		fileManager: { getNewFileParent: () => ({ path: "/" }) },
 	}) as unknown as App;
 
 const createChoice = (
@@ -149,9 +150,9 @@ describe("one-page preflight previews the file name with the file-name formatter
 		// path); a separator, because that is what the run makes of it -
 		// `normalizeGeneratedFilePath` rewrites "\" to "/" before the note is
 		// created, exactly as Obsidian's own `normalizePath` does (#1563).
-		expect(out[0].text).toBe("Notes/name-My Note");
+		expect(out[0].text).toBe("Notes/name-My Note.md");
 		expect(out[0].text).not.toContain("\n");
-		expect(out[0].label).toBe("File name");
+		expect(out[0].label).toBe("Creates");
 	});
 
 	it("resolves a {{TEMPLATE:}} include the way the run does", async () => {
@@ -169,7 +170,7 @@ describe("one-page preflight previews the file name with the file-name formatter
 		// The template file's trailing newline is not part of the name: the run's
 		// normalizer collapses the control run and the space around it, so the
 		// seam between the include and "-My Note" reads the same in both.
-		expect(out[0].text).toBe("Log-My Note -My Note");
+		expect(out[0].text).toBe("Log-My Note -My Note.md");
 	});
 
 	it("says the run would abort when the include does not exist", async () => {
@@ -181,7 +182,7 @@ describe("one-page preflight previews the file name with the file-name formatter
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out[0].text).toBe("[QuickAdd: template not found] Gone.md-My Note");
+		expect(out[0].text).toBe("[QuickAdd: template not found] Gone.md-My Note.md");
 		// The diagnostic used to be dropped on the floor here: computePreview
 		// returned strings and the modal rendered only those (#1590).
 		expect(out[0].diagnostics).toEqual([
@@ -200,7 +201,7 @@ describe("the one-page preview carries its problems and its target folder (#1590
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out[0].text).toBe("Bad: My Note");
+		expect(out[0].text).toBe("Bad: My Note.md");
 		expect(out[0].diagnostics).toEqual([
 			{
 				severity: "error",
@@ -225,11 +226,11 @@ describe("the one-page preview carries its problems and its target folder (#1590
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out[0].text).toBe("Notes/Work/My Note");
+		expect(out[0].text).toBe("Work/Notes/Work/My Note.md");
 		expect(out[0].diagnostics).toEqual([]);
 	});
 
-	it("falls back to the builder's placeholder when the run has not picked a folder", async () => {
+	it("names the folder the run asks for when it has not picked one", async () => {
 		// Two configured folders means the run opens a suggester, so no folder can
 		// be promised - but an empty string would produce `Notes//x` and a false
 		// "empty path segment" error on a choice that works.
@@ -244,26 +245,7 @@ describe("the one-page preview carries its problems and its target folder (#1590
 		);
 
 		const out = await computePreview!({ title: "My Note" });
-		expect(out[0].text).toBe("Notes/Folder/Name/My Note");
-		expect(out[0].diagnostics).toEqual([]);
-	});
-
-	it("does not splice a format token out of a configured folder into the name", async () => {
-		// The run formats the folder first (formatFolderPath); setTargetFolderPath
-		// does not. Handing over the raw text would put the literal token in the
-		// name AND raise the colon error from the token's own syntax.
-		await runOnePagePreflight(
-			createApp(),
-			createPlugin(),
-			createExecutor(),
-			createChoice("{{FOLDER}}/{{VALUE:title}}", {
-				enabled: true,
-				folders: ["Journal/{{DATE:YYYY-MM}}"],
-			}),
-		);
-
-		const out = await computePreview!({ title: "My Note" });
-		expect(out[0].text).toBe("Folder/Name/My Note");
+		expect(out[0].text).toBe("{folder}/Notes/{folder}/My Note.md");
 		expect(out[0].diagnostics).toEqual([]);
 	});
 });
@@ -298,7 +280,7 @@ describe("the one-page preview follows the choice's Which day", () => {
 		);
 
 		const out = await computePreview!({ title: "Standup" });
-		expect(out[0].text).toBe("Daily/2026-08-31 Standup");
+		expect(out[0].text).toBe("Daily/2026-08-31 Standup.md");
 	});
 
 	it("previews the day typed into the form's own date field", async () => {
@@ -313,7 +295,7 @@ describe("the one-page preview follows the choice's Which day", () => {
 			title: "Standup",
 			[QA_INTERNAL_DATE_ORIGIN]: "2026-08-27",
 		});
-		expect(out[0].text).toBe("Daily/2026-08-27 Standup");
+		expect(out[0].text).toBe("Daily/2026-08-27 Standup.md");
 	});
 
 	it("falls back to today while the date field is still empty", async () => {
@@ -328,7 +310,25 @@ describe("the one-page preview follows the choice's Which day", () => {
 			title: "Standup",
 			[QA_INTERNAL_DATE_ORIGIN]: "",
 		});
-		expect(out[0].text).toBe("Daily/2026-09-01 Standup");
+		expect(out[0].text).toBe("Daily/2026-09-01 Standup.md");
+	});
+
+	it("creates the note in a configured folder formatted the way the run formats it", async () => {
+		// The run formats the folder first (formatFolderPath), so the preview
+		// does too: the literal token would put a colon in the path.
+		await runOnePagePreflight(
+			createApp(),
+			createPlugin(),
+			createExecutor(),
+			createChoice("{{FOLDER}}/{{VALUE:title}}", {
+				enabled: true,
+				folders: ["Journal/{{DATE:YYYY-MM}}"],
+			}),
+		);
+
+		const out = await computePreview!({ title: "My Note" });
+		expect(out[0].text).toBe("Journal/2026-09/My Note.md");
+		expect(out[0].diagnostics).toEqual([]);
 	});
 
 	it("keeps a day the executor already resolved (nested in a macro)", async () => {
@@ -342,6 +342,18 @@ describe("the one-page preview follows the choice's Which day", () => {
 		);
 
 		const out = await computePreview!({ title: "Standup" });
-		expect(out[0].text).toBe("Daily/2026-08-21 Standup");
+		expect(out[0].text).toBe("Daily/2026-08-21 Standup.md");
+	});
+});
+
+describe("the one-page preview of a Template with no File name", () => {
+	it("names the note with the title as it is typed", async () => {
+		const choice = createChoice("", { enabled: true, folders: ["Meals"] });
+		choice.fileNameFormat = { enabled: false, format: "" };
+		await runOnePagePreflight(createApp(), createPlugin(), createExecutor(), choice);
+
+		expect((await computePreview!({ value: "" }))[0].text).toBe("Meals/{title}.md");
+		expect((await computePreview!({ value: "Friday" }))[0]).toMatchObject({ label: "Creates", text: "Meals/Friday.md" });
+		expect((await computePreview!({ value: "Friday plans" }))[0].text).toBe("Meals/Friday plans.md");
 	});
 });

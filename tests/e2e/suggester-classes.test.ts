@@ -4,6 +4,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("suggester-classes");
 
@@ -16,9 +17,9 @@ it("marks QuickAdd's pickers with the documented CSS classes", async () => {
 	discovery.discoverExistingNotesBeforeCreate = true;
 	discovery.templatePath = await seedVaultFile(obsidian, sandbox, "Styled discovery template.md");
 	discovery.fileNameFormat = { enabled: true, format: "{{VALUE}}" };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [folder, discovery];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(`(() => {

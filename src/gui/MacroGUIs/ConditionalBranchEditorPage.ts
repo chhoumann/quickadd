@@ -5,6 +5,10 @@ import type { ICommand } from "../../types/macros/ICommand";
 import { deepClone } from "../../utils/deepClone";
 import { commandListOf } from "../../utils/macroUtils";
 import { BuilderPage } from "../ChoiceBuilder/builderPage";
+import { type LedeHandle, mountLede } from "../ChoiceBuilder/components/mountLede.svelte";
+import { settingsStore } from "../../settingsStore";
+import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
+import { describeCommand } from "../../v3/choiceSummary";
 import {
 	CommandSequenceEditor,
 	type CommandSequenceEditorConditionalHandlers,
@@ -15,6 +19,9 @@ interface ConditionalBranchEditorPageOptions {
 	plugin: QuickAdd;
 	choices: IChoice[];
 	title: string;
+	/** The If step the branch belongs to, for the page's lede. */
+	conditional: IConditionalCommand;
+	branch: "then" | "else";
 	/** Raw `thenCommands`/`elseCommands` out of data.json - see commandListOf. */
 	commands: unknown;
 	conditionalHandlers: CommandSequenceEditorConditionalHandlers;
@@ -25,6 +32,9 @@ interface ConditionalBranchEditorPageOptions {
 /** A Conditional's Then or Else commands, as a page over the macro. */
 export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> {
 	private commandEditor: CommandSequenceEditor | null = null;
+	private lede: LedeHandle | null = null;
+	private readonly conditional: IConditionalCommand;
+	private readonly branch: "then" | "else";
 	private workingCommands: unknown;
 	private edited = false;
 	private readonly plugin: QuickAdd;
@@ -36,11 +46,14 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 		this.plugin = options.plugin;
 		this.choices = options.choices;
 		this.conditionalHandlers = options.conditionalHandlers;
+		this.conditional = options.conditional;
+		this.branch = options.branch;
 		this.workingCommands = deepClone(options.commands);
 		this.containerEl.addClass("conditionalBranchPage");
 	}
 
 	protected render(containerEl: HTMLElement): void {
+		this.lede = mountLede(containerEl.createDiv(), "git-branch", this.ledeText());
 		this.commandEditor = new CommandSequenceEditor({
 			app: this.app,
 			plugin: this.plugin,
@@ -49,10 +62,11 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 			onCommandsChange: (commands) => {
 				this.workingCommands = commands;
 				this.edited = true;
+				this.lede?.set("git-branch", this.ledeText());
 			},
 			conditionalHandlers: this.conditionalHandlers,
 		});
-		const commandsEl = new SettingGroup(containerEl).setHeading("Commands").listEl;
+		const commandsEl = new SettingGroup(containerEl).setHeading("Steps").listEl;
 		this.commandEditor.render(commandsEl.createDiv("branchCommandEditor"));
 	}
 
@@ -69,5 +83,14 @@ export class ConditionalBranchEditorPage extends BuilderPage<ICommand[] | null> 
 	protected destroy(): void {
 		this.commandEditor?.destroy();
 		this.commandEditor = null;
+		this.lede?.destroy();
+		this.lede = null;
+	}
+
+	/** The If step's line, with this branch as it is on the page. */
+	private ledeText(): string {
+		const key = this.branch === "then" ? "thenCommands" : "elseCommands";
+		const conditional = { ...this.conditional, [key]: this.workingCommands };
+		return describeCommand(conditional, settingsStore.getState().choices) ?? "";
 	}
 }

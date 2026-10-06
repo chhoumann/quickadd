@@ -53,10 +53,12 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 				malformedFolder("Broken", "broken", shape.value),
 			]);
 
-			// No count badge (there is nothing to count) and no unreadable notice:
-			// it reads exactly like a folder the user emptied themselves, which is
-			// the truth for these shapes.
-			expect(container.querySelector(".qaFolderCount"), shape.key).toBeNull();
+			// An empty count and no unreadable notice: it reads exactly like a
+			// folder the user emptied themselves, which is the truth for these shapes.
+			expect(
+				container.querySelector(".choiceListItemSummary")?.textContent,
+				shape.key,
+			).toBe("No choices yet");
 			expect(
 				container.querySelector(".qaUnreadableFolder"),
 				shape.key,
@@ -83,6 +85,8 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			// No nested list and no add-into-folder control: both write to this
 			// folder's children, and that write would discard the value.
 			expect(container.querySelector(".qa-nested"), shape.key).toBeNull();
+			// A count would contradict the notice.
+			expect(container.querySelector(".choiceListItemSummary"), shape.key).toBeNull();
 			// Both insertion CTAs write to the same children value, so both must be
 			// absent - covering only one would leave the other destructive path
 			// unguarded by this test.
@@ -106,10 +110,10 @@ describe("ChoiceView over a malformed tree (#1566)", () => {
 			collapsed(malformedFolder("Broken", "broken", {})),
 		]);
 
-		const counts = [...container.querySelectorAll(".qaFolderCount")].map(
+		const counts = [...container.querySelectorAll(".multiChoiceListItem .choiceListItemSummary")].map(
 			(el) => el.textContent,
 		);
-		expect(counts).toEqual(["2"]);
+		expect(counts).toEqual(["2 choices", "No choices yet"]);
 	});
 
 	it("steps over a hole in the list instead of blanking the tab", () => {

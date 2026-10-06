@@ -3,6 +3,7 @@ import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { DESCRIBE_ELEMENT, POLL_OPTS, clickAt, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // The suggestion list is layered above the modal. Opened under the one-page
 // form's last field, it landed on the Submit/Cancel bar, so a click on Submit
@@ -51,9 +52,9 @@ async function openForm(name: string, templateLines: (folders: Folders) => strin
 	template.templatePath = await seedVaultFile(obsidian, sandbox, "form-template.md", templateLines(folders).join("\n"));
 	template.fileNameFormat = { enabled: true, format: name };
 	template.folder = { ...template.folder, enabled: true, folders: [sandbox.path("out")] };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices.push(template);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${template.id}` });
 	await waitForElement(obsidian, ".onePageInputModal");

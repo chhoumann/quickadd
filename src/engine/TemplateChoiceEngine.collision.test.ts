@@ -1,6 +1,9 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../utils/templateFolderUtils", async (importOriginal) =>
+	(await import("../../tests/helpers/engines/everyTemplateExists")).everyTemplateExists(importOriginal));
+
 vi.mock("../quickAddSettingsTab", async () => {
 	const { engineSettingsMock } = await import("../../tests/helpers/engines/settings");
 	return engineSettingsMock();
@@ -183,6 +186,7 @@ const createEngine = () => {
 		},
 		vault: {
 			getRoot: vi.fn(() => ({ path: "" })),
+			read: vi.fn(async () => ""),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
@@ -361,7 +365,7 @@ describe("TemplateChoiceEngine collision behavior", () => {
 				getPromptModes().find((mode) => mode.id === "duplicateSuffix")?.label,
 			]),
 			expect.arrayContaining(["appendBottom", "increment", "duplicateSuffix"]),
-			"If the target file already exists",
+			"If the note already exists",
 		);
 		expect(createSpy).not.toHaveBeenCalled();
 		expect(app.vault.adapter.exists).toHaveBeenCalledWith("Test Template.md");

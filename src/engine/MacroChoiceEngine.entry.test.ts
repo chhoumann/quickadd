@@ -7,7 +7,7 @@ import type IMacroChoice from "../types/choices/IMacroChoice";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
-import type { App } from "obsidian";
+import type { App, TFile } from "obsidian";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type { INestedChoiceCommand } from "../types/macros/QuickCommands/INestedChoiceCommand";
 import type IChoice from "../types/choices/IChoice";
@@ -182,17 +182,24 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		};
 	});
 
-	it.each([
-		{ name: "retains previous output when the script cannot be loaded", callable: false, expected: "previous" },
-		{ name: "clears previous output when the script returns undefined", callable: true, expected: undefined },
-	])("$name", async ({ callable, expected }) => {
+	it("refuses a script that exports nothing and keeps the previous output", async () => {
+		mockLoadModuleExports.mockResolvedValue(undefined);
+		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
+		engine.setOutput("previous");
+		await expect(engine["executeUserScript"](userScriptCommand)).rejects.toThrow(
+			`The script ${userScriptCommand.path} exports nothing to run, so the step did not run. Export a function from it.`,
+		);
+		expect(engine.getOutput()).toBe("previous");
+	});
+
+	it("clears previous output when the script returns undefined", async () => {
 		const script = vi.fn().mockResolvedValue(undefined);
-		mockLoadModuleExports.mockResolvedValue(callable ? script : undefined);
+		mockLoadModuleExports.mockResolvedValue(script);
 		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
 		engine.setOutput("previous");
 		await engine["executeUserScript"](userScriptCommand);
-		expect(engine.getOutput()).toBe(expected);
-		expect(script).toHaveBeenCalledTimes(callable ? 1 : 0);
+		expect(engine.getOutput()).toBeUndefined();
+		expect(script).toHaveBeenCalledTimes(1);
 	});
 
 	it("runs the entry export without prompting when no settings are defined", async () => {
@@ -537,6 +544,17 @@ describe("MacroChoiceEngine user script variable propagation", () => {
 		expect(engine["params"].variables.keep).toBe("executor");
 		expect(engine["params"].variables.override).toBe(1);
 		expect(engine["choiceExecutor"].variables).toBe(providedVariables);
+	});
+
+	it("gives scripts the run note as params.note when they read it", () => {
+		const executor = { ...choiceExecutor, runNote: null as TFile | null };
+		const engine = new MacroChoiceEngine(app, plugin, macroChoice, executor, variables);
+		const params = engine["params"] as unknown as { note: TFile | null };
+
+		expect(params.note).toBeNull();
+		const note = { path: "notes/run-note.md" } as TFile;
+		executor.runNote = note;
+		expect(params.note).toBe(note);
 	});
 
 	it("treats `params.variables = {...}` as replacing the backing map", async () => {

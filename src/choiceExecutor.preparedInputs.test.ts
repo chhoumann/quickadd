@@ -24,6 +24,8 @@ vi.mock("./settingsStore", () => ({
 	settingsStore: { getState: () => ({ onePageInputEnabled: false, ai: {}, disableOnlineFeatures: true }) },
 }));
 vi.mock("./preflight/runOnePagePreflight", () => ({ runOnePagePreflight: vi.fn() }));
+// Every template these runs name is there.
+vi.mock("./engine/templateSource", () => ({ checkTemplateSource: vi.fn() }));
 vi.mock("./utils/frontmatterPropertyLinks", () => ({ getFocusedPropertyTarget: () => null }));
 vi.mock("./utils/fileOpening", async (importOriginal) => ({
 	...await importOriginal<Record<string, unknown>>(),

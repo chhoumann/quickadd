@@ -32,17 +32,17 @@ const isActiveFile = $derived(!!choice.captureToActiveFile);
 const current = $derived(getWritePosition(choice));
 
 const options = $derived([
-	{ value: "top", label: isActiveFile ? "At cursor" : "Top of file" },
+	{ value: "top", label: isActiveFile ? "At cursor" : "Top of note" },
 	...(isActiveFile
 		? [
-				{ value: "activeTop", label: "Top of file (after frontmatter)" },
+				{ value: "activeTop", label: "Top of note (after frontmatter)" },
 				{ value: "newLineAbove", label: "New line above cursor" },
 				{ value: "newLineBelow", label: "New line below cursor" },
 			]
 		: []),
 	{ value: "after", label: "After line…" },
 	{ value: "before", label: "Before line…" },
-	{ value: "bottom", label: "Bottom of file" },
+	{ value: "bottom", label: "Bottom of note" },
 	{ value: "property", label: "Property" },
 ]);
 
@@ -134,10 +134,10 @@ const showCanvasNotice = $derived.by(() => {
 </script>
 
 <SettingItem
-	name="Write position"
+	name="Position"
 	desc={isActiveFile
-		? "Where to place the capture in the current file."
-		: "Where to place the capture in the target file."}
+		? "Where to place the capture in the current note."
+		: "Where to place the capture in the target note."}
 >
 	{#snippet control()}
 		<Dropdown value={current} {options} onchange={onWritePositionChange} />

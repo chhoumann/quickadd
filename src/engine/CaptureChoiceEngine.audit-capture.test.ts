@@ -65,16 +65,17 @@ vi.mock("../formatters/captureChoiceFormatter", () => {
 			return formatContentOnlyMock(content);
 		}
 		async insertFormattedContent(...args: unknown[]) {
-			return { content: await insertFormattedContentMock(...(args as [])), captureContent: args[0], cursor: { kind: "none" } };
+			const result: unknown = await insertFormattedContentMock(...(args as []));
+			return typeof result === "string" ? { content: result, captureContent: args[0], cursor: { kind: "none" } } : result;
 		}
 		async formatFileName(name: string) {
 			return name;
 		}
+		async withTemplatePropertyCollection<T>(work: () => Promise<T>) {
+			return work();
+		}
 		getAndClearTemplatePropertyVars() {
 			return new Map();
-		}
-		getResolvedInsertAfterHeading() {
-			return null;
 		}
 		consumeCreatedClipboardAttachmentPaths() {
 			return [];
@@ -292,11 +293,15 @@ describe("CaptureChoiceEngine heading picker create affordance gating", () => {
 	});
 });
 
+const recordedOutcome = (engine: CaptureChoiceEngine) =>
+	vi.mocked((engine as unknown as { choiceExecutor: IChoiceExecutor }).choiceExecutor.recordExecutionResult!)
+		.mock.calls.at(-1)?.[0];
+
 // ---------------------------------------------------------------------------
 // Finding: capture-empty-content-no-op — an empty/whitespace capture must not
-// show a confident "Captured to …" notice.
+// report a write. The executor's result notice reads the recorded effect.
 // ---------------------------------------------------------------------------
-describe("CaptureChoiceEngine empty-capture no-op notice", () => {
+describe("CaptureChoiceEngine empty-capture no-op outcome", () => {
 	beforeEach(() => {
 		noticeClass.instances.length = 0;
 		formatContentOnlyMock.mockReset();
@@ -307,7 +312,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		getAppendLinkDestinationFileMock.mockReset();
 	});
 
-	it("shows a 'nothing to capture' notice (not 'Captured to') when the payload is empty", async () => {
+	it("records an unchanged run with nothing to undo when the payload is empty", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		// Empty payload: first pass resolves to "", and the with-file pass returns
@@ -318,13 +323,11 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances).toHaveLength(1);
-		const message = noticeClass.instances[0]!.message;
-		expect(message).toMatch(/nothing to capture/i);
-		expect(message).not.toMatch(/^Captured to/);
+		expect(recordedOutcome(engine)).toEqual({ status: "success", file: captureFile, effect: "unchanged" });
+		expect(noticeClass.instances).toHaveLength(0);
 	});
 
-	it("still shows the normal success notice when the payload is non-empty", async () => {
+	it("records the write a non-empty capture made, for Undo", async () => {
 		const captureFile = createTestFile("Daily/Test.md");
 		const app = createRunApp(captureFile, "existing body");
 		formatContentOnlyMock.mockResolvedValue("new line");
@@ -333,10 +336,126 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances).toHaveLength(1);
-		const message = noticeClass.instances[0]!.message;
-		expect(message).toMatch(/Captured to/);
-		expect(message).not.toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: captureFile,
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line" },
+		});
+		expect(noticeClass.instances).toHaveLength(0);
+	});
+
+	it("records, as what the run left, the note after a link was added to it as well", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(captureFile);
+		const engine = buildRunEngine(choice, app);
+		// The link lands in the captured note itself.
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\nnew line\n[[Test]]");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toMatchObject({
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line\n[[Test]]" },
+		});
+	});
+
+	it("reports a run that had nothing to add but put its link in the note as changed, with the link to undo", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("");
+		insertFormattedContentMock.mockResolvedValue("existing body");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(captureFile);
+		const engine = buildRunEngine(choice, app);
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\n[[Test]]");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: captureFile,
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\n[[Test]]" },
+		});
+	});
+
+	it("keeps the snapshot as written when the link went into another note", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		insertFormattedContentMock.mockResolvedValue("existing body\nnew line");
+		const choice = createCaptureChoice();
+		choice.appendLink = { enabled: true, placement: "newLine", requireActiveFile: false };
+		(app.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(createTestFile("Daily/Other.md"));
+		const engine = buildRunEngine(choice, app);
+		// Someone else edits the captured note while the link goes into the other one.
+		vi.spyOn(engine as unknown as { insertCaptureLink: () => Promise<void> }, "insertCaptureLink").mockImplementation(async () => {
+			(app.vault.read as ReturnType<typeof vi.fn>).mockResolvedValue("existing body\nnew line\ntheir edit");
+		});
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toMatchObject({
+			effect: "changed",
+			write: { path: "Daily/Test.md", before: "existing body", after: "existing body\nnew line" },
+		});
+	});
+
+	it("records the note a marker-only capture created, so Undo can take it back", async () => {
+		const newFile = createTestFile("Daily/New.md");
+		const app = createRunApp(newFile, "template body");
+		(app.vault.adapter.exists as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+		(app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockReturnValue(null);
+		(app.vault.create as ReturnType<typeof vi.fn>).mockResolvedValue(newFile);
+		(app.vault as unknown as { createFolder: unknown }).createFolder = vi.fn(async () => {});
+		formatContentOnlyMock.mockResolvedValue("typed");
+		// The with-file pass finds the user typed {{CURSOR}} literally: nothing to place.
+		insertFormattedContentMock.mockResolvedValue({ content: "template body", captureContent: "", cursor: { kind: "none" }, markerOnly: true } as never);
+		const engine = buildRunEngine(createCaptureChoice({
+			captureTo: "Daily/New.md",
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: false, template: "" },
+		}), app);
+
+		await engine.run();
+
+		expect(recordedOutcome(engine)).toEqual({
+			status: "success",
+			file: newFile,
+			effect: "created",
+			write: { path: "Daily/New.md", before: null, after: "template body" },
+		});
+	});
+
+	it("refuses a capture to {{NOTE}} when nothing in the run has written a note yet", async () => {
+		const captureFile = createTestFile("Daily/Test.md");
+		const app = createRunApp(captureFile, "existing body");
+		formatContentOnlyMock.mockResolvedValue("new line");
+		const choice = createCaptureChoice({ name: "Log" });
+		choice.captureTo = "{{NOTE}}";
+		const engine = buildRunEngine(choice, app);
+		noticeClass.instances.length = 0;
+		const logError = vi.spyOn(log, "logError");
+
+		await engine.run();
+
+		// A refusal, not an error: one sentence naming the choice, the same for a CLI or
+		// URI caller as for the user, with no error report around it.
+		expect(recordedOutcome(engine)).toEqual({ status: "error", reason: "Log: nothing has written a note yet, so there is no {{NOTE}} to add to." });
+		expect(noticeClass.instances.map((notice) => notice.message))
+			.toEqual(["Log: nothing has written a note yet, so there is no {{NOTE}} to add to."]);
+		expect(logError).not.toHaveBeenCalled();
+		expect(insertFormattedContentMock).not.toHaveBeenCalled();
+		logError.mockRestore();
 	});
 
 	it("treats a whitespace-only payload as a no-op", async () => {
@@ -349,7 +468,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 
 		await engine.run();
 
-		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toMatchObject({ status: "success", effect: "unchanged" });
 	});
 
 	// Codex re-review: an empty payload on an editor-insertion action must NOT
@@ -374,7 +493,7 @@ describe("CaptureChoiceEngine empty-capture no-op notice", () => {
 		await engine.run();
 
 		expect(insertOnNewLineBelowMock).not.toHaveBeenCalled();
-		expect(noticeClass.instances[0]!.message).toMatch(/nothing to capture/i);
+		expect(recordedOutcome(engine)).toMatchObject({ status: "success", effect: "unchanged" });
 	});
 
 	it("still inserts into the editor on a non-empty newLine capture", async () => {

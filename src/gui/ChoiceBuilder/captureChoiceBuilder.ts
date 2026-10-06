@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { CREATE_IF_NOT_FOUND_TOP } from "../../constants";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
+import type { Step } from "../../v3/model";
 import type ICaptureChoice from "../../types/choices/ICaptureChoice";
 import { normalizeFileOpening } from "../../utils/fileOpeningDefaults";
 import { isCanvasTargetPath } from "./canvasNodes";
@@ -14,8 +15,9 @@ export class CaptureChoiceBuilder extends ChoiceBuilder<ICaptureChoice> {
 		choice: ICaptureChoice,
 		plugin: QuickAdd,
 		onSave: (choice: IChoice) => void,
+		onAddStep?: (step: Step) => void,
 	) {
-		super(app, choice, plugin, onSave, CaptureChoiceForm, "this capture choice's settings");
+		super(app, choice, plugin, onSave, CaptureChoiceForm, "this capture choice's settings", onAddStep);
 		this.containerEl.addClass("captureChoiceBuilder");
 		this.normalizeChoice();
 	}

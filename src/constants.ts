@@ -106,7 +106,8 @@ export const MARKDOWN_FILE_EXTENSION_REGEX = new RegExp(/\.md$/i);
 export const CANVAS_FILE_EXTENSION_REGEX = new RegExp(/\.canvas$/i);
 export const BASE_FILE_EXTENSION_REGEX = new RegExp(/\.base$/i);
 export const JAVASCRIPT_FILE_EXTENSION_REGEX = new RegExp(/\.js$/i);
-export const MACRO_REGEX = new RegExp(/{{MACRO:([^\n\r}]*)}}/i);
+// {{ACTION:name}} runs any choice; {{MACRO:name}} is its older name and stays.
+export const MACRO_REGEX = new RegExp(/{{(?:MACRO|ACTION):([^\n\r}]*)}}/i);
 export const TEMPLATE_REGEX = new RegExp(
 	/{{TEMPLATE:([^\n\r}]*\.(?:md|canvas|base))}}/i,
 );
@@ -186,6 +187,9 @@ export const TEMPLATE_SYNTAX_SUGGEST_REGEX = new RegExp(
 export const MACRO_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[M]?[A]?[C]?[R]?[O]?[:]?$|{{MACRO:[^\n\r}]*}}$/i,
 );
+export const ACTION_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[A]?[C]?[T]?[I]?[O]?[N]?[:]?$|{{ACTION:[^\n\r}]*}}$/i,
+);
 export const MATH_VALUE_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[M]?[V]?[A]?[L]?[U]?[E]?[}]?[}]?/i,
 );
@@ -201,6 +205,9 @@ export const SELECTED_SYNTAX_SUGGEST_REGEX = new RegExp(
 );
 export const CLIPBOARD_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[C]?[L]?[I]?[P]?[B]?[O]?[A]?[R]?[D]?[}]?[}]?$/i,
+);
+export const NOTE_SYNTAX_SUGGEST_REGEX = new RegExp(
+	/{{[N]?[O]?[T]?[E]?[}]?[}]?$|{{NOTE\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,
 );
 export const DAILY_SYNTAX_SUGGEST_REGEX = new RegExp(
 	/{{[D]?[A]?[I]?[L]?[Y]?[}]?[}]?$|{{DAILY\|[l]?[i]?[n]?[k]?[}]?[}]?$/i,

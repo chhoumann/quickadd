@@ -21,7 +21,7 @@ describe("FileOpeningSetting", () => {
 			props: { fileOpening: base({ location: "tab" }), contextLabel: "captured" },
 		});
 		expect(settingNames(container)).not.toContain("Split direction");
-		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("Opening location");
 		expect(settingNames(container)).toContain("View mode");
 	});
 
@@ -53,7 +53,7 @@ describe("FileOpeningSetting", () => {
 				contextLabel: "created",
 			},
 		});
-		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("Opening location");
 		expect(settingNames(container)).toContain("View mode");
 		// default location is "tab" -> not reuse -> Focus row present; not split.
 		expect(settingNames(container)).toContain("Focus new pane");

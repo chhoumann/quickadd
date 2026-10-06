@@ -140,7 +140,7 @@ function validateCaptureTo(value: string) {
 </script>
 
 <SettingItem
-	name="Capture to active file"
+	name="Capture to active note"
 	desc="Capture into whichever note is open when the choice runs, instead of a fixed target."
 >
 	{#snippet control()}
@@ -153,8 +153,8 @@ function validateCaptureTo(value: string) {
 
 {#if !choice.captureToActiveFile}
 	<LabeledField
-		name="Capture to"
-		desc={"Vault-relative path to a file or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
+		name="Where"
+		desc={"Vault-relative path to a note or folder, a #tag, or property:field=value. Supports format syntax like {{DATE}}; end with '/' to capture into a folder."}
 	>
 		{#snippet control()}
 			{#if (choice.captureTo ?? "").trim() !== DAILY_NOTE_TARGET}

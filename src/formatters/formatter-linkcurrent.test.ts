@@ -30,7 +30,7 @@ describe("Formatter link to current file behavior", () => {
     const formatter = new StubFormatter();
     formatter.setLink(null);
     await expect(formatter.process("{{LINKCURRENT}}"))
-      .rejects.toThrow("Unable to get current file path");
+      .rejects.toThrow("No note is open, so {{LINKCURRENT}} has nothing to link to.");
   });
 
   it("silently strips placeholder when optional and no active file", async () => {

@@ -7,7 +7,7 @@ package: daily-note-captures
 
 This cookbook gives you one QuickAdd choice that adds text to today's daily note - even when the note or the target heading doesn't exist yet.
 
-Every recipe starts from the same base Capture choice; you only change the **Capture format** and the target heading.
+Every recipe starts from the same base Capture choice; you only change the **What** and the target heading.
 
 ## Base setup
 
@@ -15,16 +15,16 @@ The package above needs QuickAdd 2.30.0 or later. On an earlier version, the pac
 
 Imported the package above? Follow **After importing** in the card, then skip the base setup below. [Recipes](#recipes) explains what each imported capture does and how to add more.
 
-1. In **Settings → QuickAdd**, click **New choice** → **Capture**. The Capture builder opens as a page of the settings window; set **Name** to `Daily entry`. (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top to rename it.)
-2. Disable **Capture to active file**.
-3. Click **Daily note** next to **Capture to** (QuickAdd 2.30.0 or later). It fills in `{{DAILY}}`, which uses the folder, date format, and template from Obsidian's **Daily notes** settings, or from Periodic Notes when it manages your daily notes. On earlier versions, type your daily-note path and date pattern instead, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
-4. Make sure **Create file if it doesn't exist** is on. The **Daily note** button turns it on. On earlier versions, turn it on yourself; to start a new note from your daily-note template, also turn on **Create file with a template** and pick the template.
-5. Set **Write position** to **After line...**.
+1. In **Settings → QuickAdd**, click **New choice** → **Log with a timestamp**. The Capture builder opens as a page of the settings window; set **Name** to `Daily entry`. The preset already does steps 2 to 8 below, with `## Log` as the heading, so check them and change the heading to your own. (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top to rename it.)
+2. Disable **Capture to active note**.
+3. Click **Daily note** next to **Where** (QuickAdd 2.30.0 or later). It fills in `{{DAILY}}`, which uses the folder, date format, and template from Obsidian's **Daily notes** settings, or from Periodic Notes when it manages your daily notes. On earlier versions, type your daily-note path and date pattern instead, for example `Daily/{{DATE:YYYY-MM-DD}}.md`.
+4. Make sure **Create note if it doesn't exist** is on. The **Daily note** button turns it on. On earlier versions, turn it on yourself; to start a new note from your daily-note template, also turn on **Create note with a template** and pick the template.
+5. Set **Position** to **After line...**.
 6. In the **Insert after** field, enter the heading you want entries placed under, for example `## Journal`.
 7. Make sure **Insert at end of section** is on, so each capture appends at the bottom of the section.
 8. Make sure **Create line if not found** is on, and set its placement to **Bottom**, so a note that lacks the heading gets it at the end instead of above its title. A new Capture starts with **Insert at end of section** and **Create line if not found** on in QuickAdd 2.30.0 or later; on earlier versions, turn them on.
-9. Leave **Link to captured file** disabled.
-10. Fill in **Capture format** with one of the recipes below.
+9. Leave **Link to captured note** disabled.
+10. Fill in **What** with one of the recipes below.
 
 ## Recipes
 
@@ -106,7 +106,7 @@ Same format as the callout recipe but targeting a regular heading. Produces a bl
 
 ### Table row
 
-Use this when the daily note already has a table under a heading and the table is the last block in that section. Keep **Write position** as **After line...**, set **Insert after** to the heading above the table, and keep **Insert at end of section** enabled. If more content follows the table in the same section, target the table separator row instead.
+Use this when the daily note already has a table under a heading and the table is the last block in that section. Keep **Position** as **After line...**, set **Insert after** to the heading above the table, and keep **Insert at end of section** enabled. If more content follows the table in the same section, target the table separator row instead.
 
 **Capture format:**
 
@@ -126,9 +126,9 @@ This keeps the row attached to the table:
 
 ### Tomorrow's daily note
 
-With **Capture to** set to `{{DAILY}}`, set **Which day** to **Custom…**, one day forward. `{{DAILY}}` follows [Which day](/docs/Choices/TemplateChoice/#date-origin), so the capture targets tomorrow's note and creates it from your daily notes template.
+With **Where** set to `{{DAILY}}`, set **Which day** to **Custom…**, one day forward. `{{DAILY}}` follows [Which day](/docs/Choices/TemplateChoice/#date-origin), so the capture targets tomorrow's note and creates it from your daily notes template.
 
-With a typed path, change **Capture to** to:
+With a typed path, change **Where** to:
 
 ```
 Daily/{{DATE:YYYY-MM-DD+1}}.md
@@ -148,4 +148,4 @@ Turn on **Create line if not found** with placement **Bottom** (or **Top**). Qui
 Use **Before line...** instead of **After line...** and target the placeholder, such as `<!-- quickadd:notes -->`. See [Insert before](/docs/Choices/CaptureChoice/#insert-before) for the full setting.
 
 **Capture writes to the wrong file.**
-Use `{{DAILY}}` in **Capture to**, which reads the path from your Daily notes settings. With a typed path, the date pattern must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.
+Use `{{DAILY}}` in **Where**, which reads the path from your Daily notes settings. With a typed path, the date pattern must match your vault's daily-note naming exactly. If your notes are named `2025.01.15.md` inside `Journal/`, use `Journal/{{DATE:YYYY.MM.DD}}.md`.

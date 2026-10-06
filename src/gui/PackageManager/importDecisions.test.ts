@@ -4,7 +4,10 @@ import type { App } from "obsidian";
 import {
 	ExistenceResolver,
 	applyExistsResult,
+	countChoiceOverwrites,
+	countFileOverwrites,
 	defaultAssetDecision,
+	fileGroup,
 	effectiveChoiceMode,
 	initAssetDecisions,
 	reconcileMode,
@@ -30,6 +33,43 @@ describe("reconcileMode", () => {
 	it("keeps skip sticky regardless of existence", () => {
 		expect(reconcileMode("skip", true)).toBe("skip");
 		expect(reconcileMode("skip", false)).toBe("skip");
+	});
+
+	it("keeps a file already there when asked to, and writes where there is none", () => {
+		const conflict = { originalPath: "Templates/Meeting.md", exists: true } as AssetConflict;
+		const kept = defaultAssetDecision(conflict, () => "Templates/Meeting.md", () => true, { keepExisting: true });
+		expect(kept.mode).toBe("skip");
+		const fresh = defaultAssetDecision({ ...conflict, exists: false }, () => "Templates/New.md", () => false, { keepExisting: true });
+		expect(fresh.mode).toBe("write");
+	});
+
+	it("writes a relocated file whose destination is empty, even when the package's own path is taken", () => {
+		const conflict = { originalPath: "Templates/Meeting.md", exists: true } as AssetConflict;
+		const relocated = defaultAssetDecision(conflict, () => "My Templates/Meeting.md", () => false, { keepExisting: true });
+		expect(relocated.mode).toBe("write");
+	});
+
+	it("turns a write picked for a file that is there into an overwrite", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "skip", destinationPath: "T.md", destinationExists: true }],
+		]);
+		expect(setAssetMode(decisions, "T.md", "write", () => true).get("T.md")?.mode).toBe("overwrite");
+	});
+
+	it("keeps a file that turns out to be there when asked to", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "write", destinationPath: "Templates/T.md", destinationExists: false }],
+		]);
+		expect(applyExistsResult(decisions, "T.md", true, { keepExisting: true }).get("T.md")?.mode).toBe("skip");
+		expect(applyExistsResult(decisions, "T.md", true).get("T.md")?.mode).toBe("overwrite");
+	});
+
+	it("keeps a file at a destination typed in, when asked to", () => {
+		const decisions: AssetDecisions = new Map([
+			["T.md", { mode: "write", destinationPath: "T.md", destinationExists: false }],
+		]);
+		const edited = setAssetPath(decisions, "T.md", "Templates/Mine.md", (path) => path === "Templates/Mine.md", { keepExisting: true });
+		expect(edited.decisions.get("T.md")?.mode).toBe("skip");
 	});
 
 	it("flips write -> overwrite when the destination exists", () => {
@@ -294,5 +334,40 @@ describe("ExistenceResolver — a folder is not an existing file (#1865)", () =>
 		resolver.schedule("k", "Scripts", (exists) => (result = exists));
 		await flush();
 		expect(result).toBe(false);
+	});
+});
+
+describe("the review's file groups", () => {
+	it("lists a file by whether it was in the vault and what the reader decided", () => {
+		expect(fileGroup(false, "write")).toBe("added");
+		expect(fileGroup(false, "skip")).toBe("kept");
+		expect(fileGroup(true, "overwrite")).toBe("overwrite");
+		expect(fileGroup(true, "skip")).toBe("kept");
+	});
+
+	it("counts only the choices the import replaces", () => {
+		const conflicts = [
+			{ choiceId: "a", exists: true },
+			{ choiceId: "b", exists: true },
+			{ choiceId: "c", exists: false },
+			{ choiceId: "d", exists: true },
+		] as unknown as Parameters<typeof countChoiceOverwrites>[0];
+		const decisions = new Map([
+			["a", "overwrite"],
+			["b", "skip"],
+			["c", "overwrite"],
+			["d", "duplicate"],
+		] as const);
+
+		expect(countChoiceOverwrites(conflicts, decisions)).toBe(1);
+		expect(countChoiceOverwrites(conflicts, new Map([["a", "skip"]]))).toBe(0);
+	});
+
+	it("counts only the files the import writes over", () => {
+		expect(countFileOverwrites([
+			{ mode: "overwrite", destinationPath: "a.md", destinationExists: true },
+			{ mode: "skip", destinationPath: "b.md", destinationExists: true },
+			{ mode: "write", destinationPath: "c.md", destinationExists: false },
+		])).toBe(1);
 	});
 });

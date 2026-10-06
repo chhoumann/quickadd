@@ -3,10 +3,14 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import { settingsStore } from "../settingsStore";
 import { log } from "../logger/logManager";
+import { RefusalError } from "../errors/RefusalError";
+import { reportRefusal } from "./errorUtils";
 
 const reportedAborts = new WeakSet<MacroAbortError>();
 
 interface MacroAbortHandlerOptions {
+	/** The choice whose run stopped; a refusal names it. */
+	choiceName: string;
 	logPrefix: string;
 	noticePrefix?: string;
 	defaultReason: string;
@@ -23,9 +27,13 @@ interface MacroAbortHandlerOptions {
  */
 export function handleMacroAbort(
 	error: unknown,
-	{ logPrefix, noticePrefix = logPrefix, defaultReason }: MacroAbortHandlerOptions
+	{ choiceName, logPrefix, noticePrefix = logPrefix, defaultReason }: MacroAbortHandlerOptions
 ): error is MacroAbortError {
 	if (!(error instanceof MacroAbortError)) return false;
+	if (error instanceof RefusalError) {
+		reportRefusal(error, choiceName);
+		return true;
+	}
 	// The innermost run reports an abort. The same error then stops each
 	// enclosing run (a conditional branch's macro, the macro around a Capture
 	// or Template step), which must not report it again.

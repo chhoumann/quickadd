@@ -6,6 +6,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { useLoadedStepIds, withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("template-discovery-actions");
 const WAIT_OPTS = { timeoutMs: 10_000, intervalMs: 200 };
@@ -30,7 +31,7 @@ beforeEach(closeOpenPrompts);
 afterEach(closeOpenPrompts);
 
 function formField(id: string) {
-	return `.onePageInputModal [aria-labelledby=${JSON.stringify(`qa-onepage-label-${id}`)}]`;
+	return `.onePageInputModal [aria-labelledby=${JSON.stringify(`qa-onepage-label-${encodeURIComponent(id)}`)}]`;
 }
 
 async function seedTemplate(name: string, options: {
@@ -62,10 +63,10 @@ async function seedTemplate(name: string, options: {
 
 async function runChoice(choice: IChoice, onePage: boolean) {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = onePage;
 		data.choices.push(choice);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 }
@@ -155,10 +156,10 @@ describe("Template actions for discovered existing notes", () => {
 		const workflow = await seedTemplate("dynamic-source", { action: "appendBottom" });
 		workflow.template.templatePath = "{{VALUE:source}}";
 		const { plugin } = getContext();
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = false;
 			data.choices.push(workflow.template);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		const completed = workflow.obsidian.execJson("quickadd:run", {
 			id: workflow.template.id, ui: true, verify: true,
@@ -289,6 +290,7 @@ describe("Template actions for discovered existing notes", () => {
 		macro.command = true;
 		macro.macro.commands = [new NestedChoiceCommand(workflow.template), captureCommand];
 		await runChoice(macro, true);
+		await useLoadedStepIds(workflow.obsidian, macro);
 		await chooseExisting(workflow, true);
 		await waitForElement(workflow.obsidian, formField("owner"));
 		expect(await workflow.obsidian.dev.evalJson<boolean>(

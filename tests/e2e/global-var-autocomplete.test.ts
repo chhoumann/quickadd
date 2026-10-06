@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { insertText, POLL_OPTS, pressKey } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("global-var-autocomplete");
 
@@ -38,13 +39,13 @@ it("keeps offering defined global variables after the colon in a choice format f
 	// the name alone to find this run's choice.
 	choice.name = `Global var autocomplete ${choice.id}`;
 	choice.format = { enabled: true, format: "" };
-	await plugin.data<{ choices: IChoice[]; globalVariables: Record<string, string> }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; globalVariables: Record<string, string> }>().patch(withStoredChoices((data) => {
 		data.choices.push(choice);
 		data.globalVariables = {
 			Signature: "Logged by QuickAdd",
 			MyProjects: "{{VALUE:Inbox,Work}}",
 		};
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);

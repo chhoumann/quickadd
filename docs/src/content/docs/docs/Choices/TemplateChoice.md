@@ -16,7 +16,7 @@ templates come from the Templater plugin, see
 [Coming from Templater](/docs/ComingFromTemplater/) for the QuickAdd-native way
 to do each familiar job.
 
-![The QuickAdd Template builder page, showing the Name field and the Template, Location, Linking, and Behavior sections](../Images/choices/template-builder.png)
+![The QuickAdd Template builder page: the Name field, the line that says what the choice does, the Template, Folder, and File name fields, Inputs, Steps, and More settings](../Images/choices/template-builder.png)
 
 ## Set up your first template choice {#set-up}
 
@@ -32,16 +32,17 @@ to do each familiar job.
    Started {{DATE}}
    ```
 
-2. Open **Settings → QuickAdd** and choose **New choice → Template**.
+2. Open **Settings → QuickAdd** and choose **New choice → New note from a
+   template**.
 3. The choice's settings open as a page of the settings window. Set **Name**
    to `New book note`. (Before QuickAdd 2.30.0, they open in a dialog; click
    the name at the top to rename it.)
-4. Set **Template path** to `Templates/Book.md`.
-5. In **File name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
-6. Set **New note location** to **In a specific folder**. Enter `Books` in
-   **Folder path** and click **Add**.
-7. Turn **Open** on. Set **File opening location** to **Reuse current tab**
-   and **View mode** to **Live Preview**.
+4. Set **Template** to `Templates/Book.md`. (In earlier versions, this is
+   **Template path**.)
+5. In **Note name**, enter `{{VALUE:title}}`. (Before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first.)
+6. In **Folder**, enter `Books`.
+7. Click **More settings**. Turn **Open** on. Set **Opening location** to
+   **Reuse current tab** and **View mode** to **Live Preview**.
 8. Close Settings. Leaving the page saves it. (Before QuickAdd 2.30.0, choose
    **Done** first.)
 9. Run **QuickAdd: Run** from the command palette and pick `New book note`.
@@ -94,15 +95,53 @@ Template choice (below) when you need a fixed location, file-name format,
 linking, or a hotkey.
 :::
 
-The builder groups a Template choice's settings into four sections:
-**Template** (template path and file name format), **Location** (where the file
-is created), **Linking** (whether and how to link to the created file), and
-**Behavior** (what happens when the file already exists, and how the file is
-opened).
+## The builder page {#builder}
 
-## Point to the template file: Template path {#mandatory}
+The page starts with one line that says what the choice does, for example
+*Creates Books/{title} from Book, opens it*. It changes as you change the
+settings below it.
 
-**Template path** is the one required setting: the path to the template you want
+Under it are the settings most template choices need:
+
+- **Template** - the template file the note is made from.
+- **Folder** - the folder the note is created in. Leave it empty to use
+  Obsidian's "Default location for new notes".
+- **Note name** - the new note's name. Leave it empty to ask for the title.
+
+When the template file uses Templater (it holds a `<%` tag), a line under
+**Template** says *Templater runs after the note is created*, the opening line
+ends with *runs Templater*, and Templater's own prompts are listed in
+[Inputs](#inputs). If Templater isn't installed, the line says so instead. See
+[Using Templater with QuickAdd 3](/docs/ComingFromTemplater/#templater-in-quickadd-3).
+
+Then come [Inputs](#inputs) and [Steps](#steps). Everything else is behind
+**More settings** at the bottom: the other places a note can go, what happens
+when the note already exists, searching existing notes first, linking,
+opening the note, which day `{{DATE}}` is about, the command palette, the
+ribbon, and the icon. **More settings** opens by itself when one of those is
+changed from what a new choice has, so a choice you set up shows what you set.
+Once you open it, it stays open for that choice until Obsidian restarts.
+
+### Make a template from the builder: New template… {#new-template}
+
+When there are no template files yet, or **Template** is empty, **New
+template…** shows next to it. It asks for a name and creates a Markdown file
+with that name in your first [template folder](/docs/Settings/#template-folders),
+in the folder of Obsidian's Templates core plugin when you have none, or else
+in `Templates`. The new template starts with a heading the note's title fills
+in:
+
+```markdown title="Templates/Meeting.md"
+# {{VALUE:Title}}
+```
+
+QuickAdd puts its path in **Template** and opens it in a new tab behind
+Settings, ready to write once you close them. If a file with that name already
+exists, QuickAdd leaves it alone and creates nothing.
+
+## Point to the template file: Template {#mandatory}
+
+**Template** is the one required setting: the path to the template you want
 to insert. Paths are vault-relative; a leading `/` is ignored.
 
 ```text title="Template path"
@@ -112,7 +151,7 @@ Templates/Book.md
 QuickAdd supports markdown (`.md`), canvas (`.canvas`), and base (`.base`)
 templates. The created file uses the same extension as the template. If you want
 a new markdown note to include a live embedded Base dashboard, see
-[Template: Create an MOC Note with a Link Dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
+[Template: Create an MOC note with a link dashboard](/docs/Examples/Template_CreateMOCNoteWithLinkDashboard/).
 
 ### Use a dynamic template path {#dynamic-template-path}
 
@@ -152,7 +191,7 @@ up-front form.
 
 ## Name the new note: File name {#optional}
 
-**File name** sets a format for the created file's name, using
+**Note name** sets a format for the created file's name, using
 [format syntax](/docs/FormatSyntax/) - so file names can be dynamic too.
 
 ```text title="You configure"
@@ -163,7 +202,7 @@ up-front form.
 £ 2021-06-12 Manually-Written-File-Name
 ```
 
-`{{NAME}}` is a value you enter when invoking the template. Leave **File name**
+`{{NAME}}` is a value you enter when invoking the template. Leave **Note name**
 empty and QuickAdd asks for the note title when you run the choice, the same as
 writing `{{VALUE}}`. Before QuickAdd 2.30.0, the field is **File name format**,
 with a toggle that hides it while off; off asks for the note title.
@@ -212,7 +251,7 @@ requires a Markdown template.
 The picker names the action beside each existing note, so an update is visible
 before you select it.
 
-The selected note keeps its path and name. QuickAdd skips **File name**,
+The selected note keeps its path and name. QuickAdd skips **Note name**,
 **New note location**, and the new-note collision setting. `{{TITLE}}` and the
 anonymous `{{VALUE}}` use the selected note's basename, and `{{FOLDER}}` uses its
 folder. The template's other inputs still appear, including in the
@@ -260,8 +299,9 @@ if you want the picker.
 
 ## Decide where the note is created: New note location {#new-note-location}
 
-**New note location** is a dropdown that controls where the note is created.
-Pick one of four modes:
+**Folder** covers the two common cases: a folder you type, or Obsidian's
+default location when it is empty. For anything else, use **New note
+location** under **More settings**, a dropdown with four modes:
 
 - **Obsidian default** - use Obsidian's "Default location for new notes" setting.
 - **In a specific folder** - create the note in the folder(s) you configure
@@ -271,7 +311,7 @@ Pick one of four modes:
   toggle (shown only in this mode) lets the suggester offer the selected folders
   *and* their subfolders. In QuickAdd 2.30.0 or later, a folder you typed but
   didn't **Add** is added when you close the builder; earlier versions drop it.
-- **Same folder as current file** - create the note next to the currently active
+- **Same folder as current note** - create the note next to the currently active
   file (falls back to the vault root if no file is open).
 - **Ask for folder each time** - prompt you to pick any folder in the vault each
   time the choice runs.
@@ -289,9 +329,9 @@ Projects/{{VALUE:client}}/{{DATE:YYYY}}
 This prompts for a client and creates the file under that client's folder for
 the current year.
 
-## Link to the new note: Link to created file {#link-to-created-file}
+## Link to the new note: Link to created note {#link-to-created-file}
 
-**Link to created file** controls whether QuickAdd inserts a link to the note it
+**Link to created note** controls whether QuickAdd inserts a link to the note it
 just created - handy for leaving a trail in the note you were in. Three modes:
 
 - **Enabled (strict)** - require the configured link destination to be available
@@ -377,7 +417,7 @@ links get `[Meeting with Mark](20240101%20Meeting%20with%20Mark.md)`.
 ### Copy a link to the clipboard {#copy-link-to-clipboard}
 
 **Copy link to clipboard** copies a link to the created file after the Template
-choice runs. This works separately from **Link to created file**, so you can copy
+choice runs. This works separately from **Link to created note**, so you can copy
 the link without inserting it into the current note, or do both. The copied link
 is a vault-path wikilink, ready to paste into another note.
 
@@ -386,7 +426,7 @@ is a vault-path wikilink, ready to paste into another note.
 **Open** opens the created file. When enabled, additional file-opening controls
 appear (these are shared with the Capture choice):
 
-- **File opening location** - where to open the file: **Reuse current tab**,
+- **Opening location** - where to open the file: **Reuse current tab**,
   **New tab**, **Split pane**, **New window**, **Left sidebar**, or **Right
   sidebar**.
 - **Split direction** - shown only when the location is **Split pane**. Arrange
@@ -416,9 +456,15 @@ more command that asks which day before it runs, so you can have one hotkey
 for today's note and another for any other day, from the same choice. Your
 main hotkey keeps using Which day.
 
+## Put it in the ribbon: Show in ribbon {#show-in-ribbon}
+
+**Show in ribbon** adds an icon to Obsidian's ribbon that runs the template
+choice. The icon and its tooltip are the choice's icon and name. The setting
+saves as soon as you flip it. A choice nested inside a macro doesn't have it. To put a button that runs it in a note instead, see [Buttons in notes](/docs/Choices/NoteButtons/).
+
 ## When the note already exists {#file-already-exists-behavior}
 
-**If the target file already exists** decides what QuickAdd does when a note with
+**If the note already exists** decides what QuickAdd does when a note with
 the target name is already there. The setting works in two steps: first pick a
 high-level behavior, then a follow-up field appears for the two behaviors that
 need a detail.
@@ -427,10 +473,10 @@ With **Search existing notes before creating** enabled, this setting is called
 **If a new note's path already exists**. It applies to new-note creation.
 [Selecting an existing match](#search-existing) has its own action.
 
-- **If the target file already exists** - choose **Ask every time**, **Update
-  existing file**, **Create another file**, or **Keep existing file**.
-- **Update action** - shown only when you choose **Update existing file**.
-- **New file naming** - shown only when you choose **Create another file**.
+- **If the note already exists** - choose **Ask every time**, **Update
+  existing note**, **Create another note**, or **Keep existing note**.
+- **Update action** - shown only when you choose **Update existing note**.
+- **New note naming** - shown only when you choose **Create another note**.
 
 ### Let QuickAdd ask each time {#ask-every-time}
 
@@ -439,7 +485,7 @@ already exists:
 
 - **Append to bottom**
 - **Append to top**
-- **Overwrite file**
+- **Overwrite note**
 - **Increment trailing number**
 - **Append duplicate suffix**
 - **Do nothing**
@@ -453,7 +499,7 @@ These options modify the existing markdown, canvas, or base file:
   the note ends. An empty note gets the template with no blank line above it.
 - **Append to top** - adds the template content to the beginning of the existing
   file.
-- **Overwrite file** - replaces the existing file content with the template.
+- **Overwrite note** - replaces the existing file content with the template.
 
 :::note
 For markdown files, **Append to bottom** and **Append to top** handle template
@@ -479,8 +525,64 @@ These options keep the existing file untouched and create a new file instead:
 
 ### Keep the existing note {#keep-existing-file}
 
-Selecting **Keep existing file** applies the same result as choosing **Do
+Selecting **Keep existing note** applies the same result as choosing **Do
 nothing** from the prompt:
 
 - **Do nothing** - leaves the existing file unchanged and opens it
   automatically. This does not require the separate **Open** setting.
+
+## See what it asks for: Inputs {#inputs}
+
+The **Inputs** group, above **Steps**, lists what the template choice asks for
+when it runs, in the order it first appears: in the file name, then in the
+folders, then in the template file. Each row shows the input's name, its kind
+(*value*, *date*, *field*, *file*, or *math*), and where it is defined. With no
+file name format, QuickAdd asks for the note's title, which is listed as the
+*value* defined in the file name.
+
+Two controls change how a value, date, or file input is asked for, without
+editing the placeholder:
+
+- **Label** - the title of its prompt, and of its field in the one-page form.
+  Leave it empty to keep the placeholder's own, shown greyed out in the field.
+- **Optional** - whether you can leave it empty. It starts as the placeholder
+  says, with `|optional` or without.
+
+Both save as soon as you change them. A run that is given the value up front,
+from the CLI or a URI, isn't affected. Rename the placeholder and the input
+asks as the placeholder says again.
+
+An input from the template file reads *Defined in* and the file's name. Click
+the name to open the file, and change the placeholder there.
+
+A Templater prompt in the template file, `tp.system.prompt("Guest")` or
+`tp.system.suggester(...)`, is listed after the file's own inputs and reads
+*Asked by Templater, in* and the file's name. It has no controls: Templater
+asks it when it runs, after QuickAdd's prompts, and it isn't part of the
+one-page form.
+
+A template choice nested inside a macro lists its inputs without the controls.
+
+## Do more afterwards: Add a step {#steps}
+
+The last group in the builder, **Steps**, lists what the template choice does,
+one line per step, for example *Creates {title}*, *Links it on a new line
+here*, and *Opens it*. The list follows the settings as you change them.
+
+**Add a step** adds something to do after the template choice:
+
+- **Run a script** - a script step with no file yet. Click **Choose file** on
+  it to pick the script.
+- **Open a note** - an **Open File** step. Set the note in its settings.
+- **Link it** - links the note on a new line in the current note.
+- **Run Templater** - runs Templater on the note.
+- **Wait** - a pause of 100 ms.
+
+Adding a step turns the choice into a [macro](/docs/Choices/MacroChoice/).
+QuickAdd saves the template choice, makes it the macro's first step, adds the
+new step after it, and opens the macro builder. The
+choice keeps its name, its command, and its hotkey. To change the template
+choice's settings later, use the gear on its step in the macro.
+
+A template choice that is already a step inside a macro lists its steps but has
+no **Add a step** button.

@@ -7,6 +7,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("property-capture-ui");
 const BODY = "\n# Project\n\nKeep the body unchanged.\n";
@@ -50,10 +51,10 @@ function choiceFor(name: string, path: string, property: string) {
 
 async function saveChoice(choice: IChoice, onePage = false) {
 	const { plugin } = getContext();
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.choices.push(choice);
 		data.onePageInputEnabled = onePage;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 }
 

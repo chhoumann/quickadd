@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { expectNoPrompt, jsLiteral, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // A cancelled run keeps the date a prompt submitted, stored as `@date:<ISO>`.
 // Reopened, the prompt must show that date, not the stored value (#1929).
@@ -29,10 +30,10 @@ it("reopens a date answered in a cancelled run as the date, and captures that da
 	capture.prepend = true;
 	capture.format = { enabled: true, format: "- {{VDATE:due,YYYY-MM-DD}} {{VALUE:what}}" };
 
-	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; persistInputPromptDrafts?: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [capture];
 		data.persistInputPromptDrafts = true;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	const run = () => obsidian.dev.evalJson(

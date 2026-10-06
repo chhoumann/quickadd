@@ -1,6 +1,9 @@
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../utils/templateFolderUtils", async (importOriginal) =>
+	(await import("../../tests/helpers/engines/everyTemplateExists")).everyTemplateExists(importOriginal));
+
 vi.mock("../quickAddSettingsTab", () => {
 	const defaultSettings = {
 		choices: [],
@@ -162,6 +165,7 @@ function createEngine() {
 		},
 		vault: {
 			getRoot: vi.fn(() => ({ path: "" })),
+			read: vi.fn(async () => ""),
 			adapter: {
 				exists: vi.fn(async () => false),
 			},
@@ -242,11 +246,11 @@ describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
 		await engine.run();
 
 		// Success is still recorded for the created note.
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: createdFile,
 			effect: "created",
-		});
+		}));
 		// The link failure surfaces as a warning that names the created file, not
 		// a fatal "Error running template choice".
 		expect(
@@ -264,10 +268,35 @@ describe("TemplateChoiceEngine post-commit link failure (audit)", () => {
 	});
 });
 
+describe("TemplateChoiceEngine Undo snapshot after its link (audit)", () => {
+	it("records, as what the run left, the note after its link went into it as well", async () => {
+		const { engine, choiceExecutor, app } = createEngine();
+		const createdFile = makeTFile("Test Template.md");
+		vi.mocked(app.vault.read).mockImplementation(async (file) => file === createdFile ? "# Plan\n" : "");
+		vi.mocked(app.workspace.getActiveFile).mockReturnValue(createdFile);
+		engine.choice.openFile = false;
+		engine.choice.appendLink = {
+			enabled: true, placement: "newLine", requireActiveFile: false, linkType: "link", destination: { type: "activeFile" },
+		};
+		(engine as unknown as { createFileWithTemplate: () => Promise<TFile | null> }).createFileWithTemplate =
+			vi.fn().mockResolvedValue(createdFile);
+		insertFileLinkToActiveViewMock.mockImplementationOnce(async () => {
+			vi.mocked(app.vault.read).mockImplementation(async (file) => file === createdFile ? "# Plan\n[[Test Template]]\n" : "");
+		});
+
+		await engine.run();
+
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
+			write: { path: "Test Template.md", before: null, after: "# Plan\n[[Test Template]]\n" },
+		}));
+	});
+});
+
 describe("TemplateChoiceEngine create-another collision feedback (audit)", () => {
-	it("notices the renamed file when a create-another collision occurs and the file is not opened", async () => {
-		const { engine, app } = createEngine();
+	it("reports the renamed file, and what it holds for Undo, when a create-another collision occurs", async () => {
+		const { engine, app, choiceExecutor } = createEngine();
 		const createdFile = makeTFile("Plan (1).md");
+		vi.mocked(app.vault.read).mockImplementation(async (file) => file === createdFile ? "# Plan\n" : "");
 
 		engine.choice.openFile = false;
 		engine.choice.fileExistsBehavior = {
@@ -297,11 +326,12 @@ describe("TemplateChoiceEngine create-another collision feedback (audit)", () =>
 			"Plan (1).md",
 			engine.choice.templatePath,
 		);
-		expect(
-			noticeClass.instances.some((instance) =>
-				instance.message.includes("Created 'Plan (1)'"),
-			),
-		).toBe(true);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+			status: "success",
+			file: createdFile,
+			effect: "created",
+			write: { path: "Plan (1).md", before: null, after: "# Plan\n" },
+		});
 	});
 
 	// issue #1546: the prompt context line must never promise a folder the answer

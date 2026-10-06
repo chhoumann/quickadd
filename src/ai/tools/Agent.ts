@@ -50,6 +50,7 @@ import type {
 	PublicToolCall,
 	PublicToolResult,
 } from "./aiToolTypes";
+import { onlineFeaturesOffRefusal } from "../aiRefusals";
 
 const TOOL_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/;
 const DEFAULT_MAX_STEPS = 20;
@@ -152,9 +153,7 @@ export class Agent {
 		this.approveAllThisRun = false;
 		const pluginSettings = settingsStore.getState();
 		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error(
-				"Rejecting AI request: Online features are disabled in settings.",
-			);
+			throw onlineFeaturesOffRefusal();
 		}
 
 		const { model, provider: modelProvider } = resolveModelInputOrThrow(

@@ -78,7 +78,8 @@ describe("getPeriodicNoteSettings", () => {
 	});
 
 	it("stops when nothing manages daily notes, or Periodic Notes 1.0 might", () => {
-		expect(() => getPeriodicNoteSettings(appWith({ dailyNotes: { enabled: false } }), "daily")).toThrow(/Daily notes core plugin/);
+		expect(() => getPeriodicNoteSettings(appWith({ dailyNotes: { enabled: false } }), "daily"))
+			.toThrow("The Daily notes core plugin is off, so {{DAILY}} has no note to point at. Turn it on in Settings > Core plugins.");
 		expect(() => getPeriodicNoteSettings(undefined, "daily")).toThrow(/Daily notes core plugin/);
 		expect(() => getPeriodicNoteSettings(appWith({ dailyNotes: core({}), periodicNotes: { calendarSets: [] } }), "daily"))
 			.toThrow(/Periodic Notes 1\.0/);
@@ -93,8 +94,8 @@ describe("other periods", () => {
 		});
 
 		expect(getPeriodicNoteSettings(app, "weekly")).toEqual({ source: "periodic-notes", folder: "Weeks", format: "gggg-[W]ww", template: "" });
-		expect(() => getPeriodicNoteSettings(app, "monthly")).toThrow("{{MONTHLY}} needs the Periodic Notes plugin with monthly notes turned on.");
-		expect(() => getPeriodicNoteSettings(appWith({ dailyNotes: core({}) }), "yearly")).toThrow(/{{YEARLY}} needs the Periodic Notes plugin/);
+		expect(() => getPeriodicNoteSettings(app, "monthly")).toThrow("Periodic Notes has monthly notes off, so {{MONTHLY}} has no note to point at. Turn them on in Settings > Periodic Notes.");
+		expect(() => getPeriodicNoteSettings(appWith({ dailyNotes: core({}) }), "yearly")).toThrow("The Periodic Notes plugin is off, so {{YEARLY}} has no note to point at. Turn it on in Settings > Community plugins, with yearly notes on.");
 	});
 
 	it("names each note from the start of its period, like Periodic Notes", () => {
@@ -177,7 +178,7 @@ describe("readPeriodicNoteTemplate", () => {
 	it("reads the Daily notes template by vault path, adding .md", async () => {
 		const settings: PeriodicNoteSettings = { source: "daily-notes", folder: "", format: "YYYY-MM-DD", template: "Templates/Daily" };
 		await expect(readPeriodicNoteTemplate(appWith({ files }), settings, "daily")).resolves.toBe("core");
-		await expect(readPeriodicNoteTemplate(appWith({ files }), { ...settings, template: "Daily" }, "daily")).rejects.toThrow(/daily note template "Daily" doesn't exist\. Fix it in Settings → Daily notes/);
+		await expect(readPeriodicNoteTemplate(appWith({ files }), { ...settings, template: "Daily" }, "daily")).rejects.toThrow("The daily note template Daily does not exist, so no daily note was created. Pick one in Settings > Daily notes.");
 		await expect(readPeriodicNoteTemplate(appWith({ files }), { ...settings, template: "" }, "daily")).resolves.toBeNull();
 		await expect(readPeriodicNoteTemplate(appWith({ files }), { ...settings, template: "Templates/Daily.md" }, "daily")).resolves.toBe("core");
 		// A dot in the name is not an extension.

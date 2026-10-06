@@ -1,4 +1,5 @@
 import {
+	ACTION_SYNTAX_SUGGEST_REGEX,
 	CLIPBOARD_SYNTAX_SUGGEST_REGEX,
 	CURSOR_SYNTAX_SUGGEST_REGEX,
 	DAILY_SYNTAX_SUGGEST_REGEX,
@@ -16,6 +17,7 @@ import {
 	MATH_VALUE_SYNTAX_SUGGEST_REGEX,
 	MONTHLY_SYNTAX_SUGGEST_REGEX,
 	NAME_SYNTAX_SUGGEST_REGEX,
+	NOTE_SYNTAX_SUGGEST_REGEX,
 	PROPERTY_SYNTAX_SUGGEST_REGEX,
 	QUARTERLY_SYNTAX_SUGGEST_REGEX,
 	RANDOM_SYNTAX_SUGGEST_REGEX,
@@ -412,6 +414,18 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 		suggestion: token("{{FOLDER|name}}", "The name of the folder the new note lands in"),
 	},
 
+	// == The note this run wrote ==
+	{
+		regex: NOTE_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{NOTE}}", "The note this run last created or added to"),
+	},
+	{
+		regex: NOTE_SYNTAX_SUGGEST_REGEX,
+		contexts: ["noteContent", "propertyValue", "lineTarget"],
+		suggestion: token("{{NOTE|link}}", "A link to the note this run last created or added to"),
+	},
+
 	// == Other content ==
 	{
 		regex: CLIPBOARD_SYNTAX_SUGGEST_REGEX,
@@ -428,9 +442,14 @@ const FORMAT_TOKEN_ENTRIES: readonly FormatTokenEntry[] = [
 			),
 	},
 	{
+		regex: ACTION_SYNTAX_SUGGEST_REGEX,
+		contexts: ALL,
+		suggestion: token("{{ACTION:}}", "Runs another choice and inserts its result"),
+	},
+	{
 		regex: MACRO_SYNTAX_SUGGEST_REGEX,
 		contexts: ALL,
-		suggestion: token("{{MACRO:}}", "Whatever a macro returns"),
+		suggestion: token("{{MACRO:}}", "Runs another choice and inserts its result"),
 		expansions: ({ macroNames }) => [
 			...macroNames.map((name) => token(`{{MACRO:${name}}}`, `Runs your "${name}" macro`)),
 			token("{{MACRO:MyMacro|label:Label}}", "Word the macro's own prompt yourself"),

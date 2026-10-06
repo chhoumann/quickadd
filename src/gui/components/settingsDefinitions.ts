@@ -21,6 +21,7 @@ type SettingsRenderers = Record<
 	| "packages"
 	| "dateAliases"
 	| "globalVariables"
+	| "runLog"
 	| "developmentInfo",
 	(setting: Setting) => void | (() => void)
 >;
@@ -30,6 +31,7 @@ export function createSettingDefinitions(
 	isDevBuild: boolean,
 	aiAssistantPage?: SettingDefinitionPage<SettingsKey>,
 	templateFolders?: SettingDefinitionGroup<SettingsKey> | SettingDefinitionList<SettingsKey>,
+	v2Settings?: SettingDefinitionGroup<SettingsKey>,
 ): SettingDefinitionGroup<SettingsKey>[] {
 	const groups: SettingDefinitionGroup<SettingsKey>[] = [
 		{
@@ -60,6 +62,11 @@ export function createSettingDefinitions(
 					render: render.packages,
 				},
 			],
+		},
+		{
+			type: "group",
+			heading: "Run log",
+			items: [{ name: "Run log", render: render.runLog }],
 		},
 		{
 			type: "group",
@@ -104,7 +111,7 @@ export function createSettingDefinitions(
 				},
 				{
 					name: "Show capture notifications",
-					desc: "Display a notification when content is captured successfully to confirm the operation completed.",
+					desc: "After a choice writes to a note, say what it did and where, with Open and Undo.",
 					control: { type: "toggle", key: "showCaptureNotification" },
 				},
 			],
@@ -134,7 +141,7 @@ export function createSettingDefinitions(
 		},
 		{
 			type: "group",
-			items: [advancedPage(render)],
+			items: [advancedPage(render, v2Settings)],
 		},
 	];
 	if (isDevBuild) {
@@ -157,7 +164,10 @@ export function createSettingDefinitions(
  * Settings most vaults never change (#2017), kept one level down so the main
  * tab stays short. Settings search still finds them.
  */
-function advancedPage(render: SettingsRenderers): SettingDefinitionPage<SettingsKey> {
+function advancedPage(
+	render: SettingsRenderers,
+	v2Settings?: SettingDefinitionGroup<SettingsKey>,
+): SettingDefinitionPage<SettingsKey> {
 	return {
 		type: "page",
 		name: "Advanced",
@@ -266,6 +276,7 @@ function advancedPage(render: SettingsRenderers): SettingDefinitionPage<Settings
 					},
 				],
 			},
+			...(v2Settings ? [v2Settings] : []),
 		],
 	};
 }

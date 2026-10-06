@@ -26,7 +26,7 @@ it("runs a Capture imported with only the settings it sets", async () => {
 	// The import writes data.json through the plugin; a no-op patch snapshots it
 	// so the per-test restore removes the imported choice.
 	await plugin.data<{ choices: IChoice[] }>().patch(() => undefined);
-	// Left-out "Create file if it doesn't exist" defaults to off, as for a new
+	// Left-out "Create note if it doesn't exist" defaults to off, as for a new
 	// Capture, so the target has to exist.
 	const target = await seedVaultFile(obsidian, sandbox, "reading.md", "");
 	const packagePath = await seedVaultFile(obsidian, sandbox, "minimal.quickadd.json", JSON.stringify(packageOf({

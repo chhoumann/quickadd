@@ -240,12 +240,16 @@ describe("createFolderTemplateChoice + real preflight collector", () => {
 		expect(unresolved.some((r) => r.id === "value")).toBe(true);
 	});
 
-	it("negative control: disabling fileNameFormat hides the note-name requirement", async () => {
+	it("negative control: with fileNameFormat disabled, an editor selection fills the note name", async () => {
 		const executor = createExecutor();
 		const choice = createFolderTemplateChoice("Templates/Daily.md");
 		choice.fileNameFormat = { enabled: false, format: VALUE_SYNTAX };
+		const app = {
+			...collectorApp,
+			workspace: { getActiveViewOfType: () => ({ editor: { getSelection: () => "Selected" } }) },
+		} as unknown as App;
 		const reqs = await collectChoiceRequirements(
-			collectorApp,
+			app,
 			collectorPlugin,
 			executor,
 			choice,

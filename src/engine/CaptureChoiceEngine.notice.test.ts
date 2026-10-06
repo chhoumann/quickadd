@@ -262,12 +262,13 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 		);
 	});
 
-	it("shows a notice when the target file is missing and create is disabled", async () => {
-		settingsStore.setState({
-			...settingsStore.getState(),
-			showInputCancellationNotification: false,
-		});
-
+	it.each([
+		{
+			captureToActiveFile: false,
+			reason: "the note Daily/Test.md does not exist, so nothing was added. Turn on \"Create note if it doesn't exist\" on the choice's page.",
+		},
+		{ captureToActiveFile: true, reason: "no note is open, so there is nothing to add to." },
+	])("refuses a capture to a note that is not there (active: $captureToActiveFile)", async ({ captureToActiveFile, reason }) => {
 		const app = {
 			vault: {
 				adapter: {
@@ -292,21 +293,23 @@ describe("CaptureChoiceEngine cancellation notices", () => {
 			...createChoiceExecutor(),
 			execute: vi.fn(),
 			variables: new Map<string, unknown>(),
+			recordExecutionResult: vi.fn(),
+			signalAbort: vi.fn(),
 		};
 
 		const engine = new CaptureChoiceEngine(
 			app,
 			plugin,
-			createCaptureChoice(),
+			{ ...createCaptureChoice(), captureToActiveFile },
 			choiceExecutor,
 		);
 
 		await engine.run();
 
-		expect(noticeClass.instances).toHaveLength(1);
-		expect(noticeClass.instances[0]?.message).toContain(
-			"Capture execution aborted: Target file missing",
-		);
+		const sentence = `Test Capture Choice: ${reason}`;
+		expect(noticeClass.instances.map((notice) => notice.message)).toEqual([sentence]);
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({ status: "error", reason: sentence });
+		expect(vi.mocked(choiceExecutor.signalAbort!).mock.calls[0]?.[0]?.message).toBe(sentence);
 	});
 });
 
@@ -388,11 +391,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		await engine.run();
 
 		expect(disk.content).toBe("");
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
 		expect(appendFileLinkToDestinationFileMock).not.toHaveBeenCalled();
 	});
@@ -410,11 +413,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 
 		expect(disk.content).toBe("");
 		expect(copyFileLinkToClipboardMock).toHaveBeenCalledWith(captureFile);
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 	});
 
 	it("appends the captured file link to a specified destination without an active editor", async () => {
@@ -425,11 +428,11 @@ describe("CaptureChoiceEngine append-link destination", () => {
 		await engine.run();
 
 		expect(disk.content).toBe("");
-		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith({
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledWith(expect.objectContaining({
 			status: "success",
 			file: captureFile,
 			effect: "changed",
-		});
+		}));
 		expect(appendFileLinkToDestinationFileMock).toHaveBeenCalledWith(
 			app,
 			captureFile,

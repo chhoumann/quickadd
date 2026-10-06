@@ -8,10 +8,11 @@
 	import { CommandRegistry } from "../../services/choiceService";
 	import type IChoice from "../../types/choices/IChoice";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
-	import { DOCS_URLS } from "../../docs";
 	import AddChoiceControls from "./AddChoiceControls.svelte";
 	import ChoiceList from "./ChoiceList.svelte";
 	import ChoicesUnavailable from "./ChoicesUnavailable.svelte";
+	import FirstRun from "./FirstRun.svelte";
+	import { readVaultFacts } from "./firstRun";
 	import { type Plain } from "../svelte/persist.svelte";
 
 	import { createChoiceViewActions } from "./createChoiceViewActions";
@@ -106,26 +107,19 @@
 		`QuickAdd could not render the choice list: ${error instanceof Error ? error.message : String(error)}`,
 	)}>
 	{#if choices.length === 0 && filterQuery.trim().length === 0}
-		<!-- First-run / empty state: the hero is the single focal CTA (the top-bar
-		     add controls are not rendered here, so there's no duplicate). -->
+		<!-- First-run / empty state, also for a user who deleted everything: one
+		     question, and choices built from the answer and the vault. Create is
+		     its one call to action, so New choice is a plain button here (the
+		     bottom-bar add controls are not rendered, so there's no duplicate). -->
 		<div class="choiceEmptyState">
-			<ObsidianIcon iconId="folder-plus" size={28} />
-			<div class="choiceEmptyTitle">No choices yet</div>
-			<p class="choiceEmptyBody">
-				A choice is an action QuickAdd can run: create a note, capture
-				text, or run a macro. Group them with folders.
-				<!-- The one place a brand-new user is guaranteed to look, so it
-				     carries the plugin's only prominent docs link (#1541). -->
-				<a
-					class="quickadd-docs-link"
-					href={DOCS_URLS.gettingStarted}
-					target="_blank"
-					rel="noopener noreferrer">Learn more</a
-				>
-			</p>
-			<div class="choiceEmptyActions">
-				<AddChoiceControls onAddChoice={actions.onAddChoice} />
-			</div>
+			<FirstRun
+				facts={readVaultFacts(app, settingsStore.getState())}
+				onCreate={actions.onCreateFirstRun}
+				onAddChoice={actions.onAddChoice}
+				onAddFolder={actions.onAddFolder}
+				onBrowseRecipes={actions.onBrowseRecipes}
+				onImportPackage={actions.onImportPackage}
+			/>
 			{#if !disableOnlineFeatures}
 				<!-- The bottom bar (and its AI icon) only renders once choices exist,
 				     so without this a new user had no way into AI settings. -->
@@ -210,7 +204,13 @@
 					<ObsidianIcon iconId="sparkles" size={16} />
 				</button>
 			{/if}
-			<AddChoiceControls onAddChoice={actions.onAddChoice} fill={isMobile} />
+			<AddChoiceControls
+				onAddChoice={actions.onAddChoice}
+				onAddFolder={actions.onAddFolder}
+				onBrowseRecipes={actions.onBrowseRecipes}
+				onImportPackage={actions.onImportPackage}
+				fill={isMobile}
+			/>
 		</div>
 	{/if}
 	{#snippet failed(error)}
@@ -264,22 +264,8 @@
 		align-items: center;
 		text-align: center;
 		gap: 0.5rem;
-		padding: 2.5rem 1rem;
+		padding: 1.5rem 0;
 		color: var(--text-muted);
-	}
-
-	.choiceEmptyTitle {
-		font-weight: var(--font-semibold);
-		color: var(--text-normal);
-	}
-
-	.choiceEmptyBody {
-		margin: 0;
-		max-width: 42ch;
-	}
-
-	.choiceEmptyActions {
-		margin-top: 0.5rem;
 	}
 
 	.choiceFilterBar {

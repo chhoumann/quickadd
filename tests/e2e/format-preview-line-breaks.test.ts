@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { POLL_OPTS } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1877: the Capture format's Preview shows one line per line of the format.
 const getContext = createQuickAddE2EHarness("format-preview-line-breaks");
@@ -16,9 +17,9 @@ it("keeps the format's line breaks in the Capture format preview", async () => {
 	// the name alone to find this run's choice.
 	choice.name = `Format preview lines ${choice.id}`;
 	choice.format = { enabled: true, format: FORMAT };
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices.push(choice);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);

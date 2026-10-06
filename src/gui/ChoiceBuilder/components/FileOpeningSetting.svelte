@@ -53,8 +53,8 @@ const modeValue = $derived(
 </script>
 
 <SettingItem
-	name="File opening location"
-	desc={`Where to open the ${contextLabel} file`}
+	name="Opening location"
+	desc={`Where to open the ${contextLabel} note`}
 >
 	{#snippet control()}
 		<Dropdown
@@ -81,7 +81,7 @@ const modeValue = $derived(
 	</SettingItem>
 {/if}
 
-<SettingItem name="View mode" desc="How to display the opened file">
+<SettingItem name="View mode" desc="How to display the opened note">
 	{#snippet control()}
 		<Dropdown
 			value={modeValue}

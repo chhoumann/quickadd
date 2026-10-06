@@ -1,6 +1,6 @@
 import type { TFile } from "obsidian";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
-import type { ChoiceEffect } from "../types/ChoiceOutcome";
+import type { ChoiceEffect, NoteWrite } from "../types/ChoiceOutcome";
 
 /**
  * Records what a choice run actually did, for the callers that must report it back to
@@ -52,10 +52,17 @@ export class ChoiceOutcomeRecorder {
 	 * so a new one cannot inherit a positive "something landed" by omission. The four
 	 * existing sites split evenly — two of them (Template's "Do nothing" mode and its
 	 * open-an-existing-note discovery path) commit nothing at all.
+	 *
+	 * `write` is what the run wrote, for Undo. An `unchanged` run wrote nothing, so it
+	 * never carries one.
 	 */
-	success(file: TFile | undefined, effect: ChoiceEffect): void {
+	success(file: TFile | undefined, effect: ChoiceEffect, write?: NoteWrite): void {
 		this.closed = true;
-		this.executor.recordExecutionResult?.({ status: "success", file, effect });
+		this.executor.recordExecutionResult?.(
+			write && effect !== "unchanged"
+				? { status: "success", file, effect, write }
+				: { status: "success", file, effect },
+		);
 	}
 
 	/**

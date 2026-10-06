@@ -37,6 +37,10 @@ gives you something to trigger.
 - **Commands** - the individual steps (Obsidian commands, scripts, AI prompts, and more).
 - **Variables** - data that one command sets and a later command reads, all within a single run.
 
+A Capture or Template choice can grow into a macro: **Add a step** at the
+bottom of its settings turns it into a macro that runs it first. See [Do more
+afterwards](/docs/Choices/CaptureChoice/#steps) on the Capture page.
+
 ## Set up your first macro {#creating-a-macro}
 
 We'll build a tiny macro with no code: it opens today's daily note and drops
@@ -44,48 +48,69 @@ your cursor at the end, ready to type. Three commands, run as one.
 
 ### Step 1: Create the macro choice {#step-1-create-a-macro-choice}
 
-1. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro
-   Builder opens as a page of the settings window; set **Name** to
+1. In **Settings → QuickAdd**, click **New choice** → **Run a sequence of
+   steps**. The Macro Builder opens as a page of the settings window; set **Name** to
    `Open daily note`. To reopen the builder later, click the gear on the
    choice's row (on a phone, **⋮** → **Configure**). Going back saves it.
    (Before QuickAdd 2.30.0, the builder is a dialog; click its name at the top
    to rename it.)
 
-![The Macro builder page, with the Commands and Behavior sections](../Images/choices/macro-builder.png)
+![The sequence builder page: the line saying what the macro does, three numbered steps, Add a step and More settings](../Images/choices/macro-builder.png)
 
 ### Step 2: Build the macro {#step-2-build-your-macro}
 
-1. In the Macro Builder, add an **Obsidian Command** and pick
+1. Click **Add a step** → **Run a command** and pick
    `Daily notes: Open today's daily note`.
-2. Click the clock button (**Add wait command**) to add a **Wait** step of
-   100 ms. The command step doesn't wait for the daily note to open, so without
-   the pause the cursor moves before the note is there. If the cursor still ends
-   up in the wrong note, click the number and wait longer.
-3. Add an **Editor commands** entry and choose **Move cursor to file end**.
-4. Close the builder, then run it: command palette →
+2. Click **Add a step** → **Wait** to add a wait of 100 ms. The command step
+   doesn't wait for the daily note to open, so without the pause the cursor
+   moves before the note is there. If the cursor still ends up in the wrong
+   note, click the number under **Wait** and wait longer.
+3. Click **Add a step** → **Run an editor command** and choose **Move cursor
+   to file end**.
+4. Go back to save it, then run it: command palette →
    `QuickAdd: Run` → `Open daily note`.
 
 Your daily note opens and the cursor sits at the end of the file, ready for the
 next line - all three steps in a single command. Assign the choice a hotkey (the ⚡
 icon, or Obsidian's Hotkeys settings) once it behaves the way you want.
 
-## The commands you can add {#command-types}
+## The builder page {#builder-page}
 
-The Macro Builder offers these command types. Add as many as you like, in any
-order.
+The page opens with one line that says what the macro does, made from its
+steps: "Runs 'Daily notes: Open today's daily note', waits 100 ms, ...". It
+follows every change you make below it.
 
-| Command | What it does |
+Under **Steps**, each step is a numbered row: its name, and under it what it
+does ("Adds a line at the bottom of Inbox", "Runs streaks.js", "Waits 100
+ms"). A row's gear opens its settings; a Create or Add row opens that note
+step's own page. Drag a row by its handle to reorder it, or focus the handle
+and press the up and down arrow keys. The trash can removes the step.
+
+**Add a step** opens a menu of the steps a macro can hold. The macro's
+settings (one-page input, Which day, Run on startup, the command palette, the
+ribbon and the icon) are under **More settings**, which opens by itself when
+one of them is set. See [Macro settings](#macro-settings).
+
+## The steps you can add {#command-types}
+
+Pick a step from **Add a step**. Add as many as you like, in any order.
+
+| Step | What it does |
 | --- | --- |
-| **Obsidian Command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
-| **Editor commands** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
-| **User Script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a user script command](#add-a-user-script-command). |
-| **Nested Choice** | Run another QuickAdd choice - a template, capture, or another macro - so you can reuse existing work and build modular workflows. |
-| **Wait** | Pause for a set number of milliseconds, useful when a previous command needs time to finish. |
-| **AI Assistant** | Run an AI prompt to generate or process content. Available once you've configured an AI provider. |
-| **Open File** | Open an existing file at a formatted path. Supports all [format syntax](/docs/FormatSyntax/) (`{{DATE}}`, `{{VALUE}}`, and so on), with tab and split options. It opens in the default view mode with focus, and only opens files that already exist (it won't create one). |
-| **Conditional** | Branch the run based on live data. See [Branch with a conditional](#conditional-commands). |
+| **Create a note** | Create a note from a template. It is added as a new Template choice inside the macro, and its page opens so you can set it up. |
+| **Add to a note** | Write into a note. It is added as a new Capture choice inside the macro, and its page opens so you can set it up. |
+| **Open a note** | Open an existing file at a formatted path. Supports all [format syntax](/docs/FormatSyntax/) (`{{DATE}}`, `{{VALUE}}`, and so on), with tab and split options and a **View** (as saved, source mode, reading view or Live Preview). It only opens files that already exist (it won't create one). |
+| **Link it** | Link the note an earlier step wrote ([`{{NOTE}}`](/docs/FormatSyntax/#note)) on a new line in the current note. Its settings pick another note, where the link goes, and whether to copy the link too. |
+| **Run Templater** | Run Templater's *Replace templates* over the note an earlier step wrote (`{{NOTE}}`), or over the note its settings name. Does nothing without Templater. |
+| **Run a script** | Run your own JavaScript to reach the Obsidian API, do complex work, or integrate with other plugins. See [Add a script step](#add-a-user-script-command). |
+| **Run a command** | Run any Obsidian command, for example `Daily notes: Open today's daily note` or `Toggle reading view`. |
+| **Run an editor command** | Manipulate text in the active editor: copy, cut, paste, [paste with format](#paste-with-format), select the line or a link on it, and move the cursor. See [Editor commands](#editor-commands). |
+| **Ask AI** | Run an AI prompt to generate or process content. Offered while online features are on; set up a provider first. |
+| **Run a choice** | Run another of your QuickAdd choices - a template, capture, or another macro - so you can reuse existing work and build modular workflows. |
+| **If** | Branch the run based on live data. See [Branch with a conditional](#conditional-commands). |
+| **Wait** | Pause for a set number of milliseconds, useful when a previous step needs time to finish. |
 
-### Add a user script command {#add-a-user-script-command}
+### Add a script step {#add-a-user-script-command}
 
 Macros don't contain JavaScript directly. Your code lives either in a `.js` file
 inside your vault **or** in a ` ```js ` code block inside a note, and the macro
@@ -98,24 +123,30 @@ Create a script file such as `scripts/my-macro.js`, or a note such as
 block. QuickAdd runs the **first** matching JavaScript block in a note and
 ignores the surrounding prose.
 
-To add it, open the Macro Builder and add a **User Script** command. There are
-two ways to point it at your script:
+To add it, click **Add a step** → **Run a script**. That opens QuickAdd's
+script picker (not your operating system's file picker). It lists the `.js`
+files and notes-with-a-code-block that Obsidian has already discovered, so it
+can't reach files outside the vault or hidden from Obsidian's index. Each
+entry shows its full path, and you can search by folder, so same-named scripts
+such as several `view.js` files are easy to tell apart.
 
-- **Browse** opens QuickAdd's script picker (not your operating system's file
-  picker). It lists the `.js` files and notes-with-a-code-block that Obsidian
-  has already discovered, so it can't reach files outside the vault or hidden
-  from Obsidian's index. Each entry shows its full path, and you can search by
-  folder, so same-named scripts such as several `view.js` files are easy to
-  tell apart.
-- **Type it in.** For a `.js` file, type its basename - for
-  `scripts/my-macro.js`, enter `my-macro`; if two `.js` files share that name,
-  use its vault path instead. For a note, type its vault path, for example
-  `Scripts/my-macro.md`. Then click **Add**. To run a specific exported
-  function, append it with `::`, such as `my-macro::start`.
+To run a specific exported function, type the script with the function after
+`::` and press Enter: `my-macro::start` for `scripts/my-macro.js`. If two `.js`
+files share that name, use its vault path instead; for a note, type its vault
+path, for example `Scripts/my-macro.md::start`.
 
 If the script exports more than one function and you don't name one, QuickAdd
 asks which export to run. You can also set an output variable name so later
 commands can reuse the result.
+
+A script step says which file it runs under its name ("Runs my-macro.js");
+hover it for the full path. A macro made from the
+**Run a script** [preset](/docs/Choices/Presets/) starts with a step that has
+no file yet: it says **No file chosen** and offers **Choose file**, which opens
+the same script picker. Once the step has a file, its gear opens
+the script's settings, starting with **Script file** and a **Change** button.
+See [The script step](/docs/UserScripts/#script-step) for what each state means
+and what changing the file resets.
 
 :::caution[Where to keep scripts]
 Keep the script inside your vault, but **not** inside `.obsidian` or any folder
@@ -129,9 +160,9 @@ underscore-prefixed folder such as `_quickadd/scripts/`. Full rules are in
 Good to know:
 
 - To **insert text into a note**, don't write it in a script. Use a **Template**
-  or **Capture** choice and run it from the macro as a **Nested Choice**
-  command. That's the intended way to write content, and no YAML frontmatter is
-  required.
+  or **Capture** choice and run it from the macro with **Add to a note**,
+  **Create a note** or **Run a choice**. That's the intended way to write
+  content, and no YAML frontmatter is required.
 - If your script calls the API of another plugin, that plugin must be installed
   and enabled in your vault. You don't need any extra plugin just to run user
   scripts.
@@ -157,13 +188,14 @@ boilerplate JavaScript. Each conditional has:
 
 To add one:
 
-1. Click the branch icon in the command bar of the Macro Builder (or of any
-   conditional branch editor).
-2. Click the settings icon on the new command to define the condition.
-3. Use the branch buttons to set the commands that run for the **Then** and
-   **Else** outcomes. Each branch opens as a page over the macro; go back to
-   return to it. (Before QuickAdd 2.30.0, a branch opens in a dialog with
-   **Save** and **Cancel**.)
+1. Click **Add a step** → **If** in the macro (or in any branch). The
+   condition's settings open; define the condition there. The step's gear
+   opens them again later.
+2. Use the branch buttons to set the steps that run for the **Then** and
+   **Else** outcomes. Each branch opens as a page over the macro, led by the
+   If step's line, with its own steps and **Add a step**; go back to return to
+   it. (Before QuickAdd 2.30.0, a branch opens in a dialog with **Save** and
+   **Cancel**.)
 
 The macro runs the matching branch in order, then continues with the rest of the
 macro. Branch commands share the same variable map as the outer macro, so they
@@ -294,7 +326,8 @@ commands share the same name, rename one before using the selector form.
 
 ## Macro settings {#macro-settings}
 
-![The Macro builder, including the Run on startup toggle](../Images/choices/macro-builder.png)
+These are under **More settings** on the builder page, which opens by itself
+when one of them is set.
 
 ### Which day {#date-origin}
 
@@ -318,6 +351,11 @@ choice list. Once it is on, and Which day isn't **Ask each time**, **Also add
 the macro runs. See
 [Command palette](/docs/Choices/TemplateChoice/#command-palette) on the
 Template page.
+
+### Show in ribbon {#show-in-ribbon}
+
+**Show in ribbon** adds an icon to Obsidian's ribbon that runs the macro, with
+the choice's icon and name. It saves as soon as you flip it. To put a button that runs it in a note instead, see [Buttons in notes](/docs/Choices/NoteButtons/).
 
 ## Practical examples {#practical-examples}
 
@@ -400,6 +438,14 @@ module.exports = async (params) => {
 };
 ```
 
+## How a sequence runs {#how-a-sequence-runs}
+
+A sequence runs one step at a time, in order. A step that creates a note or
+adds to one runs exactly as a Template or Capture choice would, and the note it
+ends on becomes the run note, [`{{NOTE}}`](/docs/FormatSyntax/#note), for the
+steps after it. A step that links to, opens, or runs Templater on `{{NOTE}}`
+works on that note. When a step stops the run, the steps after it do not run.
+
 ## When a macro stops {#macro-execution-control}
 
 ### What stops a macro {#automatic-abort-behavior}
@@ -468,7 +514,7 @@ Descriptive names keep a macro readable:
 Break a complex macro into smaller, reusable parts:
 
 - Put distinct operations in separate scripts.
-- Reuse existing choices with **Nested Choice** commands.
+- Reuse existing choices with **Run a choice** steps.
 - Keep each script focused on a single purpose.
 
 ## Troubleshooting {#troubleshooting}

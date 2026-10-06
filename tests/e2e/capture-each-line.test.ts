@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1996: Capture "One entry per line" writes the format once per line of
 // {{VALUE}}, while macros and inline scripts run once per capture.
@@ -50,10 +51,10 @@ async function setUp(options: { eachLine: boolean; onePage?: boolean }) {
 		id: `${choice.id}-macro`, name: MACRO, type: "Macro", command: false, runOnStartup: false,
 		macro: { id: `${choice.id}-macro`, name: MACRO, commands: [{ id: `${choice.id}-script`, name: "Counter", type: "UserScript", path: script, settings: {} }] },
 	} as unknown as IChoice;
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = false;
 		data.choices.push(choice, macro);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	return { choice, note };
 }
@@ -164,7 +165,7 @@ describe("Capture: one entry per line", () => {
 			choice.insertAfter = { ...choice.insertAfter, enabled: insertAfter, after: "## Tasks", insertAtEnd: true };
 			choices.push(choice);
 		}
-		await plugin.data<QuickAddData>().patch((data) => { data.choices.push(...choices); });
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => { data.choices.push(...choices); }));
 		await plugin.reload({ waitUntilReady: true });
 
 		for (const choice of choices) {
@@ -185,7 +186,7 @@ describe("Capture: one entry per line", () => {
 		choice.eachLine = true;
 		choice.onePageInput = "always";
 		choice.insertAfter = { ...choice.insertAfter, enabled: true, after: "## Tasks", insertAtEnd: true };
-		await plugin.data<QuickAddData>().patch((data) => { data.choices.push(choice); });
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => { data.choices.push(choice); }));
 		await plugin.reload({ waitUntilReady: true });
 		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 

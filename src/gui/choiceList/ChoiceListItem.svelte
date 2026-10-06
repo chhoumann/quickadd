@@ -7,6 +7,7 @@
 	import type { ChoiceListActions } from "./choiceListActions";
 	import { resolveChoiceIcon } from "../../utils/choiceUtils";
 	import ObsidianIcon from "../components/ObsidianIcon.svelte";
+	import { summarizeChoice } from "../../v3/choiceSummary";
 
 	let {
 		choice,
@@ -27,6 +28,8 @@
 		onMoveUp?: () => void;
 		onMoveDown?: () => void;
 	} = $props();
+
+	const summary = $derived(summarizeChoice(choice, roots));
 
 	let showConfigureButton = $state(true);
 	let nameElement = $state<HTMLSpanElement>();
@@ -79,7 +82,12 @@
 	<span class="qaChoiceRowIcon" aria-hidden="true">
 		<ObsidianIcon iconId={resolveChoiceIcon(choice)} size={15} />
 	</span>
-	<span class="choiceListItemName" bind:this={nameElement}></span>
+	<span class="choiceListItemText">
+		<span class="choiceListItemName" bind:this={nameElement}></span>
+		{#if summary}
+			<span class="choiceListItemSummary" title={summary}>{summary}</span>
+		{/if}
+	</span>
 
 	<RightButtons
 		onDragHandleDown={startDrag}

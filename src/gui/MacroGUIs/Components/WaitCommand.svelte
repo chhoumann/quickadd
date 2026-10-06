@@ -3,6 +3,7 @@
     import DragHandle from "../../components/DragHandle.svelte";
     import { onMount, untrack } from "svelte";
     import type {IWaitCommand} from "../../../types/macros/QuickCommands/IWaitCommand";
+    import StepRowText from "./StepRowText.svelte";
 
     let {
         command,
@@ -48,7 +49,10 @@
 </script>
 
 <li class="quickAddCommandListItem">
-    <span class="quickAddCommandLabel">{command.name} for <input bind:this={inputEl} oninput={onTimeInput} type="number" min="0" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds">ms</span>
+    <!-- The line is the setting: its number is the wait. -->
+    <StepRowText name={command.name}>
+        <span class="quickAddCommandDetail">Waits <input bind:this={inputEl} oninput={onTimeInput} type="number" min="0" placeholder="   " value={time} class="dotInput" aria-label="Wait duration in milliseconds"> ms</span>
+    </StepRowText>
     <div class="quickAddCommandControls">
         <IconButton
             iconId="trash-2"
@@ -72,7 +76,12 @@
     display: inline;
     font-family: inherit;
     font-size: inherit;
+    /* As tall as the text around it, so the row is as tall as its neighbours. */
+    height: auto;
+    line-height: inherit;
     padding: 0;
+    color: inherit;
+    font-variant-numeric: tabular-nums;
     width: var(--qa-wait-input-width, 2ch);
     text-decoration: underline dotted;
     background-color: transparent;
@@ -80,5 +89,11 @@
 
 .dotInput:hover {
     background-color: transparent;
+}
+
+.dotInput::-webkit-inner-spin-button,
+.dotInput::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
 }
 </style>

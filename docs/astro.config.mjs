@@ -115,10 +115,12 @@ export default defineConfig({
 				{
 					label: "Core Concepts",
 					items: [
+						{ label: "Starting from a preset", slug: "docs/Choices/Presets" },
 						{ label: "Template Choices", slug: "docs/Choices/TemplateChoice" },
 						{ label: "Capture Choices", slug: "docs/Choices/CaptureChoice" },
 						{ label: "Macro Choices", slug: "docs/Choices/MacroChoice" },
 						{ label: "Multi Choices", slug: "docs/Choices/MultiChoice" },
+						{ label: "Buttons in notes", slug: "docs/Choices/NoteButtons" },
 						{ label: "Share QuickAdd Packages", slug: "docs/Choices/Packages" },
 					],
 				},

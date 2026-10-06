@@ -9,6 +9,7 @@ import type { IUserScript } from "../types/macros/IUserScript";
 import type { IObsidianCommand } from "../types/macros/IObsidianCommand";
 import { log } from "../logger/logManager";
 import { reportError } from "../utils/errorUtils";
+import { refuse } from "../errors/RefusalError";
 import { CommandType } from "../types/macros/CommandType";
 import { QuickAddApi } from "../quickAddApi";
 import { restoreDateVariableFormats } from "../formatters/helpers/dateTokens";
@@ -19,7 +20,7 @@ import { QuickAddChoiceEngine } from "./QuickAddChoiceEngine";
 import type { IMacro } from "../types/macros/IMacro";
 import type { IChoiceCommand } from "../types/macros/IChoiceCommand";
 import type QuickAdd from "../main";
-import { getQuickAddInstance } from "../quickAddInstance";
+import { isRunNoteToken } from "./CaptureTargetEngine";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { getUserScript } from "../utils/userScript";
 import type { IWaitCommand } from "../types/macros/QuickCommands/IWaitCommand";
@@ -39,17 +40,16 @@ import { MoveCursorToLineStartCommand } from "../types/macros/EditorCommands/Mov
 import { MoveCursorToLineEndCommand } from "../types/macros/EditorCommands/MoveCursorToLineEndCommand";
 import { waitFor } from "src/utility";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
-import { CompleteFormatter } from "src/formatters/completeFormatter";
 import type { ResolvedModel } from "src/ai/aiHelpers";
 import type { IOpenFileCommand } from "../types/macros/QuickCommands/IOpenFileCommand";
 import { openFile } from "../utils/fileOpening";
-import { TFile } from "obsidian";
 import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IConditionalCommand } from "../types/macros/Conditional/IConditionalCommand";
-import type { ScriptCondition } from "../types/macros/Conditional/types";
+import type { ConditionalCondition, ScriptCondition } from "../types/macros/Conditional/types";
 import { evaluateCondition } from "./helpers/conditionalEvaluator";
 import { handleMacroAbort } from "../utils/macroAbortHandler";
 import { buildOpenFileOptions } from "./helpers/openFileOptions";
+import { resolveStepNote } from "./helpers/stepNote";
 import { createVariablesProxy } from "../utils/variablesProxy";
 import {
 	commandListOf,
@@ -165,6 +165,10 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 			},
 			enumerable: true,
 			configurable: false,
+		});
+		Object.defineProperty(params, "note", {
+			get: () => choiceExecutor.runNote ?? null,
+			enumerable: true,
 		});
 
 		return params;
@@ -341,6 +345,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
+					choiceName: this.choice.name,
 					logPrefix: "Macro execution aborted",
 					noticePrefix: "Macro execution aborted",
 					defaultReason: "Macro execution aborted",
@@ -511,12 +516,17 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 		return pickMacroModel(this.app, this.choiceExecutor);
 	}
 
-	private async executeConditional(command: IConditionalCommand) {
-		const shouldRunThenBranch = await evaluateCondition(command.condition, {
+	/** Whether `condition` holds now, read the way a Conditional command reads it. */
+	public async conditionHolds(condition: ConditionalCondition): Promise<boolean> {
+		return await evaluateCondition(condition, {
 			variables: this.params.variables,
-			evaluateScriptCondition: async (condition: ScriptCondition) =>
-				await this.evaluateScriptCondition(condition),
+			evaluateScriptCondition: async (script: ScriptCondition) =>
+				await this.evaluateScriptCondition(script),
 		});
+	}
+
+	private async executeConditional(command: IConditionalCommand) {
+		const shouldRunThenBranch = await this.conditionHolds(command.condition);
 
 		const branch = shouldRunThenBranch
 			? command.thenCommands
@@ -617,6 +627,8 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 			return async () => script;
 		} catch (error) {
+			// A missing script is a refusal the macro reports with its name.
+			if (error instanceof MacroAbortError) throw error;
 			reportError(
 				error,
 				`Failed to load conditional script '${condition.scriptPath}'.`
@@ -640,56 +652,21 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 	}
 
 	private async executeOpenFile(command: IOpenFileCommand) {
+		if (isRunNoteToken(command.filePath) && !this.choiceExecutor.runNote) {
+			throw refuse("nothing has written a note yet", "there is no {{NOTE}} to open");
+		}
 		try {
-			const formatter = new CompleteFormatter(
-				this.app,
-				getQuickAddInstance(),
-				this.choiceExecutor
-			);
-			// This formatter is built per command, so a {{VALUE}} in the path only
-			// gets the macro's name and its own draft scope if they are handed over
-			// (issue #1546). Scoped per command id: a macro can hold several Open
-			// File commands, and they must not share one draft.
-			formatter.setPromptRunContext({
-				choiceName: this.choice?.name,
-				draftScopeId: `${this.choice?.id ?? "macro"}#openFile:${command.id}`,
-			});
-			formatter.choiceChain = this.chain;
-
-			const resolvedPath = await formatter.formatFileName(
+			// A {{VALUE}} in the path gets the macro's name and a draft scope of
+			// its own per command: a macro can hold several Open File commands
+			// (issue #1546).
+			const file = await resolveStepNote(
+				{ app: this.app, executor: this.choiceExecutor, choice: { id: this.choice?.id ?? "macro", name: this.choice?.name }, chain: this.chain },
 				command.filePath,
-				"filePath",
+				{ scope: `openFile:${command.id}`, label: "OpenFile", consequence: "there is no {{NOTE}} to open" },
 			);
-			const normalizedPath = resolvedPath.replace(/\\/g, "/");
-
-			// Validate path segments to prevent traversal attacks. A substring check
-			// would wrongly reject legitimate filenames that merely contain ".." (e.g.
-			// 'log..2024.md') or "//"; only a literal '..' path segment or an empty
-			// segment (from '//') is an actual traversal/malformed path.
-			const segments = normalizedPath.split("/");
-			const hasTraversal = segments.some(
-				(segment, index) =>
-					segment === ".." ||
-					// An empty segment is a doubled slash; the leading slash of an
-					// absolute path is allowed (index 0), as is a single trailing slash.
-					(segment === "" && index !== 0 && index !== segments.length - 1)
-			);
-			if (hasTraversal) {
-				log.logError(`OpenFile: Path traversal not allowed in '${normalizedPath}'`);
-				return;
-			}
-
-			const file = this.app.vault.getAbstractFileByPath(normalizedPath);
-
-			if (!file || !(file instanceof TFile)) {
-				log.logError(`OpenFile: '${normalizedPath}' does not exist or is not a file`);
-				return;
-			}
-
-			const openOptions = buildOpenFileOptions(command);
-
+			if (!file) return;
 			await openFile(this.app, file, {
-				...openOptions,
+				...buildOpenFileOptions(command),
 				originLeaf: this.originLeaf,
 			});
 		} catch (error) {

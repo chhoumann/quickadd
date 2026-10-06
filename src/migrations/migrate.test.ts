@@ -68,7 +68,7 @@ describe("Migration Re-entrance Safety", () => {
 			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(false);
 			await migrate(mockPlugin);
 			expect(mockPlugin.settings.migrations.useQuickAddTemplateFolder).toBe(true);
-			expect(run).toHaveBeenCalledWith(mockPlugin);
+			expect(run).toHaveBeenCalledWith(mockPlugin, {});
 			expect(mockPlugin.saveSettings).toHaveBeenCalledOnce();
 		});
 

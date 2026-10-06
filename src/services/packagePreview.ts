@@ -386,25 +386,10 @@ export function buildPackagePreview(
 	}
 
 	const overwriteChoiceCount = choices.filter((c) => c.exists).length;
-	if (overwriteChoiceCount > 0) {
-		capabilityRows.push({
-			flag: "overwrites-existing-choice",
-			severity: "warning",
-			title: "Replaces choices that already exist in your vault",
-			detail: `${overwriteChoiceCount} choice${overwriteChoiceCount === 1 ? "" : "s"
-				}`,
-		});
-	}
+	if (overwriteChoiceCount > 0) capabilityRows.push(overwriteChoicesRow(overwriteChoiceCount));
 
 	const overwriteFileCount = files.filter((f) => f.exists).length;
-	if (overwriteFileCount > 0) {
-		capabilityRows.push({
-			flag: "overwrites-existing-file",
-			severity: "warning",
-			title: "Overwrites existing files in your vault",
-			detail: `${overwriteFileCount} file${overwriteFileCount === 1 ? "" : "s"}`,
-		});
-	}
+	if (overwriteFileCount > 0) capabilityRows.push(overwriteFilesRow(overwriteFileCount));
 
 	if (missingReferences.length > 0) {
 		const scriptMissing = missingReferences.filter((m) => m.asScript).length;
@@ -547,6 +532,59 @@ export function decodeAssetPreview(
 			error: error instanceof Error ? error.message : String(error),
 		};
 	}
+}
+
+function overwriteChoicesRow(count: number): CapabilityRow {
+	return {
+		flag: "overwrites-existing-choice",
+		severity: "warning",
+		title: "Replaces choices that already exist in your vault",
+		detail: `${count} choice${count === 1 ? "" : "s"}`,
+	};
+}
+
+function overwriteFilesRow(count: number): CapabilityRow {
+	return {
+		flag: "overwrites-existing-file",
+		severity: "warning",
+		title: "Overwrites existing files in your vault",
+		detail: `${count} file${count === 1 ? "" : "s"}`,
+	};
+}
+
+/**
+ * The preview as the reader's decisions leave it: the rows about replacing
+ * choices and overwriting files count what the import will replace, and are
+ * gone when it will replace none.
+ */
+export function withOverwrites(
+	preview: PackagePreview,
+	counts: { choices: number; files: number },
+): PackagePreview {
+	const capabilityRows = preview.capabilityRows.filter(
+		(row) => row.flag !== "overwrites-existing-choice" && row.flag !== "overwrites-existing-file",
+	);
+	const rows = [
+		...(counts.choices > 0 ? [overwriteChoicesRow(counts.choices)] : []),
+		...(counts.files > 0 ? [overwriteFilesRow(counts.files)] : []),
+	];
+	// Where the analysis put them, ahead of the missing files, so a row a
+	// decision brings back does not move.
+	const missing = capabilityRows.findIndex((row) => row.flag === "missing-reference");
+	capabilityRows.splice(missing === -1 ? capabilityRows.length : missing, 0, ...rows);
+	capabilityRows.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
+	const warningCount = capabilityRows.filter((row) => row.severity === "warning").length;
+	return {
+		...preview,
+		capabilityRows,
+		summary: {
+			...preview.summary,
+			hasWarning: warningCount > 0,
+			warningCount,
+			overwritesChoices: counts.choices,
+			overwritesFiles: counts.files,
+		},
+	};
 }
 
 /** A package needs explicit acknowledgement when it has any critical capability. */

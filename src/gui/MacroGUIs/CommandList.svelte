@@ -1,6 +1,6 @@
 <script lang="ts">
 import type { ICommand } from "../../types/macros/ICommand";
-import { Platform } from "obsidian";
+import { Platform, TFile } from "obsidian";
 import { alertToScreenReader, type DndEvent, dndzone, SOURCES, TRIGGERS } from "svelte-dnd-action";
 import { baseDndOptions, capturePlaceholderRecovery, moveById, type PlaceholderRecovery, replaceById, showDragPillOnStart, stripShadow } from "../shared/dndReorder";
 import { refocusDragHandle } from "../shared/refocusDragHandle";
@@ -12,16 +12,16 @@ import StandardCommand from "./Components/StandardCommand.svelte";
 import { CommandType } from "../../types/macros/CommandType";
 import WaitCommand from "./Components/WaitCommand.svelte";
 import NestedChoiceCommand from "./Components/NestedChoiceCommand.svelte";
-import { TemplateChoiceBuilder } from "../ChoiceBuilder/templateChoiceBuilder";
-import { CaptureChoiceBuilder } from "../ChoiceBuilder/captureChoiceBuilder";
-import type ICaptureChoice from "../../types/choices/ICaptureChoice";
-import type ITemplateChoice from "../../types/choices/ITemplateChoice";
-import type IChoice from "../../types/choices/IChoice";
-import UserScriptCommand from "./Components/UserScriptCommand.svelte";
+import { openNestedChoiceBuilder } from "./openNestedChoiceBuilder";
+import UserScriptCommand, { type ScriptFileState } from "./Components/UserScriptCommand.svelte";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { UserScriptSettingsModal } from "./UserScriptSettingsModal";
+import { pickUserScript } from "./pickUserScript";
+import { replaceScriptFile } from "./replaceScriptFile";
+import { reportingHandler } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
+import { RefusalError } from "src/errors/RefusalError";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
@@ -32,6 +32,14 @@ import ConditionalCommand from "./Components/ConditionalCommand.svelte";
 import type { IWaitCommand } from "../../types/macros/QuickCommands/IWaitCommand";
 import type { INestedChoiceCommand } from "../../types/macros/QuickCommands/INestedChoiceCommand";
 import type { IConditionalCommand } from "../../types/macros/Conditional/IConditionalCommand";
+import { settingsStore } from "../../settingsStore";
+import { describeCommand } from "../../v3/choiceSummary";
+import { lowerStep } from "../../v3/lower";
+import { stepsOfCommand } from "../../v3/migrate";
+import { type Step, V3_STEP_COMMAND, type V3StepCommand } from "../../v3/model";
+import { stepName } from "../../v3/addStep";
+import StepCommand from "./Components/StepCommand.svelte";
+import { StepSettingsModal } from "./StepSettingsModal";
 
 let {
 	commands = $bindable([]),
@@ -114,6 +122,18 @@ const asUserScript = (c: ICommand) => c as IUserScript;
 const asAI = (c: ICommand) => c as IAIAssistantCommand;
 const asOpenFile = (c: ICommand) => c as IOpenFileCommand;
 const asConditional = (c: ICommand) => c as IConditionalCommand;
+const asStep = (c: ICommand) => (c as unknown as V3StepCommand).step;
+
+/** A step with no v2 command form, which the command carries (see lowerStep). */
+function isStepCommand(command: ICommand): boolean {
+	const step = (command as unknown as V3StepCommand).step;
+	return (command.type as string) === V3_STEP_COMMAND && typeof step === "object" && step !== null;
+}
+
+/** What the step does, under its name. Read in the template, so it follows edits. */
+function lineOf(command: ICommand): string | null {
+	return describeCommand(command, settingsStore.getState().choices);
+}
 
 /** Persist the current order/content to the host (plain, non-proxy snapshot). */
 function persist() {
@@ -222,20 +242,25 @@ function editConditionalElse(command: IConditionalCommand) {
 	onEditElseBranch?.(command, () => updateCommand(command));
 }
 
-// The step's choice, as a page over the macro. Saved into the list when the page
-// is left, synchronously, so it is in before the macro page saves (BuilderPage).
 function configureChoice(command: INestedChoiceCommand) {
-	const onSave = (newChoice: IChoice) => {
-		// Immutable update (avoids mutating host-owned $state from this component).
-		const updated: INestedChoiceCommand = { ...command, choice: newChoice, name: newChoice.name };
-		updateCommand(updated);
-	};
-	const choice = command.choice;
-	if (choice.type === "Template") {
-		new TemplateChoiceBuilder(app, choice as ITemplateChoice, plugin, onSave).open();
-	} else if (choice.type === "Capture") {
-		new CaptureChoiceBuilder(app, choice as ICaptureChoice, plugin, onSave).open();
-	}
+	openNestedChoiceBuilder(app, plugin, command, updateCommand);
+}
+
+function scriptFileState(command: IUserScript): ScriptFileState {
+	if (!command.path) return "none";
+	if (!(app.vault.getAbstractFileByPath(command.path) instanceof TFile)) return "missing";
+	// Code runs only from .js files and notes (loadUserScript); anything else
+	// exists but cannot be a script step's file.
+	return /\.(js|md)$/i.test(command.path) ? "ok" : "unusable";
+}
+
+/** Point a script step at a file the user picks. */
+async function chooseScriptFile(command: IUserScript) {
+	const picked = await pickUserScript(app);
+	if (!picked) return;
+	const updated: IUserScript = { ...command };
+	await replaceScriptFile(app, updated, picked);
+	updateCommand(updated);
 }
 
 async function configureScript(command: IUserScript) {
@@ -243,8 +268,8 @@ async function configureScript(command: IUserScript) {
 	try {
 		loaded = await loadUserScript(command, app);
 	} catch (error) {
-		// Already reported, e.g. "could not find" for a moved script.
-		if (isUserScriptLoadError(error)) return;
+		// Already reported, or shown on the row ("Can't find" for a moved script).
+		if (isUserScriptLoadError(error) || error instanceof RefusalError) return;
 		throw error;
 	}
 	if (!loaded?.script) {
@@ -260,7 +285,9 @@ async function configureScript(command: IUserScript) {
 		app,
 		command,
 		scriptSettings as ConstructorParameters<typeof UserScriptSettingsModal>[2],
-		() => persist(),
+		// updateCommand, not a bare persist: the row shows the step's name and
+		// file, which the modal can change.
+		() => updateCommand(command),
 	).open();
 }
 
@@ -273,13 +300,19 @@ async function configureAssistant(command: IAIAssistantCommand) {
 	}
 }
 
+// The modals edit the step a command migrates to, and the row takes the
+// command the edited step lowers to: an open in a view mode has no v2 form.
 async function configureOpenFile(command: IOpenFileCommand) {
-	const updatedCommand = await new OpenFileCommandSettingsModal(app, command)
-		.waitForClose;
+	const [step] = stepsOfCommand(command);
+	if (step?.type === "open") await configureStep(step);
+}
 
-	if (updatedCommand) {
-		updateCommand(updatedCommand);
-	}
+async function configureStep(step: Step) {
+	const edited =
+		step.type === "open" ? await new OpenFileCommandSettingsModal(app, step).waitForClose :
+		step.type === "link" || step.type === "templater" ? await new StepSettingsModal(app, step).waitForClose :
+		null;
+	if (edited) updateCommand(lowerStep(edited, ""));
 }
 </script>
 
@@ -312,6 +345,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.NestedChoice}
 			<NestedChoiceCommand
+				line={lineOf(command)}
 				command={asNested(command)}
 				{dragDisabled}
 				{startDrag}
@@ -322,16 +356,20 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.UserScript}
 			<UserScriptCommand
+				line={lineOf(command)}
 				command={asUserScript(command)}
 				{dragDisabled}
 				{startDrag}
 				onDeleteCommand={deleteCommand}
+				fileState={scriptFileState(asUserScript(command))}
 				onConfigureScript={configureScript}
+				onChooseFile={reportingHandler("Couldn't choose that script", chooseScriptFile)}
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
 		{:else if command.type === CommandType.AIAssistant}
 			<AIAssistantCommand
+				line={lineOf(command)}
 				command={asAI(command)}
 				{dragDisabled}
 				{startDrag}
@@ -342,6 +380,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.OpenFile}
 			<OpenFileCommand
+				line={lineOf(command)}
 				command={asOpenFile(command)}
 				{dragDisabled}
 				{startDrag}
@@ -352,6 +391,7 @@ async function configureOpenFile(command: IOpenFileCommand) {
 			/>
 		{:else if command.type === CommandType.Conditional}
 			<ConditionalCommand
+				line={lineOf(command)}
 				command={asConditional(command)}
 				{dragDisabled}
 				{startDrag}
@@ -362,8 +402,21 @@ async function configureOpenFile(command: IOpenFileCommand) {
 				onMoveUp={() => moveCommand(command.id, -1)}
 				onMoveDown={() => moveCommand(command.id, 1)}
 			/>
+		{:else if isStepCommand(command)}
+			<StepCommand
+				id={command.id}
+				name={stepName(asStep(command))}
+				line={lineOf(command)}
+				{dragDisabled}
+				{startDrag}
+				onDeleteCommand={deleteCommand}
+				onConfigure={() => configureStep($state.snapshot(asStep(command)) as Step)}
+				onMoveUp={() => moveCommand(command.id, -1)}
+				onMoveDown={() => moveCommand(command.id, 1)}
+			/>
 		{:else}
 			<StandardCommand
+				line={lineOf(command)}
 				{command}
 				{dragDisabled}
 				{startDrag}
@@ -378,13 +431,15 @@ async function configureOpenFile(command: IOpenFileCommand) {
 <style>
 	.quickAddCommandList {
 		display: grid;
-		grid-template-columns: auto;
+		/* minmax(0, ...): a step's one-line detail shortens instead of widening
+		   the column and pushing the row's buttons out of the card. */
+		grid-template-columns: minmax(0, 1fr);
 		width: auto;
 		border: 0 solid black;
 		overflow-y: auto;
 		height: auto;
-		margin-bottom: 8px;
-		padding: 20px;
+		/* Its last row as far from Add a step as its first from the card's top. */
+		padding: 20px 20px 4px;
 	}
 
 	/* A macro without steps shows no blank list area. The zone type is unique

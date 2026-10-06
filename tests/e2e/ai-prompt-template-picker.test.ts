@@ -1,12 +1,13 @@
 import { expect, it } from "vitest";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { expectNoPrompt, POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("ai-prompt-template-picker");
 
 it("labels the AI Assistant's prompt template picker", async () => {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: unknown[]; disableOnlineFeatures: boolean }>().patch((data) => {
+	await plugin.data<{ choices: unknown[]; disableOnlineFeatures: boolean }>().patch(withStoredChoices((data) => {
 		data.disableOnlineFeatures = false;
 		data.choices = [{
 			id: "qa-e2e-ai-picker",
@@ -29,7 +30,7 @@ it("labels the AI Assistant's prompt template picker", async () => {
 				}],
 			},
 		}];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	try {
 		await obsidian.dev.evalJson(`(() => {

@@ -122,15 +122,17 @@ describe("MacroChoiceEngine executeAIAssistant disable-online-features guard", (
 		storeState.ai = {};
 	});
 
-	it("blocks with a provider-neutral message that does not name OpenAI", async () => {
+	it("refuses in one sentence that names the choice and not a provider", async () => {
 		storeState.disableOnlineFeatures = true;
 
 		const engine = createEngine([makeAIAssistantCommand()]);
 
-		await expect(engine.run()).rejects.toThrow(
-			"Blocking request: Online features are disabled in settings."
+		await engine.run();
+		const { choiceExecutor } = engine as unknown as { choiceExecutor: IChoiceExecutor };
+		const signalAbort = vi.mocked(choiceExecutor.signalAbort!);
+		expect(signalAbort.mock.calls[0]?.[0]?.message).toBe(
+			"Test choice: online features are off, so the AI request was not sent. Turn off \"Disable AI & online features\" in QuickAdd's settings.",
 		);
-		await expect(engine.run()).rejects.not.toThrow(/OpenAI/);
 		// The guard short-circuits before the assistant ever runs.
 		expect(runAIAssistantMock).not.toHaveBeenCalled();
 	});

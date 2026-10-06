@@ -1,6 +1,6 @@
 import { log } from "src/logger/logManager";
 import type QuickAdd from "src/main";
-import type { Migrations } from "./Migrations";
+import type { MigrationContext, Migrations } from "./Migrations";
 import useQuickAddTemplateFolder from "./useQuickAddTemplateFolder";
 import incrementFileNameSettingMoveToDefaultBehavior from "./incrementFileNameSettingMoveToDefaultBehavior";
 import consolidateFileExistsBehavior from "./consolidateFileExistsBehavior";
@@ -17,6 +17,7 @@ import migrateProviderApiKeysToSecretStorage from "./migrateProviderApiKeysToSec
 import migrateToMultipleTemplateFolders from "./migrateToMultipleTemplateFolders";
 import refreshStaleDefaultModelSeeds from "./refreshStaleDefaultModelSeeds";
 import pinAiModelRefs from "./pinAiModelRefs";
+import migrateToV3Actions, { readDataJson } from "./migrateToV3Actions";
 import { settingsStore } from "src/settingsStore";
 
 const migrations: Migrations = {
@@ -35,6 +36,8 @@ const migrations: Migrations = {
 	migrateToMultipleTemplateFolders,
 	refreshStaleDefaultModelSeeds,
 	pinAiModelRefs,
+	// Last: it reads the choices every migration above has normalized.
+	migrateToV3Actions,
 };
 
 async function migrate(plugin: QuickAdd): Promise<void> {
@@ -48,6 +51,11 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		return;
 	}
 
+	// Before anything below can change the store and schedule a save.
+	const context: MigrationContext = migrationsToRun.includes("migrateToV3Actions")
+		? { dataJson: await readDataJson(plugin) }
+		: {};
+
 	settingsStore.replaceState(deepClone(plugin.settings));
 
 	// Could batch-run with Promise.all, but we want to log each migration as it runs.
@@ -60,7 +68,7 @@ async function migrate(plugin: QuickAdd): Promise<void> {
 		const storeBeforeMigration = settingsStore.getState();
 
 		try {
-			const result = await migrations[migration].migrate(plugin);
+			const result = await migrations[migration].migrate(plugin, context);
 
 			if (settingsStore.getState() !== storeBeforeMigration) {
 				plugin.settings = deepClone(settingsStore.getState());

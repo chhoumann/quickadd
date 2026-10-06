@@ -1421,4 +1421,20 @@ describe("OnePageInputModal preview block (#1590)", () => {
 		expect(block.querySelector(".qa-preview-issue")).toBeNull();
 		modal.close();
 	});
+
+	it("is titled after the choice when given its name", () => {
+		const modal = new OnePageInputModal(
+			{} as never,
+			[{ id: "value", label: "Text to capture", type: "text", source: "collected" } as never],
+			undefined,
+			undefined,
+			undefined,
+			{ title: "Log" },
+		);
+		// Closing rejects the form's promise as cancelled; nobody is waiting for it here.
+		void modal.waitForClose.catch(() => undefined);
+		modal.onOpen();
+		expect(modal.contentEl.querySelector("h2")?.textContent).toBe("Log");
+		modal.onClose();
+	});
 });

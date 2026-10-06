@@ -1,0 +1,2366 @@
+[
+	{
+		"id": "kanban-task",
+		"title": "Add a task to a Kanban board",
+		"description": "Add a task to a chosen lane on an Obsidian Kanban board by capturing after the lane heading, with optional date formatting",
+		"slug": "docs/Examples/Capture_AddTaskToKanbanBoard",
+		"requires": [
+			"the Kanban community plugin",
+			"a board with at least one lane"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Add task to board** and set **Capture to** to your board file. Until you do, QuickAdd asks which file to capture to on every run.",
+			"Cards go to the top of the `## Backlog` lane. If your lane has another name, change **Insert after** to match its heading, for example `## To do`.",
+			"Run **Add task to board** from the command palette and type your task."
+		],
+		"choices": [
+			{
+				"name": "Add task to board",
+				"type": "Capture"
+			}
+		],
+		"scripts": 0,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-kanban-task"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-kanban-task",
+						"name": "Add task to board",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "cursor",
+						"createFileIfItDoesntExist": {
+							"enabled": false,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": false,
+							"format": ""
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Backlog",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": true,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Add task to board"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"id": "inbox-item",
+		"title": "Add an inbox item",
+		"description": "Create a timestamped inbox note from a template, naming the file with the current date and time plus your input",
+		"slug": "docs/Examples/Template_AddAnInboxItem",
+		"requires": [],
+		"afterImport": [
+			"Run **Inbox item** from the command palette and type a short name. QuickAdd creates and opens a timestamped note in `Inbox/`.",
+			"Optional: to use another folder, click the cog next to **Inbox item** in **Settings → QuickAdd**, remove `Inbox` from the list under **New note location**, type your folder in **Folder path**, and click **Add**."
+		],
+		"choices": [
+			{
+				"name": "Inbox item",
+				"type": "Template"
+			}
+		],
+		"scripts": 0,
+		"templates": 1,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-inbox-item"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-inbox-item",
+						"name": "Inbox item",
+						"type": "Template",
+						"command": true,
+						"templatePath": "Templates/Inbox Template.md",
+						"fileNameFormat": {
+							"enabled": true,
+							"format": "{{DATE:YYYY-MM-DD-HH-mm-ss}} {{NAME}}"
+						},
+						"discoverExistingNotesBeforeCreate": false,
+						"folder": {
+							"enabled": true,
+							"folders": [
+								"Inbox"
+							],
+							"chooseWhenCreatingNote": false,
+							"createInSameFolderAsActiveFile": false,
+							"chooseFromSubfolders": false
+						},
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"openFile": true,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"fileExistsBehavior": {
+							"kind": "prompt"
+						}
+					},
+					"pathHint": [
+						"Inbox item"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "template",
+					"originalPath": "Templates/Inbox Template.md",
+					"contentEncoding": "base64",
+					"content": "LS0tCmNyZWF0ZWQ6IHt7REFURTpZWVlZLU1NLUREIEhIOm1tfX0KdGFnczogW2luYm94XQotLS0KIyB7e05BTUV9fQoK"
+				}
+			]
+		}
+	},
+	{
+		"id": "daily-note-captures",
+		"title": "Add entries to your daily note",
+		"description": "Cookbook of Capture recipes that add timestamped lines, tasks, quotes, callouts, and table rows to today's daily note",
+		"slug": "docs/Examples/Capture_ToDailyNote",
+		"requires": [
+			"the **Daily notes** core plugin, or Periodic Notes 0.0.17, managing your daily notes (Periodic Notes 1.0 beta isn't supported)"
+		],
+		"afterImport": [
+			"Each capture writes to [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. A missing note is created from your daily notes template.",
+			"Run any of the five from the command palette, or run **QuickAdd: Run**, choose **Daily note**, and pick one. The heading or callout it writes under is created when missing."
+		],
+		"choices": [
+			{
+				"name": "Journal entry",
+				"type": "Capture"
+			},
+			{
+				"name": "Task",
+				"type": "Capture"
+			},
+			{
+				"name": "Task with due date",
+				"type": "Capture"
+			},
+			{
+				"name": "Quote",
+				"type": "Capture"
+			},
+			{
+				"name": "Callout",
+				"type": "Capture"
+			}
+		],
+		"scripts": 0,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.30.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-daily-note-captures"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures",
+						"name": "Daily note",
+						"type": "Multi",
+						"command": false,
+						"choices": [
+							{
+								"id": "qa-pkg-daily-note-captures-journal",
+								"name": "Journal entry",
+								"type": "Capture",
+								"command": true,
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"captureTo": "{{DAILY}}",
+								"captureToActiveFile": false,
+								"captureToCanvasNodeId": "",
+								"activeFileWritePosition": "bottom",
+								"createFileIfItDoesntExist": {
+									"enabled": true,
+									"createWithTemplate": false,
+									"template": ""
+								},
+								"format": {
+									"enabled": true,
+									"format": "- {{DATE:HH:mm}} {{VALUE}}\\n"
+								},
+								"insertAfter": {
+									"enabled": true,
+									"after": "## Journal",
+									"insertAtEnd": true,
+									"considerSubsections": false,
+									"createIfNotFound": true,
+									"createIfNotFoundLocation": "bottom",
+									"inline": false,
+									"replaceExisting": false,
+									"blankLineAfterMatchMode": "auto",
+									"promptHeading": false
+								},
+								"insertBefore": {
+									"enabled": false,
+									"before": "",
+									"createIfNotFound": false,
+									"createIfNotFoundLocation": "top"
+								},
+								"newLineCapture": {
+									"enabled": false,
+									"direction": "below"
+								},
+								"prepend": false,
+								"task": false,
+								"openFile": false,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"templater": {
+									"afterCapture": "none"
+								}
+							},
+							{
+								"id": "qa-pkg-daily-note-captures-task",
+								"name": "Task",
+								"type": "Capture",
+								"command": true,
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"captureTo": "{{DAILY}}",
+								"captureToActiveFile": false,
+								"captureToCanvasNodeId": "",
+								"activeFileWritePosition": "bottom",
+								"createFileIfItDoesntExist": {
+									"enabled": true,
+									"createWithTemplate": false,
+									"template": ""
+								},
+								"format": {
+									"enabled": true,
+									"format": "{{VALUE}}"
+								},
+								"insertAfter": {
+									"enabled": true,
+									"after": "## Tasks",
+									"insertAtEnd": true,
+									"considerSubsections": false,
+									"createIfNotFound": true,
+									"createIfNotFoundLocation": "bottom",
+									"inline": false,
+									"replaceExisting": false,
+									"blankLineAfterMatchMode": "auto",
+									"promptHeading": false
+								},
+								"insertBefore": {
+									"enabled": false,
+									"before": "",
+									"createIfNotFound": false,
+									"createIfNotFoundLocation": "top"
+								},
+								"newLineCapture": {
+									"enabled": false,
+									"direction": "below"
+								},
+								"prepend": false,
+								"task": true,
+								"openFile": false,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"templater": {
+									"afterCapture": "none"
+								}
+							},
+							{
+								"id": "qa-pkg-daily-note-captures-task-due",
+								"name": "Task with due date",
+								"type": "Capture",
+								"command": true,
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"captureTo": "{{DAILY}}",
+								"captureToActiveFile": false,
+								"captureToCanvasNodeId": "",
+								"activeFileWritePosition": "bottom",
+								"createFileIfItDoesntExist": {
+									"enabled": true,
+									"createWithTemplate": false,
+									"template": ""
+								},
+								"format": {
+									"enabled": true,
+									"format": "{{VALUE}} due {{VDATE:due,YYYY-MM-DD}}"
+								},
+								"insertAfter": {
+									"enabled": true,
+									"after": "## Tasks",
+									"insertAtEnd": true,
+									"considerSubsections": false,
+									"createIfNotFound": true,
+									"createIfNotFoundLocation": "bottom",
+									"inline": false,
+									"replaceExisting": false,
+									"blankLineAfterMatchMode": "auto",
+									"promptHeading": false
+								},
+								"insertBefore": {
+									"enabled": false,
+									"before": "",
+									"createIfNotFound": false,
+									"createIfNotFoundLocation": "top"
+								},
+								"newLineCapture": {
+									"enabled": false,
+									"direction": "below"
+								},
+								"prepend": false,
+								"task": true,
+								"openFile": false,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"templater": {
+									"afterCapture": "none"
+								}
+							},
+							{
+								"id": "qa-pkg-daily-note-captures-quote",
+								"name": "Quote",
+								"type": "Capture",
+								"command": true,
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"captureTo": "{{DAILY}}",
+								"captureToActiveFile": false,
+								"captureToCanvasNodeId": "",
+								"activeFileWritePosition": "bottom",
+								"createFileIfItDoesntExist": {
+									"enabled": true,
+									"createWithTemplate": false,
+									"template": ""
+								},
+								"format": {
+									"enabled": true,
+									"format": "> {{VALUE}}\\n"
+								},
+								"insertAfter": {
+									"enabled": true,
+									"after": "## Quotes",
+									"insertAtEnd": true,
+									"considerSubsections": false,
+									"createIfNotFound": true,
+									"createIfNotFoundLocation": "bottom",
+									"inline": false,
+									"replaceExisting": false,
+									"blankLineAfterMatchMode": "auto",
+									"promptHeading": false
+								},
+								"insertBefore": {
+									"enabled": false,
+									"before": "",
+									"createIfNotFound": false,
+									"createIfNotFoundLocation": "top"
+								},
+								"newLineCapture": {
+									"enabled": false,
+									"direction": "below"
+								},
+								"prepend": false,
+								"task": false,
+								"openFile": false,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"templater": {
+									"afterCapture": "none"
+								}
+							},
+							{
+								"id": "qa-pkg-daily-note-captures-callout",
+								"name": "Callout",
+								"type": "Capture",
+								"command": true,
+								"appendLink": false,
+								"copyLinkToClipboard": false,
+								"captureTo": "{{DAILY}}",
+								"captureToActiveFile": false,
+								"captureToCanvasNodeId": "",
+								"activeFileWritePosition": "bottom",
+								"createFileIfItDoesntExist": {
+									"enabled": true,
+									"createWithTemplate": false,
+									"template": ""
+								},
+								"format": {
+									"enabled": true,
+									"format": "> {{VALUE}}\\n"
+								},
+								"insertAfter": {
+									"enabled": true,
+									"after": "> [!info]- Captured today",
+									"insertAtEnd": true,
+									"considerSubsections": false,
+									"createIfNotFound": true,
+									"createIfNotFoundLocation": "top",
+									"inline": false,
+									"replaceExisting": false,
+									"blankLineAfterMatchMode": "auto",
+									"promptHeading": false
+								},
+								"insertBefore": {
+									"enabled": false,
+									"before": "",
+									"createIfNotFound": false,
+									"createIfNotFoundLocation": "top"
+								},
+								"newLineCapture": {
+									"enabled": false,
+									"direction": "below"
+								},
+								"prepend": false,
+								"task": false,
+								"openFile": false,
+								"fileOpening": {
+									"location": "tab",
+									"direction": "vertical",
+									"mode": "default",
+									"focus": true
+								},
+								"templater": {
+									"afterCapture": "none"
+								}
+							}
+						],
+						"collapsed": false
+					},
+					"pathHint": [
+						"Daily note"
+					],
+					"parentChoiceId": null
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures-journal",
+						"name": "Journal entry",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "{{DAILY}}",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "- {{DATE:HH:mm}} {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Journal",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "bottom",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Daily note",
+						"Journal entry"
+					],
+					"parentChoiceId": "qa-pkg-daily-note-captures"
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures-task",
+						"name": "Task",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "{{DAILY}}",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "{{VALUE}}"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Tasks",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "bottom",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": true,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Daily note",
+						"Task"
+					],
+					"parentChoiceId": "qa-pkg-daily-note-captures"
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures-task-due",
+						"name": "Task with due date",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "{{DAILY}}",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "{{VALUE}} due {{VDATE:due,YYYY-MM-DD}}"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Tasks",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "bottom",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": true,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Daily note",
+						"Task with due date"
+					],
+					"parentChoiceId": "qa-pkg-daily-note-captures"
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures-quote",
+						"name": "Quote",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "{{DAILY}}",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "> {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "## Quotes",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "bottom",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Daily note",
+						"Quote"
+					],
+					"parentChoiceId": "qa-pkg-daily-note-captures"
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-daily-note-captures-callout",
+						"name": "Callout",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "{{DAILY}}",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "> {{VALUE}}\\n"
+						},
+						"insertAfter": {
+							"enabled": true,
+							"after": "> [!info]- Captured today",
+							"insertAtEnd": true,
+							"considerSubsections": false,
+							"createIfNotFound": true,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Daily note",
+						"Callout"
+					],
+					"parentChoiceId": "qa-pkg-daily-note-captures"
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"id": "location-from-address",
+		"title": "Add location long-lat from address",
+		"description": "Macro and user script that geocode an address into a location latitude-longitude property on the active note, for the Map View plugin",
+		"slug": "docs/Examples/Macro_AddLocationLongLatFromAddress",
+		"requires": [
+			"an internet connection (addresses are looked up on OpenStreetMap's Nominatim service; no account needed)"
+		],
+		"afterImport": [
+			"Open the note you want to place, run **Add location from address** from the command palette, and enter an address. A specific address (street, city, country) gives the best match.",
+			"The note's `location` property becomes `lat,lng`, replacing any earlier value. Map View is optional: install it if you want to see the note on a map."
+		],
+		"choices": [
+			{
+				"name": "Add location from address",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-location-from-address"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-location-from-address",
+						"name": "Add location from address",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-location-from-address-macro",
+							"name": "Add location from address",
+							"commands": [
+								{
+									"id": "qa-pkg-location-from-address-script",
+									"name": "getLongLatFromAddress",
+									"type": "UserScript",
+									"path": "scripts/getLongLatFromAddress.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Add location from address"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/getLongLatFromAddress.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gR2VvY29kZXMgYW4gYWRkcmVzcyB3aXRoIE9wZW5TdHJlZXRNYXAncyBmcmVlIE5vbWluYXRpbSBBUEkgYW5kIHN0b3JlcyB0aGUKLy8gY29vcmRpbmF0ZXMgaW4gdGhlIGFjdGl2ZSBub3RlJ3MgYGxvY2F0aW9uYCBwcm9wZXJ0eSBhcyBgbGF0LGxuZ2AsIHRoZQovLyBmcm9udCBtYXR0ZXIgZm9ybWF0IHRoYXQgdGhlIE1hcCBWaWV3IHBsdWdpbiByZWFkcyBhbmQgd3JpdGVzIGl0c2VsZi4KbW9kdWxlLmV4cG9ydHMgPSBhc3luYyAocGFyYW1zKSA9PiB7CiAgICBjb25zdCB7YXBwLCBvYnNpZGlhbiwgcXVpY2tBZGRBcGl9ID0gcGFyYW1zOwoKICAgIC8vIFRoZSBub3RlIG9wZW4gd2hlbiB0aGUgbWFjcm8gc3RhcnRzIGlzIHRoZSBvbmUgdGhhdCBnZXRzIHRoZSBsb2NhdGlvbi4KICAgIC8vIENhcHR1cmUgaXQgbm93OiB0aGUgcHJvbXB0J3MgUGVlayBsZXRzIHRoZSB1c2VyIG9wZW4gb3RoZXIgbm90ZXMgKGZvcgogICAgLy8gZXhhbXBsZSB0byBjb3B5IHRoZSBhZGRyZXNzKSBiZWZvcmUgc3VibWl0dGluZy4KICAgIGNvbnN0IGFjdGl2ZUZpbGUgPSBhcHAud29ya3NwYWNlLmdldEFjdGl2ZUZpbGUoKTsKICAgIGlmICghYWN0aXZlRmlsZSkgewogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoIk5vIGFjdGl2ZSBmaWxlIiwgNTAwMCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IGFkZHJlc3MgPSBhd2FpdCBxdWlja0FkZEFwaS5pbnB1dFByb21wdChg8J+PoCBBZGRyZXNzIGZvciAke2FjdGl2ZUZpbGUucGF0aH1gKTsKICAgIGlmICghYWRkcmVzcykgewogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoIk5vIGFkZHJlc3MgZ2l2ZW4iLCA1MDAwKTsKICAgICAgICByZXR1cm47CiAgICB9CgogICAgbGV0IHJlc3VsdHM7CiAgICB0cnkgewogICAgICAgIHJlc3VsdHMgPSBhd2FpdCBnZW9jb2RlKG9ic2lkaWFuLCBhZGRyZXNzKTsKICAgIH0gY2F0Y2ggKGVycm9yKSB7CiAgICAgICAgY29uc29sZS5lcnJvcigiZ2V0TG9uZ0xhdEZyb21BZGRyZXNzOiBnZW9jb2RpbmcgZmFpbGVkIiwgZXJyb3IpOwogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoYENvdWxkIG5vdCBsb29rIHVwICIke2FkZHJlc3N9IjogJHtlcnJvcj8ubWVzc2FnZSA/PyBlcnJvcn1gLCA4MDAwKTsKICAgICAgICByZXR1cm47CiAgICB9CiAgICBpZiAoIXJlc3VsdHMubGVuZ3RoKSB7CiAgICAgICAgbmV3IG9ic2lkaWFuLk5vdGljZShgTm8gcmVzdWx0cyBmb3VuZCBmb3IgIiR7YWRkcmVzc30iYCwgNTAwMCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IHtsYXQsIGxvbn0gPSByZXN1bHRzWzBdOwogICAgYXdhaXQgYXBwLmZpbGVNYW5hZ2VyLnByb2Nlc3NGcm9udE1hdHRlcihhY3RpdmVGaWxlLCAoZnJvbnRtYXR0ZXIpID0+IHsKICAgICAgICBmcm9udG1hdHRlci5sb2NhdGlvbiA9IGAke2xhdH0sJHtsb259YDsKICAgIH0pOwp9OwoKYXN5bmMgZnVuY3Rpb24gZ2VvY29kZShvYnNpZGlhbiwgYWRkcmVzcykgewogICAgY29uc3QgdXJsID0gbmV3IFVSTCgiaHR0cHM6Ly9ub21pbmF0aW0ub3BlbnN0cmVldG1hcC5vcmcvc2VhcmNoIik7CiAgICAvLyBVUkxTZWFyY2hQYXJhbXMgZW5jb2RlcyB0aGUgYWRkcmVzcywgc28gY2hhcmFjdGVycyBsaWtlIGAmYCBhbmQgYCNgCiAgICAvLyBzdGF5IHBhcnQgb2YgdGhlIHF1ZXJ5IGluc3RlYWQgb2YgY3V0dGluZyBpdCBzaG9ydC4KICAgIHVybC5zZWFyY2ggPSBuZXcgVVJMU2VhcmNoUGFyYW1zKHtxOiBhZGRyZXNzLCBmb3JtYXQ6ICJqc29uIiwgbGltaXQ6ICIxIn0pLnRvU3RyaW5nKCk7CgogICAgY29uc3QgcmVzcG9uc2UgPSBhd2FpdCBvYnNpZGlhbi5yZXF1ZXN0VXJsKHt1cmw6IHVybC50b1N0cmluZygpfSk7CiAgICByZXR1cm4gcmVzcG9uc2UuanNvbjsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "book-finder",
+		"title": "Book finder script",
+		"description": "Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required",
+		"slug": "docs/Examples/Macro_BookFinder",
+		"requires": [
+			"an internet connection (titles are looked up on Google Books; no API key needed)"
+		],
+		"afterImport": [
+			"Notes land in `Books/`. To use another folder, click the cog next to **Add book note** in **Settings → QuickAdd**, then the cog on the **Book note** step, and change **Folder path**.",
+			"Run **Add book note** from the command palette and enter a book title (a short clipboard text is prefilled). The first Google Books match becomes the note; there is no picker.",
+			"If Google Books answers with a quota error, try again later. It does not mean the book was not found."
+		],
+		"choices": [
+			{
+				"name": "Add book note",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 1,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-book-finder"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-book-finder",
+						"name": "Add book note",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-book-finder-macro",
+							"name": "Add book note",
+							"commands": [
+								{
+									"id": "qa-pkg-book-finder-script",
+									"name": "BookFinder",
+									"type": "UserScript",
+									"path": "scripts/BookFinder.js",
+									"settings": {}
+								},
+								{
+									"id": "qa-pkg-book-finder-nested",
+									"name": "Book note",
+									"type": "NestedChoice",
+									"choice": {
+										"id": "qa-pkg-book-finder-template",
+										"name": "Book note",
+										"type": "Template",
+										"command": false,
+										"templatePath": "Templates/Book.md",
+										"fileNameFormat": {
+											"enabled": true,
+											"format": "{{VALUE:fileName}}"
+										},
+										"discoverExistingNotesBeforeCreate": false,
+										"folder": {
+											"enabled": true,
+											"folders": [
+												"Books"
+											],
+											"chooseWhenCreatingNote": false,
+											"createInSameFolderAsActiveFile": false,
+											"chooseFromSubfolders": false
+										},
+										"appendLink": false,
+										"copyLinkToClipboard": false,
+										"openFile": true,
+										"fileOpening": {
+											"location": "tab",
+											"direction": "vertical",
+											"mode": "default",
+											"focus": true
+										},
+										"fileExistsBehavior": {
+											"kind": "prompt"
+										}
+									}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Add book note"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/BookFinder.js",
+					"contentEncoding": "base64",
+					"content": "Y29uc3Qgbm90aWNlID0gKG1zZykgPT4gbmV3IE5vdGljZShtc2csIDUwMDApOwpjb25zdCBsb2cgPSAobXNnKSA9PiBjb25zb2xlLmxvZyhtc2cpOwoKY29uc3QgR09PR0xFX0JPT0tTX0FQSV9VUkwgPSAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vYm9va3MvdjEvdm9sdW1lcyI7CmNvbnN0IEdPT0dMRV9CT09LU19USVRMRV9URVJNID0gImludGl0bGU6IgoKbGV0IFF1aWNrQWRkOwoKbW9kdWxlLmV4cG9ydHMgPSAgYXN5bmMgZnVuY3Rpb24gc3RhcnQocGFyYW1zKSB7CiAgUXVpY2tBZGQgPSBwYXJhbXM7CgogIC8vIFByZWZpbGwgdGhlIHByb21wdCBmcm9tIHRoZSBjbGlwYm9hcmQgd2hlbiBpdCBsb29rcyBsaWtlIGEgdGl0bGUsIG5vdCB3aGVuIGl0CiAgLy8gaG9sZHMgc29tZXRoaW5nIGxvbmcgb3IgbXVsdGktbGluZSBzdWNoIGFzIGEgcGFzdGVkIGFydGljbGUgb3IgYSBwYWNrYWdlLgogIGNvbnN0IGNsaXBCb2FyZENvbnRlbnRzID0gU3RyaW5nKChhd2FpdCBRdWlja0FkZC5xdWlja0FkZEFwaS51dGlsaXR5LmdldENsaXBib2FyZCgpLmNhdGNoKCgpID0+ICIiKSkgPz8gIiIpLnRyaW0oKTsKICBjb25zdCBwcmVmaWxsID0gY2xpcEJvYXJkQ29udGVudHMubGVuZ3RoIDw9IDEyMCAmJiAhY2xpcEJvYXJkQ29udGVudHMuaW5jbHVkZXMoIlxuIikgPyBjbGlwQm9hcmRDb250ZW50cyA6ICIiOwogIGNvbnN0IHRpdGxlID0gYXdhaXQgUXVpY2tBZGQucXVpY2tBZGRBcGkuaW5wdXRQcm9tcHQoCiAgICAiRW50ZXIgQm9vayB0aXRsZTogIiwgcHJlZmlsbCwgcHJlZmlsbCAvLyBwcmVmaWxsIGlzIGFkZGVkIG9uY2UgYXMgdGhlIHBsYWNlaG9sZGVyIGFuZCBvbmNlIGFzIHRoZSBkZWZhdWx0IHZhbHVlCiAgKTsKICBpZiAoIXRpdGxlKSB7CiAgICBub3RpY2UoIk5vIHRpdGxlIGVudGVyZWQuIik7CiAgICB0aHJvdyBuZXcgRXJyb3IoIk5vIHRpdGxlIGVudGVyZWQuIik7CiAgfQoKICBjb25zdCBlbmNvZGVkVGl0bGUgPSBlbmNvZGVVUklDb21wb25lbnQoR09PR0xFX0JPT0tTX1RJVExFX1RFUk0gKyB0aXRsZSk7CiAgY29uc3QgZmluYWxVUkwgPSBHT09HTEVfQk9PS1NfQVBJX1VSTCArICI/cT0iICsgZW5jb2RlZFRpdGxlICsgIiZtYXhSZXN1bHRzPTEwIjsKICBjb25zdCByZXNwb25zZSA9IGF3YWl0IGZldGNoKGZpbmFsVVJMKTsKICAvLyBBIHByb3h5IG9yIG91dGFnZSBjYW4gYW5zd2VyIHdpdGggYW4gSFRNTCBwYWdlIHJhdGhlciB0aGFuIEpTT04sIGV2ZW4gd2l0aCBhIDJ4eCBzdGF0dXMuCiAgY29uc3QgYm9va0Rlc2MgPSBhd2FpdCByZXNwb25zZS5qc29uKCkuY2F0Y2goKCkgPT4gbnVsbCk7CgogIC8vIEtleWxlc3MgcmVxdWVzdHMgc2hhcmUgYSBwZXItbmV0d29yayBkYWlseSBxdW90YSwgc28gYSA0MjkgaGVyZSBpcyBub3QgIm5vIHJlc3VsdHMiLgogIGlmICghcmVzcG9uc2Uub2sgfHwgIWJvb2tEZXNjIHx8IGJvb2tEZXNjLmVycm9yKSB7CiAgICBjb25zdCByZWFzb24gPSBib29rRGVzYz8uZXJyb3I/Lm1lc3NhZ2UgPz8gKHJlc3BvbnNlLm9rID8gInRoZSByZXNwb25zZSB3YXMgbm90IEpTT04iIDogYEhUVFAgJHtyZXNwb25zZS5zdGF0dXN9YCk7CiAgICBub3RpY2UoIkdvb2dsZSBCb29rcyByZXF1ZXN0IGZhaWxlZDogIiArIHJlYXNvbik7CiAgICB0aHJvdyBuZXcgRXJyb3IoIkdvb2dsZSBCb29rcyByZXF1ZXN0IGZhaWxlZDogIiArIHJlYXNvbik7CiAgfQoKICAvLyBUaGUgR29vZ2xlIEJvb2tzIEFQSSBvbWl0cyBgaXRlbXNgIGVudGlyZWx5IHdoZW4gYSB0aXRsZSB5aWVsZHMgbm8gbWF0Y2hlcy4KICBpZiAoIWJvb2tEZXNjLml0ZW1zIHx8IGJvb2tEZXNjLml0ZW1zLmxlbmd0aCA9PT0gMCkgewogICAgbm90aWNlKCJObyByZXN1bHRzIGZvdW5kIGZvcjogIiArIHRpdGxlKTsKICAgIHRocm93IG5ldyBFcnJvcigiTm8gcmVzdWx0cyBmb3VuZCBmb3I6ICIgKyB0aXRsZSk7CiAgfQoKICAvLyBJbiBhbiBpZGVhbCB3b3JsZCB3ZSB3b3VsZCBwb3B1cCBhIHBpY2tlciB0aGF0IHNob3dzIHRoZSB1c2VyOiBCb29rIFRpdGxlLCBBdXRob3IocykgYW5kIGNvdmVyLiBUaGV5IHdvdWxkIHNlbGVjdCB0aGUgY29ycmVjdCB2ZXJzaW9uIGZyb20gdGhlcmUKICBjb25zdCBib29rID0gYm9va0Rlc2MuaXRlbXNbMF07CiAgY29uc3Qgdm9sdW1lSW5mbyA9IGJvb2sudm9sdW1lSW5mbzsKCiAgLy8gQXV0aG9ycywgY2F0ZWdvcmllcywgZGVzY3JpcHRpb24gYW5kIGNvdmVyIGFyZSBhbGwgb3B0aW9uYWwgaW4gdGhlIEFQSS4KICAvLyBRdWlja0FkZCB0cmVhdHMgYW4gdW5kZWZpbmVkIHZhcmlhYmxlIGFzICJub3QgYW5zd2VyZWQgeWV0IiBhbmQgd291bGQgcHJvbXB0CiAgLy8gZm9yIGl0LCBzbyBmYWxsIGJhY2sgdG8gYW4gZW1wdHkgdmFsdWUgaW5zdGVhZC4KICBRdWlja0FkZC52YXJpYWJsZXMgPSB7CiAgICAuLi5ib29rLAogICAgdGl0bGU6IHZvbHVtZUluZm8udGl0bGUsCiAgICAvLyBIb3cgdG8gZ2V0IG11dGlwbGUgYXV0aG9ycyBvciBjYXRlZ29yaWVzIG91dCB3aXRoIGNvbW1hcyBiZXR3ZWVuIHRoZW0KICAgIGF1dGhvcnM6IHZvbHVtZUluZm8uYXV0aG9ycyA/PyAiIiwKICAgIGNhdGVnb3JpZXM6IHZvbHVtZUluZm8uY2F0ZWdvcmllcyA/PyAiIiwKICAgIGRlc2NyaXB0aW9uOiB2b2x1bWVJbmZvLmRlc2NyaXB0aW9uID8/ICIiLAogICAgZmlsZU5hbWU6IHJlcGxhY2VJbGxlZ2FsRmlsZU5hbWVDaGFyYWN0ZXJzSW5TdHJpbmcodm9sdW1lSW5mby50aXRsZSksCiAgICBQb3N0ZXI6IHZvbHVtZUluZm8uaW1hZ2VMaW5rcz8uc21hbGxUaHVtYm5haWwgPz8gIiIKICB9Owp9CgpmdW5jdGlvbiByZXBsYWNlSWxsZWdhbEZpbGVOYW1lQ2hhcmFjdGVyc0luU3RyaW5nKHN0cmluZykgewogIHJldHVybiBzdHJpbmcucmVwbGFjZSgvW1xcLCMlJlx7XH1cLyo8Pj8kXCdcIjpAXSovZywgIiIpOwp9"
+				},
+				{
+					"kind": "template",
+					"originalPath": "Templates/Book.md",
+					"contentEncoding": "base64",
+					"content": "IVtwb3N0ZXJdKHt7VkFMVUU6UG9zdGVyfX0pCgoqKkF1dGhvcioqOjoge3tWQUxVRTphdXRob3JzfX0KKipUaXRsZSoqOjoge3tWQUxVRTp0aXRsZX19CioqQ2F0ZWdvcnkqKjo6e3tWQUxVRTpjYXRlZ29yaWVzfX0KKipTdGF0dXMqKjo6IPCfk6UKCioqUmVsYXRlZCBCb29rcyoqCiMjIyBDb3JlIFF1ZXN0aW9ucyBmb3IgTWUKCiMjIyBBY3Rpb25zCgojIyMgTXkgTm90ZXMKCiMjIERldGFpbHMKe3tWQUxVRTpkZXNjcmlwdGlvbn19Cg=="
+				}
+			]
+		}
+	},
+	{
+		"id": "brain-dump",
+		"title": "Brain dump",
+		"description": "Jot down several inbox entries in a row - a macro opens a Capture again after each entry until you press Esc",
+		"slug": "docs/Examples/Macro_BrainDump",
+		"requires": [],
+		"afterImport": [
+			"Run **Brain dump** from the command palette, or give it a hotkey in **Settings → Hotkeys**.",
+			"Optional: to put entries somewhere other than `Inbox.md`, hover over **Brain dump entry** in **Settings → QuickAdd**, click its cog, and change **Capture to**.",
+			"Optional: to repeat a Capture you already have, hover over **Brain dump** and click its cog, then click the cog on the **brainDump** step and enter that Capture's name in **Capture choice**."
+		],
+		"choices": [
+			{
+				"name": "Brain dump",
+				"type": "Macro"
+			},
+			{
+				"name": "Brain dump entry",
+				"type": "Capture"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.29.0",
+			"createdAt": "2026-09-28T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-brain-dump",
+				"qa-pkg-brain-dump-inbox"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-brain-dump",
+						"name": "Brain dump",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-brain-dump-macro",
+							"name": "Brain dump",
+							"commands": [
+								{
+									"id": "qa-pkg-brain-dump-script",
+									"name": "brainDump",
+									"type": "UserScript",
+									"path": "scripts/brainDump.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Brain dump"
+					],
+					"parentChoiceId": null
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-brain-dump-inbox",
+						"name": "Brain dump entry",
+						"type": "Capture",
+						"command": false,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Inbox.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "- {{VALUE}}"
+						},
+						"useSelectionAsCaptureValue": false,
+						"insertAfter": {
+							"enabled": false,
+							"after": "",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": true,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Brain dump entry"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/brainDump.js",
+					"contentEncoding": "base64",
+					"content": "Y29uc3QgQ0FQVFVSRV9DSE9JQ0UgPSAiQ2FwdHVyZSBjaG9pY2UiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CgllbnRyeTogc3RhcnQsCglzZXR0aW5nczogewoJCW5hbWU6ICJCcmFpbiBkdW1wIiwKCQlhdXRob3I6ICJRdWlja0FkZCIsCgkJb3B0aW9uczogewoJCQlbQ0FQVFVSRV9DSE9JQ0VdOiB7CgkJCQl0eXBlOiAidGV4dCIsCgkJCQlkZWZhdWx0VmFsdWU6ICJCcmFpbiBkdW1wIGVudHJ5IiwKCQkJCXBsYWNlaG9sZGVyOiAiQnJhaW4gZHVtcCBlbnRyeSIsCgkJCQlkZXNjcmlwdGlvbjogIlRoZSBDYXB0dXJlIGNob2ljZSB0byBvcGVuIGFnYWluIGFmdGVyIGVhY2ggZW50cnkiLAoJCQl9LAoJCX0sCgl9LAp9OwoKYXN5bmMgZnVuY3Rpb24gc3RhcnQocGFyYW1zLCBzZXR0aW5ncykgewoJY29uc3QgY2hvaWNlID0KCQlTdHJpbmcoc2V0dGluZ3M/LltDQVBUVVJFX0NIT0lDRV0gPz8gIiIpLnRyaW0oKSB8fCAiQnJhaW4gZHVtcCBlbnRyeSI7CgoJLy8gRWFjaCBlbnRyeSBydW5zIHRoZSBDYXB0dXJlIG9uY2UuIEVzYyAob3IgQ2FuY2VsKSByZWplY3RzLCB3aGljaCBlbmRzIHRoZQoJLy8gbG9vcC4gQSBDYXB0dXJlIHRoYXQgbmV2ZXIgYXNrcyBmb3IgaW5wdXQgd291bGQgcmVwZWF0IGZvcmV2ZXIsIHNvIHN0b3AuCgl3aGlsZSAoYXdhaXQgYXNrZWRGb3JJbnB1dCgoKSA9PiBwYXJhbXMucXVpY2tBZGRBcGkuZXhlY3V0ZUNob2ljZShjaG9pY2UpKSkge30KCgluZXcgcGFyYW1zLm9ic2lkaWFuLk5vdGljZSgKCQlgQnJhaW4gZHVtcCBzdG9wcGVkOiAiJHtjaG9pY2V9IiBkaWRuJ3QgYXNrIGZvciBhbnkgaW5wdXQuYCwKCSk7Cn0KCi8vIFJ1bnMgYHJ1bmAgYW5kIHJlcG9ydHMgd2hldGhlciBhIGRpYWxvZywgc3VjaCBhcyBhIHByb21wdCwgb3BlbmVkIG1lYW53aGlsZS4KYXN5bmMgZnVuY3Rpb24gYXNrZWRGb3JJbnB1dChydW4pIHsKCWxldCBvcGVuZWQgPSBmYWxzZTsKCWNvbnN0IGNoZWNrID0gKHJlY29yZHMpID0+IHsKCQlvcGVuZWQgfHw9IHJlY29yZHMuc29tZSgocmVjb3JkKSA9PgoJCQlbLi4ucmVjb3JkLmFkZGVkTm9kZXNdLnNvbWUoKG5vZGUpID0+CgkJCQlub2RlLmNsYXNzTGlzdD8uY29udGFpbnMoIm1vZGFsLWNvbnRhaW5lciIpLAoJCQkpLAoJCSk7Cgl9OwoJY29uc3Qgb2JzZXJ2ZXIgPSBuZXcgTXV0YXRpb25PYnNlcnZlcihjaGVjayk7CglvYnNlcnZlci5vYnNlcnZlKGFjdGl2ZURvY3VtZW50LmJvZHksIHsgY2hpbGRMaXN0OiB0cnVlIH0pOwoJdHJ5IHsKCQlhd2FpdCBydW4oKTsKCX0gZmluYWxseSB7CgkJY2hlY2sob2JzZXJ2ZXIudGFrZVJlY29yZHMoKSk7CgkJb2JzZXJ2ZXIuZGlzY29ubmVjdCgpOwoJfQoJcmV0dXJuIG9wZW5lZDsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "canvas-capture",
+		"title": "Canvas capture",
+		"description": "Capture formatted text into a selected Canvas card or a specific node in a .canvas file, with supported write positions and linking",
+		"slug": "docs/Examples/Capture_CanvasCapture",
+		"requires": [],
+		"afterImport": [
+			"Open a canvas and select exactly one text card or Markdown-file card. Run **Add idea to card** from the command palette and type your idea. It is added as a bullet at the bottom of the card.",
+			"Optional: to always write to the same card, click the cog next to **Add idea to card** in **Settings → QuickAdd**, turn off **Capture to active file**, set **Capture to** to your `.canvas` file, and pick the card under **Target canvas node**."
+		],
+		"choices": [
+			{
+				"name": "Add idea to card",
+				"type": "Capture"
+			}
+		],
+		"scripts": 0,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-canvas-capture"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-canvas-capture",
+						"name": "Add idea to card",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "",
+						"captureToActiveFile": true,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": false,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "- {{VALUE}}"
+						},
+						"insertAfter": {
+							"enabled": false,
+							"after": "",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Add idea to card"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": []
+		}
+	},
+	{
+		"id": "capture-inbox-gps",
+		"title": "Capture to inbox with GPS",
+		"description": "Append a timestamped inbox line with device GPS coordinates, for offline capture on Obsidian mobile 1.11+",
+		"slug": "docs/Examples/Macro_CaptureInboxGps",
+		"requires": [
+			"Obsidian mobile 1.11 or newer for GPS (desktop saves the line without coordinates)"
+		],
+		"afterImport": [
+			"Optional: in **Settings → QuickAdd**, click the cog next to **Capture to Inbox with GPS**, then the cog on the **captureInboxGps** step, to change **Inbox path** (default `Inbox.md`).",
+			"Run **Capture to Inbox with GPS** from the command palette, or give it a hotkey. On mobile, allow location access when asked."
+		],
+		"choices": [
+			{
+				"name": "Capture to Inbox with GPS",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.23.0",
+			"createdAt": "2026-08-31T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-capture-inbox-gps"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-capture-inbox-gps",
+						"name": "Capture to Inbox with GPS",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-capture-inbox-gps-macro",
+							"name": "Capture to Inbox with GPS",
+							"commands": [
+								{
+									"id": "qa-pkg-capture-inbox-gps-script",
+									"name": "captureInboxGps",
+									"type": "UserScript",
+									"path": "scripts/captureInboxGps.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Capture to Inbox with GPS"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/captureInboxGps.js",
+					"contentEncoding": "base64",
+					"content": "Y29uc3QgSU5CT1hfUEFUSCA9ICJJbmJveCBwYXRoIjsKY29uc3QgQ1JFQVRFX0lGX01JU1NJTkcgPSAiQ3JlYXRlIEluYm94IGlmIG1pc3NpbmciOwoKbW9kdWxlLmV4cG9ydHMgPSB7CgllbnRyeTogc3RhcnQsCglzZXR0aW5nczogewoJCW5hbWU6ICJDYXB0dXJlIHRvIEluYm94IHdpdGggR1BTIiwKCQlhdXRob3I6ICJRdWlja0FkZCIsCgkJb3B0aW9uczogewoJCQlbSU5CT1hfUEFUSF06IHsKCQkJCXR5cGU6ICJ0ZXh0IiwKCQkJCWRlZmF1bHRWYWx1ZTogIkluYm94Lm1kIiwKCQkJCXBsYWNlaG9sZGVyOiAiSW5ib3gubWQiLAoJCQkJZGVzY3JpcHRpb246ICJWYXVsdCBwYXRoIG9mIHRoZSBub3RlIHRvIGFwcGVuZCB0byIsCgkJCX0sCgkJCVtDUkVBVEVfSUZfTUlTU0lOR106IHsKCQkJCXR5cGU6ICJ0b2dnbGUiLAoJCQkJZGVmYXVsdFZhbHVlOiB0cnVlLAoJCQkJZGVzY3JpcHRpb246ICJDcmVhdGUgdGhlIEluYm94IG5vdGUgd2hlbiBpdCBkb2VzIG5vdCBleGlzdCIsCgkJCX0sCgkJfSwKCX0sCn07Cgphc3luYyBmdW5jdGlvbiBzdGFydChwYXJhbXMsIHNldHRpbmdzKSB7Cgljb25zdCB7IE5vdGljZSwgVEZpbGUsIG5vcm1hbGl6ZVBhdGggfSA9IHBhcmFtcy5vYnNpZGlhbjsKCWNvbnN0IGluYm94UGF0aCA9IG5vcm1hbGl6ZVBhdGgoCgkJU3RyaW5nKHNldHRpbmdzPy5bSU5CT1hfUEFUSF0gfHwgIkluYm94Lm1kIikudHJpbSgpIHx8ICJJbmJveC5tZCIsCgkpOwoJY29uc3QgY3JlYXRlSWZNaXNzaW5nID0gc2V0dGluZ3M/LltDUkVBVEVfSUZfTUlTU0lOR10gIT09IGZhbHNlOwoKCWNvbnN0IGNvb3Jkc1Byb21pc2UgPSByZXNvbHZlQ29vcmRpbmF0ZXMocGFyYW1zLnZhcmlhYmxlcyk7Cgljb25zdCB0ZXh0ID0gYXdhaXQgcmVzb2x2ZU5vdGVUZXh0KHBhcmFtcyk7CglpZiAoIXRleHQpIHJldHVybjsKCgljb25zdCBjb29yZHMgPSBhd2FpdCBjb29yZHNQcm9taXNlOwoJY29uc3Qgc3RhbXAgPSBmb3JtYXRTdGFtcCgpOwoJY29uc3Qgc3VmZml4ID0gY29vcmRzID8gYCAoJHtjb29yZHN9KWAgOiAiIjsKCWNvbnN0IGxpbmUgPSBgLSAke3N0YW1wfSAke3RleHR9JHtzdWZmaXh9XG5gOwoKCWNvbnN0IGV4aXN0aW5nID0gcGFyYW1zLmFwcC52YXVsdC5nZXRBYnN0cmFjdEZpbGVCeVBhdGgoaW5ib3hQYXRoKTsKCWlmIChleGlzdGluZyBpbnN0YW5jZW9mIFRGaWxlKSB7CgkJLy8gT3RoZXIgY2FwdHVyZXMgYW5kIHRoZSBlZGl0b3IgbGVhdmUgdGhlIGxhc3QgbGluZSB1bnRlcm1pbmF0ZWQuCgkJYXdhaXQgcGFyYW1zLmFwcC52YXVsdC5wcm9jZXNzKGV4aXN0aW5nLCAoZGF0YSkgPT4KCQkJZGF0YSA9PT0gIiIgfHwgZGF0YS5lbmRzV2l0aCgiXG4iKSA/IGRhdGEgKyBsaW5lIDogYCR7ZGF0YX1cbiR7bGluZX1gLAoJCSk7Cgl9IGVsc2UgaWYgKGV4aXN0aW5nKSB7CgkJbmV3IE5vdGljZShgUXVpY2tBZGQ6ICR7aW5ib3hQYXRofSBpcyBhIGZvbGRlciwgbm90IGEgbm90ZWApOwoJCXJldHVybjsKCX0gZWxzZSBpZiAoY3JlYXRlSWZNaXNzaW5nKSB7CgkJYXdhaXQgZW5zdXJlUGFyZW50Rm9sZGVycyhwYXJhbXMuYXBwLCBpbmJveFBhdGgpOwoJCWF3YWl0IHBhcmFtcy5hcHAudmF1bHQuY3JlYXRlKGluYm94UGF0aCwgbGluZSk7Cgl9IGVsc2UgewoJCW5ldyBOb3RpY2UoYFF1aWNrQWRkOiAke2luYm94UGF0aH0gbm90IGZvdW5kYCk7CgkJcmV0dXJuOwoJfQoKCWlmICghY29vcmRzKSB7CgkJbmV3IE5vdGljZSgiU2F2ZWQgd2l0aG91dCBHUFMgKG5vIGZpeCwgcGVybWlzc2lvbiBkZW5pZWQsIG9yIGRlc2t0b3ApIik7Cgl9Cn0KCmFzeW5jIGZ1bmN0aW9uIHJlc29sdmVOb3RlVGV4dChwYXJhbXMpIHsKCWNvbnN0IHByZXNldCA9IHBhcmFtcy52YXJpYWJsZXM/LnZhbHVlOwoJaWYgKHR5cGVvZiBwcmVzZXQgPT09ICJzdHJpbmciKSB7CgkJcmV0dXJuIHByZXNldC50cmltKCk7Cgl9Cgljb25zdCB0eXBlZCA9IGF3YWl0IHBhcmFtcy5xdWlja0FkZEFwaS5pbnB1dFByb21wdCgiSW5ib3giKTsKCXJldHVybiB0eXBlb2YgdHlwZWQgPT09ICJzdHJpbmciID8gdHlwZWQudHJpbSgpIDogIiI7Cn0KCmZ1bmN0aW9uIHJlc29sdmVDb29yZGluYXRlcyh2YXJpYWJsZXMpIHsKCWNvbnN0IHByZXNldCA9IHZhcmlhYmxlcz8uY29vcmRpbmF0ZXM7CglpZiAodHlwZW9mIHByZXNldCA9PT0gInN0cmluZyIgJiYgcHJlc2V0LnRyaW0oKSkgewoJCXJldHVybiBQcm9taXNlLnJlc29sdmUocHJlc2V0LnRyaW0oKSk7Cgl9CgoJcmV0dXJuIG5ldyBQcm9taXNlKChyZXNvbHZlKSA9PiB7CgkJaWYgKHR5cGVvZiBuYXZpZ2F0b3IgPT09ICJ1bmRlZmluZWQiIHx8ICFuYXZpZ2F0b3IuZ2VvbG9jYXRpb24pIHsKCQkJcmVzb2x2ZSgiIik7CgkJCXJldHVybjsKCQl9CgoJCW5hdmlnYXRvci5nZW9sb2NhdGlvbi5nZXRDdXJyZW50UG9zaXRpb24oCgkJCShwb3MpID0+IHsKCQkJCXJlc29sdmUoCgkJCQkJYCR7cG9zLmNvb3Jkcy5sYXRpdHVkZS50b0ZpeGVkKDYpfSwgJHtwb3MuY29vcmRzLmxvbmdpdHVkZS50b0ZpeGVkKDYpfWAsCgkJCQkpOwoJCQl9LAoJCQkoKSA9PiByZXNvbHZlKCIiKSwKCQkJewoJCQkJZW5hYmxlSGlnaEFjY3VyYWN5OiB0cnVlLAoJCQkJdGltZW91dDogMzAwMDAsCgkJCQltYXhpbXVtQWdlOiA2MDAwMCwKCQkJfSwKCQkpOwoJfSk7Cn0KCmZ1bmN0aW9uIGZvcm1hdFN0YW1wKCkgewoJaWYgKHR5cGVvZiB3aW5kb3cgIT09ICJ1bmRlZmluZWQiICYmIHdpbmRvdy5tb21lbnQpIHsKCQlyZXR1cm4gd2luZG93Lm1vbWVudCgpLmZvcm1hdCgiWVlZWS1NTS1ERCBISDptbSIpOwoJfQoJcmV0dXJuIG5ldyBEYXRlKCkudG9JU09TdHJpbmcoKS5zbGljZSgwLCAxNikucmVwbGFjZSgiVCIsICIgIik7Cn0KCmFzeW5jIGZ1bmN0aW9uIGVuc3VyZVBhcmVudEZvbGRlcnMoYXBwLCBmaWxlUGF0aCkgewoJY29uc3QgcGFydHMgPSBmaWxlUGF0aC5zcGxpdCgiLyIpLmZpbHRlcihCb29sZWFuKTsKCXBhcnRzLnBvcCgpOwoJbGV0IGZvbGRlciA9ICIiOwoJZm9yIChjb25zdCBwYXJ0IG9mIHBhcnRzKSB7CgkJZm9sZGVyID0gZm9sZGVyID8gYCR7Zm9sZGVyfS8ke3BhcnR9YCA6IHBhcnQ7CgkJaWYgKCFhcHAudmF1bHQuZ2V0QWJzdHJhY3RGaWxlQnlQYXRoKGZvbGRlcikpIHsKCQkJYXdhaXQgYXBwLnZhdWx0LmNyZWF0ZUZvbGRlcihmb2xkZXIpOwoJCX0KCX0KfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "change-daily-property",
+		"title": "Change properties in your daily notes",
+		"description": "Update a property in your daily note by picking it from a suggester and entering a new value, using Obsidian's frontmatter API",
+		"slug": "docs/Examples/Macro_ChangePropertyInDailyNotes",
+		"requires": [
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
+		],
+		"afterImport": [
+			"Create today's daily note and give it the properties you want to change; the menu only lists properties that already exist, and only text, number and checkbox ones.",
+			"Run **Change daily note property** from the command palette, pick a property, and enter its new value.",
+			"Daily notes somewhere else? Click the cog next to **Change daily note property** in **Settings → QuickAdd**, then the cog on the **changeDailyProperty** step, and set **Daily note path** (for example `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`). Leave it empty to use the Daily notes plugin's folder and date format."
+		],
+		"choices": [
+			{
+				"name": "Change daily note property",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-change-daily-property"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-change-daily-property",
+						"name": "Change daily note property",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-change-daily-property-macro",
+							"name": "Change daily note property",
+							"commands": [
+								{
+									"id": "qa-pkg-change-daily-property-script",
+									"name": "changeDailyProperty",
+									"type": "UserScript",
+									"path": "scripts/changeDailyProperty.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Change daily note property"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/changeDailyProperty.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gTGlzdHMgdGhlIHByb3BlcnRpZXMgaW4gdG9kYXkncyBkYWlseSBub3RlLCBhc2tzIGZvciBhIG5ldyB2YWx1ZSwgYW5kIHdyaXRlcyBpdCBiYWNrLgovLyBVc2VzIE9ic2lkaWFuJ3Mgb3duIGFwcC5maWxlTWFuYWdlci5wcm9jZXNzRnJvbnRNYXR0ZXI7IG5vIG90aGVyIHBsdWdpbnMgbmVlZGVkLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fQ2hhbmdlUHJvcGVydHlJbkRhaWx5Tm90ZXMKY29uc3QgREFJTFlfTk9URV9QQVRIID0gIkRhaWx5IG5vdGUgcGF0aCI7Cgptb2R1bGUuZXhwb3J0cyA9IHsKCWVudHJ5OiBzdGFydCwKCXNldHRpbmdzOiB7CgkJbmFtZTogIkNoYW5nZSBkYWlseSBub3RlIHByb3BlcnR5IiwKCQlhdXRob3I6ICJDaHJpc3RpYW4gQi4gQi4gSG91bWFubiIsCgkJb3B0aW9uczogewoJCQlbREFJTFlfTk9URV9QQVRIXTogewoJCQkJdHlwZTogImZvcm1hdCIsCgkJCQlkZWZhdWx0VmFsdWU6ICIiLAoJCQkJcGxhY2Vob2xkZXI6ICJEYWlseS97e0RBVEU6WVlZWS1NTS1ERH19Lm1kIiwKCQkJCWRlc2NyaXB0aW9uOgoJCQkJCSJQYXRoIG9mIHRvZGF5J3MgZGFpbHkgbm90ZSwgd2l0aCBRdWlja0FkZCBkYXRlIHN5bnRheC4gTGVhdmUgZW1wdHkgdG8gdXNlIHRoZSBEYWlseSBub3RlcyBjb3JlIHBsdWdpbidzIGZvbGRlciBhbmQgZGF0ZSBmb3JtYXQuIiwKCQkJfSwKCQl9LAoJfSwKfTsKCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0KHBhcmFtcywgc2V0dGluZ3MpIHsKCWNvbnN0IHsgYXBwLCBxdWlja0FkZEFwaSwgb2JzaWRpYW4gfSA9IHBhcmFtczsKCWNvbnN0IHBhdGggPSBhd2FpdCB0b2RheXNEYWlseU5vdGVQYXRoKGFwcCwgcXVpY2tBZGRBcGksIHNldHRpbmdzW0RBSUxZX05PVEVfUEFUSF0pOwoJaWYgKCFwYXRoKSB7CgkJbmV3IG9ic2lkaWFuLk5vdGljZSgiRW5hYmxlIHRoZSBEYWlseSBub3RlcyBjb3JlIHBsdWdpbiBvciBzZXQgRGFpbHkgbm90ZSBwYXRoIGluIHRoZSBzY3JpcHQgc2V0dGluZ3MuIiwgODAwMCk7CgkJcmV0dXJuOwoJfQoJY29uc3QgZmlsZSA9IGFwcC52YXVsdC5nZXRBYnN0cmFjdEZpbGVCeVBhdGgocGF0aCk7CglpZiAoIShmaWxlIGluc3RhbmNlb2Ygb2JzaWRpYW4uVEZpbGUpKSB7CgkJbmV3IG9ic2lkaWFuLk5vdGljZShgTm8gZGFpbHkgbm90ZSBhdCAke3BhdGh9LmApOwoJCXJldHVybjsKCX0KCgkvLyBPbmx5IHNpbmdsZS12YWx1ZSBwcm9wZXJ0aWVzOiBhIG9uZS1saW5lIHByb21wdCBjYW5ub3QgZWRpdCBsaXN0cyBvciBuZXN0ZWQgb2JqZWN0cy4KCWNvbnN0IGZyb250bWF0dGVyID0gYXBwLm1ldGFkYXRhQ2FjaGUuZ2V0RmlsZUNhY2hlKGZpbGUpPy5mcm9udG1hdHRlciA/PyB7fTsKCWNvbnN0IGtleXMgPSBPYmplY3Qua2V5cyhmcm9udG1hdHRlcikuZmlsdGVyKAoJCShrZXkpID0+IGtleSAhPT0gInBvc2l0aW9uIiAmJiAoZnJvbnRtYXR0ZXJba2V5XSA9PT0gbnVsbCB8fCB0eXBlb2YgZnJvbnRtYXR0ZXJba2V5XSAhPT0gIm9iamVjdCIpCgkpOwoJaWYgKGtleXMubGVuZ3RoID09PSAwKSB7CgkJbmV3IG9ic2lkaWFuLk5vdGljZShgTm8gdGV4dCwgbnVtYmVyIG9yIGNoZWNrYm94IHByb3BlcnRpZXMgaW4gJHtmaWxlLmJhc2VuYW1lfWApOwoJCXJldHVybjsKCX0KCgljb25zdCBrZXkgPSBhd2FpdCBxdWlja0FkZEFwaS5zdWdnZXN0ZXIoa2V5cywga2V5cyk7CglpZiAoIWtleSkgcmV0dXJuOwoKCWNvbnN0IGN1cnJlbnQgPSBmcm9udG1hdHRlcltrZXldOwoJY29uc3Qgc2hvd24gPSBTdHJpbmcoY3VycmVudCA/PyAiIik7Cgljb25zdCBuZXdWYWx1ZSA9IGF3YWl0IHF1aWNrQWRkQXBpLmlucHV0UHJvbXB0KGBMb2cgJHtrZXl9YCwgc2hvd24sIHNob3duKTsKCWlmIChuZXdWYWx1ZSA9PT0gdW5kZWZpbmVkIHx8IG5ld1ZhbHVlID09PSBudWxsKSByZXR1cm47CgoJYXdhaXQgYXBwLmZpbGVNYW5hZ2VyLnByb2Nlc3NGcm9udE1hdHRlcihmaWxlLCAoZm0pID0+IHsKCQlmbVtrZXldID0ga2VlcFR5cGUoY3VycmVudCwgbmV3VmFsdWUpOwoJfSk7Cn0KCi8vIEFuIGV4cGxpY2l0IHBhdGggd2luczsgb3RoZXJ3aXNlIHRvZGF5J3Mgbm90ZSBpcyB3aGVyZSB0aGUgRGFpbHkgbm90ZXMgY29yZQovLyBwbHVnaW4gd291bGQgY3JlYXRlIGl0LiBSZXR1cm5zIG51bGwgd2hlbiBuZWl0aGVyIGlzIGF2YWlsYWJsZS4KYXN5bmMgZnVuY3Rpb24gdG9kYXlzRGFpbHlOb3RlUGF0aChhcHAsIHF1aWNrQWRkQXBpLCBzZXR0aW5nKSB7Cgljb25zdCBleHBsaWNpdCA9IFN0cmluZyhzZXR0aW5nID8/ICIiKS50cmltKCk7CglpZiAoZXhwbGljaXQpIHJldHVybiBxdWlja0FkZEFwaS5mb3JtYXQoZXhwbGljaXQsIHt9KTsKCgljb25zdCBkYWlseU5vdGVzID0gYXBwLmludGVybmFsUGx1Z2lucy5wbHVnaW5zWyJkYWlseS1ub3RlcyJdOwoJaWYgKCFkYWlseU5vdGVzPy5lbmFibGVkKSByZXR1cm4gbnVsbDsKCWNvbnN0IHsgZm9sZGVyID0gIiIsIGZvcm1hdCA9ICJZWVlZLU1NLUREIiB9ID0gZGFpbHlOb3Rlcy5pbnN0YW5jZS5vcHRpb25zID8/IHt9OwoJY29uc3QgbmFtZSA9IHdpbmRvdy5tb21lbnQoKS5mb3JtYXQoZm9ybWF0IHx8ICJZWVlZLU1NLUREIik7Cgljb25zdCBkaXIgPSBTdHJpbmcoZm9sZGVyKS50cmltKCkucmVwbGFjZSgvXlwvK3xcLyskL2csICIiKTsKCXJldHVybiBkaXIgPyBgJHtkaXJ9LyR7bmFtZX0ubWRgIDogYCR7bmFtZX0ubWRgOwp9CgovLyBXcml0ZSBudW1iZXJzIGFuZCBib29sZWFucyBiYWNrIGFzIG51bWJlcnMgYW5kIGJvb2xlYW5zIHdoZW4gdGhlIG5ldyB0ZXh0IHN0aWxsIGlzIG9uZS4KZnVuY3Rpb24ga2VlcFR5cGUoY3VycmVudCwgdGV4dCkgewoJaWYgKHR5cGVvZiBjdXJyZW50ID09PSAibnVtYmVyIiAmJiB0ZXh0LnRyaW0oKSAhPT0gIiIgJiYgTnVtYmVyLmlzRmluaXRlKE51bWJlcih0ZXh0KSkpIHsKCQlyZXR1cm4gTnVtYmVyKHRleHQpOwoJfQoJaWYgKHR5cGVvZiBjdXJyZW50ID09PSAiYm9vbGVhbiIgJiYgKHRleHQgPT09ICJ0cnVlIiB8fCB0ZXh0ID09PSAiZmFsc2UiKSkgewoJCXJldHVybiB0ZXh0ID09PSAidHJ1ZSI7Cgl9CglyZXR1cm4gdGV4dDsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "meeting-notes",
+		"title": "Create a meeting note and start typing",
+		"description": "Create a meeting note or add a project update, then keep typing where you put the CURSOR marker.",
+		"slug": "docs/Examples/Template_MeetingNotes",
+		"requires": [],
+		"afterImport": [
+			"Run **New meeting** from the command palette and answer the prompt. The note lands in `Meetings/`; change **Folder path** on the choice to use another folder.",
+			"Open any project note in **Live Preview**, click in the note body, and run **Add project update** to append a dated section and start typing under **Progress**."
+		],
+		"choices": [
+			{
+				"name": "New meeting",
+				"type": "Template"
+			},
+			{
+				"name": "Add project update",
+				"type": "Capture"
+			}
+		],
+		"scripts": 0,
+		"templates": 2,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.30.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-meeting-notes",
+				"qa-pkg-meeting-notes-project-update"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-meeting-notes",
+						"name": "New meeting",
+						"type": "Template",
+						"command": true,
+						"templatePath": "Templates/Meeting.md",
+						"fileNameFormat": {
+							"enabled": true,
+							"format": "{{DATE:YYYY-MM-DD}} {{VALUE:Meeting}}"
+						},
+						"discoverExistingNotesBeforeCreate": false,
+						"folder": {
+							"enabled": true,
+							"folders": [
+								"Meetings"
+							],
+							"chooseWhenCreatingNote": false,
+							"createInSameFolderAsActiveFile": false,
+							"chooseFromSubfolders": false
+						},
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"openFile": true,
+						"fileOpening": {
+							"location": "reuse",
+							"direction": "vertical",
+							"mode": "live",
+							"focus": true
+						},
+						"fileExistsBehavior": {
+							"kind": "prompt"
+						}
+					},
+					"pathHint": [
+						"New meeting"
+					],
+					"parentChoiceId": null
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-meeting-notes-project-update",
+						"name": "Add project update",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "",
+						"captureToActiveFile": true,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "bottom",
+						"createFileIfItDoesntExist": {
+							"enabled": false,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "\\n{{TEMPLATE:Templates/Project update.md}}"
+						},
+						"insertAfter": {
+							"enabled": false,
+							"after": "",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Add project update"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "template",
+					"originalPath": "Templates/Meeting.md",
+					"contentEncoding": "base64",
+					"content": "IyB7e1ZBTFVFOk1lZXRpbmd9fQoKRGF0ZToge3tEQVRFOllZWVktTU0tRER9fQoKIyMgTm90ZXMKLSB7e0NVUlNPUn19CgojIyBOZXh0IHN0ZXBzCi0gWyBdIAo="
+				},
+				{
+					"kind": "template",
+					"originalPath": "Templates/Project update.md",
+					"contentEncoding": "base64",
+					"content": "IyMgVXBkYXRlIC0ge3tEQVRFOllZWVktTU0tRER9fQoKIyMjIFByb2dyZXNzCi0ge3tDVVJTT1J9fQoKIyMjIE5leHQgc3RlcHMKLSBbIF0gCg=="
+				}
+			]
+		}
+	},
+	{
+		"id": "moc-link-dashboard",
+		"title": "Create an MOC note with a link dashboard",
+		"description": "Create a map-of-content note with an embedded Base dashboard showing its backlinks and outgoing links, via a Template choice",
+		"slug": "docs/Examples/Template_CreateMOCNoteWithLinkDashboard",
+		"requires": [
+			"the Bases core plugin, enabled in **Settings → Core plugins**"
+		],
+		"afterImport": [
+			"Run **New MOC note** from the command palette and enter a title. The note lands in `MOCs/`; change **Folder path** on the choice to use another folder."
+		],
+		"choices": [
+			{
+				"name": "New MOC note",
+				"type": "Template"
+			}
+		],
+		"scripts": 0,
+		"templates": 2,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-moc-link-dashboard"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-moc-link-dashboard",
+						"name": "New MOC note",
+						"type": "Template",
+						"command": true,
+						"templatePath": "Templates/MOC Link Dashboard.md",
+						"fileNameFormat": {
+							"enabled": true,
+							"format": "{{VALUE:moc_title}}"
+						},
+						"discoverExistingNotesBeforeCreate": false,
+						"folder": {
+							"enabled": true,
+							"folders": [
+								"MOCs"
+							],
+							"chooseWhenCreatingNote": false,
+							"createInSameFolderAsActiveFile": false,
+							"chooseFromSubfolders": false
+						},
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"openFile": true,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"fileExistsBehavior": {
+							"kind": "apply",
+							"mode": "increment"
+						}
+					},
+					"pathHint": [
+						"New MOC note"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "template",
+					"originalPath": "Templates/MOC Link Dashboard.md",
+					"contentEncoding": "base64",
+					"content": "LS0tCnRhZ3M6CiAgLSBtb2MKLS0tCgojIHt7VkFMVUU6bW9jX3RpdGxlfX0KCiMjIExpbmsgRGFzaGJvYXJkCgpVc2UgdGhlIHZpZXcgcGlja2VyIGluIHRoaXMgZW1iZWRkZWQgYmFzZSB0byBzd2l0Y2ggYmV0d2VlbiBiYWNrbGlua3MgYW5kCm91dGdvaW5nIGxpbmtzIGZvciB0aGlzIG5vdGUuCgpgYGBiYXNlCnt7VEVNUExBVEU6VGVtcGxhdGVzL01PQyBMaW5rIERhc2hib2FyZC5iYXNlfX0KYGBgCgojIyBOb3RlcwoKLSBTdGFydCBsaW5raW5nIHRoaXMgbm90ZSB0byByZWxhdGVkIGlkZWFzLgo="
+				},
+				{
+					"kind": "template",
+					"originalPath": "Templates/MOC Link Dashboard.base",
+					"contentEncoding": "base64",
+					"content": "Zm9ybXVsYXM6CiAgbm90ZV9saW5rOiAiZmlsZS5hc0xpbmsoKSIKcHJvcGVydGllczoKICBmb3JtdWxhLm5vdGVfbGluazoKICAgIGRpc3BsYXlOYW1lOiBOb3RlCiAgZmlsZS5mb2xkZXI6CiAgICBkaXNwbGF5TmFtZTogRm9sZGVyCiAgZmlsZS5tdGltZToKICAgIGRpc3BsYXlOYW1lOiBVcGRhdGVkCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IEJhY2tsaW5rcwogICAgZmlsdGVyczoKICAgICAgYW5kOgogICAgICAgIC0gJ2ZpbGUuZXh0ID09ICJtZCInCiAgICAgICAgLSAiZmlsZS5oYXNMaW5rKHRoaXMuZmlsZSkiCiAgICAgICAgLSAiZmlsZS5wYXRoICE9IHRoaXMuZmlsZS5wYXRoIgogICAgb3JkZXI6CiAgICAgIC0gZm9ybXVsYS5ub3RlX2xpbmsKICAgICAgLSBmaWxlLmZvbGRlcgogICAgICAtIGZpbGUubXRpbWUKICAtIHR5cGU6IHRhYmxlCiAgICBuYW1lOiBPdXRnb2luZyBsaW5rcwogICAgZmlsdGVyczoKICAgICAgYW5kOgogICAgICAgIC0gJ2ZpbGUuZXh0ID09ICJtZCInCiAgICAgICAgLSAidGhpcy5maWxlLmhhc0xpbmsoZmlsZSkiCiAgICAgICAgLSAiZmlsZS5wYXRoICE9IHRoaXMuZmlsZS5wYXRoIgogICAgb3JkZXI6CiAgICAgIC0gZm9ybXVsYS5ub3RlX2xpbmsKICAgICAgLSBmaWxlLmZvbGRlcgogICAgICAtIGZpbGUubXRpbWUK"
+				}
+			]
+		}
+	},
+	{
+		"id": "todoist-tasks",
+		"title": "Fetch tasks from Todoist",
+		"description": "Import Todoist tasks into a note using a macro and user script, selecting from all tasks, a project, or a single section",
+		"slug": "docs/Examples/Capture_FetchTasksFromTodoist",
+		"requires": [
+			"a Todoist API token, copied from **Settings → Integrations → Developer** in Todoist"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Todoist**, then the cog on the **todoistTaskSync** step. Paste your token into **Todoist API token** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"**Imported tasks are completed in Todoist by default**, and recurring tasks move to their next occurrence. Untick **Complete imported tasks in Todoist** in the same settings to leave them open.",
+			"Run **Import Todoist tasks** from the command palette and pick which tasks to fetch: all of them, one project, or one section. They are written to `Todoist tasks.md`; change **Capture to** on the choice to use another note."
+		],
+		"choices": [
+			{
+				"name": "Import Todoist tasks",
+				"type": "Capture"
+			},
+			{
+				"name": "Todoist",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-todoist-tasks",
+				"qa-pkg-todoist-tasks-macro"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-todoist-tasks",
+						"name": "Import Todoist tasks",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "Todoist tasks.md",
+						"captureToActiveFile": false,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "cursor",
+						"createFileIfItDoesntExist": {
+							"enabled": true,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "{{MACRO:Todoist}}"
+						},
+						"insertAfter": {
+							"enabled": false,
+							"after": "",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Import Todoist tasks"
+					],
+					"parentChoiceId": null
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-todoist-tasks-macro",
+						"name": "Todoist",
+						"type": "Macro",
+						"command": false,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-todoist-tasks-macro-body",
+							"name": "Todoist",
+							"commands": [
+								{
+									"id": "qa-pkg-todoist-tasks-script",
+									"name": "todoistTaskSync",
+									"type": "UserScript",
+									"path": "scripts/todoistTaskSync.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Todoist"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/todoistTaskSync.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gSW1wb3J0cyBUb2RvaXN0IHRhc2tzIGludG8gYSBub3RlIGFzIFRhc2tzLXBsdWdpbiBjaGVja2xpc3QgaXRlbXMuCi8vIFRhbGtzIHRvIHRoZSBUb2RvaXN0IEFQSSB2MSBkaXJlY3RseTogaHR0cHM6Ly9kZXZlbG9wZXIudG9kb2lzdC5jb20vYXBpL3YxLwovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvQ2FwdHVyZV9GZXRjaFRhc2tzRnJvbVRvZG9pc3QKY29uc3QgQVBJX1RPS0VOID0gIlRvZG9pc3QgQVBJIHRva2VuIjsKY29uc3QgQ09NUExFVEVfVEFTS1MgPSAiQ29tcGxldGUgaW1wb3J0ZWQgdGFza3MgaW4gVG9kb2lzdCI7CmNvbnN0IFRPRE9JU1RfQVBJID0gImh0dHBzOi8vYXBpLnRvZG9pc3QuY29tL2FwaS92MSI7Cgptb2R1bGUuZXhwb3J0cyA9IHsKICAgIGVudHJ5OiBhc3luYyAocGFyYW1zLCBzZXR0aW5ncykgPT4gewogICAgICAgIGNvbnN0IGV4cG9ydHMgPSB7U2VsZWN0RnJvbUFsbFRhc2tzLCBHZXRBbGxUYXNrc0Zyb21Qcm9qZWN0LCBHZXRBbGxUYXNrc0Zyb21TZWN0aW9ufTsKICAgICAgICBjb25zdCBuYW1lcyA9IE9iamVjdC5rZXlzKGV4cG9ydHMpOwogICAgICAgIGNvbnN0IHNlbGVjdGVkID0gYXdhaXQgcGFyYW1zLnF1aWNrQWRkQXBpLnN1Z2dlc3RlcihuYW1lcywgbmFtZXMsICJJbXBvcnQgVG9kb2lzdCB0YXNrcyIpOwogICAgICAgIGlmICghc2VsZWN0ZWQpIHJldHVybiAiIjsKICAgICAgICByZXR1cm4gZXhwb3J0c1tzZWxlY3RlZF0ocGFyYW1zLCBzZXR0aW5ncyk7CiAgICB9LAogICAgc2V0dGluZ3M6IHsKICAgICAgICBuYW1lOiAiVG9kb2lzdCIsCiAgICAgICAgYXV0aG9yOiAiQ2hyaXN0aWFuIEIuIEIuIEhvdW1hbm4iLAogICAgICAgIG9wdGlvbnM6IHsKICAgICAgICAgICAgW0FQSV9UT0tFTl06IHsKICAgICAgICAgICAgICAgIHR5cGU6ICJzZWNyZXQiLAogICAgICAgICAgICAgICAgaWQ6ICJ0b2RvaXN0LWFwaS10b2tlbiIsCiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcjogIlBhc3RlIEFQSSB0b2tlbiIsCiAgICAgICAgICAgICAgICBkZXNjcmlwdGlvbjogIkZyb20gVG9kb2lzdCdzIERldmVsb3BlciBzZXR0aW5ncy4iLAogICAgICAgICAgICB9LAogICAgICAgICAgICBbQ09NUExFVEVfVEFTS1NdOiB7CiAgICAgICAgICAgICAgICB0eXBlOiAiY2hlY2tib3giLAogICAgICAgICAgICAgICAgZGVmYXVsdFZhbHVlOiB0cnVlLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJNYXJrIGVhY2ggaW1wb3J0ZWQgdGFzayBhcyBjb21wbGV0ZSBpbiBUb2RvaXN0LCBzbyBpdCBpcyBvbmx5IGltcG9ydGVkIG9uY2UuIiwKICAgICAgICAgICAgfSwKICAgICAgICB9LAogICAgfSwKICAgIFNlbGVjdEZyb21BbGxUYXNrcywKICAgIEdldEFsbFRhc2tzRnJvbVByb2plY3QsCiAgICBHZXRBbGxUYXNrc0Zyb21TZWN0aW9uLAp9OwoKLyogRXhwb3J0cyAqLwphc3luYyBmdW5jdGlvbiBTZWxlY3RGcm9tQWxsVGFza3MocGFyYW1zLCBzZXR0aW5ncykgewogICAgY29uc3QgdG9kb2lzdCA9IGNyZWF0ZVRvZG9pc3RDbGllbnQocGFyYW1zLCBzZXR0aW5ncyk7CiAgICBjb25zdCB0YXNrcyA9IGF3YWl0IHRvZG9pc3QuZ2V0QWxsKCIvdGFza3MiKTsKICAgIGlmICh0YXNrcy5sZW5ndGggPT09IDApIHsKICAgICAgICBuZXcgcGFyYW1zLm9ic2lkaWFuLk5vdGljZSgiTm8gdGFza3MgaW4gVG9kb2lzdC4iKTsKICAgICAgICByZXR1cm4gIiI7CiAgICB9CgogICAgY29uc3QgbGFiZWxzID0gdGFza3MubWFwKCh0YXNrLCBpbmRleCkgPT4gYCR7aW5kZXggKyAxfS4gJHt0YXNrLmNvbnRlbnR9YCk7CiAgICBjb25zdCBzZWxlY3RlZExhYmVscyA9IGF3YWl0IHBhcmFtcy5xdWlja0FkZEFwaS5jaGVja2JveFByb21wdChsYWJlbHMpOwogICAgY29uc3Qgc2VsZWN0ZWRUYXNrcyA9IHRhc2tzLmZpbHRlcigoXywgaW5kZXgpID0+IHNlbGVjdGVkTGFiZWxzLmluY2x1ZGVzKGxhYmVsc1tpbmRleF0pKTsKCiAgICByZXR1cm4gaW1wb3J0VGFza3MocGFyYW1zLCBzZXR0aW5ncywgdG9kb2lzdCwgc2VsZWN0ZWRUYXNrcywgInlvdXIgc2VsZWN0aW9uIik7Cn0KCmFzeW5jIGZ1bmN0aW9uIEdldEFsbFRhc2tzRnJvbVByb2plY3QocGFyYW1zLCBzZXR0aW5ncykgewogICAgY29uc3QgdG9kb2lzdCA9IGNyZWF0ZVRvZG9pc3RDbGllbnQocGFyYW1zLCBzZXR0aW5ncyk7CiAgICBjb25zdCBbcHJvamVjdHMsIHRhc2tzXSA9IGF3YWl0IFByb21pc2UuYWxsKFt0b2RvaXN0LmdldEFsbCgiL3Byb2plY3RzIiksIHRvZG9pc3QuZ2V0QWxsKCIvdGFza3MiKV0pOwogICAgY29uc3QgdGFza3NJbiA9IChwcm9qZWN0KSA9PiB0YXNrcy5maWx0ZXIodGFzayA9PiB0YXNrLnByb2plY3RfaWQgPT09IHByb2plY3QuaWQpOwoKICAgIGNvbnN0IHByb2plY3QgPSBhd2FpdCBwYXJhbXMucXVpY2tBZGRBcGkuc3VnZ2VzdGVyKAogICAgICAgIHByb2plY3RzLm1hcChwcm9qZWN0ID0+IGAke3Byb2plY3QubmFtZX0gKCR7dGFza3NJbihwcm9qZWN0KS5sZW5ndGh9KWApLAogICAgICAgIHByb2plY3RzLAogICAgICAgICJJbXBvcnQgYWxsIHRhc2tzIGZyb20gcHJvamVjdCIsCiAgICApOwogICAgaWYgKCFwcm9qZWN0KSByZXR1cm4gIiI7CgogICAgcmV0dXJuIGltcG9ydFRhc2tzKHBhcmFtcywgc2V0dGluZ3MsIHRvZG9pc3QsIHRhc2tzSW4ocHJvamVjdCksIGAnJHtwcm9qZWN0Lm5hbWV9J2ApOwp9Cgphc3luYyBmdW5jdGlvbiBHZXRBbGxUYXNrc0Zyb21TZWN0aW9uKHBhcmFtcywgc2V0dGluZ3MpIHsKICAgIGNvbnN0IHRvZG9pc3QgPSBjcmVhdGVUb2RvaXN0Q2xpZW50KHBhcmFtcywgc2V0dGluZ3MpOwogICAgY29uc3QgW3Byb2plY3RzLCBzZWN0aW9ucywgdGFza3NdID0gYXdhaXQgUHJvbWlzZS5hbGwoWwogICAgICAgIHRvZG9pc3QuZ2V0QWxsKCIvcHJvamVjdHMiKSwKICAgICAgICB0b2RvaXN0LmdldEFsbCgiL3NlY3Rpb25zIiksCiAgICAgICAgdG9kb2lzdC5nZXRBbGwoIi90YXNrcyIpLAogICAgXSk7CiAgICBjb25zdCB0YXNrc0luID0gKHNlY3Rpb24pID0+IHRhc2tzLmZpbHRlcih0YXNrID0+IHRhc2suc2VjdGlvbl9pZCA9PT0gc2VjdGlvbi5pZCk7CiAgICBjb25zdCBwcm9qZWN0TmFtZSA9IChzZWN0aW9uKSA9PiBwcm9qZWN0cy5maW5kKHByb2plY3QgPT4gcHJvamVjdC5pZCA9PT0gc2VjdGlvbi5wcm9qZWN0X2lkKT8ubmFtZSA/PyAiPyI7CgogICAgY29uc3Qgc2VjdGlvbiA9IGF3YWl0IHBhcmFtcy5xdWlja0FkZEFwaS5zdWdnZXN0ZXIoCiAgICAgICAgc2VjdGlvbnMubWFwKHNlY3Rpb24gPT4gYCR7cHJvamVjdE5hbWUoc2VjdGlvbil9ID4gJHtzZWN0aW9uLm5hbWV9ICgke3Rhc2tzSW4oc2VjdGlvbikubGVuZ3RofSlgKSwKICAgICAgICBzZWN0aW9ucywKICAgICAgICAiSW1wb3J0IGFsbCB0YXNrcyBmcm9tIHNlY3Rpb24iLAogICAgKTsKICAgIGlmICghc2VjdGlvbikgcmV0dXJuICIiOwoKICAgIHJldHVybiBpbXBvcnRUYXNrcyhwYXJhbXMsIHNldHRpbmdzLCB0b2RvaXN0LCB0YXNrc0luKHNlY3Rpb24pLCBgJyR7c2VjdGlvbi5uYW1lfSdgKTsKfQoKLyogSGVscGVycyAqLwphc3luYyBmdW5jdGlvbiBpbXBvcnRUYXNrcyhwYXJhbXMsIHNldHRpbmdzLCB0b2RvaXN0LCB0YXNrcywgc291cmNlTmFtZSkgewogICAgaWYgKHRhc2tzLmxlbmd0aCA9PT0gMCkgewogICAgICAgIG5ldyBwYXJhbXMub2JzaWRpYW4uTm90aWNlKGBObyB0YXNrcyBpbiAke3NvdXJjZU5hbWV9LmApOwogICAgICAgIHJldHVybiAiIjsKICAgIH0KCiAgICAvLyBGb3JtYXQgYmVmb3JlIGNvbXBsZXRpbmc6IGEgcmVjdXJyaW5nIHRhc2sgZ2V0cyBhIG5ldyBkdWUgZGF0ZSB3aGVuIGNvbXBsZXRlZC4KICAgIGNvbnN0IG91dHB1dCA9IGZvcm1hdFRhc2tzVG9UYXNrc1BsdWdpblRhc2sodGFza3MpOwoKICAgIC8vIElNUE9SVEFOVDogdGhpcyBjb21wbGV0ZXMgdGhlIGltcG9ydGVkIHRhc2tzIGluIFRvZG9pc3QuCiAgICAvLyBVbnRpY2sgIkNvbXBsZXRlIGltcG9ydGVkIHRhc2tzIGluIFRvZG9pc3QiIGluIHRoZSBzY3JpcHQgc2V0dGluZ3MgdG8ga2VlcCB0aGVtIG9wZW4uCiAgICBpZiAoc2V0dGluZ3NbQ09NUExFVEVfVEFTS1NdKSB7CiAgICAgICAgY29uc3QgZmFpbGVkID0gYXdhaXQgY2xvc2VTZWxlY3RlZFRhc2tzKHRvZG9pc3QsIHRhc2tzKTsKICAgICAgICBpZiAoZmFpbGVkLmxlbmd0aCA+IDApIHsKICAgICAgICAgICAgbmV3IHBhcmFtcy5vYnNpZGlhbi5Ob3RpY2UoYENvdWxkIG5vdCBjb21wbGV0ZSAke2ZhaWxlZC5sZW5ndGh9IG9mICR7dGFza3MubGVuZ3RofSBpbXBvcnRlZCB0YXNrcyBpbiBUb2RvaXN0OyB0aGV5IGFyZSBzdGlsbCBvcGVuIHRoZXJlLmAsIDEwMDAwKTsKICAgICAgICB9CiAgICB9CgogICAgbmV3IHBhcmFtcy5vYnNpZGlhbi5Ob3RpY2UoYEFkZGVkICR7dGFza3MubGVuZ3RofSAke3Rhc2tzLmxlbmd0aCA9PT0gMSA/ICJ0YXNrIiA6ICJ0YXNrcyJ9IGZyb20gJHtzb3VyY2VOYW1lfS5gKTsKICAgIHJldHVybiBvdXRwdXQ7Cn0KCi8vIFJldHVybnMgdGhlIHRhc2tzIHRoYXQgY291bGQgbm90IGJlIGNvbXBsZXRlZC4gVGhlIG5vdGUgc3RpbGwgZ2V0cyBldmVyeQovLyBpbXBvcnRlZCB0YXNrLCBzbyBhIGZhaWxlZCBjbG9zZSBuZXZlciBsb3NlcyBvbmUgdGhhdCB3YXMgYWxyZWFkeSBjbG9zZWQuCmFzeW5jIGZ1bmN0aW9uIGNsb3NlU2VsZWN0ZWRUYXNrcyh0b2RvaXN0LCB0YXNrcykgewogICAgY29uc3QgZmFpbGVkID0gW107CiAgICBmb3IgKGNvbnN0IHRhc2sgb2YgdGFza3MpIHsKICAgICAgICB0cnkgewogICAgICAgICAgICBhd2FpdCB0b2RvaXN0LnJlcXVlc3QoIlBPU1QiLCBgL3Rhc2tzLyR7dGFzay5pZH0vY2xvc2VgKTsKICAgICAgICB9IGNhdGNoIChlcnJvcikgewogICAgICAgICAgICBjb25zb2xlLmVycm9yKGBUb2RvaXN0OiBjb3VsZCBub3QgY29tcGxldGUgdGFzayAke3Rhc2suaWR9YCwgZXJyb3IpOwogICAgICAgICAgICBmYWlsZWQucHVzaCh0YXNrKTsKICAgICAgICB9CiAgICB9CiAgICByZXR1cm4gZmFpbGVkOwp9CgpmdW5jdGlvbiBmb3JtYXRUYXNrc1RvVGFza3NQbHVnaW5UYXNrKHRhc2tzKSB7CiAgICByZXR1cm4gdGFza3MubWFwKHRhc2sgPT4gewogICAgICAgIGNvbnN0IGR1ZURhdGUgPSBmb3JtYXREdWVEYXRlKHRhc2suZHVlKTsKICAgICAgICByZXR1cm4gZHVlRGF0ZSA/IGAtIFsgXSAke3Rhc2suY29udGVudH0g8J+ThSAke2R1ZURhdGV9YCA6IGAtIFsgXSAke3Rhc2suY29udGVudH1gOwogICAgfSkuam9pbigiXG4iKSArICJcbiI7Cn0KCi8vIGBkdWUuZGF0ZWAgaXMgIllZWVktTU0tREQiLCBhIGZsb2F0aW5nICJZWVlZLU1NLUREVEhIOm1tOnNzIiwgb3IgYSBVVEMKLy8gIllZWVktTU0tRERUSEg6bW06c3NaIiBmb3IgdGFza3Mgd2l0aCBhIGZpeGVkIHRpbWUgem9uZS4KZnVuY3Rpb24gZm9ybWF0RHVlRGF0ZShkdWUpIHsKICAgIGlmICghZHVlPy5kYXRlKSByZXR1cm4gbnVsbDsKICAgIGlmIChkdWUuZGF0ZS5lbmRzV2l0aCgiWiIpKSByZXR1cm4gd2luZG93Lm1vbWVudChkdWUuZGF0ZSkuZm9ybWF0KCJZWVlZLU1NLUREIik7CiAgICByZXR1cm4gZHVlLmRhdGUuc2xpY2UoMCwgMTApOwp9CgpmdW5jdGlvbiBjcmVhdGVUb2RvaXN0Q2xpZW50KHBhcmFtcywgc2V0dGluZ3MpIHsKICAgIGNvbnN0IHRva2VuID0gc2V0dGluZ3NbQVBJX1RPS0VOXTsKICAgIGlmICghdG9rZW4pIHsKICAgICAgICB0aHJvdyBuZXcgRXJyb3IoIkFkZCB5b3VyIFRvZG9pc3QgQVBJIHRva2VuIGluIHRoZSBUb2RvaXN0IHNjcmlwdCdzIHNldHRpbmdzICh0aGUgZ2VhciBuZXh0IHRvIHRoZSBzY3JpcHQgaW4geW91ciBtYWNybykuIik7CiAgICB9CgogICAgYXN5bmMgZnVuY3Rpb24gcmVxdWVzdChtZXRob2QsIHBhdGgpIHsKICAgICAgICBjb25zdCByZXNwb25zZSA9IGF3YWl0IHBhcmFtcy5vYnNpZGlhbi5yZXF1ZXN0VXJsKHsKICAgICAgICAgICAgdXJsOiBgJHtUT0RPSVNUX0FQSX0ke3BhdGh9YCwKICAgICAgICAgICAgbWV0aG9kLAogICAgICAgICAgICBoZWFkZXJzOiB7QXV0aG9yaXphdGlvbjogYEJlYXJlciAke3Rva2VufWB9LAogICAgICAgICAgICB0aHJvdzogZmFsc2UsCiAgICAgICAgfSk7CiAgICAgICAgaWYgKHJlc3BvbnNlLnN0YXR1cyA9PT0gNDAxIHx8IHJlc3BvbnNlLnN0YXR1cyA9PT0gNDAzKSB7CiAgICAgICAgICAgIHRocm93IG5ldyBFcnJvcihgVG9kb2lzdCByZWplY3RlZCB0aGUgQVBJIHRva2VuIChIVFRQICR7cmVzcG9uc2Uuc3RhdHVzfSkuIENoZWNrIHRoZSB0b2tlbiBpbiB0aGUgVG9kb2lzdCBzY3JpcHQncyBzZXR0aW5ncy5gKTsKICAgICAgICB9CiAgICAgICAgaWYgKHJlc3BvbnNlLnN0YXR1cyA+PSA0MDApIHsKICAgICAgICAgICAgdGhyb3cgbmV3IEVycm9yKGBUb2RvaXN0IHJlcXVlc3QgJHttZXRob2R9ICR7cGF0aC5zcGxpdCgiPyIpWzBdfSBmYWlsZWQgd2l0aCBIVFRQICR7cmVzcG9uc2Uuc3RhdHVzfS5gKTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHJlc3BvbnNlLnRleHQgPyByZXNwb25zZS5qc29uIDogbnVsbDsKICAgIH0KCiAgICAvLyBMaXN0IGVuZHBvaW50cyBhcmUgcGFnaW5hdGVkOiBmb2xsb3cgYG5leHRfY3Vyc29yYCB1bnRpbCBpdCBpcyBudWxsLgogICAgYXN5bmMgZnVuY3Rpb24gZ2V0QWxsKHBhdGgpIHsKICAgICAgICBjb25zdCByZXN1bHRzID0gW107CiAgICAgICAgbGV0IGN1cnNvciA9IG51bGw7CiAgICAgICAgZG8gewogICAgICAgICAgICBjb25zdCBxdWVyeSA9IGA/bGltaXQ9MjAwJHtjdXJzb3IgPyBgJmN1cnNvcj0ke2VuY29kZVVSSUNvbXBvbmVudChjdXJzb3IpfWAgOiAiIn1gOwogICAgICAgICAgICBjb25zdCBwYWdlID0gYXdhaXQgcmVxdWVzdCgiR0VUIiwgYCR7cGF0aH0ke3F1ZXJ5fWApOwogICAgICAgICAgICByZXN1bHRzLnB1c2goLi4ucGFnZS5yZXN1bHRzKTsKICAgICAgICAgICAgY3Vyc29yID0gcGFnZS5uZXh0X2N1cnNvcjsKICAgICAgICB9IHdoaWxlIChjdXJzb3IpOwogICAgICAgIHJldHVybiByZXN1bHRzOwogICAgfQoKICAgIHJldHVybiB7cmVxdWVzdCwgZ2V0QWxsfTsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "moc-related-notes",
+		"title": "Insert a related notes Base into an MOC note",
+		"description": "Insert a live Base view of related notes into an active MOC note by capturing from a .base template into the current file",
+		"slug": "docs/Examples/Capture_InsertBaseTemplateIntoActiveFile",
+		"requires": [
+			"the Bases core plugin"
+		],
+		"afterImport": [
+			"`MOC Related Notes.base` lands in your QuickAdd template folder if you set one, otherwise in `Templates/`. You can change that path under **Files** while importing.",
+			"Open your MOC note, run **Insert related notes base** from the command palette, and type a line of context."
+		],
+		"choices": [
+			{
+				"name": "Insert related notes base",
+				"type": "Capture"
+			}
+		],
+		"scripts": 0,
+		"templates": 1,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-moc-related-notes"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-moc-related-notes",
+						"name": "Insert related notes base",
+						"type": "Capture",
+						"command": true,
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"captureTo": "",
+						"captureToActiveFile": true,
+						"captureToCanvasNodeId": "",
+						"activeFileWritePosition": "top",
+						"createFileIfItDoesntExist": {
+							"enabled": false,
+							"createWithTemplate": false,
+							"template": ""
+						},
+						"format": {
+							"enabled": true,
+							"format": "## Related Notes\n\n```base\n{{TEMPLATE:Templates/MOC Related Notes.base}}\n```\n\nContext: {{VALUE}}"
+						},
+						"insertAfter": {
+							"enabled": false,
+							"after": "",
+							"insertAtEnd": false,
+							"considerSubsections": false,
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top",
+							"inline": false,
+							"replaceExisting": false,
+							"blankLineAfterMatchMode": "auto",
+							"promptHeading": false
+						},
+						"insertBefore": {
+							"enabled": false,
+							"before": "",
+							"createIfNotFound": false,
+							"createIfNotFoundLocation": "top"
+						},
+						"newLineCapture": {
+							"enabled": false,
+							"direction": "below"
+						},
+						"prepend": false,
+						"task": false,
+						"openFile": false,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"templater": {
+							"afterCapture": "none"
+						}
+					},
+					"pathHint": [
+						"Insert related notes base"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "template",
+					"originalPath": "Templates/MOC Related Notes.base",
+					"contentEncoding": "base64",
+					"content": "ZmlsdGVyczoKICBhbmQ6CiAgICAtICdmaWxlLmV4dCA9PSAibWQiJwogICAgLSAiZmlsZS5oYXNMaW5rKHRoaXMuZmlsZSkiCiAgICAtICJmaWxlLnBhdGggIT0gdGhpcy5maWxlLnBhdGgiCnZpZXdzOgogIC0gdHlwZTogdGFibGUKICAgIG5hbWU6IFJlbGF0ZWQgbm90ZXMK"
+				}
+			]
+		}
+	},
+	{
+		"id": "log-book",
+		"title": "Log book to daily journal",
+		"description": "Log the book you are reading to your daily journal note's Book property with an input prompt and Obsidian's frontmatter API",
+		"slug": "docs/Examples/Macro_LogBookToDailyJournal",
+		"requires": [
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
+		],
+		"afterImport": [
+			"Create today's daily note if you have not yet; the macro does not create one.",
+			"Run **Log book** from the command palette and enter a title. It sets the `Book` property of today's note, replacing any earlier value.",
+			"Daily notes somewhere else, or another property? Click the cog next to **Log book** in **Settings → QuickAdd**, then the cog on the **logBook** step, and set **Daily note path** (for example `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`) or **Property name**. Leave the path empty to use the Daily notes plugin's folder and date format."
+		],
+		"choices": [
+			{
+				"name": "Log book",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-log-book"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-log-book",
+						"name": "Log book",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-log-book-macro",
+							"name": "Log book",
+							"commands": [
+								{
+									"id": "qa-pkg-log-book-script",
+									"name": "logBook",
+									"type": "UserScript",
+									"path": "scripts/logBook.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Log book"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/logBook.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gQXNrcyB3aGljaCBib29rIHlvdSBhcmUgcmVhZGluZyBhbmQgd3JpdGVzIGl0IHRvIGEgcHJvcGVydHkgaW4gdG9kYXkncyBkYWlseSBub3RlLgovLyBVc2VzIE9ic2lkaWFuJ3Mgb3duIGFwcC5maWxlTWFuYWdlci5wcm9jZXNzRnJvbnRNYXR0ZXI7IG5vIG90aGVyIHBsdWdpbnMgbmVlZGVkLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fTG9nQm9va1RvRGFpbHlKb3VybmFsCmNvbnN0IERBSUxZX05PVEVfUEFUSCA9ICJEYWlseSBub3RlIHBhdGgiOwpjb25zdCBQUk9QRVJUWV9OQU1FID0gIlByb3BlcnR5IG5hbWUiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CgllbnRyeTogc3RhcnQsCglzZXR0aW5nczogewoJCW5hbWU6ICJMb2cgYm9vayIsCgkJYXV0aG9yOiAiQ2hyaXN0aWFuIEIuIEIuIEhvdW1hbm4iLAoJCW9wdGlvbnM6IHsKCQkJW0RBSUxZX05PVEVfUEFUSF06IHsKCQkJCXR5cGU6ICJmb3JtYXQiLAoJCQkJZGVmYXVsdFZhbHVlOiAiIiwKCQkJCXBsYWNlaG9sZGVyOiAiRGFpbHkve3tEQVRFOllZWVktTU0tRER9fS5tZCIsCgkJCQlkZXNjcmlwdGlvbjoKCQkJCQkiUGF0aCBvZiB0b2RheSdzIGRhaWx5IG5vdGUsIHdpdGggUXVpY2tBZGQgZGF0ZSBzeW50YXguIExlYXZlIGVtcHR5IHRvIHVzZSB0aGUgRGFpbHkgbm90ZXMgY29yZSBwbHVnaW4ncyBmb2xkZXIgYW5kIGRhdGUgZm9ybWF0LiIsCgkJCX0sCgkJCVtQUk9QRVJUWV9OQU1FXTogewoJCQkJdHlwZTogInRleHQiLAoJCQkJZGVmYXVsdFZhbHVlOiAiQm9vayIsCgkJCQlwbGFjZWhvbGRlcjogIkJvb2siLAoJCQkJZGVzY3JpcHRpb246ICJGcm9udG1hdHRlciBwcm9wZXJ0eSB0byB3cml0ZS4iLAoJCQl9LAoJCX0sCgl9LAp9OwoKYXN5bmMgZnVuY3Rpb24gc3RhcnQocGFyYW1zLCBzZXR0aW5ncykgewoJY29uc3QgeyBhcHAsIHF1aWNrQWRkQXBpLCBvYnNpZGlhbiB9ID0gcGFyYW1zOwoJY29uc3QgcGF0aCA9IGF3YWl0IHRvZGF5c0RhaWx5Tm90ZVBhdGgoYXBwLCBxdWlja0FkZEFwaSwgc2V0dGluZ3NbREFJTFlfTk9URV9QQVRIXSk7CglpZiAoIXBhdGgpIHsKCQluZXcgb2JzaWRpYW4uTm90aWNlKCJFbmFibGUgdGhlIERhaWx5IG5vdGVzIGNvcmUgcGx1Z2luIG9yIHNldCBEYWlseSBub3RlIHBhdGggaW4gdGhlIHNjcmlwdCBzZXR0aW5ncy4iLCA4MDAwKTsKCQlyZXR1cm47Cgl9Cgljb25zdCBmaWxlID0gYXBwLnZhdWx0LmdldEFic3RyYWN0RmlsZUJ5UGF0aChwYXRoKTsKCWlmICghKGZpbGUgaW5zdGFuY2VvZiBvYnNpZGlhbi5URmlsZSkpIHsKCQluZXcgb2JzaWRpYW4uTm90aWNlKGBObyBkYWlseSBub3RlIGF0ICR7cGF0aH0uYCk7CgkJcmV0dXJuOwoJfQoKCWNvbnN0IHByb3AgPSBTdHJpbmcoc2V0dGluZ3NbUFJPUEVSVFlfTkFNRV0gfHwgIkJvb2siKS50cmltKCkgfHwgIkJvb2siOwoJY29uc3QgdmFsdWUgPSBhd2FpdCBxdWlja0FkZEFwaS5pbnB1dFByb21wdCgi8J+TliBCb29rIG5hbWUiKTsKCWlmICghdmFsdWUpIHJldHVybjsKCglhd2FpdCBhcHAuZmlsZU1hbmFnZXIucHJvY2Vzc0Zyb250TWF0dGVyKGZpbGUsIChmbSkgPT4gewoJCWZtW3Byb3BdID0gdmFsdWU7Cgl9KTsKCW5ldyBvYnNpZGlhbi5Ob3RpY2UoYExvZ2dlZCAiJHt2YWx1ZX0iIHRvICR7cHJvcH0gaW4gJHtmaWxlLmJhc2VuYW1lfWApOwp9CgovLyBBbiBleHBsaWNpdCBwYXRoIHdpbnM7IG90aGVyd2lzZSB0b2RheSdzIG5vdGUgaXMgd2hlcmUgdGhlIERhaWx5IG5vdGVzIGNvcmUKLy8gcGx1Z2luIHdvdWxkIGNyZWF0ZSBpdC4gUmV0dXJucyBudWxsIHdoZW4gbmVpdGhlciBpcyBhdmFpbGFibGUuCmFzeW5jIGZ1bmN0aW9uIHRvZGF5c0RhaWx5Tm90ZVBhdGgoYXBwLCBxdWlja0FkZEFwaSwgc2V0dGluZykgewoJY29uc3QgZXhwbGljaXQgPSBTdHJpbmcoc2V0dGluZyA/PyAiIikudHJpbSgpOwoJaWYgKGV4cGxpY2l0KSByZXR1cm4gcXVpY2tBZGRBcGkuZm9ybWF0KGV4cGxpY2l0LCB7fSk7CgoJY29uc3QgZGFpbHlOb3RlcyA9IGFwcC5pbnRlcm5hbFBsdWdpbnMucGx1Z2luc1siZGFpbHktbm90ZXMiXTsKCWlmICghZGFpbHlOb3Rlcz8uZW5hYmxlZCkgcmV0dXJuIG51bGw7Cgljb25zdCB7IGZvbGRlciA9ICIiLCBmb3JtYXQgPSAiWVlZWS1NTS1ERCIgfSA9IGRhaWx5Tm90ZXMuaW5zdGFuY2Uub3B0aW9ucyA/PyB7fTsKCWNvbnN0IG5hbWUgPSB3aW5kb3cubW9tZW50KCkuZm9ybWF0KGZvcm1hdCB8fCAiWVlZWS1NTS1ERCIpOwoJY29uc3QgZGlyID0gU3RyaW5nKGZvbGRlcikudHJpbSgpLnJlcGxhY2UoL15cLyt8XC8rJC9nLCAiIik7CglyZXR1cm4gZGlyID8gYCR7ZGlyfS8ke25hbWV9Lm1kYCA6IGAke25hbWV9Lm1kYDsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "migrate-dataview-properties",
+		"title": "Migrate Dataview properties to frontmatter",
+		"description": "Migrate inline Dataview properties to YAML frontmatter with wikilink-aware comma handling and selective property lists",
+		"slug": "docs/Examples/Macro_MigrateDataviewProperties",
+		"requires": [],
+		"afterImport": [
+			"Try it on a copy of a note first: migrated inline fields are removed from the note body.",
+			"In **Settings → QuickAdd**, click the cog next to **Migrate Dataview properties**, then the cog on the **migrateDataviewToFrontmatter** step. Set **Properties to Migrate** to the fields you want moved (default `Reference, Related`); turn on **Migrate All Properties** only if you want every inline field moved.",
+			"Open the note you want to migrate and run **Migrate Dataview properties** from the command palette. Only that note changes."
+		],
+		"choices": [
+			{
+				"name": "Migrate Dataview properties",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-migrate-dataview-properties"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-migrate-dataview-properties",
+						"name": "Migrate Dataview properties",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-migrate-dataview-properties-macro",
+							"name": "Migrate Dataview properties",
+							"commands": [
+								{
+									"id": "qa-pkg-migrate-dataview-properties-script",
+									"name": "migrateDataviewToFrontmatter",
+									"type": "UserScript",
+									"path": "scripts/migrateDataviewToFrontmatter.js",
+									"settings": {
+										"Migrate All Properties": false,
+										"Properties to Migrate": "Reference, Related"
+									}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Migrate Dataview properties"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/migrateDataviewToFrontmatter.js",
+					"contentEncoding": "base64",
+					"content": "LyoqCiAqIE1pZ3JhdGUgRGF0YXZpZXcgSW5saW5lIFByb3BlcnRpZXMgdG8gRnJvbnRtYXR0ZXIKICoKICogVGhpcyBzY3JpcHQgbWlncmF0ZXMgaW5saW5lIGRhdGF2aWV3IHByb3BlcnRpZXMgKGUuZy4sICJSZWZlcmVuY2U6OiBbW2xpbmtdXSIpCiAqIHRvIFlBTUwgZnJvbnRtYXR0ZXIuIEl0IGhhbmRsZXMgY29tbWEtc2VwYXJhdGVkIHZhbHVlcyB3aXRoIHNwZWNpYWwgY2FyZSBmb3IKICogY29tbWFzIGluc2lkZSB3aWtpbGlua3MuCiAqCiAqIEJFRk9SRToKICogICBSZWZlcmVuY2U6OiBbWzIwMjUtMTAtMTIgLSBTdW4gT2N0IDEyXV0KICogICBSZWxhdGVkOjogW1tBZ2VudGljIEVuZ2luZWVyaW5nfEFnZW50aWMgY29kaW5nXV0sIFtbTm90ZSwgd2l0aCBjb21tYV1dCiAqICAgVGFnczo6ICNwcm9qZWN0LCAjaW1wb3J0YW50CiAqCiAqIEFGVEVSOgogKiAgIC0tLQogKiAgIFJlZmVyZW5jZTogIltbMjAyNS0xMC0xMiAtIFN1biBPY3QgMTJdXSIKICogICBSZWxhdGVkOgogKiAgICAgLSAiW1tBZ2VudGljIEVuZ2luZWVyaW5nfEFnZW50aWMgY29kaW5nXV0iCiAqICAgICAtICJbW05vdGUsIHdpdGggY29tbWFdXSIKICogICB0YWdzOgogKiAgICAgLSAicHJvamVjdCIKICogICAgIC0gImltcG9ydGFudCIKICogICAtLS0KICoKICogU3BlY2lhbCBoYW5kbGluZyBmb3IgT2JzaWRpYW4gcmVzZXJ2ZWQgcHJvcGVydGllczoKICogLSAidGFncyIgaXMgbm9ybWFsaXplZCB0byBsb3dlcmNhc2UgKFRhZ3MgLT4gdGFncykKICogLSAiIyIgc3ltYm9scyBhcmUgc3RyaXBwZWQgZnJvbSB0YWcgdmFsdWVzICgjcHJvamVjdCAtPiBwcm9qZWN0KQogKgogKiBDb25maWd1cmUgd2hpY2ggcHJvcGVydGllcyB0byBtaWdyYXRlIGluIHRoZSBzY3JpcHQgc2V0dGluZ3MuCiAqCiAqIFVzYWdlOgogKiAxLiBBZGQgdGhpcyBzY3JpcHQgdG8gYSBRdWlja0FkZCBtYWNybyBhcyBhIFVzZXIgU2NyaXB0CiAqIDIuIENvbmZpZ3VyZSB0aGUgc2NyaXB0IHNldHRpbmdzIHRvIHNwZWNpZnkgd2hpY2ggcHJvcGVydGllcyB0byBtaWdyYXRlCiAqIDMuIE9wZW4gYSBub3RlIHdpdGggaW5saW5lIERhdGF2aWV3IHByb3BlcnRpZXMKICogNC4gUnVuIHRoZSBtYWNybyB0byBtaWdyYXRlIHByb3BlcnRpZXMgdG8gZnJvbnRtYXR0ZXIKICovCgptb2R1bGUuZXhwb3J0cyA9IHsKICAgIGVudHJ5OiBzdGFydCwKICAgIHNldHRpbmdzOiB7CiAgICAgICAgbmFtZTogIk1pZ3JhdGUgRGF0YXZpZXcgUHJvcGVydGllcyB0byBGcm9udG1hdHRlciIsCiAgICAgICAgYXV0aG9yOiAiUXVpY2tBZGQiLAogICAgICAgIG9wdGlvbnM6IHsKICAgICAgICAgICAgIk1pZ3JhdGUgQWxsIFByb3BlcnRpZXMiOiB7CiAgICAgICAgICAgICAgICB0eXBlOiAidG9nZ2xlIiwKICAgICAgICAgICAgICAgIGRlZmF1bHRWYWx1ZTogZmFsc2UsCiAgICAgICAgICAgICAgICBkZXNjcmlwdGlvbjogIk1pZ3JhdGUgYWxsIGlubGluZSBwcm9wZXJ0aWVzIChpZ25vcmVzIHRoZSBwcm9wZXJ0eSBsaXN0IGJlbG93KSIKICAgICAgICAgICAgfSwKICAgICAgICAgICAgIlByb3BlcnRpZXMgdG8gTWlncmF0ZSI6IHsKICAgICAgICAgICAgICAgIHR5cGU6ICJ0ZXh0IiwKICAgICAgICAgICAgICAgIGRlZmF1bHRWYWx1ZTogIlJlZmVyZW5jZSwgUmVsYXRlZCIsCiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcjogIlByb3BlcnR5MSwgUHJvcGVydHkyLCBQcm9wZXJ0eTMiLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJDb21tYS1zZXBhcmF0ZWQgbGlzdCBvZiBwcm9wZXJ0eSBuYW1lcyB0byBtaWdyYXRlIChjYXNlLWluc2Vuc2l0aXZlKS4gTGVhdmUgZW1wdHkgd2l0aCB0b2dnbGUgb2ZmIHRvIHVzZSBkZWZhdWx0cy4iCiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9Cn07Cgphc3luYyBmdW5jdGlvbiBzdGFydChwYXJhbXMsIHNldHRpbmdzKSB7CiAgICBjb25zdCB7IGFwcCwgb2JzaWRpYW4gfSA9IHBhcmFtczsKCiAgICAvLyBEZXRlcm1pbmUgd2hpY2ggcHJvcGVydGllcyB0byBtaWdyYXRlCiAgICBsZXQgcHJvcGVydGllc1RvTWlncmF0ZSA9IFtdOwogICAgY29uc3QgbWlncmF0ZUFsbCA9IHNldHRpbmdzWyJNaWdyYXRlIEFsbCBQcm9wZXJ0aWVzIl07CgogICAgaWYgKCFtaWdyYXRlQWxsKSB7CiAgICAgICAgY29uc3QgcHJvcGVydGllc0lucHV0ID0gc2V0dGluZ3NbIlByb3BlcnRpZXMgdG8gTWlncmF0ZSJdOwogICAgICAgIGlmIChwcm9wZXJ0aWVzSW5wdXQgJiYgcHJvcGVydGllc0lucHV0LnRyaW0oKSkgewogICAgICAgICAgICAvLyBQYXJzZSBjb21tYS1zZXBhcmF0ZWQgcHJvcGVydHkgbmFtZXMKICAgICAgICAgICAgcHJvcGVydGllc1RvTWlncmF0ZSA9IHByb3BlcnRpZXNJbnB1dAogICAgICAgICAgICAgICAgLnNwbGl0KCcsJykKICAgICAgICAgICAgICAgIC5tYXAocCA9PiBwLnRyaW0oKS50b0xvd2VyQ2FzZSgpKQogICAgICAgICAgICAgICAgLmZpbHRlcihwID0+IHAubGVuZ3RoID4gMCk7CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgLy8gRGVmYXVsdCB0byBSZWZlcmVuY2UgYW5kIFJlbGF0ZWQgaWYgbm90aGluZyBzcGVjaWZpZWQKICAgICAgICAgICAgcHJvcGVydGllc1RvTWlncmF0ZSA9IFsncmVmZXJlbmNlJywgJ3JlbGF0ZWQnXTsKICAgICAgICB9CiAgICB9CgogICAgLy8gR2V0IHRoZSBhY3RpdmUgZmlsZQogICAgY29uc3QgYWN0aXZlRmlsZSA9IGFwcC53b3Jrc3BhY2UuZ2V0QWN0aXZlRmlsZSgpOwogICAgaWYgKCFhY3RpdmVGaWxlKSB7CiAgICAgICAgbmV3IG9ic2lkaWFuLk5vdGljZSgiTm8gYWN0aXZlIGZpbGUuIFBsZWFzZSBvcGVuIGEgZmlsZSBmaXJzdC4iKTsKICAgICAgICByZXR1cm47CiAgICB9CgogICAgdHJ5IHsKICAgICAgICAvLyBSZWFkIHRoZSBmaWxlIGNvbnRlbnQKICAgICAgICBjb25zdCBjb250ZW50ID0gYXdhaXQgYXBwLnZhdWx0LnJlYWQoYWN0aXZlRmlsZSk7CgogICAgICAgIC8vIFBhcnNlIGlubGluZSBmaWVsZHMKICAgICAgICBjb25zdCB7IGZpZWxkcywgY2xlYW5lZENvbnRlbnQgfSA9IHBhcnNlSW5saW5lRmllbGRzV2l0aFdpa2lsaW5rcyhjb250ZW50LCBwcm9wZXJ0aWVzVG9NaWdyYXRlLCBtaWdyYXRlQWxsKTsKCiAgICAgICAgaWYgKGZpZWxkcy5zaXplID09PSAwKSB7CiAgICAgICAgICAgIGNvbnN0IG1lc3NhZ2UgPSBtaWdyYXRlQWxsCiAgICAgICAgICAgICAgICA/ICJObyBpbmxpbmUgZGF0YXZpZXcgcHJvcGVydGllcyBmb3VuZCBpbiB0aGlzIGZpbGUuIgogICAgICAgICAgICAgICAgOiBgTm8gJHtwcm9wZXJ0aWVzVG9NaWdyYXRlLmpvaW4oJywgJyl9IHByb3BlcnRpZXMgZm91bmQgaW4gdGhpcyBmaWxlLmA7CiAgICAgICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UobWVzc2FnZSk7CiAgICAgICAgICAgIHJldHVybjsKICAgICAgICB9CgogICAgICAgIC8vIFVwZGF0ZSBmcm9udG1hdHRlciBBTkQgY29udGVudCBpbiBhIHNpbmdsZSBvcGVyYXRpb24KICAgICAgICAvLyBUaGlzIHByZXZlbnRzIHJhY2UgY29uZGl0aW9ucyBmcm9tIHByb2Nlc3NGcm9udE1hdHRlciArIHZhdWx0Lm1vZGlmeQogICAgICAgIGF3YWl0IGFwcC5maWxlTWFuYWdlci5wcm9jZXNzRnJvbnRNYXR0ZXIoYWN0aXZlRmlsZSwgKGZyb250bWF0dGVyKSA9PiB7CiAgICAgICAgICAgIGZpZWxkcy5mb3JFYWNoKCh2YWx1ZXMsIGZpZWxkTmFtZSkgPT4gewogICAgICAgICAgICAgICAgLy8gQ29udmVydCBTZXQgdG8gYXJyYXkKICAgICAgICAgICAgICAgIGxldCB2YWx1ZXNBcnJheSA9IEFycmF5LmZyb20odmFsdWVzKTsKCiAgICAgICAgICAgICAgICAvLyBIYW5kbGUgc3BlY2lhbCBwcm9wZXJ0eSBuYW1lcyAoT2JzaWRpYW4gcmVzZXJ2ZWQgZmllbGRzKQogICAgICAgICAgICAgICAgLy8gInRhZ3MiIG11c3QgYmUgbG93ZXJjYXNlIGFuZCB0YWcgdmFsdWVzIHNob3VsZCBub3QgaGF2ZSAiIyIgcHJlZml4CiAgICAgICAgICAgICAgICBjb25zdCBpc1RhZ3MgPSBmaWVsZE5hbWUudG9Mb3dlckNhc2UoKSA9PT0gJ3RhZ3MnOwogICAgICAgICAgICAgICAgY29uc3Qgbm9ybWFsaXplZEZpZWxkTmFtZSA9IGlzVGFncyA/ICd0YWdzJyA6IGZpZWxkTmFtZTsKCiAgICAgICAgICAgICAgICBpZiAoaXNUYWdzKSB7CiAgICAgICAgICAgICAgICAgICAgLy8gU3RyaXAgIiMiIGZyb20gdGFnIHZhbHVlcwogICAgICAgICAgICAgICAgICAgIHZhbHVlc0FycmF5ID0gdmFsdWVzQXJyYXkubWFwKHRhZyA9PiB7CiAgICAgICAgICAgICAgICAgICAgICAgIC8vIFJlbW92ZSBsZWFkaW5nICIjIiBpZiBwcmVzZW50CiAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiB0YWcuc3RhcnRzV2l0aCgnIycpID8gdGFnLnN1YnN0cmluZygxKSA6IHRhZzsKICAgICAgICAgICAgICAgICAgICB9KTsKICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICAvLyBGcm9udG1hdHRlciBwcm9wZXJ0eSBuYW1lcyBiZWhhdmUgY2FzZS1pbnNlbnNpdGl2ZWx5IGluIE9ic2lkaWFuLAogICAgICAgICAgICAgICAgLy8gc28gY29sbGVjdCBFVkVSWSBrZXkgdGhhdCBtYXRjaGVzIGNhc2UtaW5zZW5zaXRpdmVseS4gQSBoYW5kLWVkaXRlZAogICAgICAgICAgICAgICAgLy8gb3Igc3luY2VkIG5vdGUgKG9yIGEgbm90ZSBtaWdyYXRlZCBieSBhbiBvbGRlciB2ZXJzaW9uIG9mIHRoaXMKICAgICAgICAgICAgICAgIC8vIHNjcmlwdCkgY2FuIGhvbGQgbW9yZSB0aGFuIG9uZSBjYXNlIHZhcmlhbnQgLSBlLmcuIGJvdGggIlJlZmVyZW5jZSIKICAgICAgICAgICAgICAgIC8vIGFuZCAicmVmZXJlbmNlIiwgb3IgYm90aCAiVGFncyIgYW5kICJ0YWdzIiAtIGFuZCB3ZSBtdXN0IG1lcmdlIHRoZW0KICAgICAgICAgICAgICAgIC8vIGFsbCBpbnRvIG9uZSBrZXkgcmF0aGVyIHRoYW4gc3RyYW5kaW5nIChvciBkcm9wcGluZykgYSB2YXJpYW50LgogICAgICAgICAgICAgICAgY29uc3QgbWF0Y2hpbmdLZXlzID0gT2JqZWN0LmtleXMoZnJvbnRtYXR0ZXIpLmZpbHRlcigKICAgICAgICAgICAgICAgICAgICBrZXkgPT4ga2V5LnRvTG93ZXJDYXNlKCkgPT09IG5vcm1hbGl6ZWRGaWVsZE5hbWUudG9Mb3dlckNhc2UoKQogICAgICAgICAgICAgICAgKTsKCiAgICAgICAgICAgICAgICAvLyBUaGUgcmVzZXJ2ZWQgInRhZ3MiIHByb3BlcnR5IG11c3QgYmUgc3RvcmVkIGxvd2VyY2FzZSwgc28gYWx3YXlzCiAgICAgICAgICAgICAgICAvLyB0YXJnZXQgInRhZ3MiOyBvdGhlciBwcm9wZXJ0aWVzIHJldXNlIHRoZSBmaXJzdCBleGlzdGluZyBrZXkncyBjYXNlCiAgICAgICAgICAgICAgICAvLyAob3IgdGhlIGZpZWxkIG5hbWUpLgogICAgICAgICAgICAgICAgY29uc3QgdGFyZ2V0S2V5ID0gaXNUYWdzID8gJ3RhZ3MnIDogKG1hdGNoaW5nS2V5c1swXSA/PyBub3JtYWxpemVkRmllbGROYW1lKTsKCiAgICAgICAgICAgICAgICAvLyBHYXRoZXIgdGhlIGV4aXN0aW5nIHZhbHVlcyBmcm9tIGV2ZXJ5IGNhc2UgdmFyaWFudCwgdGhlbiBkcm9wIHRoZQogICAgICAgICAgICAgICAgLy8gbm9uLXRhcmdldCBrZXlzIHNvIG5vIGR1cGxpY2F0ZSBzdXJ2aXZlcy4KICAgICAgICAgICAgICAgIGNvbnN0IGV4aXN0aW5nVmFsdWVzID0gW107CiAgICAgICAgICAgICAgICBmb3IgKGNvbnN0IGtleSBvZiBtYXRjaGluZ0tleXMpIHsKICAgICAgICAgICAgICAgICAgICBjb25zdCB2YWx1ZSA9IGZyb250bWF0dGVyW2tleV07CiAgICAgICAgICAgICAgICAgICAgaWYgKHZhbHVlICE9PSB1bmRlZmluZWQgJiYgdmFsdWUgIT09IG51bGwpIHsKICAgICAgICAgICAgICAgICAgICAgICAgaWYgKEFycmF5LmlzQXJyYXkodmFsdWUpKSBleGlzdGluZ1ZhbHVlcy5wdXNoKC4uLnZhbHVlKTsKICAgICAgICAgICAgICAgICAgICAgICAgZWxzZSBleGlzdGluZ1ZhbHVlcy5wdXNoKHZhbHVlKTsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgaWYgKGtleSAhPT0gdGFyZ2V0S2V5KSBkZWxldGUgZnJvbnRtYXR0ZXJba2V5XTsKICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICBpZiAoZXhpc3RpbmdWYWx1ZXMubGVuZ3RoID4gMCkgewogICAgICAgICAgICAgICAgICAgIC8vIENvbWJpbmUsIHRoZW4gZGVkdXBsaWNhdGUgYnkgc3RyaW5nIGZvcm0gV0lUSE9VVCBjb2VyY2luZyB0aGUKICAgICAgICAgICAgICAgICAgICAvLyBzdG9yZWQgdmFsdWVzIC0ga2VlcCB0aGUgb3JpZ2luYWwgdHlwZWQgdmFsdWVzIChudW1iZXJzLAogICAgICAgICAgICAgICAgICAgIC8vIGJvb2xlYW5zKSBzbyBhbiBleGlzdGluZyAicmF0aW5nOiA1IiBzdGF5cyBhIG51bWJlci4KICAgICAgICAgICAgICAgICAgICBjb25zdCBjb21iaW5lZCA9IFsuLi5leGlzdGluZ1ZhbHVlcywgLi4udmFsdWVzQXJyYXldOwogICAgICAgICAgICAgICAgICAgIGNvbnN0IHNlZW4gPSBuZXcgU2V0KCk7CiAgICAgICAgICAgICAgICAgICAgY29uc3QgZGVkdXBsaWNhdGVkID0gW107CiAgICAgICAgICAgICAgICAgICAgZm9yIChjb25zdCB2YWx1ZSBvZiBjb21iaW5lZCkgewogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBrZXkgPSBTdHJpbmcodmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoIXNlZW4uaGFzKGtleSkpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlZW4uYWRkKGtleSk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBkZWR1cGxpY2F0ZWQucHVzaCh2YWx1ZSk7CiAgICAgICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgICAgIC8vIFN0b3JlIGFzIHN0cmluZyBvciBhcnJheSBkZXBlbmRpbmcgb24gY291bnQKICAgICAgICAgICAgICAgICAgICBmcm9udG1hdHRlclt0YXJnZXRLZXldID0gZGVkdXBsaWNhdGVkLmxlbmd0aCA9PT0gMQogICAgICAgICAgICAgICAgICAgICAgICA/IGRlZHVwbGljYXRlZFswXQogICAgICAgICAgICAgICAgICAgICAgICA6IGRlZHVwbGljYXRlZDsKICAgICAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICAgICAgLy8gUHJvcGVydHkgZG9lc24ndCBleGlzdCAtIGFkZCBpdAogICAgICAgICAgICAgICAgICAgIGlmICh2YWx1ZXNBcnJheS5sZW5ndGggPT09IDEpIHsKICAgICAgICAgICAgICAgICAgICAgICAgZnJvbnRtYXR0ZXJbdGFyZ2V0S2V5XSA9IHZhbHVlc0FycmF5WzBdOwogICAgICAgICAgICAgICAgICAgIH0gZWxzZSBpZiAodmFsdWVzQXJyYXkubGVuZ3RoID4gMSkgewogICAgICAgICAgICAgICAgICAgICAgICBmcm9udG1hdHRlclt0YXJnZXRLZXldID0gdmFsdWVzQXJyYXk7CiAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9KTsKICAgICAgICB9KTsKCiAgICAgICAgLy8gTm93IHN0cmlwIHRoZSBtaWdyYXRlZCBpbmxpbmUgcHJvcGVydGllcyBmcm9tIHRoZSBib2R5LiBVc2UgdmF1bHQucHJvY2VzcwogICAgICAgIC8vIHNvIHRoZSByZWFkICsgcmV3cml0ZSBpcyBhIHNpbmdsZSBhdG9taWMgb3BlcmF0aW9uIChwcm9jZXNzRnJvbnRNYXR0ZXIKICAgICAgICAvLyBhbHJlYWR5IHBlcnNpc3RlZCB0aGUgZnJvbnRtYXR0ZXI7IGEgc2VwYXJhdGUgcmVhZC10aGVuLW1vZGlmeSBjb3VsZAogICAgICAgIC8vIGNsb2JiZXIgYSBjb25jdXJyZW50IGVkaXQgb3Igc3luYyB0aGF0IGxhbmRlZCBpbiBiZXR3ZWVuKS4KICAgICAgICBhd2FpdCBhcHAudmF1bHQucHJvY2VzcyhhY3RpdmVGaWxlLCAoZGF0YSkgPT4gewogICAgICAgICAgICBjb25zdCB7IGNsZWFuZWRDb250ZW50IH0gPSBwYXJzZUlubGluZUZpZWxkc1dpdGhXaWtpbGlua3MoZGF0YSwgcHJvcGVydGllc1RvTWlncmF0ZSwgbWlncmF0ZUFsbCk7CiAgICAgICAgICAgIHJldHVybiBjbGVhbmVkQ29udGVudDsKICAgICAgICB9KTsKCiAgICAgICAgLy8gU2hvdyBzdWNjZXNzIG1lc3NhZ2UKICAgICAgICBjb25zdCBmaWVsZE5hbWVzID0gQXJyYXkuZnJvbShmaWVsZHMua2V5cygpKS5qb2luKCIsICIpOwogICAgICAgIG5ldyBvYnNpZGlhbi5Ob3RpY2UoCiAgICAgICAgICAgIGBNaWdyYXRlZCAke2ZpZWxkcy5zaXplfSBwcm9wZXJ0eS9wcm9wZXJ0aWVzIHRvIGZyb250bWF0dGVyOiAke2ZpZWxkTmFtZXN9YCwKICAgICAgICAgICAgNTAwMAogICAgICAgICk7CgogICAgfSBjYXRjaCAoZXJyb3IpIHsKICAgICAgICBjb25zb2xlLmVycm9yKCJFcnJvciBtaWdyYXRpbmcgZGF0YXZpZXcgcHJvcGVydGllczoiLCBlcnJvcik7CiAgICAgICAgbmV3IG9ic2lkaWFuLk5vdGljZShgRXJyb3I6ICR7ZXJyb3IubWVzc2FnZX1gLCA1MDAwKTsKICAgICAgICB0aHJvdyBlcnJvcjsKICAgIH0KfQoKLyoqCiAqIFBhcnNlIGlubGluZSBmaWVsZHMgd2l0aCBzcGVjaWFsIGhhbmRsaW5nIGZvciB3aWtpbGlua3MgaW4gY29tbWEtc2VwYXJhdGVkIHZhbHVlcwogKiBAcGFyYW0ge3N0cmluZ30gY29udGVudCAtIFRoZSBmaWxlIGNvbnRlbnQKICogQHBhcmFtIHtzdHJpbmdbXX0gYWxsb3dlZFByb3BlcnRpZXMgLSBBcnJheSBvZiBwcm9wZXJ0eSBuYW1lcyB0byBtaWdyYXRlIChjYXNlLWluc2Vuc2l0aXZlKQogKiBAcGFyYW0ge2Jvb2xlYW59IG1pZ3JhdGVBbGwgLSBJZiB0cnVlLCBtaWdyYXRlIGFsbCBwcm9wZXJ0aWVzIHJlZ2FyZGxlc3Mgb2YgYWxsb3dlZFByb3BlcnRpZXMKICogQHJldHVybnMge3tmaWVsZHM6IE1hcDxzdHJpbmcsIFNldDxzdHJpbmc+PiwgY2xlYW5lZENvbnRlbnQ6IHN0cmluZ319CiAqLwpmdW5jdGlvbiBwYXJzZUlubGluZUZpZWxkc1dpdGhXaWtpbGlua3MoY29udGVudCwgYWxsb3dlZFByb3BlcnRpZXMgPSBbXSwgbWlncmF0ZUFsbCA9IGZhbHNlKSB7CiAgICBjb25zdCBmaWVsZHMgPSBuZXcgTWFwKCk7CiAgICBjb25zdCBhbGxvd2VkUHJvcGVydGllc0xvd2VyID0gYWxsb3dlZFByb3BlcnRpZXMubWFwKHAgPT4gcC50b0xvd2VyQ2FzZSgpKTsKCiAgICAvLyBTcGxpdCBjb250ZW50IGludG8gZnJvbnRtYXR0ZXIgYW5kIGJvZHkuIEZyb250bWF0dGVyIGlzIHByZXNlcnZlZCB2ZXJiYXRpbQogICAgLy8gYW5kIGlzIG5ldmVyIHNjYW5uZWQgZm9yIGZpZWxkcyBvciBjb2xsYXBzZWQuCiAgICBjb25zdCB7IGZyb250bWF0dGVyRW5kLCBoYXNFeGlzdGluZ0Zyb250bWF0dGVyLCBmcm9udG1hdHRlclRleHQgfSA9IGZpbmRGcm9udG1hdHRlckVuZChjb250ZW50KTsKICAgIGNvbnN0IGJvZHlDb250ZW50ID0gaGFzRXhpc3RpbmdGcm9udG1hdHRlciA/IGNvbnRlbnQuc2xpY2UoZnJvbnRtYXR0ZXJFbmQpIDogY29udGVudDsKCiAgICAvLyBQcm9jZXNzIGVhY2ggbGluZSBpbiB0aGUgYm9keS4KICAgIGNvbnN0IGJvZHlMaW5lcyA9IGJvZHlDb250ZW50LnNwbGl0KCdcbicpOwogICAgY29uc3QgY2xlYW5lZEJvZHlMaW5lcyA9IFtdOwogICAgLy8gUGFyYWxsZWwgdG8gY2xlYW5lZEJvZHlMaW5lczogYSAicHJvdGVjdGVkIiBsaW5lIChhIGZlbmNlIGRlbGltaXRlciBvciBhbnkKICAgIC8vIGxpbmUgaW5zaWRlIGEgZmVuY2VkIGNvZGUgYmxvY2spIGlzIGtlcHQgdmVyYmF0aW0gYW5kIG5ldmVyIGNvbGxhcHNlZC4KICAgIGNvbnN0IHByb3RlY3RlZEZsYWdzID0gW107CgogICAgLy8gVHJhY2sgdGhlIGN1cnJlbnRseSBvcGVuIGZlbmNlZCBjb2RlIGJsb2NrLCBpZiBhbnkuIGZlbmNlRGVwdGggaXMgdGhlCiAgICAvLyBibG9ja3F1b3RlIG5lc3RpbmcgbGV2ZWwgdGhlIGZlbmNlIG9wZW5lZCBhdCAoMCA9IHRvcCBsZXZlbCksIHNvIGEgZmVuY2UKICAgIC8vIGluc2lkZSAiPiAuLi4iIGlzIGNsb3NlZCBieSBhIGNsb3NlciBhdCB0aGUgc2FtZSBxdW90ZSBkZXB0aC4gZmVuY2VMaXN0SW5kZW50CiAgICAvLyBpcyB0aGUgbGlzdC1pdGVtIGNvbnRlbnQgaW5kZW50IHRoZSBmZW5jZSBvcGVuZWQgYXQgKDAgPSBub3QgaW4gYSBsaXN0KSwgc28gYQogICAgLy8gZmVuY2Ugb3BlbmVkIGJ5ICItIGBgYCIgaGFzIGl0cyBib2R5IGFuZCBjbG9zaW5nIGZlbmNlIHRyYWNrZWQgYXQgdGhhdCBpbmRlbnQuCiAgICBsZXQgZmVuY2VDaGFyID0gbnVsbDsgLy8gJ2AnIG9yICd+JwogICAgbGV0IGZlbmNlTGVuID0gMDsKICAgIGxldCBmZW5jZURlcHRoID0gMDsKICAgIGxldCBmZW5jZUxpc3RJbmRlbnQgPSAwOwoKICAgIGZvciAobGV0IGkgPSAwOyBpIDwgYm9keUxpbmVzLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgY29uc3QgbGluZSA9IGJvZHlMaW5lc1tpXTsKCiAgICAgICAgaWYgKGZlbmNlQ2hhciAhPT0gbnVsbCkgewogICAgICAgICAgICAvLyBJbnNpZGUgYSBmZW5jZWQgY29kZSBibG9jay4gU3RyaXAgZXhhY3RseSB0aGUgZmVuY2UncyBibG9ja3F1b3RlCiAgICAgICAgICAgIC8vIGNvbnRhaW5lcjsgaWYgdGhpcyBsaW5lIGNhcnJpZXMgZmV3ZXIgbWFya2VycywgdGhlIGJsb2NrcXVvdGUgKGFuZAogICAgICAgICAgICAvLyB0aGVyZWZvcmUgdGhlIGZlbmNlZCBibG9jaykgaGFzIGVuZGVkIC0gcmVwcm9jZXNzIHRoZSBsaW5lIGJlbG93IGFzCiAgICAgICAgICAgIC8vIG5vbi1mZW5jZSBzbyBhIHJlYWwgZmllbGQgYWZ0ZXIgdGhlIGJsb2NrIHN0aWxsIG1pZ3JhdGVzLgogICAgICAgICAgICBjb25zdCB7IGRlcHRoLCBjb250ZW50IH0gPSBzdHJpcEJsb2NrcXVvdGUobGluZSwgZmVuY2VEZXB0aCk7CiAgICAgICAgICAgIGlmIChkZXB0aCA+PSBmZW5jZURlcHRoKSB7CiAgICAgICAgICAgICAgICAvLyBJZiB0aGUgZmVuY2Ugb3BlbmVkIGluc2lkZSBhIGxpc3QgaXRlbSwgaXRzIGJvZHkgYW5kIGNsb3NpbmcgZmVuY2UKICAgICAgICAgICAgICAgIC8vIHNpdCBhdCB0aGUgbGlzdCdzIGNvbnRlbnQgaW5kZW50IC0gc3RyaXAgdGhhdCBiZWZvcmUgbWF0Y2hpbmcgdGhlCiAgICAgICAgICAgICAgICAvLyBjbG9zZXIuIEZvciBhIG5vbi1saXN0IGZlbmNlIGZlbmNlTGlzdEluZGVudCBpcyAwLCBzbyB0aGlzIGlzIGEKICAgICAgICAgICAgICAgIC8vIG5vLW9wIGFuZCBiZWhhdmlvdXIgaXMgaWRlbnRpY2FsIHRvIGEgcGxhaW4gdG9wLWxldmVsIGZlbmNlLgogICAgICAgICAgICAgICAgY29uc3QgeyByZXN0LCBpbmRlbnQgfSA9IHN0cmlwTGVhZGluZ1NwYWNlcyhjb250ZW50LCBmZW5jZUxpc3RJbmRlbnQpOwogICAgICAgICAgICAgICAgaWYgKGZlbmNlTGlzdEluZGVudCA+IDAgJiYgaW5kZW50IDwgZmVuY2VMaXN0SW5kZW50ICYmIHJlc3QudHJpbSgpICE9PSAnJykgewogICAgICAgICAgICAgICAgICAgIC8vIEEgbm9uLWJsYW5rIGxpbmUgaW5kZW50ZWQgTEVTUyB0aGFuIHRoZSBsaXN0IGNvbnRlbnQgaGFzIGxlZnQKICAgICAgICAgICAgICAgICAgICAvLyB0aGUgbGlzdCBpdGVtLCBzbyBwZXIgQ29tbW9uTWFyayB0aGUgKHVuY2xvc2VkKSBmZW5jZSBlbmRzCiAgICAgICAgICAgICAgICAgICAgLy8gaGVyZS4gRXhpdCBhbmQgZmFsbCB0aHJvdWdoIHRvIHJlcHJvY2VzcyB0aGUgbGluZSAtIGl0IG1heSBiZSBhCiAgICAgICAgICAgICAgICAgICAgLy8gcmVhbCBmaWVsZCBvciBhIE5FVyB0b3AtbGV2ZWwgZmVuY2UgKGUuZy4gYSBiYXJlIGBgYCB0aGF0IHdvdWxkCiAgICAgICAgICAgICAgICAgICAgLy8gb3RoZXJ3aXNlIGJlIG1pc3Rha2VuIGZvciB0aGlzIGZlbmNlJ3MgY2xvc2VyKS4gQmxhbmsgbGluZXMgc3RheQogICAgICAgICAgICAgICAgICAgIC8vIGluIHRoZSBibG9jay4KICAgICAgICAgICAgICAgICAgICBmZW5jZUNoYXIgPSBudWxsOwogICAgICAgICAgICAgICAgICAgIGZlbmNlTGVuID0gMDsKICAgICAgICAgICAgICAgICAgICBmZW5jZURlcHRoID0gMDsKICAgICAgICAgICAgICAgICAgICBmZW5jZUxpc3RJbmRlbnQgPSAwOwogICAgICAgICAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgICAgICAgICAvLyBTdGlsbCBpbnNpZGUgdGhlIGJsb2NrOiBwcmVzZXJ2ZSB2ZXJiYXRpbSwgbmV2ZXIgbWlncmF0ZS4gT25seSBhCiAgICAgICAgICAgICAgICAgICAgLy8gbWF0Y2hpbmcgY2xvc2luZyBmZW5jZSAoc2FtZSBtYXJrZXIsIGxvbmcgZW5vdWdoLCBubyBpbmZvIHN0cmluZykKICAgICAgICAgICAgICAgICAgICAvLyBhdCB0aGUgc2FtZSBxdW90ZSArIGxpc3QgZGVwdGggZW5kcyBpdC4KICAgICAgICAgICAgICAgICAgICBpZiAoaXNDbG9zaW5nRmVuY2UocmVzdCwgZmVuY2VDaGFyLCBmZW5jZUxlbikpIHsKICAgICAgICAgICAgICAgICAgICAgICAgZmVuY2VDaGFyID0gbnVsbDsKICAgICAgICAgICAgICAgICAgICAgICAgZmVuY2VMZW4gPSAwOwogICAgICAgICAgICAgICAgICAgICAgICBmZW5jZURlcHRoID0gMDsKICAgICAgICAgICAgICAgICAgICAgICAgZmVuY2VMaXN0SW5kZW50ID0gMDsKICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgY2xlYW5lZEJvZHlMaW5lcy5wdXNoKGxpbmUpOwogICAgICAgICAgICAgICAgICAgIHByb3RlY3RlZEZsYWdzLnB1c2godHJ1ZSk7CiAgICAgICAgICAgICAgICAgICAgY29udGludWU7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgICAgICAvLyBCbG9ja3F1b3RlIGNvbnRhaW5lciBleGl0ZWQ6IGVuZCB0aGUgZmVuY2UgYW5kIGZhbGwgdGhyb3VnaCBzbyB0aGlzCiAgICAgICAgICAgICAgICAvLyBsaW5lIGlzIGhhbmRsZWQgbm9ybWFsbHkuCiAgICAgICAgICAgICAgICBmZW5jZUNoYXIgPSBudWxsOwogICAgICAgICAgICAgICAgZmVuY2VMZW4gPSAwOwogICAgICAgICAgICAgICAgZmVuY2VEZXB0aCA9IDA7CiAgICAgICAgICAgICAgICBmZW5jZUxpc3RJbmRlbnQgPSAwOwogICAgICAgICAgICB9CiAgICAgICAgfQoKICAgICAgICAvLyBOb3QgaW5zaWRlIGEgY29kZSBibG9jazogYW4gb3BlbmluZyBmZW5jZSAodG9wLWxldmVsLCBibG9ja3F1b3RlZCwgb3IgYXMKICAgICAgICAvLyB0aGUgZmlyc3QgY29udGVudCBvZiBhIGxpc3QgaXRlbSkgc3RhcnRzIG9uZS4gRGV0ZWN0IGl0IG9uIHRoZQogICAgICAgIC8vIGJsb2NrcXVvdGUtc3RyaXBwZWQgY29udGVudCwgYWZ0ZXIgb3B0aW9uYWxseSBzdHJpcHBpbmcgYSBsaXN0IG1hcmtlciwgYW5kCiAgICAgICAgLy8gcmVtZW1iZXIgdGhlIHF1b3RlIGRlcHRoICsgbGlzdCBpbmRlbnQgc28gdGhlIG1hdGNoaW5nIGNsb3NlciBpcyBmb3VuZC4KICAgICAgICB7CiAgICAgICAgICAgIGNvbnN0IHsgZGVwdGgsIGNvbnRlbnQgfSA9IHN0cmlwQmxvY2txdW90ZShsaW5lLCBJbmZpbml0eSk7CiAgICAgICAgICAgIGNvbnN0IHsgcmVzdCwgaW5kZW50IH0gPSBzdHJpcExpc3RNYXJrZXIoY29udGVudCk7CiAgICAgICAgICAgIGNvbnN0IGZlbmNlID0gb3BlbmluZ0ZlbmNlKHJlc3QpOwogICAgICAgICAgICBpZiAoZmVuY2UpIHsKICAgICAgICAgICAgICAgIGZlbmNlQ2hhciA9IGZlbmNlLmNoYXI7CiAgICAgICAgICAgICAgICBmZW5jZUxlbiA9IGZlbmNlLmxlbjsKICAgICAgICAgICAgICAgIGZlbmNlRGVwdGggPSBkZXB0aDsKICAgICAgICAgICAgICAgIGZlbmNlTGlzdEluZGVudCA9IGluZGVudDsKICAgICAgICAgICAgICAgIGNsZWFuZWRCb2R5TGluZXMucHVzaChsaW5lKTsKICAgICAgICAgICAgICAgIHByb3RlY3RlZEZsYWdzLnB1c2godHJ1ZSk7CiAgICAgICAgICAgICAgICBjb250aW51ZTsKICAgICAgICAgICAgfQogICAgICAgIH0KCiAgICAgICAgLy8gT3V0c2lkZSBhbnkgY29kZSBmZW5jZTogZGVjaWRlIHdoZXRoZXIgdGhpcyBsaW5lIGlzIGEgbWlncmF0YWJsZSBmaWVsZC4KICAgICAgICBjb25zdCB0cmltbWVkTGluZSA9IGxpbmUudHJpbSgpOwogICAgICAgIGxldCBpc1Byb3BlcnR5VG9SZW1vdmUgPSBmYWxzZTsKCiAgICAgICAgaWYgKAogICAgICAgICAgICB0cmltbWVkTGluZS5pbmNsdWRlcygnOjonKSAmJgogICAgICAgICAgICAvLyBTa2lwIHRhc2sgY2hlY2tib3hlcyAoZS5nLiAiLSBbIF0gZG86OiB0aGluZyIpLgogICAgICAgICAgICAhL15bLSorXVxzK1xbW3hYIF1cXS8udGVzdCh0cmltbWVkTGluZSkKICAgICAgICApIHsKICAgICAgICAgICAgLy8gTWFzayBpbmxpbmUgY29kZSBzcGFucyBzbyBhICI6OiIgaW5zaWRlIGNvZGUgaXMgbm90IHJlYWQgYXMgYSBmaWVsZAogICAgICAgICAgICAvLyBzZXBhcmF0b3IuIE1hc2tpbmcgcHJlc2VydmVzIGxlbmd0aCBzbyBwb3NpdGlvbnMgc3RheSBhbGlnbmVkIHdpdGgKICAgICAgICAgICAgLy8gdGhlIG9yaWdpbmFsIGxpbmUuCiAgICAgICAgICAgIGNvbnN0IG1hc2tlZExpbmUgPSBtYXNrSW5saW5lQ29kZSh0cmltbWVkTGluZSk7CiAgICAgICAgICAgIGNvbnN0IGZpZWxkTWF0Y2ggPSBtYXNrZWRMaW5lLm1hdGNoKC9eKFteOl0rPyk6OiguKikkLyk7CgogICAgICAgICAgICBpZiAoZmllbGRNYXRjaCkgewogICAgICAgICAgICAgICAgY29uc3QgbmFtZUVuZCA9IGZpZWxkTWF0Y2hbMV0ubGVuZ3RoOwogICAgICAgICAgICAgICAgLy8gVGhlIGZpZWxkIG5hbWUgbXVzdCBiZSBmcmVlIG9mIGlubGluZSBjb2RlLiBJZiBtYXNraW5nIGNoYW5nZWQKICAgICAgICAgICAgICAgIC8vIHRoZSBuYW1lIHJlZ2lvbiwgdGhlIGxpbmUgaXMgbWlkLWNvbnRlbnQgKGUuZy4gYSBjb2RlIHNwYW4gc2l0cwogICAgICAgICAgICAgICAgLy8gYmVmb3JlIHRoZSBjb2xvbiksIG5vdCBhIGNsZWFuICJuYW1lOjogdmFsdWUiIGZpZWxkIC0gbGVhdmUgaXQKICAgICAgICAgICAgICAgIC8vIHZlcmJhdGltIHNvIHdlIG5ldmVyIGRlbGV0ZSB0aGUgY29kZSBzcGFuIHRoYXQgcHJlY2VkZXMgaXQuCiAgICAgICAgICAgICAgICBjb25zdCBuYW1lSXNDbGVhbiA9CiAgICAgICAgICAgICAgICAgICAgbWFza2VkTGluZS5zbGljZSgwLCBuYW1lRW5kKSA9PT0gdHJpbW1lZExpbmUuc2xpY2UoMCwgbmFtZUVuZCk7CgogICAgICAgICAgICAgICAgaWYgKG5hbWVJc0NsZWFuKSB7CiAgICAgICAgICAgICAgICAgICAgY29uc3QgZmllbGROYW1lID0gdHJpbW1lZExpbmUuc2xpY2UoMCwgbmFtZUVuZCkudHJpbSgpOwogICAgICAgICAgICAgICAgICAgIC8vIFNraXAgdGhlICI6OiIgc2VwYXJhdG9yOyByZWNvdmVyIHRoZSByZWFsIHZhbHVlIChpbmNsdWRpbmcgYW55CiAgICAgICAgICAgICAgICAgICAgLy8gYmFja3RpY2tzKSBmcm9tIHRoZSBvcmlnaW5hbCBsaW5lLgogICAgICAgICAgICAgICAgICAgIGNvbnN0IGZpZWxkVmFsdWUgPSB0cmltbWVkTGluZS5zbGljZShuYW1lRW5kICsgMikudHJpbSgpOwoKICAgICAgICAgICAgICAgICAgICBpZiAoZmllbGROYW1lICYmIGZpZWxkVmFsdWUpIHsKICAgICAgICAgICAgICAgICAgICAgICAgY29uc3QgZmllbGROYW1lTG93ZXIgPSBmaWVsZE5hbWUudG9Mb3dlckNhc2UoKTsKICAgICAgICAgICAgICAgICAgICAgICAgLy8gYGZyb250bWF0dGVyWydfX3Byb3RvX18nXSA9IHZhbHVlYCBoaXRzIHRoZSBPYmplY3QucHJvdG90eXBlCiAgICAgICAgICAgICAgICAgICAgICAgIC8vIGFjY2Vzc29yIGluc3RlYWQgb2YgY3JlYXRpbmcgYW4gb3duIHByb3BlcnR5LCBzbyB0aGUgdmFsdWUKICAgICAgICAgICAgICAgICAgICAgICAgLy8gd291bGQgYmUgc2lsZW50bHkgZHJvcHBlZCB3aGlsZSB0aGUgYm9keSBsaW5lIGlzIGRlbGV0ZWQgLQogICAgICAgICAgICAgICAgICAgICAgICAvLyBkYXRhIGxvc3MuIExlYXZlIHN1Y2ggYSBsaW5lIGluIHRoZSBib2R5IHZlcmJhdGltIGluc3RlYWQKICAgICAgICAgICAgICAgICAgICAgICAgLy8gKG1pcnJvcnMgdGhlIGNvcmUgcGx1Z2luJ3MgZHVuZGVyLWtleSBndWFyZCwgd2hpY2ggYmxvY2tzCiAgICAgICAgICAgICAgICAgICAgICAgIC8vIF9fcHJvdG9fXyBpbiBhbnkgcG9zaXRpb24pLgogICAgICAgICAgICAgICAgICAgICAgICBjb25zdCBpc1Vud3JpdGFibGVOYW1lID0gZmllbGROYW1lID09PSAnX19wcm90b19fJzsKICAgICAgICAgICAgICAgICAgICAgICAgY29uc3Qgc2hvdWxkTWlncmF0ZSA9ICFpc1Vud3JpdGFibGVOYW1lICYmIChtaWdyYXRlQWxsIHx8CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAoYWxsb3dlZFByb3BlcnRpZXNMb3dlci5sZW5ndGggPiAwICYmIGFsbG93ZWRQcm9wZXJ0aWVzTG93ZXIuaW5jbHVkZXMoZmllbGROYW1lTG93ZXIpKSk7CgogICAgICAgICAgICAgICAgICAgICAgICBpZiAoc2hvdWxkTWlncmF0ZSkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgLy8gVGhpcyBsaW5lIHNob3VsZCBiZSByZW1vdmVkIChtb3ZlZCB0byBmcm9udG1hdHRlcikuCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBpc1Byb3BlcnR5VG9SZW1vdmUgPSB0cnVlOwoKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGlmICghZmllbGRzLmhhcyhmaWVsZE5hbWUpKSB7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZmllbGRzLnNldChmaWVsZE5hbWUsIG5ldyBTZXQoKSk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgICAgICAgICAgICAgLy8gUGFyc2UgdGhlIHZhbHVlIHdpdGggc3BlY2lhbCBoYW5kbGluZyBmb3Igd2lraWxpbmtzLgogICAgICAgICAgICAgICAgICAgICAgICAgICAgY29uc3QgcGFyc2VkVmFsdWVzID0gcGFyc2VDb21tYVNlcGFyYXRlZFdpdGhXaWtpbGlua3MoZmllbGRWYWx1ZSk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBwYXJzZWRWYWx1ZXMuZm9yRWFjaCh2YWx1ZSA9PiBmaWVsZHMuZ2V0KGZpZWxkTmFtZSkuYWRkKHZhbHVlKSk7CiAgICAgICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CgogICAgICAgIC8vIEtlZXAgdGhlIGxpbmUgaWYgaXQncyBub3QgYSBwcm9wZXJ0eSB0byByZW1vdmUuCiAgICAgICAgaWYgKCFpc1Byb3BlcnR5VG9SZW1vdmUpIHsKICAgICAgICAgICAgY2xlYW5lZEJvZHlMaW5lcy5wdXNoKGxpbmUpOwogICAgICAgICAgICBwcm90ZWN0ZWRGbGFncy5wdXNoKGZhbHNlKTsKICAgICAgICB9CiAgICB9CgogICAgLy8gQ29sbGFwc2UgcnVucyBvZiAyKyBjb25zZWN1dGl2ZSBibGFuayBsaW5lcyBkb3duIHRvIGEgc2luZ2xlIGJsYW5rIGxpbmUsIGJ1dAogICAgLy8gbmV2ZXIgdG91Y2ggYmxhbmsgbGluZXMgaW5zaWRlIGZlbmNlZCBjb2RlIGJsb2NrcyAodmVyYmF0aW0gZ3VhcmFudGVlKS4gVGhpcwogICAgLy8gYWxzbyBsZWF2ZXMgdGhlIGZyb250bWF0dGVyIHVudG91Y2hlZCwgdW5saWtlIGEgZ2xvYmFsIG5ld2xpbmUgcmVnZXguCiAgICBjb25zdCBjb2xsYXBzZWRMaW5lcyA9IFtdOwogICAgbGV0IGJsYW5rUnVuID0gMDsKICAgIGZvciAobGV0IGkgPSAwOyBpIDwgY2xlYW5lZEJvZHlMaW5lcy5sZW5ndGg7IGkrKykgewogICAgICAgIGNvbnN0IGJvZHlMaW5lID0gY2xlYW5lZEJvZHlMaW5lc1tpXTsKICAgICAgICBpZiAoIXByb3RlY3RlZEZsYWdzW2ldICYmIGJvZHlMaW5lLnRyaW0oKSA9PT0gJycpIHsKICAgICAgICAgICAgYmxhbmtSdW4gKz0gMTsKICAgICAgICAgICAgaWYgKGJsYW5rUnVuIDw9IDEpIHsKICAgICAgICAgICAgICAgIGNvbGxhcHNlZExpbmVzLnB1c2goYm9keUxpbmUpOwogICAgICAgICAgICB9CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgYmxhbmtSdW4gPSAwOwogICAgICAgICAgICBjb2xsYXBzZWRMaW5lcy5wdXNoKGJvZHlMaW5lKTsKICAgICAgICB9CiAgICB9CgogICAgY29uc3QgY2xlYW5lZEJvZHkgPSBjb2xsYXBzZWRMaW5lcy5qb2luKCdcbicpOwogICAgY29uc3QgY2xlYW5lZENvbnRlbnQgPSBoYXNFeGlzdGluZ0Zyb250bWF0dGVyCiAgICAgICAgPyBmcm9udG1hdHRlclRleHQgKyBjbGVhbmVkQm9keQogICAgICAgIDogY2xlYW5lZEJvZHk7CgogICAgcmV0dXJuIHsgZmllbGRzLCBjbGVhbmVkQ29udGVudCB9Owp9CgovKioKICogU3RyaXAgdXAgdG8gYG1heGAgbGVhZGluZyBibG9ja3F1b3RlIG1hcmtlcnMgZnJvbSBhIGxpbmUuIEEgbWFya2VyIGlzIHVwIHRvIDMKICogc3BhY2VzIG9mIGluZGVudGF0aW9uLCBhICI+IiwgYW5kIG9uZSBvcHRpb25hbCBmb2xsb3dpbmcgc3BhY2UsIGFuZCBtYXJrZXJzCiAqIG5lc3QgKCI+ID4gIiBvciAiPj4gIikuIFJldHVybnMgdGhlIG51bWJlciBvZiBtYXJrZXJzIHN0cmlwcGVkIChgZGVwdGhgKSBhbmQgdGhlCiAqIHJlbWFpbmluZyBgY29udGVudGAuIFRoaXMgbGV0cyBmZW5jZWQgY29kZSBibG9ja3MgYmUgdHJhY2tlZCBpbnNpZGUgYmxvY2txdW90ZXM6CiAqIHRoZSBibG9jaydzIGNvbnRlbnQgYW5kIGl0cyBjbG9zaW5nIGZlbmNlIHNpdCBhdCB0aGUgc2FtZSBxdW90ZSBkZXB0aCBhcyB0aGUKICogb3BlbmVyLCBhbmQgYSBsaW5lIHdpdGggZmV3ZXIgbWFya2VycyBtZWFucyB0aGUgYmxvY2txdW90ZSAoYW5kIHRoZSBibG9jaykgZW5kZWQuCiAqLwpmdW5jdGlvbiBzdHJpcEJsb2NrcXVvdGUobGluZSwgbWF4KSB7CiAgICBsZXQgY29udGVudCA9IGxpbmU7CiAgICBsZXQgZGVwdGggPSAwOwogICAgd2hpbGUgKGRlcHRoIDwgbWF4KSB7CiAgICAgICAgY29uc3QgbWF0Y2ggPSBjb250ZW50Lm1hdGNoKC9eIHswLDN9PiggPykvKTsKICAgICAgICBpZiAoIW1hdGNoKSBicmVhazsKICAgICAgICBkZXB0aCArPSAxOwogICAgICAgIGNvbnRlbnQgPSBjb250ZW50LnNsaWNlKG1hdGNoWzBdLmxlbmd0aCk7CiAgICB9CiAgICByZXR1cm4geyBkZXB0aCwgY29udGVudCB9Owp9CgovKioKICogU3RyaXAgYW4gb3B0aW9uYWwgbGVhZGluZyBsaXN0LWl0ZW0gbWFya2VyICgiLSAiLCAiKiAiLCAiKyAiLCAiMS4gIiwgIjEpICIpCiAqIGZyb20gYSBsaW5lIHdob3NlIGJsb2NrcXVvdGUgbWFya2VycyBoYXZlIGFscmVhZHkgYmVlbiByZW1vdmVkLiBSZXR1cm5zIHRoZQogKiByZW1haW5pbmcgdGV4dCBhbmQgdGhlIG51bWJlciBvZiBjb2x1bW5zIHRoZSBtYXJrZXIgY29uc3VtZWQgKHRoZSBsaXN0IGNvbnRlbnQKICogaW5kZW50KS4gVGhpcyBsZXRzIGEgY29kZSBmZW5jZSB0aGF0IG9wZW5zIGFzIHRoZSBmaXJzdCBjb250ZW50IG9mIGEgbGlzdCBpdGVtCiAqIChlLmcuICItIGBgYCIpIGJlIHJlY29nbmlzZWQsIHdpdGggaXRzIGJvZHkgYW5kIGNsb3NpbmcgZmVuY2UgdHJhY2tlZCBhdCB0aGF0CiAqIGluZGVudC4gQSBsaXN0IG1hcmtlciBpcyBhbiB1bmFtYmlndW91cyBibG9jayBjb250YWluZXIsIHNvIGRldGVjdGluZyBpdCBoZXJlIGlzCiAqIHNhZmUgLSB1bmxpa2UgYSBiYXJlIGluZGVudCwgaXQgY2Fubm90IGJlIGNvbmZ1c2VkIHdpdGggb3JkaW5hcnkgdGV4dC4KICovCmZ1bmN0aW9uIHN0cmlwTGlzdE1hcmtlcihjb250ZW50KSB7CiAgICBjb25zdCBtYXRjaCA9IGNvbnRlbnQubWF0Y2goL14gezAsM30oPzpbLSorXXxcZHsxLDl9Wy4pXSlccysvKTsKICAgIGlmICghbWF0Y2gpIHJldHVybiB7IHJlc3Q6IGNvbnRlbnQsIGluZGVudDogMCB9OwogICAgcmV0dXJuIHsgcmVzdDogY29udGVudC5zbGljZShtYXRjaFswXS5sZW5ndGgpLCBpbmRlbnQ6IG1hdGNoWzBdLmxlbmd0aCB9Owp9CgovKioKICogU3RyaXAgdXAgdG8gYG1heGAgbGVhZGluZyBzcGFjZXMgZnJvbSBhIGxpbmUuIFJldHVybnMgdGhlIHJlbWFpbmluZyB0ZXh0IGFuZCB0aGUKICogbnVtYmVyIG9mIHNwYWNlcyBhY3R1YWxseSByZW1vdmVkLgogKi8KZnVuY3Rpb24gc3RyaXBMZWFkaW5nU3BhY2VzKGNvbnRlbnQsIG1heCkgewogICAgbGV0IGluZGVudCA9IDA7CiAgICB3aGlsZSAoaW5kZW50IDwgbWF4ICYmIGNvbnRlbnRbaW5kZW50XSA9PT0gJyAnKSBpbmRlbnQgKz0gMTsKICAgIHJldHVybiB7IHJlc3Q6IGNvbnRlbnQuc2xpY2UoaW5kZW50KSwgaW5kZW50IH07Cn0KCi8qKgogKiBEZXRlY3QgYW4gb3BlbmluZyBjb2RlIGZlbmNlIChgYGAgb3Igfn5+KSBvbiBhIGxpbmUgd2hvc2UgYmxvY2txdW90ZSBhbmQgbGlzdAogKiBtYXJrZXJzIGhhdmUgYWxyZWFkeSBiZWVuIHN0cmlwcGVkLiBQZXIgQ29tbW9uTWFyayBhIGZlbmNlIG1heSBiZSBpbmRlbnRlZCAwLTMKICogc3BhY2VzICg0KyBpcyBhbiBpbmRlbnRlZCBjb2RlIGJsb2NrKSBhbmQgbWF5IGNhcnJ5IGFuIGluZm8gc3RyaW5nLiBSZXR1cm5zCiAqIHsgY2hhciwgbGVuIH0gZm9yIHRoZSBtYXJrZXIsIG9yIG51bGwuCiAqCiAqIE91dCBvZiBzY29wZSAtIDQtc3BhY2UgSU5ERU5URUQgY29kZSBibG9ja3MgYXJlIG5vdCBkZXRlY3RlZC4gVGVsbGluZyBhIGdlbnVpbmUKICogaW5kZW50ZWQgY29kZSBibG9jayBhcGFydCBmcm9tIGluZGVudGVkIHRleHQgbmVlZHMgcGFyYWdyYXBoIGJsb2NrIGNvbnRleHQKICogKENvbW1vbk1hcms6IGluZGVudGVkIGNvZGUgY2Fubm90IGludGVycnVwdCBhIHBhcmFncmFwaCwgYW5kIGEgNC1zcGFjZSBpbmRlbnQKICogdW5kZXIgYSBsaXN0IGl0ZW0gaXMgbGlzdCBjb250ZW50IHJhdGhlciB0aGFuIGNvZGUpLiBBIGxpbmUtYmFzZWQgc2NyaXB0IGxhY2tzCiAqIHRoYXQgY29udGV4dCwgYW5kIGEgcGFydGlhbCBoZXVyaXN0aWMgd291bGQgZWl0aGVyIHJlaW50cm9kdWNlIGRhdGEgbG9zcwogKiAoZGVsZXRpbmcgaW5kZW50ZWQgY29kZSkgb3IgY2F1c2UgdGhlIG9wcG9zaXRlIGJ1ZyAtIHNpbGVudGx5IHNraXBwaW5nIGEgcmVhbAogKiBpbmxpbmUgZmllbGQgbWVyZWx5IGluZGVudGVkIHVuZGVyIGEgbGlzdCAoRGF0YXZpZXcgcGFyc2VzIHRob3NlIGFzIGZpZWxkcywgc28KICogdXNlcnMgZXhwZWN0IHRoZW0gdG8gbWlncmF0ZSkuIEZlbmNlZCBjb2RlICh0b3AtbGV2ZWwsIGJsb2NrcXVvdGVkLCBBTkQgbGlzdC0KICogbmVzdGVkKSBhbmQgaW5saW5lIGNvZGUgQVJFIGRldGVjdGVkIGFuZCBwcmVzZXJ2ZWQ7IG9ubHkgYW4gaW5saW5lLWZpZWxkLWxpa2UKICogbGluZSBpbnNpZGUgYSBnZW51aW5lIElOREVOVEVEIGNvZGUgYmxvY2sgbWF5IHN0aWxsIG1pZ3JhdGUuCiAqLwpmdW5jdGlvbiBvcGVuaW5nRmVuY2UobGluZSkgewogICAgY29uc3QgbWF0Y2ggPSBsaW5lLm1hdGNoKC9eIHswLDN9KGB7Myx9fH57Myx9KS8pOwogICAgaWYgKCFtYXRjaCkgcmV0dXJuIG51bGw7CiAgICByZXR1cm4geyBjaGFyOiBtYXRjaFsxXVswXSwgbGVuOiBtYXRjaFsxXS5sZW5ndGggfTsKfQoKLyoqCiAqIEEgY2xvc2luZyBmZW5jZSB1c2VzIHRoZSBzYW1lIG1hcmtlciBjaGFyYWN0ZXIsIGlzIGF0IGxlYXN0IGFzIGxvbmcgYXMgdGhlCiAqIG9wZW5pbmcgZmVuY2UsIGFuZCBjYXJyaWVzIG5vIGluZm8gc3RyaW5nIChvbmx5IG9wdGlvbmFsIHRyYWlsaW5nIHdoaXRlc3BhY2UpLgogKi8KZnVuY3Rpb24gaXNDbG9zaW5nRmVuY2UobGluZSwgZmVuY2VDaGFyLCBmZW5jZUxlbikgewogICAgLy8gQWxsb3cgYSB0cmFpbGluZyBDUiBzbyBDUkxGIGZpbGVzIGNsb3NlIHRoZWlyIGZlbmNlcyBjb3JyZWN0bHkuCiAgICBjb25zdCBtYXRjaCA9IGxpbmUubWF0Y2goL14gezAsM30oYHszLH18fnszLH0pWyBcdF0qXHI/JC8pOwogICAgaWYgKCFtYXRjaCkgcmV0dXJuIGZhbHNlOwogICAgY29uc3QgbWFya2VyID0gbWF0Y2hbMV07CiAgICByZXR1cm4gbWFya2VyWzBdID09PSBmZW5jZUNoYXIgJiYgbWFya2VyLmxlbmd0aCA+PSBmZW5jZUxlbjsKfQoKLyoqCiAqIFJlcGxhY2UgaW5saW5lIGNvZGUgc3BhbnMgd2l0aCBlcXVhbC1sZW5ndGggYmxhbmtzIHNvIGEgIjo6IiBpbnNpZGUgY29kZSBpcyBub3QKICogbWlzdGFrZW4gZm9yIGFuIGlubGluZS1maWVsZCBzZXBhcmF0b3IuIFN1cHBvcnRzIGFyYml0cmFyeSBiYWNrdGljay1ydW4gbGVuZ3RocwogKiAoYGNvZGVgLCBgYGNvYGRlYGApLiBDaGFyYWN0ZXIgcG9zaXRpb25zIGFyZSBwcmVzZXJ2ZWQgc28gdGhlIGNhbGxlciBjYW4gc2xpY2UKICogdGhlIG9yaWdpbmFsIGxpbmUgYnkgb2Zmc2V0cyBjb21wdXRlZCBvbiB0aGUgbWFza2VkIGxpbmUuCiAqCiAqIEltcGxlbWVudGVkIGFzIGEgbGluZWFyLXRpbWUgc2NhbiBvdmVyIHRoZSBpbmRleGVkIGJhY2t0aWNrIHJ1bnMgKG5vCiAqIGJhY2t0cmFja2luZzsgaXQgaW5kZXhlcyB0aGUgcnVucywgdGhlbiB3YWxrcyB0aGVtIG9uY2UpLiBUaGUgZWFybGllciByZWdleAogKiAvKGArKSg/Oig/IVwxKVtcc1xTXSkqP1wxL2cgY29tYmluZWQgYSBiYWNrcmVmZXJlbmNlZCBvcGVuZXIsIGEgbGF6eSBib2R5LCBhbmQgYQogKiBuZWdhdGl2ZSBsb29rYWhlYWQsIHdoaWNoIGJhY2t0cmFja3Mgc3VwZXItbGluZWFybHkgKHNlY29uZHMgb2YgbWFpbi10aHJlYWQKICogZnJlZXplKSBvbiBhIGxvbmcgYmFja3RpY2sgcnVuIHdpdGggbm8gbWF0Y2hpbmctbGVuZ3RoIGNsb3NlciAtIHJlYWNoYWJsZSBmcm9tIGEKICogc3luY2VkL3NoYXJlZCBub3RlIHRoYXQgdGhlIHVzZXIgbWlncmF0ZXMuIFRoaXMgc2Nhbm5lciByZXByb2R1Y2VzIHRoZSByZWdleCdzCiAqIGV4YWN0IG1hc2tpbmcgYmVoYXZpb3VyIHdpdGggTyhuKSB3b3JrOiBhIHJ1biBvZiBrIGJhY2t0aWNrcyBpcyBjbG9zZWQgYnkgdGhlCiAqIGZpcnN0IHJ1biBvZiBhdCBsZWFzdCBrIGJhY2t0aWNrcyAoaXRzIGZpcnN0IGsgYmFja3RpY2tzIGZvcm0gdGhlIGNsb3NlciwgdGhlCiAqIHJlZ2V4J3MgYFwxYCksIHByZWZlcnJpbmcgdGhlIGxvbmdlc3Qgb3BlbmVyIGxlbmd0aCB0aGUgZW5naW5lIHdvdWxkIGhhdmUKICogbWF0Y2hlZC4gQW4gdW5jbG9zZWQgb3BlbmVyIHN0YXlzIHZlcmJhdGltLgogKi8KZnVuY3Rpb24gbWFza0lubGluZUNvZGUodGV4dCkgewogICAgY29uc3QgbiA9IHRleHQubGVuZ3RoOwoKICAgIC8vIEluZGV4IGV2ZXJ5IG1heGltYWwgcnVuIG9mIGJhY2t0aWNrcyBvbmNlLgogICAgY29uc3QgcnVuU3RhcnQgPSBbXTsKICAgIGNvbnN0IHJ1bkxlbiA9IFtdOwogICAgZm9yIChsZXQgaSA9IDA7IGkgPCBuOyApIHsKICAgICAgICBpZiAodGV4dC5jaGFyQ29kZUF0KGkpID09PSA5NiAvKiBgICovKSB7CiAgICAgICAgICAgIGxldCBqID0gaSArIDE7CiAgICAgICAgICAgIHdoaWxlIChqIDwgbiAmJiB0ZXh0LmNoYXJDb2RlQXQoaikgPT09IDk2KSBqKys7CiAgICAgICAgICAgIHJ1blN0YXJ0LnB1c2goaSk7CiAgICAgICAgICAgIHJ1bkxlbi5wdXNoKGogLSBpKTsKICAgICAgICAgICAgaSA9IGo7CiAgICAgICAgfSBlbHNlIHsKICAgICAgICAgICAgaSsrOwogICAgICAgIH0KICAgIH0KICAgIGNvbnN0IHJ1bkNvdW50ID0gcnVuU3RhcnQubGVuZ3RoOwogICAgaWYgKHJ1bkNvdW50ID09PSAwKSByZXR1cm4gdGV4dDsKCiAgICAvLyBzdWZmaXhNYXhbYV0gPSBsb25nZXN0IHJ1biBvdmVyIHJ1bnNbYS4uZW5kXTsgc3VmZml4TWF4W3J1bkNvdW50XSA9IDAuIExldHMgdGhlCiAgICAvLyBiZXN0IGNsb3NlciBmb3IgYSBnaXZlbiBvcGVuZXIgYmUgZm91bmQgd2l0aG91dCByZS1zY2FubmluZyBsYXRlciBydW5zLgogICAgY29uc3Qgc3VmZml4TWF4ID0gbmV3IEFycmF5KHJ1bkNvdW50ICsgMSk7CiAgICBzdWZmaXhNYXhbcnVuQ291bnRdID0gMDsKICAgIGZvciAobGV0IGEgPSBydW5Db3VudCAtIDE7IGEgPj0gMDsgYS0tKSB7CiAgICAgICAgc3VmZml4TWF4W2FdID0gTWF0aC5tYXgocnVuTGVuW2FdLCBzdWZmaXhNYXhbYSArIDFdKTsKICAgIH0KCiAgICBjb25zdCBvdXQgPSB0ZXh0LnNwbGl0KCcnKTsKICAgIGNvbnN0IGJsYW5rID0gKGZyb20sIHRvKSA9PiB7IGZvciAobGV0IHAgPSBmcm9tOyBwIDwgdG87IHArKykgb3V0W3BdID0gJyAnOyB9OwoKICAgIC8vIFdhbGsgZWFjaCBsb2dpY2FsIG9wZW5lci4gYGFgIGlzIHRoZSBydW4gd2Ugc2l0IGluOyBgaWAvYG1gIGFyZSB0aGUgb3BlbmVyJ3MKICAgIC8vIHN0YXJ0IHBvc2l0aW9uIGFuZCByZW1haW5pbmcgYmFja3RpY2sgY291bnQgKG0gPCBydW5MZW5bYV0gb25seSB3aGVuIGEgcHJpb3IKICAgIC8vIGNsb3NlciBhbHJlYWR5IGNvbnN1bWVkIGEgcHJlZml4IG9mIHRoaXMgcnVuKS4KICAgIGxldCBhID0gMDsKICAgIGxldCBpID0gcnVuU3RhcnRbMF07CiAgICBsZXQgbSA9IHJ1bkxlblswXTsKICAgIHdoaWxlICh0cnVlKSB7CiAgICAgICAgY29uc3QgaGFsZiA9IG0gPj4gMTsgICAgICAgICAgICAvLyBmbG9vcihtLzIpOiBsb25nZXN0IG9wZW5lciB0aGF0IGNsb3NlcyBpbnNpZGUgdGhpcyBydW4KICAgICAgICBjb25zdCBtYXhMYXRlciA9IHN1ZmZpeE1heFthICsgMV07CiAgICAgICAgY29uc3Qga1VwcGVyID0gTWF0aC5taW4obSwgbWF4TGF0ZXIpOyAvLyBsb25nZXN0IG9wZW5lciB0aGF0IGNsb3NlcyBpbiBhIGxhdGVyIHJ1bgoKICAgICAgICBpZiAoa1VwcGVyID4gaGFsZikgewogICAgICAgICAgICAvLyBHcmVlZHkgb3BlbmVyIG9mIGxlbmd0aCBrVXBwZXI7IGNsb3NlciBpcyB0aGUgZmlyc3QgbGF0ZXIgcnVuIHRoYXQgbG9uZy4KICAgICAgICAgICAgY29uc3QgayA9IGtVcHBlcjsKICAgICAgICAgICAgbGV0IGIgPSBhICsgMTsKICAgICAgICAgICAgd2hpbGUgKHJ1bkxlbltiXSA8IGspIGIrKzsgIC8vIGV4aXN0cyBiZWNhdXNlIG1heExhdGVyID49IGsKICAgICAgICAgICAgY29uc3QgbWF0Y2hFbmQgPSBydW5TdGFydFtiXSArIGs7CiAgICAgICAgICAgIGJsYW5rKGksIG1hdGNoRW5kKTsKICAgICAgICAgICAgY29uc3QgbGVmdG92ZXIgPSBydW5MZW5bYl0gLSBrOwogICAgICAgICAgICBpZiAobGVmdG92ZXIgPiAwKSB7IGEgPSBiOyBpID0gbWF0Y2hFbmQ7IG0gPSBsZWZ0b3ZlcjsgY29udGludWU7IH0KICAgICAgICAgICAgYSA9IGIgKyAxOwogICAgICAgIH0gZWxzZSBpZiAoaGFsZiA+IDApIHsKICAgICAgICAgICAgLy8gQ2xvc2VyIGlzIHRoZSBuZXh0IGBoYWxmYCBiYWNrdGlja3MgaW5zaWRlIHRoaXMgc2FtZSBydW4uCiAgICAgICAgICAgIGNvbnN0IG1hdGNoRW5kID0gaSArIDIgKiBoYWxmOwogICAgICAgICAgICBibGFuayhpLCBtYXRjaEVuZCk7CiAgICAgICAgICAgIGNvbnN0IGxlZnRvdmVyID0gbSAtIDIgKiBoYWxmOyAvLyAwIChldmVuIHJ1bikgb3IgMSAob2RkIHJ1bikKICAgICAgICAgICAgaWYgKGxlZnRvdmVyID4gMCkgeyBpID0gbWF0Y2hFbmQ7IG0gPSBsZWZ0b3ZlcjsgY29udGludWU7IH0KICAgICAgICAgICAgYSA9IGEgKyAxOwogICAgICAgIH0gZWxzZSB7CiAgICAgICAgICAgIC8vIG0gPT09IDEgd2l0aCBubyBsYXRlciBiYWNrdGlja3M6IGEgbG9uZSBiYWNrdGljayBzdGF5cyBsaXRlcmFsLgogICAgICAgICAgICBhID0gYSArIDE7CiAgICAgICAgfQoKICAgICAgICBpZiAoYSA+PSBydW5Db3VudCkgYnJlYWs7CiAgICAgICAgaSA9IHJ1blN0YXJ0W2FdOwogICAgICAgIG0gPSBydW5MZW5bYV07CiAgICB9CiAgICByZXR1cm4gb3V0LmpvaW4oJycpOwp9CgovKioKICogRmluZCB0aGUgZW5kIHBvc2l0aW9uIG9mIGZyb250bWF0dGVyCiAqIEBwYXJhbSB7c3RyaW5nfSBjb250ZW50IC0gVGhlIGZpbGUgY29udGVudAogKiBAcmV0dXJucyB7e2Zyb250bWF0dGVyRW5kOiBudW1iZXIsIGhhc0V4aXN0aW5nRnJvbnRtYXR0ZXI6IGJvb2xlYW4sIGZyb250bWF0dGVyVGV4dDogc3RyaW5nfX0KICovCmZ1bmN0aW9uIGZpbmRGcm9udG1hdHRlckVuZChjb250ZW50KSB7CiAgICBjb25zdCBmcm9udG1hdHRlclJlZ2V4ID0gL14tLS1ccj9cbihbXHNcU10qPylccj9cbi0tLVxyP1xuLzsKICAgIGNvbnN0IG1hdGNoID0gY29udGVudC5tYXRjaChmcm9udG1hdHRlclJlZ2V4KTsKCiAgICBpZiAobWF0Y2gpIHsKICAgICAgICByZXR1cm4gewogICAgICAgICAgICBmcm9udG1hdHRlckVuZDogbWF0Y2hbMF0ubGVuZ3RoLAogICAgICAgICAgICBoYXNFeGlzdGluZ0Zyb250bWF0dGVyOiB0cnVlLAogICAgICAgICAgICBmcm9udG1hdHRlclRleHQ6IG1hdGNoWzBdCiAgICAgICAgfTsKICAgIH0KCiAgICByZXR1cm4gewogICAgICAgIGZyb250bWF0dGVyRW5kOiAwLAogICAgICAgIGhhc0V4aXN0aW5nRnJvbnRtYXR0ZXI6IGZhbHNlLAogICAgICAgIGZyb250bWF0dGVyVGV4dDogJycKICAgIH07Cn0KCi8qKgogKiBQYXJzZSBjb21tYS1zZXBhcmF0ZWQgdmFsdWVzIHdpdGggc3BlY2lhbCBoYW5kbGluZyBmb3Igd2lraWxpbmtzCiAqIEVuc3VyZXMgY29tbWFzIGluc2lkZSBbW3dpa2lsaW5rc11dIGFyZSBub3QgdHJlYXRlZCBhcyBzZXBhcmF0b3JzCiAqIEBwYXJhbSB7c3RyaW5nfSB2YWx1ZSAtIFRoZSBmaWVsZCB2YWx1ZSB0byBwYXJzZQogKiBAcmV0dXJucyB7c3RyaW5nW119IEFycmF5IG9mIHBhcnNlZCB2YWx1ZXMKICovCmZ1bmN0aW9uIHBhcnNlQ29tbWFTZXBhcmF0ZWRXaXRoV2lraWxpbmtzKHZhbHVlKSB7CiAgICAvLyBJZiBubyBjb21tYXMsIHJldHVybiBhcyBzaW5nbGUgdmFsdWUKICAgIGlmICghdmFsdWUuaW5jbHVkZXMoJywnKSkgewogICAgICAgIHJldHVybiBbdmFsdWUudHJpbSgpXTsKICAgIH0KCiAgICBjb25zdCB2YWx1ZXMgPSBbXTsKICAgIGxldCBjdXJyZW50VmFsdWUgPSAnJzsKICAgIGxldCBpbnNpZGVXaWtpbGluayA9IGZhbHNlOwoKICAgIGZvciAobGV0IGkgPSAwOyBpIDwgdmFsdWUubGVuZ3RoOyBpKyspIHsKICAgICAgICBjb25zdCBjaGFyID0gdmFsdWVbaV07CiAgICAgICAgY29uc3QgbmV4dENoYXIgPSB2YWx1ZVtpICsgMV07CgogICAgICAgIC8vIENoZWNrIGZvciB3aWtpbGluayBvcGVuaW5nIFtbCiAgICAgICAgaWYgKGNoYXIgPT09ICdbJyAmJiBuZXh0Q2hhciA9PT0gJ1snKSB7CiAgICAgICAgICAgIGluc2lkZVdpa2lsaW5rID0gdHJ1ZTsKICAgICAgICAgICAgY3VycmVudFZhbHVlICs9IGNoYXI7CiAgICAgICAgICAgIGNvbnRpbnVlOwogICAgICAgIH0KCiAgICAgICAgLy8gQ2hlY2sgZm9yIHdpa2lsaW5rIGNsb3NpbmcgXV0KICAgICAgICBpZiAoY2hhciA9PT0gJ10nICYmIG5leHRDaGFyID09PSAnXScpIHsKICAgICAgICAgICAgaW5zaWRlV2lraWxpbmsgPSBmYWxzZTsKICAgICAgICAgICAgY3VycmVudFZhbHVlICs9IGNoYXI7CiAgICAgICAgICAgIGNvbnRpbnVlOwogICAgICAgIH0KCiAgICAgICAgLy8gSWYgd2UgaGl0IGEgY29tbWEgb3V0c2lkZSB3aWtpbGlua3MsIHNwbGl0CiAgICAgICAgaWYgKGNoYXIgPT09ICcsJyAmJiAhaW5zaWRlV2lraWxpbmspIHsKICAgICAgICAgICAgY29uc3QgdHJpbW1lZCA9IGN1cnJlbnRWYWx1ZS50cmltKCk7CiAgICAgICAgICAgIGlmICh0cmltbWVkKSB7CiAgICAgICAgICAgICAgICB2YWx1ZXMucHVzaCh0cmltbWVkKTsKICAgICAgICAgICAgfQogICAgICAgICAgICBjdXJyZW50VmFsdWUgPSAnJzsKICAgICAgICAgICAgY29udGludWU7CiAgICAgICAgfQoKICAgICAgICBjdXJyZW50VmFsdWUgKz0gY2hhcjsKICAgIH0KCiAgICAvLyBBZGQgdGhlIGxhc3QgdmFsdWUKICAgIGNvbnN0IHRyaW1tZWQgPSBjdXJyZW50VmFsdWUudHJpbSgpOwogICAgaWYgKHRyaW1tZWQpIHsKICAgICAgICB2YWx1ZXMucHVzaCh0cmltbWVkKTsKICAgIH0KCiAgICByZXR1cm4gdmFsdWVzLmxlbmd0aCA+IDAgPyB2YWx1ZXMgOiBbdmFsdWUudHJpbSgpXTsKfQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "move-tagged-notes",
+		"title": "Move notes with a tag to a folder",
+		"description": "Move every note carrying a chosen tag to a target folder, matching both frontmatter and inline tags, via a macro script",
+		"slug": "docs/Examples/Macro_MoveNotesWithATagToAFolder",
+		"requires": [],
+		"afterImport": [
+			"Back up your vault first. Picking the destination folder moves every matching note at once, with no preview or undo; to reverse it, move the notes back.",
+			"Run **Move notes with a tag** from the command palette, pick a tag, and choose whether nested tags count too (`#project/work` when you picked `#project`). The folder menu shows how many notes will move.",
+			"Notes whose path contains `template` (in any case, such as `Templates/`) are left where they are."
+		],
+		"choices": [
+			{
+				"name": "Move notes with a tag",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-move-tagged-notes"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-move-tagged-notes",
+						"name": "Move notes with a tag",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-move-tagged-notes-macro",
+							"name": "Move notes with a tag",
+							"commands": [
+								{
+									"id": "qa-pkg-move-tagged-notes-script",
+									"name": "moveNotesWithTag",
+									"type": "UserScript",
+									"path": "scripts/moveNotesWithTag.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Move notes with a tag"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/moveNotesWithTag.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gTW92ZXMgZXZlcnkgbm90ZSBjYXJyeWluZyBhIGNob3NlbiB0YWcgKGZyb250bWF0dGVyIG9yIGlubGluZSkgdG8gYSBjaG9zZW4gZm9sZGVyLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fTW92ZU5vdGVzV2l0aEFUYWdUb0FGb2xkZXIKbW9kdWxlLmV4cG9ydHMgPSBhc3luYyBmdW5jdGlvbiBtb3ZlRmlsZXNXaXRoVGFnKHBhcmFtcykgewoJY29uc3QgewoJCWFwcCwKCQlxdWlja0FkZEFwaTogeyBzdWdnZXN0ZXIsIHllc05vUHJvbXB0IH0sCgl9ID0gcGFyYW1zOwoJY29uc3QgYWxsVGFncyA9IE9iamVjdC5rZXlzKGFwcC5tZXRhZGF0YUNhY2hlLmdldFRhZ3MoKSk7Cgljb25zdCB0YWcgPSBhd2FpdCBzdWdnZXN0ZXIoYWxsVGFncywgYWxsVGFncyk7CglpZiAoIXRhZykgcmV0dXJuOwoJY29uc3Qgc2hvdWxkTW92ZU5lc3RlZCA9IGF3YWl0IHllc05vUHJvbXB0KAoJCSJTaG91bGQgSSBtb3ZlIG5lc3RlZCB0YWdzLCB0b28/IiwKCQlgSWYgeW91IHNheSBubywgSSdsbCBvbmx5IG1vdmUgdGFncyB0aGF0IGFyZSBzdHJpY3RseSBlcXVhbCB0byB3aGF0IHlvdSd2ZSBjaG9zZW4uIElmIHlvdSBzYXkgeWVzLCBJJ2xsIG1vdmUgdGFncyB0aGF0IGFyZSBuZXN0ZWQgdW5kZXIgJHt0YWd9LmAKCSk7CgoJY29uc3QgY2FjaGUgPSBhcHAubWV0YWRhdGFDYWNoZS5nZXRDYWNoZWRGaWxlcygpOwoJbGV0IGZpbGVzVG9Nb3ZlID0gW107CgoJLy8gSGVscGVyIGZ1bmN0aW9uIHRvIGdldCB0YWdzIGFzIGFycmF5IGZyb20gZnJvbnRtYXR0ZXIKCS8vIEhhbmRsZXMgYm90aCBzdHJpbmcgZm9ybWF0ICgidGFnMSB0YWcyIiwgInRhZzEsIHRhZzIiKSBhbmQgYXJyYXkgZm9ybWF0IChbInRhZzEiLCAidGFnMiJdKQoJZnVuY3Rpb24gZ2V0VGFnc0FzQXJyYXkodGFnVmFsdWUpIHsKCQlpZiAoIXRhZ1ZhbHVlKSByZXR1cm4gW107CgkJaWYgKEFycmF5LmlzQXJyYXkodGFnVmFsdWUpKSByZXR1cm4gdGFnVmFsdWU7CgkJaWYgKHR5cGVvZiB0YWdWYWx1ZSA9PT0gJ3N0cmluZycpIHJldHVybiB0YWdWYWx1ZS5zcGxpdCgvW1xzLF0rLykuZmlsdGVyKEJvb2xlYW4pOwoJCXJldHVybiBbXTsKCX0KCgkvLyBgI3Byb2plY3RgIG1hdGNoZXMgYCNwcm9qZWN0YCwgYW5kIHdpdGggbmVzdGVkIHRhZ3MgYWxzbyBgI3Byb2plY3Qvd29ya2AsCgkvLyBidXQgbmV2ZXIgYCNwcm9qZWN0aWxlYC4KCWNvbnN0IGNsZWFuVGFnID0gdGFnLnJlcGxhY2UoL14jLywgIiIpOwoJY29uc3QgbWF0Y2hlcyA9IChjYW5kaWRhdGUpID0+IHsKCQljb25zdCBjbGVhbiA9IFN0cmluZyhjYW5kaWRhdGUpLnJlcGxhY2UoL14jLywgIiIpOwoJCXJldHVybiBjbGVhbiA9PT0gY2xlYW5UYWcgfHwgKHNob3VsZE1vdmVOZXN0ZWQgJiYgY2xlYW4uc3RhcnRzV2l0aChjbGVhblRhZyArICIvIikpOwoJfTsKCgljYWNoZS5mb3JFYWNoKChrZXkpID0+IHsKCQkvLyBTa2lwIHRlbXBsYXRlIG5vdGVzIHdoZXJldmVyIHRoZXkgbGl2ZSwgZm9yIGV4YW1wbGUgVGVtcGxhdGVzLyBvciBfdGVtcGxhdGVzLy4KCQlpZiAoa2V5LnRvTG93ZXJDYXNlKCkuaW5jbHVkZXMoInRlbXBsYXRlIikpIHJldHVybjsKCQljb25zdCBmaWxlQ2FjaGUgPSBhcHAubWV0YWRhdGFDYWNoZS5nZXRDYWNoZShrZXkpOwoJCWlmICghZmlsZUNhY2hlKSByZXR1cm47CgoJCS8vIENoZWNrIGlmIGZpbGUgaGFzIHRoZSB0YWcgd2UncmUgbG9va2luZyBmb3IKCQlsZXQgaGFzTWF0Y2hpbmdUYWcgPSBmYWxzZTsKCgkJLy8gQ2hlY2sgZnJvbnRtYXR0ZXIgdGFncyAoc3VwcG9ydHMgdGFncywgVGFncywgdGFnLCBUYWcpCgkJaWYgKGZpbGVDYWNoZS5mcm9udG1hdHRlcikgewoJCQljb25zdCB0YWdGaWVsZHMgPSBbJ3RhZ3MnLCAnVGFncycsICd0YWcnLCAnVGFnJ107CgkJCWhhc01hdGNoaW5nVGFnID0gdGFnRmllbGRzLnNvbWUoKGZpZWxkKSA9PgoJCQkJZ2V0VGFnc0FzQXJyYXkoZmlsZUNhY2hlLmZyb250bWF0dGVyW2ZpZWxkXSkuc29tZShtYXRjaGVzKQoJCQkpOwoJCX0KCgkJLy8gQ2hlY2sgaW5saW5lIHRhZ3MgKCN0YWcgaW4gdGhlIG5vdGUgY29udGVudCkKCQlpZiAoIWhhc01hdGNoaW5nVGFnICYmIGZpbGVDYWNoZS50YWdzKSB7CgkJCWhhc01hdGNoaW5nVGFnID0gZmlsZUNhY2hlLnRhZ3Muc29tZSgodCkgPT4gbWF0Y2hlcyh0LnRhZykpOwoJCX0KCgkJaWYgKGhhc01hdGNoaW5nVGFnKSBmaWxlc1RvTW92ZS5wdXNoKGtleSk7Cgl9KTsKCglpZiAoZmlsZXNUb01vdmUubGVuZ3RoID09PSAwKSB7CgkJbmV3IE5vdGljZShgTm8gbm90ZXMgY2FycnkgJHt0YWd9LmApOwoJCXJldHVybjsKCX0KCgljb25zdCBmb2xkZXJzID0gYXBwLnZhdWx0CgkJLmdldEFsbExvYWRlZEZpbGVzKCkKCQkuZmlsdGVyKChmKSA9PiBmLmNoaWxkcmVuKQoJCS5tYXAoKGYpID0+IGYucGF0aCk7Cgljb25zdCBub3VuID0gZmlsZXNUb01vdmUubGVuZ3RoID09PSAxID8gIm5vdGUiIDogIm5vdGVzIjsKCWNvbnN0IHRhcmdldEZvbGRlciA9IGF3YWl0IHN1Z2dlc3Rlcihmb2xkZXJzLCBmb2xkZXJzLCBgTW92ZSAke2ZpbGVzVG9Nb3ZlLmxlbmd0aH0gJHtub3VufSB0b+KApmApOwoJaWYgKCF0YXJnZXRGb2xkZXIpIHJldHVybjsKCglsZXQgbW92ZWQgPSAwOwoJbGV0IGFscmVhZHlUaGVyZSA9IDA7Cgljb25zdCBuYW1lVGFrZW4gPSBbXTsKCWZvciAoY29uc3QgZmlsZSBvZiBmaWxlc1RvTW92ZSkgewoJCS8vIEEgbm90ZSBjYW4gYmUgZGVsZXRlZCBvciBtb3ZlZCB3aGlsZSB0aGUgZm9sZGVyIHByb21wdCBpcyBvcGVuLgoJCWNvbnN0IHRmaWxlID0gYXBwLnZhdWx0LmdldEFic3RyYWN0RmlsZUJ5UGF0aChmaWxlKTsKCQlpZiAoIXRmaWxlKSBjb250aW51ZTsKCQljb25zdCBuZXdQYXRoID0gdGFyZ2V0Rm9sZGVyID09PSAiLyIgPyB0ZmlsZS5uYW1lIDogYCR7dGFyZ2V0Rm9sZGVyfS8ke3RmaWxlLm5hbWV9YDsKCQlpZiAobmV3UGF0aCA9PT0gdGZpbGUucGF0aCkgewoJCQlhbHJlYWR5VGhlcmUrKzsKCQkJY29udGludWU7CgkJfQoJCS8vIHJlbmFtZUZpbGUgdGhyb3dzIG9uIGFuIG9jY3VwaWVkIGRlc3RpbmF0aW9uLCB3aGljaCB3b3VsZCBhYm9ydCB0aGUKCQkvLyBiYXRjaCBoYWxmd2F5OyBza2lwIHRoZSBub3RlIGFuZCBzYXkgc28gaW5zdGVhZC4gVGhpcyBhbHNvIGNhdGNoZXMgdHdvCgkJLy8gdGFnZ2VkIG5vdGVzIHRoYXQgc2hhcmUgYSBuYW1lLCBzaW5jZSB0aGUgZmlyc3Qgb25lIHRvIG1vdmUgdGFrZXMgaXQuCgkJaWYgKGFwcC52YXVsdC5nZXRBYnN0cmFjdEZpbGVCeVBhdGgobmV3UGF0aCkpIHsKCQkJbmFtZVRha2VuLnB1c2godGZpbGUucGF0aCk7CgkJCWNvbnRpbnVlOwoJCX0KCQlhd2FpdCBhcHAuZmlsZU1hbmFnZXIucmVuYW1lRmlsZSh0ZmlsZSwgbmV3UGF0aCk7CgkJbW92ZWQrKzsKCX0KCWNvbnN0IHBhcnRzID0gW2BNb3ZlZCAke21vdmVkfSAke21vdmVkID09PSAxID8gIm5vdGUiIDogIm5vdGVzIn0gdG8gJHt0YXJnZXRGb2xkZXJ9LmBdOwoJaWYgKGFscmVhZHlUaGVyZSkgcGFydHMucHVzaChgJHthbHJlYWR5VGhlcmV9IGFscmVhZHkgdGhlcmUuYCk7CglpZiAobmFtZVRha2VuLmxlbmd0aCkgewoJCXBhcnRzLnB1c2goYFNraXBwZWQgJHtuYW1lVGFrZW4ubGVuZ3RofSB3aG9zZSBuYW1lIGlzIHRha2VuIHRoZXJlOiAke25hbWVUYWtlbi5qb2luKCIsICIpfS5gKTsKCX0KCW5ldyBOb3RpY2UocGFydHMuam9pbigiICIpLCBuYW1lVGFrZW4ubGVuZ3RoID8gMTAwMDAgOiB1bmRlZmluZWQpOwp9Owo="
+				}
+			]
+		}
+	},
+	{
+		"id": "movie-notes",
+		"title": "Movie & series script",
+		"description": "Insert a movie or TV show note from the OMDb API into your vault with a Macro choice and template, requires an API key",
+		"slug": "docs/Examples/Macro_MovieAndSeriesScript",
+		"requires": [
+			"an OMDb API key ([free at omdbapi.com](https://www.omdbapi.com/apikey.aspx))"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Add movie note**, then the cog on the **movies** step. Paste your key into **OMDb API Key** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"Run **Add movie note** from the command palette and search for a title or IMDb id (like `tt0111161`). The note lands in `Movies/`; change **Folder path** on the **Movie note** step to use another folder."
+		],
+		"choices": [
+			{
+				"name": "Add movie note",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 1,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-movie-notes"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-movie-notes",
+						"name": "Add movie note",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-movie-notes-macro",
+							"name": "Add movie note",
+							"commands": [
+								{
+									"id": "qa-pkg-movie-notes-script",
+									"name": "movies",
+									"type": "UserScript",
+									"path": "scripts/movies.js",
+									"settings": {}
+								},
+								{
+									"id": "qa-pkg-movie-notes-nested",
+									"name": "Movie note",
+									"type": "NestedChoice",
+									"choice": {
+										"id": "qa-pkg-movie-notes-template",
+										"name": "Movie note",
+										"type": "Template",
+										"command": false,
+										"templatePath": "Templates/Movie.md",
+										"fileNameFormat": {
+											"enabled": true,
+											"format": "{{VALUE:fileName}}"
+										},
+										"discoverExistingNotesBeforeCreate": false,
+										"folder": {
+											"enabled": true,
+											"folders": [
+												"Movies"
+											],
+											"chooseWhenCreatingNote": false,
+											"createInSameFolderAsActiveFile": false,
+											"chooseFromSubfolders": false
+										},
+										"appendLink": false,
+										"copyLinkToClipboard": false,
+										"openFile": true,
+										"fileOpening": {
+											"location": "tab",
+											"direction": "vertical",
+											"mode": "default",
+											"focus": true
+										},
+										"fileExistsBehavior": {
+											"kind": "prompt"
+										}
+									}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Add movie note"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/movies.js",
+					"contentEncoding": "base64",
+					"content": "Y29uc3Qgbm90aWNlID0gbXNnID0+IG5ldyBOb3RpY2UobXNnLCA1MDAwKTsKY29uc3QgbG9nID0gbXNnID0+IGNvbnNvbGUubG9nKG1zZyk7Cgpjb25zdCBBUElfS0VZX09QVElPTiA9ICJPTURiIEFQSSBLZXkiOwpjb25zdCBBUElfVVJMID0gImh0dHBzOi8vd3d3Lm9tZGJhcGkuY29tLyI7CmNvbnN0IElNREJfQkFTRV9VUkwgPSAiaHR0cHM6Ly93d3cuaW1kYi5jb20vdGl0bGUvIjsKCm1vZHVsZS5leHBvcnRzID0gewogICAgZW50cnk6IHN0YXJ0LAogICAgc2V0dGluZ3M6IHsKICAgICAgICBuYW1lOiAiTW92aWUgU2NyaXB0IiwKICAgICAgICBhdXRob3I6ICJDaHJpc3RpYW4gQi4gQi4gSG91bWFubiIsCiAgICAgICAgb3B0aW9uczogewogICAgICAgICAgICBbQVBJX0tFWV9PUFRJT05dOiB7CiAgICAgICAgICAgICAgICB0eXBlOiAic2VjcmV0IiwKICAgICAgICAgICAgICAgIGlkOiAib21kYi1hcGkta2V5IiwKICAgICAgICAgICAgICAgIHBsYWNlaG9sZGVyOiAiUGFzdGUgT01EYiBBUEkga2V5IiwKICAgICAgICAgICAgICAgIGRlc2NyaXB0aW9uOiAiRnJlZSBhdCBvbWRiYXBpLmNvbS4iLAogICAgICAgICAgICB9LAogICAgICAgIH0KICAgIH0KfQoKbGV0IFF1aWNrQWRkOwpsZXQgU2V0dGluZ3M7Cgphc3luYyBmdW5jdGlvbiBzdGFydChwYXJhbXMsIHNldHRpbmdzKSB7CiAgICBRdWlja0FkZCA9IHBhcmFtczsKICAgIFNldHRpbmdzID0gc2V0dGluZ3M7CgogICAgY29uc3QgcXVlcnkgPSBhd2FpdCBRdWlja0FkZC5xdWlja0FkZEFwaS5pbnB1dFByb21wdCgiRW50ZXIgbW92aWUgdGl0bGUgb3IgSU1EQiBJRDogIik7CiAgICBpZiAoIXF1ZXJ5KSB7CiAgICAgICAgbm90aWNlKCJObyBxdWVyeSBlbnRlcmVkLiIpOwogICAgICAgIHRocm93IG5ldyBFcnJvcigiTm8gcXVlcnkgZW50ZXJlZC4iKTsKICAgIH0KCiAgICBsZXQgc2VsZWN0ZWRTaG93OwoKICAgIGlmIChpc0ltZGJJZChxdWVyeSkpIHsKICAgICAgICBzZWxlY3RlZFNob3cgPSBhd2FpdCBnZXRCeUltZGJJZChxdWVyeSk7CiAgICB9IGVsc2UgewogICAgICAgIGNvbnN0IHJlc3VsdHMgPSBhd2FpdCBnZXRCeVF1ZXJ5KHF1ZXJ5KTsKCiAgICAgICAgY29uc3QgY2hvaWNlID0gYXdhaXQgUXVpY2tBZGQucXVpY2tBZGRBcGkuc3VnZ2VzdGVyKHJlc3VsdHMubWFwKGZvcm1hdFRpdGxlRm9yU3VnZ2VzdGlvbiksIHJlc3VsdHMpOwogICAgICAgIGlmICghY2hvaWNlKSB7CiAgICAgICAgICAgIG5vdGljZSgiTm8gY2hvaWNlIHNlbGVjdGVkLiIpOwogICAgICAgICAgICB0aHJvdyBuZXcgRXJyb3IoIk5vIGNob2ljZSBzZWxlY3RlZC4iKTsKICAgICAgICB9CgogICAgICAgIHNlbGVjdGVkU2hvdyA9IGF3YWl0IGdldEJ5SW1kYklkKGNob2ljZS5pbWRiSUQpOwogICAgfQoKICAgIFF1aWNrQWRkLnZhcmlhYmxlcyA9IHsKICAgICAgICAuLi5zZWxlY3RlZFNob3csCiAgICAgICAgaW1kYlVybDogSU1EQl9CQVNFX1VSTCArIHNlbGVjdGVkU2hvdy5pbWRiSUQsCiAgICAgICAgUmVsZWFzZWQ6IGZvcm1hdERhdGVTdHJpbmcoc2VsZWN0ZWRTaG93LlJlbGVhc2VkKSwKICAgICAgICBhY3RvckxpbmtzOiBsaW5raWZ5TGlzdChzZWxlY3RlZFNob3cuQWN0b3JzLnNwbGl0KCIsIikpLAogICAgICAgIGdlbnJlTGlua3M6IGxpbmtpZnlMaXN0KHNlbGVjdGVkU2hvdy5HZW5yZS5zcGxpdCgiLCIpKSwKICAgICAgICBkaXJlY3Rvckxpbms6IGxpbmtpZnlMaXN0KHNlbGVjdGVkU2hvdy5EaXJlY3Rvci5zcGxpdCgiLCIpKSwKICAgICAgICBmaWxlTmFtZTogcmVwbGFjZUlsbGVnYWxGaWxlTmFtZUNoYXJhY3RlcnNJblN0cmluZyhzZWxlY3RlZFNob3cuVGl0bGUpLAogICAgICAgIHR5cGVMaW5rOiBgW1ske3NlbGVjdGVkU2hvdy5UeXBlID09PSAibW92aWUiID8gIk1vdmllcyIgOiAiU2VyaWVzIn1dXWAsCiAgICAgICAgbGFuZ3VhZ2VMb3dlcjogc2VsZWN0ZWRTaG93Lkxhbmd1YWdlLnRvTG93ZXJDYXNlKCksCiAgICB9Cn0KCmZ1bmN0aW9uIGlzSW1kYklkKHN0cikgewogICAgcmV0dXJuIC9edHRcZCskLy50ZXN0KHN0cik7Cn0KCmZ1bmN0aW9uIGZvcm1hdFRpdGxlRm9yU3VnZ2VzdGlvbihyZXN1bHRJdGVtKSB7CiAgICByZXR1cm4gYCgke3Jlc3VsdEl0ZW0uVHlwZSA9PT0gIm1vdmllIiA/ICJNIiA6ICJUViJ9KSAke3Jlc3VsdEl0ZW0uVGl0bGV9ICgke3Jlc3VsdEl0ZW0uWWVhcn0pYDsKfQoKZnVuY3Rpb24gZm9ybWF0RGF0ZVN0cmluZyhkYXRlU3RyaW5nKSB7CiAgICBpZiAoIWRhdGVTdHJpbmcgfHwgZGF0ZVN0cmluZyA9PT0gIk4vQSIpIHJldHVybiAiIjsKICAgIGNvbnN0IHBhcnRzID0gZGF0ZVN0cmluZy5zcGxpdCgnICcpOwogICAgaWYgKHBhcnRzLmxlbmd0aCAhPT0gMykgcmV0dXJuIGRhdGVTdHJpbmc7CiAgICBjb25zdCBbZGF5LCBtb250aCwgeWVhcl0gPSBwYXJ0czsKICAgIGNvbnN0IG1vbnRoTmFtZXMgPSBbJ0phbicsICdGZWInLCAnTWFyJywgJ0FwcicsICdNYXknLCAnSnVuJywgJ0p1bCcsICdBdWcnLCAnU2VwJywgJ09jdCcsICdOb3YnLCAnRGVjJ107CiAgICBjb25zdCBtb250aEluZGV4ID0gbW9udGhOYW1lcy5pbmRleE9mKG1vbnRoKTsKICAgIGlmIChtb250aEluZGV4IDwgMCkgcmV0dXJuIGRhdGVTdHJpbmc7CgogICAgY29uc3QgZGF0ZSA9IG5ldyBEYXRlKE51bWJlcih5ZWFyKSwgbW9udGhJbmRleCwgTnVtYmVyKGRheSkpOwogICAgaWYgKGlzTmFOKGRhdGUuZ2V0VGltZSgpKSkgcmV0dXJuIGRhdGVTdHJpbmc7CgogICAgLy8gRm9ybWF0IHRoZSBkYXRlIGFzIHl5eXktbW0tZGQKICAgIGNvbnN0IGZvcm1hdHRlZFllYXIgPSBkYXRlLmdldEZ1bGxZZWFyKCk7CiAgICBjb25zdCBmb3JtYXR0ZWRNb250aCA9IFN0cmluZyhkYXRlLmdldE1vbnRoKCkgKyAxKS5wYWRTdGFydCgyLCAnMCcpOwogICAgY29uc3QgZm9ybWF0dGVkRGF5ID0gU3RyaW5nKGRhdGUuZ2V0RGF0ZSgpKS5wYWRTdGFydCgyLCAnMCcpOwoKICAgIHJldHVybiBgJHtmb3JtYXR0ZWRZZWFyfS0ke2Zvcm1hdHRlZE1vbnRofS0ke2Zvcm1hdHRlZERheX1gOwp9Cgphc3luYyBmdW5jdGlvbiBnZXRCeVF1ZXJ5KHF1ZXJ5KSB7CiAgICBjb25zdCBzZWFyY2hSZXN1bHRzID0gYXdhaXQgYXBpR2V0KEFQSV9VUkwsIHsKICAgICAgICAicyI6IHF1ZXJ5LAogICAgfSk7CgogICAgaWYgKCFzZWFyY2hSZXN1bHRzLlNlYXJjaCB8fCAhc2VhcmNoUmVzdWx0cy5TZWFyY2gubGVuZ3RoKSB7CiAgICAgICAgbm90aWNlKCJObyByZXN1bHRzIGZvdW5kLiIpOwogICAgICAgIHRocm93IG5ldyBFcnJvcigiTm8gcmVzdWx0cyBmb3VuZC4iKTsKICAgIH0KCiAgICByZXR1cm4gc2VhcmNoUmVzdWx0cy5TZWFyY2g7Cn0KCmFzeW5jIGZ1bmN0aW9uIGdldEJ5SW1kYklkKGlkKSB7CiAgICBjb25zdCByZXMgPSBhd2FpdCBhcGlHZXQoQVBJX1VSTCwgewogICAgICAgICJpIjogaWQKICAgIH0pOwoKICAgIGlmICghcmVzKSB7CiAgICAgICAgbm90aWNlKCJObyByZXN1bHRzIGZvdW5kLiIpOwogICAgICAgIHRocm93IG5ldyBFcnJvcigiTm8gcmVzdWx0cyBmb3VuZC4iKTsKICAgIH0KCiAgICByZXR1cm4gcmVzOwp9CgpmdW5jdGlvbiBsaW5raWZ5TGlzdChsaXN0KSB7CiAgICAvLyBSZXR1cm4gYSByZWFsIGFycmF5IG9mIHdpa2lsaW5rIHN0cmluZ3MuIFF1aWNrQWRkIHdyaXRlcyBhcnJheXMgaW4gYQogICAgLy8gdGVtcGxhdGUncyBmcm9udCBtYXR0ZXIgYXMgcHJvcGVyIE9ic2lkaWFuIExpc3QgcHJvcGVydGllcyAoZWFjaCBpdGVtIGEKICAgIC8vIGNsaWNrYWJsZSBsaW5rKSB2aWEgT2JzaWRpYW4ncyBvd24gWUFNTCBzZXJpYWxpemVyLiBSZXR1cm5pbmcgYSBzdHJpbmcKICAgIC8vIGhlcmUgd291bGQgaW5zdGVhZCBicmVhayB0aGUgWUFNTCAoc2VlIGlzc3VlICM2NjIpLgogICAgaWYgKCFBcnJheS5pc0FycmF5KGxpc3QpKSByZXR1cm4gW107CgogICAgcmV0dXJuIGxpc3QKICAgICAgICAubWFwKGl0ZW0gPT4gU3RyaW5nKGl0ZW0pLnRyaW0oKSkKICAgICAgICAuZmlsdGVyKGl0ZW0gPT4gaXRlbS5sZW5ndGggPiAwKQogICAgICAgIC5tYXAoaXRlbSA9PiBgW1ske2l0ZW19XV1gKTsKfQoKZnVuY3Rpb24gcmVwbGFjZUlsbGVnYWxGaWxlTmFtZUNoYXJhY3RlcnNJblN0cmluZyhpbnB1dCkgewogICAgaWYgKCFpbnB1dCkgcmV0dXJuICIiOwogICAgcmV0dXJuIGlucHV0LnJlcGxhY2UoL1tcXCwjJSZce1x9XC8qPD4kJ1wiOkBdL2csICcnKS50cmltKCk7Cn0KCmFzeW5jIGZ1bmN0aW9uIGFwaUdldChfdXJsLCBkYXRhKSB7CiAgICBjb25zdCBwYXJhbXMgPSBuZXcgVVJMU2VhcmNoUGFyYW1zKCk7CiAgICBpZiAoZGF0YSkgewogICAgICAgIE9iamVjdC5lbnRyaWVzKGRhdGEpLmZvckVhY2goKFtrZXksIHZhbHVlXSkgPT4gewogICAgICAgICAgICBpZiAodmFsdWUgIT0gbnVsbCAmJiB2YWx1ZSAhPT0gJycpIHBhcmFtcy5hcHBlbmQoa2V5LCBTdHJpbmcodmFsdWUpKTsKICAgICAgICB9KTsKICAgIH0KCiAgICBjb25zdCBhcGlLZXkgPSBTZXR0aW5ncz8uW0FQSV9LRVlfT1BUSU9OXTsKICAgIGlmICghYXBpS2V5IHx8IFN0cmluZyhhcGlLZXkpLnRyaW0oKSA9PT0gJycpIHsKICAgICAgICBub3RpY2UoJ1BsZWFzZSBzZXQgeW91ciBPTURiIEFQSSBrZXkgaW4gdGhlIHNjcmlwdCBzZXR0aW5ncy4nKTsKICAgICAgICB0aHJvdyBuZXcgRXJyb3IoJ01pc3NpbmcgT01EYiBBUEkga2V5LicpOwogICAgfQogICAgcGFyYW1zLmFwcGVuZCgnYXBpa2V5JywgU3RyaW5nKGFwaUtleSkudHJpbSgpKTsKCiAgICBjb25zdCBocmVmID0gYCR7QVBJX1VSTH0/JHtwYXJhbXMudG9TdHJpbmcoKX1gOwogICAgY29uc3QgcmVzID0gYXdhaXQgcmVxdWVzdCh7CiAgICAgICAgdXJsOiBocmVmLAogICAgICAgIG1ldGhvZDogJ0dFVCcsCiAgICAgICAgY2FjaGU6ICduby1jYWNoZScsCiAgICAgICAgaGVhZGVyczogewogICAgICAgICAgICAnQ29udGVudC1UeXBlJzogJ2FwcGxpY2F0aW9uL2pzb24nLAogICAgICAgIH0sCiAgICB9KTsKCiAgICByZXR1cm4gSlNPTi5wYXJzZShyZXMpOwp9Cg=="
+				},
+				{
+					"kind": "template",
+					"originalPath": "Templates/Movie.md",
+					"contentEncoding": "base64",
+					"content": "LS0tCmNhdGVnb3J5OiAie3tWQUxVRTp0eXBlTGlua319IgpkaXJlY3Rvcjoge3tWQUxVRTpkaXJlY3Rvckxpbmt9fQpnZW5yZToge3tWQUxVRTpnZW5yZUxpbmtzfX0KY2FzdDoge3tWQUxVRTphY3RvckxpbmtzfX0KeWVhcjogInt7VkFMVUU6WWVhcn19IgppbWRiSWQ6ICJ7e1ZBTFVFOmltZGJJRH19IgppbWRiOiAiW0lNRGJdKHt7VkFMVUU6aW1kYlVybH19KSIKcmF0aW5nSW1kYjogInt7VkFMVUU6aW1kYlJhdGluZ319IgpyYXRpbmc6IApjb3ZlcjogInt7VkFMVUU6UG9zdGVyfX0iCi0tLQoKIVtwb3N0ZXJdKHt7VkFMVUU6UG9zdGVyfX0pCgp7e1ZBTFVFOlBsb3R9fQo="
+				}
+			]
+		}
+	},
+	{
+		"id": "readwise-book-notes",
+		"title": "My book notes template",
+		"description": "Pull a book's highlights from Readwise into a new note using a Template choice and a bundled highlight-fetching macro",
+		"slug": "docs/Examples/Template_AutomaticBookNotesFromReadwise",
+		"requires": [
+			"a Readwise account and its [access token](https://readwise.io/access_token)"
+		],
+		"afterImport": [
+			"In **Settings → QuickAdd**, click the cog next to **Readwise**, then the cog on the **readwise** step. Paste your token into **Readwise access token** and click the save icon next to the field. QuickAdd keeps it in Obsidian's secret storage, not in `data.json`.",
+			"Run **Add Book Notes** from the command palette and pick a book. The note is named after it and lands in `Books/`, with the book's highlights under **Highlights & Notes**; change **Folder path** on the choice to use another folder."
+		],
+		"choices": [
+			{
+				"name": "Add Book Notes",
+				"type": "Template"
+			},
+			{
+				"name": "Readwise",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 1,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.28.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-readwise-book-notes",
+				"qa-pkg-readwise-book-notes-macro"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-readwise-book-notes",
+						"name": "Add Book Notes",
+						"type": "Template",
+						"command": true,
+						"onePageInput": "never",
+						"templatePath": "Templates/Book Notes.md",
+						"fileNameFormat": {
+							"enabled": true,
+							"format": "{{MACRO:Readwise::getBooks}}"
+						},
+						"discoverExistingNotesBeforeCreate": false,
+						"folder": {
+							"enabled": true,
+							"folders": [
+								"Books"
+							],
+							"chooseWhenCreatingNote": false,
+							"createInSameFolderAsActiveFile": false,
+							"chooseFromSubfolders": false
+						},
+						"appendLink": false,
+						"copyLinkToClipboard": false,
+						"openFile": true,
+						"fileOpening": {
+							"location": "tab",
+							"direction": "vertical",
+							"mode": "default",
+							"focus": true
+						},
+						"fileExistsBehavior": {
+							"kind": "prompt"
+						}
+					},
+					"pathHint": [
+						"Add Book Notes"
+					],
+					"parentChoiceId": null
+				},
+				{
+					"choice": {
+						"id": "qa-pkg-readwise-book-notes-macro",
+						"name": "Readwise",
+						"type": "Macro",
+						"command": false,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-readwise-book-notes-macro-body",
+							"name": "Readwise",
+							"commands": [
+								{
+									"id": "qa-pkg-readwise-book-notes-script",
+									"name": "readwise",
+									"type": "UserScript",
+									"path": "scripts/readwise.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Readwise"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/readwise.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gUHVsbHMgYm9va3MsIGFydGljbGVzIGFuZCBoaWdobGlnaHRzIGZyb20gUmVhZHdpc2UgaW50byBub3Rlcy4KLy8gZW50cnkgbGV0cyB5b3UgcGljayBhIGNhdGVnb3J5IGFuZCBpdGVtOyBnZXRCb29rcyBwaWNrcyBhIGJvb2sgdGl0bGUgKHVzZSBpdCBpbiBhCi8vIGZpbGUgbmFtZSBmb3JtYXQpLCBpbnN0YUZldGNoQm9vayB3cml0ZXMgdGhhdCBib29rJ3MgaGlnaGxpZ2h0cywgZ2V0RGFpbHlRdW90ZQovLyByZXR1cm5zIGEgcmFuZG9tIHN1cHBsZW1lbnRhbCBoaWdobGlnaHQgYXMgYSBxdW90ZS4KLy8gRG9jczogaHR0cHM6Ly9xdWlja2FkZC5vYnNpZGlhbi5ndWlkZS9kb2NzL0V4YW1wbGVzL1RlbXBsYXRlX0F1dG9tYXRpY0Jvb2tOb3Rlc0Zyb21SZWFkd2lzZQpjb25zdCBBQ0NFU1NfVE9LRU4gPSAiUmVhZHdpc2UgYWNjZXNzIHRva2VuIjsKCm1vZHVsZS5leHBvcnRzID0gewoJZW50cnk6IHN0YXJ0LAoJc2V0dGluZ3M6IHsKCQluYW1lOiAiUmVhZHdpc2UiLAoJCWF1dGhvcjogIkNocmlzdGlhbiBCLiBCLiBIb3VtYW5uIiwKCQlvcHRpb25zOiB7CgkJCVtBQ0NFU1NfVE9LRU5dOiB7CgkJCQl0eXBlOiAic2VjcmV0IiwKCQkJCWlkOiAicmVhZHdpc2UtYWNjZXNzLXRva2VuIiwKCQkJCXBsYWNlaG9sZGVyOiAiUGFzdGUgYWNjZXNzIHRva2VuIiwKCQkJCWRlc2NyaXB0aW9uOiAiRnJvbSByZWFkd2lzZS5pby9hY2Nlc3NfdG9rZW4uIiwKCQkJfSwKCQl9LAoJfSwKCWdldERhaWx5UXVvdGUsCglpbnN0YUZldGNoQm9vaywKCWdldEJvb2tzLAp9Owpjb25zdCBhcGlVcmwgPSAiaHR0cHM6Ly9yZWFkd2lzZS5pby9hcGkvdjIvIjsKY29uc3QgYm9va3MgPSAi8J+TmiBCb29rcyIsCglhcnRpY2xlcyA9ICLwn5OwIEFydGljbGVzIiwKCXR3ZWV0cyA9ICLwn5CkIFR3ZWV0cyIsCglzdXBwbGVtZW50YWxzID0gIvCfkq0gU3VwcGxlbWVudGFscyIsCglwb2RjYXN0cyA9ICLwn46ZIFBvZGNhc3RzIiwKCXNlYXJjaEFsbCA9ICLwn5SNIFNlYXJjaCBBbGwgSGlnaGxpZ2h0cyAoc2xvdyEpIjsKY29uc3QgY2F0ZWdvcmllcyA9IHsKCWJvb2tzLAoJYXJ0aWNsZXMsCgl0d2VldHMsCglzdXBwbGVtZW50YWxzLAoJcG9kY2FzdHMsCglzZWFyY2hBbGwsCn07CmNvbnN0IHJhbmRvbU51bWJlckluUmFuZ2UgPSAobWF4KSA9PiBNYXRoLmZsb29yKE1hdGgucmFuZG9tKCkgKiBtYXgpOwpsZXQgdG9rZW47CmxldCBxdWlja0FkZEFwaTsKbGV0IG5vdGljZSA9ICgpID0+IHt9OwoKZnVuY3Rpb24gdXNlVG9rZW4ocGFyYW1zLCBzZXR0aW5ncykgewoJbm90aWNlID0gKG1lc3NhZ2UsIHRpbWVvdXQpID0+IG5ldyBwYXJhbXMub2JzaWRpYW4uTm90aWNlKG1lc3NhZ2UsIHRpbWVvdXQpOwoJdG9rZW4gPSAoc2V0dGluZ3M/LltBQ0NFU1NfVE9LRU5dID8/ICIiKS50cmltKCk7CglpZiAoIXRva2VuKSB7CgkJbm90aWNlKCJTZXQgeW91ciBSZWFkd2lzZSBhY2Nlc3MgdG9rZW4gaW4gdGhlIHNjcmlwdCBzZXR0aW5ncy4iKTsKCQl0aHJvdyBuZXcgRXJyb3IoIlJlYWR3aXNlIGFjY2VzcyB0b2tlbiBpcyBub3Qgc2V0LiIpOwoJfQp9Cgphc3luYyBmdW5jdGlvbiBzdGFydChwYXJhbXMsIHNldHRpbmdzKSB7Cgl1c2VUb2tlbihwYXJhbXMsIHNldHRpbmdzKTsKCSh7IHF1aWNrQWRkQXBpIH0gPSBwYXJhbXMpOwoJbGV0IGhpZ2hsaWdodHM7Cgljb25zdCBjYXRlZ29yeSA9IGF3YWl0IGNhdGVnb3J5UHJvbXB0SGFuZGxlcigpOwoJaWYgKCFjYXRlZ29yeSkgcmV0dXJuOwoKCWlmIChjYXRlZ29yeSA9PT0gInNlYXJjaEFsbCIpIHsKCQloaWdobGlnaHRzID0gYXdhaXQgZ2V0QWxsSGlnaGxpZ2h0cygpOwoJfSBlbHNlIHsKCQljb25zdCBpdGVtcyA9IGF3YWl0IGdldEhpZ2hsaWdodHNCeUNhdGVnb3J5KGNhdGVnb3J5KTsKCQlpZiAoaXRlbXMubGVuZ3RoID09PSAwKSB7CgkJCW5vdGljZShgTm90aGluZyB1bmRlciAke2NhdGVnb3JpZXNbY2F0ZWdvcnldfSBpbiBSZWFkd2lzZSB5ZXQuYCk7CgkJCXJldHVybiAiIjsKCQl9CgoJCWNvbnN0IGl0ZW0gPSBhd2FpdCBxdWlja0FkZEFwaS5zdWdnZXN0ZXIoCgkJCWl0ZW1zLm1hcCgoaXRlbSkgPT4gaXRlbS50aXRsZSksCgkJCWl0ZW1zCgkJKTsKCQlpZiAoIWl0ZW0pIHJldHVybjsKCgkJcGFyYW1zLnZhcmlhYmxlc1siYXV0aG9yIl0gPSBgW1ske2l0ZW0uYXV0aG9yfV1dYDsKCgkJaGlnaGxpZ2h0cyA9IChhd2FpdCBnZXRIaWdobGlnaHRzRm9yRWxlbWVudChpdGVtKSkucmV2ZXJzZSgpOwoJfQoKCWlmIChoaWdobGlnaHRzLmxlbmd0aCA9PT0gMCkgewoJCW5vdGljZSgiTm8gaGlnaGxpZ2h0cyB0aGVyZSB5ZXQuIik7CgkJcmV0dXJuICIiOwoJfQoKCWNvbnN0IHRleHRUb0FwcGVuZCA9IGF3YWl0IGhpZ2hsaWdodHNQcm9tcHRIYW5kbGVyKGhpZ2hsaWdodHMpOwoJcmV0dXJuICF0ZXh0VG9BcHBlbmQgPyAiIiA6IHRleHRUb0FwcGVuZDsKfQoKLy8gVXNlIGluIGEgZmlsZSBuYW1lIGZvcm1hdDogcGlja3MgYSBib29rIGFuZCByZXR1cm5zIGEgbmFtZSBhIG5vdGUgY2FuIGhhdmUuCi8vIFRoZSBib29rJ3MgcmVhbCB0aXRsZSBhbmQgaWQgYXJlIGtlcHQgaW4gdmFyaWFibGVzIGZvciBpbnN0YUZldGNoQm9vayBhbmQKLy8gZm9yIHt7VkFMVUU6Qm9vayBUaXRsZX19IGluIHRoZSB0ZW1wbGF0ZS4KYXN5bmMgZnVuY3Rpb24gZ2V0Qm9va3MocGFyYW1zLCBzZXR0aW5ncykgewoJdXNlVG9rZW4ocGFyYW1zLCBzZXR0aW5ncyk7Cgljb25zdCBib29rcyA9IGF3YWl0IGdldEhpZ2hsaWdodHNCeUNhdGVnb3J5KCJib29rcyIpOwoJaWYgKGJvb2tzLmxlbmd0aCA9PT0gMCkgewoJCW5vdGljZSgiTm8gYm9va3MgaW4gUmVhZHdpc2UgeWV0LiIpOwoJCXRocm93IG5ldyBFcnJvcigiTm8gYm9va3MgaW4gUmVhZHdpc2UgeWV0LiIpOwoJfQoKCWNvbnN0IGJvb2sgPSBhd2FpdCBwYXJhbXMucXVpY2tBZGRBcGkuc3VnZ2VzdGVyKAoJCWJvb2tzLm1hcCgoYm9vaykgPT4gYm9vay50aXRsZSksCgkJYm9va3MKCSk7CglpZiAoIWJvb2spIHRocm93IG5ldyBFcnJvcigiTm8gYm9vayBzZWxlY3RlZC4iKTsKCglwYXJhbXMudmFyaWFibGVzWyJCb29rIFRpdGxlIl0gPSBib29rLnRpdGxlOwoJcGFyYW1zLnZhcmlhYmxlc1siQm9vayBJZCJdID0gU3RyaW5nKGJvb2suaWQpOwoJcmV0dXJuIGZpbGVOYW1lRm9yKGJvb2sudGl0bGUpOwp9CgovLyBPYnNpZGlhbiByZWZ1c2VzICI6IiBpbiBhIG5hbWUgYW5kIHJlYWRzICIvIiBhbmQgIlwiIGFzIGZvbGRlcnM7IFdpbmRvd3MgYWxzbwovLyByZWZ1c2VzICogPyAiIDwgPiB8LCBhbmQgWyBdICMgXiB8IHdvdWxkIGJyZWFrIHRoZSBbW3t7VElUTEV9fV1dIGxpbmsuCmZ1bmN0aW9uIGZpbGVOYW1lRm9yKHRpdGxlKSB7CglyZXR1cm4gKAoJCXRpdGxlCgkJCS5yZXBsYWNlKC9ccyo6XHMqL2csICIgLSAiKQoJCQkucmVwbGFjZSgvW1xcLyo/Ijw+fCNeW1xdXS9nLCAiIikKCQkJLnJlcGxhY2UoL1xzKy9nLCAiICIpCgkJCS50cmltKCkgfHwgIlVudGl0bGVkIgoJKTsKfQoKYXN5bmMgZnVuY3Rpb24gaW5zdGFGZXRjaEJvb2socGFyYW1zLCBzZXR0aW5ncykgewoJdXNlVG9rZW4ocGFyYW1zLCBzZXR0aW5ncyk7Cgljb25zdCBib29rSWQgPSBwYXJhbXMudmFyaWFibGVzWyJCb29rIElkIl07Cgljb25zdCBib29rVGl0bGUgPSBwYXJhbXMudmFyaWFibGVzWyJCb29rIFRpdGxlIl07CglpZiAoIWJvb2tJZCAmJiAhYm9va1RpdGxlKSByZXR1cm4gYXdhaXQgc3RhcnQocGFyYW1zLCBzZXR0aW5ncyk7CgoJY29uc3QgYm9va3MgPSBhd2FpdCBnZXRIaWdobGlnaHRzQnlDYXRlZ29yeSgiYm9va3MiKTsKCS8vIGdldEJvb2tzIHN0b3JlZCB0aGUgaWQsIHNvIHRoZSBsb29rdXAgaXMgZXhhY3QuIEEgdGl0bGUgc2V0IHNvbWUgb3RoZXIgd2F5CgkvLyAoYW4gb2xkZXIgdGVtcGxhdGUsIGEge3tWQUxVRTpCb29rIFRpdGxlfX0gcHJvbXB0KSBtYXRjaGVzIGV4YWN0bHkgZmlyc3QsCgkvLyB0aGVuIHBhcnRpYWxseSwgc28gIkR1bmUiIGlzIG5vdCBtaXN0YWtlbiBmb3IgIkR1bmUgTWVzc2lhaCIuCgljb25zdCB3YW50ZWQgPSBTdHJpbmcoYm9va1RpdGxlID8/ICIiKS50b0xvd2VyQ2FzZSgpOwoJY29uc3QgYm9vayA9CgkJYm9va3MuZmluZCgoYikgPT4gU3RyaW5nKGIuaWQpID09PSBTdHJpbmcoYm9va0lkKSkgPz8KCQlib29rcy5maW5kKChiKSA9PiBiLnRpdGxlLnRvTG93ZXJDYXNlKCkgPT09IHdhbnRlZCkgPz8KCQlib29rcy5maW5kKChiKSA9PiB3YW50ZWQgJiYgYi50aXRsZS50b0xvd2VyQ2FzZSgpLmluY2x1ZGVzKHdhbnRlZCkpOwoJaWYgKCFib29rKSB0aHJvdyBuZXcgRXJyb3IoIkJvb2sgIiArIGJvb2tUaXRsZSArICIgbm90IGZvdW5kLiIpOwoKCXBhcmFtcy52YXJpYWJsZXNbImF1dGhvciJdID0gYFtbJHtib29rLmF1dGhvcn1dXWA7CgoJY29uc3QgaGlnaGxpZ2h0cyA9IChhd2FpdCBnZXRIaWdobGlnaHRzRm9yRWxlbWVudChib29rKSkucmV2ZXJzZSgpOwoJcmV0dXJuIHdyaXRlQWxsSGFuZGxlcihoaWdobGlnaHRzKTsKfQoKYXN5bmMgZnVuY3Rpb24gZ2V0RGFpbHlRdW90ZShwYXJhbXMsIHNldHRpbmdzKSB7Cgl1c2VUb2tlbihwYXJhbXMsIHNldHRpbmdzKTsKCWNvbnN0IGl0ZW1zID0gYXdhaXQgZ2V0SGlnaGxpZ2h0c0J5Q2F0ZWdvcnkoInN1cHBsZW1lbnRhbHMiKTsKCWlmIChpdGVtcy5sZW5ndGggPT09IDApIHsKCQlub3RpY2UoIk5vIHN1cHBsZW1lbnRhbCBoaWdobGlnaHRzIGluIFJlYWR3aXNlIHlldC4iKTsKCQlyZXR1cm4gIiI7Cgl9Cgljb25zdCB0YXJnZXRJdGVtID0gaXRlbXNbcmFuZG9tTnVtYmVySW5SYW5nZShpdGVtcy5sZW5ndGgpXTsKCgljb25zdCBoaWdobGlnaHRzID0gYXdhaXQgZ2V0SGlnaGxpZ2h0c0ZvckVsZW1lbnQodGFyZ2V0SXRlbSk7CglpZiAoaGlnaGxpZ2h0cy5sZW5ndGggPT09IDApIHsKCQlub3RpY2UoYE5vIGhpZ2hsaWdodHMgaW4gJHt0YXJnZXRJdGVtLnRpdGxlfSB5ZXQuYCk7CgkJcmV0dXJuICIiOwoJfQoKCWNvbnN0IHJhbmRvbUhpZ2hsaWdodCA9IGhpZ2hsaWdodHNbcmFuZG9tTnVtYmVySW5SYW5nZShoaWdobGlnaHRzLmxlbmd0aCldOwoKCXJldHVybiBmb3JtYXREYWlseVF1b3RlKHJhbmRvbUhpZ2hsaWdodC50ZXh0LCB0YXJnZXRJdGVtKTsKfQoKYXN5bmMgZnVuY3Rpb24gY2F0ZWdvcnlQcm9tcHRIYW5kbGVyKCkgewoJY29uc3QgY2hvaWNlID0gYXdhaXQgcXVpY2tBZGRBcGkuc3VnZ2VzdGVyKAoJCU9iamVjdC52YWx1ZXMoY2F0ZWdvcmllcyksCgkJT2JqZWN0LmtleXMoY2F0ZWdvcmllcykKCSk7CglpZiAoIWNob2ljZSkgcmV0dXJuIG51bGw7CgoJcmV0dXJuIGNob2ljZTsKfQoKYXN5bmMgZnVuY3Rpb24gaGlnaGxpZ2h0c1Byb21wdEhhbmRsZXIoaGlnaGxpZ2h0cykgewoJY29uc3Qgd3JpdGVBbGwgPSAiV3JpdGUgYWxsIGhpZ2hsaWdodHMgdG8gcGFnZSIsCgkJd3JpdGVPbmUgPSAiV3JpdGUgb25lIGhpZ2hsaWdodCB0byBwYWdlIjsKCWNvbnN0IGNob2ljZXMgPSBbd3JpdGVBbGwsIHdyaXRlT25lXTsKCgljb25zdCBjaG9pY2UgPSBhd2FpdCBxdWlja0FkZEFwaS5zdWdnZXN0ZXIoY2hvaWNlcywgY2hvaWNlcyk7CglpZiAoIWNob2ljZSkgcmV0dXJuIG51bGw7CgoJaWYgKGNob2ljZSA9PSB3cml0ZUFsbCkgcmV0dXJuIHdyaXRlQWxsSGFuZGxlcihoaWdobGlnaHRzKTsKCWVsc2UgcmV0dXJuIGF3YWl0IHdyaXRlT25lSGFuZGxlcihoaWdobGlnaHRzKTsKfQoKZnVuY3Rpb24gd3JpdGVBbGxIYW5kbGVyKGhpZ2hsaWdodHMpIHsKCXJldHVybiBoaWdobGlnaHRzCgkJLm1hcCgoaGwpID0+IHsKCQkJaWYgKGhsLnRleHQgPT0gIk5vIHRpdGxlIikgcmV0dXJuOwoJCQljb25zdCB7IHF1b3RlLCBub3RlIH0gPSB0ZXh0Rm9ybWF0dGVyKGhsLnRleHQsIGhsLm5vdGUpOwoJCQlyZXR1cm4gYCR7cXVvdGV9JHtub3RlfWA7CgkJfSkKCQkuam9pbigiXG5cbiIpOwp9Cgphc3luYyBmdW5jdGlvbiB3cml0ZU9uZUhhbmRsZXIoaGlnaGxpZ2h0cykgewoJY29uc3QgY2hvc2VuSGlnaGxpZ2h0ID0gYXdhaXQgcXVpY2tBZGRBcGkuc3VnZ2VzdGVyKAoJCWhpZ2hsaWdodHMubWFwKChobCkgPT4gaGwudGV4dCksCgkJaGlnaGxpZ2h0cwoJKTsKCWlmICghY2hvc2VuSGlnaGxpZ2h0KSByZXR1cm4gbnVsbDsKCgljb25zdCB7IHF1b3RlLCBub3RlIH0gPSB0ZXh0Rm9ybWF0dGVyKAoJCWNob3NlbkhpZ2hsaWdodC50ZXh0LAoJCWNob3NlbkhpZ2hsaWdodC5ub3RlCgkpOwoKCXJldHVybiBgJHtxdW90ZX0ke25vdGV9YDsKfQoKZnVuY3Rpb24gZm9ybWF0RGFpbHlRdW90ZShzb3VyY2VUZXh0LCBzb3VyY2VJdGVtKSB7CglsZXQgcXVvdGUgPSBzb3VyY2VUZXh0CgkJLnNwbGl0KCJcbiIpCgkJLmZpbHRlcigobGluZSkgPT4gbGluZSAhPSAiIikKCQkubWFwKChsaW5lKSA9PiB7CgkJCXJldHVybiBgPiAke2xpbmV9YDsKCQl9KTsKCgljb25zdCBhdHRyID0gYFxuPlxcLSAke3NvdXJjZUl0ZW0uYXV0aG9yfSwgXyR7c291cmNlSXRlbS50aXRsZX1fYDsKCglyZXR1cm4gYCR7cXVvdGUuam9pbigiXG4iKX0ke2F0dHJ9YDsKfQoKZnVuY3Rpb24gdGV4dEZvcm1hdHRlcihzb3VyY2VUZXh0LCByYXdTb3VyY2VOb3RlKSB7CgkvLyBSZWFkd2lzZSBjYW4gcmV0dXJuIGEgaGlnaGxpZ2h0IHdpdGhvdXQgYSBub3RlIChudWxsL3VuZGVmaW5lZCByYXRoZXIKCS8vIHRoYW4gIiIpOyBub3JtYWxpemUgb25jZSBzbyB0aGUgLmluY2x1ZGVzIHByb2JlIGJlbG93IGNhbid0IHRocm93IGFuZAoJLy8gYWJvcnQgdGhlIHdob2xlIGltcG9ydCBvbiBhIHNpbmdsZSBub3RlLWxlc3MgaGlnaGxpZ2h0LgoJY29uc3Qgc291cmNlTm90ZSA9IHJhd1NvdXJjZU5vdGUgPz8gIiI7CglsZXQgcXVvdGUgPSBzb3VyY2VUZXh0CgkJLnNwbGl0KCJcbiIpCgkJLmZpbHRlcigobGluZSkgPT4gbGluZSAhPSAiIikKCQkubWFwKChsaW5lKSA9PiB7CgkJCWlmIChzb3VyY2VOb3RlLmluY2x1ZGVzKCIuaDEiKSkgcmV0dXJuIGAjIyAke2xpbmV9YDsKCQkJZWxzZSByZXR1cm4gYD4gJHtsaW5lfWA7CgkJfSkKCQkuam9pbigiXG4iKTsKCglsZXQgbm90ZTsKCglpZiAoc291cmNlTm90ZS5pbmNsdWRlcygiLmgxIikgfHwgc291cmNlTm90ZSA9PSAiIiB8fCAhc291cmNlTm90ZSkgewoJCW5vdGUgPSAiIjsKCX0gZWxzZSB7CgkJbm90ZSA9ICJcblxuIiArIHNvdXJjZU5vdGU7Cgl9CgoJcmV0dXJuIHsgcXVvdGUsIG5vdGUgfTsKfQoKLy8gUmVhZHdpc2UgbGlzdHMgYXQgbW9zdCAxMDAwIGl0ZW1zIHBlciBwYWdlOyB0aGVzZSByZXR1cm4gZXZlcnkgcGFnZSdzIGl0ZW1zLgpjb25zdCBQQUdFX1NJWkUgPSAxMDAwOwoKYXN5bmMgZnVuY3Rpb24gZ2V0SGlnaGxpZ2h0c0J5Q2F0ZWdvcnkoY2F0ZWdvcnkpIHsKCXJldHVybiBhcGlHZXRBbGwoYCR7YXBpVXJsfWJvb2tzYCwgeyBjYXRlZ29yeSwgcGFnZV9zaXplOiBQQUdFX1NJWkUgfSk7Cn0KCmFzeW5jIGZ1bmN0aW9uIGdldEhpZ2hsaWdodHNGb3JFbGVtZW50KGVsZW1lbnQpIHsKCXJldHVybiBhcGlHZXRBbGwoYCR7YXBpVXJsfWhpZ2hsaWdodHNgLCB7CgkJYm9va19pZDogZWxlbWVudC5pZCwKCQlwYWdlX3NpemU6IFBBR0VfU0laRSwKCX0pOwp9Cgphc3luYyBmdW5jdGlvbiBnZXRBbGxIaWdobGlnaHRzKCkgewoJcmV0dXJuIGFwaUdldEFsbChgJHthcGlVcmx9aGlnaGxpZ2h0c2AsIHsgcGFnZV9zaXplOiBQQUdFX1NJWkUgfSk7Cn0KCi8vIEZvbGxvd3MgYG5leHRgIG9uZSBwYWdlIGF0IGEgdGltZTogdGhlIGxpc3QgZW5kcG9pbnRzIGFsbG93IDIwIHJlcXVlc3RzIGEKLy8gbWludXRlLCBzbyBmZXRjaGluZyBwYWdlcyBpbiBwYXJhbGxlbCB3b3VsZCB0cmlwIHRoZSBsaW1pdCBvbiBiaWcgbGlicmFyaWVzLgphc3luYyBmdW5jdGlvbiBhcGlHZXRBbGwodXJsLCBkYXRhKSB7Cgljb25zdCByZXN1bHRzID0gW107CglsZXQgbmV4dCA9IHdpdGhRdWVyeSh1cmwsIGRhdGEpOwoJd2hpbGUgKG5leHQpIHsKCQljb25zdCBwYWdlID0gYXdhaXQgYXBpR2V0KG5leHQpOwoJCXJlc3VsdHMucHVzaCguLi5wYWdlLnJlc3VsdHMpOwoJCW5leHQgPSBwYWdlLm5leHQ7Cgl9CglyZXR1cm4gcmVzdWx0czsKfQoKZnVuY3Rpb24gd2l0aFF1ZXJ5KHVybCwgZGF0YSkgewoJY29uc3QgZmluYWxVUkwgPSBuZXcgVVJMKHVybCk7Cglmb3IgKGNvbnN0IFtrZXksIHZhbHVlXSBvZiBPYmplY3QuZW50cmllcyhkYXRhID8/IHt9KSkgewoJCWZpbmFsVVJMLnNlYXJjaFBhcmFtcy5zZXQoa2V5LCB2YWx1ZSk7Cgl9CglyZXR1cm4gZmluYWxVUkwudG9TdHJpbmcoKTsKfQoKYXN5bmMgZnVuY3Rpb24gYXBpR2V0KHVybCwgZGF0YSkgewoJY29uc3QgZmluYWxVUkwgPSB3aXRoUXVlcnkodXJsLCBkYXRhKTsKCWZvciAobGV0IGF0dGVtcHQgPSAxOyA7IGF0dGVtcHQrKykgewoJCWNvbnN0IHJlcyA9IGF3YWl0IGZldGNoKGZpbmFsVVJMLCB7CgkJCW1ldGhvZDogIkdFVCIsCgkJCWNhY2hlOiAibm8tY2FjaGUiLAoJCQloZWFkZXJzOiB7CgkJCQkiQ29udGVudC1UeXBlIjogImFwcGxpY2F0aW9uL2pzb24iLAoJCQkJQXV0aG9yaXphdGlvbjogYFRva2VuICR7dG9rZW59YCwKCQkJfSwKCQl9KTsKCQkvLyBPdmVyIHRoZSByYXRlIGxpbWl0OiBSZWFkd2lzZSBzYXlzIGhvdyBsb25nIHRvIHdhaXQsIHNvIHdhaXQgYW5kIGdvIGFnYWluLgoJCWlmIChyZXMuc3RhdHVzID09PSA0MjkgJiYgYXR0ZW1wdCA8IDQpIHsKCQkJY29uc3Qgc2Vjb25kcyA9IE51bWJlcihyZXMuaGVhZGVycy5nZXQoIlJldHJ5LUFmdGVyIikpIHx8IDYwOwoJCQlub3RpY2UoYFJlYWR3aXNlIHJhdGUgbGltaXQgcmVhY2hlZCwgd2FpdGluZyAke3NlY29uZHN9IHPigKZgLCBzZWNvbmRzICogMTAwMCk7CgkJCWF3YWl0IG5ldyBQcm9taXNlKChyZXNvbHZlKSA9PiBzZXRUaW1lb3V0KHJlc29sdmUsIHNlY29uZHMgKiAxMDAwKSk7CgkJCWNvbnRpbnVlOwoJCX0KCQlpZiAoIXJlcy5vaykgewoJCQljb25zdCBoaW50ID0KCQkJCXJlcy5zdGF0dXMgPT09IDQwMSB8fCByZXMuc3RhdHVzID09PSA0MDMgPyAiY2hlY2sgeW91ciBhY2Nlc3MgdG9rZW4iCgkJCQk6IHJlcy5zdGF0dXMgPT09IDQyOSA/ICJyYXRlIGxpbWl0IHJlYWNoZWQsIHRyeSBhZ2FpbiBpbiBhIG1pbnV0ZSIKCQkJCTogInJlcXVlc3QgZmFpbGVkIjsKCQkJdGhyb3cgbmV3IEVycm9yKGBSZWFkd2lzZSBBUEkgZXJyb3IgJHtyZXMuc3RhdHVzfTogJHtoaW50fS5gKTsKCQl9CgkJcmV0dXJuIGF3YWl0IHJlcy5qc29uKCk7Cgl9Cn0K"
+				},
+				{
+					"kind": "template",
+					"originalPath": "Templates/Book Notes.md",
+					"contentEncoding": "base64",
+					"content": "LS0tCmltYWdlOgp0YWdzOiBpbi9ib29rcwphbGlhc2VzOgogICAgLSAie3tWQUxVRTpCb29rIFRpdGxlfX0iCmNzc2NsYXNzOgotLS0KCiMgVGl0bGU6IFtbe3tUSVRMRX19XV0KCiMjIE1ldGFkYXRhCgpUYWdzOjoKVHlwZTo6IFtbQm9va11dCkF1dGhvcjo6IHt7VkFMVUU6YXV0aG9yfX0KUmVmZXJlbmNlOjoKUmF0aW5nOjoKUmV2aWV3ZWQgRGF0ZTo6IFtbe3tEQVRFOllZWVktTU0tREQgLSBkZGQgTU1NIER9fV1dCkZpbmlzaGVkIFllYXI6OiBbW3t7REFURTpZWVlZfX1dXQoKIyBUaG91Z2h0cwoKIyBBY3Rpb25zIFRha2VuIC8gQ2hhbmdlcwoKIyBTdW1tYXJ5IG9mIEtleSBQb2ludHMKCiMgSGlnaGxpZ2h0cyAmIE5vdGVzCgp7e01BQ1JPOlJlYWR3aXNlOjppbnN0YUZldGNoQm9va319Cg=="
+				}
+			]
+		}
+	},
+	{
+		"id": "toggl-manager",
+		"title": "Toggl manager",
+		"description": "Start preset Toggl Track time entries from a customizable menu using a macro and the Obsidian Toggl integration plugin",
+		"slug": "docs/Examples/Macro_TogglManager",
+		"requires": [
+			"a Toggl Track [API token](https://track.toggl.com/profile)",
+			"the [Toggl Track integration](https://github.com/mcndt/obsidian-toggl-integration) community plugin"
+		],
+		"afterImport": [
+			"If you have not already, install and enable **Toggl Track integration** from **Settings → Community plugins → Browse**. In its settings, paste the token from the bottom of your [Toggl profile](https://track.toggl.com/profile) into **API Token**, click **connect** to check it, then pick your workspace under **Toggl Workspace** (click its refresh icon if the list is empty). The token lives in the Toggl plugin, not in QuickAdd.",
+			"Open `scripts/togglManager.js` (or wherever you put it during import) in a text editor and edit the `menu` object: each sub-menu has a `togglProjectName`, which must match a project in that workspace exactly, and `menuOptions`, where the left side is the label you see and the right side is the description Toggl gets. Save the file.",
+			"Run **Toggl manager** from the command palette, pick a project, then an entry to start the timer."
+		],
+		"choices": [
+			{
+				"name": "Toggl manager",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-toggl-manager"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-toggl-manager",
+						"name": "Toggl manager",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-toggl-manager-macro",
+							"name": "Toggl manager",
+							"commands": [
+								{
+									"id": "qa-pkg-toggl-manager-script",
+									"name": "togglManager",
+									"type": "UserScript",
+									"path": "scripts/togglManager.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Toggl manager"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/togglManager.js",
+					"contentEncoding": "base64",
+					"content": "bGV0IHRvZ2dsQXBpOwpsZXQgcXVpY2tBZGRBcGk7CmxldCBwcm9qZWN0czsKCmNvbnN0IGJhY2sgPSAiPC0gQmFjayI7CmNvbnN0IG1lbnUgPSB7CiAgICAi8J+noCBMZWFybmluZyAmIFNraWxsIERldmVsb3BtZW50IjogewogICAgICAgIHRvZ2dsUHJvamVjdE5hbWU6ICJMZWFybmluZyAmIFNraWxsIERldmVsb3BtZW50IiwKICAgICAgICBtZW51T3B0aW9uczogewogICAgICAgICAgICAi4pyNIE5vdGUgTWFraW5nIjogIk5vdGUgTWFraW5nIiwKICAgICAgICAgICAgIvCfg48gU3BhY2VkIFJlcGV0aXRpb24iOiAiU3BhY2VkIFJlcGV0aXRpb24iLAogICAgICAgICAgICAi8J+TliBSZWFkIExhdGVyIFByb2Nlc3NpbmciOiAiUmVhZCBMYXRlciBQcm9jZXNzaW5nIiwKICAgICAgICAgICAgIvCfkajigI3wn5K7IENvbXB1dGVyIFNjaWVuY2UgJiBTb2Z0d2FyZSBFbmdpbmVlcmluZyI6ICJDb21wdXRlciBTY2llbmNlICYgU29mdHdhcmUgRW5naW5lZXJpbmciLAogICAgICAgIH0KICAgIH0sCiAgICAi8J+ktCBQZXJzb25hbCI6IHsKICAgICAgICB0b2dnbFByb2plY3ROYW1lOiAiUGVyc29uYWwiLAogICAgICAgIG1lbnVPcHRpb25zOiB7CiAgICAgICAgICAgICLwn4+L77iP4oCN4pmC77iPIEV4ZXJjaXNlIjogIkV4ZXJjaXNlIiwKICAgICAgICAgICAgIvCfp7kgQ2hvcmVzIjogIkNob3JlcyIsCiAgICAgICAgICAgICLwn5Go4oCN8J+UrCBTeXN0ZW1zIFdvcmsiOiAiU3lzdGVtcyBXb3JrIiwKICAgICAgICAgICAgIvCfjIAgV2Vla2x5IFJldmlldyI6ICJXZWVrbHkgUmV2aWV3IiwKICAgICAgICAgICAgIvCfk4YgTW9udGhseSBSZXZpZXciOiAiTW9udGhseSBSZXZpZXciLAogICAgICAgICAgICAi4pyUIFBsYW5uaW5nIjogIlBsYW5uaW5nIiwKICAgICAgICB9CiAgICB9LAogICAgIvCfkajigI3wn46TIFNjaG9vbCI6IHsKICAgICAgICB0b2dnbFByb2plY3ROYW1lOiAiU2Nob29sIiwKICAgICAgICBtZW51T3B0aW9uczogewogICAgICAgICAgICAi8J+noCBNYWNoaW5lIEludGVsbGlnZW5jZSAoTUkpIjogIk1hY2hpbmUgSW50ZWxsaWdlbmNlIChNSSkiLAogICAgICAgICAgICAi8J+SviBEYXRhYmFzZSBTeXN0ZW1zIChEQlMpIjogIkRhdGFiYXNlIFN5c3RlbXMgKERCUykiLAogICAgICAgICAgICAi8J+Pg+KAjeKZgiBBZ2lsZSBTb2Z0d2FyZSBFbmdpbmVlcmluZyAoQVNFKSI6ICJBZ2lsZSBTb2Z0d2FyZSBFbmdpbmVlcmluZyAoQVNFKSIsCiAgICAgICAgICAgICLwn5K7IFA1IjogIlA1IiwKICAgICAgICB9CiAgICB9Cn07Cgptb2R1bGUuZXhwb3J0cyA9IGFzeW5jIGZ1bmN0aW9uIHRvZ2dsTWFuYWdlcihwYXJhbXMpIHsKICAgIC8vIEd1YXJkIHRoZSBwbHVnaW4gbG9va3VwIChtaXJyb3JzIGNpdGF0aW9uc01hbmFnZXIuanMpOiB3aXRob3V0IGl0LCBhCiAgICAvLyBtaXNzaW5nL2Rpc2FibGVkIFRvZ2dsIGludGVncmF0aW9uIHRocm93cyBhbiBvcGFxdWUgVHlwZUVycm9yIGhlcmUuCiAgICBjb25zdCB0b2dnbFBsdWdpbiA9IHBhcmFtcy5hcHAucGx1Z2lucy5wbHVnaW5zWyJvYnNpZGlhbi10b2dnbC1pbnRlZ3JhdGlvbiJdOwogICAgaWYgKCF0b2dnbFBsdWdpbiB8fCAhdG9nZ2xQbHVnaW4udG9nZ2wgfHwgIXRvZ2dsUGx1Z2luLnRvZ2dsLl9hcGlNYW5hZ2VyKSB7CiAgICAgICAgbmV3IE5vdGljZSgiVG9nZ2wgVHJhY2sgaW50ZWdyYXRpb24gcGx1Z2luIGlzIG5vdCBpbnN0YWxsZWQsIGVuYWJsZWQsIG9yIGNvbm5lY3RlZCB0byB5b3VyIFRvZ2dsIGFjY291bnQuIiwgNTAwMCk7CiAgICAgICAgdGhyb3cgbmV3IEVycm9yKCJUb2dnbCBUcmFjayBpbnRlZ3JhdGlvbiBwbHVnaW4gbm90IGZvdW5kLiIpOwogICAgfQogICAgdG9nZ2xBcGkgPSB0b2dnbFBsdWdpbi50b2dnbC5fYXBpTWFuYWdlcjsKICAgIHF1aWNrQWRkQXBpID0gcGFyYW1zLnF1aWNrQWRkQXBpOwogICAgcHJvamVjdHMgPSBhd2FpdCB0b2dnbEFwaS5nZXRQcm9qZWN0cygpOwoKICAgIGF3YWl0IG9wZW5NYWluTWVudShtZW51KTsKfQoKY29uc3QgZGF0ZUluU2Vjb25kcyA9IChkYXRlKSA9PiB7CiAgICByZXR1cm4gTWF0aC5mbG9vcihkYXRlIC8gMTAwMCk7Cn0KCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0VGltZXIoZW50cnlOYW1lLCBwcm9qZWN0SUQpIHsKICAgIGF3YWl0IHRvZ2dsQXBpLnN0YXJ0VGltZXIoe2Rlc2NyaXB0aW9uOiBlbnRyeU5hbWUsIHBpZDogcHJvamVjdElEfSk7Cn0KCmFzeW5jIGZ1bmN0aW9uIG9wZW5NYWluTWVudShtZW51KSB7CiAgICBjb25zdCB7c3VnZ2VzdGVyfSA9IHF1aWNrQWRkQXBpOwogICAgY29uc3Qgb3B0aW9ucyA9IE9iamVjdC5rZXlzKG1lbnUpOwoKICAgIGNvbnN0IGNob2ljZSA9IGF3YWl0IHN1Z2dlc3RlcihvcHRpb25zLCBvcHRpb25zKTsKICAgIGlmICghY2hvaWNlKSByZXR1cm47CgogICAgY29uc3QgcHJvamVjdCA9IG1lbnVbY2hvaWNlXTsKICAgIGF3YWl0IG9wZW5TdWJNZW51KHByb2plY3QpOwp9Cgphc3luYyBmdW5jdGlvbiBvcGVuU3ViTWVudShwcm9qZWN0KSB7CiAgICBjb25zdCB7c3VnZ2VzdGVyfSA9IHF1aWNrQWRkQXBpOwogICAgY29uc3Qgb3B0aW9ucyA9IFsuLi5PYmplY3Qua2V5cyhwcm9qZWN0Lm1lbnVPcHRpb25zKSwgYmFja107CgogICAgY29uc3QgY2hvaWNlID0gYXdhaXQgc3VnZ2VzdGVyKG9wdGlvbnMsIG9wdGlvbnMpOwogICAgaWYgKCFjaG9pY2UpIHJldHVybjsKCiAgICBpZiAoY2hvaWNlID09PSBiYWNrKSB7CiAgICAgICAgcmV0dXJuIGF3YWl0IG9wZW5NYWluTWVudShtZW51KTsKICAgIH0KCiAgICBjb25zdCBlbnRyeU5hbWUgPSBwcm9qZWN0Lm1lbnVPcHRpb25zW2Nob2ljZV07CiAgICBjb25zdCB0b2dnbFByb2plY3QgPSBwcm9qZWN0cy5maW5kKHAgPT4gcC5uYW1lID09PSBwcm9qZWN0LnRvZ2dsUHJvamVjdE5hbWUpOwogICAgaWYgKCF0b2dnbFByb2plY3QpIHsKICAgICAgICBuZXcgTm90aWNlKGBUb2dnbCBwcm9qZWN0ICIke3Byb2plY3QudG9nZ2xQcm9qZWN0TmFtZX0iIG5vdCBmb3VuZC4gRWRpdCB0aGUgbWVudSBpbiB0b2dnbE1hbmFnZXIuanMgdG8gbWF0Y2ggeW91ciBUb2dnbCBwcm9qZWN0cy5gLCA1MDAwKTsKICAgICAgICByZXR1cm47CiAgICB9CgogICAgYXdhaXQgc3RhcnRUaW1lcihlbnRyeU5hbWUsIHRvZ2dsUHJvamVjdC5pZCk7Cn0K"
+				}
+			]
+		}
+	},
+	{
+		"id": "zettelizer",
+		"title": "Zettelizer",
+		"description": "Create a linked note from each heading of a chosen level in your active file, naming it after the heading text",
+		"slug": "docs/Examples/Macro_Zettelizer",
+		"requires": [],
+		"afterImport": [
+			"By default each `###` heading gets a note in `Zettels/` (created if missing) that embeds that section; the source note is not changed. The file name is the heading minus its first word, so one-word headings are skipped, and so are names that already exist.",
+			"To change the folder or heading level, click the cog next to **Zettelize headings** in **Settings → QuickAdd**, then the cog on the **zettelizer** step: **Folder for new notes** (empty means the vault root) and **Heading level**.",
+			"Open the note you want to split up and run **Zettelize headings** from the command palette."
+		],
+		"choices": [
+			{
+				"name": "Zettelize headings",
+				"type": "Macro"
+			}
+		],
+		"scripts": 1,
+		"templates": 0,
+		"package": {
+			"schemaVersion": 1,
+			"quickAddVersion": "2.27.0",
+			"createdAt": "2026-09-27T00:00:00.000Z",
+			"rootChoiceIds": [
+				"qa-pkg-zettelizer"
+			],
+			"choices": [
+				{
+					"choice": {
+						"id": "qa-pkg-zettelizer",
+						"name": "Zettelize headings",
+						"type": "Macro",
+						"command": true,
+						"runOnStartup": false,
+						"macro": {
+							"id": "qa-pkg-zettelizer-macro",
+							"name": "Zettelize headings",
+							"commands": [
+								{
+									"id": "qa-pkg-zettelizer-script",
+									"name": "zettelizer",
+									"type": "UserScript",
+									"path": "scripts/zettelizer.js",
+									"settings": {}
+								}
+							]
+						}
+					},
+					"pathHint": [
+						"Zettelize headings"
+					],
+					"parentChoiceId": null
+				}
+			],
+			"assets": [
+				{
+					"kind": "user-script",
+					"originalPath": "scripts/zettelizer.js",
+					"contentEncoding": "base64",
+					"content": "Ly8gQ3JlYXRlcyBvbmUgbGlua2VkIG5vdGUgcGVyIGhlYWRpbmcgb2YgYSBjaG9zZW4gbGV2ZWwgaW4gdGhlIGFjdGl2ZSBub3RlLgovLyBEb2NzOiBodHRwczovL3F1aWNrYWRkLm9ic2lkaWFuLmd1aWRlL2RvY3MvRXhhbXBsZXMvTWFjcm9fWmV0dGVsaXplcgpjb25zdCBGT0xERVIgPSAiRm9sZGVyIGZvciBuZXcgbm90ZXMiOwpjb25zdCBIRUFESU5HX0xFVkVMID0gIkhlYWRpbmcgbGV2ZWwiOwoKbW9kdWxlLmV4cG9ydHMgPSB7CiAgICBlbnRyeTogc3RhcnQsCiAgICBzZXR0aW5nczogewogICAgICAgIG5hbWU6ICJaZXR0ZWxpemVyIiwKICAgICAgICBhdXRob3I6ICJDaHJpc3RpYW4gQi4gQi4gSG91bWFubiIsCiAgICAgICAgb3B0aW9uczogewogICAgICAgICAgICBbRk9MREVSXTogewogICAgICAgICAgICAgICAgdHlwZTogInRleHQiLAogICAgICAgICAgICAgICAgZGVmYXVsdFZhbHVlOiAiWmV0dGVscyIsCiAgICAgICAgICAgICAgICBwbGFjZWhvbGRlcjogIlpldHRlbHMiLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJGb2xkZXIgdGhlIG5ldyBub3RlcyBnbyBpbiAoY3JlYXRlZCBpZiBtaXNzaW5nKS4gTGVhdmUgZW1wdHkgZm9yIHRoZSB2YXVsdCByb290LiIsCiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIFtIRUFESU5HX0xFVkVMXTogewogICAgICAgICAgICAgICAgdHlwZTogImRyb3Bkb3duIiwKICAgICAgICAgICAgICAgIG9wdGlvbnM6IFsiMSIsICIyIiwgIjMiLCAiNCIsICI1IiwgIjYiXSwKICAgICAgICAgICAgICAgIGRlZmF1bHRWYWx1ZTogIjMiLAogICAgICAgICAgICAgICAgZGVzY3JpcHRpb246ICJPbmx5IGhlYWRpbmdzIG9mIHRoaXMgbGV2ZWwgYmVjb21lIG5vdGVzICgzIG1lYW5zICMjIyBoZWFkaW5ncykuIiwKICAgICAgICAgICAgfSwKICAgICAgICB9LAogICAgfSwKfTsKCmFzeW5jIGZ1bmN0aW9uIHN0YXJ0KHBhcmFtcywgc2V0dGluZ3MpIHsKICAgIGNvbnN0IHsgYXBwIH0gPSBwYXJhbXM7CiAgICBjb25zdCBjdXJyZW50RmlsZSA9IGFwcC53b3Jrc3BhY2UuZ2V0QWN0aXZlRmlsZSgpOwogICAgaWYgKCFjdXJyZW50RmlsZSkgewogICAgICAgIG5ldyBOb3RpY2UoIk5vIGFjdGl2ZSBmaWxlLiIpOwogICAgICAgIHJldHVybjsKICAgIH0KCiAgICBjb25zdCBjdXJyZW50RmlsZUNhY2hlID0gYXBwLm1ldGFkYXRhQ2FjaGUuZ2V0RmlsZUNhY2hlKGN1cnJlbnRGaWxlKTsKICAgIGNvbnN0IGhlYWRpbmdzSW5GaWxlID0gY3VycmVudEZpbGVDYWNoZSAmJiBjdXJyZW50RmlsZUNhY2hlLmhlYWRpbmdzOwogICAgaWYgKCFoZWFkaW5nc0luRmlsZSkgewogICAgICAgIG5ldyBOb3RpY2UoYE5vIGhlYWRlcnMgaW4gZmlsZSAke2N1cnJlbnRGaWxlLm5hbWV9YCk7CiAgICAgICAgcmV0dXJuOwogICAgfQoKICAgIGNvbnN0IGZvbGRlciA9IFN0cmluZyhzZXR0aW5nc1tGT0xERVJdID8/ICIiKS50cmltKCkucmVwbGFjZSgvXlwvK3xcLyskL2csICIiKTsKICAgIGNvbnN0IGxldmVsID0gTnVtYmVyKHNldHRpbmdzW0hFQURJTkdfTEVWRUxdIHx8IDMpOwoKICAgIGlmIChmb2xkZXIgJiYgIShhd2FpdCBhcHAudmF1bHQuYWRhcHRlci5leGlzdHMoZm9sZGVyKSkpIHsKICAgICAgICB0cnkgewogICAgICAgICAgICBhd2FpdCBhcHAudmF1bHQuY3JlYXRlRm9sZGVyKGZvbGRlcik7CiAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHsKICAgICAgICAgICAgaWYgKCFTdHJpbmcoZXJyb3IgJiYgZXJyb3IubWVzc2FnZSkuaW5jbHVkZXMoImFscmVhZHkgZXhpc3RzIikpIHRocm93IGVycm9yOwogICAgICAgIH0KICAgIH0KCiAgICBmb3IgKGNvbnN0IGhlYWRpbmcgb2YgaGVhZGluZ3NJbkZpbGUpIHsKICAgICAgICBpZiAoaGVhZGluZy5sZXZlbCAhPT0gbGV2ZWwpIGNvbnRpbnVlOwoKICAgICAgICBjb25zdCBzcGxpdEhlYWRpbmcgPSBoZWFkaW5nLmhlYWRpbmcuc3BsaXQoIiAiKTsKICAgICAgICBjb25zdCBsb2NhdGlvbiA9IHNwbGl0SGVhZGluZ1swXS50cmltKCk7CiAgICAgICAgY29uc3QgdGV4dCA9IHNwbGl0SGVhZGluZy5sZW5ndGggPiAxID8gc3BsaXRIZWFkaW5nLnNsaWNlKDEpLmpvaW4oIiAiKS50cmltKCkgOiAiIjsKICAgICAgICBpZiAoIXRleHQpIGNvbnRpbnVlOwoKICAgICAgICBjb25zdCBmaWxlTmFtZSA9IGAke3RleHQucmVwbGFjZSgvW1xcLCMlJlx7XH1cLyo8PiRcJ1wiOkBdKi9nLCAiIil9Lm1kYDsKICAgICAgICBjb25zdCBwYXRoID0gZm9sZGVyID8gYCR7Zm9sZGVyfS8ke2ZpbGVOYW1lfWAgOiBmaWxlTmFtZTsKICAgICAgICBjb25zdCBjb250ZW50ID0gYCFbWyR7Y3VycmVudEZpbGUuYmFzZW5hbWV9IyR7bG9jYXRpb259ICR7dGV4dH1dXWA7CgogICAgICAgIGlmIChhd2FpdCBhcHAudmF1bHQuYWRhcHRlci5leGlzdHMocGF0aCkpIHsKICAgICAgICAgICAgbmV3IE5vdGljZShgRmlsZSAke3BhdGh9IGFscmVhZHkgZXhpc3RzLmAsIDUwMDApOwogICAgICAgICAgICBjb250aW51ZTsKICAgICAgICB9CiAgICAgICAgYXdhaXQgYXBwLnZhdWx0LmNyZWF0ZShwYXRoLCBjb250ZW50KTsKICAgIH0KfQo="
+				}
+			]
+		}
+	}
+]

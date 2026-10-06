@@ -78,10 +78,10 @@ A [Capture choice](/docs/Choices/CaptureChoice/) whose format is `{{TEMPLATE:Tem
 
 Appending to today's note is a Capture choice that targets the daily note - the file doesn't have to exist beforehand:
 
-- **Capture to**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
-- **Create file if it doesn't exist**, with **Create file with a template** set to your daily template, so QuickAdd fills in its tokens
+- **Where**: [`{{DAILY}}`](/docs/FormatSyntax/#daily), the note **Open today's daily note** opens. Click **Daily note** next to the field to fill it in (QuickAdd 2.30.0 or later).
+- **Create note if it doesn't exist**, with **Create note with a template** set to your daily template, so QuickAdd fills in its tokens
 - **Insert after**: `## Log`, with **Create line if not found**
-- **Capture format**: `- {{VALUE}}`
+- **What**: `- {{VALUE}}`
 
 Say today is 2026-07-06 and your daily notes live in `Daily`: running it and typing `did a thing` creates `Daily/2026-07-06.md` from the template on first capture and appends `- did a thing` under `## Log` - one hotkey, with or without an existing note. Before QuickAdd 2.30.0, set **Capture to** to a date-formatted path such as `Daily/{{DATE}}.md` instead. For a step-by-step walkthrough with variations, see [Capture: Add entries to your daily note](/docs/Examples/Capture_ToDailyNote/); [Capture choices](/docs/Choices/CaptureChoice/) covers every target and position option.
 
@@ -142,6 +142,29 @@ QuickAdd runs JavaScript in two shapes:
 
 `{{MACRO:My macro}}` embeds a macro's return value anywhere format syntax is accepted, so a computed value can flow straight into a file name, template body, or capture line.
 
+## Using Templater with QuickAdd 3 {#templater-in-quickadd-3}
+
+You don't have to port a template to use it. A Template choice can point at a
+template file with Templater tags: QuickAdd fills in its own tokens and creates
+the note, then Templater runs the `<% %>` tags in it. The builder says so:
+
+- **The Template field.** When the template file holds a `<%` tag, a line under
+  **Template** reads *Templater runs after the note is created*, and the line at
+  the top of the page ends with *runs Templater*.
+- **Inputs.** The questions Templater will ask are listed in
+  [Inputs](/docs/Choices/TemplateChoice/#inputs), after QuickAdd's own, as
+  *Asked by Templater, in* the template's name: `tp.system.prompt("Guest")` is
+  listed as *Guest*, and `tp.system.suggester(["Happy", "Sad"], ...)` as *Happy,
+  Sad* (a suggester built from variables reads *a choice*). They have no Label
+  or Optional controls, and the [one-page form](/docs/Advanced/onePageInputs/)
+  doesn't include them: Templater asks them itself when it runs.
+- **When Templater isn't installed.** The line under **Template** says *This
+  template uses Templater, which is not installed*, with a link to Templater in
+  Community plugins. Without it, the tags stay in the note as text.
+
+A prompt you answer in both engines is a [double prompt](#common-migration-snags):
+move it to `{{VALUE:name}}` when QuickAdd should own it.
+
 ## Common migration snags
 
 These are the classic symptoms of splitting one template between two engines - each has a QuickAdd-native fix:
@@ -149,4 +172,4 @@ These are the classic symptoms of splitting one template between two engines - e
 - **You get prompted twice.** QuickAdd resolves all of its prompts before the file is created. If another engine prompts in the same template, you answer twice - once per engine. Let QuickAdd own the prompt with `{{VALUE:name}}` and reuse the answer everywhere it's needed.
 - **Template syntax shows up unrendered.** QuickAdd renders QuickAdd tokens; another engine's syntax is only rendered by that engine. If it isn't installed or doesn't run on the file, its markup stays behind as literal text. Port the line to the matching token from [the map](#the-quick-map).
 - **Templater code runs twice.** A macro that runs Templater's **Replace templates in the active file** right after a QuickAdd Template or Capture step runs the templates a second time: QuickAdd already ran them when it wrote the note. That step is deprecated, and QuickAdd 2.30.0 or later shows a notice once per session when a macro runs it. Remove it from the macro.
-- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create file if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).
+- **Capturing into a note throws template errors.** A note that keeps live template syntax can re-execute or error whenever a plugin processes the file again. QuickAdd tokens like `{{DATE:YYYY-MM-DD}}` render once, at creation, into plain text - later captures find nothing to re-run. Migrate the offending line to a QuickAdd token and let QuickAdd create the note so the token renders - a Capture with **Create note if it doesn't exist** plus that template does both (see [Today's daily note](#todays-daily-note)).

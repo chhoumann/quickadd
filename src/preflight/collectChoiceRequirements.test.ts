@@ -2,7 +2,8 @@ import { createPreflightPlugin } from "../../tests/helpers/preflight/choices";
 import type { FieldRequirement } from "./fieldRequirements";
 import { createCaptureChoice, createTemplateChoice } from "../../tests/helpers/preflight/choices";
 import { createChoiceExecutor } from "../../tests/helpers/createChoiceExecutor";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { settingsStore } from "src/settingsStore";
 import { TFile, TFolder, type App } from "obsidian";
 import type { IChoiceExecutor } from "src/IChoiceExecutor";
 import type ICaptureChoice from "src/types/choices/ICaptureChoice";
@@ -161,6 +162,7 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		metadataCache: {
 			getFileCache: vi.fn(() => null),
 		},
+		workspace: { getActiveViewOfType: () => null },
 	} as unknown as App;
 	const plugin = createPreflightPlugin();
 
@@ -171,6 +173,37 @@ describe("collectChoiceRequirements - template include scanning", () => {
 		getTemplateFileMock.mockImplementation((_app: App, path: string) =>
 			templateBodies.has(path) ? ({ path } as never) : null,
 		);
+	});
+
+	it("leaves out a template file's {{VALUE:title}}, in any case, which the note's title fills", async () => {
+		templateBodies.set("Templates/Meeting.md", "# {{VALUE:Title}}\nWith {{VALUE:Who}}");
+		const choice = {
+			...createTemplateChoice("Templates/Meeting.md"),
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+		};
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["value", "Who"]);
+	});
+
+	it("still asks for a title the file name asks for", async () => {
+		templateBodies.set("Templates/Meeting.md", "# {{VALUE:title}}");
+		const choice = {
+			...createTemplateChoice("Templates/Meeting.md"),
+			fileNameFormat: { enabled: true, format: "{{VALUE:title}}" },
+		};
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["title"]);
+	});
+
+	it("leaves out the title in the template a Capture creates its note from", async () => {
+		templateBodies.set("Templates/Project.md", "# {{VALUE:TITLE}}\n{{VALUE:status}}");
+		const choice = {
+			...createCaptureChoice("Projects/Alpha.md"),
+			format: { enabled: true, format: "- done" },
+			createFileIfItDoesntExist: { enabled: true, createWithTemplate: true, template: "Templates/Project.md" },
+		} as ICaptureChoice;
+
+		expect((await collect(choice, createChoiceExecutor())).map((r) => r.id)).toEqual(["status"]);
 	});
 
 	it("asks for a One entry per line value in a text area (#1996)", async () => {
@@ -812,6 +845,18 @@ describe("collectChoiceRequirements - capture targets", () => {
 		});
 	});
 
+	it("asks nothing for {{NOTE}}, the note the run writes", async () => {
+		const capture = {
+			...createCaptureChoice("{{NOTE}}"),
+			format: { enabled: true, format: "- {{VALUE:entry}} {{NOTE|link}} {{note|name}}" },
+		} as ICaptureChoice;
+		const open = { id: "open", name: "Open", type: CommandType.OpenFile, filePath: "{{NOTE}}" } as ICommand;
+
+		const requirements = await collect(createMacroChoice(nestedChoice(capture), open), choiceExecutor);
+
+		expect(requirements.map((requirement) => requirement.id)).toEqual(["entry"]);
+	});
+
 	it.each([
 		{
 			name: "treats a definite .md target as a file even when a same-named folder exists",
@@ -1067,7 +1112,7 @@ describe("collectChoiceRequirements - template path format syntax (issue #620)",
 	const collect = (choice: IChoice, executor: IChoiceExecutor, options?: Parameters<typeof collectChoiceRequirements>[4]) =>
 		collectChoiceRequirements(app, plugin, executor, choice, options);
 
-	const app = {} as App;
+	const app = { workspace: { getActiveViewOfType: () => null } } as unknown as App;
 	const plugin = { settings: { inputPrompt: "single-line" } } as any;
 
 	beforeEach(() => {
@@ -2081,5 +2126,70 @@ describe("property capture requirements", () => {
 		expect(requirements.map((requirement) => requirement.id)).toEqual(["property", "amount"]);
 		expect(requirements.find((requirement) => requirement.id === "amount")?.type).toBe("number");
 		expect(requirements.every((requirement) => requirement.pathContext)).toBe(true);
+	});
+});
+
+describe("collectChoiceRequirements - the choice's input overrides", () => {
+	const app = { vault: { cachedRead: async () => "Guest: {{VALUE:Guest}}" }, metadataCache: { getFileCache: () => null } } as unknown as App;
+
+	afterEach(() => settingsStore.setState({ actions: [] }));
+
+	it("asks for an input with the label and optional its action overrides it with", async () => {
+		getTemplateFileMock.mockImplementation(() => ({ path: "Templates/Visit.md" }) as never);
+		const visit = Object.assign(new TemplateChoice("Visit"), { id: "visit", templatePath: "Templates/Visit.md" });
+		visit.fileNameFormat = { enabled: true, format: "{{VALUE:Title}}" };
+		settingsStore.setState({
+			actions: [{ kind: "action", id: "visit", name: "Visit", steps: [], show: { command: false }, inputs: {
+				Guest: { label: "Who is coming?", optional: true },
+			} }],
+		});
+
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), visit);
+
+		expect(requirements.map(({ id, label, optional }) => ({ id, label, optional }))).toEqual([
+			{ id: "Title", label: "Title", optional: false },
+			{ id: "Guest", label: "Who is coming?", optional: true },
+		]);
+	});
+});
+
+describe("collectChoiceRequirements - the note title of a Template with no File name", () => {
+	const getSelection = vi.fn(() => "");
+	const app = {
+		vault: { cachedRead: async () => "Topic: {{VALUE:Topic}}", getAbstractFileByPath: () => null },
+		metadataCache: { getFileCache: () => null },
+		workspace: { getActiveViewOfType: () => ({ editor: { getSelection } }) },
+	} as unknown as App;
+	const dinner = (): ITemplateChoice => ({ ...createTemplateChoice("Templates/Dinner.md"), id: "dinner", name: "Dinner" });
+
+	beforeEach(() => {
+		getTemplateFileMock.mockReset();
+		getTemplateFileMock.mockImplementation(() => ({ path: "Templates/Dinner.md" }) as never);
+		getSelection.mockReturnValue("");
+	});
+
+	it("asks for the note title first, as the run's title prompt does", async () => {
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), dinner());
+
+		expect(requirements.map(({ id, label }) => ({ id, label }))).toEqual([
+			{ id: "value", label: "Note title" },
+			{ id: "Topic", label: "Topic" },
+		]);
+	});
+
+	it("leaves the title to the editor's selection, which the run takes as the title", async () => {
+		getSelection.mockReturnValue("Friday");
+
+		const requirements = await collectChoiceRequirements(app, createPreflightPlugin(), createChoiceExecutor(), dinner());
+
+		expect(requirements.map(({ id }) => id)).toEqual(["Topic"]);
+	});
+
+	it("leaves the title to the step inside a macro, so two steps do not share one title", async () => {
+		const requirements = await collectChoiceRequirements(
+			app, createPreflightPlugin(), createChoiceExecutor(), createMacroChoice(nestedChoice(dinner())),
+		);
+
+		expect(requirements.map(({ id }) => id)).toEqual(["Topic"]);
 	});
 });

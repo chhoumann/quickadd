@@ -83,7 +83,7 @@ describe("ChoiceView new-choice race (#1625)", () => {
 		// Add a Template choice through the real menu -> addChoiceToList path.
 		await fireEvent.click(getByLabelText("New choice"));
 		const templateItem = MenuStub.lastShown?.items.find((item) =>
-			item.title.includes("Template"),
+			item.title.startsWith("New note from a template"),
 		);
 		expect(templateItem?.clickHandler).toBeTruthy();
 		// The real handler reads altKey off the click event (Alt = scaffold only).

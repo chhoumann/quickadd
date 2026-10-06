@@ -170,7 +170,7 @@ overwrites the synced version when it finally arrives.
 
 - **Open Obsidian first**: always open Obsidian and wait for sync before using URIs.
 - **Use device-specific names**: configure different filename formats per device (for example `{{DATE}}-mobile`).
-- **Capture to active file**: use an already-open note to avoid creating a file at all.
+- **Capture to active note**: use an already-open note to avoid creating a file at all.
 - **Include timestamps**: add `{{TIME}}` to filenames so each one is unique.
 
 This is a fundamental limitation of file-based sync services and cannot be

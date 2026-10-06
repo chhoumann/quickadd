@@ -3,6 +3,7 @@ import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1950: a {{VALUE:due}} in an included template reuses the including
 // format's {{VDATE:due,...}}: one date prompt, printed in the VDATE's format.
@@ -40,10 +41,10 @@ async function runCapture(file: string, onePage: boolean) {
 		enabled: true,
 		format: `- {{VALUE|label:What happened?}} 📅 {{VDATE:due,DD.MM.YYYY|label:When is it due?}}\n{{TEMPLATE:${include}}}`,
 	};
-	await plugin.data<QuickAddData>().patch((data) => {
+	await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 		data.onePageInputEnabled = false;
 		data.choices.push(choice);
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 }

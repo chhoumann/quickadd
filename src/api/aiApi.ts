@@ -17,6 +17,7 @@ import type { BuiltinGroupOptions } from "../ai/tools/builtins/shared";
 import { settingsStore } from "../settingsStore";
 import { reportError } from "../utils/errorUtils";
 import { log } from "../logger/logManager";
+import { onlineFeaturesOffRefusal } from "../ai/aiRefusals";
 
 type Format = (text: string, variables?: Record<string, unknown>, clearVariables?: boolean) => Promise<string>;
 type PromptSettings = Partial<{
@@ -33,7 +34,7 @@ export function createAiApi(app: App, plugin: QuickAdd, choiceExecutor: IChoiceE
 	async function promptOptions(model: ScriptModelInput, settings?: PromptSettings) {
 		const pluginSettings = settingsStore.getState();
 		if (pluginSettings.disableOnlineFeatures) {
-			throw new Error("Rejecting request to `prompt` via API AI module. Online features are disabled in settings.");
+			throw onlineFeaturesOffRefusal();
 		}
 		const { model: resolvedModel, provider } = resolveModelInputOrThrow(model);
 		const apiKey = await resolveProviderApiKey(app, provider);

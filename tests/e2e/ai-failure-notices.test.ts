@@ -1,6 +1,7 @@
 import { beforeEach, expect, it } from "vitest";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, pressKey, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // An AI request that fails shows one notice, the assistant's "AI request
 // failed.", and dismissing one of its prompts shows none.
@@ -49,14 +50,14 @@ async function setUp(choices: unknown[]) {
 		disableOnlineFeatures: boolean;
 		showInputCancellationNotification: boolean;
 		ai: { providers: unknown[]; showAssistant: boolean };
-	}>().patch((data) => {
+	}>().patch(withStoredChoices((data) => {
 		data.disableOnlineFeatures = false;
 		// Opting in shows "Macro execution aborted: Input cancelled by user".
 		data.showInputCancellationNotification = false;
 		data.ai.showAssistant = true;
 		data.ai.providers = [...data.ai.providers.filter((p) => (p as { id?: string }).id !== LOCAL_PROVIDER.id), LOCAL_PROVIDER];
 		data.choices = choices;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 }
 

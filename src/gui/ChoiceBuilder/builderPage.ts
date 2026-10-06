@@ -17,6 +17,11 @@ import { openSettingPage, retitleSettingPage } from "../../utils/openPluginSetti
 export abstract class BuilderPage<T> extends SettingPage {
 	private rendered = false;
 	private opener: Opener | null = null;
+	/**
+	 * Set once the page saved and handed its choice on to be changed into
+	 * something this page cannot edit, so leaving it must not save over that.
+	 */
+	protected handedOff = false;
 
 	protected constructor(
 		protected readonly app: App,
@@ -54,7 +59,7 @@ export abstract class BuilderPage<T> extends SettingPage {
 		// such as a folder typed without Add (#1993).
 		this.destroy();
 		super.hide();
-		this.onSave(this.result());
+		if (!this.handedOff) this.onSave(this.result());
 		if (this.opener) focusOpenerAfterBack(this.opener);
 	}
 
@@ -148,6 +153,7 @@ export function nameOrFallback(name: string, fallback: string): string {
 interface PageStack {
 	pageStack?: { page: SettingPage }[];
 	clearPageStack?: () => void;
+	closePage?: () => void;
 }
 
 function pageStackOf(app: App): PageStack | undefined {
@@ -176,5 +182,19 @@ export function leaveBuilderPages(app: App): void {
 	const setting = pageStackOf(app);
 	if (setting?.pageStack?.some((entry) => entry.page instanceof BuilderPage)) {
 		setting.clearPageStack?.();
+	}
+}
+
+/**
+ * Go back from the open builder pages, top first, as their back buttons do,
+ * to the settings tab below them, which shows again. For handing a choice to
+ * a builder of another kind: unlike leaveBuilderPages, the settings window
+ * can then open another page.
+ */
+export function backOutOfBuilderPages(app: App): void {
+	const setting = pageStackOf(app);
+	const stack = setting?.pageStack ?? [];
+	for (let left = stack.length; left > 0 && stack.at(-1)?.page instanceof BuilderPage; left--) {
+		setting?.closePage?.();
 	}
 }

@@ -86,6 +86,22 @@ function choiceMergeKey(choice: Record<string, unknown>): string {
 	return `id:${String(choice.id).trim()}`;
 }
 
+/**
+ * Lists whose entries merge by `id`: v2 choices and a folder's children, and
+ * the QuickAdd 3 action tree (actions, folder items, steps, If branches).
+ */
+const ID_KEYED_LISTS = new Set(["choices", "actions", "items", "steps", "thenSteps", "elseSteps"]);
+
+/**
+ * Keyed merging keeps one entry per id, so it only applies when every id in
+ * the list is unique: a step list may repeat an id (the same nested choice
+ * used twice), and those entries must not collapse into one.
+ */
+function hasUniqueIds(items: unknown[]): boolean {
+	const ids = items.map((item) => choiceMergeKey(item as Record<string, unknown>));
+	return new Set(ids).size === ids.length;
+}
+
 function modelMergeKey(model: Record<string, unknown>): string {
 	return String(model.name ?? "")
 		.trim()
@@ -176,8 +192,9 @@ function threeWayMergeKeyedArray(
  * - If both changed the same plain object, recurse per key.
  * - Arrays under an `providers` path merge by `AIProvider.id` (fallback:
  *   name+endpoint); arrays under a `models` path merge by `Model.name`;
- *   arrays under a `choices` path (the root list and folders' children) merge
- *   by choice `id`. Path context matters: choice objects also have `name` and
+ *   arrays under a `choices` path (the root list and folders' children) and
+ *   the QuickAdd 3 lists (`actions`, `items`, `steps`, `thenSteps`,
+ *   `elseSteps`) merge by `id` when their ids are unique. Path context matters: choice objects also have `name` and
  *   must not use model-name identity.
  * - Other irreducible array/leaf conflicts prefer local.
  *
@@ -225,7 +242,12 @@ export function threeWayMergeSettings<T>(
 			? providerMergeKey
 			: leaf === "models" && sample.every(isModelLike)
 				? modelMergeKey
-				: leaf === "choices" && sample.every(hasChoiceId)
+				: ID_KEYED_LISTS.has(leaf) &&
+						// A script's `settings` are its own data; a list named like one of
+						// ours in there keeps its order and is not merged by id.
+						!path.includes("settings") &&
+						sample.every(hasChoiceId) &&
+						[localArr, diskArr, baseArr ?? []].every(hasUniqueIds)
 					? choiceMergeKey
 					: undefined;
 		if (keyOf) {

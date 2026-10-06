@@ -2,11 +2,13 @@ import type { CliData } from "obsidian";
 import { ChoiceExecutor } from "../choiceExecutor";
 import { QA_INTERNAL_DATE_ORIGIN } from "../constants";
 import { createFolderTemplateChoice } from "../engine/runTemplateFromFolder";
+import { checkTemplateSource } from "../engine/templateSource";
 import { interactivePromptServer } from "../interactive/interactivePromptServer";
 import { RemotePromptProvider } from "../interactive/promptProvider";
 import type QuickAdd from "../main";
 import { collectChoiceRequirements, getUnresolvedRequirements } from "../preflight/collectChoiceRequirements";
 import type IChoice from "../types/choices/IChoice";
+import { isTemplateChoice } from "../types/choices/choiceType";
 import { getTemplateFile } from "../utils/templateFolderUtils";
 import { applyInvocationDate } from "../utils/resolveDateOrigin";
 import { executeChoice } from "./executeChoice";
@@ -15,6 +17,8 @@ import {
 	RESERVED_INTERACTIVE_PARAMS, RESERVED_RUN_PARAMS, RESERVED_RUN_TEMPLATE_PARAMS,
 	setExecutorVariables, toMissingFieldSummary,
 } from "./params";
+import { RefusalError } from "../errors/RefusalError";
+import { reportRefusal } from "../utils/errorUtils";
 
 async function runResolvedChoice(
 	plugin: QuickAdd,
@@ -37,9 +41,19 @@ async function runResolvedChoice(
 	executor.interactive = isTruthy(params.ui);
 	if (!executor.interactive) {
 		// Reuse loaded script modules: collecting inputs can execute their top level.
-		const requirements = await collectChoiceRequirements(plugin.app, plugin, executor, choice, {
-			preloadedUserScripts: executor.preloadedUserScripts,
-		});
+		let requirements;
+		try {
+			// Nothing is asked for a template that is not there.
+			if (isTemplateChoice(choice)) checkTemplateSource(plugin.app, choice);
+			requirements = await collectChoiceRequirements(plugin.app, plugin, executor, choice, {
+				preloadedUserScripts: executor.preloadedUserScripts,
+			});
+		} catch (error) {
+			// Reading the inputs can already meet what is not set up, such as {{DAILY}}.
+			if (!(error instanceof RefusalError)) throw error;
+			reportRefusal(error, choice.name);
+			return { ok: false, error: error.message, choice: summary };
+		}
 		const unresolved = getUnresolvedRequirements(requirements, executor.variables);
 		if (unresolved.length) {
 			return {

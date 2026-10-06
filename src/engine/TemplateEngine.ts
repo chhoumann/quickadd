@@ -19,7 +19,7 @@ import type { ChoiceChain } from "./choiceChain";
 import type { App, TFile } from "obsidian";
 import { TFolder } from "obsidian";
 import type QuickAdd from "../main";
-import { getTemplateFile, resolveTemplatePath } from "../utils/templateFolderUtils";
+import { resolveTemplatePath } from "../utils/templateFolderUtils";
 import { getTemplater, overwriteTemplaterOnce, templaterParseTemplate } from "../utils/templaterIntegration";
 import {
 	BASE_FILE_EXTENSION_REGEX,
@@ -34,6 +34,7 @@ import { MacroAbortError } from "../errors/MacroAbortError";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import { log } from "../logger/logManager";
 import { assertCreatableFilePath } from "./assertCreatableFilePath";
+import { templateFileOrRefuse } from "./templateSource";
 import { restoreUserText, restoreUserTextAt } from "../formatters/helpers/userText";
 
 function isMacroAbortError(error: unknown): error is MacroAbortError {
@@ -229,8 +230,8 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	/**
 	 * Why the last template write failed.
 	 *
-	 * Each of the write helpers below reports the real cause ("Template file not found at
-	 * path …") and then returns null, so its caller only knew THAT the write failed, not
+	 * Each of the write helpers below reports the real cause ("Could not create file with
+	 * template at …") and then returns null, so its caller only knew THAT the write failed, not
 	 * why - and the caller is what records the run's outcome. A remote client was told
 	 * "Choice execution failed; no file was created." while the actionable sentence went
 	 * to a desktop notice nobody was watching (#1603).
@@ -299,7 +300,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "no note was created",
 			);
 
 			const { content: formattedTemplateContent, variables: templateVars } =
@@ -390,6 +391,18 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 
 
+	/**
+	 * What the note held right before this engine last wrote to it, read at
+	 * the moment of the write so an edit made while a prompt was open is not
+	 * undone with the run; null for a note the run created.
+	 */
+	protected writtenBefore: string | null = null;
+
+	/** The note's text right before this engine's last write; null for a created note. */
+	get writeBefore(): string | null {
+		return this.writtenBefore;
+	}
+
 	protected async overwriteFileWithTemplate(
 		file: TFile,
 		resolvedTemplatePath: string
@@ -397,14 +410,17 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "the note was not changed",
 			);
 
 			const { content: formattedTemplateContent, variables: templateVars } =
 				await this.prepareTemplateBody(templateContent, file.path,
 					file.basename, "overwriteFileWithTemplate");
 
-			await processNote(this.app, file, () => formattedTemplateContent);
+			await processNote(this.app, file, (content) => {
+				this.writtenBefore = content;
+				return formattedTemplateContent;
+			});
 
 			let rendered = false;
 			try {
@@ -439,7 +455,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 		this.lastTemplateFileFailure = null;
 		try {
 			const templateContent: string = await this.getTemplateContent(
-				resolvedTemplatePath
+				resolvedTemplatePath, "the note was not changed",
 			);
 
 			this.setTemplateDestination(file.path, file.basename);
@@ -459,6 +475,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 			}
 			formattedTemplateContent = restoreUserText(formattedTemplateContent);
 			const fileContent: string = await this.app.vault.cachedRead(file);
+			this.writtenBefore = fileContent;
 			const newFileContent: string =
 				section === "top"
 					? `${formattedTemplateContent}\n${fileContent}`
@@ -482,14 +499,12 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 	 * This method intentionally does not format, so {{date}}/{{random}} in a
 	 * template path won't re-evaluate between extension derivation and reading.
 	 */
-	protected async getTemplateContent(resolvedTemplatePath: string): Promise<string> {
-		const templateFile = getTemplateFile(this.app, resolvedTemplatePath);
-
-		if (!templateFile)
-			throw new Error(
-				`Template file not found at path "${resolvedTemplatePath}".`
-			);
-
-		return await this.app.vault.cachedRead(templateFile);
+	protected async getTemplateContent(
+		resolvedTemplatePath: string,
+		consequence = "nothing was written",
+	): Promise<string> {
+		return await this.app.vault.cachedRead(
+			templateFileOrRefuse(this.app, resolvedTemplatePath, consequence),
+		);
 	}
 }

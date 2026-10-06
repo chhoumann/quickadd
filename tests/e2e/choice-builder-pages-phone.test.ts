@@ -1,9 +1,11 @@
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { CaptureChoice } from "../../src/types/choices/CaptureChoice";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
+import { NestedChoiceCommand } from "../../src/types/macros/QuickCommands/NestedChoiceCommand";
 import type IChoice from "../../src/types/choices/IChoice";
-import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { clickWhenStill, insertText, jsLiteral, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
+import { createQuickAddE2EHarness } from "./e2eVault";
+import { insertText, jsLiteral, pickMenuItem, POLL_OPTS, quickCommandBarOverflow, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // A choice's settings page on a phone: Obsidian's phone settings, where the
 // page fills the screen under a header with the page's title and a back button
@@ -50,34 +52,39 @@ afterAll(async () => {
 	await emulateMobile(false);
 }, 60_000);
 
+const ICON_FIELD = 'input[aria-label="Choice icon"]';
+
+/** A macro page, its More settings open (run on startup is set) with the icon field last. */
 async function openMacroPage() {
-	await openChoicePage(new MacroChoice("Phone macro"));
-	await waitForElement(getContext().obsidian, ".macroBuilder .qa-command-sequence-input");
+	const macro = new MacroChoice("Phone macro");
+	macro.runOnStartup = true;
+	await openChoicePage(macro);
+	await waitForElement(getContext().obsidian, `.macroBuilder ${ICON_FIELD}`);
 }
 
 async function openChoicePage(choice: IChoice) {
 	const { obsidian, plugin } = getContext();
-	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[]; disableOnlineFeatures: boolean }>().patch(withStoredChoices((data) => {
 		data.choices = [choice];
-		// AI on adds the AI Assistant button, the widest quick-command bar.
+		// AI on adds Ask AI, the longest Add a step menu.
 		data.disableOnlineFeatures = false;
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	// On a phone settings closes with an animation, and opening it before that
-	// ends does nothing.
+	// ends does nothing. Settings can also come up with the QuickAdd tab active
+	// but not shown, so open it until its content is there.
 	await obsidian.dev.evalJson("app.setting.close(), true");
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(
 		'!document.querySelector(".modal.mod-settings")',
 	), { message: "settings closed", timeoutMs: 10_000 });
-	await obsidian.dev.evalJson("app.setting.open(), app.setting.openTabById('quickadd'), true");
-	// A phone row has no gear: its menu has Configure.
-	await clickWhenStill(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`);
 	await obsidian.waitFor(() => obsidian.dev.evalJson<boolean>(`(() => {
-		const item = [...document.querySelectorAll(".menu-item")].find((el) => el.textContent.trim() === "Configure");
-		item?.setAttribute("data-qa-configure", "");
-		return Boolean(item);
-	})()`), { message: "the row menu's Configure", timeoutMs: 10_000 });
-	await clickWhenStill(obsidian, ".menu-item[data-qa-configure]");
+		if (document.querySelector(".modal.mod-settings .vertical-tab-content-container > *")) return true;
+		if (!document.querySelector(".modal.mod-settings")) app.setting.open();
+		app.setting.openTabById("quickadd");
+		return false;
+	})()`), { message: "the QuickAdd settings tab shown", timeoutMs: 10_000, intervalMs: 500 });
+	// A phone row has no gear: its menu has Configure.
+	await pickMenuItem(obsidian, `[aria-label=${jsLiteral(`More options for ${choice.name}`)}]`, "Configure");
 	await expect.poll(
 		() => obsidian.dev.evalJson<string[]>("app.setting.pageStack.map((entry) => entry.page.title)"),
 		POLL_OPTS,
@@ -97,8 +104,7 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 			const page = document.querySelector(".macroBuilder");
 			return page.scrollWidth <= page.clientWidth;
 		})()`)).toBe(true);
-		// The quick-command bar keeps its card's padding, with all six buttons
-		// (AI is on) and no steps above it (#2145).
+		// The Add a step bar keeps its card's padding, with no steps above it (#2145).
 		expect(await quickCommandBarOverflow(obsidian)).toEqual([]);
 
 		const header = () => obsidian.dev.evalJson<[number, string | null]>(
@@ -114,16 +120,16 @@ it("fits the page to the phone and goes back to the QuickAdd tab, then the tab l
 });
 
 it("keeps the focused field and its suggestions above the keyboard, under a header that stays solid", async () => {
-	const { obsidian, sandbox } = getContext();
+	const { obsidian } = getContext();
 	try {
-		// A script for the field to suggest.
-		await seedVaultFile(obsidian, sandbox, "phoneScript.js", "module.exports = async () => {};\n");
 		await openMacroPage();
 		await obsidian.dev.evalJson(`(() => {
 			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
 			const page = document.querySelector(".macroBuilder");
 			page.scrollTop = 0;
-			[...page.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script")).focus({ preventScroll: true });
+			const field = page.querySelector(${jsLiteral(ICON_FIELD)});
+			field.focus({ preventScroll: true });
+			field.select();
 			window.dispatchEvent(new Event("keyboardDidShow"));
 			return true;
 		})()`);
@@ -144,7 +150,7 @@ it("keeps the focused field and its suggestions above the keyboard, under a head
 
 		// The emulated keyboard does not shrink the visual viewport, as on
 		// Android, so the list opens above the field, not under the keyboard.
-		await insertText(obsidian, "phoneScript");
+		await insertText(obsidian, "arrow");
 		await waitForElement(obsidian, ".suggestion-container .suggestion-item");
 		expect(await obsidian.dev.evalJson<boolean>(`(() => {
 			const list = document.querySelector(".suggestion-container").getBoundingClientRect();
@@ -161,15 +167,18 @@ it("keeps a field's suggestions under the settings header, with its back and clo
 	const { obsidian } = getContext();
 	try {
 		await openMacroPage();
-		// The Obsidian command field a little under the header, with the keyboard
-		// up: its list has room neither above nor below for all 240px of it.
+		// The icon field a little under the header, with the keyboard up: its
+		// list has room neither above nor below for all 240px of it.
 		await obsidian.dev.evalJson(`(() => {
 			document.documentElement.style.setProperty("--keyboard-height", "${KEYBOARD}px");
 			const page = document.querySelector(".qa-builder-page");
 			const header = document.querySelector(".modal.mod-settings .modal-header").getBoundingClientRect();
-			const field = [...page.querySelectorAll("input")].find((input) => input.placeholder === "Obsidian command");
+			const field = page.querySelector(${jsLiteral(ICON_FIELD)});
 			page.scrollTop += field.getBoundingClientRect().top - (header.bottom + 180);
+			// Empty, so it suggests the whole list.
+			field.value = "";
 			field.focus({ preventScroll: true });
+			field.dispatchEvent(new Event("input"));
 			window.dispatchEvent(new Event("keyboardDidShow"));
 			return true;
 		})()`);
@@ -213,6 +222,58 @@ it("lines up the toggles on the right edge of their card (#2146)", async () => {
 				return short > 0.5 ? [row.querySelector(".setting-item-name").textContent + ": " + Math.round(short) + "px"] : [];
 			});
 		})()`)).toEqual([]);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});
+
+it("keeps a step's buttons in its card when the line under it is long", async () => {
+	const { obsidian } = getContext();
+	try {
+		const macro = new MacroChoice("Phone steps");
+		const write = new CaptureChoice("Add to review");
+		write.captureTo = "Reviews/Quarterly/{{DATE:YYYY}}/Weekly review of the projects in flight.md";
+		macro.macro.commands.push(new NestedChoiceCommand(write));
+		await openChoicePage(macro);
+		await waitForElement(obsidian, ".macroBuilder .quickAddCommandListItem");
+		expect(await obsidian.dev.evalJson<Record<string, unknown>>(`(() => {
+			const list = document.querySelector(".macroBuilder .quickAddCommandList");
+			const button = list.querySelector(".quickAddCommandControls button:last-of-type").getBoundingClientRect();
+			return { scrolls: list.scrollWidth > list.clientWidth, buttonInside: button.right <= list.getBoundingClientRect().right };
+		})()`)).toEqual({ scrolls: false, buttonInside: true });
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});
+
+it("keeps More settings on one line with its chevron", async () => {
+	const { obsidian } = getContext();
+	try {
+		await openChoicePage(new CaptureChoice("Phone more settings"));
+		await waitForElement(obsidian, ".qaMoreSettingsRow");
+		expect(await obsidian.dev.evalJson<boolean>(`(() => {
+			const row = document.querySelector(".qaMoreSettingsRow");
+			const name = row.querySelector(".setting-item-name").getBoundingClientRect();
+			const chevron = row.querySelector(".qaMoreSettingsChevron").getBoundingClientRect();
+			return chevron.top < name.bottom && chevron.bottom > name.top;
+		})()`)).toBe(true);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});
+
+it("takes the icon field to the card's edge, as the fields above it", async () => {
+	const { obsidian } = getContext();
+	try {
+		const capture = new CaptureChoice("Phone icon");
+		capture.openFile = true;
+		await openChoicePage(capture);
+		await waitForElement(obsidian, `.qa-builder-page ${ICON_FIELD}`);
+		expect(await obsidian.dev.evalJson<number>(`(() => {
+			const icon = document.querySelector(".qa-builder-page " + ${jsLiteral(ICON_FIELD)}).getBoundingClientRect();
+			const name = document.querySelector(".qa-builder-page .setting-group input").getBoundingClientRect();
+			return Math.round(name.right - icon.right);
+		})()`)).toBe(0);
 	} finally {
 		await obsidian.dev.evalJson("app.setting.close(), true");
 	}

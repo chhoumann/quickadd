@@ -1,11 +1,15 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
+import { flushSync } from "svelte";
 
-const { editorChoices } = vi.hoisted(() => ({ editorChoices: { names: [] as string[] } }));
+const { editorChoices } = vi.hoisted(() => ({
+	editorChoices: { names: [] as string[], onCommandsChange: null as ((commands: unknown[]) => void) | null },
+}));
 
 vi.mock("./CommandSequenceEditor", () => ({
 	CommandSequenceEditor: class {
-		constructor(options: { choices: { name: string }[] }) {
+		constructor(options: { choices: { name: string }[]; onCommandsChange: (commands: unknown[]) => void }) {
 			editorChoices.names = options.choices.map((choice) => choice.name);
+			editorChoices.onCommandsChange = options.onCommandsChange;
 		}
 
 		render(parent: HTMLElement) {
@@ -24,20 +28,31 @@ import type QuickAdd from "../../main";
 import type IMacroChoice from "../../types/choices/IMacroChoice";
 import { MacroChoice } from "../../types/choices/MacroChoice";
 import { MacroBuilder } from "./MacroBuilder";
+import { WaitCommand } from "../../types/macros/QuickCommands/WaitCommand";
 
 const plugin = { settings: { choices: [] } } as unknown as QuickAdd;
 
-/** The builder page, displayed as Obsidian displays it when it opens. */
+/**
+ * The builder page, displayed as Obsidian displays it when it opens, with
+ * its More settings shown.
+ */
 function openPage(choice: IMacroChoice, onSave: (choice: IMacroChoice) => void = () => {}) {
 	const page = new MacroBuilder(new App(), plugin, choice, [], onSave);
 	page.display();
+	page.containerEl.querySelector<HTMLButtonElement>('.qaMoreSettings button[aria-expanded="false"]')?.click();
+	flushSync();
 	return page;
 }
 
-/** The rows of the page's last settings group, Behavior. */
+const moreSettingsShown = (page: MacroBuilder) =>
+	page.containerEl.querySelector('.qaMoreSettings button[aria-label="More settings"]')?.getAttribute("aria-expanded");
+
+/** The rows of the Behavior group, under More settings. */
 function behaviorRows(page: MacroBuilder): Element[] {
-	const groups = Array.from(page.containerEl.children);
-	return Array.from(groups.at(-1)?.lastElementChild?.children ?? []);
+	const behavior = Array.from(page.containerEl.querySelectorAll(".qaMoreSettings h3"))
+		.find((heading) => heading.textContent === "Behavior")
+		?.parentElement?.parentElement;
+	return Array.from(behavior?.lastElementChild?.children ?? []);
 }
 
 describe("MacroBuilder", () => {
@@ -55,6 +70,56 @@ describe("MacroBuilder", () => {
 		expect(rows.at(-2)?.textContent).toContain("Add to command palette");
 		expect(rows.at(-1)?.textContent).toContain("Icon");
 		expect(rows.at(-1)?.textContent).toContain("Lucide/Obsidian icon id");
+	});
+
+	it("leads with what its steps do, and follows them as they change", () => {
+		const page = openPage(new MacroChoice("Macro under test"));
+		const lede = () => page.containerEl.querySelector(".qaChoiceSummaryText")?.textContent;
+		expect(lede()).toBe("No steps yet");
+
+		editorChoices.onCommandsChange?.([new WaitCommand(250)]);
+		flushSync();
+		expect(lede()).toBe("Waits 250 ms");
+	});
+
+	it("keeps a new macro's settings behind More settings, closed", () => {
+		const page = new MacroBuilder(new App(), plugin, new MacroChoice("Macro under test"), [], () => {});
+		page.display();
+
+		expect(moreSettingsShown(page)).toBe("false");
+		expect(page.containerEl.textContent).not.toContain("Run on startup");
+	});
+
+	it("opens More settings on a macro that runs on startup", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.runOnStartup = true;
+		const page = new MacroBuilder(new App(), plugin, choice, [], () => {});
+		page.display();
+
+		expect(moreSettingsShown(page)).toBe("true");
+		expect(behaviorRows(page).some((row) => row.textContent?.includes("Run on startup"))).toBe(true);
+	});
+
+	it("keeps More settings open when a setting under it redraws the page", () => {
+		const choice = new MacroChoice("Macro under test");
+		choice.dateOrigin = { kind: "ask" };
+		const page = new MacroBuilder(new App(), plugin, choice, [], () => {});
+		page.display();
+		expect(moreSettingsShown(page)).toBe("true");
+
+		const whichDay = page.containerEl.querySelectorAll<HTMLSelectElement>(".qaMoreSettings select")[1];
+		whichDay.value = "today";
+		whichDay.dispatchEvent(new Event("change"));
+		flushSync();
+
+		expect(choice.dateOrigin).toBeUndefined();
+		expect(moreSettingsShown(page)).toBe("true");
+	});
+
+	it("heads its steps Steps", () => {
+		const page = openPage(new MacroChoice("Macro under test"));
+		const group = Array.from(page.containerEl.children).find((el) => el.querySelector(".quickAddCommandEditor"));
+		expect(group?.querySelector("h3")?.textContent).toBe("Steps");
 	});
 
 	it("leaves the macro out of the choices its steps can run", () => {

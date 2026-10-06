@@ -23,6 +23,11 @@ export const DOCS_URLS = {
 	packages: `${DOCS_BASE_URL}/docs/Choices/Packages/`,
 } as const;
 
+/** A docs site path (`/docs/...` or `docs/...`) as a full URL. */
+export function docsUrl(path: string): string {
+	return `${DOCS_BASE_URL}/${path.replace(/^\//, "")}`;
+}
+
 /**
  * Open a documentation URL in the user's browser.
  *

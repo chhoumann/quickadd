@@ -1,0 +1,130 @@
+book-finder | Add book note
+    Runs BookFinder.js, creates Books/{fileName} from Book, opens it
+brain-dump | Brain dump
+    Runs brainDump.js
+brain-dump | Brain dump entry
+    Adds a line at the bottom of Inbox
+canvas-capture | Add idea to card
+    Adds a line at the bottom of the current note
+capture-inbox-gps | Capture to Inbox with GPS
+    Runs captureInboxGps.js
+change-daily-property | Change daily note property
+    Runs changeDailyProperty.js
+daily-note-captures | Daily note / Journal entry
+    Adds a line under ## Journal in today's daily note
+daily-note-captures | Daily note / Task
+    Adds a task under ## Tasks in today's daily note
+daily-note-captures | Daily note / Task with due date
+    Adds a task under ## Tasks in today's daily note
+daily-note-captures | Daily note / Quote
+    Adds a line under ## Quotes in today's daily note
+daily-note-captures | Daily note / Callout
+    Adds a line under > [!info]- Captured today in today's daily note
+inbox-item | Inbox item
+    Creates Inbox/{date} {name} from Inbox Template, opens it
+kanban-task | Add task to board
+    Adds a task under ## Backlog in a chosen note
+location-from-address | Add location from address
+    Runs getLongLatFromAddress.js
+log-book | Log book
+    Runs logBook.js
+meeting-notes | New meeting
+    Creates Meetings/{date} {Meeting} from Meeting, opens it
+meeting-notes | Add project update
+    Adds a line at the bottom of the current note
+migrate-dataview-properties | Migrate Dataview properties
+    Runs migrateDataviewToFrontmatter.js
+moc-link-dashboard | New MOC note
+    Creates MOCs/{moc_title} from MOC Link Dashboard, opens it
+moc-related-notes | Insert related notes base
+    Adds a line at the top of the current note
+move-tagged-notes | Move notes with a tag
+    Runs moveNotesWithTag.js
+movie-notes | Add movie note
+    Runs movies.js, creates Movies/{fileName} from Movie, opens it
+readwise-book-notes | Add Book Notes
+    Creates Books/{Readwise::getBooks} from Book Notes, opens it
+readwise-book-notes | Readwise
+    Runs readwise.js
+todoist-tasks | Import Todoist tasks
+    Adds a line at the top of Todoist tasks
+todoist-tasks | Todoist
+    Runs todoistTaskSync.js
+toggl-manager | Toggl manager
+    Runs togglManager.js
+zettelizer | Zettelize headings
+    Runs zettelizer.js
+fixture | Top of note
+    Adds a line at the top of Inbox
+fixture | Bottom of note
+    Adds a line at the bottom of Inbox
+fixture | After heading
+    Adds a line under ## Log in Inbox
+fixture | After a chosen heading
+    Adds a line under a chosen heading in Inbox
+fixture | Before line
+    Adds a line before ## End in Inbox
+fixture | Bottom beats after
+    Adds a line at the bottom of Inbox
+fixture | Every switch on
+    Adds a line at the bottom of Inbox
+fixture | At cursor
+    Adds a line at the cursor in the current note
+fixture | Top of active note
+    Adds a line at the top of the current note
+fixture | Bottom of active note (legacy prepend)
+    Adds a line at the bottom of the current note
+fixture | Active top beats prepend
+    Adds a line at the top of the current note
+fixture | New line above
+    Adds a line on a new line above the cursor in the current note
+fixture | New line below
+    Adds a line on a new line below the cursor in the current note
+fixture | After heading in active note
+    Adds a line at the bottom of the current note
+fixture | Property, leftover after-line switch
+    Sets mood in today's daily note
+fixture | Add to a list property
+    Adds to a chosen property in a note tagged #project
+fixture | Stashed settings
+    Adds a line at the top of Inbox
+fixture | Capture with every follow-up
+    Adds a task at the top of a note in Projects/, runs Templater on it, links it at the cursor here and copies its link, opens it
+fixture | Canvas card
+    Adds a line under ## Ideas in Board.canvas
+fixture | Copy link only
+    Adds a line at the top of Inbox, copies its link
+fixture | Default folder
+    Creates {date} {Topic} from Note
+fixture | Specified folders
+    Creates {folder}/{date} {Topic} from Note
+fixture | Active file folder
+    Creates {current folder}/{date} {Topic} from Note
+fixture | Ask for folder
+    Creates {folder}/{date} {Topic} from Note
+fixture | Ask and active folder both on
+    Creates {folder}/{date} {Topic} from Note
+fixture | Folder off with flags on
+    Creates {date} {Topic} from Note
+fixture | Link into a property of a note
+    Creates {title} from Note, links it at the bottom of Index, opens it
+fixture | Legacy boolean link
+    Creates {date} {Topic} from Note, links it at the cursor here
+fixture | Legacy file-exists and open settings
+    Creates {date} {Topic} from Note, opens it
+fixture | Template with its own date
+    Creates {date} {Topic} from Note
+fixture | Macro with every step
+    Runs 'Toggle', paste in the editor, runs lib.js::build, runs 'Top of note', runs 'fx-missing', waits 250 ms, asks AI for {summary}, opens {date} log.md, opens Inbox.md, opens Board.md, creates {date} {Topic} from Note, opens it, runs 'Templater: Replace templates in the active file', adds a line at the top of Inbox, runs Templater on it, links it at the cursor here, if kind equals task then adds a task at the top of Inbox, otherwise waits 10 ms, runs 'Nested macro' (runs inner.js), asks which of 'Option A' to run, runs 'Tomorrow's note' (creates {date} {Topic} from Note), runs 'Inner name' (creates {date} {Topic} from Note), skips a step this version cannot read
+fixture | Array-valued macro
+    Runs a.js
+fixture | Old keys
+    Adds a line at the top of Inbox
+fixture | Old nested choice
+    Adds a line at the cursor in the current note, waits 10 ms
+fixture | Macro holding one template
+    Creates {date} {Topic} from Note
+fixture | Folder / Child capture
+    Adds a line at the top of Inbox
+fixture | Folder / Inner folder / Inner template
+    Creates {date} {Topic} from Note

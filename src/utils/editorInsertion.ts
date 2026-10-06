@@ -14,6 +14,7 @@ import { appendConfiguredFrontmatterPropertyLinkValue } from "./frontmatterPrope
 import { processNoteFrontMatter } from "./noteContent";
 import type { CapturePlacementResult } from "../formatters/helpers/capturePlacement";
 import type { EditorCursorPlacement, EditorTextMutationObserver } from "./editorCursorPlacement";
+import { refuse } from "../errors/RefusalError";
 
 export function insertCaptureInEditor(
 	payload: CapturePlacementResult,
@@ -81,20 +82,21 @@ export function getMarkdownEditorViewForFile(
 	return null;
 }
 
+/** Inserting at the cursor with no note open in an editor. */
+function noEditorRefusal() {
+	return refuse("no note is open in an editor", "there is nothing to add to");
+}
+
 /**
- * @returns true if the text was inserted, false if there was no active Markdown
- * editor to insert into (or insertion threw). Callers that need to know whether
- * the capture actually landed (e.g. the URI x-callback handler) must check this.
+ * @returns true if the text was inserted, false if insertion threw. Callers that
+ * need to know whether the capture actually landed (e.g. the URI x-callback
+ * handler) must check this.
+ * @throws a refusal when no Markdown editor is active.
  */
 export function appendToCurrentLine(toAppend: string, app: App): boolean {
+	const activeView = getActiveMarkdownEditorView(app);
+	if (!activeView) throw noEditorRefusal();
 	try {
-		const activeView = getActiveMarkdownEditorView(app);
-
-		if (!activeView) {
-			log.logError(`unable to append '${toAppend}' to current line.`);
-			return false;
-		}
-
 		activeView.editor.replaceSelection(toAppend);
 		return true;
 	} catch {
@@ -103,16 +105,11 @@ export function appendToCurrentLine(toAppend: string, app: App): boolean {
 	}
 }
 
-/** @returns true if inserted, false if no active Markdown editor (or it threw). */
+/** @returns true if inserted, false if it threw. @throws a refusal when no Markdown editor is active. */
 export function insertOnNewLine(toInsert: string, direction: "above" | "below", app: App): boolean {
+	const activeView = getActiveMarkdownEditorView(app);
+	if (!activeView) throw noEditorRefusal();
 	try {
-		const activeView = getActiveMarkdownEditorView(app);
-
-		if (!activeView) {
-			log.logError(`unable to insert '${toInsert}' on new line ${direction}.`);
-			return false;
-		}
-
 		const editor = activeView.editor;
 		const cursor = editor.getCursor();
 		const lineNumber = cursor.line;

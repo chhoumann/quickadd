@@ -17,8 +17,8 @@ This macro asks which book you are reading and writes your answer to the **Book*
 Imported the package above? The script and the **Log book** macro are already in place; skip to step 4 to check its settings, then run it.
 
 1. <a href="/scripts/logBook.js" download>Download logBook.js</a> and save it somewhere in your vault (not inside the `.obsidian` folder). See [the user scripts guide](/docs/UserScripts/) for how QuickAdd loads scripts.
-2. In **Settings → QuickAdd**, click **New choice** → **Macro**. The Macro Builder opens; click its name at the top to rename it (for example, `Log Book`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
-3. In the Macro Builder, add your script as a **User Script** command.
+2. In **Settings → QuickAdd**, click **New choice** → **Run a script**. The Macro Builder opens with one script step; set **Name** (for example, `Log Book`). See [the Macro choice docs](/docs/Choices/MacroChoice/) for a full walkthrough.
+3. On the script step, click **Choose file** and pick `logBook.js`.
 4. Click the cog on the script step. Leave **Daily note path** empty to use the Daily notes plugin's folder and date format, or set it to where your daily notes live, with their date format, for example `bins/daily/{{DATE:YYYY-MM-DD - ddd MMM D}}.md`. Change **Property name** if you want to log to something other than `Book`.
 
 Run the macro and enter a book title at the prompt. QuickAdd updates the **Book** property in today's journal note to that title.

@@ -4,6 +4,7 @@ import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
 import { POLL_OPTS, expectNoPrompt, jsLiteral, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #1876: the one-page form lists fields in the order the format reads, not
 // dates first and the capture text last.
@@ -40,17 +41,17 @@ describe("one-page form field order", () => {
 			enabled: true,
 			format: "### {{VALUE}} for {{VALUE:client}}\n- [ ] Deliver 📅 {{VDATE:due,YYYY-MM-DD}}\n- [ ] Invoice 📅 {{VALUE:due}}\n",
 		};
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = false;
 			data.choices.push(choice);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 
 		await waitForElement(obsidian, FIELD);
 		expect(await obsidian.dev.evalJson<string[]>(
 			`Array.from(document.querySelectorAll(${JSON.stringify(FIELD)})).map((field) => field.querySelector(".setting-item-name")?.textContent ?? "")`,
-		)).toEqual(["Enter value", "client", "due"]);
+		)).toEqual(["Text to capture", "client", "due"]);
 
 		for (const [index, text] of ["48 mugs", "Northwind", "2026-10-02"].entries()) {
 			expect(await obsidian.dev.evalJson<boolean>(`(() => {
@@ -83,10 +84,10 @@ describe("one-page form capture target", () => {
 		choice.onePageInput = "always";
 		choice.captureTo = `${sandbox.path("inbox")}/`;
 		choice.format = { enabled: true, format: "- {{VALUE:what}} 📅 {{VDATE:due,YYYY-MM-DD}}\n" };
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = false;
 			data.choices.push(choice);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 
@@ -137,10 +138,10 @@ describe("one-page form for a Template choice", () => {
 		choice.templatePath = template;
 		choice.fileNameFormat = { enabled: true, format: "{{VALUE:title|label:Note title}}" };
 		choice.folder = { ...choice.folder, enabled: true, folders: [`${sandbox.path("clients")}/{{VALUE:client|label:Client}}`] };
-		await plugin.data<QuickAddData>().patch((data) => {
+		await plugin.data<QuickAddData>().patch(withStoredChoices((data) => {
 			data.onePageInputEnabled = false;
 			data.choices.push(choice);
-		});
+		}));
 		await plugin.reload({ waitUntilReady: true });
 		await obsidian.exec("command", { id: `quickadd:choice:${choice.id}` });
 

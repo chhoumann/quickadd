@@ -179,7 +179,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setLink(null);
 			f.setFilename(null);
 			expect(() => f.combined("{{FILENAMECURRENT}} {{LINKCURRENT}}", allTokens)).toThrow(
-				"Unable to get current file path",
+				"No note is open, so {{LINKCURRENT}} has nothing to link to.",
 			);
 		});
 
@@ -188,7 +188,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setBehavior("required");
 			f.setFilename(null);
 			expect(() => f.combined("{{FILENAMECURRENT}}", allTokens)).toThrow(
-				"Unable to get current file name",
+				"No note is open, so {{FILENAMECURRENT}} has no name to give.",
 			);
 		});
 
@@ -200,7 +200,7 @@ describe("#1358 note-derived token rescan", () => {
 			// Filename token appears first, but the link message must still win.
 			expect(() =>
 				f.combined("{{FILENAMECURRENT}} then {{LINKCURRENT}}", allTokens),
-			).toThrow("Unable to get current file path");
+			).toThrow("No note is open, so {{LINKCURRENT}} has nothing to link to.");
 		});
 
 		it("optional + no active file strips active link/filename tokens", () => {

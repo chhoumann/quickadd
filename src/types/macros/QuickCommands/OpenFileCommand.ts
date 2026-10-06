@@ -24,7 +24,7 @@ export class OpenFileCommand implements IOpenFileCommand {
 		this.direction = direction;
 		this.location = location;
 		this.focus = focus;
-		this.name = `Open file: ${this.filePath}`;
+		this.name = `Open note: ${this.filePath}`;
 
 		// Keep legacy flags in sync for backward compatibility (older builds read them).
 		this.applyLegacyFromLocation();

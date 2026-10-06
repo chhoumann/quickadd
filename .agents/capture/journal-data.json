@@ -1,0 +1,186 @@
+{
+	"actions": [
+		{
+			"kind": "action",
+			"id": "06363c82-8a27-49b9-a6dd-a9ca296c5dbd",
+			"name": "Add to journal",
+			"icon": "pencil",
+			"steps": [
+				{
+					"id": "06363c82-8a27-49b9-a6dd-a9ca296c5dbd",
+					"type": "addToNote",
+					"captureTo": "Journal/{{DATE}}.md",
+					"captureToActiveFile": false,
+					"captureToCanvasNodeId": "",
+					"position": "bottom",
+					"format": {
+						"enabled": true,
+						"format": "- {{DATE:HH:mm}} {{VALUE}}"
+					},
+					"insertAfter": {
+						"after": "",
+						"insertAtEnd": true,
+						"considerSubsections": false,
+						"createIfNotFound": true,
+						"createIfNotFoundLocation": "top",
+						"inline": false,
+						"replaceExisting": false,
+						"blankLineAfterMatchMode": "auto",
+						"promptHeading": false
+					},
+					"insertBefore": {
+						"before": "",
+						"createIfNotFound": false,
+						"createIfNotFoundLocation": "top"
+					},
+					"createFileIfItDoesntExist": {
+						"enabled": true,
+						"createWithTemplate": false,
+						"template": ""
+					},
+					"task": false
+				}
+			],
+			"show": {
+				"command": false
+			}
+		},
+		{
+			"kind": "action",
+			"id": "b65527c1-cf1e-4d91-ab15-04805cd8ea2b",
+			"name": "Task",
+			"icon": "check-square",
+			"steps": [
+				{
+					"id": "b65527c1-cf1e-4d91-ab15-04805cd8ea2b",
+					"type": "addToNote",
+					"captureTo": "{{DAILY}}",
+					"captureToActiveFile": false,
+					"captureToCanvasNodeId": "",
+					"position": "after",
+					"format": {
+						"enabled": false,
+						"format": ""
+					},
+					"insertAfter": {
+						"after": "## Tasks",
+						"insertAtEnd": true,
+						"considerSubsections": false,
+						"createIfNotFound": true,
+						"createIfNotFoundLocation": "bottom",
+						"inline": false,
+						"replaceExisting": false,
+						"blankLineAfterMatchMode": "auto",
+						"promptHeading": false
+					},
+					"insertBefore": {
+						"before": "",
+						"createIfNotFound": false,
+						"createIfNotFoundLocation": "top"
+					},
+					"createFileIfItDoesntExist": {
+						"enabled": true,
+						"createWithTemplate": false,
+						"template": ""
+					},
+					"task": true
+				}
+			],
+			"show": {
+				"command": false
+			}
+		},
+		{
+			"kind": "action",
+			"id": "8e90f6ee-ed9a-401f-a217-daf0f293e926",
+			"name": "New note",
+			"icon": "file-plus",
+			"steps": [
+				{
+					"id": "8e90f6ee-ed9a-401f-a217-daf0f293e926",
+					"type": "createNote",
+					"templatePath": "",
+					"fileNameFormat": {
+						"enabled": false,
+						"format": ""
+					},
+					"location": {
+						"mode": "default",
+						"folders": [],
+						"includeSubfolders": false
+					},
+					"fileExistsBehavior": {
+						"kind": "prompt"
+					},
+					"discoverExistingNotesBeforeCreate": false
+				}
+			],
+			"show": {
+				"command": false
+			}
+		},
+		{
+			"kind": "action",
+			"id": "54659787-b136-46d2-962c-6cf5cbf0bdfc",
+			"name": "Log",
+			"icon": "clock",
+			"steps": [
+				{
+					"id": "54659787-b136-46d2-962c-6cf5cbf0bdfc",
+					"type": "addToNote",
+					"captureTo": "{{DAILY}}",
+					"captureToActiveFile": false,
+					"captureToCanvasNodeId": "",
+					"position": "after",
+					"format": {
+						"enabled": true,
+						"format": "- {{TIME}} {{VALUE}}"
+					},
+					"insertAfter": {
+						"after": "## Log",
+						"insertAtEnd": true,
+						"considerSubsections": false,
+						"createIfNotFound": true,
+						"createIfNotFoundLocation": "bottom",
+						"inline": false,
+						"replaceExisting": false,
+						"blankLineAfterMatchMode": "auto",
+						"promptHeading": false
+					},
+					"insertBefore": {
+						"before": "",
+						"createIfNotFound": false,
+						"createIfNotFoundLocation": "top"
+					},
+					"createFileIfItDoesntExist": {
+						"enabled": true,
+						"createWithTemplate": false,
+						"template": ""
+					},
+					"task": false
+				}
+			],
+			"show": {
+				"command": false
+			}
+		}
+	],
+	"migrations": {
+		"useQuickAddTemplateFolder": true,
+		"incrementFileNameSettingMoveToDefaultBehavior": true,
+		"consolidateFileExistsBehavior": true,
+		"repairTemplateFileExistsBehavior": true,
+		"mutualExclusionInsertAfterAndWriteToBottomOfFile": true,
+		"setVersionAfterUpdateModalRelease": true,
+		"addDefaultAIProviders": true,
+		"removeMacroIndirection": true,
+		"migrateFileOpeningSettings": true,
+		"backfillFileOpeningDefaults": true,
+		"setProviderModelDiscoveryMode": true,
+		"migrateProviderApiKeysToSecretStorage": true,
+		"migrateToMultipleTemplateFolders": true,
+		"refreshStaleDefaultModelSeeds": true,
+		"pinAiModelRefs": true,
+		"migrateToV3Actions": true
+	}
+}

@@ -3,7 +3,6 @@ import { tick } from "svelte";
 import type QuickAdd from "../../main";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
-import type { ChoiceType } from "../../types/choices/choiceType";
 import {
 	type CommandRegistry,
 	configureChoice,
@@ -22,15 +21,23 @@ import {
 } from "../../services/choiceService";
 import { log } from "../../logger/logManager";
 import { choiceNoun } from "../../utils/choiceNoun";
-import { reportingHandler } from "../../utils/errorUtils";
+import { reportingHandler, reportUnlessCancelled } from "../../utils/errorUtils";
 import { type Plain, snapshot } from "../svelte/persist.svelte";
 import { promptRenameChoice } from "../choiceRename";
 import { MOVE_TO_ROOT_TARGET_ID } from "./contextMenu";
-import { uniqueDefaultChoiceName } from "./choiceTypeMeta";
+import { createFromPreset, FOLDER_NAME, type Preset } from "./presets";
+import { uniqueChoiceName } from "./uniqueChoiceName";
+import { DEFAULT_TEMPLATE_FOLDER, type FirstRunPlan, readTemplateFolder } from "./firstRun";
+import { ensureParentFolders } from "../../utils/ensureParentFolders";
 import type { ChoiceListActions } from "./choiceListActions";
-import { subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
+import { replaceChoiceHelper, subtreeHasCommand, updateChoiceHelper } from "./choiceViewTree";
 import { threeWayMergeSettings } from "../../utils/settingsPersistMerge";
 import { settingsStore } from "../../settingsStore";
+import { withStep } from "../../v3/addStep";
+import type { Step } from "../../v3/model";
+import { backOutOfBuilderPages } from "../ChoiceBuilder/builderPage";
+import { ImportPackageModal } from "../PackageManager/ImportPackageModal";
+import { RecipesModal } from "../recipes/RecipesModal";
 
 interface ChoiceViewContext {
 	app: App;
@@ -42,34 +49,33 @@ interface ChoiceViewContext {
 }
 
 /** Access live component state after every await, so intervening store writes survive. */
-export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListActions {
+export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListActions & {
+	onCreateFirstRun: (plan: FirstRunPlan) => Promise<void>;
+	onBrowseRecipes: () => void;
+	onImportPackage: () => void;
+} {
 	// Persist the current choices as a plain (non-proxy) snapshot.
 	function save() {
 		context.saveChoices(snapshot(context.choices));
 	}
 
+	function choiceFromPreset(preset: Preset): IChoice {
+		const templateFolder = readTemplateFolder(context.app, settingsStore.getState()) ?? DEFAULT_TEMPLATE_FOLDER;
+		const newChoice = createFromPreset(preset, { templateFolder });
+		newChoice.name = uniqueChoiceName(preset.name, context.choices);
+		// The outcome's icon, not the type's, so the list and launcher read by it.
+		newChoice.icon = preset.iconId;
+		return newChoice;
+	}
+
 	async function addChoiceToList(
-		_name: string,
-		type: ChoiceType,
+		preset: Preset,
 		targetFolderId?: string,
 		skipConfigure = false,
 	): Promise<void> {
-		const name = uniqueDefaultChoiceName(type, context.choices);
-		const newChoice = createChoice(type, name);
-		context.choices = addChoiceToTree(context.choices, newChoice, targetFolderId);
-
-		// A root-level add while a filter is active would otherwise look like
-		// nothing happened (the auto-named choice may not match the filter).
-		if (!targetFolderId && context.filterQuery.trim().length > 0) {
-			context.filterQuery = "";
-		}
-
-		// Persist before opening any editor: an external store write can arrive while
-		// it is open. Cancellation keeps the saved default-named choice.
-		save();
-		if (type === "Multi") {
-			await handleRenameChoice(newChoice);
-		} else if (!skipConfigure) {
+		const newChoice = choiceFromPreset(preset);
+		insert(newChoice, targetFolderId);
+		if (!skipConfigure) {
 			try {
 				// The builder opens over this list, which shows it again when left.
 				if (handleConfigureChoice(newChoice)) return;
@@ -81,6 +87,43 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			}
 		}
 		await revealChoice(newChoice.id);
+	}
+
+	// The first run's choices: the files they need, never over one that exists,
+	// then the choices at the root, saved once, with no builder.
+	async function createFirstRun(plan: FirstRunPlan): Promise<void> {
+		const { vault } = context.app;
+		for (const file of plan.files) {
+			if (await vault.adapter.exists(file.path)) continue;
+			await ensureParentFolders(context.app, file.path);
+			await vault.create(file.path, file.content);
+		}
+		for (const choice of plan.choices) {
+			choice.name = uniqueChoiceName(choice.name, context.choices);
+			context.choices = addChoiceToTree(context.choices, choice);
+		}
+		save();
+	}
+
+	async function addFolderToList(targetFolderId?: string): Promise<void> {
+		const folder = createChoice("Multi", uniqueChoiceName(FOLDER_NAME, context.choices));
+		insert(folder, targetFolderId);
+		await handleRenameChoice(folder);
+		await revealChoice(folder.id);
+	}
+
+	function insert(newChoice: IChoice, targetFolderId?: string) {
+		context.choices = addChoiceToTree(context.choices, newChoice, targetFolderId);
+
+		// A root-level add while a filter is active would otherwise look like
+		// nothing happened (the auto-named choice may not match the filter).
+		if (!targetFolderId && context.filterQuery.trim().length > 0) {
+			context.filterQuery = "";
+		}
+
+		// Persist before opening any editor: an external store write can arrive while
+		// it is open. Cancellation keeps the saved default-named choice.
+		save();
 	}
 
 	// Scroll a just-added row into view so the add never "looks like nothing
@@ -126,17 +169,43 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 
 	/** Opens the builder page. Returns false if it could not open. */
 	function handleConfigureChoice(oldChoice: IChoice): boolean {
+		return openBuilder(liveChoice(oldChoice));
+	}
+
+	function openBuilder(choice: IChoice): boolean {
 		// A builder saves each time the app goes to the background and once more
 		// when it is left; say a deletion elsewhere once.
 		let toldDeleted = false;
-		return configureChoice(liveChoice(oldChoice), context.app, context.plugin, (edited, base) =>
-			// Obsidian logs and swallows a throw from a page's hide(); say it.
-			reportingHandler(`Couldn't save the ${choiceNoun(base.type)} “${base.name}”`, () => {
-				if (saveBuilderEdits(base, edited) || toldDeleted) return;
-				toldDeleted = true;
-				new Notice(`QuickAdd: “${base.name}” was deleted elsewhere, so your changes to it were not saved.`);
-			})(),
+		return configureChoice(
+			choice,
+			context.app,
+			context.plugin,
+			(edited, base) =>
+				// Obsidian logs and swallows a throw from a page's hide(); say it.
+				reportingHandler(`Couldn't save the ${choiceNoun(base.type)} “${base.name}”`, () => {
+					if (saveBuilderEdits(base, edited) || toldDeleted) return;
+					toldDeleted = true;
+					new Notice(`QuickAdd: “${base.name}” was deleted elsewhere, so your changes to it were not saved.`);
+				})(),
+			{ onAddStep: reportingHandler("Couldn't add that step", (step: Step) => addStepToChoice(choice.id, step)) },
 		);
+	}
+
+	// The Template or Capture builder saved before handing the choice over. It
+	// becomes a Macro, which replaces it whole (a merge would keep the old
+	// type's settings on it), and the macro builder takes over from the page.
+	function addStepToChoice(id: string, step: Step): void {
+		const choices = settingsStore.getState().choices;
+		const current = findChoiceById(choices, id);
+		if (!current) {
+			new Notice("QuickAdd: That choice was deleted elsewhere, so no step was added.");
+			return;
+		}
+		const converted = withStep(current, step);
+		context.saveChoices(snapshot(choices.map((choice) => replaceChoiceHelper(choice, converted))));
+		context.commandRegistry.updateCommand(current, converted);
+		backOutOfBuilderPages(context.app);
+		openBuilder(converted);
 	}
 
 	// The builder is a settings page, and Obsidian tears this view down while it
@@ -288,14 +357,15 @@ export function createChoiceViewActions(context: ChoiceViewContext): ChoiceListA
 			"Couldn't save that folder's contents",
 			handleCommitFolder,
 		),
-		// Same noun rule, from the type being added rather than an existing row.
-		onAddChoice: (name, type, targetFolderId, skipConfigure) =>
-			reportingHandler(`Couldn't add that ${choiceNoun(type)}`, addChoiceToList)(
-				name,
-				type,
-				targetFolderId,
-				skipConfigure,
-			),
+		onAddChoice: reportingHandler("Couldn't add that choice", addChoiceToList),
+		onAddFolder: reportingHandler("Couldn't add that folder", addFolderToList),
+		onBrowseRecipes: () => new RecipesModal(context.app, context.plugin).open(),
+		onImportPackage: () => new ImportPackageModal(context.app, context.plugin).open(),
+		// Settles either way, so the view can hold its button while it runs.
+		onCreateFirstRun: (plan: FirstRunPlan) =>
+			createFirstRun(plan).catch((err: unknown) => {
+				reportUnlessCancelled(err, "Couldn't create those choices");
+			}),
 	};
 
 }

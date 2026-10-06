@@ -44,6 +44,16 @@ export interface PromptRunContext {
 	draftScopeId?: string;
 	destination?: string;
 	destinationKind?: "file" | "folder";
+	/** The heading a capture writes under in `destination`. */
+	heading?: string;
+}
+
+/**
+ * Where a capture adds its text: `target`, and the heading it writes under.
+ * Said the same way by the one-page form and the sequential prompt.
+ */
+export function describeCaptureTarget(target: string, heading: string | undefined): string {
+	return heading ? `${target} under ${heading}` : target;
 }
 
 interface ScopeCopy {
@@ -227,8 +237,12 @@ export function describeValuePrompt(
 ): ValuePromptCopy {
 	if (scope === "generic") return {};
 	const copy = SCOPE_COPY[scope];
-	return soleValue
-		? { title: copy.ask, placeholder: copy.hint }
+	if (soleValue) return { title: copy.ask, placeholder: copy.hint };
+	// A capture format's other tokens are filled in, not typed: the answer is
+	// still the text to capture, so the title holds; the placeholder says it is
+	// part of the line.
+	return FORMATTING_LITERAL_SCOPES.has(scope)
+		? { title: copy.ask, placeholder: copy.partOf }
 		: { placeholder: copy.partOf };
 }
 
@@ -286,7 +300,7 @@ export function buildPromptContextLine(
 		const shown =
 			options?.elide === false ? destination : elideMiddlePath(destination);
 		parts.push(
-			`→ ${context.destinationKind === "folder" ? `${shown}/` : shown}`,
+			`→ ${context.destinationKind === "folder" ? `${shown}/` : describeCaptureTarget(shown, context.heading)}`,
 		);
 	}
 

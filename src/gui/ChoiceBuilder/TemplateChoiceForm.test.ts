@@ -1,6 +1,6 @@
 import { templateChoice } from "../../../tests/helpers/settings/choices";
-import { settingItem, settingNames, choiceIconInput } from "../../../tests/helpers/settings/fields";
-import { describe, expect, it } from "vitest";
+import { settingItem, settingNames, choiceIconInput, openMoreSettings } from "../../../tests/helpers/settings/fields";
+import { describe, expect, it, vi } from "vitest";
 
 import { App } from "obsidian";
 import { fireEvent, render } from "@testing-library/svelte";
@@ -26,15 +26,16 @@ const plugin = {
 	settings: { choices: [] },
 } as unknown as QuickAdd;
 
-function mountForm() {
+function mountForm(onAddStep?: () => void) {
 	const props = createTemplateChoiceFormProps({
 		choice: templateChoice({ discoverExistingNotesBeforeCreate: false }),
 		app: new App(),
 		plugin,
 	});
 	const result = render(TemplateChoiceForm, {
-		props: { choice: props.choice, app: props.app, plugin: props.plugin },
+		props: { choice: props.choice, app: props.app, plugin: props.plugin, onAddStep },
 	});
+	openMoreSettings(result.container);
 	return { ...result, props };
 }
 
@@ -104,7 +105,7 @@ describe("TemplateChoiceForm", () => {
 
 		expect(toggle?.classList.contains("is-disabled")).toBe(true);
 		expect(item.textContent).toContain(
-			"Only available when the file name prompt is the default note title",
+			"Only available when the note name asks for the note title: empty, {{VALUE}}, or {{NAME}}.",
 		);
 
 		await fireEvent.click(toggle!);
@@ -119,7 +120,7 @@ describe("TemplateChoiceForm", () => {
 
 	it("treats an empty file name as the note-title prompt", async () => {
 		const { container, props } = mountForm();
-		const input = settingItem(container, "File name")
+		const input = settingItem(container, "Note name")
 			.closest(".qa-field")
 			?.querySelector("input") as HTMLInputElement;
 		expect(input.value).toBe("");
@@ -135,7 +136,7 @@ describe("TemplateChoiceForm", () => {
 
 	it("keeps a leading space typed into an empty file name", async () => {
 		const { container, props } = mountForm();
-		const input = settingItem(container, "File name")
+		const input = settingItem(container, "Note name")
 			.closest(".qa-field")
 			?.querySelector("input") as HTMLInputElement;
 
@@ -236,22 +237,22 @@ describe("TemplateChoiceForm", () => {
 
 	it("reveals the file-opening settings only when openFile is enabled", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("File opening location");
+		expect(settingNames(container)).not.toContain("Opening location");
 
 		props.choice.openFile = true;
 		flushSync();
-		expect(settingNames(container)).toContain("File opening location");
+		expect(settingNames(container)).toContain("Opening location");
 	});
 
 	it("shows the file-exists mode row only for update/create categories", () => {
 		const { container, props } = mountForm();
-		expect(settingNames(container)).not.toContain("New file naming");
+		expect(settingNames(container)).not.toContain("New note naming");
 
 		props.choice.fileExistsBehavior = { kind: "apply", mode: "increment" };
 		flushSync();
 		const names = settingNames(container);
 		expect(
-			names.includes("New file naming") || names.includes("Update action"),
+			names.includes("New note naming") || names.includes("Update action"),
 		).toBe(true);
 	});
 
@@ -293,10 +294,14 @@ describe("TemplateChoiceForm", () => {
 		).toHaveAttribute("data-icon", "file-text");
 	});
 
-	it("keeps the optional icon override at the bottom of the form", () => {
+	it("keeps the inputs and the steps above More settings, and the optional icon override last", async () => {
 		const { container } = mountForm();
+		await vi.waitFor(() => expect(settingNames(container)).toContain("Inputs"));
 
-		expect(settingNames(container).at(-1)).toBe("Icon");
+		const names = settingNames(container);
+		expect(names.indexOf("Inputs")).toBeLessThan(names.indexOf("Steps"));
+		expect(names.slice(names.indexOf("Steps"), names.indexOf("Steps") + 2)).toEqual(["Steps", "More settings"]);
+		expect(names.at(-1)).toBe("Icon");
 	});
 
 	// #1993: closing the builder used to drop a folder typed but never added.
@@ -326,5 +331,19 @@ describe("TemplateChoiceForm", () => {
 		it("is left out once another location mode is chosen", async () => {
 			expect((await typeFolder("active-file", "Meetings")).folders).toEqual([]);
 		});
+	});
+
+	it("lists what the template does under Steps, and offers to add a step when it can", async () => {
+		const lines = (container: HTMLElement) =>
+			Array.from(container.querySelectorAll(".qaStepsList li"), (item) => item.textContent);
+		const plain = mountForm();
+		expect(lines(plain.container)).toHaveLength(1);
+		expect(lines(plain.container)[0]).toMatch(/^Creates /);
+		expect(plain.container.querySelector('[aria-label="Add a step"]')).toBeNull();
+		plain.unmount();
+
+		const onAddStep = vi.fn();
+		const { getByRole } = mountForm(onAddStep);
+		expect(getByRole("button", { name: "Add a step" })).toBeTruthy();
 	});
 });

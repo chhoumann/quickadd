@@ -14,9 +14,19 @@ import type { QuickAddSettings } from "src/settings";
  */
 export type MigrationResult = { complete: false };
 
+/** What `migrate` learned before the first migration of a launch ran. */
+export type MigrationContext = {
+	/**
+	 * data.json as it was on disk; `bytes` is null when there was none. Read
+	 * only while the QuickAdd 3 migration is pending; undefined otherwise or
+	 * when the read failed.
+	 */
+	dataJson?: { bytes: ArrayBuffer | null };
+};
+
 export type Migration = {
 	description: string;
-	migrate: (plugin: QuickAdd) => Promise<MigrationResult | void>;
+	migrate: (plugin: QuickAdd, context?: MigrationContext) => Promise<MigrationResult | void>;
 };
 
 export type Migrations = {

@@ -14,15 +14,15 @@ import { isCancellationError } from "../utils/errorUtils";
 import { ChoiceAbortError } from "../errors/ChoiceAbortError";
 import { UserCancelError } from "../errors/UserCancelError";
 import GenericSuggester from "../gui/GenericSuggester/genericSuggester";
+import { onlineFeaturesOffRefusal, unknownModelRefusal } from "../ai/aiRefusals";
+import { refuse } from "../errors/RefusalError";
 
 export async function executeMacroAI(
 	app: App, choice: IMacroChoice, executor: IChoiceExecutor, chain: ChoiceChain,
 	command: IAIAssistantCommand, chooseModel: () => Promise<ResolvedModel>,
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Blocking request: Online features are disabled in settings."
-		);
+		throw onlineFeaturesOffRefusal();
 	}
 
 	const aiSettings = settingsStore.getState().ai;
@@ -39,9 +39,7 @@ export async function executeMacroAI(
 			activeModelRef(command.model, command.modelRef) ?? command.model,
 		);
 		if (!resolved) {
-			throw new Error(
-				`Model ${command.model} not found with any provider.`,
-			);
+			throw unknownModelRefusal(command.model);
 		}
 	}
 
@@ -107,9 +105,7 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 		);
 
 	if (entries.length === 0) {
-		throw new Error(
-			"No AI models are configured. Add a provider with models in the AI Assistant settings.",
-		);
+		throw refuse("no AI models are set up", "the AI request was not sent", "Add a provider with models in QuickAdd's AI settings.");
 	}
 
 	// Route to a remote interactive session (Raycast) when one is driving.

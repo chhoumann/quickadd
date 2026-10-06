@@ -170,6 +170,7 @@ function buildEngine(
 			getAbstractFileByPath: vi.fn((path: string) => files.get(path) ?? null),
 			getFiles: vi.fn(() => [...files.values()]),
 			cachedRead: vi.fn(async (target: TFile) => contents.get(target.path) ?? ""),
+			read: vi.fn(async (target: TFile) => contents.get(target.path) ?? ""),
 			createFolder: vi.fn(),
 			create: vi.fn(async () => created),
 			modify: vi.fn(async (target: TFile, content: string) => { contents.set(target.path, content); }),
@@ -318,6 +319,29 @@ describe("TemplateChoiceEngine note discovery", () => {
 		expect(dateOrder).toBeLessThan(formatFileContentMock.mock.invocationCallOrder[0]);
 	});
 
+	it("records as the note's before-text what it held when the write happened, not when the run started", async () => {
+		const existing = file("People/Alice.md");
+		promptForTemplateNoteDiscoveryMock.mockResolvedValue({ kind: "existing", file: existing });
+		const { engine, choiceExecutor, files, contents } = buildEngine(choice({
+			existingNoteAction: "appendBottom",
+			fileNameFormat: { enabled: true, format: "{{VALUE}}" },
+		}));
+		files.set(existing.path, existing);
+		contents.set(existing.path, "Original body");
+		// An edit lands while the template's prompts are open.
+		formatFileContentMock.mockImplementation(async () => {
+			contents.set(existing.path, "Edited meanwhile");
+			return "Update";
+		});
+
+		await engine.run();
+
+		expect(contents.get(existing.path)).toBe("Edited meanwhile\n\nUpdate");
+		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+			write: { path: existing.path, before: "Edited meanwhile", after: "Edited meanwhile\n\nUpdate" },
+		}));
+	});
+
 	it.each([
 		["appendBottom", "---\nstatus: active\n---\nOriginal body\n\nUpdate"],
 		["appendTop", "---\nstatus: active\n---\nUpdate\nOriginal body"],
@@ -354,6 +378,7 @@ describe("TemplateChoiceEngine note discovery", () => {
 		expect(choiceExecutor.variables.has("value")).toBe(false);
 		expect(choiceExecutor.recordExecutionResult).toHaveBeenCalledExactlyOnceWith({
 			status: "success", file: existing, effect: "changed",
+			write: { path: existing.path, before: "---\nstatus: active\n---\nOriginal body", after: expected },
 		});
 		expect(insertFileLinkMock).toHaveBeenCalledTimes(1);
 		expect(copyFileLinkMock).toHaveBeenCalledExactlyOnceWith(existing);

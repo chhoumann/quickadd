@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`report > lists the drops that real packages hit 1`] = `
+[
+  "dropped qa-pkg-brain-dump-inbox: active-note write position 'bottom' on a note target",
+  "dropped qa-pkg-daily-note-captures-journal: active-note write position 'bottom' on a note target",
+  "dropped qa-pkg-daily-note-captures-task: active-note write position 'bottom' on a note target",
+  "dropped qa-pkg-daily-note-captures-task-due: active-note write position 'bottom' on a note target",
+  "dropped qa-pkg-daily-note-captures-quote: active-note write position 'bottom' on a note target",
+  "dropped qa-pkg-daily-note-captures-callout: active-note write position 'bottom' on a note target",
+]
+`;

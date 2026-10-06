@@ -3,6 +3,7 @@ import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness } from "./e2eVault";
 import { jsLiteral, POLL_OPTS, showCalendar, waitForElement } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 const getContext = createQuickAddE2EHarness("phone-keyboard");
 
@@ -79,26 +80,25 @@ it("keeps the multi-select's Done above the keyboard", async () => {
 it("brings the macro page's focused field above the keyboard once it is up", async () => {
 	const { obsidian, plugin } = getContext();
 	const macro = new MacroChoice("Keyboard macro");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	// Opens More settings, whose last field, the icon, sits low on the page.
+	macro.runOnStartup = true;
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 	await obsidian.dev.evalJson("app.setting.open(); app.setting.openTabById('quickadd'); true");
 	await waitForElement(obsidian, '[aria-label="Configure Keyboard macro"]');
 	await obsidian.dev.evalJson(`document.querySelector('[aria-label="Configure Keyboard macro"]').click(), true`);
-	await waitForElement(obsidian, ".macroBuilder .qa-command-sequence-input");
+	await waitForElement(obsidian, '.macroBuilder input[aria-label="Choice icon"]');
 	await emulatePhoneWithKeyboard();
 
-	const fieldBottom = `(() => {
-		const field = [...document.querySelectorAll(".macroBuilder input")].find((input) => input.placeholder.startsWith("Start typing script"));
-		return field.getBoundingClientRect().bottom;
-	})()`;
+	const fieldBottom = `document.querySelector('.macroBuilder input[aria-label="Choice icon"]').getBoundingClientRect().bottom`;
 	// The field sits low on the page: with the keyboard taking the bottom of the
 	// screen it starts under it, as on a phone.
 	await obsidian.dev.evalJson(`(() => {
 		const page = document.querySelector(".macroBuilder");
 		page.scrollTop = 0;
-		[...page.querySelectorAll("input")].find((input) => input.placeholder.startsWith("Start typing script")).focus({ preventScroll: true });
+		page.querySelector('input[aria-label="Choice icon"]').focus({ preventScroll: true });
 		return true;
 	})()`);
 	const keyboardTop = await obsidian.dev.evalJson<number>(`innerHeight - ${KEYBOARD}`);

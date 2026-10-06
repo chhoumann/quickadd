@@ -135,8 +135,7 @@ describe("Formatter {{FOLDERCURRENT}} token", () => {
 	});
 
 	describe("missing active file", () => {
-		const error =
-			"Unable to get the active file's folder. Make sure you have a file open in the editor.";
+		const error = "No note is open, so {{FOLDERCURRENT}} has no folder to give.";
 
 		it("throws in path mode with required behavior", () => {
 			const formatter = makeFormatter(null);

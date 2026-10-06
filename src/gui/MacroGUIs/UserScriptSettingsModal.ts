@@ -2,6 +2,9 @@ import type { App } from "obsidian";
 import { Modal, Notice, Setting, TextAreaComponent } from "obsidian";
 import type { IUserScript } from "../../types/macros/IUserScript";
 import { getQuickAddInstance } from "../../quickAddInstance";
+import { reportingHandler } from "../../utils/errorUtils";
+import { pickUserScript } from "./pickUserScript";
+import { replaceScriptFile } from "./replaceScriptFile";
 import {
 	mountFormatPreview,
 	type FormatPreviewHandle,
@@ -90,6 +93,7 @@ function formatTitlePart(value: unknown): string {
 export class UserScriptSettingsModal extends Modal {
 	/** One per `type: "format"` option; a script may declare several. */
 	private previewHandles: FormatPreviewHandle[] = [];
+	private secretMigration: Promise<void> = Promise.resolve();
 
 	constructor(
 		app: App,
@@ -107,7 +111,7 @@ export class UserScriptSettingsModal extends Modal {
 		// Initialize default values for settings
 		initializeUserScriptSettings(this.command.settings, this.settings);
 		this.display();
-		void this.migrateSecretSettings();
+		this.secretMigration = this.migrateSecretSettings();
 	}
 
 	protected display() {
@@ -121,6 +125,7 @@ export class UserScriptSettingsModal extends Modal {
 		const titleName = formatTitlePart(this.settings?.name ?? this.command.name);
 		const author = formatTitlePart(this.settings?.author);
 		this.titleEl.innerText = `${titleName}${author ? ` by ${author}` : ""}`;
+		this.addScriptFileSetting();
 		const options = this.settings.options;
 
 		if (!options) {
@@ -183,6 +188,29 @@ export class UserScriptSettingsModal extends Modal {
 				setting.setDesc(entry.description);
 			}
 		}
+	}
+
+	private addScriptFileSetting() {
+		new Setting(this.contentEl)
+			.setName("Script file")
+			.setDesc(this.command.path)
+			.addButton((button) =>
+				button.setButtonText("Change").onClick(
+					reportingHandler("Couldn't choose that script", async () => {
+						const picked = await pickUserScript(this.app);
+						if (!picked) return;
+						// The migration writes the old script's secret references
+						// into the settings when it finishes; let it finish first,
+						// so the replacement below leaves none of them behind.
+						await this.secretMigration;
+						await replaceScriptFile(this.app, this.command, picked);
+						this.onCommandChange?.();
+						// The settings shown are the old script's; Configure
+						// opens the new one's.
+						this.close();
+					}),
+				),
+			);
 	}
 
 	private addInputBox(

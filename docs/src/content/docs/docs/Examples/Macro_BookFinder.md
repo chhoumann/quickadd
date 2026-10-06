@@ -1,5 +1,5 @@
 ---
-title: Book Finder Script
+title: "Book finder script"
 description: Insert book details fetched from the Google Books API into your vault using a Macro choice and template, no API key required
 slug: docs/Examples/Macro_BookFinder
 package: book-finder
@@ -17,11 +17,11 @@ You can find the script <a href="/scripts/BookFinder.js" download>here</a>.
 
 1. Save the script (`BookFinder.js`) to your vault. Make sure it is saved as a JavaScript file, meaning that it has the `.js` at the end. **Important:** Do not save scripts in the `.obsidian` directory - they will be ignored. Valid locations include folders like `/scripts/`, `/macros/`, or any custom folder in your vault.
 2. Create a new template in your designated templates folder. Example template is provided below.
-3. In **Settings → QuickAdd**, click **New choice** → **Macro**. This is what activates the macro. The Macro Builder opens; click its name at the top to rename it - you decide what to name it. I named mine `Book`.
-4. Add the user script to the command list.
+3. In **Settings → QuickAdd**, click **New choice** → **Run a script**. This is what activates the macro. The Macro Builder opens with one script step; set **Name** - you decide what to name it. I named mine `Book`.
+4. On the script step, click **Choose file** and pick `BookFinder.js`.
 5. Add a new Template step to the macro (the `Template` button in the command bar). This will be what creates the note in your vault. Settings are as follows:
     1. Set the template path to the template you created.
-    2. Set **File name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
+    2. Set **Note name** to `{{VALUE:fileName}}` (before QuickAdd 2.30.0, this is **File name format**; turn its toggle on first). You can specify this however you like. The `fileName` value is the name of the Book without illegal file name characters.
     3. The remaining settings are for you to specify depending on your needs.
 
 You can now use the macro to create notes with book information in your vault.

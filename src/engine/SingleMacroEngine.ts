@@ -66,6 +66,26 @@ function formatMacroOutput(value: unknown): string {
 	}
 }
 
+/**
+ * The choice named `name`: an exact match on trimmed names first (the first
+ * one wins, so two choices differing only by case stay distinct), then a
+ * case-insensitive one, which must be unique.
+ */
+function findByName(choices: IChoice[], name: string | undefined, reference: string): IChoice | undefined {
+	const trimmed = (s: string | undefined) => (s ?? "").trim();
+	const exact = choices.find((choice) => trimmed(choice.name) === trimmed(name));
+	if (exact) return exact;
+
+	const lower = (s: string | undefined) => trimmed(s).toLowerCase();
+	const matches = choices.filter((choice) => lower(choice.name) === lower(name));
+	if (matches.length > 1) {
+		const message = `Ambiguous reference '${reference}': several choices match when ignoring case. Rename one of them.`;
+		log.logError(message);
+		throw new Error(message);
+	}
+	return matches[0];
+}
+
 export class SingleMacroEngine {
 	private readonly choiceExecutor: IChoiceExecutor;
 	private readonly variables: Map<string, unknown>;
@@ -104,44 +124,31 @@ export class SingleMacroEngine {
 		this.emittedConflictNotice = false;
 		const { basename, memberAccess } = getUserScriptMemberAccess(macroName);
 
-		// ------------------------------------------------------------------
-		// Step 1 – exact match (case-sensitive) on *trimmed* names.
-		// This preserves historical behaviour where two macros differing
-		// only by case are treated as distinct entities.
-		// ------------------------------------------------------------------
-		const trimmed = (s: string | undefined) => (s ?? "").trim();
-		let macroChoice = flattenChoices(this.choices).find(
-			(choice): choice is IMacroChoice =>
-				choice.type === "Macro" && trimmed(choice.name) === trimmed(basename),
-		);
+		// A macro of that name wins, as it did before the token ran any choice.
+		const choices = flattenChoices(this.choices);
+		const choice =
+			findByName(choices.filter((c) => c.type === "Macro"), basename, macroName) ??
+			findByName(choices.filter((c) => c.type !== "Macro"), basename, macroName);
 
-		// ------------------------------------------------------------------
-		// Step 2 – fallback to case-insensitive lookup for user convenience.
-		// If this yields *multiple* matches we abort to prevent ambiguity.
-		// ------------------------------------------------------------------
-		if (!macroChoice) {
-			const lower = (s: string | undefined) => trimmed(s).toLowerCase();
-			const ciMatches = flattenChoices(this.choices).filter(
-				(choice): choice is IMacroChoice =>
-					choice.type === "Macro" && lower(choice.name) === lower(basename),
-			);
+		if (!choice) {
+			const message = `There is no choice named '${macroName}'.`;
+			log.logError(message);
+			throw new Error(message);
+		}
 
-			if (ciMatches.length > 1) {
-				log.logError(
-					`Ambiguous macro reference '${macroName}'. Multiple choices match when ignoring case.`,
-				);
-				throw new Error(
-					`Ambiguous macro reference '${macroName}'. Please disambiguate by renaming macros.`,
-				);
+		if (choice.type !== "Macro") {
+			if (memberAccess?.length) {
+				throw new Error(`'${choice.name}' is not a macro, so it has no exports.`);
 			}
-
-			macroChoice = ciMatches[0];
+			// Through the executor, as a Choice step runs it: a folder opens its
+			// picker. The result is the note the choice itself ended on, not one
+			// an earlier step left.
+			const run = () => this.choiceExecutor.execute(choice, ancestry);
+			const note = this.choiceExecutor.noteEndedOn ? await this.choiceExecutor.noteEndedOn(run) : (await run(), null);
+			this.ensureNotAborted();
+			return note?.path ?? "";
 		}
-
-		if (!macroChoice) {
-			log.logError(`macro '${macroName}' does not exist.`);
-			throw new Error(`macro '${macroName}' does not exist.`);
-		}
+		const macroChoice = choice as IMacroChoice;
 
 		// Create a dedicated engine for this macro
 		const engine = new MacroChoiceEngine(
@@ -357,6 +364,7 @@ export class SingleMacroEngine {
 		} catch (error) {
 			if (
 				handleMacroAbort(error, {
+					choiceName: macroChoice.name,
 					logPrefix: "Macro execution aborted",
 					noticePrefix: "Macro execution aborted",
 					defaultReason: "Macro execution aborted",

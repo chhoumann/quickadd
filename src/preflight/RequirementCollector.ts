@@ -73,9 +73,13 @@ export class RequirementCollector extends Formatter {
 	 */
 	public readonly scannedTemplateRefDepths = new Map<string, number>();
 
+	/**
+	 * Without an App the scan still reads every token; what only the vault
+	 * knows (a FILE token's files, an active note's property) is left out.
+	 */
 	constructor(
-		protected app: App,
-		private plugin: QuickAdd,
+		protected app: App | undefined,
+		private plugin?: Pick<QuickAdd, "settings">,
 		protected choiceExecutor?: IChoiceExecutor,
 	) {
 		super(app);
@@ -387,7 +391,7 @@ export class RequirementCollector extends Formatter {
 			case "number": return "number";
 			case "slider": return "slider";
 			case "multiline": return "textarea";
-			default: return this.plugin.settings.inputPrompt === "multi-line" ? "textarea" : "text";
+			default: return this.plugin?.settings.inputPrompt === "multi-line" ? "textarea" : "text";
 		}
 	}
 
@@ -619,7 +623,7 @@ export class RequirementCollector extends Formatter {
 			// reads req.defaultValue as the starting value). Gate strictly on "active".
 			// Multi FIELD is runtimeOnly — it bypasses the one-page form and preselects
 			// at runtime in the MultiSuggester instead, so it sets no defaultValue here.
-			if (!parsed.multiSelect && parsed.filters.defaultFrom === "active") {
+			if (this.app && !parsed.multiSelect && parsed.filters.defaultFrom === "active") {
 				const resolved = resolveActiveNoteFieldDefault(
 					this.app,
 					this.choiceExecutor?.triggerContext?.activeFile ?? null,
@@ -688,11 +692,12 @@ export class RequirementCollector extends Formatter {
 		// Options are the folder's files encoded as `@file:<path>` (display =
 		// basenames) so the chosen value round-trips to the runtime formatter,
 		// which decodes it back to the file.
-		const files = getFileTokenFiles(this.app, parsed);
+		const app = this.app;
+		const files = app ? getFileTokenFiles(app, parsed) : [];
 		const options = files.map((file) => `${FILE_PICK_PREFIX}${file.path}`);
 		const infos = buildFileDisplayInfos(
 			files,
-			(file) => this.app.metadataCache.getFileCache(file),
+			(file) => app?.metadataCache.getFileCache(file) ?? null,
 		);
 		const displayOptions = infos.map((info) => info.label);
 		// The dedicated picker keeps display labels separate from the encoded file

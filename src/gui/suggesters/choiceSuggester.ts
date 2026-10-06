@@ -31,6 +31,7 @@ import {
 	runTemplateFromFolder,
 } from "../../engine/runTemplateFromFolder";
 import { resolveChoiceIcon } from "../../utils/choiceUtils";
+import { summarizeChoice } from "../../v3/choiceSummary";
 import { createOwnedElement } from "../../utils/activeWindow";
 
 const backLabel = "← Back";
@@ -230,6 +231,9 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 	// renderSuggestion through the nested-search branch of getSuggestions,
 	// which builds the candidate cache (and thus this map) first.
 	private breadcrumbById = new Map<string, string>();
+	// The tree does not change while the launcher is open, and rows re-render on
+	// every keystroke.
+	private summaryById = new Map<string, string>();
 	// Owns the lifecycle of the markdown render children created per suggestion,
 	// so they are torn down when the suggester closes instead of leaking onto the
 	// long-lived plugin instance.
@@ -411,14 +415,15 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		const row = el.createDiv({ cls: "quickadd-choice-suggestion-content" });
 		this.renderChoiceIcon(item.item, row);
 
+		const note = [breadcrumb, this.summaryOf(item.item)].filter(Boolean).join(" · ");
 		let nameEl: HTMLElement;
-		if (breadcrumb) {
+		if (note) {
 			el.classList.add("mod-complex");
 			const content = row.createDiv({
 				cls: "suggestion-content quickadd-choice-suggestion-text",
 			});
 			nameEl = content.createDiv({ cls: "suggestion-title" });
-			content.createDiv({ cls: "suggestion-note", text: breadcrumb });
+			content.createDiv({ cls: "suggestion-note", text: note });
 		} else {
 			nameEl = row.createDiv({
 				cls: "quickadd-choice-suggestion-title quickadd-choice-suggestion-text",
@@ -459,6 +464,19 @@ export default class ChoiceSuggester extends FuzzySuggestModal<IChoice> {
 		} else {
 			el.removeAttribute("aria-disabled");
 		}
+	}
+
+	private summaryOf(choice: IChoice): string {
+		// Back and the template row are navigation, and an empty folder's flair
+		// already says what its summary would.
+		if (choice.id === BACK_CHOICE_ID || choice.id === RUN_TEMPLATE_FROM_FOLDER_ID) return "";
+		if (folderFlairFor(choice) !== "") return "";
+		let summary = this.summaryById.get(choice.id);
+		if (summary === undefined) {
+			summary = summarizeChoice(choice, settingsStore.getState().choices);
+			this.summaryById.set(choice.id, summary);
+		}
+		return summary;
 	}
 
 	private renderChoiceIcon(choice: IChoice, parent: HTMLElement): void {

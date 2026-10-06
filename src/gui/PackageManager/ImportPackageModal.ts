@@ -1,20 +1,18 @@
 import type { App } from "obsidian";
 import { Modal } from "obsidian";
-import type IChoice from "../../types/choices/IChoice";
+import type QuickAdd from "../../main";
 import type { ApplyImportResult } from "../../services/packageImportService";
+import type IChoice from "../../types/choices/IChoice";
+import { syncImportedChoiceCommands } from "../../services/packageImportCommands";
 import ImportPackageModalComponent from "./ImportPackageModal.svelte";
 import { mountComponent, type MountHandle } from "../svelte/mountComponent";
-
-interface ImportPackageModalOptions {
-	onImported?: (result: ApplyImportResult, previousChoices: IChoice[]) => void;
-}
 
 export class ImportPackageModal extends Modal {
 	private handle: MountHandle | null = null;
 
 	constructor(
 		app: App,
-		private readonly options: ImportPackageModalOptions = {},
+		private readonly plugin: QuickAdd,
 	) {
 		super(app);
 	}
@@ -28,7 +26,8 @@ export class ImportPackageModal extends Modal {
 			{
 				app: this.app,
 				close: () => this.close(),
-				onImported: this.options.onImported,
+				onImported: (result: ApplyImportResult, previousChoices: IChoice[]) =>
+					syncImportedChoiceCommands(this.plugin, previousChoices, result),
 			},
 			{ what: "the package importer" },
 		);

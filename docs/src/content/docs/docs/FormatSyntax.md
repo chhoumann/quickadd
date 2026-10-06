@@ -11,8 +11,8 @@ answer you type, a link to the note you came from.
 You can use placeholders anywhere QuickAdd asks for a format: file name fields,
 capture formats, folder paths, "Insert after" targets, and inside template files.
 
-In the format fields of a choice's settings (such as **Capture format**,
-**Capture to**, **File name**, and the insert after/before targets), type
+In the format fields of a choice's settings (such as **What**,
+**Where**, **Note name**, and the insert after/before targets), type
 `{{` to get a list of placeholders, then keep typing to filter it. Template
 files and folder pickers don't show this list. Press Enter to insert the highlighted one. For placeholders that take
 an argument, like `{{VDATE:}}`, the cursor lands inside so you can finish it.
@@ -83,13 +83,19 @@ text. A Templater tag in the format itself can still use an answer, as in
 | [`{{TITLE}}`](#title) | The new note's file name |
 | [`{{FOLDER}}`](#folder) | The folder the new note lands in |
 
+**The note this run wrote**
+
+| Placeholder | What you get |
+| --- | --- |
+| [`{{NOTE}}`](#note) | Its path, like `Notes/Idea.md` |
+
 **Other content**
 
 | Placeholder | What it inserts |
 | --- | --- |
 | [`{{CLIPBOARD}}`](#clipboard) | Whatever you copied last |
 | [`{{TEMPLATE:Templates/Meeting.md}}`](#template) | The contents of a template file |
-| [`{{MACRO:My Macro}}`](#macro) | Whatever a macro returns |
+| [`{{ACTION:Generate summary}}`](#macro) | What another choice returns |
 | [`{{GLOBAL_VAR:Header}}`](#global-var) | A snippet you defined in settings |
 | [`{{RANDOM:6}}`](#random) | A random ID like `x7k2p9` |
 
@@ -241,7 +247,7 @@ use `{{DATE:HH:mm}}` with an offset, or ask for one with
 _Requires QuickAdd 2.30.0 or later._
 
 `{{DAILY}}` is the path of the day's daily note, from the folder and date
-format in Obsidian's **Daily notes** settings. Set **Capture to** to
+format in Obsidian's **Daily notes** settings. Set **Where** to
 `{{DAILY}}` and entries land in the note **Open today's daily note** opens,
 even after you change those settings.
 
@@ -256,7 +262,7 @@ plugin manages daily notes, `{{DAILY}}` uses its settings instead.
 Good to know:
 
 - The day follows the choice's [Which day](/docs/Choices/TemplateChoice/#date-origin), so picking yesterday captures to yesterday's daily note.
-- If the daily note doesn't exist and **Create file if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create file with a template** to use a QuickAdd template instead.
+- If the daily note doesn't exist and **Create note if it doesn't exist** is on, a Capture creates it from the daily notes template, filled the way that plugin fills it, not with QuickAdd's format syntax. With Daily notes, `{{date}}` and `{{time}}` are when the note is created and `{{title}}` is its name. With Periodic Notes, `{{date}}` is the note's day, and `{{yesterday}}` and `{{tomorrow}}` work too. Turn on **Create note with a template** to use a QuickAdd template instead.
 - `|link` follows your link settings. A daily note that doesn't exist yet is linked by its full path, so following the link creates it in your daily notes folder. In front matter, quote it: `day: "{{DAILY|link}}"`.
 - If neither plugin manages daily notes, or the daily note template is missing, the run stops with an error instead of writing somewhere else.
 
@@ -552,7 +558,7 @@ wikilinks.
 Good to know:
 
 - The picks become a real YAML list **inside front matter**. In a note body they become comma-separated text.
-- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Write position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create file if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
+- In a **Capture**, a whole multi-select token with the default `|format:auto` stays a list with [**Position → Property**](/docs/Choices/CaptureChoice/#property). Into a list property, a multi-select token on its own line adds one item per pick, even next to other lines. `|format:markdown` and `|format:yaml` add no dashes or brackets there, and `|format:inline` or `|format:spaced` joins the picks into one item. Capturing into a brand-new note's frontmatter also produces a list when **Create note if it doesn't exist** is enabled without a template. Captures into an existing note's body write comma-separated text.
 - With the [one-page input form](/docs/Advanced/onePageInputs/), avoid commas inside a single option (like `|text:"High, urgent"`) on a `|multi` placeholder - the one-page picker can't round-trip them. The default one-prompt-at-a-time picker handles them correctly.
 
 #### Reuse the pick elsewhere: `|name:` {#value-name}
@@ -786,7 +792,7 @@ The active note's folder, as a vault-relative path with no trailing slash
 confused with [`{{FOLDER}}`](#folder), which is the folder a *new* note is
 being created in.
 
-This makes per-project captures work without a macro. With **Capture to** set
+This makes per-project captures work without a macro. With **Where** set
 to:
 
 ```text
@@ -834,7 +840,7 @@ Where it has a value:
 - **Capture** - in the capture body, where it becomes the destination file's folder.
 - **Apply template to a note** - the target note's folder.
 
-Where it stays empty: the capture **Capture to** field (that field is what
+Where it stays empty: the capture **Where** field (that field is what
 *chooses* the folder, so there is nothing to reference yet), the `format`
 JavaScript API, and macro file-path commands.
 
@@ -860,6 +866,22 @@ to. Handy as the note's top heading:
 ```markdown
 # {{TITLE}}
 ```
+
+## The note this run wrote
+
+### The note the last step ended on: `{{NOTE}}` {#note}
+
+The note the run's last Template or Capture step ended on, for the steps
+after it: the note it created, added to, or found already there and opened.
+In a macro whose first step captures to a note, an Open file step with the
+path `{{NOTE}}` opens that note, and a Capture to `{{NOTE}}` adds to it again.
+A Link it or Run Templater step on `{{NOTE}}` links that note or runs
+Templater on it. Scripts get the same note as `params.note`.
+
+`{{NOTE}}` is the note's path with its extension. `{{NOTE|link}}` is a link to
+it, `{{NOTE|name}}` its file name without the extension, and
+`{{NOTE|folder}}` its folder. Before the run writes a note, every form is
+empty.
 
 ## Pull data from your vault
 
@@ -896,7 +918,7 @@ topics:
 Inside front matter, `|multi` writes a real YAML list when the placeholder is
 the property's whole value. With the default `|format:auto`, it also stays a
 list when the entire Capture format is the token and
-[**Write position → Property**](/docs/Choices/CaptureChoice/#property) is selected.
+[**Position → Property**](/docs/Choices/CaptureChoice/#property) is selected.
 In note bodies, file names, and other text
 positions it writes comma-separated text. Combines with the same filters and
 defaults as single-value FIELD prompts:
@@ -1200,9 +1222,12 @@ capture body in a template file and set the format to
 `{{TEMPLATE:Templates/Capture Format.md}}`. QuickAdd inserts the file and then
 runs the usual formatting passes on the result.
 
-### A macro's result: `{{MACRO:<macro name>}}` {#macro}
+### Another choice's result: `{{ACTION:<choice name>}}` {#macro}
 
-`{{MACRO:Generate summary}}` runs that macro and inserts its return value.
+`{{ACTION:Generate summary}}` runs that choice and inserts its result. It runs
+any choice: a macro gives back its return value, and a Capture or Template
+gives back the path of the note it ended on. `{{MACRO:}}` is its older name
+and keeps working.
 
 #### Label the macro's prompt: `|label:` {#macro-label}
 

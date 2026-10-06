@@ -1,5 +1,5 @@
 ---
-title: "Capture: Insert a Related Notes Base into an MOC Note"
+title: "Capture: Insert a related notes Base into an MOC note"
 description: Insert a live Base view of related notes into an active MOC note by capturing from a .base template into the current file
 slug: docs/Examples/Capture_InsertBaseTemplateIntoActiveFile
 package: moc-related-notes
@@ -38,10 +38,10 @@ views:
     name: Related notes
 ```
 
-2. Create a Capture choice.
-3. Enable **Capture to active file**.
-4. Set **Write position** to **Top of file (after frontmatter)**.
-5. (Before QuickAdd 2.30.0, turn on the **Capture format** toggle first.) In **Capture format**, reference your `.base` template with an explicit file
+2. Create a Capture choice: **New choice** → **Add to a note**.
+3. Enable **Capture to active note**.
+4. Set **Position** to **Top of note (after frontmatter)**.
+5. (Before QuickAdd 2.30.0, turn on the **Capture format** toggle first.) In **What**, reference your `.base` template with an explicit file
    extension:
 
 Example:

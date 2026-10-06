@@ -2,15 +2,15 @@ import { expect, it } from "vitest";
 import { MacroChoice } from "../../src/types/choices/MacroChoice";
 import type IChoice from "../../src/types/choices/IChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { addStep, leaveSettingsPage, POLL_OPTS, pressKey, typeInto } from "./uiHelpers";
+import { withStoredChoices } from "./storedChoices";
 
 // #941/#942: two `view.js` files in different folders were identical "view" rows
-// in both script pickers, and picking the second one from the inline typeahead
-// saved the first. Each must be findable by path, saved under its own path, and
+// in the script pickers, and picking the second one saved the first. Each must be findable by path, saved under its own path, and
 // run as itself.
 const getContext = createQuickAddE2EHarness("script-picker-paths");
 
-it("adds same-named scripts by path from the typeahead and Browse, and runs each", async () => {
+it("adds same-named scripts by path from the script picker, and runs each", async () => {
 	const { obsidian, plugin, sandbox } = getContext();
 	// Each script records its own name, so a run shows which file executed.
 	const books = await seedVaultFile(obsidian, sandbox, "views/books/view.js",
@@ -20,9 +20,9 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 	const runner = await seedVaultFile(obsidian, sandbox, "views/runner.md",
 		"# Weekly runner\n\n```js\nmodule.exports = () => {};\n```\n");
 	const macro = new MacroChoice("Script picker paths");
-	await plugin.data<{ choices: IChoice[] }>().patch((data) => {
+	await plugin.data<{ choices: IChoice[] }>().patch(withStoredChoices((data) => {
 		data.choices = [macro];
-	});
+	}));
 	await plugin.reload({ waitUntilReady: true });
 
 	// Settings in the main window, as in conditional-branch-persistence.test.ts:
@@ -45,7 +45,6 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 			note: row.querySelector(".suggestion-note")?.textContent ?? "",
 		}))
 	`);
-	const typeahead = '.macroBuilder input[placeholder="Start typing script name..."]';
 
 	try {
 		await obsidian.dev.evalJson(`(() => { app.setting.open(); app.setting.openTabById("quickadd"); return true; })()`);
@@ -57,28 +56,28 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		), POLL_OPTS).toBe(0);
 
 		// #1883: the icon picker ranks the exact icon first (real Obsidian scorer).
+		expect(await click('.macroBuilder button[aria-label="More settings"]')).toBe(true);
 		await typeInto(obsidian, ".macroBuilder .qa-choice-icon-input", "star");
 		await expect.poll(async () => (await texts(".suggestion-container .suggestion-item"))[0], POLL_OPTS).toBe("star");
 		await pressKey(obsidian, "Escape");
 
-		// Inline typeahead: same-named scripts are listed by path, and the picked
-		// one is the one that gets added.
-		await typeInto(obsidian, typeahead, "views/");
-		await expect.poll(() => texts(".suggestion-container .suggestion-item"), POLL_OPTS)
-			.toEqual(expect.arrayContaining([books, progress]));
-		await typeInto(obsidian, typeahead, "qa-progress");
-		await expect.poll(() => texts(".suggestion-container .suggestion-item"), POLL_OPTS).toEqual([progress]);
-		expect(await click(".suggestion-container .suggestion-item")).toBe(true);
-		await expect.poll(() => obsidian.dev.evalJson<string>(
-			`document.querySelector(${JSON.stringify(typeahead)}).value`,
-		), POLL_OPTS).toBe(progress);
-		// #1878: the list stays closed once the input's debounced refresh has run.
-		await new Promise((resolve) => setTimeout(resolve, 300));
-		expect(await texts(".suggestion-container .suggestion-item")).toEqual([]);
-		expect(await click(".macroBuilder .setting-item:has(input[placeholder='Start typing script name...']) button", "Add")).toBe(true);
+		// Searching the picker: same-named scripts are listed by path, and the
+		// picked one is the one that gets added.
+		// Real clicks on a still menu: Obsidian takes a menu's keys a tick after it
+		// shows it, so an item clicked sooner leaves the closed menu's keys above
+		// the picker, and they swallow its Enter.
+		const runAScript = async () => {
+			await addStep(obsidian, "Run a script");
+			await expect.poll(() => obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".prompt .prompt-input"))'), POLL_OPTS).toBe(true);
+		};
+		await runAScript();
+		await typeInto(obsidian, ".prompt .prompt-input", "qa-progress");
+		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "view.js", note: progress }]);
+		await pressKey(obsidian, "Enter");
+		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress]);
 
-		// Browse: rows show each script's path, and search matches it.
-		await expect.poll(() => click(".macroBuilder button", "Browse"), POLL_OPTS).toBe(true);
+		// Rows show each script's path, and search matches it.
+		await runAScript();
 		await expect.poll(async () => (await browseRows()).filter((row) => row.note === books || row.note === progress), POLL_OPTS)
 			.toEqual(expect.arrayContaining([
 				{ title: "view.js", note: books },
@@ -91,18 +90,21 @@ it("adds same-named scripts by path from the typeahead and Browse, and runs each
 		await expect.poll(browseRows, POLL_OPTS).toEqual([{ title: "view.js", note: books }]);
 		// The row highlights the match, as the quick switcher does.
 		expect(await texts(".prompt .suggestion-item .suggestion-highlight")).toEqual(["books"]);
+		// Obsidian selects the first row a tick after it renders; Enter before
+		// that chooses nothing.
+		await expect.poll(() => obsidian.dev.evalJson<boolean>(
+			'Boolean(document.querySelector(".prompt .suggestion-item.is-selected")?.textContent?.includes("books"))',
+		), POLL_OPTS).toBe(true);
 		await pressKey(obsidian, "Enter");
 
 		await expect.poll(() => texts(".macroBuilder .quickAddCommandLabel"), POLL_OPTS).toEqual([progress, books]);
 		// Leaving the builder saves through a debounce; wait for it on disk so the
-		// harness's data restore can't race it. Click back rather than pressing
-		// Escape: focus returns to the typeahead after Browse, and an Escape there
-		// leaves the field first.
+		// harness's data restore can't race it.
 		await leaveSettingsPage(obsidian);
 		await expect.poll(() => obsidian.dev.evalJsonAsync<unknown>(`(async () => {
 			const p = app.plugins.plugins.quickadd;
 			const data = JSON.parse(await app.vault.adapter.read(p.manifest.dir + "/data.json"));
-			return data.choices[0].macro.commands.map((c) => c.path);
+			return data.actions[0].steps.map((step) => step.path);
 		})()`), POLL_OPTS).toEqual([progress, books]);
 	} finally {
 		await obsidian.dev.evalJson(`(() => { app.setting.close(); app.vault.setConfig('settingsPopoutWindow', ${popout}); return true; })()`);
