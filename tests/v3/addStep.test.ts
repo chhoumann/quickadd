@@ -99,8 +99,27 @@ describe("adding a step to a choice", () => {
 		expect(converted.macro.commands[1]).toMatchObject({ id: step.id, type: CommandType.OpenFile, filePath: "{{NOTE}}" });
 	});
 
+	it("links the run note on a new line in the current note, and runs Templater on it, as steps of their own", () => {
+		const choice = capture();
+		const link = newStep("link");
+		const templater = newStep("templater");
+		expect(link).toMatchObject({ name: "Link it", type: "link", link: "{{NOTE}}", insert: { placement: "newLine", requireActiveFile: false } });
+		expect(templater).toMatchObject({ name: "Run Templater", type: "templater", note: "{{NOTE}}" });
+
+		const converted = withStep(withStep(choice, link), templater) as IMacroChoice;
+		// The capture's own link stays a setting of its write; the new steps are not part of it.
+		expect(converted.macro.commands.slice(1)).toEqual([
+			{ id: link.id, name: "Link it", type: "v3-step", step: link },
+			{ id: templater.id, name: "Run Templater", type: "v3-step", step: templater },
+		]);
+		const steps = (migrateChoice(converted).node as Action).steps;
+		expect(steps.map((entry) => entry.id)).toEqual([choice.id, `${choice.id}:link`, `${choice.id}:open`, link.id, templater.id]);
+		expect(steps.slice(-2)).toEqual([link, templater]);
+	});
+
 	it("gives every new step its own id", () => {
-		const ids = new Set((["runScript", "open", "wait", "runScript"] as const).map((kind) => newStep(kind).id));
-		expect(ids.size).toBe(4);
+		const kinds = ["runScript", "open", "link", "templater", "wait", "runScript"] as const;
+		const ids = new Set(kinds.map((kind) => newStep(kind).id));
+		expect(ids.size).toBe(kinds.length);
 	});
 });
