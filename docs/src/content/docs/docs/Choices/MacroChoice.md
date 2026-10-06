@@ -436,6 +436,14 @@ module.exports = async (params) => {
 };
 ```
 
+## How a sequence runs {#how-a-sequence-runs}
+
+A sequence runs one step at a time, in order. A step that creates a note or
+adds to one runs exactly as a Template or Capture choice would, and the note it
+ends on becomes the run note, [`{{NOTE}}`](/docs/FormatSyntax/#note), for the
+steps after it. A step that links to, opens, or runs Templater on `{{NOTE}}`
+works on that note. When a step stops the run, the steps after it do not run.
+
 ## When a macro stops {#macro-execution-control}
 
 ### What stops a macro {#automatic-abort-behavior}
