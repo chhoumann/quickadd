@@ -227,6 +227,15 @@
 		text-decoration: underline;
 	}
 
+	/* On a phone, as tall as the Add button beside it and wider than its word,
+	   so a finger finds it. */
+	:global(.is-phone) .qa-recipe-guide {
+		display: inline-flex;
+		align-items: center;
+		align-self: stretch;
+		padding-inline: var(--size-4-2);
+	}
+
 	/* The ring Obsidian gives a focused link in settings. */
 	.qa-recipe :global(a:focus-visible) {
 		border-radius: var(--radius-s);
