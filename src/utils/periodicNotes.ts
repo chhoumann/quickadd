@@ -82,13 +82,13 @@ export function getPeriodicNoteSettings(app: App | undefined, period: Period): P
 	if (period !== "daily") {
 		throw periodicNotes
 			? refuse(`Periodic Notes has ${period} notes off`, `${token(period)} has no note to point at`, `Turn them on in Settings > Periodic Notes.`)
-			: refuse("The Periodic Notes plugin is off", `${token(period)} has no note to point at`, `Turn it on in Settings > Community plugins, with ${period} notes on.`);
+			: refuse("the Periodic Notes plugin is off", `${token(period)} has no note to point at`, `Turn it on in Settings > Community plugins, with ${period} notes on.`);
 	}
 	const dailyNotes = record(app?.internalPlugins?.plugins?.["daily-notes"]);
 	if (dailyNotes?.enabled === true) {
 		return settingsFrom("daily-notes", period, record(record(dailyNotes.instance)?.options) ?? {});
 	}
-	throw refuse("The Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
+	throw refuse("the Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
 }
 
 /** The first moment of the period `date` falls in, which names the period's note. */
@@ -141,7 +141,7 @@ export async function readPeriodicNoteTemplate(app: App, settings: PeriodicNoteS
 		: exact instanceof TFile ? exact : app.vault.getAbstractFileByPath(`${template}.md`);
 	if (!(file instanceof TFile)) {
 		const where = settings.source === "daily-notes" ? "Daily notes" : "Periodic Notes";
-		throw refuse(`The ${period} note template ${template} does not exist`, `no ${period} note was created`, `Pick one in Settings > ${where}.`);
+		throw refuse(`the ${period} note template ${template} does not exist`, `no ${period} note was created`, `Pick one in Settings > ${where}.`);
 	}
 	return app.vault.cachedRead(file);
 }

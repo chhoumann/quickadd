@@ -86,7 +86,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 
 		try {
 			if (!this.choice.templatePath) {
-				throw refuse("No template is picked", "no note was created", "Pick a template on the choice's page.");
+				throw refuse("no template is picked", "no note was created", "Pick a template on the choice's page.");
 			}
 
 			const linkOptions = normalizeAppendLinkOptions(this.choice.appendLink);

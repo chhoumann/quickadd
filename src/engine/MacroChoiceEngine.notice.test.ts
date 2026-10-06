@@ -214,7 +214,7 @@ describe("MacroChoiceEngine cancellation notices", () => {
 				after();
 				if (after.mock.calls.length > 1) return;
 				// What CaptureChoiceEngine does when a guard refuses.
-				const error = refuse("The Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
+				const error = refuse("the Daily notes core plugin is off", "{{DAILY}} has no note to point at", "Turn it on in Settings > Core plugins.");
 				handleMacroAbort(error, { choiceName: "Log", logPrefix: "Capture execution aborted", defaultReason: "Capture aborted" });
 				executor.signalAbort?.(error);
 			},

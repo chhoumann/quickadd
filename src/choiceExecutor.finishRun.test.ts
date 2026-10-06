@@ -45,7 +45,7 @@ vi.mock("./engine/CaptureChoiceEngine", () => ({
 			if (target === "throw") throw new Error("boom");
 			if (target === "cancel") return this.executor.signalAbort?.(new UserCancelError("Input cancelled by user"));
 			if (target === "refuse") {
-				const refusal = refuse("No note is open", "there is nothing to add to");
+				const refusal = refuse("no note is open", "there is nothing to add to");
 				this.executor.recordExecutionResult?.({ status: "error", reason: claimRefusal(refusal, this.choice.name) });
 				return this.executor.signalAbort?.(refusal);
 			}

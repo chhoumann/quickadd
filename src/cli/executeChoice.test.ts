@@ -54,7 +54,7 @@ describe("CLI executeChoice without verify", () => {
 	});
 
 	it("reports a sequence's refusal as a failure with the sentence, not an abort", async () => {
-		const refusal = refuse("No note is open", "there is nothing to add to");
+		const refusal = refuse("no note is open", "there is nothing to add to");
 		claimRefusal(refusal, "Quick capture");
 		const run = executor(() => Promise.resolve(), refusal);
 

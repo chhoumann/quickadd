@@ -14,11 +14,17 @@ import { MacroAbortError } from "./MacroAbortError";
 export class RefusalError extends MacroAbortError {
 	/** The choice the sentence names, once a run has claimed the refusal. */
 	choiceName: string | null = null;
+
+	/** `reason` is written as it reads after the choice's name, e.g. "the Daily notes core plugin is off, ...". */
+	constructor(readonly reason: string) {
+		super(reason.charAt(0).toUpperCase() + reason.slice(1));
+	}
 }
 
 /**
  * Builds a refusal: `<what is missing>, so <what did not happen>. <What to do.>`
- * The choice's name is added when a run reports it.
+ * `missing` starts as it reads mid-sentence; the choice's name goes before it
+ * when a run reports it.
  */
 export function refuse(missing: string, consequence: string, action?: string): RefusalError {
 	return new RefusalError(`${missing}, so ${consequence}.${action ? ` ${action}` : ""}`);
@@ -31,7 +37,7 @@ export function refuse(missing: string, consequence: string, action?: string): R
 export function claimRefusal(error: RefusalError, choiceName: string): string {
 	if (error.choiceName === null) {
 		error.choiceName = choiceName;
-		error.message = `${choiceName}: ${error.message.charAt(0).toLowerCase()}${error.message.slice(1)}`;
+		error.message = `${choiceName}: ${error.reason}`;
 	}
 	return error.message;
 }

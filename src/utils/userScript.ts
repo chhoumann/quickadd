@@ -65,12 +65,12 @@ function unsupportedScriptFileMessage(path: string): string {
 
 /** The script step's file is not there: a refusal, which the run reports with the choice's name. */
 export function missingScriptRefusal(path: string): RefusalError {
-	return refuse(`The script ${path} does not exist`, "the step did not run", "Choose a file on the step's row.");
+	return refuse(`the script ${path} does not exist`, "the step did not run", "Choose a file on the step's row.");
 }
 
 /** The script step's file holds nothing to run. */
 export function emptyScriptRefusal(path: string): RefusalError {
-	return refuse(`The script ${path} exports nothing to run`, "the step did not run", "Export a function from it.");
+	return refuse(`the script ${path} exports nothing to run`, "the step did not run", "Export a function from it.");
 }
 
 function savedWebpageMessage(path: string): string {
@@ -279,7 +279,7 @@ export async function loadUserScript(
 		if (isNote) {
 			const { code } = extractScriptFromMarkdown(fileContent);
 			if (code === null || code.length === 0) {
-				throw refuse(`The note ${command.path} has no script in a \`\`\`js code block`, "the step did not run", "Add one with the script.");
+				throw refuse(`the note ${command.path} has no script in a \`\`\`js code block`, "the step did not run", "Add one with the script.");
 			}
 			scriptSource = code;
 		}

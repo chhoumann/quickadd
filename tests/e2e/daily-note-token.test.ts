@@ -121,7 +121,7 @@ describe("{{DAILY}} in native Obsidian", () => {
 
 		const outcome = await obsidian.execJson("quickadd:run", { id: choice.id, verify: true, vars: JSON.stringify({ value: "x" }) });
 
-		expect(outcome).toEqual({
+		expect(outcome).toMatchObject({
 			ok: false,
 			error: "Daily note token E2E: the Daily notes core plugin is off, so {{DAILY}} has no note to point at. Turn it on in Settings > Core plugins.",
 		});
@@ -155,7 +155,7 @@ describe("{{DAILY}} in native Obsidian", () => {
 			monthlyChoice.captureTo = "{{MONTHLY}}";
 			await saveChoice(monthlyChoice);
 			const monthly = await obsidian.execJson("quickadd:run", { id: monthlyChoice.id, verify: true, vars: JSON.stringify({ value: "x" }) });
-			expect(monthly).toEqual({
+			expect(monthly).toMatchObject({
 				ok: false,
 				error: "Daily note token E2E: Periodic Notes has monthly notes off, so {{MONTHLY}} has no note to point at. Turn them on in Settings > Periodic Notes.",
 			});

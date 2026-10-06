@@ -84,7 +84,7 @@ export function getMarkdownEditorViewForFile(
 
 /** Inserting at the cursor with no note open in an editor. */
 function noEditorRefusal() {
-	return refuse("No note is open in an editor", "there is nothing to add to");
+	return refuse("no note is open in an editor", "there is nothing to add to");
 }
 
 /**

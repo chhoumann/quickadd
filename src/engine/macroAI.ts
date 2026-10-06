@@ -105,7 +105,7 @@ export async function pickMacroModel(app: App, executor: IChoiceExecutor): Promi
 		);
 
 	if (entries.length === 0) {
-		throw refuse("No AI models are set up", "the AI request was not sent", "Add a provider with models in QuickAdd's AI settings.");
+		throw refuse("no AI models are set up", "the AI request was not sent", "Add a provider with models in QuickAdd's AI settings.");
 	}
 
 	// Route to a remote interactive session (Raycast) when one is driving.

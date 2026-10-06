@@ -650,7 +650,7 @@ export class MacroChoiceEngine extends QuickAddChoiceEngine {
 
 	private async executeOpenFile(command: IOpenFileCommand) {
 		if (isRunNoteToken(command.filePath) && !this.choiceExecutor.runNote) {
-			throw refuse("Nothing has written a note yet", "there is no {{NOTE}} to open");
+			throw refuse("nothing has written a note yet", "there is no {{NOTE}} to open");
 		}
 		try {
 			const formatter = new CompleteFormatter(

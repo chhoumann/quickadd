@@ -507,7 +507,7 @@ export abstract class TemplateEngine extends FolderSelectionEngine {
 
 		if (!templateFile) {
 			throw refuse(
-				`The template ${resolvedTemplatePath} does not exist`,
+				`the template ${resolvedTemplatePath} does not exist`,
 				consequence,
 				"Pick a template on the choice's page.",
 			);

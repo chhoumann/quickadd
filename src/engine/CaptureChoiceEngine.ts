@@ -133,7 +133,7 @@ type CaptureWriteResult = {
 
 /** A capture into a note that is not there, with creating it turned off. */
 function missingTargetRefusal(filePath: string) {
-	return refuse(`The note ${filePath} does not exist`, "nothing was added", `Turn on "Create note if it doesn't exist" on the choice's page.`);
+	return refuse(`the note ${filePath} does not exist`, "nothing was added", `Turn on "Create note if it doesn't exist" on the choice's page.`);
 }
 
 export class CaptureChoiceEngine extends CaptureTargetEngine {

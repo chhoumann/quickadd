@@ -42,7 +42,7 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 	): Promise<string> {
 		if (shouldCaptureToActiveFile) {
 			const activeFile = this.app.workspace.getActiveFile();
-			if (!activeFile) throw refuse("No note is open", "there is nothing to add to");
+			if (!activeFile) throw refuse("no note is open", "there is nothing to add to");
 
 			return activeFile.path;
 		}
@@ -50,7 +50,7 @@ export abstract class CaptureTargetEngine extends QuickAddChoiceEngine {
 		// would be an empty target, which opens the vault-wide picker and asks
 		// the user to decide what the run should have decided.
 		if (isRunNoteToken(this.choice.captureTo) && !this.choiceExecutor?.runNote) {
-			throw refuse("Nothing has written a note yet", "there is no {{NOTE}} to add to");
+			throw refuse("nothing has written a note yet", "there is no {{NOTE}} to add to");
 		}
 
 		// A preselected capture target (the trusted one-page preflight pick, or a
