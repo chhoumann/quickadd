@@ -19,6 +19,8 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	protected supportsPeek(): boolean {
 		return false;
 	}
+	private previewContainerEl: HTMLElement;
+	private previewLabelEl: HTMLElement;
 	private previewEl: HTMLElement;
 	private dateFormat: string;
 	private updatePreviewDebounced: Debouncer<[], void>;
@@ -32,7 +34,6 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 	private unsubscribeCalendarToggle?: () => void;
 	private selectedIso?: string;
 	private lastPickerDisplayValue?: string;
-	private static readonly PREVIEW_PLACEHOLDER = "Preview will appear here";
 
 	public static Prompt(
 		app: App,
@@ -165,16 +166,16 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 
 	private createPreviewElement(container: HTMLElement) {
 		const previewContainer = container.createDiv("vdate-preview-container");
-		
-		previewContainer.createDiv({
+		this.previewContainerEl = previewContainer;
+
+		this.previewLabelEl = previewContainer.createDiv({
 			text: "Preview:",
 			cls: "vdate-preview-label"
 		});
-		
+
 		this.previewEl = previewContainer.createDiv({
 			cls: "vdate-preview-text"
 		});
-		this.previewEl.textContent = VDateInputPrompt.PREVIEW_PLACEHOLDER;
 
 		const aliasEntries = getOrderedDateAliases(
 			settingsStore.getState().dateAliases,
@@ -196,6 +197,7 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 				settingsStore.getState().dateAliases,
 			);
 		}
+		this.setPreviewText("", false);
 	}
 
 	private updatePreview() {
@@ -216,14 +218,9 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			this.lastPickerDisplayValue = undefined;
 			this.syncPickerSelection();
 			// An optional blank is an intentional answer, so reassure the user it
-			// will be left empty (matching the one-page date field) rather than
-			// showing the neutral "Preview will appear here" placeholder.
-			this.setPreviewText(
-				this.isOptionalPrompt
-					? "Will be left empty"
-					: VDateInputPrompt.PREVIEW_PLACEHOLDER,
-				false,
-			);
+			// will be left empty; otherwise there is nothing to say yet, as in the
+			// one-page date field.
+			this.setPreviewText(this.isOptionalPrompt ? "Will be left empty" : "", false);
 			return;
 		}
 
@@ -306,14 +303,17 @@ export default class VDateInputPrompt extends GenericInputPrompt {
 			this.selectedIso = undefined;
 			this.lastPickerDisplayValue = undefined;
 			this.syncPickerSelection();
-			const errorMessage = parseResult.error || NOT_A_DATE;
-			this.setPreviewText(errorMessage, true);
+			this.setPreviewText(NOT_A_DATE, true);
 		}
 	}
 
+	/** Hidden while there is nothing to say; the aliases stay in the box. */
 	private setPreviewText(text: string, isError: boolean) {
 		this.previewEl.textContent = text;
 		this.previewEl.toggleClass("is-error", isError);
+		this.previewLabelEl.hidden = text === "";
+		this.previewEl.hidden = text === "";
+		this.previewContainerEl.hidden = text === "" && !this.previewContainerEl.querySelector(".vdate-alias-details");
 	}
 
 	onOpen() {

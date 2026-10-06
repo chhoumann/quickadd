@@ -5,6 +5,7 @@ import { setQuickAddInstance } from "../../quickAddInstance";
 import { settingsStore } from "../../settingsStore";
 import { InputPromptDraftStore } from "../../utils/InputPromptDraftStore";
 import VDateInputPrompt from "./VDateInputPrompt";
+import { NOT_A_DATE } from "../../utils/dateParser";
 
 import { makeFakeApp } from "../../../tests/helpers/prompts/app";
 import "../../../tests/helpers/prompts/dom";
@@ -115,5 +116,21 @@ describe("VDateInputPrompt restored-draft preview", () => {
 		expect(state.inputComponent.inputEl.value).toBe("2025-01-15");
 		expect(state.currentInput).toBe("2025-01-15");
 		expect(state.previewEl.classList.contains("is-error")).toBe(false);
+	});
+
+	it("says nothing until there is something typed, like the one-page date field", () => {
+		const state = construct("");
+
+		expect(state.previewEl.textContent).toBe("");
+		expect(state.previewEl.hidden).toBe(true);
+	});
+
+	it("says Not a date, the one-page form's words, for text that is not a date", () => {
+		draftStore.set(draftKey, "zzzz not a real date");
+		const state = construct("");
+
+		expect(state.previewEl.hidden).toBe(false);
+		expect(state.previewEl.textContent).toBe(NOT_A_DATE);
+		expect(state.previewEl.classList.contains("is-error")).toBe(true);
 	});
 });
