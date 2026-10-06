@@ -33,6 +33,7 @@ import {
 export type { CommonResponse } from "./providerRequest";
 export { anthropicMaxTokens } from "./providerRequest";
 import { anthropicMaxTokens, dispatchProviderRequest, requestPrompt, type CommonResponse } from "./providerRequest";
+import { onlineFeaturesOffRefusal } from "./aiRefusals";
 
 export function OpenAIRequest(
 	app: App,
@@ -50,9 +51,7 @@ export function OpenAIRequest(
 ): (prompt: string) => Promise<CommonResponse> {
 	return async function makeRequest(prompt: string): Promise<CommonResponse> {
 		if (settingsStore.getState().disableOnlineFeatures) {
-			throw new Error(
-				"Blocking request: Online features are disabled in settings."
-			);
+			throw onlineFeaturesOffRefusal();
 		}
 
 		const estimatedTokenCount =
@@ -174,9 +173,7 @@ export async function chatRequest(
 ): Promise<CommonResponse> {
 	void app; // cursor handling is owned by the caller (Agent) for the whole loop
 	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Blocking request: Online features are disabled in settings.",
-		);
+		throw onlineFeaturesOffRefusal();
 	}
 
 	const wire = getChatWire(modelProvider);

@@ -140,7 +140,7 @@ describe("OpenAIRequest", () => {
 			);
 
 			await expect(makeRequest("prompt")).rejects.toThrow(
-				"Online features are disabled in settings."
+				"Online features are off, so the AI request was not sent."
 			);
 			expect(requestUrlMock).not.toHaveBeenCalled();
 			expect(beginAIRequestLogEntryMock).not.toHaveBeenCalled();

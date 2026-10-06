@@ -15,6 +15,7 @@ import {
 import { findInlineScriptSpans } from "src/formatters/helpers/inlineScriptSpans";
 import { transformCase } from "src/utils/caseTransform";
 import { outputVariables, trackPrompt } from "./promptProgress";
+import { onlineFeaturesOffRefusal } from "./aiRefusals";
 
 export class RateLimiter {
 	private queue: (() => Promise<unknown>)[] = [];
@@ -399,9 +400,7 @@ export async function ChunkedPrompt(
 	) => Promise<string>
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
+		throw onlineFeaturesOffRefusal();
 	}
 
 	const notice = makeNoticeHandler(settings.showAssistantMessages);

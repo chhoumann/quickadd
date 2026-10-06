@@ -13,6 +13,7 @@ import type { OpenAIModelParameters } from "./OpenAIModelParameters";
 import { OpenAIRequest } from "./OpenAIRequest";
 import type { AIProvider, Model } from "./Provider";
 import { makeNoticeHandler } from "./makeNoticeHandler";
+import { onlineFeaturesOffRefusal } from "./aiRefusals";
 
 export * from "./requestLog";
 export { ChunkedPrompt, RateLimiter } from "./chunkedPrompt";
@@ -104,9 +105,7 @@ export async function runAIAssistant(
 	formatter: (input: string) => Promise<string>
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
+		throw onlineFeaturesOffRefusal();
 	}
 
 	const notice = makeNoticeHandler(settings.showAssistantMessages);
@@ -183,9 +182,7 @@ export async function Prompt(
 	formatter: (input: string) => Promise<string>
 ) {
 	if (settingsStore.getState().disableOnlineFeatures) {
-		throw new Error(
-			"Online features are disabled in settings. Enable them to use the AI Assistant."
-		);
+		throw onlineFeaturesOffRefusal();
 	}
 
 	const notice = makeNoticeHandler(settings.showAssistantMessages);

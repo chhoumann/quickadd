@@ -38,7 +38,7 @@ describe("OpenAIRequest disable-online-features guard wording", () => {
 		);
 
 		await expect(makeRequest("prompt")).rejects.toThrow(
-			"Blocking request: Online features are disabled in settings."
+			"Online features are off, so the AI request was not sent."
 		);
 		await expect(makeRequest("prompt")).rejects.not.toThrow(/OpenAI/);
 		expect(requestUrlMock).not.toHaveBeenCalled();
