@@ -188,7 +188,7 @@ describe("#1358 note-derived token rescan", () => {
 			f.setBehavior("required");
 			f.setFilename(null);
 			expect(() => f.combined("{{FILENAMECURRENT}}", allTokens)).toThrow(
-				"Unable to get current file name",
+				"No note is open, so {{FILENAMECURRENT}} has no name to give.",
 			);
 		});
 

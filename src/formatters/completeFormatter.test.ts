@@ -794,7 +794,7 @@ describe("CompleteFormatter - getCurrentFileLink / getCurrentFileName", () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(
 			f.formatFileContent("{{FILENAMECURRENT}}"),
-		).rejects.toThrow("Unable to get current file name");
+		).rejects.toThrow("No note is open, so {{FILENAMECURRENT}} has no name to give.");
 	});
 });
 
@@ -937,7 +937,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 		f.setLinkToCurrentFileBehavior("optional");
 		await expect(
 			f.formatFileName("{{FOLDERCURRENT}}/Tasks.md"),
-		).rejects.toThrow("Unable to get the active file's folder");
+		).rejects.toThrow("No note is open, so {{FOLDERCURRENT}} has no folder to give.");
 	});
 
 	it("formatFolderPath strips the leading slash a root-level active file produces", async () => {
@@ -955,7 +955,7 @@ describe("CompleteFormatter - {{FOLDERCURRENT}} (issue #1480)", () => {
 	it("formatFolderPath throws without an active file", async () => {
 		const f = defaultFormatter({}, { activeFile: null });
 		await expect(f.formatFolderPath("{{FOLDERCURRENT}}")).rejects.toThrow(
-			"Unable to get the active file's folder",
+			"No note is open, so {{FOLDERCURRENT}} has no folder to give.",
 		);
 	});
 

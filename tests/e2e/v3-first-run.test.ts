@@ -181,8 +181,15 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 	linkLog.captureTo = sandbox.path("Links.md");
 	linkLog.createFileIfItDoesntExist.enabled = true;
 	linkLog.format = { enabled: true, format: "- {{LINKCURRENT}}" };
+	const nameLog = new CaptureChoice("Name log");
+	nameLog.captureTo = sandbox.path("Links.md");
+	nameLog.createFileIfItDoesntExist.enabled = true;
+	nameLog.format = { enabled: true, format: "- {{FILENAMECURRENT}}" };
+	const folderLog = new CaptureChoice("Folder log");
+	folderLog.captureTo = "{{FOLDERCURRENT}}/Log.md";
+	folderLog.createFileIfItDoesntExist.enabled = true;
 	await plugin.data<Data>().patch(withStoredChoices((data) => {
-		data.choices.push(quickCapture, linkLog);
+		data.choices.push(quickCapture, linkLog, nameLog, folderLog);
 	}));
 	await plugin.reload({ waitUntilReady: true });
 
@@ -228,6 +235,8 @@ it("refuses what is not set up in one sentence naming the choice, and shows noth
 		await obsidian.dev.evalJson("(() => { for (const leaf of app.workspace.getLeavesOfType('markdown')) leaf.detach(); return true; })()");
 		await refuses("Quick capture", "Quick capture: no note is open, so there is nothing to add to.");
 		await refuses("Link log", "Link log: no note is open, so {{LINKCURRENT}} has nothing to link to.");
+		await refuses("Name log", "Name log: no note is open, so {{FILENAMECURRENT}} has no name to give.");
+		await refuses("Folder log", "Folder log: no note is open, so {{FOLDERCURRENT}} has no folder to give.");
 	} finally {
 		await obsidian.dev.evalJson("(() => { window.__qaNoticeObserver?.disconnect(); delete window.__qaNoticeObserver; delete window.__qaNotices; delete window.__qaPrompts; return true; })()");
 	}

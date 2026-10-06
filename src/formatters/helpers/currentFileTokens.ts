@@ -6,6 +6,10 @@ export function refuseLink(token: "LINKCURRENT" | "LINKSECTION"): RefusalError {
 	return refuse("no note is open", `{{${token}}} has nothing to link to`);
 }
 
+function refuseCurrent(token: "FILENAMECURRENT" | "FOLDERCURRENT"): RefusalError {
+	return refuse("no note is open", `{{${token}}} has no ${token === "FILENAMECURRENT" ? "name" : "folder"} to give`);
+}
+
 export interface CurrentFileTokenOptions {
 	links?: boolean;
 	fileName?: boolean;
@@ -76,19 +80,13 @@ export function replaceCurrentFileTokens(
 			return leaf && value !== null ? value.slice(value.lastIndexOf("/") + 1) : value ?? "";
 		},
 	);
-	const folderError = "Unable to get the active file's folder. Make sure you have a file open in the editor.";
-	if (missing.has("FOLDERCURRENT") && opts.activeFolder === "path") {
-		throw new Error(folderError);
-	}
+	// A folder path needs the folder whatever the behavior.
+	if (missing.has("FOLDERCURRENT") && opts.activeFolder === "path") throw refuseCurrent("FOLDERCURRENT");
 	if (missing.size > 0) {
 		if (behavior === "required") {
 			if (missing.has("LINKCURRENT")) throw refuseLink("LINKCURRENT");
 			if (missing.has("LINKSECTION")) throw refuseLink("LINKSECTION");
-			throw new Error(
-				missing.has("FILENAMECURRENT")
-					? "Unable to get current file name. Make sure you have a file open in the editor."
-					: folderError,
-			);
+			throw refuseCurrent(missing.has("FILENAMECURRENT") ? "FILENAMECURRENT" : "FOLDERCURRENT");
 		}
 		log.logMessage("Skipping current-file token replacement because no active file is available.");
 	}
