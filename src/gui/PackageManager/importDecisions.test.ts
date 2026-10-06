@@ -32,6 +32,14 @@ describe("reconcileMode", () => {
 		expect(reconcileMode("skip", false)).toBe("skip");
 	});
 
+	it("keeps a file already there when asked to, and writes where there is none", () => {
+		const conflict = { originalPath: "Templates/Meeting.md", exists: true } as AssetConflict;
+		const kept = defaultAssetDecision(conflict, () => "Templates/Meeting.md", () => true, { keepExisting: true });
+		expect(kept.mode).toBe("skip");
+		const fresh = defaultAssetDecision({ ...conflict, exists: false }, () => "Templates/New.md", () => false, { keepExisting: true });
+		expect(fresh.mode).toBe("write");
+	});
+
 	it("flips write -> overwrite when the destination exists", () => {
 		expect(reconcileMode("write", true)).toBe("overwrite");
 	});

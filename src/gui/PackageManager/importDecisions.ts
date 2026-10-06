@@ -89,15 +89,22 @@ export function defaultAssetDestinationFor(
 
 // --- Decision construction --------------------------------------------------
 
+/** How a file already at a destination is treated unless the reader says otherwise. */
+export interface AssetDecisionOptions {
+	/** Keep the reader's file (skip) instead of writing the package's over it. */
+	keepExisting?: boolean;
+}
+
 export function defaultAssetDecision(
 	conflict: AssetConflict,
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisionState {
 	const destinationPath = destinationFor(conflict);
 	const destinationExists = conflict.exists || exists(destinationPath);
 	return {
-		mode: destinationExists ? "overwrite" : "write",
+		mode: !destinationExists ? "write" : options.keepExisting ? "skip" : "overwrite",
 		destinationPath,
 		destinationExists,
 	};
@@ -119,12 +126,13 @@ export function initAssetDecisions(
 	conflicts: readonly AssetConflict[],
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisions {
 	const decisions: AssetDecisions = new Map();
 	for (const conflict of conflicts) {
 		decisions.set(
 			conflict.originalPath,
-			defaultAssetDecision(conflict, destinationFor, exists),
+			defaultAssetDecision(conflict, destinationFor, exists, options),
 		);
 	}
 	return decisions;
@@ -135,10 +143,11 @@ export function resolveAssetDecision(
 	conflict: AssetConflict,
 	destinationFor: (conflict: AssetConflict) => string,
 	exists: ExistsProbe,
+	options: AssetDecisionOptions = {},
 ): AssetDecisionState {
 	return (
 		decisions.get(conflict.originalPath) ??
-		defaultAssetDecision(conflict, destinationFor, exists)
+		defaultAssetDecision(conflict, destinationFor, exists, options)
 	);
 }
 

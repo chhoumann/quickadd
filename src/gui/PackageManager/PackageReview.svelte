@@ -56,6 +56,7 @@
 		onDone,
 		onImported,
 		header,
+		keepExistingFiles = false,
 	}: {
 		app: App;
 		/** The package to review; null while there is none. */
@@ -71,6 +72,8 @@
 		onImported?: (result: ApplyImportResult, previousChoices: IChoice[]) => void;
 		/** Rendered at the top of the scrolling body. */
 		header?: Snippet;
+		/** A file already in the vault is kept unless the reader chooses otherwise. */
+		keepExistingFiles?: boolean;
 	} = $props();
 
 	// Lazily memoized so the `app` prop is read inside a closure (not captured at
@@ -186,6 +189,7 @@
 				conflict,
 				defaultAssetDestination,
 				optimisticExists,
+				{ keepExisting: keepExistingFiles },
 			);
 			return {
 				conflict,
@@ -263,6 +267,7 @@
 			analysis.assetConflicts,
 			defaultAssetDestination,
 			optimisticExists,
+			{ keepExisting: keepExistingFiles },
 		);
 		overwritesAtLoad = new Set(
 			analysis.assetConflicts
