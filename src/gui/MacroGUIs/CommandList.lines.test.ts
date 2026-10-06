@@ -89,4 +89,20 @@ describe("CommandList rows", () => {
 
 		expect(container.querySelectorAll(".quickAddCommandListItem")).toHaveLength(1);
 	});
+
+	it("names a nested choice saved without a name by what it does", () => {
+		const nameless = new NestedChoiceCommand(Object.assign(new CaptureChoice(""), { name: "", captureTo: "Inbox.md", prepend: true }));
+		nameless.name = "";
+		const props = createCommandListProps({
+			commands: [nameless],
+			app,
+			plugin: {} as never,
+			deleteCommand: vi.fn(),
+			saveCommands: vi.fn(),
+		});
+		const { container } = render(CommandList, { props });
+
+		expect(rows(container)[0]?.[0]).toBe("Add to a note");
+		expect(container.querySelector('[aria-label="Configure Add to a note"]')).not.toBeNull();
+	});
 });
