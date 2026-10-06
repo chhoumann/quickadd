@@ -4,8 +4,9 @@ export type PreviewRow = {
 	label: string;
 	text: string;
 	diagnostics: readonly PreviewDiagnostic[];
+	/** The text says the answer is not usable, in the diagnostics' error colour. */
+	invalid?: boolean;
 };
-
 
 export function renderOnePagePreview(container: HTMLElement, rows: readonly PreviewRow[]): void {
 	container.empty();
@@ -29,6 +30,7 @@ export function renderOnePagePreview(container: HTMLElement, rows: readonly Prev
 			cls: "qa-preview-val",
 		});
 		valueEl.setAttribute("title", row.text);
+		valueEl.toggleClass("qa-preview-issue--error", row.invalid === true);
 
 		for (const diagnostic of row.diagnostics) {
 			const issueEl = container.createDiv({

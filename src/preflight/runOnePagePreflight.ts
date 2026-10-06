@@ -4,10 +4,12 @@ import { FileNameDisplayFormatter } from "src/formatters/fileNameDisplayFormatte
 import type QuickAdd from "src/main";
 import type IChoice from "src/types/choices/IChoice";
 import type ITemplateChoice from "src/types/choices/ITemplateChoice";
+import type ICaptureChoice from "src/types/choices/ICaptureChoice";
 import { MacroAbortError } from "src/errors/MacroAbortError";
 import { log } from "src/logger/logManager";
 import { OnePageInputModal, type PreviewRow } from "./OnePageInputModal";
-import { likelyTargetFolderPath } from "src/utils/previewTargetFolder";
+import { previewCaptureTarget, previewNewNotePath } from "./resolvedTarget";
+import { formatISODate } from "src/utils/dateParser";
 import {
 	canonicalizeOnePageFileValue,
 	FILE_VARIABLE_PREFIX,
@@ -120,6 +122,50 @@ export function orderOnePageFilePicks(
 	];
 }
 
+/**
+ * The row that says where the run lands: the note a Template creates, or where
+ * a Capture adds to. None for a Template that may pick an existing note, or for
+ * anything else.
+ */
+async function previewTargetRow(
+	app: App,
+	plugin: QuickAdd,
+	choiceExecutor: IChoiceExecutor,
+	choice: IChoice,
+	values: Record<string, unknown>,
+	discovery: boolean,
+): Promise<PreviewRow | undefined> {
+	if (choice.type !== "Template" && choice.type !== "Capture") return undefined;
+	try {
+		// FileNameDisplayFormatter, not FormatDisplayFormatter: both rows preview
+		// a PATH. The content formatter expands `\n` escapes (not linebreaks in a
+		// path) and resolves {{LINKCURRENT}}/{{LINKSECTION}}, both of which the
+		// run-time `formatFileName` deliberately leaves literal.
+		//
+		// It resolves {{TEMPLATE:}} the way the run does (#1563) - which matters
+		// here, because the requirement scan behind this very modal already walks
+		// INTO the include, so the form asks for variables it found inside the
+		// template. What stays literal is what the formatter has no inert
+		// stand-in for: inline `js quickadd` fences and macros.
+		const formatter = new FileNameDisplayFormatter(app, plugin);
+		formatter.setRunClocks(previewRunClocks(choice, choiceExecutor, values));
+		for (const [key, value] of Object.entries(values)) {
+			formatter["variables"].set(key, value);
+		}
+		if (choice.type === "Template") {
+			if (discovery) return undefined;
+			const { path, diagnostics } = await previewNewNotePath(app, choice as ITemplateChoice, formatter);
+			// The user's REAL answers are seeded above, so a "this name would abort
+			// the run" diagnostic (#1558) shows the exact name about to fail.
+			return { label: "Creates", text: path, diagnostics };
+		}
+		const target = await previewCaptureTarget(app, choice as ICaptureChoice, formatter, choiceExecutor);
+		return target && { label: "Adds to", text: target.text, diagnostics: target.diagnostics };
+	} catch {
+		return undefined;
+	}
+}
+
 export async function runOnePagePreflight(
 	app: App,
 	plugin: QuickAdd,
@@ -159,62 +205,28 @@ export async function runOnePagePreflight(
 		);
 		if (modalRequirements.length === 0) return false;
 
-		// Show modal
-		// Optional live preview of a couple of key outputs (best-effort)
+		// Where the run lands and the dates it read, recomputed as the user types.
+		// Each row is best-effort: one that throws is left out, never the form.
 		const computePreview = async (
 			values: Record<string, unknown>,
+			unparsedDates: ReadonlySet<string>,
 		): Promise<PreviewRow[]> => {
-			try {
-				// FileNameDisplayFormatter, not FormatDisplayFormatter: this previews
-				// a FILE NAME. The content formatter expands `\n` escapes (not
-				// linebreaks in a path) and resolves {{LINKCURRENT}}/{{LINKSECTION}},
-				// both of which the run-time `formatFileName` deliberately leaves
-				// literal. It is also the class the builder's own file-name preview
-				// uses.
-				//
-				// It resolves {{TEMPLATE:}} the way the run does (#1563) - which
-				// matters most here, because the requirement scan behind this very
-				// modal already walks INTO the include (collectChoiceRequirements,
-				// scope "noteTitle"), so the form asks for variables it found inside
-				// the template. What stays literal in the preview is what the
-				// formatter has no inert stand-in for: inline `js quickadd` fences and
-				// macros, which the run really does execute inside an included body.
-				const formatter = new FileNameDisplayFormatter(app, plugin);
-				formatter.setRunClocks(
-					previewRunClocks(choice, choiceExecutor, values),
-				);
-				const out: PreviewRow[] = [];
-				// File name preview for Template
-				if (choice.type === "Template") {
-					const tmpl = choice as ITemplateChoice;
-					if (tmpl.fileNameFormat?.enabled) {
-						// {{FOLDER}} previewed nothing at all here: nobody called
-						// setTargetFolderPath, so `Notes/{{FOLDER}}/x` rendered `Notes//x`
-						// plus an empty-segment error that the modal then discarded
-						// (#1590). The builder's own neutral placeholder is the fallback
-						// when the run has not decided the folder yet.
-						formatter.setTargetFolderPath(
-							likelyTargetFolderPath(tmpl.folder) ?? "Folder/Name",
-						);
-						// Seed variables map-like into formatter
-						for (const [k, v] of Object.entries(values)) {
-							formatter["variables"].set(k, v);
-						}
-						out.push({
-							label: "File name",
-							text: await formatter.format(tmpl.fileNameFormat.format),
-							// The channel #1558 added and #1563/#1578/#1588 fill with
-							// "this name would abort the run". This is the surface where
-							// it is worth the most: the user's REAL answers are seeded
-							// above, so the row shows the exact name about to fail.
-							diagnostics: formatter.diagnostics.list(),
-						});
-					}
+			const rows: PreviewRow[] = [];
+			const target = await previewTargetRow(app, plugin, choiceExecutor, choice, values, !!discoveryPlan);
+			if (target) rows.push(target);
+			for (const req of modalRequirements) {
+				if (req.type !== "date" || req.id === QA_INTERNAL_DATE_ORIGIN) continue;
+				const label = req.label ?? req.id;
+				if (unparsedDates.has(req.id)) {
+					rows.push({ label, text: "Not a date", diagnostics: [], invalid: true });
+					continue;
 				}
-				return out;
-			} catch {
-				return [];
+				const value = values[req.id];
+				if (typeof value !== "string" || !value.startsWith("@date:")) continue;
+				const iso = value.slice("@date:".length);
+				rows.push({ label, text: formatISODate(iso, req.dateFormat ?? "YYYY-MM-DD") ?? iso, diagnostics: [] });
 			}
+			return rows;
 		};
 
 		// A remote interactive session (Raycast) collects the batch form through the

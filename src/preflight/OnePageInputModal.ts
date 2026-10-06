@@ -64,6 +64,8 @@ function hasMultipleGroups(requirements: FieldRequirement[]): boolean {
 
 type PreviewComputer = (
 	values: Record<string, unknown>,
+	/** Visible date fields whose text does not parse. */
+	unparsedDates: ReadonlySet<string>,
 ) => Promise<PreviewRow[]> | PreviewRow[];
 
 
@@ -716,7 +718,10 @@ export class OnePageInputModal extends Modal {
 			// value the run is about to re-ask for: an untouched required
 			// {{VDATE:}} is withheld here too, and the preview falls back to its
 			// example date instead of rendering an empty one (#1590).
-			const rows = await this.computePreview(this.collectPreviewAnswers());
+			const rows = await this.computePreview(
+				this.collectPreviewAnswers(),
+				new Set([...this.dateParseErrors].filter((id) => this.isFieldVisible(id))),
+			);
 			if (token !== this.previewToken || !this.previewContainerEl) return;
 
 			renderOnePagePreview(this.previewContainerEl, rows);
