@@ -251,3 +251,19 @@ it("keeps a step's buttons in its card when the line under it is long", async ()
 		await obsidian.dev.evalJson("app.setting.close(), true");
 	}
 });
+
+it("keeps More settings on one line with its chevron", async () => {
+	const { obsidian } = getContext();
+	try {
+		await openChoicePage(new CaptureChoice("Phone more settings"));
+		await waitForElement(obsidian, ".qaMoreSettingsRow");
+		expect(await obsidian.dev.evalJson<boolean>(`(() => {
+			const row = document.querySelector(".qaMoreSettingsRow");
+			const name = row.querySelector(".setting-item-name").getBoundingClientRect();
+			const chevron = row.querySelector(".qaMoreSettingsChevron").getBoundingClientRect();
+			return chevron.top < name.bottom && chevron.bottom > name.top;
+		})()`)).toBe(true);
+	} finally {
+		await obsidian.dev.evalJson("app.setting.close(), true");
+	}
+});

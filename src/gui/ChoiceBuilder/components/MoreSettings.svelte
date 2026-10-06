@@ -30,10 +30,12 @@ function toggle() {
 		<div class="setting-items">
 			<!-- The whole row toggles, for a pointer; the button is the control
 			     for a keyboard and a screen reader. tabindex -1, as Obsidian's own
-			     rows: its settings keys move focus between rows. -->
+			     rows: its settings keys move focus between rows. mod-navigable, as
+			     Obsidian's rows that open more settings: a phone keeps it on one
+			     line with its chevron. -->
 			<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 			<div
-				class="setting-item qaMoreSettingsRow"
+				class="setting-item mod-navigable qaMoreSettingsRow"
 				tabindex="-1"
 				onclick={(event) => {
 					if (!(event.target as HTMLElement).closest("button")) toggle();
@@ -65,11 +67,6 @@ function toggle() {
 	/* Spaced from the group above as Obsidian spaces adjacent groups. */
 	.qaMoreSettings {
 		margin-top: var(--size-4-6);
-	}
-
-	.qaMoreSettingsRow {
-		align-items: center;
-		cursor: var(--cursor);
 	}
 
 	.qaMoreSettingsChevron :global(.quickadd-icon) {
