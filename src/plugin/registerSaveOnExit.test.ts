@@ -19,7 +19,7 @@ class OtherPage extends SettingPage {
 
 const listeners: (() => void)[] = [];
 
-function setup() {
+function setup(pendingWrite: Promise<void> | null = Promise.resolve()) {
 	const saved: string[] = [];
 	const app = new App() as App & {
 		setting: { pageStack: { page: SettingPage }[]; clearPageStack: () => void };
@@ -49,10 +49,9 @@ function setup() {
 			listeners.push(() => el.removeEventListener(type, callback));
 		},
 	} as unknown as Plugin;
-	const write = Promise.resolve();
-	const flush = vi.fn(() => write);
+	const flush = vi.fn(() => pendingWrite);
 	registerSaveOnExit(plugin, flush);
-	return { app, saved, flush, write, quit: (tasks: Parameters<typeof quit>[0]) => quit(tasks) };
+	return { app, saved, flush, write: pendingWrite, quit: (tasks: Parameters<typeof quit>[0]) => quit(tasks) };
 }
 
 function goToBackground(state: DocumentVisibilityState) {
@@ -76,6 +75,18 @@ describe("registerSaveOnExit", () => {
 		expect(saved).toEqual(["Then", "Macro"]);
 		expect(flush).toHaveBeenCalledTimes(1);
 		expect(addPromise).toHaveBeenCalledWith(write);
+	});
+
+	// Obsidian cancels the window close and shows "Saving..." whenever quit
+	// is handed something to wait for (#2194).
+	it("hands Obsidian nothing to wait for on quit when there is nothing to save", () => {
+		const { flush, quit } = setup(null);
+		const addPromise = vi.fn();
+
+		quit({ addPromise });
+
+		expect(flush).toHaveBeenCalledTimes(1);
+		expect(addPromise).not.toHaveBeenCalled();
 	});
 
 	it("saves open builder pages in place, top first, and writes when the app goes to the background", () => {
