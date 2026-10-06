@@ -182,17 +182,24 @@ describe("MacroChoiceEngine user script entry handling", () => {
 		};
 	});
 
-	it.each([
-		{ name: "retains previous output when the script cannot be loaded", callable: false, expected: "previous" },
-		{ name: "clears previous output when the script returns undefined", callable: true, expected: undefined },
-	])("$name", async ({ callable, expected }) => {
+	it("refuses a script that exports nothing and keeps the previous output", async () => {
+		mockLoadModuleExports.mockResolvedValue(undefined);
+		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
+		engine.setOutput("previous");
+		await expect(engine["executeUserScript"](userScriptCommand)).rejects.toThrow(
+			`The script ${userScriptCommand.path} exports nothing to run, so the step did not run. Export a function from it.`,
+		);
+		expect(engine.getOutput()).toBe("previous");
+	});
+
+	it("clears previous output when the script returns undefined", async () => {
 		const script = vi.fn().mockResolvedValue(undefined);
-		mockLoadModuleExports.mockResolvedValue(callable ? script : undefined);
+		mockLoadModuleExports.mockResolvedValue(script);
 		const engine = new MacroChoiceEngine(app, plugin, macroChoice, choiceExecutor, variables);
 		engine.setOutput("previous");
 		await engine["executeUserScript"](userScriptCommand);
-		expect(engine.getOutput()).toBe(expected);
-		expect(script).toHaveBeenCalledTimes(callable ? 1 : 0);
+		expect(engine.getOutput()).toBeUndefined();
+		expect(script).toHaveBeenCalledTimes(1);
 	});
 
 	it("runs the entry export without prompting when no settings are defined", async () => {

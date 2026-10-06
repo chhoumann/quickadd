@@ -236,12 +236,16 @@ afterAll(() => {
 	});
 
 	it("stops the macro when a user script is missing", async () => {
-		const { engine, executeCommandById } = createEngine(
+		const { engine, executeCommandById, choiceExecutor } = createEngine(
 			[new UserScript("gone", "scripts/gone.js"), new ObsidianCommand("After", "after-id")],
 			{},
 		);
+		choiceExecutor.signalAbort = vi.fn();
 
-		await expect(engine.run()).rejects.toThrow("QuickAdd could not find scripts/gone.js.");
+		await engine.run();
+		expect(vi.mocked(choiceExecutor.signalAbort).mock.calls[0]?.[0]?.message).toBe(
+			"Test choice: the script scripts/gone.js does not exist, so the step did not run. Choose a file on the step's row.",
+		);
 		expect(executeCommandById).not.toHaveBeenCalled();
 	});
 
@@ -251,9 +255,13 @@ afterAll(() => {
 			"then-id",
 			"else-id"
 		);
-		const { engine, executeCommandById } = createEngine(conditional, {});
+		const { engine, executeCommandById, choiceExecutor } = createEngine(conditional, {});
+		choiceExecutor.signalAbort = vi.fn();
 
-		await expect(engine.run()).rejects.toThrow("QuickAdd could not find scripts/gone.js.");
+		await engine.run();
+		expect(vi.mocked(choiceExecutor.signalAbort).mock.calls[0]?.[0]?.message).toBe(
+			"Test choice: the script scripts/gone.js does not exist, so the step did not run. Choose a file on the step's row.",
+		);
 		expect(executeCommandById).not.toHaveBeenCalled();
 	});
 });

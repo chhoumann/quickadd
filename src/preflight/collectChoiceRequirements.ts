@@ -24,6 +24,7 @@ import { collectTemplateIncludePaths } from "src/utils/templateIncludes";
 import { getTemplateFile } from "src/utils/templateFolderUtils";
 import { isFolder } from "src/utils/vaultQueries";
 import { log } from "src/logger/logManager";
+import { RefusalError } from "src/errors/RefusalError";
 import {
 	getUserScriptPreloadKey,
 	isUserScriptLoadError,
@@ -448,7 +449,8 @@ async function collectUserScriptRequirements(
 	} catch (error) {
 		const scriptPath = userScriptCommand.path ?? userScriptCommand.id;
 		const message = error instanceof Error ? error.message : String(error);
-		if (isUserScriptLoadError(error)) {
+		// The run itself reports a script it cannot load, with the choice's name.
+		if (isUserScriptLoadError(error) || error instanceof RefusalError) {
 			log.logMessage(
 				`QuickAdd preflight could not inspect user script '${scriptPath}': ${message}`,
 			);

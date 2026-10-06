@@ -21,6 +21,7 @@ import { replaceScriptFile } from "./replaceScriptFile";
 import { reportingHandler } from "../../utils/errorUtils";
 import { log } from "../../logger/logManager";
 import { isUserScriptLoadError, loadUserScript } from "src/utils/userScript";
+import { RefusalError } from "src/errors/RefusalError";
 import type { IAIAssistantCommand } from "src/types/macros/QuickCommands/IAIAssistantCommand";
 import AIAssistantCommand from "./Components/AIAssistantCommand.svelte";
 import { AIAssistantCommandSettingsModal } from "./AIAssistantCommandSettingsModal";
@@ -254,8 +255,8 @@ async function configureScript(command: IUserScript) {
 	try {
 		loaded = await loadUserScript(command, app);
 	} catch (error) {
-		// Already reported, e.g. "could not find" for a moved script.
-		if (isUserScriptLoadError(error)) return;
+		// Already reported, or shown on the row ("Can't find" for a moved script).
+		if (isUserScriptLoadError(error) || error instanceof RefusalError) return;
 		throw error;
 	}
 	if (!loaded?.script) {

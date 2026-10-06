@@ -5,6 +5,7 @@ import { getUserScript, isUserScriptLoadError, loadUserScript } from "./userScri
 import type { IUserScript } from "../types/macros/IUserScript";
 import { CommandType } from "../types/macros/CommandType";
 import { log } from "../logger/logManager";
+import { RefusalError } from "../errors/RefusalError";
 
 function createFile(path = "target.md"): TFile {
 	const file = new TFile();
@@ -261,16 +262,20 @@ describe("getUserScript", () => {
 		}
 	});
 
-	it("stops with one clear error when the script is missing, such as after a rename", async () => {
+	it("refuses a missing script, such as after a rename, and leaves the report to the run", async () => {
+		const before = noticeMessages().length;
 		const logError = vi.spyOn(log, "logError").mockImplementation(() => {});
 		const app = {
 			vault: { getAbstractFileByPath: vi.fn(() => null), read: vi.fn() },
 		} as unknown as App;
 		try {
-			await expect(
-				getUserScript(createUserScriptCommand({ path: "Scripts/gone.js" }), app),
-			).rejects.toThrow("QuickAdd could not find Scripts/gone.js.");
-			expect(logError).toHaveBeenCalledTimes(1);
+			const error = await getUserScript(createUserScriptCommand({ path: "Scripts/gone.js" }), app).catch((e: unknown) => e);
+			expect(error).toBeInstanceOf(RefusalError);
+			expect((error as Error).message).toBe(
+				"The script Scripts/gone.js does not exist, so the step did not run. Choose a file on the step's row.",
+			);
+			expect(noticeMessages()).toHaveLength(before);
+			expect(logError).not.toHaveBeenCalled();
 		} finally {
 			logError.mockRestore();
 		}
@@ -295,28 +300,12 @@ describe("getUserScript", () => {
 		}
 	});
 
-	it("can suppress markdown script load notices during preflight", async () => {
+	it("refuses an empty ```js block without a notice of its own", async () => {
 		const before = noticeMessages().length;
-		const app = createUserScriptApp(
-			[
-				"# Script note",
-				"",
-				"This note has no JavaScript code block.",
-			].join("\n"),
-			"Scripts/no-code-block.md",
-		);
+		const app = createUserScriptApp("# Script note\n\n```js\n```\n", "Scripts/empty-block.md");
 
-		const script = await getUserScript(
-			createUserScriptCommand({
-				path: "Scripts/no-code-block.md",
-			}),
-			app,
-			{
-				reportLoadErrors: false,
-			},
-		);
-
-		expect(script).toBeUndefined();
+		await expect(getUserScript(createUserScriptCommand({ path: "Scripts/empty-block.md" }), app))
+			.rejects.toThrow(RefusalError);
 		expect(noticeMessages()).toHaveLength(before);
 	});
 
@@ -523,11 +512,7 @@ describe("getUserScript", () => {
 		await expect((script as () => unknown)()).resolves.toBe("ok");
 	});
 
-	it("returns undefined and shows a notice when a note has no ```js block", async () => {
-		const noticeStub = Notice as unknown as {
-			instances: Array<{ message: string }>;
-		};
-		const before = noticeStub.instances.length;
+	it("refuses a note with no ```js block", async () => {
 		const app = createUserScriptApp(
 			"# Just prose\n\nNo code block here.\n",
 			"Scripts/no-fence.md",
@@ -537,12 +522,9 @@ describe("getUserScript", () => {
 			name: "no-fence",
 		});
 
-		const script = await getUserScript(command, app);
-		expect(script).toBeUndefined();
-
-		const added = noticeStub.instances.slice(before);
-		expect(added).toHaveLength(1);
-		expect(added[0].message).toContain("Scripts/no-fence.md");
+		await expect(getUserScript(command, app)).rejects.toThrow(
+			"The note Scripts/no-fence.md has no script in a ```js code block, so the step did not run. Add one with the script.",
+		);
 	});
 
 	it("treats a note fence without module.exports as a non-runnable export", async () => {

@@ -1,5 +1,5 @@
 import type { App, TAbstractFile } from "obsidian";
-import { Notice, TFile } from "obsidian";
+import { TFile } from "obsidian";
 import {
 	JAVASCRIPT_FILE_EXTENSION_REGEX,
 	MARKDOWN_FILE_EXTENSION_REGEX,
@@ -7,6 +7,7 @@ import {
 import type { IUserScript } from "../types/macros/IUserScript";
 import { extractScriptFromMarkdown } from "./extractScriptFromMarkdown";
 import { reportError } from "./errorUtils";
+import { refuse, type RefusalError } from "../errors/RefusalError";
 
 type GetUserScriptOptions = {
 	reportLoadErrors?: boolean;
@@ -62,8 +63,14 @@ function unsupportedScriptFileMessage(path: string): string {
 	return `QuickAdd could not run ${path}. A user script must be a .js file or a note with a \`\`\`js code block. Rename the file so it ends in .js.`;
 }
 
-function missingScriptMessage(path: string): string {
-	return `QuickAdd could not find ${path}. If you moved or renamed the script, update its path in the macro.`;
+/** The script step's file is not there: a refusal, which the run reports with the choice's name. */
+export function missingScriptRefusal(path: string): RefusalError {
+	return refuse(`The script ${path} does not exist`, "the step did not run", "Choose a file on the step's row.");
+}
+
+/** The script step's file holds nothing to run. */
+export function emptyScriptRefusal(path: string): RefusalError {
+	return refuse(`The script ${path} exports nothing to run`, "the step did not run", "Export a function from it.");
 }
 
 function savedWebpageMessage(path: string): string {
@@ -246,9 +253,7 @@ export async function loadUserScript(
 ): Promise<LoadedUserScript | undefined> {
 	// @ts-ignore
 	const file: TAbstractFile = app.vault.getAbstractFileByPath(command.path);
-	if (!file) {
-		reportAndThrowUserScriptLoadError(missingScriptMessage(command.path), options);
-	}
+	if (!file) throw missingScriptRefusal(command.path);
 
 	if (file instanceof TFile) {
 		const isNote = MARKDOWN_FILE_EXTENSION_REGEX.test(file.path);
@@ -272,15 +277,9 @@ export async function loadUserScript(
 		// first js fence and ignore surrounding prose; the .js path is byte-identical.
 		let scriptSource = fileContent;
 		if (isNote) {
-			const { code, error } = extractScriptFromMarkdown(fileContent);
+			const { code } = extractScriptFromMarkdown(fileContent);
 			if (code === null || code.length === 0) {
-				// Surface a visible, actionable reason (the caller's generic "failed to
-				// load" log alone is easy to miss) and fall through to the established
-				// "return undefined" contract — do not double-log here.
-				if (options.reportLoadErrors !== false) {
-					new Notice(`QuickAdd: ${error} (${command.path})`);
-				}
-				return;
+				throw refuse(`The note ${command.path} has no script in a \`\`\`js code block`, "the step did not run", "Add one with the script.");
 			}
 			scriptSource = code;
 		}

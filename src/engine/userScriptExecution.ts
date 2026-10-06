@@ -4,7 +4,7 @@ import type { QuickAddApi } from "../quickAddApi";
 import type QuickAdd from "../main";
 import type { IChoiceExecutor } from "../IChoiceExecutor";
 import type { IUserScript } from "../types/macros/IUserScript";
-import { getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
+import { emptyScriptRefusal, getUserScriptPreloadKey, type LoadedUserScript, loadUserScript } from "../utils/userScript";
 import { initializeUserScriptSettings } from "../utils/userScriptSettings";
 import { resolveScriptSettings } from "./userScriptSettings";
 import { log } from "../logger/logManager";
@@ -58,10 +58,7 @@ export async function executeUserScript(
 	if (cacheKey !== undefined && loaded !== undefined) preloadedUserScripts.delete(cacheKey);
 	if (loaded === undefined) loaded = await loadUserScript(command, app);
 	const userScript = loaded?.script;
-	if (!userScript) {
-		log.logError(`failed to load user script ${command.path}.`);
-		return;
-	}
+	if (!userScript) throw emptyScriptRefusal(command.path);
 
 	if (!command.settings) command.settings = {};
 	// Read from the module, not the `::`-drilled export (a bare function for
@@ -77,9 +74,7 @@ export async function executeUserScript(
 	async function delegate(value: unknown): Promise<ScriptResult | undefined> {
 		if (isUserScriptFunction(value)) return invoke(value);
 		if (isRecord(value)) {
-			if (Object.keys(value).length === 0) {
-				throw new Error(`user script in macro for '${choiceName}' is an empty object`);
-			}
+			if (Object.keys(value).length === 0) throw emptyScriptRefusal(command.path);
 			if (isUserScriptFunction(value.entry)) return invoke(value.entry);
 			const keys = Object.keys(value);
 			try {
