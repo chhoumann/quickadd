@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type IChoice from "../../src/types/choices/IChoice";
 import { TemplateChoice } from "../../src/types/choices/TemplateChoice";
 import { createQuickAddE2EHarness, seedVaultFile } from "./e2eVault";
-import { POLL_OPTS, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
+import { POLL_OPTS, closeOpenPrompts, expectNoPrompt, pressKey, typeInto, waitForElement } from "./uiHelpers";
 
 // #1797: `{{FIELD:...|label:...}}` words the prompt instead of "Enter value for
 // <field>", and two labels on the same property ask two separate questions.
@@ -13,17 +13,8 @@ type QuickAddData = {
 	onePageInputEnabled: boolean;
 };
 
-async function closeOpenPrompts() {
-	const { obsidian } = getContext();
-	for (let remaining = 10; remaining > 0; remaining--) {
-		if (!await obsidian.dev.evalJson<boolean>('Boolean(document.querySelector(".modal-container, .prompt"))')) break;
-		await pressKey(obsidian, "Escape");
-	}
-	await expectNoPrompt(obsidian);
-}
-
-beforeEach(closeOpenPrompts);
-afterEach(closeOpenPrompts);
+beforeEach(() => closeOpenPrompts(getContext().obsidian));
+afterEach(() => closeOpenPrompts(getContext().obsidian));
 
 async function runCallTemplate(onePage: boolean) {
 	const { obsidian, plugin, sandbox } = getContext();
