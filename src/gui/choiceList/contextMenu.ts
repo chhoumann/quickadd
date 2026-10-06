@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
-import { Menu as ObsidianMenu } from "obsidian";
+import { Menu as ObsidianMenu, Notice } from "obsidian";
+import { buttonBlockFor } from "src/noteButtons/buttonBlock";
 import type IChoice from "src/types/choices/IChoice";
 import type { ChoiceListActions } from "./choiceListActions";
 import {
@@ -139,6 +140,12 @@ function buildChoiceMenu(
     .addItem((item) => item.setTitle("Rename").setIcon("pencil").onClick(actions.onRename))
     .addItem((item) => item.setTitle("Configure").setIcon("settings").onClick(actions.onConfigure))
     .addItem((item) => item.setTitle("Duplicate").setIcon("copy").onClick(actions.onDuplicate))
+    .addItem((item) =>
+      item
+        .setTitle("Copy button block")
+        .setIcon("mouse-pointer-click")
+        .onClick(() => void copyButtonBlock(choice, roots)),
+    )
     .addItem((item) => item.setTitle("Delete").setIcon("trash-2").onClick(actions.onDelete))
     .addSeparator();
 
@@ -170,6 +177,12 @@ function buildChoiceMenu(
   }
 
   return menu;
+}
+
+/** Put a quickadd block with a button for `choice` on the clipboard, to paste in a note. */
+async function copyButtonBlock(choice: IChoice, roots: IChoice[] | undefined): Promise<void> {
+  await navigator.clipboard.writeText(buttonBlockFor(choice, rootChoicesOf(roots)));
+  new Notice("Copied. Paste it in a note.");
 }
 
 /**

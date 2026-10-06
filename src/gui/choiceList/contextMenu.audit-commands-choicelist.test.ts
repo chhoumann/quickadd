@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { Menu, type App } from "obsidian";
+import { Menu, Notice, type App } from "obsidian";
 import type IChoice from "../../types/choices/IChoice";
 import type IMultiChoice from "../../types/choices/IMultiChoice";
 import {
@@ -96,6 +96,39 @@ describe("contextMenu audit (commands-choicelist)", () => {
 				(i) => i.title === "Move to: (root)",
 			);
 			expect(moveToRoot).toBeUndefined();
+		});
+	});
+
+	describe('"Copy button block" menu item', () => {
+		const copyItem = () =>
+			(Menu as unknown as {
+				lastShown: { items: { title: string; clickHandler: (() => void) | null }[] };
+			}).lastShown.items.find((i) => i.title === "Copy button block");
+
+		const notices = () => (Notice as unknown as { instances: { message: string }[] }).instances;
+
+		const copyFor = async (choice: IChoice, roots: IChoice[]) => {
+			const writeText = vi.fn(async (_text: string) => {});
+			vi.stubGlobal("navigator", { clipboard: { writeText } });
+			notices().length = 0;
+			showChoiceContextMenu(fakeApp, { preventDefault: vi.fn() } as unknown as MouseEvent, choice, roots, noopActions);
+			copyItem()?.clickHandler?.();
+			await vi.waitFor(() => expect(notices()).toHaveLength(1));
+			return { text: writeText.mock.calls[0]?.[0], notice: notices()[0].message };
+		};
+
+		it("copies a block naming the choice and says so", async () => {
+			const log = leaf("Log");
+			expect(await copyFor(log, [log, folder("F")])).toEqual({
+				text: "```quickadd\nLog\n```\n",
+				notice: "Copied. Paste it in a note.",
+			});
+		});
+
+		it("copies the id when another choice shares the name", async () => {
+			const log = leaf("Log");
+			const other = leaf("Log");
+			expect((await copyFor(other, [log, folder("F", [other])])).text).toBe(`\`\`\`quickadd\nid: ${other.id}\n\`\`\`\n`);
 		});
 	});
 });
