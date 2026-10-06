@@ -1286,7 +1286,7 @@
 		"description": "Update a property in your daily note by picking it from a suggester and entering a new value, using Obsidian's frontmatter API",
 		"slug": "docs/Examples/Macro_ChangePropertyInDailyNotes",
 		"requires": [
-			"either the **Daily notes** core plugin turned on or a custom **Daily note path** (see below)"
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
 		],
 		"afterImport": [
 			"Create today's daily note and give it the properties you want to change; the menu only lists properties that already exist, and only text, number and checkbox ones.",
@@ -1816,7 +1816,7 @@
 		"description": "Log the book you are reading to your daily journal note's Book property with an input prompt and Obsidian's frontmatter API",
 		"slug": "docs/Examples/Macro_LogBookToDailyJournal",
 		"requires": [
-			"either the **Daily notes** core plugin turned on or a custom **Daily note path** (see below)"
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
 		],
 		"afterImport": [
 			"Create today's daily note if you have not yet; the macro does not create one.",

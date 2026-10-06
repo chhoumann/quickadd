@@ -42,7 +42,7 @@
 	],
 	"install": {
 		"requires": [
-			"either the **Daily notes** core plugin turned on or a custom **Daily note path** (see below)"
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
 		],
 		"afterImport": [
 			"Create today's daily note and give it the properties you want to change; the menu only lists properties that already exist, and only text, number and checkbox ones.",

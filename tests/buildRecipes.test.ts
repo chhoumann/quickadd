@@ -70,4 +70,11 @@ describe("build-recipes", () => {
 		const committed = readFileSync(CATALOG_PATH, "utf8").replace(/\r\n/g, "\n");
 		expect(committed === buildCatalogJson(), 'Run "pnpm run build:recipes" and commit the catalogue.').toBe(true);
 	});
+
+	it("says what a recipe needs without pointing at the page around it, which the gallery does not show", () => {
+		const catalog = JSON.parse(buildCatalogJson()) as Array<{ id: string; requires: string[] }>;
+		const pointing = catalog.flatMap((recipe) =>
+			recipe.requires.filter((line) => /\b(?:see )?(?:below|above)\b/i.test(line)).map((line) => `${recipe.id}: ${line}`));
+		expect(pointing).toEqual([]);
+	});
 });

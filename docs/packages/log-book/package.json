@@ -42,7 +42,7 @@
 	],
 	"install": {
 		"requires": [
-			"either the **Daily notes** core plugin turned on or a custom **Daily note path** (see below)"
+			"either the **Daily notes** core plugin turned on or a custom **Daily note path** on its script step"
 		],
 		"afterImport": [
 			"Create today's daily note if you have not yet; the macro does not create one.",
