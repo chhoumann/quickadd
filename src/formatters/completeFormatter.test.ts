@@ -2555,12 +2555,13 @@ describe("CompleteFormatter - the run's current note", () => {
 		current: { path: string; basename: string } | null,
 		editorFile: { path: string } | null,
 		selection = "picked",
+		named = true,
 	) {
 		const app = makeApp({ activeFile: { basename: "Active" }, selection, generatedLink: "" });
 		app.workspace.getActiveViewOfType = () =>
 			editorFile ? { file: editorFile, editor: { getSelection: () => selection } } : undefined;
 		app.fileManager.generateMarkdownLink = ((file: { basename: string }) => `[[${file.basename}]]`) as never;
-		const choiceExecutor = { variables: new Map<string, unknown>(), triggerContext: { activeFile: current } };
+		const choiceExecutor = { variables: new Map<string, unknown>(), triggerContext: named ? { activeFile: current, named: true } : { activeFile: current } };
 		return new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
 	}
 
@@ -2569,6 +2570,11 @@ describe("CompleteFormatter - the run's current note", () => {
 	it("links and names the current note while another tab is active", async () => {
 		const f = formatterWithCurrentNote(today, { path: "Active.md" });
 		await expect(f.formatFileContent("{{LINKCURRENT}} {{FILENAMECURRENT}}")).resolves.toBe("[[Today]] Today");
+	});
+
+	it("links and names the active note when the run did not name one", async () => {
+		const f = formatterWithCurrentNote(today, { path: "Active.md" }, "picked", false);
+		await expect(f.formatFileContent("{{LINKCURRENT}} {{FILENAMECURRENT}} [{{SELECTED}}]")).resolves.toBe("[[Active]] Active [picked]");
 	});
 
 	it("fails the required tokens when the run has no current note, even with an active tab", async () => {

@@ -126,9 +126,11 @@ const BOARD_JSON = '{"nodes":[{"id":"card","type":"text","text":"Start"}],"edges
 type Card = { id: string; type: "text"; text: string; setText: ReturnType<typeof vi.fn> };
 
 function harness({
-	current, activeEditorFile, activeCanvas = null, configure = () => {}, focusedProperty = null,
+	current, activeEditorFile, activeCanvas = null, configure = () => {}, focusedProperty = null, named = true,
 }: {
 	current: TFile | null; activeEditorFile: TFile | null;
+	/** Whether the caller named `current` (the CLI's `current=`), or it is just the note the run started in. */
+	named?: boolean;
 	/** A Canvas view in the active leaf with one selected text card. */
 	activeCanvas?: { file: TFile; card: Card } | null;
 	configure?: (choice: CaptureChoice) => void; focusedProperty?: { file: TFile; key: string } | null;
@@ -165,7 +167,7 @@ function harness({
 		recordExecutionResult: vi.fn(),
 		signalAbort: vi.fn(),
 		variables: new Map<string, unknown>(),
-		triggerContext: { activeFile: current },
+		triggerContext: named ? { activeFile: current, named: true } : { activeFile: current },
 		focusedProperty,
 	};
 	const choice = new CaptureChoice("Here");
@@ -188,6 +190,16 @@ describe("CaptureChoiceEngine and the run's current note", () => {
 		expect(contents.get(other.path)).toBe("# Other\n");
 		expect(appendToCurrentLine).not.toHaveBeenCalled();
 		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: target, effect: "changed" });
+	});
+
+	it("captures into the active note when the run did not name one, so a macro step's note is used", async () => {
+		const { engine, app, executor, contents } = harness({ current: target, activeEditorFile: other, named: false });
+
+		await engine.run();
+
+		expect(appendToCurrentLine).toHaveBeenCalledWith("captured\n", app, other);
+		expect(contents.get(target.path)).toBe("# Today\n");
+		expect(executor.recordExecutionResult).toHaveBeenCalledWith({ status: "success", file: other, effect: "changed" });
 	});
 
 	it("keeps the bottom for a new-line capture whose settings capture to the bottom", async () => {
