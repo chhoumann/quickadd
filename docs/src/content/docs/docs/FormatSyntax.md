@@ -583,7 +583,8 @@ Good to know:
 ### Fine-tune any prompt
 
 These options work on text prompts and pickers alike. Combine them freely:
-`{{VALUE:title|label:Note title|default:Untitled}}`.
+`{{VALUE:title|label:Note title|default:Untitled}}`. Inside a table cell, write
+the pipe as `\|`, as in `{{FILE:People\|label:Who?}}`; QuickAdd reads it as `|`.
 
 #### Name the prompt: `|label:` {#value-label}
 

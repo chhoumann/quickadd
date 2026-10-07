@@ -1,6 +1,7 @@
 import { stripCursorMarkers } from "./helpers/capturePlacement";
 import { PreviewFormatter } from "./previewFormatter";
 import { expandGlobalVariables } from "./helpers/globalVariables";
+import { unescapePipesInTokens } from "./helpers/pipeEscapes";
 import { findInlineScriptSpans, hasUnterminatedInlineScriptFence } from "./formatter";
 import { parseVDateOptionsForPreview } from "../utils/vdateSyntax";
 import {
@@ -209,6 +210,7 @@ export class FileNameDisplayFormatter extends PreviewFormatter {
 		output = await this.replaceTemplateOutsideScripts(output);
 		// Expand globals to preview inserted snippets
 		output = await this.replaceGlobalVarInString(output);
+		output = unescapePipesInTokens(output);
 		output = await this.replaceMacrosInString(output);
 		output = this.replaceDateInString(output);
 		output = this.replaceTimeInString(output);
