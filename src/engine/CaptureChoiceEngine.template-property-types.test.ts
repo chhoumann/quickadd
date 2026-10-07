@@ -117,7 +117,7 @@ vi.mock("../gui/choiceList/ChoiceView.svelte", () => ({
 
 vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
 }));
@@ -415,7 +415,8 @@ describe("CaptureChoiceEngine template property types", () => {
 			},
 			workspace: {
 				getActiveFile: vi.fn().mockReturnValue(tFile),
-				getActiveViewOfType: vi.fn().mockReturnValue(null),
+				// The newLine insert needs an editor showing the current note.
+				getActiveViewOfType: vi.fn().mockReturnValue({ file: tFile, editor: {} }),
 				getLeavesOfType: vi.fn(() => []),
 				activeLeaf: null,
 				getMostRecentLeaf: vi.fn().mockReturnValue(null),

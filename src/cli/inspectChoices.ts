@@ -11,7 +11,8 @@ import { childChoicesOf, isChoiceLike, rootChoicesOf } from "../utils/choiceUtil
 import { collectChoiceRequirements, getUnresolvedRequirements, listDeferredMacroSteps } from "../preflight/collectChoiceRequirements";
 import { analysePackagePreview, readQuickAddPackage } from "../services/packageImportService";
 import { decodeAssetPreview, type AssetPreviewContent, type PackagePreview } from "../services/packagePreview";
-import { describeChoice, extractVariables, isTruthy, resolveChoiceFromParams, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
+import { describeChoice, extractVariables, isTruthy, resolveChoiceFromParams, resolveCurrentNote, RESERVED_CHECK_PARAMS, setExecutorVariables, toDetailedFieldSummary, toMissingFieldSummary } from "./params";
+import { describeCurrentNoteUse, type CurrentNoteUse } from "./currentNoteUse";
 
 interface CliChoiceSummary {
 	id: string;
@@ -20,6 +21,7 @@ interface CliChoiceSummary {
 	command: boolean;
 	path: string;
 	runnable: boolean;
+	currentNote: CurrentNoteUse;
 	writes?: Record<string, string | boolean>;
 }
 const SUPPORTED_LIST_TYPES = new Set(["template", "capture", "macro", "multi"]);
@@ -72,10 +74,11 @@ function describeWrites(choice: IChoice): CliChoiceSummary["writes"] {
 	return undefined;
 }
 
-function flattenChoices(
+async function flattenChoices(
+	plugin: QuickAdd,
 	choices: IChoice[],
 	segments: string[] = [],
-): CliChoiceSummary[] {
+): Promise<CliChoiceSummary[]> {
 	const flattened: CliChoiceSummary[] = [];
 
 	for (const choice of rootChoicesOf(choices)) {
@@ -90,24 +93,25 @@ function flattenChoices(
 			command: choice.command,
 			path,
 			runnable: !isMulti,
+			currentNote: await describeCurrentNoteUse(plugin, choice),
 			writes: describeWrites(choice),
 		});
 
 		if (isMulti) {
-			flattened.push(...flattenChoices(childChoicesOf(choice), pathSegments));
+			flattened.push(...await flattenChoices(plugin, childChoicesOf(choice), pathSegments));
 		}
 	}
 
 	return flattened;
 }
 
-export function listChoicesHandler(plugin: QuickAdd, params: CliData) {
+export async function listChoicesHandler(plugin: QuickAdd, params: CliData) {
 	const rawType = typeof params.type === "string" ? params.type.trim() : "";
 	const type = rawType.toLowerCase();
 	if (type && !SUPPORTED_LIST_TYPES.has(type)) {
 		return { ok: false, error: `Invalid type filter '${rawType}'.` };
 	}
-	const choices = flattenChoices(plugin.settings.choices).filter((choice) =>
+	const choices = (await flattenChoices(plugin, plugin.settings.choices)).filter((choice) =>
 		(!type || choice.type.toLowerCase() === type) &&
 		(!isTruthy(params.commands) || choice.command),
 	);
@@ -124,7 +128,7 @@ export async function checkChoiceHandler(
 			ok: false,
 
 			error: "Multi choices are interactive and cannot be checked via CLI.",
-			choice: describeChoice(choice),
+			choice: await describeChoice(plugin, choice),
 		};
 	}
 
@@ -133,6 +137,8 @@ export async function checkChoiceHandler(
 		plugin.app,
 		plugin,
 	);
+	const current = resolveCurrentNote(plugin.app, params);
+	if (current !== undefined) choiceExecutor.setCurrentFile(current);
 	setExecutorVariables(choiceExecutor, variables);
 
 	const requirements = await collectChoiceRequirements(
@@ -152,7 +158,7 @@ export async function checkChoiceHandler(
 	return {
 		ok: unresolved.length === 0,
 
-		choice: describeChoice(choice),
+		choice: await describeChoice(plugin, choice),
 		requiredInputCount: requirements.length,
 		missingInputCount: unresolved.length,
 		missing: unresolved.map(summarize),

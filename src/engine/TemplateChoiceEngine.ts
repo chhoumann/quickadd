@@ -30,6 +30,7 @@ import {
 import { getAllFolderPathsInVault } from "../utils/vaultQueries";
 import { jumpToNextTemplaterCursorIfPossible } from "../utils/templaterIntegration";
 import { getMarkdownEditorViewForFile } from "../utils/editorInsertion";
+import { currentFile } from "../utils/currentFile";
 import { reportError } from "../utils/errorUtils";
 import {
 	ChoiceOutcomeRecorder,
@@ -251,7 +252,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 				// Report it as a non-fatal warning that names the created file.
 				try {
 					await insertChoiceFileLink(this.app, createdFile, linkOptions,
-						this.choiceExecutor.focusedProperty, this.cursorPlacement ? mutation => {
+						this.choiceExecutor, this.cursorPlacement ? mutation => {
 							if (this.cursorPlacement && mutation.filePath === createdFile?.path) {
 								this.cursorPlacement = mapEditorCursorPlacement(this.cursorPlacement, mutation);
 							}
@@ -352,7 +353,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 		} else {
 			// Respect Obsidian's "Default location for new notes" setting
 			const parent = this.app.fileManager.getNewFileParent(
-				this.app.workspace.getActiveFile()?.path ?? "",
+				currentFile(this.app, this.choiceExecutor)?.path ?? "",
 			);
 			folderPath = parent === this.app.vault.getRoot() ? "" : parent.path;
 		}
@@ -673,22 +674,24 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	// the order or conditions here, update that helper (and its 16-combo test) so
 	// the dropdown keeps showing the mode that actually runs.
 	private async getFolderPath() {
+		const config = this.choice.folder;
 		// Configured folders are matched against vault paths below (subfolder
 		// ordering, allowed roots), so they are canonicalized before any of that,
-		// not only when a selection is resolved.
-		const folders: string[] = (
-			await this.formatFolderPaths([...this.choice.folder.folders])
+		// not only when a selection is resolved. The picker replaces them with the
+		// vault's folders, so for it they are not formatted at all: a token in an
+		// unused folder must not prompt or fail.
+		const folders: string[] = config?.chooseWhenCreatingNote ? [] : (
+			await this.formatFolderPaths([...config.folders])
 		).map((folder) => this.canonicalFolderPath(folder));
 		const currentFolder = this.getCurrentFolderSuggestion();
 		const topItems = currentFolder ? [currentFolder] : [];
-		const config = this.choice.folder;
 		let destinations = folders;
 		let allowedRoots: string[] | undefined = folders;
 		if (config?.chooseWhenCreatingNote) {
 			destinations = sortFolderPathsByTree(getAllFolderPathsInVault(this.app));
 			allowedRoots = undefined;
 		} else if (config?.createInSameFolderAsActiveFile) {
-			const activeFile = this.app.workspace.getActiveFile();
+			const activeFile = currentFile(this.app, this.choiceExecutor);
 			if (!activeFile || !activeFile.parent) {
 				log.logWarning(
 					"No active file or active file has no parent. Cannot create file in same folder as active file. Creating in root folder.",
@@ -711,7 +714,7 @@ export class TemplateChoiceEngine extends TemplateEngine {
 	private getCurrentFolderSuggestion():
 		| { path: string; label: string }
 		| null {
-		const activeFile = this.app.workspace.getActiveFile();
+		const activeFile = currentFile(this.app, this.choiceExecutor);
 		const parent = activeFile?.parent;
 		if (!activeFile || !parent) return null;
 		const path = parent.path ?? "";

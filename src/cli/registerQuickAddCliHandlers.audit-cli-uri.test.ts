@@ -123,6 +123,7 @@ describe("registerQuickAddCliHandlers (cli-uri audit: cli-run-choice honesty)", 
 					file.path = path;
 					return file;
 				}),
+				cachedRead: vi.fn(async () => ""),
 			},
 		};
 		registerQuickAddCliHandlers(plugin);

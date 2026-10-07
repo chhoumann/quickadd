@@ -76,7 +76,8 @@ function createPlugin(choices: IChoice[]) {
 	const { byName, byId } = flattenChoices(choices);
 
 	const plugin = {
-		app: {},
+		// quickadd:list and the choice summaries read a Template's file for currentNote.
+		app: { vault: { getAbstractFileByPath: vi.fn(() => null) } },
 		settings: {
 			choices,
 		},
@@ -334,6 +335,7 @@ describe("registerQuickAddCliHandlers", () => {
 					file.path = path;
 					return file;
 				}),
+				cachedRead: vi.fn(async () => ""),
 			},
 		};
 	}
@@ -979,5 +981,109 @@ describe("registerQuickAddCliHandlers", () => {
 		);
 		expect(withoutFields.missing[0].options).toBeUndefined();
 		expect(withoutFields.missing[0].optionCount).toBe(3);
+	});
+});
+
+describe("registerQuickAddCliHandlers current= (the run's current note)", () => {
+	const executors: Array<IChoiceExecutor & { setCurrentFile: ReturnType<typeof vi.fn> }> = [];
+	const target = new TFile();
+	target.path = "Daily/Today.md";
+	const choice: IChoice = { id: "capture-id", name: "Capture", type: "Capture", command: true };
+
+	function setup() {
+		executors.length = 0;
+		ChoiceExecutorMock.mockReset();
+		ChoiceExecutorMock.mockImplementation(function ChoiceExecutorMock() {
+			const executor = {
+				...createChoiceExecutor(),
+				execute: vi.fn().mockResolvedValue(undefined),
+				executeWithOutcome: vi.fn().mockResolvedValue({ status: "success", file: target, effect: "changed" }),
+				variables: new Map<string, unknown>(),
+				consumeAbortSignal: vi.fn().mockReturnValue(null),
+				setCurrentFile: vi.fn(),
+			};
+			executors.push(executor);
+			return executor;
+		});
+		collectChoiceRequirementsMock.mockReset();
+		collectChoiceRequirementsMock.mockResolvedValue([]);
+		getUnresolvedRequirementsMock.mockReset();
+		getUnresolvedRequirementsMock.mockReturnValue([]);
+		interactiveServerMock.ensureStarted.mockResolvedValue(51789);
+		interactiveServerMock.createSession.mockReturnValue({ id: "session-1", token: "token-1" });
+		const { plugin, handlers } = createPlugin([choice]);
+		(plugin as unknown as { app: unknown }).app = {
+			vault: {
+				getFileByPath: vi.fn((path: string) => (path === target.path ? target : null)),
+				getAbstractFileByPath: vi.fn(() => null),
+			},
+		};
+		registerQuickAddCliHandlers(plugin);
+		const run = async (command: string, params: CliData) =>
+			JSON.parse(String(await handlers.find((handler) => handler.command === command)!.handler(params)));
+		return { run, plugin };
+	}
+
+	it("names the current note for run, run-template, check and interactive, tolerating an omitted .md", async () => {
+		const { run, plugin } = setup();
+
+		expect(await run("quickadd:run", { choice: "Capture", current: "Daily/Today" })).toMatchObject({ ok: true });
+		expect(executors[0].setCurrentFile).toHaveBeenCalledWith(target);
+		expect(executors[0].variables.has("current")).toBe(false);
+
+		expect(await run("quickadd:check", { choice: "Capture", current: "Daily/Today.md" })).toMatchObject({ ok: true });
+		expect(executors[1].setCurrentFile).toHaveBeenCalledWith(target);
+		expect(collectChoiceRequirementsMock.mock.invocationCallOrder.at(-1))
+			.toBeGreaterThan(executors[1].setCurrentFile.mock.invocationCallOrder[0]);
+
+		expect(await run("quickadd:interactive", { choice: "Capture", current: "Daily/Today.md" })).toMatchObject({ ok: true });
+		expect(executors[2].setCurrentFile).toHaveBeenCalledWith(target);
+
+		(plugin.app.vault.getAbstractFileByPath as ReturnType<typeof vi.fn>).mockImplementation((path: string) =>
+			path === "Templates/T.md" ? Object.assign(new TFile(), { path }) : null);
+		(plugin.app.vault as unknown as { cachedRead: unknown }).cachedRead = vi.fn(async () => "");
+		expect(await run("quickadd:run-template", { path: "Templates/T.md", "value-value": "Note", current: "Daily/Today.md" }))
+			.toMatchObject({ ok: true });
+		expect(executors[3].setCurrentFile).toHaveBeenCalledWith(target);
+	});
+
+	it("passes none as no current note and leaves an absent flag to the active tab", async () => {
+		const { run } = setup();
+
+		await run("quickadd:run", { choice: "Capture", current: "none" });
+		expect(executors[0].setCurrentFile).toHaveBeenCalledWith(null);
+
+		await run("quickadd:run", { choice: "Capture" });
+		expect(executors[1].setCurrentFile).not.toHaveBeenCalled();
+	});
+
+	it("refuses an unknown path before anything runs", async () => {
+		const { run } = setup();
+
+		expect(await run("quickadd:run", { choice: "Capture", current: "Nope.md" }))
+			.toEqual({ ok: false, command: "quickadd:run", error: "No note at 'Nope.md'." });
+		expect(executors[0].execute).not.toHaveBeenCalled();
+		expect(await run("quickadd:interactive", { choice: "Capture", current: "Nope" }))
+			.toMatchObject({ ok: false, error: "No note at 'Nope'." });
+		expect(interactiveServerMock.createSession).not.toHaveBeenCalled();
+	});
+
+	it("reports currentNote on listed choices and in the choice summary", async () => {
+		const { run } = setup();
+		const here = new CaptureChoice("Here");
+		here.captureToActiveFile = true;
+		const linked = new CaptureChoice("Linked");
+		linked.captureTo = "Inbox.md";
+		linked.appendLink = { enabled: true, placement: "replaceSelection", requireActiveFile: false };
+		const { plugin, handlers } = createPlugin([here, linked, { id: "m", name: "Macro", type: "Macro", command: false }]);
+		registerQuickAddCliHandlers(plugin);
+		const list = JSON.parse(String(await handlers.find((handler) => handler.command === "quickadd:list")!.handler({})));
+
+		expect(list.choices.map((entry: { name: string; currentNote: string }) => [entry.name, entry.currentNote]))
+			.toEqual([["Here", "required"], ["Linked", "optional"], ["Macro", "none"]]);
+
+		const checked = JSON.parse(String(await handlers.find((handler) => handler.command === "quickadd:check")!.handler({ choice: "Here" })));
+		expect(checked.choice).toEqual({ id: here.id, name: "Here", type: "Capture", currentNote: "required" });
+		void run;
 	});
 });

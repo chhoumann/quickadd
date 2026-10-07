@@ -2549,3 +2549,36 @@ describe("Capture cursor token scope", () => {
 		expect(await formatter.withPromptScope("captureText", input, () => formatter.formatFileContent(input))).toBe("before{{cursor}}after");
 	});
 });
+
+describe("CompleteFormatter - the run's current note", () => {
+	function formatterWithCurrentNote(
+		current: { path: string; basename: string } | null,
+		editorFile: { path: string } | null,
+		selection = "picked",
+	) {
+		const app = makeApp({ activeFile: { basename: "Active" }, selection, generatedLink: "" });
+		app.workspace.getActiveViewOfType = () =>
+			editorFile ? { file: editorFile, editor: { getSelection: () => selection } } : undefined;
+		app.fileManager.generateMarkdownLink = ((file: { basename: string }) => `[[${file.basename}]]`) as never;
+		const choiceExecutor = { variables: new Map<string, unknown>(), triggerContext: { activeFile: current } };
+		return new CompleteFormatter(app as any, makePlugin() as any, choiceExecutor as any);
+	}
+
+	const today = { path: "Daily/Today.md", basename: "Today" };
+
+	it("links and names the current note while another tab is active", async () => {
+		const f = formatterWithCurrentNote(today, { path: "Active.md" });
+		await expect(f.formatFileContent("{{LINKCURRENT}} {{FILENAMECURRENT}}")).resolves.toBe("[[Today]] Today");
+	});
+
+	it("fails the required tokens when the run has no current note, even with an active tab", async () => {
+		const f = formatterWithCurrentNote(null, { path: "Active.md" });
+		await expect(f.formatFileContent("{{LINKCURRENT}}")).rejects.toThrow(/Unable to get current file path/);
+	});
+
+	it("reads {{SELECTED}} only from an editor that shows the current note", async () => {
+		await expect(formatterWithCurrentNote(today, { path: "Active.md" }).formatFileContent("[{{SELECTED}}]")).resolves.toBe("[]");
+		await expect(formatterWithCurrentNote(today, today).formatFileContent("[{{SELECTED}}]")).resolves.toBe("[picked]");
+		await expect(formatterWithCurrentNote(null, { path: "Active.md" }).formatFileContent("[{{SELECTED}}]")).resolves.toBe("[]");
+	});
+});

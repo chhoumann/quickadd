@@ -79,3 +79,23 @@ export function getWritePosition(choice: ICaptureChoice): WritePosition {
 	if (choice.insertBefore?.enabled) return "before";
 	return "top";
 }
+
+/** Actions that write through the current note's editor at its cursor. */
+export function isEditorAction(action: CaptureAction): boolean {
+	return action === "currentLine" || action === "newLineAbove" || action === "newLineBelow";
+}
+
+/**
+ * The choice with its cursor position replaced by the position its other
+ * settings give: the bottom when it captures to the bottom, else the top. Used
+ * when no active editor shows the current note (a run that named it with
+ * `current=`), so the capture is written through the vault instead of failing.
+ */
+export function withoutCursorPosition(choice: ICaptureChoice): ICaptureChoice {
+	return {
+		...choice,
+		activeFileWritePosition:
+			choice.prepend || choice.activeFileWritePosition === "bottom" ? "bottom" : "top",
+		newLineCapture: { ...choice.newLineCapture, enabled: false },
+	};
+}

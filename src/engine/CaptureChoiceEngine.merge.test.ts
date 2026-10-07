@@ -47,7 +47,7 @@ vi.mock("../formatters/captureChoiceFormatter", () => ({
 
 vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(),
 	insertOnNewLineBelow: vi.fn(),
 	setMarkdownCursorAtOffset: vi.fn(),

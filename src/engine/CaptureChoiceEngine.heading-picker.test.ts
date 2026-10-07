@@ -33,7 +33,7 @@ vi.mock("src/gui/InputSuggester/inputSuggester", () => ({
 
 vi.mock("../utils/editorInsertion", () => ({
 	appendToCurrentLine: vi.fn(() => true),
-	insertFileLinkToActiveView: vi.fn(),
+	insertFileLinkToCurrentNote: vi.fn(),
 	insertOnNewLineAbove: vi.fn(() => true),
 	insertOnNewLineBelow: vi.fn(() => true),
 }));

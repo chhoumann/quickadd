@@ -77,7 +77,7 @@ vi.mock("../utils/vaultQueries", () => ({
 	getAllFolderPathsInVault: vi.fn(() => []),
 }));
 vi.mock("../utils/editorInsertion", () => ({
-	insertFileLinkToActiveView: insertFileLinkMock,
+	insertFileLinkToCurrentNote: insertFileLinkMock,
 }));
 vi.mock("../utils/fileOpening", () => ({
 	openExistingFileTab: openExistingFileTabMock,
